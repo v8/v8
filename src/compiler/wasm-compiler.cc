@@ -7175,14 +7175,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   int AddArgumentNodes(base::Vector<Node*> args, int pos, int param_count,
-                       const wasm::FunctionSig* sig, Node* context,
-                       int suspender_count) {
-    // Convert wasm numbers to JS values.
-    // Drop the instance node, and possibly the suspender node.
-    int param_offset = 1 + suspender_count;
-    for (int i = 0; i < param_count - suspender_count; ++i) {
-      Node* param = Param(i + param_offset);
-      args[pos++] = ToJS(param, sig->GetParam(i + suspender_count), context);
+                       const wasm::FunctionSig* sig, Node* context) {
+    // Convert wasm numbers to JS values and drop the instance node.
+    for (int i = 0; i < param_count; ++i) {
+      Node* param = Param(i + 1);
+      args[pos++] = ToJS(param, sig->GetParam(i), context);
     }
     return pos;
   }
@@ -7978,7 +7975,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                             wasm::Suspend suspend,
                             const wasm::WasmModule* module) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
-    int suspender_count = suspend == wasm::kSuspendWithSuspender ? 1 : 0;
 
     // Build the start and the parameter nodes.
     Start(wasm_count + 3);
@@ -8020,11 +8016,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // === JS Functions with matching arity ==================================
       // =======================================================================
       case wasm::ImportCallKind::kJSFunctionArityMatch:
-        DCHECK_EQ(expected_arity, wasm_count - suspender_count);
+        DCHECK_EQ(expected_arity, wasm_count);
         [[fallthrough]];
       case wasm::ImportCallKind::kJSFunctionArityMismatch: {
-        int pushed_count =
-            std::max(expected_arity, wasm_count - suspender_count);
+        int pushed_count = std::max(expected_arity, wasm_count);
         base::SmallVector<Node*, 16> args(pushed_count + 7);
         int pos = 0;
 
@@ -8035,13 +8030,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
         // Convert wasm numbers to JS values.
         pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_,
-                               native_context, suspender_count);
-        for (int i = wasm_count - suspender_count; i < expected_arity; ++i) {
+                               native_context);
+        for (int i = wasm_count; i < expected_arity; ++i) {
           args[pos++] = undefined_node;
         }
         args[pos++] = undefined_node;  // new target
-        args[pos++] = Int32Constant(
-            JSParameterCount(wasm_count - suspender_count));  // argument count
+        args[pos++] =
+            Int32Constant(JSParameterCount(wasm_count));  // argument count
 
         Node* function_context =
             gasm_->LoadContextFromJSFunction(callable_node);
@@ -8058,23 +8053,23 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // === General case of unknown callable ==================================
       // =======================================================================
       case wasm::ImportCallKind::kUseCallBuiltin: {
-        base::SmallVector<Node*, 16> args(wasm_count + 7 - suspender_count);
+        base::SmallVector<Node*, 16> args(wasm_count + 7);
         int pos = 0;
         args[pos++] =
             gasm_->GetBuiltinPointerTarget(Builtin::kCall_ReceiverIsAny);
         args[pos++] = callable_node;
-        args[pos++] = Int32Constant(
-            JSParameterCount(wasm_count - suspender_count));  // argument count
+        args[pos++] =
+            Int32Constant(JSParameterCount(wasm_count));     // argument count
         args[pos++] = undefined_node;                        // receiver
 
         auto call_descriptor = Linkage::GetStubCallDescriptor(
-            graph()->zone(), CallTrampolineDescriptor{},
-            wasm_count + 1 - suspender_count, CallDescriptor::kNoFlags,
-            Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
+            graph()->zone(), CallTrampolineDescriptor{}, wasm_count + 1,
+            CallDescriptor::kNoFlags, Operator::kNoProperties,
+            StubCallMode::kCallBuiltinPointer);
 
         // Convert wasm numbers to JS values.
         pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_,
-                               native_context, suspender_count);
+                               native_context);
 
         // The native_context is sufficient here, because all kind of callables
         // which depend on the context provide their own context. The context
@@ -8112,8 +8107,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Node* active_suspender =
           LOAD_MUTABLE_ROOT(ActiveSuspender, active_suspender);
       call = BuildSuspend(call, active_suspender, Param(0), &old_sp);
-    } else if (suspend == wasm::kSuspendWithSuspender) {
-      call = BuildSuspend(call, Param(1), Param(0), &old_sp);
     }
 
     // Convert the return value(s) back.
@@ -8370,7 +8363,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
           // Convert wasm numbers to JS values.
           pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_,
-                                 native_context, 0);
+                                 native_context);
 
           // The native_context is sufficient here, because all kind of
           // callables which depend on the context provide their own context.

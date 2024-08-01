@@ -528,20 +528,14 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
   void BuildWasmToJSWrapper(wasm::ImportCallKind kind, int expected_arity,
                             wasm::Suspend suspend, const WasmModule* module) {
-    int suspender_count = suspend == kSuspendWithSuspender ? 1 : 0;
-    int wasm_count =
-        static_cast<int>(sig_->parameter_count()) - suspender_count;
+    int wasm_count = static_cast<int>(sig_->parameter_count());
 
     __ Bind(__ NewBlock());
     base::SmallVector<OpIndex, 16> wasm_params(wasm_count);
     OpIndex ref = __ Parameter(0, RegisterRepresentation::Tagged());
-    V<HeapObject> suspender =
-        suspender_count == 1 ? __ Parameter(1, RegisterRepresentation::Tagged())
-                             : OpIndex::Invalid();
     for (int i = 0; i < wasm_count; ++i) {
-      RegisterRepresentation rep =
-          RepresentationFor(sig_->GetParam(i + suspender_count));
-      wasm_params[i] = (__ Parameter(1 + suspender_count + i, rep));
+      RegisterRepresentation rep = RepresentationFor(sig_->GetParam(i));
+      wasm_params[i] = (__ Parameter(1 + i, rep));
     }
 
     V<Context> native_context = __ Load(ref, LoadOp::Kind::TaggedBase(),
@@ -563,10 +557,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     base::SmallVector<OpIndex, 16> args(pushed_count + 4);
     // Position of the first wasm argument in the JS arguments.
     int pos = kind == ImportCallKind::kUseCallBuiltin ? 3 : 1;
-    // If {suspender_count} is 1, {wasm_count} includes the suspender argument,
-    // which is dropped in {AddArgumentNodes}.
     pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_params, sig_,
-                           native_context, suspender_count);
+                           native_context);
     for (int i = wasm_count; i < expected_arity; ++i) {
       args[pos++] = undefined_node;
     }
@@ -646,8 +638,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
     if (suspend == kSuspend) {
       call = BuildSuspend(call, LOAD_ROOT(ActiveSuspender), ref, &old_sp);
-    } else if (suspend == kSuspendWithSuspender) {
-      call = BuildSuspend(call, suspender, ref, &old_sp);
     }
 
     // Convert the return value(s) back.
@@ -1100,12 +1090,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   // Must be called in the first block to emit the Parameter ops.
   int AddArgumentNodes(base::Vector<OpIndex> args, int pos,
                        base::SmallVector<OpIndex, 16> wasm_params,
-                       const wasm::FunctionSig* sig, V<Context> context,
-                       int suspender_count) {
+                       const wasm::FunctionSig* sig, V<Context> context) {
     // Convert wasm numbers to JS values.
     for (size_t i = 0; i < wasm_params.size(); ++i) {
-      args[pos++] =
-          ToJS(wasm_params[i], sig->GetParam(i + suspender_count), context);
+      args[pos++] = ToJS(wasm_params[i], sig->GetParam(i), context);
     }
     return pos;
   }

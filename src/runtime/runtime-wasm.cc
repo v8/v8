@@ -626,15 +626,14 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   if (IsWasmFuncRef(*origin)) {
     // The tierup for `WasmInternalFunction is special, as there may not be an
     // instance.
-    int suspender_count = import_data->suspend() == wasm::kSuspendWithSuspender;
-    size_t expected_arity = sig.parameter_count() - suspender_count;
+    size_t expected_arity = sig.parameter_count();
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
     if (IsJSFunction(import_data->callable())) {
       Tagged<SharedFunctionInfo> shared =
           Cast<JSFunction>(import_data->callable())->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
-      if (expected_arity != sig.parameter_count() - suspender_count) {
+      if (expected_arity != sig.parameter_count()) {
         kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
       }
     }
@@ -714,9 +713,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
   wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
   // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
-  int suspender_count = resolved.suspend() == wasm::kSuspendWithSuspender;
-  int expected_arity =
-      static_cast<int>(sig.parameter_count()) - suspender_count;
+  int expected_arity = static_cast<int>(sig.parameter_count());
   if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
     expected_arity = Cast<JSFunction>(callable)
                          ->shared()
@@ -1387,7 +1384,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   HandleScope scope(isolate);
   DirectHandle<WasmSuspenderObject> suspender =
-      WasmSuspenderObject::New(isolate);
+      isolate->factory()->NewWasmSuspenderObject();
 
   // Update the continuation state.
   auto parent = handle(Cast<WasmContinuationObject>(

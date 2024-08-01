@@ -148,6 +148,7 @@ class RootVisitor;
   IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \
   IF_WASM(V, Map, wasm_null_map, WasmNullMap)                                  \
   IF_WASM(V, Map, wasm_resume_data_map, WasmResumeDataMap)                     \
+  IF_WASM(V, Map, wasm_suspender_object_map, WasmSuspenderObjectMap)           \
   IF_WASM(V, Map, wasm_trusted_instance_data_map, WasmTrustedInstanceDataMap)  \
   IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \

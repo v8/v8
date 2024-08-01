@@ -31,8 +31,8 @@ class Zone;
 
 namespace wasm {
 class ErrorThrower;
-enum Suspend : int { kSuspend, kSuspendWithSuspender, kNoSuspend };
-enum Promise : int { kPromise, kPromiseWithSuspender, kNoPromise };
+enum Suspend : int { kSuspend, kNoSuspend };
+enum Promise : int { kPromise, kNoPromise };
 struct WasmModule;
 
 // Calls to Wasm imports are handled in several different ways, depending on the

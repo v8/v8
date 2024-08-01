@@ -1342,10 +1342,11 @@ class WasmContinuationObject
 // The suspender object provides an API to suspend and resume wasm code using
 // promises. See: https://github.com/WebAssembly/js-promise-integration.
 class WasmSuspenderObject
-    : public TorqueGeneratedWasmSuspenderObject<WasmSuspenderObject, JSObject> {
+    : public TorqueGeneratedWasmSuspenderObject<WasmSuspenderObject,
+                                                HeapObject> {
  public:
+  using BodyDescriptor = FixedBodyDescriptorFor<WasmSuspenderObject>;
   enum State : int { kInactive = 0, kActive, kSuspended };
-  static Handle<WasmSuspenderObject> New(Isolate* isolate);
   DECL_PRINTER(WasmSuspenderObject)
   TQ_OBJECT_CONSTRUCTORS(WasmSuspenderObject)
 };

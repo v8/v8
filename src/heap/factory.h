@@ -769,6 +769,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash);
   Handle<WasmResumeData> NewWasmResumeData(
       DirectHandle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
+  Handle<WasmSuspenderObject> NewWasmSuspenderObject();
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args,
                                    DirectHandle<Map> map);

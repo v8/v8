@@ -1781,6 +1781,43 @@ Handle<WasmResumeData> Factory::NewWasmResumeData(
   return handle(result, isolate());
 }
 
+Handle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
+  DirectHandle<JSPromise> promise = NewJSPromise();
+  Tagged<Map> map = *wasm_suspender_object_map();
+  Tagged<WasmSuspenderObject> obj =
+      Cast<WasmSuspenderObject>(AllocateRawWithImmortalMap(
+          map->instance_size(), AllocationType::kOld, map));
+  auto suspender = handle(obj, isolate());
+  // Ensure that all properties are initialized before the allocation below.
+  suspender->set_continuation(*undefined_value());
+  suspender->set_parent(*undefined_value());
+  suspender->set_promise(*promise);
+  suspender->set_resume(*undefined_value());
+  suspender->set_reject(*undefined_value());
+  suspender->set_state(WasmSuspenderObject::kInactive);
+  suspender->set_has_js_frames(0);
+  // Instantiate the callable object which resumes this Suspender. This will be
+  // used implicitly as the onFulfilled callback of the returned JS promise.
+  DirectHandle<WasmResumeData> resume_data =
+      NewWasmResumeData(suspender, wasm::OnResume::kContinue);
+  Handle<SharedFunctionInfo> resume_sfi =
+      NewSharedFunctionInfoForWasmResume(resume_data);
+  Handle<Context> context(isolate()->native_context());
+  DirectHandle<JSObject> resume =
+      Factory::JSFunctionBuilder{isolate(), resume_sfi, context}.Build();
+
+  DirectHandle<WasmResumeData> reject_data =
+      isolate()->factory()->NewWasmResumeData(suspender,
+                                              wasm::OnResume::kThrow);
+  Handle<SharedFunctionInfo> reject_sfi =
+      isolate()->factory()->NewSharedFunctionInfoForWasmResume(reject_data);
+  DirectHandle<JSObject> reject =
+      Factory::JSFunctionBuilder{isolate(), reject_sfi, context}.Build();
+  suspender->set_resume(*resume);
+  suspender->set_reject(*reject);
+  return suspender;
+}
+
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<Code> export_wrapper,
     DirectHandle<WasmTrustedInstanceData> instance_data,

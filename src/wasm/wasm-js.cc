@@ -1910,36 +1910,6 @@ void WebAssemblyTagImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(Utils::ToLocal(tag_object));
 }
 
-// WebAssembly.Suspender
-void WebAssemblySuspender(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(i::ValidateCallbackInfo(info));
-  v8::Isolate* isolate = info.GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  HandleScope scope(isolate);
-
-  ErrorThrower thrower(i_isolate, "WebAssembly.Suspender()");
-  if (!info.IsConstructCall()) {
-    thrower.TypeError("WebAssembly.Suspender must be invoked with 'new'");
-    return;
-  }
-
-  i::Handle<i::JSObject> suspender = i::WasmSuspenderObject::New(i_isolate);
-
-  // The infrastructure for `new Foo` calls allocates an object, which is
-  // available here as {info.This()}. We're going to discard this object
-  // and use {suspender} instead, but it does have the correct prototype,
-  // which we must harvest from it. This makes a difference when the JS
-  // constructor function wasn't {WebAssembly.Suspender} directly, but some
-  // subclass: {suspender} has {WebAssembly.Suspender}'s prototype at this
-  // point, so we must overwrite that with the correct prototype for {Foo}.
-  if (!TransferPrototype(i_isolate, suspender,
-                         Utils::OpenHandle(*info.This()))) {
-    DCHECK(i_isolate->has_exception());
-    return;
-  }
-  info.GetReturnValue().Set(Utils::ToLocal(suspender));
-}
-
 namespace {
 
 uint32_t GetEncodedSize(i::DirectHandle<i::WasmTagObject> tag_object) {
@@ -2114,81 +2084,9 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       Utils::ToLocal(i::Cast<i::Object>(runtime_exception)));
 }
 
-namespace {
-bool HasJSPromiseIntegrationFlag(Isolate* isolate, Local<Object> usage_obj,
-                                 ErrorThrower* thrower, const char* flag_name) {
-  Local<Context> context = isolate->GetCurrentContext();
-  Local<String> flag_str = v8_str(isolate, flag_name);
-  Local<String> first_str = v8_str(isolate, "first");
-  Local<String> last_str = v8_str(isolate, "last");
-  Local<String> none_str = v8_str(isolate, "none");
-  v8::MaybeLocal<v8::Value> maybe_flag = usage_obj->Get(context, flag_str);
-  v8::Local<Value> flag_value;
-  v8::Local<String> flag_value_str;
-  if (maybe_flag.ToLocal(&flag_value) && !flag_value->IsUndefined() &&
-      flag_value->ToString(context).ToLocal(&flag_value_str)) {
-    if (!flag_value_str->StringEquals(first_str) &&
-        !flag_value_str->StringEquals(last_str) &&
-        !flag_value_str->StringEquals(none_str)) {
-      thrower->TypeError(
-          "JS Promise Integration: Expected suspender "
-          "position to be \"first\", \"last\" or \"none\"");
-      return false;
-    } else if (flag_value_str->StringEquals(last_str)) {
-      // TODO(thibaudm): Support the "last" position.
-      UNIMPLEMENTED();
-    } else if (flag_value_str->StringEquals(first_str)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Given {inner_sig}: [ti*] -> [to*]
-// {outer_sig} must be: [externref ti*] -> [to*]
-bool IsSuspendingSignature(const i::wasm::FunctionSig* inner_sig,
-                           const i::wasm::FunctionSig* outer_sig) {
-  // Checked by the caller.
-  DCHECK_GT(outer_sig->parameter_count(), 0);
-  DCHECK_EQ(outer_sig->GetParam(0), i::wasm::kWasmExternRef);
-  if (inner_sig->parameter_count() + 1 != outer_sig->parameter_count()) {
-    return false;
-  }
-  if (inner_sig->return_count() != outer_sig->return_count()) {
-    return false;
-  }
-  for (size_t i = 1; i < outer_sig->parameter_count(); ++i) {
-    if (outer_sig->GetParam(i) != inner_sig->GetParam(i - 1)) return false;
-  }
-  for (size_t i = 0; i < outer_sig->return_count(); ++i) {
-    if (outer_sig->GetReturn(i) != inner_sig->GetReturn(i)) return false;
-  }
-  return true;
-}
-
-// Given {inner_sig}: externref [ti*] -> [to*]
-// {outer_sig} must be: [ti*] -> [externref]
-bool IsPromisingSignature(const i::wasm::FunctionSig* inner_sig,
-                          const i::wasm::FunctionSig* outer_sig) {
-  if (inner_sig->parameter_count() != outer_sig->parameter_count() + 1) {
-    return false;
-  }
-  if (outer_sig->return_count() != 1) {
-    return false;
-  }
-  if (inner_sig->GetParam(0) != i::wasm::kWasmExternRef) return false;
-  for (size_t i = 0; i < outer_sig->parameter_count(); ++i) {
-    if (outer_sig->GetParam(i) != inner_sig->GetParam(i + 1)) return false;
-  }
-  if (outer_sig->GetReturn(0) != i::wasm::kWasmExternRef) return false;
-  return true;
-}
-
-}  // namespace
-
 i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
     i::Isolate* i_isolate, i::DirectHandle<i::WasmExportedFunctionData> data,
-    ErrorThrower& thrower, bool with_suspender_param) {
+    ErrorThrower& thrower) {
   i::DirectHandle<i::WasmTrustedInstanceData> trusted_instance_data{
       data->instance_data(), i_isolate};
   int func_index = data->function_index();
@@ -2202,9 +2100,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
     wrapper =
         i::DirectHandle<i::Code>(data->wrapper_code(i_isolate), i_isolate);
   } else {
-    wrapper = with_suspender_param
-                  ? BUILTIN_CODE(i_isolate, WasmPromisingWithSuspender)
-                  : BUILTIN_CODE(i_isolate, WasmPromising);
+    wrapper = BUILTIN_CODE(i_isolate, WasmPromising);
   }
 
   // TODO(14034): Create funcref RTTs lazily?
@@ -2341,7 +2237,6 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
   const i::wasm::FunctionSig* sig = builder.Build();
   i::wasm::Suspend suspend = i::wasm::kNoSuspend;
-  i::wasm::Promise promise = i::wasm::kNoPromise;
 
   i::Handle<i::JSReceiver> callable = Utils::OpenHandle(*info[1].As<Object>());
   if (i::IsWasmSuspendingObject(*callable)) {
@@ -2354,78 +2249,6 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  if (i_isolate->IsWasmJSPIEnabled(i_isolate->native_context())) {
-    // Optional third argument for JS Promise Integration.
-    if (!info[2]->IsNullOrUndefined() && !info[2]->IsObject()) {
-      thrower.TypeError(
-          "Expected argument 3 to be an object with a "
-          "'suspending' or 'promising' property");
-      return;
-    }
-    if (info[2]->IsObject()) {
-      Local<Object> usage_obj = Local<Object>::Cast(info[2]);
-      if (HasJSPromiseIntegrationFlag(isolate, usage_obj, &thrower,
-                                      "suspending")) {
-        suspend = i::wasm::kSuspendWithSuspender;
-        i_isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
-      }
-      if (HasJSPromiseIntegrationFlag(isolate, usage_obj, &thrower,
-                                      "promising")) {
-        promise = i::wasm::kPromiseWithSuspender;
-        i_isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
-      }
-    }
-  }
-
-  bool is_wasm_exported_function =
-      i::WasmExportedFunction::IsWasmExportedFunction(*callable);
-  bool is_wasm_js_function = i::WasmJSFunction::IsWasmJSFunction(*callable);
-
-  if (is_wasm_exported_function && suspend != i::wasm::kNoSuspend) {
-    // TODO(thibaudm): Support wasm-to-wasm calls with suspending behavior, and
-    // also with combined promising+suspending behavior.
-    UNIMPLEMENTED();
-  }
-  if (is_wasm_exported_function && promise != i::wasm::kNoPromise) {
-    auto wasm_exported_function = i::Cast<i::WasmExportedFunction>(*callable);
-    i::DirectHandle<i::WasmExportedFunctionData> data(
-        wasm_exported_function->shared()->wasm_exported_function_data(),
-        i_isolate);
-    if (!IsPromisingSignature(data->sig(), sig)) {
-      thrower.TypeError("Incompatible signature for promising function");
-      return;
-    }
-    bool with_suspender_param = promise == i::wasm::kPromiseWithSuspender;
-    i::Handle<i::JSFunction> result = NewPromisingWasmExportedFunction(
-        i_isolate, data, thrower, with_suspender_param);
-    info.GetReturnValue().Set(Utils::ToLocal(result));
-    return;
-  }
-  if (is_wasm_js_function && promise != i::wasm::kNoPromise) {
-    // TODO(thibaudm): This case has no practical use. The generated suspender
-    // would be unusable since the stack would always contain at least one JS
-    // frame. But for now the spec would require us to add specific JS-to-JS and
-    // wasm-to-JS wrappers to support this case. Leave this unimplemented for
-    // now.
-    UNIMPLEMENTED();
-  }
-  if (suspend == internal::wasm::kSuspendWithSuspender) {
-    if (sig->parameter_count() == 0 ||
-        sig->GetParam(0) != i::wasm::kWasmExternRef) {
-      thrower.TypeError("Incompatible signature for suspending function");
-      return;
-    }
-    if (is_wasm_js_function) {
-      // Check that the rest of the signature matches.
-      auto wasm_js_function = i::Cast<i::WasmJSFunction>(*callable);
-      const i::wasm::FunctionSig* inner_sig =
-          wasm_js_function->shared()->wasm_js_function_data()->GetSignature();
-      if (!IsSuspendingSignature(inner_sig, sig)) {
-        thrower.TypeError("Incompatible signature for suspending function");
-        return;
-      }
-    }
-  }
   i::Handle<i::JSFunction> result =
       i::WasmJSFunction::New(i_isolate, sig, callable, suspend);
   info.GetReturnValue().Set(Utils::ToLocal(result));
@@ -2454,9 +2277,8 @@ void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::DirectHandle<i::WasmExportedFunctionData> data(
       wasm_exported_function->shared()->wasm_exported_function_data(),
       i_isolate);
-  bool with_suspender_param = false;
-  i::Handle<i::JSFunction> result = NewPromisingWasmExportedFunction(
-      i_isolate, data, thrower, with_suspender_param);
+  i::Handle<i::JSFunction> result =
+      NewPromisingWasmExportedFunction(i_isolate, data, thrower);
   info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
   return;
 }
@@ -2507,21 +2329,12 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
         data->instance_data()->module()->functions[data->function_index()].sig;
     i::wasm::Promise promise_flags =
         i::WasmFunctionData::PromiseField::decode(data->js_promise_flags());
-    if (promise_flags != i::wasm::kNoPromise) {
-      // If this export is "promising", the first parameter of the original
-      // function is an externref (suspender) which does not appear in the
-      // wrapper function's signature. The wrapper function also returns a
-      // promise as an externref instead of the original return type.
+    if (promise_flags == i::wasm::kPromise) {
+      // The wrapper function returns a promise as an externref instead of the
+      // original return type.
       size_t param_count = sig->parameter_count();
-      int suspender_count =
-          promise_flags == internal::wasm::kPromiseWithSuspender ? 1 : 0;
-      if (suspender_count == 1) {
-        DCHECK_GE(param_count, 1);
-        DCHECK_EQ(sig->GetParam(0), i::wasm::kWasmExternRef);
-      }
-      i::wasm::FunctionSig::Builder builder(&zone, 1,
-                                            param_count - suspender_count);
-      for (size_t i = suspender_count; i < param_count; ++i) {
+      i::wasm::FunctionSig::Builder builder(&zone, 1, param_count);
+      for (size_t i = 0; i < param_count; ++i) {
         builder.AddParam(sig->GetParam(i));
       }
       builder.AddReturn(i::wasm::kWasmExternRef);
@@ -3612,11 +3425,6 @@ bool WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
           .FromMaybe(true)) {
     return false;
   }
-  Handle<JSFunction> suspender_constructor = InstallConstructorFunc(
-      isolate, webassembly, "Suspender", WebAssemblySuspender);
-  context->set_wasm_suspender_constructor(*suspender_constructor);
-  SetupConstructor(isolate, suspender_constructor, WASM_SUSPENDER_OBJECT_TYPE,
-                   WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
   Handle<JSFunction> suspending_constructor = InstallConstructorFunc(
       isolate, webassembly, "Suspending", WebAssemblySuspendingImpl);
   context->set_wasm_suspending_constructor(*suspending_constructor);

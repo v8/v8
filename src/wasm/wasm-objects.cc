@@ -16,6 +16,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
+#include "src/roots/roots-inl.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment-inl.h"
@@ -1867,8 +1868,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-  int num_suspender = resolved.suspend() == wasm::kSuspendWithSuspender ? 1 : 0;
-  int expected_arity = static_cast<int>(sig->parameter_count()) - num_suspender;
+  int expected_arity = static_cast<int>(sig->parameter_count());
   if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
     expected_arity = Cast<JSFunction>(callable)
                          ->shared()
@@ -2329,42 +2329,6 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
   auto parent = ReadOnlyRoots(isolate).undefined_value();
   return New(isolate, stack, state, handle(parent, isolate), allocation_type);
 }
-
-// static
-Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
-  Handle<JSFunction> suspender_cons(
-      isolate->native_context()->wasm_suspender_constructor(), isolate);
-  DirectHandle<JSPromise> promise = isolate->factory()->NewJSPromise();
-  auto suspender = Cast<WasmSuspenderObject>(
-      isolate->factory()->NewJSObject(suspender_cons));
-  // Fields are pre-initialized to undefined, but undefined is not a valid value
-  // for has_js_frames (Smi), state (Smi) and promise (JSPromise). Ensure
-  // that they are initialized before the allocation below.
-  suspender->set_has_js_frames(0);
-  suspender->set_promise(*promise);
-  suspender->set_state(kInactive);
-  // Instantiate the callable object which resumes this Suspender. This will be
-  // used implicitly as the onFulfilled callback of the returned JS promise.
-  DirectHandle<WasmResumeData> resume_data =
-      isolate->factory()->NewWasmResumeData(suspender,
-                                            wasm::OnResume::kContinue);
-  Handle<SharedFunctionInfo> resume_sfi =
-      isolate->factory()->NewSharedFunctionInfoForWasmResume(resume_data);
-  Handle<Context> context(isolate->native_context());
-  DirectHandle<JSObject> resume =
-      Factory::JSFunctionBuilder{isolate, resume_sfi, context}.Build();
-
-  DirectHandle<WasmResumeData> reject_data =
-      isolate->factory()->NewWasmResumeData(suspender, wasm::OnResume::kThrow);
-  Handle<SharedFunctionInfo> reject_sfi =
-      isolate->factory()->NewSharedFunctionInfoForWasmResume(reject_data);
-  DirectHandle<JSObject> reject =
-      Factory::JSFunctionBuilder{isolate, reject_sfi, context}.Build();
-  suspender->set_resume(*resume);
-  suspender->set_reject(*reject);
-  return suspender;
-}
-
 #ifdef DEBUG
 
 namespace {
@@ -2431,8 +2395,7 @@ bool WasmExportedFunction::IsWasmExportedFunction(Tagged<Object> object) {
       code->builtin_id() != Builtin::kGenericJSToWasmInterpreterWrapper &&
 #endif  // V8_ENABLE_DRUMBRAKE
       code->builtin_id() != Builtin::kJSToWasmWrapper &&
-      code->builtin_id() != Builtin::kWasmPromising &&
-      code->builtin_id() != Builtin::kWasmPromisingWithSuspender) {
+      code->builtin_id() != Builtin::kWasmPromising) {
     return false;
   }
   DCHECK(js_function->shared()->HasWasmExportedFunctionData());
@@ -2483,25 +2446,22 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
     DirectHandle<Code> export_wrapper) {
-  DCHECK(
-      CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
-      (export_wrapper->is_builtin() &&
-       (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
+  DCHECK(CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
+         (export_wrapper->is_builtin() &&
+          (export_wrapper->builtin_id() == Builtin::kJSToWasmWrapper ||
 #if V8_ENABLE_DRUMBRAKE
-        export_wrapper->builtin_id() ==
-            Builtin::kGenericJSToWasmInterpreterWrapper ||
+           export_wrapper->builtin_id() ==
+               Builtin::kGenericJSToWasmInterpreterWrapper ||
 #endif  // V8_ENABLE_DRUMBRAKE
-        export_wrapper->builtin_id() == Builtin::kWasmPromising ||
-        export_wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender)));
+           export_wrapper->builtin_id() == Builtin::kWasmPromising)));
   int func_index = internal_function->function_index();
   Factory* factory = isolate->factory();
   const wasm::WasmModule* module = instance_data->module();
   const wasm::FunctionSig* sig = module->functions[func_index].sig;
   DirectHandle<Map> rtt;
   wasm::Promise promise =
-      export_wrapper->builtin_id() == Builtin::kWasmPromising ? wasm::kPromise
-      : export_wrapper->builtin_id() == Builtin::kWasmPromisingWithSuspender
-          ? wasm::kPromiseWithSuspender
+      export_wrapper->builtin_id() == Builtin::kWasmPromising
+          ? wasm::kPromise
           : wasm::kNoPromise;
   uint32_t sig_index = module->functions[func_index].sig_index;
   uint32_t canonical_type_index =
@@ -2679,14 +2639,13 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     internal_function->set_call_target(
         Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
   } else {
-    int suspender_count = suspend == wasm::kSuspendWithSuspender ? 1 : 0;
-    int expected_arity = parameter_count - suspender_count;
+    int expected_arity = parameter_count;
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
     if (IsJSFunction(*callable)) {
       Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(callable)->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
-      if (expected_arity != parameter_count - suspender_count) {
+      if (expected_arity != parameter_count) {
         kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
       }
     }

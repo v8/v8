@@ -148,7 +148,7 @@ extern class WasmContinuationObject extends HeapObject {
   jmpbuf: ExternalPointer;  // Direct access to the stack's jump buffer.
 }
 
-extern class WasmSuspenderObject extends JSObject {
+extern class WasmSuspenderObject extends HeapObject {
   continuation: WasmContinuationObject|Undefined;
   parent: WasmSuspenderObject|Undefined;
   promise: JSPromise;
