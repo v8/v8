@@ -11277,7 +11277,8 @@ InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
   DCHECK_LT(vobject->size(), kMaxRegularHeapObjectSize);
   if (!current_allocation_block_ ||
       current_allocation_block_->allocation_type() != allocation_type ||
-      !v8_flags.inline_new) {
+      !v8_flags.inline_new ||
+      compilation_unit()->info()->for_turboshaft_frontend()) {
     current_allocation_block_ =
         AddNewNode<AllocationBlock>({}, allocation_type);
   }
