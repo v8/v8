@@ -191,6 +191,7 @@ class MaglevGraphBuilder {
       LocalIsolate* local_isolate, MaglevCompilationUnit* compilation_unit,
       Graph* graph, float call_frequency = 1.0f,
       BytecodeOffset caller_bytecode_offset = BytecodeOffset::None(),
+      bool caller_is_inside_loop = false,
       int inlining_id = SourcePosition::kNotInlined,
       MaglevGraphBuilder* parent = nullptr);
 
@@ -2763,6 +2764,23 @@ class MaglevGraphBuilder {
     return is_inline() && (argument_count() != parameter_count());
   }
 
+  bool IsInsideLoop() const {
+    if (caller_is_inside_loop_) return true;
+    int loop_header_offset =
+        bytecode_analysis().GetLoopOffsetFor(iterator_.current_offset());
+    if (loop_header_offset != -1) {
+      const compiler::LoopInfo& loop_info =
+          bytecode_analysis().GetLoopInfoFor(loop_header_offset);
+      if (loop_info.parent_offset() == -1) {
+        // This is the outmost loop, if we're actually inside the peel, we are
+        // not really in a loop.
+        return !in_peeled_iteration() || in_optimistic_peeling_iteration();
+      }
+      return true;
+    }
+    return false;
+  }
+
   // The fake offset used as a target for all exits of an inlined function.
   int inline_exit_offset() const {
     DCHECK(is_inline());
@@ -2790,7 +2808,7 @@ class MaglevGraphBuilder {
   bool any_peeled_loop_ = false;
   bool allow_loop_peeling_;
 
-  bool in_peeled_iteration() {
+  bool in_peeled_iteration() const {
     DCHECK_GE(peeled_iteration_count_, 0);
     return peeled_iteration_count_ > 0;
   }
@@ -2799,7 +2817,7 @@ class MaglevGraphBuilder {
   // is the optimistic iteration. At the end we try to compile the JumpLoop and
   // only proceed with the fallback iteration 0, if the loop state is
   // incompatible with the loop end state.
-  bool in_optimistic_peeling_iteration() {
+  bool in_optimistic_peeling_iteration() const {
     return v8_flags.maglev_optimistic_peeled_loops &&
            peeled_iteration_count_ == 1;
   }
@@ -2845,6 +2863,7 @@ class MaglevGraphBuilder {
 
   base::Vector<ValueNode*> inlined_arguments_;
   BytecodeOffset caller_bytecode_offset_;
+  bool caller_is_inside_loop_;
   ValueNode* inlined_new_target_ = nullptr;
 
   // Bytecode offset at which compilation should start.

@@ -870,12 +870,10 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
   }
 }
 
-MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
-                                       MaglevCompilationUnit* compilation_unit,
-                                       Graph* graph, float call_frequency,
-                                       BytecodeOffset caller_bytecode_offset,
-                                       int inlining_id,
-                                       MaglevGraphBuilder* parent)
+MaglevGraphBuilder::MaglevGraphBuilder(
+    LocalIsolate* local_isolate, MaglevCompilationUnit* compilation_unit,
+    Graph* graph, float call_frequency, BytecodeOffset caller_bytecode_offset,
+    bool caller_is_inside_loop, int inlining_id, MaglevGraphBuilder* parent)
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
       parent_(parent),
@@ -910,6 +908,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
           is_inline() ? parent->current_interpreter_frame_.virtual_objects()
                       : VirtualObject::List()),
       caller_bytecode_offset_(caller_bytecode_offset),
+      caller_is_inside_loop_(caller_is_inside_loop),
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
                       : 0),
@@ -4144,9 +4143,7 @@ bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
   if (offset == HeapObject::kMapOffset) return false;
   // We don't support loop phis inside VirtualObjects, so any access inside a
   // loop should escape the object.
-  if (bytecode_analysis().GetLoopOffsetFor(iterator_.current_offset()) != -1) {
-    return false;
-  }
+  if (IsInsideLoop()) return false;
   if (InlinedAllocation* alloc = receiver->TryCast<InlinedAllocation>()) {
     if (alloc->IsEscaping()) return false;
     // TODO(victorgomes): Support modifying contexts. Currently
@@ -6951,7 +6948,8 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
       zone(), compilation_unit_, shared, feedback_vector.value());
   MaglevGraphBuilder inner_graph_builder(
       local_isolate_, inner_unit, graph_, call_frequency,
-      BytecodeOffset(iterator_.current_offset()), inlining_id, this);
+      BytecodeOffset(iterator_.current_offset()), IsInsideLoop(), inlining_id,
+      this);
 
   // Merge catch block state if needed.
   CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
@@ -7362,8 +7360,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     }
     // TODO(victorgomes): This effectively disable the optimization for `for-of`
     // loops. We need to figure it out a way to re-enable this.
-    if (bytecode_analysis().GetLoopOffsetFor(iterator_.current_offset()) !=
-        -1) {
+    if (IsInsideLoop()) {
       FAIL("we're inside a loop, iterated object map could change");
     }
     auto map = array->map();
@@ -9286,9 +9283,7 @@ std::optional<VirtualObject*>
 MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
   // Although the arguments object has not been changed so far, since it is not
   // escaping, it could be modified after this bytecode if it is inside a loop.
-  if (bytecode_analysis().GetLoopOffsetFor(iterator_.current_offset()) != -1) {
-    return {};
-  }
+  if (IsInsideLoop()) return {};
   if (!value->Is<InlinedAllocation>()) return {};
   InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
   // TODO(victorgomes): We can probably loosen the IsNotEscaping requirement if
