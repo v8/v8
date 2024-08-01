@@ -141,15 +141,14 @@ WASM_EXEC_TEST(F16x8ExtractLane) {
   V(Trunc, truncf)    \
   V(NearestInt, nearbyintf)
 
-#define TEST_UN_OP(WasmName, COp)                                       \
-  uint16_t WasmName##F16(uint16_t a) {                                  \
-    return fp16_ieee_from_fp32_value(COp(fp16_ieee_to_fp32_value(a)));  \
-  }                                                                     \
-  WASM_EXEC_TEST(F16x8##WasmName) {                                     \
-    i::v8_flags.experimental_wasm_fp16 = true;                          \
-    i::v8_flags.turboshaft_wasm = true;                                 \
-    RunF16x8UnOpTest(TestExecutionTier::kLiftoff, kExprF16x8##WasmName, \
-                     WasmName##F16);                                    \
+#define TEST_UN_OP(WasmName, COp)                                          \
+  uint16_t WasmName##F16(uint16_t a) {                                     \
+    return fp16_ieee_from_fp32_value(COp(fp16_ieee_to_fp32_value(a)));     \
+  }                                                                        \
+  WASM_EXEC_TEST(F16x8##WasmName) {                                        \
+    i::v8_flags.experimental_wasm_fp16 = true;                             \
+    i::v8_flags.turboshaft_wasm = true;                                    \
+    RunF16x8UnOpTest(execution_tier, kExprF16x8##WasmName, WasmName##F16); \
   }
 
 UN_OP_LIST(TEST_UN_OP)
@@ -213,7 +212,7 @@ BIN_OP_LIST(TEST_BIN_OP)
 WASM_EXEC_TEST(F16x8ConvertI16x8) {
   i::v8_flags.experimental_wasm_fp16 = true;
   i::v8_flags.turboshaft_wasm = true;
-  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kLiftoff);
+  WasmRunner<int32_t, int32_t> r(execution_tier);
   // Create two output vectors to hold signed and unsigned results.
   uint16_t* g0 = r.builder().AddGlobal<uint16_t>(kWasmS128);
   uint16_t* g1 = r.builder().AddGlobal<uint16_t>(kWasmS128);
@@ -257,7 +256,7 @@ int16_t ConvertToInt(uint16_t f16, bool unsigned_result) {
 WASM_EXEC_TEST(I16x8ConvertF16x8) {
   i::v8_flags.experimental_wasm_fp16 = true;
   i::v8_flags.turboshaft_wasm = true;
-  WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoff);
+  WasmRunner<int32_t, float> r(execution_tier);
   // Create two output vectors to hold signed and unsigned results.
   int16_t* g0 = r.builder().AddGlobal<int16_t>(kWasmS128);
   int16_t* g1 = r.builder().AddGlobal<int16_t>(kWasmS128);
@@ -287,7 +286,7 @@ WASM_EXEC_TEST(I16x8ConvertF16x8) {
 WASM_EXEC_TEST(F16x8DemoteF32x4Zero) {
   i::v8_flags.experimental_wasm_fp16 = true;
   i::v8_flags.turboshaft_wasm = true;
-  WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoff);
+  WasmRunner<int32_t, float> r(execution_tier);
   uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
                0, WASM_SIMD_UNOP(kExprF16x8DemoteF32x4Zero,
@@ -311,7 +310,7 @@ WASM_EXEC_TEST(F16x8DemoteF32x4Zero) {
 WASM_EXEC_TEST(F16x8DemoteF64x2Zero) {
   i::v8_flags.experimental_wasm_fp16 = true;
   i::v8_flags.turboshaft_wasm = true;
-  WasmRunner<int32_t, double> r(TestExecutionTier::kLiftoff);
+  WasmRunner<int32_t, double> r(execution_tier);
   uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
                0, WASM_SIMD_UNOP(kExprF16x8DemoteF64x2Zero,
@@ -335,7 +334,7 @@ WASM_EXEC_TEST(F16x8DemoteF64x2Zero) {
 WASM_EXEC_TEST(F32x4PromoteLowF16x8) {
   i::v8_flags.experimental_wasm_fp16 = true;
   i::v8_flags.turboshaft_wasm = true;
-  WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoff);
+  WasmRunner<int32_t, float> r(execution_tier);
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
                0, WASM_SIMD_UNOP(kExprF32x4PromoteLowF16x8,
@@ -399,9 +398,10 @@ base::Vector<const FMOperation> qfms_vector() {
   return base::ArrayVector(qfms_array);
 }
 
-TEST(F16x8Qfma) {
+WASM_EXEC_TEST(F16x8Qfma) {
   i::v8_flags.experimental_wasm_fp16 = true;
-  WasmRunner<int32_t, float, float, float> r(TestExecutionTier::kLiftoff);
+  i::v8_flags.turboshaft_wasm = true;
+  WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold output.
   uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
   uint8_t value1 = 0, value2 = 1, value3 = 2;
@@ -421,9 +421,10 @@ TEST(F16x8Qfma) {
   }
 }
 
-TEST(F16x8Qfms) {
+WASM_EXEC_TEST(F16x8Qfms) {
   i::v8_flags.experimental_wasm_fp16 = true;
-  WasmRunner<int32_t, float, float, float> r(TestExecutionTier::kLiftoff);
+  i::v8_flags.turboshaft_wasm = true;
+  WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold output.
   uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
   uint8_t value1 = 0, value2 = 1, value3 = 2;

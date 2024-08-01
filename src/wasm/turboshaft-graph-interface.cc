@@ -3430,6 +3430,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         HANDLE_F16X8_UN_OPCODE(F16x8Ceil, wasm_f16x8_ceil)
         HANDLE_F16X8_UN_OPCODE(F16x8Floor, wasm_f16x8_floor)
         HANDLE_F16X8_UN_OPCODE(F16x8Trunc, wasm_f16x8_trunc)
+        HANDLE_F16X8_UN_OPCODE(F16x8NearestInt, wasm_f16x8_nearest_int)
         HANDLE_F16X8_UN_OPCODE(I16x8SConvertF16x8, wasm_i16x8_sconvert_f16x8)
         HANDLE_F16X8_UN_OPCODE(I16x8UConvertF16x8, wasm_i16x8_uconvert_f16x8)
         HANDLE_F16X8_UN_OPCODE(F16x8SConvertI16x8, wasm_f16x8_sconvert_i16x8)
@@ -3441,6 +3442,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         HANDLE_F16X8_UN_OPCODE(F32x4PromoteLowF16x8,
                                wasm_f32x4_promote_low_f16x8)
 #undef HANDLE_F16X8_UN_OPCODE
+#define HANDLE_F16X8_TERN_OPCODE(kind, extern_ref)                        \
+  case kExpr##kind:                                                       \
+    result->op = CallCStackSlotToStackSlot(                               \
+        ExternalReference::extern_ref(), MemoryRepresentation::Simd128(), \
+        {{args[0].op, MemoryRepresentation::Simd128()},                   \
+         {args[1].op, MemoryRepresentation::Simd128()},                   \
+         {args[2].op, MemoryRepresentation::Simd128()}});                 \
+    break;
+        HANDLE_F16X8_TERN_OPCODE(F16x8Qfma, wasm_f16x8_qfma)
+        HANDLE_F16X8_TERN_OPCODE(F16x8Qfms, wasm_f16x8_qfms)
+#undef HANDLE_F16X8_TERN_OPCODE
       default:
         UNREACHABLE();
     }
@@ -7646,6 +7658,28 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return CallC(&sig, ref, stack_slot_param);
   }
 
+  OpIndex CallCStackSlotToStackSlot(
+      ExternalReference ref, MemoryRepresentation res_type,
+      std::initializer_list<std::pair<OpIndex, MemoryRepresentation>> args) {
+    int slot_size = 0;
+    for (auto arg : args) slot_size += arg.second.SizeInBytes();
+    // Since we are storing the arguments unaligned anyway, we do not need
+    // alignment > 0.
+    slot_size = std::max<int>(slot_size, res_type.SizeInBytes());
+    V<WordPtr> stack_slot_param = __ StackSlot(slot_size, 0);
+    int offset = 0;
+    for (auto arg : args) {
+      __ Store(stack_slot_param, arg.first,
+               StoreOp::Kind::MaybeUnaligned(arg.second), arg.second,
+               compiler::WriteBarrierKind::kNoWriteBarrier, offset);
+      offset += arg.second.SizeInBytes();
+    }
+    MachineType reps[]{MachineType::Pointer()};
+    MachineSignature sig(0, 1, reps);
+    CallC(&sig, ref, stack_slot_param);
+    return __ Load(stack_slot_param, LoadOp::Kind::RawAligned(), res_type);
+  }
+
   OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
                                     MemoryRepresentation arg_type) {
     return CallCStackSlotToStackSlot(arg, ref, arg_type, arg_type);
@@ -7654,30 +7688,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
                                     MemoryRepresentation arg_type,
                                     MemoryRepresentation res_type) {
-    int size = std::max(arg_type.SizeInBytes(), res_type.SizeInBytes());
-    V<WordPtr> stack_slot = __ StackSlot(size, size);
-    __ Store(stack_slot, arg, StoreOp::Kind::RawAligned(), arg_type,
-             compiler::WriteBarrierKind::kNoWriteBarrier);
-    MachineType reps[]{MachineType::Pointer()};
-    MachineSignature sig(0, 1, reps);
-    CallC(&sig, ref, stack_slot);
-    return __ Load(stack_slot, LoadOp::Kind::RawAligned(), res_type);
+    return CallCStackSlotToStackSlot(ref, res_type, {{arg, arg_type}});
   }
 
   OpIndex CallCStackSlotToStackSlot(OpIndex arg0, OpIndex arg1,
                                     ExternalReference ref,
                                     MemoryRepresentation arg_type) {
-    V<WordPtr> stack_slot =
-        __ StackSlot(2 * arg_type.SizeInBytes(), arg_type.SizeInBytes());
-    __ Store(stack_slot, arg0, StoreOp::Kind::RawAligned(), arg_type,
-             compiler::WriteBarrierKind::kNoWriteBarrier);
-    __ Store(stack_slot, arg1, StoreOp::Kind::RawAligned(), arg_type,
-             compiler::WriteBarrierKind::kNoWriteBarrier,
-             arg_type.SizeInBytes());
-    MachineType reps[]{MachineType::Pointer()};
-    MachineSignature sig(0, 1, reps);
-    CallC(&sig, ref, stack_slot);
-    return __ Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
+    return CallCStackSlotToStackSlot(ref, arg_type,
+                                     {{arg0, arg_type}, {arg1, arg_type}});
   }
 
   V<WordPtr> MemOrTableIndexToUintPtrOrOOBTrap(bool index_type_is_64bit,
