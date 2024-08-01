@@ -265,7 +265,6 @@ class MaglevGraphBuilder {
       source_position_iterator_.Advance();
       UpdateSourceAndBytecodePosition(source_position_iterator_.code_offset());
     }
-
     for (iterator_.SetOffset(entrypoint_); !iterator_.done();
          iterator_.Advance()) {
       local_isolate_->heap()->Safepoint();
@@ -794,6 +793,9 @@ class MaglevGraphBuilder {
         ProcessMergePoint(offset, preserve_known_node_aspects);
       }
 
+      if (merge_state->is_loop()) {
+        BeginLoopEffects(offset);
+      }
       // We pass nullptr for the `predecessor` argument of StartNewBlock because
       // this block is guaranteed to have a merge_state_, and hence to not have
       // a `predecessor_` field.
@@ -1682,8 +1684,8 @@ class MaglevGraphBuilder {
 
     if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
       node->ClearElementsProperties(known_node_aspects());
-      if (within_effect_tracking_peeling_iteration()) {
-        peeled_loop_effects_->keys_cleared.insert(
+      if (is_loop_effect_tracking()) {
+        loop_effects_->keys_cleared.insert(
             KnownNodeAspects::LoadedPropertyMapKey::Elements());
       }
     } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
@@ -1693,8 +1695,8 @@ class MaglevGraphBuilder {
       // loaded properties and context slots, and we invalidate these already as
       // part of emitting the store.
       node->ClearUnstableNodeAspects(known_node_aspects());
-      if (within_effect_tracking_peeling_iteration()) {
-        peeled_loop_effects_->unstable_aspects_cleared = true;
+      if (is_loop_effect_tracking()) {
+        loop_effects_->unstable_aspects_cleared = true;
       }
     }
 
@@ -2447,6 +2449,8 @@ class MaglevGraphBuilder {
   ReduceResult TryReduceTypeOf(ValueNode* value, const Function& GetResult);
   ReduceResult TryReduceTypeOf(ValueNode* value);
 
+  void BeginLoopEffects(int loop_header);
+  void EndLoopEffects(int loop_header);
   void MergeIntoFrameState(BasicBlock* block, int target);
   void MergeDeadIntoFrameState(int target);
   void MergeDeadLoopIntoFrameState(int target);
@@ -2821,10 +2825,9 @@ class MaglevGraphBuilder {
     return v8_flags.maglev_optimistic_peeled_loops &&
            peeled_iteration_count_ == 1;
   }
-  bool within_effect_tracking_peeling_iteration() {
-    return peeled_loop_effects_;
-  }
-  LoopEffects* peeled_loop_effects_ = nullptr;
+  bool is_loop_effect_tracking() { return loop_effects_; }
+  LoopEffects* loop_effects_ = nullptr;
+  ZoneDeque<LoopEffects> loop_effects_stack_;
 
   // When processing the peeled iteration of a loop, we need to reset the
   // decremented predecessor counts inside of the loop before processing the

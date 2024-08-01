@@ -1071,8 +1071,18 @@ class MergePointInterpreterFrameState {
 };
 
 struct LoopEffects {
-  explicit LoopEffects(Zone* zone)
-      : context_slot_written(zone), objects_written(zone), keys_cleared(zone) {}
+  explicit LoopEffects(int loop_header, Zone* zone)
+      :
+#ifdef DEBUG
+        loop_header(loop_header),
+#endif
+        context_slot_written(zone),
+        objects_written(zone),
+        keys_cleared(zone) {
+  }
+#ifdef DEBUG
+  int loop_header;
+#endif
   ZoneSet<KnownNodeAspects::LoadedContextSlotsKey> context_slot_written;
   ZoneSet<ValueNode*> objects_written;
   ZoneSet<KnownNodeAspects::LoadedPropertyMapKey> keys_cleared;
@@ -1082,6 +1092,16 @@ struct LoopEffects {
     objects_written.clear();
     keys_cleared.clear();
     unstable_aspects_cleared = false;
+  }
+  void Merge(const LoopEffects* other) {
+    if (!unstable_aspects_cleared) {
+      unstable_aspects_cleared = other->unstable_aspects_cleared;
+    }
+    context_slot_written.insert(other->context_slot_written.begin(),
+                                other->context_slot_written.end());
+    objects_written.insert(other->objects_written.begin(),
+                           other->objects_written.end());
+    keys_cleared.insert(other->keys_cleared.begin(), other->keys_cleared.end());
   }
 };
 
