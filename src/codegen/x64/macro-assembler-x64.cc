@@ -2080,14 +2080,27 @@ void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, YMMRegister src,
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   CpuFeatureScope avx2_scope(this, AVX2);
+
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
+      scratch);
   // Convert source f16 to f32.
   vcvtph2ps(dst, src);
   // Compare it to itself, NaNs are turn to 0s because don't equal to itself.
   vcmpeqps(tmp, dst, dst);
   // Reset NaNs.
   vandps(dst, dst, tmp);
+  // Detect positive Infinity as an overflow above MAX_INT32.
+  vcmpgeps(tmp, dst, op);
   // Convert f32 to i32.
   vcvttps2dq(dst, dst);
+  // cvttps2dq sets all out of range lanes to 0x8000'0000,
+  // but as soon as source values are result of conversion from f16,
+  // and so less than MAX_INT32, only +Infinity is an issue.
+  // Convert all infinities to MAX_INT32 and let vpackssdw
+  // clamp it to MAX_INT16 later.
+  // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
+  vpxor(dst, dst, tmp);
   // We now have 8 i32 values. Using one character per 16 bits:
   // dst: [AABBCCDDEEFFGGHH]
   // Create a copy of the upper four values in the lower half of {tmp}
@@ -2116,12 +2129,25 @@ void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, YMMRegister src,
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   CpuFeatureScope avx2_scope(this, AVX2);
+
+  Operand op = ExternalReferenceAsOperand(
+      ExternalReference::address_of_wasm_i32x8_int32_overflow_as_float(),
+      kScratchRegister);
   vcvtph2ps(dst, src);
   // NAN->0, negative->0.
   vpxor(tmp, tmp, tmp);
   vmaxps(dst, dst, tmp);
+  // Detect positive Infinity as an overflow above MAX_INT32.
+  vcmpgeps(tmp, dst, op);
   // Convert to int.
   vcvttps2dq(dst, dst);
+  // cvttps2dq sets all out of range lanes to 0x8000'0000,
+  // but as soon as source values are result of conversion from f16,
+  // and so less than MAX_INT32, only +Infinity is an issue.
+  // Convert all infinities to MAX_INT32 and let vpackusdw
+  // clamp it to MAX_INT16 later.
+  // 0x8000'0000 xor 0xffff'ffff(from 2 steps before) = 0x7fff'ffff (MAX_INT32)
+  vpxor(dst, dst, tmp);
   // Move high part to a spare register.
   // See detailed comment in {I16x8SConvertF16x8} for how this works.
   vpermq(tmp, dst, 0x4E);  // 0b01001110
