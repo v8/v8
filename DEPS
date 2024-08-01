@@ -39,6 +39,9 @@ vars = {
   # Fetch clang-tidy into the same bin/ directory as our clang binary.
   'checkout_clang_tidy': False,
 
+  # Fetch clangd into the same bin/ directory as our clang binary.
+  'checkout_clangd': False,
+
   # Fetch and build V8 builtins with PGO profiles
   'checkout_v8_builtins_pgo_profiles': False,
 
@@ -324,6 +327,13 @@ deps = {
         'condition': 'host_os == "linux" and checkout_clang_tidy',
       },
       {
+        'object_name': 'Linux_x64/clangd-llvmorg-19-init-14561-gecea8371-3004.tar.xz',
+        'sha256sum': 'dba1b74f97c0b4d51fd2311f76433c01815ae29a18efb78b0a902dd97b424cb3',
+        'size_bytes': 13556964,
+        'generation': 1722439039637643,
+        'condition': 'host_os == "linux" and checkout_clangd',
+      },
+      {
         'object_name': 'Linux_x64/llvm-code-coverage-llvmorg-19-init-14561-gecea8371-3004.tar.xz',
         'sha256sum': '6e412b0428ce1b2be73302549fee8f55c77dfddd223517906e0253e2be9d24b8',
         'size_bytes': 2357536,
@@ -359,6 +369,13 @@ deps = {
         'condition': 'host_os == "mac" and host_cpu == "x64" and checkout_clang_tidy',
       },
       {
+        'object_name': 'Mac/clangd-llvmorg-19-init-14561-gecea8371-3004.tar.xz',
+        'sha256sum': '4dd5184d51c2351d226bcef6e1be1b8e384b0d400c2c3e456799de8cbaca5501',
+        'size_bytes': 12961804,
+        'generation': 1722439041202360,
+        'condition': 'host_os == "mac" and host_cpu == "x64" and checkout_clangd',
+      },
+      {
         'object_name': 'Mac/llvm-code-coverage-llvmorg-19-init-14561-gecea8371-3004.tar.xz',
         'sha256sum': '1f47b70722a43fc08fe49c3daf59b9405b2518d20990da727a799a8646335a5a',
         'size_bytes': 2235184,
@@ -378,6 +395,13 @@ deps = {
         'size_bytes': 11611256,
         'generation': 1722439049140727,
         'condition': 'host_os == "mac" and host_cpu == "arm64" and checkout_clang_tidy',
+      },
+      {
+        'object_name': 'Mac_arm64/clangd-llvmorg-19-init-14561-gecea8371-3004.tar.xz',
+        'sha256sum': '9120aef031ab8b330e10ed0c10c72126937940af8abb55549193cc1737a1b6c1',
+        'size_bytes': 12096444,
+        'generation': 1722439049203384,
+        'condition': 'host_os == "mac" and host_cpu == "arm64" and checkout_clangd',
       },
       {
         'object_name': 'Mac_arm64/llvm-code-coverage-llvmorg-19-init-14561-gecea8371-3004.tar.xz',
@@ -406,6 +430,13 @@ deps = {
         'size_bytes': 2825408,
         'generation': 1722439063740611,
         'condition': 'checkout_win and not host_os == "win"',
+      },
+      {
+        'object_name': 'Win/clangd-llvmorg-19-init-14561-gecea8371-3004.tar.xz',
+        'sha256sum': '305f4d38d8145d52ae388f533a90c1761e303ea7be30894ae374087082ab0afc',
+        'size_bytes': 13311360,
+        'generation': 1722439057594226,
+       'condition': 'host_os == "win" and checkout_clangd',
       },
       {
         'object_name': 'Win/llvm-code-coverage-llvmorg-19-init-14561-gecea8371-3004.tar.xz',
