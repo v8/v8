@@ -6787,15 +6787,6 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
     ValueNode* arg_value = args[i];
     if (arg_value == nullptr) arg_value = undefined_constant;
     SetArgument(i + 1, arg_value);
-    // Escape values that could be stored in an arguments object.
-    // TODO(victorgomes): This is probably only needed in sloopy mode.
-    ForceEscapeIfAllocation(arg_value);
-  }
-
-  for (int i = formal_parameter_count; i < arg_count; i++) {
-    // Escape extra arguments.
-    // TODO(victorgomes): This is probably only needed in sloopy mode.
-    ForceEscapeIfAllocation(args[i]);
   }
 
   // Save all arguments if we have a mismatch between arguments count and

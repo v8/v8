@@ -2533,7 +2533,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         break;
     }
 
-    if (frame->is_turbofan()) {
+    if (frame->is_optimized()) {
       // Remove per-frame stored materialized objects.
       bool removed = materialized_object_store_->Remove(frame->fp());
       USE(removed);
