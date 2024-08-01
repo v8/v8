@@ -2078,6 +2078,8 @@ class MachineLoweringReducer : public Next {
         }
       }
 
+      Label<> seq_string(this), external_string(this), cons_string(this),
+          sliced_string(this), thin_string(this);
       // TODO(dmercadier): the runtime label should be deferred, and because
       // Labels/Blocks don't have deferred annotation, we achieve this by
       // marking all branches to this Label as UNLIKELY, but 1) it's easy to
@@ -2094,85 +2096,142 @@ class MachineLoweringReducer : public Next {
 
       BIND_LOOP(loop) {
         V<Map> map = __ LoadMapField(receiver);
+#if V8_STATIC_ROOTS_BOOL
+        V<Word32> map_bits =
+            __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(map));
+
+        using StringTypeRange =
+            InstanceTypeChecker::kUniqueMapRangeOfStringType;
+        // Check the string map ranges in dense increasing order, to avoid
+        // needing to subtract away the lower bound.
+        static_assert(StringTypeRange::kSeqString.first == 0);
+        GOTO_IF(__ Uint32LessThanOrEqual(map_bits,
+                                         StringTypeRange::kSeqString.second),
+                seq_string);
+
+        static_assert(StringTypeRange::kSeqString.second + Map::kSize ==
+                      StringTypeRange::kExternalString.first);
+        GOTO_IF(__ Uint32LessThanOrEqual(
+                    map_bits, StringTypeRange::kExternalString.second),
+                external_string);
+
+        static_assert(StringTypeRange::kExternalString.second + Map::kSize ==
+                      StringTypeRange::kConsString.first);
+        GOTO_IF(__ Uint32LessThanOrEqual(map_bits,
+                                         StringTypeRange::kConsString.second),
+                cons_string);
+
+        static_assert(StringTypeRange::kConsString.second + Map::kSize ==
+                      StringTypeRange::kSlicedString.first);
+        GOTO_IF(__ Uint32LessThanOrEqual(map_bits,
+                                         StringTypeRange::kSlicedString.second),
+                sliced_string);
+
+        static_assert(StringTypeRange::kSlicedString.second + Map::kSize ==
+                      StringTypeRange::kThinString.first);
+        GOTO_IF(__ Uint32LessThanOrEqual(map_bits,
+                                         StringTypeRange::kThinString.second),
+                thin_string);
+#else
         V<Word32> instance_type = __ LoadInstanceTypeField(map);
         V<Word32> representation =
             __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
 
-        IF (__ Int32LessThanOrEqual(representation, kConsStringTag)) {
-          {
-            // if_lessthanoreq_cons
-            IF (__ Word32Equal(representation, kConsStringTag)) {
-              // if_consstring
-              V<String> second = __ template LoadField<String>(
-                  receiver, AccessBuilder::ForConsStringSecond());
-              GOTO_IF_NOT(
-                  LIKELY(__ TaggedEqual(
-                      second, __ HeapConstant(factory_->empty_string()))),
-                  runtime);
-              receiver = __ template LoadField<String>(
-                  receiver, AccessBuilder::ForConsStringFirst());
-              GOTO(loop);
-            } ELSE {
-              // if_seqstring
-              V<Word32> onebyte = __ Word32Equal(
-                  __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
-                  kOneByteStringTag);
-              GOTO(done, LoadFromSeqString(receiver, position, onebyte));
-            }
-          }
-        } ELSE {
-          // if_greaterthan_cons
-          {
-            IF (__ Word32Equal(representation, kThinStringTag)) {
-              // if_thinstring
-              receiver = __ template LoadField<String>(
-                  receiver, AccessBuilder::ForThinStringActual());
-              GOTO(loop);
-            } ELSE IF (__ Word32Equal(representation, kExternalStringTag)) {
-              // if_externalstring
-              // We need to bailout to the runtime for uncached external
-              // strings.
-              GOTO_IF(UNLIKELY(__ Word32Equal(
-                          __ Word32BitwiseAnd(instance_type,
-                                              kUncachedExternalStringMask),
-                          kUncachedExternalStringTag)),
-                      runtime);
+        GOTO_IF(__ Word32Equal(representation, kSeqStringTag), seq_string);
+        GOTO_IF(__ Word32Equal(representation, kExternalStringTag),
+                external_string);
+        GOTO_IF(__ Word32Equal(representation, kConsStringTag), cons_string);
+        GOTO_IF(__ Word32Equal(representation, kSlicedStringTag),
+                sliced_string);
+        GOTO_IF(__ Word32Equal(representation, kThinStringTag), thin_string);
+#endif
 
-              OpIndex data = __ LoadField(
-                  receiver, AccessBuilder::ForExternalStringResourceData());
-              IF (__ Word32Equal(
-                      __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
-                      kTwoByteStringTag)) {
-                // if_twobyte
-                constexpr uint8_t twobyte_size_log2 = 1;
-                V<Word32> value = __ Load(
-                    data, position,
-                    LoadOp::Kind::Aligned(BaseTaggedness::kUntaggedBase),
-                    MemoryRepresentation::Uint16(), 0, twobyte_size_log2);
-                GOTO(done, value);
-              } ELSE {
-                // if_onebyte
-                constexpr uint8_t onebyte_size_log2 = 0;
-                V<Word32> value = __ Load(
-                    data, position,
-                    LoadOp::Kind::Aligned(BaseTaggedness::kUntaggedBase),
-                    MemoryRepresentation::Uint8(), 0, onebyte_size_log2);
-                GOTO(done, value);
-              }
-            } ELSE IF (LIKELY(
-                          __ Word32Equal(representation, kSlicedStringTag))) {
-              // if_slicedstring
-              V<Smi> offset = __ template LoadField<Smi>(
-                  receiver, AccessBuilder::ForSlicedStringOffset());
-              receiver = __ template LoadField<String>(
-                  receiver, AccessBuilder::ForSlicedStringParent());
-              position = __ WordPtrAdd(
-                  position, __ ChangeInt32ToIntPtr(__ UntagSmi(offset)));
-              GOTO(loop);
-            } ELSE {
-              GOTO(runtime);
-            }
+        __ Unreachable();
+
+        if (BIND(seq_string)) {
+#if V8_STATIC_ROOTS_BOOL
+          V<Word32> is_one_byte = __ Word32Equal(
+              __ Word32BitwiseAnd(map_bits,
+                                  InstanceTypeChecker::kStringMapEncodingMask),
+              InstanceTypeChecker::kOneByteStringMapBit);
+#else
+          V<Word32> is_one_byte = __ Word32Equal(
+              __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
+              kOneByteStringTag);
+#endif
+          GOTO(done, LoadFromSeqString(receiver, position, is_one_byte));
+        }
+
+        if (BIND(external_string)) {
+          // We need to bailout to the runtime for uncached external
+          // strings.
+#if V8_STATIC_ROOTS_BOOL
+          V<Word32> is_uncached_external_string = __ Uint32LessThanOrEqual(
+              __ Word32Sub(map_bits,
+                           StringTypeRange::kUncachedExternalString.first),
+              StringTypeRange::kUncachedExternalString.second -
+                  StringTypeRange::kUncachedExternalString.first);
+#else
+          V<Word32> is_uncached_external_string = __ Word32Equal(
+              __ Word32BitwiseAnd(instance_type, kUncachedExternalStringMask),
+              kUncachedExternalStringTag);
+#endif
+          GOTO_IF(UNLIKELY(is_uncached_external_string), runtime);
+
+          OpIndex data = __ LoadField(
+              receiver, AccessBuilder::ForExternalStringResourceData());
+#if V8_STATIC_ROOTS_BOOL
+          V<Word32> is_two_byte = __ Word32Equal(
+              __ Word32BitwiseAnd(map_bits,
+                                  InstanceTypeChecker::kStringMapEncodingMask),
+              InstanceTypeChecker::kTwoByteStringMapBit);
+#else
+          V<Word32> is_two_byte = __ Word32Equal(
+              __ Word32BitwiseAnd(instance_type, kStringEncodingMask),
+              kTwoByteStringTag);
+#endif
+          IF (is_two_byte) {
+            constexpr uint8_t twobyte_size_log2 = 1;
+            V<Word32> value =
+                __ Load(data, position,
+                        LoadOp::Kind::Aligned(BaseTaggedness::kUntaggedBase),
+                        MemoryRepresentation::Uint16(), 0, twobyte_size_log2);
+            GOTO(done, value);
+          } ELSE {
+            constexpr uint8_t onebyte_size_log2 = 0;
+            V<Word32> value =
+                __ Load(data, position,
+                        LoadOp::Kind::Aligned(BaseTaggedness::kUntaggedBase),
+                        MemoryRepresentation::Uint8(), 0, onebyte_size_log2);
+            GOTO(done, value);
           }
+        }
+
+        if (BIND(cons_string)) {
+          V<String> second = __ template LoadField<String>(
+              receiver, AccessBuilder::ForConsStringSecond());
+          GOTO_IF_NOT(LIKELY(__ TaggedEqual(
+                          second, __ HeapConstant(factory_->empty_string()))),
+                      runtime);
+          receiver = __ template LoadField<String>(
+              receiver, AccessBuilder::ForConsStringFirst());
+          GOTO(loop);
+        }
+
+        if (BIND(sliced_string)) {
+          V<Smi> offset = __ template LoadField<Smi>(
+              receiver, AccessBuilder::ForSlicedStringOffset());
+          receiver = __ template LoadField<String>(
+              receiver, AccessBuilder::ForSlicedStringParent());
+          position = __ WordPtrAdd(position,
+                                   __ ChangeInt32ToIntPtr(__ UntagSmi(offset)));
+          GOTO(loop);
+        }
+
+        if (BIND(thin_string)) {
+          receiver = __ template LoadField<String>(
+              receiver, AccessBuilder::ForThinStringActual());
+          GOTO(loop);
         }
 
         if (BIND(runtime)) {
