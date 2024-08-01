@@ -3418,6 +3418,29 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             args[1].op, args[0].op, ExternalReference::wasm_f16x8_le(),
             MemoryRepresentation::Simd128());
         break;
+#define HANDLE_F16X8_UN_OPCODE(kind, extern_ref)                               \
+  case kExpr##kind:                                                            \
+    result->op =                                                               \
+        CallCStackSlotToStackSlot(args[0].op, ExternalReference::extern_ref(), \
+                                  MemoryRepresentation::Simd128());            \
+    break;
+        HANDLE_F16X8_UN_OPCODE(F16x8Abs, wasm_f16x8_abs)
+        HANDLE_F16X8_UN_OPCODE(F16x8Neg, wasm_f16x8_neg)
+        HANDLE_F16X8_UN_OPCODE(F16x8Sqrt, wasm_f16x8_sqrt)
+        HANDLE_F16X8_UN_OPCODE(F16x8Ceil, wasm_f16x8_ceil)
+        HANDLE_F16X8_UN_OPCODE(F16x8Floor, wasm_f16x8_floor)
+        HANDLE_F16X8_UN_OPCODE(F16x8Trunc, wasm_f16x8_trunc)
+        HANDLE_F16X8_UN_OPCODE(I16x8SConvertF16x8, wasm_i16x8_sconvert_f16x8)
+        HANDLE_F16X8_UN_OPCODE(I16x8UConvertF16x8, wasm_i16x8_uconvert_f16x8)
+        HANDLE_F16X8_UN_OPCODE(F16x8SConvertI16x8, wasm_f16x8_sconvert_i16x8)
+        HANDLE_F16X8_UN_OPCODE(F16x8UConvertI16x8, wasm_f16x8_uconvert_i16x8)
+        HANDLE_F16X8_UN_OPCODE(F16x8DemoteF32x4Zero,
+                               wasm_f16x8_demote_f32x4_zero)
+        HANDLE_F16X8_UN_OPCODE(F16x8DemoteF64x2Zero,
+                               wasm_f16x8_demote_f64x2_zero)
+        HANDLE_F16X8_UN_OPCODE(F32x4PromoteLowF16x8,
+                               wasm_f32x4_promote_low_f16x8)
+#undef HANDLE_F16X8_UN_OPCODE
       default:
         UNREACHABLE();
     }
