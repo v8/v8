@@ -1569,6 +1569,7 @@ NodeType ToNumberHintToNodeType(ToNumberHint conversion_type) {
     case ToNumberHint::kDisallowToNumber:
     case ToNumberHint::kAssumeNumber:
       return NodeType::kNumber;
+    case ToNumberHint::kAssumeNumberOrBoolean:
     case ToNumberHint::kAssumeNumberOrOddball:
       return NodeType::kNumberOrOddball;
   }
@@ -1583,6 +1584,8 @@ TaggedToFloat64ConversionType ToNumberHintToConversionType(
       return TaggedToFloat64ConversionType::kOnlyNumber;
     case ToNumberHint::kAssumeNumberOrOddball:
       return TaggedToFloat64ConversionType::kNumberOrOddball;
+    case ToNumberHint::kAssumeNumberOrBoolean:
+      return TaggedToFloat64ConversionType::kNumberOrBoolean;
   }
 }
 }  // namespace
@@ -1810,13 +1813,14 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
           // also become the canonical float64_alternative.
           return alternative.set_float64(BuildNumberOrOddballToFloat64(
               value, TaggedToFloat64ConversionType::kOnlyNumber));
+        case ToNumberHint::kAssumeNumberOrBoolean:
         case ToNumberHint::kAssumeNumberOrOddball: {
           // NumberOrOddball->Float64 conversions are not exact alternatives,
           // since they lose the information that this is an oddball, so they
           // can only become the canonical float64_alternative if they are a
           // known number (and therefore not oddball).
           ValueNode* float64_node = BuildNumberOrOddballToFloat64(
-              value, TaggedToFloat64ConversionType::kNumberOrOddball);
+              value, ToNumberHintToConversionType(hint));
           if (NodeTypeIsNumber(node_info->type())) {
             alternative.set_float64(float64_node);
           }
@@ -1834,6 +1838,7 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
         case ToNumberHint::kAssumeSmi:
         case ToNumberHint::kDisallowToNumber:
         case ToNumberHint::kAssumeNumber:
+        case ToNumberHint::kAssumeNumberOrBoolean:
           // Number->Float64 conversions are exact alternatives, so they can
           // also become the canonical float64_alternative.
           return alternative.set_float64(
@@ -2531,12 +2536,24 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       SetAccumulator(AddNewNode<Int32Compare>({left, right}, kOperation));
       return;
     }
+    case CompareOperationHint::kNumberOrBoolean:
+      if (kOperation != Operation::kEqual) {
+        if (TryReduceCompareEqualAgainstConstant<kOperation>()) return;
+        break;
+      }
+      [[fallthrough]];
     case CompareOperationHint::kNumber: {
       // TODO(leszeks): we could support kNumberOrOddball with
       // BranchIfFloat64Compare, but we'd need to special case comparing
       // oddballs with NaN value (e.g. undefined) against themselves.
-      ValueNode* left = GetFloat64(LoadRegister(0));
-      ValueNode* right = GetFloat64(GetAccumulator());
+      ToNumberHint to_number_hint =
+          nexus.GetCompareOperationFeedback() ==
+                  CompareOperationHint::kNumberOrBoolean
+              ? ToNumberHint::kAssumeNumberOrBoolean
+              : ToNumberHint::kDisallowToNumber;
+      ValueNode* left = GetFloat64ForToNumber(LoadRegister(0), to_number_hint);
+      ValueNode* right =
+          GetFloat64ForToNumber(GetAccumulator(), to_number_hint);
       if (left->Is<Float64Constant>() && right->Is<Float64Constant>()) {
         double left_value = left->Cast<Float64Constant>()->value().get_scalar();
         double right_value =
@@ -2623,7 +2640,6 @@ void MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kAny:
     case CompareOperationHint::kBigInt64:
     case CompareOperationHint::kBigInt:
-    case CompareOperationHint::kNumberOrBoolean:
     case CompareOperationHint::kNumberOrOddball:
     case CompareOperationHint::kReceiverOrNullOrUndefined:
       if (TryReduceCompareEqualAgainstConstant<kOperation>()) return;
@@ -3711,6 +3727,7 @@ NodeType TaggedToFloat64ConversionTypeToNodeType(
   switch (conversion_type) {
     case TaggedToFloat64ConversionType::kOnlyNumber:
       return NodeType::kNumber;
+    case TaggedToFloat64ConversionType::kNumberOrBoolean:
     case TaggedToFloat64ConversionType::kNumberOrOddball:
       return NodeType::kNumberOrOddball;
   }

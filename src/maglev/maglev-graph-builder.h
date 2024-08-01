@@ -175,6 +175,7 @@ enum class ToNumberHint {
   kDisallowToNumber,
   kAssumeSmi,
   kAssumeNumber,
+  kAssumeNumberOrBoolean,
   kAssumeNumberOrOddball
 };
 

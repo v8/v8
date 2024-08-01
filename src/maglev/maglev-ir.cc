@@ -1647,11 +1647,50 @@ namespace {
 void JumpToFailIfNotHeapNumberOrOddball(
     MaglevAssembler* masm, Register value,
     TaggedToFloat64ConversionType conversion_type, Label* fail) {
+  static_assert(InstanceType::HEAP_NUMBER_TYPE + 1 ==
+                InstanceType::ODDBALL_TYPE);
+  static_assert(Oddball::kFalse == 0);
+  static_assert(Oddball::kTrue == 1);
   switch (conversion_type) {
+    case TaggedToFloat64ConversionType::kNumberOrBoolean: {
+      Label done;
+      if (fail) {
+        // TODO(v8:7700): Make this (and below) faster with static roots.
+        __ CompareObjectTypeRange(value, InstanceType::HEAP_NUMBER_TYPE,
+                                  InstanceType::ODDBALL_TYPE);
+        __ JumpIf(kUnsignedGreaterThan, fail);
+        __ CompareObjectTypeAndJumpIf(value, InstanceType::ODDBALL_TYPE,
+                                      kNotEqual, &done);
+
+        {
+          MaglevAssembler::TemporaryRegisterScope temps(masm);
+          Register scratch = temps.AcquireScratch();
+          __ LoadTaggedField(scratch, value, Internals::kOddballKindOffset);
+          __ SmiUntag(scratch);
+          __ CompareInt32AndJumpIf(scratch, Oddball::kTrue, kGreaterThan, fail);
+        }
+      } else {
+        if (v8_flags.debug_code) {
+          __ CompareObjectTypeRange(value, InstanceType::HEAP_NUMBER_TYPE,
+                                    InstanceType::ODDBALL_TYPE);
+          __ Assert(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
+          __ CompareObjectTypeAndJumpIf(value, InstanceType::ODDBALL_TYPE,
+                                        kNotEqual, &done);
+          {
+            MaglevAssembler::TemporaryRegisterScope temps(masm);
+            Register scratch = temps.AcquireScratch();
+            __ LoadTaggedField(scratch, value, Internals::kOddballKindOffset);
+            __ SmiUntag(scratch);
+            __ CompareInt32AndAssert(scratch, Oddball::kTrue, kLessThanEqual,
+                                     AbortReason::kUnexpectedValue);
+          }
+        }
+      }
+      __ bind(&done);
+      break;
+    }
     case TaggedToFloat64ConversionType::kNumberOrOddball:
       // Check if HeapNumber or Oddball, jump to fail otherwise.
-      static_assert(InstanceType::HEAP_NUMBER_TYPE + 1 ==
-                    InstanceType::ODDBALL_TYPE);
       if (fail) {
         __ CompareObjectTypeRange(value, InstanceType::HEAP_NUMBER_TYPE,
                                   InstanceType::ODDBALL_TYPE);
