@@ -140,6 +140,13 @@ in_category(
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64_no_wasm", "binary": "d8"}},
         use_remoteexec = RECLIENT.DEFAULT,
     ),
+    main_multibranch_builder_pair(
+        name = "V8 Linux64 - no leaptiering - debug",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.TREE_CLOSER,
+        first_branch_version = "12.9",
+    ),
     main_multibranch_builder(
         name = "V8 Linux64 gcc light - debug builder",
         dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
