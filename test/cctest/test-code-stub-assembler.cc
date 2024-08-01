@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <cmath>
+#include <optional>
 
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
@@ -3632,10 +3633,10 @@ TEST(ExtractFixedArrayCOWForceCopy) {
     CodeStubAssembler m(asm_tester.state());
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
-    base::Optional<TNode<Smi>> constant(m.SmiConstant(0));
+    std::optional<TNode<Smi>> constant(m.SmiConstant(0));
     m.Return(m.ExtractFixedArray(m.Parameter<FixedArrayBase>(1), constant,
-                                 base::Optional<TNode<Smi>>(base::nullopt),
-                                 base::Optional<TNode<Smi>>(base::nullopt),
+                                 std::optional<TNode<Smi>>(std::nullopt),
+                                 std::optional<TNode<Smi>>(std::nullopt),
                                  flags));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -3663,11 +3664,11 @@ TEST(ExtractFixedArraySimple) {
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kDontCopyCOW;
-    base::Optional<TNode<IntPtrT>> p1_untagged(m.SmiUntag(m.Parameter<Smi>(2)));
-    base::Optional<TNode<IntPtrT>> p2_untagged(m.SmiUntag(m.Parameter<Smi>(3)));
+    std::optional<TNode<IntPtrT>> p1_untagged(m.SmiUntag(m.Parameter<Smi>(2)));
+    std::optional<TNode<IntPtrT>> p2_untagged(m.SmiUntag(m.Parameter<Smi>(3)));
     m.Return(m.ExtractFixedArray(
         m.Parameter<FixedArrayBase>(1), p1_untagged, p2_untagged,
-        base::Optional<TNode<IntPtrT>>(base::nullopt), flags));
+        std::optional<TNode<IntPtrT>>(std::nullopt), flags));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -3692,11 +3693,11 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kDontCopyCOW;
-    base::Optional<TNode<Smi>> constant_1(m.SmiConstant(1));
-    base::Optional<TNode<Smi>> constant_2(m.SmiConstant(2));
+    std::optional<TNode<Smi>> constant_1(m.SmiConstant(1));
+    std::optional<TNode<Smi>> constant_2(m.SmiConstant(2));
     m.Return(m.ExtractFixedArray(
         m.Parameter<FixedArrayBase>(1), constant_1, constant_2,
-        base::Optional<TNode<Smi>>(base::nullopt), flags));
+        std::optional<TNode<Smi>>(std::nullopt), flags));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -3718,11 +3719,11 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kDontCopyCOW;
-    base::Optional<TNode<IntPtrT>> constant_1(m.IntPtrConstant(1));
-    base::Optional<TNode<IntPtrT>> constant_2(m.IntPtrConstant(2));
+    std::optional<TNode<IntPtrT>> constant_1(m.IntPtrConstant(1));
+    std::optional<TNode<IntPtrT>> constant_2(m.IntPtrConstant(2));
     m.Return(m.ExtractFixedArray(
         m.Parameter<FixedArrayBase>(1), constant_1, constant_2,
-        base::Optional<TNode<IntPtrT>>(base::nullopt), flags));
+        std::optional<TNode<IntPtrT>>(std::nullopt), flags));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -3741,11 +3742,11 @@ TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   {
     CodeStubAssembler m(asm_tester.state());
-    base::Optional<TNode<IntPtrT>> constant_1(m.IntPtrConstant(1));
-    base::Optional<TNode<IntPtrT>> constant_2(m.IntPtrConstant(2));
+    std::optional<TNode<IntPtrT>> constant_1(m.IntPtrConstant(1));
+    std::optional<TNode<IntPtrT>> constant_2(m.IntPtrConstant(2));
     m.Return(m.ExtractFixedArray(
         m.Parameter<FixedArrayBase>(1), constant_1, constant_2,
-        base::Optional<TNode<IntPtrT>>(base::nullopt),
+        std::optional<TNode<IntPtrT>>(std::nullopt),
         CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -3765,8 +3766,8 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   {
     CodeStubAssembler m(asm_tester.state());
-    base::Optional<TNode<IntPtrT>> p1_untagged(m.SmiUntag(m.Parameter<Smi>(2)));
-    base::Optional<TNode<IntPtrT>> p2_untagged(m.SmiUntag(m.Parameter<Smi>(3)));
+    std::optional<TNode<IntPtrT>> p1_untagged(m.SmiUntag(m.Parameter<Smi>(2)));
+    std::optional<TNode<IntPtrT>> p2_untagged(m.SmiUntag(m.Parameter<Smi>(3)));
     m.Return(m.ExtractFixedArray(m.Parameter<FixedArrayBase>(1), p1_untagged,
                                  p2_untagged));
   }

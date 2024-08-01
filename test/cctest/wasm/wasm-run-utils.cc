@@ -4,7 +4,8 @@
 
 #include "test/cctest/wasm/wasm-run-utils.h"
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/codegen/assembler-inl.h"
 #include "src/compiler/pipeline.h"
 #include "src/diagnostics/code-tracer.h"
@@ -537,7 +538,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
 
   if (v8_flags.wasm_jitless) return;
 
-  base::Optional<WasmCompilationResult> result;
+  std::optional<WasmCompilationResult> result;
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
     result.emplace(ExecuteLiftoffCompilation(

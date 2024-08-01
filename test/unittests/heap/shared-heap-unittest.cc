@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/heap/heap.h"
@@ -36,7 +37,7 @@ class SharedHeapNoClientsTest : public TestJSSharedMemoryWithPlatform {
 
  private:
   Isolate* shared_space_isolate_;
-  base::Optional<IsolateWrapper> shared_space_isolate_wrapper;
+  std::optional<IsolateWrapper> shared_space_isolate_wrapper;
 };
 
 namespace {
@@ -678,7 +679,7 @@ namespace {
 // Testing the shared heap using ordinary (indirect) handles.
 
 struct StateWithHandle {
-  base::Optional<HandleScope> scope;
+  std::optional<HandleScope> scope;
   Handle<FixedArray> handle;
   Global<v8::FixedArray> weak;
 };

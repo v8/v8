@@ -8,12 +8,12 @@
 #include <cmath>
 #include <iomanip>
 #include <map>
+#include <optional>
 #include <type_traits>
 #include <utility>
 
 #include "src/base/functional.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/vector.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/source-position-table.h"
@@ -1939,7 +1939,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildJSArrayBuiltinMapSwitchOnElementsKind(
       ValueNode* receiver, const MapKindsT& map_kinds,
       MaglevSubGraphBuilder& sub_graph,
-      base::Optional<MaglevSubGraphBuilder::Label>& do_return,
+      std::optional<MaglevSubGraphBuilder::Label>& do_return,
       int unique_kind_count, IndexToElementsKindFunc&& index_to_elements_kind,
       BuildKindSpecificFunc&& build_kind_specific);
 
@@ -2093,15 +2093,15 @@ class MaglevGraphBuilder {
       ValueNode* object, const ZoneVector<compiler::MapRef>& transition_sources,
       compiler::MapRef transition_target);
   ReduceResult BuildCompareMaps(
-      ValueNode* heap_object, base::Optional<ValueNode*> object_map,
+      ValueNode* heap_object, std::optional<ValueNode*> object_map,
       base::Vector<const compiler::MapRef> maps,
       MaglevSubGraphBuilder* sub_graph,
-      base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched);
+      std::optional<MaglevSubGraphBuilder::Label>& if_not_matched);
   ReduceResult BuildTransitionElementsKindAndCompareMaps(
       ValueNode* heap_object,
       const ZoneVector<compiler::MapRef>& transition_sources,
       compiler::MapRef transition_target, MaglevSubGraphBuilder* sub_graph,
-      base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched);
+      std::optional<MaglevSubGraphBuilder::Label>& if_not_matched);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
   ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
@@ -2167,7 +2167,7 @@ class MaglevGraphBuilder {
   compiler::OptionalObjectRef TryFoldLoadConstantDataField(
       compiler::JSObjectRef holder,
       compiler::PropertyAccessInfo const& access_info);
-  base::Optional<Float64> TryFoldLoadConstantDoubleField(
+  std::optional<Float64> TryFoldLoadConstantDoubleField(
       compiler::JSObjectRef holder,
       compiler::PropertyAccessInfo const& access_info);
 
@@ -2329,10 +2329,10 @@ class MaglevGraphBuilder {
   VirtualObject* CreateContext(compiler::MapRef map, int length,
                                compiler::ScopeInfoRef scope_info,
                                ValueNode* previous_context,
-                               base::Optional<ValueNode*> extension = {});
+                               std::optional<ValueNode*> extension = {});
   VirtualObject* CreateArgumentsObject(compiler::MapRef map, ValueNode* length,
                                        ValueNode* elements,
-                                       base::Optional<ValueNode*> callee = {});
+                                       std::optional<ValueNode*> callee = {});
   VirtualObject* CreateMappedArgumentsElements(compiler::MapRef map,
                                                int mapped_count,
                                                ValueNode* context,
@@ -2377,7 +2377,7 @@ class MaglevGraphBuilder {
 
   ReduceResult TryBuildFastCreateObjectOrArrayLiteral(
       const compiler::LiteralFeedback& feedback);
-  base::Optional<VirtualObject*> TryReadBoilerplateForFastLiteral(
+  std::optional<VirtualObject*> TryReadBoilerplateForFastLiteral(
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
 
@@ -2655,7 +2655,7 @@ class MaglevGraphBuilder {
     const int max_peelings = v8_flags.maglev_optimistic_peeled_loops ? 2 : 1;
     // We count jumps from peeled loops to outside of the loop twice.
     bool is_loop_peeling_iteration = false;
-    base::Optional<int> peeled_loop_end;
+    std::optional<int> peeled_loop_end;
     interpreter::BytecodeArrayIterator iterator(bytecode().object());
     for (iterator.SetOffset(entrypoint_); !iterator.done();
          iterator.Advance()) {
@@ -2841,8 +2841,8 @@ class MaglevGraphBuilder {
   // Current block information.
   bool in_prologue_ = true;
   BasicBlock* current_block_ = nullptr;
-  base::Optional<InterpretedDeoptFrame> entry_stack_check_frame_;
-  base::Optional<DeoptFrame> latest_checkpointed_frame_;
+  std::optional<InterpretedDeoptFrame> entry_stack_check_frame_;
+  std::optional<DeoptFrame> latest_checkpointed_frame_;
   SourcePosition current_source_position_;
   struct ForInState {
     ValueNode* receiver = nullptr;

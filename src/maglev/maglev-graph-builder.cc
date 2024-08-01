@@ -6,11 +6,11 @@
 
 #include <algorithm>
 #include <limits>
+#include <optional>
 #include <utility>
 
 #include "src/base/bounds.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
@@ -1977,7 +1977,7 @@ constexpr bool BinaryOperationIsBitwiseInt32() {
   V(Exponentiate, Float64Exponentiate)
 
 template <Operation kOperation>
-static constexpr base::Optional<int> Int32Identity() {
+static constexpr std::optional<int> Int32Identity() {
   switch (kOperation) {
 #define CASE(op, _, identity) \
   case Operation::k##op:      \
@@ -2154,7 +2154,7 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   // TODO(v8:7700): Do constant folding.
   ValueNode* left = GetAccumulator();
   int32_t constant = iterator_.GetImmediateOperand(0);
-  if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
+  if (std::optional<int>(constant) == Int32Identity<kOperation>()) {
     // Deopt if {left} is not a Int32.
     EnsureInt32(left);
     // If the constant is the unit of the operation, it already has the right
@@ -2181,7 +2181,7 @@ void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
   ValueNode* left = GetTruncatedInt32ForToNumber(
       current_interpreter_frame_.accumulator(), hint);
   int32_t constant = iterator_.GetImmediateOperand(0);
-  if (base::Optional<int>(constant) == Int32Identity<kOperation>()) {
+  if (std::optional<int>(constant) == Int32Identity<kOperation>()) {
     // If the constant is the unit of the operation, it already has the right
     // value, so use the truncated value (if not just a conversion) and return.
     if (!left->properties().is_conversion()) {
@@ -4002,9 +4002,9 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
 }
 
 ReduceResult MaglevGraphBuilder::BuildCompareMaps(
-    ValueNode* heap_object, base::Optional<ValueNode*> object_map_opt,
+    ValueNode* heap_object, std::optional<ValueNode*> object_map_opt,
     base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
-    base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
+    std::optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
   GetOrCreateInfoFor(heap_object);
   KnownMapsMerger merger(broker(), zone(), maps);
   merger.IntersectWithKnownNodeAspects(heap_object, known_node_aspects());
@@ -4025,7 +4025,7 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
   DCHECK(!V8_MAP_PACKING_BOOL);
 
   // TODO(pthier): Handle map migrations.
-  base::Optional<MaglevSubGraphBuilder::Label> map_matched;
+  std::optional<MaglevSubGraphBuilder::Label> map_matched;
   const compiler::ZoneRefSet<Map>& relevant_maps = merger.intersect_set();
   if (relevant_maps.size() > 1) {
     map_matched.emplace(sub_graph, static_cast<int>(relevant_maps.size()));
@@ -4050,7 +4050,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
     ValueNode* heap_object,
     const ZoneVector<compiler::MapRef>& transition_sources,
     compiler::MapRef transition_target, MaglevSubGraphBuilder* sub_graph,
-    base::Optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
+    std::optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
   DCHECK(!transition_target.is_migration_target());
 
   NodeInfo* known_info = GetOrCreateInfoFor(heap_object);
@@ -4410,7 +4410,7 @@ compiler::OptionalObjectRef MaglevGraphBuilder::TryFoldLoadConstantDataField(
       broker()->dependencies());
 }
 
-base::Optional<Float64> MaglevGraphBuilder::TryFoldLoadConstantDoubleField(
+std::optional<Float64> MaglevGraphBuilder::TryFoldLoadConstantDoubleField(
     compiler::JSObjectRef holder,
     compiler::PropertyAccessInfo const& access_info) {
   DCHECK(access_info.field_representation().IsDouble());
@@ -4474,7 +4474,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
       TryGetConstantDataFieldHolder(access_info, lookup_start_object);
   if (constant_holder) {
     if (access_info.field_representation().IsDouble()) {
-      base::Optional<Float64> constant =
+      std::optional<Float64> constant =
           TryFoldLoadConstantDoubleField(constant_holder.value(), access_info);
       if (constant.has_value()) {
         return GetFloat64Constant(constant.value());
@@ -5593,9 +5593,9 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   const int access_info_count = static_cast<int>(access_infos.size());
   // Stores don't return a value, so we don't need a variable for the result.
   MaglevSubGraphBuilder sub_graph(this, is_any_store ? 0 : 1);
-  base::Optional<MaglevSubGraphBuilder::Variable> ret_val;
-  base::Optional<MaglevSubGraphBuilder::Label> done;
-  base::Optional<MaglevSubGraphBuilder::Label> generic_access;
+  std::optional<MaglevSubGraphBuilder::Variable> ret_val;
+  std::optional<MaglevSubGraphBuilder::Label> done;
+  std::optional<MaglevSubGraphBuilder::Label> generic_access;
 
   BuildCheckHeapObject(object);
 
@@ -5604,7 +5604,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   // access for Uint16/Uint32/Int16/Int32/...).
   for (int i = 0; i < access_info_count; i++) {
     compiler::ElementAccessInfo const& access_info = access_infos[i];
-    base::Optional<MaglevSubGraphBuilder::Label> check_next_map;
+    std::optional<MaglevSubGraphBuilder::Label> check_next_map;
     const bool handle_transitions = !access_info.transition_sources().empty();
     ReduceResult map_check_result;
     if (i == access_info_count - 1) {
@@ -5746,10 +5746,10 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
 
   // Stores don't return a value, so we don't need a variable for the result.
   MaglevSubGraphBuilder sub_graph(this, is_any_store ? 0 : 1);
-  base::Optional<MaglevSubGraphBuilder::Variable> ret_val;
-  base::Optional<MaglevSubGraphBuilder::Label> done;
-  base::Optional<MaglevSubGraphBuilder::Label> is_number;
-  base::Optional<MaglevSubGraphBuilder::Label> generic_access;
+  std::optional<MaglevSubGraphBuilder::Variable> ret_val;
+  std::optional<MaglevSubGraphBuilder::Label> done;
+  std::optional<MaglevSubGraphBuilder::Label> is_number;
+  std::optional<MaglevSubGraphBuilder::Label> generic_access;
 
   if (number_map_index >= 0) {
     is_number.emplace(&sub_graph, 2);
@@ -5771,7 +5771,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
 
   for (int i = 0; i < access_info_count; i++) {
     compiler::PropertyAccessInfo const& access_info = access_infos[i];
-    base::Optional<MaglevSubGraphBuilder::Label> check_next_map;
+    std::optional<MaglevSubGraphBuilder::Label> check_next_map;
     ReduceResult map_check_result;
     const auto& maps = access_info.lookup_start_object_maps();
     if (i == access_info_count - 1) {
@@ -6200,7 +6200,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
 
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForPropertyAccess(
-          feedback_source, compiler::AccessMode::kLoad, base::nullopt);
+          feedback_source, compiler::AccessMode::kLoad, std::nullopt);
 
   BuildGetKeyedProperty(object, feedback_source, processed_feedback);
 }
@@ -6213,7 +6213,7 @@ void MaglevGraphBuilder::VisitGetEnumeratedKeyedProperty() {
 
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForPropertyAccess(
-          feedback_source, compiler::AccessMode::kLoad, base::nullopt);
+          feedback_source, compiler::AccessMode::kLoad, std::nullopt);
 
   BuildGetKeyedProperty(object, feedback_source, processed_feedback);
 }
@@ -6404,7 +6404,7 @@ void MaglevGraphBuilder::VisitSetKeyedProperty() {
 
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForPropertyAccess(
-          feedback_source, compiler::AccessMode::kStore, base::nullopt);
+          feedback_source, compiler::AccessMode::kStore, std::nullopt);
 
   auto build_generic_access = [this, object, &feedback_source]() {
     ValueNode* key = LoadRegister(1);
@@ -6463,8 +6463,7 @@ void MaglevGraphBuilder::VisitStaInArrayLiteral() {
 
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForPropertyAccess(
-          feedback_source, compiler::AccessMode::kStoreInLiteral,
-          base::nullopt);
+          feedback_source, compiler::AccessMode::kStoreInLiteral, std::nullopt);
 
   auto build_generic_access = [this, object, index, &feedback_source]() {
     ValueNode* context = GetContext();
@@ -7250,7 +7249,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     element = BuildLoadFixedArrayElement(elements, index_int32);
   }
 
-  base::Optional<MaglevSubGraphBuilder::Label> skip_call;
+  std::optional<MaglevSubGraphBuilder::Label> skip_call;
   if (IsHoleyElementsKind(elements_kind)) {
     // ```
     // if (element is hole) goto skip_call
@@ -7589,7 +7588,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
       compiler::StringRef str = cst->AsString();
       int idx = index->Cast<Int32Constant>()->value();
       if (idx >= 0 && idx < str.length()) {
-        if (base::Optional<uint16_t> value = str.GetChar(broker(), idx)) {
+        if (std::optional<uint16_t> value = str.GetChar(broker(), idx)) {
           return GetSmiConstant(*value);
         }
       }
@@ -7673,7 +7672,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompare(
     } else {
       if (!locales.IsString()) return ReduceResult::Fail();
       compiler::StringRef sref = locales.AsString();
-      base::Optional<Handle<String>> maybe_locales_handle =
+      std::optional<Handle<String>> maybe_locales_handle =
           sref.ObjectIfContentAccessible(broker());
       if (!maybe_locales_handle) return ReduceResult::Fail();
       locales_handle = *maybe_locales_handle;
@@ -7888,7 +7887,7 @@ template <typename MapKindsT, typename IndexToElementsKindFunc,
 ReduceResult MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
     ValueNode* receiver, const MapKindsT& map_kinds,
     MaglevSubGraphBuilder& sub_graph,
-    base::Optional<MaglevSubGraphBuilder::Label>& do_return,
+    std::optional<MaglevSubGraphBuilder::Label>& do_return,
     int unique_kind_count, IndexToElementsKindFunc&& index_to_elements_kind,
     BuildKindSpecificFunc&& build_kind_specific) {
   // TODO(pthier): Support map packing.
@@ -7907,7 +7906,7 @@ ReduceResult MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
     // been checked when the property (builtin name) was loaded.
     if (++emitted_kind_checks < unique_kind_count) {
       MaglevSubGraphBuilder::Label check_next_map(&sub_graph, 1);
-      base::Optional<MaglevSubGraphBuilder::Label> do_push;
+      std::optional<MaglevSubGraphBuilder::Label> do_push;
       if (maps.size() > 1) {
         do_push.emplace(&sub_graph, static_cast<int>(maps.size()));
         for (size_t map_index = 1; map_index < maps.size(); map_index++) {
@@ -8028,7 +8027,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
 
   MaglevSubGraphBuilder sub_graph(this, 0);
 
-  base::Optional<MaglevSubGraphBuilder::Label> do_return;
+  std::optional<MaglevSubGraphBuilder::Label> do_return;
   if (unique_kind_count > 1) {
     do_return.emplace(&sub_graph, unique_kind_count);
   }
@@ -8178,8 +8177,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
   MaglevSubGraphBuilder::Variable var_value(0);
   MaglevSubGraphBuilder::Variable var_new_array_length(1);
 
-  base::Optional<MaglevSubGraphBuilder::Label> do_return =
-      base::make_optional<MaglevSubGraphBuilder::Label>(
+  std::optional<MaglevSubGraphBuilder::Label> do_return =
+      std::make_optional<MaglevSubGraphBuilder::Label>(
           &sub_graph, unique_kind_count + 1,
           std::initializer_list<MaglevSubGraphBuilder::Variable*>{
               &var_value, &var_new_array_length});
@@ -10812,7 +10811,7 @@ void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   ClearCurrentAllocationBlock();
 }
 
-base::Optional<VirtualObject*>
+std::optional<VirtualObject*>
 MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     compiler::JSObjectRef boilerplate, AllocationType allocation, int max_depth,
     int* max_properties) {
@@ -10929,7 +10928,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
 
     if (boilerplate_value.IsJSObject()) {
       compiler::JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
-      base::Optional<VirtualObject*> maybe_object_value =
+      std::optional<VirtualObject*> maybe_object_value =
           TryReadBoilerplateForFastLiteral(boilerplate_object, allocation,
                                            max_depth - 1, max_properties);
       if (!maybe_object_value.has_value()) return {};
@@ -10995,7 +10994,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
             boilerplate_elements_as_fixed_array.TryGet(broker(), i);
         if (!element_value.has_value()) return {};
         if (element_value->IsJSObject()) {
-          base::Optional<VirtualObject*> object =
+          std::optional<VirtualObject*> object =
               TryReadBoilerplateForFastLiteral(element_value->AsJSObject(),
                                                allocation, max_depth - 1,
                                                max_properties);
@@ -11140,7 +11139,7 @@ VirtualObject* MaglevGraphBuilder::CreateFixedArray(compiler::MapRef map,
 
 VirtualObject* MaglevGraphBuilder::CreateContext(
     compiler::MapRef map, int length, compiler::ScopeInfoRef scope_info,
-    ValueNode* previous_context, base::Optional<ValueNode*> extension) {
+    ValueNode* previous_context, std::optional<ValueNode*> extension) {
   int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
   VirtualObject* context = CreateVirtualObject(map, slot_count);
   context->set(Context::kLengthOffset, GetInt32Constant(length));
@@ -11163,7 +11162,7 @@ VirtualObject* MaglevGraphBuilder::CreateContext(
 
 VirtualObject* MaglevGraphBuilder::CreateArgumentsObject(
     compiler::MapRef map, ValueNode* length, ValueNode* elements,
-    base::Optional<ValueNode*> callee) {
+    std::optional<ValueNode*> callee) {
   DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
   DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
   int slot_count = map.instance_size() / kTaggedSize;
@@ -11581,7 +11580,7 @@ ReduceResult MaglevGraphBuilder::TryBuildFastCreateObjectOrArrayLiteral(
   // First try to extract out the shape and values of the boilerplate, bailing
   // out on complex boilerplates.
   int max_properties = compiler::kMaxFastLiteralProperties;
-  base::Optional<VirtualObject*> maybe_value = TryReadBoilerplateForFastLiteral(
+  std::optional<VirtualObject*> maybe_value = TryReadBoilerplateForFastLiteral(
       *site.boilerplate(broker()), allocation_type,
       compiler::kMaxFastLiteralDepth, &max_properties);
   if (!maybe_value.has_value()) return ReduceResult::Fail();

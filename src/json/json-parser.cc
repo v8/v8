@@ -4,6 +4,8 @@
 
 #include "src/json/json-parser.h"
 
+#include <optional>
+
 #include "src/base/strings.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
@@ -455,7 +457,7 @@ void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
 
 template <typename Char>
 void JsonParser<Char>::ReportUnexpectedToken(
-    JsonToken token, base::Optional<MessageTemplate> errorMessage) {
+    JsonToken token, std::optional<MessageTemplate> errorMessage) {
   // Some exception (for example stack overflow) was already thrown.
   if (isolate_->has_exception()) return;
 

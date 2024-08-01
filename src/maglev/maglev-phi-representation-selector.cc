@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-phi-representation-selector.h"
 
+#include <optional>
+
 #include "src/base/enum-set.h"
 #include "src/base/logging.h"
 #include "src/base/small-vector.h"
@@ -889,7 +891,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 
 ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     Phi* phi, BasicBlock* block, NewNodePosition pos,
-    base::Optional<int> predecessor_index) {
+    std::optional<int> predecessor_index) {
   if (phi->value_representation() == ValueRepresentation::kTagged) {
     return phi;
   }

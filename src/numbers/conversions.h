@@ -5,10 +5,11 @@
 #ifndef V8_NUMBERS_CONVERSIONS_H_
 #define V8_NUMBERS_CONVERSIONS_H_
 
+#include <optional>
+
 #include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
@@ -232,15 +233,15 @@ double FlatStringToDouble(Tagged<String> string, ConversionFlag flags,
                           double empty_string_val);
 
 // String to double helper without heap allocation.
-// Returns base::nullopt if the string is longer than
+// Returns std::nullopt if the string is longer than
 // {max_length_for_conversion}. 23 was chosen because any representable double
 // can be represented using a string of length 23.
-V8_EXPORT_PRIVATE base::Optional<double> TryStringToDouble(
+V8_EXPORT_PRIVATE std::optional<double> TryStringToDouble(
     LocalIsolate* isolate, DirectHandle<String> object,
     int max_length_for_conversion = 23);
 
-// Return base::nullopt if the string is longer than 20.
-V8_EXPORT_PRIVATE base::Optional<double> TryStringToInt(
+// Return std::nullopt if the string is longer than 20.
+V8_EXPORT_PRIVATE std::optional<double> TryStringToInt(
     LocalIsolate* isolate, DirectHandle<String> object, int radix);
 
 inline bool TryNumberToSize(Tagged<Object> number, size_t* result);

@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <limits>
+#include <optional>
 
 #include "src/base/bounds.h"
 #include "src/base/logging.h"
@@ -273,7 +274,7 @@ class MaybeUnparkForPrint {
   }
 
  private:
-  base::Optional<UnparkedScope> scope_;
+  std::optional<UnparkedScope> scope_;
 };
 
 template <typename NodeT>

@@ -8,6 +8,7 @@
 #include <stdarg.h>
 
 #include <cmath>
+#include <optional>
 
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
@@ -1463,13 +1464,13 @@ double FlatStringToDouble(Tagged<String> string, ConversionFlag flag,
   }
 }
 
-base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
-                                         DirectHandle<String> object,
-                                         int max_length_for_conversion) {
+std::optional<double> TryStringToDouble(LocalIsolate* isolate,
+                                        DirectHandle<String> object,
+                                        int max_length_for_conversion) {
   DisallowGarbageCollection no_gc;
   int length = object->length();
   if (length > max_length_for_conversion) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   auto buffer = std::make_unique<base::uc16[]>(max_length_for_conversion);
@@ -1479,13 +1480,13 @@ base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
   return StringToDouble(v, ALLOW_NON_DECIMAL_PREFIX);
 }
 
-base::Optional<double> TryStringToInt(LocalIsolate* isolate,
-                                      DirectHandle<String> object, int radix) {
+std::optional<double> TryStringToInt(LocalIsolate* isolate,
+                                     DirectHandle<String> object, int radix) {
   DisallowGarbageCollection no_gc;
   const int kMaxLengthForConversion = 20;
   int length = object->length();
   if (length > kMaxLengthForConversion) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   if (String::IsOneByteRepresentationUnderneath(*object)) {
