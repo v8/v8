@@ -1570,8 +1570,7 @@ class GraphBuilder {
 
     OpIndex arguments[] = {
         __ HeapConstant(node->shared_function_info().object()),
-        Map(node->description()),
-        __ TaggedIndexConstant(node->feedback().index()),
+        Map(node->description()), __ WordPtrConstant(node->feedback().index()),
         __ HeapConstant(node->feedback().vector), native_context()};
 
     SetMap(node, GenerateBuiltinCall(node, Builtin::kGetTemplateObject,
