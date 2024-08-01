@@ -300,8 +300,6 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   __ Ld(data,
         FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
 
-  // If the trusted data field is empty, it will contain Smi::zero.
-  __ JumpIfSmi(data, is_unavailable);
 
   __ GetObjectType(data, scratch1, scratch1);
 
@@ -317,7 +315,9 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
   }
 #endif  // !V8_JITLESS
 
-  __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
+  __ Branch(&done, eq, scratch1, Operand(BYTECODE_ARRAY_TYPE));
+
+  __ Branch(is_unavailable, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ Ld(data, FieldMemOperand(data, InterpreterData::kBytecodeArrayOffset));
   __ bind(&done);
 }
