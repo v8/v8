@@ -2003,6 +2003,11 @@ class TurboshaftAssemblerOpInterface
   OpIndex CompressedHeapConstant(Handle<HeapObject> value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kHeapObject, value);
   }
+  OpIndex TrustedHeapConstant(Handle<HeapObject> value) {
+    DCHECK(IsTrustedObject(*value));
+    return ReduceIfReachableConstant(ConstantOp::Kind::kTrustedHeapObject,
+                                     value);
+  }
   OpIndex ExternalConstant(ExternalReference value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kExternal, value);
   }

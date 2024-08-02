@@ -2358,6 +2358,8 @@ class RepresentationSelector {
       }
       case IrOpcode::kHeapConstant:
         return VisitLeaf<T>(node, MachineRepresentation::kTaggedPointer);
+      case IrOpcode::kTrustedHeapConstant:
+        return VisitLeaf<T>(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kPointerConstant: {
         VisitLeaf<T>(node, MachineType::PointerRepresentation());
         if (lower<T>()) {

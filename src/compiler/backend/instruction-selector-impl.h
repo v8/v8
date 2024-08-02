@@ -387,6 +387,7 @@ class OperandGeneratorT : public Adapter {
             }
           case Kind::kHeapObject:
           case Kind::kCompressedHeapObject:
+          case Kind::kTrustedHeapObject:
             return Constant(constant->handle(),
                             constant->kind == Kind::kCompressedHeapObject);
           case Kind::kExternal:

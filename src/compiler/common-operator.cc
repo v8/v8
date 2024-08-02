@@ -1356,9 +1356,19 @@ const Operator* CommonOperatorBuilder::CompressedHeapConstant(
       value);                                              // parameter
 }
 
+const Operator* CommonOperatorBuilder::TrustedHeapConstant(
+    const Handle<HeapObject>& value) {
+  return zone()->New<Operator1<Handle<HeapObject>>>(    // --
+      IrOpcode::kTrustedHeapConstant, Operator::kPure,  // opcode
+      "TrustedHeapConstant",                            // name
+      0, 0, 0, 1, 0, 0,                                 // counts
+      value);                                           // parameter
+}
+
 Handle<HeapObject> HeapConstantOf(const Operator* op) {
   DCHECK(IrOpcode::kHeapConstant == op->opcode() ||
-         IrOpcode::kCompressedHeapConstant == op->opcode());
+         IrOpcode::kCompressedHeapConstant == op->opcode() ||
+         IrOpcode::kTrustedHeapConstant == op->opcode());
   return OpParameter<Handle<HeapObject>>(op);
 }
 

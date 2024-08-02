@@ -2484,6 +2484,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     kExternal,
     kHeapObject,
     kCompressedHeapObject,
+    kTrustedHeapObject,
     kRelocatableWasmCall,
     kRelocatableWasmStubCall,
     kRelocatableWasmCanonicalSignatureId
@@ -2535,6 +2536,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
         return RegisterRepresentation::Float64();
       case Kind::kExternal:
       case Kind::kTaggedIndex:
+      case Kind::kTrustedHeapObject:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
         return RegisterRepresentation::WordPtr();
@@ -2618,7 +2620,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   }
 
   Handle<i::HeapObject> handle() const {
-    DCHECK(kind == Kind::kHeapObject || kind == Kind::kCompressedHeapObject);
+    DCHECK(kind == Kind::kHeapObject || kind == Kind::kCompressedHeapObject ||
+           kind == Kind::kTrustedHeapObject);
     return storage.handle;
   }
 
@@ -2665,6 +2668,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
                                    : storage.external.raw());
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
+      case Kind::kTrustedHeapObject:
         if (strategy == HashingStrategy::kMakeSnapshotStable) {
           return HashWithOptions();
         }
@@ -2705,6 +2709,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
         return storage.external.raw() == other.storage.external.raw();
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
+      case Kind::kTrustedHeapObject:
         return storage.handle.address() == other.storage.handle.address();
     }
   }

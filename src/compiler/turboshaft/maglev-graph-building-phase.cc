@@ -574,7 +574,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::TrustedConstant* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ HeapConstant(node->object().object()));
+    SetMap(node, __ TrustedHeapConstant(node->object().object()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::InitialValue* node,
@@ -4159,7 +4159,7 @@ class GraphBuilder {
         case maglev::Opcode::kTrustedConstant:
           builder.AddInput(
               MachineType::AnyTagged(),
-              __ HeapConstant(
+              __ TrustedHeapConstant(
                   value->Cast<maglev::TrustedConstant>()->object().object()));
           break;
 

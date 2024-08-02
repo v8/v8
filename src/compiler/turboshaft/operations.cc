@@ -551,6 +551,9 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
     case Kind::kCompressedHeapObject:
       os << "compressed heap object: " << JSONEscaped(handle());
       break;
+    case Kind::kTrustedHeapObject:
+      os << "trusted heap object: " << JSONEscaped(handle());
+      break;
     case Kind::kRelocatableWasmCall:
       os << "relocatable wasm call: 0x"
          << reinterpret_cast<void*>(storage.integral);

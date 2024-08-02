@@ -1059,6 +1059,8 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
       return AddNode(common.HeapConstant(op.handle()), {});
     case ConstantOp::Kind::kCompressedHeapObject:
       return AddNode(common.CompressedHeapConstant(op.handle()), {});
+    case ConstantOp::Kind::kTrustedHeapObject:
+      return AddNode(common.TrustedHeapConstant(op.handle()), {});
     case ConstantOp::Kind::kNumber:
       return AddNode(common.NumberConstant(op.number().get_scalar()), {});
     case ConstantOp::Kind::kTaggedIndex:

@@ -652,7 +652,8 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
         }
         return g->UseImmediate(input);
       case turboshaft::ConstantOp::Kind::kHeapObject:
-      case turboshaft::ConstantOp::Kind::kCompressedHeapObject: {
+      case turboshaft::ConstantOp::Kind::kCompressedHeapObject:
+      case turboshaft::ConstantOp::Kind::kTrustedHeapObject: {
         if (!CanBeTaggedOrCompressedPointer(rep)) {
           // If we have inconsistent static and dynamic types, e.g. if we
           // smi-check a string, we can get here with a heap object that
@@ -728,8 +729,9 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
       } else {
         return g->UseImmediate(input);
       }
+    case IrOpcode::kHeapConstant:
     case IrOpcode::kCompressedHeapConstant:
-    case IrOpcode::kHeapConstant: {
+    case IrOpcode::kTrustedHeapConstant: {
       if (!CanBeTaggedOrCompressedPointer(rep)) {
         // If we have inconsistent static and dynamic types, e.g. if we
         // smi-check a string, we can get here with a heap object that
@@ -3265,6 +3267,8 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsTagged(node), VisitConstant(node);
     case IrOpcode::kCompressedHeapConstant:
       return MarkAsCompressed(node), VisitConstant(node);
+    case IrOpcode::kTrustedHeapConstant:
+      return MarkAsTagged(node), VisitConstant(node);
     case IrOpcode::kNumberConstant: {
       double value = OpParameter<double>(node->op());
       if (!IsSmiDouble(value)) MarkAsTagged(node);
@@ -4759,6 +4763,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           MarkAsFloat64(node);
           break;
         case ConstantOp::Kind::kHeapObject:
+        case ConstantOp::Kind::kTrustedHeapObject:
           MarkAsTagged(node);
           break;
         case ConstantOp::Kind::kCompressedHeapObject:
