@@ -1728,7 +1728,7 @@ void TryUnboxNumberOrOddball(MaglevAssembler* masm, DoubleRegister dst,
   // If Smi, convert to Float64.
   __ SmiToInt32(clobbered_src);
   __ Int32ToDouble(dst, clobbered_src);
-  __ Jump(&done, Label::kNear);
+  __ Jump(&done);
   __ bind(&is_not_smi);
   JumpToFailIfNotHeapNumberOrOddball(masm, clobbered_src, conversion_type,
                                      fail);
