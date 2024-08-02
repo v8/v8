@@ -308,8 +308,6 @@ class MaglevGraphBuilder {
   }
 
   Int32Constant* GetInt32Constant(int32_t constant) {
-    // The constant must fit in a Smi, since it could be later tagged in a Phi.
-    DCHECK(Smi::IsValid(constant));
     auto it = graph_->int32().find(constant);
     if (it == graph_->int32().end()) {
       Int32Constant* node = CreateNewConstantNode<Int32Constant>(0, constant);
@@ -320,8 +318,6 @@ class MaglevGraphBuilder {
   }
 
   Uint32Constant* GetUint32Constant(int constant) {
-    // The constant must fit in a Smi, since it could be later tagged in a Phi.
-    DCHECK(Smi::IsValid(constant));
     auto it = graph_->uint32().find(constant);
     if (it == graph_->uint32().end()) {
       Uint32Constant* node = CreateNewConstantNode<Uint32Constant>(0, constant);
@@ -1447,6 +1443,8 @@ class MaglevGraphBuilder {
                                       hint);
   }
 
+  std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
+
   // Get an Int32 representation node whose value is equivalent to the given
   // node.
   //
@@ -2414,9 +2412,12 @@ class MaglevGraphBuilder {
   bool TryReduceCompareEqualAgainstConstant();
 
   template <Operation kOperation>
-  ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, ValueNode* right);
+  ReduceResult TryFoldInt32UnaryOperation(ValueNode* value);
+
   template <Operation kOperation>
-  ValueNode* TryFoldInt32BinaryOperation(ValueNode* left, int right);
+  ReduceResult TryFoldInt32BinaryOperation(ValueNode* left, ValueNode* right);
+  template <Operation kOperation>
+  ReduceResult TryFoldInt32BinaryOperation(ValueNode* left, int32_t cst_right);
 
   template <Operation kOperation>
   void BuildInt32UnaryOperationNode();

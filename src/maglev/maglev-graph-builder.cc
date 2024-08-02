@@ -1690,6 +1690,24 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
   UNREACHABLE();
 }
 
+std::optional<int32_t> MaglevGraphBuilder::TryGetInt32Constant(
+    ValueNode* value) {
+  switch (value->opcode()) {
+    case Opcode::kInt32Constant:
+      return value->Cast<Int32Constant>()->value();
+    case Opcode::kSmiConstant:
+      return value->Cast<SmiConstant>()->value().value();
+    case Opcode::kFloat64Constant: {
+      double double_value =
+          value->Cast<Float64Constant>()->value().get_scalar();
+      if (!IsSmiDouble(double_value)) return {};
+      return FastD2I(value->Cast<Float64Constant>()->value().get_scalar());
+    }
+    default:
+      return {};
+  }
+}
+
 ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
   RecordUseReprHintIfPhi(value, UseRepresentation::kInt32);
 
@@ -1698,22 +1716,11 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
   if (representation == ValueRepresentation::kInt32) return value;
 
   // Process constants first to avoid allocating NodeInfo for them.
-  switch (value->opcode()) {
-    case Opcode::kSmiConstant:
-      return GetInt32Constant(value->Cast<SmiConstant>()->value().value());
-    case Opcode::kFloat64Constant: {
-      double double_value =
-          value->Cast<Float64Constant>()->value().get_scalar();
-      if (!IsSmiDouble(double_value)) break;
-      return GetInt32Constant(
-          FastD2I(value->Cast<Float64Constant>()->value().get_scalar()));
-    }
-
-    // We could emit unconditional eager deopts for other kinds of constant, but
-    // it's not necessary, the appropriate checking conversion nodes will deopt.
-    default:
-      break;
+  if (auto cst = TryGetInt32Constant(value)) {
+    return GetInt32Constant(cst.value());
   }
+  // We could emit unconditional eager deopts for other kinds of constant, but
+  // it's not necessary, the appropriate checking conversion nodes will deopt.
 
   NodeInfo* node_info = GetOrCreateInfoFor(value);
   auto& alternative = node_info->alternative();
@@ -2051,59 +2058,114 @@ void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
 }
 
 template <Operation kOperation>
+ReduceResult MaglevGraphBuilder::TryFoldInt32UnaryOperation(ValueNode* node) {
+  auto cst = TryGetInt32Constant(node);
+  if (!cst.has_value()) return ReduceResult::Fail();
+  switch (kOperation) {
+    case Operation::kBitwiseNot:
+      return GetInt32Constant(~cst.value());
+    case Operation::kIncrement:
+      if (cst.value() < INT32_MAX) {
+        return GetInt32Constant(cst.value() + 1);
+      }
+      return ReduceResult::Fail();
+    case Operation::kDecrement:
+      if (cst.value() > INT32_MIN) {
+        return GetInt32Constant(cst.value() - 1);
+      }
+      return ReduceResult::Fail();
+    case Operation::kNegate:
+      if (cst.value() != INT32_MIN) {
+        return GetInt32Constant(-cst.value());
+      }
+      return ReduceResult::Fail();
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Operation kOperation>
 void MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
   // Use BuildTruncatingInt32BitwiseNotForToNumber with Smi input hint
   // for truncating operations.
   static_assert(!BinaryOperationIsBitwiseInt32<kOperation>());
-  // TODO(v8:7700): Do constant folding.
   ValueNode* value = GetAccumulator();
+  PROCESS_AND_RETURN_IF_DONE(TryFoldInt32UnaryOperation<kOperation>(value),
+                             SetAccumulator);
   using OpNodeT = Int32NodeFor<kOperation>;
   SetAccumulator(AddNewNode<OpNodeT>({value}));
 }
 
 void MaglevGraphBuilder::BuildTruncatingInt32BitwiseNotForToNumber(
     ToNumberHint hint) {
-  // TODO(v8:7700): Do constant folding.
   ValueNode* value = GetTruncatedInt32ForToNumber(
       current_interpreter_frame_.accumulator(), hint);
+  PROCESS_AND_RETURN_IF_DONE(
+      TryFoldInt32UnaryOperation<Operation::kBitwiseNot>(value),
+      SetAccumulator);
   SetAccumulator(AddNewNode<Int32BitwiseNot>({value}));
 }
 
 template <Operation kOperation>
-ValueNode* MaglevGraphBuilder::TryFoldInt32BinaryOperation(ValueNode* left,
-                                                           ValueNode* right) {
-  switch (kOperation) {
-    case Operation::kModulus:
-      // Note the `x % x = 0` fold is invalid since for negative x values the
-      // result is -0.0.
-      // TODO(v8:7700): Consider re-enabling this fold if the result is used
-      // only in contexts where -0.0 is semantically equivalent to 0.0, or if x
-      // is known to be non-negative.
-    default:
-      // TODO(victorgomes): Implement more folds.
-      break;
-  }
-  return nullptr;
+ReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(ValueNode* left,
+                                                             ValueNode* right) {
+  auto cst_right = TryGetInt32Constant(right);
+  if (!cst_right.has_value()) return ReduceResult::Fail();
+  return TryFoldInt32BinaryOperation<kOperation>(left, cst_right.value());
 }
 
 template <Operation kOperation>
-ValueNode* MaglevGraphBuilder::TryFoldInt32BinaryOperation(ValueNode* left,
-                                                           int right) {
+ReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
+    ValueNode* left, int32_t cst_right) {
+  auto cst_left = TryGetInt32Constant(left);
+  if (!cst_left.has_value()) return ReduceResult::Fail();
   switch (kOperation) {
+    case Operation::kAdd: {
+      int64_t result = static_cast<int64_t>(cst_left.value()) +
+                       static_cast<int64_t>(cst_right);
+      if (result >= INT32_MIN && result <= INT32_MAX) {
+        return GetInt32Constant(static_cast<int32_t>(result));
+      }
+      return ReduceResult::Fail();
+    }
+    case Operation::kSubtract: {
+      int64_t result = static_cast<int64_t>(cst_left.value()) -
+                       static_cast<int64_t>(cst_right);
+      if (result >= INT32_MIN && result <= INT32_MAX) {
+        return GetInt32Constant(static_cast<int32_t>(result));
+      }
+      return ReduceResult::Fail();
+    }
+    case Operation::kMultiply: {
+      int64_t result = static_cast<int64_t>(cst_left.value()) *
+                       static_cast<int64_t>(cst_right);
+      if (result >= INT32_MIN && result <= INT32_MAX) {
+        return GetInt32Constant(static_cast<int32_t>(result));
+      }
+      return ReduceResult::Fail();
+    }
     case Operation::kModulus:
-      // Note the `x % 1 = 0` and `x % -1 = 0` folds are invalid since for
-      // negative x values the result is -0.0.
-      // TODO(v8:7700): Consider re-enabling this fold if the result is used
-      // only in contexts where -0.0 is semantically equivalent to 0.0, or if x
-      // is known to be non-negative.
-      // TODO(victorgomes): We can emit faster mod operation if {right} is power
-      // of 2, unfortunately we need to know if {left} is negative or not.
-      // Maybe emit a Int32ModulusRightIsPowerOf2?
+      // TODO(v8:7700): Constant fold mod.
+      return ReduceResult::Fail();
+    case Operation::kDivide:
+      // TODO(v8:7700): Constant fold division.
+      return ReduceResult::Fail();
+    case Operation::kBitwiseAnd:
+      return GetInt32Constant(cst_left.value() & cst_right);
+    case Operation::kBitwiseOr:
+      return GetInt32Constant(cst_left.value() | cst_right);
+    case Operation::kBitwiseXor:
+      return GetInt32Constant(cst_left.value() ^ cst_right);
+    case Operation::kShiftLeft:
+      return GetInt32Constant(cst_left.value() << cst_right);
+    case Operation::kShiftRight:
+      return GetInt32Constant(cst_left.value() >> cst_right);
+    case Operation::kShiftRightLogical:
+      return GetUint32Constant(static_cast<uint32_t>(cst_left.value()) >>
+                               cst_right);
     default:
-      // TODO(victorgomes): Implement more folds.
-      break;
+      UNREACHABLE();
   }
-  return nullptr;
 }
 
 template <Operation kOperation>
@@ -2111,17 +2173,11 @@ void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
   // Use BuildTruncatingInt32BinaryOperationNodeForToNumber with Smi input hint
   // for truncating operations.
   static_assert(!BinaryOperationIsBitwiseInt32<kOperation>());
-  // TODO(v8:7700): Do constant folding.
   ValueNode* left = LoadRegister(0);
   ValueNode* right = GetAccumulator();
-
-  if (ValueNode* result =
-          TryFoldInt32BinaryOperation<kOperation>(left, right)) {
-    SetAccumulator(result);
-    return;
-  }
+  PROCESS_AND_RETURN_IF_DONE(
+      TryFoldInt32BinaryOperation<kOperation>(left, right), SetAccumulator);
   using OpNodeT = Int32NodeFor<kOperation>;
-
   SetAccumulator(AddNewNode<OpNodeT>({left, right}));
 }
 
@@ -2129,7 +2185,6 @@ template <Operation kOperation>
 void MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForToNumber(
     ToNumberHint hint) {
   static_assert(BinaryOperationIsBitwiseInt32<kOperation>());
-  // TODO(v8:7700): Do constant folding.
   ValueNode* left;
   ValueNode* right;
   if (IsRegisterEqualToAccumulator(0)) {
@@ -2141,12 +2196,8 @@ void MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForToNumber(
     right = GetTruncatedInt32ForToNumber(
         current_interpreter_frame_.accumulator(), hint);
   }
-
-  if (ValueNode* result =
-          TryFoldInt32BinaryOperation<kOperation>(left, right)) {
-    SetAccumulator(result);
-    return;
-  }
+  PROCESS_AND_RETURN_IF_DONE(
+      TryFoldInt32BinaryOperation<kOperation>(left, right), SetAccumulator);
   SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
 }
 
@@ -2156,7 +2207,6 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
   // of whether it's really signed or not, so we allow Uint32 by loading a
   // TruncatedInt32 value.
   static_assert(!BinaryOperationIsBitwiseInt32<kOperation>());
-  // TODO(v8:7700): Do constant folding.
   ValueNode* left = GetAccumulator();
   int32_t constant = iterator_.GetImmediateOperand(0);
   if (std::optional<int>(constant) == Int32Identity<kOperation>()) {
@@ -2166,15 +2216,10 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
     // value, so just return.
     return;
   }
-  if (ValueNode* result =
-          TryFoldInt32BinaryOperation<kOperation>(left, constant)) {
-    SetAccumulator(result);
-    return;
-  }
+  PROCESS_AND_RETURN_IF_DONE(
+      TryFoldInt32BinaryOperation<kOperation>(left, constant), SetAccumulator);
   ValueNode* right = GetInt32Constant(constant);
-
   using OpNodeT = Int32NodeFor<kOperation>;
-
   SetAccumulator(AddNewNode<OpNodeT>({left, right}));
 }
 
@@ -2182,7 +2227,6 @@ template <Operation kOperation>
 void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
     ToNumberHint hint) {
   static_assert(BinaryOperationIsBitwiseInt32<kOperation>());
-  // TODO(v8:7700): Do constant folding.
   ValueNode* left = GetTruncatedInt32ForToNumber(
       current_interpreter_frame_.accumulator(), hint);
   int32_t constant = iterator_.GetImmediateOperand(0);
@@ -2194,11 +2238,8 @@ void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
     }
     return;
   }
-  if (ValueNode* result =
-          TryFoldInt32BinaryOperation<kOperation>(left, constant)) {
-    SetAccumulator(result);
-    return;
-  }
+  PROCESS_AND_RETURN_IF_DONE(
+      TryFoldInt32BinaryOperation<kOperation>(left, constant), SetAccumulator);
   ValueNode* right = GetInt32Constant(constant);
   SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
 }
