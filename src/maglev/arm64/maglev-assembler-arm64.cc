@@ -353,11 +353,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 
   if (v8_flags.debug_code) {
     // Check if {string} is a string.
-    AssertNotSmi(string);
-    LoadMap(scratch1, string);
-    CompareInstanceTypeRange(scratch1, scratch1, FIRST_STRING_TYPE,
-                             LAST_STRING_TYPE);
-    Check(ls, AbortReason::kUnexpectedValue);
+    AssertObjectTypeInRange(string, FIRST_STRING_TYPE, LAST_STRING_TYPE,
+                            AbortReason::kUnexpectedValue);
 
     Ldr(scratch1.W(), FieldMemOperand(string, offsetof(String, length_)));
     Cmp(index.W(), scratch1.W());

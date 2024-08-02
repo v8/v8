@@ -382,9 +382,9 @@ void MaglevAssembler::TestTypeOf(
     }
     case LiteralFlag::kSymbol: {
       JumpIfSmi(object, is_false, false_distance);
-      CompareObjectTypeAndBranch(object, SYMBOL_TYPE, kEqual, is_true,
-                                 true_distance, fallthrough_when_true, is_false,
-                                 false_distance, fallthrough_when_false);
+      BranchOnObjectType(object, SYMBOL_TYPE, is_true, true_distance,
+                         fallthrough_when_true, is_false, false_distance,
+                         fallthrough_when_false);
       return;
     }
     case LiteralFlag::kBoolean:
@@ -395,9 +395,9 @@ void MaglevAssembler::TestTypeOf(
       return;
     case LiteralFlag::kBigInt: {
       JumpIfSmi(object, is_false, false_distance);
-      CompareObjectTypeAndBranch(object, BIGINT_TYPE, kEqual, is_true,
-                                 true_distance, fallthrough_when_true, is_false,
-                                 false_distance, fallthrough_when_false);
+      BranchOnObjectType(object, BIGINT_TYPE, is_true, true_distance,
+                         fallthrough_when_true, is_false, false_distance,
+                         fallthrough_when_false);
       return;
     }
     case LiteralFlag::kUndefined: {
@@ -625,8 +625,7 @@ void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
     Register array, Register index, Register value,
     RegisterSnapshot register_snapshot) {
   if (v8_flags.debug_code) {
-    CompareObjectTypeAndAssert(array, FIXED_ARRAY_TYPE, kEqual,
-                               AbortReason::kUnexpectedValue);
+    AssertObjectType(array, FIXED_ARRAY_TYPE, AbortReason::kUnexpectedValue);
     CompareInt32AndAssert(index, 0, kGreaterThanEqual,
                           AbortReason::kUnexpectedNegativeValue);
   }

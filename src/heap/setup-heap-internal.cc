@@ -404,9 +404,16 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_AND_SET_ROOT(Map, symbol_map, Map::kSize);
 
     ALLOCATE_AND_SET_ROOT(Map, meta_map, Map::kSize);
+    // Keep HeapNumber and Oddball maps together for cheap NumberOrOddball
+    // checks.
     ALLOCATE_AND_SET_ROOT(Map, undefined_map, Map::kSize);
     ALLOCATE_AND_SET_ROOT(Map, null_map, Map::kSize);
+    // Keep HeapNumber and Boolean maps together for cheap NumberOrBoolean
+    // checks.
     ALLOCATE_AND_SET_ROOT(Map, boolean_map, Map::kSize);
+    // Keep HeapNumber and BigInt maps together for cheaper numerics checks.
+    ALLOCATE_AND_SET_ROOT(Map, heap_number_map, Map::kSize);
+    ALLOCATE_AND_SET_ROOT(Map, bigint_map, Map::kSize);
 
 #undef ALLOCATE_AND_SET_ROOT
 
@@ -417,6 +424,12 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     InitializePartialMap(null_map, meta_map, ODDBALL_TYPE, sizeof(Null));
     InitializePartialMap(boolean_map, meta_map, ODDBALL_TYPE, sizeof(Boolean));
     boolean_map->SetConstructorFunctionIndex(Context::BOOLEAN_FUNCTION_INDEX);
+    InitializePartialMap(heap_number_map, meta_map, HEAP_NUMBER_TYPE,
+                         sizeof(HeapNumber));
+    heap_number_map->SetConstructorFunctionIndex(
+        Context::NUMBER_FUNCTION_INDEX);
+    InitializePartialMap(bigint_map, meta_map, BIGINT_TYPE,
+                         kVariableSizeSentinel);
 
     for (const StringTypeInit& entry : kStringTypeTable) {
       Tagged<Map> map = UncheckedCast<Map>(roots.object_at(entry.index));
@@ -571,6 +584,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   FinalizePartialMap(roots.null_map());
   roots.null_map()->set_is_undetectable(true);
   FinalizePartialMap(roots.boolean_map());
+  FinalizePartialMap(roots.heap_number_map());
+  FinalizePartialMap(roots.bigint_map());
   FinalizePartialMap(roots.hole_map());
   FinalizePartialMap(roots.symbol_map());
   for (const StructInit& entry : kStructTable) {
@@ -608,11 +623,6 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_VARSIZE_MAP(CLOSURE_FEEDBACK_CELL_ARRAY_TYPE,
                          closure_feedback_cell_array)
     ALLOCATE_VARSIZE_MAP(FEEDBACK_VECTOR_TYPE, feedback_vector)
-
-    // Keep HeapNumber and BigInt maps together for cheaper numerics checks.
-    ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, sizeof(HeapNumber), heap_number,
-                           Context::NUMBER_FUNCTION_INDEX)
-    ALLOCATE_VARSIZE_MAP(BIGINT_TYPE, bigint);
 
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
     ALLOCATE_MAP(TRUSTED_FOREIGN_TYPE, TrustedForeign::kSize, trusted_foreign)

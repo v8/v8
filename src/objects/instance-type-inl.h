@@ -84,7 +84,7 @@ using InstanceTypeRange = std::pair<InstanceType, InstanceType>;
 using TaggedAddressRange = std::pair<Tagged_t, Tagged_t>;
 
 #if V8_STATIC_ROOTS_BOOL
-constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 6>
+constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 9>
     kUniqueMapRangeOfInstanceTypeRangeList = {
         {{{ALLOCATION_SITE_TYPE, ALLOCATION_SITE_TYPE},
           {StaticReadOnlyRoot::kAllocationSiteWithWeakNextMap,
@@ -95,6 +95,13 @@ constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 6>
          {{FIRST_NAME_TYPE, LAST_NAME_TYPE},
           {StaticReadOnlyRoot::kSeqTwoByteStringMap,
            StaticReadOnlyRoot::kSymbolMap}},
+         {{ODDBALL_TYPE, ODDBALL_TYPE},
+          {StaticReadOnlyRoot::kUndefinedMap, StaticReadOnlyRoot::kBooleanMap}},
+         {{HEAP_NUMBER_TYPE, ODDBALL_TYPE},
+          {StaticReadOnlyRoot::kUndefinedMap,
+           StaticReadOnlyRoot::kHeapNumberMap}},
+         {{BIGINT_TYPE, HEAP_NUMBER_TYPE},
+          {StaticReadOnlyRoot::kHeapNumberMap, StaticReadOnlyRoot::kBigIntMap}},
          {{FIRST_SMALL_ORDERED_HASH_TABLE_TYPE,
            LAST_SMALL_ORDERED_HASH_TABLE_TYPE},
           {StaticReadOnlyRoot::kSmallOrderedHashMapMap,

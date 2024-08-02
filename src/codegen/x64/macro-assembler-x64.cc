@@ -3458,6 +3458,23 @@ void MacroAssembler::IsObjectType(Register heap_object, InstanceType type,
   CmpObjectType(heap_object, type, map);
 }
 
+void MacroAssembler::IsObjectTypeInRange(Register heap_object,
+                                         InstanceType lower_limit,
+                                         InstanceType higher_limit,
+                                         Register scratch) {
+  DCHECK_LT(lower_limit, higher_limit);
+#if V8_STATIC_ROOTS_BOOL
+  if (auto range = InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(
+          lower_limit, higher_limit)) {
+    LoadCompressedMap(scratch, heap_object);
+    CompareRange(scratch, range->first, range->second);
+    return;
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+  LoadMap(scratch, heap_object);
+  CmpInstanceTypeRange(scratch, scratch, lower_limit, higher_limit);
+}
+
 void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,
                                                Register scratch, Label* target,
                                                Label::Distance distance,

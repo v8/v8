@@ -458,17 +458,48 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline Condition IsNotCallableNorUndetactable(Register map, Register scratch);
 
   inline void LoadInstanceType(Register instance_type, Register heap_object);
-  inline void CompareObjectTypeAndAssert(Register heap_object,
-                                         InstanceType type, Condition cond,
-                                         AbortReason reason);
-  inline void CompareObjectTypeAndJumpIf(
-      Register heap_object, InstanceType type, Condition cond, Label* target,
-      Label::Distance distance = Label::kFar);
-  inline void CompareObjectTypeAndBranch(
-      Register heap_object, InstanceType type, Condition condition,
+  inline void JumpIfObjectType(Register heap_object, InstanceType type,
+                               Label* target,
+                               Label::Distance distance = Label::kFar);
+  inline void JumpIfNotObjectType(Register heap_object, InstanceType type,
+                                  Label* target,
+                                  Label::Distance distance = Label::kFar);
+  inline void AssertObjectType(Register heap_object, InstanceType type,
+                               AbortReason reason);
+  inline void BranchOnObjectType(Register heap_object, InstanceType type,
+                                 Label* if_true, Label::Distance true_distance,
+                                 bool fallthrough_when_true, Label* if_false,
+                                 Label::Distance false_distance,
+                                 bool fallthrough_when_false);
+
+  inline void JumpIfObjectTypeInRange(Register heap_object,
+                                      InstanceType lower_limit,
+                                      InstanceType higher_limit, Label* target,
+                                      Label::Distance distance = Label::kFar);
+  inline void JumpIfObjectTypeNotInRange(
+      Register heap_object, InstanceType lower_limit, InstanceType higher_limit,
+      Label* target, Label::Distance distance = Label::kFar);
+  inline void AssertObjectTypeInRange(Register heap_object,
+                                      InstanceType lower_limit,
+                                      InstanceType higher_limit,
+                                      AbortReason reason);
+  inline void BranchOnObjectTypeInRange(
+      Register heap_object, InstanceType lower_limit, InstanceType higher_limit,
       Label* if_true, Label::Distance true_distance, bool fallthrough_when_true,
       Label* if_false, Label::Distance false_distance,
       bool fallthrough_when_false);
+
+#if V8_STATIC_ROOTS_BOOL
+  inline void JumpIfObjectInRange(Register heap_object, Tagged_t lower_limit,
+                                  Tagged_t higher_limit, Label* target,
+                                  Label::Distance distance = Label::kFar);
+  inline void JumpIfObjectNotInRange(Register heap_object, Tagged_t lower_limit,
+                                     Tagged_t higher_limit, Label* target,
+                                     Label::Distance distance = Label::kFar);
+  inline void AssertObjectInRange(Register heap_object, Tagged_t lower_limit,
+                                  Tagged_t higher_limit, AbortReason reason);
+#endif
+
   inline void JumpIfJSAnyIsNotPrimitive(Register heap_object, Label* target,
                                         Label::Distance distance = Label::kFar);
 
@@ -485,13 +516,6 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                           Label* if_false,
                                           Label::Distance false_distance,
                                           bool fallthrough_when_false);
-
-  inline void CompareObjectTypeRange(Register heap_object,
-                                     InstanceType lower_limit,
-                                     InstanceType higher_limit);
-  inline void CompareObjectTypeRange(Register heap_object, Register scratch,
-                                     InstanceType lower_limit,
-                                     InstanceType higher_limit);
 
   inline void CompareMapWithRoot(Register object, RootIndex index,
                                  Register scratch);
@@ -595,6 +619,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void CompareSmiAndJumpIf(Register r1, Tagged<Smi> value,
                                   Condition cond, Label* target,
                                   Label::Distance distance = Label::kFar);
+  inline void CompareSmiAndAssert(Register r1, Tagged<Smi> value,
+                                  Condition cond, AbortReason reason);
   inline void CompareByteAndJumpIf(MemOperand left, int8_t right,
                                    Condition cond, Register scratch,
                                    Label* target,
