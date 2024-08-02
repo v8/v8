@@ -3685,19 +3685,39 @@ void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
 #define EMIT_QFMOP(instr, format)                                              \
   if (dst == src3) {                                                           \
     instr(dst.fp().V##format(), src1.fp().V##format(), src2.fp().V##format()); \
-    return;                                                                    \
-  }                                                                            \
-  if (dst != src1 && dst != src2) {                                            \
+  } else if (dst != src1 && dst != src2) {                                     \
     Mov(dst.fp().V##format(), src3.fp().V##format());                          \
     instr(dst.fp().V##format(), src1.fp().V##format(), src2.fp().V##format()); \
-    return;                                                                    \
-  }                                                                            \
-  DCHECK(dst == src1 || dst == src2);                                          \
-  UseScratchRegisterScope temps(this);                                         \
-  VRegister tmp = temps.AcquireV(kFormat##format);                             \
-  Mov(tmp, src3.fp().V##format());                                             \
-  instr(tmp, src1.fp().V##format(), src2.fp().V##format());                    \
-  Mov(dst.fp().V##format(), tmp);
+  } else {                                                                     \
+    DCHECK(dst == src1 || dst == src2);                                        \
+    UseScratchRegisterScope temps(this);                                       \
+    VRegister tmp = temps.AcquireV(kFormat##format);                           \
+    Mov(tmp, src3.fp().V##format());                                           \
+    instr(tmp, src1.fp().V##format(), src2.fp().V##format());                  \
+    Mov(dst.fp().V##format(), tmp);                                            \
+  }
+
+bool LiftoffAssembler::emit_f16x8_qfma(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  EMIT_QFMOP(Fmla, 8H);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  if (!CpuFeatures::IsSupported(FP16)) {
+    return false;
+  }
+  EMIT_QFMOP(Fmls, 8H);
+  return true;
+}
 
 void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
@@ -4033,20 +4053,6 @@ bool LiftoffAssembler::emit_f32x4_promote_low_f16x8(LiftoffRegister dst,
   }
   Fcvtl(dst.fp().V4S(), src.fp().V4H());
   return true;
-}
-
-bool LiftoffAssembler::emit_f16x8_qfma(LiftoffRegister dst,
-                                       LiftoffRegister src1,
-                                       LiftoffRegister src2,
-                                       LiftoffRegister src3) {
-  return false;
-}
-
-bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
-                                       LiftoffRegister src1,
-                                       LiftoffRegister src2,
-                                       LiftoffRegister src3) {
-  return false;
 }
 
 bool LiftoffAssembler::supports_f16_mem_access() {
