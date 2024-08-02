@@ -4572,14 +4572,30 @@ bool LiftoffAssembler::emit_f16x8_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  return false;
+  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(FMA3)) {
+    return false;
+  }
+
+  YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
+  YMMRegister tmp = YMMRegister::from_code(kScratchDoubleReg.code());
+  YMMRegister tmp2 = YMMRegister::from_code(liftoff::kScratchDoubleReg2.code());
+  F16x8Qfma(ydst, src1.fp(), src2.fp(), src3.fp(), tmp, tmp2);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
-  return false;
+  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(FMA3)) {
+    return false;
+  }
+
+  YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
+  YMMRegister tmp = YMMRegister::from_code(kScratchDoubleReg.code());
+  YMMRegister tmp2 = YMMRegister::from_code(liftoff::kScratchDoubleReg2.code());
+  F16x8Qfms(ydst, src1.fp(), src2.fp(), src3.fp(), tmp, tmp2);
+  return true;
 }
 
 bool LiftoffAssembler::supports_f16_mem_access() {
