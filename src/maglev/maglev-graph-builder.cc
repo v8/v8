@@ -41,6 +41,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/arguments.h"
@@ -4315,15 +4316,11 @@ bool VerifyIsNotEscaping(VirtualObject::List vos, InlinedAllocation* alloc) {
 }
 }  // namespace
 
-bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
-                                               int offset) {
+bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver) {
   DCHECK(!receiver->Is<VirtualObject>());
   if (!v8_flags.maglev_object_tracking) return false;
-  if (offset == HeapObject::kMapOffset) return false;
   if (!receiver->Is<InlinedAllocation>()) return false;
   InlinedAllocation* alloc = receiver->Cast<InlinedAllocation>();
-  // TODO(victorgomes): Support double fixed array.
-  if (alloc->object()->type() != VirtualObject::kDefault) return false;
   if (IsEscaping(graph_, alloc)) return false;
   // We don't support loop phis inside VirtualObjects, so any access inside a
   // loop should escape the object.
@@ -4334,21 +4331,50 @@ bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
   return true;
 }
 
+VirtualObject* MaglevGraphBuilder::GetObjectFromAllocation(
+    InlinedAllocation* allocation) {
+  VirtualObject* vobject = allocation->object();
+  // If it hasn't be snapshotted yet, it is the latest created version of this
+  // object, we don't need to search for it.
+  if (vobject->IsSnapshot()) {
+    vobject = current_interpreter_frame_.virtual_objects().FindAllocatedWith(
+        allocation);
+  }
+  return vobject;
+}
+
+VirtualObject* MaglevGraphBuilder::GetModifiableObjectFromAllocation(
+    InlinedAllocation* allocation) {
+  VirtualObject* vobject = allocation->object();
+  // If it hasn't be snapshotted yet, it is the latest created version of this
+  // object and we can still modify it, we don't need to copy it.
+  if (vobject->IsSnapshot()) {
+    return DeepCopyVirtualObject(
+        current_interpreter_frame_.virtual_objects().FindAllocatedWith(
+            allocation));
+  }
+  return vobject;
+}
+
 ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
                                                     int offset) {
-  if (CanTrackObjectChanges(object, offset)) {
-    InlinedAllocation* allocation = object->TryCast<InlinedAllocation>();
-    VirtualObject* vobj = allocation->object();
-    // If it hasn't be snapshotted yet, it is the latest created version of this
-    // object, we don't need to search for it.
-    if (vobj->IsSnapshot()) {
-      vobj = current_interpreter_frame_.virtual_objects().FindAllocatedWith(
-          allocation);
+  if (offset != HeapObject::kMapOffset && CanTrackObjectChanges(object)) {
+    VirtualObject* vobject =
+        GetObjectFromAllocation(object->Cast<InlinedAllocation>());
+    ValueNode* value;
+    CHECK_NE(vobject->type(), VirtualObject::kHeapNumber);
+    if (vobject->type() == VirtualObject::kDefault) {
+      value = vobject->get(offset);
+    } else {
+      DCHECK_EQ(vobject->type(), VirtualObject::kFixedDoubleArray);
+      // The only offset we're allowed to read from the a FixedDoubleArray as
+      // tagged field is the length.
+      CHECK_EQ(offset, FixedDoubleArray::kLengthOffset);
+      value = GetInt32Constant(vobject->double_elements_length());
     }
-    ValueNode* value = vobj->get(offset);
     if (v8_flags.trace_maglev_object_tracking) {
       std::cout << "  * Reusing value in virtual object "
-                << PrintNodeLabel(graph_labeller(), vobj) << "[" << offset
+                << PrintNodeLabel(graph_labeller(), vobject) << "[" << offset
                 << "]: " << PrintNode(graph_labeller(), value) << std::endl;
     }
     return value;
@@ -4359,18 +4385,13 @@ ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
 void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
                                                               ValueNode* value,
                                                               int offset) {
-  if (!CanTrackObjectChanges(object, offset)) return;
+  if (offset == HeapObject::kMapOffset) return;
+  if (!CanTrackObjectChanges(object)) return;
   // This avoids loop in the object graph.
   if (value->Is<InlinedAllocation>()) return;
   InlinedAllocation* allocation = object->Cast<InlinedAllocation>();
-  // If it hasn't be snapshotted yet, it is the latest created version of this
-  // object and we can still modify it, we don't need to copy it.
-  VirtualObject* vobject = allocation->object();
-  if (vobject->IsSnapshot()) {
-    vobject = DeepCopyVirtualObject(
-        current_interpreter_frame_.virtual_objects().FindAllocatedWith(
-            allocation));
-  }
+  VirtualObject* vobject = GetModifiableObjectFromAllocation(allocation);
+  CHECK_EQ(vobject->type(), VirtualObject::kDefault);
   CHECK_NOT_NULL(vobject);
   vobject->set(offset, value);
   AddNonEscapingUses(allocation, 1);
@@ -4445,6 +4466,20 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
       return GetRootConstant(RootIndex::kTheHoleValue);
     }
   }
+  if (CanTrackObjectChanges(elements)) {
+    VirtualObject* vobject =
+        GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
+    CHECK_EQ(vobject->type(), VirtualObject::kDefault);
+    DCHECK(vobject->map().IsFixedArrayMap());
+    ValueNode* length_node = vobject->get(FixedArray::kLengthOffset);
+    if (auto length = TryGetInt32Constant(length_node)) {
+      if (index >= 0 && index < length.value()) {
+        return vobject->get(FixedArray::OffsetOfElementAt(index));
+      } else {
+        return GetRootConstant(RootIndex::kTheHoleValue);
+      }
+    }
+  }
   if (index < 0 || index >= FixedArray::kMaxLength) {
     return GetRootConstant(RootIndex::kTheHoleValue);
   }
@@ -4454,8 +4489,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
 
 ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
                                                           ValueNode* index) {
-  if (Int32Constant* constant = index->TryCast<Int32Constant>()) {
-    return BuildLoadFixedArrayElement(elements, constant->value());
+  if (auto constant = TryGetInt32Constant(index)) {
+    return BuildLoadFixedArrayElement(elements, constant.value());
   }
   return AddNewNode<LoadFixedArrayElement>({elements, index});
 }
@@ -4463,11 +4498,59 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
 void MaglevGraphBuilder::BuildStoreFixedArrayElement(ValueNode* elements,
                                                      ValueNode* index,
                                                      ValueNode* value) {
+  // TODO(victorgomes): Support storing element to a virtual object. If we
+  // modify the elements array, we need to modify the original object to point
+  // to the new elements array.
   if (CanElideWriteBarrier(elements, value)) {
     AddNewNode<StoreFixedArrayElementNoWriteBarrier>({elements, index, value});
   } else {
     AddNewNode<StoreFixedArrayElementWithWriteBarrier>(
         {elements, index, value});
+  }
+}
+
+ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
+    ValueNode* elements, int index) {
+  if (CanTrackObjectChanges(elements)) {
+    VirtualObject* vobject =
+        GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
+    compiler::FixedDoubleArrayRef elements_array = vobject->double_elements();
+    if (index >= 0 && index < elements_array.length()) {
+      Float64 value = elements_array.GetFromImmutableFixedDoubleArray(index);
+      return GetFloat64Constant(value.get_scalar());
+    } else {
+      return GetRootConstant(RootIndex::kTheHoleValue);
+    }
+  }
+  if (index < 0 || index >= FixedArray::kMaxLength) {
+    return GetRootConstant(RootIndex::kTheHoleValue);
+  }
+  return AddNewNode<LoadFixedDoubleArrayElement>(
+      {elements, GetInt32Constant(index)});
+}
+
+ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
+    ValueNode* elements, ValueNode* index) {
+  if (auto constant = TryGetInt32Constant(index)) {
+    return BuildLoadFixedDoubleArrayElement(elements, constant.value());
+  }
+  return AddNewNode<LoadFixedDoubleArrayElement>({elements, index});
+}
+
+void MaglevGraphBuilder::BuildStoreFixedDoubleArrayElement(ValueNode* elements,
+                                                           ValueNode* index,
+                                                           ValueNode* value) {
+  // TODO(victorgomes): Support storing double element to a virtual object.
+  AddNewNode<StoreFixedDoubleArrayElement>({elements, index, value});
+}
+
+ValueNode* MaglevGraphBuilder::BuildLoadHoleyFixedDoubleArrayElement(
+    ValueNode* elements, ValueNode* index, bool convert_hole) {
+  if (convert_hole) {
+    return AddNewNode<LoadHoleyFixedDoubleArrayElement>({elements, index});
+  } else {
+    return AddNewNode<LoadHoleyFixedDoubleArrayElementCheckedNotHole>(
+        {elements, index});
   }
 }
 
@@ -5410,15 +5493,11 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   auto emit_load = [&]() -> ReduceResult {
     ValueNode* result;
     if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-      if (CanTreatHoleAsUndefined(maps) && LoadModeHandlesHoles(load_mode)) {
-        result = AddNewNode<LoadHoleyFixedDoubleArrayElement>(
-            {elements_array, index});
-      } else {
-        result = AddNewNode<LoadHoleyFixedDoubleArrayElementCheckedNotHole>(
-            {elements_array, index});
-      }
+      result = BuildLoadHoleyFixedDoubleArrayElement(
+          elements_array, index,
+          CanTreatHoleAsUndefined(maps) && LoadModeHandlesHoles(load_mode));
     } else if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
-      result = AddNewNode<LoadFixedDoubleArrayElement>({elements_array, index});
+      result = BuildLoadFixedDoubleArrayElement(elements_array, index);
     } else {
       DCHECK(!IsDoubleElementsKind(elements_kind));
       result = BuildLoadFixedArrayElement(elements_array, index);
@@ -5573,7 +5652,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
 
   // Do the store.
   if (IsDoubleElementsKind(elements_kind)) {
-    AddNewNode<StoreFixedDoubleArrayElement>({elements_array, index, value});
+    BuildStoreFixedDoubleArrayElement(elements_array, index, value);
   } else {
     BuildStoreFixedArrayElement(elements_array, index, value);
   }
@@ -7398,7 +7477,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   ValueNode* elements = BuildLoadElements(receiver);
   ValueNode* element;
   if (IsDoubleElementsKind(elements_kind)) {
-    element = AddNewNode<LoadFixedDoubleArrayElement>({elements, index_int32});
+    element = BuildLoadFixedDoubleArrayElement(elements, index_int32);
   } else {
     element = BuildLoadFixedArrayElement(elements, index_int32);
   }
@@ -8211,8 +8290,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
 
     // Do the store
     if (IsDoubleElementsKind(kind)) {
-      AddNewNode<StoreFixedDoubleArrayElement>(
-          {writable_elements_array, old_array_length, value});
+      BuildStoreFixedDoubleArrayElement(writable_elements_array,
+                                        old_array_length, value);
     } else {
       DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
       BuildStoreFixedArrayElement(writable_elements_array, old_array_length,
@@ -8368,11 +8447,11 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     // Load the value and store the hole in it's place.
     ValueNode* value;
     if (IsDoubleElementsKind(kind)) {
-      value = AddNewNode<LoadFixedDoubleArrayElement>(
-          {writable_elements_array, new_array_length});
-      AddNewNode<StoreFixedDoubleArrayElement>(
-          {writable_elements_array, new_array_length,
-           GetFloat64Constant(Float64::FromBits(kHoleNanInt64))});
+      value = BuildLoadFixedDoubleArrayElement(writable_elements_array,
+                                               new_array_length);
+      BuildStoreFixedDoubleArrayElement(
+          writable_elements_array, new_array_length,
+          GetFloat64Constant(Float64::FromBits(kHoleNanInt64)));
     } else {
       DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
       value =

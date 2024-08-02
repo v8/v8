@@ -2125,13 +2125,15 @@ class MaglevGraphBuilder {
   ValueNode* BuildTestUndetectable(ValueNode* value);
   void BuildToNumberOrToNumeric(Object::Conversion mode);
 
-  bool CanTrackObjectChanges(ValueNode* object, int offset);
+  bool CanTrackObjectChanges(ValueNode* object);
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
+
   void BuildInitializeStore(InlinedAllocation* alloc, ValueNode* value,
                             int offset);
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
   ValueNode* BuildLoadTaggedField(ValueNode* object, int offset);
+
   Node* BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset,
                               StoreTaggedMode store_mode);
   void BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
@@ -2141,12 +2143,20 @@ class MaglevGraphBuilder {
                                      int offset, IndirectPointerTag tag,
                                      StoreTaggedMode store_mode);
 
-  void TryBuildStoreFixedArrayElementToAllocation(ValueNode* object,
-                                                  ValueNode* value, int index);
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, int index);
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index);
   void BuildStoreFixedArrayElement(ValueNode* elements, ValueNode* index,
                                    ValueNode* value);
+
+  ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
+  ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements,
+                                              ValueNode* index);
+  void BuildStoreFixedDoubleArrayElement(ValueNode* elements, ValueNode* index,
+                                         ValueNode* value);
+
+  ValueNode* BuildLoadHoleyFixedDoubleArrayElement(ValueNode* elements,
+                                                   ValueNode* index,
+                                                   bool convert_hole);
 
   ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
@@ -2315,6 +2325,10 @@ class MaglevGraphBuilder {
   ReduceResult TryBuildFastInstanceOfWithFeedback(
       ValueNode* object, ValueNode* callable,
       compiler::FeedbackSource feedback_source);
+
+  VirtualObject* GetObjectFromAllocation(InlinedAllocation* allocation);
+  VirtualObject* GetModifiableObjectFromAllocation(
+      InlinedAllocation* allocation);
 
   VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
   VirtualObject* CreateVirtualObject(compiler::MapRef map,
