@@ -26,7 +26,6 @@ class AnyUseMarkingProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
-  void PostPhiProcessing() {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
@@ -153,7 +152,6 @@ class DeadNodeSweepingProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
-  void PostPhiProcessing() {}
 
   ProcessResult Process(AllocationBlock* node, const ProcessingState& state) {
     // Note: this need to be done before ValueLocationConstraintProcessor, since

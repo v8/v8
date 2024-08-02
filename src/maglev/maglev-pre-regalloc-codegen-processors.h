@@ -18,7 +18,6 @@ class ValueLocationConstraintProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
-  void PostPhiProcessing() {}
 
 #define DEF_PROCESS_NODE(NAME)                                      \
   ProcessResult Process(NAME* node, const ProcessingState& state) { \
@@ -34,7 +33,6 @@ class DecompressedUseMarkingProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
-  void PostPhiProcessing() {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
@@ -53,7 +51,6 @@ class MaxCallDepthProcessor {
     graph->set_max_deopted_stack_size(max_deopted_stack_size_);
   }
   void PreProcessBasicBlock(BasicBlock* block) {}
-  void PostPhiProcessing() {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
@@ -147,7 +144,6 @@ class LiveRangeAndNextUseProcessor {
           LoopUsedNodes{{}, kInvalidNodeId, kInvalidNodeId, block});
     }
   }
-  void PostPhiProcessing() {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {

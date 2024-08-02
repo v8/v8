@@ -440,33 +440,6 @@ class MaglevEarlyLoweringReducer : public Next {
     return initialized_new_property_array;
   }
 
-  void GeneratorStore(V<Context> context, V<JSGeneratorObject> generator,
-                      base::SmallVector<OpIndex, 32> parameters_and_registers,
-                      int suspend_id, int bytecode_offset) {
-    V<FixedArray> array = __ template LoadTaggedField<FixedArray>(
-        generator, JSGeneratorObject::kParametersAndRegistersOffset);
-    for (int i = 0; static_cast<size_t>(i) < parameters_and_registers.size();
-         i++) {
-      __ Store(array, parameters_and_registers[i], StoreOp::Kind::TaggedBase(),
-               MemoryRepresentation::AnyTagged(),
-               WriteBarrierKind::kFullWriteBarrier,
-               FixedArray::OffsetOfElementAt(i));
-    }
-    __ Store(generator, __ SmiConstant(Smi::FromInt(suspend_id)),
-             StoreOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned(),
-             WriteBarrierKind::kNoWriteBarrier,
-             JSGeneratorObject::kContinuationOffset);
-    __ Store(generator, __ SmiConstant(Smi::FromInt(bytecode_offset)),
-             StoreOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned(),
-             WriteBarrierKind::kNoWriteBarrier,
-             JSGeneratorObject::kInputOrDebugPosOffset);
-
-    __ Store(generator, context, StoreOp::Kind::TaggedBase(),
-             MemoryRepresentation::AnyTagged(),
-             WriteBarrierKind::kFullWriteBarrier,
-             JSGeneratorObject::kContextOffset);
-  }
-
  private:
   V<Word32> CheckInstanceTypeIsInRange(V<Map> map,
                                        InstanceType first_instance_type,

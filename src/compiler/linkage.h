@@ -15,7 +15,6 @@
 #include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/compiler/frame.h"
-#include "src/compiler/globals.h"
 #include "src/compiler/operator.h"
 #include "src/execution/encoded-c-signature.h"
 #include "src/runtime/runtime.h"
@@ -383,8 +382,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int js_parameter_count,
-      Operator::Properties properties, CallDescriptor::Flags flags,
-      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo);
+      Operator::Properties properties, CallDescriptor::Flags flags);
 
   static CallDescriptor* GetCEntryStubCallDescriptor(
       Zone* zone, int return_count, int js_parameter_count,

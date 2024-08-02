@@ -8,7 +8,6 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/frame.h"
-#include "src/compiler/globals.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
 
@@ -413,20 +412,15 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Zone* zone, Runtime::FunctionId function_id, int js_parameter_count,
-    Operator::Properties properties, CallDescriptor::Flags flags,
-    LazyDeoptOnThrow lazy_deopt_on_throw) {
+    Operator::Properties properties, CallDescriptor::Flags flags) {
   const Runtime::Function* function = Runtime::FunctionForId(function_id);
   const int return_count = function->result_size;
   const char* debug_name = function->name;
 
-  if (lazy_deopt_on_throw == LazyDeoptOnThrow::kNo &&
-      !Linkage::NeedsFrameStateInput(function_id)) {
+  if (!Linkage::NeedsFrameStateInput(function_id)) {
     flags = static_cast<CallDescriptor::Flags>(
         flags & ~CallDescriptor::kNeedsFrameState);
   }
-
-  DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
-                 flags & CallDescriptor::kNeedsFrameState);
 
   return GetCEntryStubCallDescriptor(zone, return_count, js_parameter_count,
                                      debug_name, properties, flags);
