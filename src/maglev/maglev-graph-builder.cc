@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "src/base/bounds.h"
+#include "src/base/ieee754.h"
 #include "src/base/logging.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
@@ -1756,9 +1757,42 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
   UNREACHABLE();
 }
 
+std::optional<double> MaglevGraphBuilder::TryGetFloat64Constant(
+    ValueNode* value, ToNumberHint hint) {
+  switch (value->opcode()) {
+    case Opcode::kConstant: {
+      compiler::ObjectRef object = value->Cast<Constant>()->object();
+      if (object.IsHeapNumber()) {
+        return object.AsHeapNumber().value();
+      }
+      // Oddballs should be RootConstants.
+      DCHECK(!IsOddball(*object.object()));
+      return {};
+    }
+    case Opcode::kInt32Constant:
+      return value->Cast<Int32Constant>()->value();
+    case Opcode::kSmiConstant:
+      return value->Cast<SmiConstant>()->value().value();
+    case Opcode::kFloat64Constant:
+      return value->Cast<Float64Constant>()->value().get_scalar();
+    case Opcode::kRootConstant: {
+      Tagged<Object> root_object =
+          local_isolate_->root(value->Cast<RootConstant>()->index());
+      if (hint != ToNumberHint::kDisallowToNumber && IsOddball(root_object)) {
+        return Cast<Oddball>(root_object)->to_number_raw();
+      }
+      if (IsHeapNumber(root_object)) {
+        return Cast<HeapNumber>(root_object)->value();
+      }
+      return {};
+    }
+    default:
+      return {};
+  }
+}
+
 ValueNode* MaglevGraphBuilder::GetFloat64(ValueNode* value) {
   RecordUseReprHintIfPhi(value, UseRepresentation::kFloat64);
-
   return GetFloat64ForToNumber(value, ToNumberHint::kDisallowToNumber);
 }
 
@@ -1769,37 +1803,11 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
   if (representation == ValueRepresentation::kFloat64) return value;
 
   // Process constants first to avoid allocating NodeInfo for them.
-  switch (value->opcode()) {
-    case Opcode::kConstant: {
-      compiler::ObjectRef object = value->Cast<Constant>()->object();
-      if (object.IsHeapNumber()) {
-        return GetFloat64Constant(object.AsHeapNumber().value());
-      }
-      // Oddballs should be RootConstants.
-      DCHECK(!IsOddball(*object.object()));
-      break;
-    }
-    case Opcode::kSmiConstant:
-      return GetFloat64Constant(value->Cast<SmiConstant>()->value().value());
-    case Opcode::kInt32Constant:
-      return GetFloat64Constant(value->Cast<Int32Constant>()->value());
-    case Opcode::kRootConstant: {
-      Tagged<Object> root_object =
-          local_isolate_->root(value->Cast<RootConstant>()->index());
-      if (hint != ToNumberHint::kDisallowToNumber && IsOddball(root_object)) {
-        return GetFloat64Constant(Cast<Oddball>(root_object)->to_number_raw());
-      }
-      if (IsHeapNumber(root_object)) {
-        return GetFloat64Constant(Cast<HeapNumber>(root_object)->value());
-      }
-      break;
-    }
-
-    // We could emit unconditional eager deopts for other kinds of constant, but
-    // it's not necessary, the appropriate checking conversion nodes will deopt.
-    default:
-      break;
+  if (auto cst = TryGetFloat64Constant(value, hint)) {
+    return GetFloat64Constant(cst.value());
   }
+  // We could emit unconditional eager deopts for other kinds of constant, but
+  // it's not necessary, the appropriate checking conversion nodes will deopt.
 
   NodeInfo* node_info = GetOrCreateInfoFor(value);
   auto& alternative = node_info->alternative();
@@ -1867,7 +1875,6 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
 ValueNode* MaglevGraphBuilder::GetHoleyFloat64ForToNumber(ValueNode* value,
                                                           ToNumberHint hint) {
   RecordUseReprHintIfPhi(value, UseRepresentation::kHoleyFloat64);
-
   ValueRepresentation representation =
       value->properties().value_representation();
   // Ignore the hint for
@@ -1985,7 +1992,6 @@ constexpr bool BinaryOperationIsBitwiseInt32() {
   V(Multiply, Float64Multiply)           \
   V(Divide, Float64Divide)               \
   V(Modulus, Float64Modulus)             \
-  V(Negate, Float64Negate)               \
   V(Exponentiate, Float64Exponentiate)
 
 template <Operation kOperation>
@@ -2245,12 +2251,67 @@ void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
 }
 
 template <Operation kOperation>
+ReduceResult MaglevGraphBuilder::TryFoldFloat64UnaryOperationForToNumber(
+    ToNumberHint hint, ValueNode* value) {
+  auto cst = TryGetFloat64Constant(value, hint);
+  if (!cst.has_value()) return ReduceResult::Fail();
+  switch (kOperation) {
+    case Operation::kNegate:
+      return GetFloat64Constant(-cst.value());
+    case Operation::kIncrement:
+      return GetFloat64Constant(cst.value() + 1);
+    case Operation::kDecrement:
+      return GetFloat64Constant(cst.value() - 1);
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Operation kOperation>
+ReduceResult MaglevGraphBuilder::TryFoldFloat64BinaryOperationForToNumber(
+    ToNumberHint hint, ValueNode* left, ValueNode* right) {
+  auto cst_right = TryGetFloat64Constant(right, hint);
+  if (!cst_right.has_value()) return ReduceResult::Fail();
+  return TryFoldFloat64BinaryOperationForToNumber<kOperation>(
+      hint, left, cst_right.value());
+}
+
+template <Operation kOperation>
+ReduceResult MaglevGraphBuilder::TryFoldFloat64BinaryOperationForToNumber(
+    ToNumberHint hint, ValueNode* left, double cst_right) {
+  auto cst_left = TryGetFloat64Constant(left, hint);
+  if (!cst_left.has_value()) return ReduceResult::Fail();
+  switch (kOperation) {
+    case Operation::kAdd:
+      return GetFloat64Constant(cst_left.value() + cst_right);
+    case Operation::kSubtract:
+      return GetFloat64Constant(cst_left.value() - cst_right);
+    case Operation::kMultiply:
+      return GetFloat64Constant(cst_left.value() * cst_right);
+    case Operation::kDivide:
+      return GetFloat64Constant(cst_left.value() / cst_right);
+    case Operation::kModulus:
+      // TODO(v8:7700): Constant fold mod.
+      return ReduceResult::Fail();
+    case Operation::kExponentiate:
+      return GetFloat64Constant(
+          base::ieee754::pow(cst_left.value(), cst_right));
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Operation kOperation>
 void MaglevGraphBuilder::BuildFloat64BinarySmiOperationNodeForToNumber(
     ToNumberHint hint) {
-  // TODO(v8:7700): Do constant folding. Make sure to normalize HoleyFloat64
-  // nodes if constant folded.
+  // TODO(v8:7700): Do constant identity folding. Make sure to normalize
+  // HoleyFloat64 nodes if folded.
   ValueNode* left = GetAccumulatorHoleyFloat64ForToNumber(hint);
   double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
+  PROCESS_AND_RETURN_IF_DONE(
+      TryFoldFloat64BinaryOperationForToNumber<kOperation>(hint, left,
+                                                           constant),
+      SetAccumulator);
   ValueNode* right = GetFloat64Constant(constant);
   SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
 }
@@ -2258,9 +2319,12 @@ void MaglevGraphBuilder::BuildFloat64BinarySmiOperationNodeForToNumber(
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildFloat64UnaryOperationNodeForToNumber(
     ToNumberHint hint) {
-  // TODO(v8:7700): Do constant folding. Make sure to normalize HoleyFloat64
-  // nodes if constant folded.
+  // TODO(v8:7700): Do constant identity folding. Make sure to normalize
+  // HoleyFloat64 nodes if folded.
   ValueNode* value = GetAccumulatorHoleyFloat64ForToNumber(hint);
+  PROCESS_AND_RETURN_IF_DONE(
+      TryFoldFloat64UnaryOperationForToNumber<kOperation>(hint, value),
+      SetAccumulator);
   switch (kOperation) {
     case Operation::kNegate:
       SetAccumulator(AddNewNode<Float64Negate>({value}));
@@ -2280,10 +2344,13 @@ void MaglevGraphBuilder::BuildFloat64UnaryOperationNodeForToNumber(
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildFloat64BinaryOperationNodeForToNumber(
     ToNumberHint hint) {
-  // TODO(v8:7700): Do constant folding. Make sure to normalize HoleyFloat64
-  // nodes if constant folded.
+  // TODO(v8:7700): Do constant identity folding. Make sure to normalize
+  // HoleyFloat64 nodes if folded.
   ValueNode* left = LoadRegisterHoleyFloat64ForToNumber(0, hint);
   ValueNode* right = GetAccumulatorHoleyFloat64ForToNumber(hint);
+  PROCESS_AND_RETURN_IF_DONE(
+      TryFoldFloat64BinaryOperationForToNumber<kOperation>(hint, left, right),
+      SetAccumulator);
   SetAccumulator(AddNewNode<Float64NodeFor<kOperation>>({left, right}));
 }
 

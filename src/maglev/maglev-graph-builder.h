@@ -1461,6 +1461,9 @@ class MaglevGraphBuilder {
     EnsureInt32(current_interpreter_frame_.get(reg));
   }
 
+  std::optional<double> TryGetFloat64Constant(ValueNode* value,
+                                              ToNumberHint hint);
+
   // Get a Float64 representation node whose value is equivalent to the given
   // node.
   //
@@ -2413,7 +2416,6 @@ class MaglevGraphBuilder {
 
   template <Operation kOperation>
   ReduceResult TryFoldInt32UnaryOperation(ValueNode* value);
-
   template <Operation kOperation>
   ReduceResult TryFoldInt32BinaryOperation(ValueNode* left, ValueNode* right);
   template <Operation kOperation>
@@ -2430,6 +2432,19 @@ class MaglevGraphBuilder {
   void BuildTruncatingInt32BinaryOperationNodeForToNumber(ToNumberHint hint);
   template <Operation kOperation>
   void BuildTruncatingInt32BinarySmiOperationNodeForToNumber(ToNumberHint hint);
+
+  template <Operation kOperation>
+  ReduceResult TryFoldFloat64UnaryOperationForToNumber(ToNumberHint hint,
+                                                       ValueNode* value);
+  template <Operation kOperation>
+  ReduceResult TryFoldFloat64BinaryOperationForToNumber(ToNumberHint hint,
+                                                        ValueNode* left,
+                                                        ValueNode* right);
+  template <Operation kOperation>
+  ReduceResult TryFoldFloat64BinaryOperationForToNumber(ToNumberHint hint,
+                                                        ValueNode* left,
+                                                        double cst_right);
+
   template <Operation kOperation>
   void BuildFloat64UnaryOperationNodeForToNumber(ToNumberHint hint);
   template <Operation kOperation>
