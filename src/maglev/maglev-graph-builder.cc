@@ -5210,10 +5210,11 @@ ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
     DeoptimizeReason reason) {
   if (Int32Constant* lhs_const = lhs->TryCast<Int32Constant>()) {
     if (Int32Constant* rhs_const = rhs->TryCast<Int32Constant>()) {
-      return CheckConditionIn32(lhs_const->value(), rhs_const->value(),
-                                condition)
-                 ? ReduceResult::Done()
-                 : ReduceResult::DoneWithAbort();
+      if (CheckConditionIn32(lhs_const->value(), rhs_const->value(),
+                             condition)) {
+        return ReduceResult::Done();
+      }
+      return EmitUnconditionalDeopt(reason);
     }
   }
   AddNewNode<CheckInt32Condition>({lhs, rhs}, condition, reason);
