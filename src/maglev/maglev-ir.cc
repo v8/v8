@@ -1673,25 +1673,13 @@ void JumpToFailIfNotHeapNumberOrOddball(
 #else
       Label done;
       __ LoadMap(map, value);
-      __ CompareInstanceType(map, InstanceType::HEAP_NUMBER_TYPE);
+      __ CompareRoot(map, RootIndex::kHeapNumberMap);
       __ JumpIf(kEqual, &done);
-      __ CompareInstanceType(map, InstanceType::ODDBALL_TYPE);
+      __ CompareRoot(map, RootIndex::kBooleanMap);
       if (fail) {
         __ JumpIf(kNotEqual, fail);
       } else {
         __ Assert(kEqual, AbortReason::kUnexpectedValue);
-      }
-      Register oddball_kind = map;
-      __ LoadAndUntagTaggedSignedField(oddball_kind, value,
-                                       Internals::kOddballKindOffset);
-      static_assert(Oddball::kFalse == 0);
-      static_assert(Oddball::kTrue == 1);
-      if (fail) {
-        __ CompareInt32AndJumpIf(oddball_kind, Oddball::kTrue, kGreaterThan,
-                                 fail);
-      } else {
-        __ CompareInt32AndAssert(oddball_kind, Oddball::kTrue, kLessThanEqual,
-                                 AbortReason::kUnexpectedValue);
       }
       __ bind(&done);
 #endif
@@ -1730,7 +1718,7 @@ void TryUnboxNumberOrOddball(MaglevAssembler* masm, DoubleRegister dst,
   // If Smi, convert to Float64.
   __ SmiToInt32(clobbered_src);
   __ Int32ToDouble(dst, clobbered_src);
-  __ Jump(&done);
+  __ Jump(&done, Label::kNear);
   __ bind(&is_not_smi);
   JumpToFailIfNotHeapNumberOrOddball(masm, clobbered_src, conversion_type,
                                      fail);
