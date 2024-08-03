@@ -7,6 +7,7 @@
 #include <algorithm>  // For min
 #include <cmath>      // For isnan.
 #include <limits>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>  // For move
@@ -7201,7 +7202,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
   std::unordered_set<i::Tagged<i::Object>, i::Object::Hasher> done_list_;
   std::vector<i::Handle<i::JSReceiver>> objects_to_freeze_;
   std::vector<i::Handle<i::AccessorPair>> lazy_accessor_pairs_to_freeze_;
-  base::Optional<ErrorInfo> error_;
+  std::optional<ErrorInfo> error_;
 };
 
 }  // namespace
@@ -9767,7 +9768,7 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
 
 void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type,
                                                  StackState stack_state) {
-  base::Optional<i::EmbedderStackStateScope> stack_scope;
+  std::optional<i::EmbedderStackStateScope> stack_scope;
   if (type == kFullGarbageCollection) {
     stack_scope.emplace(reinterpret_cast<i::Isolate*>(this)->heap(),
                         i::EmbedderStackStateOrigin::kExplicitInvocation,

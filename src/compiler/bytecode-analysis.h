@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_BYTECODE_ANALYSIS_H_
 #define V8_COMPILER_BYTECODE_ANALYSIS_H_
 
+#include <optional>
+
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
@@ -175,7 +177,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   ZoneMap<int, int> end_to_header_;
   ZoneMap<int, LoopInfo> header_to_info_;
   int osr_entry_point_;
-  base::Optional<BytecodeLivenessMap> liveness_map_;
+  std::optional<BytecodeLivenessMap> liveness_map_;
   int bytecode_count_ = -1;
 
   class BytecodeAnalysisImpl;

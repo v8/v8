@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/base/iterator.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -456,7 +458,7 @@ void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
 void VisitStoreCommon(InstructionSelectorT<TurboshaftAdapter>* selector,
                       TurboshaftAdapter::node_t node,
                       StoreRepresentation store_rep,
-                      base::Optional<AtomicMemoryOrder> atomic_order) {
+                      std::optional<AtomicMemoryOrder> atomic_order) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   using node_t = TurboshaftAdapter::node_t;
   PPCOperandGeneratorT<TurboshaftAdapter> g(selector);
@@ -627,7 +629,7 @@ void VisitStoreCommon(InstructionSelectorT<TurboshaftAdapter>* selector,
 void VisitStoreCommon(InstructionSelectorT<TurbofanAdapter>* selector,
                       TurbofanAdapter::node_t node,
                       StoreRepresentation store_rep,
-                      base::Optional<AtomicMemoryOrder> atomic_order) {
+                      std::optional<AtomicMemoryOrder> atomic_order) {
   using node_t = TurbofanAdapter::node_t;
   PPCOperandGeneratorT<TurbofanAdapter> g(selector);
   auto store_view = selector->store_view(node);
@@ -797,7 +799,7 @@ void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStore(node_t node) {
   VisitStoreCommon(this, node, this->store_view(node).stored_rep(),
-                   base::nullopt);
+                   std::nullopt);
 }
 
 template <typename Adapter>

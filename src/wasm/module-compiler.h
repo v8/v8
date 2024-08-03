@@ -104,7 +104,7 @@ class WrapperQueue {
   // If the queue is empty, returns nullopt.
   // Thread-safe.
   std::optional<std::pair<Key, KeyInfo>> pop() {
-    std::optional<std::pair<Key, KeyInfo>> key = base::nullopt;
+    std::optional<std::pair<Key, KeyInfo>> key = std::nullopt;
     base::MutexGuard lock(&mutex_);
     auto it = queue_.begin();
     if (it != queue_.end()) {

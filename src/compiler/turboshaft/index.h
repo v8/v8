@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_INDEX_H_
 
 #include <cstddef>
+#include <optional>
 #include <type_traits>
 
 #include "src/base/logging.h"
@@ -707,7 +708,7 @@ class ConstOrV {
       : constant_value_(), value_(index) {}
 
  private:
-  base::Optional<constant_type> constant_value_;
+  std::optional<constant_type> constant_value_;
   V<type> value_;
 };
 

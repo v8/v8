@@ -4,6 +4,8 @@
 
 #include "src/debug/debug-wasm-objects.h"
 
+#include <optional>
+
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/strings.h"
@@ -235,8 +237,8 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
   }
 
   template <typename V>
-  static base::Optional<uint32_t> FindName(
-      Local<v8::Name> name, const PropertyCallbackInfo<V>& info) {
+  static std::optional<uint32_t> FindName(Local<v8::Name> name,
+                                          const PropertyCallbackInfo<V>& info) {
     if (!name->IsString()) return {};
     auto name_str = Utils::OpenHandle(*name.As<v8::String>());
     if (name_str->length() == 0 || name_str->Get(0) != '$') return {};

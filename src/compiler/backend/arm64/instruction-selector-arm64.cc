@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
@@ -114,7 +116,7 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return constant.int64_value();
   }
 
-  base::Optional<int64_t> GetOptionalIntegerConstant(node_t operation) {
+  std::optional<int64_t> GetOptionalIntegerConstant(node_t operation) {
     if (!this->IsIntegerConstant(operation)) return {};
     return this->GetIntegerConstantValue(selector()->constant_view(operation));
   }
@@ -1035,7 +1037,7 @@ void VisitAddSub(InstructionSelectorT<TurboshaftAdapter>* selector,
   const WordBinopOp& add_sub = selector->Get(node).Cast<WordBinopOp>();
   auto [left, right] = GetBinopLeftRightCstOnTheRight(selector, add_sub);
 
-  if (base::Optional<int64_t> constant_rhs =
+  if (std::optional<int64_t> constant_rhs =
           g.GetOptionalIntegerConstant(right)) {
     if (constant_rhs < 0 && constant_rhs > std::numeric_limits<int>::min() &&
         g.CanBeImmediate(-*constant_rhs, kArithmeticImm)) {
@@ -1127,7 +1129,7 @@ bool TryEmitMultiplyNegate(InstructionSelectorT<TurboshaftAdapter>* selector,
   }
   const WordBinopOp& sub = mul_lhs.Cast<WordBinopOp>();
   Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
-  base::Optional<int64_t> sub_lhs_constant =
+  std::optional<int64_t> sub_lhs_constant =
       g.GetOptionalIntegerConstant(sub.left());
   if (!sub_lhs_constant.has_value() || sub_lhs_constant != 0) return false;
   selector->Emit(mneg_opcode, g.DefineAsRegister(mul),
@@ -2073,7 +2075,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
     }
   }
 
-  base::Optional<ExternalReference> external_base;
+  std::optional<ExternalReference> external_base;
   if constexpr (Adapter::IsTurboshaft) {
     ExternalReference value;
     if (this->MatchExternalConstant(store_view.base(), &value)) {
@@ -2086,7 +2088,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
     }
   }
 
-  base::Optional<int64_t> constant_index;
+  std::optional<int64_t> constant_index;
   if (this->valid(store_view.index())) {
     node_t index = this->value(store_view.index());
     constant_index = g.GetOptionalIntegerConstant(index);
@@ -2282,7 +2284,7 @@ class CompareChainNode final : public ZoneObject {
   CompareChainNode* rhs_ = nullptr;
 };
 
-static base::Optional<FlagsCondition> GetFlagsCondition(
+static std::optional<FlagsCondition> GetFlagsCondition(
     OpIndex node, InstructionSelectorT<TurboshaftAdapter>* selector) {
   if (const ComparisonOp* comparison =
           selector->Get(node).TryCast<ComparisonOp>()) {
@@ -2304,7 +2306,7 @@ static base::Optional<FlagsCondition> GetFlagsCondition(
       }
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // Search through AND, OR and comparisons.
@@ -2323,7 +2325,7 @@ static base::Optional<FlagsCondition> GetFlagsCondition(
 //   ccmp
 //   cset y
 //   logic x, y
-static base::Optional<CompareChainNode*> FindCompareChain(
+static std::optional<CompareChainNode*> FindCompareChain(
     OpIndex user, OpIndex node,
     InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone,
     ZoneVector<CompareChainNode*>& nodes) {
@@ -2344,12 +2346,12 @@ static base::Optional<CompareChainNode*> FindCompareChain(
     }
     // Ensure we remove any valid sub-trees that now cannot be used.
     nodes.clear();
-    return base::nullopt;
+    return std::nullopt;
   } else if (selector->valid(user) && selector->CanCover(user, node)) {
-    base::Optional<FlagsCondition> user_condition =
+    std::optional<FlagsCondition> user_condition =
         GetFlagsCondition(node, selector);
     if (!user_condition.has_value()) {
-      return base::nullopt;
+      return std::nullopt;
     }
     const ComparisonOp& comparison = selector->Get(node).Cast<ComparisonOp>();
     if (comparison.kind == ComparisonOp::Kind::kEqual &&
@@ -2364,7 +2366,7 @@ static base::Optional<CompareChainNode*> FindCompareChain(
     }
     return zone->New<CompareChainNode>(node, user_condition.value());
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // Overview -------------------------------------------------------------------
@@ -2522,7 +2524,7 @@ void CombineFlagSettingOps(CompareChainNode* logic_node,
   logic_node->SetCondition(user_condition);
 }
 
-static base::Optional<FlagsCondition> TryMatchConditionalCompareChainShared(
+static std::optional<FlagsCondition> TryMatchConditionalCompareChainShared(
     InstructionSelectorT<TurboshaftAdapter>* selector, Zone* zone, OpIndex node,
     CompareSequence* sequence) {
   // Instead of:
@@ -2544,14 +2546,14 @@ static base::Optional<FlagsCondition> TryMatchConditionalCompareChainShared(
   ZoneVector<CompareChainNode*> logic_nodes(zone);
   auto root =
       FindCompareChain(OpIndex::Invalid(), node, selector, zone, logic_nodes);
-  if (!root.has_value()) return base::nullopt;
+  if (!root.has_value()) return std::nullopt;
 
   if (logic_nodes.size() >
       FlagsContinuationT<TurboshaftAdapter>::kMaxCompareChainSize) {
-    return base::nullopt;
+    return std::nullopt;
   }
   if (!logic_nodes.front()->IsLegalFirstCombine()) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   for (auto* logic_node : logic_nodes) {
@@ -7172,15 +7174,15 @@ struct BicImmParam {
 
 template <typename node_t>
 struct BicImmResult {
-  BicImmResult(base::Optional<BicImmParam> param, node_t const_node,
+  BicImmResult(std::optional<BicImmParam> param, node_t const_node,
                node_t other_node)
       : param(param), const_node(const_node), other_node(other_node) {}
-  base::Optional<BicImmParam> param;
+  std::optional<BicImmParam> param;
   node_t const_node;
   node_t other_node;
 };
 
-base::Optional<BicImmParam> BicImm16bitHelper(uint16_t val) {
+std::optional<BicImmParam> BicImm16bitHelper(uint16_t val) {
   uint8_t byte0 = val & 0xFF;
   uint8_t byte1 = val >> 8;
   // Cannot use Bic if both bytes are not 0x00
@@ -7190,10 +7192,10 @@ base::Optional<BicImmParam> BicImm16bitHelper(uint16_t val) {
   if (byte1 == 0x00) {
     return BicImmParam(byte0, 16, 0);
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
-base::Optional<BicImmParam> BicImm32bitHelper(uint32_t val) {
+std::optional<BicImmParam> BicImm32bitHelper(uint32_t val) {
   for (int i = 0; i < 4; i++) {
     // All bytes are 0 but one
     if ((val & (0xFF << (8 * i))) == val) {
@@ -7204,35 +7206,35 @@ base::Optional<BicImmParam> BicImm32bitHelper(uint32_t val) {
   if ((val >> 16) == (0xFFFF & val)) {
     return BicImm16bitHelper(0xFFFF & val);
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
-base::Optional<BicImmParam> BicImmConstHelper(Node* const_node, bool not_imm) {
+std::optional<BicImmParam> BicImmConstHelper(Node* const_node, bool not_imm) {
   const int kUint32Immediates = 4;
   uint32_t val[kUint32Immediates];
   static_assert(sizeof(val) == kSimd128Size);
   memcpy(val, S128ImmediateParameterOf(const_node->op()).data(), kSimd128Size);
   // If 4 uint32s are not the same, cannot emit Bic
   if (!(val[0] == val[1] && val[1] == val[2] && val[2] == val[3])) {
-    return base::nullopt;
+    return std::nullopt;
   }
   return BicImm32bitHelper(not_imm ? ~val[0] : val[0]);
 }
 
-base::Optional<BicImmParam> BicImmConstHelper(const turboshaft::Operation& op,
-                                              bool not_imm) {
+std::optional<BicImmParam> BicImmConstHelper(const turboshaft::Operation& op,
+                                             bool not_imm) {
   const int kUint32Immediates = 4;
   uint32_t val[kUint32Immediates];
   static_assert(sizeof(val) == kSimd128Size);
   memcpy(val, op.Cast<turboshaft::Simd128ConstantOp>().value, kSimd128Size);
   // If 4 uint32s are not the same, cannot emit Bic
   if (!(val[0] == val[1] && val[1] == val[2] && val[2] == val[3])) {
-    return base::nullopt;
+    return std::nullopt;
   }
   return BicImm32bitHelper(not_imm ? ~val[0] : val[0]);
 }
 
-base::Optional<BicImmResult<turboshaft::OpIndex>> BicImmHelper(
+std::optional<BicImmResult<turboshaft::OpIndex>> BicImmHelper(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex and_node, bool not_imm) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
@@ -7251,10 +7253,10 @@ base::Optional<BicImmResult<turboshaft::OpIndex>> BicImmHelper(
         BicImmConstHelper(selector->Get(op.right()), not_imm), op.right(),
         op.left());
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
-base::Optional<BicImmResult<Node*>> BicImmHelper(
+std::optional<BicImmResult<Node*>> BicImmHelper(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* and_node,
     bool not_imm) {
   Node* left = and_node->InputAt(0);
@@ -7269,17 +7271,17 @@ base::Optional<BicImmResult<Node*>> BicImmHelper(
   if (right->opcode() == IrOpcode::kS128Const) {
     return BicImmResult<Node*>(BicImmConstHelper(right, not_imm), right, left);
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 template <typename Adapter>
 bool TryEmitS128AndNotImm(InstructionSelectorT<Adapter>* selector,
                           typename Adapter::node_t node, bool not_imm) {
   Arm64OperandGeneratorT<Adapter> g(selector);
-  base::Optional<BicImmResult<typename Adapter::node_t>> result =
+  std::optional<BicImmResult<typename Adapter::node_t>> result =
       BicImmHelper(selector, node, not_imm);
   if (!result.has_value()) return false;
-  base::Optional<BicImmParam> param = result->param;
+  std::optional<BicImmParam> param = result->param;
   if (param.has_value()) {
     if (selector->CanCover(node, result->other_node)) {
       selector->Emit(

@@ -642,12 +642,12 @@ std::optional<Tagged<Script>> CallSiteInfo::GetScript() const {
         ->script();
   }
   if (IsBuiltin()) {
-    return base::nullopt;
+    return std::nullopt;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> script = GetSharedFunctionInfo()->script();
   if (IsScript(script)) return Cast<Script>(script);
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Tagged<SharedFunctionInfo> CallSiteInfo::GetSharedFunctionInfo() const {

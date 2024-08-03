@@ -9,13 +9,13 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
@@ -1066,11 +1066,11 @@ struct OperationT : Operation {
            derived_this().Effects().is_required_when_unused();
   }
 
-  static constexpr base::Optional<OpEffects> EffectsIfStatic() {
+  static constexpr std::optional<OpEffects> EffectsIfStatic() {
     if constexpr (HasStaticEffects<Derived>::value) {
       return Derived::Effects();
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 
   Derived& derived_this() { return *static_cast<Derived*>(this); }
@@ -1358,10 +1358,10 @@ base::Vector<const MaybeRegisterRepresentation> MaybeRepVector() {
 V8_EXPORT_PRIVATE bool ValidOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_rep,
-    base::Optional<size_t> projection_index = {});
+    std::optional<size_t> projection_index = {});
 V8_EXPORT_PRIVATE bool ValidOpInputRep(
     const Graph& graph, OpIndex input, RegisterRepresentation expected_rep,
-    base::Optional<size_t> projection_index = {});
+    std::optional<size_t> projection_index = {});
 #endif  // DEBUG
 
 // DeadOp is a special operation that can be used by analyzers to mark
@@ -3862,8 +3862,8 @@ struct fast_hash<TSCallDescriptor> {
 };
 
 // If {target} is a HeapObject representing a builtin, return that builtin's ID.
-base::Optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
-                                        JSHeapBroker* broker);
+std::optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
+                                       JSHeapBroker* broker);
 
 struct CallOp : OperationT<CallOp> {
   const TSCallDescriptor* descriptor;
@@ -8671,7 +8671,7 @@ struct SetContinuationPreservedEmbedderDataOp
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
 #define OPERATION_EFFECTS_CASE(Name) Name##Op::EffectsIfStatic(),
-static constexpr base::Optional<OpEffects>
+static constexpr std::optional<OpEffects>
     kOperationEffectsTable[kNumberOfOpcodes] = {
         TURBOSHAFT_OPERATION_LIST(OPERATION_EFFECTS_CASE)};
 #undef OPERATION_EFFECTS_CASE

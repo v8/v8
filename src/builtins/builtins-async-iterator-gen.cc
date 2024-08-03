@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/builtins/builtins-async-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
@@ -35,7 +36,7 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
       const UndefinedMethodHandler& if_method_undefined,
       const char* operation_name, CloseOnRejectionOption close_on_rejection,
       Label::Type reject_label_type = Label::kDeferred,
-      base::Optional<TNode<Object>> initial_exception_value = base::nullopt);
+      std::optional<TNode<Object>> initial_exception_value = std::nullopt);
 
   void Generate_AsyncFromSyncIteratorMethod(
       CodeStubArguments* args, const TNode<Context> context,
@@ -43,7 +44,7 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
       Handle<String> name, const UndefinedMethodHandler& if_method_undefined,
       const char* operation_name, CloseOnRejectionOption close_on_rejection,
       Label::Type reject_label_type = Label::kDeferred,
-      base::Optional<TNode<Object>> initial_exception_value = base::nullopt) {
+      std::optional<TNode<Object>> initial_exception_value = std::nullopt) {
     auto get_method = [=, this](const TNode<JSReceiver> sync_iterator) {
       return GetProperty(context, sync_iterator, name);
     };
@@ -89,7 +90,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     const UndefinedMethodHandler& if_method_undefined,
     const char* operation_name, CloseOnRejectionOption close_on_rejection,
     Label::Type reject_label_type,
-    base::Optional<TNode<Object>> initial_exception_value) {
+    std::optional<TNode<Object>> initial_exception_value) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<JSPromise> promise = NewJSPromise(context);
 

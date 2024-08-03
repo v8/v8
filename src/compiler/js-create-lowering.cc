@@ -4,6 +4,8 @@
 
 #include "src/compiler/js-create-lowering.h"
 
+#include <optional>
+
 #include "src/compiler/access-builder.h"
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/common-operator.h"
@@ -1129,7 +1131,7 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
     if (!site.boilerplate(broker()).has_value()) return NoChange();
     AllocationType allocation = dependencies()->DependOnPretenureMode(site);
     int max_properties = kMaxFastLiteralProperties;
-    base::Optional<Node*> maybe_value = TryAllocateFastLiteral(
+    std::optional<Node*> maybe_value = TryAllocateFastLiteral(
         effect, control, *site.boilerplate(broker()), allocation,
         kMaxFastLiteralDepth, &max_properties);
     if (!maybe_value.has_value()) return NoChange();
@@ -1714,7 +1716,7 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
   return a.Finish();
 }
 
-base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
+std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     Node* effect, Node* control, JSObjectRef boilerplate,
     AllocationType allocation, int max_depth, int* max_properties) {
   DCHECK_GE(max_depth, 0);
@@ -1819,7 +1821,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     Node* value;
     if (boilerplate_value.IsJSObject()) {
       JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
-      base::Optional<Node*> maybe_value =
+      std::optional<Node*> maybe_value =
           TryAllocateFastLiteral(effect, control, boilerplate_object,
                                  allocation, max_depth - 1, max_properties);
       if (!maybe_value.has_value()) return {};
@@ -1860,7 +1862,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
   }
 
   // Setup the elements backing store.
-  base::Optional<Node*> maybe_elements = TryAllocateFastLiteralElements(
+  std::optional<Node*> maybe_elements = TryAllocateFastLiteralElements(
       effect, control, boilerplate, allocation, max_depth, max_properties);
   if (!maybe_elements.has_value()) return {};
   Node* elements = maybe_elements.value();
@@ -1886,7 +1888,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
   return builder.Finish();
 }
 
-base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
+std::optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
     Node* effect, Node* control, JSObjectRef boilerplate,
     AllocationType allocation, int max_depth, int* max_properties) {
   DCHECK_GT(max_depth, 0);
@@ -1937,7 +1939,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
       OptionalObjectRef element_value = elements.TryGet(broker(), i);
       if (!element_value.has_value()) return {};
       if (element_value->IsJSObject()) {
-        base::Optional<Node*> object =
+        std::optional<Node*> object =
             TryAllocateFastLiteral(effect, control, element_value->AsJSObject(),
                                    allocation, max_depth - 1, max_properties);
         if (!object.has_value()) return {};

@@ -4,6 +4,8 @@
 
 #include "src/builtins/builtins-object-gen.h"
 
+#include <optional>
+
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
@@ -285,7 +287,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
         TNode<JSArray> array;
         TNode<FixedArrayBase> elements;
         std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-            PACKED_ELEMENTS, array_map, SmiConstant(2), base::nullopt,
+            PACKED_ELEMENTS, array_map, SmiConstant(2), std::nullopt,
             IntPtrConstant(2));
         StoreFixedArrayElement(CAST(elements), 0, next_key, SKIP_WRITE_BARRIER);
         StoreFixedArrayElement(CAST(elements), 1, value, SKIP_WRITE_BARRIER);
@@ -647,7 +649,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     TNode<IntPtrT> object_enum_length_intptr = Signed(object_enum_length);
     TNode<Smi> array_length = SmiTag(object_enum_length_intptr);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, base::nullopt,
+        PACKED_ELEMENTS, array_map, array_length, std::nullopt,
         object_enum_length_intptr);
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length_intptr, SKIP_WRITE_BARRIER);
@@ -777,7 +779,7 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     TNode<IntPtrT> object_enum_length_intptr = Signed(object_enum_length);
     TNode<Smi> array_length = SmiTag(object_enum_length_intptr);
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, base::nullopt,
+        PACKED_ELEMENTS, array_map, array_length, std::nullopt,
         object_enum_length_intptr);
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length_intptr, SKIP_WRITE_BARRIER);
@@ -1400,7 +1402,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
                           IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
   TNode<JSObject> result =
-      AllocateJSObjectFromMap(map, base::nullopt, base::nullopt,
+      AllocateJSObjectFromMap(map, std::nullopt, std::nullopt,
                               AllocationFlag::kNone, kWithSlackTracking);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
                                  closure);

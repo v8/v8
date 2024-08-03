@@ -4,6 +4,8 @@
 
 #include "src/compiler/node-properties.h"
 
+#include <optional>
+
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
@@ -394,7 +396,7 @@ OptionalMapRef NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
       }
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // static

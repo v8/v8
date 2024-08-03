@@ -38,7 +38,7 @@ class TieringManager {
   // For use when a JSFunction is available.
   static int InterruptBudgetFor(
       Isolate* isolate, Tagged<JSFunction> function,
-      base::Optional<CodeKind> override_active_tier = {});
+      std::optional<CodeKind> override_active_tier = {});
 
   void MarkForTurboFanOptimization(Tagged<JSFunction> function);
 

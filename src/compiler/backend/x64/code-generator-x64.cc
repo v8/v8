@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include <limits>
+#include <optional>
 
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/assembler.h"
@@ -7132,7 +7132,7 @@ void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
 
 void CodeGenerator::AssembleArchBinarySearchSwitchRange(
     Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
-    std::pair<int32_t, Label*>* end, base::Optional<int32_t>& last_cmp_value) {
+    std::pair<int32_t, Label*>* end, std::optional<int32_t>& last_cmp_value) {
   if (end - begin < kBinarySearchSwitchMinimalCases) {
     if (last_cmp_value && *last_cmp_value == begin->first) {
       // No need to do another repeat cmp.
@@ -7165,7 +7165,7 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
     cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
   }
-  base::Optional<int32_t> last_cmp_value;
+  std::optional<int32_t> last_cmp_value;
   AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size(),
                                       last_cmp_value);

@@ -4,6 +4,8 @@
 
 #include "src/compiler/common-operator.h"
 
+#include <optional>
+
 #include "src/base/functional.h"
 #include "src/base/lazy-instance.h"
 #include "src/compiler/linkage.h"
@@ -1020,7 +1022,7 @@ const Operator* CommonOperatorBuilder::StaticAssert(const char* source) {
 
 const Operator* CommonOperatorBuilder::SLVerifierHint(
     const Operator* semantics,
-    const base::Optional<Type>& override_output_type) {
+    const std::optional<Type>& override_output_type) {
   return zone()->New<Operator1<SLVerifierHintParameters>>(
       IrOpcode::kSLVerifierHint, Operator::kNoProperties, "SLVerifierHint", 1,
       0, 0, 1, 0, 0, SLVerifierHintParameters(semantics, override_output_type));

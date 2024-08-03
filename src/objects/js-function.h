@@ -264,7 +264,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
       std::optional<
           std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                              Tagged<HeapObject> target)>>
-          gc_notify_updated_slot = base::nullopt);
+          gc_notify_updated_slot = std::nullopt);
 
   // Returns if the closure's code field has to be updated because it has
   // stale baseline code.

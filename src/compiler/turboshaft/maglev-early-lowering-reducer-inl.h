@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_MAGLEV_EARLY_LOWERING_REDUCER_INL_H_
 #define V8_COMPILER_TURBOSHAFT_MAGLEV_EARLY_LOWERING_REDUCER_INL_H_
 
+#include <optional>
+
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -44,7 +46,7 @@ class MaglevEarlyLoweringReducer : public Next {
     if (first_instance_type == last_instance_type) {
 #if V8_STATIC_ROOTS_BOOL
       if (InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type)) {
-        base::Optional<RootIndex> expected_index =
+        std::optional<RootIndex> expected_index =
             InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type);
         CHECK(expected_index.has_value());
         Handle<HeapObject> expected_map =

@@ -4,8 +4,9 @@
 
 #include "src/ic/accessor-assembler.h"
 
+#include <optional>
+
 #include "src/ast/ast.h"
-#include "src/base/optional.h"
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-stub-assembler-inl.h"
@@ -2171,7 +2172,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
   BIND(&if_tagged_field);
   {
     Comment("store tagged field");
-    HandleStoreFieldAndReturn(handler_word, holder, value, base::nullopt,
+    HandleStoreFieldAndReturn(handler_word, holder, value, std::nullopt,
                               Representation::Tagged(), miss);
   }
 
@@ -2181,7 +2182,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
     CheckHeapObjectTypeMatchesDescriptor(handler_word, holder, value, miss);
 
     Comment("store heap object field");
-    HandleStoreFieldAndReturn(handler_word, holder, value, base::nullopt,
+    HandleStoreFieldAndReturn(handler_word, holder, value, std::nullopt,
                               Representation::HeapObject(), miss);
   }
 
@@ -2191,7 +2192,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
     GotoIfNot(TaggedIsSmi(value), miss);
 
     Comment("store smi field");
-    HandleStoreFieldAndReturn(handler_word, holder, value, base::nullopt,
+    HandleStoreFieldAndReturn(handler_word, holder, value, std::nullopt,
                               Representation::Smi(), miss);
   }
 
@@ -2286,7 +2287,7 @@ void AccessorAssembler::GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
 
 void AccessorAssembler::HandleStoreFieldAndReturn(
     TNode<Word32T> handler_word, TNode<JSObject> holder, TNode<Object> value,
-    base::Optional<TNode<Float64T>> double_value, Representation representation,
+    std::optional<TNode<Float64T>> double_value, Representation representation,
     Label* miss) {
   bool store_value_as_double = representation.IsDouble();
 
@@ -2743,7 +2744,7 @@ void AccessorAssembler::EmitElementLoad(
 }
 
 void AccessorAssembler::InvalidateValidityCellIfPrototype(
-    TNode<Map> map, base::Optional<TNode<Uint32T>> maybe_bitfield3) {
+    TNode<Map> map, std::optional<TNode<Uint32T>> maybe_bitfield3) {
   Label is_prototype(this), cont(this);
   TNode<Uint32T> bitfield3;
   if (maybe_bitfield3) {
@@ -3953,7 +3954,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
       StoreICParameters p(
           pp->context(),
           LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX),
-          pp->name(), pp->value(), base::nullopt, pp->slot(), pp->vector(),
+          pp->name(), pp->value(), std::nullopt, pp->slot(), pp->vector(),
           StoreICMode::kDefault);
 
       HandleStoreICHandlerCase(&p, handler, &miss, ICMode::kGlobalIC);
@@ -4673,7 +4674,7 @@ void AccessorAssembler::GenerateEnumeratedKeyedLoadIC() {
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto lookup_start_object = base::nullopt;
+  auto lookup_start_object = std::nullopt;
 
   LoadICParameters p(context, receiver, name, slot, vector, lookup_start_object,
                      enum_index, cache_type);
@@ -4764,11 +4765,11 @@ void AccessorAssembler::GenerateStoreGlobalIC() {
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
-  auto flags = base::nullopt;
+  auto flags = std::nullopt;
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, base::nullopt, name, value, flags, slot, vector,
+  StoreICParameters p(context, std::nullopt, name, value, flags, slot, vector,
                       StoreICMode::kDefault);
   StoreGlobalIC(&p);
 }
@@ -4803,7 +4804,7 @@ void AccessorAssembler::GenerateStoreIC() {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
-  auto flags = base::nullopt;
+  auto flags = std::nullopt;
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -4819,7 +4820,7 @@ void AccessorAssembler::GenerateStoreIC_Megamorphic() {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
-  auto flags = base::nullopt;
+  auto flags = std::nullopt;
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -4897,7 +4898,7 @@ void AccessorAssembler::GenerateDefineNamedOwnIC() {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
-  auto flags = base::nullopt;
+  auto flags = std::nullopt;
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -4943,7 +4944,7 @@ void AccessorAssembler::GenerateKeyedStoreIC() {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
-  auto flags = base::nullopt;
+  auto flags = std::nullopt;
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -5047,7 +5048,7 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   auto array = Parameter<Object>(Descriptor::kReceiver);
   auto index = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
-  auto flags = base::nullopt;
+  auto flags = std::nullopt;
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);

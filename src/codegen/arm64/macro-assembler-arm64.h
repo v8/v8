@@ -9,6 +9,8 @@
 #ifndef V8_CODEGEN_ARM64_MACRO_ASSEMBLER_ARM64_H_
 #define V8_CODEGEN_ARM64_MACRO_ASSEMBLER_ARM64_H_
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/bailout-reason.h"
@@ -2535,9 +2537,9 @@ struct MoveCycleState {
   RegList scratch_regs;
   DoubleRegList scratch_fp_regs;
   // Available scratch registers during the move cycle resolution scope.
-  base::Optional<UseScratchRegisterScope> temps;
+  std::optional<UseScratchRegisterScope> temps;
   // Scratch register picked by {MoveToTempLocation}.
-  base::Optional<CPURegister> scratch_reg;
+  std::optional<CPURegister> scratch_reg;
 };
 
 // Provides access to exit frame parameters (GC-ed).

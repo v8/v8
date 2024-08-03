@@ -5,6 +5,7 @@
 #include "src/compiler/backend/instruction-selector.h"
 
 #include <limits>
+#include <optional>
 
 #include "include/v8-internal.h"
 #include "src/base/iterator.h"
@@ -123,7 +124,7 @@ InstructionSelectorT<Adapter>::InstructionSelectorT(
 }
 
 template <typename Adapter>
-base::Optional<BailoutReason>
+std::optional<BailoutReason>
 InstructionSelectorT<Adapter>::SelectInstructions() {
   // Mark the inputs of all phis in loop headers as used.
   block_range_t blocks = this->rpo_order(schedule());
@@ -175,7 +176,7 @@ InstructionSelectorT<Adapter>::SelectInstructions() {
 #if DEBUG
   sequence()->ValidateSSA();
 #endif
-  return base::nullopt;
+  return std::nullopt;
 }
 
 template <typename Adapter>
@@ -5898,7 +5899,7 @@ InstructionSelector::~InstructionSelector() {
     return turboshaft_impl_->__VA_ARGS__;        \
   }
 
-base::Optional<BailoutReason> InstructionSelector::SelectInstructions() {
+std::optional<BailoutReason> InstructionSelector::SelectInstructions() {
   DISPATCH_TO_IMPL(SelectInstructions())
 }
 

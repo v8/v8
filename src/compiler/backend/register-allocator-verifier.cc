@@ -4,6 +4,8 @@
 
 #include "src/compiler/backend/register-allocator-verifier.h"
 
+#include <optional>
+
 #include "src/compiler/backend/instruction.h"
 #include "src/utils/bit-vector.h"
 #include "src/utils/ostreams.h"
@@ -353,7 +355,7 @@ void BlockAssessments::CheckReferenceMap(const ReferenceMap* reference_map) {
 }
 
 bool BlockAssessments::IsStaleReferenceStackSlot(InstructionOperand op,
-                                                 base::Optional<int> vreg) {
+                                                 std::optional<int> vreg) {
   if (!op.IsStackSlot()) return false;
   if (vreg.has_value() && !sequence_->IsReference(*vreg)) return false;
 

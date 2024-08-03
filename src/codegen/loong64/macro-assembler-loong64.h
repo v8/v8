@@ -9,6 +9,8 @@
 #ifndef V8_CODEGEN_LOONG64_MACRO_ASSEMBLER_LOONG64_H_
 #define V8_CODEGEN_LOONG64_MACRO_ASSEMBLER_LOONG64_H_
 
+#include <optional>
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/loong64/assembler-loong64.h"
 #include "src/common/globals.h"
@@ -1252,10 +1254,10 @@ struct MoveCycleState {
   RegList scratch_regs;
   DoubleRegList scratch_fpregs;
   // Available scratch registers during the move cycle resolution scope.
-  base::Optional<UseScratchRegisterScope> temps;
+  std::optional<UseScratchRegisterScope> temps;
   // Scratch register picked by {MoveToTempLocation}.
-  base::Optional<Register> scratch_reg;
-  base::Optional<DoubleRegister> scratch_fpreg;
+  std::optional<Register> scratch_reg;
+  std::optional<DoubleRegister> scratch_fpreg;
 };
 
 // Provides access to exit frame parameters (GC-ed).

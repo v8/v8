@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
@@ -77,7 +79,7 @@ class Loong64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return constant.int64_value();
   }
 
-  base::Optional<int64_t> GetOptionalIntegerConstant(node_t operation) {
+  std::optional<int64_t> GetOptionalIntegerConstant(node_t operation) {
     if (!this->IsIntegerConstant(operation)) return {};
     return this->GetIntegerConstantValue(selector()->constant_view(operation));
   }
@@ -1037,7 +1039,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
     code = GetStoreOpcode(approx_rep);
   }
 
-  base::Optional<ExternalReference> external_base;
+  std::optional<ExternalReference> external_base;
   if constexpr (Adapter::IsTurboshaft) {
     ExternalReference value;
     if (this->MatchExternalConstant(base, &value)) {
@@ -1050,7 +1052,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
     }
   }
 
-  base::Optional<int64_t> constant_index;
+  std::optional<int64_t> constant_index;
   if (this->valid(store_view.index())) {
     node_t index = this->value(store_view.index());
     constant_index = g.GetOptionalIntegerConstant(index);

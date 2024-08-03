@@ -5,6 +5,7 @@
 #include "src/debug/debug.h"
 
 #include <memory>
+#include <optional>
 
 #include "src/api/api-inl.h"
 #include "src/base/platform/mutex.h"
@@ -563,7 +564,7 @@ bool DebugInfoCollection::Contains(Tagged<SharedFunctionInfo> sfi) const {
   return true;
 }
 
-base::Optional<Tagged<DebugInfo>> DebugInfoCollection::Find(
+std::optional<Tagged<DebugInfo>> DebugInfoCollection::Find(
     Tagged<SharedFunctionInfo> sfi) const {
   auto it = map_.find(sfi->unique_id());
   if (it == map_.end()) return {};
@@ -907,8 +908,8 @@ bool Debug::IsMutedAtWasmLocation(Tagged<Script> script, int position) {
 
 namespace {
 
-// Convenience helper for easier base::Optional translation.
-bool ToHandle(Isolate* isolate, base::Optional<Tagged<DebugInfo>> debug_info,
+// Convenience helper for easier std::optional translation.
+bool ToHandle(Isolate* isolate, std::optional<Tagged<DebugInfo>> debug_info,
               Handle<DebugInfo>* out) {
   if (!debug_info.has_value()) return false;
   *out = handle(debug_info.value(), isolate);
@@ -1841,7 +1842,7 @@ namespace {
 bool IsJSFunctionAndNeedsTrampoline(Isolate* isolate,
                                     Tagged<Object> maybe_function) {
   if (!IsJSFunction(maybe_function)) return false;
-  base::Optional<Tagged<DebugInfo>> debug_info =
+  std::optional<Tagged<DebugInfo>> debug_info =
       isolate->debug()->TryGetDebugInfo(
           Cast<JSFunction>(maybe_function)->shared());
   return debug_info.has_value() && debug_info.value()->CanBreakAtEntry();
@@ -2316,7 +2317,7 @@ Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
     DirectHandle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
 
-  if (base::Optional<Tagged<DebugInfo>> di = debug_infos_.Find(*shared)) {
+  if (std::optional<Tagged<DebugInfo>> di = debug_infos_.Find(*shared)) {
     return handle(di.value(), isolate_);
   }
 
@@ -2412,7 +2413,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   return FixedArray::RightTrimOrEmpty(isolate_, results, length);
 }
 
-base::Optional<Tagged<DebugInfo>> Debug::TryGetDebugInfo(
+std::optional<Tagged<DebugInfo>> Debug::TryGetDebugInfo(
     Tagged<SharedFunctionInfo> sfi) {
   return debug_infos_.Find(sfi);
 }
@@ -2422,34 +2423,34 @@ bool Debug::HasDebugInfo(Tagged<SharedFunctionInfo> sfi) {
 }
 
 bool Debug::HasCoverageInfo(Tagged<SharedFunctionInfo> sfi) {
-  if (base::Optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(sfi)) {
+  if (std::optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(sfi)) {
     return debug_info.value()->HasCoverageInfo();
   }
   return false;
 }
 
 bool Debug::HasBreakInfo(Tagged<SharedFunctionInfo> sfi) {
-  if (base::Optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(sfi)) {
+  if (std::optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(sfi)) {
     return debug_info.value()->HasBreakInfo();
   }
   return false;
 }
 
 bool Debug::BreakAtEntry(Tagged<SharedFunctionInfo> sfi) {
-  if (base::Optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(sfi)) {
+  if (std::optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(sfi)) {
     return debug_info.value()->BreakAtEntry();
   }
   return false;
 }
 
-base::Optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
+std::optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (in_debug_scope() || ignore_events()) return {};
   // Temporarily clear any exception to allow evaluating
   // JavaScript from the debug event handler.
   HandleScope scope(isolate_);
   {
-    base::Optional<Isolate::ExceptionScope> exception_scope;
+    std::optional<Isolate::ExceptionScope> exception_scope;
     if (isolate_->has_exception()) exception_scope.emplace(isolate_);
     Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
     OnException(exception, MaybeHandle<JSPromise>(),

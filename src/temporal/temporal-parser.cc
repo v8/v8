@@ -1389,7 +1389,7 @@ SATISIFY(TemporalDurationString, ParsedISO8601Duration)
       }                                                                     \
     }                                                                       \
     if (valid) return parsed;                                               \
-    return base::nullopt;                                                   \
+    return std::nullopt;                                                    \
   }
 
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalDateTimeString)

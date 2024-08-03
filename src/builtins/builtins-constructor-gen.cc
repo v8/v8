@@ -4,6 +4,8 @@
 
 #include "src/builtins/builtins-constructor-gen.h"
 
+#include <optional>
+
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-call-gen.h"
 #include "src/builtins/builtins-constructor.h"
@@ -370,7 +372,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   }
 
   BIND(&instantiate_map);
-  return AllocateJSObjectFromMap(initial_map, properties.value(), base::nullopt,
+  return AllocateJSObjectFromMap(initial_map, properties.value(), std::nullopt,
                                  AllocationFlag::kNone, kWithSlackTracking);
 }
 
@@ -547,10 +549,10 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateEmptyArrayLiteral(
   TNode<IntPtrT> zero_intptr = IntPtrConstant(0);
   TNode<Smi> zero = SmiConstant(0);
   Comment("Allocate JSArray");
-  base::Optional<TNode<AllocationSite>> site =
+  std::optional<TNode<AllocationSite>> site =
       V8_ALLOCATION_SITE_TRACKING_BOOL
-          ? base::make_optional(allocation_site.value())
-          : base::nullopt;
+          ? std::make_optional(allocation_site.value())
+          : std::nullopt;
   TNode<JSArray> result = AllocateJSArray(GetInitialFastElementsKind(),
                                           array_map, zero_intptr, zero, site);
 

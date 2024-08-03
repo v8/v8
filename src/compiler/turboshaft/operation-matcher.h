@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_OPERATION_MATCHER_H_
 
 #include <limits>
+#include <optional>
 #include <type_traits>
 
 #include "src/compiler/turboshaft/graph.h"
@@ -456,7 +457,7 @@ class OperationMatcher {
   }
 
   bool MatchPhi(OpIndex matched,
-                base::Optional<int> input_count = base::nullopt) const {
+                std::optional<int> input_count = std::nullopt) const {
     if (const PhiOp* phi = TryCast<PhiOp>(matched)) {
       return !input_count.has_value() || phi->input_count == *input_count;
     }

@@ -63,7 +63,7 @@ double BoundedAverageSpeed(
 }
 
 double BoundedAverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer) {
-  return BoundedAverageSpeed(buffer, base::nullopt);
+  return BoundedAverageSpeed(buffer, std::nullopt);
 }
 
 }  // namespace

@@ -425,7 +425,7 @@ std::optional<VariableProxy*> Rewriter::RewriteBody(
 
     if (processor.HasStackOverflow()) {
       info->pending_error_handler()->set_stack_overflow();
-      return base::nullopt;
+      return std::nullopt;
     }
   }
   return nullptr;

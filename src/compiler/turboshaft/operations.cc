@@ -6,10 +6,10 @@
 
 #include <atomic>
 #include <iomanip>
+#include <optional>
 #include <sstream>
 
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
@@ -42,13 +42,13 @@ void Operation::Print() const { std::cout << *this << "\n"; }
 
 Zone* get_zone(Graph* graph) { return graph->graph_zone(); }
 
-base::Optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
-                                        JSHeapBroker* broker) {
-  if (!target) return base::nullopt;
-  if (target->kind != ConstantOp::Kind::kHeapObject) return base::nullopt;
+std::optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
+                                       JSHeapBroker* broker) {
+  if (!target) return std::nullopt;
+  if (target->kind != ConstantOp::Kind::kHeapObject) return std::nullopt;
   // TODO(nicohartmann@): For builtin compilation we don't have a broker. We
   // could try to access the heap directly instead.
-  if (broker == nullptr) return base::nullopt;
+  if (broker == nullptr) return std::nullopt;
   UnparkedScopeIfNeeded scope(broker);
   AllowHandleDereference allow_handle_dereference;
   HeapObjectRef ref = MakeRef(broker, target->handle());
@@ -58,7 +58,7 @@ base::Optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
       return code.object()->builtin_id();
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 bool CallOp::IsStackCheck(const Graph& graph, JSHeapBroker* broker,
@@ -100,7 +100,7 @@ void TailCallOp::PrintOptions(std::ostream& os) const {
 bool ValidOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_reps,
-    base::Optional<size_t> projection_index) {
+    std::optional<size_t> projection_index) {
   base::Vector<const RegisterRepresentation> input_reps =
       graph.Get(input).outputs_rep();
   RegisterRepresentation input_rep;
@@ -140,7 +140,7 @@ bool ValidOpInputRep(
 
 bool ValidOpInputRep(const Graph& graph, OpIndex input,
                      RegisterRepresentation expected_rep,
-                     base::Optional<size_t> projection_index) {
+                     std::optional<size_t> projection_index) {
   return ValidOpInputRep(graph, input, {expected_rep}, projection_index);
 }
 #endif  // DEBUG

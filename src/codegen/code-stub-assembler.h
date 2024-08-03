@@ -6,6 +6,7 @@
 #define V8_CODEGEN_CODE_STUB_ASSEMBLER_H_
 
 #include <functional>
+#include <optional>
 
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
@@ -2112,15 +2113,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<JSObject> AllocateJSObjectFromMap(
       TNode<Map> map,
-      base::Optional<TNode<HeapObject>> properties = base::nullopt,
-      base::Optional<TNode<FixedArray>> elements = base::nullopt,
+      std::optional<TNode<HeapObject>> properties = std::nullopt,
+      std::optional<TNode<FixedArray>> elements = std::nullopt,
       AllocationFlags flags = AllocationFlag::kNone,
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
   void InitializeJSObjectFromMap(
       TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size,
-      base::Optional<TNode<HeapObject>> properties = base::nullopt,
-      base::Optional<TNode<FixedArray>> elements = base::nullopt,
+      std::optional<TNode<HeapObject>> properties = std::nullopt,
+      std::optional<TNode<FixedArray>> elements = std::nullopt,
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
   void InitializeJSObjectBodyWithSlackTracking(TNode<HeapObject> object,
@@ -2138,7 +2139,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
   AllocateUninitializedJSArrayWithElements(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
-      base::Optional<TNode<AllocationSite>> allocation_site,
+      std::optional<TNode<AllocationSite>> allocation_site,
       TNode<IntPtrT> capacity,
       AllocationFlags allocation_flags = AllocationFlag::kNone,
       int array_header_size = JSArray::kHeaderSize);
@@ -2146,11 +2147,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Allocate a JSArray and fill elements with the hole.
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
-      TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
+      TNode<Smi> length, std::optional<TNode<AllocationSite>> allocation_site,
       AllocationFlags allocation_flags = AllocationFlag::kNone);
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> capacity,
-      TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
+      TNode<Smi> length, std::optional<TNode<AllocationSite>> allocation_site,
       AllocationFlags allocation_flags = AllocationFlag::kNone) {
     return AllocateJSArray(kind, array_map, PositiveSmiUntag(capacity), length,
                            allocation_site, allocation_flags);
@@ -2160,20 +2161,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Smi> length,
       AllocationFlags allocation_flags = AllocationFlag::kNone) {
     return AllocateJSArray(kind, array_map, PositiveSmiUntag(capacity), length,
-                           base::nullopt, allocation_flags);
+                           std::nullopt, allocation_flags);
   }
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
       TNode<Smi> length,
       AllocationFlags allocation_flags = AllocationFlag::kNone) {
-    return AllocateJSArray(kind, array_map, capacity, length, base::nullopt,
+    return AllocateJSArray(kind, array_map, capacity, length, std::nullopt,
                            allocation_flags);
   }
 
   // Allocate a JSArray and initialize the header fields.
   TNode<JSArray> AllocateJSArray(
       TNode<Map> array_map, TNode<FixedArrayBase> elements, TNode<Smi> length,
-      base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt,
+      std::optional<TNode<AllocationSite>> allocation_site = std::nullopt,
       int array_header_size = JSArray::kHeaderSize);
 
   enum class HoleConversionMode { kDontConvert, kConvertToUndefined };
@@ -2189,7 +2190,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // function generates significantly less code in this case.
   TNode<JSArray> CloneFastJSArray(
       TNode<Context> context, TNode<JSArray> array,
-      base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt,
+      std::optional<TNode<AllocationSite>> allocation_site = std::nullopt,
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert);
 
   TNode<JSArray> ExtractFastJSArray(TNode<Context> context,
@@ -2200,7 +2201,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<FixedArrayBase> AllocateFixedArray(
       ElementsKind kind, TNode<TIndex> capacity,
       AllocationFlags flags = AllocationFlag::kNone,
-      base::Optional<TNode<Map>> fixed_array_map = base::nullopt);
+      std::optional<TNode<Map>> fixed_array_map = std::nullopt);
 
   template <typename Function>
   TNode<Object> FastCloneJSObject(TNode<HeapObject> source,
@@ -2485,13 +2486,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // can skip write barriers.
   template <typename TIndex>
   TNode<FixedArrayBase> ExtractFixedArray(
-      TNode<FixedArrayBase> source, base::Optional<TNode<TIndex>> first,
-      base::Optional<TNode<TIndex>> count = base::nullopt,
-      base::Optional<TNode<TIndex>> capacity = base::nullopt,
+      TNode<FixedArrayBase> source, std::optional<TNode<TIndex>> first,
+      std::optional<TNode<TIndex>> count = std::nullopt,
+      std::optional<TNode<TIndex>> capacity = std::nullopt,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
       TVariable<BoolT>* var_holes_converted = nullptr,
-      base::Optional<TNode<Int32T>> source_elements_kind = base::nullopt);
+      std::optional<TNode<Int32T>> source_elements_kind = std::nullopt);
 
   // Copy a portion of an existing FixedArray or FixedDoubleArray into a new
   // FixedArray, including special appropriate handling for COW arrays.
@@ -2525,7 +2526,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
       HoleConversionMode convert_holes,
       TVariable<BoolT>* var_holes_converted = nullptr,
-      base::Optional<TNode<Int32T>> source_runtime_kind = base::nullopt);
+      std::optional<TNode<Int32T>> source_runtime_kind = std::nullopt);
 
   // Attempt to copy a FixedDoubleArray to another FixedDoubleArray. In the case
   // where the source array has a hole, produce a FixedArray instead where holes
@@ -2742,15 +2743,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                           const char* method_name);
 
   void ThrowRangeError(TNode<Context> context, MessageTemplate message,
-                       base::Optional<TNode<Object>> arg0 = base::nullopt,
-                       base::Optional<TNode<Object>> arg1 = base::nullopt,
-                       base::Optional<TNode<Object>> arg2 = base::nullopt);
+                       std::optional<TNode<Object>> arg0 = std::nullopt,
+                       std::optional<TNode<Object>> arg1 = std::nullopt,
+                       std::optional<TNode<Object>> arg2 = std::nullopt);
   void ThrowTypeError(TNode<Context> context, MessageTemplate message,
                       char const* arg0 = nullptr, char const* arg1 = nullptr);
   void ThrowTypeError(TNode<Context> context, MessageTemplate message,
-                      base::Optional<TNode<Object>> arg0,
-                      base::Optional<TNode<Object>> arg1 = base::nullopt,
-                      base::Optional<TNode<Object>> arg2 = base::nullopt);
+                      std::optional<TNode<Object>> arg0,
+                      std::optional<TNode<Object>> arg1 = std::nullopt,
+                      std::optional<TNode<Object>> arg2 = std::nullopt);
 
   void TerminateExecution(TNode<Context> context);
 
@@ -3500,7 +3501,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void AddToDictionary(
       TNode<Dictionary> dictionary, TNode<Name> key, TNode<Object> value,
       Label* bailout,
-      base::Optional<TNode<IntPtrT>> insertion_index = base::nullopt);
+      std::optional<TNode<IntPtrT>> insertion_index = std::nullopt);
 
   // Tries to check if {object} has own {unique_name} property.
   void TryHasOwnProperty(TNode<HeapObject> object, TNode<Map> map,
@@ -4632,7 +4633,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // fields initialized.
   TNode<JSArray> AllocateUninitializedJSArray(
       TNode<Map> array_map, TNode<Smi> length,
-      base::Optional<TNode<AllocationSite>> allocation_site,
+      std::optional<TNode<AllocationSite>> allocation_site,
       TNode<IntPtrT> size_in_bytes);
 
   // Increases the provided capacity to the next valid value, if necessary.

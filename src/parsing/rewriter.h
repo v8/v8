@@ -34,7 +34,7 @@ class Rewriter {
   // Helper that does the actual re-writing. Extracted so REPL scripts can
   // rewrite the body but then use the ".result" VariableProxy to resolve
   // the async promise that is the result of running a REPL script.
-  // Returns base::nullopt in case something went wrong.
+  // Returns std::nullopt in case something went wrong.
   static std::optional<VariableProxy*> RewriteBody(
       ParseInfo* info, Scope* scope, ZonePtrList<Statement>* body);
 };

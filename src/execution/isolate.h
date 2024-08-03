@@ -10,6 +10,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <unordered_map>
 #include <vector>
@@ -2666,7 +2667,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ThreadDataTable thread_data_table_;
 
   // Stores the isolate containing the shared space.
-  base::Optional<Isolate*> shared_space_isolate_;
+  std::optional<Isolate*> shared_space_isolate_;
 
   // Used to deduplicate registered SharedStructType shapes.
   //

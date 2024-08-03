@@ -7,9 +7,9 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 
-#include "src/base/optional.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
@@ -478,7 +478,7 @@ TurbofanPipelineStatistics* CreatePipelineStatistics(
     base::Vector<const uint8_t> function_bytes{compilation_data.func_body.start,
                                                compilation_data.body_size()};
     base::Vector<const uint8_t> module_bytes{nullptr, 0};
-    base::Optional<wasm::ModuleWireBytes> maybe_wire_bytes =
+    std::optional<wasm::ModuleWireBytes> maybe_wire_bytes =
         compilation_data.wire_bytes_storage->GetModuleBytes();
     if (maybe_wire_bytes) module_bytes = maybe_wire_bytes->module_bytes();
 
@@ -1816,8 +1816,8 @@ struct RevectorizePhase {
 struct InstructionSelectionPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(SelectInstructions)
 
-  base::Optional<BailoutReason> Run(TFPipelineData* data, Zone* temp_zone,
-                                    Linkage* linkage) {
+  std::optional<BailoutReason> Run(TFPipelineData* data, Zone* temp_zone,
+                                   Linkage* linkage) {
     InstructionSelector selector = InstructionSelector::ForTurbofan(
         temp_zone, data->graph()->NodeCount(), linkage, data->sequence(),
         data->schedule(), data->source_positions(), data->frame(),
@@ -1840,7 +1840,7 @@ struct InstructionSelectionPhase {
         data->info()->trace_turbo_json()
             ? InstructionSelector::kEnableTraceTurboJson
             : InstructionSelector::kDisableTraceTurboJson);
-    if (base::Optional<BailoutReason> bailout = selector.SelectInstructions()) {
+    if (std::optional<BailoutReason> bailout = selector.SelectInstructions()) {
       return bailout;
     }
     if (data->info()->trace_turbo_json()) {
@@ -1851,7 +1851,7 @@ struct InstructionSelectionPhase {
                                          &selector.instr_origins()}
               << "},\n";
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 };
 
@@ -3948,7 +3948,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     data->InitializeFrameData(call_descriptor);
   }
   // Select and schedule instructions covering the scheduled graph.
-  if (base::Optional<BailoutReason> bailout =
+  if (std::optional<BailoutReason> bailout =
           Run<InstructionSelectionPhase>(linkage)) {
     info()->AbortOptimization(*bailout);
     data->EndPhaseKind();

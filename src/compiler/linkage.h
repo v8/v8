@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_LINKAGE_H_
 #define V8_COMPILER_LINKAGE_H_
 
+#include <optional>
+
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/codegen/interface-descriptors.h"
@@ -331,8 +333,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const StackArgumentOrder stack_order_;
   const char* const debug_name_;
 
-  mutable base::Optional<size_t> gp_param_count_;
-  mutable base::Optional<size_t> fp_param_count_;
+  mutable std::optional<size_t> gp_param_count_;
+  mutable std::optional<size_t> fp_param_count_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)

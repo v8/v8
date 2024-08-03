@@ -5,6 +5,7 @@
 #ifndef V8_DEOPTIMIZER_DEOPTIMIZER_H_
 #define V8_DEOPTIMIZER_DEOPTIMIZER_H_
 
+#include <optional>
 #include <vector>
 
 #include "src/builtins/builtins.h"
@@ -194,7 +195,7 @@ class Deoptimizer : public Malloced {
 
 #if V8_ENABLE_WEBASSEMBLY
   TranslatedValue TranslatedValueForWasmReturnKind(
-      base::Optional<wasm::ValueKind> wasm_call_return_kind);
+      std::optional<wasm::ValueKind> wasm_call_return_kind);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
@@ -279,8 +280,8 @@ class Deoptimizer : public Malloced {
 #if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_32_BIT
   // Needed by webassembly for lowering signatures containing i64 types. Stored
   // as members for re-use for multiple signatures during one de-optimization.
-  base::Optional<AccountingAllocator> alloc_;
-  base::Optional<Zone> zone_;
+  std::optional<AccountingAllocator> alloc_;
+  std::optional<Zone> zone_;
 #endif
 
   friend class DeoptimizedFrameInfo;

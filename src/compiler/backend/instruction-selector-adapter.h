@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_ADAPTER_H_
 #define V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_ADAPTER_H_
 
+#include <optional>
+
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
@@ -259,14 +261,14 @@ struct TurbofanAdapter {
           UNREACHABLE();
       }
     }
-    base::Optional<AtomicMemoryOrder> memory_order() const {
+    std::optional<AtomicMemoryOrder> memory_order() const {
       switch (node_->opcode()) {
         case IrOpcode::kStore:
         case IrOpcode::kProtectedStore:
         case IrOpcode::kStoreTrapOnNull:
         case IrOpcode::kStoreIndirectPointer:
         case IrOpcode::kUnalignedStore:
-          return base::nullopt;
+          return std::nullopt;
         case IrOpcode::kWord32AtomicStore:
         case IrOpcode::kWord64AtomicStore:
           return AtomicStoreParametersOf(node_->op()).order();
@@ -996,10 +998,10 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     turboshaft::MemoryRepresentation ts_stored_rep() const {
       return op_->stored_rep;
     }
-    base::Optional<AtomicMemoryOrder> memory_order() const {
+    std::optional<AtomicMemoryOrder> memory_order() const {
       // TODO(nicohartmann@): Currently we don't support memory orders.
       if (op_->kind.is_atomic) return AtomicMemoryOrder::kSeqCst;
-      return base::nullopt;
+      return std::nullopt;
     }
     MemoryAccessKind access_kind() const {
       return op_->kind.with_trap_handler ? MemoryAccessKind::kProtected

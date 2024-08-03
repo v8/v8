@@ -5,6 +5,8 @@
 #ifndef V8_EXECUTION_FRAMES_INL_H_
 #define V8_EXECUTION_FRAMES_INL_H_
 
+#include <optional>
+
 #include "src/base/memory.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
@@ -19,7 +21,7 @@ class InnerPointerToCodeCache final {
  public:
   struct InnerPointerToCodeCacheEntry {
     Address inner_pointer;
-    base::Optional<Tagged<GcSafeCode>> code;
+    std::optional<Tagged<GcSafeCode>> code;
     union {
       SafepointEntry safepoint_entry;
       MaglevSafepointEntry maglev_safepoint_entry;

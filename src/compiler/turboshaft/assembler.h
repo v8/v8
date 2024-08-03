@@ -10,6 +10,7 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <type_traits>
 
 #include "src/base/logging.h"
@@ -468,7 +469,7 @@ class LoopLabel : public LabelBase<true, Ts...> {
   }
 
   BlockData loop_header_data_;
-  base::Optional<values_t> pending_loop_phis_;
+  std::optional<values_t> pending_loop_phis_;
 };
 
 Handle<Code> BuiltinCodeHandle(Builtin builtin, Isolate* isolate);
@@ -499,7 +500,7 @@ class Uninitialized {
     return temp;
   }
 
-  base::Optional<V<T>> object_;
+  std::optional<V<T>> object_;
 };
 
 // Forward declarations

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/enum-set.h"
 #include "src/base/iterator.h"
@@ -1078,7 +1080,7 @@ template <typename Adapter>
 void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
                       typename Adapter::node_t node,
                       StoreRepresentation store_rep,
-                      base::Optional<AtomicMemoryOrder> atomic_order) {
+                      std::optional<AtomicMemoryOrder> atomic_order) {
   using node_t = typename Adapter::node_t;
   ArmOperandGeneratorT<Adapter> g(selector);
   auto store_view = selector->store_view(node);
@@ -1135,7 +1137,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
       opcode |= AtomicMemoryOrderField::encode(*atomic_order);
     }
 
-    base::Optional<ExternalReference> external_base;
+    std::optional<ExternalReference> external_base;
     if constexpr (Adapter::IsTurboshaft) {
       ExternalReference value;
       if (selector->MatchExternalConstant(store_view.base(), &value)) {
@@ -1193,7 +1195,7 @@ void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStore(node_t node) {
   VisitStoreCommon(this, node, this->store_view(node).stored_rep(),
-                   base::nullopt);
+                   std::nullopt);
 }
 
 template <typename Adapter>

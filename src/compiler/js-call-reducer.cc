@@ -5,6 +5,7 @@
 #include "src/compiler/js-call-reducer.h"
 
 #include <functional>
+#include <optional>
 
 #include "src/base/container-utils.h"
 #include "src/base/small-vector.h"
@@ -876,7 +877,7 @@ TNode<Object> JSCallReducerAssembler::CopyNode() {
 TNode<JSArray> JSCallReducerAssembler::CreateArrayNoThrow(
     TNode<Object> ctor, TNode<Number> size, FrameState frame_state) {
   return AddNode<JSArray>(
-      graph()->NewNode(javascript()->CreateArray(1, base::nullopt), ctor, ctor,
+      graph()->NewNode(javascript()->CreateArray(1, std::nullopt), ctor, ctor,
                        size, ContextInput(), frame_state, effect(), control()));
 }
 
@@ -1756,7 +1757,7 @@ struct MapFrameStateParams {
   TNode<Object> receiver;
   TNode<Object> callback;
   TNode<Object> this_arg;
-  base::Optional<TNode<JSArray>> a;
+  std::optional<TNode<JSArray>> a;
   TNode<Object> original_length;
 };
 
@@ -2705,7 +2706,7 @@ Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
   NodeProperties::ReplaceValueInput(node, target, 0);
   NodeProperties::ReplaceValueInput(node, target, 1);
   NodeProperties::ChangeOp(node,
-                           javascript()->CreateArray(arity, base::nullopt));
+                           javascript()->CreateArray(arity, std::nullopt));
   return Changed(node);
 }
 
@@ -5320,7 +5321,7 @@ Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
     return NoChange();
   }
 
-  base::Optional<Reduction> maybe_result =
+  std::optional<Reduction> maybe_result =
       TryReduceJSCallMathMinMaxWithArrayLike(node);
   if (maybe_result.has_value()) {
     return maybe_result.value();
@@ -5457,7 +5458,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           node->ReplaceInput(n.NewTargetIndex(), new_target);
           node->RemoveInput(n.FeedbackVectorIndex());
           NodeProperties::ChangeOp(
-              node, javascript()->CreateArray(arity, base::nullopt));
+              node, javascript()->CreateArray(arity, std::nullopt));
           return Changed(node);
         }
         case Builtin::kObjectConstructor: {
@@ -7085,7 +7086,7 @@ Reduction JSCallReducer::ReduceStringPrototypeLocaleCompare(Node* node) {
         ObjectRef ref = m.Ref(broker());
         if (!ref.IsString()) return NoChange();
         StringRef sref = ref.AsString();
-        if (base::Optional<Handle<String>> maybe_locales =
+        if (std::optional<Handle<String>> maybe_locales =
                 sref.ObjectIfContentAccessible(broker())) {
           locales = *maybe_locales;
         } else {
@@ -8672,7 +8673,7 @@ Reduction JSCallReducer::ReduceNumberParseInt(Node* node) {
       return Replace(value);
     }
 
-    base::Optional<double> number = input_value.ToInt(broker(), radix_value);
+    std::optional<double> number = input_value.ToInt(broker(), radix_value);
     if (number.has_value()) {
       Node* result = graph()->NewNode(common()->NumberConstant(number.value()));
       ReplaceWithValue(node, result);
@@ -8867,9 +8868,9 @@ Reduction JSCallReducer::ReduceBigIntAsN(Node* node, Builtin builtin) {
   return NoChange();
 }
 
-base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
+std::optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
     Node* node) {
-  if (!v8_flags.turbo_optimize_math_minmax) return base::nullopt;
+  if (!v8_flags.turbo_optimize_math_minmax) return std::nullopt;
 
   JSCallWithArrayLikeNode n(node);
   CallParameters const& p = n.Parameters();
@@ -8878,15 +8879,15 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
   Control control = n.control();
 
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   if (n.ArgumentCount() != 1) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   if (!dependencies()->DependOnNoElementsProtector()) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   // These ops are handled by ReduceCallOrConstructWithArrayLikeOrSpread.
@@ -8895,7 +8896,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
   Node* arguments_list = n.Argument(0);
   if (arguments_list->opcode() == IrOpcode::kJSCreateLiteralArray ||
       arguments_list->opcode() == IrOpcode::kJSCreateArguments) {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   HeapObjectMatcher m(target);
@@ -8906,7 +8907,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
 
       // Don't inline cross native context.
       if (!function.native_context(broker()).equals(native_context())) {
-        return base::nullopt;
+        return std::nullopt;
       }
 
       SharedFunctionInfoRef shared = function.shared(broker());
@@ -8915,7 +8916,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
       if (builtin == Builtin::kMathMax || builtin == Builtin::kMathMin) {
         return ReduceJSCallMathMinMaxWithArrayLike(node, builtin);
       } else {
-        return base::nullopt;
+        return std::nullopt;
       }
     }
   }
@@ -8927,7 +8928,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
     ProcessedFeedback const& feedback =
         broker()->GetFeedbackForCall(p.feedback());
     if (feedback.IsInsufficient()) {
-      return base::nullopt;
+      return std::nullopt;
     }
     OptionalHeapObjectRef feedback_target = feedback.AsCall().target();
     if (feedback_target.has_value() &&
@@ -8936,7 +8937,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
           jsgraph()->ConstantNoHole(*feedback_target, broker());
       ObjectRef target_ref = feedback_target.value();
       if (!target_ref.IsJSFunction()) {
-        return base::nullopt;
+        return std::nullopt;
       }
       JSFunctionRef function = target_ref.AsJSFunction();
       SharedFunctionInfoRef shared = function.shared(broker());
@@ -8961,7 +8962,7 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
     }
   }
 
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Reduction JSCallReducer::ReduceJSCallMathMinMaxWithArrayLike(Node* node,

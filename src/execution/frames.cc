@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <sstream>
 
 #include "src/api/api-arguments.h"
@@ -363,8 +364,8 @@ bool DebuggableStackFrameIterator::IsValidFrame(StackFrame* frame) {
 
 namespace {
 
-base::Optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
-                                          StackFrame::State* state) {
+std::optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
+                                         StackFrame::State* state) {
   Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, pc);
   if (builtin != Builtin::kNoBuiltinId &&
       (builtin == Builtin::kInterpreterEntryTrampoline ||
@@ -516,7 +517,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
         top_location = reinterpret_cast<Address*>(sp);
       }
 
-      base::Optional<bool> is_interpreter_frame_pc =
+      std::optional<bool> is_interpreter_frame_pc =
           IsInterpreterFramePc(isolate, *top_location, &state);
       // Since we're in a signal handler, the pc lookup might not be possible
       // since the required locks are taken by the same thread.
@@ -686,8 +687,8 @@ void StackFrameIteratorForProfilerForTesting::Advance() {
 
 namespace {
 
-base::Optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
-                                                     Address pc) {
+std::optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
+                                                    Address pc) {
   return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
 }
 
@@ -695,7 +696,7 @@ base::Optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
 
 Tagged<GcSafeCode> StackFrame::GcSafeLookupCode() const {
   const Address pc = maybe_unauthenticated_pc();
-  base::Optional<Tagged<GcSafeCode>> result = GetContainingCode(isolate(), pc);
+  std::optional<Tagged<GcSafeCode>> result = GetContainingCode(isolate(), pc);
   DCHECK_GE(pc, result.value()->InstructionStart(isolate(), pc));
   DCHECK_LT(pc, result.value()->InstructionEnd(isolate(), pc));
   return result.value();
@@ -874,7 +875,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Look up the code object to figure out the type of the stack frame.
-  base::Optional<Tagged<GcSafeCode>> lookup_result =
+  std::optional<Tagged<GcSafeCode>> lookup_result =
       GetContainingCode(isolate(), pc);
   if (!lookup_result.has_value()) return StackFrame::NATIVE;
 
@@ -982,7 +983,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
     return StackFrame::NATIVE;
   }
 
-  base::Optional<bool> is_interpreter_frame =
+  std::optional<bool> is_interpreter_frame =
       IsInterpreterFramePc(isolate(), pc, state);
 
   // We might not be able to lookup the frame type since we're inside a signal
@@ -2154,7 +2155,7 @@ bool CommonFrame::HasTaggedOutgoingParams(
 }
 
 Tagged<HeapObject> TurbofanStubWithContextFrame::unchecked_code() const {
-  base::Optional<Tagged<GcSafeCode>> code_lookup =
+  std::optional<Tagged<GcSafeCode>> code_lookup =
       isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
   if (!code_lookup.has_value()) return {};
   return code_lookup.value();
@@ -2253,7 +2254,7 @@ void TurbofanFrame::Iterate(RootVisitor* v) const {
 }
 
 Tagged<HeapObject> StubFrame::unchecked_code() const {
-  base::Optional<Tagged<GcSafeCode>> code_lookup =
+  std::optional<Tagged<GcSafeCode>> code_lookup =
       isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
   if (!code_lookup.has_value()) return {};
   return code_lookup.value();

@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include <functional>
+#include <optional>
 
 #include "include/v8-internal.h"
 #include "src/base/macros.h"
@@ -2040,7 +2041,7 @@ TNode<Uint16T> CodeStubAssembler::LoadInstanceType(TNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::HasInstanceType(TNode<HeapObject> object,
                                                 InstanceType instance_type) {
   if (V8_STATIC_ROOTS_BOOL) {
-    if (base::Optional<RootIndex> expected_map =
+    if (std::optional<RootIndex> expected_map =
             InstanceTypeChecker::UniqueMapOfInstanceType(instance_type)) {
       TNode<Map> map = LoadMap(object);
       return TaggedEqual(map, LoadRoot(*expected_map));
@@ -2052,7 +2053,7 @@ TNode<BoolT> CodeStubAssembler::HasInstanceType(TNode<HeapObject> object,
 TNode<BoolT> CodeStubAssembler::DoesntHaveInstanceType(
     TNode<HeapObject> object, InstanceType instance_type) {
   if (V8_STATIC_ROOTS_BOOL) {
-    if (base::Optional<RootIndex> expected_map =
+    if (std::optional<RootIndex> expected_map =
             InstanceTypeChecker::UniqueMapOfInstanceType(instance_type)) {
       TNode<Map> map = LoadMap(object);
       return TaggedNotEqual(map, LoadRoot(*expected_map));
@@ -4541,8 +4542,8 @@ TNode<OrderedHashMap> CodeStubAssembler::AllocateOrderedHashMap() {
 }
 
 TNode<JSObject> CodeStubAssembler::AllocateJSObjectFromMap(
-    TNode<Map> map, base::Optional<TNode<HeapObject>> properties,
-    base::Optional<TNode<FixedArray>> elements, AllocationFlags flags,
+    TNode<Map> map, std::optional<TNode<HeapObject>> properties,
+    std::optional<TNode<FixedArray>> elements, AllocationFlags flags,
     SlackTrackingMode slack_tracking_mode) {
   CSA_DCHECK(this, Word32BinaryNot(IsJSFunctionMap(map)));
   CSA_DCHECK(this, Word32BinaryNot(InstanceTypeEqual(LoadMapInstanceType(map),
@@ -4558,8 +4559,8 @@ TNode<JSObject> CodeStubAssembler::AllocateJSObjectFromMap(
 
 void CodeStubAssembler::InitializeJSObjectFromMap(
     TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size,
-    base::Optional<TNode<HeapObject>> properties,
-    base::Optional<TNode<FixedArray>> elements,
+    std::optional<TNode<HeapObject>> properties,
+    std::optional<TNode<FixedArray>> elements,
     SlackTrackingMode slack_tracking_mode) {
   // This helper assumes that the object is in new-space, as guarded by the
   // check in AllocatedJSObjectFromMap.
@@ -4702,7 +4703,7 @@ TNode<BoolT> CodeStubAssembler::IsValidFastJSArrayCapacity(
 
 TNode<JSArray> CodeStubAssembler::AllocateJSArray(
     TNode<Map> array_map, TNode<FixedArrayBase> elements, TNode<Smi> length,
-    base::Optional<TNode<AllocationSite>> allocation_site,
+    std::optional<TNode<AllocationSite>> allocation_site,
     int array_header_size) {
   Comment("begin allocation of JSArray passing in elements");
   CSA_SLOW_DCHECK(this, TaggedIsPositiveSmi(length));
@@ -4763,7 +4764,7 @@ TNode<IntPtrT> CodeStubAssembler::AlignToAllocationAlignment(
 std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
 CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
-    base::Optional<TNode<AllocationSite>> allocation_site,
+    std::optional<TNode<AllocationSite>> allocation_site,
     TNode<IntPtrT> capacity, AllocationFlags allocation_flags,
     int array_header_size) {
   Comment("begin allocation of JSArray with elements");
@@ -4871,7 +4872,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
 TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
     TNode<Map> array_map, TNode<Smi> length,
-    base::Optional<TNode<AllocationSite>> allocation_site,
+    std::optional<TNode<AllocationSite>> allocation_site,
     TNode<IntPtrT> size_in_bytes) {
   CSA_SLOW_DCHECK(this, TaggedIsPositiveSmi(length));
 
@@ -4896,7 +4897,7 @@ TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
 
 TNode<JSArray> CodeStubAssembler::AllocateJSArray(
     ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
-    TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
+    TNode<Smi> length, std::optional<TNode<AllocationSite>> allocation_site,
     AllocationFlags allocation_flags) {
   CSA_SLOW_DCHECK(this, TaggedIsPositiveSmi(length));
 
@@ -4933,19 +4934,19 @@ TNode<JSArray> CodeStubAssembler::ExtractFastJSArray(TNode<Context> context,
   TNode<Map> array_map = LoadJSArrayElementsMap(elements_kind, native_context);
 
   TNode<FixedArrayBase> new_elements = ExtractFixedArray(
-      LoadElements(array), base::Optional<TNode<BInt>>(begin),
-      base::Optional<TNode<BInt>>(count),
-      base::Optional<TNode<BInt>>(base::nullopt),
+      LoadElements(array), std::optional<TNode<BInt>>(begin),
+      std::optional<TNode<BInt>>(count),
+      std::optional<TNode<BInt>>(std::nullopt),
       ExtractFixedArrayFlag::kAllFixedArrays, nullptr, elements_kind);
 
   TNode<JSArray> result = AllocateJSArray(
-      array_map, new_elements, ParameterToTagged(count), base::nullopt);
+      array_map, new_elements, ParameterToTagged(count), std::nullopt);
   return result;
 }
 
 TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
     TNode<Context> context, TNode<JSArray> array,
-    base::Optional<TNode<AllocationSite>> allocation_site,
+    std::optional<TNode<AllocationSite>> allocation_site,
     HoleConversionMode convert_holes) {
   // TODO(dhai): we should be able to assert IsFastJSArray(array) here, but this
   // function is also used to copy boilerplates even when the no-elements
@@ -4970,9 +4971,9 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
   // Simple extraction that preserves holes.
   new_elements = ExtractFixedArray(
       LoadElements(array),
-      base::Optional<TNode<BInt>>(IntPtrOrSmiConstant<BInt>(0)),
-      base::Optional<TNode<BInt>>(TaggedToParameter<BInt>(CAST(length))),
-      base::Optional<TNode<BInt>>(base::nullopt),
+      std::optional<TNode<BInt>>(IntPtrOrSmiConstant<BInt>(0)),
+      std::optional<TNode<BInt>>(TaggedToParameter<BInt>(CAST(length))),
+      std::optional<TNode<BInt>>(std::nullopt),
       ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW, nullptr,
       var_elements_kind.value());
   var_new_elements = new_elements;
@@ -4990,9 +4991,9 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
     // ExtractFixedArrayFlag::kDontCopyCOW.
     new_elements = ExtractFixedArray(
         LoadElements(array),
-        base::Optional<TNode<BInt>>(IntPtrOrSmiConstant<BInt>(0)),
-        base::Optional<TNode<BInt>>(TaggedToParameter<BInt>(CAST(length))),
-        base::Optional<TNode<BInt>>(base::nullopt),
+        std::optional<TNode<BInt>>(IntPtrOrSmiConstant<BInt>(0)),
+        std::optional<TNode<BInt>>(TaggedToParameter<BInt>(CAST(length))),
+        std::optional<TNode<BInt>>(std::nullopt),
         ExtractFixedArrayFlag::kAllFixedArrays, &var_holes_converted);
     var_new_elements = new_elements;
     // If the array type didn't change, use the original elements kind.
@@ -5028,7 +5029,7 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
 template <typename TIndex>
 TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
     ElementsKind kind, TNode<TIndex> capacity, AllocationFlags flags,
-    base::Optional<TNode<Map>> fixed_array_map) {
+    std::optional<TNode<Map>> fixed_array_map) {
   static_assert(
       std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
       "Only Smi or IntPtrT capacity is allowed");
@@ -5089,7 +5090,7 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
 template V8_EXPORT_PRIVATE TNode<FixedArrayBase>
     CodeStubAssembler::AllocateFixedArray<IntPtrT>(ElementsKind, TNode<IntPtrT>,
                                                    AllocationFlags,
-                                                   base::Optional<TNode<Map>>);
+                                                   std::optional<TNode<Map>>);
 
 template <typename TIndex>
 TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
@@ -5097,7 +5098,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     TNode<TIndex> capacity, TNode<Map> source_map, ElementsKind from_kind,
     AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
     HoleConversionMode convert_holes, TVariable<BoolT>* var_holes_converted,
-    base::Optional<TNode<Int32T>> source_elements_kind) {
+    std::optional<TNode<Int32T>> source_elements_kind) {
   static_assert(
       std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
       "Only Smi or IntPtrT first, count, and capacity are allowed");
@@ -5279,10 +5280,10 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
 
 template <typename TIndex>
 TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
-    TNode<FixedArrayBase> source, base::Optional<TNode<TIndex>> first,
-    base::Optional<TNode<TIndex>> count, base::Optional<TNode<TIndex>> capacity,
+    TNode<FixedArrayBase> source, std::optional<TNode<TIndex>> first,
+    std::optional<TNode<TIndex>> count, std::optional<TNode<TIndex>> capacity,
     ExtractFixedArrayFlags extract_flags, TVariable<BoolT>* var_holes_converted,
-    base::Optional<TNode<Int32T>> source_elements_kind) {
+    std::optional<TNode<Int32T>> source_elements_kind) {
   static_assert(
       std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
       "Only Smi or IntPtrT first, count, and capacity are allowed");
@@ -5377,15 +5378,15 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
 
 template V8_EXPORT_PRIVATE TNode<FixedArrayBase>
 CodeStubAssembler::ExtractFixedArray<Smi>(
-    TNode<FixedArrayBase>, base::Optional<TNode<Smi>>,
-    base::Optional<TNode<Smi>>, base::Optional<TNode<Smi>>,
-    ExtractFixedArrayFlags, TVariable<BoolT>*, base::Optional<TNode<Int32T>>);
+    TNode<FixedArrayBase>, std::optional<TNode<Smi>>, std::optional<TNode<Smi>>,
+    std::optional<TNode<Smi>>, ExtractFixedArrayFlags, TVariable<BoolT>*,
+    std::optional<TNode<Int32T>>);
 
 template V8_EXPORT_PRIVATE TNode<FixedArrayBase>
 CodeStubAssembler::ExtractFixedArray<IntPtrT>(
-    TNode<FixedArrayBase>, base::Optional<TNode<IntPtrT>>,
-    base::Optional<TNode<IntPtrT>>, base::Optional<TNode<IntPtrT>>,
-    ExtractFixedArrayFlags, TVariable<BoolT>*, base::Optional<TNode<Int32T>>);
+    TNode<FixedArrayBase>, std::optional<TNode<IntPtrT>>,
+    std::optional<TNode<IntPtrT>>, std::optional<TNode<IntPtrT>>,
+    ExtractFixedArrayFlags, TVariable<BoolT>*, std::optional<TNode<Int32T>>);
 
 void CodeStubAssembler::InitializePropertyArrayLength(
     TNode<PropertyArray> property_array, TNode<IntPtrT> length) {
@@ -6013,9 +6014,9 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
 TNode<FixedArrayBase> CodeStubAssembler::CloneFixedArray(
     TNode<FixedArrayBase> source, ExtractFixedArrayFlags flags) {
   return ExtractFixedArray(
-      source, base::Optional<TNode<BInt>>(IntPtrOrSmiConstant<BInt>(0)),
-      base::Optional<TNode<BInt>>(base::nullopt),
-      base::Optional<TNode<BInt>>(base::nullopt), flags);
+      source, std::optional<TNode<BInt>>(IntPtrOrSmiConstant<BInt>(0)),
+      std::optional<TNode<BInt>>(std::nullopt),
+      std::optional<TNode<BInt>>(std::nullopt), flags);
 }
 
 template <>
@@ -7094,9 +7095,9 @@ void CodeStubAssembler::ThrowIfNotCallable(TNode<Context> context,
 
 void CodeStubAssembler::ThrowRangeError(TNode<Context> context,
                                         MessageTemplate message,
-                                        base::Optional<TNode<Object>> arg0,
-                                        base::Optional<TNode<Object>> arg1,
-                                        base::Optional<TNode<Object>> arg2) {
+                                        std::optional<TNode<Object>> arg0,
+                                        std::optional<TNode<Object>> arg1,
+                                        std::optional<TNode<Object>> arg2) {
   TNode<Smi> template_index = SmiConstant(static_cast<int>(message));
   if (!arg0) {
     CallRuntime(Runtime::kThrowRangeError, context, template_index);
@@ -7115,18 +7116,18 @@ void CodeStubAssembler::ThrowRangeError(TNode<Context> context,
 void CodeStubAssembler::ThrowTypeError(TNode<Context> context,
                                        MessageTemplate message,
                                        char const* arg0, char const* arg1) {
-  base::Optional<TNode<Object>> arg0_node;
+  std::optional<TNode<Object>> arg0_node;
   if (arg0) arg0_node = StringConstant(arg0);
-  base::Optional<TNode<Object>> arg1_node;
+  std::optional<TNode<Object>> arg1_node;
   if (arg1) arg1_node = StringConstant(arg1);
   ThrowTypeError(context, message, arg0_node, arg1_node);
 }
 
 void CodeStubAssembler::ThrowTypeError(TNode<Context> context,
                                        MessageTemplate message,
-                                       base::Optional<TNode<Object>> arg0,
-                                       base::Optional<TNode<Object>> arg1,
-                                       base::Optional<TNode<Object>> arg2) {
+                                       std::optional<TNode<Object>> arg0,
+                                       std::optional<TNode<Object>> arg1,
+                                       std::optional<TNode<Object>> arg2) {
   TNode<Smi> template_index = SmiConstant(static_cast<int>(message));
   if (!arg0) {
     CallRuntime(Runtime::kThrowTypeError, context, template_index);
@@ -9515,7 +9516,7 @@ void CodeStubAssembler::StringWriteToFlatOneByte(TNode<String> source,
                                                  TNode<Int32T> length) {
   TNode<ExternalReference> function =
       ExternalConstant(ExternalReference::string_write_to_flat_one_byte());
-  CallCFunction(function, base::nullopt,
+  CallCFunction(function, std::nullopt,
                 std::make_pair(MachineType::AnyTagged(), source),
                 std::make_pair(MachineType::Pointer(), sink),
                 std::make_pair(MachineType::Int32(), start),
@@ -9528,7 +9529,7 @@ void CodeStubAssembler::StringWriteToFlatTwoByte(TNode<String> source,
                                                  TNode<Int32T> length) {
   TNode<ExternalReference> function =
       ExternalConstant(ExternalReference::string_write_to_flat_two_byte());
-  CallCFunction(function, base::nullopt,
+  CallCFunction(function, std::nullopt,
                 std::make_pair(MachineType::AnyTagged(), source),
                 std::make_pair(MachineType::Pointer(), sink),
                 std::make_pair(MachineType::Int32(), start),
@@ -10234,7 +10235,7 @@ void CodeStubAssembler::InsertEntry<GlobalDictionary>(
 template <class Dictionary>
 void CodeStubAssembler::AddToDictionary(
     TNode<Dictionary> dictionary, TNode<Name> key, TNode<Object> value,
-    Label* bailout, base::Optional<TNode<IntPtrT>> insertion_index) {
+    Label* bailout, std::optional<TNode<IntPtrT>> insertion_index) {
   CSA_DCHECK(this, Word32BinaryNot(IsEmptyPropertyDictionary(dictionary)));
   TNode<Smi> capacity = GetCapacity<Dictionary>(dictionary);
   TNode<Smi> nof = GetNumberOfElements<Dictionary>(dictionary);
@@ -10276,7 +10277,7 @@ void CodeStubAssembler::AddToDictionary(
 template <>
 void CodeStubAssembler::AddToDictionary(
     TNode<SwissNameDictionary> dictionary, TNode<Name> key, TNode<Object> value,
-    Label* bailout, base::Optional<TNode<IntPtrT>> insertion_index) {
+    Label* bailout, std::optional<TNode<IntPtrT>> insertion_index) {
   PropertyDetails d(PropertyKind::kData, NONE,
                     PropertyDetails::kConstIfDictConstnessTracking);
 
@@ -10301,7 +10302,7 @@ void CodeStubAssembler::AddToDictionary(
 
 template void CodeStubAssembler::AddToDictionary<NameDictionary>(
     TNode<NameDictionary>, TNode<Name>, TNode<Object>, Label*,
-    base::Optional<TNode<IntPtrT>>);
+    std::optional<TNode<IntPtrT>>);
 
 template <class Dictionary>
 TNode<Smi> CodeStubAssembler::GetNumberOfElements(
@@ -13201,7 +13202,7 @@ void CodeStubAssembler::EmitElementStore(
   // In case value is stored into a fast smi array, assure that the value is
   // a smi before manipulating the backing store. Otherwise the backing store
   // may be left in an invalid state.
-  base::Optional<TNode<Float64T>> float_value;
+  std::optional<TNode<Float64T>> float_value;
   if (IsSmiElementsKind(elements_kind)) {
     GotoIfNot(TaggedIsSmi(value), bailout);
   } else if (IsDoubleElementsKind(elements_kind)) {

@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <limits>
+#include <optional>
 #include <type_traits>
 
 #include "include/v8-metrics.h"
@@ -316,7 +317,7 @@ Handle<WasmInstanceObject> MakeWeak(
   return weak_instance;
 }
 
-base::Optional<wasm::ValueType> GetWasmReturnTypeFromSignature(
+std::optional<wasm::ValueType> GetWasmReturnTypeFromSignature(
     const FunctionSig* wasm_signature) {
   if (wasm_signature->return_count() == 0) return {};
 
@@ -6914,7 +6915,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
       } else {
         // No arguments and one result.
         optional.block.sig_index = kInlineSignatureSentinel;
-        base::Optional<wasm::ValueType> wasm_return_type =
+        std::optional<wasm::ValueType> wasm_return_type =
             GetWasmReturnTypeFromSignature(&imm.sig);
         DCHECK(wasm_return_type.has_value());
         optional.block.value_type_bitfield =

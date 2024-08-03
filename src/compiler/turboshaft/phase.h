@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_PHASE_H_
 #define V8_COMPILER_TURBOSHAFT_PHASE_H_
 
+#include <optional>
 #include <type_traits>
 
 #include "src/base/contextual.h"
@@ -263,7 +264,7 @@ class V8_EXPORT_PRIVATE PipelineData {
     DCHECK_EQ(assembler_options_.is_wasm,
               info()->IsWasm() || info()->IsWasmBuiltin());
 #endif
-    base::Optional<OsrHelper> osr_helper;
+    std::optional<OsrHelper> osr_helper;
     if (cg.osr_helper) osr_helper = *cg.osr_helper;
     cg.code_generator = std::make_unique<CodeGenerator>(
         cg.zone, cg.frame, linkage, sequence(), info_, isolate_,
@@ -459,10 +460,10 @@ class V8_EXPORT_PRIVATE PipelineData {
   std::string source_position_output_;
   RuntimeCallStats* runtime_call_stats_ = nullptr;
   // Components
-  base::Optional<GraphComponent> graph_component_;
-  base::Optional<CodegenComponent> codegen_component_;
-  base::Optional<InstructionComponent> instruction_component_;
-  base::Optional<RegisterComponent> register_component_;
+  std::optional<GraphComponent> graph_component_;
+  std::optional<CodegenComponent> codegen_component_;
+  std::optional<InstructionComponent> instruction_component_;
+  std::optional<RegisterComponent> register_component_;
 
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(14108): Consider splitting wasm members into its own WasmPipelineData

@@ -4,6 +4,8 @@
 
 #include "src/wasm/wasm-engine.h"
 
+#include <optional>
+
 #include "src/base/functional.h"
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
@@ -300,7 +302,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
       // Insert a {nullopt} entry to let other threads know that this
       // {NativeModule} is already being created on another thread.
       [[maybe_unused]] auto [iterator, inserted] =
-          map_.emplace(key, base::nullopt);
+          map_.emplace(key, std::nullopt);
       DCHECK(inserted);
       return nullptr;
     }
@@ -330,7 +332,7 @@ bool NativeModuleCache::GetStreamingCompilationOwnership(
   }
   Key key{prefix_hash, compile_imports, {}};
   DCHECK_EQ(0, map_.count(key));
-  map_.emplace(key, base::nullopt);
+  map_.emplace(key, std::nullopt);
   return true;
 }
 

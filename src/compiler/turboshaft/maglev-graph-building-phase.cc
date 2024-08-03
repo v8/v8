@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <type_traits>
 
 #include "src/base/logging.h"
@@ -480,7 +481,7 @@ class GraphBuilder {
 
   GraphBuilder(PipelineData* data, Graph& graph, Zone* temp_zone,
                maglev::MaglevCompilationUnit* maglev_compilation_unit,
-               base::Optional<BailoutReason>* bailout)
+               std::optional<BailoutReason>* bailout)
       : data_(data),
         temp_zone_(temp_zone),
         assembler_(data, graph, graph, temp_zone),
@@ -1409,7 +1410,7 @@ class GraphBuilder {
   V<Any> GenerateBuiltinCall(
       maglev::NodeBase* node, Builtin builtin,
       OptionalV<FrameState> frame_state, base::Vector<const OpIndex> arguments,
-      base::Optional<int> stack_arg_count = base::nullopt) {
+      std::optional<int> stack_arg_count = std::nullopt) {
     ThrowingScope throwing_scope(this, node);
 
     Callable callable = Builtins::CallableFor(isolate_, builtin);
@@ -5489,7 +5490,7 @@ class GraphBuilder {
   V<Object> new_target_param_ = V<Object>::Invalid();
   base::SmallVector<int, 16> predecessor_permutation_;
 
-  base::Optional<BailoutReason>* bailout_;
+  std::optional<BailoutReason>* bailout_;
 };
 
 // A NodeProcessor wrapper around GraphBuilder that takes care of
@@ -5501,7 +5502,7 @@ class NodeProcessorBase : public GraphBuilder {
 
   NodeProcessorBase(PipelineData* data, Graph& graph, Zone* temp_zone,
                     maglev::MaglevCompilationUnit* maglev_compilation_unit,
-                    base::Optional<BailoutReason>* bailout)
+                    std::optional<BailoutReason>* bailout)
       : GraphBuilder::GraphBuilder(data, graph, temp_zone,
                                    maglev_compilation_unit, bailout),
         graph_(graph),
@@ -5611,8 +5612,8 @@ void RunMaglevOptimizations(PipelineData* data,
   }
 }
 
-base::Optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
-                                                            Zone* temp_zone) {
+std::optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
+                                                           Zone* temp_zone) {
   JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
 
@@ -5651,7 +5652,7 @@ base::Optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
   // TODO(nicohartmann): Should we have source positions here?
   data->InitializeGraphComponent(nullptr);
 
-  base::Optional<BailoutReason> bailout;
+  std::optional<BailoutReason> bailout;
   maglev::GraphProcessor<NodeProcessorBase, true> builder(
       data, data->graph(), temp_zone,
       compilation_info->toplevel_compilation_unit(), &bailout);

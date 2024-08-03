@@ -4,6 +4,8 @@
 
 #include "src/execution/tiering-manager.h"
 
+#include <optional>
+
 #include "src/base/platform/platform.h"
 #include "src/baseline/baseline.h"
 #include "src/codegen/assembler.h"
@@ -178,11 +180,11 @@ bool TiersUpToMaglev(CodeKind code_kind) {
          CodeKindIsUnoptimizedJSFunction(code_kind);
 }
 
-bool TiersUpToMaglev(base::Optional<CodeKind> code_kind) {
+bool TiersUpToMaglev(std::optional<CodeKind> code_kind) {
   return code_kind.has_value() && TiersUpToMaglev(code_kind.value());
 }
 
-int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
+int InterruptBudgetFor(std::optional<CodeKind> code_kind,
                        TieringState tiering_state,
                        CachedTieringDecision cached_tiering_decision,
                        int bytecode_length) {
@@ -212,7 +214,7 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
 // static
 int TieringManager::InterruptBudgetFor(
     Isolate* isolate, Tagged<JSFunction> function,
-    base::Optional<CodeKind> override_active_tier) {
+    std::optional<CodeKind> override_active_tier) {
   DCHECK(function->shared()->is_compiled());
   const int bytecode_length =
       function->shared()->GetBytecodeArray(isolate)->length();

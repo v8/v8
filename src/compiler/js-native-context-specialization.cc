@@ -4,8 +4,9 @@
 
 #include "src/compiler/js-native-context-specialization.h"
 
+#include <optional>
+
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/code-factory.h"
 #include "src/common/globals.h"
@@ -140,7 +141,7 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
 // Otherwise, we can't easily convert {node} into a String, and we return
 // nullopt.
 // static
-base::Optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
+std::optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
     JSHeapBroker* broker, Node* node) {
   HeapObjectMatcher matcher(node);
   if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
@@ -155,7 +156,7 @@ base::Optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
 
   // We don't support objects with possibly monkey-patched prototype.toString
   // as it might have side-effects, so we shouldn't attempt lowering them.
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
@@ -463,8 +464,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   Node* const lhs = node->InputAt(0);
   Node* const rhs = node->InputAt(1);
 
-  base::Optional<size_t> lhs_len = GetMaxStringLength(broker(), lhs);
-  base::Optional<size_t> rhs_len = GetMaxStringLength(broker(), rhs);
+  std::optional<size_t> lhs_len = GetMaxStringLength(broker(), lhs);
+  std::optional<size_t> rhs_len = GetMaxStringLength(broker(), rhs);
   if (!lhs_len || !rhs_len) return NoChange();
 
   // Fold if at least one of the parameters is a string constant and the
@@ -1634,7 +1635,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     }
 
     // Generate the actual property access.
-    base::Optional<ValueEffectControl> continuation = BuildPropertyAccess(
+    std::optional<ValueEffectControl> continuation = BuildPropertyAccess(
         lookup_start_object, receiver, value, context, frame_state, effect,
         control, feedback.name(), if_exceptions, access_info, access_mode);
     if (!continuation) {
@@ -1761,7 +1762,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
 
       // Generate the actual property access.
-      base::Optional<ValueEffectControl> continuation = BuildPropertyAccess(
+      std::optional<ValueEffectControl> continuation = BuildPropertyAccess(
           this_lookup_start_object, this_receiver, this_value, context,
           frame_state, this_effect, this_control, feedback.name(),
           if_exceptions, access_info, access_mode);
@@ -2123,11 +2124,11 @@ namespace {
 OptionalJSTypedArrayRef GetTypedArrayConstant(JSHeapBroker* broker,
                                               Node* receiver) {
   HeapObjectMatcher m(receiver);
-  if (!m.HasResolvedValue()) return base::nullopt;
+  if (!m.HasResolvedValue()) return std::nullopt;
   ObjectRef object = m.Ref(broker);
-  if (!object.IsJSTypedArray()) return base::nullopt;
+  if (!object.IsJSTypedArray()) return std::nullopt;
   JSTypedArrayRef typed_array = object.AsJSTypedArray();
-  if (typed_array.is_on_heap()) return base::nullopt;
+  if (typed_array.is_on_heap()) return std::nullopt;
   return typed_array;
 }
 
@@ -2566,7 +2567,7 @@ Reduction JSNativeContextSpecialization::ReduceJSHasProperty(Node* node) {
   PropertyAccess const& p = n.Parameters();
   Node* value = jsgraph()->Dead();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, n.key(), base::nullopt, value,
+  return ReducePropertyAccess(node, n.key(), std::nullopt, value,
                               FeedbackSource(p.feedback()), AccessMode::kHas);
 }
 
@@ -2665,7 +2666,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
     PropertyAccess const& p = n.Parameters();
 
     ProcessedFeedback const& feedback = broker()->GetFeedbackForPropertyAccess(
-        FeedbackSource(p.feedback()), AccessMode::kLoad, base::nullopt);
+        FeedbackSource(p.feedback()), AccessMode::kLoad, std::nullopt);
     // When the feedback is uninitialized, it is either a load from a
     // {GetEnumeratedKeyedProperty} which always hits the enum cache, or a keyed
     // load that had never been reached. In either case, we can check the map
@@ -2741,7 +2742,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
 
   if (!p.feedback().IsValid()) return NoChange();
   Node* value = jsgraph()->Dead();
-  return ReducePropertyAccess(node, name, base::nullopt, value,
+  return ReducePropertyAccess(node, name, std::nullopt, value,
                               FeedbackSource(p.feedback()), AccessMode::kLoad);
 }
 
@@ -2749,7 +2750,7 @@ Reduction JSNativeContextSpecialization::ReduceJSSetKeyedProperty(Node* node) {
   JSSetKeyedPropertyNode n(node);
   PropertyAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
+  return ReducePropertyAccess(node, n.key(), std::nullopt, n.value(),
                               FeedbackSource(p.feedback()), AccessMode::kStore);
 }
 
@@ -2758,7 +2759,7 @@ Reduction JSNativeContextSpecialization::ReduceJSDefineKeyedOwnProperty(
   JSDefineKeyedOwnPropertyNode n(node);
   PropertyAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
+  return ReducePropertyAccess(node, n.key(), std::nullopt, n.value(),
                               FeedbackSource(p.feedback()),
                               AccessMode::kDefine);
 }
@@ -2905,7 +2906,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
              graph()->NewNode(common()->Call(call_descriptor), index, inputs);
 }
 
-base::Optional<JSNativeContextSpecialization::ValueEffectControl>
+std::optional<JSNativeContextSpecialization::ValueEffectControl>
 JSNativeContextSpecialization::BuildPropertyLoad(
     Node* lookup_start_object, Node* receiver, Node* context, Node* frame_state,
     Node* effect, Node* control, NameRef name, ZoneVector<Node*>* if_exceptions,
@@ -2957,7 +2958,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   if (value != nullptr) {
     return ValueEffectControl(value, effect, control);
   }
-  return base::Optional<ValueEffectControl>();
+  return std::optional<ValueEffectControl>();
 }
 
 JSNativeContextSpecialization::ValueEffectControl
@@ -2978,7 +2979,7 @@ JSNativeContextSpecialization::BuildPropertyTest(
       jsgraph()->BooleanConstant(!access_info.IsNotFound()), effect, control);
 }
 
-base::Optional<JSNativeContextSpecialization::ValueEffectControl>
+std::optional<JSNativeContextSpecialization::ValueEffectControl>
 JSNativeContextSpecialization::BuildPropertyAccess(
     Node* lookup_start_object, Node* receiver, Node* value, Node* context,
     Node* frame_state, Node* effect, Node* control, NameRef name,
@@ -3217,7 +3218,7 @@ JSNativeContextSpecialization::ReduceJSDefineKeyedOwnPropertyInLiteral(
   if (cflags & DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName)
     return NoChange();
 
-  return ReducePropertyAccess(node, n.name(), base::nullopt, n.value(),
+  return ReducePropertyAccess(node, n.name(), std::nullopt, n.value(),
                               FeedbackSource(p.feedback()),
                               AccessMode::kStoreInLiteral);
 }
@@ -3227,7 +3228,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
   JSStoreInArrayLiteralNode n(node);
   FeedbackParameter const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, n.index(), base::nullopt, n.value(),
+  return ReducePropertyAccess(node, n.index(), std::nullopt, n.value(),
                               FeedbackSource(p.feedback()),
                               AccessMode::kStoreInLiteral);
 }
@@ -4136,7 +4137,7 @@ OptionalMapRef JSNativeContextSpecialization::InferRootMap(Node* object) const {
       return *initial_map;
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Node* JSNativeContextSpecialization::BuildLoadPrototypeFromObject(

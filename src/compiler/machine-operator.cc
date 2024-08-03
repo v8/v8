@@ -4,6 +4,8 @@
 
 #include "src/compiler/machine-operator.h"
 
+#include <optional>
+
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
@@ -2102,7 +2104,7 @@ const Operator* MachineOperatorBuilder::StoreIndirectPointer(
   }
 }
 
-base::Optional<const Operator*> MachineOperatorBuilder::TryStorePair(
+std::optional<const Operator*> MachineOperatorBuilder::TryStorePair(
     StoreRepresentation store_rep1, StoreRepresentation store_rep2) {
   DCHECK_NE(store_rep1.representation(), MachineRepresentation::kMapWord);
 

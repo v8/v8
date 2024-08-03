@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/api/api.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins-inl.h"
@@ -974,8 +976,8 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
   TNode<Object> SetOrCopyDataProperties(
       TNode<Context> context, TNode<JSReceiver> target, TNode<Object> source,
       Label* if_runtime,
-      base::Optional<TNode<IntPtrT>> excluded_property_count = base::nullopt,
-      base::Optional<TNode<IntPtrT>> excluded_property_base = base::nullopt,
+      std::optional<TNode<IntPtrT>> excluded_property_count = std::nullopt,
+      std::optional<TNode<IntPtrT>> excluded_property_base = std::nullopt,
       bool use_set = true) {
     Label if_done(this), if_noelements(this),
         if_sourcenotjsobject(this, Label::kDeferred);
@@ -1125,8 +1127,8 @@ TF_BUILTIN(CopyDataProperties, SetOrCopyDataPropertiesAssembler) {
   CSA_DCHECK(this, TaggedNotEqual(target, source));
 
   Label if_runtime(this, Label::kDeferred);
-  SetOrCopyDataProperties(context, target, source, &if_runtime, base::nullopt,
-                          base::nullopt, false);
+  SetOrCopyDataProperties(context, target, source, &if_runtime, std::nullopt,
+                          std::nullopt, false);
   Return(UndefinedConstant());
 
   BIND(&if_runtime);
@@ -1140,8 +1142,8 @@ TF_BUILTIN(SetDataProperties, SetOrCopyDataPropertiesAssembler) {
 
   Label if_runtime(this, Label::kDeferred);
   GotoIfForceSlowPath(&if_runtime);
-  SetOrCopyDataProperties(context, target, source, &if_runtime, base::nullopt,
-                          base::nullopt, true);
+  SetOrCopyDataProperties(context, target, source, &if_runtime, std::nullopt,
+                          std::nullopt, true);
   Return(UndefinedConstant());
 
   BIND(&if_runtime);

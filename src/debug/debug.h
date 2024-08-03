@@ -6,6 +6,7 @@
 #define V8_DEBUG_DEBUG_H_
 
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -192,7 +193,7 @@ class DebugInfoCollection final {
   void Insert(Tagged<SharedFunctionInfo> sfi, Tagged<DebugInfo> debug_info);
 
   bool Contains(Tagged<SharedFunctionInfo> sfi) const;
-  base::Optional<Tagged<DebugInfo>> Find(Tagged<SharedFunctionInfo> sfi) const;
+  std::optional<Tagged<DebugInfo>> Find(Tagged<SharedFunctionInfo> sfi) const;
 
   void DeleteSlow(Tagged<SharedFunctionInfo> sfi);
 
@@ -257,7 +258,7 @@ class V8_EXPORT_PRIVATE Debug {
                     debug::BreakReasons break_reasons = {});
   debug::DebugDelegate::ActionAfterInstrumentation OnInstrumentationBreak();
 
-  base::Optional<Tagged<Object>> OnThrow(Handle<Object> exception)
+  std::optional<Tagged<Object>> OnThrow(Handle<Object> exception)
       V8_WARN_UNUSED_RESULT;
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
@@ -274,7 +275,7 @@ class V8_EXPORT_PRIVATE Debug {
   Handle<FixedArray> GetLoadedScripts();
 
   // DebugInfo accessors.
-  base::Optional<Tagged<DebugInfo>> TryGetDebugInfo(
+  std::optional<Tagged<DebugInfo>> TryGetDebugInfo(
       Tagged<SharedFunctionInfo> sfi);
   bool HasDebugInfo(Tagged<SharedFunctionInfo> sfi);
   bool HasCoverageInfo(Tagged<SharedFunctionInfo> sfi);

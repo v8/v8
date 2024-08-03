@@ -93,7 +93,7 @@ std::optional<CompilationResult> CompileImpl(
     DCHECK_EQ(parse_result.error, RegExpError::kStackOverflow);
     USE(RegExp::ThrowRegExpException(isolate, flags, source,
                                      parse_result.error));
-    return base::nullopt;
+    return std::nullopt;
   }
 
   ZoneList<RegExpInstruction> bytecode = ExperimentalRegExpCompiler::Compile(

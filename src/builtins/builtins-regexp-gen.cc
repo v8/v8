@@ -4,6 +4,8 @@
 
 #include "src/builtins/builtins-regexp-gen.h"
 
+#include <optional>
+
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
@@ -59,7 +61,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
 
   Label result_has_indices(this), allocated(this);
   const ElementsKind elements_kind = PACKED_ELEMENTS;
-  base::Optional<TNode<AllocationSite>> no_gc_site = base::nullopt;
+  std::optional<TNode<AllocationSite>> no_gc_site = std::nullopt;
   TNode<IntPtrT> length_intptr = PositiveSmiUntag(length);
   // Note: The returned `var_elements` may be in young large object space, but
   // `var_array` is guaranteed to be in new space so we could skip write
@@ -775,7 +777,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
 void RegExpBuiltinsAssembler::BranchIfFastRegExp(
     TNode<Context> context, TNode<HeapObject> object, TNode<Map> map,
     PrototypeCheckAssembler::Flags prototype_check_flags,
-    base::Optional<DescriptorIndexNameValue> additional_property_to_check,
+    std::optional<DescriptorIndexNameValue> additional_property_to_check,
     Label* if_isunmodified, Label* if_ismodified) {
   CSA_DCHECK(this, TaggedEqual(LoadMap(object), map));
 
@@ -851,14 +853,14 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp_Strict(
     Label* if_ismodified) {
   BranchIfFastRegExp(context, object, LoadMap(object),
                      PrototypeCheckAssembler::kCheckPrototypePropertyConstness,
-                     base::nullopt, if_isunmodified, if_ismodified);
+                     std::nullopt, if_isunmodified, if_ismodified);
 }
 
 void RegExpBuiltinsAssembler::BranchIfFastRegExp_Permissive(
     TNode<Context> context, TNode<HeapObject> object, Label* if_isunmodified,
     Label* if_ismodified) {
   BranchIfFastRegExp(context, object, LoadMap(object),
-                     PrototypeCheckAssembler::kCheckFull, base::nullopt,
+                     PrototypeCheckAssembler::kCheckFull, std::nullopt,
                      if_isunmodified, if_ismodified);
 }
 
@@ -1527,7 +1529,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       {
         TNode<Smi> length = SmiConstant(1);
         TNode<IntPtrT> capacity = IntPtrConstant(1);
-        base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt;
+        std::optional<TNode<AllocationSite>> allocation_site = std::nullopt;
         var_result =
             AllocateJSArray(kind, array_map, capacity, length, allocation_site);
 
@@ -1690,7 +1692,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   {
     TNode<Smi> length = SmiZero();
     TNode<IntPtrT> capacity = IntPtrZero();
-    base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt;
+    std::optional<TNode<AllocationSite>> allocation_site = std::nullopt;
     var_result =
         AllocateJSArray(kind, array_map, capacity, length, allocation_site);
     Goto(&done);

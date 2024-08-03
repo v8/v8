@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <limits>
+#include <optional>
 #include <type_traits>
 #include <vector>
 
@@ -147,7 +148,7 @@ bool MatchScaledIndex(InstructionSelectorT<TurboshaftAdapter>* selector,
   return false;
 }
 
-base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
+std::optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_power_of_two_plus_one) {
   ScaledIndexMatch<TurboshaftAdapter> match;
@@ -157,11 +158,11 @@ base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
     match.base = plus_one ? match.index : turboshaft::OpIndex{};
     return match;
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // Copied verbatim from x64 (just renamed).
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacementForWordBinop(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
     turboshaft::OpIndex right) {
@@ -189,7 +190,7 @@ TryMatchBaseWithScaledIndexAndDisplacementForWordBinop(
           OwnedByAddressingOperand(right)) {
         if (!selector->MatchIntegralWord32Constant(right_binop->right(),
                                                    &result.displacement)) {
-          return base::nullopt;
+          return std::nullopt;
         }
         result.base = right_binop->left();
         result.displacement_mode = kNegativeDisplacement;
@@ -272,7 +273,7 @@ TryMatchBaseWithScaledIndexAndDisplacementForWordBinop(
 }
 
 // Copied verbatim from x64 (just renamed).
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
@@ -335,7 +336,7 @@ TryMatchBaseWithScaledIndexAndDisplacement(
     return result;
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   const WordBinopOp& binop = op.Cast<WordBinopOp>();
@@ -1200,7 +1201,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
   node_t value = store.value();
   int32_t displacement = store.displacement();
   uint8_t element_size_log2 = store.element_size_log2();
-  base::Optional<AtomicMemoryOrder> atomic_order = store.memory_order();
+  std::optional<AtomicMemoryOrder> atomic_order = store.memory_order();
   StoreRepresentation store_rep = store.stored_rep();
 
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
@@ -1956,7 +1957,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Add(node_t node) {
   turboshaft::OpIndex left = add.left();
   turboshaft::OpIndex right = add.right();
 
-  base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> m =
+  std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> m =
       TryMatchBaseWithScaledIndexAndDisplacementForWordBinop(this, left, right);
   if (m.has_value()) {
     if (g.ValueFitsIntoImmediate(m->displacement)) {

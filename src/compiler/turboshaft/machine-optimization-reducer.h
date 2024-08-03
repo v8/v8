@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <optional>
 #include <type_traits>
 
 #include "include/v8-internal.h"
@@ -85,9 +86,9 @@ struct BitfieldCheck {
     CHECK_EQ(masked_value & ~mask, 0);
   }
 
-  static base::Optional<BitfieldCheck> Detect(const OperationMatcher& matcher,
-                                              const Graph& graph,
-                                              OpIndex index) {
+  static std::optional<BitfieldCheck> Detect(const OperationMatcher& matcher,
+                                             const Graph& graph,
+                                             OpIndex index) {
     // There are two patterns to check for here:
     // 1. Single-bit checks: `(val >> shift) & 1`, where:
     //    - the shift may be omitted, and/or
@@ -104,7 +105,7 @@ struct BitfieldCheck {
         if (matcher.MatchIntegralWord32Constant(left_and->right(), &mask) &&
             matcher.MatchIntegralWord32Constant(equal->right(),
                                                 &masked_value)) {
-          if ((masked_value & ~mask) != 0) return base::nullopt;
+          if ((masked_value & ~mask) != 0) return std::nullopt;
           if (const ChangeOp* truncate =
                   graph.Get(left_and->left())
                       .TryCast<Opmask::kTruncateWord64ToWord32>()) {
@@ -120,13 +121,13 @@ struct BitfieldCheck {
     } else {
       return TryDetectShiftAndMaskOneBit<Word32>(matcher, index);
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 
-  base::Optional<BitfieldCheck> TryCombine(const BitfieldCheck& other) {
+  std::optional<BitfieldCheck> TryCombine(const BitfieldCheck& other) {
     if (source != other.source ||
         truncate_from_64_bit != other.truncate_from_64_bit) {
-      return base::nullopt;
+      return std::nullopt;
     }
     uint32_t overlapping_bits = mask & other.mask;
     // It would be kind of strange to have any overlapping bits, but they can be
@@ -134,7 +135,7 @@ struct BitfieldCheck {
     // positions.
     if ((masked_value & overlapping_bits) !=
         (other.masked_value & overlapping_bits)) {
-      return base::nullopt;
+      return std::nullopt;
     }
     return BitfieldCheck{source, mask | other.mask,
                          masked_value | other.masked_value,
@@ -143,7 +144,7 @@ struct BitfieldCheck {
 
  private:
   template <typename WordType>
-  static base::Optional<BitfieldCheck> TryDetectShiftAndMaskOneBit(
+  static std::optional<BitfieldCheck> TryDetectShiftAndMaskOneBit(
       const OperationMatcher& matcher, OpIndex index) {
     constexpr WordRepresentation Rep = V<WordType>::rep;
     // Look for the pattern `(val >> shift) & 1`. The shift may be omitted.
@@ -161,7 +162,7 @@ struct BitfieldCheck {
       }
       return BitfieldCheck{value, 1, 1, Rep == WordRepresentation::Word64()};
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 };
 
@@ -1141,7 +1142,7 @@ class MachineOptimizationReducer : public Next {
       }
     }
 
-    if (base::Optional<OpIndex> ror = TryReduceToRor(left, right, kind, rep)) {
+    if (std::optional<OpIndex> ror = TryReduceToRor(left, right, kind, rep)) {
       return *ror;
     }
 
@@ -1167,9 +1168,9 @@ class MachineOptimizationReducer : public Next {
     return false;
   }
 
-  base::Optional<V<Word>> TryReduceToRor(V<Word> left, V<Word> right,
-                                         WordBinopOp::Kind kind,
-                                         WordRepresentation rep) {
+  std::optional<V<Word>> TryReduceToRor(V<Word> left, V<Word> right,
+                                        WordBinopOp::Kind kind,
+                                        WordRepresentation rep) {
     // Recognize rotation, we are matcher.Matching and transforming as follows
     // (assuming kWord32, kWord64 is handled correspondingly):
     //   x << y         |  x >>> (32 - y)    =>  x ror (32 - y)
@@ -1550,8 +1551,8 @@ class MachineOptimizationReducer : public Next {
       }
       // Map 64bit to 32bit comparisons.
       if (rep_w == WordRepresentation::Word64()) {
-        base::Optional<bool> left_sign_extended;
-        base::Optional<bool> right_sign_extended;
+        std::optional<bool> left_sign_extended;
+        std::optional<bool> right_sign_extended;
         if (IsWord32ConvertedToWord64(left, &left_sign_extended) &&
             IsWord32ConvertedToWord64(right, &right_sign_extended)) {
           if (left_sign_extended != true && right_sign_extended != true) {
@@ -1738,7 +1739,7 @@ class MachineOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     // Try to replace the Branch by a Goto.
-    if (base::Optional<bool> decision = MatchBoolConstant(condition)) {
+    if (std::optional<bool> decision = MatchBoolConstant(condition)) {
       __ Goto(*decision ? if_true : if_false);
       return OpIndex::Invalid();
     }
@@ -1746,7 +1747,7 @@ class MachineOptimizationReducer : public Next {
     // Try to simplify the Branch's condition (eg, `if (x == 0) A else B` can
     // become `if (x) B else A`).
     bool negated = false;
-    if (base::Optional<OpIndex> new_condition =
+    if (std::optional<OpIndex> new_condition =
             ReduceBranchCondition(condition, &negated)) {
       if (negated) {
         std::swap(if_true, if_false);
@@ -1766,14 +1767,14 @@ class MachineOptimizationReducer : public Next {
       return Next::ReduceDeoptimizeIf(condition, frame_state, negated,
                                       parameters);
     }
-    if (base::Optional<bool> decision = MatchBoolConstant(condition)) {
+    if (std::optional<bool> decision = MatchBoolConstant(condition)) {
       if (*decision != negated) {
         __ Deoptimize(frame_state, parameters);
       }
       // `DeoptimizeIf` doesn't produce a value.
       return OpIndex::Invalid();
     }
-    if (base::Optional<V<Word32>> new_condition =
+    if (std::optional<V<Word32>> new_condition =
             ReduceBranchCondition(condition, &negated)) {
       return __ ReduceDeoptimizeIf(new_condition.value(), frame_state, negated,
                                    parameters);
@@ -1790,7 +1791,7 @@ class MachineOptimizationReducer : public Next {
       return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
-    if (base::Optional<bool> decision = MatchBoolConstant(condition)) {
+    if (std::optional<bool> decision = MatchBoolConstant(condition)) {
       if (*decision != negated) {
         Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
         __ Unreachable();
@@ -1798,7 +1799,7 @@ class MachineOptimizationReducer : public Next {
       // `TrapIf` doesn't produce a value.
       return V<None>::Invalid();
     }
-    if (base::Optional<V<Word32>> new_condition =
+    if (std::optional<V<Word32>> new_condition =
             ReduceBranchCondition(condition, &negated)) {
       return __ ReduceTrapIf(new_condition.value(), frame_state, negated,
                              trap_id);
@@ -1817,7 +1818,7 @@ class MachineOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     // Try to remove the Select.
-    if (base::Optional<bool> decision = MatchBoolConstant(cond)) {
+    if (std::optional<bool> decision = MatchBoolConstant(cond)) {
       return *decision ? vtrue : vfalse;
     }
 
@@ -1828,7 +1829,7 @@ class MachineOptimizationReducer : public Next {
     LABEL_BLOCK(no_change) {
       return Next::ReduceStaticAssert(condition, source);
     }
-    if (base::Optional<bool> decision = MatchBoolConstant(condition)) {
+    if (std::optional<bool> decision = MatchBoolConstant(condition)) {
       if (*decision) {
         // Drop the assert, the condition holds true.
         return OpIndex::Invalid();
@@ -2108,8 +2109,8 @@ class MachineOptimizationReducer : public Next {
         }
         // Map 64bit to 32bit equals.
         if (rep_w == WordRepresentation::Word64()) {
-          base::Optional<bool> left_sign_extended;
-          base::Optional<bool> right_sign_extended;
+          std::optional<bool> left_sign_extended;
+          std::optional<bool> right_sign_extended;
           if (IsWord32ConvertedToWord64(left, &left_sign_extended) &&
               IsWord32ConvertedToWord64(right, &right_sign_extended)) {
             if (left_sign_extended == right_sign_extended) {
@@ -2281,8 +2282,8 @@ class MachineOptimizationReducer : public Next {
     return false;
   }
 
-  bool IsWord32ConvertedToWord64(
-      OpIndex value, base::Optional<bool>* sign_extended = nullptr) {
+  bool IsWord32ConvertedToWord64(OpIndex value,
+                                 std::optional<bool>* sign_extended = nullptr) {
     if (const ChangeOp* change_op = matcher.TryCast<ChangeOp>(value)) {
       if (change_op->from == WordRepresentation::Word32() &&
           change_op->to == WordRepresentation::Word64()) {
@@ -2504,8 +2505,8 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  base::Optional<V<Word32>> ReduceBranchCondition(V<Word32> condition,
-                                                  bool* negated) {
+  std::optional<V<Word32>> ReduceBranchCondition(V<Word32> condition,
+                                                 bool* negated) {
     // TODO(dmercadier): consider generalizing this function both Word32 and
     // Word64.
     bool reduced = false;
@@ -2578,15 +2579,15 @@ class MachineOptimizationReducer : public Next {
       }
       break;
     }
-    return reduced ? base::Optional<V<Word32>>(condition) : base::nullopt;
+    return reduced ? std::optional<V<Word32>>(condition) : std::nullopt;
   }
 
-  base::Optional<bool> MatchBoolConstant(OpIndex condition) {
+  std::optional<bool> MatchBoolConstant(OpIndex condition) {
     if (uint32_t value;
         matcher.MatchIntegralWord32Constant(condition, &value)) {
       return value != 0;
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 
   // Returns true if loading the map of an object with map {map} can be constant

@@ -4,6 +4,8 @@
 
 #include "src/compiler/bytecode-graph-builder.h"
 
+#include <optional>
+
 #include "src/ast/ast.h"
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
@@ -1814,7 +1816,7 @@ OptionalScopeInfoRef BytecodeGraphBuilder::TryGetScopeInfo() {
       return scope_info;
     }
     default:
-      return base::nullopt;
+      return std::nullopt;
   }
 }
 

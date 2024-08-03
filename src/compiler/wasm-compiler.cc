@@ -5,8 +5,8 @@
 #include "src/compiler/wasm-compiler.h"
 
 #include <memory>
+#include <optional>
 
-#include "src/base/optional.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler.h"
@@ -7563,7 +7563,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Set the ThreadInWasm flag before we do the actual call.
     {
-      base::Optional<ModifyThreadInWasmFlagScope>
+      std::optional<ModifyThreadInWasmFlagScope>
           modify_thread_in_wasm_flag_builder;
       if (set_in_wasm_flag) {
         modify_thread_in_wasm_flag_builder.emplace(this, gasm_.get());

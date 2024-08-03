@@ -4,6 +4,8 @@
 
 #include "src/compiler/turboshaft/wasm-revec-reducer.h"
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/wasm/simd-shuffle.h"
@@ -111,7 +113,7 @@ class StoreLoadInfo {
     index_ = change_input;
   }
 
-  base::Optional<int> operator-(const StoreLoadInfo<Op>& rhs) const {
+  std::optional<int> operator-(const StoreLoadInfo<Op>& rhs) const {
     DCHECK(IsValid() && rhs.IsValid());
     bool calculatable = base_ == rhs.base_ && index_ == rhs.index_;
 

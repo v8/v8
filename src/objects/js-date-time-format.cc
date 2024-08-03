@@ -1650,7 +1650,7 @@ std::optional<std::string> GetOffsetTimeZone(Isolate* isolate,
   int32_t len = flat.length();
   if (len < 3) {
     // Error
-    return base::nullopt;
+    return std::nullopt;
   }
   std::string tz("GMT");
   switch (flat.Get(0)) {
@@ -1663,7 +1663,7 @@ std::optional<std::string> GetOffsetTimeZone(Isolate* isolate,
       break;
     default:
       // Error
-      return base::nullopt;
+      return std::nullopt;
   }
   // 00 - 23
   uint16_t h0 = flat.Get(1);
@@ -1675,7 +1675,7 @@ std::optional<std::string> GetOffsetTimeZone(Isolate* isolate,
     tz += h1;
   } else {
     // Error
-    return base::nullopt;
+    return std::nullopt;
   }
   if (len == 3) {
     return tz;
@@ -1689,7 +1689,7 @@ std::optional<std::string> GetOffsetTimeZone(Isolate* isolate,
   }
   if (len - p != 2) {
     // Error
-    return base::nullopt;
+    return std::nullopt;
   }
   uint16_t m1 = flat.Get(p + 1);
   if (m0 >= '0' && m0 <= '5' && m1 >= '0' && m1 <= '9') {
@@ -1698,7 +1698,7 @@ std::optional<std::string> GetOffsetTimeZone(Isolate* isolate,
     return tz;
   }
   // Error
-  return base::nullopt;
+  return std::nullopt;
 }
 std::unique_ptr<icu::TimeZone> JSDateTimeFormat::CreateTimeZone(
     Isolate* isolate, Handle<String> time_zone_string) {
@@ -2925,7 +2925,7 @@ std::optional<MaybeHandle<String>> FormattedToString(
       return Intl::ToString(isolate, result);
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // A helper function to convert the FormattedDateInterval to a
@@ -2988,7 +2988,7 @@ std::optional<MaybeHandle<JSArray>> FormattedDateIntervalToJSArray(
 
   JSObject::ValidateElements(*array);
   if (output_range) return array;
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // The shared code between formatRange and formatRangeToParts

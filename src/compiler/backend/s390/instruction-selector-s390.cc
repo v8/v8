@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
@@ -93,7 +95,7 @@ struct BaseWithScaledIndexAndDisplacementMatch {
   DisplacementMode displacement_mode = kPositiveDisplacement;
 };
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
@@ -156,7 +158,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
     return result;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // Adds S390-specific methods for generating operands.

@@ -5,8 +5,9 @@
 #ifndef V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_INL_H_
 #define V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_INL_H_
 
+#include <optional>
+
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
@@ -3685,7 +3686,7 @@ class MachineLoweringReducer : public Next {
   Isolate* isolate_ = __ data() -> isolate();
   Factory* factory_ = isolate_ ? isolate_->factory() : nullptr;
   JSHeapBroker* broker_ = __ data() -> broker();
-  base::Optional<bool> undetectable_objects_protector_ = {};
+  std::optional<bool> undetectable_objects_protector_ = {};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

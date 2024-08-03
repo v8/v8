@@ -5,11 +5,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <optional>
 
 #include "src/base/bounds.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
@@ -177,11 +177,11 @@ struct ScaledIndexMatch {
 };
 
 template <typename ScaleMatcher>
-base::Optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex(
+std::optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
     bool allow_power_of_two_plus_one) {
   ScaleMatcher m(node, allow_power_of_two_plus_one);
-  if (!m.matches()) return base::nullopt;
+  if (!m.matches()) return std::nullopt;
   ScaledIndexMatch<TurbofanAdapter> match;
   match.index = node->InputAt(0);
   match.base = m.power_of_two_plus_one() ? match.index : nullptr;
@@ -189,14 +189,14 @@ base::Optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex(
   return match;
 }
 
-base::Optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex32(
+std::optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex32(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
     bool allow_power_of_two_plus_one) {
   return TryMatchScaledIndex<Int32ScaleMatcher>(selector, node,
                                                 allow_power_of_two_plus_one);
 }
 
-base::Optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex64(
+std::optional<ScaledIndexMatch<TurbofanAdapter>> TryMatchScaledIndex64(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
     bool allow_power_of_two_plus_one) {
   return TryMatchScaledIndex<Int64ScaleMatcher>(selector, node,
@@ -260,7 +260,7 @@ bool MatchScaledIndex(InstructionSelectorT<TurboshaftAdapter>* selector,
   return false;
 }
 
-base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
+std::optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_power_of_two_plus_one) {
   ScaledIndexMatch<TurboshaftAdapter> match;
@@ -270,16 +270,16 @@ base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex(
     match.base = plus_one ? match.index : turboshaft::OpIndex{};
     return match;
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
-base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex32(
+std::optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex32(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_power_of_two_plus_one) {
   return TryMatchScaledIndex(selector, node, allow_power_of_two_plus_one);
 }
 
-base::Optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex64(
+std::optional<ScaledIndexMatch<TurboshaftAdapter>> TryMatchScaledIndex64(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_power_of_two_plus_one) {
   return TryMatchScaledIndex(selector, node, allow_power_of_two_plus_one);
@@ -297,7 +297,7 @@ struct BaseWithScaledIndexAndDisplacementMatch {
 };
 
 template <typename BaseWithIndexAndDisplacementMatcher>
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter> result;
@@ -319,29 +319,29 @@ TryMatchBaseWithScaledIndexAndDisplacement(
     result.displacement_mode = m.displacement_mode();
     return result;
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   return TryMatchBaseWithScaledIndexAndDisplacement<
       BaseWithIndexAndDisplacement64Matcher>(selector, node);
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurbofanAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement32(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   return TryMatchBaseWithScaledIndexAndDisplacement<
       BaseWithIndexAndDisplacement32Matcher>(selector, node);
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
     turboshaft::OpIndex right, bool is_commutative);
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
@@ -423,7 +423,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {
-    return base::nullopt;
+    return std::nullopt;
   }
 
   const WordBinopOp& binop = op.Cast<WordBinopOp>();
@@ -433,7 +433,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
       selector, left, right, binop.IsCommutative());
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex left,
     turboshaft::OpIndex right, bool is_commutative) {
@@ -454,7 +454,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
 
   // Helper to check (S + ...)
   auto match_S_plus = [&selector](OpIndex left, OpIndex right)
-      -> base::Optional<
+      -> std::optional<
           BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> {
     BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
     result.displacement_mode = kPositiveDisplacement;
@@ -471,7 +471,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
         if (right_binop->kind == WordBinopOp::Kind::kSub) {
           if (!selector->MatchSignedIntegralConstant(right_binop->right(),
                                                      &result.displacement)) {
-            return base::nullopt;
+            return std::nullopt;
           }
           result.base = right_binop->left();
           result.displacement_mode = kNegativeDisplacement;
@@ -508,7 +508,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
       return result;
     }
 
-    return base::nullopt;
+    return std::nullopt;
   };
 
   // Helper to check ((S + ...) + ...)
@@ -516,7 +516,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
                                        turboshaft::OpIndex right,
                                        turboshaft::OpIndex left_add_left,
                                        turboshaft::OpIndex left_add_right)
-      -> base::Optional<
+      -> std::optional<
           BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     DCHECK_EQ(selector->Get(left).Cast<WordBinopOp>().kind,
@@ -546,13 +546,13 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
       DCHECK_EQ(result.displacement, 0);
       return result;
     }
-    return base::nullopt;
+    return std::nullopt;
   };
 
   // Helper to check ((... + ...) + ...)
   auto match_plus_plus = [&selector, &match_S_plus_plus](OpIndex left,
                                                          OpIndex right)
-      -> base::Optional<
+      -> std::optional<
           BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>> {
     BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter> result;
     result.displacement_mode = kPositiveDisplacement;
@@ -571,7 +571,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
       if (maybe_res) return maybe_res;
     }
 
-    return base::nullopt;
+    return std::nullopt;
   };
 
   // Check (S + ...)
@@ -613,7 +613,7 @@ TryMatchBaseWithScaledIndexAndDisplacement64ForWordBinop(
   return result;
 }
 
-base::Optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
+std::optional<BaseWithScaledIndexAndDisplacementMatch<TurboshaftAdapter>>
 TryMatchBaseWithScaledIndexAndDisplacement32(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
@@ -1881,7 +1881,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
   node_t value = store.value();
   int32_t displacement = store.displacement();
   uint8_t element_size_log2 = store.element_size_log2();
-  base::Optional<AtomicMemoryOrder> atomic_order = store.memory_order();
+  std::optional<AtomicMemoryOrder> atomic_order = store.memory_order();
   MemoryAccessKind acs_kind = store.access_kind();
 
   const StoreRepresentation store_rep = store.stored_rep();
@@ -2189,16 +2189,16 @@ static void VisitBinop(InstructionSelectorT<Adapter>* selector,
 }
 
 // Shared routine for multiple binary operations.
-base::Optional<int32_t> GetWord32Constant(
+std::optional<int32_t> GetWord32Constant(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
     bool allow_implicit_int64_truncation =
         TurbofanAdapter::AllowsImplicitWord64ToWord32Truncation) {
   DCHECK(!allow_implicit_int64_truncation);
-  if (node->opcode() != IrOpcode::kInt32Constant) return base::nullopt;
+  if (node->opcode() != IrOpcode::kInt32Constant) return std::nullopt;
   return OpParameter<int32_t>(node->op());
 }
 
-base::Optional<int32_t> GetWord32Constant(
+std::optional<int32_t> GetWord32Constant(
     InstructionSelectorT<TurboshaftAdapter>* selector, turboshaft::OpIndex node,
     bool allow_implicit_int64_truncation =
         TurboshaftAdapter::AllowsImplicitWord64ToWord32Truncation) {
@@ -2211,7 +2211,7 @@ base::Optional<int32_t> GetWord32Constant(
       return static_cast<int32_t>(constant->word64());
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 template <typename Adapter>
@@ -2256,14 +2256,14 @@ void InstructionSelectorT<Adapter>::VisitWord32And(node_t node) {
   VisitBinop(this, node, kX64And32);
 }
 
-base::Optional<uint64_t> TryGetRightWordConstant(
+std::optional<uint64_t> TryGetRightWordConstant(
     InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   Uint64BinopMatcher m(node);
-  if (!m.right().HasResolvedValue()) return base::nullopt;
+  if (!m.right().HasResolvedValue()) return std::nullopt;
   return static_cast<uint64_t>(m.right().ResolvedValue());
 }
 
-base::Optional<uint64_t> TryGetRightWordConstant(
+std::optional<uint64_t> TryGetRightWordConstant(
     InstructionSelectorT<TurboshaftAdapter>* selector,
     turboshaft::OpIndex node) {
   if (const turboshaft::WordBinopOp* binop =
@@ -2273,13 +2273,13 @@ base::Optional<uint64_t> TryGetRightWordConstant(
       return value;
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64And(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  if (base::Optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
+  if (std::optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
     auto left = this->input_at(node, 0);
     if (*constant == 0xFF) {
       Emit(kX64Movzxbq, g.DefineAsRegister(node), g.Use(left));
@@ -2313,7 +2313,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Or(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  if (base::Optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
+  if (std::optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
     if (*constant == static_cast<uint64_t>(-1)) {
       Emit(kX64Not32, g.DefineSameAsFirst(node),
            g.UseRegister(this->input_at(node, 0)));
@@ -2326,7 +2326,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  if (base::Optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
+  if (std::optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
     if (*constant == static_cast<uint64_t>(-1)) {
       Emit(kX64Not, g.DefineSameAsFirst(node),
            g.UseRegister(this->input_at(node, 0)));
@@ -2871,7 +2871,7 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
 
-  base::Optional<BaseWithScaledIndexAndDisplacementMatch<Adapter>> m;
+  std::optional<BaseWithScaledIndexAndDisplacementMatch<Adapter>> m;
   if constexpr (Adapter::IsTurbofan) {
     DCHECK_EQ(node->InputCount(), 2);
     Node* left = node->InputAt(0);

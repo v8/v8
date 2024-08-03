@@ -4,6 +4,8 @@
 
 #include "src/compiler/heap-refs.h"
 
+#include <optional>
+
 #include "src/compiler/js-heap-broker.h"
 #include "src/objects/elements-kind.h"
 
@@ -12,7 +14,6 @@
 #endif
 
 #include "src/api/api-inl.h"
-#include "src/base/optional.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -145,12 +146,12 @@ class HeapObjectData : public ObjectData {
   HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
                  Handle<HeapObject> object, ObjectDataKind kind);
 
-  base::Optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;
+  std::optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;
   ObjectData* map() const { return map_; }
   InstanceType GetMapInstanceType() const;
 
  private:
-  base::Optional<bool> TryGetBooleanValueImpl(JSHeapBroker* broker) const;
+  std::optional<bool> TryGetBooleanValueImpl(JSHeapBroker* broker) const;
 
   ObjectData* const map_;
 };
@@ -295,10 +296,10 @@ uint64_t RacyReadHeapNumberBits(Tagged<HeapNumber> value) {
   return value->value_as_bits();
 }
 
-base::Optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
+std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
     JSHeapBroker* broker, JSObjectRef holder, Representation representation,
     FieldIndex field_index) {
-  base::Optional<Tagged<Object>> constant;
+  std::optional<Tagged<Object>> constant;
   {
     DisallowGarbageCollection no_gc;
     PtrComprCageBase cage_base = broker->cage_base();
@@ -387,7 +388,7 @@ OptionalObjectRef GetOwnDictionaryPropertyFromHeap(
     DisallowGarbageCollection no_gc;
     // DictionaryPropertyAt will check that we are within the bounds of the
     // object.
-    base::Optional<Tagged<Object>> maybe_constant =
+    std::optional<Tagged<Object>> maybe_constant =
         JSObject::DictionaryPropertyAt(receiver, dict_index,
                                        broker->isolate()->heap());
     DCHECK_IMPLIES(broker->IsMainThread(), maybe_constant);
@@ -773,7 +774,7 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
                 kind == kBackgroundSerializedHeapObject);
 }
 
-base::Optional<bool> HeapObjectData::TryGetBooleanValue(
+std::optional<bool> HeapObjectData::TryGetBooleanValue(
     JSHeapBroker* broker) const {
   // Keep in sync with Object::BooleanValue.
   auto result = TryGetBooleanValueImpl(broker);
@@ -783,7 +784,7 @@ base::Optional<bool> HeapObjectData::TryGetBooleanValue(
   return result;
 }
 
-base::Optional<bool> HeapObjectData::TryGetBooleanValueImpl(
+std::optional<bool> HeapObjectData::TryGetBooleanValueImpl(
     JSHeapBroker* broker) const {
   DisallowGarbageCollection no_gc;
   Tagged<Object> o = *object();
@@ -1183,7 +1184,7 @@ OptionalMapRef MapRef::AsElementsKind(JSHeapBroker* broker,
   }
 #endif  // DEBUG
 
-  base::Optional<Tagged<Map>> maybe_result = Map::TryAsElementsKind(
+  std::optional<Tagged<Map>> maybe_result = Map::TryAsElementsKind(
       broker->isolate(), object(), kind, ConcurrencyMode::kConcurrent);
 
   if (!maybe_result.has_value()) {
@@ -1302,7 +1303,7 @@ OptionalObjectRef JSObjectRef::RawInobjectPropertyAt(JSHeapBroker* broker,
       return {};
     }
 
-    base::Optional<Tagged<Object>> maybe_value =
+    std::optional<Tagged<Object>> maybe_value =
         object()->RawInobjectPropertyAt(cage_base, current_map, index);
     if (!maybe_value.has_value()) {
       TRACE_BROKER_MISSING(broker,
@@ -1392,13 +1393,13 @@ bool StringRef::IsOneByteRepresentation() const {
 
 // TODO(leszeks): The broker is only needed here for tracing, maybe we could get
 // it from a thread local instead.
-base::Optional<Handle<String>> StringRef::ObjectIfContentAccessible(
+std::optional<Handle<String>> StringRef::ObjectIfContentAccessible(
     JSHeapBroker* broker) {
   if (!IsContentAccessible()) {
     TRACE_BROKER_MISSING(
         broker,
         "content for kNeverSerialized unsupported string kind " << *this);
-    return base::nullopt;
+    return std::nullopt;
   } else {
     return object();
   }
@@ -1406,17 +1407,17 @@ base::Optional<Handle<String>> StringRef::ObjectIfContentAccessible(
 
 int StringRef::length() const { return object()->length(kAcquireLoad); }
 
-base::Optional<uint16_t> StringRef::GetFirstChar(JSHeapBroker* broker) const {
+std::optional<uint16_t> StringRef::GetFirstChar(JSHeapBroker* broker) const {
   return GetChar(broker, 0);
 }
 
-base::Optional<uint16_t> StringRef::GetChar(JSHeapBroker* broker,
-                                            int index) const {
+std::optional<uint16_t> StringRef::GetChar(JSHeapBroker* broker,
+                                           int index) const {
   if (!IsContentAccessible()) {
     TRACE_BROKER_MISSING(
         broker,
         "get char for kNeverSerialized unsupported string kind " << *this);
-    return base::nullopt;
+    return std::nullopt;
   }
 
   if (!broker->IsMainThread()) {
@@ -1428,22 +1429,22 @@ base::Optional<uint16_t> StringRef::GetChar(JSHeapBroker* broker,
   }
 }
 
-base::Optional<double> StringRef::ToNumber(JSHeapBroker* broker) {
+std::optional<double> StringRef::ToNumber(JSHeapBroker* broker) {
   if (!IsContentAccessible()) {
     TRACE_BROKER_MISSING(
         broker,
         "number for kNeverSerialized unsupported string kind " << *this);
-    return base::nullopt;
+    return std::nullopt;
   }
 
   return TryStringToDouble(broker->local_isolate(), object());
 }
 
-base::Optional<double> StringRef::ToInt(JSHeapBroker* broker, int radix) {
+std::optional<double> StringRef::ToInt(JSHeapBroker* broker, int radix) {
   if (!IsContentAccessible()) {
     TRACE_BROKER_MISSING(
         broker, "toInt for kNeverSerialized unsupported string kind " << *this);
-    return base::nullopt;
+    return std::nullopt;
   }
 
   return TryStringToInt(broker->local_isolate(), object(), radix);
@@ -1899,7 +1900,7 @@ OptionalJSFunctionRef NativeContextRef::GetConstructorFunction(
   CHECK(map.IsPrimitiveMap());
   switch (map.constructor_function_index()) {
     case Map::kNoConstructorFunctionIndex:
-      return base::nullopt;
+      return std::nullopt;
     case Context::BIGINT_FUNCTION_INDEX:
       return bigint_function(broker);
     case Context::BOOLEAN_FUNCTION_INDEX:
@@ -1956,7 +1957,7 @@ HoleType ObjectRef::HoleType() const {
 
 bool ObjectRef::IsNullOrUndefined() const { return IsNull() || IsUndefined(); }
 
-base::Optional<bool> ObjectRef::TryGetBooleanValue(JSHeapBroker* broker) const {
+std::optional<bool> ObjectRef::TryGetBooleanValue(JSHeapBroker* broker) const {
   if (data_->should_access_heap()) {
     return Object::BooleanValue(*object(), broker->isolate());
   }
@@ -1991,7 +1992,7 @@ bool ObjectRef::should_access_heap() const {
 OptionalObjectRef JSObjectRef::GetOwnConstantElement(
     JSHeapBroker* broker, FixedArrayBaseRef elements_ref, uint32_t index,
     CompilationDependencies* dependencies) const {
-  base::Optional<Tagged<Object>> maybe_element = GetOwnConstantElementFromHeap(
+  std::optional<Tagged<Object>> maybe_element = GetOwnConstantElementFromHeap(
       broker, *elements_ref.object(), map(broker).elements_kind(), index);
   if (!maybe_element.has_value()) return {};
 
@@ -2002,7 +2003,7 @@ OptionalObjectRef JSObjectRef::GetOwnConstantElement(
   return result;
 }
 
-base::Optional<Tagged<Object>> JSObjectRef::GetOwnConstantElementFromHeap(
+std::optional<Tagged<Object>> JSObjectRef::GetOwnConstantElementFromHeap(
     JSHeapBroker* broker, Tagged<FixedArrayBase> elements,
     ElementsKind elements_kind, uint32_t index) const {
   DCHECK_LE(index, JSObject::kMaxElementIndex);
@@ -2058,7 +2059,7 @@ OptionalObjectRef JSObjectRef::GetOwnFastConstantDataProperty(
   // Use GetOwnFastConstantDoubleProperty for doubles.
   DCHECK(!field_representation.IsDouble());
 
-  base::Optional<Tagged<Object>> constant =
+  std::optional<Tagged<Object>> constant =
       GetOwnFastConstantDataPropertyFromHeap(broker, *this,
                                              field_representation, index);
   if (!constant) return {};
@@ -2073,10 +2074,10 @@ OptionalObjectRef JSObjectRef::GetOwnFastConstantDataProperty(
   return result;
 }
 
-base::Optional<Float64> JSObjectRef::GetOwnFastConstantDoubleProperty(
+std::optional<Float64> JSObjectRef::GetOwnFastConstantDoubleProperty(
     JSHeapBroker* broker, FieldIndex index,
     CompilationDependencies* dependencies) const {
-  base::Optional<Tagged<Object>> constant =
+  std::optional<Tagged<Object>> constant =
       GetOwnFastConstantDataPropertyFromHeap(broker, *this,
                                              Representation::Double(), index);
   if (!constant) return {};
@@ -2145,7 +2146,7 @@ OptionalObjectRef JSArrayRef::GetOwnCowElement(JSHeapBroker* broker,
   // Likewise we only deal with smi lengths.
   if (!length_ref->IsSmi()) return {};
 
-  base::Optional<Tagged<Object>> result =
+  std::optional<Tagged<Object>> result =
       ConcurrentLookupIterator::TryGetOwnCowElement(
           broker->isolate(), *elements_ref.AsFixedArray().object(),
           elements_kind, length_ref->AsSmi(), index);
@@ -2423,7 +2424,7 @@ bool NativeContextRef::GlobalIsDetached(JSHeapBroker* broker) const {
 
 OptionalPropertyCellRef JSGlobalObjectRef::GetPropertyCell(JSHeapBroker* broker,
                                                            NameRef name) const {
-  base::Optional<Tagged<PropertyCell>> maybe_cell =
+  std::optional<Tagged<PropertyCell>> maybe_cell =
       ConcurrentLookupIterator::TryGetPropertyCell(
           broker->isolate(), broker->local_isolate_or_isolate(),
           broker->target_native_context().global_object(broker).object(),
