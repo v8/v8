@@ -2184,7 +2184,7 @@ class MaglevGraphBuilder {
       ValueNode* lookup_start_object);
   ReduceResult TryBuildPropertySetterCall(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
-      ValueNode* lookup_start_object, ValueNode* value);
+      ValueNode* value);
   bool TryBuildGetKeyedPropertyWithEnumeratedKey(
       ValueNode* object, const compiler::FeedbackSource& feedback_source,
       const compiler::ProcessedFeedback& processed_feedback);
@@ -2205,8 +2205,8 @@ class MaglevGraphBuilder {
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NameRef name, compiler::PropertyAccessInfo const& access_info);
   ReduceResult TryBuildPropertyStore(
-      ValueNode* receiver, ValueNode* lookup_start_object,
-      compiler::NameRef name, compiler::PropertyAccessInfo const& access_info,
+      ValueNode* receiver, compiler::NameRef name,
+      compiler::PropertyAccessInfo const& access_info,
       compiler::AccessMode access_mode);
   ReduceResult TryBuildPropertyAccess(
       ValueNode* receiver, ValueNode* lookup_start_object,
