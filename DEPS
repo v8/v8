@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9656724ad174e50b082717a518ec957cd1fcb1af',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f4481310c1223ee87d5e12738d8ec4664147c413',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4eb7a10ce6e60cfd8dc9e17a17591816d7607437',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'caac4d90f313acbb604b6286614e28270f8f205b',
   'buildtools/linux64': {
     'packages': [
       {
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7815620b1fc90605b76dacbd2d128460d3743184',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '40cece20d0eaae6fd41fcbc008480e71f2e3aed9',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -303,7 +303,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '116395a11e064f22bd143f709d6811b4827c11b6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '63754a6ca6868961e3c2d6476444727f2cc0d7e8',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a3c7d3e2f3e1e724b4651891b1a71257cbd88acc',
   'third_party/libunwind/src':
@@ -491,7 +491,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '71660e196bcfc74b2c657a46b512037cb49079a2',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd1c1969a00e848bbd223589a85b9996eab9750fa',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '673d0358aa73fc0a6561000930486514424b93e4',
   'tools/luci-go': {
       'packages': [
         {
