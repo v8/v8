@@ -4579,17 +4579,23 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyGetterCall(
 
 ReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
     compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
-    ValueNode* value) {
+    ValueNode* lookup_start_object, ValueNode* value) {
+  // Setting super properties shouldn't end up here.
+  DCHECK_EQ(receiver, lookup_start_object);
   compiler::ObjectRef constant = access_info.constant().value();
   if (constant.IsJSFunction()) {
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                        {receiver, value});
     RETURN_IF_ABORT(ReduceCallForConstant(constant.AsJSFunction(), args));
-    return ReduceResult::Done();
   } else {
-    // TODO(victorgomes): API calls.
-    return ReduceResult::Fail();
+    compiler::FunctionTemplateInfoRef templ = constant.AsFunctionTemplateInfo();
+    CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
+                       {receiver, value});
+    RETURN_IF_ABORT(
+        ReduceCallForApiFunction(templ, {}, access_info.api_holder(), args));
   }
+  // Ignore the return value of the setter call.
+  return ReduceResult::Done();
 }
 
 ValueNode* MaglevGraphBuilder::BuildLoadField(
@@ -4868,7 +4874,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
-    ValueNode* receiver, compiler::NameRef name,
+    ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
     compiler::PropertyAccessInfo const& access_info,
     compiler::AccessMode access_mode) {
   if (access_info.holder().has_value()) {
@@ -4880,7 +4886,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
   switch (access_info.kind()) {
     case compiler::PropertyAccessInfo::kFastAccessorConstant: {
       return TryBuildPropertySetterCall(access_info, receiver,
-                                        GetAccumulator());
+                                        lookup_start_object, GetAccumulator());
     }
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant: {
@@ -4915,7 +4921,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyAccess(
     case compiler::AccessMode::kStoreInLiteral:
     case compiler::AccessMode::kDefine:
       DCHECK_EQ(receiver, lookup_start_object);
-      return TryBuildPropertyStore(receiver, name, access_info, access_mode);
+      return TryBuildPropertyStore(receiver, lookup_start_object, name,
+                                   access_info, access_mode);
     case compiler::AccessMode::kHas:
       // TODO(victorgomes): BuildPropertyTest.
       return ReduceResult::Fail();
@@ -5920,8 +5927,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
 
     ReduceResult result;
     if (is_any_store) {
-      result = TryBuildPropertyStore(receiver, feedback.name(), access_info,
-                                     access_mode);
+      result = TryBuildPropertyStore(receiver, lookup_start_object,
+                                     feedback.name(), access_info, access_mode);
     } else {
       result = TryBuildPropertyLoad(receiver, lookup_start_object,
                                     feedback.name(), access_info);
