@@ -285,6 +285,22 @@ class MachineLoweringReducer : public Next {
           GOTO_IF(UNLIKELY(__ IsSmi(input)), done, 0);
         }
 
+#if V8_STATIC_ROOTS_BOOL
+        // Fast check for NullOrUndefined before loading the map, if helpful.
+        V<Word32> is_null_or_undefined;
+        if (kind == ObjectIsOp::Kind::kReceiverOrNullOrUndefined) {
+          static_assert(StaticReadOnlyRoot::kFirstAllocatedRoot ==
+                        StaticReadOnlyRoot::kUndefinedValue);
+          static_assert(StaticReadOnlyRoot::kUndefinedValue +
+                            sizeof(Undefined) ==
+                        StaticReadOnlyRoot::kNullValue);
+          is_null_or_undefined = __ Uint32LessThanOrEqual(
+              __ TruncateWordPtrToWord32(
+                  __ BitcastHeapObjectToWordPtr(V<HeapObject>::Cast(input))),
+              __ Word32Constant(StaticReadOnlyRoot::kNullValue));
+        }
+#endif  // V8_STATIC_ROOTS_BOOL
+
         // Load bitfield from map.
         V<Map> map = __ LoadMapField(input);
         V<Word32> bitfield =
@@ -323,13 +339,9 @@ class MachineLoweringReducer : public Next {
             break;
           case ObjectIsOp::Kind::kReceiverOrNullOrUndefined: {
 #if V8_STATIC_ROOTS_BOOL
-            V<Word32> check0 = JSAnyIsNotPrimitiveHeapObject(input, map);
-            V<Word32> check1 = __ TaggedEqual(
-                input, __ HeapConstant(factory_->undefined_value()));
-            V<Word32> check2 =
-                __ TaggedEqual(input, __ HeapConstant(factory_->null_value()));
-            check =
-                __ Word32BitwiseOr(check0, __ Word32BitwiseOr(check1, check2));
+            V<Word32> is_non_primitive =
+                JSAnyIsNotPrimitiveHeapObject(input, map);
+            check = __ Word32BitwiseOr(is_null_or_undefined, is_non_primitive);
 #else
             static_assert(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
             static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
@@ -1334,6 +1346,8 @@ class MachineLoweringReducer : public Next {
         // Undefined is the first root, so it's the smallest possible pointer
         // value, which means we don't have to subtract it for the range check.
         ReadOnlyRoots roots(isolate_);
+        static_assert(StaticReadOnlyRoot::kFirstAllocatedRoot ==
+                      StaticReadOnlyRoot::kUndefinedValue);
         static_assert(StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined) ==
                       StaticReadOnlyRoot::kNullValue);
         static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
@@ -3442,31 +3456,64 @@ class MachineLoweringReducer : public Next {
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind input_kind,
       const FeedbackSource& feedback) {
     V<Map> map = __ LoadMapField(heap_object);
-    V<Word32> check_number =
-        __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map()));
     switch (input_kind) {
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kSmi:
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
           kNumberOrString:
         UNREACHABLE();
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber: {
-        __ DeoptimizeIfNot(check_number, frame_state,
+        V<Word32> is_number =
+            __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map()));
+        __ DeoptimizeIfNot(is_number, frame_state,
                            DeoptimizeReason::kNotAHeapNumber, feedback);
         break;
       }
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
           kNumberOrBoolean: {
-        IF_NOT(check_number) {
+#if V8_STATIC_ROOTS_BOOL
+        // TODO(leszeks): Consider checking the boolean oddballs by value,
+        // before loading the map.
+        static_assert(StaticReadOnlyRoot::kBooleanMap + Map::kSize ==
+                      StaticReadOnlyRoot::kHeapNumberMap);
+        V<Word32> map_int32 =
+            __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map));
+        V<Word32> is_in_range = __ Uint32LessThanOrEqual(
+            __ Word32Sub(map_int32,
+                         __ Word32Constant(StaticReadOnlyRoot::kBooleanMap)),
+            __ Word32Constant(StaticReadOnlyRoot::kHeapNumberMap -
+                              StaticReadOnlyRoot::kBooleanMap));
+        __ DeoptimizeIfNot(is_in_range, frame_state,
+                           DeoptimizeReason::kNotANumberOrBoolean, feedback);
+#else
+        IF_NOT (__ TaggedEqual(map,
+                               __ HeapConstant(factory_->heap_number_map()))) {
           __ DeoptimizeIfNot(
               __ TaggedEqual(map, __ HeapConstant(factory_->boolean_map())),
               frame_state, DeoptimizeReason::kNotANumberOrBoolean, feedback);
         }
+#endif
 
         break;
       }
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
           kNumberOrOddball: {
-        IF_NOT(check_number) {
+#if V8_STATIC_ROOTS_BOOL
+        constexpr auto kNumberOrOddballRange =
+            InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(
+                HEAP_NUMBER_TYPE, ODDBALL_TYPE)
+                .value();
+        V<Word32> map_int32 =
+            __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map));
+        V<Word32> is_in_range = __ Uint32LessThanOrEqual(
+            __ Word32Sub(map_int32,
+                         __ Word32Constant(kNumberOrOddballRange.first)),
+            __ Word32Constant(kNumberOrOddballRange.second -
+                              kNumberOrOddballRange.first));
+        __ DeoptimizeIfNot(is_in_range, frame_state,
+                           DeoptimizeReason::kNotANumberOrOddball, feedback);
+#else
+        IF_NOT (__ TaggedEqual(map,
+                               __ HeapConstant(factory_->heap_number_map()))) {
           // For oddballs also contain the numeric value, let us just check that
           // we have an oddball here.
           V<Word32> instance_type = __ LoadInstanceTypeField(map);
@@ -3474,6 +3521,7 @@ class MachineLoweringReducer : public Next {
                              frame_state,
                              DeoptimizeReason::kNotANumberOrOddball, feedback);
         }
+#endif
 
         break;
       }

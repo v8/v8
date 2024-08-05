@@ -796,6 +796,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kJSAtomicsMutexMap = 0x20045;
   static constexpr Tagged_t kJSAtomicsConditionMap = 0x2006d;
 
+  static constexpr Tagged_t kFirstAllocatedRoot = 0x69;
   static constexpr Tagged_t kLastAllocatedRoot = 0x2006d;
 };
 
