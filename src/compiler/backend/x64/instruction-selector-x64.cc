@@ -6113,6 +6113,11 @@ void InstructionSelectorT<Adapter>::VisitF64x4Splat(node_t node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Splat(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x8Splat(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
@@ -6184,6 +6189,16 @@ void InstructionSelectorT<Adapter>::VisitI8x16ExtractLaneU(node_t node) {
     Emit(kX64Pextrb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
          g.UseImmediate(lane));
   }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8ExtractLane(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8ReplaceLane(node_t node) {
+  UNIMPLEMENTED();
 }
 
 template <typename Adapter>

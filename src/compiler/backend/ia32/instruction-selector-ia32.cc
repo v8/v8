@@ -3617,6 +3617,11 @@ SIMD_INT_TYPES(VISIT_SIMD_SPLAT)
 #undef VISIT_SIMD_SPLAT
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Splat(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16ExtractLaneU(node_t node) {
   VisitRRISimd(this, node, kIA32Pextrb);
 }
@@ -3639,6 +3644,16 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtractLaneS(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4ExtractLane(node_t node) {
   VisitRRISimd(this, node, kIA32I32x4ExtractLane);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8ExtractLane(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8ReplaceLane(node_t node) {
+  UNIMPLEMENTED();
 }
 
 #define SIMD_REPLACE_LANE_TYPE_OP(V) \

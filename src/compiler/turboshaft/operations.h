@@ -1310,7 +1310,8 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(word64_rol_lowerable, Word64RolLowerable)      \
   V(sat_conversion_is_safe, SatConversionIsSafe)   \
   V(word32_select, Word32Select)                   \
-  V(word64_select, Word64Select)
+  V(word64_select, Word64Select)                   \
+  V(float16, Float16)
 
 class V8_EXPORT_PRIVATE SupportedOperations {
 #define DECLARE_FIELD(name, machine_name) bool name##_;
@@ -7558,14 +7559,17 @@ struct Simd128TestOp : FixedArityOperationT<1, Simd128TestOp> {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Simd128TestOp::Kind kind);
 
-#define FOREACH_SIMD_128_SPLAT_OPCODE(V) \
-  V(I8x16)                               \
-  V(I16x8)                               \
-  V(I32x4)                               \
-  V(I64x2)                               \
-  V(F32x4)                               \
+#define FOREACH_SIMD_128_SPLAT_MANDATORY_OPCODE(V) \
+  V(I8x16)                                         \
+  V(I16x8)                                         \
+  V(I32x4)                                         \
+  V(I64x2)                                         \
+  V(F32x4)                                         \
   V(F64x2)
 
+#define FOREACH_SIMD_128_SPLAT_OPCODE(V)     \
+  FOREACH_SIMD_128_SPLAT_MANDATORY_OPCODE(V) \
+  V(F16x8)
 struct Simd128SplatOp : FixedArityOperationT<1, Simd128SplatOp> {
   enum class Kind : uint8_t {
 #define DEFINE_KIND(kind) k##kind,
@@ -7590,6 +7594,7 @@ struct Simd128SplatOp : FixedArityOperationT<1, Simd128SplatOp> {
         return MaybeRepVector<RegisterRepresentation::Word32()>();
       case Kind::kI64x2:
         return MaybeRepVector<RegisterRepresentation::Word64()>();
+      case Kind::kF16x8:
       case Kind::kF32x4:
         return MaybeRepVector<RegisterRepresentation::Float32()>();
       case Kind::kF64x2:
@@ -7671,6 +7676,7 @@ struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
     kI16x8U,
     kI32x4,
     kI64x2,
+    kF16x8,
     kF32x4,
     kF64x2,
   };
@@ -7690,6 +7696,7 @@ struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
         return RepVector<RegisterRepresentation::Word32()>();
       case Kind::kI64x2:
         return RepVector<RegisterRepresentation::Word64()>();
+      case Kind::kF16x8:
       case Kind::kF32x4:
         return RepVector<RegisterRepresentation::Float32()>();
       case Kind::kF64x2:
@@ -7717,6 +7724,7 @@ struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
         break;
       case Kind::kI16x8S:
       case Kind::kI16x8U:
+      case Kind::kF16x8:
         lane_count = 8;
         break;
       case Kind::kI32x4:
@@ -7742,6 +7750,7 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
     kI16x8,
     kI32x4,
     kI64x2,
+    kF16x8,
     kF32x4,
     kF64x2,
   };
@@ -7775,6 +7784,7 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
         lane_count = 16;
         break;
       case Kind::kI16x8:
+      case Kind::kF16x8:
         lane_count = 8;
         break;
       case Kind::kI32x4:
@@ -7801,6 +7811,7 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
         return RegisterRepresentation::Word32();
       case Kind::kI64x2:
         return RegisterRepresentation::Word64();
+      case Kind::kF16x8:
       case Kind::kF32x4:
         return RegisterRepresentation::Float32();
       case Kind::kF64x2:

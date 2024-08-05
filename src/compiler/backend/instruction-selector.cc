@@ -4245,6 +4245,12 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8DotI8x16I7x16S(node);
     case IrOpcode::kI32x4DotI8x16I7x16AddS:
       return MarkAsSimd128(node), VisitI32x4DotI8x16I7x16AddS(node);
+    case IrOpcode::kF16x8Splat:
+      return MarkAsSimd128(node), VisitF16x8Splat(node);
+    case IrOpcode::kF16x8ExtractLane:
+      return MarkAsFloat32(node), VisitF16x8ExtractLane(node);
+    case IrOpcode::kF16x8ReplaceLane:
+      return MarkAsSimd128(node), VisitF16x8ReplaceLane(node);
 
       // SIMD256
 #if defined(V8_TARGET_ARCH_X64) && defined(V8_ENABLE_WASM_SIMD256_REVEC)
@@ -5490,6 +5496,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           return VisitI32x4ReplaceLane(node);
         case Simd128ReplaceLaneOp::Kind::kI64x2:
           return VisitI64x2ReplaceLane(node);
+        case Simd128ReplaceLaneOp::Kind::kF16x8:
+          return VisitF16x8ReplaceLane(node);
         case Simd128ReplaceLaneOp::Kind::kF32x4:
           return VisitF32x4ReplaceLane(node);
         case Simd128ReplaceLaneOp::Kind::kF64x2:
@@ -5517,6 +5525,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
         case Simd128ExtractLaneOp::Kind::kI64x2:
           MarkAsWord64(node);
           return VisitI64x2ExtractLane(node);
+        case Simd128ExtractLaneOp::Kind::kF16x8:
+          MarkAsFloat32(node);
+          return VisitF16x8ExtractLane(node);
         case Simd128ExtractLaneOp::Kind::kF32x4:
           MarkAsFloat32(node);
           return VisitF32x4ExtractLane(node);
