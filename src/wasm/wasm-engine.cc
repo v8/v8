@@ -1901,7 +1901,7 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 }
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 760);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 728);
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 184);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 144);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);
