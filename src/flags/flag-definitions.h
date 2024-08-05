@@ -633,6 +633,8 @@ DEFINE_DEBUG_BOOL(maglev_assert_stack_size, true,
 DEFINE_BOOL(maglev_break_on_entry, false, "insert an int3 on maglev entries")
 DEFINE_BOOL(maglev_print_feedback, true,
             "print feedback vector for maglev compiled code")
+DEFINE_BOOL(maglev_print_inlined, true,
+            "print bytecode / feedback vectors also for inlined code")
 
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
