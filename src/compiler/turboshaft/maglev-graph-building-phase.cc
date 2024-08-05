@@ -5517,12 +5517,12 @@ class NodeProcessorBase : public GraphBuilder {
       // just return kContinue for simplicity.
       return maglev::ProcessResult::kContinue;
     } else {
-      OpIndex last_index_before = graph_.LastOperation();
+      OpIndex end_index_before = graph_.EndIndex();
       maglev::ProcessResult result = GraphBuilder::Process(node, state);
 
       // Recording the SourcePositions of the OpIndex that were just created.
       SourcePosition source = labeller_->GetNodeProvenance(node).position;
-      for (OpIndex idx = last_index_before; idx != graph_.LastOperation();
+      for (OpIndex idx = end_index_before; idx != graph_.EndIndex();
            idx = graph_.NextIndex(idx)) {
         graph_.source_positions()[idx] = source;
       }
