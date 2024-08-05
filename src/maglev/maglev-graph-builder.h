@@ -731,11 +731,6 @@ class MaglevGraphBuilder {
 
     MergePointInterpreterFrameState* merge_state = merge_states_[offset];
     if (V8_UNLIKELY(merge_state != nullptr)) {
-      // Clear unobserved context slot stores when there is any controlflow.
-      // TODO(olivf): More precision could be achieved by tracking dominating
-      // stores within known_node_aspects. For this we could use a stack of
-      // stores, which we push on split and pop on merge.
-      unobserved_context_slot_stores_.clear();
       bool preserve_known_node_aspects = in_optimistic_peeling_iteration() &&
                                          loop_headers_to_peel_.Contains(offset);
       if (merge_state->is_resumable_loop()) {
@@ -1818,6 +1813,13 @@ class MaglevGraphBuilder {
     static_assert(!ControlNodeT::kProperties.can_throw());
     static_assert(!ControlNodeT::kProperties.can_write());
     current_block_->set_control_node(control_node);
+    // Clear unobserved context slot stores when there is any controlflow.
+    // TODO(olivf): More precision could be achieved by tracking dominating
+    // stores within known_node_aspects. For this we could use a stack of
+    // stores, which we push on split and pop on merge.
+    if (IsConditionalControlNode(Node::opcode_of<ControlNodeT>)) {
+      unobserved_context_slot_stores_.clear();
+    }
 
     BasicBlock* block = current_block_;
     current_block_ = nullptr;
