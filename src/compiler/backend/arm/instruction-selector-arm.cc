@@ -4049,10 +4049,6 @@ void InstructionSelectorT<Adapter>::VisitF32x4Splat(node_t node) {
   VisitRR(this, kArmF32x4Splat, node);
 }
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF16x8Splat(node_t node) {
-  UNIMPLEMENTED();
-}
-template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4Splat(node_t node) {
   VisitRR(this, kArmI32x4Splat, node);
 }
@@ -4084,21 +4080,12 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF16x8ExtractLane(node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x2ReplaceLane(node_t node) {
   VisitRRIR(this, kArmF64x2ReplaceLane, node);
 }
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4ReplaceLane(node_t node) {
   VisitRRIR(this, kArmF32x4ReplaceLane, node);
-}
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF16x8ReplaceLane(node_t node) {
-  UNIMPLEMENTED();
 }
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI32x4ReplaceLane(node_t node) {

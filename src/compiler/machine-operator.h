@@ -407,7 +407,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord32Select = 1u << 27,
     kWord64Select = 1u << 28,
     kLoadStorePairs = 1u << 29,
-    kFloat16 = 1u << 30,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
@@ -417,7 +416,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kInt32AbsWithOverflow | kInt64AbsWithOverflow | kWord32Rol |
         kWord64Rol | kWord64RolLowerable | kSatConversionIsSafe |
         kFloat32Select | kFloat64Select | kWord32Select | kWord64Select |
-        kLoadStorePairs | kFloat16
+        kLoadStorePairs
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -848,10 +847,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Trunc();
   const Operator* F32x4NearestInt();
   const Operator* F32x4DemoteF64x2Zero();
-
-  const Operator* F16x8Splat();
-  const Operator* F16x8ExtractLane(int32_t);
-  const Operator* F16x8ReplaceLane(int32_t);
 
   const Operator* I64x2Splat();
   const Operator* I64x2SplatI32Pair();

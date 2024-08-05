@@ -1732,9 +1732,6 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128ExtractLaneOp& op) {
     case Simd128ExtractLaneOp::Kind::kI64x2:
       o = machine.I64x2ExtractLane(op.lane);
       break;
-    case Simd128ExtractLaneOp::Kind::kF16x8:
-      o = machine.F16x8ExtractLane(op.lane);
-      break;
     case Simd128ExtractLaneOp::Kind::kF32x4:
       o = machine.F32x4ExtractLane(op.lane);
       break;
@@ -1760,9 +1757,6 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128ReplaceLaneOp& op) {
       break;
     case Simd128ReplaceLaneOp::Kind::kI64x2:
       o = machine.I64x2ReplaceLane(op.lane);
-      break;
-    case Simd128ReplaceLaneOp::Kind::kF16x8:
-      o = machine.F16x8ReplaceLane(op.lane);
       break;
     case Simd128ReplaceLaneOp::Kind::kF32x4:
       o = machine.F32x4ReplaceLane(op.lane);
