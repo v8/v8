@@ -6104,17 +6104,21 @@ void InstructionSelectorT<Adapter>::VisitF32x4Splat(node_t node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Splat(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(kX64FSplat | LaneSizeField::encode(kL16) |
+           VectorLengthField::encode(kV128),
+       g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x4Splat(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL64) |
            VectorLengthField::encode(kV256),
        g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF16x8Splat(node_t node) {
-  UNIMPLEMENTED();
 }
 
 template <typename Adapter>
@@ -6153,6 +6157,7 @@ void InstructionSelectorT<Adapter>::VisitF32x8Splat(node_t node) {
 
 SIMD_VISIT_EXTRACT_LANE(F, F64x2, , kL64, kV128)
 SIMD_VISIT_EXTRACT_LANE(F, F32x4, , kL32, kV128)
+SIMD_VISIT_EXTRACT_LANE(F, F16x8, , kL16, kV128)
 SIMD_VISIT_EXTRACT_LANE(I, I64x2, , kL64, kV128)
 SIMD_VISIT_EXTRACT_LANE(I, I32x4, , kL32, kV128)
 SIMD_VISIT_EXTRACT_LANE(I, I16x8, S, kL16, kV128)
@@ -6192,13 +6197,23 @@ void InstructionSelectorT<Adapter>::VisitI8x16ExtractLaneU(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF16x8ExtractLane(node_t node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF16x8ReplaceLane(node_t node) {
-  UNIMPLEMENTED();
+  X64OperandGeneratorT<Adapter> g(this);
+  if constexpr (Adapter::IsTurboshaft) {
+    auto& op =
+        this->Get(node).template Cast<turboshaft::Simd128ReplaceLaneOp>();
+    Emit(kX64FReplaceLane | LaneSizeField::encode(kL16) |
+             VectorLengthField::encode(kV128),
+         g.DefineSameAsFirst(node), g.UseRegister(op.into()),
+         g.UseImmediate(op.lane), g.Use(op.new_lane()));
+
+  } else {
+    int32_t lane = OpParameter<int32_t>(node->op());
+    Emit(kX64FReplaceLane | LaneSizeField::encode(kL16) |
+             VectorLengthField::encode(kV128),
+         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+         g.UseImmediate(lane), g.Use(node->InputAt(1)));
+  }
 }
 
 template <typename Adapter>
@@ -7555,6 +7570,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat32RoundTiesEven |
              MachineOperatorBuilder::kFloat64RoundTiesEven;
+  }
+  if (CpuFeatures::IsSupported(F16C)) {
+    flags |= MachineOperatorBuilder::kFloat16;
   }
   return flags;
 }

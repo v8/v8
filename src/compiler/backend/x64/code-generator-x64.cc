@@ -3249,6 +3249,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16: {
+            CpuFeatureScope f16c_scope(masm(), F16C);
+            CpuFeatureScope avx2_scope(masm(), AVX2);
+            __ vcvtps2ph(i.OutputDoubleRegister(0), i.InputDoubleRegister(0),
+                         0);
+            __ vpbroadcastw(i.OutputSimd128Register(),
+                            i.OutputDoubleRegister(0));
+            break;
+          }
           case kL32: {
             // F32x4Splat
             __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0));
@@ -3293,6 +3302,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16: {
+            // F16x8ExtractLane
+            CpuFeatureScope f16c_scope(masm(), F16C);
+            CpuFeatureScope avx_scope(masm(), AVX);
+            __ Pextrw(kScratchRegister, i.InputSimd128Register(0),
+                      i.InputUint8(1));
+            __ vmovd(i.OutputFloatRegister(), kScratchRegister);
+            __ vcvtph2ps(i.OutputFloatRegister(), i.OutputFloatRegister());
+            break;
+          }
           case kL32: {
             // F32x4ExtractLane
             __ F32x4ExtractLane(i.OutputFloatRegister(),
@@ -3319,6 +3338,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16: {
+            // F16x8ReplaceLane
+            CpuFeatureScope f16c_scope(masm(), F16C);
+            CpuFeatureScope avx_scope(masm(), AVX);
+            __ vcvtps2ph(kScratchDoubleReg, i.InputDoubleRegister(2), 0);
+            __ vmovd(kScratchRegister, kScratchDoubleReg);
+            __ vpinsrw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                       kScratchRegister, i.InputInt8(1));
+            break;
+          }
           case kL32: {
             // F32x4ReplaceLane
             // The insertps instruction uses imm8[5:4] to indicate the lane
