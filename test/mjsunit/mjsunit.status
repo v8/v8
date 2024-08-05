@@ -1991,8 +1991,6 @@
   'wasm/shared-memory-worker-gc-stress': [SKIP],
   # BUG(v8:12607): flaky test.
   'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
-  # https://crbug.com/355462536
-  'wasm/many-modules': [PASS, ['tsan', SKIP]],
 }],  # variant == stress_concurrent_allocation
 
 ##############################################################################

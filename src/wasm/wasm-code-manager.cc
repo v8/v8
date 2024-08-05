@@ -2333,9 +2333,27 @@ void NativeModule::SampleCodeSize(Counters* counters) const {
   int code_size_kb = static_cast<int>(code_size / KB);
   counters->wasm_module_code_size_kb()->AddSample(code_size_kb);
   // Record the size of metadata.
-  int metadata_size_kb =
-      static_cast<int>(EstimateCurrentMemoryConsumption() / KB);
-  counters->wasm_module_metadata_size_kb()->AddSample(metadata_size_kb);
+  Histogram* metadata_histogram = counters->wasm_module_metadata_size_kb();
+  if (metadata_histogram->Enabled()) {
+    // TODO(349610478): EstimateCurrentMemoryConsumption() acquires a large
+    // amount of locks per NativeModule. This estimation is run on every
+    // mark-compact GC. Reconsider whether this should be run less frequently.
+    // (Probably incomplete) list of locks acquired:
+    // - TypeFeedbackStorage::mutex
+    // - LazilyGeneratedNames::mutex_
+    // - CompilationStateImpl::mutex_
+    // - CompilationUnitQueues::queues_mutex_
+    //   - per queue: QueueImpl::mutex
+    // - BigUnitsQueue::mutex
+    // - WasmImportWrapperCache::mutex_
+    // - NativeModule::allocation_mutex_
+    // - LazilyGeneratedNames::mutex_
+    // - DebugInfoImpl::debug_side_tables_mutex_
+    // - DebugInfoImpl::mutex_
+    int metadata_size_kb =
+        static_cast<int>(EstimateCurrentMemoryConsumption() / KB);
+    metadata_histogram->AddSample(metadata_size_kb);
+  }
   // If this is a wasm module of >= 2MB, also sample the freed code size,
   // absolute and relative. Code GC does not happen on asm.js
   // modules, and small modules will never trigger GC anyway.
