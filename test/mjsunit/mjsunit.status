@@ -2286,7 +2286,8 @@
   'wasm/stack-switching-export': [SKIP],
   'wasm/stack-switching-generic-wrapper': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP],
-  'regress/wasm/regress-336852356': [SKIP]
+  'regress/wasm/regress-336852356': [SKIP],
+  'regress/wasm/regress-336358915': [SKIP]
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm)
 
 ##############################################################################
