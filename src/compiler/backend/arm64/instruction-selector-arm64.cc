@@ -7064,6 +7064,7 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   V(I32x4Splat, kArm64ISplat, 32)   \
   V(I32x4Abs, kArm64IAbs, 32)       \
   V(I32x4Neg, kArm64INeg, 32)       \
+  V(F16x8Splat, kArm64FSplat, 16)   \
   V(I16x8Splat, kArm64ISplat, 16)   \
   V(I16x8Abs, kArm64IAbs, 16)       \
   V(I16x8Neg, kArm64INeg, 16)       \
@@ -7354,6 +7355,7 @@ void InstructionSelectorT<Adapter>::VisitI8x16BitMask(node_t node) {
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, F, , 64)
 SIMD_VISIT_EXTRACT_LANE(F32x4, F, , 32)
+SIMD_VISIT_EXTRACT_LANE(F16x8, F, , 16)
 SIMD_VISIT_EXTRACT_LANE(I64x2, I, , 64)
 SIMD_VISIT_EXTRACT_LANE(I32x4, I, , 32)
 SIMD_VISIT_EXTRACT_LANE(I16x8, I, U, 16)
@@ -7370,6 +7372,7 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
   }
 SIMD_VISIT_REPLACE_LANE(F64x2, F, 64)
 SIMD_VISIT_REPLACE_LANE(F32x4, F, 32)
+SIMD_VISIT_REPLACE_LANE(F16x8, F, 16)
 SIMD_VISIT_REPLACE_LANE(I64x2, I, 64)
 SIMD_VISIT_REPLACE_LANE(I32x4, I, 32)
 SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
@@ -8419,7 +8422,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64Select |
          MachineOperatorBuilder::kWord32Select |
          MachineOperatorBuilder::kWord64Select |
-         MachineOperatorBuilder::kLoadStorePairs;
+         MachineOperatorBuilder::kLoadStorePairs |
+         (CpuFeatures::IsSupported(FP16) ? MachineOperatorBuilder::kFloat16
+                                         : MachineOperatorBuilder::kNoFlags);
 }
 
 // static

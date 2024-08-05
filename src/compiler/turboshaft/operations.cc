@@ -1601,6 +1601,9 @@ void Simd128ExtractLaneOp::PrintOptions(std::ostream& os) const {
     case Kind::kI64x2:
       os << "I64x2";
       break;
+    case Kind::kF16x8:
+      os << "F16x8";
+      break;
     case Kind::kF32x4:
       os << "F32x4";
       break;
@@ -1625,6 +1628,9 @@ void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
       break;
     case Kind::kI64x2:
       os << "I64x2";
+      break;
+    case Kind::kF16x8:
+      os << "F16x8";
       break;
     case Kind::kF32x4:
       os << "F32x4";
