@@ -79,8 +79,8 @@ vars = {
   'gn_version': 'git_revision:1b41f0502f87b2056cee5cc9b48f9242693d497b',
 
   # ninja CIPD package version
-  # https://chrome-infra-packages.appspot.com/p/infra/3pp/build_support/ninja-1_11_1/
-  'ninja_version': 'version:2@1.11.1.chromium.2',
+  # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
+  'ninja_version': 'version:2@1.12.1.chromium.4',
 
   # siso CIPD package version
   'siso_version': 'git_revision:57e2ea7758b03901b7f3d4da57e673dff55690ba',
@@ -461,7 +461,7 @@ deps = {
   'third_party/ninja': {
     'packages': [
       {
-        'package': 'infra/3pp/build_support/ninja-1_11_1/${{platform}}',
+        'package': 'infra/3pp/tools/ninja/${{platform}}',
         'version': Var('ninja_version'),
       }
     ],
