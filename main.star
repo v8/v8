@@ -170,7 +170,7 @@ led_users(
 led_users(
     pool_realm = "pools/try",
     bucket_realms = ["try", "try.triggered", "crossbench.try"],
-    groups = LED_GROUPS,
+    groups = LED_GROUPS + ["project-v8-tryjob-access"],
 )
 
 # Allow this AoD group to use all pools and trigger all builders
