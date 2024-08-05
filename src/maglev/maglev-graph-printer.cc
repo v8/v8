@@ -759,6 +759,9 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     case ValueRepresentation::kIntPtr:
       UNREACHABLE();
   }
+  if (phi->uses_require_31_bit_value()) {
+    os_ << "ⁱ";
+  }
   if (phi->input_count() == 0) {
     os_ << "ₑ " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO");
   } else {
@@ -935,6 +938,9 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
             break;
           case ValueRepresentation::kIntPtr:
             UNREACHABLE();
+        }
+        if (phi->uses_require_31_bit_value()) {
+          os_ << "ⁱ";
         }
         os_ << " " << (phi->owner().is_valid() ? phi->owner().ToString() : "VO")
             << " " << phi->result().operand() << "\n";
