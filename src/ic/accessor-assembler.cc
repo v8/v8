@@ -4722,7 +4722,7 @@ void AccessorAssembler::GenerateEnumeratedKeyedLoadICBaseline() {
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
-  auto enum_index = Parameter<TaggedIndex>(Descriptor::kEnumIndex);
+  auto enum_index = SmiToTaggedIndex(Parameter<Smi>(Descriptor::kEnumIndex));
   auto cache_type = Parameter<Object>(Descriptor::kCacheType);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();

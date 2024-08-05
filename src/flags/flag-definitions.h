@@ -679,7 +679,7 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #endif
 
 DEFINE_BOOL(
-    enable_enumerated_keyed_access_bytecode, false,
+    enable_enumerated_keyed_access_bytecode, true,
     "enable generating GetEnumeratedKeyedProperty bytecode for keyed access")
 
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
