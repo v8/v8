@@ -1250,11 +1250,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   Address* builtin_entry_table() { return isolate_data_.builtin_entry_table(); }
-#ifdef V8_ENABLE_LEAPTIERING
-  V8_INLINE JSDispatchHandle* builtin_dispatch_table() {
-    return isolate_data_.builtin_dispatch_table();
-  }
-#endif
   V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
   V8_INLINE Address* builtin_tier0_table() {
     return isolate_data_.builtin_tier0_table();
@@ -2621,8 +2616,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
                        const uint8_t* data, uint32_t data_size);
   void ClearEmbeddedBlob();
-
-  void InitializeBuiltinJSDispatchTable();
 
   const uint8_t* embedded_blob_code_ = nullptr;
   uint32_t embedded_blob_code_size_ = 0;

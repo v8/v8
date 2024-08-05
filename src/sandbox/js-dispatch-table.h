@@ -66,8 +66,6 @@ struct JSDispatchEntry {
   // Test whether this entry is currently marked as alive.
   inline bool IsMarked() const;
 
-  static constexpr uint32_t kObjectPointerShift = 16;
-
  private:
   friend class JSDispatchTable;
 
@@ -88,6 +86,7 @@ struct JSDispatchEntry {
   // +------------------------+-------------+-----------------+
   //
   static constexpr Address kMarkingBit = 1 << 16;
+  static constexpr uint32_t kObjectPointerShift = 16;
   static constexpr uint32_t kParameterCountMask = 0xffff;
   std::atomic<Address> encoded_word_;
 
@@ -185,46 +184,16 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 
-  static JSDispatchTable* instance() {
-    CheckInitialization(false);
-    return instance_nocheck();
-  }
-  static void Initialize() {
-    CheckInitialization(true);
-    instance_nocheck()->InitializeImpl();
-  }
-
-  static constexpr uintptr_t kEntryCodeObjectOffset =
-      offsetof(JSDispatchEntry, encoded_word_);
-  static constexpr uintptr_t kEntryEntrypointOffset =
-      offsetof(JSDispatchEntry, entrypoint_);
+  void Initialize();
 
  private:
-  static void CheckInitialization(bool is_initializing) {
-#ifdef DEBUG
-    static bool initialized = false;
-    DCHECK_NE(is_initializing, initialized);
-    initialized = true;
-#endif
-  }
-
-  void InitializeImpl();
-  static JSDispatchTable* instance_nocheck() {
-    static ::v8::base::LeakyObject<JSDispatchTable> instance;
-    return instance.get();
-  }
-
   inline uint32_t HandleToIndex(JSDispatchHandle handle) const;
   inline JSDispatchHandle IndexToHandle(uint32_t index) const;
 };
 
 static_assert(sizeof(JSDispatchTable) == JSDispatchTable::kSize);
 
-// TODO(olivf): Remove this accessor and also unify implementation with
-// GetProcessWideCodePointerTable().
-V8_EXPORT_PRIVATE inline JSDispatchTable* GetProcessWideJSDispatchTable() {
-  return JSDispatchTable::instance();
-}
+V8_EXPORT_PRIVATE JSDispatchTable* GetProcessWideJSDispatchTable();
 
 }  // namespace internal
 }  // namespace v8

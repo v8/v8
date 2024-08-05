@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-void JSDispatchTable::InitializeImpl() {
+void JSDispatchTable::Initialize() {
   ExternalEntityTable<JSDispatchEntry,
                       kJSDispatchTableReservationSize>::Initialize();
   CHECK(ThreadIsolation::WriteProtectMemory(
@@ -64,6 +64,8 @@ uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters) {
   counters->js_dispatch_table_entries_count()->AddSample(num_live_entries);
   return num_live_entries;
 }
+
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(JSDispatchTable, GetProcessWideJSDispatchTable)
 
 }  // namespace internal
 }  // namespace v8

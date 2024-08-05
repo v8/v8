@@ -36,55 +36,6 @@ class Isolate;
     fast_c_call_alignment_padding)
 #endif  // V8_HOST_ARCH_64_BIT
 
-#ifdef V8_ENABLE_LEAPTIERING
-
-struct JSBuiltinDispatchHandleRoot {
-#define JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(V) V(ProxyRevoke)
-
-  enum Idx {
-#define CASE(builtin_name) k##builtin_name,
-    JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(CASE)
-
-        kEnd,
-    kFirst = 0
-#undef CASE
-  };
-
-  static inline Builtin to_builtin(Idx idx) {
-#define CASE(builtin_name) Builtin::k##builtin_name,
-    return std::array<Builtin, Idx::kEnd>{
-        JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(CASE)}[idx];
-#undef CASE
-  }
-  static inline Idx to_idx(Builtin builtin) {
-    switch (builtin) {
-#define CASE(builtin_name)       \
-  case Builtin::k##builtin_name: \
-    return Idx::k##builtin_name;
-      JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(CASE)
-#undef CASE
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  static constexpr size_t kPadding = Idx::kEnd * sizeof(JSDispatchHandle) %
-                                     kSystemPointerSize /
-                                     sizeof(JSDispatchHandle);
-  static constexpr size_t kTableSize = kEnd + kPadding;
-};
-
-#define ISOLATE_DATA_FIELDS_LEAPTIERING(V)                                \
-  V(BuiltinDispatchTable,                                                 \
-    (JSBuiltinDispatchHandleRoot::kTableSize) * sizeof(JSDispatchHandle), \
-    builtin_dispatch_table)
-
-#else
-
-#define ISOLATE_DATA_FIELDS_LEAPTIERING(V)
-
-#endif  // V8_ENABLE_LEAPTIERING
-
 // IsolateData fields, defined as: V(CamelName, Size, hacker_name)
 #define ISOLATE_DATA_FIELDS(V)                                                 \
   /* Misc. fields. */                                                          \
@@ -126,8 +77,7 @@ struct JSBuiltinDispatchHandleRoot {
     external_reference_table)                                                  \
   V(BuiltinEntryTable, Builtins::kBuiltinCount* kSystemPointerSize,            \
     builtin_entry_table)                                                       \
-  V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)  \
-  ISOLATE_DATA_FIELDS_LEAPTIERING(V)
+  V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)
 
 #ifdef V8_COMPRESS_POINTERS
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                             \
@@ -267,12 +217,6 @@ class IsolateData final {
   ThreadLocalTop const& thread_local_top() const { return thread_local_top_; }
   Address* builtin_entry_table() { return builtin_entry_table_; }
   Address* builtin_table() { return builtin_table_; }
-#ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchHandle builtin_dispatch_handle(Builtin builtin) {
-    return builtin_dispatch_table_[JSBuiltinDispatchHandleRoot::to_idx(
-        builtin)];
-  }
-#endif
   bool stack_is_iterable() const {
     DCHECK(stack_is_iterable_ == 0 || stack_is_iterable_ == 1);
     return stack_is_iterable_ != 0;
@@ -445,11 +389,6 @@ class IsolateData final {
 
   // The entries in this array are tagged pointers to Code objects.
   Address builtin_table_[Builtins::kBuiltinCount] = {};
-#ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchHandle* builtin_dispatch_table() { return builtin_dispatch_table_; }
-  JSDispatchHandle
-      builtin_dispatch_table_[JSBuiltinDispatchHandleRoot::kTableSize] = {};
-#endif
 
   // Ensure the size is 8-byte aligned in order to make alignment of the field
   // following the IsolateData field predictable. This solves the issue with
