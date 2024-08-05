@@ -11,7 +11,7 @@ function foo() {
     const o7 = {
     };
     o7.b = v5;
-    const v8 = /7sQa[bc]d\p{Nd}/msu;
+    const v8 = /7sQa[bc]d/msu;
     Symbol.a = Symbol;
     const o10 = {
     };
