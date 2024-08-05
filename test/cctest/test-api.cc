@@ -28983,6 +28983,7 @@ TEST(FastApiCalls) {
   i::v8_flags.turbofan = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.fast_api_allow_float_in_sim = true;
   // Disable --always_turbofan, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
   i::v8_flags.always_turbofan = false;
@@ -29448,6 +29449,7 @@ TEST(FastApiCallsFromWasm) {
   i::v8_flags.wasm_fast_api = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.wasm_lazy_compilation = true;
+  i::v8_flags.fast_api_allow_float_in_sim = true;
   i::FlagList::EnforceFlagImplications();
 
   CcTest::InitializeVM();

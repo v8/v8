@@ -1358,6 +1358,10 @@ DEFINE_BOOL(
     stress_gc_during_compilation, false,
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")
 DEFINE_BOOL(turbo_fast_api_calls, true, "enable fast API calls from TurboFan")
+
+DEFINE_BOOL(fast_api_allow_float_in_sim, false,
+            "allow float parameters to be passed in simulator mode")
+
 #ifdef V8_USE_ZLIB
 DEFINE_BOOL(turbo_compress_frame_translations, false,
             "compress deoptimization frame translations (experimental)")

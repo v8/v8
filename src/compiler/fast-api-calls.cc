@@ -123,6 +123,14 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
   }
 #endif
 
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  if (!v8_flags.fast_api_allow_float_in_sim &&
+      (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
+       c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64)) {
+    return false;
+  }
+#endif
+
 #ifndef V8_TARGET_ARCH_64_BIT
   if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kInt64 ||
       c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kUint64) {
@@ -144,6 +152,14 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64) {
+      return false;
+    }
+#endif
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    if (!v8_flags.fast_api_allow_float_in_sim &&
+        (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
+         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64)) {
       return false;
     }
 #endif
