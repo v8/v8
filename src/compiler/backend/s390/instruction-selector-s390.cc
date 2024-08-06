@@ -802,7 +802,8 @@ void GenerateRightOperands(InstructionSelectorT<TurboshaftAdapter>* selector,
     const Operation& right_op = selector->Get(right);
     if (right_op.Is<LoadOp>() && selector->CanCover(node, right) &&
         canCombineWithLoad(
-            SelectLoadOpcode(selector->load_view(right).loaded_rep()))) {
+            SelectLoadOpcode(selector->load_view(right).ts_loaded_rep(),
+                             selector->load_view(right).ts_result_rep()))) {
       AddressingMode mode =
           g.GetEffectiveAddressMemoryOperand(right, inputs, input_count);
       *opcode |= AddressingModeField::encode(mode);
@@ -1159,6 +1160,13 @@ static void VisitGeneralStore(
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(rep));
+    // Uncompressed stores should not happen if we need a write barrier.
+    CHECK((store_view.ts_stored_rep() !=
+           MemoryRepresentation::AnyUncompressedTagged()) &&
+          (store_view.ts_stored_rep() !=
+           MemoryRepresentation::UncompressedTaggedPointer()) &&
+          (store_view.ts_stored_rep() !=
+           MemoryRepresentation::UncompressedTaggedPointer()));
     AddressingMode addressing_mode;
     InstructionOperand inputs[4];
     size_t input_count = 0;
