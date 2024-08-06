@@ -1194,7 +1194,8 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
     case MemoryRepresentation::Uint64():
       return {paired ? kArm64StrPair : kArm64Str, kLoadStoreImm64};
     case MemoryRepresentation::Float16():
-      UNIMPLEMENTED();
+      CHECK(!paired);
+      return {kArm64StrH, kLoadStoreImm16};
     case MemoryRepresentation::Float32():
       CHECK(!paired);
       return {kArm64StrS, kLoadStoreImm32};
@@ -1248,6 +1249,11 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
   InstructionCode opcode = kArchNop;
   ImmediateMode immediate_mode = kNoImmediate;
   switch (rep) {
+    case MachineRepresentation::kFloat16:
+      CHECK(!paired);
+      opcode = kArm64StrH;
+      immediate_mode = kLoadStoreImm16;
+      break;
     case MachineRepresentation::kFloat32:
       CHECK(!paired);
       opcode = kArm64StrS;
@@ -1324,8 +1330,6 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
       opcode = kArm64StrQ;
       immediate_mode = kNoImmediate;
       break;
-    case MachineRepresentation::kFloat16:
-      UNIMPLEMENTED();
     case MachineRepresentation::kSimd256:
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kProtectedPointer:
@@ -1799,7 +1803,8 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
       DCHECK_EQ(result_rep, RegisterRepresentation::Word64());
       return {kArm64Ldr, kLoadStoreImm64};
     case MemoryRepresentation::Float16():
-      UNIMPLEMENTED();
+      DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
+      return {kArm64LdrH, kLoadStoreImm16};
     case MemoryRepresentation::Float32():
       DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
       return {kArm64LdrS, kLoadStoreImm32};
@@ -1848,6 +1853,8 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
 std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
     LoadRepresentation load_rep) {
   switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat16:
+      return {kArm64LdrH, kLoadStoreImm16};
     case MachineRepresentation::kFloat32:
       return {kArm64LdrS, kLoadStoreImm32};
     case MachineRepresentation::kFloat64:
@@ -1892,8 +1899,6 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
       return {kArm64LdrDecodeSandboxedPointer, kLoadStoreImm64};
     case MachineRepresentation::kSimd128:
       return {kArm64LdrQ, kNoImmediate};
-    case MachineRepresentation::kFloat16:
-      UNIMPLEMENTED();
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kIndirectPointer:  // Fall through.
