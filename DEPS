@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:2@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:57e2ea7758b03901b7f3d4da57e673dff55690ba',
+  'siso_version': 'git_revision:01b7fe4b417043daec607839fdaab864c319d928',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:771ea9a614a104c71655f699ef82219a2a474817',
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a2631a79c9df82e910fae0269e4abf26b9b05a8e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fb23fbf98631b7260257277781e2f79f5a821b90',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd2dedd4c7d65e203b9ba11ac82a0e79139c15be0',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '26da134756cf7bedbf7e2ef10395e0f1205ee2b0',
   'buildtools/linux64': {
     'packages': [
       {
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '40cece20d0eaae6fd41fcbc008480e71f2e3aed9',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4c050c6f1a34c7b1aaf503d97b871afb8540e54f',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -303,7 +303,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'ec50115f50ea512dbe7006dd9f665d9e4c0f294f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6dd205ff6019b359f31405faf7b664090ce790fe',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '70fd25ec553484fcf8690df7b7702a0ebe5339b4',
   'third_party/libunwind/src':
