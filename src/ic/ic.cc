@@ -3442,7 +3442,19 @@ bool CanFastCloneObjectToObjectLiteral(DirectHandle<Map> source_map,
     // map is deprecated.
     DCHECK(!IsNone(type));
     DCHECK(!IsNone(target_type));
-    if (CanCacheCloneTargetMapTransition(source_map, target_map,
+    // With move_prototype_transitions_first enabled field updates don't
+    // generalize across prototype transitions, because the transitions happen
+    // on root maps (i.e., before any field is added). In other words we cannot
+    // rely on changes in the source map propagating to the target map when
+    // there is a SetPrototype involved. NB, technically without
+    // move_prototype_transitions_first we also don't update field types across
+    // prototype transitions, however we preemptively generalize all fields of
+    // prototype transition target maps.
+    bool prototype_transition_is_shortcutted =
+        v8_flags.move_prototype_transitions_first &&
+        source_map->prototype() != target_map->prototype();
+    if (!prototype_transition_is_shortcutted &&
+        CanCacheCloneTargetMapTransition(source_map, target_map,
                                          null_proto_literal, isolate)) {
       if (!details.representation().fits_into(
               target_details.representation()) ||

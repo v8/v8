@@ -524,7 +524,8 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
           CHECK(!type_is_none);
           if (!type_is_any) {
             CHECK_IMPLIES(FieldType::NowStable(field_type),
-                          FieldType::NowContains(field_type, value));
+                          map()->is_deprecated() ||
+                              FieldType::NowContains(field_type, value));
           }
         } else {
           CHECK(type_is_any);
