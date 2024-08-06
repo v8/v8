@@ -80,6 +80,9 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
                  ValueKind kind) {
   switch (kind) {
+    case kI16:
+      assm->Ld_h(dst.gp(), src);
+      break;
     case kI32:
       assm->Ld_w(dst.gp(), src);
       break;
@@ -106,6 +109,9 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
 inline void Store(LiftoffAssembler* assm, MemOperand dst, LiftoffRegister src,
                   ValueKind kind) {
   switch (kind) {
+    case kI16:
+      assm->St_h(src.gp(), dst);
+      break;
     case kI32:
       assm->St_w(src.gp(), dst);
       break;
@@ -3136,6 +3142,24 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
   bailout(kRelaxedSimd, "emit_f64x2_qfms");
+}
+
+bool LiftoffAssembler::emit_f16x8_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_extract_lane(LiftoffRegister dst,
+                                               LiftoffRegister lhs,
+                                               uint8_t imm_lane_idx) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f16x8_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  return false;
 }
 
 void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
