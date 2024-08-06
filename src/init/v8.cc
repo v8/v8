@@ -201,7 +201,7 @@ void V8::Initialize() {
   CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
 
   GetProcessWideCodePointerTable()->Initialize();
-  GetProcessWideJSDispatchTable()->Initialize();
+  JSDispatchTable::Initialize();
 
   // Enable sandbox testing mode if requested.
   //

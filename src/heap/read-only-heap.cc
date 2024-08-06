@@ -18,6 +18,7 @@
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/utils/allocation.h"
 
@@ -27,6 +28,7 @@ namespace internal {
 ReadOnlyHeap::~ReadOnlyHeap() {
 #ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->TearDownSpace(&code_pointer_space_);
+  GetProcessWideJSDispatchTable()->TearDownSpace(&js_dispatch_table_space_);
 #endif
 }
 
@@ -199,6 +201,10 @@ ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
     : read_only_space_(ro_space) {
 #ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->InitializeSpace(&code_pointer_space_);
+  GetProcessWideJSDispatchTable()->InitializeSpace(&js_dispatch_table_space_);
+  // TODO(olivf, 42204201): We should also `AttachSpaceToReadOnlySegment` here,
+  // however that requires a bit of a dance to initialize the dispatch table at
+  // the exact right momemnt in Isolate::Init.
 #endif
 }
 

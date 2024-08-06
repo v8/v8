@@ -5542,6 +5542,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     StartupDeserializer startup_deserializer(this, startup_snapshot_data,
                                              can_rehash);
     startup_deserializer.DeserializeIntoIsolate();
+    InitializeBuiltinJSDispatchTable();
   }
   if (DEBUG_BOOL) VerifyStaticRoots();
   load_stub_cache_->Initialize();
@@ -7342,6 +7343,28 @@ void DefaultWasmAsyncResolvePromiseCallback(
   // It's guaranteed that no exceptions will be thrown by these
   // operations, but execution might be terminating.
   CHECK(ret.IsJust() ? ret.FromJust() : isolate->IsExecutionTerminating());
+}
+
+void Isolate::InitializeBuiltinJSDispatchTable() {
+#ifdef V8_ENABLE_LEAPTIERING
+  for (JSBuiltinDispatchHandleRoot::Idx idx =
+           JSBuiltinDispatchHandleRoot::kFirst;
+       idx < JSBuiltinDispatchHandleRoot::kEnd;
+       idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
+           static_cast<int>(idx) + 1)) {
+    Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
+    Tagged<Code> code = builtins_.code(builtin);
+    DCHECK(code->entrypoint_tag() == CodeEntrypointTag::kJSEntrypointTag);
+    // TODO(olivf, 40931165): It might be more robust to get the static
+    // parameter count of this builtin.
+    JSDispatchHandle handle =
+        GetProcessWideJSDispatchTable()->AllocateAndInitializeEntry(
+            read_only_heap()->js_dispatch_table_space(),
+            code->parameter_count());
+    GetProcessWideJSDispatchTable()->SetCode(handle, code);
+    builtin_dispatch_table()[idx] = handle;
+  }
+#endif
 }
 
 }  // namespace internal
