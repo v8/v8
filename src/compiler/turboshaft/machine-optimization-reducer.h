@@ -20,6 +20,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
@@ -37,6 +38,10 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/simd-shuffle.h"
+#endif
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -2010,6 +2015,194 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceLoad(base_idx, index, kind, loaded_rep, result_rep,
                             offset, element_scale);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+#ifdef V8_TARGET_ARCH_ARM64
+  V<Any> REDUCE(Simd128ExtractLane)(V<Simd128> input,
+                                    Simd128ExtractLaneOp::Kind kind,
+                                    uint8_t lane) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSimd128ExtractLane(input, kind, lane);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    if (lane != 0) {
+      goto no_change;
+    }
+
+    const Simd128BinopOp* binop = matcher.TryCast<Simd128BinopOp>(input);
+    if (!binop) {
+      goto no_change;
+    }
+
+    // Support pairwise addition: int and fp.
+    switch (binop->kind) {
+      default:
+        goto no_change;
+      case Simd128BinopOp::Kind::kI8x16Add:
+      case Simd128BinopOp::Kind::kI16x8Add:
+      case Simd128BinopOp::Kind::kI32x4Add:
+      case Simd128BinopOp::Kind::kF32x4Add:
+      case Simd128BinopOp::Kind::kI64x2Add:
+      case Simd128BinopOp::Kind::kF64x2Add:
+        break;
+    }
+
+    auto MatchUnaryShuffle =
+        [this](V<Simd128> maybe_shuffle) -> const Simd128ShuffleOp* {
+      if (const Simd128ShuffleOp* shuffle =
+              matcher.TryCast<Simd128ShuffleOp>(maybe_shuffle)) {
+        if (shuffle->left() == shuffle->right()) {
+          return shuffle;
+        }
+      }
+      return nullptr;
+    };
+
+    auto MatchBinop =
+        [this](
+            V<Simd128> maybe_binop,
+            Simd128BinopOp::Kind required_binop_kind) -> const Simd128BinopOp* {
+      if (const Simd128BinopOp* binop =
+              matcher.TryCast<Simd128BinopOp>(maybe_binop)) {
+        if (required_binop_kind == binop->kind) {
+          return binop;
+        }
+      }
+      return nullptr;
+    };
+
+    // We're going to look for vector reductions performed with
+    // shuffles and binops. The TS operations are defined as pairwise
+    // to map well onto hardware, although the ordering is only
+    // important for FP operations. For an example of the Word32
+    // UpperToLower case:
+    //
+    // input    = (V<Simd128>)
+    // shuffle1 = (Simd128ShuffleOp input, input, [ 2, 3, X, X])
+    // add1     = (Simd128BinopOp input, shuffle1)
+    // shuffle2 = (Simd128ShuffleOp add1, add1, [1, X, X, X])
+    // add2     = (Simd128BinopOp add1, shuffle2)
+    // result   = (ExtractLaneOp add2, 0)
+
+    // Walk up from binop to discover the tree of binops and shuffles:
+    // (extract (binop (binop (reduce_input), shuffle), shuffle), 0)
+    base::SmallVector<const Simd128ShuffleOp*, 4> shuffles;
+    base::SmallVector<const Simd128BinopOp*, 4> binops;
+    binops.push_back(binop);
+    while (!binops.empty()) {
+      const Simd128BinopOp* binop = binops.back();
+      binops.pop_back();
+      V<Simd128> operands[2] = {binop->left(), binop->right()};
+      for (unsigned i = 0; i < 2; ++i) {
+        V<Simd128> operand = operands[i];
+        if (const Simd128ShuffleOp* shuffle = MatchUnaryShuffle(operand)) {
+          // Ensure that the input to the shuffle is also the other input to
+          // current binop.
+          V<Simd128> shuffle_in = shuffle->left();
+          DCHECK_EQ(shuffle_in, shuffle->right());
+          V<Simd128> other_operand = operands[i ^ 1];
+          if (shuffle_in != other_operand) {
+            break;
+          }
+          shuffles.push_back(shuffle);
+          if (const Simd128BinopOp* other_binop =
+                  MatchBinop(shuffle_in, binop->kind)) {
+            binops.push_back(other_binop);
+            break;
+          }
+        }
+      }
+    }
+    if (shuffles.empty()) {
+      goto no_change;
+    }
+
+    // Reverse so that they're in execution order, just for readability.
+    std::reverse(shuffles.begin(), shuffles.end());
+    V<Simd128> reduce_input = shuffles.front()->left();
+    MachineRepresentation rep = Simd128ExtractLaneOp::element_rep(kind);
+    switch (rep) {
+      default:
+        goto no_change;
+      case MachineRepresentation::kWord8: {
+        if (shuffles.size() == 4) {
+          const uint8_t* shuffle1 = shuffles[0]->shuffle;
+          const uint8_t* shuffle2 = shuffles[1]->shuffle;
+          const uint8_t* shuffle3 = shuffles[2]->shuffle;
+          const uint8_t* shuffle4 = shuffles[3]->shuffle;
+          if (wasm::SimdShuffle::TryMatch8x16UpperToLowerReduce(
+                  shuffle1, shuffle2, shuffle3, shuffle4)) {
+            V<Simd128> reduce = __ Simd128Reduce(
+                reduce_input, Simd128ReduceOp::Kind::kI8x16AddReduce);
+            return __ Simd128ExtractLane(reduce, kind, 0);
+          }
+        }
+        break;
+      }
+      case MachineRepresentation::kWord16: {
+        if (shuffles.size() == 3) {
+          const uint8_t* shuffle1 = shuffles[0]->shuffle;
+          const uint8_t* shuffle2 = shuffles[1]->shuffle;
+          const uint8_t* shuffle3 = shuffles[2]->shuffle;
+          if (wasm::SimdShuffle::TryMatch16x8UpperToLowerReduce(
+                  shuffle1, shuffle2, shuffle3)) {
+            V<Simd128> reduce = __ Simd128Reduce(
+                reduce_input, Simd128ReduceOp::Kind::kI16x8AddReduce);
+            return __ Simd128ExtractLane(reduce, kind, 0);
+          }
+        }
+        break;
+      }
+      case MachineRepresentation::kWord32: {
+        if (shuffles.size() == 2) {
+          const uint8_t* shuffle1 = shuffles[0]->shuffle;
+          const uint8_t* shuffle2 = shuffles[1]->shuffle;
+          if (wasm::SimdShuffle::TryMatch32x4UpperToLowerReduce(shuffle1,
+                                                                shuffle2)) {
+            V<Simd128> reduce = __ Simd128Reduce(
+                reduce_input, Simd128ReduceOp::Kind::kI32x4AddReduce);
+            return __ Simd128ExtractLane(reduce, kind, 0);
+          }
+        }
+        break;
+      }
+      case MachineRepresentation::kFloat32: {
+        if (shuffles.size() == 2) {
+          const uint8_t* shuffle1 = shuffles[0]->shuffle;
+          const uint8_t* shuffle2 = shuffles[1]->shuffle;
+          if (wasm::SimdShuffle::TryMatch32x4PairwiseReduce(shuffle1,
+                                                            shuffle2)) {
+            V<Simd128> reduce = __ Simd128Reduce(
+                reduce_input, Simd128ReduceOp::Kind::kF32x4AddReduce);
+            return __ Simd128ExtractLane(reduce, kind, 0);
+          }
+        }
+        break;
+      }
+      case MachineRepresentation::kWord64:
+      case MachineRepresentation::kFloat64: {
+        if (shuffles.size() == 1) {
+          uint8_t shuffle64x2[2];
+          if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffles[0]->shuffle,
+                                                     shuffle64x2) &&
+              wasm::SimdShuffle::TryMatch64x2Reduce(shuffle64x2)) {
+            V<Simd128> reduce =
+                rep == MachineRepresentation::kWord64
+                    ? __ Simd128Reduce(reduce_input,
+                                       Simd128ReduceOp::Kind::kI64x2AddReduce)
+                    : __ Simd128Reduce(reduce_input,
+                                       Simd128ReduceOp::Kind::kF64x2AddReduce);
+            return __ Simd128ExtractLane(reduce, kind, 0);
+          }
+        }
+        break;
+      }
+    }
+    goto no_change;
+  }
+#endif  // V8_TARGET_ARCH_ARM64
+#endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
   V<Word32> ReduceCompareEqual(V<Any> left, V<Any> right,

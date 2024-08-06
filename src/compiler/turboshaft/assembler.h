@@ -4419,6 +4419,10 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd128ExtractLane(input, kind, lane);
   }
 
+  V<Simd128> Simd128Reduce(V<Simd128> input, Simd128ReduceOp::Kind kind) {
+    return ReduceIfReachableSimd128Reduce(input, kind);
+  }
+
   V<Simd128> Simd128ReplaceLane(V<Simd128> into, V<Any> new_lane,
                                 Simd128ReplaceLaneOp::Kind kind, uint8_t lane) {
     return ReduceIfReachableSimd128ReplaceLane(into, new_lane, kind, lane);

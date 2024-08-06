@@ -7970,6 +7970,31 @@ VISIT_SIMD_SUB(I16x8, 16)
 #undef VISIT_SIMD_SUB
 
 namespace {
+void VisitSimdReduce(InstructionSelectorT<TurboshaftAdapter>* selector,
+                     turboshaft::OpIndex node, InstructionCode opcode) {
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(selector->Get(node).input(0)));
+}
+
+}  // namespace
+
+#define VISIT_SIMD_REDUCE(Type, Opcode)                                 \
+  template <>                                                           \
+  void InstructionSelectorT<TurboshaftAdapter>::Visit##Type##AddReduce( \
+      turboshaft::OpIndex node) {                                       \
+    VisitSimdReduce(this, node, Opcode);                                \
+  }
+
+VISIT_SIMD_REDUCE(I8x16, kArm64I8x16Addv)
+VISIT_SIMD_REDUCE(I16x8, kArm64I16x8Addv)
+VISIT_SIMD_REDUCE(I32x4, kArm64I32x4Addv)
+VISIT_SIMD_REDUCE(I64x2, kArm64I64x2AddPair)
+VISIT_SIMD_REDUCE(F32x4, kArm64F32x4AddReducePairwise)
+VISIT_SIMD_REDUCE(F64x2, kArm64F64x2AddPair)
+#undef VISIT_SIMD_REDUCE
+
+namespace {
 bool isSimdZero(InstructionSelectorT<TurbofanAdapter>* selector, Node* node) {
   auto m = V128ConstMatcher(node);
   if (m.HasResolvedValue()) {

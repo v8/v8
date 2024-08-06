@@ -1093,6 +1093,12 @@
   IF_WASM(V, I16x8RelaxedQ15MulRS)        \
   IF_WASM(V, I16x8DotI8x16I7x16S)         \
   IF_WASM(V, I32x4DotI8x16I7x16AddS)      \
+  IF_WASM(V, I8x16AddReduce)              \
+  IF_WASM(V, I16x8AddReduce)              \
+  IF_WASM(V, I32x4AddReduce)              \
+  IF_WASM(V, I64x2AddReduce)              \
+  IF_WASM(V, F32x4AddReduce)              \
+  IF_WASM(V, F64x2AddReduce)              \
   IF_WASM(V, I8x16Shuffle)                \
   IF_WASM(V, V128AnyTrue)                 \
   IF_WASM(V, I64x2AllTrue)                \

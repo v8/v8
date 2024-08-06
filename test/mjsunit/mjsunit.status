@@ -2016,6 +2016,7 @@
   'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/simd-*': [SKIP],
   'wasm/turboshaft/array-new-unreachable': [SKIP],
+  'wasm/turboshaft/reduction-shuffle': [SKIP],
   'regress/wasm/regress-9447': [SKIP],
   'regress/wasm/regress-10309': [SKIP],
   'regress/wasm/regress-10831': [SKIP],

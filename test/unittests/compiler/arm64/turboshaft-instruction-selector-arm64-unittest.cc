@@ -2226,9 +2226,66 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorIntDPWithIntMulTest,
                          ::testing::ValuesIn(kMulDPInstructions));
 
+#if V8_ENABLE_WEBASSEMBLY
+TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    V<Simd128> reduce = m.I8x16AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64I8x16Addv, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    V<Simd128> reduce = m.I16x8AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64I16x8Addv, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    V<Simd128> reduce = m.I32x4AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64I32x4Addv, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Simd128());
+    V<Simd128> reduce = m.I64x2AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64I64x2AddPair, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Float32(), MachineType::Simd128());
+    V<Simd128> reduce = m.F32x4AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64F32x4AddReducePairwise, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, MachineType::Float64(), MachineType::Simd128());
+    V<Simd128> reduce = m.F64x2AddReduce(m.Parameter(0));
+    m.Return(reduce);
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64F64x2AddPair, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
 #if 0
 
-#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 struct SIMDMulDPInst {
@@ -2757,9 +2814,9 @@ TEST_F(TurboshaftInstructionSelectorTest, OneLaneSwizzle32x4Test) {
   }
 }
 
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 #endif
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST_F(TurboshaftInstructionSelectorTest, Word32MulWithImmediate) {
   // x * (2^k + 1) -> x + (x << k)
@@ -6131,7 +6188,6 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          InstructionSelectorSIMDConstAndTest,
                          ::testing::ValuesIn(SIMDConstAndTests));
 #endif  // V8_ENABLE_WEBASSEMBLY
-
 #endif
 
 }  // namespace v8::internal::compiler::turboshaft

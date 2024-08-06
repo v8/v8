@@ -2333,6 +2333,17 @@ IF_WASM(VISIT_UNSUPPORTED_OP, I64x2ReplaceLane)
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
+#if !V8_TARGET_ARCH_ARM64
+
+IF_WASM(VISIT_UNSUPPORTED_OP, I8x16AddReduce)
+IF_WASM(VISIT_UNSUPPORTED_OP, I16x8AddReduce)
+IF_WASM(VISIT_UNSUPPORTED_OP, I32x4AddReduce)
+IF_WASM(VISIT_UNSUPPORTED_OP, I64x2AddReduce)
+IF_WASM(VISIT_UNSUPPORTED_OP, F32x4AddReduce)
+IF_WASM(VISIT_UNSUPPORTED_OP, F64x2AddReduce)
+
+#endif  // !V8_TARGET_ARCH_ARM64
+
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitFinishRegion(Node* node) {
   EmitIdentity(node);
@@ -5436,6 +5447,24 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     return Visit##kind(node);
         FOREACH_SIMD_128_UNARY_OPCODE(VISIT_SIMD_UNARY)
 #undef VISIT_SIMD_UNARY
+      }
+    }
+    case Opcode::kSimd128Reduce: {
+      const Simd128ReduceOp& reduce = op.Cast<Simd128ReduceOp>();
+      MarkAsSimd128(node);
+      switch (reduce.kind) {
+        case Simd128ReduceOp::Kind::kI8x16AddReduce:
+          return VisitI8x16AddReduce(node);
+        case Simd128ReduceOp::Kind::kI16x8AddReduce:
+          return VisitI16x8AddReduce(node);
+        case Simd128ReduceOp::Kind::kI32x4AddReduce:
+          return VisitI32x4AddReduce(node);
+        case Simd128ReduceOp::Kind::kI64x2AddReduce:
+          return VisitI64x2AddReduce(node);
+        case Simd128ReduceOp::Kind::kF32x4AddReduce:
+          return VisitF32x4AddReduce(node);
+        case Simd128ReduceOp::Kind::kF64x2AddReduce:
+          return VisitF64x2AddReduce(node);
       }
     }
     case Opcode::kSimd128Binop: {

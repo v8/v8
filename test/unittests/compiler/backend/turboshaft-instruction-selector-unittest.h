@@ -406,6 +406,33 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     FOREACH_SIMD_128_UNARY_OPCODE(DECL_SIMD128_UNOP)
 #undef DECL_SIMD128_UNOP
 
+#define DECL_SIMD128_EXTRACT_LANE(Name, Suffix, Type)                 \
+  V<Type> Name##Suffix##ExtractLane(V<Simd128> input, uint8_t lane) { \
+    return V<Type>::Cast(Simd128ExtractLane(                          \
+        input, Simd128ExtractLaneOp::Kind::k##Name##Suffix, lane));   \
+  }
+    DECL_SIMD128_EXTRACT_LANE(I8x16, S, Word32)
+    DECL_SIMD128_EXTRACT_LANE(I8x16, U, Word32)
+    DECL_SIMD128_EXTRACT_LANE(I16x8, S, Word32)
+    DECL_SIMD128_EXTRACT_LANE(I16x8, U, Word32)
+    DECL_SIMD128_EXTRACT_LANE(I32x4, , Word32)
+    DECL_SIMD128_EXTRACT_LANE(I64x2, , Word64)
+    DECL_SIMD128_EXTRACT_LANE(F32x4, , Float32)
+    DECL_SIMD128_EXTRACT_LANE(F64x2, , Float64)
+#undef DECL_SIMD128_EXTRACT_LANE
+
+#define DECL_SIMD128_REDUCE(Name)                                           \
+  V<Simd128> Name##AddReduce(V<Simd128> input) {                            \
+    return Simd128Reduce(input, Simd128ReduceOp::Kind::k##Name##AddReduce); \
+  }
+    DECL_SIMD128_REDUCE(I8x16)
+    DECL_SIMD128_REDUCE(I16x8)
+    DECL_SIMD128_REDUCE(I32x4)
+    DECL_SIMD128_REDUCE(I64x2)
+    DECL_SIMD128_REDUCE(F32x4)
+    DECL_SIMD128_REDUCE(F64x2)
+#undef DECL_SIMD128_REDUCE
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
    private:

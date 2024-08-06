@@ -1540,6 +1540,16 @@ std::ostream& operator<<(std::ostream& os, Simd128UnaryOp::Kind kind) {
 #undef PRINT_KIND
 }
 
+std::ostream& operator<<(std::ostream& os, Simd128ReduceOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)               \
+  case Simd128ReduceOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_128_REDUCE_OPTIONAL_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+
 std::ostream& operator<<(std::ostream& os, Simd128ShiftOp::Kind kind) {
   switch (kind) {
 #define PRINT_KIND(kind)              \

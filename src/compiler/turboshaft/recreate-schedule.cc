@@ -1670,6 +1670,10 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128UnaryOp& op) {
   }
 }
 
+Node* ScheduleBuilder::ProcessOperation(const Simd128ReduceOp& op) {
+  UNIMPLEMENTED();
+}
+
 Node* ScheduleBuilder::ProcessOperation(const Simd128ShiftOp& op) {
   switch (op.kind) {
 #define HANDLE_KIND(kind)             \

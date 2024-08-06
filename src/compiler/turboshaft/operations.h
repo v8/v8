@@ -177,6 +177,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd128Constant)                      \
   V(Simd128Binop)                         \
   V(Simd128Unary)                         \
+  V(Simd128Reduce)                        \
   V(Simd128Shift)                         \
   V(Simd128Test)                          \
   V(Simd128Splat)                         \
@@ -7469,6 +7470,45 @@ struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            Simd128UnaryOp::Kind kind);
 
+#define FOREACH_SIMD_128_REDUCE_OPTIONAL_OPCODE(V) \
+  V(I8x16AddReduce)                                \
+  V(I16x8AddReduce)                                \
+  V(I32x4AddReduce)                                \
+  V(I64x2AddReduce)                                \
+  V(F32x4AddReduce)                                \
+  V(F64x2AddReduce)
+
+struct Simd128ReduceOp : FixedArityOperationT<1, Simd128ReduceOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_128_REDUCE_OPTIONAL_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  Simd128ReduceOp(V<Simd128> input, Kind kind) : Base(input), kind(kind) {}
+
+  V<Simd128> input() const { return Base::input<Simd128>(0); }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{kind}; }
+};
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Simd128ReduceOp::Kind kind);
+
 #define FOREACH_SIMD_128_SHIFT_OPCODE(V) \
   V(I8x16Shl)                            \
   V(I8x16ShrS)                           \
@@ -7685,6 +7725,26 @@ struct Simd128ExtractLaneOp : FixedArityOperationT<1, Simd128ExtractLaneOp> {
   uint8_t lane;
 
   static constexpr OpEffects effects = OpEffects();
+
+  static MachineRepresentation element_rep(Kind kind) {
+    switch (kind) {
+      case Kind::kI8x16S:
+      case Kind::kI8x16U:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8S:
+      case Kind::kI16x8U:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4:
+        return MachineRepresentation::kWord32;
+      case Kind::kI64x2:
+        return MachineRepresentation::kWord64;
+      case Kind::kF16x8:
+      case Kind::kF32x4:
+        return MachineRepresentation::kFloat32;
+      case Kind::kF64x2:
+        return MachineRepresentation::kFloat64;
+    }
+  }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     switch (kind) {

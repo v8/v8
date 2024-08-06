@@ -2696,6 +2696,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I32x4BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
+    case kArm64I8x16Addv: {
+      __ Addv(i.OutputSimd128Register().B(), i.InputSimd128Register(0).V16B());
+      break;
+    }
+    case kArm64I16x8Addv: {
+      __ Addv(i.OutputSimd128Register().H(), i.InputSimd128Register(0).V8H());
+      break;
+    }
+    case kArm64I32x4Addv: {
+      __ Addv(i.OutputSimd128Register().S(), i.InputSimd128Register(0).V4S());
+      break;
+    }
+    case kArm64I64x2AddPair: {
+      __ Addp(i.OutputSimd128Register().D(), i.InputSimd128Register(0).V2D());
+      break;
+    }
+    case kArm64F32x4AddReducePairwise: {
+      UseScratchRegisterScope scope(masm());
+      VRegister tmp = scope.AcquireV(kFormat4S);
+      __ Faddp(tmp.V4S(), i.InputSimd128Register(0).V4S(),
+               i.InputSimd128Register(0).V4S());
+      __ Faddp(i.OutputSimd128Register().S(), tmp.V2S());
+      break;
+    }
+    case kArm64F64x2AddPair: {
+      __ Faddp(i.OutputSimd128Register().D(), i.InputSimd128Register(0).V2D());
+      break;
+    }
     case kArm64I32x4DotI16x8S: {
       UseScratchRegisterScope scope(masm());
       VRegister lhs = i.InputSimd128Register(0);
