@@ -1045,7 +1045,7 @@ class OpProperties {
   }
   static constexpr OpProperties TrustedPointer() {
     return OpProperties(
-        kValueRepresentationBits::encode(ValueRepresentation::kIntPtr));
+        kValueRepresentationBits::encode(ValueRepresentation::kTagged));
   }
   static constexpr OpProperties ConversionNode() {
     return OpProperties(kIsConversionBit::encode(true));
@@ -7573,7 +7573,7 @@ class StoreTrustedPointerFieldWithWriteBarrier
   static constexpr OpProperties kProperties =
       OpProperties::CanWrite() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kIntPtr};
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   int offset() const { return offset_; }
   IndirectPointerTag tag() const { return tag_; }

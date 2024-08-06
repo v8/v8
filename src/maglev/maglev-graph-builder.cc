@@ -4248,9 +4248,7 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
 void MaglevGraphBuilder::BuildInitializeStore(InlinedAllocation* object,
                                               ValueNode* value, int offset) {
   const bool value_is_trusted = value->Is<TrustedConstant>();
-  DCHECK_IMPLIES(!value_is_trusted, value->is_tagged());
-  DCHECK_IMPLIES(value_is_trusted,
-                 value->value_representation() == ValueRepresentation::kIntPtr);
+  DCHECK(value->is_tagged());
   if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
     // Add to the escape set.
     auto escape_deps = graph()->allocations_escape_map().find(object);
@@ -11524,7 +11522,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
       node = BuildInlinedAllocationForHeapNumber(
           CreateHeapNumber(node->Cast<Float64Constant>()->value()),
           allocation_type);
-    } else if (!node->Is<TrustedConstant>()) {
+    } else {
       node = GetTaggedValue(node);
     }
     values[i] = node;
