@@ -923,6 +923,13 @@
   IF_WASM(V, F16x8Splat)                  \
   IF_WASM(V, F16x8ExtractLane)            \
   IF_WASM(V, F16x8ReplaceLane)            \
+  IF_WASM(V, F16x8Abs)                    \
+  IF_WASM(V, F16x8Neg)                    \
+  IF_WASM(V, F16x8Sqrt)                   \
+  IF_WASM(V, F16x8Ceil)                   \
+  IF_WASM(V, F16x8Floor)                  \
+  IF_WASM(V, F16x8Trunc)                  \
+  IF_WASM(V, F16x8NearestInt)             \
   IF_WASM(V, I64x2Splat)                  \
   IF_WASM(V, I64x2SplatI32Pair)           \
   IF_WASM(V, I64x2ExtractLane)            \

@@ -419,6 +419,13 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_WASM(V, F32x4NearestInt, Operator::kNoProperties, 1, 0, 1)                \
   IF_WASM(V, F32x4DemoteF64x2Zero, Operator::kNoProperties, 1, 0, 1)           \
   IF_WASM(V, F16x8Splat, Operator::kNoProperties, 1, 0, 1)                     \
+  IF_WASM(V, F16x8Abs, Operator::kNoProperties, 1, 0, 1)                       \
+  IF_WASM(V, F16x8Neg, Operator::kNoProperties, 1, 0, 1)                       \
+  IF_WASM(V, F16x8Sqrt, Operator::kNoProperties, 1, 0, 1)                      \
+  IF_WASM(V, F16x8Ceil, Operator::kNoProperties, 1, 0, 1)                      \
+  IF_WASM(V, F16x8Floor, Operator::kNoProperties, 1, 0, 1)                     \
+  IF_WASM(V, F16x8Trunc, Operator::kNoProperties, 1, 0, 1)                     \
+  IF_WASM(V, F16x8NearestInt, Operator::kNoProperties, 1, 0, 1)                \
   IF_WASM(V, I64x4Splat, Operator::kNoProperties, 1, 0, 1)                     \
   IF_WASM(V, I64x2Splat, Operator::kNoProperties, 1, 0, 1)                     \
   IF_WASM(V, I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)              \

@@ -3619,6 +3619,10 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   V(Word64ReverseBits, kArm64Rbit)                            \
   V(Word32ReverseBytes, kArm64Rev32)                          \
   V(Word64ReverseBytes, kArm64Rev)                            \
+  IF_WASM(V, F16x8Ceil, kArm64Float16RoundUp)                 \
+  IF_WASM(V, F16x8Floor, kArm64Float16RoundDown)              \
+  IF_WASM(V, F16x8Trunc, kArm64Float16RoundTruncate)          \
+  IF_WASM(V, F16x8NearestInt, kArm64Float16RoundTiesEven)     \
   IF_WASM(V, F32x4Ceil, kArm64Float32RoundUp)                 \
   IF_WASM(V, F32x4Floor, kArm64Float32RoundDown)              \
   IF_WASM(V, F32x4Trunc, kArm64Float32RoundTruncate)          \
@@ -7065,6 +7069,9 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   V(I32x4Abs, kArm64IAbs, 32)       \
   V(I32x4Neg, kArm64INeg, 32)       \
   V(F16x8Splat, kArm64FSplat, 16)   \
+  V(F16x8Abs, kArm64FAbs, 16)       \
+  V(F16x8Sqrt, kArm64FSqrt, 16)     \
+  V(F16x8Neg, kArm64FNeg, 16)       \
   V(I16x8Splat, kArm64ISplat, 16)   \
   V(I16x8Abs, kArm64IAbs, 16)       \
   V(I16x8Neg, kArm64INeg, 16)       \

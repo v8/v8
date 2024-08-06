@@ -3743,6 +3743,10 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #define RR_OP_T_LIST_WEBASSEMBLY(V)                                       \
+  V(F16x8Ceil, kX64F16x8Round | MiscField::encode(kRoundUp))              \
+  V(F16x8Floor, kX64F16x8Round | MiscField::encode(kRoundDown))           \
+  V(F16x8Trunc, kX64F16x8Round | MiscField::encode(kRoundToZero))         \
+  V(F16x8NearestInt, kX64F16x8Round | MiscField::encode(kRoundToNearest)) \
   V(F32x4Ceil, kX64F32x4Round | MiscField::encode(kRoundUp))              \
   V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))           \
   V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))         \
@@ -5970,14 +5974,17 @@ VISIT_ATOMIC_BINOP(Xor)
 #define SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F32x4Abs, FAbs, kL32, kV128)                  \
   V(I32x4Abs, IAbs, kL32, kV128)                  \
+  V(F16x8Abs, FAbs, kL16, kV128)                  \
   V(I16x8Abs, IAbs, kL16, kV128)                  \
   V(I8x16Abs, IAbs, kL8, kV128)                   \
   V(F32x4Neg, FNeg, kL32, kV128)                  \
   V(I32x4Neg, INeg, kL32, kV128)                  \
+  V(F16x8Neg, FNeg, kL16, kV128)                  \
   V(I16x8Neg, INeg, kL16, kV128)                  \
   V(I8x16Neg, INeg, kL8, kV128)                   \
   V(F64x2Sqrt, FSqrt, kL64, kV128)                \
   V(F32x4Sqrt, FSqrt, kL32, kV128)                \
+  V(F16x8Sqrt, FSqrt, kL16, kV128)                \
   V(I64x2BitMask, IBitMask, kL64, kV128)          \
   V(I32x4BitMask, IBitMask, kL32, kV128)          \
   V(I16x8BitMask, IBitMask, kL16, kV128)          \
