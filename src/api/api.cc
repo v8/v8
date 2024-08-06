@@ -11569,6 +11569,11 @@ const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(ActivityControl* control,
   return TakeHeapSnapshot(options);
 }
 
+std::vector<v8::Local<v8::Value>> HeapProfiler::GetDetachedJSWrapperObjects() {
+  return reinterpret_cast<i::HeapProfiler*>(this)
+      ->GetDetachedJSWrapperObjects();
+}
+
 void HeapProfiler::StartTrackingHeapObjects(bool track_allocations) {
   reinterpret_cast<i::HeapProfiler*>(this)->StartHeapObjectsTracking(
       track_allocations);
