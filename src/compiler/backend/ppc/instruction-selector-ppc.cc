@@ -3899,6 +3899,20 @@ SIMD_VISIT_QFMOP(F32x4Qfms)
 SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
 #undef SIMD_VISIT_RELAXED_OP
 #undef SIMD_RELAXED_OP_LIST
+
+#define F16_OP_LIST(V) \
+  V(F16x8Splat)        \
+  V(F16x8ExtractLane)  \
+  V(F16x8ReplaceLane)
+
+#define VISIT_F16_OP(name)                                       \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##name(node_t node) { \
+    UNIMPLEMENTED();                                             \
+  }
+F16_OP_LIST(VISIT_F16_OP)
+#undef VISIT_F16_OP
+#undef F16_OP_LIST
 #undef SIMD_TYPES
 
 #if V8_ENABLE_WEBASSEMBLY
