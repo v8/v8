@@ -3727,6 +3727,9 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   if (old_type) *old_type = known_info->type();
   if (NodeTypeIs(known_info->type(), type)) return true;
   known_info->CombineType(type);
+  if (auto phi = node->TryCast<Phi>()) {
+    known_info->CombineType(phi->type());
+  }
   return false;
 }
 
@@ -3779,9 +3782,12 @@ NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
   if (!known_node_aspects().IsValid(it)) {
     return StaticTypeForNode(broker(), local_isolate(), node);
   }
+  NodeType actual_type = it->second.type();
+  if (auto phi = node->TryCast<Phi>()) {
+    actual_type = CombineType(actual_type, phi->type());
+  }
 #ifdef DEBUG
   NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
-  NodeType actual_type = it->second.type();
   if (!NodeTypeIs(actual_type, static_type)) {
     // In case we needed a numerical alternative of a smi value, the type
     // must generalize. In all other cases the node info type should reflect the
@@ -3790,10 +3796,7 @@ NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
            !known_node_aspects().TryGetInfoFor(node)->alternative().has_none());
   }
 #endif  // DEBUG
-  if (auto phi = node->TryCast<Phi>()) {
-    return CombineType(it->second.type(), phi->type());
-  }
-  return it->second.type();
+  return actual_type;
 }
 
 bool MaglevGraphBuilder::HaveDifferentTypes(ValueNode* lhs, ValueNode* rhs) {

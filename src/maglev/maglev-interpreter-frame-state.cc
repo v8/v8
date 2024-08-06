@@ -1013,9 +1013,6 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
         NodeType initial_optimistic_type =
             (unmerged_type == NodeType::kInternalizedString) ? NodeType::kString
                                                              : unmerged_type;
-        if (NodeInfo* node_info = known_node_aspects_->TryGetInfoFor(result)) {
-          node_info->CombineType(initial_optimistic_type);
-        }
         result->set_type(initial_optimistic_type);
       }
     } else {
@@ -1255,11 +1252,6 @@ void MergePointInterpreterFrameState::MergeLoopValue(
   // regular `type`.
   DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
   result->promote_post_loop_type();
-  if (known_node_aspects_) {
-    if (NodeInfo* node_info = known_node_aspects_->TryGetInfoFor(result)) {
-      node_info->CombineType(result->type());
-    }
-  }
 
   if (Phi* unmerged_phi = unmerged->TryCast<Phi>()) {
     // Propagating the `uses_repr` from {result} to {unmerged_phi}.
@@ -1294,11 +1286,6 @@ void MergePointInterpreterFrameState::ReducePhiPredecessorCount(unsigned num) {
     if (predecessors_so_far_ == predecessor_count_ - 1 &&
         predecessor_count_ > 1 && phi->is_loop_phi()) {
       phi->promote_post_loop_type();
-      if (known_node_aspects_) {
-        if (NodeInfo* node_info = known_node_aspects_->TryGetInfoFor(phi)) {
-          node_info->CombineType(phi->type());
-        }
-      }
     }
   }
 }
