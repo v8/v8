@@ -374,6 +374,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Movq:
     case kX64Movsd:
     case kX64Movss:
+    case kX64Movsh:
     case kX64Movdqu:
     case kX64Movdqu256:
     case kX64S128Load8Splat:

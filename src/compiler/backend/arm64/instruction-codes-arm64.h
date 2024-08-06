@@ -20,6 +20,7 @@ namespace compiler {
   V(Arm64Ldrh)                                             \
   V(Arm64LdrQ)                                             \
   V(Arm64LdrS)                                             \
+  V(Arm64LdrH)                                             \
   V(Arm64Ldrsb)                                            \
   V(Arm64LdrsbW)                                           \
   V(Arm64Ldrsh)                                            \
@@ -42,6 +43,7 @@ namespace compiler {
   V(Arm64Strh)                                             \
   V(Arm64StrQ)                                             \
   V(Arm64StrS)                                             \
+  V(Arm64StrH)                                             \
   V(Arm64StrW)                                             \
   V(Arm64StrWPair)                                         \
   V(Arm64LdrDecompressTaggedSigned)                        \
