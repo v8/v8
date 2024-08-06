@@ -826,13 +826,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return scope->DeclareCatchVariableName(name);
   }
 
-  V8_INLINE ZonePtrList<Expression>* NewExpressionList(int size) const {
-    return zone()->New<ZonePtrList<Expression>>(size, zone());
-  }
-  V8_INLINE ZonePtrList<ObjectLiteral::Property>* NewObjectPropertyList(
-      int size) const {
-    return zone()->New<ZonePtrList<ObjectLiteral::Property>>(size, zone());
-  }
   V8_INLINE ZonePtrList<ClassLiteral::Property>* NewClassPropertyList(
       int size) const {
     return zone()->New<ZonePtrList<ClassLiteral::Property>>(size, zone());
@@ -840,9 +833,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE ZonePtrList<ClassLiteral::StaticElement>* NewClassStaticElementList(
       int size) const {
     return zone()->New<ZonePtrList<ClassLiteral::StaticElement>>(size, zone());
-  }
-  V8_INLINE ZonePtrList<Statement>* NewStatementList(int size) const {
-    return zone()->New<ZonePtrList<Statement>>(size, zone());
   }
 
   Expression* NewV8Intrinsic(const AstRawString* name,
