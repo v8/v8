@@ -1702,8 +1702,12 @@ void FeedbackNexus::Print(std::ostream& os) {
           Tagged<WeakFixedArray> array =
               Cast<WeakFixedArray>(GetFeedbackExtra().GetHeapObject());
           os << "\n   " << Brief(array->get(0)) << ": ";
-          Tagged<Object> handler = array->get(1).GetHeapObjectOrSmi();
-          StoreHandler::PrintHandler(handler, os);
+          if (array->get(1).IsCleared()) {
+            os << "[cleared]\n";
+          } else {
+            Tagged<Object> handler = array->get(1).GetHeapObjectOrSmi();
+            StoreHandler::PrintHandler(handler, os);
+          }
         } else {
           os << "\n   " << Brief(feedback) << ": ";
           StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
