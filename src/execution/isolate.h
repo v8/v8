@@ -1672,11 +1672,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   int GenerateIdentityHash(uint32_t mask);
 
   int NextOptimizationId() {
-    int id = next_optimization_id_++;
-    if (!Smi::IsValid(next_optimization_id_)) {
-      next_optimization_id_ = 0;
+    int id = next_optimization_id_.load();
+    while (true) {
+      int next_id = id + 1;
+      if (!Smi::IsValid(next_id)) next_id = 0;
+      if (next_optimization_id_.compare_exchange_strong(id, next_id)) {
+        return id;
+      }
     }
-    return id;
   }
 
   // ES#sec-async-module-execution-fulfilled step 10
