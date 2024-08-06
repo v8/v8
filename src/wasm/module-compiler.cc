@@ -1530,7 +1530,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       // if the call count is zero. Once TurboFan is gone, revisit if we can
       // avoid this (similar to how we do for call_ref/call_indirect today).
       fm.AddCall(static_cast<int>(sentinel_or_target), count);
-    } else if (IsSmi(first_slot) && Smi::ToInt(second_slot) == 0) {
+    } else if (IsSmi(second_slot) && Smi::ToInt(second_slot) == 0) {
       // Uninitialized call_ref or call_indirect.
       DCHECK_EQ(Smi::ToInt(first_slot), 0);
       if (v8_flags.trace_wasm_inlining) {
