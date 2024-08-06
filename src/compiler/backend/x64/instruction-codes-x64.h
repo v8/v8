@@ -21,6 +21,7 @@ namespace compiler {
   V(X64Movq)                                               \
   V(X64Movsd)                                              \
   V(X64Movss)                                              \
+  V(X64Movsh)                                              \
   V(X64Movsxbl)                                            \
   V(X64Movsxbq)                                            \
   V(X64Movsxlq)                                            \
