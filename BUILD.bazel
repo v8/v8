@@ -807,7 +807,6 @@ filegroup(
         "src/base/numbers/strtod.h",
         "src/base/once.cc",
         "src/base/once.h",
-        "src/base/optional.h",
         "src/base/overflowing-math.h",
         "src/base/page-allocator.cc",
         "src/base/page-allocator.h",

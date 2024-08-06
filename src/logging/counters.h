@@ -9,7 +9,6 @@
 
 #include "include/v8-callbacks.h"
 #include "src/base/atomic-utils.h"
-#include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"

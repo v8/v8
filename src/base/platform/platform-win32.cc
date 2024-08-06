@@ -27,6 +27,7 @@
 #include <tlhelp32.h>           // For Module32First and al.
 
 #include <limits>
+#include <optional>
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
@@ -1127,7 +1128,7 @@ bool OS::CanReserveAddressSpace() {
 }
 
 // static
-Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
+std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
     void* hint, size_t size, size_t alignment,
     MemoryPermission max_permission) {
   CHECK(CanReserveAddressSpace());
@@ -1349,7 +1350,8 @@ Win32MemoryMappedFile::~Win32MemoryMappedFile() {
   CloseHandle(file_);
 }
 
-Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
+std::optional<AddressSpaceReservation>
+AddressSpaceReservation::CreateSubReservation(
     void* address, size_t size, OS::MemoryPermission max_permission) {
   // Nothing to do, the sub reservation must already have been split by now.
   DCHECK(Contains(address, size));

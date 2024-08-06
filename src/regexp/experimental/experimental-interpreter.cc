@@ -4,9 +4,9 @@
 
 #include "src/regexp/experimental/experimental-interpreter.h"
 
+#include <optional>
 #include <string>
 
-#include "src/base/optional.h"
 #include "src/base/strings.h"
 #include "src/common/assert-scope.h"
 #include "src/flags/flags.h"
