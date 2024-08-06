@@ -111,7 +111,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
         TNode<Context> context, TNode<Object> receiver, TNode<Object> name,
         TNode<TaggedIndex> slot, TNode<HeapObject> vector,
         std::optional<TNode<Object>> lookup_start_object = std::nullopt,
-        std::optional<TNode<TaggedIndex>> enum_index = std::nullopt,
+        std::optional<TNode<Smi>> enum_index = std::nullopt,
         std::optional<TNode<Object>> cache_type = std::nullopt)
         : context_(context),
           receiver_(receiver),
@@ -139,7 +139,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Object> lookup_start_object() const {
       return lookup_start_object_.value();
     }
-    TNode<TaggedIndex> enum_index() const { return *enum_index_; }
+    TNode<Smi> enum_index() const { return *enum_index_; }
     TNode<Object> cache_type() const { return *cache_type_; }
 
     // Usable in cases where the receiver and the lookup start object are
@@ -159,7 +159,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
     std::optional<TNode<Object>> lookup_start_object_;
-    std::optional<TNode<TaggedIndex>> enum_index_;
+    std::optional<TNode<Smi>> enum_index_;
     std::optional<TNode<Object>> cache_type_;
   };
 

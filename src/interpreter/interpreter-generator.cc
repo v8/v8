@@ -620,8 +620,7 @@ IGNITION_HANDLER(GetKeyedProperty, InterpreterAssembler) {
 IGNITION_HANDLER(GetEnumeratedKeyedProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = GetAccumulator();
-  TNode<TaggedIndex> enum_index =
-      SmiToTaggedIndex(CAST(LoadRegisterAtOperandIndex(1)));
+  TNode<Smi> enum_index = CAST(LoadRegisterAtOperandIndex(1));
   TNode<Object> cache_type = LoadRegisterAtOperandIndex(2);
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(3);
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();

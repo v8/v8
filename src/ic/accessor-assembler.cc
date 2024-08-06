@@ -216,8 +216,7 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
   TNode<FixedArray> enum_keys =
       LoadObjectField<FixedArray>(enum_cache, EnumCache::kKeysOffset);
   // |p->enum_index()| comes from the outer loop's ForIn state.
-  TNode<Object> key =
-      LoadFixedArrayElement(enum_keys, TaggedIndexToSmi(p->enum_index()));
+  TNode<Object> key = LoadFixedArrayElement(enum_keys, p->enum_index());
   // Check if |p->name()| matches the key in enum cache. |p->name()| is the
   // "each" variable of a for-in loop, but it can be modified by debugger or
   // other bytecodes.
@@ -226,8 +225,8 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
       LoadObjectField<FixedArray>(enum_cache, EnumCache::kIndicesOffset);
   // Check if we have enum indices available.
   GotoIf(IsEmptyFixedArray(enum_indices), &no_enum_cache);
-  TNode<Int32T> field_index = SmiToInt32(CAST(
-      LoadFixedArrayElement(enum_indices, TaggedIndexToSmi(p->enum_index()))));
+  TNode<Int32T> field_index =
+      SmiToInt32(CAST(LoadFixedArrayElement(enum_indices, p->enum_index())));
 
   TVARIABLE(Object, result);
   Label if_double(this, Label::kDeferred), done(this, &result);
@@ -4669,7 +4668,7 @@ void AccessorAssembler::GenerateEnumeratedKeyedLoadIC() {
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
-  auto enum_index = Parameter<TaggedIndex>(Descriptor::kEnumIndex);
+  auto enum_index = Parameter<Smi>(Descriptor::kEnumIndex);
   auto cache_type = Parameter<Object>(Descriptor::kCacheType);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
@@ -4723,7 +4722,7 @@ void AccessorAssembler::GenerateEnumeratedKeyedLoadICBaseline() {
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
-  auto enum_index = SmiToTaggedIndex(Parameter<Smi>(Descriptor::kEnumIndex));
+  auto enum_index = Parameter<Smi>(Descriptor::kEnumIndex);
   auto cache_type = Parameter<Object>(Descriptor::kCacheType);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
