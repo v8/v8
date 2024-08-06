@@ -440,6 +440,9 @@ declare_args() {
   # ReadOnlySpace.
   v8_enable_extensible_ro_snapshot = true
 
+  # Enable Turboshaft CSA pipeline.
+  v8_enable_turboshaft_csa = false
+
   # Use sticky mark-bits for separating object generations.
   v8_enable_sticky_mark_bits = false
 
@@ -2498,6 +2501,10 @@ template("run_mksnapshot") {
       if (!v8_enable_builtins_profiling && v8_enable_builtins_reordering) {
         args += [ "--reorder-builtins" ]
       }
+    }
+
+    if (v8_enable_turboshaft_csa) {
+      args += [ "--turboshaft-csa" ]
     }
 
     # This is needed to distinguish between generating code for the simulator
