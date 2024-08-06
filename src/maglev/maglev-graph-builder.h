@@ -1817,9 +1817,7 @@ class MaglevGraphBuilder {
     // TODO(olivf): More precision could be achieved by tracking dominating
     // stores within known_node_aspects. For this we could use a stack of
     // stores, which we push on split and pop on merge.
-    if (IsConditionalControlNode(Node::opcode_of<ControlNodeT>)) {
-      unobserved_context_slot_stores_.clear();
-    }
+    unobserved_context_slot_stores_.clear();
 
     BasicBlock* block = current_block_;
     current_block_ = nullptr;
