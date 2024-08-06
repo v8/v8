@@ -282,6 +282,15 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       }
       return;
     }
+    case Opcode::kUint32Constant: {
+      uint32_t uint_value = value->Cast<Uint32Constant>()->value();
+      if (Smi::IsValid(uint_value)) {
+        Move(dst, Smi::FromInt(uint_value));
+      } else {
+        MoveHeapNumber(dst, uint_value);
+      }
+      return;
+    }
     case Opcode::kFloat64Constant: {
       double double_value =
           value->Cast<Float64Constant>()->value().get_scalar();
