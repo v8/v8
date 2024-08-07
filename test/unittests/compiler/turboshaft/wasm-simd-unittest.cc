@@ -10,13 +10,19 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-class WasmSimdTest : public ReducerTest {};
+class WasmSimdTest : public ReducerTest {
+  // Some of the optimizations only apply with the new instruction selection and
+  // are not supported by the Turbofan ISel / the RecreateSchedulePhase.
+  FlagScope<bool> force_new_isel_{
+      &v8_flags.turboshaft_wasm_instruction_selection_staged, true};
+};
 
 TEST_F(WasmSimdTest, UpperToLowerF32x4AddReduce) {
   auto test = CreateFromGraph(1, [](auto& Asm) {

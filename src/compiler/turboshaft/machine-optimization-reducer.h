@@ -2026,6 +2026,10 @@ class MachineOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
+    // Turbofan and the RecreateSchedulePhase don't support the optimized
+    // reduce operation.
+    if (!v8_flags.turboshaft_wasm_instruction_selection_staged) goto no_change;
+
     if (lane != 0) {
       goto no_change;
     }
