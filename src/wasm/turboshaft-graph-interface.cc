@@ -2736,10 +2736,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             // Do not use the deopt slowpath if we decided to not inline (at
             // least) one call target.
             // Otherwise, this could lead to a deopt loop.
-            // TODO(42204618): In case of only one known target it might make
-            // sense to still emit a `DeoptIfNot` and have a direct call for the
-            // non-inlined known call target. Evaluate the performance
-            // characteristics of this.
             use_deopt_slowpath = false;
             continue;
           }
@@ -3045,10 +3041,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           __ Goto(case_blocks[i + 1]);
           // Do not use the deopt slowpath if we decided to not inline (at
           // least) one call target. Otherwise, this could lead to a deopt loop.
-          // TODO(42204618): In case of only one known target it might make
-          // sense to still emit a `DeoptIfNot` and have a direct call for the
-          // non-inlined known call target. Evaluate the performance
-          // characteristics of this.
           use_deopt_slowpath = false;
           continue;
         }
