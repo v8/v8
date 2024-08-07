@@ -24,7 +24,16 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#if V8_ENABLE_WEBASSEMBLY
+#define SIMD_BINOP_LIST(V)          \
+  FOREACH_SIMD_128_BINARY_OPCODE(V) \
+  FOREACH_SIMD_128_SHIFT_OPCODE(V)
+#else
+#define SIMD_BINOP_LIST(V)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #define BINOP_LIST(V)           \
+  SIMD_BINOP_LIST(V)            \
   V(Word32BitwiseAnd)           \
   V(Word64BitwiseAnd)           \
   V(Word32BitwiseOr)            \
@@ -432,6 +441,13 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     DECL_SIMD128_REDUCE(F32x4)
     DECL_SIMD128_REDUCE(F64x2)
 #undef DECL_SIMD128_REDUCE
+
+#define DECL_SIMD128_SHIFT(Name)                                      \
+  V<Simd128> Name(V<Simd128> input, V<Word32> shift) {                \
+    return Simd128Shift(input, shift, Simd128ShiftOp::Kind::k##Name); \
+  }
+    FOREACH_SIMD_128_SHIFT_OPCODE(DECL_SIMD128_SHIFT)
+#undef DECL_SIMD128_SHIFT
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
