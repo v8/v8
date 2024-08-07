@@ -668,10 +668,10 @@ Handle<String> Isolate::StackTraceString() {
 }
 
 void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2, void* ptr3,
-                                   void* ptr4) {
+                                   void* ptr4, void* ptr5, void* ptr6) {
   StackTraceFailureMessage message(this,
                                    StackTraceFailureMessage::kIncludeStackTrace,
-                                   ptr1, ptr2, ptr3, ptr4);
+                                   ptr1, ptr2, ptr3, ptr4, ptr5, ptr6);
   message.Print();
   base::OS::Abort();
 }

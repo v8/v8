@@ -2446,6 +2446,77 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, result);
   }
 
+  {
+    // TODO(355575275): Extra validation code to try to find a bug. Remove after
+    // fixing.
+    for (int i = 0; i < old_script->infos()->length(); ++i) {
+      Tagged<MaybeObject> maybe_sfi = old_script->infos()->get(i);
+      if (maybe_sfi.IsWeak() &&
+          Is<SharedFunctionInfo>(maybe_sfi.GetHeapObjectAssumeWeak())) {
+        Tagged<SharedFunctionInfo> sfi =
+            Cast<SharedFunctionInfo>(maybe_sfi.GetHeapObjectAssumeWeak());
+
+        // Check that the SFI has the right script.
+        if (sfi->script() != *old_script) {
+          isolate->PushStackTraceAndDie(
+              reinterpret_cast<void*>(sfi.ptr()),
+              reinterpret_cast<void*>(old_script->ptr()),
+              reinterpret_cast<void*>(new_script->ptr()),
+              reinterpret_cast<void*>(old_script->infos()->ptr() +
+                                      WeakFixedArray::OffsetOfElementAt(i)),
+              reinterpret_cast<void*>(new_script->infos()->ptr() +
+                                      WeakFixedArray::OffsetOfElementAt(i)));
+        }
+
+        // Check that all SFIs in the bytecode array's constant pool are from
+        // the same script.
+        if (sfi->HasBytecodeArray()) {
+          Tagged<BytecodeArray> bytecode = sfi->GetBytecodeArray(isolate);
+          Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
+          for (int i = 0; i < constant_pool->length(); ++i) {
+            Tagged<Object> entry = constant_pool->get(i);
+            if (Is<SharedFunctionInfo>(entry)) {
+              Tagged<SharedFunctionInfo> inner_sfi =
+                  Cast<SharedFunctionInfo>(entry);
+              if (MakeWeak(inner_sfi) !=
+                  old_script->infos()->get(inner_sfi->function_literal_id())) {
+                isolate->PushStackTraceAndDie(
+                    reinterpret_cast<void*>(sfi.ptr()),
+                    reinterpret_cast<void*>(inner_sfi.ptr()),
+                    reinterpret_cast<void*>(constant_pool.ptr() +
+                                            FixedArray::OffsetOfElementAt(i)),
+                    reinterpret_cast<void*>(
+                        old_script->infos()
+                            ->get(inner_sfi->function_literal_id())
+                            .ptr()),
+                    reinterpret_cast<void*>(
+                        new_script->infos()
+                            ->get(inner_sfi->function_literal_id())
+                            .ptr()));
+              }
+
+              if (inner_sfi->script() != *old_script) {
+                isolate->PushStackTraceAndDie(
+                    reinterpret_cast<void*>(sfi.ptr()),
+                    reinterpret_cast<void*>(inner_sfi.ptr()),
+                    reinterpret_cast<void*>(old_script->ptr()),
+                    reinterpret_cast<void*>(new_script->ptr()),
+                    reinterpret_cast<void*>(
+                        old_script->infos()
+                            ->get(inner_sfi->function_literal_id())
+                            .ptr()),
+                    reinterpret_cast<void*>(
+                        new_script->infos()
+                            ->get(inner_sfi->function_literal_id())
+                            .ptr()));
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   if (v8_flags.verify_code_merge) {
     // Check that there aren't any duplicate scope infos. Every scope/context
     // should correspond to at most one scope info.
@@ -2457,6 +2528,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
           old_script->infos()->get(i).GetHeapObjectAssumeWeak();
       if (Is<SharedFunctionInfo>(info)) {
         Tagged<SharedFunctionInfo> old_sfi = Cast<SharedFunctionInfo>(info);
+        CHECK_EQ(old_sfi->script(), *old_script);
         if (!old_sfi->scope_info()->IsEmpty()) {
           scope_info = old_sfi->scope_info();
         } else if (old_sfi->HasOuterScopeInfo()) {
