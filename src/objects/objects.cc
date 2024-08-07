@@ -1926,8 +1926,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return UncheckedCast<TrustedByteArray>(*this)->AllocatedSize();
   }
   if (instance_type == FEEDBACK_METADATA_TYPE) {
-    return FeedbackMetadata::SizeFor(
-        UncheckedCast<FeedbackMetadata>(*this)->slot_count(kAcquireLoad));
+    return UncheckedCast<FeedbackMetadata>(*this)->AllocatedSize();
   }
   if (base::IsInRange(instance_type, FIRST_DESCRIPTOR_ARRAY_TYPE,
                       LAST_DESCRIPTOR_ARRAY_TYPE)) {

@@ -284,14 +284,10 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
 #ifdef V8_ENABLE_LEAPTIERING
-  // TODO(olivf): do we potentially need to allocate a dedicated dispatch entry
-  // here if this is the first JSFunction for the given feedback cell.
   TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
       feedback_cell, FeedbackCell::kDispatchHandleOffset);
-  // TODO(saelo): the dispatch handle should never be the null handle here, but
-  // currently it still is as not all FeedbackCells have one yet.
-  // CSA_DCHECK(this, Word32NotEqual(dispatch_handle,
-  // Int32Constant(kNullJSDispatchHandle)));
+  CSA_DCHECK(this, Word32NotEqual(dispatch_handle,
+                                  Int32Constant(kNullJSDispatchHandle)));
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kDispatchHandleOffset,
                                  dispatch_handle);
 #endif  // V8_ENABLE_LEAPTIERING

@@ -987,6 +987,10 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     isolate->debug()->DeoptimizeFunction(sfi);
     isolate->compilation_cache()->Remove(sfi);
     for (auto& js_function : data->js_functions) {
+#ifdef V8_ENABLE_LEAPTIERING
+      js_function->initialize_dispatch_handle(
+          isolate, new_sfi->internal_formal_parameter_count_with_receiver());
+#endif
       js_function->set_shared(*new_sfi);
       js_function->set_code(js_function->shared()->GetCode(isolate));
 

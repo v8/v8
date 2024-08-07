@@ -43,22 +43,34 @@ int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
   return ACQUIRE_READ_INT32_FIELD(*this, kSlotCountOffset);
 }
 
+int32_t FeedbackMetadata::create_closure_slot_count(AcquireLoadTag) const {
+  return ACQUIRE_READ_INT32_FIELD(*this, kCreateClosureSlotCountOffset);
+}
+
 int32_t FeedbackMetadata::get(int index) const {
-  CHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  CHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(word_count()));
   int offset = kHeaderSize + index * kInt32Size;
   return ReadField<int32_t>(offset);
 }
 
 void FeedbackMetadata::set(int index, int32_t value) {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(word_count()));
   int offset = kHeaderSize + index * kInt32Size;
   WriteField<int32_t>(offset, value);
 }
 
-bool FeedbackMetadata::is_empty() const { return slot_count() == 0; }
+bool FeedbackMetadata::is_empty() const {
+  DCHECK_IMPLIES(slot_count() == 0, create_closure_slot_count() == 0);
+  return slot_count() == 0;
+}
 
-int FeedbackMetadata::length() const {
-  return FeedbackMetadata::length(slot_count());
+int FeedbackMetadata::AllocatedSize() {
+  return SizeFor(slot_count(kAcquireLoad),
+                 create_closure_slot_count(kAcquireLoad));
+}
+
+int FeedbackMetadata::word_count() const {
+  return FeedbackMetadata::word_count(slot_count());
 }
 
 int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {

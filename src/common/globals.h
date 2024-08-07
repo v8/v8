@@ -589,6 +589,10 @@ constexpr int kCodePointerSize = kTrustedPointerSize;
 // pointers. Either way, they are always kTaggedSize fields.
 constexpr int kProtectedPointerSize = kTaggedSize;
 
+#ifdef V8_ENABLE_LEAPTIERING
+constexpr int kJSDispatchHandleSize = sizeof(JSDispatchHandle);
+#endif
+
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 
 constexpr int kEmbedderDataSlotSizeInTaggedSlots =

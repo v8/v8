@@ -958,6 +958,10 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   // generated code instead of loading it at runtime from the FeedbackCell.
   // This will likely first require GC support though.
   Node* feedback_cell_node = jsgraph()->ConstantNoHole(feedback_cell, broker());
+  // TODO(saelo): need to obtain a dispatch entry here in cases where the
+  // function is a builtin.
+  DCHECK(shared.HasBuiltinId() ||
+         feedback_cell.object()->dispatch_handle() != kNullJSDispatchHandle);
   Node* dispatch_handle = effect = graph()->NewNode(
       simplified()->LoadField(
           AccessBuilder::ForFeedbackCellDispatchHandleNoWriteBarrier()),

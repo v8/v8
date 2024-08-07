@@ -140,6 +140,13 @@ class JSFunction : public TorqueGeneratedJSFunction<
   template <typename IsolateT>
   inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 
+#ifdef V8_ENABLE_LEAPTIERING
+  inline void initialize_dispatch_handle(IsolateForSandbox isolate,
+                                         uint16_t parameter_count);
+  inline void clear_dispatch_handle();
+  inline JSDispatchHandle dispatch_handle();
+#endif  // V8_ENABLE_LEAPTIERING
+
   // The predicates for querying code kinds related to this function have
   // specific terminology:
   //

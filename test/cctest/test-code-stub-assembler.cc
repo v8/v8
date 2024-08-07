@@ -2182,19 +2182,19 @@ TEST(PopAndReturnConstant) {
   using Descriptor = JSTrampolineDescriptor;
   CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  const int kNumParams = 4 + kJSArgcReceiverSlots;
+  const int kFormalParams = 0;
+  const int kActualParams = 4 + kJSArgcReceiverSlots;
   {
     CodeStubAssembler m(asm_tester.state());
     TNode<Int32T> argc =
         m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
+    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kActualParams)));
 
-    int pop_count = kNumParams;
+    int pop_count = kActualParams;
     m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.function->shared()->DontAdaptArguments();
+  FunctionTester ft(asm_tester.GenerateCode(), kFormalParams);
 
   // Now call this function multiple time also checking that the stack pointer
   // didn't change after the calls.
@@ -2202,7 +2202,7 @@ TEST(PopAndReturnConstant) {
   Handle<Smi> expected_result(Smi::FromInt(1234), isolate);
   CallFunctionWithStackPointerChecks(isolate, expected_result, ft.function,
                                      receiver,
-                                     // Pass kNumParams arguments.
+                                     // Pass kActualParams arguments.
                                      Handle<Smi>(Smi::FromInt(1), isolate),
                                      Handle<Smi>(Smi::FromInt(2), isolate),
                                      Handle<Smi>(Smi::FromInt(3), isolate),
@@ -2216,19 +2216,19 @@ TEST(PopAndReturnVariable) {
   using Descriptor = JSTrampolineDescriptor;
   CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  const int kNumParams = 4 + kJSArgcReceiverSlots;
+  const int kFormalParams = 0;
+  const int kActualParams = 4 + kJSArgcReceiverSlots;
   {
     CodeStubAssembler m(asm_tester.state());
     TNode<Int32T> argc =
         m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
+    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kActualParams)));
 
-    int pop_count = kNumParams;
+    int pop_count = kActualParams;
     m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.function->shared()->DontAdaptArguments();
+  FunctionTester ft(asm_tester.GenerateCode(), kFormalParams);
 
   // Now call this function multiple time also checking that the stack pointer
   // didn't change after the calls.
@@ -2236,7 +2236,7 @@ TEST(PopAndReturnVariable) {
   Handle<Smi> expected_result(Smi::FromInt(1234), isolate);
   CallFunctionWithStackPointerChecks(isolate, expected_result, ft.function,
                                      receiver,
-                                     // Pass kNumParams arguments.
+                                     // Pass kActualParams arguments.
                                      Handle<Smi>(Smi::FromInt(1), isolate),
                                      Handle<Smi>(Smi::FromInt(2), isolate),
                                      Handle<Smi>(Smi::FromInt(3), isolate),
@@ -2396,7 +2396,6 @@ TEST(Arguments) {
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.function->shared()->DontAdaptArguments();
 
   Handle<Object> result;
   result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
@@ -2453,7 +2452,6 @@ TEST(ArgumentsForEach) {
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.function->shared()->DontAdaptArguments();
 
   Handle<Object> result;
   result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),

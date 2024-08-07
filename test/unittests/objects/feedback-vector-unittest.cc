@@ -81,7 +81,7 @@ TEST_F(FeedbackVectorTest, VectorStructure) {
   {
     FeedbackVectorSpec spec(&zone);
     spec.AddForInSlot();
-    spec.AddCreateClosureSlot();
+    spec.AddCreateClosureParameterCount(0);
     spec.AddForInSlot();
     vector = NewFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);

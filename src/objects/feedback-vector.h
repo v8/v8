@@ -448,14 +448,24 @@ class FeedbackVector
 
 class V8_EXPORT_PRIVATE FeedbackVectorSpec {
  public:
-  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
+  explicit FeedbackVectorSpec(Zone* zone)
+      : slot_kinds_(zone), create_closure_parameter_counts_(zone) {
     slot_kinds_.reserve(16);
   }
 
   int slot_count() const { return static_cast<int>(slot_kinds_.size()); }
-  int create_closure_slot_count() const { return create_closure_slot_count_; }
+  int create_closure_slot_count() const {
+    return static_cast<int>(create_closure_parameter_counts_.size());
+  }
 
-  int AddCreateClosureSlot() { return create_closure_slot_count_++; }
+  int AddCreateClosureParameterCount(uint16_t parameter_count) {
+    create_closure_parameter_counts_.push_back(parameter_count);
+    return create_closure_slot_count() - 1;
+  }
+
+  uint16_t GetCreateClosureParameterCount(int index) const {
+    return create_closure_parameter_counts_.at(index);
+  }
 
   FeedbackSlotKind GetKind(FeedbackSlot slot) const {
     return slot_kinds_.at(slot.ToInt());
@@ -566,7 +576,8 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
 
   static_assert(sizeof(FeedbackSlotKind) == sizeof(uint8_t));
   ZoneVector<FeedbackSlotKind> slot_kinds_;
-  int create_closure_slot_count_ = 0;
+  // A vector containing the parameter count for every create closure slot.
+  ZoneVector<uint16_t> create_closure_parameter_counts_;
 
   friend class SharedFeedbackSlot;
 };
@@ -594,6 +605,13 @@ class SharedFeedbackSlot {
 // of int32 data. The length is never stored - it is always calculated from
 // slot_count. All instances are created through the static New function, and
 // the number of slots is static once an instance is created.
+//
+// Besides the feedback slots, the FeedbackMetadata also stores the parameter
+// count for every CreateClosure slot as that is required for allocating the
+// FeedbackCells for the closres. This data doesn't necessarily need to live in
+// this object (it could, for example, also be stored on the Bytecode), but
+// keeping it here is somewhat efficient as the uint16s can just be stored
+// after the int32s of the slots.
 class FeedbackMetadata : public HeapObject {
  public:
   // The number of slots that this metadata contains. Stored as an int32.
@@ -608,6 +626,9 @@ class FeedbackMetadata : public HeapObject {
   // Get slot_count using an acquire load.
   inline int32_t slot_count(AcquireLoadTag) const;
 
+  // Get create_closure_slot_count using an acquire load.
+  inline int32_t create_closure_slot_count(AcquireLoadTag) const;
+
   // Returns number of feedback vector elements used by given slot kind.
   static inline int GetSlotSize(FeedbackSlotKind kind);
 
@@ -618,10 +639,14 @@ class FeedbackMetadata : public HeapObject {
   // Returns slot kind for given slot.
   V8_EXPORT_PRIVATE FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
+  // Returns the parameter count for the create closure slot with the given
+  // index.
+  V8_EXPORT_PRIVATE uint16_t GetCreateClosureParameterCount(int index) const;
+
   // If {spec} is null, then it is considered empty.
   template <typename IsolateT>
   V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
-      IsolateT* isolate, const FeedbackVectorSpec* spec = nullptr);
+      IsolateT* isolate, const FeedbackVectorSpec* spec);
 
   DECL_PRINTER(FeedbackMetadata)
   DECL_VERIFIER(FeedbackMetadata)
@@ -631,8 +656,12 @@ class FeedbackMetadata : public HeapObject {
   // Garbage collection support.
   // This includes any necessary padding at the end of the object for pointer
   // size alignment.
-  static int SizeFor(int slot_count) {
-    return OBJECT_POINTER_ALIGN(kHeaderSize + length(slot_count) * kInt32Size);
+  inline int AllocatedSize();
+
+  static int SizeFor(int slot_count, int create_closure_slot_count) {
+    return OBJECT_POINTER_ALIGN(kHeaderSize +
+                                word_count(slot_count) * kInt32Size +
+                                create_closure_slot_count * kUInt16Size);
   }
 
 #define FIELDS(V)                              \
@@ -654,15 +683,17 @@ class FeedbackMetadata : public HeapObject {
 
   // The number of int32 data fields needed to store {slot_count} slots.
   // Does not include any extra padding for pointer size alignment.
-  static int length(int slot_count) {
+  static int word_count(int slot_count) {
     return VectorICComputer::word_count(slot_count);
   }
-  inline int length() const;
+  inline int word_count() const;
 
   static const int kFeedbackSlotKindBits = 5;
   static_assert(kFeedbackSlotKindCount <= (1 << kFeedbackSlotKindBits));
 
   void SetKind(FeedbackSlot slot, FeedbackSlotKind kind);
+
+  void SetCreateClosureParameterCount(int index, uint16_t parameter_count);
 
   using VectorICComputer =
       base::BitSetComputer<FeedbackSlotKind, kFeedbackSlotKindBits,

@@ -119,6 +119,21 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+void JSFunction::initialize_dispatch_handle(IsolateForSandbox isolate,
+                                            uint16_t parameter_count) {
+  InitJSDispatchHandleField(kDispatchHandleOffset, isolate, parameter_count);
+}
+
+void JSFunction::clear_dispatch_handle() {
+  WriteField<JSDispatchHandle>(kDispatchHandleOffset, kNullJSDispatchHandle);
+}
+
+JSDispatchHandle JSFunction::dispatch_handle() {
+  return ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Tagged<Context>, kContextOffset)
 
 Address JSFunction::instruction_start(IsolateForSandbox isolate) const {

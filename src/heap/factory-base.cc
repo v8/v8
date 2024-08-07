@@ -694,7 +694,7 @@ template <typename Impl>
 Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
     int slot_count, int create_closure_slot_count, AllocationType allocation) {
   DCHECK_LE(0, slot_count);
-  int size = FeedbackMetadata::SizeFor(slot_count);
+  int size = FeedbackMetadata::SizeFor(slot_count, create_closure_slot_count);
   Tagged<FeedbackMetadata> result =
       Cast<FeedbackMetadata>(AllocateRawWithImmortalMap(
           size, allocation, read_only_roots().feedback_metadata_map()));

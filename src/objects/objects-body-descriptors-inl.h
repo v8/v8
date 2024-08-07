@@ -280,6 +280,15 @@ void BodyDescriptorBase::IterateProtectedPointer(Tagged<HeapObject> obj,
   v->VisitProtectedPointer(host, host->RawProtectedPointerField(offset));
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+template <typename ObjectVisitor>
+void BodyDescriptorBase::IterateJSDispatchEntry(Tagged<HeapObject> obj,
+                                                int offset, ObjectVisitor* v) {
+  JSDispatchHandle handle = obj->Relaxed_ReadField<JSDispatchHandle>(offset);
+  v->VisitJSDispatchTableEntry(obj, handle);
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 class HeapNumber::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
   static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -525,10 +534,6 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
     DCHECK_GE(object_size, header_size);
     IteratePointers(obj, kStartOffset, kCodeOffset, v);
 
-    // Iterate the code object pointer.
-    // When the sandbox is enabled, Code objects are referenced via indirect
-    // pointers through the code pointer table. Otherwise, the slot contains a
-    // regular tagged pointer.
     // The code field is treated as a custom weak pointer. This field
     // is visited as a weak pointer if the Code is baseline code
     // and the bytecode array corresponding to this function is old. In the rest
@@ -536,6 +541,11 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
     // See MarkingVisitorBase::VisitJSFunction.
     IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kCustom);
     DCHECK_GE(header_size, kCodeOffset);
+
+#ifdef V8_ENABLE_LEAPTIERING
+    IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
+#endif
+
     // Iterate rest of the header fields
     IteratePointers(obj, kCodeOffset + kTaggedSize, header_size, v);
     // Iterate rest of the fields starting after the header.
@@ -796,8 +806,7 @@ class FixedDoubleArray::BodyDescriptor final : public DataOnlyBodyDescriptor {
 class FeedbackMetadata::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return FeedbackMetadata::SizeFor(
-        UncheckedCast<FeedbackMetadata>(obj)->slot_count(kAcquireLoad));
+    return UncheckedCast<FeedbackMetadata>(obj)->AllocatedSize();
   }
 };
 
@@ -1901,8 +1910,7 @@ class FeedbackCell::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointer(obj, kValueOffset, v);
 
 #ifdef V8_ENABLE_LEAPTIERING
-    v->VisitJSDispatchTableEntry(
-        obj, obj->ReadField<JSDispatchHandle>(kDispatchHandleOffset));
+    IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
 #endif
   }
 

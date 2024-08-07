@@ -64,21 +64,32 @@ void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
   set(index, new_data);
 }
 
+uint16_t FeedbackMetadata::GetCreateClosureParameterCount(int index) const {
+  DCHECK_LT(index, create_closure_slot_count());
+  int offset = kHeaderSize + word_count() * kInt32Size + index * kUInt16Size;
+  return ReadField<uint16_t>(offset);
+}
+
+void FeedbackMetadata::SetCreateClosureParameterCount(
+    int index, uint16_t parameter_count) {
+  DCHECK_LT(index, create_closure_slot_count());
+  int offset = kHeaderSize + word_count() * kInt32Size + index * kUInt16Size;
+  return WriteField<uint16_t>(offset, parameter_count);
+}
+
 // static
 template <typename IsolateT>
 Handle<FeedbackMetadata> FeedbackMetadata::New(IsolateT* isolate,
                                                const FeedbackVectorSpec* spec) {
   auto* factory = isolate->factory();
 
-  const int slot_count = spec == nullptr ? 0 : spec->slot_count();
-  const int create_closure_slot_count =
-      spec == nullptr ? 0 : spec->create_closure_slot_count();
+  const int slot_count = spec->slot_count();
+  const int create_closure_slot_count = spec->create_closure_slot_count();
   if (slot_count == 0 && create_closure_slot_count == 0) {
     return factory->empty_feedback_metadata();
   }
 #ifdef DEBUG
   for (int i = 0; i < slot_count;) {
-    DCHECK(spec);
     FeedbackSlotKind kind = spec->GetKind(FeedbackSlot(i));
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
     for (int j = 1; j < entry_size; j++) {
@@ -95,10 +106,14 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(IsolateT* isolate,
   // Initialize the slots. The raw data section has already been pre-zeroed in
   // NewFeedbackMetadata.
   for (int i = 0; i < slot_count; i++) {
-    DCHECK(spec);
     FeedbackSlot slot(i);
     FeedbackSlotKind kind = spec->GetKind(slot);
     metadata->SetKind(slot, kind);
+  }
+
+  for (int i = 0; i < create_closure_slot_count; i++) {
+    uint16_t parameter_count = spec->GetCreateClosureParameterCount(i);
+    metadata->SetCreateClosureParameterCount(i, parameter_count);
   }
 
   return metadata;
@@ -209,7 +224,13 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
   DirectHandleVector<FeedbackCell> cells(isolate);
   cells.reserve(length);
   for (int i = 0; i < length; i++) {
-    cells.push_back(isolate->factory()->NewNoClosuresCell());
+    Handle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
+#ifdef V8_ENABLE_LEAPTIERING
+    uint16_t parameter_count =
+        shared->feedback_metadata()->GetCreateClosureParameterCount(i);
+    cell->initialize_dispatch_handle(isolate, parameter_count);
+#endif
+    cells.push_back(cell);
   }
 
   std::optional<DisallowGarbageCollection> no_gc;

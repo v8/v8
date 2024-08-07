@@ -2443,6 +2443,18 @@ void TranslatedState::InitializeJSObjectAt(
           .Relaxed_Store(value);
       INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
                                      kCodeIndirectPointerTag, value);
+#ifdef V8_ENABLE_LEAPTIERING
+    } else if (InstanceTypeChecker::IsJSFunction(map->instance_type()) &&
+               offset == JSFunction::kDispatchHandleOffset) {
+      // The JSDispatchHandle will be materialized as a number, but we need
+      // the raw value here. TODO(saelo): can we implement "proper" support
+      // for JSDispatchHandles in the deoptimizer?
+      DirectHandle<Object> field_value = slot->GetValue();
+      CHECK(IsNumber(*field_value));
+      JSDispatchHandle handle = Object::NumberValue(Cast<Number>(*field_value));
+      object_storage->WriteField<JSDispatchHandle>(
+          JSFunction::kDispatchHandleOffset, handle);
+#endif  // V8_ENABLE_LEAPTIERING
     } else if (InstanceTypeChecker::IsJSRegExp(map->instance_type()) &&
                offset == JSRegExp::kDataOffset) {
       DirectHandle<HeapObject> field_value = slot->storage();

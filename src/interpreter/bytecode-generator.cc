@@ -3438,7 +3438,10 @@ void BytecodeGenerator::BuildInstanceMemberInitialization(Register constructor,
 void BytecodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
-  int index = feedback_spec()->AddCreateClosureSlot();
+  // Native functions don't use argument adaption and so have the special
+  // kDontAdaptArgumentsSentinel as their parameter count.
+  int index = feedback_spec()->AddCreateClosureParameterCount(
+      kDontAdaptArgumentsSentinel);
   uint8_t flags = CreateClosureFlags::Encode(false, false, false);
   builder()->CreateClosure(entry, index, flags);
   native_function_literals_.push_back(std::make_pair(expr, entry));
@@ -8295,7 +8298,8 @@ int BytecodeGenerator::GetCachedCreateClosureSlot(FunctionLiteral* literal) {
   if (index != -1) {
     return index;
   }
-  index = feedback_spec()->AddCreateClosureSlot();
+  index = feedback_spec()->AddCreateClosureParameterCount(
+      JSParameterCount(literal->parameter_count()));
   feedback_slot_cache()->Put(slot_kind, literal, index);
   return index;
 }

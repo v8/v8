@@ -826,39 +826,46 @@ TEST_F(CompilerTest, DeepEagerCompilationPeakMemory) {
 
   v8::HeapStatistics heap_statistics;
   isolate()->GetHeapStatistics(&heap_statistics);
-  size_t peak_mem_1 = heap_statistics.peak_malloced_memory();
-  printf("peak memory after init:          %8zu\n", peak_mem_1);
+  size_t peak_mem_after_init = heap_statistics.peak_malloced_memory();
+  printf("peak memory after init:          %8zu\n", peak_mem_after_init);
 
-  v8::ScriptCompiler::Compile(context(), &script_source,
-                              v8::ScriptCompiler::kNoCompileOptions)
-      .ToLocalChecked();
+  // Peak memory during lazy compilation should converge to the same value
+  // (usually after 1-2 iterations).
+  std::vector<size_t> peak_mem_after_lazy_compile;
+  const int kNumLazyCompiles = 5;
+  for (int i = 0; i < kNumLazyCompiles; i++) {
+    v8::ScriptCompiler::Compile(context(), &script_source,
+                                v8::ScriptCompiler::kNoCompileOptions)
+        .ToLocalChecked();
 
-  isolate()->GetHeapStatistics(&heap_statistics);
-  size_t peak_mem_2 = heap_statistics.peak_malloced_memory();
-  printf("peak memory after lazy compile:  %8zu\n", peak_mem_2);
-
-  v8::ScriptCompiler::Compile(context(), &script_source,
-                              v8::ScriptCompiler::kNoCompileOptions)
-      .ToLocalChecked();
-
-  isolate()->GetHeapStatistics(&heap_statistics);
-  size_t peak_mem_3 = heap_statistics.peak_malloced_memory();
-  printf("peak memory after lazy compile:  %8zu\n", peak_mem_3);
+    isolate()->GetHeapStatistics(&heap_statistics);
+    size_t peak_mem = heap_statistics.peak_malloced_memory();
+    printf("peak memory after lazy compile:  %8zu\n", peak_mem);
+    peak_mem_after_lazy_compile.push_back(peak_mem);
+  }
+  size_t peak_mem_after_first_lazy_compile = peak_mem_after_lazy_compile[0];
+  size_t peak_mem_after_second_to_last_lazy_compile =
+      peak_mem_after_lazy_compile[kNumLazyCompiles - 2];
+  size_t peak_mem_after_last_lazy_compile =
+      peak_mem_after_lazy_compile[kNumLazyCompiles - 1];
 
   v8::ScriptCompiler::Compile(context(), &script_source,
                               v8::ScriptCompiler::kEagerCompile)
       .ToLocalChecked();
 
   isolate()->GetHeapStatistics(&heap_statistics);
-  size_t peak_mem_4 = heap_statistics.peak_malloced_memory();
-  printf("peak memory after eager compile: %8zu\n", peak_mem_4);
+  size_t peak_mem_after_eager_compile = heap_statistics.peak_malloced_memory();
+  printf("peak memory after eager compile: %8zu\n",
+         peak_mem_after_eager_compile);
 
-  EXPECT_LE(peak_mem_1, peak_mem_2);
-  EXPECT_EQ(peak_mem_2, peak_mem_3);
-  EXPECT_LE(peak_mem_3, peak_mem_4);
+  EXPECT_LE(peak_mem_after_init, peak_mem_after_first_lazy_compile);
+  EXPECT_EQ(peak_mem_after_second_to_last_lazy_compile,
+            peak_mem_after_last_lazy_compile);
+  EXPECT_LE(peak_mem_after_last_lazy_compile, peak_mem_after_eager_compile);
   // Check that eager compilation does not cause significantly higher (+100%)
   // peak memory than lazy compilation.
-  EXPECT_LE(peak_mem_4 - peak_mem_3, peak_mem_3);
+  EXPECT_LE(peak_mem_after_eager_compile - peak_mem_after_last_lazy_compile,
+            peak_mem_after_last_lazy_compile);
 }
 
 namespace {
