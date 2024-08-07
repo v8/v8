@@ -620,8 +620,8 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(receiver_input());
   Register result_register = ToRegister(result());
   if (v8_flags.debug_code) {
-    __ CompareObjectTypeAndAssert(object, JS_TYPED_ARRAY_TYPE, eq,
-                                  AbortReason::kUnexpectedValue);
+    __ AssertObjectType(object, JS_TYPED_ARRAY_TYPE,
+                        AbortReason::kUnexpectedValue);
   }
 
   __ LoadBoundedSizeFromObject(result_register, object,
@@ -648,8 +648,8 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(receiver_input());
   Register index = ToRegister(index_input());
   if (v8_flags.debug_code) {
-    __ CompareObjectTypeAndAssert(object, JS_DATA_VIEW_TYPE, eq,
-                                  AbortReason::kUnexpectedValue);
+    __ AssertObjectType(object, JS_DATA_VIEW_TYPE,
+                        AbortReason::kUnexpectedValue);
   }
 
   // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
