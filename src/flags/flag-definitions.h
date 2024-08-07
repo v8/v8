@@ -1384,9 +1384,15 @@ DEFINE_BOOL(turboshaft, true, "enable TurboFan's Turboshaft phases for JS")
 // Can't use Turbofan without Turboshaft.
 DEFINE_NEG_NEG_IMPLICATION(turboshaft, turbofan)
 
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+DEFINE_BOOL(turboshaft_enable_debug_features, DEBUG_BOOL,
+            "enables Turboshaft's DebugPrint, StaticAssert and "
+            "CheckTurboshaftTypeOf operations")
+#else
 DEFINE_BOOL(turboshaft_enable_debug_features, false,
             "enables Turboshaft's DebugPrint, StaticAssert and "
             "CheckTurboshaftTypeOf operations")
+#endif
 DEFINE_BOOL(turboshaft_wasm, false,
             "enable TurboFan's Turboshaft phases for wasm")
 DEFINE_WEAK_IMPLICATION(future, turboshaft_wasm)

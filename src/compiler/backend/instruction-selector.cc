@@ -5326,6 +5326,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       return;
     case Opcode::kDebugBreak:
       return VisitDebugBreak(node);
+    case Opcode::kAbortCSADcheck:
+      return VisitAbortCSADcheck(node);
     case Opcode::kSelect: {
       const SelectOp& select = op.Cast<SelectOp>();
       // If there is a Select, then it should only be one that is supported by

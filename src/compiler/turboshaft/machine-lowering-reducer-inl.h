@@ -649,8 +649,7 @@ class MachineLoweringReducer : public Next {
         __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())), done,
         0);
 
-    V<Float64> value = __ template LoadField<Float64>(
-        input, AccessBuilder::ForHeapNumberValue());
+    V<Float64> value = __ LoadHeapNumberValue(V<HeapNumber>::Cast(input));
     GOTO(done, __ Float64Is(value, kind));
 
     BIND(done, result);
@@ -1029,8 +1028,7 @@ class MachineLoweringReducer : public Next {
               __ ConvertPlainPrimitiveToNumber(V<PlainPrimitive>::Cast(object));
           GOTO_IF(__ ObjectIsSmi(number), done,
                   __ UntagSmi(V<Smi>::Cast(number)));
-          V<Float64> f64 = __ template LoadField<Float64>(
-              V<HeapNumber>::Cast(number), AccessBuilder::ForHeapNumberValue());
+          V<Float64> f64 = __ LoadHeapNumberValue(V<HeapNumber>::Cast(number));
           GOTO(done, __ JSTruncateFloat64ToWord32(f64));
           BIND(done, result);
           return result;
@@ -1105,8 +1103,7 @@ class MachineLoweringReducer : public Next {
               __ ConvertPlainPrimitiveToNumber(V<PlainPrimitive>::Cast(object));
           GOTO_IF(__ ObjectIsSmi(number), done,
                   __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(number))));
-          V<Float64> f64 = __ template LoadField<Float64>(
-              V<HeapNumber>::Cast(number), AccessBuilder::ForHeapNumberValue());
+          V<Float64> f64 = __ LoadHeapNumberValue(V<HeapNumber>::Cast(number));
           GOTO(done, f64);
           BIND(done, result);
           return result;
@@ -1142,8 +1139,8 @@ class MachineLoweringReducer : public Next {
                 __ TaggedEqual(map,
                                __ HeapConstant(factory_->heap_number_map())),
                 frame_state, DeoptimizeReason::kNotAHeapNumber, feedback);
-            V<Float64> heap_number_value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberValue());
+            V<Float64> heap_number_value =
+                __ LoadHeapNumberValue(V<HeapNumber>::Cast(object));
 
             GOTO(done,
                  __ ChangeFloat64ToInt32OrDeopt(heap_number_value, frame_state,
@@ -1167,8 +1164,8 @@ class MachineLoweringReducer : public Next {
           __ DeoptimizeIfNot(
               __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
               frame_state, DeoptimizeReason::kNotAHeapNumber, feedback);
-          V<Float64> heap_number_value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberValue());
+          V<Float64> heap_number_value =
+              __ LoadHeapNumberValue(V<HeapNumber>::Cast(object));
           GOTO(done,
                __ ChangeFloat64ToInt64OrDeopt(heap_number_value, frame_state,
                                               minus_zero_mode, feedback));
@@ -1205,8 +1202,8 @@ class MachineLoweringReducer : public Next {
           V<Map> map = __ LoadMapField(object);
           IF (LIKELY(__ TaggedEqual(
                   map, __ HeapConstant(factory_->heap_number_map())))) {
-            V<Float64> heap_number_value = __ template LoadField<Float64>(
-                object, AccessBuilder::ForHeapNumberValue());
+            V<Float64> heap_number_value =
+                __ LoadHeapNumberValue(V<HeapNumber>::Cast(object));
             // Perform Turbofan's "CheckedFloat64ToIndex"
             {
               if constexpr (Is64()) {
@@ -1411,8 +1408,8 @@ class MachineLoweringReducer : public Next {
                 map, __ HeapConstant(factory_->heap_number_map())))) {
           // For HeapNumber {object}, just check that its value is not 0.0, -0.0
           // or NaN.
-          V<Float64> number_value = __ template LoadField<Float64>(
-              object, AccessBuilder::ForHeapNumberValue());
+          V<Float64> number_value =
+              __ LoadHeapNumberValue(V<HeapNumber>::Cast(object));
           GOTO(done, __ Float64LessThan(0.0, __ Float64Abs(number_value)));
         }
 
@@ -1736,8 +1733,7 @@ class MachineLoweringReducer : public Next {
             __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
             done, field);
 
-        V<Float64> value = __ template LoadField<Float64>(
-            field, AccessBuilder::ForHeapNumberValue());
+        V<Float64> value = __ LoadHeapNumberValue(V<HeapNumber>::Cast(field));
         GOTO(done, AllocateHeapNumberWithValue(value));
       }
     }
@@ -2533,9 +2529,8 @@ class MachineLoweringReducer : public Next {
                 elements, AccessBuilder::ForFixedDoubleArrayElement(), index,
                 float_value);
           } ELSE {
-            V<Float64> float_value = __ template LoadField<Float64>(
-                V<HeapObject>::Cast(value),
-                AccessBuilder::ForHeapNumberValue());
+            V<Float64> float_value =
+                __ LoadHeapNumberValue(V<HeapNumber>::Cast(value));
             __ StoreNonArrayBufferElement(
                 elements, AccessBuilder::ForFixedDoubleArrayElement(), index,
                 __ Float64SilenceNaN(float_value));
@@ -3184,10 +3179,9 @@ class MachineLoweringReducer : public Next {
           } ELSE IF (__ TaggedEqual(
                         __ LoadMapField(candidate_key),
                         __ HeapConstant(factory_->heap_number_map()))) {
-            GOTO_IF(__ Float64Equal(
-                        __ template LoadField<Float64>(
-                            candidate_key, AccessBuilder::ForHeapNumberValue()),
-                        __ ChangeInt32ToFloat64(key)),
+            GOTO_IF(__ Float64Equal(__ LoadHeapNumberValue(
+                                        V<HeapNumber>::Cast(candidate_key)),
+                                    __ ChangeInt32ToFloat64(key)),
                     done, candidate);
           }
 
@@ -3353,7 +3347,6 @@ class MachineLoweringReducer : public Next {
                   WriteBarrierKind::kNoWriteBarrier,
                   SeqTwoByteString::SizeFor(length) - kObjectAlignment);
     // Initialize remaining fields.
-    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kSeqTwoByteStringMap));
     __ InitializeField(string, AccessBuilderTS::ForMap(),
                        __ SeqTwoByteStringMapConstant());
     __ InitializeField(string, AccessBuilderTS::ForStringLength(), length);

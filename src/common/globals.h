@@ -1125,6 +1125,10 @@ using JSPrimitive =
 // or a FixedArray.
 using JSAny = Union<Smi, HeapNumber, BigInt, String, Symbol, Boolean, Null,
                     Undefined, JSReceiver>;
+using JSAnyNotNumeric =
+    Union<String, Symbol, Boolean, Null, Undefined, JSReceiver>;
+using JSAnyNotNumber =
+    Union<BigInt, String, Symbol, Boolean, Null, Undefined, JSReceiver>;
 using JSCallable =
     Union<JSBoundFunction, JSFunction, JSObject, JSProxy, JSWrappedFunction>;
 using MaybeObject = MaybeWeak<Object>;

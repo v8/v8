@@ -66,13 +66,14 @@ class CodeAssemblerState;
                     Isolate* isolate, compiler::turboshaft::Graph& graph, \
                     Zone* phase_zone)                                     \
         : BaseAssembler(data, graph, phase_zone) {}                       \
-    BaseAssembler& Asm() { return *this; }                                \
     void Generate##Name##Impl();                                          \
+    using BaseAssembler::Asm;                                             \
   };                                                                      \
   void Builtins::Generate_##Name(                                         \
       compiler::turboshaft::PipelineData* data, Isolate* isolate,         \
       compiler::turboshaft::Graph& graph, Zone* phase_zone) {             \
     Name##Assembler assembler(data, isolate, graph, phase_zone);          \
+    /* TODO(nicohartmann): DebugInformation and StackCheck */             \
     assembler.Asm().Bind(assembler.Asm().NewBlock());                     \
     assembler.Generate##Name##Impl();                                     \
     /* Builtin definition must generate something! */                     \

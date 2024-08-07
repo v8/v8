@@ -75,6 +75,13 @@ struct RuntimeCallDescriptor {
 #endif  // DEBUG
   };
 
+  // TODO(nicohartmann@): Unfortunately, we cannot define builtins with
+  // void/never return types properly (e.g. in Torque), but they typically have
+  // a JSAny dummy return type. Use Void/Never sentinels to express that in
+  // Turboshaft's descriptors. We should find a better way to model this.
+  using Void = V<Any>;
+  using Never = V<Any>;
+
  public:
   struct Abort : public Descriptor<Abort> {
     static constexpr auto kFunction = Runtime::kAbort;
@@ -90,6 +97,16 @@ struct RuntimeCallDescriptor {
     static constexpr auto kFunction = Runtime::kDateCurrentTime;
     using arguments_t = std::tuple<>;
     using result_t = V<Number>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct DebugPrint : public Descriptor<DebugPrint> {
+    static constexpr auto kFunction = Runtime::kDebugPrint;
+    using arguments_t = std::tuple<V<Object>>;
+    using result_t = Void;  // No actual result
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr Operator::Properties kProperties =
@@ -192,7 +209,7 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<V<Object>>;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = V<Object>;
+    using result_t = Never;
 
     static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
@@ -205,7 +222,7 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<>;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = V<Object>;
+    using result_t = Never;
 
     static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
@@ -217,7 +234,7 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<V<Object>, V<Object>>;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = V<Object>;
+    using result_t = Never;
 
     static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
@@ -229,7 +246,7 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<>;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = V<Object>;
+    using result_t = Never;
 
     static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
@@ -240,7 +257,7 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<>;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = V<Object>;
+    using result_t = Never;
 
     static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
@@ -251,7 +268,7 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<V<Object>>;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = V<Object>;
+    using result_t = Never;
 
     static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
@@ -263,7 +280,7 @@ struct RuntimeCallDescriptor {
     using arguments_t = std::tuple<>;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = V<Object>;
+    using result_t = Never;
 
     static constexpr bool kNeedsFrameState = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;

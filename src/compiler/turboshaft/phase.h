@@ -127,6 +127,13 @@ struct ComponentWithZone {
   ZoneWithName<ZoneName> zone;
 };
 
+struct BuiltinComponent {
+  const CallDescriptor* call_descriptor;
+
+  BuiltinComponent(const CallDescriptor* call_descriptor)
+      : call_descriptor(call_descriptor) {}
+};
+
 struct GraphComponent : public ComponentWithZone<kGraphZoneName> {
   using ComponentWithZone::ComponentWithZone;
 
@@ -174,6 +181,7 @@ class LoopUnrollingAnalyzer;
 class WasmRevecAnalyzer;
 
 class V8_EXPORT_PRIVATE PipelineData {
+  using BuiltinComponent = detail::BuiltinComponent;
   using GraphComponent = detail::GraphComponent;
   using CodegenComponent = detail::CodegenComponent;
   using InstructionComponent = detail::InstructionComponent;
@@ -186,6 +194,7 @@ class V8_EXPORT_PRIVATE PipelineData {
                         const AssemblerOptions& assembler_options,
                         int start_source_position = kNoSourcePosition)
       : zone_stats_(zone_stats),
+        compilation_zone_(zone_stats, kCompilationZoneName),
         pipeline_kind_(pipeline_kind),
         isolate_(isolate),
         info_(info),
@@ -208,6 +217,11 @@ class V8_EXPORT_PRIVATE PipelineData {
     DCHECK_NOT_NULL(dependencies);
     broker_ = std::move(broker);
     dependencies_ = dependencies;
+  }
+
+  void InitializeBuiltinComponent(const CallDescriptor* call_descriptor) {
+    DCHECK(!builtin_component_.has_value());
+    builtin_component_.emplace(call_descriptor);
   }
 
   void InitializeGraphComponent(SourcePositionTable* source_positions) {
@@ -318,6 +332,10 @@ class V8_EXPORT_PRIVATE PipelineData {
     if (!codegen_component_.has_value()) return nullptr;
     return codegen_component_->jump_optimization_info;
   }
+  const CallDescriptor* builtin_call_descriptor() const {
+    DCHECK(builtin_component_.has_value());
+    return builtin_component_->call_descriptor;
+  }
 
   bool has_graph() const {
     DCHECK_IMPLIES(graph_component_.has_value(),
@@ -363,10 +381,12 @@ class V8_EXPORT_PRIVATE PipelineData {
     runtime_call_stats_ = stats;
   }
 
-  // The {shared_zone_} outlives the entire compilation pipeline. It is shared
-  // between all phases (including code gen where the graph zone is gone
+  // The {compilation_zone} outlives the entire compilation pipeline. It is
+  // shared between all phases (including code gen where the graph zone is gone
   // already).
-  Zone* shared_zone() const { return info_->zone(); }
+  ZoneWithName<kCompilationZoneName>& compilation_zone() {
+    return compilation_zone_;
+  }
 
   TurbofanPipelineStatistics* pipeline_statistics() const {
     return pipeline_statistics_;
@@ -446,6 +466,10 @@ class V8_EXPORT_PRIVATE PipelineData {
 
  private:
   ZoneStats* zone_stats_;
+  // The {compilation_zone_} outlives the entire compilation pipeline. It is
+  // shared between all phases (including code gen where the graph zone is gone
+  // already).
+  ZoneWithName<kCompilationZoneName> compilation_zone_;
   TurboshaftPipelineKind pipeline_kind_;
   Isolate* const isolate_ = nullptr;
   OptimizedCompilationInfo* info_ = nullptr;
@@ -460,6 +484,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   std::string source_position_output_;
   RuntimeCallStats* runtime_call_stats_ = nullptr;
   // Components
+  std::optional<BuiltinComponent> builtin_component_;
   std::optional<GraphComponent> graph_component_;
   std::optional<CodegenComponent> codegen_component_;
   std::optional<InstructionComponent> instruction_component_;

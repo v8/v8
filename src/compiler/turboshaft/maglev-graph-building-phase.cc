@@ -2718,7 +2718,7 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
         Map(node->object_input()), node->offset());
-    SetMap(node, __ LoadField(field, AccessBuilder::ForHeapNumberValue()));
+    SetMap(node, __ LoadHeapNumberValue(field));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadFixedArrayElement* node,
@@ -4108,7 +4108,7 @@ class GraphBuilder {
           frame_state, DeoptimizeReason::kNotAHeapNumber,
           node->eager_deopt_info()->feedback_to_update());
       result = Float64ToUint8Clamped(
-          __ LoadField<Float64>(value, AccessBuilder::ForHeapNumberValue()));
+          __ LoadHeapNumberValue(V<HeapNumber>::Cast(value)));
     }
     RETURN_IF_UNREACHABLE();
     SetMap(node, result);

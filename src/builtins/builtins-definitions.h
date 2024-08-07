@@ -61,7 +61,7 @@ namespace internal {
   /* Adaptor for CPP builtins. */                             \
   TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor)
 
-#define BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TSC, TFC, TFS, TFH, ASM)            \
+#define BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)       \
   /* GC write barriers */                                                     \
   TFC(IndirectPointerBarrierSaveFP, IndirectPointerWriteBarrier)              \
   TFC(IndirectPointerBarrierIgnoreFP, IndirectPointerWriteBarrier)            \
@@ -983,7 +983,7 @@ namespace internal {
   /* ES #sec-string.fromcodepoint */                                           \
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
-  TFJ(StringFromCharCode, kDontAdaptArgumentsSentinel)                         \
+  IF_TSA(TSJ, TFJ)(StringFromCharCode, kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf)                                              \
   /* ES #sec-string.prototype.matchAll */                                      \
@@ -1888,9 +1888,9 @@ namespace internal {
   TFJ(StringFixedArrayFromIterable, kJSArgcReceiverSlots, kIterable)           \
   TFJ(TemporalInstantFixedArrayFromIterable, kJSArgcReceiverSlots, kIterable)
 
-#define BUILTIN_LIST_BASE(CPP, TFJ, TSC, TFC, TFS, TFH, ASM) \
-  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)      \
-  BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TSC, TFC, TFS, TFH, ASM)
+#define BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM) \
+  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)           \
+  BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \
@@ -2127,10 +2127,10 @@ namespace internal {
   CPP(StringPrototypeToUpperCase)
 #endif  // V8_INTL_SUPPORT
 
-#define BUILTIN_LIST(CPP, TFJ, TSC, TFC, TFS, TFH, BCH, ASM) \
-  BUILTIN_LIST_BASE(CPP, TFJ, TSC, TFC, TFS, TFH, ASM)       \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)     \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                           \
+#define BUILTIN_LIST(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, BCH, ASM) \
+  BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)       \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)          \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // See the comment on top of BUILTIN_LIST_BASE_TIER0 for an explanation of
@@ -2138,10 +2138,10 @@ namespace internal {
 #define BUILTIN_LIST_TIER0(CPP, TFJ, TFC, TFS, TFH, BCH, ASM) \
   BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)
 
-#define BUILTIN_LIST_TIER1(CPP, TFJ, TFC, TFS, TFH, BCH, ASM) \
-  BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TFC, TFS, TFH, ASM)       \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)      \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                            \
+#define BUILTIN_LIST_TIER1(CPP, TSJ, TFJ, TFC, TFS, TFH, BCH, ASM) \
+  BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TFC, TFS, TFH, ASM)       \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)           \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                 \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // The exception thrown in the following builtins are caught
@@ -2164,37 +2164,50 @@ namespace internal {
 
 #define IGNORE_BUILTIN(...)
 
-#define BUILTIN_LIST_C(V)                                         \
-  BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#define BUILTIN_LIST_C(V)                                                      \
+  BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN)
 
-#define BUILTIN_LIST_TFJ(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#define BUILTIN_LIST_TSJ(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN)
 
-#define BUILTIN_LIST_TSC(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#define BUILTIN_LIST_TFJ(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN)
 
-#define BUILTIN_LIST_TFC(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#define BUILTIN_LIST_TSC(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V,              \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TFC(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFS(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFH(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_BCH(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V,              \
+               IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_A(V)                                                      \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               V)
 
 }  // namespace internal
 }  // namespace v8

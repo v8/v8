@@ -33,6 +33,7 @@
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/types.h"
 #include "src/compiler/turboshaft/utils.h"
+#include "src/compiler/turboshaft/zone-with-name.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/flags/flags.h"
 
@@ -54,6 +55,9 @@ class Node;
 enum class TrapId : int32_t;
 }  // namespace v8::internal::compiler
 namespace v8::internal::compiler::turboshaft {
+
+inline constexpr char kCompilationZoneName[] = "compilation-zone";
+
 class Block;
 struct FrameStateData;
 class Graph;
@@ -314,7 +318,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(AtomicWord32Pair)                        \
   V(MemoryBarrier)                           \
   V(Comment)                                 \
-  V(Dead)
+  V(Dead)                                    \
+  V(AbortCSADcheck)
 
 // These are operations used in the frontend and are mostly tied to JS
 // semantics.
@@ -1380,6 +1385,25 @@ struct DeadOp : FixedArityOperationT<0, DeadOp> {
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return {};
   }
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{}; }
+};
+
+struct AbortCSADcheckOp : FixedArityOperationT<1, AbortCSADcheckOp> {
+  static constexpr OpEffects effects =
+      OpEffects().RequiredWhenUnused().CanLeaveCurrentFunction();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<String> message() { return Base::input<String>(0); }
+
+  explicit AbortCSADcheckOp(V<String> message) : Base(message) {}
 
   void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }

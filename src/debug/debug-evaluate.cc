@@ -1035,6 +1035,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kRegExpPrototypeSearch:
       return DebugInfo::kRequiresRuntimeChecks;
 
+    // Debugging builtins.
+    case Builtin::kDebugPrintFloat64:
+    case Builtin::kDebugPrintWordPtr:
+      return DebugInfo::kHasNoSideEffect;
+
     default:
       if (v8_flags.trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] built-in %s may cause side effect.\n",

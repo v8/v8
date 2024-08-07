@@ -3565,6 +3565,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/stack-check-lowering-reducer.h",
     "src/compiler/turboshaft/store-store-elimination-phase.h",
     "src/compiler/turboshaft/store-store-elimination-reducer-inl.h",
+    "src/compiler/turboshaft/string-view.h",
     "src/compiler/turboshaft/structural-optimization-reducer.h",
     "src/compiler/turboshaft/tracing.h",
     "src/compiler/turboshaft/type-assertions-phase.h",

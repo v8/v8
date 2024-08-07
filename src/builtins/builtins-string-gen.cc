@@ -937,7 +937,8 @@ TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
 
 #ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
-// NOTE: This needs to be kept in sync with the Turboshaft implementation.
+// NOTE: This needs to be kept in sync with the Turboshaft implementation in
+// `builtins-string-tsa.cc`.
 TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
   auto receiver = Parameter<String>(Descriptor::kReceiver);
   auto position = UncheckedParameter<IntPtrT>(Descriptor::kPosition);
@@ -952,12 +953,12 @@ TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
   Return(result);
 }
 
-#endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
-
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 String Objects
 
 // ES6 #sec-string.fromcharcode
+// NOTE: This needs to be kept in sync with the Turboshaft implementation in
+// `builtins-string-tsa.cc`.
 TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
@@ -1061,6 +1062,8 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     arguments.PopAndReturn(two_byte_result);
   }
 }
+
+#endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     const TNode<Context> context, const TNode<Object> object,

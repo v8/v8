@@ -24,11 +24,6 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-namespace detail {
-template <typename T>
-struct lazy_false : std::false_type {};
-}  // namespace detail
-
 // Operations are stored in possibly muliple sequential storage slots.
 using OperationStorageSlot = std::aligned_storage_t<8, 8>;
 // Operations occupy at least 2 slots, therefore we assign one id per two slots.
@@ -57,7 +52,7 @@ class OpIndex {
   constexpr OpIndex() : offset_(std::numeric_limits<uint32_t>::max()) {}
   template <typename T, typename C>
   OpIndex(const ConstOrV<T, C>&) {  // NOLINT(runtime/explicit)
-    static_assert(detail::lazy_false<T>::value,
+    static_assert(base::tmp::lazy_false<T>::value,
                   "Cannot initialize OpIndex from ConstOrV<>. Did you forget "
                   "to resolve() it in the assembler?");
   }
@@ -656,6 +651,10 @@ class OptionalV : public OptionalOpIndex {
   OptionalV(U index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
 };
 
+// Deduction guide for `OptionalV`.
+template <typename T>
+OptionalV(V<T>) -> OptionalV<T>;
+
 // ConstOrV<> is a generalization of V<> that allows constexpr values
 // (constants) to be passed implicitly. This allows reducers to write things
 // like
@@ -711,6 +710,10 @@ class ConstOrV {
   std::optional<constant_type> constant_value_;
   V<type> value_;
 };
+
+// Deduction guide for `ConstOrV`.
+template <typename T>
+ConstOrV(V<T>) -> ConstOrV<T>;
 
 template <>
 struct fast_hash<OpIndex> {

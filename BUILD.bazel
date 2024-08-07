@@ -3371,6 +3371,7 @@ filegroup(
         "src/compiler/turboshaft/store-store-elimination-phase.cc",
         "src/compiler/turboshaft/store-store-elimination-phase.h",
         "src/compiler/turboshaft/store-store-elimination-reducer-inl.h",
+        "src/compiler/turboshaft/string-view.h",
         "src/compiler/turboshaft/structural-optimization-reducer.h",
         "src/compiler/turboshaft/tracing.h",
         "src/compiler/turboshaft/type-assertions-phase.cc",

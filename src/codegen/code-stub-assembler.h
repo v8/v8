@@ -4767,8 +4767,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 class V8_EXPORT_PRIVATE CodeStubArguments {
  public:
-  // |argc| specifies the number of arguments passed to the builtin excluding
-  // the receiver. The arguments include the receiver.
+  // |argc| specifies the number of arguments passed to the builtin.
   CodeStubArguments(CodeStubAssembler* assembler, TNode<IntPtrT> argc)
       : CodeStubArguments(assembler, argc, TNode<RawPtrT>()) {}
   CodeStubArguments(CodeStubAssembler* assembler, TNode<Int32T> argc)

@@ -44,7 +44,7 @@ enum class Builtin : int32_t {
   kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
   BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
-               DEF_ENUM, DEF_ENUM)
+               DEF_ENUM, DEF_ENUM, DEF_ENUM)
 #undef DEF_ENUM
 #define EXTRACT_NAME(Name, ...) k##Name,
   // Define kFirstBytecodeHandler,
@@ -84,8 +84,9 @@ class Builtins {
         // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
 
 #define ADD_ONE(Name, ...) +1
-  static constexpr int kBuiltinCount = 0 BUILTIN_LIST(
-      ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
+  static constexpr int kBuiltinCount =
+      0 BUILTIN_LIST(ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE,
+                     ADD_ONE, ADD_ONE, ADD_ONE);
   static constexpr int kBuiltinTier0Count = 0 BUILTIN_LIST_TIER0(
       ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
 #undef ADD_ONE
@@ -128,7 +129,7 @@ class Builtins {
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, TFJ, TSC, TFC, TFS, TFH, BCH, ASM };
+  enum Kind { CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, BCH, ASM };
 
   static BytecodeOffset GetContinuationBytecodeOffset(Builtin builtin);
   static Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
@@ -363,8 +364,8 @@ class Builtins {
                               Isolate* isolate,                         \
                               compiler::turboshaft::Graph& graph, Zone* zone);
 
-  BUILTIN_LIST(IGNORE_BUILTIN, DECLARE_TF, DECLARE_TS, DECLARE_TF, DECLARE_TF,
-               DECLARE_TF, IGNORE_BUILTIN, DECLARE_ASM)
+  BUILTIN_LIST(IGNORE_BUILTIN, DECLARE_TS, DECLARE_TF, DECLARE_TS, DECLARE_TF,
+               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF

@@ -178,11 +178,6 @@ class OperationMatcher {
     return MatchIntegralWordConstant(matched, rep, nullptr, signed_constant);
   }
 
-  bool MatchIntegralWord64Constant(OpIndex matched, uint64_t* constant) const {
-    return MatchIntegralWordConstant(matched, WordRepresentation::Word64(),
-                                     constant);
-  }
-
   bool MatchIntegralWord32Constant(OpIndex matched, uint32_t* constant) const {
     if (uint64_t value; MatchIntegralWordConstant(
             matched, WordRepresentation::Word32(), &value)) {
@@ -190,6 +185,11 @@ class OperationMatcher {
       return true;
     }
     return false;
+  }
+
+  bool MatchIntegralWord64Constant(OpIndex matched, uint64_t* constant) const {
+    return MatchIntegralWordConstant(matched, WordRepresentation::Word64(),
+                                     constant);
   }
 
   bool MatchIntegralWord32Constant(OpIndex matched, uint32_t constant) const {
@@ -212,6 +212,23 @@ class OperationMatcher {
       return true;
     }
     return false;
+  }
+
+  template <typename T = intptr_t>
+  bool MatchIntegralWordPtrConstant(OpIndex matched, T* constant) const {
+    if constexpr (Is64()) {
+      static_assert(sizeof(T) == sizeof(int64_t));
+      int64_t v;
+      if (!MatchIntegralWord64Constant(matched, &v)) return false;
+      *constant = static_cast<T>(v);
+      return true;
+    } else {
+      static_assert(sizeof(T) == sizeof(int32_t));
+      int32_t v;
+      if (!MatchIntegralWord32Constant(matched, &v)) return false;
+      *constant = static_cast<T>(v);
+      return true;
+    }
   }
 
   bool MatchSignedIntegralConstant(OpIndex matched, int64_t* constant) const {
