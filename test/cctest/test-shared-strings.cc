@@ -25,10 +25,6 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
-// In multi-cage mode we create one cage per isolate
-// and we don't share objects between cages.
-#if V8_CAN_CREATE_SHARED_HEAP_BOOL && !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
-
 namespace v8 {
 namespace internal {
 namespace test_shared_strings {
@@ -99,6 +95,7 @@ class MultiClientIsolateTest {
 
 UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
 
@@ -144,6 +141,8 @@ UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
 }
 
 UNINITIALIZED_TEST(InPlaceInternalization) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   MultiClientIsolateTest test;
@@ -209,6 +208,7 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
 
 UNINITIALIZED_TEST(YoungInternalization) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
 
@@ -427,6 +427,8 @@ IndirectHandle<FixedArray> CreateSharedOneByteStrings(
 }
 
 void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   constexpr int kThreads = 4;
@@ -507,6 +509,8 @@ class ConcurrentStringTableLookupThread final
 };
 
 UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   constexpr int kTotalThreads = 4;
@@ -654,6 +658,8 @@ class ExternalResourceFactory {
 }  // namespace
 
 UNINITIALIZED_TEST(StringShare) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   ManualGCScope manual_gc_scope;
@@ -807,6 +813,7 @@ UNINITIALIZED_TEST(StringShare) {
 
 UNINITIALIZED_TEST(PromotionMarkCompact) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
@@ -856,6 +863,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 UNINITIALIZED_TEST(PromotionScavenge) {
   if (v8_flags.minor_ms) return;
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
@@ -897,6 +905,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
     return;
   }
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
   if (v8_flags.stress_concurrent_allocation) return;
 
   v8_flags.shared_string_table = true;
@@ -947,6 +956,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
 
 UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
   if (v8_flags.stress_concurrent_allocation) return;
 
   v8_flags.shared_string_table = true;
@@ -1001,6 +1011,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
 }
 
 UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
   if (v8_flags.stress_concurrent_allocation) return;
   if (!v8_flags.page_promotion) return;
   if (v8_flags.single_generation) {
@@ -1070,6 +1081,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
 
 UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
   if (v8_flags.stress_concurrent_allocation) return;
 
   v8_flags.shared_string_table = true;
@@ -1130,6 +1142,8 @@ void TriggerGCWithTransitions(Heap* heap) {
 }  // namespace
 
 UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   constexpr int kStrings = 4096;
@@ -1174,6 +1188,7 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
 
 UNINITIALIZED_TEST(ShareExternalString) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
 
@@ -1228,6 +1243,7 @@ void CheckExternalStringResource(
 
 UNINITIALIZED_TEST(ExternalizeSharedString) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
 
@@ -1270,6 +1286,8 @@ UNINITIALIZED_TEST(ExternalizeSharedString) {
 }
 
 UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   ExternalResourceFactory resource_factory;
@@ -1322,6 +1340,7 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
 
 UNINITIALIZED_TEST(ExternalizeInternalizedString) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
 
@@ -1383,6 +1402,7 @@ UNINITIALIZED_TEST(ExternalizeInternalizedString) {
 
 UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
 
@@ -1468,6 +1488,7 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
 
 UNINITIALIZED_TEST(ExternalizeAndInternalizeMissSharedString) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
 
@@ -1503,6 +1524,7 @@ UNINITIALIZED_TEST(ExternalizeAndInternalizeMissSharedString) {
 
 UNINITIALIZED_TEST(InternalizeHitAndExternalizeSharedString) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
 
@@ -1557,6 +1579,7 @@ UNINITIALIZED_TEST(InternalizeHitAndExternalizeSharedString) {
 
 UNINITIALIZED_TEST(InternalizeMissAndExternalizeSharedString) {
   if (v8_flags.single_generation) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.shared_string_table = true;
 
@@ -1698,6 +1721,8 @@ void CheckStringAndResource(
 }  // namespace
 
 void TestConcurrentExternalization(bool share_resources) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   ExternalResourceFactory resource_factory;
@@ -1775,6 +1800,8 @@ UNINITIALIZED_TEST(ConcurrentExternalizationWithSharedResources) {
 
 void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
                                                   bool transition_with_stack) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   ExternalResourceFactory resource_factory;
@@ -1899,6 +1926,8 @@ UNINITIALIZED_TEST(ExternalizationWithDeadStringsAndSharedResources) {
 
 void TestConcurrentExternalizationAndInternalization(
     TestHitOrMiss hit_or_miss) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   ExternalResourceFactory resource_factory;
@@ -1995,6 +2024,8 @@ UNINITIALIZED_TEST(ConcurrentExternalizationAndInternalizationHit) {
 }
 
 UNINITIALIZED_TEST(SharedStringInGlobalHandle) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   MultiClientIsolateTest test;
@@ -2071,6 +2102,8 @@ class WorkerIsolateThread : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
   v8_flags.shared_string_table = true;
 
   MultiClientIsolateTest test;
@@ -2156,6 +2189,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
 UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
   if (v8_flags.single_generation) return;
   if (!v8_flags.minor_ms) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
@@ -2194,6 +2228,7 @@ UNINITIALIZED_TEST(
     RegisterOldToSharedForPromotedPageFromClientDuringIncrementalMarking) {
   if (v8_flags.single_generation) return;
   if (!v8_flags.minor_ms) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
@@ -2347,6 +2382,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
 UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
   if (v8_flags.single_generation) return;
   if (!v8_flags.minor_ms) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
@@ -2496,6 +2532,7 @@ class Regress1424955ClientIsolateThread : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(Regress1424955) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
   if (v8_flags.single_generation) return;
   // When heap verification is enabled, sweeping is finalized in the atomic
   // pause. This issue requires that sweeping is still in progress after the
@@ -2578,6 +2615,7 @@ class ProtectExternalStringTableAddStringClientIsolateThread
 };
 
 UNINITIALIZED_TEST(ProtectExternalStringTableAddString) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
   v8_flags.shared_string_table = true;
 
   ManualGCScope manual_gc_scope;
@@ -2610,6 +2648,3 @@ UNINITIALIZED_TEST(ProtectExternalStringTableAddString) {
 }  // namespace test_shared_strings
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL &&
-        // !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL

@@ -6270,6 +6270,7 @@ void Heap::TearDown() {
     space_[i].reset();
   }
 
+  isolate()->read_only_heap()->OnHeapTearDown(this);
   read_only_space_ = nullptr;
 
   memory_allocator()->TearDown();

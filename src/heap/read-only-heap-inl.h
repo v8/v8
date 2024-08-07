@@ -15,8 +15,7 @@ namespace internal {
 // static
 ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged<HeapObject> object) {
 #ifdef V8_SHARED_RO_HEAP
-  ReadOnlyHeap* shared_ro_heap =
-      IsolateGroup::current()->shared_read_only_heap();
+  auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
   if (shared_ro_heap && shared_ro_heap->roots_init_complete()) {
     return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
   }
@@ -29,8 +28,7 @@ ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged<HeapObject> object) {
 // static
 ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(Tagged<HeapObject> object) {
 #ifdef V8_SHARED_RO_HEAP
-  ReadOnlyHeap* shared_ro_heap =
-      IsolateGroup::current()->shared_read_only_heap();
+  auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
   // If this check fails in code that runs during initialization use
   // EarlyGetReadOnlyRoots instead.
   DCHECK(shared_ro_heap && shared_ro_heap->roots_init_complete());

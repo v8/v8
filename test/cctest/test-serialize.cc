@@ -6289,9 +6289,6 @@ UNINITIALIZED_TEST(SharedStrings) {
   // shared Isolate.
 
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
-  // In multi-cage mode we create one cage per isolate
-  // and we don't share objects between cages.
-  if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) return;
 
   // Make all the flags that require a shared heap false before creating the
   // isolate to serialize.
