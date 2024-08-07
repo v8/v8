@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-void JSDispatchTable::Initialize() {
+void JSDispatchTable::InitializeImpl() {
   ExternalEntityTable<JSDispatchEntry,
                       kJSDispatchTableReservationSize>::Initialize();
   CHECK(ThreadIsolation::WriteProtectMemory(
@@ -43,6 +43,7 @@ void JSDispatchTable::SetCode(JSDispatchHandle handle, Tagged<Code> new_code) {
 
   uint32_t index = HandleToIndex(handle);
   Address new_entrypoint = new_code->instruction_start();
+  CFIMetadataWriteScope write_scope("JSDispatchTable update");
   at(index).SetCodeAndEntrypointPointer(new_code.ptr(), new_entrypoint);
 }
 
@@ -50,7 +51,7 @@ JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
     Space* space, uint16_t parameter_count) {
   DCHECK(space->BelongsTo(this));
   uint32_t index = AllocateEntry(space);
-  CFIMetadataWriteScope write_scope("JSDispatchTable write");
+  CFIMetadataWriteScope write_scope("JSDispatchTable initialize");
   at(index).MakeJSDispatchEntry(kNullAddress, kNullAddress, parameter_count,
                                 space->allocate_black());
   return IndexToHandle(index);
@@ -64,8 +65,6 @@ uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters) {
   counters->js_dispatch_table_entries_count()->AddSample(num_live_entries);
   return num_live_entries;
 }
-
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(JSDispatchTable, GetProcessWideJSDispatchTable)
 
 }  // namespace internal
 }  // namespace v8
