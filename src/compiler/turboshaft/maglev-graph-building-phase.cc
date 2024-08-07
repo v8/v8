@@ -3165,7 +3165,8 @@ class GraphBuilder {
       case interpreter::TestTypeOfFlags::LiteralFlag::kBoolean:
         result = __ Select(__ RootEqual(input, RootIndex::kTrueValue, isolate_),
                            __ HeapConstant(local_factory_->true_value()),
-                           __ HeapConstant(local_factory_->false_value()),
+                           ConvertWord32ToJSBool(__ RootEqual(
+                               input, RootIndex::kFalseValue, isolate_)),
                            RegisterRepresentation::Tagged(), BranchHint::kNone,
                            SelectOp::Implementation::kBranch);
         break;
