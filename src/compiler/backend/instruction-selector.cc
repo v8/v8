@@ -5734,6 +5734,14 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
   const int kMaxRecursionDepth = 100;
 
   if (this->IsPhi(node)) {
+    // Intermediate results from previous calls are not necessarily correct.
+    if (recursion_depth == 0) {
+      static_assert(sizeof(Upper32BitsState) == 1);
+      memset(phi_states_.data(),
+             static_cast<int>(Upper32BitsState::kNotYetChecked),
+             phi_states_.size());
+    }
+
     Upper32BitsState current = phi_states_[this->id(node)];
     if (current != Upper32BitsState::kNotYetChecked) {
       return current == Upper32BitsState::kUpperBitsGuaranteedZero;
