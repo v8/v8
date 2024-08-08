@@ -1405,8 +1405,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                const MemoryAccessImmediate& imm, const Value& index,
                Value* result) {
     bool needs_f16_to_f32_conv = false;
-    if (type.value() == LoadType::kF32LoadF16 &&
-        !SupportedOperations::float16()) {
+    if (type.value() == LoadType::kF32LoadF16) {
       needs_f16_to_f32_conv = true;
       type = LoadType::kI32Load16U;
     }
@@ -1575,8 +1574,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                 const MemoryAccessImmediate& imm, const Value& index,
                 const Value& value) {
     bool needs_f32_to_f16_conv = false;
-    if (type.value() == StoreType::kF32StoreF16 &&
-        !SupportedOperations::float16()) {
+    if (type.value() == StoreType::kF32StoreF16) {
       needs_f32_to_f16_conv = true;
       type = StoreType::kI32Store16;
     }
