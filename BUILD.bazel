@@ -3303,6 +3303,7 @@ filegroup(
         "src/compiler/turboshaft/explicit-truncation-reducer.h",
         "src/compiler/turboshaft/fast-api-call-lowering-reducer.h",
         "src/compiler/turboshaft/fast-hash.h",
+        "src/compiler/turboshaft/field-macro.inc",
         "src/compiler/turboshaft/graph.cc",
         "src/compiler/turboshaft/graph.h",
         "src/compiler/turboshaft/graph-builder.cc",
