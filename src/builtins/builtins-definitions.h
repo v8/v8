@@ -359,9 +359,13 @@ namespace internal {
   /* Special internal builtins */                                              \
   CPP(EmptyFunction)                                                           \
   CPP(Illegal)                                                                 \
+  CPP(IllegalInvocationThrower)                                                \
   CPP(StrictPoisonPillThrower)                                                 \
   CPP(UnsupportedThrower)                                                      \
   TFJ(ReturnReceiver, kJSArgcReceiverSlots, kReceiver)                         \
+                                                                               \
+  /* AbstractModuleSource */                                                   \
+  CPP(AbstractModuleSourceToStringTag)                                         \
                                                                                \
   /* Array */                                                                  \
   TFC(ArrayConstructor, JSTrampoline)                                          \

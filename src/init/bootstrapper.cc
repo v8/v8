@@ -5815,7 +5815,30 @@ void Genesis::InitializeGlobal_js_float16array() {
 }
 
 void Genesis::InitializeGlobal_js_source_phase_imports() {
-  // TODO(42204365): Initialize AbstractModuleSource.
+  if (!v8_flags.js_source_phase_imports) return;
+  Factory* factory = isolate()->factory();
+  // -- %AbstractModuleSource%
+  // #sec-%abstractmodulesource%
+  // https://tc39.es/proposal-source-phase-imports/#sec-%abstractmodulesource%
+  Handle<JSFunction> abstract_module_source_fun = CreateFunction(
+      isolate_, "AbstractModuleSource", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+      0, factory->the_hole_value(), Builtin::kIllegalInvocationThrower);
+  abstract_module_source_fun->shared()->set_length(0);
+  abstract_module_source_fun->shared()->DontAdaptArguments();
+
+  native_context()->set_abstract_module_source_function(
+      *abstract_module_source_fun);
+
+  // Setup %AbstractModuleSourcePrototype%.
+  Handle<JSObject> abstract_module_source_prototype(
+      Cast<JSObject>(abstract_module_source_fun->instance_prototype()),
+      isolate());
+  native_context()->set_abstract_module_source_prototype(
+      *abstract_module_source_prototype);
+
+  SimpleInstallGetter(isolate(), abstract_module_source_prototype,
+                      isolate()->factory()->to_string_tag_symbol(),
+                      Builtin::kAbstractModuleSourceToStringTag, true);
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {
