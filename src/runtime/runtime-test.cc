@@ -2140,59 +2140,5 @@ RUNTIME_FUNCTION(Runtime_IsWasmTieringPredictable) {
   return ReadOnlyRoots(isolate).boolean_value(single_isolate && !stress_deopt);
 }
 
-RUNTIME_FUNCTION(Runtime_GetFeedback) {
-  HandleScope scope(isolate);
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  Handle<Object> function_object = args.at(0);
-  if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Cast<JSFunction>(function_object);
-
-  if (!function->has_feedback_vector()) {
-    return CrashUnlessFuzzing(isolate);
-  }
-
-#ifdef OBJECT_PRINT
-  Handle<FeedbackVector> feedback_vector =
-      handle(function->feedback_vector(), isolate);
-
-  Handle<FixedArray> result =
-      isolate->factory()->NewFixedArray(feedback_vector->length());
-  int result_ix = 0;
-
-  FeedbackMetadataIterator iter(feedback_vector->metadata());
-  while (iter.HasNext()) {
-    FeedbackSlot slot = iter.Next();
-    FeedbackSlotKind kind = iter.kind();
-
-    Handle<FixedArray> sub_result = isolate->factory()->NewFixedArray(2);
-    {
-      std::ostringstream out;
-      out << kind;
-      sub_result->set(
-          0, *isolate->factory()->NewStringFromAsciiChecked(out.str().c_str()));
-    }
-
-    FeedbackNexus nexus(isolate, *feedback_vector, slot);
-    {
-      std::ostringstream out;
-      nexus.Print(out);
-      Handle<String> nexus_string =
-          isolate->factory()->NewStringFromAsciiChecked(out.str().c_str());
-      sub_result->set(1, *nexus_string);
-    }
-
-    Handle<JSArray> sub_result_array =
-        isolate->factory()->NewJSArrayWithElements(sub_result);
-    result->set(result_ix++, *sub_result_array);
-  }
-
-  return *isolate->factory()->NewJSArrayWithElements(result);
-#else
-  return ReadOnlyRoots(isolate).undefined_value();
-#endif  // OBJECT_PRINT
-}
-
 }  // namespace internal
 }  // namespace v8
