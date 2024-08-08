@@ -759,7 +759,6 @@ class LiftoffCompiler {
       input_idx_ = kFirstInputIdx;
       while (NextParam()) {
         LiftoffRegister reg = LoadToReg(param_regs_);
-#if V8_ENABLE_SANDBOX
         // In-sandbox corruption can replace one function's code with another's.
         // That's mostly safe, but certain signature mismatches can violate
         // security-relevant invariants later. To maintain such invariants,
@@ -768,7 +767,10 @@ class LiftoffCompiler {
         // 'clear_i32_upper_half' is empty on LoongArch64, MIPS64 and riscv64,
         // because they will explicitly zero-extend their lower halves before
         // using them for memory accesses anyway.
-        static_assert(kSystemPointerSize == 8);
+        // In addition, the generic js-to-wasm wrapper does a sign-extension
+        // of i32 parameters, so clearing the upper half is required for
+        // correctness in this case.
+#if V8_TARGET_ARCH_64_BIT
         if (kind_ == kI32 && location_.IsRegister()) {
           compiler_->asm_.clear_i32_upper_half(reg.gp());
         }

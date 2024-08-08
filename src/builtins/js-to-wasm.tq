@@ -621,11 +621,10 @@ macro JSToWasmWrapperHelper(
       let toRef = locationAllocator.GetGPSlot();
       typeswitch (param) {
         case (smiParam: Smi): {
-          *toRef = Convert<intptr>(Unsigned(SmiToInt32(smiParam)));
+          *toRef = Convert<intptr>(SmiToInt32(smiParam));
         }
         case (heapParam: JSAnyNotSmi): {
-          *toRef =
-              Convert<intptr>(Unsigned(WasmTaggedNonSmiToInt32(heapParam)));
+          *toRef = Convert<intptr>(WasmTaggedNonSmiToInt32(heapParam));
         }
       }
     } else if (paramType == kWasmF32Type) {
