@@ -8,6 +8,7 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestInvalidWrappers() {
+  print(arguments.callee.name);
   assertThrows(() => WebAssembly.promising({}), TypeError,
       /Argument 0 must be a function/);
   assertThrows(() => WebAssembly.promising(() => {}), TypeError,
@@ -16,6 +17,15 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       /WebAssembly.Suspending must be invoked with 'new'/);
   assertThrows(() => new WebAssembly.Suspending({}), TypeError,
       /Argument 0 must be a function/);
+  function asmModule() {
+    "use asm";
+    function x(v) {
+      v = v | 0;
+    }
+    return x;
+  }
+  assertThrows(() => WebAssembly.promising(asmModule()), TypeError,
+      /Argument 0 must be a WebAssembly exported function/);
 })();
 
 (function TestStackSwitchNoSuspend() {
