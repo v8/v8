@@ -256,8 +256,6 @@ deps = {
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f52dad97479e3d18b55d03134c8c301393df8843',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
-  'third_party/fast_float/src':
-    Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + 'd7417618f93d2c47e9bbde561510f9fc8bafe003',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '30fee7b68b3675e351fa47303c3b6ef322941ccd',
     'condition': 'checkout_fuchsia',
@@ -526,7 +524,6 @@ include_rules = [
   '+unicode',
   '+third_party/fdlibm',
   '+third_party/ittapi/include',
-  '+third_party/fast_float/src/include',
   '+third_party/fp16/src/include',
   '+third_party/v8/codegen',
   '+third_party/fuzztest',
