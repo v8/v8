@@ -3153,7 +3153,8 @@ class TurboshaftAssemblerOpInterface
   }
 #endif
 
-  void JSStackCheck(V<Context> context, V<turboshaft::FrameState> frame_state,
+  void JSStackCheck(V<Context> context,
+                    OptionalV<turboshaft::FrameState> frame_state,
                     JSStackCheckOp::Kind kind) {
     ReduceIfReachableJSStackCheck(context, frame_state, kind);
   }
@@ -3837,6 +3838,10 @@ class TurboshaftAssemblerOpInterface
     return CallRuntime<
         typename RuntimeCallDescriptor::HandleNoHeapWritesInterrupts>(
         isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
+  }
+  V<Object> CallRuntime_StackGuard(Isolate* isolate, V<Context> context) {
+    return CallRuntime<typename RuntimeCallDescriptor::StackGuard>(isolate,
+                                                                   context, {});
   }
   V<Object> CallRuntime_StackGuardWithGap(Isolate* isolate,
                                           V<turboshaft::FrameState> frame_state,

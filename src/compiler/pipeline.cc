@@ -2942,12 +2942,13 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
   DCHECK_EQ(builtin, turboshaft_data->info()->builtin());
   Isolate* isolate = turboshaft_data->isolate();
 
+#if V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 // TODO(nicohartmann): Use during development and remove afterwards.
-#if 0
 #ifdef DEBUG
   std::cout << "=== Generating Builtin '" << debug_name
             << "' with Turboshaft ===" << std::endl;
 #endif
+
 #endif
 
   // Initialize JumpOptimizationInfo if required.

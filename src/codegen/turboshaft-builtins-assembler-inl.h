@@ -12,6 +12,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/machine-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/operation-matcher.h"
+#include "src/compiler/turboshaft/sidetable.h"
 #include "src/objects/elements-kind.h"
 
 #define DEFINE_TURBOSHAFT_ALIASES()                                            \
@@ -25,6 +26,7 @@
   using Label = compiler::turboshaft::Label<Ts...>;                            \
   template <typename... Ts>                                                    \
   using LoopLabel = compiler::turboshaft::LoopLabel<Ts...>;                    \
+  using Block = compiler::turboshaft::Block;                                   \
   using OpIndex = compiler::turboshaft::OpIndex;                               \
   using Word32 = compiler::turboshaft::Word32;                                 \
   using Word64 = compiler::turboshaft::Word64;                                 \
@@ -213,6 +215,36 @@ class BuiltinsReducer : public Next {
   BUILTIN_REDUCER(Builtins)
 
   using BuiltinArgumentsTS = detail::BuiltinArgumentsTS<assembler_t>;
+
+  void EmitBuiltinProlog(Builtin builtin_id) {
+    // Bind the entry block.
+    __ Bind(__ NewBlock());
+    // Eagerly emit all parameters such that they are guaranteed to be in the
+    // entry block (assembler will cache them).
+    const compiler::CallDescriptor* desc =
+        __ data() -> builtin_call_descriptor();
+    for (int i = 0; i < static_cast<int>(desc->ParameterCount()); ++i) {
+      __ Parameter(i, RegisterRepresentation::FromMachineType(
+                          desc->GetParameterType(i)));
+    }
+    // TODO(nicohartmann): CSA tracks some debug information here.
+    // Emit stack check.
+    if (Builtins::KindOf(builtin_id) == Builtins::TSJ) {
+      __ PerformStackCheck(__ JSContextParameter());
+    }
+  }
+
+  V<Context> JSContextParameter() {
+    return __ template Parameter<Context>(
+        compiler::Linkage::GetJSCallContextParamIndex(static_cast<int>(
+            __ data()->builtin_call_descriptor()->JSParameterCount())));
+  }
+
+  void PerformStackCheck(V<Context> context) {
+    __ JSStackCheck(context,
+                    OptionalV<compiler::turboshaft::FrameState>::Nullopt(),
+                    compiler::turboshaft::JSStackCheckOp::Kind::kBuiltinEntry);
+  }
 
   void PopAndReturn(BuiltinArgumentsTS& arguments,
                     compiler::turboshaft::V<Object> return_value) {

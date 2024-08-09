@@ -3428,13 +3428,15 @@ struct DecodeExternalPointerOp
   auto options() const { return std::tuple{tag}; }
 };
 
-struct JSStackCheckOp : FixedArityOperationT<2, JSStackCheckOp> {
-  enum class Kind : bool { kFunctionEntry, kLoop };
+struct JSStackCheckOp : OperationT<JSStackCheckOp> {
+  enum class Kind : uint8_t { kFunctionEntry, kBuiltinEntry, kLoop };
   Kind kind;
 
   OpEffects Effects() const {
     switch (kind) {
       case Kind::kFunctionEntry:
+        return OpEffects().CanCallAnything();
+      case Kind::kBuiltinEntry:
         return OpEffects().CanCallAnything();
       case Kind::kLoop:
         // Loop body iteration stack checks can't write memory.
@@ -3452,7 +3454,10 @@ struct JSStackCheckOp : FixedArityOperationT<2, JSStackCheckOp> {
   }
 
   V<Context> native_context() const { return Base::input<Context>(0); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  OptionalV<FrameState> frame_state() const {
+    return input_count > 1 ? Base::input<FrameState>(1)
+                           : OptionalV<FrameState>::Nullopt();
+  }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -3461,11 +3466,29 @@ struct JSStackCheckOp : FixedArityOperationT<2, JSStackCheckOp> {
     return {};
   }
 
-  explicit JSStackCheckOp(V<Context> context, V<FrameState> frame_state,
+  explicit JSStackCheckOp(V<Context> context, OptionalV<FrameState> frame_state,
                           Kind kind)
-      : Base(context, frame_state), kind(kind) {}
+      : Base(1 + frame_state.has_value()), kind(kind) {
+    input(0) = context;
+    if (frame_state.has_value()) {
+      input(1) = frame_state.value();
+    }
+  }
 
-  void Validate(const Graph& graph) const {}
+  static JSStackCheckOp& New(Graph* graph, V<Context> context,
+                             OptionalV<FrameState> frame_state, Kind kind) {
+    return Base::New(graph, 1 + frame_state.has_value(), context, frame_state,
+                     kind);
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK_EQ(kind == Kind::kBuiltinEntry, !frame_state().has_value());
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(native_context()), mapper.Map(frame_state()), kind);
+  }
 
   auto options() const { return std::tuple{kind}; }
 };

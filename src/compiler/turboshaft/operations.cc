@@ -1456,6 +1456,8 @@ std::ostream& operator<<(std::ostream& os, JSStackCheckOp::Kind kind) {
   switch (kind) {
     case JSStackCheckOp::Kind::kFunctionEntry:
       return os << "function-entry";
+    case JSStackCheckOp::Kind::kBuiltinEntry:
+      return os << "builtin-entry";
     case JSStackCheckOp::Kind::kLoop:
       return os << "loop";
   }

@@ -51,7 +51,7 @@ void RawMachineAssembler::SetCurrentExternalSourcePosition(
   int file_id =
       isolate()->LookupOrAddExternallyCompiledFilename(file_and_line.first);
   SourcePosition p = SourcePosition::External(file_and_line.second, file_id);
-  DCHECK(p.ExternalLine() == file_and_line.second);
+  DCHECK_EQ(p.ExternalLine(), file_and_line.second);
   source_positions()->SetCurrentPosition(p);
 }
 

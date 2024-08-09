@@ -73,8 +73,7 @@ class CodeAssemblerState;
       compiler::turboshaft::PipelineData* data, Isolate* isolate,         \
       compiler::turboshaft::Graph& graph, Zone* phase_zone) {             \
     Name##Assembler assembler(data, isolate, graph, phase_zone);          \
-    /* TODO(nicohartmann): DebugInformation and StackCheck */             \
-    assembler.Asm().Bind(assembler.Asm().NewBlock());                     \
+    assembler.EmitBuiltinProlog(Builtin::k##Name);                        \
     assembler.Generate##Name##Impl();                                     \
     /* Builtin definition must generate something! */                     \
     DCHECK_GT(graph.op_id_count(), 0);                                    \
