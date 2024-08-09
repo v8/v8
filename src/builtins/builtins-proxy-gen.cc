@@ -78,12 +78,13 @@ TNode<JSFunction> ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
 
   const TNode<Context> proxy_context =
       CreateProxyRevokeFunctionContext(proxy, native_context);
-  const TNode<Map> revoke_map = CAST(LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<SharedFunctionInfo> revoke_info = ProxyRevokeSharedFunConstant();
-
-  return AllocateFunctionWithMapAndContext(revoke_map, revoke_info,
-                                           proxy_context);
+  return AllocateFunctionWithContext(
+      revoke_info,
+#ifdef V8_ENABLE_LEAPTIERING
+      LoadBuiltinDispatchHandle(Builtin::kProxyRevoke),
+#endif
+      proxy_context);
 }
 
 TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
