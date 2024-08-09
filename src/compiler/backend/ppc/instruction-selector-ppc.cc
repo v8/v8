@@ -3910,7 +3910,15 @@ SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
   V(F16x8Floor)        \
   V(F16x8Ceil)         \
   V(F16x8Trunc)        \
-  V(F16x8NearestInt)
+  V(F16x8NearestInt)   \
+  V(F16x8Add)          \
+  V(F16x8Sub)          \
+  V(F16x8Mul)          \
+  V(F16x8Div)          \
+  V(F16x8Min)          \
+  V(F16x8Max)          \
+  V(F16x8Pmin)         \
+  V(F16x8Pmax)
 
 #define VISIT_F16_OP(name)                                       \
   template <typename Adapter>                                    \
