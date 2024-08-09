@@ -1054,8 +1054,7 @@ ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Word64());
       return kX64Movq;
     case MemoryRepresentation::Float16():
-      DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
-      return kX64Movsh;
+      UNIMPLEMENTED();
     case MemoryRepresentation::Float32():
       DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
       return kX64Movss;
@@ -1107,9 +1106,6 @@ ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
 ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   ArchOpcode opcode;
   switch (load_rep.representation()) {
-    case MachineRepresentation::kFloat16:
-      opcode = kX64Movsh;
-      break;
     case MachineRepresentation::kFloat32:
       opcode = kX64Movss;
       break;
@@ -1163,6 +1159,8 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd256:  // Fall through.
       opcode = kX64Movdqu256;
       break;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kNone:     // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kIndirectPointer:  // Fall through.
@@ -1187,7 +1185,7 @@ ArchOpcode GetStoreOpcode(turboshaft::MemoryRepresentation stored_rep) {
     case MemoryRepresentation::Uint64():
       return kX64Movq;
     case MemoryRepresentation::Float16():
-      return kX64Movsh;
+      UNIMPLEMENTED();
     case MemoryRepresentation::Float32():
       return kX64Movss;
     case MemoryRepresentation::Float64():
@@ -1216,8 +1214,6 @@ ArchOpcode GetStoreOpcode(turboshaft::MemoryRepresentation stored_rep) {
 
 ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
   switch (store_rep.representation()) {
-    case MachineRepresentation::kFloat16:
-      return kX64Movsh;
     case MachineRepresentation::kFloat32:
       return kX64Movss;
     case MachineRepresentation::kFloat64:
@@ -1250,6 +1246,8 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64Movdqu;
     case MachineRepresentation::kSimd256:
       return kX64Movdqu256;
+    case MachineRepresentation::kFloat16:
+      UNIMPLEMENTED();
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kProtectedPointer:

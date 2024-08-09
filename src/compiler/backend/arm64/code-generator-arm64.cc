@@ -2122,18 +2122,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreSandboxedPointerField(i.InputOrZeroRegister64(0),
                                     i.MemoryOperand(1));
       break;
-    case kArm64LdrH: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputDoubleRegister().H(), i.MemoryOperand());
-      __ Fcvt(i.OutputDoubleRegister().S(), i.OutputDoubleRegister().H());
-      break;
-    }
-    case kArm64StrH:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Fcvt(i.InputFloat32OrZeroRegister(0).H(),
-              i.InputFloat32OrZeroRegister(0).S());
-      __ Str(i.InputFloat32OrZeroRegister(0).H(), i.MemoryOperand(1));
-      break;
     case kArm64LdrS:
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
