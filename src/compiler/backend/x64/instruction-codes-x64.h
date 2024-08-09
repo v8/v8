@@ -238,6 +238,8 @@ namespace compiler {
   V(X64F32x4DemoteF64x2Zero)                         \
   V(X64F32x4DemoteF64x4)                             \
   V(X64F16x8Round)                                   \
+  V(X64Minph)                                        \
+  V(X64Maxph)                                        \
   V(X64ISplat)                                       \
   V(X64IExtractLane)                                 \
   V(X64IAbs)                                         \

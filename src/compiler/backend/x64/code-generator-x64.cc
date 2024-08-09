@@ -1114,6 +1114,18 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                                                    \
   } while (false)
 
+#define ASSEMBLE_SIMD_F16x8_BINOP(instr)              \
+  do {                                                \
+    CpuFeatureScope f16c_scope(masm(), F16C);         \
+    CpuFeatureScope avx_scope(masm(), AVX);           \
+    YMMRegister tmp1 = i.TempSimd256Register(0);      \
+    YMMRegister tmp2 = i.TempSimd256Register(1);      \
+    __ vcvtph2ps(tmp1, i.InputSimd128Register(0));    \
+    __ vcvtph2ps(tmp2, i.InputSimd128Register(1));    \
+    __ instr(tmp2, tmp1, tmp2);                       \
+    __ vcvtps2ph(i.OutputSimd128Register(), tmp2, 0); \
+  } while (false)
+
 #define ASSEMBLE_SIMD256_BINOP(opcode, cpu_feature)                    \
   do {                                                                 \
     CpuFeatureScope avx_scope(masm(), cpu_feature);                    \
@@ -3449,6 +3461,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16:
+            // F16x8Add
+            ASSEMBLE_SIMD_F16x8_BINOP(vaddps);
+            break;
           case kL32: {
             // F32x4Add
             ASSEMBLE_SIMD_BINOP(addps);
@@ -3487,6 +3503,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16:
+            // F16x8Sub
+            ASSEMBLE_SIMD_F16x8_BINOP(vsubps);
+            break;
           case kL32: {
             // F32x4Sub
             ASSEMBLE_SIMD_BINOP(subps);
@@ -3525,6 +3545,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16:
+            // F16x8Mul
+            ASSEMBLE_SIMD_F16x8_BINOP(vmulps);
+            break;
           case kL32: {
             // F32x4Mul
             ASSEMBLE_SIMD_BINOP(mulps);
@@ -3564,6 +3588,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16:
+            // F16x8Div
+            ASSEMBLE_SIMD_F16x8_BINOP(vdivps);
+            break;
           case kL32: {
             // F32x4Div
             ASSEMBLE_SIMD_BINOP(divps);
@@ -3602,6 +3630,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16: {
+            // F16x8Min
+            // F16x8Min packs result in XMM register, but uses it as temporary
+            // YMM register during computation. Cast dst to YMM here.
+            YMMRegister ydst =
+                YMMRegister::from_code(i.OutputSimd128Register().code());
+            __ F16x8Min(ydst, i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), i.TempSimd256Register(0),
+                        i.TempSimd256Register(1));
+            break;
+          }
           case kL32: {
             // F32x4Min
             __ F32x4Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -3647,6 +3686,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16: {
+            // F16x8Max
+            // F16x8Max packs result in XMM dst register, but uses it as temp
+            // YMM register during computation. Cast dst to YMM here.
+            YMMRegister ydst =
+                YMMRegister::from_code(i.OutputSimd128Register().code());
+            __ F16x8Max(ydst, i.InputSimd128Register(0),
+                        i.InputSimd128Register(1), i.TempSimd256Register(0),
+                        i.TempSimd256Register(1));
+            break;
+          }
           case kL32: {
             // F32x4Max
             __ F32x4Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -3993,6 +4043,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         UNREACHABLE();
       }
+      break;
+    }
+    case kX64Minph: {
+      DCHECK_EQ(VectorLengthField::decode(opcode), kV128);
+      ASSEMBLE_SIMD_F16x8_BINOP(vminps);
+      break;
+    }
+    case kX64Maxph: {
+      DCHECK_EQ(VectorLengthField::decode(opcode), kV128);
+      ASSEMBLE_SIMD_F16x8_BINOP(vmaxps);
       break;
     }
     case kX64F32x8Pmin: {

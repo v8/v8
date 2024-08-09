@@ -4161,6 +4161,26 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
 
+#define UNIMPLEMENTED_SIMD_BINOP_LIST(V) \
+  V(F16x8Add)                            \
+  V(F16x8Sub)                            \
+  V(F16x8Mul)                            \
+  V(F16x8Div)                            \
+  V(F16x8Min)                            \
+  V(F16x8Max)                            \
+  V(F16x8Pmin)                           \
+  V(F16x8Pmax)
+
+#define SIMD_VISIT_UNIMPL_BINOP(Name)                            \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    UNIMPLEMENTED();                                             \
+  }
+
+UNIMPLEMENTED_SIMD_BINOP_LIST(SIMD_VISIT_UNIMPL_BINOP)
+#undef SIMD_VISIT_UNIMPL_BINOP
+#undef UNIMPLEMENTED_SIMD_BINOP_LIST
+
 // TODO(mliedtke): This macro has only two uses. Maybe this could be refactored
 // into some helpers instead of the huge macro.
 #define VISIT_SIMD_ADD(Type, PairwiseType, NeonWidth)                          \

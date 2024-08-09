@@ -4283,6 +4283,22 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF16x8Trunc(node);
     case IrOpcode::kF16x8NearestInt:
       return MarkAsSimd128(node), VisitF16x8NearestInt(node);
+    case IrOpcode::kF16x8Add:
+      return MarkAsSimd128(node), VisitF16x8Add(node);
+    case IrOpcode::kF16x8Sub:
+      return MarkAsSimd128(node), VisitF16x8Sub(node);
+    case IrOpcode::kF16x8Mul:
+      return MarkAsSimd128(node), VisitF16x8Mul(node);
+    case IrOpcode::kF16x8Div:
+      return MarkAsSimd128(node), VisitF16x8Div(node);
+    case IrOpcode::kF16x8Min:
+      return MarkAsSimd128(node), VisitF16x8Min(node);
+    case IrOpcode::kF16x8Max:
+      return MarkAsSimd128(node), VisitF16x8Max(node);
+    case IrOpcode::kF16x8Pmin:
+      return MarkAsSimd128(node), VisitF16x8Pmin(node);
+    case IrOpcode::kF16x8Pmax:
+      return MarkAsSimd128(node), VisitF16x8Pmax(node);
 
       // SIMD256
 #if defined(V8_TARGET_ARCH_X64) && defined(V8_ENABLE_WASM_SIMD256_REVEC)

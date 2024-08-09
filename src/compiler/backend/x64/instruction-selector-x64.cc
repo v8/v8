@@ -5909,6 +5909,14 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Xor, SXor, kL8, kV128)                              \
   V(S256Xor, SXor, kL8, kV256)
 
+#define SIMD_F16x8_BINOP_LIST(V) \
+  V(F16x8Add, FAdd)              \
+  V(F16x8Sub, FSub)              \
+  V(F16x8Mul, FMul)              \
+  V(F16x8Div, FDiv)              \
+  V(F16x8Min, FMin)              \
+  V(F16x8Max, FMax)
+
 #define SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F64x2Min, FMin, kL64, kV128)                   \
   V(F32x4Min, FMin, kL32, kV128)                   \
@@ -6434,6 +6442,25 @@ SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
     VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH)
 #undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST
+
+#define VISIT_SIMD_F16x8_BINOP(Name, Opcode)                               \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {           \
+    X64OperandGeneratorT<Adapter> g(this);                                 \
+    DCHECK_EQ(this->value_input_count(node), 2);                           \
+    InstructionOperand temps[] = {g.TempSimd256Register(),                 \
+                                  g.TempSimd256Register()};                \
+    size_t temp_count = arraysize(temps);                                  \
+    Emit(kX64##Opcode | LaneSizeField::encode(kL16) |                      \
+             VectorLengthField::encode(kV128),                             \
+         g.DefineAsRegister(node),                                         \
+         g.UseUniqueRegister(this->input_at(node, 0)),                     \
+         g.UseUniqueRegister(this->input_at(node, 1)), temp_count, temps); \
+  }
+
+SIMD_F16x8_BINOP_LIST(VISIT_SIMD_F16x8_BINOP)
+#undef VISIT_SIMD_F16x8_BINOP
+#undef SIMD_F16x8_BINOP_LIST
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitV128AnyTrue(node_t node) {
@@ -7131,6 +7158,34 @@ void InstructionSelectorT<Adapter>::VisitI64x4RelaxedLaneSelect(node_t node) {
                          kX64Blendvpd | VectorLengthField::encode(kV256));
 }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Pmin(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
+  InstructionOperand dst = g.DefineAsRegister(node);
+  InstructionCode instr_code = kX64Minph | VectorLengthField::encode(kV128);
+  InstructionOperand temps[] = {g.TempSimd256Register(),
+                                g.TempSimd256Register()};
+  size_t temp_count = arraysize(temps);
+
+  Emit(instr_code, dst, g.UseUniqueRegister(this->input_at(node, 1)),
+       g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Pmax(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 2);
+  InstructionOperand dst = g.DefineAsRegister(node);
+  InstructionCode instr_code = kX64Maxph | VectorLengthField::encode(kV128);
+  InstructionOperand temps[] = {g.TempSimd256Register(),
+                                g.TempSimd256Register()};
+  size_t temp_count = arraysize(temps);
+
+  Emit(instr_code, dst, g.UseUniqueRegister(this->input_at(node, 1)),
+       g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
+}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4Pmin(node_t node) {

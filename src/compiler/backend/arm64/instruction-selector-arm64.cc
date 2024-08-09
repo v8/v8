@@ -7122,6 +7122,11 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   V(F32x4Div, kArm64FDiv, 32)                          \
   V(F32x4RelaxedMin, kArm64FMin, 32)                   \
   V(F32x4RelaxedMax, kArm64FMax, 32)                   \
+  V(F16x8Add, kArm64FAdd, 16)                          \
+  V(F16x8Sub, kArm64FSub, 16)                          \
+  V(F16x8Div, kArm64FDiv, 16)                          \
+  V(F16x8Min, kArm64FMin, 16)                          \
+  V(F16x8Max, kArm64FMax, 16)                          \
   V(I64x2Sub, kArm64ISub, 64)                          \
   V(I32x4GtU, kArm64IGtU, 32)                          \
   V(I32x4GeU, kArm64IGeU, 32)                          \
@@ -7540,6 +7545,30 @@ MulWithDup TryMatchMulWithDup(InstructionSelectorT<TurboshaftAdapter>* selector,
   return {input, dup_node, index};
 }
 }  // namespace
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF16x8Mul(node_t node) {
+  if (MulWithDup result = TryMatchMulWithDup<8>(this, node)) {
+    Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+    Emit(kArm64FMulElement | LaneSizeField::encode(16),
+         g.DefineAsRegister(node), g.UseRegister(result.input),
+         g.UseRegister(result.dup_node), g.UseImmediate(result.index));
+  } else {
+    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(16), node);
+  }
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF16x8Mul(Node* node) {
+  if (MulWithDupResult result = TryMatchMulWithDup<8>(node)) {
+    Arm64OperandGeneratorT<TurbofanAdapter> g(this);
+    Emit(kArm64FMulElement | LaneSizeField::encode(16),
+         g.DefineAsRegister(node), g.UseRegister(result.input),
+         g.UseRegister(result.dup_node), g.UseImmediate(result.index));
+  } else {
+    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(16), node);
+  }
+}
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitF32x4Mul(node_t node) {
@@ -8324,6 +8353,16 @@ void VisitPminOrPmax(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
                  g.UseUniqueRegister(selector->input_at(node, 1)));
 }
 }  // namespace
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Pmin(node_t node) {
+  VisitPminOrPmax(this, kArm64F16x8Pmin, node);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Pmax(node_t node) {
+  VisitPminOrPmax(this, kArm64F16x8Pmax, node);
+}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4Pmin(node_t node) {

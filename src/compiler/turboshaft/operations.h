@@ -7389,9 +7389,23 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   V(I8x16Swizzle)                                 \
   V(I8x16RelaxedSwizzle)
 
-#define FOREACH_SIMD_128_BINARY_OPCODE(V) \
-  FOREACH_SIMD_128_BINARY_BASIC_OPCODE(V) \
+#define FOREACH_SIMD_128_BINARY_MANDATORY_OPCODE(V) \
+  FOREACH_SIMD_128_BINARY_BASIC_OPCODE(V)           \
   FOREACH_SIMD_128_BINARY_SPECIAL_OPCODE(V)
+
+#define FOREACH_SIMD_128_BINARY_OPTIONAL_OPCODE(V) \
+  V(F16x8Add)                                      \
+  V(F16x8Sub)                                      \
+  V(F16x8Mul)                                      \
+  V(F16x8Div)                                      \
+  V(F16x8Min)                                      \
+  V(F16x8Max)                                      \
+  V(F16x8Pmin)                                     \
+  V(F16x8Pmax)
+
+#define FOREACH_SIMD_128_BINARY_OPCODE(V)     \
+  FOREACH_SIMD_128_BINARY_MANDATORY_OPCODE(V) \
+  FOREACH_SIMD_128_BINARY_OPTIONAL_OPCODE(V)
 
 struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
   // clang-format off

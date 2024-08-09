@@ -3248,8 +3248,31 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         V<compiler::turboshaft::Simd128>::Cast(args[1].op),   \
                         compiler::turboshaft::Simd128BinopOp::Kind::k##kind); \
     break;
-      FOREACH_SIMD_128_BINARY_OPCODE(HANDLE_BINARY_OPCODE)
+      FOREACH_SIMD_128_BINARY_MANDATORY_OPCODE(HANDLE_BINARY_OPCODE)
 #undef HANDLE_BINARY_OPCODE
+#define HANDLE_F16X8_BIN_OPTIONAL_OPCODE(kind, extern_ref)                     \
+  case kExprF16x8##kind:                                                       \
+    if (SupportedOperations::float16()) {                                      \
+      result->op = __ Simd128Binop(                                            \
+          V<compiler::turboshaft::Simd128>::Cast(args[0].op),                  \
+          V<compiler::turboshaft::Simd128>::Cast(args[1].op),                  \
+          compiler::turboshaft::Simd128BinopOp::Kind::kF16x8##kind);           \
+    } else {                                                                   \
+      result->op = CallCStackSlotToStackSlot(args[0].op, args[1].op,           \
+                                             ExternalReference::extern_ref(),  \
+                                             MemoryRepresentation::Simd128()); \
+    }                                                                          \
+    break;
+
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Add, wasm_f16x8_add)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Sub, wasm_f16x8_sub)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Mul, wasm_f16x8_mul)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Div, wasm_f16x8_div)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Min, wasm_f16x8_min)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Max, wasm_f16x8_max)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Pmin, wasm_f16x8_pmin)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Pmax, wasm_f16x8_pmax)
+#undef HANDLE_F16X8_BIN_OPCODE
 
 #define HANDLE_INVERSE_COMPARISON(wasm_kind, ts_kind)            \
   case kExpr##wasm_kind:                                         \
@@ -3400,14 +3423,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                            ExternalReference::extern_ref(),  \
                                            MemoryRepresentation::Simd128()); \
     break;
-      HANDLE_F16X8_BIN_OPCODE(Add, wasm_f16x8_add)
-      HANDLE_F16X8_BIN_OPCODE(Sub, wasm_f16x8_sub)
-      HANDLE_F16X8_BIN_OPCODE(Mul, wasm_f16x8_mul)
-      HANDLE_F16X8_BIN_OPCODE(Div, wasm_f16x8_div)
-      HANDLE_F16X8_BIN_OPCODE(Min, wasm_f16x8_min)
-      HANDLE_F16X8_BIN_OPCODE(Max, wasm_f16x8_max)
-      HANDLE_F16X8_BIN_OPCODE(Pmin, wasm_f16x8_pmin)
-      HANDLE_F16X8_BIN_OPCODE(Pmax, wasm_f16x8_pmax)
       HANDLE_F16X8_BIN_OPCODE(Eq, wasm_f16x8_eq)
       HANDLE_F16X8_BIN_OPCODE(Ne, wasm_f16x8_ne)
       HANDLE_F16X8_BIN_OPCODE(Lt, wasm_f16x8_lt)

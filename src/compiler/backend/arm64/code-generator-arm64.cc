@@ -2578,6 +2578,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
       break;
     }
+    case kArm64F16x8Pmin: {
+      VRegister dst = i.OutputSimd128Register().V8H();
+      VRegister lhs = i.InputSimd128Register(0).V8H();
+      VRegister rhs = i.InputSimd128Register(1).V8H();
+      // f16x8.pmin(lhs, rhs)
+      // = v128.bitselect(rhs, lhs, f16x8.lt(rhs, lhs))
+      // = v128.bitselect(rhs, lhs, f16x8.gt(lhs, rhs))
+      __ Fcmgt(dst, lhs, rhs);
+      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
+      break;
+    }
+    case kArm64F16x8Pmax: {
+      VRegister dst = i.OutputSimd128Register().V8H();
+      VRegister lhs = i.InputSimd128Register(0).V8H();
+      VRegister rhs = i.InputSimd128Register(1).V8H();
+      // f16x8.pmax(lhs, rhs)
+      // = v128.bitselect(rhs, lhs, f16x8.gt(rhs, lhs))
+      __ Fcmgt(dst, rhs, lhs);
+      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
+      break;
+    }
     case kArm64IExtractLane: {
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       Register dst =

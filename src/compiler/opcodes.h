@@ -930,6 +930,14 @@
   IF_WASM(V, F16x8Floor)                  \
   IF_WASM(V, F16x8Trunc)                  \
   IF_WASM(V, F16x8NearestInt)             \
+  IF_WASM(V, F16x8Add)                    \
+  IF_WASM(V, F16x8Sub)                    \
+  IF_WASM(V, F16x8Mul)                    \
+  IF_WASM(V, F16x8Div)                    \
+  IF_WASM(V, F16x8Min)                    \
+  IF_WASM(V, F16x8Max)                    \
+  IF_WASM(V, F16x8Pmin)                   \
+  IF_WASM(V, F16x8Pmax)                   \
   IF_WASM(V, I64x2Splat)                  \
   IF_WASM(V, I64x2SplatI32Pair)           \
   IF_WASM(V, I64x2ExtractLane)            \
