@@ -282,6 +282,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Word32PairBinop)                         \
   V(OverflowCheckedBinop)                    \
   V(WordUnary)                               \
+  V(OverflowCheckedUnary)                    \
   V(FloatUnary)                              \
   V(Shift)                                   \
   V(Comparison)                              \
@@ -1868,6 +1869,43 @@ struct WordUnaryOp : FixedArityOperationT<1, WordUnaryOp> {
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            WordUnaryOp::Kind kind);
+
+struct OverflowCheckedUnaryOp
+    : FixedArityOperationT<1, OverflowCheckedUnaryOp> {
+  static constexpr int kValueIndex = 0;
+  static constexpr int kOverflowIndex = 1;
+
+  enum class Kind : uint8_t { kAbs };
+  Kind kind;
+  WordRepresentation rep;
+  static constexpr OpEffects effects = OpEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    switch (rep.value()) {
+      case WordRepresentation::Word32():
+        return RepVector<RegisterRepresentation::Word32(),
+                         RegisterRepresentation::Word32()>();
+      case WordRepresentation::Word64():
+        return RepVector<RegisterRepresentation::Word64(),
+                         RegisterRepresentation::Word32()>();
+    }
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InputsRepFactory::SingleRep(rep);
+  }
+
+  V<Word> input() const { return Base::input<Word>(0); }
+
+  explicit OverflowCheckedUnaryOp(V<Word> input, Kind kind,
+                                  WordRepresentation rep)
+      : Base(input), kind(kind), rep(rep) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{kind, rep}; }
+};
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           OverflowCheckedUnaryOp::Kind kind);
 
 struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
   enum class Kind : uint8_t {

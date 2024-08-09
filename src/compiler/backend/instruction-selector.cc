@@ -2423,7 +2423,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitProjection(
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const ProjectionOp& projection = this->Get(node).Cast<ProjectionOp>();
   const Operation& value_op = this->Get(projection.input());
-  if (value_op.Is<OverflowCheckedBinopOp>() || value_op.Is<TryChangeOp>() ||
+  if (value_op.Is<OverflowCheckedBinopOp>() ||
+      value_op.Is<OverflowCheckedUnaryOp>() || value_op.Is<TryChangeOp>() ||
       value_op.Is<Word32PairBinopOp>()) {
     if (projection.index == 0u) {
       EmitIdentity(node);
@@ -2804,10 +2805,15 @@ void InstructionSelectorT<Adapter>::TryPrepareScheduleFirstProjection(
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
     auto* binop = this->Get(node).template TryCast<OverflowCheckedBinopOp>();
-    if (binop == nullptr) return;
-    DCHECK(binop->kind == OverflowCheckedBinopOp::Kind::kSignedAdd ||
-           binop->kind == OverflowCheckedBinopOp::Kind::kSignedSub ||
-           binop->kind == OverflowCheckedBinopOp::Kind::kSignedMul);
+    auto* unop = this->Get(node).template TryCast<OverflowCheckedUnaryOp>();
+    if (binop == nullptr && unop == nullptr) return;
+    if (binop) {
+      DCHECK(binop->kind == OverflowCheckedBinopOp::Kind::kSignedAdd ||
+             binop->kind == OverflowCheckedBinopOp::Kind::kSignedSub ||
+             binop->kind == OverflowCheckedBinopOp::Kind::kSignedMul);
+    } else {
+      DCHECK_EQ(unop->kind, OverflowCheckedUnaryOp::Kind::kAbs);
+    }
   } else {
     switch (node->opcode()) {
       case IrOpcode::kInt32AddWithOverflow:
@@ -5086,6 +5092,24 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
             return VisitInt64MulWithOverflow(node);
           case OverflowCheckedBinopOp::Kind::kSignedSub:
             return VisitInt64SubWithOverflow(node);
+        }
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kOverflowCheckedUnary: {
+      const auto& unop = op.Cast<OverflowCheckedUnaryOp>();
+      if (unop.rep == WordRepresentation::Word32()) {
+        MarkAsWord32(node);
+        switch (unop.kind) {
+          case OverflowCheckedUnaryOp::Kind::kAbs:
+            return VisitInt32AbsWithOverflow(node);
+        }
+      } else {
+        DCHECK_EQ(unop.rep, WordRepresentation::Word64());
+        MarkAsWord64(node);
+        switch (unop.kind) {
+          case OverflowCheckedUnaryOp::Kind::kAbs:
+            return VisitInt64AbsWithOverflow(node);
         }
       }
       UNREACHABLE();

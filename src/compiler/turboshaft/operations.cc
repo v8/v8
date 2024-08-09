@@ -198,6 +198,13 @@ std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, OverflowCheckedUnaryOp::Kind kind) {
+  switch (kind) {
+    case OverflowCheckedUnaryOp::Kind::kAbs:
+      return os << "kAbs";
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
   switch (kind) {
     case FloatUnaryOp::Kind::kAbs:

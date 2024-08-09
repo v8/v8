@@ -2942,8 +2942,23 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
                         cont);
                   }
                 }
-              // TODO(miladfarca): Add kInt64AbsWithOverflow and
-              // kInt32AbsWithOverflow
+              default:
+                break;
+            }
+          } else if (const OverflowCheckedUnaryOp* unop =
+                         TryCast<OverflowCheckedUnaryOp>(node)) {
+            const bool is64 = unop->rep == WordRepresentation::Word64();
+            switch (unop->kind) {
+              case OverflowCheckedUnaryOp::Kind::kAbs:
+                if (is64) {
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitWord64UnaryOp(this, node, kS390_Abs64,
+                                            OperandMode::kNone, cont);
+                } else {
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitWord32UnaryOp(this, node, kS390_Abs32,
+                                            OperandMode::kNone, cont);
+                }
               default:
                 break;
             }
@@ -4666,6 +4681,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
          MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kInt32AbsWithOverflow |
+         MachineOperatorBuilder::kInt64AbsWithOverflow |
          MachineOperatorBuilder::kWord64Popcnt;
 }
 

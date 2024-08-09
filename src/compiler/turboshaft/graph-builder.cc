@@ -618,6 +618,8 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(SignExtendWord16ToInt32, Word32SignExtend16)
       UNARY_CASE(SignExtendWord8ToInt64, Word64SignExtend8)
       UNARY_CASE(SignExtendWord16ToInt64, Word64SignExtend16)
+      UNARY_CASE(Int32AbsWithOverflow, Int32AbsCheckOverflow)
+      UNARY_CASE(Int64AbsWithOverflow, Int64AbsCheckOverflow)
 
       UNARY_CASE(Float32Abs, Float32Abs)
       UNARY_CASE(Float64Abs, Float64Abs)

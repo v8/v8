@@ -318,12 +318,14 @@ MachineRepresentation NodeProperties::GetProjectionType(
     case IrOpcode::kInt32AddWithOverflow:
     case IrOpcode::kInt32SubWithOverflow:
     case IrOpcode::kInt32MulWithOverflow:
+    case IrOpcode::kInt32AbsWithOverflow:
       CHECK_LE(index, static_cast<size_t>(1));
       return index == 0 ? MachineRepresentation::kWord32
                         : MachineRepresentation::kBit;
     case IrOpcode::kInt64AddWithOverflow:
     case IrOpcode::kInt64SubWithOverflow:
     case IrOpcode::kInt64MulWithOverflow:
+    case IrOpcode::kInt64AbsWithOverflow:
       CHECK_LE(index, static_cast<size_t>(1));
       return index == 0 ? MachineRepresentation::kWord64
                         : MachineRepresentation::kBit;

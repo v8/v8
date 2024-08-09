@@ -1996,6 +1996,20 @@ class TurboshaftAssemblerOpInterface
                          SignExtend16, Word)
   DECL_SINGLE_REP_UNARY_V(Word32SignExtend16, WordUnary, SignExtend16, Word32)
   DECL_SINGLE_REP_UNARY_V(Word64SignExtend16, WordUnary, SignExtend16, Word64)
+
+  V<turboshaft::Tuple<Word, Word32>> OverflowCheckedUnary(
+      V<Word> input, OverflowCheckedUnaryOp::Kind kind,
+      WordRepresentation rep) {
+    return ReduceIfReachableOverflowCheckedUnary(input, kind, rep);
+  }
+
+  DECL_MULTI_REP_UNARY_V(IntAbsCheckOverflow, OverflowCheckedUnary,
+                         WordRepresentation, Abs, Word)
+  DECL_SINGLE_REP_UNARY_V(Int32AbsCheckOverflow, OverflowCheckedUnary, Abs,
+                          Word32)
+  DECL_SINGLE_REP_UNARY_V(Int64AbsCheckOverflow, OverflowCheckedUnary, Abs,
+                          Word64)
+
 #undef DECL_SINGLE_REP_UNARY_V
 #undef DECL_MULTI_REP_UNARY
 #undef DECL_MULTI_REP_UNARY_V

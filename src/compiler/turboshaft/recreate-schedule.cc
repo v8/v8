@@ -411,6 +411,18 @@ Node* ScheduleBuilder::ProcessOperation(const WordUnaryOp& op) {
   }
   return AddNode(o, {GetNode(op.input())});
 }
+
+Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedUnaryOp& op) {
+  bool word64 = op.rep == WordRepresentation::Word64();
+  const Operator* o;
+  switch (op.kind) {
+    case OverflowCheckedUnaryOp::Kind::kAbs:
+      o = word64 ? machine.Int64AbsWithOverflow().op()
+                 : machine.Int32AbsWithOverflow().op();
+  }
+  return AddNode(o, {GetNode(op.input())});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const FloatUnaryOp& op) {
   DCHECK(FloatUnaryOp::IsSupported(op.kind, op.rep));
   bool float64 = op.rep == FloatRepresentation::Float64();
