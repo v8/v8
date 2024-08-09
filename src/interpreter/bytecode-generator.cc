@@ -1642,94 +1642,22 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
 }
 
 void BytecodeGenerator::GenerateBytecodeBody() {
-  FunctionLiteral* literal = info()->literal();
+  GenerateBodyPrologue();
 
-  if (literal->kind() == FunctionKind::kDerivedConstructor) {
-    // Per spec, derived constructors can only return undefined or an object;
-    // other primitives trigger an exception in ConstructStub.
-    //
-    // Since the receiver is popped by the callee, derived constructors return
-    // <this> if the original return value was undefined.
-    //
-    // Also per spec, this return value check is done after all user code (e.g.,
-    // finally blocks) are executed. For example, the following code does not
-    // throw.
-    //
-    //   class C extends class {} {
-    //     constructor() {
-    //       try { throw 42; }
-    //       catch(e) { return; }
-    //       finally { super(); }
-    //     }
-    //   }
-    //   new C();
-    //
-    // This check is implemented by jumping to the check instead of emitting a
-    // return bytecode in-place inside derived constructors.
-    //
-    // Note that default derived constructors do not need this check as they
-    // just forward a super call.
-
-    BytecodeLabels check_return_value(zone());
-    Register result = register_allocator()->NewRegister();
-    ControlScopeForDerivedConstructor control(this, result,
-                                              &check_return_value);
-
-    {
-      HoleCheckElisionScope elider(this);
-      GenerateBytecodeBodyWithoutImplicitFinalReturn();
-    }
-
-    if (check_return_value.empty()) {
-      if (!builder()->RemainderOfBlockIsDead()) {
-        BuildThisVariableLoad();
-        BuildReturn(literal->return_position());
-      }
-    } else {
-      BytecodeLabels return_this(zone());
-
-      if (!builder()->RemainderOfBlockIsDead()) {
-        builder()->Jump(return_this.New());
-      }
-
-      check_return_value.Bind(builder());
-      builder()->LoadAccumulatorWithRegister(result);
-      builder()->JumpIfUndefined(return_this.New());
-      BuildReturn(literal->return_position());
-
-      {
-        return_this.Bind(builder());
-        BuildThisVariableLoad();
-        BuildReturn(literal->return_position());
-      }
-    }
+  if (IsBaseConstructor(function_kind())) {
+    GenerateBaseConstructorBody();
+  } else if (function_kind() == FunctionKind::kDerivedConstructor) {
+    GenerateDerivedConstructorBody();
+  } else if ((IsAsyncFunction(function_kind()) &&
+              !IsAsyncGeneratorFunction(function_kind())) ||
+             IsModuleWithTopLevelAwait(function_kind())) {
+    GenerateAsyncFunctionBody();
   } else {
-    GenerateBytecodeBodyWithoutImplicitFinalReturn();
-
-    // Emit an implicit return instruction in case control flow can fall off the
-    // end of the function without an explicit return being present on all
-    // paths.
-    if (!builder()->RemainderOfBlockIsDead()) {
-      builder()->LoadUndefined();
-      BuildReturn(literal->return_position());
-    }
+    GenerateBodyStatements();
   }
 }
 
-void BytecodeGenerator::GenerateBytecodeBodyWithoutImplicitFinalReturn() {
-  if (v8_flags.js_explicit_resource_management && closure_scope() != nullptr &&
-      (closure_scope()->has_using_declaration() ||
-       closure_scope()->has_await_using_declaration())) {
-    BuildDisposeScope(
-        [&]() { GenerateBytecodeBodyWithoutImplicitFinalReturnOrDispose(); },
-        closure_scope()->has_await_using_declaration());
-  } else {
-    GenerateBytecodeBodyWithoutImplicitFinalReturnOrDispose();
-  }
-}
-
-void BytecodeGenerator::
-    GenerateBytecodeBodyWithoutImplicitFinalReturnOrDispose() {
+void BytecodeGenerator::GenerateBodyPrologue() {
   // Build the arguments object if it is used.
   VisitArgumentsObject(closure_scope()->arguments());
 
@@ -1769,23 +1697,165 @@ void BytecodeGenerator::
 
   // Emit initializing assignments for module namespace imports (if any).
   VisitModuleNamespaceImports();
+}
+
+void BytecodeGenerator::GenerateBaseConstructorBody() {
+  DCHECK(IsBaseConstructor(function_kind()));
+
+  FunctionLiteral* literal = info()->literal();
 
   // The derived constructor case is handled in VisitCallSuper.
-  if (IsBaseConstructor(function_kind())) {
-    if (literal->class_scope_has_private_brand()) {
-      ClassScope* scope = info()->scope()->outer_scope()->AsClassScope();
-      DCHECK_NOT_NULL(scope->brand());
-      BuildPrivateBrandInitialization(builder()->Receiver(), scope->brand());
-    }
-
-    if (literal->requires_instance_members_initializer()) {
-      BuildInstanceMemberInitialization(Register::function_closure(),
-                                        builder()->Receiver());
-    }
+  if (literal->class_scope_has_private_brand()) {
+    ClassScope* scope = info()->scope()->outer_scope()->AsClassScope();
+    DCHECK_NOT_NULL(scope->brand());
+    BuildPrivateBrandInitialization(builder()->Receiver(), scope->brand());
   }
 
-  // Visit statements in the function body.
-  VisitStatements(literal->body());
+  if (literal->requires_instance_members_initializer()) {
+    BuildInstanceMemberInitialization(Register::function_closure(),
+                                      builder()->Receiver());
+  }
+
+  GenerateBodyStatements();
+}
+
+void BytecodeGenerator::GenerateDerivedConstructorBody() {
+  DCHECK_EQ(FunctionKind::kDerivedConstructor, function_kind());
+
+  FunctionLiteral* literal = info()->literal();
+
+  // Per spec, derived constructors can only return undefined or an object;
+  // other primitives trigger an exception in ConstructStub.
+  //
+  // Since the receiver is popped by the callee, derived constructors return
+  // <this> if the original return value was undefined.
+  //
+  // Also per spec, this return value check is done after all user code (e.g.,
+  // finally blocks) are executed. For example, the following code does not
+  // throw.
+  //
+  //   class C extends class {} {
+  //     constructor() {
+  //       try { throw 42; }
+  //       catch(e) { return; }
+  //       finally { super(); }
+  //     }
+  //   }
+  //   new C();
+  //
+  // This check is implemented by jumping to the check instead of emitting a
+  // return bytecode in-place inside derived constructors.
+  //
+  // Note that default derived constructors do not need this check as they
+  // just forward a super call.
+
+  BytecodeLabels check_return_value(zone());
+  Register result = register_allocator()->NewRegister();
+  ControlScopeForDerivedConstructor control(this, result, &check_return_value);
+
+  {
+    HoleCheckElisionScope elider(this);
+    GenerateBodyStatementsWithoutImplicitFinalReturn();
+  }
+
+  if (check_return_value.empty()) {
+    if (!builder()->RemainderOfBlockIsDead()) {
+      BuildThisVariableLoad();
+      BuildReturn(literal->return_position());
+    }
+  } else {
+    BytecodeLabels return_this(zone());
+
+    if (!builder()->RemainderOfBlockIsDead()) {
+      builder()->Jump(return_this.New());
+    }
+
+    check_return_value.Bind(builder());
+    builder()->LoadAccumulatorWithRegister(result);
+    builder()->JumpIfUndefined(return_this.New());
+    BuildReturn(literal->return_position());
+
+    {
+      return_this.Bind(builder());
+      BuildThisVariableLoad();
+      BuildReturn(literal->return_position());
+    }
+  }
+}
+
+void BytecodeGenerator::GenerateAsyncFunctionBody() {
+  DCHECK((IsAsyncFunction(function_kind()) &&
+          !IsAsyncGeneratorFunction(function_kind())) ||
+         IsModuleWithTopLevelAwait(function_kind()));
+
+  // Async functions always return promises. Return values fulfill that promise,
+  // while synchronously thrown exceptions reject that promise. This is handled
+  // by surrounding the body statements in a try-catch block as follows:
+  //
+  // try {
+  //   <inner_block>
+  // } catch (.catch) {
+  //   return %_AsyncFunctionReject(.generator_object, .catch);
+  // }
+
+  FunctionLiteral* literal = info()->literal();
+
+  HandlerTable::CatchPrediction outer_catch_prediction = catch_prediction();
+  // When compiling a REPL script, use UNCAUGHT_ASYNC_AWAIT to preserve the
+  // exception so DevTools can inspect it.
+  set_catch_prediction(literal->scope()->is_repl_mode_scope()
+                           ? HandlerTable::UNCAUGHT_ASYNC_AWAIT
+                           : HandlerTable::ASYNC_AWAIT);
+
+  BuildTryCatch(
+      [&]() {
+        GenerateBodyStatements();
+        set_catch_prediction(outer_catch_prediction);
+      },
+      [&](Register context) {
+        RegisterList args = register_allocator()->NewRegisterList(2);
+        builder()
+            ->MoveRegister(generator_object(), args[0])
+            .StoreAccumulatorInRegister(args[1])  // exception
+            .CallRuntime(Runtime::kInlineAsyncFunctionReject, args);
+        // TODO(358404372): Should this return have a statement position?
+        // Without one it is not possible to apply a debugger breakpoint.
+        BuildReturn(kNoSourcePosition);
+      },
+      catch_prediction());
+}
+
+void BytecodeGenerator::GenerateBodyStatements() {
+  GenerateBodyStatementsWithoutImplicitFinalReturn();
+
+  // Emit an implicit return instruction in case control flow can fall off the
+  // end of the function without an explicit return being present on all
+  // paths.
+  if (!builder()->RemainderOfBlockIsDead()) {
+    builder()->LoadUndefined();
+    const int pos = info()->literal()->return_position();
+    // TODO(358404372): Handle AsyncGeneratorFunction as well once its AST
+    // rewrite is removed from the parser.
+    if ((IsAsyncFunction(function_kind()) &&
+         !IsAsyncGeneratorFunction(function_kind())) ||
+        IsModuleWithTopLevelAwait(function_kind())) {
+      BuildAsyncReturn(pos);
+    } else {
+      BuildReturn(pos);
+    }
+  }
+}
+
+void BytecodeGenerator::GenerateBodyStatementsWithoutImplicitFinalReturn() {
+  ZonePtrList<Statement>* body = info()->literal()->body();
+  if (v8_flags.js_explicit_resource_management && closure_scope() != nullptr &&
+      (closure_scope()->has_using_declaration() ||
+       closure_scope()->has_await_using_declaration())) {
+    BuildDisposeScope([&]() { VisitStatements(body); },
+                      closure_scope()->has_await_using_declaration());
+  } else {
+    VisitStatements(body);
+  }
 }
 
 void BytecodeGenerator::AllocateTopLevelRegisters() {

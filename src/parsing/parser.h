@@ -311,8 +311,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  Block* finally_block,
                                  const SourceRange& finally_range,
                                  const CatchInfo& catch_info, int pos);
-  void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
-                                            ScopedPtrList<Statement>* body);
+  void ParseGeneratorFunctionBody(int pos, FunctionKind kind,
+                                  ScopedPtrList<Statement>* body);
   void ParseAndRewriteAsyncGeneratorFunctionBody(
       int pos, FunctionKind kind, ScopedPtrList<Statement>* body);
   void DeclareFunctionNameVar(const AstRawString* function_name,
@@ -452,8 +452,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters);
-  Block* BuildRejectPromiseOnException(Block* block,
-                                       REPLMode repl_mode = REPLMode::kNo);
 
   void ParseFunction(
       ScopedPtrList<Statement>* body, const AstRawString* function_name,
@@ -525,10 +523,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* NewThrowError(Runtime::FunctionId function_id,
                             MessageTemplate message, const AstRawString* arg,
                             int pos);
-
-  void RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body, Block* block,
-                                Expression* return_value,
-                                REPLMode repl_mode = REPLMode::kNo);
 
   void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                         Expression* params, int end_pos);

@@ -691,27 +691,12 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
           kNoSourcePosition, FunctionKind::kGeneratorFunction);
       body.Add(
           factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
-      // First parse statements into a buffer. Then, if there was a
-      // top level await, create an inner block and rewrite the body of the
-      // module as an async function. Otherwise merge the statements back
-      // into the main body.
-      BlockT block = impl()->NullBlock();
-      {
-        StatementListT statements(pointer_buffer());
-        ParseModuleItemList(&statements);
-        // Modules will always have an initial yield. If there are any
-        // additional suspends, they are awaits, and we treat the module as a
-        // ModuleWithTopLevelAwait.
-        if (function_state.suspend_count() > 1) {
-          scope->set_module_has_toplevel_await();
-          block = factory()->NewBlock(true, statements);
-        } else {
-          statements.MergeInto(&body);
-        }
-      }
-      if (IsModuleWithTopLevelAwait(scope->function_kind())) {
-        impl()->RewriteAsyncFunctionBody(
-            &body, block, factory()->NewUndefinedLiteral(kNoSourcePosition));
+      ParseModuleItemList(&body);
+      // Modules will always have an initial yield. If there are any
+      // additional suspends, they are awaits, and we treat the module as a
+      // ModuleWithTopLevelAwait.
+      if (function_state.suspend_count() > 1) {
+        scope->set_module_has_toplevel_await();
       }
       if (!has_error() &&
           !module()->Validate(this->scope()->AsModuleScope(),
@@ -883,9 +868,11 @@ void Parser::ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
       (maybe_result && *maybe_result)
           ? static_cast<Expression*>(*maybe_result)
           : factory()->NewUndefinedLiteral(kNoSourcePosition);
-
-  impl()->RewriteAsyncFunctionBody(body, block, WrapREPLResult(result_value),
-                                   REPLMode::kYes);
+  Expression* wrapped_result_value = WrapREPLResult(result_value);
+  block->statements()->Add(factory()->NewAsyncReturnStatement(
+                               wrapped_result_value, kNoSourcePosition),
+                           zone());
+  body->Add(block);
 }
 
 Expression* Parser::WrapREPLResult(Expression* value) {
@@ -2111,8 +2098,8 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
   }
 }
 
-void Parser::ParseAndRewriteGeneratorFunctionBody(
-    int pos, FunctionKind kind, ScopedPtrList<Statement>* body) {
+void Parser::ParseGeneratorFunctionBody(int pos, FunctionKind kind,
+                                        ScopedPtrList<Statement>* body) {
   // For ES6 Generators, we just prepend the initial yield.
   Expression* initial_yield = BuildInitialYield(pos, kind);
   body->Add(
@@ -3045,46 +3032,6 @@ Scope* Parser::NewHiddenCatchScope() {
   return catch_scope;
 }
 
-Block* Parser::BuildRejectPromiseOnException(Block* inner_block,
-                                             REPLMode repl_mode) {
-  // try {
-  //   <inner_block>
-  // } catch (.catch) {
-  //   return %_AsyncFunctionReject(.generator_object, .catch, can_suspend);
-  // }
-  Block* result = factory()->NewBlock(1, true);
-
-  // catch (.catch) {
-  //   return %_AsyncFunctionReject(.generator_object, .catch, can_suspend)
-  // }
-  Scope* catch_scope = NewHiddenCatchScope();
-
-  Expression* reject_promise;
-  {
-    ScopedPtrList<Expression> args(pointer_buffer());
-    args.Add(factory()->NewVariableProxy(
-        function_state_->scope()->generator_object_var()));
-    args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
-    reject_promise = factory()->NewCallRuntime(
-        Runtime::kInlineAsyncFunctionReject, args, kNoSourcePosition);
-  }
-  Block* catch_block = IgnoreCompletion(factory()->NewReturnStatement(
-      reject_promise, kNoSourcePosition, kNoSourcePosition));
-
-  // Treat the exception for REPL mode scripts as UNCAUGHT. This will
-  // keep the corresponding JSMessageObject alive on the Isolate. The
-  // message object is used by the inspector to provide better error
-  // messages for REPL inputs that throw.
-  TryStatement* try_catch_statement =
-      repl_mode == REPLMode::kYes
-          ? factory()->NewTryCatchStatementForReplAsyncAwait(
-                inner_block, catch_scope, catch_block, kNoSourcePosition)
-          : factory()->NewTryCatchStatementForAsyncAwait(
-                inner_block, catch_scope, catch_block, kNoSourcePosition);
-  result->statements()->Add(try_catch_statement, zone());
-  return result;
-}
-
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
   Expression* yield_result = factory()->NewVariableProxy(
       function_state_->scope()->generator_object_var());
@@ -3677,33 +3624,6 @@ Expression* Parser::ExpressionListToExpression(
     result->AddSubsequent(args.at(i), args.at(i)->position());
   }
   return result;
-}
-
-// This method completes the desugaring of the body of async_function.
-void Parser::RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body,
-                                      Block* block, Expression* return_value,
-                                      REPLMode repl_mode) {
-  // function async_function() {
-  //   .generator_object = %_AsyncFunctionEnter();
-  //   BuildRejectPromiseOnException({
-  //     ... block ...
-  //     return %_AsyncFunctionResolve(.generator_object, expr);
-  //   })
-  // }
-
-  block->statements()->Add(factory()->NewSyntheticAsyncReturnStatement(
-                               return_value, return_value->position()),
-                           zone());
-  if (block->statements()->length() > 1 ||
-      !(return_value->IsLiteral() &&
-        return_value->AsLiteral()->type() == Literal::kUndefined)) {
-    // We only build a promise reject try/catch if there's actually a body that
-    // can throw. Otherwise we might try to create two catch blocks with the
-    // same source position, which doesn't work for scope_info reuse through
-    // source-position-based unique scope IDs.
-    block = BuildRejectPromiseOnException(block, repl_mode);
-  }
-  body->Add(block);
 }
 
 void Parser::SetFunctionNameFromPropertyName(LiteralProperty* property,

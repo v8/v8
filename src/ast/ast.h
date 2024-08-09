@@ -2988,8 +2988,9 @@ class AstNodeFactory final {
                                        pos, end_position);
   }
 
-  ReturnStatement* NewAsyncReturnStatement(Expression* expression, int pos,
-                                           int end_position) {
+  ReturnStatement* NewAsyncReturnStatement(
+      Expression* expression, int pos,
+      int end_position = ReturnStatement::kFunctionLiteralReturnPosition) {
     return zone_->New<ReturnStatement>(
         expression, ReturnStatement::kAsyncReturn, pos, end_position);
   }

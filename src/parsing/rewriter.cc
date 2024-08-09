@@ -416,8 +416,17 @@ std::optional<VariableProxy*> Rewriter::RewriteBody(
       VariableProxy* result_value =
           processor.factory()->NewVariableProxy(result, pos);
       if (!info->flags().is_repl_mode()) {
-        Statement* result_statement =
-            processor.factory()->NewReturnStatement(result_value, pos);
+        Statement* result_statement;
+        if (scope->is_module_scope() &&
+            IsModuleWithTopLevelAwait(
+                scope->AsDeclarationScope()->function_kind())) {
+          result_statement = processor.factory()->NewAsyncReturnStatement(
+              result_value, pos,
+              ReturnStatement::kFunctionLiteralReturnPosition);
+        } else {
+          result_statement =
+              processor.factory()->NewReturnStatement(result_value, pos);
+        }
         body->Add(result_statement, info->zone());
       }
       return result_value;

@@ -1339,7 +1339,6 @@ class ParserBase {
   ExpressionT ParseArrowFunctionLiteral(const FormalParametersT& parameters,
                                         int function_literal_id,
                                         bool could_be_immediately_invoked);
-  void ParseAsyncFunctionBody(Scope* scope, StatementListT* body);
   ExpressionT ParseAsyncFunctionLiteral();
   ExpressionT ParseClassExpression(Scope* outer_scope);
   ExpressionT ParseClassLiteral(Scope* outer_scope, IdentifierT name,
@@ -4673,11 +4672,7 @@ void ParserBase<Impl>::ParseFunctionBody(
   // TODO(verwaest): Rely on ArrowHeadParsingScope instead.
   if (V8_UNLIKELY(!parameters.is_simple)) {
     if (has_error()) return;
-    BlockT init_block = impl()->BuildParameterInitializationBlock(parameters);
-    if (IsAsyncFunction(kind) && !IsAsyncGeneratorFunction(kind)) {
-      init_block = impl()->BuildRejectPromiseOnException(init_block);
-    }
-    body->Add(init_block);
+    body->Add(impl()->BuildParameterInitializationBlock(parameters));
     if (has_error()) return;
 
     inner_scope = NewVarblockScope();
@@ -4691,14 +4686,7 @@ void ParserBase<Impl>::ParseFunctionBody(
 
     if (body_type == FunctionBodyType::kExpression) {
       ExpressionT expression = ParseAssignmentExpression();
-
-      if (IsAsyncFunction(kind)) {
-        BlockT block = factory()->NewBlock(1, true);
-        impl()->RewriteAsyncFunctionBody(&inner_body, block, expression);
-      } else {
-        inner_body.Add(
-            BuildReturnStatement(expression, expression->position()));
-      }
+      inner_body.Add(BuildReturnStatement(expression, expression->position()));
     } else {
       DCHECK(accept_IN_);
       DCHECK_EQ(FunctionBodyType::kBlock, body_type);
@@ -4713,11 +4701,14 @@ void ParserBase<Impl>::ParseFunctionBody(
         impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind,
                                                           &inner_body);
       } else if (IsGeneratorFunction(kind)) {
-        impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, &inner_body);
-      } else if (IsAsyncFunction(kind)) {
-        ParseAsyncFunctionBody(inner_scope, &inner_body);
+        impl()->ParseGeneratorFunctionBody(pos, kind, &inner_body);
       } else {
         ParseStatementList(&inner_body, closing_token);
+        if (IsAsyncFunction(kind)) {
+          inner_scope->set_end_position(end_position());
+          function_state_ = AddOneSuspendPointIfBlockContainsAwaitUsing(
+              inner_scope, function_state_);
+        }
       }
       if (IsDerivedConstructor(kind)) {
         // Derived constructors are implemented by returning `this` when the
@@ -5209,22 +5200,6 @@ void ParserBase<Impl>::ParseClassLiteralBody(ClassInfo& class_info,
 
   Expect(end_token);
   scope()->set_end_position(end_position());
-}
-
-template <typename Impl>
-void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope,
-                                              StatementListT* body) {
-  BlockT block = impl()->NullBlock();
-  {
-    StatementListT statements(pointer_buffer());
-    ParseStatementList(&statements, Token::kRightBrace);
-    block = factory()->NewBlock(true, statements);
-  }
-  impl()->RewriteAsyncFunctionBody(
-      body, block, factory()->NewUndefinedLiteral(kNoSourcePosition));
-  scope->set_end_position(end_position());
-  function_state_ =
-      AddOneSuspendPointIfBlockContainsAwaitUsing(scope, function_state_);
 }
 
 template <typename Impl>

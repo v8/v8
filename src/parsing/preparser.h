@@ -974,9 +974,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void SetAsmModule() {}
 
   V8_INLINE void PrepareGeneratorVariables() {}
-  V8_INLINE void RewriteAsyncFunctionBody(
-      const PreParserScopedStatementList* body, PreParserStatement block,
-      const PreParserExpression& return_value) {}
 
   V8_INLINE PreParserStatement
   RewriteSwitchStatement(PreParserStatement switch_statement, Scope* scope) {
@@ -1049,7 +1046,7 @@ class PreParser : public ParserBase<PreParser> {
       MessageTemplate message = MessageTemplate::kUnexpectedToken) {
     ReportUnidentifiableError();
   }
-  V8_INLINE void ParseAndRewriteGeneratorFunctionBody(
+  V8_INLINE void ParseGeneratorFunctionBody(
       int pos, FunctionKind kind, PreParserScopedStatementList* body) {
     ParseStatementList(body, Token::kRightBrace);
   }
@@ -1349,11 +1346,6 @@ class PreParser : public ParserBase<PreParser> {
 
   PreParserBlock BuildParameterInitializationBlock(
       const PreParserFormalParameters& parameters);
-
-  V8_INLINE PreParserBlock
-  BuildRejectPromiseOnException(PreParserStatement init_block) {
-    return PreParserBlock::Default();
-  }
 
   V8_INLINE void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
     scope->HoistSloppyBlockFunctions(nullptr);
