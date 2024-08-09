@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:2@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:54a843e6d76610b340d62437aca89653a9a9e18f',
+  'siso_version': 'git_revision:87262779ecc3482c8c60b070404b225107212d0d',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:be41b8d978e22d396ecb4aa9f50ddc3f25977359',
@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:22.20240801.2.1',
+  'fuchsia_version': 'version:23.20240808.4.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '40fc15e7b8a96992f13f0c36eeca60c0fc2438bd',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8447f3c3d67c209168f103a26c4876d3c9224c45',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '19268125543e152a215808913dacafe77ecae63f',
   'buildtools/linux64': {
@@ -239,7 +239,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2feeb46c600d86a89b31b6f03050b205f0d4c32a',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '4d7a5cdcd7cb2ffed0363dc2ad49914fb823f708',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '75932421da2cd8b5807a4ac52ed2a6f46d7c2120',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '78d32ff67a3d5c9bb7940f11c74a9683024eea9b',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
