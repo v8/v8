@@ -3003,16 +3003,9 @@ namespace {
 Handle<JSFunction> CreateFunc(
     Isolate* isolate, Handle<String> name, FunctionCallback func,
     bool has_prototype,
-    SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    Handle<FunctionTemplateInfo> parent = {}) {
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Handle<FunctionTemplateInfo> temp =
       NewFunctionTemplate(isolate, func, has_prototype, side_effect_type);
-
-  if (!parent.is_null()) {
-    DCHECK(has_prototype);
-    FunctionTemplateInfo::SetParentTemplate(isolate, temp, parent);
-  }
-
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(isolate, temp, name).ToHandleChecked();
   DCHECK(function->shared()->HasSharedName());
@@ -3166,7 +3159,22 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   }
 
   // Create the Module object.
-  InstallModule(isolate, webassembly);
+  {
+    Handle<JSFunction> module_constructor = InstallConstructorFunc(
+        isolate, webassembly, "Module", wasm::WebAssemblyModule);
+    SetupConstructor(isolate, module_constructor, WASM_MODULE_OBJECT_TYPE,
+                     WasmModuleObject::kHeaderSize, "WebAssembly.Module");
+    native_context->set_wasm_module_constructor(*module_constructor);
+    InstallFunc(isolate, module_constructor, "imports",
+                wasm::WebAssemblyModuleImports, 1, false, NONE,
+                SideEffectType::kHasNoSideEffect);
+    InstallFunc(isolate, module_constructor, "exports",
+                wasm::WebAssemblyModuleExports, 1, false, NONE,
+                SideEffectType::kHasNoSideEffect);
+    InstallFunc(isolate, module_constructor, "customSections",
+                wasm::WebAssemblyModuleCustomSections, 2, false, NONE,
+                SideEffectType::kHasNoSideEffect);
+  }
 
   // Create the Instance object.
   {
@@ -3301,53 +3309,6 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   }
 }
 
-void WasmJs::InstallModule(Isolate* isolate, Handle<JSObject> webassembly) {
-  Handle<JSGlobalObject> global = isolate->global_object();
-  Handle<NativeContext> native_context(global->native_context(), isolate);
-
-  Handle<JSFunction> module_constructor;
-  if (v8_flags.js_source_phase_imports) {
-    Handle<FunctionTemplateInfo>
-        intrinsic_abstract_module_source_interface_template =
-            NewFunctionTemplate(isolate, nullptr, false);
-    Handle<JSObject> abstract_module_source_prototype = Handle<JSObject>(
-        native_context->abstract_module_source_prototype(), isolate);
-    ApiNatives::AddDataProperty(
-        isolate, intrinsic_abstract_module_source_interface_template,
-        v8_str(isolate, "prototype"), abstract_module_source_prototype, NONE);
-
-    // Check that this is a reinstallation of the Module object.
-    Handle<String> name = v8_str(isolate, "Module");
-    DCHECK(
-        JSObject::HasRealNamedProperty(isolate, webassembly, name).ToChecked());
-    // Reinstall the Module object with AbstractModuleSource as prototype.
-    module_constructor =
-        CreateFunc(isolate, name, wasm::WebAssemblyModule, true,
-                   SideEffectType::kHasNoSideEffect,
-                   intrinsic_abstract_module_source_interface_template);
-    module_constructor->shared()->set_length(1);
-    JSObject::SetOwnPropertyIgnoreAttributes(webassembly, name,
-                                             module_constructor, DONT_ENUM)
-        .Assert();
-  } else {
-    module_constructor = InstallConstructorFunc(isolate, webassembly, "Module",
-                                                wasm::WebAssemblyModule);
-  }
-  SetupConstructor(isolate, module_constructor, WASM_MODULE_OBJECT_TYPE,
-                   WasmModuleObject::kHeaderSize, "WebAssembly.Module");
-  native_context->set_wasm_module_constructor(*module_constructor);
-
-  InstallFunc(isolate, module_constructor, "imports",
-              wasm::WebAssemblyModuleImports, 1, false, NONE,
-              SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, module_constructor, "exports",
-              wasm::WebAssemblyModuleExports, 1, false, NONE,
-              SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, module_constructor, "customSections",
-              wasm::WebAssemblyModuleCustomSections, 2, false, NONE,
-              SideEffectType::kHasNoSideEffect);
-}
-
 // static
 void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSGlobalObject> global = isolate->global_object();
@@ -3362,10 +3323,6 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   // lookup.
   Handle<JSObject> webassembly(native_context->wasm_webassembly_object(),
                                isolate);
-  if (v8_flags.js_source_phase_imports) {
-    // Reinstall the Module object with the experimental interface.
-    InstallModule(isolate, webassembly);
-  }
 
   // Expose the API on the global object if configured to do so.
   if (exposed_on_global_object) {

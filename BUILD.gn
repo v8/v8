@@ -5343,7 +5343,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/baseline/baseline.cc",
     "src/baseline/bytecode-offset-iterator.cc",
     "src/builtins/accessors.cc",
-    "src/builtins/builtins-abstract-module-source.cc",
     "src/builtins/builtins-api.cc",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",

@@ -403,7 +403,6 @@
   V(_, roundingIncrement_string, "roundingIncrement")                         \
   V(_, RuntimeError_string, "RuntimeError")                                   \
   V(_, WebAssemblyException_string, "WebAssembly.Exception")                  \
-  V(_, WebAssemblyModule_string, "WebAssembly.Module")                        \
   V(_, Script_string, "Script")                                               \
   V(_, script_string, "script")                                               \
   V(_, second_string, "second")                                               \

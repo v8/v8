@@ -1317,7 +1317,6 @@ filegroup(
         "src/builtins/builtins.cc",
         "src/builtins/builtins-inl.h",
         "src/builtins/builtins.h",
-        "src/builtins/builtins-abstract-module-source.cc",
         "src/builtins/builtins-api.cc",
         "src/builtins/builtins-array.cc",
         "src/builtins/builtins-arraybuffer.cc",

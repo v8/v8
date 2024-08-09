@@ -1089,11 +1089,6 @@ void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_GetAbstractModuleSource) {
-  HandleScope scope(isolate);
-  return isolate->native_context()->abstract_module_source_function();
-}
-
 // Returns a callable object which redirects [[Call]] requests to
 // globalThis[target_function_name] function.
 RUNTIME_FUNCTION(Runtime_GetCallable) {
