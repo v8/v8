@@ -1571,6 +1571,7 @@ NodeType ToNumberHintToNodeType(ToNumberHint conversion_type) {
     case ToNumberHint::kAssumeNumber:
       return NodeType::kNumber;
     case ToNumberHint::kAssumeNumberOrBoolean:
+      return NodeType::kNumberOrBoolean;
     case ToNumberHint::kAssumeNumberOrOddball:
       return NodeType::kNumberOrOddball;
   }
@@ -3645,7 +3646,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       return NodeType::kNumberOrOddball;
     case Opcode::kAllocationBlock:
     case Opcode::kInlinedAllocation:
-      return StaticTypeForMap(node->Cast<InlinedAllocation>()->object()->map());
+      return StaticTypeForMap(node->Cast<InlinedAllocation>()->object()->map(),
+                              broker);
     case Opcode::kRootConstant: {
       RootConstant* constant = node->Cast<RootConstant>();
       switch (constant->index()) {
@@ -3839,6 +3841,7 @@ NodeType TaggedToFloat64ConversionTypeToNodeType(
     case TaggedToFloat64ConversionType::kOnlyNumber:
       return NodeType::kNumber;
     case TaggedToFloat64ConversionType::kNumberOrBoolean:
+      return NodeType::kNumberOrBoolean;
     case TaggedToFloat64ConversionType::kNumberOrOddball:
       return NodeType::kNumberOrOddball;
   }
@@ -3956,8 +3959,8 @@ class KnownMapsMerger {
     // Update known maps.
     auto node_info = known_node_aspects.GetOrCreateInfoFor(
         object, broker_, broker_->local_isolate());
-    node_info->SetPossibleMaps(intersect_set_, any_map_is_unstable_,
-                               node_type_);
+    node_info->SetPossibleMaps(intersect_set_, any_map_is_unstable_, node_type_,
+                               broker_);
     // Make sure known_node_aspects.any_map_for_any_node_is_unstable is updated
     // in case any_map_is_unstable changed to true for this object -- this can
     // happen if this was an intersection with the universal set which added new
@@ -4014,7 +4017,7 @@ class KnownMapsMerger {
     if (map.is_migration_target()) {
       emit_check_with_migration_ = true;
     }
-    NodeType new_type = StaticTypeForMap(map);
+    NodeType new_type = StaticTypeForMap(map, broker_);
     if (new_type == NodeType::kHeapNumber) {
       new_type = IntersectType(new_type, NodeType::kSmi);
     }
@@ -4117,9 +4120,9 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
       {object}, transition_sources, transition_target,
       GetCheckType(known_info->type()));
   // After this operation, object's map is transition_target (or we deopted).
-  known_info->SetPossibleMaps(PossibleMaps{transition_target},
-                              !transition_target.is_stable(),
-                              StaticTypeForMap(transition_target));
+  known_info->SetPossibleMaps(
+      PossibleMaps{transition_target}, !transition_target.is_stable(),
+      StaticTypeForMap(transition_target, broker()), broker());
   DCHECK(transition_target.IsJSReceiverMap());
   if (!transition_target.is_stable()) {
     known_node_aspects().any_map_for_any_node_is_unstable = true;
@@ -4198,9 +4201,9 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
       &*if_not_matched, {object_map, GetConstant(transition_target)});
   // After the branch, object's map is transition_target.
   DCHECK(transition_target.IsJSReceiverMap());
-  known_info->SetPossibleMaps(PossibleMaps{transition_target},
-                              !transition_target.is_stable(),
-                              StaticTypeForMap(transition_target));
+  known_info->SetPossibleMaps(
+      PossibleMaps{transition_target}, !transition_target.is_stable(),
+      StaticTypeForMap(transition_target, broker()), broker());
   if (!transition_target.is_stable()) {
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   } else {
@@ -4650,7 +4653,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
       auto map = access_info.field_map().value();
       known_info->SetPossibleMaps(PossibleMaps{map}, false,
-                                  StaticTypeForMap(map));
+                                  StaticTypeForMap(map, broker()), broker());
       broker()->dependencies()->DependOnStableMap(map);
     } else {
       known_info->CombineType(NodeType::kAnyHeapObject);
@@ -4688,13 +4691,13 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
 void MaglevGraphBuilder::BuildStoreMap(ValueNode* object, compiler::MapRef map,
                                        StoreMap::Kind kind) {
   AddNewNode<StoreMap>({object}, map, kind);
-  NodeType object_type = StaticTypeForMap(map);
+  NodeType object_type = StaticTypeForMap(map, broker());
   NodeInfo* node_info = GetOrCreateInfoFor(object);
   if (map.is_stable()) {
-    node_info->SetPossibleMaps(PossibleMaps{map}, false, object_type);
+    node_info->SetPossibleMaps(PossibleMaps{map}, false, object_type, broker());
     broker()->dependencies()->DependOnStableMap(map);
   } else {
-    node_info->SetPossibleMaps(PossibleMaps{map}, true, object_type);
+    node_info->SetPossibleMaps(PossibleMaps{map}, true, object_type, broker());
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   }
 }
@@ -7339,7 +7342,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     node_info->SetPossibleMaps(receiver_maps_before_loop,
                                receiver_maps_were_unstable,
                                // Node type is monotonic, no need to reset it.
-                               NodeType::kUnknown);
+                               NodeType::kUnknown, broker());
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   } else {
     DCHECK_EQ(node_info->possible_maps().size(),

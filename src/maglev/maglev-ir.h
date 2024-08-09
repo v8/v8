@@ -558,29 +558,35 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
  * Here is a diagram of the relations between the types, where (*) means that
  * they have the kAnyHeapObject bit set.
  *
- *    NumberOrOddball           JSReceiver*                 Name*
- *     /         \               /       \                  /    \
- *  Oddball*     Number      Callable* JSArray*     String*  Symbol*
- *    |          /    \                                |
+ *      NumberOrOddball
+ *       /     |      \
+ *      /      |       NumberOrBoolean
+ *      |      |   ___/  /
+ *      |      \ /      /
+ *      |       X      /         JSReceiver*                 Name*
+ *     /       / \    |          /       \                  /    \
+ *  Oddball*  /  Number      Callable* JSArray*     String*  Symbol*
+ *    |      /   /    \                                |
  *  Boolean*    Smi   HeapNumber*              InternalizedString*
  *
  */
 
-#define NODE_TYPE_LIST(V)                                  \
-  V(Unknown, 0)                                            \
-  V(NumberOrOddball, (1 << 1))                             \
-  V(Number, (1 << 2) | kNumberOrOddball)                   \
-  V(Smi, (1 << 4) | kNumber)                               \
-  V(AnyHeapObject, (1 << 5))                               \
-  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball) \
-  V(Boolean, (1 << 7) | kOddball)                          \
-  V(Name, (1 << 8) | kAnyHeapObject)                       \
-  V(String, (1 << 9) | kName)                              \
-  V(InternalizedString, (1 << 10) | kString)               \
-  V(Symbol, (1 << 11) | kName)                             \
-  V(JSReceiver, (1 << 12) | kAnyHeapObject)                \
-  V(JSArray, (1 << 13) | kJSReceiver)                      \
-  V(Callable, (1 << 14) | kJSReceiver)                     \
+#define NODE_TYPE_LIST(V)                                   \
+  V(Unknown, 0)                                             \
+  V(NumberOrOddball, (1 << 1))                              \
+  V(NumberOrBoolean, (1 << 2) | kNumberOrOddball)           \
+  V(Number, (1 << 3) | kNumberOrOddball | kNumberOrBoolean) \
+  V(Smi, (1 << 4) | kNumber)                                \
+  V(AnyHeapObject, (1 << 5))                                \
+  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)  \
+  V(Boolean, (1 << 7) | kOddball | kNumberOrBoolean)        \
+  V(Name, (1 << 8) | kAnyHeapObject)                        \
+  V(String, (1 << 9) | kName)                               \
+  V(InternalizedString, (1 << 10) | kString)                \
+  V(Symbol, (1 << 11) | kName)                              \
+  V(JSReceiver, (1 << 12) | kAnyHeapObject)                 \
+  V(JSArray, (1 << 13) | kJSReceiver)                       \
+  V(Callable, (1 << 14) | kJSReceiver)                      \
   V(HeapNumber, kAnyHeapObject | kNumber)
 
 enum class NodeType : uint32_t {
@@ -602,11 +608,13 @@ inline bool NodeTypeIs(NodeType type, NodeType to_check) {
   return (static_cast<int>(type) & right) == right;
 }
 
-inline NodeType StaticTypeForMap(compiler::MapRef map) {
+inline NodeType StaticTypeForMap(compiler::MapRef map,
+                                 compiler::JSHeapBroker* broker) {
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
   if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
   if (map.IsStringMap()) return NodeType::kString;
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
+  if (map.IsBooleanMap(broker)) return NodeType::kBoolean;
   if (map.IsOddballMap()) return NodeType::kOddball;
   if (map.IsJSReceiverMap()) return NodeType::kJSReceiver;
   return NodeType::kAnyHeapObject;
@@ -615,7 +623,7 @@ inline NodeType StaticTypeForMap(compiler::MapRef map) {
 inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
                                       compiler::ObjectRef ref) {
   if (ref.IsSmi()) return NodeType::kSmi;
-  return StaticTypeForMap(ref.AsHeapObject().map(broker));
+  return StaticTypeForMap(ref.AsHeapObject().map(broker), broker);
 }
 
 inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
@@ -623,6 +631,8 @@ inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
   switch (type) {
     case NodeType::kUnknown:
       return true;
+    case NodeType::kNumberOrBoolean:
+      return map.IsHeapNumberMap() || map.IsBooleanMap(broker);
     case NodeType::kNumberOrOddball:
       return map.IsHeapNumberMap() || map.IsOddballMap();
     case NodeType::kSmi:
@@ -635,8 +645,7 @@ inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
     case NodeType::kOddball:
       return map.IsOddballMap();
     case NodeType::kBoolean:
-      return map.IsOddballMap() &&
-             map.oddball_type(broker) == compiler::OddballType::kBoolean;
+      return map.IsBooleanMap(broker);
     case NodeType::kName:
       return map.IsNameMap();
     case NodeType::kString:
@@ -3907,6 +3916,12 @@ class CheckedNumberOrOddballToFloat64
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
+  }
+
+  DeoptimizeReason deoptimize_reason() const {
+    return conversion_type() == TaggedToFloat64ConversionType::kNumberOrBoolean
+               ? DeoptimizeReason::kNotANumberOrBoolean
+               : DeoptimizeReason::kNotANumberOrOddball;
   }
 
   auto options() const { return std::tuple{conversion_type()}; }

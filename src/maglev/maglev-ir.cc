@@ -1735,9 +1735,9 @@ void CheckedNumberOrOddballToFloat64::SetValueLocationConstraints() {
 void CheckedNumberOrOddballToFloat64::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(input());
-  TryUnboxNumberOrOddball(
-      masm, ToDoubleRegister(result()), value, conversion_type(),
-      __ GetDeoptLabel(this, DeoptimizeReason::kNotANumberOrOddball));
+  TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
+                          conversion_type(),
+                          __ GetDeoptLabel(this, deoptimize_reason()));
 }
 
 void UncheckedNumberOrOddballToFloat64::SetValueLocationConstraints() {

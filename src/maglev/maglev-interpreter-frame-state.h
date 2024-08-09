@@ -219,15 +219,17 @@ class NodeInfo {
   }
 
   void SetPossibleMaps(const PossibleMaps& possible_maps,
-                       bool any_map_is_unstable, NodeType possible_type) {
+                       bool any_map_is_unstable, NodeType possible_type,
+                       compiler::JSHeapBroker* broker) {
     possible_maps_ = possible_maps;
     possible_maps_are_known_ = true;
     any_map_is_unstable_ = any_map_is_unstable;
 #ifdef DEBUG
     if (possible_maps.size()) {
-      NodeType expected = StaticTypeForMap(*possible_maps.begin());
+      NodeType expected = StaticTypeForMap(*possible_maps.begin(), broker);
       for (auto map : possible_maps) {
-        expected = maglev::IntersectType(StaticTypeForMap(map), expected);
+        expected =
+            maglev::IntersectType(StaticTypeForMap(map, broker), expected);
       }
       // Ensure the claimed type is not narrower than what can be learned from
       // the map checks.

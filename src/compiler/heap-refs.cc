@@ -1143,6 +1143,10 @@ int ObjectRef::AsSmi() const {
 INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
+bool MapRef::IsBooleanMap(JSHeapBroker* broker) const {
+  return *this == broker->boolean_map();
+}
+
 bool MapRef::CanInlineElementAccess() const {
   if (!IsJSObjectMap()) return false;
   if (is_access_check_needed()) return false;
