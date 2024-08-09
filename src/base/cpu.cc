@@ -54,8 +54,6 @@
 #include "src/base/platform/wrappers.h"
 #if V8_OS_WIN
 #include <windows.h>
-
-#include "src/base/win32-headers.h"
 #endif
 
 namespace v8 {

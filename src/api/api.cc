@@ -161,11 +161,6 @@
 #endif  // V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 
 #if V8_OS_WIN
-#include <windows.h>
-
-// This has to come after windows.h.
-#include <versionhelpers.h>
-
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
 #if defined(V8_OS_WIN64)

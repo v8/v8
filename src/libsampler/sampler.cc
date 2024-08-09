@@ -38,8 +38,6 @@
 
 #include <windows.h>
 
-#include "src/base/win32-headers.h"
-
 #elif V8_OS_FUCHSIA
 
 #include <zircon/process.h>

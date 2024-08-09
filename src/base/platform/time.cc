@@ -38,7 +38,6 @@
 #include <atomic>
 
 #include "src/base/lazy-instance.h"
-#include "src/base/win32-headers.h"
 #endif
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
