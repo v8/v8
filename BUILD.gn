@@ -5847,7 +5847,6 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/graph-builder-interface.cc",
       "src/wasm/jump-table-assembler.cc",
       "src/wasm/local-decl-encoder.cc",
-      "src/wasm/memory-tracing.cc",
       "src/wasm/module-compiler.cc",
       "src/wasm/module-decoder.cc",
       "src/wasm/module-instantiate.cc",

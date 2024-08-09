@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <cinttypes>
+#include <type_traits>
 
 #include "include/v8-wasm.h"
 #include "src/base/memory.h"
@@ -560,6 +561,29 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
   return *isolate->factory()->NewNumberFromSize(num_spaces);
 }
 
+namespace {
+
+template <typename T1, typename T2 = T1>
+void PrintRep(Address address, const char* str) {
+  PrintF("%4s:", str);
+  const auto t1 = base::ReadLittleEndianValue<T1>(address);
+  if constexpr (std::is_floating_point_v<T1>) {
+    PrintF("%f", t1);
+  } else if constexpr (sizeof(T1) > sizeof(uint32_t)) {
+    PrintF("%" PRIu64, t1);
+  } else {
+    PrintF("%u", t1);
+  }
+  const auto t2 = base::ReadLittleEndianValue<T2>(address);
+  if constexpr (sizeof(T1) > sizeof(uint32_t)) {
+    PrintF(" / %016" PRIx64 "\n", t2);
+  } else {
+    PrintF(" / %0*x\n", static_cast<int>(2 * sizeof(T2)), t2);
+  }
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   SealHandleScope scope(isolate);
   if (args.length() != 1 || !IsSmi(args[0])) {
@@ -581,16 +605,54 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 #endif  // V8_ENABLE_DRUMBRAKE
   WasmFrame* frame = WasmFrame::cast(it.frame());
 
+  PrintF("%-11s func:%6d:0x%-4x %s %016" PRIuPTR " val: ",
+         ExecutionTierToString(frame->wasm_code()->is_liftoff()
+                                   ? wasm::ExecutionTier::kLiftoff
+                                   : wasm::ExecutionTier::kTurbofan),
+         frame->function_index(), frame->position(),
+         // Note: The extra leading space makes " store to" the same width as
+         // "load from".
+         info->is_store ? " store to" : "load from", info->offset);
   // TODO(14259): Fix for multi-memory.
-  auto memory_object = frame->trusted_instance_data()->memory_object(0);
-  uint8_t* mem_start = reinterpret_cast<uint8_t*>(
-      memory_object->array_buffer()->backing_store());
-  int func_index = frame->function_index();
-  int pos = frame->position();
-  wasm::ExecutionTier tier = frame->wasm_code()->is_liftoff()
-                                 ? wasm::ExecutionTier::kLiftoff
-                                 : wasm::ExecutionTier::kTurbofan;
-  wasm::TraceMemoryOperation(tier, info, func_index, pos, mem_start);
+  const Address address =
+      reinterpret_cast<Address>(frame->trusted_instance_data()
+                                    ->memory_object(0)
+                                    ->array_buffer()
+                                    ->backing_store()) +
+      info->offset;
+  switch (static_cast<MachineRepresentation>(info->mem_rep)) {
+    case MachineRepresentation::kWord8:
+      PrintRep<uint8_t>(address, "i8");
+      break;
+    case MachineRepresentation::kWord16:
+      PrintRep<uint16_t>(address, "i16");
+      break;
+    case MachineRepresentation::kWord32:
+      PrintRep<uint32_t>(address, "i32");
+      break;
+    case MachineRepresentation::kWord64:
+      PrintRep<uint64_t>(address, "i64");
+      break;
+    case MachineRepresentation::kFloat32:
+      PrintRep<float, uint32_t>(address, "f32");
+      break;
+    case MachineRepresentation::kFloat64:
+      PrintRep<double, uint64_t>(address, "f64");
+      break;
+    case MachineRepresentation::kSimd128: {
+      const auto a = base::ReadLittleEndianValue<uint32_t>(address);
+      const auto b = base::ReadLittleEndianValue<uint32_t>(address + 4);
+      const auto c = base::ReadLittleEndianValue<uint32_t>(address + 8);
+      const auto d = base::ReadLittleEndianValue<uint32_t>(address + 12);
+      PrintF("s128:%u %u %u %u / %08x %08x %08x %08x\n", a, b, c, d, a, b, c,
+             d);
+      break;
+    }
+    default:
+      PrintF("unknown\n");
+      break;
+  }
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
