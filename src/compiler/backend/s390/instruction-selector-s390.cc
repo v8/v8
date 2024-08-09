@@ -4231,7 +4231,14 @@ SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
 #define F16_OP_LIST(V) \
   V(F16x8Splat)        \
   V(F16x8ExtractLane)  \
-  V(F16x8ReplaceLane)
+  V(F16x8ReplaceLane)  \
+  V(F16x8Abs)          \
+  V(F16x8Neg)          \
+  V(F16x8Sqrt)         \
+  V(F16x8Floor)        \
+  V(F16x8Ceil)         \
+  V(F16x8Trunc)        \
+  V(F16x8NearestInt)
 
 #define VISIT_F16_OP(name)                                       \
   template <typename Adapter>                                    \
