@@ -167,9 +167,17 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK_GE(object_size, Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
-  AllocationResult allocation = allocator_.Allocate(
-      promotion_heap_choice == kPromoteIntoLocalHeap ? OLD_SPACE : SHARED_SPACE,
-      object_size, alignment);
+  AllocationResult allocation;
+  switch (promotion_heap_choice) {
+    case kPromoteIntoLocalHeap:
+      allocation = allocator_.Allocate(OLD_SPACE, object_size, alignment);
+      break;
+    case kPromoteIntoSharedHeap:
+      DCHECK_NOT_NULL(shared_old_allocator_);
+      allocation = shared_old_allocator_->AllocateRaw(object_size, alignment,
+                                                      AllocationOrigin::kGC);
+      break;
+  }
 
   Tagged<HeapObject> target;
   if (allocation.To(&target)) {
@@ -177,10 +185,14 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
     const bool self_success =
         MigrateObject(map, object, target, object_size, promotion_heap_choice);
     if (!self_success) {
-      allocator_.FreeLast(promotion_heap_choice == kPromoteIntoLocalHeap
-                              ? OLD_SPACE
-                              : SHARED_SPACE,
-                          target, object_size);
+      switch (promotion_heap_choice) {
+        case kPromoteIntoLocalHeap:
+          allocator_.FreeLast(OLD_SPACE, target, object_size);
+          break;
+        case kPromoteIntoSharedHeap:
+          heap()->CreateFillerObjectAt(target.address(), object_size);
+          break;
+      }
 
       MapWord map_word = object->map_word(kAcquireLoad);
       UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(object));

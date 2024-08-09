@@ -680,16 +680,7 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
     }
   }
 
-  // Don't steal pages from the shared space of the main isolate if running as a
-  // client. The issue is that the concurrent marker may be running on the main
-  // isolate and may reach the page and read its flags, which will then end up
-  // in a race, when the page of the compaction space will be merged back to the
-  // main space.
-  const bool running_from_client_isolate_and_allocating_in_shared_space =
-      (allocator_->identity() == SHARED_SPACE) &&
-      !isolate_heap()->isolate()->is_shared_space_isolate();
-  if (space_->is_compaction_space() &&
-      !running_from_client_isolate_and_allocating_in_shared_space) {
+  if (space_->is_compaction_space()) {
     DCHECK_NE(NEW_SPACE, allocator_->identity());
     // If there is not enough memory in the compaction space left, try to steal
     // a page from the corresponding "regular" page space.
