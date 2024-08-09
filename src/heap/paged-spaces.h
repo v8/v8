@@ -410,8 +410,7 @@ class CompactionSpaceCollection : public Malloced {
       case CODE_SPACE:
         return &code_space_;
       case SHARED_SPACE:
-        DCHECK(shared_space_);
-        return &*shared_space_;
+        return &shared_space_;
       case TRUSTED_SPACE:
         return &trusted_space_;
       default:
@@ -423,7 +422,7 @@ class CompactionSpaceCollection : public Malloced {
  private:
   CompactionSpace old_space_;
   CompactionSpace code_space_;
-  std::optional<CompactionSpace> shared_space_;
+  CompactionSpace shared_space_;
   CompactionSpace trusted_space_;
 };
 
