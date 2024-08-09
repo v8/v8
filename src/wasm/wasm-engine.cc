@@ -1268,9 +1268,11 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     // improved performance-wise).
     // The engine-wide metadata also includes global storage e.g. for the type
     // canonicalizer.
-    size_t engine_meta_data = engine->EstimateCurrentMemoryConsumption();
-    counters->wasm_engine_metadata_size_kb()->AddSample(
-        static_cast<int>(engine_meta_data / KB));
+    Histogram* metadata_histogram = counters->wasm_engine_metadata_size_kb();
+    if (metadata_histogram->Enabled()) {
+      size_t engine_meta_data = engine->EstimateCurrentMemoryConsumption();
+      metadata_histogram->AddSample(static_cast<int>(engine_meta_data / KB));
+    }
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
                                          nullptr);
