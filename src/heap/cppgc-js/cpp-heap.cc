@@ -166,13 +166,14 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
     return platform_->MonotonicallyIncreasingTime();
   }
 
-  std::shared_ptr<TaskRunner> GetForegroundTaskRunner() final {
+  std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
+      TaskPriority priority) final {
     // If no Isolate has been set, there's no task runner to leverage for
     // foreground tasks. In detached mode the original platform handles the
     // task runner retrieval.
     if (!isolate_ && !is_in_detached_mode_) return nullptr;
 
-    return platform_->GetForegroundTaskRunner(isolate_);
+    return platform_->GetForegroundTaskRunner(isolate_, priority);
   }
 
   std::unique_ptr<JobHandle> PostJob(TaskPriority priority,

@@ -423,8 +423,8 @@ int TestPlatform::NumberOfWorkerThreads() {
 }
 
 std::shared_ptr<v8::TaskRunner> TestPlatform::GetForegroundTaskRunner(
-    v8::Isolate* isolate) {
-  return CcTest::default_platform()->GetForegroundTaskRunner(isolate);
+    v8::Isolate* isolate, v8::TaskPriority priority) {
+  return CcTest::default_platform()->GetForegroundTaskRunner(isolate, priority);
 }
 
 void TestPlatform::PostTaskOnWorkerThreadImpl(

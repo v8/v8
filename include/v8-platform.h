@@ -1102,7 +1102,7 @@ class Platform {
    */
   virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       Isolate* isolate, TaskPriority priority) {
-    return nullptr;
+    return GetForegroundTaskRunner(isolate);
   }
 
   /**
