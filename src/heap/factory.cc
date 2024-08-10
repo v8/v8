@@ -2730,6 +2730,13 @@ Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
       .ToHandleChecked();
 }
 
+Handle<JSObject> Factory::ShadowRealmNewTypeErrorCopy(
+    Handle<Object> original, MessageTemplate template_index,
+    base::Vector<const DirectHandle<Object>> args) {
+  return ErrorUtils::ShadowRealmConstructTypeErrorCopy(isolate(), original,
+                                                       template_index, args);
+}
+
 Handle<Object> Factory::NewInvalidStringLengthError() {
   if (v8_flags.correctness_fuzzer_suppressions) {
     FATAL("Aborting on invalid string length");
