@@ -683,8 +683,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     // We have to find the table which contains the correct entry.
     for (int table_index = 0; table_index < table_count; ++table_index) {
       bool table_is_shared = module->tables[table_index].shared;
-      DirectHandle<WasmTrustedInstanceData> maybe_shared_data =
-          table_is_shared ? direct_handle(trusted_data->shared_part(), isolate)
+      Handle<WasmTrustedInstanceData> maybe_shared_data =
+          table_is_shared ? handle(trusted_data->shared_part(), isolate)
                           : trusted_data;
       if (!maybe_shared_data->has_dispatch_table(table_index)) continue;
       Tagged<WasmDispatchTable> table =
@@ -898,7 +898,7 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
+  Handle<WasmTrustedInstanceData> trusted_instance_data(
       Cast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t function_index = args.positive_smi_value_at(1);
 
@@ -1035,10 +1035,10 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
       Cast<WasmTrustedInstanceData>(args[0]);
   uint32_t table_index = args.positive_smi_value_at(1);
-  DirectHandle<Object> value(args[2], isolate);
+  Handle<Object> value(args[2], isolate);
   uint32_t delta = args.positive_smi_value_at(3);
 
-  DirectHandle<WasmTableObject> table(
+  Handle<WasmTableObject> table(
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
   int result = WasmTableObject::Grow(isolate, table, delta, value);
@@ -1054,10 +1054,10 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
       Cast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t start = args.positive_smi_value_at(2);
-  DirectHandle<Object> value(args[3], isolate);
+  Handle<Object> value(args[3], isolate);
   uint32_t count = args.positive_smi_value_at(4);
 
-  DirectHandle<WasmTableObject> table(
+  Handle<WasmTableObject> table(
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
 

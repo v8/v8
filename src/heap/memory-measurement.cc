@@ -71,9 +71,9 @@ class MemoryMeasurementResultBuilder {
   Handle<JSObject> NewResult(size_t estimate, size_t lower_bound,
                              size_t upper_bound) {
     Handle<JSObject> result = NewJSObject();
-    DirectHandle<Object> estimate_obj = NewNumber(estimate);
+    Handle<Object> estimate_obj = NewNumber(estimate);
     AddProperty(result, factory_->jsMemoryEstimate_string(), estimate_obj);
-    DirectHandle<Object> range = NewRange(lower_bound, upper_bound);
+    Handle<Object> range = NewRange(lower_bound, upper_bound);
     AddProperty(result, factory_->jsMemoryRange_string(), range);
     return result;
   }
@@ -92,7 +92,7 @@ class MemoryMeasurementResultBuilder {
     return factory_->NewJSArrayWithElements(elements);
   }
   void AddProperty(Handle<JSObject> object, Handle<String> name,
-                   DirectHandle<Object> value) {
+                   Handle<Object> value) {
     JSObject::AddProperty(isolate_, object, name, value, NONE);
   }
   Isolate* isolate_;

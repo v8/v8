@@ -155,9 +155,9 @@ TEST(NumberToString) {
   for (int i = 0; i < test_count; i++) {
     int cache_length_before_addition = factory->number_string_cache()->length();
     Handle<Object> input = factory->NewNumber(inputs[i]);
-    DirectHandle<String> expected = factory->NumberToString(input);
+    Handle<String> expected = factory->NumberToString(input);
 
-    DirectHandle<Object> result = ft.Call(input).ToHandleChecked();
+    Handle<Object> result = ft.Call(input).ToHandleChecked();
     if (IsUndefined(*result, isolate)) {
       // Query may fail if cache was resized, in which case the entry is not
       // added to the cache.
@@ -520,7 +520,7 @@ TEST(ToString) {
   DirectHandle<FixedArray> test_cases = isolate->factory()->NewFixedArray(5);
   DirectHandle<FixedArray> smi_test = isolate->factory()->NewFixedArray(2);
   smi_test->set(0, Smi::FromInt(42));
-  DirectHandle<String> str(isolate->factory()->InternalizeUtf8String("42"));
+  Handle<String> str(isolate->factory()->InternalizeUtf8String("42"));
   smi_test->set(1, *str);
   test_cases->set(0, *smi_test);
 
@@ -1150,7 +1150,7 @@ void AddProperties(Handle<JSObject> object, Handle<Name> names[],
                    size_t count) {
   Isolate* isolate = object->GetIsolate();
   for (size_t i = 0; i < count; i++) {
-    DirectHandle<Object> value(Smi::FromInt(static_cast<int>(42 + i)), isolate);
+    Handle<Object> value(Smi::FromInt(static_cast<int>(42 + i)), isolate);
     JSObject::AddProperty(isolate, object, names[i], value, NONE);
   }
 }
@@ -1176,8 +1176,8 @@ void AddProperties(Handle<JSObject> object, Handle<Name> names[],
     Handle<Object> value = values[(seed + i) % values_count];
     if (IsAccessorPair(*value)) {
       DirectHandle<AccessorPair> pair = Cast<AccessorPair>(value);
-      DirectHandle<Object> getter(pair->getter(), isolate);
-      DirectHandle<Object> setter(pair->setter(), isolate);
+      Handle<Object> getter(pair->getter(), isolate);
+      Handle<Object> setter(pair->setter(), isolate);
       JSObject::DefineOwnAccessorIgnoreAttributes(object, names[i], getter,
                                                   setter, NONE)
           .Check();
@@ -1599,8 +1599,7 @@ TEST(TryGetOwnProperty) {
 
 namespace {
 
-void AddElement(Handle<JSObject> object, uint32_t index,
-                DirectHandle<Object> value,
+void AddElement(Handle<JSObject> object, uint32_t index, Handle<Object> value,
                 PropertyAttributes attributes = NONE) {
   JSObject::AddDataElement(object, index, value, attributes);
 }
@@ -1891,8 +1890,9 @@ TEST(AllocateJSObjectFromMap) {
 
   {
     // TODO(cbruni): handle in-object properties
-    DirectHandle<JSObject> object = Cast<JSObject>(v8::Utils::OpenDirectHandle(
-        *CompileRun("var object = {a:1,b:2, 1:1, 2:2}; object")));
+    Handle<JSObject> object = Cast<JSObject>(
+        v8::Utils::OpenHandle(*CompileRun("var object = {a:1,b:2, 1:1, 2:2}; "
+                                          "object")));
     JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "Normalize");
     Handle<HeapObject> properties =
@@ -2166,7 +2166,7 @@ void CallFunctionWithStackPointerChecks(Isolate* isolate,
   }
   FunctionTester ft(asm_tester.GenerateCode(), 1);
 
-  DirectHandle<Object> result;
+  Handle<Object> result;
   for (int test_count = 0; test_count < 100; ++test_count) {
     result = ft.Call().ToHandleChecked();
     CHECK_EQ(Smi::FromInt(42), *result);
@@ -2397,7 +2397,7 @@ TEST(Arguments) {
 
   FunctionTester ft(asm_tester.GenerateCode(), 0);
 
-  DirectHandle<Object> result;
+  Handle<Object> result;
   result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
                    Handle<Smi>(Smi::FromInt(13), isolate),
                    Handle<Smi>(Smi::FromInt(14), isolate))
@@ -2453,7 +2453,7 @@ TEST(ArgumentsForEach) {
 
   FunctionTester ft(asm_tester.GenerateCode(), 0);
 
-  DirectHandle<Object> result;
+  Handle<Object> result;
   result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
                    Handle<Smi>(Smi::FromInt(13), isolate),
                    Handle<Smi>(Smi::FromInt(14), isolate))
@@ -2496,7 +2496,7 @@ TEST(IsDebugActive) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   CHECK(!isolate->debug()->is_active());
-  DirectHandle<Object> result =
+  Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
@@ -2565,7 +2565,7 @@ TEST(CallBuiltin) {
 
   Factory* factory = isolate->factory();
   Handle<Name> name = factory->InternalizeUtf8String("a");
-  DirectHandle<Object> value(Smi::FromInt(153), isolate);
+  Handle<Object> value(Smi::FromInt(153), isolate);
   Handle<JSObject> object = factory->NewJSObjectWithNullProto();
   JSObject::AddProperty(isolate, object, name, value, NONE);
 
@@ -2592,7 +2592,7 @@ TEST(TailCallBuiltin) {
 
   Factory* factory = isolate->factory();
   Handle<Name> name = factory->InternalizeUtf8String("a");
-  DirectHandle<Object> value(Smi::FromInt(153), isolate);
+  Handle<Object> value(Smi::FromInt(153), isolate);
   Handle<JSObject> object = factory->NewJSObjectWithNullProto();
   JSObject::AddProperty(isolate, object, name, value, NONE);
 
@@ -2638,7 +2638,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     CHECK_EQ(kind_, array->GetElementsKind());
     CHECK_EQ(result_size, i::Cast<Smi>(*result).value());
     CHECK_EQ(result_size, Smi::ToInt(array->length()));
-    DirectHandle<Object> obj =
+    Handle<Object> obj =
         JSObject::GetElement(isolate, array, 2).ToHandleChecked();
     DirectHandle<HeapObject> undefined_value(
         ReadOnlyRoots(isolate).undefined_value(), isolate);
@@ -2757,7 +2757,7 @@ TEST(IsPromiseHookEnabled) {
           m.IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate()));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  DirectHandle<Object> result =
+  Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
@@ -2820,7 +2820,7 @@ TEST(IsSymbol) {
   m.Return(m.SelectBooleanConstant(m.IsSymbol(symbol)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  DirectHandle<Object> result =
+  Handle<Object> result =
       ft.Call(isolate->factory()->NewSymbol()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).true_value(), *result);
 
@@ -2839,7 +2839,7 @@ TEST(IsPrivateSymbol) {
   m.Return(m.SelectBooleanConstant(m.IsPrivateSymbol(symbol)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  DirectHandle<Object> result =
+  Handle<Object> result =
       ft.Call(isolate->factory()->NewSymbol()).ToHandleChecked();
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
@@ -3148,7 +3148,7 @@ TEST(NewPromiseCapability) {
         isolate->factory()->NewStringFromAsciiChecked("rejectedStr");
 
     Handle<Object> argv1[] = {resolved_str};
-    DirectHandle<Object> ret =
+    Handle<Object> ret =
         Execution::Call(isolate, handle(result->resolve(), isolate),
                         isolate->factory()->undefined_value(), 1, argv1)
             .ToHandleChecked();
@@ -3381,7 +3381,7 @@ TEST(IsWhiteSpaceOrLineTerminator) {
   Handle<Object> false_value = ft.false_value();
 
   for (base::uc16 c = 0; c < 0xFFFF; c++) {
-    DirectHandle<Object> expected_value =
+    Handle<Object> expected_value =
         IsWhiteSpaceOrLineTerminator(c) ? true_value : false_value;
     ft.CheckCall(expected_value, handle(Smi::FromInt(c), isolate));
   }

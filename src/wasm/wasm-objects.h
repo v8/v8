@@ -218,7 +218,7 @@ class WasmTableObject
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
   V8_EXPORT_PRIVATE static int Grow(Isolate* isolate,
-                                    DirectHandle<WasmTableObject> table,
+                                    Handle<WasmTableObject> table,
                                     uint32_t count,
                                     DirectHandle<Object> init_value);
 
@@ -255,7 +255,7 @@ class WasmTableObject
       Isolate* isolate, DirectHandle<WasmTableObject> table, uint32_t index);
 
   V8_EXPORT_PRIVATE static void Fill(Isolate* isolate,
-                                     DirectHandle<WasmTableObject> table,
+                                     Handle<WasmTableObject> table,
                                      uint32_t start, DirectHandle<Object> entry,
                                      uint32_t count);
 
@@ -1114,9 +1114,9 @@ class WasmScript : public AllStatic {
   // location inside the same function.
   // If it points outside a function, or behind the last breakable location,
   // this function returns false and does not set any breakpoint.
-  V8_EXPORT_PRIVATE static bool SetBreakPoint(
-      DirectHandle<Script>, int* position,
-      DirectHandle<BreakPoint> break_point);
+  V8_EXPORT_PRIVATE static bool SetBreakPoint(DirectHandle<Script>,
+                                              int* position,
+                                              Handle<BreakPoint> break_point);
 
   // Set an "on entry" breakpoint (a.k.a. instrumentation breakpoint) inside
   // the given module. This will affect all live and future instances of the
@@ -1128,8 +1128,7 @@ class WasmScript : public AllStatic {
   // inside the given module. This will affect all live and future instances of
   // the module.
   V8_EXPORT_PRIVATE static bool SetBreakPointOnFirstBreakableForFunction(
-      DirectHandle<Script>, int function_index,
-      DirectHandle<BreakPoint> break_point);
+      DirectHandle<Script>, int function_index, Handle<BreakPoint> break_point);
 
   // Set a breakpoint at the breakable offset of the given function index
   // inside the given module. This will affect all live and future instances of

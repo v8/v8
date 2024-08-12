@@ -46,9 +46,9 @@ class JSBoundFunction
           JSBoundFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
-                                     DirectHandle<JSBoundFunction> function);
+                                     Handle<JSBoundFunction> function);
   static Maybe<int> GetLength(Isolate* isolate,
-                              DirectHandle<JSBoundFunction> function);
+                              Handle<JSBoundFunction> function);
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -256,7 +256,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // initialized to the closure feedback cell array that holds the feedback
   // cells for create closure calls from this function. In the regular mode,
   // this allocates feedback vector.
-  static void InitializeFeedbackCell(DirectHandle<JSFunction> function,
+  static void InitializeFeedbackCell(Handle<JSFunction> function,
                                      IsCompiledScope* compiled_scope,
                                      bool reset_budget_for_feedback_allocation);
 
@@ -324,8 +324,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(instance_prototype, Tagged<HeapObject>)
   DECL_GETTER(has_prototype_property, bool)
   DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
-  static void SetPrototype(DirectHandle<JSFunction> function,
-                           Handle<Object> value);
+  static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled(IsolateForSandbox isolate) const;

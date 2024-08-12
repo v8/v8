@@ -740,7 +740,7 @@ bool StrictNumberEquals(const Tagged<Number> x, const Tagged<Number> y) {
   return StrictNumberEquals(Object::NumberValue(x), Object::NumberValue(y));
 }
 
-bool StrictNumberEquals(DirectHandle<Number> x, DirectHandle<Number> y) {
+bool StrictNumberEquals(Handle<Number> x, Handle<Number> y) {
   return StrictNumberEquals(*x, *y);
 }
 
@@ -2572,8 +2572,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   return Just(true);
 }
 
-Maybe<bool> Object::AddDataProperty(LookupIterator* it,
-                                    DirectHandle<Object> value,
+Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                                     PropertyAttributes attributes,
                                     Maybe<ShouldThrow> should_throw,
                                     StoreOrigin store_origin,
@@ -2643,9 +2642,8 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
 
 // static
 Maybe<bool> Object::TransitionAndWriteDataProperty(
-    LookupIterator* it, DirectHandle<Object> value,
-    PropertyAttributes attributes, Maybe<ShouldThrow> should_throw,
-    StoreOrigin store_origin) {
+    LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+    Maybe<ShouldThrow> should_throw, StoreOrigin store_origin) {
   Handle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
   it->UpdateProtector();
   // Migrate to the most up-to-date map that will be able to store |value|
@@ -4517,7 +4515,7 @@ bool Script::GetLineColumnWithLineEnds(
   return true;
 }
 
-int Script::GetColumnNumber(DirectHandle<Script> script, int code_pos) {
+int Script::GetColumnNumber(Handle<Script> script, int code_pos) {
   PositionInfo info;
   GetPositionInfo(script, code_pos, &info);
   return info.column;
@@ -4529,7 +4527,7 @@ int Script::GetColumnNumber(int code_pos) const {
   return info.column;
 }
 
-int Script::GetLineNumber(DirectHandle<Script> script, int code_pos) {
+int Script::GetLineNumber(Handle<Script> script, int code_pos) {
   PositionInfo info;
   GetPositionInfo(script, code_pos, &info);
   return info.line;
@@ -4566,14 +4564,14 @@ Handle<String> Script::GetScriptHash(Isolate* isolate,
     }
   }
 
-  DirectHandle<String> src_text;
+  Handle<String> src_text;
   {
     Tagged<Object> maybe_script_source = script->source(cage_base);
 
     if (!IsString(maybe_script_source, cage_base)) {
       return isolate->factory()->empty_string();
     }
-    src_text = direct_handle(Cast<String>(maybe_script_source), isolate);
+    src_text = handle(Cast<String>(maybe_script_source), isolate);
   }
 
   char formatted_hash[kSizeOfFormattedSha256Digest];
@@ -4868,7 +4866,7 @@ Handle<Object> JSPromise::Fulfill(DirectHandle<JSPromise> promise,
   CHECK_EQ(Promise::kPending, promise->status());
 
   // 2. Let reactions be promise.[[PromiseFulfillReactions]].
-  DirectHandle<Object> reactions(promise->reactions(), isolate);
+  Handle<Object> reactions(promise->reactions(), isolate);
 
   // 3. Set promise.[[PromiseResult]] to value.
   // 4. Set promise.[[PromiseFulfillReactions]] to undefined.
@@ -4917,7 +4915,7 @@ Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
   CHECK_EQ(Promise::kPending, promise->status());
 
   // 2. Let reactions be promise.[[PromiseRejectReactions]].
-  DirectHandle<Object> reactions(promise->reactions(), isolate);
+  Handle<Object> reactions(promise->reactions(), isolate);
 
   // 3. Set promise.[[PromiseResult]] to reason.
   // 4. Set promise.[[PromiseFulfillReactions]] to undefined.

@@ -312,7 +312,7 @@ class CompilerTracer : public AllStatic {
 // static
 void Compiler::LogFunctionCompilation(Isolate* isolate,
                                       LogEventListener::CodeTag code_type,
-                                      DirectHandle<Script> script,
+                                      Handle<Script> script,
                                       Handle<SharedFunctionInfo> shared,
                                       Handle<FeedbackVector> vector,
                                       Handle<AbstractCode> abstract_code,
@@ -454,7 +454,7 @@ void LogUnoptimizedCompilation(Isolate* isolate,
   double time_taken_ms = time_taken_to_execute.InMillisecondsF() +
                          time_taken_to_finalize.InMillisecondsF();
 
-  DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared->script()), isolate);
   Compiler::LogFunctionCompilation(
       isolate, code_type, script, shared, Handle<FeedbackVector>(),
       abstract_code, CodeKind::INTERPRETED_FUNCTION, time_taken_ms);
@@ -630,7 +630,7 @@ void TurbofanCompilationJob::RecordFunctionCompilation(
                          time_taken_to_execute_.InMillisecondsF() +
                          time_taken_to_finalize_.InMillisecondsF();
 
-  DirectHandle<Script> script(
+  Handle<Script> script(
       Cast<Script>(compilation_info()->shared_info()->script()), isolate);
   Handle<FeedbackVector> feedback_vector(
       compilation_info()->closure()->feedback_vector(), isolate);
@@ -697,7 +697,7 @@ void Compiler::InstallInterpreterTrampolineCopy(
     shared_info->set_interpreter_data(*interpreter_data);
   }
 
-  DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared_info->script()), isolate);
   Handle<AbstractCode> abstract_code = Cast<AbstractCode>(code);
   Script::PositionInfo info;
   Script::GetPositionInfo(script, shared_info->StartPosition(), &info);
@@ -1227,7 +1227,7 @@ void RecordMaglevFunctionCompilation(Isolate* isolate,
                                      Handle<AbstractCode> code) {
   PtrComprCageBase cage_base(isolate);
   Handle<SharedFunctionInfo> shared(function->shared(cage_base), isolate);
-  DirectHandle<Script> script(Cast<Script>(shared->script(cage_base)), isolate);
+  Handle<Script> script(Cast<Script>(shared->script(cage_base)), isolate);
   Handle<FeedbackVector> feedback_vector(function->feedback_vector(cage_base),
                                          isolate);
 
@@ -2067,7 +2067,7 @@ class ConstantPoolPointerForwarder {
   // Runs the update after the setup functions above specified the work to do.
   void IterateAndForwardPointers() {
     DCHECK(HasAnythingToForward());
-    for (DirectHandle<BytecodeArray> entry : bytecode_arrays_to_update_) {
+    for (Handle<BytecodeArray> entry : bytecode_arrays_to_update_) {
       local_heap_->Safepoint();
       DisallowGarbageCollection no_gc;
       IterateConstantPool(entry->constant_pool());
@@ -2981,7 +2981,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   // flushed.
   function->ResetIfCodeFlushed(isolate);
 
-  Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
+  Handle<SharedFunctionInfo> shared_info = handle(function->shared(), isolate);
 
   // Ensure shared function info is compiled.
   *is_compiled_scope = shared_info->is_compiled_scope(isolate);
@@ -2991,7 +2991,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   }
 
   DCHECK(is_compiled_scope->is_compiled());
-  DirectHandle<Code> code(shared_info->GetCode(isolate), isolate);
+  Handle<Code> code = handle(shared_info->GetCode(isolate), isolate);
 
   // Initialize the feedback cell for this JSFunction and reset the interrupt
   // budget for feedback vector allocation even if there is a closure feedback
@@ -3093,8 +3093,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
 }
 
 // static
-bool Compiler::CompileBaseline(Isolate* isolate,
-                               DirectHandle<JSFunction> function,
+bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
                                ClearExceptionFlag flag,
                                IsCompiledScope* is_compiled_scope) {
   Handle<SharedFunctionInfo> shared(function->shared(isolate), isolate);
@@ -3285,8 +3284,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       JSFunction::InitializeFeedbackCell(result, &is_compiled_scope, true);
       if (allow_eval_cache) {
         // Make sure to cache this result.
-        DirectHandle<FeedbackCell> new_feedback_cell(
-            result->raw_feedback_cell(), isolate);
+        Handle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
+                                               isolate);
         compilation_cache->PutEval(source, outer_info, context, shared_info,
                                    new_feedback_cell, eval_cache_position);
       }
@@ -3301,8 +3300,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     if (allow_eval_cache) {
       // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
       // we didn't retrieve from there.
-      DirectHandle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
-                                                   isolate);
+      Handle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
+                                             isolate);
       compilation_cache->PutEval(source, outer_info, context, shared_info,
                                  new_feedback_cell, eval_cache_position);
     }
@@ -4473,8 +4472,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 }
 
 // static
-void Compiler::PostInstantiation(Isolate* isolate,
-                                 DirectHandle<JSFunction> function,
+void Compiler::PostInstantiation(Isolate* isolate, Handle<JSFunction> function,
                                  IsCompiledScope* is_compiled_scope) {
   DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
 
@@ -4514,7 +4512,7 @@ void Compiler::PostInstantiation(Isolate* isolate,
 
   if (shared->is_toplevel() || shared->is_wrapped()) {
     // If it's a top-level script, report compilation to the debugger.
-    DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
+    Handle<Script> script(Cast<Script>(shared->script()), isolate);
     isolate->debug()->OnAfterCompile(script);
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
                  "ScriptCompiled", "data",
@@ -4531,7 +4529,7 @@ void Compiler::PostInstantiation(Isolate* isolate,
 
 std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptCompiledTrace(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
-  DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared->script()), isolate);
   i::Tagged<i::Object> context_value =
       isolate->native_context()->debug_context_id();
   int contextId = (IsSmi(context_value)) ? i::Smi::ToInt(context_value) : 0;
@@ -4593,7 +4591,7 @@ void Compiler::EmitScriptSourceTextTrace(
       for (int32_t i = 0; i < split_count; i++) {
         int32_t begin = i * kSplitMaxLength;
         int32_t end = std::min(begin + kSplitMaxLength, source_length);
-        DirectHandle<String> partial_source =
+        Handle<String> partial_source =
             isolate->factory()->NewSubString(handle_source, begin, end);
         auto split_trace_value = v8::tracing::TracedValue::Create();
         split_trace_value->SetInteger("splitIndex", i);

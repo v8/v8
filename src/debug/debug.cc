@@ -998,7 +998,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
                                    int* source_position, int* id) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   *id = ++thread_local_.last_breakpoint_id_;
-  DirectHandle<BreakPoint> break_point =
+  Handle<BreakPoint> break_point =
       isolate_->factory()->NewBreakPoint(*id, condition);
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == Script::Type::kWasm) {
@@ -1128,7 +1128,7 @@ bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
   } else {
     *id = ++thread_local_.last_breakpoint_id_;
   }
-  DirectHandle<BreakPoint> breakpoint =
+  Handle<BreakPoint> breakpoint =
       isolate_->factory()->NewBreakPoint(*id, condition);
   int source_position = 0;
 #if V8_ENABLE_WEBASSEMBLY
@@ -1140,7 +1140,7 @@ bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
     CHECK(function_data->instance_data()->has_instance_object());
     Tagged<WasmModuleObject> module_obj =
         function_data->instance_data()->instance_object()->module_object();
-    DirectHandle<Script> script(module_obj->script(), isolate_);
+    Handle<Script> script(module_obj->script(), isolate_);
     return WasmScript::SetBreakPointOnFirstBreakableForFunction(
         script, func_index, breakpoint);
   }
@@ -1150,7 +1150,7 @@ bool Debug::SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
 
 void Debug::RemoveBreakpoint(int id) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DirectHandle<BreakPoint> breakpoint = isolate_->factory()->NewBreakPoint(
+  Handle<BreakPoint> breakpoint = isolate_->factory()->NewBreakPoint(
       id, isolate_->factory()->empty_string());
   ClearBreakPoint(breakpoint);
 }
@@ -1162,7 +1162,7 @@ void Debug::SetInstrumentationBreakpointForWasmScript(Handle<Script> script,
   DCHECK_EQ(Script::Type::kWasm, script->type());
   *id = kInstrumentationId;
 
-  DirectHandle<BreakPoint> break_point = isolate_->factory()->NewBreakPoint(
+  Handle<BreakPoint> break_point = isolate_->factory()->NewBreakPoint(
       *id, isolate_->factory()->empty_string());
   RecordWasmScriptWithBreakpoints(script);
   WasmScript::SetInstrumentationBreakpoint(script, break_point);
@@ -2641,8 +2641,7 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
 }
 
 namespace {
-debug::Location GetDebugLocation(DirectHandle<Script> script,
-                                 int source_position) {
+debug::Location GetDebugLocation(Handle<Script> script, int source_position) {
   Script::PositionInfo info;
   Script::GetPositionInfo(script, source_position, &info);
   // V8 provides ScriptCompiler::CompileFunction method which takes
@@ -2668,7 +2667,7 @@ bool Debug::IsBlackboxed(DirectHandle<SharedFunctionInfo> shared) {
       PostponeInterruptsScope no_interrupts(isolate_);
       DisableBreak no_recursive_break(this);
       DCHECK(IsScript(shared->script()));
-      DirectHandle<Script> script(Cast<Script>(shared->script()), isolate_);
+      Handle<Script> script(Cast<Script>(shared->script()), isolate_);
       DCHECK(script->IsUserJavaScript());
       debug::Location start = GetDebugLocation(script, shared->StartPosition());
       debug::Location end = GetDebugLocation(script, shared->EndPosition());
@@ -2695,7 +2694,7 @@ bool Debug::ShouldBeSkipped() {
   Handle<Object> script_obj = summary.script();
   if (!IsScript(*script_obj)) return false;
 
-  DirectHandle<Script> script = Cast<Script>(script_obj);
+  Handle<Script> script = Cast<Script>(script_obj);
   summary.EnsureSourcePositionsAvailable();
   int source_position = summary.SourcePosition();
   Script::PositionInfo info;
@@ -2743,16 +2742,15 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
   return result->status == debug::LiveEditResult::OK;
 }
 
-void Debug::OnCompileError(DirectHandle<Script> script) {
+void Debug::OnCompileError(Handle<Script> script) {
   ProcessCompileEvent(true, script);
 }
 
-void Debug::OnAfterCompile(DirectHandle<Script> script) {
+void Debug::OnAfterCompile(Handle<Script> script) {
   ProcessCompileEvent(false, script);
 }
 
-void Debug::ProcessCompileEvent(bool has_compile_error,
-                                DirectHandle<Script> script) {
+void Debug::ProcessCompileEvent(bool has_compile_error, Handle<Script> script) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Ignore temporary scripts.
   if (script->id() == Script::kTemporaryScriptId) return;
@@ -2914,7 +2912,7 @@ void Debug::PrintBreakLocation() {
   inspector.GetFunctionName()->PrintOn(stdout);
   PrintF("'.\n");
   if (IsScript(*script_obj)) {
-    DirectHandle<Script> script = Cast<Script>(script_obj);
+    Handle<Script> script = Cast<Script>(script_obj);
     DirectHandle<String> source(Cast<String>(script->source()), isolate_);
     Script::InitLineEnds(isolate_, script);
     Script::PositionInfo info;
@@ -3122,7 +3120,7 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
     return false;
   }
   DCHECK(is_compiled_scope.is_compiled());
-  DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate_);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
   DirectHandle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
   DebugInfo::SideEffectState side_effect_state =
       debug_info->GetSideEffectState(isolate_);

@@ -2623,7 +2623,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                                              Handle<AbstractCode> code,
                                              CodeTag tag) {
   if (IsScript(shared->script())) {
-    DirectHandle<Script> script(Cast<Script>(shared->script()), isolate_);
+    Handle<Script> script(Cast<Script>(shared->script()), isolate_);
     Script::PositionInfo info;
     Script::GetPositionInfo(script, shared->StartPosition(), &info);
     int line_num = info.line + 1;

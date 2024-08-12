@@ -874,7 +874,7 @@ Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
     return isolate->slow_object_with_null_prototype_map();
   }
   if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
-    DirectHandle<JSObject> js_prototype = Cast<JSObject>(prototype);
+    Handle<JSObject> js_prototype = Cast<JSObject>(prototype);
     if (!js_prototype->map()->is_prototype_map()) {
       JSObject::OptimizeAsPrototype(js_prototype);
     }
@@ -901,7 +901,7 @@ Handle<Map> Map::GetDerivedMap(Isolate* isolate, Handle<Map> from,
   DCHECK(IsUndefined(from->GetBackPointer()));
 
   if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
-    DirectHandle<JSObject> js_prototype = Cast<JSObject>(prototype);
+    Handle<JSObject> js_prototype = Cast<JSObject>(prototype);
     if (!js_prototype->map()->is_prototype_map()) {
       JSObject::OptimizeAsPrototype(js_prototype);
     }
@@ -1255,7 +1255,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
   if (fast_map->is_prototype_map()) {
     use_cache = false;
   }
-  DirectHandle<NormalizedMapCache> cache;
+  Handle<NormalizedMapCache> cache;
   if (use_cache) {
     Tagged<Object> normalized_map_cache =
         meta_map->native_context()->normalized_map_cache();
@@ -1454,7 +1454,7 @@ Handle<Map> Map::CopyDropDescriptors(Isolate* isolate, Handle<Map> map) {
 }
 
 Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
-                                 DirectHandle<DescriptorArray> descriptors,
+                                 Handle<DescriptorArray> descriptors,
                                  Descriptor* descriptor) {
   // Sanity check. This path is only to be taken if the map owns its descriptor
   // array, implying that its NumberOfOwnDescriptors equals the number of
@@ -2143,8 +2143,8 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
 Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
                                    Descriptor* descriptor,
                                    TransitionFlag flag) {
-  DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
-                                            isolate);
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
+                                      isolate);
 
   // Share descriptors only if map owns descriptors and is not an initial map.
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
@@ -2166,8 +2166,8 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
 Handle<Map> Map::CopyInsertDescriptor(Isolate* isolate, Handle<Map> map,
                                       Descriptor* descriptor,
                                       TransitionFlag flag) {
-  DirectHandle<DescriptorArray> old_descriptors(
-      map->instance_descriptors(isolate), isolate);
+  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(isolate),
+                                          isolate);
 
   // We replace the key if it is already present.
   InternalIndex index =
@@ -2426,7 +2426,7 @@ void Map::SetPrototype(Isolate* isolate, DirectHandle<Map> map,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kMap_SetPrototype);
 
   if (IsJSObjectThatCanBeTrackedAsPrototype(*prototype)) {
-    DirectHandle<JSObject> prototype_jsobj = Cast<JSObject>(prototype);
+    Handle<JSObject> prototype_jsobj = Cast<JSObject>(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
   } else {
     DCHECK(IsNull(*prototype, isolate) || IsJSProxy(*prototype) ||

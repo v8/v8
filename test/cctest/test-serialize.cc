@@ -1316,7 +1316,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
     v8::Context::Scope c_scope(context);
     TestInt32Expectations(expectations);
 
-    i::DirectHandle<i::JSArrayBuffer> buffer =
+    i::Handle<i::JSArrayBuffer> buffer =
         GetBufferFromTypedArray(CompileRun("x"));
     // The resulting buffer should be on-heap.
     CHECK(buffer->IsEmpty());
@@ -1907,7 +1907,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
                                v8::ScriptCompiler::kNoCompileOptions,
                                ScriptCompiler::InMemoryCacheResult::kMiss);
 
-  DirectHandle<SharedFunctionInfo> copy;
+  Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
     copy = CompileScript(isolate, src, default_script_details, cache,
@@ -2086,7 +2086,7 @@ TEST(CompileFunctionCompilationCache) {
     i_args->set(static_cast<int>(i), *arg);
   }
 
-  DirectHandle<SharedFunctionInfo> sfi;
+  Handle<SharedFunctionInfo> sfi;
   v8::ScriptCompiler::CachedData* cache;
   {
     v8::ScriptCompiler::Source script_source(src, origin);
@@ -2097,7 +2097,7 @@ TEST(CompileFunctionCompilationCache) {
             .ToLocalChecked();
     cache = v8::ScriptCompiler::CreateCodeCacheForFunction(fun);
     auto js_function = Cast<JSFunction>(Utils::OpenDirectHandle(*fun));
-    sfi = direct_handle(js_function->shared(), i_isolate);
+    sfi = Handle<SharedFunctionInfo>(js_function->shared(), i_isolate);
   }
 
   {
@@ -2254,7 +2254,7 @@ TEST(CompileFunctionCompilationCache) {
   }
 
   // Compile the function again with different options.
-  DirectHandle<SharedFunctionInfo> other_sfi;
+  Handle<SharedFunctionInfo> other_sfi;
   v8::Local<v8::Symbol> other_sym;
   {
     v8::Local<v8::PrimitiveArray> other_options =
@@ -2273,7 +2273,7 @@ TEST(CompileFunctionCompilationCache) {
             ScriptCompiler::kNoCacheNoReason)
             .ToLocalChecked();
     auto js_function = Cast<JSFunction>(Utils::OpenDirectHandle(*fun));
-    other_sfi = direct_handle(js_function->shared(), i_isolate);
+    other_sfi = Handle<SharedFunctionInfo>(js_function->shared(), i_isolate);
     CHECK_NE(*other_sfi, *sfi);
   }
 
@@ -2446,7 +2446,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
       isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
   // Create a string on an evacuation candidate in old space.
-  DirectHandle<String> moving_object;
+  Handle<String> moving_object;
   PageMetadata* ec_page;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
@@ -2551,7 +2551,7 @@ TEST(CodeSerializerLargeStrings) {
           .ToHandleChecked();
 
   CHECK_EQ(6 * 1999999, Cast<String>(copy_result)->length());
-  DirectHandle<Object> property = JSReceiver::GetDataProperty(
+  Handle<Object> property = JSReceiver::GetDataProperty(
       isolate, isolate->global_object(), f->NewStringFromAsciiChecked("s"));
   CHECK(isolate->heap()->InSpace(Cast<HeapObject>(*property), LO_SPACE));
   property = JSReceiver::GetDataProperty(isolate, isolate->global_object(),
@@ -3310,7 +3310,7 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
   Handle<String> source = isolate->factory()->NewStringFromAsciiChecked(
       "(function () {return 123;})");
   AlignedCachedData* cached_data = nullptr;
-  DirectHandle<Script> script;
+  Handle<Script> script;
   {
     HandleScope first_compilation_scope(isolate);
     DirectHandle<SharedFunctionInfo> shared = CompileScriptAndProduceCache(
@@ -3318,16 +3318,17 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
         v8::ScriptCompiler::kNoCompileOptions,
         ScriptCompiler::InMemoryCacheResult::kMiss);
     SharedFunctionInfo::EnsureOldForTesting(*shared);
-    Handle<Script> local_script(Cast<Script>(shared->script()), isolate);
+    Handle<Script> local_script =
+        handle(Cast<Script>(shared->script()), isolate);
     script = first_compilation_scope.CloseAndEscape(local_script);
   }
 
-  DirectHandle<HeapObject> retained_toplevel_sfi;
+  Handle<HeapObject> retained_toplevel_sfi;
   if (retain_toplevel_sfi) {
-    retained_toplevel_sfi = direct_handle(script->infos()
-                                              ->get(kFunctionLiteralIdTopLevel)
-                                              .GetHeapObjectAssumeWeak(),
-                                          isolate);
+    retained_toplevel_sfi = handle(script->infos()
+                                       ->get(kFunctionLiteralIdTopLevel)
+                                       .GetHeapObjectAssumeWeak(),
+                                   isolate);
   }
 
   // GC twice in case incremental marking had already marked the bytecode array.

@@ -64,7 +64,7 @@ class KeyAccumulator final {
 
   Handle<FixedArray> GetKeys(
       GetKeysConversion convert = GetKeysConversion::kKeepNumbers);
-  Maybe<bool> CollectKeys(DirectHandle<JSReceiver> receiver,
+  Maybe<bool> CollectKeys(Handle<JSReceiver> receiver,
                           Handle<JSReceiver> object);
 
   // Might return directly the object's enum_cache, copy the result before using
@@ -109,15 +109,15 @@ class KeyAccumulator final {
                                      DirectHandle<JSObject> object,
                                      IndexedOrNamed type);
 
-  Maybe<bool> CollectOwnElementIndices(DirectHandle<JSReceiver> receiver,
+  Maybe<bool> CollectOwnElementIndices(Handle<JSReceiver> receiver,
                                        Handle<JSObject> object);
-  Maybe<bool> CollectOwnPropertyNames(DirectHandle<JSReceiver> receiver,
+  Maybe<bool> CollectOwnPropertyNames(Handle<JSReceiver> receiver,
                                       Handle<JSObject> object);
-  Maybe<bool> CollectOwnKeys(DirectHandle<JSReceiver> receiver,
+  Maybe<bool> CollectOwnKeys(Handle<JSReceiver> receiver,
                              Handle<JSObject> object);
   Maybe<bool> CollectOwnJSProxyKeys(DirectHandle<JSReceiver> receiver,
-                                    DirectHandle<JSProxy> proxy);
-  Maybe<bool> CollectOwnJSProxyTargetKeys(DirectHandle<JSProxy> proxy,
+                                    Handle<JSProxy> proxy);
+  Maybe<bool> CollectOwnJSProxyTargetKeys(Handle<JSProxy> proxy,
                                           Handle<JSReceiver> target);
 
   V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(

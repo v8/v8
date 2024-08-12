@@ -1303,7 +1303,7 @@ Handle<Context> Factory::NewScriptContext(DirectHandle<NativeContext> outer,
   DCHECK(scope_info->is_script_scope());
   int variadic_part_length = scope_info->ContextLength();
 
-  DirectHandle<FixedArray> side_data;
+  Handle<FixedArray> side_data;
   if (v8_flags.const_tracking_let) {
     side_data = NewFixedArray(scope_info->ContextLocalCount());
   } else {
@@ -1345,7 +1345,7 @@ Handle<Context> Factory::NewModuleContext(DirectHandle<SourceTextModule> module,
 
 Handle<Context> Factory::NewFunctionContext(
     DirectHandle<Context> outer, DirectHandle<ScopeInfo> scope_info) {
-  DirectHandle<Map> map;
+  Handle<Map> map;
   switch (scope_info->scope_type()) {
     case EVAL_SCOPE:
       map = isolate()->eval_context_map();
@@ -2470,7 +2470,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       clone->set_raw_properties_or_hash(*prop, kRelaxedStore);
     }
   } else {
-    DirectHandle<Object> copied_properties;
+    Handle<Object> copied_properties;
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       copied_properties = SwissNameDictionary::ShallowCopy(
           isolate(), handle(source->property_dictionary_swiss(), isolate()));
@@ -2745,28 +2745,27 @@ DEFINE_ERROR(WasmLinkError, wasm_link_error)
 DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
 #undef DEFINE_ERROR
 
-Handle<JSObject> Factory::NewFunctionPrototype(
-    DirectHandle<JSFunction> function) {
+Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
   DirectHandle<NativeContext> native_context(function->native_context(),
                                              isolate());
-  DirectHandle<Map> new_map;
+  Handle<Map> new_map;
   if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared()->kind()))) {
-    new_map = direct_handle(
-        native_context->async_generator_object_prototype_map(), isolate());
+    new_map = handle(native_context->async_generator_object_prototype_map(),
+                     isolate());
   } else if (IsResumableFunction(function->shared()->kind())) {
     // Generator and async function prototypes can share maps since they
     // don't have "constructor" properties.
-    new_map = direct_handle(native_context->generator_object_prototype_map(),
-                            isolate());
+    new_map =
+        handle(native_context->generator_object_prototype_map(), isolate());
   } else {
     // Each function prototype gets a fresh map to avoid unwanted sharing of
     // maps between prototypes of different constructors.
     DirectHandle<JSFunction> object_function(native_context->object_function(),
                                              isolate());
     DCHECK(object_function->has_initial_map());
-    new_map = direct_handle(object_function->initial_map(), isolate());
+    new_map = handle(object_function->initial_map(), isolate());
   }
 
   DCHECK(!new_map->is_prototype_map());
@@ -3045,7 +3044,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
     DirectHandle<AllocationSite> allocation_site,
     NewJSObjectType new_js_object_type) {
   DCHECK(map->is_dictionary_map());
-  DirectHandle<HeapObject> object_properties;
+  Handle<HeapObject> object_properties;
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     object_properties = NewSwissNameDictionary(capacity, allocation);
   } else {
@@ -3539,17 +3538,17 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(
   const bool is_backed_by_rab =
       buffer->is_resizable_by_js() && !buffer->is_shared();
 
-  DirectHandle<Map> map;
+  Handle<Map> map;
   if (is_backed_by_rab || is_length_tracking) {
-    map = direct_handle(
+    map = handle(
         isolate()->raw_native_context()->TypedArrayElementsKindToRabGsabCtorMap(
             elements_kind),
         isolate());
   } else {
-    map = direct_handle(
-        isolate()->raw_native_context()->TypedArrayElementsKindToCtorMap(
-            elements_kind),
-        isolate());
+    map =
+        handle(isolate()->raw_native_context()->TypedArrayElementsKindToCtorMap(
+                   elements_kind),
+               isolate());
   }
 
   if (is_length_tracking) {
@@ -3582,13 +3581,13 @@ Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
     byte_length = 0;
   }
   bool is_backed_by_rab = !buffer->is_shared() && buffer->is_resizable_by_js();
-  DirectHandle<Map> map;
+  Handle<Map> map;
   if (is_backed_by_rab || is_length_tracking) {
-    map = direct_handle(
-        isolate()->native_context()->js_rab_gsab_data_view_map(), isolate());
+    map = handle(isolate()->native_context()->js_rab_gsab_data_view_map(),
+                 isolate());
   } else {
-    map = direct_handle(
-        isolate()->native_context()->data_view_fun()->initial_map(), isolate());
+    map = handle(isolate()->native_context()->data_view_fun()->initial_map(),
+                 isolate());
   }
   Handle<JSDataViewOrRabGsabDataView> obj =
       Cast<JSDataViewOrRabGsabDataView>(NewJSArrayBufferView(
@@ -3614,7 +3613,7 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
                             target_function->GetCreationContext().value());
 
   // Create the [[BoundArguments]] for the result.
-  DirectHandle<FixedArray> bound_arguments;
+  Handle<FixedArray> bound_arguments;
   if (bound_args.empty()) {
     bound_arguments = empty_fixed_array();
   } else {
@@ -3689,7 +3688,7 @@ void Factory::ReinitializeJSGlobalProxy(DirectHandle<JSGlobalProxy> object,
                                         DirectHandle<JSFunction> constructor) {
   DCHECK(constructor->has_initial_map());
   Handle<Map> map(constructor->initial_map(), isolate());
-  DirectHandle<Map> old_map(object->map(), isolate());
+  Handle<Map> old_map(object->map(), isolate());
 
   // The proxy's hash should be retained across reinitialization.
   DirectHandle<Object> raw_properties_or_hash(object->raw_properties_or_hash(),
@@ -3979,7 +3978,7 @@ Handle<MegaDomHandler> Factory::NewMegaDomHandler(MaybeObjectHandle accessor,
 
 Handle<LoadHandler> Factory::NewLoadHandler(int data_count,
                                             AllocationType allocation) {
-  DirectHandle<Map> map;
+  Handle<Map> map;
   switch (data_count) {
     case 1:
       map = load_handler1_map();
@@ -3997,7 +3996,7 @@ Handle<LoadHandler> Factory::NewLoadHandler(int data_count,
 }
 
 Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
-  DirectHandle<Map> map;
+  Handle<Map> map;
   switch (data_count) {
     case 0:
       map = store_handler0_map();
@@ -4047,7 +4046,7 @@ void Factory::SetRegExpExperimentalData(DirectHandle<JSRegExp> regexp,
 Handle<RegExpData> Factory::NewAtomRegExpData(DirectHandle<String> source,
                                               JSRegExp::Flags flags,
                                               DirectHandle<String> pattern) {
-  DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
+  Handle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = AtomRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().atom_regexp_data_map());
@@ -4068,7 +4067,7 @@ Handle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
                                             JSRegExp::Flags flags,
                                             int capture_count,
                                             uint32_t backtrack_limit) {
-  DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
+  Handle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = IrRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
@@ -4098,7 +4097,7 @@ Handle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
 
 Handle<RegExpData> Factory::NewExperimentalRegExpData(
     DirectHandle<String> source, JSRegExp::Flags flags, int capture_count) {
-  DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
+  Handle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = IrRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());

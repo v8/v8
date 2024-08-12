@@ -246,7 +246,7 @@ TEST_F(CompilerTest, Regression236) {
   Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(isolate());
 
-  DirectHandle<Script> script = factory->NewScript(factory->undefined_value());
+  Handle<Script> script = factory->NewScript(factory->undefined_value());
   EXPECT_EQ(-1, Script::GetLineNumber(script, 0));
   EXPECT_EQ(-1, Script::GetLineNumber(script, 100));
   EXPECT_EQ(-1, Script::GetLineNumber(script, -1));

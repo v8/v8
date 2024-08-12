@@ -243,7 +243,7 @@ Maybe<bool> KeyAccumulator::AddKeysFromJSProxy(DirectHandle<JSProxy> proxy,
   return Just(true);
 }
 
-Maybe<bool> KeyAccumulator::CollectKeys(DirectHandle<JSReceiver> receiver,
+Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
                                         Handle<JSReceiver> object) {
   // Proxies have no hidden prototype and we should not trigger the
   // [[GetPrototypeOf]] trap on the last iteration when using
@@ -539,7 +539,7 @@ Handle<FixedArray> FastKeyAccumulator::InitializeFastPropertyEnumCache(
   DCHECK_EQ(index, keys->length());
 
   // Optionally also create the indices array.
-  DirectHandle<FixedArray> indices = isolate->factory()->empty_fixed_array();
+  Handle<FixedArray> indices = isolate->factory()->empty_fixed_array();
   if (fields_only) {
     indices = isolate->factory()->NewFixedArray(enum_length, allocation);
     index = 0;
@@ -780,7 +780,7 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeys(
 }
 
 Maybe<bool> KeyAccumulator::CollectOwnElementIndices(
-    DirectHandle<JSReceiver> receiver, Handle<JSObject> object) {
+    Handle<JSReceiver> receiver, Handle<JSObject> object) {
   if (filter_ & SKIP_STRINGS || skip_indices_) return Just(true);
 
   ElementsAccessor* accessor = object->GetElementsAccessor();
@@ -1001,10 +1001,10 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
 
 }  // namespace
 
-Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(
-    DirectHandle<JSReceiver> receiver, Handle<JSObject> object) {
+Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
+                                                    Handle<JSObject> object) {
   if (filter_ == ENUMERABLE_STRINGS) {
-    DirectHandle<FixedArray> enum_keys;
+    Handle<FixedArray> enum_keys;
     if (object->HasFastProperties()) {
       enum_keys = KeyAccumulator::GetOwnEnumPropertyKeys(isolate_, object);
       // If the number of properties equals the length of enumerable properties
@@ -1125,7 +1125,7 @@ Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
 
 // Returns |true| on success, |false| if prototype walking should be stopped,
 // |nothing| if an exception was thrown.
-Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSReceiver> receiver,
+Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
                                            Handle<JSObject> object) {
   // Check access rights if required.
   if (IsAccessCheckNeeded(*object) &&
@@ -1207,7 +1207,7 @@ class NameComparator {
 // ES6 #sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
 // Returns |true| on success, |nothing| in case of exception.
 Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
-    DirectHandle<JSReceiver> receiver, DirectHandle<JSProxy> proxy) {
+    DirectHandle<JSReceiver> receiver, Handle<JSProxy> proxy) {
   STACK_CHECK(isolate_, Nothing<bool>());
   if (filter_ == PRIVATE_NAMES_ONLY) {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -1379,7 +1379,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
 }
 
 Maybe<bool> KeyAccumulator::CollectOwnJSProxyTargetKeys(
-    DirectHandle<JSProxy> proxy, Handle<JSReceiver> target) {
+    Handle<JSProxy> proxy, Handle<JSReceiver> target) {
   // TODO(cbruni): avoid creating another KeyAccumulator
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(

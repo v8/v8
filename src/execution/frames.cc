@@ -2638,7 +2638,7 @@ Handle<StackFrameInfo>
 FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   Handle<SharedFunctionInfo> shared(function_->shared(), isolate());
   DirectHandle<Script> script(Cast<Script>(shared->script()), isolate());
-  DirectHandle<String> function_name = JSFunction::GetDebugName(function_);
+  Handle<String> function_name = JSFunction::GetDebugName(function_);
   if (function_name->length() == 0 &&
       script->compilation_type() == Script::CompilationType::kEval) {
     function_name = isolate()->factory()->eval_string();
@@ -2979,7 +2979,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
 
       // Determine the underlying code object and the position within it from
       // the translation corresponding to the frame type in question.
-      DirectHandle<AbstractCode> abstract_code;
+      Handle<AbstractCode> abstract_code;
       unsigned code_offset;
       if (it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
           it->kind() ==
@@ -2991,7 +2991,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
         DCHECK_EQ(it->kind(), TranslatedFrame::kUnoptimizedFunction);
         code_offset = it->bytecode_offset().ToInt();
         abstract_code =
-            direct_handle(shared_info->abstract_code(isolate()), isolate());
+            handle(shared_info->abstract_code(isolate()), isolate());
       }
 
       // Append full summary of the encountered JS frame.

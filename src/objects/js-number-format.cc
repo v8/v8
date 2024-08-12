@@ -1909,7 +1909,7 @@ Maybe<int> ConstructParts(Isolate* isolate,
                           const icu::FormattedValue& formatted,
                           Handle<JSArray> result, int start_index,
                           bool style_is_unit, bool is_nan, bool output_source,
-                          bool output_unit, DirectHandle<String> unit) {
+                          bool output_unit, Handle<String> unit) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString formatted_text = formatted.toString(status);
   if (U_FAILURE(status)) {
@@ -1947,8 +1947,7 @@ Maybe<int> ConstructParts(Isolate* isolate,
 
   for (auto it = parts.begin(); it < parts.end(); it++) {
     NumberFormatSpan part = *it;
-    DirectHandle<String> field_type_string =
-        isolate->factory()->literal_string();
+    Handle<String> field_type_string = isolate->factory()->literal_string();
     if (part.field_id != -1) {
       if (style_is_unit && static_cast<UNumberFormatFields>(part.field_id) ==
                                UNUM_PERCENT_FIELD) {
@@ -1990,7 +1989,7 @@ Maybe<int> ConstructParts(Isolate* isolate,
 Maybe<int> Intl::AddNumberElements(Isolate* isolate,
                                    const icu::FormattedValue& formatted,
                                    Handle<JSArray> result, int start_index,
-                                   DirectHandle<String> unit) {
+                                   Handle<String> unit) {
   return ConstructParts(isolate, formatted, result, start_index, true, false,
                         false, true, unit);
 }

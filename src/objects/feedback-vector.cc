@@ -1010,7 +1010,7 @@ void FeedbackNexus::ConfigureCloneObject(
     case InlineCacheState::POLYMORPHIC: {
       const int kMaxElements = v8_flags.max_valid_polymorphic_map_count *
                                kCloneObjectPolymorphicEntrySize;
-      DirectHandle<WeakFixedArray> array = Cast<WeakFixedArray>(feedback);
+      Handle<WeakFixedArray> array = Cast<WeakFixedArray>(feedback);
       int i = 0;
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
         Tagged<MaybeObject> feedback_map = array->get(i);
@@ -1031,7 +1031,7 @@ void FeedbackNexus::ConfigureCloneObject(
         }
 
         // Grow polymorphic feedback array.
-        DirectHandle<WeakFixedArray> new_array = CreateArrayOfSize(
+        Handle<WeakFixedArray> new_array = CreateArrayOfSize(
             array->length() + kCloneObjectPolymorphicEntrySize);
         for (int j = 0; j < array->length(); ++j) {
           new_array->set(j, array->get(j));

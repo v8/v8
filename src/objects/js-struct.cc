@@ -179,7 +179,7 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
   if (!maybe_registry_key.is_null()) num_descriptors++;
 
   // Create the DescriptorArray if there are fields or elements.
-  DirectHandle<DescriptorArray> descriptors;
+  Handle<DescriptorArray> descriptors;
   if (num_descriptors != 0) {
     descriptors = factory->NewDescriptorArray(num_descriptors, 0,
                                               AllocationType::kSharedOld);

@@ -249,7 +249,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
           ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
           .ToHandleChecked();
 
-  DirectHandle<WasmExportedFunction> main_function =
+  Handle<WasmExportedFunction> main_function =
       testing::GetExportedFunction(i_isolate, instance, "main")
           .ToHandleChecked();
   int function_to_optimize =

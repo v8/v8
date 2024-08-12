@@ -706,8 +706,7 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
 }
 
 MaybeHandle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
-    Isolate* isolate, Handle<SmallOrderedHashSet> table,
-    DirectHandle<Object> key) {
+    Isolate* isolate, Handle<SmallOrderedHashSet> table, Handle<Object> key) {
   if (table->HasKey(isolate, key)) return table;
 
   if (table->UsedCapacity() >= table->Capacity()) {
@@ -752,8 +751,8 @@ bool SmallOrderedHashSet::HasKey(Isolate* isolate, DirectHandle<Object> key) {
 }
 
 MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
-    Isolate* isolate, Handle<SmallOrderedHashMap> table,
-    DirectHandle<Object> key, DirectHandle<Object> value) {
+    Isolate* isolate, Handle<SmallOrderedHashMap> table, Handle<Object> key,
+    DirectHandle<Object> value) {
   if (table->HasKey(isolate, key)) return table;
 
   if (table->UsedCapacity() >= table->Capacity()) {
@@ -1228,7 +1227,7 @@ OrderedNameDictionaryHandler::AdjustRepresentation(
 
 MaybeHandle<HeapObject> OrderedHashMapHandler::Add(Isolate* isolate,
                                                    Handle<HeapObject> table,
-                                                   DirectHandle<Object> key,
+                                                   Handle<Object> key,
                                                    DirectHandle<Object> value) {
   if (IsSmallOrderedHashMap(*table)) {
     Handle<SmallOrderedHashMap> small_map = Cast<SmallOrderedHashMap>(table);
@@ -1251,7 +1250,7 @@ MaybeHandle<HeapObject> OrderedHashMapHandler::Add(Isolate* isolate,
 
 MaybeHandle<HeapObject> OrderedHashSetHandler::Add(Isolate* isolate,
                                                    Handle<HeapObject> table,
-                                                   DirectHandle<Object> key) {
+                                                   Handle<Object> key) {
   if (IsSmallOrderedHashSet(*table)) {
     Handle<SmallOrderedHashSet> small_set = Cast<SmallOrderedHashSet>(table);
     MaybeHandle<SmallOrderedHashSet> new_set =

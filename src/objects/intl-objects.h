@@ -246,8 +246,8 @@ class Intl {
   // A helper function to implement formatToParts which add element to array as
   // $array[$index] = { type: $field_type_string, value: $value }
   static void AddElement(Isolate* isolate, Handle<JSArray> array, int index,
-                         DirectHandle<String> field_type_string,
-                         DirectHandle<String> value);
+                         Handle<String> field_type_string,
+                         Handle<String> value);
 
   // A helper function to implement formatToParts which add element to array as
   // $array[$index] = {
@@ -255,16 +255,15 @@ class Intl {
   //   $additional_property_name: $additional_property_value
   // }
   static void AddElement(Isolate* isolate, Handle<JSArray> array, int index,
-                         DirectHandle<String> field_type_string,
-                         DirectHandle<String> value,
+                         Handle<String> field_type_string, Handle<String> value,
                          Handle<String> additional_property_name,
-                         DirectHandle<String> additional_property_value);
+                         Handle<String> additional_property_value);
 
   // A helper function to implement formatToParts which add element to array
   static Maybe<int> AddNumberElements(Isolate* isolate,
                                       const icu::FormattedValue& formatted,
                                       Handle<JSArray> result, int start_index,
-                                      DirectHandle<String> unit);
+                                      Handle<String> unit);
 
   // In ECMA 402 v1, Intl constructors supported a mode of operation
   // where calling them with an existing object as a receiver would

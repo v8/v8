@@ -56,8 +56,7 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
 };
 
 static bool SpecializeToFunctionContext(
-    Isolate* isolate, BytecodeOffset osr_offset,
-    DirectHandle<JSFunction> function,
+    Isolate* isolate, BytecodeOffset osr_offset, Handle<JSFunction> function,
     std::optional<bool> specialize_to_function_context_override) {
   if (osr_offset != BytecodeOffset::None()) return false;
   if (!v8_flags.maglev_function_context_specialization) return false;

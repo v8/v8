@@ -67,13 +67,11 @@ class FunctionTester {
     return CheckCall(expected, a, b, undefined());
   }
 
-  void CheckCall(DirectHandle<Object> expected, Handle<Object> a) {
+  void CheckCall(Handle<Object> expected, Handle<Object> a) {
     CheckCall(expected, a, undefined());
   }
 
-  void CheckCall(DirectHandle<Object> expected) {
-    CheckCall(expected, undefined());
-  }
+  void CheckCall(Handle<Object> expected) { CheckCall(expected, undefined()); }
 
   void CheckCall(double expected, double a, double b) {
     CheckCall(NewNumber(expected), NewNumber(a), NewNumber(b));

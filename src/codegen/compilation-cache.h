@@ -165,14 +165,14 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
   void PutScript(Handle<String> source, LanguageMode language_mode,
-                 DirectHandle<SharedFunctionInfo> function_info);
+                 Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, context->closure()->shared(), kind) triple
   // with the shared function info. This may overwrite an existing mapping.
   void PutEval(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-               DirectHandle<Context> context,
+               Handle<Context> context,
                DirectHandle<SharedFunctionInfo> function_info,
-               DirectHandle<FeedbackCell> feedback_cell, int position);
+               Handle<FeedbackCell> feedback_cell, int position);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.

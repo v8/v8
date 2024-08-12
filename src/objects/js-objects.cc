@@ -572,7 +572,7 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
         return std::make_pair(constructor, name);
       }
     } else if (IsFunctionTemplateInfo(*maybe_constructor)) {
-      DirectHandle<FunctionTemplateInfo> function_template =
+      Handle<FunctionTemplateInfo> function_template =
           Cast<FunctionTemplateInfo>(maybe_constructor);
       if (!IsUndefined(function_template->class_name(), isolate)) {
         return std::make_pair(
@@ -1510,10 +1510,10 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
       if (it != nullptr) {
         if (!desc->has_enumerable()) desc->set_enumerable(false);
         if (!desc->has_configurable()) desc->set_configurable(false);
-        DirectHandle<Object> getter(
+        Handle<Object> getter(
             desc->has_get() ? desc->get()
                             : Cast<Object>(isolate->factory()->null_value()));
-        DirectHandle<Object> setter(
+        Handle<Object> setter(
             desc->has_set() ? desc->set()
                             : Cast<Object>(isolate->factory()->null_value()));
         MaybeHandle<Object> result =
@@ -1694,12 +1694,12 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
       DCHECK(desc_is_accessor_descriptor ||
              (desc_is_generic_descriptor &&
               PropertyDescriptor::IsAccessorDescriptor(current)));
-      DirectHandle<Object> getter(
+      Handle<Object> getter(
           desc->has_get() ? desc->get()
           : current->has_get()
               ? current->get()
               : Cast<Object>(isolate->factory()->null_value()));
-      DirectHandle<Object> setter(
+      Handle<Object> setter(
           desc->has_set() ? desc->set()
           : current->has_set()
               ? current->set()
@@ -3023,7 +3023,7 @@ bool JSObject::IsUnmodifiedApiObject(FullObjectSlot o) {
 
 // static
 void JSObject::UpdatePrototypeUserRegistration(DirectHandle<Map> old_map,
-                                               DirectHandle<Map> new_map,
+                                               Handle<Map> new_map,
                                                Isolate* isolate) {
   DCHECK(old_map->is_prototype_map());
   DCHECK(new_map->is_prototype_map());
@@ -3048,8 +3048,8 @@ void JSObject::UpdatePrototypeUserRegistration(DirectHandle<Map> old_map,
 }
 
 // static
-void JSObject::NotifyMapChange(DirectHandle<Map> old_map,
-                               DirectHandle<Map> new_map, Isolate* isolate) {
+void JSObject::NotifyMapChange(Handle<Map> old_map, Handle<Map> new_map,
+                               Isolate* isolate) {
   if (!old_map->is_prototype_map()) return;
 
   InvalidatePrototypeChains(*old_map);
@@ -3122,7 +3122,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
         isolate->factory()->CopyPropertyArrayAndGrow(old_storage, grow_by);
 
     // Properly initialize newly added property.
-    DirectHandle<Object> value;
+    Handle<Object> value;
     if (details.representation().IsDouble()) {
       value = isolate->factory()->NewHeapNumberWithHoleNaN();
     } else {
@@ -3226,7 +3226,7 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     PropertyDetails details = new_descriptors->GetDetails(i);
     if (details.location() != PropertyLocation::kField) continue;
     DCHECK_EQ(PropertyKind::kData, details.kind());
-    DirectHandle<Object> value;
+    Handle<Object> value;
     if (details.representation().IsDouble()) {
       value = isolate->factory()->NewHeapNumberWithHoleNaN();
     } else {
@@ -3399,10 +3399,10 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
 }  // namespace
 
 void JSObject::MigrateToMap(Isolate* isolate, DirectHandle<JSObject> object,
-                            DirectHandle<Map> new_map,
+                            Handle<Map> new_map,
                             int expected_additional_properties) {
   if (object->map(isolate) == *new_map) return;
-  DirectHandle<Map> old_map(object->map(isolate), isolate);
+  Handle<Map> old_map(object->map(isolate), isolate);
   NotifyMapChange(old_map, new_map, isolate);
 
   if (old_map->is_dictionary_map()) {
@@ -3447,7 +3447,7 @@ void JSObject::ForceSetPrototype(Isolate* isolate,
                                  Handle<HeapObject> proto) {
   // object.__proto__ = proto;
   Handle<Map> old_map = Handle<Map>(object->map(), isolate);
-  DirectHandle<Map> new_map = Map::Copy(isolate, old_map, "ForceSetPrototype");
+  Handle<Map> new_map = Map::Copy(isolate, old_map, "ForceSetPrototype");
   Map::SetPrototype(isolate, new_map, proto);
   JSObject::MigrateToMap(isolate, object, new_map);
 }
@@ -3525,7 +3525,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
 void JSObject::MigrateInstance(Isolate* isolate,
                                DirectHandle<JSObject> object) {
   Handle<Map> original_map(object->map(), isolate);
-  DirectHandle<Map> map = Map::Update(isolate, original_map);
+  Handle<Map> map = Map::Update(isolate, original_map);
   map->set_is_migration_target(true);
   JSObject::MigrateToMap(isolate, object, map);
   if (v8_flags.trace_migration) {
@@ -3592,7 +3592,7 @@ bool TryFastAddDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
 }  // namespace
 
 void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
-                           Handle<Name> name, DirectHandle<Object> value,
+                           Handle<Name> name, Handle<Object> value,
                            PropertyAttributes attributes) {
   name = isolate->factory()->InternalizeName(name);
   if (TryFastAddDataProperty(isolate, object, name, value, attributes)) {
@@ -3619,7 +3619,7 @@ void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
 }
 
 void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
-                           const char* name, DirectHandle<Object> value,
+                           const char* name, Handle<Object> value,
                            PropertyAttributes attributes) {
   JSObject::AddProperty(isolate, object,
                         isolate->factory()->InternalizeUtf8String(name), value,
@@ -3818,7 +3818,7 @@ void JSObject::NormalizeProperties(Isolate* isolate,
   if (!object->HasFastProperties()) return;
 
   Handle<Map> map(object->map(), isolate);
-  DirectHandle<Map> new_map =
+  Handle<Map> new_map =
       Map::Normalize(isolate, map, map->elements_kind(), Handle<HeapObject>(),
                      mode, use_cache, reason);
 
@@ -3835,7 +3835,7 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
   Factory* factory = isolate->factory();
 
   Handle<NameDictionary> dictionary;
-  DirectHandle<SwissNameDictionary> swiss_dictionary;
+  Handle<SwissNameDictionary> swiss_dictionary;
   int number_of_elements;
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     swiss_dictionary = handle(object->property_dictionary_swiss(), isolate);
@@ -3849,7 +3849,7 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
   // descriptors.
   if (number_of_elements > kMaxNumberOfDescriptors) return;
 
-  DirectHandle<FixedArray> iteration_order;
+  Handle<FixedArray> iteration_order;
   int iteration_length;
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     // |iteration_order| remains empty handle, we don't need it.
@@ -4073,8 +4073,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
       is_sloppy_arguments                      ? SLOW_SLOPPY_ARGUMENTS_ELEMENTS
       : object->HasFastStringWrapperElements() ? SLOW_STRING_WRAPPER_ELEMENTS
                                                : DICTIONARY_ELEMENTS;
-  DirectHandle<Map> new_map =
-      JSObject::GetElementsTransitionMap(object, target_kind);
+  Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, target_kind);
   // Set the new map first to satify the elements type assert in set_elements().
   JSObject::MigrateToMap(isolate, object, new_map);
 
@@ -4303,7 +4302,7 @@ Maybe<bool> JSObject::PreventExtensions(Isolate* isolate,
   // Do a map transition, other objects with this map may still
   // be extensible.
   // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-  DirectHandle<Map> new_map =
+  Handle<Map> new_map =
       Map::Copy(isolate, handle(object->map(), isolate), "PreventExtensions");
 
   new_map->set_is_extensible(false);
@@ -4496,7 +4495,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     JSObject::MigrateToMap(isolate, object, transition_map);
   } else if (TransitionsAccessor::CanHaveMoreTransitions(isolate, old_map)) {
     // Create a new descriptor array with the appropriate property attributes
-    DirectHandle<Map> new_map = Map::CopyForPreventExtensions(
+    Handle<Map> new_map = Map::CopyForPreventExtensions(
         isolate, old_map, attrs, transition_marker, "CopyForPreventExtensions");
     if (!new_map->has_any_nonextensible_elements()) {
       new_element_dictionary = CreateElementDictionary(isolate, object);
@@ -4510,9 +4509,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
     // Create a new map, since other objects with this map may be extensible.
     // TODO(adamk): Extend the NormalizedMapCache to handle non-extensible maps.
-    DirectHandle<Map> new_map =
-        Map::Copy(isolate, handle(object->map(), isolate),
-                  "SlowCopyForPreventExtensions");
+    Handle<Map> new_map = Map::Copy(isolate, handle(object->map(), isolate),
+                                    "SlowCopyForPreventExtensions");
     new_map->set_is_extensible(false);
     new_element_dictionary = CreateElementDictionary(isolate, object);
     if (!new_element_dictionary.is_null()) {
@@ -4713,8 +4711,8 @@ bool JSObject::HasEnumerableElements() {
 }
 
 MaybeHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
-    Handle<JSObject> object, Handle<Name> name, DirectHandle<Object> getter,
-    DirectHandle<Object> setter, PropertyAttributes attributes) {
+    Handle<JSObject> object, Handle<Name> name, Handle<Object> getter,
+    Handle<Object> setter, PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
 
   PropertyKey key(isolate, name);
@@ -4874,7 +4872,7 @@ void JSObject::MakePrototypesFast(Handle<Object> receiver,
        !iter.IsAtEnd(); iter.Advance()) {
     Handle<Object> current = PrototypeIterator::GetCurrent(iter);
     if (!IsJSObjectThatCanBeTrackedAsPrototype(*current)) return;
-    DirectHandle<JSObject> current_obj = Cast<JSObject>(current);
+    Handle<JSObject> current_obj = Cast<JSObject>(current);
     Tagged<Map> current_map = current_obj->map();
     if (current_map->is_prototype_map()) {
       // If the map is already marked as should be fast, we're done. Its
@@ -4899,7 +4897,7 @@ static bool PrototypeBenefitsFromNormalization(Tagged<JSObject> object) {
 }
 
 // static
-void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
+void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                    bool enable_setup_mode) {
   DCHECK(IsJSObjectThatCanBeTrackedAsPrototype(*object));
   if (IsJSGlobalObject(*object)) return;
@@ -4919,7 +4917,7 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
       JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
     }
   } else {
-    DirectHandle<Map> new_map;
+    Handle<Map> new_map;
     if (enable_setup_mode && PrototypeBenefitsFromNormalization(*object)) {
 #if DEBUG
       DirectHandle<Map> old_map(object->map(isolate), isolate);
@@ -4934,7 +4932,7 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
       // A new map was created.
       DCHECK_NE(*old_map, object->map(isolate));
 
-      new_map = direct_handle(object->map(isolate), isolate);
+      new_map = handle(object->map(isolate), isolate);
     } else {
       new_map =
           Map::Copy(isolate, handle(object->map(), isolate), "CopyAsPrototype");
@@ -4997,7 +4995,7 @@ void JSObject::OptimizeAsPrototype(DirectHandle<JSObject> object,
 }
 
 // static
-void JSObject::ReoptimizeIfPrototype(DirectHandle<JSObject> object) {
+void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
   {
     Tagged<Map> map = object->map();
     if (!map->is_prototype_map()) return;
@@ -5007,14 +5005,13 @@ void JSObject::ReoptimizeIfPrototype(DirectHandle<JSObject> object) {
 }
 
 // static
-void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
-                                         Isolate* isolate) {
+void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   // Contract: In line with InvalidatePrototypeChains()'s requirements,
   // leaf maps don't need to register as users, only prototypes do.
   DCHECK(user->is_prototype_map());
 
-  DirectHandle<Map> current_user = user;
-  DirectHandle<PrototypeInfo> current_user_info =
+  Handle<Map> current_user = user;
+  Handle<PrototypeInfo> current_user_info =
       Map::GetOrCreatePrototypeInfo(user, isolate);
   for (PrototypeIterator iter(isolate, user); !iter.IsAtEnd(); iter.Advance()) {
     // Walk up the prototype chain as far as links haven't been registered yet.
@@ -5033,7 +5030,7 @@ void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
     // threadsafe.
     if (!IsJSObjectThatCanBeTrackedAsPrototype(*maybe_proto)) continue;
     auto proto = Cast<JSObject>(maybe_proto);
-    DirectHandle<PrototypeInfo> proto_info =
+    Handle<PrototypeInfo> proto_info =
         Map::GetOrCreatePrototypeInfo(proto, isolate);
     Handle<Object> maybe_registry(proto_info->prototype_users(), isolate);
     Handle<WeakArrayList> registry =
@@ -5284,7 +5281,7 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
 
   isolate->UpdateProtectorsOnSetPrototype(real_receiver, value);
 
-  DirectHandle<Map> new_map =
+  Handle<Map> new_map =
       v8_flags.move_prototype_transitions_first
           ? MapUpdater(isolate, map)
                 .ApplyPrototypeTransition(Cast<HeapObject>(value))
@@ -5393,7 +5390,7 @@ static ElementsKind BestFittingFastElementsKind(Tagged<JSObject> object) {
 
 // static
 Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
-                                     DirectHandle<Object> value,
+                                     Handle<Object> value,
                                      PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
 
@@ -5505,7 +5502,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
       IsDoubleElementsKind(from_kind) == IsDoubleElementsKind(to_kind)) {
     // No change is needed to the elements() buffer, the transition
     // only requires a map change.
-    DirectHandle<Map> new_map = GetElementsTransitionMap(object, to_kind);
+    Handle<Map> new_map = GetElementsTransitionMap(object, to_kind);
     JSObject::MigrateToMap(isolate, object, new_map);
     if (v8_flags.trace_elements_transitions) {
       DirectHandle<FixedArrayBase> elms(object->elements(), isolate);

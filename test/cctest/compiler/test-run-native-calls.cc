@@ -440,7 +440,7 @@ class Computer {
 
     {
       // constant mode.
-      DirectHandle<Code> wrapper;
+      Handle<Code> wrapper;
       {
         // Wrap the above code with a callable function that passes constants.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -474,7 +474,7 @@ class Computer {
 
     {
       // buffer mode.
-      DirectHandle<Code> wrapper;
+      Handle<Code> wrapper;
       {
         // Wrap the above code with a callable function that loads from {input}.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -574,7 +574,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   }
 
   CSignatureOf<int32_t> csig;
-  DirectHandle<Code> wrapper;
+  Handle<Code> wrapper;
   {
     // Loads parameters from the input buffer and calls the above code.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -1051,7 +1051,7 @@ void MixedParamTest(int start) {
 
     {
       // call the select.
-      DirectHandle<Code> wrapper;
+      Handle<Code> wrapper;
       int32_t expected_ret;
       char bytes[kDoubleSize];
       alignas(8) char output[kDoubleSize];

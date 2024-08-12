@@ -409,8 +409,7 @@ Handle<JSObject> Interpreter::GetDispatchCountersObject() {
       uintptr_t counter = GetDispatchCounter(from_bytecode, to_bytecode);
 
       if (counter > 0) {
-        DirectHandle<Object> value =
-            isolate_->factory()->NewNumberFromSize(counter);
+        Handle<Object> value = isolate_->factory()->NewNumberFromSize(counter);
         JSObject::AddProperty(isolate_, counters_row,
                               Bytecodes::ToString(to_bytecode), value, NONE);
       }

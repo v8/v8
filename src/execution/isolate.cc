@@ -887,8 +887,7 @@ class CallSiteBuilder {
         function->shared()->GetBytecodeArray(isolate_), isolate_);
     int offset = GetGeneratorBytecodeOffset(generator_object);
 
-    DirectHandle<FixedArray> parameters =
-        isolate_->factory()->empty_fixed_array();
+    Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
     if (V8_UNLIKELY(v8_flags.detailed_error_stack_trace)) {
       parameters = isolate_->factory()->CopyFixedArrayUpTo(
           handle(generator_object->parameters_and_registers(), isolate_),
@@ -1082,7 +1081,7 @@ class CallSiteBuilder {
   Handle<FixedArray> elements_;
 };
 
-void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
+void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                             CallSiteBuilder* builder) {
   while (!builder->Full()) {
     // Check that the {promise} is not settled.
@@ -1122,8 +1121,8 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
       DirectHandle<JSFunction> function(
           Cast<JSFunction>(reaction->fulfill_handler()), isolate);
       DirectHandle<Context> context(function->context(), isolate);
-      DirectHandle<JSFunction> combinator(
-          context->native_context()->promise_all(), isolate);
+      Handle<JSFunction> combinator(context->native_context()->promise_all(),
+                                    isolate);
       builder->AppendPromiseCombinatorFrame(function, combinator);
 
       if (IsNativeContext(*context)) {
@@ -1147,7 +1146,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
       DirectHandle<JSFunction> function(
           Cast<JSFunction>(reaction->fulfill_handler()), isolate);
       DirectHandle<Context> context(function->context(), isolate);
-      DirectHandle<JSFunction> combinator(
+      Handle<JSFunction> combinator(
           context->native_context()->promise_all_settled(), isolate);
       builder->AppendPromiseCombinatorFrame(function, combinator);
 
@@ -1171,8 +1170,8 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
       DirectHandle<JSFunction> function(
           Cast<JSFunction>(reaction->reject_handler()), isolate);
       DirectHandle<Context> context(function->context(), isolate);
-      DirectHandle<JSFunction> combinator(
-          context->native_context()->promise_any(), isolate);
+      Handle<JSFunction> combinator(context->native_context()->promise_any(),
+                                    isolate);
       builder->AppendPromiseCombinatorFrame(function, combinator);
 
       if (IsNativeContext(*context)) {
@@ -1401,7 +1400,7 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
   // the API, or a negative limit to indicate the opposite), or we
   // collect a "detailed stack trace" eagerly and stash that away.
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    DirectHandle<UnionOf<Smi, FixedArray>> limit_or_stack_frame_infos;
+    Handle<UnionOf<Smi, FixedArray>> limit_or_stack_frame_infos;
     if (IsUndefined(*error_stack, this) ||
         (stack_trace_for_uncaught_exceptions_options_ &
          StackTrace::kExposeFramesAcrossSecurityOrigins)) {
@@ -1477,7 +1476,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
 
   Tagged<Object> maybe_script = frame->function()->shared()->script();
   if (IsScript(maybe_script)) {
-    DirectHandle<Script> script(Cast<Script>(maybe_script), this);
+    Handle<Script> script(Cast<Script>(maybe_script), this);
     Script::PositionInfo info;
     Script::GetPositionInfo(script, position, &info);
     *line = info.line + 1;
@@ -1998,7 +1997,7 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
     PrintF("=========================================================\n");
     PrintF("Exception thrown:\n");
     if (location) {
-      DirectHandle<Script> script = location->script();
+      Handle<Script> script = location->script();
       DirectHandle<Object> name(script->GetNameOrSourceURL(), this);
       PrintF("at ");
       if (IsString(*name) && Cast<String>(*name)->length() > 0)
@@ -2741,7 +2740,7 @@ void Isolate::PrintCurrentStackTrace(std::ostream& out) {
 
   IncrementalStringBuilder builder(this);
   for (int i = 0; i < frames->length(); ++i) {
-    DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)), this);
+    Handle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)), this);
     SerializeCallSiteInfo(this, frame, &builder);
     if (i != frames->length() - 1) builder.AppendCharacter('\n');
   }
@@ -2814,7 +2813,7 @@ bool Isolate::ComputeLocationFromSimpleStackTrace(MessageLocation* target,
   DirectHandle<FixedArray> call_site_infos =
       GetSimpleStackTrace(Cast<JSReceiver>(exception));
   for (int i = 0; i < call_site_infos->length(); ++i) {
-    DirectHandle<CallSiteInfo> call_site_info(
+    Handle<CallSiteInfo> call_site_info(
         Cast<CallSiteInfo>(call_site_infos->get(i)), this);
     if (CallSiteInfo::ComputeLocation(call_site_info, target)) {
       return true;
@@ -2874,7 +2873,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
 
 Handle<JSMessageObject> Isolate::CreateMessageFromException(
     Handle<Object> exception) {
-  DirectHandle<FixedArray> stack_trace_object;
+  Handle<FixedArray> stack_trace_object;
   if (IsJSError(*exception)) {
     stack_trace_object = GetDetailedStackTrace(Cast<JSObject>(exception));
   }
@@ -4668,9 +4667,8 @@ void Isolate::NotifyExceptionPropagationCallback() {
             reinterpret_cast<const v8::FunctionCallbackInfo<v8::Value>*>(
                 ext_callback_scope->callback_info());
 
-        DirectHandle<JSReceiver> receiver =
-            Utils::OpenDirectHandle(*callback_info->This());
-        DirectHandle<FunctionTemplateInfo> function_template_info(
+        Handle<JSReceiver> receiver = Utils::OpenHandle(*callback_info->This());
+        Handle<FunctionTemplateInfo> function_template_info(
             GetTargetFunctionTemplateInfo(*callback_info), this);
         ReportExceptionFunctionCallback(receiver, function_template_info, kind);
         return;
@@ -4738,9 +4736,9 @@ void Isolate::NotifyExceptionPropagationCallback() {
   switch (frame_type) {
     case StackFrame::API_CALLBACK_EXIT: {
       ApiCallbackExitFrame* frame = ApiCallbackExitFrame::cast(it.frame());
-      DirectHandle<JSReceiver> receiver(Cast<JSReceiver>(frame->receiver()),
-                                        this);
-      DirectHandle<FunctionTemplateInfo> function_template_info =
+      Handle<JSReceiver> receiver =
+          handle(Cast<JSReceiver>(frame->receiver()), this);
+      Handle<FunctionTemplateInfo> function_template_info =
           frame->GetFunctionTemplateInfo();
 
       v8::ExceptionContext callback_kind =
@@ -4783,8 +4781,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
 }
 
 void Isolate::ReportExceptionFunctionCallback(
-    DirectHandle<JSReceiver> receiver,
-    DirectHandle<FunctionTemplateInfo> function,
+    Handle<JSReceiver> receiver, Handle<FunctionTemplateInfo> function,
     v8::ExceptionContext exception_context) {
   DCHECK(exception_context == v8::ExceptionContext::kConstructor ||
          exception_context == v8::ExceptionContext::kOperation);
@@ -4794,7 +4791,7 @@ void Isolate::ReportExceptionFunctionCallback(
   if (!IsJSReceiver(this->exception())) return;
   Handle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
 
-  DirectHandle<Object> maybe_message(pending_message(), this);
+  Handle<Object> maybe_message(pending_message(), this);
 
   Handle<String> property_name =
       IsUndefined(function->class_name(), this)
@@ -4833,7 +4830,7 @@ void Isolate::ReportExceptionPropertyCallback(
   if (!IsJSReceiver(this->exception())) return;
   Handle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
 
-  DirectHandle<Object> maybe_message(pending_message(), this);
+  Handle<Object> maybe_message(pending_message(), this);
 
   Handle<String> property_name;
   std::ignore = Name::ToFunctionName(this, name).ToHandle(&property_name);
@@ -6886,7 +6883,7 @@ void Isolate::DetachGlobal(Handle<Context> env) {
       env->native_context()->GetErrorsThrown());
 
   ReadOnlyRoots roots(this);
-  DirectHandle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
+  Handle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
   // NOTE: Turbofan's JSNativeContextSpecialization and Maglev depend on
   // DetachGlobal causing a map change.
   JSObject::ForceSetPrototype(this, global_proxy, factory()->null_value());
@@ -7189,7 +7186,7 @@ bool Isolate::RequiresCodeRange() const {
 }
 
 v8::metrics::Recorder::ContextId Isolate::GetOrRegisterRecorderContextId(
-    DirectHandle<NativeContext> context) {
+    Handle<NativeContext> context) {
   if (serializer_enabled_) return v8::metrics::Recorder::ContextId::Empty();
   i::Tagged<i::Object> id = context->recorder_context_id();
   if (IsNullOrUndefined(id)) {

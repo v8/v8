@@ -487,7 +487,7 @@ TieringManager::OnInterruptTickScope::OnInterruptTickScope() {
                "V8.MarkCandidatesForOptimization");
 }
 
-void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,
+void TieringManager::OnInterruptTick(Handle<JSFunction> function,
                                      CodeKind code_kind) {
   IsCompiledScope is_compiled_scope(
       function->shared()->is_compiled_scope(isolate_));

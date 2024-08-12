@@ -676,7 +676,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
     state_ = DATA;
     return;
   }
-  DirectHandle<Map> transition = transition_map();
+  Handle<Map> transition = transition_map();
   bool simple_transition =
       transition->GetBackPointer(isolate_) == receiver->map(isolate_);
 
@@ -790,7 +790,7 @@ void LookupIterator::TransitionToAccessorProperty(
     // interceptors.
     DCHECK_IMPLIES(!IsFound(), number_.is_not_found());
 
-    DirectHandle<Map> new_map = Map::TransitionToAccessorProperty(
+    Handle<Map> new_map = Map::TransitionToAccessorProperty(
         isolate_, old_map, name_, number_, getter, setter, attributes);
     bool simple_transition =
         new_map->GetBackPointer(isolate_) == receiver->map(isolate_);

@@ -253,7 +253,7 @@ bool BaselineBatchCompiler::concurrent() const {
          !isolate_->EfficiencyModeEnabledForTiering();
 }
 
-void BaselineBatchCompiler::EnqueueFunction(DirectHandle<JSFunction> function) {
+void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
   DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate_);
   // Immediately compile the function if batch compilation is disabled.
   if (!is_enabled()) {
@@ -309,7 +309,7 @@ void BaselineBatchCompiler::EnsureQueueCapacity() {
   }
 }
 
-void BaselineBatchCompiler::CompileBatch(DirectHandle<JSFunction> function) {
+void BaselineBatchCompiler::CompileBatch(Handle<JSFunction> function) {
   {
     IsCompiledScope is_compiled_scope(
         function->shared()->is_compiled_scope(isolate_));

@@ -1093,7 +1093,7 @@ TEST_F(InterpreterTest, InterpreterLoadNamedProperty) {
 
   Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
-  DirectHandle<Object> return_val = callable(object).ToHandleChecked();
+  Handle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
 
   // Test transition to monomorphic IC.
@@ -1144,7 +1144,7 @@ TEST_F(InterpreterTest, InterpreterLoadKeyedProperty) {
 
   Handle<Object> object = InterpreterTester::NewObject("({ key : 123 })");
   // Test IC miss.
-  DirectHandle<Object> return_val = callable(object).ToHandleChecked();
+  Handle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
 
   // Test transition to monomorphic IC.

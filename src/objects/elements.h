@@ -136,7 +136,7 @@ class ElementsAccessor {
 
   V8_WARN_UNUSED_RESULT virtual Maybe<bool> Add(Handle<JSObject> object,
                                                 uint32_t index,
-                                                DirectHandle<Object> value,
+                                                Handle<Object> value,
                                                 PropertyAttributes attributes,
                                                 uint32_t new_capacity) = 0;
 

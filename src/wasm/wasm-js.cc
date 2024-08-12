@@ -2046,7 +2046,7 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::Handle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);
   // The constructor above should guarantee that the cast below succeeds.
-  i::DirectHandle<i::FixedArray> values =
+  i::Handle<i::FixedArray> values =
       i::Cast<i::FixedArray>(i::WasmExceptionPackage::GetExceptionValues(
           i_isolate, runtime_exception));
   i::DirectHandle<i::PodArray<i::wasm::ValueType>> signature(
@@ -3244,7 +3244,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     // Note the canonical_type_index is reset in WasmJs::Install s.t.
     // type_canonicalizer bookkeeping remains valid.
     static constexpr uint32_t kInitialCanonicalTypeIndex = 0;
-    DirectHandle<JSObject> js_tag_object = WasmTagObject::New(
+    Handle<JSObject> js_tag_object = WasmTagObject::New(
         isolate, &kWasmExceptionTagSignature, kInitialCanonicalTypeIndex,
         js_tag, Handle<WasmTrustedInstanceData>());
     native_context->set_wasm_js_tag(*js_tag_object);
@@ -3294,15 +3294,15 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // Setup errors.
   {
-    DirectHandle<JSFunction> compile_error(
+    Handle<JSFunction> compile_error(
         native_context->wasm_compile_error_function(), isolate);
     JSObject::AddProperty(isolate, webassembly, f->CompileError_string(),
                           compile_error, DONT_ENUM);
-    DirectHandle<JSFunction> link_error(
-        native_context->wasm_link_error_function(), isolate);
+    Handle<JSFunction> link_error(native_context->wasm_link_error_function(),
+                                  isolate);
     JSObject::AddProperty(isolate, webassembly, f->LinkError_string(),
                           link_error, DONT_ENUM);
-    DirectHandle<JSFunction> runtime_error(
+    Handle<JSFunction> runtime_error(
         native_context->wasm_runtime_error_function(), isolate);
     JSObject::AddProperty(isolate, webassembly, f->RuntimeError_string(),
                           runtime_error, DONT_ENUM);

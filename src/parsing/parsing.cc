@@ -36,7 +36,7 @@ void MaybeReportStatistics(ParseInfo* info, DirectHandle<Script> script,
 
 }  // namespace
 
-bool ParseProgram(ParseInfo* info, DirectHandle<Script> script,
+bool ParseProgram(ParseInfo* info, Handle<Script> script,
                   MaybeHandle<ScopeInfo> maybe_outer_scope_info,
                   Isolate* isolate, ReportStatisticsMode mode) {
   DCHECK(info->flags().is_toplevel());
@@ -59,8 +59,8 @@ bool ParseProgram(ParseInfo* info, DirectHandle<Script> script,
   return info->literal() != nullptr;
 }
 
-bool ParseProgram(ParseInfo* info, DirectHandle<Script> script,
-                  Isolate* isolate, ReportStatisticsMode mode) {
+bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
+                  ReportStatisticsMode mode) {
   return ParseProgram(info, script, kNullMaybeHandle, isolate, mode);
 }
 
@@ -73,7 +73,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   VMState<PARSER> state(isolate);
 
   // Create a character stream for the parser.
-  DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
+  Handle<Script> script(Cast<Script>(shared_info->script()), isolate);
   Handle<String> source(Cast<String>(script->source()), isolate);
   int start_pos = shared_info->StartPosition();
   int end_pos = shared_info->EndPosition();

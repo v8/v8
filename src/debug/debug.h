@@ -261,8 +261,8 @@ class V8_EXPORT_PRIVATE Debug {
   std::optional<Tagged<Object>> OnThrow(Handle<Object> exception)
       V8_WARN_UNUSED_RESULT;
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
-  void OnCompileError(DirectHandle<Script> script);
-  void OnAfterCompile(DirectHandle<Script> script);
+  void OnCompileError(Handle<Script> script);
+  void OnAfterCompile(Handle<Script> script);
 
   void HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
                         debug::BreakReasons break_reasons);
@@ -529,7 +529,7 @@ class V8_EXPORT_PRIVATE Debug {
   void OnException(Handle<Object> exception, MaybeHandle<JSPromise> promise,
                    v8::debug::ExceptionType exception_type);
 
-  void ProcessCompileEvent(bool has_compile_error, DirectHandle<Script> script);
+  void ProcessCompileEvent(bool has_compile_error, Handle<Script> script);
 
   // Find the closest source position for a break point for a given position.
   int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position);

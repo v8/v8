@@ -787,7 +787,7 @@ TEST_F(PreParserTest, Regress753896) {
 
   i::DirectHandle<i::String> source = factory->InternalizeUtf8String(
       "function lazy() { let v = 0; if (true) { var v = 0; } }");
-  i::DirectHandle<i::Script> script = factory->NewScript(source);
+  i::Handle<i::Script> script = factory->NewScript(source);
   i::UnoptimizedCompileState state;
   i::ReusableUnoptimizedCompileState reusable_state(isolate);
   i::UnoptimizedCompileFlags flags =
@@ -820,7 +820,7 @@ TEST_F(PreParserTest, TopLevelArrowFunctions) {
     Local<Value> v = TryRunJS(name).ToLocalChecked();
     i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
     i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);
-    i::DirectHandle<i::SharedFunctionInfo> shared(f->shared(), isolate);
+    i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
     return shared->is_compiled();
   };
   EXPECT_FALSE(IsCompiled("a"));

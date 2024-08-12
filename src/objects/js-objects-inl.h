@@ -246,7 +246,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
 }
 
 void JSObject::SetMapAndElements(DirectHandle<JSObject> object,
-                                 DirectHandle<Map> new_map,
+                                 Handle<Map> new_map,
                                  DirectHandle<FixedArrayBase> value) {
   Isolate* isolate = object->GetIsolate();
   JSObject::MigrateToMap(isolate, object, new_map);

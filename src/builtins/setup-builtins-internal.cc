@@ -221,11 +221,10 @@ Tagged<Code> BuildWithTurboshaftAssemblerImpl(
   ZoneWithName<kTempZoneName> temp_zone(&zone_stats, kTempZoneName);
   generator(&data, isolate, data.graph(), temp_zone);
 
-  DirectHandle<Code> code =
-      compiler::Pipeline::GenerateCodeForTurboshaftBuiltin(
-          &data, call_descriptor, builtin, name,
-          ProfileDataFromFile::TryRead(name))
-          .ToHandleChecked();
+  Handle<Code> code = compiler::Pipeline::GenerateCodeForTurboshaftBuiltin(
+                          &data, call_descriptor, builtin, name,
+                          ProfileDataFromFile::TryRead(name))
+                          .ToHandleChecked();
   return *code;
 }
 

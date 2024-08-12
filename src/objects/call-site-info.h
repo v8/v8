@@ -113,11 +113,11 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
 };
 
 class IncrementalStringBuilder;
-void SerializeCallSiteInfo(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
+void SerializeCallSiteInfo(Isolate* isolate, Handle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder);
 V8_EXPORT_PRIVATE
 MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
-                                          DirectHandle<CallSiteInfo> frame);
+                                          Handle<CallSiteInfo> frame);
 
 }  // namespace v8::internal
 

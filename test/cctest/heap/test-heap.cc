@@ -263,7 +263,7 @@ TEST(HeapObjects) {
   Heap* heap = isolate->heap();
 
   HandleScope sc(isolate);
-  DirectHandle<Object> value = factory->NewNumber(1.000123);
+  Handle<Object> value = factory->NewNumber(1.000123);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
   CHECK_EQ(1.000123, Object::NumberValue(*value));
@@ -509,8 +509,8 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
 
   WeakPointerCleared = false;
 
-  IndirectHandle<Object> h1;
-  IndirectHandle<Object> h2;
+  Handle<Object> h1;
+  Handle<Object> h2;
 
   {
     HandleScope scope(isolate);
@@ -555,8 +555,8 @@ TEST(WeakGlobalHandlesMark) {
 
   WeakPointerCleared = false;
 
-  IndirectHandle<Object> h1;
-  IndirectHandle<Object> h2;
+  Handle<Object> h1;
+  Handle<Object> h2;
 
   {
     HandleScope scope(isolate);
@@ -599,7 +599,7 @@ TEST(DeleteWeakGlobalHandle) {
   GlobalHandles* global_handles = isolate->global_handles();
 
   WeakPointerCleared = false;
-  IndirectHandle<Object> h;
+  Handle<Object> h;
   {
     HandleScope scope(isolate);
 
@@ -719,7 +719,7 @@ static void CheckInternalizedStrings(const char** strings) {
         isolate->factory()->InternalizeUtf8String(base::CStrVector(string));
     // InternalizeUtf8String may return a failure if a GC is needed.
     CHECK(IsInternalizedString(*a));
-    DirectHandle<String> b = factory->InternalizeUtf8String(string);
+    Handle<String> b = factory->InternalizeUtf8String(string);
     CHECK_EQ(*b, *a);
     CHECK(b->IsOneByteEqualTo(base::CStrVector(string)));
     b = isolate->factory()->InternalizeUtf8String(base::CStrVector(string));
@@ -873,7 +873,7 @@ TEST(JSArray) {
   Handle<JSFunction> function = Cast<JSFunction>(fun_obj);
 
   // Allocate the object.
-  DirectHandle<Object> element;
+  Handle<Object> element;
   Handle<JSObject> object = factory->NewJSObject(function);
   Handle<JSArray> array = Cast<JSArray>(object);
   // We just initialized the VM, no heap allocation failure yet.
@@ -938,7 +938,7 @@ TEST(JSObjectCopy) {
   Object::SetElement(isolate, obj, 1, second, ShouldThrow::kDontThrow).Check();
 
   // Make the clone.
-  DirectHandle<Object> value1, value2;
+  Handle<Object> value1, value2;
   Handle<JSObject> clone = factory->CopyJSObject(obj);
   CHECK(!clone.is_identical_to(obj));
 
@@ -1187,7 +1187,7 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
     }
 
     // Check function is compiled.
-    IndirectHandle<Object> func_value =
+    Handle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
@@ -1271,7 +1271,7 @@ HEAP_TEST(Regress10560) {
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
-    DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
+    Handle<JSFunction> function = Cast<JSFunction>(func_value);
     CHECK(function->shared()->is_compiled());
     CHECK(!function->has_feedback_vector());
 
@@ -1569,7 +1569,7 @@ void CompilationCacheCachingBehavior(bool retain_script) {
                                            "  var y = 42;"
                                            "  var z = x + y;"
                                            "})();";
-  IndirectHandle<String> source = factory->InternalizeUtf8String(raw_source);
+  Handle<String> source = factory->InternalizeUtf8String(raw_source);
 
   {
     v8::HandleScope scope(CcTest::isolate());
@@ -3311,7 +3311,7 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
   CompileRun("function F() { }");
   AddTransitions(transitions_count);
   CompileRun("var root = new F;");
-  IndirectHandle<JSObject> root = GetByName("root");
+  Handle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(i_isolate, root->map());
@@ -3349,7 +3349,7 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
   CompileRun("function F() {}");
   AddTransitions(transitions_count);
   CompileRun("var root = new F;");
-  IndirectHandle<JSObject> root = GetByName("root");
+  Handle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(i_isolate, root->map());
@@ -4433,7 +4433,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
-  IndirectHandle<Code> code;
+  Handle<Code> code;
   {
     LocalContext context;
     HandleScope scope(heap->isolate());
@@ -4482,7 +4482,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
-  IndirectHandle<Code> code;
+  Handle<Code> code;
   {
     LocalContext context;
     HandleScope scope(heap->isolate());
@@ -4530,7 +4530,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(isolate);
-  IndirectHandle<Code> code;
+  Handle<Code> code;
   {
     LocalContext context;
     HandleScope scope(isolate);
@@ -4596,7 +4596,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
 
   if (!isolate->use_optimizer()) return;
   HandleScope outer_scope(heap->isolate());
-  IndirectHandle<Code> code;
+  Handle<Code> code;
   {
     LocalContext context;
     HandleScope scope(heap->isolate());
@@ -5193,7 +5193,7 @@ TEST(Regress388880) {
   Handle<Map> map1 = Map::Create(isolate, 1);
   Handle<String> name = factory->NewStringFromStaticChars("foo");
   name = factory->InternalizeString(name);
-  DirectHandle<Map> map2 =
+  Handle<Map> map2 =
       Map::CopyWithField(isolate, map1, name, FieldType::Any(isolate), NONE,
                          PropertyConstness::kMutable, Representation::Tagged(),
                          OMIT_TRANSITION)
@@ -5853,7 +5853,7 @@ TEST(Regress598319) {
       {
         // Temporary scope to avoid getting any other objects into the root set.
         v8::HandleScope new_scope(CcTest::isolate());
-        DirectHandle<FixedArray> tmp = isolate->factory()->NewFixedArray(
+        Handle<FixedArray> tmp = isolate->factory()->NewFixedArray(
             number_of_objects, AllocationType::kOld);
         root->set(0, *tmp);
         for (int i = 0; i < get()->length(); i++) {
@@ -6585,19 +6585,19 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   Isolate* isolate = heap->isolate();
   heap::InvokeMajorGC(heap);
   heap::SimulateIncrementalMarking(heap, false);
-  DirectHandle<Map> map;
+  Handle<Map> map;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
     map = isolate->factory()->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
   }
   CHECK(heap->incremental_marking()->black_allocation());
-  DirectHandle<JSObject> object;
+  Handle<JSObject> object;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
-    object = direct_handle(Cast<JSObject>(isolate->factory()->NewForTest(
-                               map, AllocationType::kOld)),
-                           isolate);
+    object = handle(Cast<JSObject>(isolate->factory()->NewForTest(
+                        map, AllocationType::kOld)),
+                    isolate);
   }
   // Initialize backing stores to ensure object is valid.
   ReadOnlyRoots roots(isolate);
@@ -7085,7 +7085,7 @@ TEST(CodeObjectRegistry) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
 
-  DirectHandle<InstructionStream> code1;
+  Handle<InstructionStream> code1;
   HandleScope outer_scope(heap->isolate());
   Address code2_address;
   {
@@ -7384,7 +7384,7 @@ TEST(Regress10900) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   {
-    DirectHandle<Code> code;
+    Handle<Code> code;
     for (int i = 0; i < 100; i++) {
       // Generate multiple code pages.
       code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();

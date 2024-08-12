@@ -1105,7 +1105,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
 
   // 3. Let isoCalendar be ! GetISO8601Calendar().
 
-  DirectHandle<JSReceiver> iso_calendar = temporal::GetISO8601Calendar(isolate);
+  Handle<JSReceiver> iso_calendar = temporal::GetISO8601Calendar(isolate);
   // 4. Let plainDateTime be ? CreateTemporalDateTime(1970, 1, 1,
   // temporalTime.[[ISOHour]], temporalTime.[[ISOMinute]],
   // temporalTime.[[ISOSecond]], temporalTime.[[ISOMillisecond]],

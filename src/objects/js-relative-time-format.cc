@@ -252,9 +252,8 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
       format_holder->icu_formatter()->raw();
   DCHECK_NOT_NULL(formatter);
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
-  DirectHandle<String> locale(format_holder->locale(), isolate);
-  DirectHandle<String> numberingSystem(format_holder->numberingSystem(),
-                                       isolate);
+  Handle<String> locale(format_holder->locale(), isolate);
+  Handle<String> numberingSystem(format_holder->numberingSystem(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(
@@ -342,7 +341,7 @@ MaybeHandle<T> FormatCommon(
     Handle<Object> value_obj, Handle<Object> unit_obj, const char* func_name,
     MaybeHandle<T> (*formatToResult)(Isolate*,
                                      const icu::FormattedRelativeDateTime&,
-                                     DirectHandle<String>, bool)) {
+                                     Handle<String>, bool)) {
   // 3. Let value be ? ToNumber(value).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -383,7 +382,7 @@ MaybeHandle<T> FormatCommon(
 
 MaybeHandle<String> FormatToString(
     Isolate* isolate, const icu::FormattedRelativeDateTime& formatted,
-    DirectHandle<String> unit, bool is_nan) {
+    Handle<String> unit, bool is_nan) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
   if (U_FAILURE(status)) {
@@ -406,7 +405,7 @@ Maybe<bool> AddLiteral(Isolate* isolate, Handle<JSArray> array,
 
 Maybe<bool> AddUnit(Isolate* isolate, Handle<JSArray> array,
                     const icu::UnicodeString& string, int32_t index,
-                    const NumberFormatSpan& part, DirectHandle<String> unit,
+                    const NumberFormatSpan& part, Handle<String> unit,
                     bool is_nan) {
   Handle<String> substring;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -421,7 +420,7 @@ Maybe<bool> AddUnit(Isolate* isolate, Handle<JSArray> array,
 
 MaybeHandle<JSArray> FormatToJSArray(
     Isolate* isolate, const icu::FormattedRelativeDateTime& formatted,
-    DirectHandle<String> unit, bool is_nan) {
+    Handle<String> unit, bool is_nan) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString string = formatted.toString(status);
 

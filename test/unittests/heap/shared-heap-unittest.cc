@@ -241,9 +241,8 @@ TEST_F(SharedHeapTest, TrustedToSharedTrustedPointer) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
-  DirectHandle<TrustedFixedArray> constant_pool =
-      factory->NewTrustedFixedArray(0);
-  DirectHandle<TrustedByteArray> handler_table =
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table =
       factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
   CHECK_EQ(MemoryChunk::FromHeapObject(*handler_table)
                ->Metadata()
@@ -284,13 +283,13 @@ class TrustedToSharedTrustedPointerOnClient final : public ParkingThread {
                                             Isolate* i_client_isolate) {
       Factory* factory = i_client_isolate->factory();
       HandleScope scope(i_client_isolate);
-      DirectHandle<BytecodeArray> keep_alive_bc;
+      Handle<BytecodeArray> keep_alive_bc;
 
       {
         HandleScope nested_scope(i_client_isolate);
-        DirectHandle<TrustedFixedArray> constant_pool =
+        Handle<TrustedFixedArray> constant_pool =
             factory->NewTrustedFixedArray(0);
-        DirectHandle<TrustedByteArray> handler_table =
+        Handle<TrustedByteArray> handler_table =
             factory->NewTrustedByteArray(3, AllocationType::kSharedTrusted);
         CHECK_EQ(MemoryChunk::FromHeapObject(*handler_table)
                      ->Metadata()

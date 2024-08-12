@@ -294,10 +294,10 @@ TEST_F(CodePagesTest, LargeCodeObject) {
 
   {
     HandleScope scope(i_isolate());
-    IndirectHandle<Code> foo_code =
+    DirectHandle<Code> foo_code =
         Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
-    IndirectHandle<InstructionStream> foo_istream(
-        foo_code->instruction_stream(), i_isolate());
+    DirectHandle<InstructionStream> foo_istream(foo_code->instruction_stream(),
+                                                i_isolate());
 
     EXPECT_TRUE(i_isolate()->heap()->InSpace(*foo_istream, CODE_LO_SPACE));
 
@@ -421,10 +421,10 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
 
   {
     HandleScope scope(i_isolate());
-    IndirectHandle<Code> foo_code =
+    DirectHandle<Code> foo_code =
         Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
-    IndirectHandle<InstructionStream> foo_istream(
-        foo_code->instruction_stream(), i_isolate());
+    DirectHandle<InstructionStream> foo_istream(foo_code->instruction_stream(),
+                                                i_isolate());
 
     EXPECT_TRUE(i_isolate()->heap()->InSpace(*foo_istream, CODE_LO_SPACE));
 
@@ -497,7 +497,7 @@ TEST_F(CodePagesTest, Sorted) {
   };
   {
     HandleScope outer_scope(i_isolate());
-    IndirectHandle<InstructionStream> code1, code3;
+    Handle<InstructionStream> code1, code3;
     Address code2_address;
 
     code1 =

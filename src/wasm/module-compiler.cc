@@ -2854,7 +2854,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
 
   DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
-  DirectHandle<Script> script(module_object_->script(), isolate_);
+  Handle<Script> script(module_object_->script(), isolate_);
   if (script->type() == Script::Type::kWasm &&
       module->debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
       !module->debug_symbols.external_url.is_empty()) {

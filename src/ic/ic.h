@@ -236,7 +236,7 @@ class KeyedLoadIC : public LoadIC {
       Handle<Object> object, Handle<Object> key, bool* is_found = nullptr);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> LoadName(Handle<Object> object,
-                                                     DirectHandle<Object> key,
+                                                     Handle<Object> key,
                                                      Handle<Name> name);
 
   // receiver is HeapObject because it could be a String or a JSObject
@@ -269,14 +269,14 @@ class StoreIC : public IC {
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
       StoreOrigin store_origin = StoreOrigin::kNamed);
 
-  bool LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
+  bool LookupForWrite(LookupIterator* it, Handle<Object> value,
                       StoreOrigin store_origin);
 
  protected:
   // Stub accessors.
   // Update the inline cache and the global stub cache based on the
   // lookup result.
-  void UpdateCaches(LookupIterator* lookup, DirectHandle<Object> value,
+  void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     StoreOrigin store_origin);
 
  private:

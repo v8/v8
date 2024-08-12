@@ -1669,7 +1669,7 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
     return not_found;
   }
 
-  DirectHandle<FunctionTemplateInfo> expected_receiver_type;
+  Handle<FunctionTemplateInfo> expected_receiver_type;
   {
     DisallowGarbageCollection no_gc;
     Tagged<HeapObject> signature = object()->signature();

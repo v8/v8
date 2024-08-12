@@ -3488,7 +3488,7 @@ void Parser::UpdateStatistics(
 }
 
 void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
-                               DirectHandle<Script> script, int start_position,
+                               Handle<Script> script, int start_position,
                                int end_position, int function_literal_id) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kParseProgram,
             RuntimeCallStats::CounterMode::kThreadSpecific);

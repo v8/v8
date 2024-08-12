@@ -427,7 +427,7 @@ TEST_F(ConversionsTest, PositiveNumberToUint32) {
   uint32_t max = std::numeric_limits<uint32_t>::max();
   HandleScope scope(i_isolate());
   // Test Smi conversions.
-  DirectHandle<Object> number(Smi::FromInt(0), i_isolate());
+  Handle<Object> number = handle(Smi::FromInt(0), i_isolate());
   CHECK_EQ(PositiveNumberToUint32(*number), 0u);
   number = handle(Smi::FromInt(-1), i_isolate());
   CHECK_EQ(PositiveNumberToUint32(*number), 0u);

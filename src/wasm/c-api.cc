@@ -1714,7 +1714,7 @@ i::Handle<i::JSReceiver> GetProperException(
     return i::Cast<i::JSReceiver>(maybe_exception);
   }
   if (v8::internal::IsTerminationException(*maybe_exception)) {
-    i::DirectHandle<i::String> string =
+    i::Handle<i::String> string =
         isolate->factory()->NewStringFromAsciiChecked("TerminationException");
     return isolate->factory()->NewError(isolate->error_function(), string);
   }
@@ -1766,7 +1766,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
   PushArgs(sig, args, &packer, store);
 
-  i::DirectHandle<i::Object> object_ref;
+  i::Handle<i::Object> object_ref;
   if (function_index < static_cast<int>(module->num_imported_functions)) {
     object_ref =
         i::handle(instance_data->dispatch_table_for_imports()->implicit_arg(
@@ -2123,7 +2123,7 @@ auto Table::get(size_t index) const -> own<Ref> {
 }
 
 auto Table::set(size_t index, const Ref* ref) -> bool {
-  i::DirectHandle<i::WasmTableObject> table = impl(this)->v8_object();
+  i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   if (index >= static_cast<size_t>(table->current_length())) return false;
   i::Isolate* isolate = impl(this)->isolate();
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
@@ -2146,13 +2146,13 @@ auto Table::size() const -> size_t {
 }
 
 auto Table::grow(size_t delta, const Ref* ref) -> bool {
-  i::DirectHandle<i::WasmTableObject> table = impl(this)->v8_object();
+  i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   i::Isolate* isolate = impl(this)->isolate();
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   i::HandleScope scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
   const char* error_message;
-  i::DirectHandle<i::Object> obj_as_wasm =
+  i::Handle<i::Object> obj_as_wasm =
       i::wasm::JSToWasmObject(isolate, nullptr, obj, table->type(),
                               &error_message)
           .ToHandleChecked();

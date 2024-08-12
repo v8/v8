@@ -740,7 +740,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSimple) {
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
-  DirectHandle<SeqOneByteString> seq_input = Cast<SeqOneByteString>(input);
+  Handle<SeqOneByteString> seq_input = Cast<SeqOneByteString>(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(
@@ -801,7 +801,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSimpleUC16) {
       factory
           ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data, 6))
           .ToHandleChecked();
-  DirectHandle<SeqTwoByteString> seq_input = Cast<SeqTwoByteString>(input);
+  Handle<SeqTwoByteString> seq_input = Cast<SeqTwoByteString>(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(

@@ -9010,14 +9010,12 @@ template <typename T, typename = std::enable_if_t<std::is_enum_v<T> ||
 constexpr size_t input_count(T) {
   return 0;
 }
-// TODO(42203211): The first parameter should be just DirectHandle<T> and
-// MaybeDirectHandle<T> but now it does not compile with implicit Handle to
-// DirectHandle conversions.
-template <template <typename T> typename HandleType, typename T,
-          typename = std::enable_if_t<std::disjunction_v<
-              std::is_convertible<HandleType<T>, DirectHandle<T>>,
-              std::is_convertible<HandleType<T>, MaybeDirectHandle<T>>>>>
-constexpr size_t input_count(const HandleType<T>) {
+template <typename T>
+constexpr size_t input_count(const MaybeHandle<T>) {
+  return 0;
+}
+template <typename T>
+constexpr size_t input_count(const Handle<T>) {
   return 0;
 }
 template <typename T>

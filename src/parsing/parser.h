@@ -141,7 +141,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Sets the literal on |info| if parsing succeeded.
   void ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
-                         DirectHandle<Script> script, int start_position,
+                         Handle<Script> script, int start_position,
                          int end_position, int function_literal_id);
 
   // Initializes an empty scope chain for top-level scripts, or scopes which
@@ -179,9 +179,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class i::ParameterDeclarationParsingScope<ParserTypes<Parser>>;
   friend class i::ArrowHeadParsingScope<ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(
-      ParseInfo*, DirectHandle<Script>,
-      MaybeHandle<ScopeInfo> maybe_outer_scope_info, Isolate*,
-      parsing::ReportStatisticsMode stats_mode);
+      ParseInfo*, Handle<Script>, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+      Isolate*, parsing::ReportStatisticsMode stats_mode);
   friend bool v8::internal::parsing::ParseFunction(
       ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*,
       parsing::ReportStatisticsMode stats_mode);

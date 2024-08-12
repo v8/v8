@@ -7076,7 +7076,7 @@ Reduction JSCallReducer::ReduceStringPrototypeLocaleCompare(Node* node) {
   }
 
   {
-    DirectHandle<Object> locales;
+    Handle<Object> locales;
     {
       HeapObjectMatcher m(n.ArgumentOrUndefined(1, jsgraph()));
       if (!m.HasResolvedValue()) return NoChange();

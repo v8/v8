@@ -752,9 +752,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
-  Maybe<bool> Add(Handle<JSObject> object, uint32_t index,
-                  DirectHandle<Object> value, PropertyAttributes attributes,
-                  uint32_t new_capacity) final {
+  Maybe<bool> Add(Handle<JSObject> object, uint32_t index, Handle<Object> value,
+                  PropertyAttributes attributes, uint32_t new_capacity) final {
     return Subclass::AddImpl(object, index, value, attributes, new_capacity);
   }
 
@@ -810,7 +809,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
   static Maybe<bool> SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
                                    uint32_t length,
-                                   DirectHandle<FixedArrayBase> backing_store) {
+                                   Handle<FixedArrayBase> backing_store) {
     DCHECK(!array->SetLengthWouldNormalize(length));
     DCHECK(IsFastElementsKind(array->GetElementsKind()));
     uint32_t old_length = 0;
@@ -933,7 +932,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   }
 
   static Maybe<bool> TransitionElementsKindImpl(Handle<JSObject> object,
-                                                DirectHandle<Map> to_map) {
+                                                Handle<Map> to_map) {
     Isolate* isolate = object->GetIsolate();
     DirectHandle<Map> from_map(object->map(), isolate);
     ElementsKind from_kind = from_map->elements_kind();
@@ -1007,8 +1006,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     if (IsHoleyElementsKind(from_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
     }
-    DirectHandle<Map> new_map =
-        JSObject::GetElementsTransitionMap(object, to_kind);
+    Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, to_kind);
     JSObject::SetMapAndElements(object, new_map, elements);
 
     // Transition through the allocation site as well if present.
@@ -1870,7 +1868,7 @@ class DictionaryElementsAccessor
     }
     ElementsKind original_elements_kind = receiver->GetElementsKind();
     USE(original_elements_kind);
-    DirectHandle<NumberDictionary> dictionary(
+    Handle<NumberDictionary> dictionary(
         Cast<NumberDictionary>(receiver->elements()), isolate);
     // Iterate through the entire range, as accessing elements out of order is
     // observable.
@@ -2827,8 +2825,8 @@ class FastNonextensibleObjectElementsAccessor
                         : array->GetElementsAccessor()->Normalize(array);
 
     // Migrate map.
-    DirectHandle<Map> new_map = Map::Copy(
-        isolate, handle(array->map(), isolate), "SlowCopyForSetLengthImpl");
+    Handle<Map> new_map = Map::Copy(isolate, handle(array->map(), isolate),
+                                    "SlowCopyForSetLengthImpl");
     new_map->set_is_extensible(false);
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
     JSObject::MigrateToMap(isolate, array, new_map);
@@ -2880,8 +2878,7 @@ class FastSealedObjectElementsAccessor
   }
 
   static void DeleteAtEnd(DirectHandle<JSObject> obj,
-                          DirectHandle<BackingStore> backing_store,
-                          uint32_t entry) {
+                          Handle<BackingStore> backing_store, uint32_t entry) {
     UNREACHABLE();
   }
 
@@ -2926,8 +2923,8 @@ class FastSealedObjectElementsAccessor
                         : array->GetElementsAccessor()->Normalize(array);
 
     // Migrate map.
-    DirectHandle<Map> new_map = Map::Copy(
-        isolate, handle(array->map(), isolate), "SlowCopyForSetLengthImpl");
+    Handle<Map> new_map = Map::Copy(isolate, handle(array->map(), isolate),
+                                    "SlowCopyForSetLengthImpl");
     new_map->set_is_extensible(false);
     new_map->set_elements_kind(DICTIONARY_ELEMENTS);
     JSObject::MigrateToMap(isolate, array, new_map);
@@ -3029,8 +3026,7 @@ class FastFrozenObjectElementsAccessor
   }
 
   static void DeleteAtEnd(DirectHandle<JSObject> obj,
-                          DirectHandle<BackingStore> backing_store,
-                          uint32_t entry) {
+                          Handle<BackingStore> backing_store, uint32_t entry) {
     UNREACHABLE();
   }
 
@@ -3488,7 +3484,7 @@ class TypedElementsAccessor
       DirectHandle<FixedArrayBase> elements(object->elements(), isolate);
       size_t length = AccessorClass::GetCapacityImpl(*object, *elements);
       for (size_t index = 0; index < length; ++index) {
-        DirectHandle<Object> value = AccessorClass::GetInternalImpl(
+        Handle<Object> value = AccessorClass::GetInternalImpl(
             isolate, object, InternalIndex(index));
         if (get_entries) {
           value = MakeEntryPair(isolate, index, value);
@@ -5123,7 +5119,7 @@ class SlowSloppyArgumentsElementsAccessor
 
   static void ReconfigureImpl(DirectHandle<JSObject> object,
                               Handle<FixedArrayBase> store, InternalIndex entry,
-                              DirectHandle<Object> value,
+                              Handle<Object> value,
                               PropertyAttributes attributes) {
     Isolate* isolate = object->GetIsolate();
     auto elements = Cast<SloppyArgumentsElements>(store);
@@ -5243,7 +5239,7 @@ class FastSloppyArgumentsElementsAccessor
 
   static void ReconfigureImpl(Handle<JSObject> object,
                               Handle<FixedArrayBase> store, InternalIndex entry,
-                              DirectHandle<Object> value,
+                              Handle<Object> value,
                               PropertyAttributes attributes) {
     DCHECK_EQ(object->elements(), *store);
     DirectHandle<SloppyArgumentsElements> elements(
@@ -5285,7 +5281,7 @@ class FastSloppyArgumentsElementsAccessor
         isolate, arguments,
         ConvertElementsWithCapacity(object, old_arguments, from_kind, capacity),
         Nothing<bool>());
-    DirectHandle<Map> new_map = JSObject::GetElementsTransitionMap(
+    Handle<Map> new_map = JSObject::GetElementsTransitionMap(
         object, FAST_SLOPPY_ARGUMENTS_ELEMENTS);
     JSObject::MigrateToMap(isolate, object, new_map);
     elements->set_arguments(Cast<FixedArray>(*arguments));
@@ -5368,7 +5364,7 @@ class StringWrapperElementsAccessor
   }
 
   static Maybe<bool> AddImpl(Handle<JSObject> object, uint32_t index,
-                             DirectHandle<Object> value,
+                             Handle<Object> value,
                              PropertyAttributes attributes,
                              uint32_t new_capacity) {
     DCHECK(index >= static_cast<uint32_t>(GetString(*object)->length()));

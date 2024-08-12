@@ -216,7 +216,7 @@ class JSAtomicsMutex
   EXPORT_DECL_VERIFIER(JSAtomicsMutex)
 
   static Handle<JSObject> CreateResultObject(Isolate* isolate,
-                                             DirectHandle<Object> value,
+                                             Handle<Object> value,
                                              bool success);
 
   // Lock the mutex, blocking if it's currently owned by another thread.

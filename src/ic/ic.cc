@@ -339,7 +339,7 @@ namespace {
 
 bool MigrateDeprecated(Isolate* isolate, Handle<Object> object) {
   if (!IsJSObject(*object)) return false;
-  DirectHandle<JSObject> receiver = Cast<JSObject>(object);
+  Handle<JSObject> receiver = Cast<JSObject>(object);
   if (!receiver->map()->is_deprecated()) return false;
   JSObject::MigrateInstance(isolate, receiver);
   return true;
@@ -1099,7 +1099,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                        !lookup->is_dictionary_holder());
 
-        DirectHandle<Object> value = lookup->GetDataValue();
+        Handle<Object> value = lookup->GetDataValue();
 
         if (IsThinString(*value)) {
           value = handle(Cast<ThinString>(*value)->actual(), isolate());
@@ -1557,7 +1557,7 @@ MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(Handle<Object> object,
 }
 
 MaybeHandle<Object> KeyedLoadIC::LoadName(Handle<Object> object,
-                                          DirectHandle<Object> key,
+                                          Handle<Object> key,
                                           Handle<Name> name) {
   Handle<Object> load_handle;
   ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
@@ -1607,7 +1607,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   return result;
 }
 
-bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
+bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
                              StoreOrigin store_origin) {
   // Disable ICs for non-JSObjects for now.
   Handle<Object> object = it->GetReceiver();
@@ -1951,7 +1951,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   return value;
 }
 
-void StoreIC::UpdateCaches(LookupIterator* lookup, DirectHandle<Object> value,
+void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                            StoreOrigin store_origin) {
   MaybeObjectHandle handler;
   if (LookupForWrite(lookup, value, store_origin)) {
@@ -2247,7 +2247,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       &target_maps_and_handlers,
       [this](Handle<Map> map) { return Map::TryUpdate(isolate(), map); });
   if (target_maps_and_handlers.empty()) {
-    DirectHandle<Map> monomorphic_map = receiver_map;
+    Handle<Map> monomorphic_map = receiver_map;
     // If we transitioned to a map that is a more general map than incoming
     // then use the new map.
     if (IsTransitionOfMonomorphicTarget(*receiver_map, *new_receiver_map)) {
@@ -2273,7 +2273,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   KeyedAccessStoreMode old_store_mode = GetKeyedAccessStoreMode();
   Handle<Map> previous_receiver_map = target_maps_and_handlers.at(0).first;
   if (state() == MONOMORPHIC) {
-    DirectHandle<Map> transitioned_receiver_map = new_receiver_map;
+    Handle<Map> transitioned_receiver_map = new_receiver_map;
     if (IsTransitionOfMonomorphicTarget(*previous_receiver_map,
                                         *transitioned_receiver_map)) {
       // If the "old" and "new" maps are in the same elements map family, or
@@ -3614,7 +3614,7 @@ void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
 
   constexpr bool need_validity_cell =
       kind == SideStepTransition::Kind::kObjectAssign;
-  DirectHandle<Cell> validity_cell;
+  Handle<Cell> validity_cell;
   if constexpr (need_validity_cell) {
     // Since we only clone into empty object literals we only need one validity
     // cell on that prototype chain.
@@ -3787,7 +3787,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
 namespace {
 
 bool MaybeCanCloneObjectForObjectAssign(Handle<JSReceiver> source,
-                                        DirectHandle<Map> source_map,
+                                        Handle<Map> source_map,
                                         Handle<JSReceiver> target,
                                         Isolate* isolate) {
   FastCloneObjectMode clone_mode =
@@ -3982,7 +3982,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
 
   // TODO(ishell): Cache interceptor_holder in the store handler like we do
   // for LoadHandler::kInterceptor case.
-  DirectHandle<JSObject> interceptor_holder = receiver;
+  Handle<JSObject> interceptor_holder = receiver;
   if (IsJSGlobalProxy(*receiver) &&
       (!receiver->HasNamedInterceptor() ||
        receiver->GetNamedInterceptor()->non_masking())) {

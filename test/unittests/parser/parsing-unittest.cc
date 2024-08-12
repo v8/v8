@@ -4948,7 +4948,7 @@ TEST_F(ParsingTest, BasicImportAssertionParsing) {
     {
       i::UnoptimizedCompileState compile_state;
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::DirectHandle<i::Script> script = factory->NewScript(source);
+      i::Handle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
@@ -5002,7 +5002,7 @@ TEST_F(ParsingTest, ImportAssertionParsingErrors) {
     i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
-    i::DirectHandle<i::Script> script = factory->NewScript(source);
+    i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -5076,7 +5076,7 @@ TEST_F(ParsingTest, BasicImportAttributesParsing) {
     {
       i::UnoptimizedCompileState compile_state;
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::DirectHandle<i::Script> script = factory->NewScript(source);
+      i::Handle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
@@ -5125,7 +5125,7 @@ TEST_F(ParsingTest, ImportAttributesParsingErrors) {
     i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
-    i::DirectHandle<i::Script> script = factory->NewScript(source);
+    i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -5175,7 +5175,7 @@ TEST_F(ParsingTest, BasicImportAttributesAndAssertionsParsing) {
     {
       i::UnoptimizedCompileState compile_state;
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::DirectHandle<i::Script> script = factory->NewScript(source);
+      i::Handle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
@@ -5209,7 +5209,7 @@ TEST_F(ParsingTest, ImportAttributesAndAssertionsParsingErrors) {
     i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
-    i::DirectHandle<i::Script> script = factory->NewScript(source);
+    i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -7729,7 +7729,7 @@ TEST_F(ParsingTest, BasicImportExportParsing) {
     {
       i::UnoptimizedCompileState compile_state;
       i::ReusableUnoptimizedCompileState reusable_state(isolate);
-      i::DirectHandle<i::Script> script = factory->NewScript(source);
+      i::Handle<i::Script> script = factory->NewScript(source);
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
@@ -7859,7 +7859,7 @@ TEST_F(ParsingTest, ImportExportParsingErrors) {
     i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
-    i::DirectHandle<i::Script> script = factory->NewScript(source);
+    i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =
@@ -7896,7 +7896,7 @@ TEST_F(ParsingTest, ModuleTopLevelFunctionDecl) {
     i::DirectHandle<i::String> source =
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
-    i::DirectHandle<i::Script> script = factory->NewScript(source);
+    i::Handle<i::Script> script = factory->NewScript(source);
     i::UnoptimizedCompileState compile_state;
     i::ReusableUnoptimizedCompileState reusable_state(isolate);
     i::UnoptimizedCompileFlags flags =

@@ -475,7 +475,7 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // v8::AccessorNameSetterCallback or AccessorNameBooleanSetterCallback
   // the result is guaranteed to be v8::Boolean value indicating success or
   // failure.
-  DirectHandle<Boolean> result = GetReturnValue<Boolean>(isolate);
+  Handle<Boolean> result = GetReturnValue<Boolean>(isolate);
   return IsTrue(*result, isolate);
 }
 

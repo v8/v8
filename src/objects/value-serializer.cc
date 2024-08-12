@@ -2239,7 +2239,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   }
 
   // Check for message property.
-  DirectHandle<Object> message = isolate_->factory()->undefined_value();
+  Handle<Object> message = isolate_->factory()->undefined_value();
   if (static_cast<ErrorTag>(tag) == ErrorTag::kMessage) {
     Handle<String> message_string;
     if (!ReadString().ToHandle(&message_string)) {

@@ -1178,7 +1178,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Does nothing if ScopeInfo is already allocated.
   template <typename IsolateT>
   V8_EXPORT_PRIVATE static void AllocateScopeInfos(ParseInfo* info,
-                                                   DirectHandle<Script> script,
+                                                   Handle<Script> script,
                                                    IsolateT* isolate);
 
   // Determine if we can use lazy compilation for this scope.

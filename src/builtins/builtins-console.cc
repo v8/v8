@@ -159,7 +159,7 @@ void ConsoleCall(
   int context_id = 0;
   Handle<String> context_name = isolate->factory()->anonymous_string();
   if (!IsNativeContext(args.target()->context())) {
-    DirectHandle<Context> context(args.target()->context(), isolate);
+    Handle<Context> context(args.target()->context(), isolate);
     CHECK_EQ(CONSOLE_CONTEXT_SLOTS, context->length());
     context_id = Cast<Smi>(context->get(CONSOLE_CONTEXT_ID_INDEX)).value();
     context_name =
@@ -249,7 +249,7 @@ void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
       factory->NewSharedFunctionInfoForBuiltin(name_string, builtin);
   info->set_language_mode(LanguageMode::kSloppy);
 
-  DirectHandle<JSFunction> fun =
+  Handle<JSFunction> fun =
       Factory::JSFunctionBuilder{isolate, info, context}.set_map(map).Build();
 
   fun->shared()->set_native(true);

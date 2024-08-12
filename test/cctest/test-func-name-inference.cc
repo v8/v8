@@ -51,10 +51,14 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
 
   // Get script source.
   DirectHandle<i::Object> obj = v8::Utils::OpenDirectHandle(*script);
-  DirectHandle<SharedFunctionInfo> shared_function(
-      IsSharedFunctionInfo(*obj) ? Cast<SharedFunctionInfo>(*obj)
-                                 : Cast<JSFunction>(*obj)->shared(),
-      isolate);
+  Handle<SharedFunctionInfo> shared_function;
+  if (IsSharedFunctionInfo(*obj)) {
+    shared_function =
+        Handle<SharedFunctionInfo>(Cast<SharedFunctionInfo>(*obj), isolate);
+  } else {
+    shared_function =
+        Handle<SharedFunctionInfo>(Cast<JSFunction>(*obj)->shared(), isolate);
+  }
   Handle<i::Script> i_script(i::Cast<i::Script>(shared_function->script()),
                              isolate);
   CHECK(IsString(i_script->source()));

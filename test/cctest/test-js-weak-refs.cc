@@ -704,15 +704,14 @@ TEST(TestJSWeakRef) {
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
   HandleScope outer_scope(isolate);
-  IndirectHandle<JSWeakRef> weak_ref;
+  Handle<JSWeakRef> weak_ref;
   {
     HandleScope inner_scope(isolate);
 
-    IndirectHandle<JSObject> js_object =
+    DirectHandle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
     // This doesn't add the target into the KeepDuringJob set.
-    IndirectHandle<JSWeakRef> inner_weak_ref =
-        ConstructJSWeakRef(js_object, isolate);
+    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
 
     heap::InvokeMajorGC(CcTest::heap());
     CHECK(!IsUndefined(inner_weak_ref->target(), isolate));
@@ -739,15 +738,14 @@ TEST(TestJSWeakRefIncrementalMarking) {
   Heap* heap = isolate->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
-  IndirectHandle<JSWeakRef> weak_ref;
+  Handle<JSWeakRef> weak_ref;
   {
     HandleScope inner_scope(isolate);
 
-    IndirectHandle<JSObject> js_object =
+    DirectHandle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
     // This doesn't add the target into the KeepDuringJob set.
-    IndirectHandle<JSWeakRef> inner_weak_ref =
-        ConstructJSWeakRef(js_object, isolate);
+    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
 
     heap::SimulateIncrementalMarking(heap, true);
     heap::InvokeMajorGC(heap);
@@ -773,7 +771,7 @@ TEST(TestJSWeakRefKeepDuringJob) {
       CcTest::heap());
 
   HandleScope outer_scope(isolate);
-  IndirectHandle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
+  Handle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
   CHECK(!IsUndefined(weak_ref->target(), isolate));
   heap::InvokeMajorGC(CcTest::heap());
   CHECK(!IsUndefined(weak_ref->target(), isolate));
@@ -907,15 +905,14 @@ TEST(JSWeakRefScavengedInWorklist) {
 
   {
     HandleScope outer_scope(isolate);
-    IndirectHandle<JSWeakRef> weak_ref;
+    Handle<JSWeakRef> weak_ref;
 
     // Make a WeakRef that points to a target, both of which become unreachable.
     {
       HandleScope inner_scope(isolate);
-      IndirectHandle<JSObject> js_object =
+      DirectHandle<JSObject> js_object =
           isolate->factory()->NewJSObject(isolate->object_function());
-      IndirectHandle<JSWeakRef> inner_weak_ref =
-          ConstructJSWeakRef(js_object, isolate);
+      Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
       CHECK(Heap::InYoungGeneration(*js_object));
       CHECK(Heap::InYoungGeneration(*inner_weak_ref));
 
@@ -959,15 +956,14 @@ TEST(JSWeakRefTenuredInWorklist) {
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   HandleScope outer_scope(isolate);
-  IndirectHandle<JSWeakRef> weak_ref;
+  Handle<JSWeakRef> weak_ref;
 
   // Make a WeakRef that points to a target. The target becomes unreachable.
   {
     HandleScope inner_scope(isolate);
-    IndirectHandle<JSObject> js_object =
+    DirectHandle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
-    IndirectHandle<JSWeakRef> inner_weak_ref =
-        ConstructJSWeakRef(js_object, isolate);
+    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
     CHECK(Heap::InYoungGeneration(*js_object));
     CHECK(Heap::InYoungGeneration(*inner_weak_ref));
 

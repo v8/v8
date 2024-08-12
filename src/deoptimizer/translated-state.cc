@@ -2522,7 +2522,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     slot = GetResolvedSlotAndAdvance(frame, value_index);
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
-    DirectHandle<Object> field_value;
+    Handle<Object> field_value;
     if (i > 1 && marker == kStoreHeapObject) {
       field_value = slot->storage();
     } else {
