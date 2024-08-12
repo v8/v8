@@ -248,7 +248,8 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         PrivateNameLookupSkipsOuterClassBit::encode(
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
-        IsHiddenBit::encode(scope->is_hidden());
+        IsHiddenBit::encode(scope->is_hidden()) |
+        IsWrappedFunctionBit::encode(scope->is_wrapped_function());
     scope_info->set_flags(flags);
 
     scope_info->set_parameter_count(parameter_count);
@@ -449,7 +450,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       IsDebugEvaluateScopeBit::encode(false) |
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
-      HasContextExtensionSlotBit::encode(true) | IsHiddenBit::encode(false);
+      HasContextExtensionSlotBit::encode(true) | IsHiddenBit::encode(false) |
+      IsWrappedFunctionBit::encode(false);
   scope_info->set_flags(flags);
 
   scope_info->set_parameter_count(0);
@@ -542,7 +544,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context ||
                                          has_const_tracking_let_side_data) |
-      IsHiddenBit::encode(false);
+      IsHiddenBit::encode(false) | IsWrappedFunctionBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags);
   raw_scope_info->set_parameter_count(parameter_count);
@@ -698,6 +700,11 @@ int ScopeInfo::UniqueIdInScript() const {
   // starts on character 0.
   if (is_script_scope() || scope_type() == EVAL_SCOPE ||
       scope_type() == MODULE_SCOPE) {
+    return -2;
+  }
+  // Wrapped functions start before the function body, but after the script
+  // start, to avoid clashing with a scope starting on character 0.
+  if (IsWrappedFunctionScope()) {
     return -1;
   }
   // Default constructors have the same start position as their parent class
@@ -791,6 +798,12 @@ bool ScopeInfo::IsReplModeScope() const {
 
 bool ScopeInfo::IsHiddenCatchScope() const {
   return IsHiddenBit::decode(Flags()) && scope_type() == CATCH_SCOPE;
+}
+
+bool ScopeInfo::IsWrappedFunctionScope() const {
+  DCHECK_IMPLIES(IsWrappedFunctionBit::decode(Flags()),
+                 scope_type() == FUNCTION_SCOPE);
+  return IsWrappedFunctionBit::decode(Flags());
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
