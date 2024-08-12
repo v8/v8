@@ -57,6 +57,12 @@ JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
   return IndexToHandle(index);
 }
 
+bool JSDispatchTable::HasCode(JSDispatchHandle handle) {
+  uint32_t index = HandleToIndex(handle);
+  Address ptr = at(index).GetCodePointer();
+  return ptr != kTaggedNullAddress;
+}
+
 uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters) {
   uint32_t num_live_entries = GenericSweep(space);
   // TODO(saelo): once we actually store HeapObject pointers in table entries,

@@ -153,6 +153,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // entrypoint. The code must be compatible with the specified entry. In
   // particular, the two must use the same parameter count.
   void SetCode(JSDispatchHandle handle, Tagged<Code> new_code);
+  bool HasCode(JSDispatchHandle handle);
 
   // Allocates a new entry in the table and initialize it.
   //
@@ -163,7 +164,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // Marks the specified entry as alive.
   //
   // This method is atomic and can be called from background threads.
-  inline void Mark(Space* space, JSDispatchHandle handle);
+  inline void Mark(JSDispatchHandle handle);
 
   // Frees all unmarked entries in the given space.
   //
@@ -198,6 +199,11 @@ class V8_EXPORT_PRIVATE JSDispatchTable
       offsetof(JSDispatchEntry, encoded_word_);
   static constexpr uintptr_t kEntryEntrypointOffset =
       offsetof(JSDispatchEntry, entrypoint_);
+
+#ifdef DEBUG
+  inline void VerifyEntry(JSDispatchHandle handle, Space* space,
+                          Space* ro_space);
+#endif  // DEBUG
 
  private:
   static void CheckInitialization(bool is_initializing) {

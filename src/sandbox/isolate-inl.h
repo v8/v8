@@ -51,11 +51,6 @@ CodePointerTable::Space* IsolateForSandbox::GetCodePointerTableSpaceFor(
              : isolate_->heap()->code_pointer_space();
 }
 
-JSDispatchTable::Space* IsolateForSandbox::GetJSDispatchTableSpaceFor(
-    Address owning_slot) {
-  return isolate_->heap()->js_dispatch_table_space();
-}
-
 TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTable() {
   return isolate_->trusted_pointer_table();
 }
@@ -65,6 +60,13 @@ TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpace() {
 }
 
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_LEAPTIERING
+JSDispatchTable::Space* IsolateForSandbox::GetJSDispatchTableSpaceFor(
+    Address owning_slot) {
+  return isolate_->heap()->js_dispatch_table_space();
+}
+#endif  // V8_ENABLE_LEAPTIERING
 
 template <typename IsolateT>
 IsolateForPointerCompression::IsolateForPointerCompression(IsolateT* isolate)

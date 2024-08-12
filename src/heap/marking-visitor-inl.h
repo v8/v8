@@ -294,11 +294,17 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* table = GetProcessWideJSDispatchTable();
+#ifdef DEBUG
   JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
-  table->Mark(space, handle);
-#endif  // V8_ENABLE_SANDBOX
+  JSDispatchTable::Space* ro_space =
+      heap_->isolate()->read_only_heap()->js_dispatch_table_space();
+  table->VerifyEntry(handle, space, ro_space);
+#endif  // DEBUG
+
+  table->Mark(handle);
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 // ===========================================================================

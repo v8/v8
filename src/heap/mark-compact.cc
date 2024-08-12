@@ -3044,13 +3044,15 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     GetProcessWideCodePointerTable()->Sweep(heap_->code_pointer_space(),
                                             isolate->counters());
   }
+#endif  // V8_ENABLE_SANDBOX
 
+#ifdef V8_ENABLE_LEAPTIERING
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE);
     GetProcessWideJSDispatchTable()->Sweep(heap_->js_dispatch_table_space(),
                                            isolate->counters());
   }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_ENABLE_LEAPTIERING
 
   {
     TRACE_GC(heap_->tracer(),

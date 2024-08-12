@@ -4426,9 +4426,11 @@ void Isolate::Deinit() {
   trusted_pointer_table().TearDown();
 
   GetProcessWideCodePointerTable()->TearDownSpace(heap()->code_pointer_space());
+#endif  // V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
   GetProcessWideJSDispatchTable()->TearDownSpace(
       heap()->js_dispatch_table_space());
-#endif
+#endif  // V8_ENABLE_LEAPTIERING
 
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -5480,9 +5482,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->InitializeSpace(
       heap()->code_pointer_space());
+#endif  // V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
   GetProcessWideJSDispatchTable()->InitializeSpace(
       heap()->js_dispatch_table_space());
-#endif
+#endif  // V8_ENABLE_LEAPTIERING
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->AddIsolate(this);
@@ -7375,6 +7379,7 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
         GetProcessWideJSDispatchTable()->AllocateAndInitializeEntry(
             read_only_heap()->js_dispatch_table_space(),
             code->parameter_count());
+    DCHECK(!GetProcessWideJSDispatchTable()->HasCode(handle));
     GetProcessWideJSDispatchTable()->SetCode(handle, code);
     builtin_dispatch_table()[idx] = handle;
   }
