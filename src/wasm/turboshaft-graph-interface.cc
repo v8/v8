@@ -3274,7 +3274,29 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Max, wasm_f16x8_max)
       HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Pmin, wasm_f16x8_pmin)
       HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Pmax, wasm_f16x8_pmax)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Eq, wasm_f16x8_eq)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Ne, wasm_f16x8_ne)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Lt, wasm_f16x8_lt)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Le, wasm_f16x8_le)
 #undef HANDLE_F16X8_BIN_OPCODE
+
+#define HANDLE_F16X8_INVERSE_COMPARISON(kind, ts_kind, extern_ref)             \
+  case kExprF16x8##kind:                                                       \
+    if (SupportedOperations::float16()) {                                      \
+      result->op = __ Simd128Binop(                                            \
+          V<compiler::turboshaft::Simd128>::Cast(args[1].op),                  \
+          V<compiler::turboshaft::Simd128>::Cast(args[0].op),                  \
+          compiler::turboshaft::Simd128BinopOp::Kind::kF16x8##ts_kind);        \
+    } else {                                                                   \
+      result->op = CallCStackSlotToStackSlot(args[1].op, args[0].op,           \
+                                             ExternalReference::extern_ref(),  \
+                                             MemoryRepresentation::Simd128()); \
+    }                                                                          \
+    break;
+
+      HANDLE_F16X8_INVERSE_COMPARISON(Gt, Lt, wasm_f16x8_lt)
+      HANDLE_F16X8_INVERSE_COMPARISON(Ge, Le, wasm_f16x8_le)
+#undef HANDLE_F16X8_INVERSE_COMPARISON
 
 #define HANDLE_INVERSE_COMPARISON(wasm_kind, ts_kind)            \
   case kExpr##wasm_kind:                                         \
@@ -3419,27 +3441,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     break;
       FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(HANDLE_TERNARY_OTHER_OPCODE)
 #undef HANDLE_TERNARY_OTHER_OPCODE
-#define HANDLE_F16X8_BIN_OPCODE(kind, extern_ref)                            \
-  case kExprF16x8##kind:                                                     \
-    result->op = CallCStackSlotToStackSlot(args[0].op, args[1].op,           \
-                                           ExternalReference::extern_ref(),  \
-                                           MemoryRepresentation::Simd128()); \
-    break;
-      HANDLE_F16X8_BIN_OPCODE(Eq, wasm_f16x8_eq)
-      HANDLE_F16X8_BIN_OPCODE(Ne, wasm_f16x8_ne)
-      HANDLE_F16X8_BIN_OPCODE(Lt, wasm_f16x8_lt)
-      HANDLE_F16X8_BIN_OPCODE(Le, wasm_f16x8_le)
-#undef HANDLE_F16X8_BIN_OPCODE
-      case kExprF16x8Gt:
-        result->op = CallCStackSlotToStackSlot(
-            args[1].op, args[0].op, ExternalReference::wasm_f16x8_lt(),
-            MemoryRepresentation::Simd128());
-        break;
-      case kExprF16x8Ge:
-        result->op = CallCStackSlotToStackSlot(
-            args[1].op, args[0].op, ExternalReference::wasm_f16x8_le(),
-            MemoryRepresentation::Simd128());
-        break;
+
 #define HANDLE_F16X8_UN_OPCODE(kind, extern_ref)                               \
   case kExpr##kind:                                                            \
     result->op =                                                               \

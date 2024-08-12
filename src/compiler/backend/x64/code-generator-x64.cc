@@ -1126,6 +1126,18 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     __ vcvtps2ph(i.OutputSimd128Register(), tmp2, 0); \
   } while (false)
 
+#define ASSEMBLE_SIMD_F16x8_RELOP(instr)                 \
+  do {                                                   \
+    CpuFeatureScope f16c_scope(masm(), F16C);            \
+    CpuFeatureScope avx_scope(masm(), AVX);              \
+    YMMRegister tmp1 = i.TempSimd256Register(0);         \
+    YMMRegister tmp2 = i.TempSimd256Register(1);         \
+    __ vcvtph2ps(tmp1, i.InputSimd128Register(0));       \
+    __ vcvtph2ps(tmp2, i.InputSimd128Register(1));       \
+    __ instr(tmp2, tmp1, tmp2);                          \
+    __ vpackssdw(i.OutputSimd128Register(), tmp2, tmp2); \
+  } while (false)
+
 #define ASSEMBLE_SIMD256_BINOP(opcode, cpu_feature)                    \
   do {                                                                 \
     CpuFeatureScope avx_scope(masm(), cpu_feature);                    \
@@ -3773,6 +3785,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16: {
+            // F16x8Eq
+            ASSEMBLE_SIMD_F16x8_RELOP(vcmpeqps);
+            break;
+          }
           case kL32: {
             // F32x4Eq
             ASSEMBLE_SIMD_BINOP(cmpeqps);
@@ -3811,6 +3828,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16: {
+            // F16x8Ne
+            ASSEMBLE_SIMD_F16x8_RELOP(vcmpneqps);
+            break;
+          }
           case kL32: {
             // F32x4Ne
             ASSEMBLE_SIMD_BINOP(cmpneqps);
@@ -3849,6 +3871,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16: {
+            // F16x8Lt
+            ASSEMBLE_SIMD_F16x8_RELOP(vcmpltps);
+            break;
+          }
           case kL32: {
             // F32x4Lt
             ASSEMBLE_SIMD_BINOP(cmpltps);
@@ -3887,6 +3914,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {
         switch (lane_size) {
+          case kL16: {
+            // F16x8Le
+            ASSEMBLE_SIMD_F16x8_RELOP(vcmpleps);
+            break;
+          }
           case kL32: {
             // F32x4Le
             ASSEMBLE_SIMD_BINOP(cmpleps);

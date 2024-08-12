@@ -5944,7 +5944,11 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F16x8Mul, FMul)              \
   V(F16x8Div, FDiv)              \
   V(F16x8Min, FMin)              \
-  V(F16x8Max, FMax)
+  V(F16x8Max, FMax)              \
+  V(F16x8Eq, FEq)                \
+  V(F16x8Ne, FNe)                \
+  V(F16x8Lt, FLt)                \
+  V(F16x8Le, FLe)
 
 #define SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F64x2Min, FMin, kL64, kV128)                   \

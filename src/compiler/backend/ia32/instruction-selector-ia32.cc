@@ -3775,7 +3775,11 @@ SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
   V(F16x8Min)                            \
   V(F16x8Max)                            \
   V(F16x8Pmin)                           \
-  V(F16x8Pmax)
+  V(F16x8Pmax)                           \
+  V(F16x8Eq)                             \
+  V(F16x8Ne)                             \
+  V(F16x8Lt)                             \
+  V(F16x8Le)
 
 #define SIMD_VISIT_UNIMPL_BINOP(Name)                            \
   template <typename Adapter>                                    \

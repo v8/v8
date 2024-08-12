@@ -436,6 +436,10 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
           1)                                                                   \
   IF_WASM(V, F16x8Pmin, Operator::kNoProperties, 2, 0, 1)                      \
   IF_WASM(V, F16x8Pmax, Operator::kNoProperties, 2, 0, 1)                      \
+  IF_WASM(V, F16x8Eq, Operator::kCommutative, 2, 0, 1)                         \
+  IF_WASM(V, F16x8Ne, Operator::kCommutative, 2, 0, 1)                         \
+  IF_WASM(V, F16x8Lt, Operator::kNoProperties, 2, 0, 1)                        \
+  IF_WASM(V, F16x8Le, Operator::kNoProperties, 2, 0, 1)                        \
   IF_WASM(V, I64x4Splat, Operator::kNoProperties, 1, 0, 1)                     \
   IF_WASM(V, I64x2Splat, Operator::kNoProperties, 1, 0, 1)                     \
   IF_WASM(V, I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)              \

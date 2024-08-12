@@ -938,6 +938,12 @@
   IF_WASM(V, F16x8Max)                    \
   IF_WASM(V, F16x8Pmin)                   \
   IF_WASM(V, F16x8Pmax)                   \
+  IF_WASM(V, F16x8Eq)                     \
+  IF_WASM(V, F16x8Ne)                     \
+  IF_WASM(V, F16x8Lt)                     \
+  IF_WASM(V, F16x8Le)                     \
+  IF_WASM(V, F16x8Gt)                     \
+  IF_WASM(V, F16x8Ge)                     \
   IF_WASM(V, I64x2Splat)                  \
   IF_WASM(V, I64x2SplatI32Pair)           \
   IF_WASM(V, I64x2ExtractLane)            \
