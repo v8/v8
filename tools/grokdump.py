@@ -2219,8 +2219,8 @@ class InspectionPadawan(object):
     if not end_slot: return start
     print("Stack Message (start=%s):" % self.heap.FormatIntPtr(slot))
     slot += ptr_size
-    for name in ("isolate","ptr1", "ptr2", "ptr3", "ptr4", "codeObject1",
-                 "codeObject2", "codeObject3", "codeObject4"):
+    for name in ("isolate", "ptr1", "ptr2", "ptr3", "ptr4", "ptr5", "ptr6",
+                 "codeObject1", "codeObject2", "codeObject3", "codeObject4"):
       value = self.reader.ReadUIntPtr(slot)
       print(" %s: %s" % (name.rjust(14), self.heap.FormatIntPtr(value)))
       slot += ptr_size
@@ -2845,7 +2845,6 @@ class InspectionWebFormatter(object):
     f.write('<div class="code">')
     self.output_context(f, InspectionWebFormatter.CONTEXT_SHORT)
     self.output_disasm_pc(f)
-
     # Output stack, trying to also output the stack trace if dumped.
     stack_top = self.try_output_stack_trace(f)
 
@@ -2895,8 +2894,8 @@ class InspectionWebFormatter(object):
     f.write("<h3>PushStackTraceAndDie Stack Message (start=%s):</h3>" %
             self.format_address(slot))
     slot += ptr_size
-    for name in ("isolate", "ptr1", "ptr2", "ptr3", "ptr4", "codeObject1",
-                 "codeObject2", "codeObject3", "codeObject4"):
+    for name in ("isolate", "ptr1", "ptr2", "ptr3", "ptr4", "ptr5", "ptr6",
+                 "codeObject1", "codeObject2", "codeObject3", "codeObject4"):
       value = self.reader.ReadUIntPtr(slot)
       f.write("<b>%s</b>: %s %s<br>" %
               (name.rjust(14), self.format_address(value),
@@ -2906,7 +2905,7 @@ class InspectionWebFormatter(object):
     stack_start = end_slot + ptr_size
     f.write("<b>stack_start</b>:   %s<br>" % self.format_address(stack_start))
     (message_start, message) = self.padawan.FindFirstAsciiString(slot)
-    if print_message:
+    if print_message and message is not None:
       f.write("<a href='#eom'>Scroll to end of message...</a><br>")
       self.output_stack_trace_message(f, message)
       f.write("<span id=eom></span>")
