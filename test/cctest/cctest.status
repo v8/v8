@@ -438,6 +438,16 @@
 }],  # 'system != android and arch in [arm, arm64] and not simulator_run'
 
 ##############################################################################
+['arch == ppc64', {
+  # Generated instructions could differ due to codegen non-determinism
+  # which periodically fails this test on ppc. Test is also only targeting
+  # builds with static-roots enabled which is off by default on ppc.
+  # BUG(v8:42204346)
+  'test-serialize/StaticRootsPredictableSnapshot': [SKIP]
+
+}],  # 'arch == ppc64'
+
+##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
 
   # TODO(ppc): Fix for platforms with function desciptors.
