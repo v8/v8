@@ -1183,9 +1183,6 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
-  V8_INLINE void QueueDestructuringAssignmentForRewriting(
-      PreParserExpression assignment) {}
-
   // Helper functions for recursive descent.
   V8_INLINE bool IsEval(const PreParserIdentifier& identifier) const {
     return identifier.IsEval();
