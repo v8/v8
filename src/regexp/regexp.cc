@@ -273,7 +273,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   }
   // Compilation succeeded so the data is set on the regexp
   // and we can store it in the cache.
-  Handle<RegExpData> data(re->data(isolate), isolate);
+  DirectHandle<RegExpData> data(re->data(isolate), isolate);
   if (is_compilation_cache_enabled) {
     compilation_cache->PutRegExp(pattern, JSRegExp::AsJSRegExpFlags(flags),
                                  data);
@@ -310,9 +310,9 @@ bool RegExp::EnsureFullyCompiled(Isolate* isolate,
 
 // static
 MaybeHandle<Object> RegExp::ExperimentalOneshotExec(
-    Isolate* isolate, Handle<JSRegExp> regexp, DirectHandle<String> subject,
-    int index, Handle<RegExpMatchInfo> last_match_info,
-    RegExp::ExecQuirks exec_quirks) {
+    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    DirectHandle<String> subject, int index,
+    Handle<RegExpMatchInfo> last_match_info, RegExp::ExecQuirks exec_quirks) {
   DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
   SBXCHECK(Is<IrRegExpData>(*data));
   return ExperimentalRegExp::OneshotExec(isolate, Cast<IrRegExpData>(data),
@@ -321,7 +321,8 @@ MaybeHandle<Object> RegExp::ExperimentalOneshotExec(
 }
 
 // static
-MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
+MaybeHandle<Object> RegExp::Exec(Isolate* isolate,
+                                 DirectHandle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
                                  Handle<RegExpMatchInfo> last_match_info,
                                  ExecQuirks exec_quirks) {
@@ -1243,7 +1244,7 @@ void RegExpResultsCache::Enter(Isolate* isolate,
                                DirectHandle<FixedArray> last_match_cache,
                                ResultsCacheType type) {
   Factory* factory = isolate->factory();
-  Handle<FixedArray> cache;
+  DirectHandle<FixedArray> cache;
   if (!IsInternalizedString(*key_string)) return;
   if (type == STRING_SPLIT_SUBSTRINGS) {
     DCHECK(IsString(*key_pattern));

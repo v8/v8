@@ -1119,7 +1119,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
   // 4. Assert: module.[[Status]] is LINKED.
   CHECK_EQ(module_status, kLinked);
 
-  Handle<FixedArray> requested_modules;
+  DirectHandle<FixedArray> requested_modules;
 
   {
     DisallowGarbageCollection no_gc;
@@ -1143,7 +1143,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
     stack->push_front(module);
 
     // Recursion.
-    requested_modules = handle(raw_module->requested_modules(), isolate);
+    requested_modules = direct_handle(raw_module->requested_modules(), isolate);
   }
 
   // 11. For each String required of module.[[RequestedModules]], do

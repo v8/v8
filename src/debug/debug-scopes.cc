@@ -255,7 +255,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   // Reparse the code and analyze the scopes.
   // Depending on the choosen strategy, the whole script or just
   // the closure is re-parsed for function scopes.
-  Handle<Script> script(Cast<Script>(shared_info->script()), isolate_);
+  DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate_);
 
   // Pick between flags for a single function compilation, or an eager
   // compilation of the whole script.

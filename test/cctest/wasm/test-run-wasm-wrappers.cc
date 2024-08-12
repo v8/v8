@@ -160,11 +160,11 @@ TEST(WrapperReplacement) {
 
     // Call the exported Wasm function as many times as required to almost
     // exhaust the remaining budget for using the generic wrapper.
-    Handle<Code> wrapper_before_call;
+    DirectHandle<Code> wrapper_before_call;
     for (int i = remaining_budget; i > 0; --i) {
       // Verify that the wrapper to be used is the generic one.
       wrapper_before_call =
-          handle(main_function_data->wrapper_code(isolate), isolate);
+          direct_handle(main_function_data->wrapper_code(isolate), isolate);
       CHECK(IsGeneric(*wrapper_before_call));
       // Call the function.
       Handle<Object> params[1] = {SmiHandle(isolate, i)};

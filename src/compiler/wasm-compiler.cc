@@ -8269,15 +8269,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     BuildModifyThreadInWasmFlag(false);
 
-    Handle<JSFunction> target;
+    DirectHandle<JSFunction> target;
     Node* target_node;
     Node* receiver_node;
     Isolate* isolate = callable->GetIsolate();
     if (IsJSBoundFunction(*callable)) {
-      target =
-          handle(Cast<JSFunction>(
-                     Cast<JSBoundFunction>(callable)->bound_target_function()),
-                 isolate);
+      target = direct_handle(
+          Cast<JSFunction>(
+              Cast<JSBoundFunction>(callable)->bound_target_function()),
+          isolate);
       target_node =
           gasm_->Load(MachineType::TaggedPointer(), callable_node,
                       wasm::ObjectAccess::ToTagged(

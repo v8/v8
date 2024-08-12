@@ -987,7 +987,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> RawCopy(Isolate* isolate, Handle<Map> map,
                              int instance_size, int inobject_properties);
   static Handle<Map> ShareDescriptor(Isolate* isolate, Handle<Map> map,
-                                     Handle<DescriptorArray> descriptors,
+                                     DirectHandle<DescriptorArray> descriptors,
                                      Descriptor* descriptor);
   V8_EXPORT_PRIVATE static Handle<Map> AddMissingTransitions(
       Isolate* isolate, Handle<Map> map,

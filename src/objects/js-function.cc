@@ -330,8 +330,8 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
 }
 
 // static
-MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
-                                             Handle<JSBoundFunction> function) {
+MaybeHandle<String> JSBoundFunction::GetName(
+    Isolate* isolate, DirectHandle<JSBoundFunction> function) {
   Handle<String> prefix = isolate->factory()->bound__string();
   Handle<String> target_name = prefix;
   Factory* factory = isolate->factory();
@@ -362,7 +362,7 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
 
 // static
 Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
-                                      Handle<JSBoundFunction> function) {
+                                      DirectHandle<JSBoundFunction> function) {
   int nof_bound_arguments = function->bound_arguments()->length();
   while (IsJSBoundFunction(function->bound_target_function())) {
     function = handle(Cast<JSBoundFunction>(function->bound_target_function()),
@@ -617,7 +617,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
 
 // static
 void JSFunction::InitializeFeedbackCell(
-    Handle<JSFunction> function, IsCompiledScope* is_compiled_scope,
+    DirectHandle<JSFunction> function, IsCompiledScope* is_compiled_scope,
     bool reset_budget_for_feedback_allocation) {
   Isolate* const isolate = function->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
@@ -737,7 +737,7 @@ void SetInstancePrototype(Isolate* isolate, DirectHandle<JSFunction> function,
 
 }  // anonymous namespace
 
-void JSFunction::SetPrototype(Handle<JSFunction> function,
+void JSFunction::SetPrototype(DirectHandle<JSFunction> function,
                               Handle<Object> value) {
   DCHECK(IsConstructor(*function) ||
          IsGeneratorFunction(function->shared()->kind()));
@@ -752,7 +752,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     // Copy the map so this does not affect unrelated functions.
     // Remove map transitions because they point to maps with a
     // different prototype.
-    Handle<Map> new_map =
+    DirectHandle<Map> new_map =
         Map::Copy(isolate, handle(function->map(), isolate), "SetPrototype");
 
     // Create a new {constructor, non-instance_prototype} tuple and store it

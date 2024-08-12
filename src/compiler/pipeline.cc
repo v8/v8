@@ -853,7 +853,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
   Handle<Code> code;
-  Handle<NativeContext> context;
+  DirectHandle<NativeContext> context;
 #ifdef TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION
   if (v8_flags.turboshaft_instruction_selection) {
     turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_);

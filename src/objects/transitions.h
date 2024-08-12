@@ -86,11 +86,12 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 
   // Insert a new transition into |map|'s transition array, extending it
   // as necessary. This can trigger GC.
-  static void Insert(Isolate* isolate, Handle<Map> map, DirectHandle<Name> name,
-                     DirectHandle<Map> target, TransitionKindFlag flag) {
+  static void Insert(Isolate* isolate, DirectHandle<Map> map,
+                     DirectHandle<Name> name, DirectHandle<Map> target,
+                     TransitionKindFlag flag) {
     InsertHelper(isolate, map, name, DirectHandle<Map>(target), flag);
   }
-  static void InsertNoneSentinel(Isolate* isolate, Handle<Map> map,
+  static void InsertNoneSentinel(Isolate* isolate, DirectHandle<Map> map,
                                  DirectHandle<Name> name) {
     InsertHelper(isolate, map, name, DirectHandle<Map>(),
                  TransitionKindFlag::SPECIAL_TRANSITION);
@@ -189,7 +190,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   // transitions are in the form of a map where the keys are prototype objects
   // and the values are the maps they transition to.
   // PutPrototypeTransition can trigger GC.
-  static bool PutPrototypeTransition(Isolate* isolate, Handle<Map>,
+  static bool PutPrototypeTransition(Isolate* isolate, DirectHandle<Map>,
                                      DirectHandle<Object> prototype,
                                      DirectHandle<Map> target_map);
   static std::optional<Tagged<Map>> GetPrototypeTransition(
@@ -206,7 +207,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   Tagged<Map> GetMigrationTarget();
 
   inline bool HasSideStepTransitions();
-  static void EnsureHasSideStepTransitions(Isolate* isolate, Handle<Map> map);
+  static void EnsureHasSideStepTransitions(Isolate* isolate,
+                                           DirectHandle<Map> map);
   inline Tagged<Object> GetSideStepTransition(SideStepTransition::Kind i);
   inline void SetSideStepTransition(SideStepTransition::Kind i,
                                     Tagged<Object> target);
@@ -268,21 +270,22 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 
   static inline Tagged<Map> GetTargetFromRaw(Tagged<MaybeObject> raw);
 
-  static void EnsureHasFullTransitionArray(Isolate* isolate, Handle<Map> map);
+  static void EnsureHasFullTransitionArray(Isolate* isolate,
+                                           DirectHandle<Map> map);
   static void SetPrototypeTransitions(
-      Isolate* isolate, Handle<Map> map,
+      Isolate* isolate, DirectHandle<Map> map,
       DirectHandle<WeakFixedArray> proto_transitions);
   static Tagged<WeakFixedArray> GetPrototypeTransitions(Isolate* isolate,
                                                         Tagged<Map> map);
 
-  static void InsertHelper(Isolate* isolate, Handle<Map> map,
+  static void InsertHelper(Isolate* isolate, DirectHandle<Map> map,
                            DirectHandle<Name> name, DirectHandle<Map> target,
                            TransitionKindFlag flag);
 
   static inline void ReplaceTransitions(Isolate* isolate, DirectHandle<Map> map,
                                         Tagged<MaybeObject> new_transitions);
   static inline void ReplaceTransitions(
-      Isolate* isolate, Handle<Map> map,
+      Isolate* isolate, DirectHandle<Map> map,
       DirectHandle<TransitionArray> new_transitions);
 
   bool HasSimpleTransitionTo(Tagged<Map> map);
@@ -378,8 +381,8 @@ class TransitionArray : public WeakFixedArray {
 
   // Accessors for side-step transitions.
   inline bool HasSideStepTransitions();
-  static void CreateSideStepTransitions(Isolate* isolate,
-                                        Handle<TransitionArray> transitions);
+  static void CreateSideStepTransitions(
+      Isolate* isolate, DirectHandle<TransitionArray> transitions);
 
  private:
   friend class Factory;

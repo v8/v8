@@ -2791,7 +2791,7 @@ void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
 // static
 template <typename IsolateT>
 void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
-                                          Handle<Script> script,
+                                          DirectHandle<Script> script,
                                           IsolateT* isolate) {
   DeclarationScope* scope = info->literal()->scope();
 
@@ -2873,9 +2873,9 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
 }
 
 template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos(
-    ParseInfo* info, Handle<Script> script, Isolate* isolate);
+    ParseInfo* info, DirectHandle<Script> script, Isolate* isolate);
 template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos(
-    ParseInfo* info, Handle<Script> script, LocalIsolate* isolate);
+    ParseInfo* info, DirectHandle<Script> script, LocalIsolate* isolate);
 
 int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;

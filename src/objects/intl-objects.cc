@@ -497,8 +497,9 @@ MaybeHandle<String> Intl::ToString(Isolate* isolate,
 namespace {
 
 Handle<JSObject> InnerAddElement(Isolate* isolate, Handle<JSArray> array,
-                                 int index, Handle<String> field_type_string,
-                                 Handle<String> value) {
+                                 int index,
+                                 DirectHandle<String> field_type_string,
+                                 DirectHandle<String> value) {
   // let element = $array[$index] = {
   //   type: $field_type_string,
   //   value: $value
@@ -522,15 +523,17 @@ Handle<JSObject> InnerAddElement(Isolate* isolate, Handle<JSArray> array,
 }  // namespace
 
 void Intl::AddElement(Isolate* isolate, Handle<JSArray> array, int index,
-                      Handle<String> field_type_string, Handle<String> value) {
+                      DirectHandle<String> field_type_string,
+                      DirectHandle<String> value) {
   // Same as $array[$index] = {type: $field_type_string, value: $value};
   InnerAddElement(isolate, array, index, field_type_string, value);
 }
 
 void Intl::AddElement(Isolate* isolate, Handle<JSArray> array, int index,
-                      Handle<String> field_type_string, Handle<String> value,
+                      DirectHandle<String> field_type_string,
+                      DirectHandle<String> value,
                       Handle<String> additional_property_name,
-                      Handle<String> additional_property_value) {
+                      DirectHandle<String> additional_property_value) {
   // Same as $array[$index] = {
   //   type: $field_type_string, value: $value,
   //   $additional_property_name: $additional_property_value
@@ -2087,7 +2090,7 @@ MaybeHandle<JSArray> CreateArrayFromList(Isolate* isolate,
   for (uint32_t i = 0; i < length; i++) {
     // a. Let status be CreateDataProperty(array, ! ToString(n), e).
     const std::string& part = elements[i];
-    Handle<String> value =
+    DirectHandle<String> value =
         factory->NewStringFromUtf8(base::CStrVector(part.c_str()))
             .ToHandleChecked();
     MAYBE_RETURN(JSObject::AddDataElement(array, i, value, attr),

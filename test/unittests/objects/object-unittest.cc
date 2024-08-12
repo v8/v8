@@ -349,12 +349,12 @@ TEST_F(ObjectTest, EnumCache) {
 
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
   // DescriptorArray.
-  Handle<EnumCache> previous_enum_cache(
+  DirectHandle<EnumCache> previous_enum_cache(
       a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
-  Handle<FixedArray> previous_keys(previous_enum_cache->keys(),
-                                   a->GetIsolate());
-  Handle<FixedArray> previous_indices(previous_enum_cache->indices(),
-                                      a->GetIsolate());
+  DirectHandle<FixedArray> previous_keys(previous_enum_cache->keys(),
+                                         a->GetIsolate());
+  DirectHandle<FixedArray> previous_indices(previous_enum_cache->indices(),
+                                            a->GetIsolate());
   RunJS("var s = 0; for (let key in c) { s += c[key] };");
   {
     CHECK_EQ(a->map()->EnumLength(), 1);
@@ -428,7 +428,7 @@ TEST_F(ObjectTest, ObjectMethodsThatTruncateMinusZero) {
   Handle<Object> minus_zero = factory->NewNumber(-1.0 * 0.0);
   CHECK(IsMinusZero(*minus_zero));
 
-  Handle<Object> result =
+  DirectHandle<Object> result =
       Object::ToInteger(i_isolate(), minus_zero).ToHandleChecked();
   CHECK(IsZero(*result));
 
@@ -666,8 +666,8 @@ TEST_F(ObjectTest, AddDataPropertyNameCollision) {
       factory->NewJSObject(i_isolate()->object_function());
 
   Handle<String> key = factory->NewStringFromStaticChars("key_string");
-  Handle<Object> value1(Smi::FromInt(0), i_isolate());
-  Handle<Object> value2 = factory->NewStringFromAsciiChecked("corrupt");
+  DirectHandle<Object> value1(Smi::FromInt(0), i_isolate());
+  DirectHandle<Object> value2 = factory->NewStringFromAsciiChecked("corrupt");
 
   LookupIterator outer_it(i_isolate(), object, key, object,
                           LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -705,7 +705,7 @@ TEST_F(ObjectTest, AddDataPropertyNameCollisionDeprecatedMap) {
   CHECK(a->map() == b->map());
 
   Handle<String> key = factory->NewStringFromStaticChars("corrupted_prop");
-  Handle<Object> value = factory->NewStringFromAsciiChecked("corrupt");
+  DirectHandle<Object> value = factory->NewStringFromAsciiChecked("corrupt");
   LookupIterator it(i_isolate(), a, key, a,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
 

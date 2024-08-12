@@ -398,10 +398,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       const CodeReference& host = code;
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
-      Handle<Code> code_handle;
       if (host.is_code()) {
-        code_handle = host.as_code();
-
         RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], constant_pool);
         bool first_reloc_info = (i == 0);
         PrintRelocInfo(out, isolate, ref_encoder, os, code, &relocinfo,

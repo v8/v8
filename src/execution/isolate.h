@@ -2059,7 +2059,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static Address store_to_stack_count_address(const char* function_name);
 
   v8::metrics::Recorder::ContextId GetOrRegisterRecorderContextId(
-      Handle<NativeContext> context);
+      DirectHandle<NativeContext> context);
   MaybeLocal<v8::Context> GetContextFromRecorderContextId(
       v8::metrics::Recorder::ContextId id);
 
@@ -2235,9 +2235,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::list<std::unique_ptr<detail::WaiterQueueNode>>&
   async_waiter_queue_nodes();
 
-  void ReportExceptionFunctionCallback(Handle<JSReceiver> receiver,
-                                       Handle<FunctionTemplateInfo> function,
-                                       v8::ExceptionContext callback_kind);
+  void ReportExceptionFunctionCallback(
+      DirectHandle<JSReceiver> receiver,
+      DirectHandle<FunctionTemplateInfo> function,
+      v8::ExceptionContext callback_kind);
   void ReportExceptionPropertyCallback(Handle<JSReceiver> holder,
                                        Handle<Name> name,
                                        v8::ExceptionContext callback_kind);

@@ -907,7 +907,7 @@ void SetBreakOnEntryFlag(Tagged<Script> script, bool enabled) {
 
 // static
 bool WasmScript::SetBreakPoint(DirectHandle<Script> script, int* position,
-                               Handle<BreakPoint> break_point) {
+                               DirectHandle<BreakPoint> break_point) {
   DCHECK_NE(kOnEntryBreakpointPosition, *position);
 
   // Find the function for this breakpoint.
@@ -939,7 +939,7 @@ void WasmScript::SetInstrumentationBreakpoint(
 // static
 bool WasmScript::SetBreakPointOnFirstBreakableForFunction(
     DirectHandle<Script> script, int func_index,
-    Handle<BreakPoint> break_point) {
+    DirectHandle<BreakPoint> break_point) {
   if (func_index < 0) return false;
   int offset_in_func = 0;
 

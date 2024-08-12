@@ -451,7 +451,7 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
   int count = args.smi_value_at(1);
 
-  Handle<Code> code;
+  DirectHandle<Code> code;
   base::ElapsedTimer timer;
   timer.Start();
   code = Maglev::Compile(isolate, function, BytecodeOffset::None())

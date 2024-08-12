@@ -298,7 +298,7 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
   static Handle<Object> Get(Isolate* isolate,
                             DirectHandle<WasmInstanceObject> instance,
                             uint32_t index) {
-    Handle<WasmTrustedInstanceData> trusted_data{
+    DirectHandle<WasmTrustedInstanceData> trusted_data{
         instance->trusted_data(isolate), isolate};
     DirectHandle<WasmFuncRef> func_ref =
         WasmTrustedInstanceData::GetOrCreateFuncRef(isolate, trusted_data,
@@ -623,7 +623,8 @@ class ContextProxy {
     auto object = isolate->factory()->NewSlowJSObjectWithNullProto();
     Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
     JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
-    Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+    DirectHandle<WasmModuleObject> module_object(instance->module_object(),
+                                                 isolate);
     JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
     auto locals = LocalsProxy::Create(frame);
     JSObject::AddProperty(isolate, object, "locals", locals, FROZEN);
@@ -687,7 +688,8 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
         Handle<JSObject> object =
             isolate->factory()->NewSlowJSObjectWithNullProto();
         JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
-        Handle<JSObject> module_object(instance->module_object(), isolate);
+        DirectHandle<JSObject> module_object(instance->module_object(),
+                                             isolate);
         JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
         if (FunctionsProxy::Count(isolate, instance) != 0) {
           JSObject::AddProperty(
@@ -1007,8 +1009,8 @@ struct ArrayProxy : IndexedDebugProxy<ArrayProxy, kArrayProxy, FixedArray> {
 Handle<WasmValueObject> WasmValueObject::New(
     Isolate* isolate, const wasm::WasmValue& value,
     Handle<WasmModuleObject> module_object) {
-  Handle<String> t;
-  Handle<Object> v;
+  DirectHandle<String> t;
+  DirectHandle<Object> v;
   switch (value.type().kind()) {
     case wasm::kI8: {
       // This can't be reached for most "top-level" things, only via nested

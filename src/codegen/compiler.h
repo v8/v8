@@ -98,7 +98,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                         Handle<SharedFunctionInfo> shared,
                                         ClearExceptionFlag flag,
                                         IsCompiledScope* is_compiled_scope);
-  static bool CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
+  static bool CompileBaseline(Isolate* isolate,
+                              DirectHandle<JSFunction> function,
                               ClearExceptionFlag flag,
                               IsCompiledScope* is_compiled_scope);
 
@@ -143,7 +144,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
   // offer this chance, optimized closure instantiation will not call this.
-  static void PostInstantiation(Isolate* isolate, Handle<JSFunction> function,
+  static void PostInstantiation(Isolate* isolate,
+                                DirectHandle<JSFunction> function,
                                 IsCompiledScope* is_compiled_scope);
 
   // ===========================================================================
@@ -263,7 +265,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   static void LogFunctionCompilation(Isolate* isolate,
                                      LogEventListener::CodeTag code_type,
-                                     Handle<Script> script,
+                                     DirectHandle<Script> script,
                                      Handle<SharedFunctionInfo> shared,
                                      Handle<FeedbackVector> vector,
                                      Handle<AbstractCode> abstract_code,

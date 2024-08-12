@@ -23926,8 +23926,8 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
   v8::ScriptOrigin origin(v8_str("http://foo.com"), 0, 0, false, -1,
                           v8::Local<v8::Value>(), false, false, false);
   v8::Local<Value> first_function_untyped;
-  i::Handle<i::JSFunction> first_function;
-  i::Handle<i::JSFunction> second_function;
+  i::DirectHandle<i::JSFunction> first_function;
+  i::DirectHandle<i::JSFunction> second_function;
 
   // Run the script using streaming.
   {
@@ -23962,8 +23962,8 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
     }
   }
 
-  first_function =
-      i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*first_function_untyped));
+  first_function = i::Cast<i::JSFunction>(
+      v8::Utils::OpenDirectHandle(*first_function_untyped));
 
   // Run the same script in another Context without streaming.
   {
@@ -23985,7 +23985,8 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
              run_gc ? v8::ScriptCompiler::InMemoryCacheResult::kPartial
                     : v8::ScriptCompiler::InMemoryCacheResult::kHit);
     v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
-    second_function = i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*result));
+    second_function =
+        i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*result));
   }
 
   // The functions created by both copies of the script should refer to the same
