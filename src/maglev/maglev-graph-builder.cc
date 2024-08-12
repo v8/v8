@@ -2739,7 +2739,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
           break;
         case Operation::kGreaterThanOrEqual:
           result = BuildCallBuiltin<Builtin::kStringGreaterThanOrEqual>(
-              {tagged_left, right});
+              {tagged_left, tagged_right});
           break;
       }
 
