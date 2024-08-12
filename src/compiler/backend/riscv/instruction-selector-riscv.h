@@ -1398,7 +1398,16 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(
   V(F16x8Floor)                            \
   V(F16x8Ceil)                             \
   V(F16x8Trunc)                            \
-  V(F16x8NearestInt)
+  V(F16x8NearestInt)                       \
+  V(F16x8Add)                              \
+  V(F16x8Sub)                              \
+  V(F16x8Mul)                              \
+  V(F16x8Div)                              \
+  V(F16x8Min)                              \
+  V(F16x8Max)                              \
+  V(F16x8Pmin)                             \
+  V(F16x8Pmax)
+
 #define SIMD_VISIT_UNIMPL_FP16_OP(Name)                          \
   template <typename Adapter>                                    \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
