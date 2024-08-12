@@ -860,9 +860,13 @@ ValueNode* FromInt32ToTagged(const MaglevGraphBuilder* builder,
   ValueNode* tagged;
   if (value->Is<Int32Constant>()) {
     int32_t constant = value->Cast<Int32Constant>()->value();
-    return builder->GetSmiConstant(constant);
-  } else if (value->Is<StringLength>() ||
-             value->Is<BuiltinStringPrototypeCharCodeOrCodePointAt>()) {
+    if (Smi::IsValid(constant)) {
+      return builder->GetSmiConstant(constant);
+    }
+  }
+
+  if (value->Is<StringLength>() ||
+      value->Is<BuiltinStringPrototypeCharCodeOrCodePointAt>()) {
     static_assert(String::kMaxLength <= kSmiMaxValue,
                   "String length must fit into a Smi");
     tagged = Node::New<UnsafeSmiTagInt32>(builder->zone(), {value});
