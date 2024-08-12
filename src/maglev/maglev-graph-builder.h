@@ -343,6 +343,8 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
+  ValueNode* GetNumberConstant(double constant);
+
   static compiler::OptionalHeapObjectRef TryGetConstant(
       compiler::JSHeapBroker* broker, LocalIsolate* isolate, ValueNode* node);
 

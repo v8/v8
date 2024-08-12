@@ -2253,6 +2253,13 @@ void MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
   SetAccumulator(AddNewNode<Int32NodeFor<kOperation>>({left, right}));
 }
 
+ValueNode* MaglevGraphBuilder::GetNumberConstant(double constant) {
+  if (IsSmiDouble(constant)) {
+    return GetInt32Constant(FastD2I(constant));
+  }
+  return GetFloat64Constant(constant);
+}
+
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::TryFoldFloat64UnaryOperationForToNumber(
     ToNumberHint hint, ValueNode* value) {
@@ -2260,11 +2267,11 @@ ReduceResult MaglevGraphBuilder::TryFoldFloat64UnaryOperationForToNumber(
   if (!cst.has_value()) return ReduceResult::Fail();
   switch (kOperation) {
     case Operation::kNegate:
-      return GetFloat64Constant(-cst.value());
+      return GetNumberConstant(-cst.value());
     case Operation::kIncrement:
-      return GetFloat64Constant(cst.value() + 1);
+      return GetNumberConstant(cst.value() + 1);
     case Operation::kDecrement:
-      return GetFloat64Constant(cst.value() - 1);
+      return GetNumberConstant(cst.value() - 1);
     default:
       UNREACHABLE();
   }
@@ -2286,19 +2293,18 @@ ReduceResult MaglevGraphBuilder::TryFoldFloat64BinaryOperationForToNumber(
   if (!cst_left.has_value()) return ReduceResult::Fail();
   switch (kOperation) {
     case Operation::kAdd:
-      return GetFloat64Constant(cst_left.value() + cst_right);
+      return GetNumberConstant(cst_left.value() + cst_right);
     case Operation::kSubtract:
-      return GetFloat64Constant(cst_left.value() - cst_right);
+      return GetNumberConstant(cst_left.value() - cst_right);
     case Operation::kMultiply:
-      return GetFloat64Constant(cst_left.value() * cst_right);
+      return GetNumberConstant(cst_left.value() * cst_right);
     case Operation::kDivide:
-      return GetFloat64Constant(cst_left.value() / cst_right);
+      return GetNumberConstant(cst_left.value() / cst_right);
     case Operation::kModulus:
       // TODO(v8:7700): Constant fold mod.
       return ReduceResult::Fail();
     case Operation::kExponentiate:
-      return GetFloat64Constant(
-          base::ieee754::pow(cst_left.value(), cst_right));
+      return GetNumberConstant(base::ieee754::pow(cst_left.value(), cst_right));
     default:
       UNREACHABLE();
   }
