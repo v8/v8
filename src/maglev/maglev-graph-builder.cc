@@ -2164,12 +2164,14 @@ ReduceResult MaglevGraphBuilder::TryFoldInt32BinaryOperation(
     case Operation::kBitwiseXor:
       return GetInt32Constant(cst_left.value() ^ cst_right);
     case Operation::kShiftLeft:
-      return GetInt32Constant(cst_left.value() << cst_right);
+      return GetInt32Constant(cst_left.value()
+                              << (static_cast<uint32_t>(cst_right) % 32));
     case Operation::kShiftRight:
-      return GetInt32Constant(cst_left.value() >> cst_right);
+      return GetInt32Constant(cst_left.value() >>
+                              (static_cast<uint32_t>(cst_right) % 32));
     case Operation::kShiftRightLogical:
       return GetUint32Constant(static_cast<uint32_t>(cst_left.value()) >>
-                               cst_right);
+                               (static_cast<uint32_t>(cst_right) % 32));
     default:
       UNREACHABLE();
   }
