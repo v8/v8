@@ -625,11 +625,19 @@ class InstructionSelectorT final : public Adapter {
   bool IsDefined(node_t node) const;
 
   // Checks if {node} has any uses, and therefore code has to be generated for
-  // it.
+  // it. Always returns {true} if the node has effect IsRequiredWhenUnused.
   bool IsUsed(node_t node) const;
+  // Checks if {node} has any uses, and therefore code has to be generated for
+  // it. Ignores the IsRequiredWhenUnused effect.
+  bool IsReallyUsed(node_t node) const;
 
   // Checks if {node} is currently live.
   bool IsLive(node_t node) const { return !IsDefined(node) && IsUsed(node); }
+  // Checks if {node} is currently live, ignoring the IsRequiredWhenUnused
+  // effect.
+  bool IsReallyLive(node_t node) const {
+    return !IsDefined(node) && IsReallyUsed(node);
+  }
 
   // Gets the effect level of {node}.
   int GetEffectLevel(node_t node) const;
@@ -655,6 +663,28 @@ class InstructionSelectorT final : public Adapter {
   }
 
   node_t FindProjection(node_t node, size_t projection_index);
+
+  // Records that this ProtectedLoad node can be deleted if not used, even
+  // though it has a required_when_unused effect.
+  void SetProtectedLoadToRemove(node_t node) {
+    if constexpr (Adapter::IsTurboshaft) {
+      DCHECK(this->IsProtectedLoad(node));
+      protected_loads_to_remove_->Add(this->id(node));
+    } else {
+      UNREACHABLE();
+    }
+  }
+
+  // Records that this node embeds a ProtectedLoad as operand, and so it is
+  // itself a "protected" instruction, for which we'll need to record the source
+  // position.
+  void MarkAsProtected(node_t node) {
+    if constexpr (Adapter::IsTurboshaft) {
+      additional_protected_instructions_->Add(this->id(node));
+    } else {
+      UNREACHABLE();
+    }
+  }
 
  private:
   friend class OperandGeneratorT<Adapter>;
@@ -1248,6 +1278,8 @@ class InstructionSelectorT final : public Adapter {
 
   // Turboshaft-adapter only.
   std::optional<turboshaft::UseMap> turboshaft_use_map_;
+  std::optional<BitVector> protected_loads_to_remove_;
+  std::optional<BitVector> additional_protected_instructions_;
 
 #if V8_TARGET_ARCH_64_BIT
   // Holds lazily-computed results for whether phi nodes guarantee their upper

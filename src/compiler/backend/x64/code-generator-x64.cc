@@ -2115,15 +2115,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SSE_BINOP(Ucomiss);
       break;
     case kSSEFloat32Add:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(addss);
       break;
     case kSSEFloat32Sub:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(subss);
       break;
     case kSSEFloat32Mul:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(mulss);
       break;
     case kSSEFloat32Div:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(divss);
       // Don't delete this mov. It may improve performance on some CPUs,
       // when there is a (v)mulss depending on the result.
@@ -2161,15 +2165,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SSE_BINOP(Ucomisd);
       break;
     case kSSEFloat64Add:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(addsd);
       break;
     case kSSEFloat64Sub:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(subsd);
       break;
     case kSSEFloat64Mul:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(mulsd);
       break;
     case kSSEFloat64Div:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_SSE_BINOP(divsd);
       // Don't delete this mov. It may improve performance on some CPUs,
       // when there is a (v)mulsd depending on the result.
@@ -2661,15 +2669,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kAVXFloat32Add:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vaddss);
       break;
     case kAVXFloat32Sub:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vsubss);
       break;
     case kAVXFloat32Mul:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vmulss);
       break;
     case kAVXFloat32Div:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vdivss);
       // Don't delete this mov. It may improve performance on some CPUs,
       // when there is a (v)mulss depending on the result.
@@ -2685,15 +2697,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kAVXFloat64Add:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vaddsd);
       break;
     case kAVXFloat64Sub:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vsubsd);
       break;
     case kAVXFloat64Mul:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vmulsd);
       break;
     case kAVXFloat64Div:
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_AVX_BINOP(vdivsd);
       // Don't delete this mov. It may improve performance on some CPUs,
       // when there is a (v)mulsd depending on the result.

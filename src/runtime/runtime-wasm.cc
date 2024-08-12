@@ -294,7 +294,6 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
                    &wire_bytes.begin()[pos])
                .first;
     }
-    DCHECK(wasm::WasmOpcodes::IsMemoryAccessOpcode(op));
 #endif  // DEBUG
   }
   return ThrowWasmError(isolate, message);

@@ -72,7 +72,23 @@ namespace compiler {
   V(X64S256Load16x8S)                                      \
   V(X64S256Load16x8U)                                      \
   V(X64S256Load32x4S)                                      \
-  V(X64S256Load32x4U)
+  V(X64S256Load32x4U)                                      \
+  V(SSEFloat32Add)                                         \
+  V(SSEFloat32Sub)                                         \
+  V(SSEFloat32Mul)                                         \
+  V(SSEFloat32Div)                                         \
+  V(SSEFloat64Add)                                         \
+  V(SSEFloat64Sub)                                         \
+  V(SSEFloat64Mul)                                         \
+  V(SSEFloat64Div)                                         \
+  V(AVXFloat32Add)                                         \
+  V(AVXFloat32Sub)                                         \
+  V(AVXFloat32Mul)                                         \
+  V(AVXFloat32Div)                                         \
+  V(AVXFloat64Add)                                         \
+  V(AVXFloat64Sub)                                         \
+  V(AVXFloat64Mul)                                         \
+  V(AVXFloat64Div)
 
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
@@ -129,20 +145,12 @@ namespace compiler {
   V(X64MFence)                                       \
   V(X64LFence)                                       \
   V(SSEFloat32Cmp)                                   \
-  V(SSEFloat32Add)                                   \
-  V(SSEFloat32Sub)                                   \
-  V(SSEFloat32Mul)                                   \
-  V(SSEFloat32Div)                                   \
   V(SSEFloat32Sqrt)                                  \
   V(SSEFloat32ToFloat64)                             \
   V(SSEFloat32ToInt32)                               \
   V(SSEFloat32ToUint32)                              \
   V(SSEFloat32Round)                                 \
   V(SSEFloat64Cmp)                                   \
-  V(SSEFloat64Add)                                   \
-  V(SSEFloat64Sub)                                   \
-  V(SSEFloat64Mul)                                   \
-  V(SSEFloat64Div)                                   \
   V(SSEFloat64Mod)                                   \
   V(SSEFloat64Sqrt)                                  \
   V(SSEFloat64Round)                                 \
@@ -172,15 +180,7 @@ namespace compiler {
   V(SSEFloat64LoadLowWord32)                         \
   V(SSEFloat64SilenceNaN)                            \
   V(AVXFloat32Cmp)                                   \
-  V(AVXFloat32Add)                                   \
-  V(AVXFloat32Sub)                                   \
-  V(AVXFloat32Mul)                                   \
-  V(AVXFloat32Div)                                   \
   V(AVXFloat64Cmp)                                   \
-  V(AVXFloat64Add)                                   \
-  V(AVXFloat64Sub)                                   \
-  V(AVXFloat64Mul)                                   \
-  V(AVXFloat64Div)                                   \
   V(X64Float64Abs)                                   \
   V(X64Float64Neg)                                   \
   V(X64Float32Abs)                                   \

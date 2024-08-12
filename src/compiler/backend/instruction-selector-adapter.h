@@ -1269,6 +1269,23 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   bool IsLoadOrLoadImmutable(node_t node) const {
     return graph_->Get(node).opcode == turboshaft::Opcode::kLoad;
   }
+  bool IsProtectedLoad(node_t node) const {
+#if V8_ENABLE_WEBASSEMBLY
+    if (graph_->Get(node).opcode == turboshaft::Opcode::kSimd128LoadTransform) {
+      return true;
+    }
+#if V8_ENABLE_WASM_SIMD256_REVEC
+    if (graph_->Get(node).opcode == turboshaft::Opcode::kSimd256LoadTransform) {
+      return true;
+    }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+    if (!IsLoadOrLoadImmutable(node)) return false;
+
+    bool traps_on_null;
+    return LoadView(graph_, node).is_protected(&traps_on_null);
+  }
 
   int value_input_count(node_t node) const {
     return graph_->Get(node).input_count;

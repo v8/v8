@@ -646,9 +646,20 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
                           int effect_level) {
     if (!this->IsLoadOrLoadImmutable(input)) return false;
     if (!selector()->CanCover(node, input)) return false;
-    if (effect_level != selector()->GetEffectLevel(input)) {
-      return false;
+
+    if constexpr (Adapter::IsTurboshaft) {
+      // A ProtectedLoad increases the effect level by 1.
+      int effect_level_after_input = selector()->GetEffectLevel(input) +
+                                     (this->IsProtectedLoad(node) ? 1 : 0);
+      if (effect_level != effect_level_after_input) {
+        return false;
+      }
+    } else {
+      if (effect_level != selector()->GetEffectLevel(input)) {
+        return false;
+      }
     }
+
     MachineRepresentation rep =
         this->load_view(input).loaded_rep().representation();
     switch (opcode) {
@@ -866,7 +877,7 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 
   bool CanBeBetterLeftOperand(node_t node) const {
-    return !selector()->IsLive(node);
+    return !selector()->IsReallyLive(node);
   }
 };
 
@@ -3668,6 +3679,22 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
           g.GetEffectiveAddressMemoryOperand(right, inputs, &input_count);
       avx_opcode |= AddressingModeField::encode(addressing_mode);
       sse_opcode |= AddressingModeField::encode(addressing_mode);
+      if constexpr (Adapter::IsTurboshaft) {
+        if (g.IsProtectedLoad(right)) {
+          // In {CanBeMemoryOperand} we have already checked that
+          // CanCover(node, right) succeds, which means that there is no
+          // instruction with Effects required_when_unused or
+          // produces.control_flow between right and node, and that the node has
+          // no other uses. Therefore, we can record the fact that 'right' was
+          // embedded in 'node' and we can later delete the Load instruction.
+          selector->MarkAsProtected(node);
+          avx_opcode |=
+              AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+          sse_opcode |=
+              AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+          selector->SetProtectedLoadToRemove(right);
+        }
+      }
     } else {
       inputs[input_count++] = g.UseRegister(left);
       inputs[input_count++] = g.Use(right);

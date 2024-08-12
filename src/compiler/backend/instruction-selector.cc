@@ -110,6 +110,9 @@ InstructionSelectorT<Adapter>::InstructionSelectorT(
 {
   if constexpr (Adapter::IsTurboshaft) {
     turboshaft_use_map_.emplace(*schedule_, zone);
+    protected_loads_to_remove_.emplace(static_cast<int>(node_count), zone);
+    additional_protected_instructions_.emplace(static_cast<int>(node_count),
+                                               zone);
   }
 
   DCHECK_EQ(*max_unoptimized_frame_height, 0);  // Caller-initialized.
@@ -356,8 +359,17 @@ bool InstructionSelectorT<Adapter>::CanCover(node_t user, node_t node) const {
   }
 
   // 3. Otherwise, the {node}'s effect level must match the {user}'s.
-  if (GetEffectLevel(node) != current_effect_level_) {
-    return false;
+  if constexpr (Adapter::IsTurboshaft) {
+    // A ProtectedLoad node itself increases effect_level by one.
+    int effect_level_after_node =
+        GetEffectLevel(node) + (this->IsProtectedLoad(node) ? 1 : 0);
+    if (current_effect_level_ != effect_level_after_node) {
+      return false;
+    }
+  } else {
+    if (GetEffectLevel(node) != current_effect_level_) {
+      return false;
+    }
   }
 
   // 4. Only {node} must have value edges pointing to {user}.
@@ -544,6 +556,23 @@ bool InstructionSelectorT<Adapter>::IsUsed(node_t node) const {
     }
   }
   if (this->IsRequiredWhenUnused(node)) return true;
+  return used_.Contains(this->id(node));
+}
+
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::IsReallyUsed(node_t node) const {
+  DCHECK(this->valid(node));
+  if constexpr (Adapter::IsTurbofan) {
+    // TODO(bmeurer): This is a terrible monster hack, but we have to make sure
+    // that the Retain is actually emitted, otherwise the GC will mess up.
+    if (this->IsRetain(node)) return true;
+  } else {
+    static_assert(Adapter::IsTurboshaft);
+    if (!turboshaft::ShouldSkipOptimizationStep() &&
+        turboshaft::ShouldSkipOperation(this->Get(node))) {
+      return false;
+    }
+  }
   return used_.Contains(this->id(node));
 }
 
@@ -1674,6 +1703,9 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
       return lm->kind.with_trap_handler;
     }
 #endif
+    if (additional_protected_instructions_->Contains(this->id(node))) {
+      return true;
+    }
     return false;
   } else {
     switch (node->opcode()) {
@@ -1750,7 +1782,9 @@ bool increment_effect_level_for_node(TurboshaftAdapter* adapter,
     return false;
   }
   return (op.Effects().consumes.bits() & kTurboshaftEffectLevelMask.bits()) !=
-         0;
+             0 ||
+         op.Effects().required_when_unused ||
+         op.Effects().produces.control_flow;
 }
 }  // namespace
 
@@ -1845,6 +1879,14 @@ void InstructionSelectorT<Adapter>::VisitBlock(block_t block) {
   // matching may cover more than one node at a time.
   for (node_t node : base::Reversed(this->nodes(block))) {
     int current_node_end = current_num_instructions();
+
+    if constexpr (Adapter::IsTurboshaft) {
+      if (protected_loads_to_remove_->Contains(this->id(node)) &&
+          !IsReallyUsed(node)) {
+        MarkAsDefined(node);
+      }
+    }
+
     if (!IsUsed(node)) {
       // Skip nodes that are unused, while marking them as Defined so that it's
       // clear that these unused nodes have been visited and will not be Defined
