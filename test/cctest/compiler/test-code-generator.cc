@@ -788,18 +788,18 @@ class TestEnvironment : public HandleAndZoneScope {
     if (from.IsConstant()) {
       Constant constant = instructions_.GetConstant(
           ConstantOperand::cast(from).virtual_register());
-      Handle<Object> constant_value;
+      DirectHandle<Object> constant_value;
       switch (constant.type()) {
         case Constant::kInt32:
           constant_value =
-              Handle<Smi>(Tagged<Smi>(static_cast<Address>(
-                              static_cast<intptr_t>(constant.ToInt32()))),
-                          main_isolate());
+              direct_handle(Tagged<Smi>(static_cast<Address>(
+                                static_cast<intptr_t>(constant.ToInt32()))),
+                            main_isolate());
           break;
         case Constant::kInt64:
-          constant_value =
-              Handle<Smi>(Tagged<Smi>(static_cast<Address>(constant.ToInt64())),
-                          main_isolate());
+          constant_value = direct_handle(
+              Tagged<Smi>(static_cast<Address>(constant.ToInt64())),
+              main_isolate());
           break;
         case Constant::kFloat32:
           constant_value = main_isolate()->factory()->NewHeapNumber(
@@ -1450,7 +1450,7 @@ TEST(FuzzAssembleMoveAndSwap) {
   TestEnvironment env;
 
   Handle<FixedArray> state_in = env.GenerateInitialState();
-  Handle<FixedArray> expected =
+  DirectHandle<FixedArray> expected =
       env.main_isolate()->factory()->NewFixedArray(state_in->length());
 
   // Test small and potentially large ranges separately.

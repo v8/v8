@@ -673,7 +673,7 @@ bool IsNonEmptyString(DirectHandle<Object> object) {
   return (IsString(*object) && Cast<String>(*object)->length() > 0);
 }
 
-void AppendFileLocation(Isolate* isolate, Handle<CallSiteInfo> frame,
+void AppendFileLocation(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                         IncrementalStringBuilder* builder) {
   Handle<Object> script_name_or_source_url(frame->GetScriptNameOrSourceURL(),
                                            isolate);
@@ -783,7 +783,7 @@ void AppendMethodCall(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
   }
 }
 
-void SerializeJSStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
+void SerializeJSStackFrame(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder) {
   Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
   if (frame->IsAsync()) {
@@ -819,7 +819,7 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void SerializeWasmStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
+void SerializeWasmStackFrame(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                              IncrementalStringBuilder* builder) {
   Handle<Object> module_name = CallSiteInfo::GetWasmModuleName(frame);
   Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
@@ -868,7 +868,7 @@ void SerializeBuiltinStackFrame(Isolate* isolate,
 
 }  // namespace
 
-void SerializeCallSiteInfo(Isolate* isolate, Handle<CallSiteInfo> frame,
+void SerializeCallSiteInfo(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder) {
 #if V8_ENABLE_WEBASSEMBLY
   if (frame->IsWasm() && !frame->IsAsmJsWasm()) {
@@ -884,7 +884,7 @@ void SerializeCallSiteInfo(Isolate* isolate, Handle<CallSiteInfo> frame,
 }
 
 MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
-                                          Handle<CallSiteInfo> frame) {
+                                          DirectHandle<CallSiteInfo> frame) {
   IncrementalStringBuilder builder(isolate);
   SerializeCallSiteInfo(isolate, frame, &builder);
   return indirect_handle(builder.Finish(), isolate);

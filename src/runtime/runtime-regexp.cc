@@ -642,7 +642,7 @@ StringReplaceGlobalAtomRegExpWithString(
 }
 
 V8_WARN_UNUSED_RESULT static Tagged<Object> StringReplaceGlobalRegExpWithString(
-    Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
+    Isolate* isolate, Handle<String> subject, DirectHandle<JSRegExp> regexp,
     DirectHandle<RegExpData> regexp_data, Handle<String> replacement,
     Handle<RegExpMatchInfo> last_match_info) {
   DCHECK(subject->IsFlat());
@@ -727,7 +727,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> StringReplaceGlobalRegExpWithString(
 template <typename ResultSeqString>
 V8_WARN_UNUSED_RESULT static Tagged<Object>
 StringReplaceGlobalRegExpWithEmptyString(
-    Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
+    Isolate* isolate, Handle<String> subject, DirectHandle<JSRegExp> regexp,
     DirectHandle<RegExpData> regexp_data,
     Handle<RegExpMatchInfo> last_match_info) {
   DCHECK(subject->IsFlat());
@@ -912,7 +912,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
 namespace {
 
-MaybeHandle<Object> RegExpExec(Isolate* isolate, Handle<JSRegExp> regexp,
+MaybeHandle<Object> RegExpExec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
                                Handle<String> subject, int32_t index,
                                Handle<RegExpMatchInfo> last_match_info,
                                RegExp::ExecQuirks exec_quirks) {
@@ -926,9 +926,9 @@ MaybeHandle<Object> RegExpExec(Isolate* isolate, Handle<JSRegExp> regexp,
 }
 
 MaybeHandle<Object> ExperimentalOneshotExec(
-    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-    int32_t index, Handle<RegExpMatchInfo> last_match_info,
-    RegExp::ExecQuirks exec_quirks) {
+    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    DirectHandle<String> subject, int32_t index,
+    Handle<RegExpMatchInfo> last_match_info, RegExp::ExecQuirks exec_quirks) {
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CHECK_LE(0, index);
@@ -943,7 +943,7 @@ MaybeHandle<Object> ExperimentalOneshotExec(
 RUNTIME_FUNCTION(Runtime_RegExpExec) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
   Handle<String> subject = args.at<String>(1);
   int32_t index = 0;
   CHECK(Object::ToInt32(args[2], &index));
@@ -956,7 +956,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
 RUNTIME_FUNCTION(Runtime_RegExpExecTreatMatchAtEndAsFailure) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
   Handle<String> subject = args.at<String>(1);
   int32_t index = 0;
   CHECK(Object::ToInt32(args[2], &index));
@@ -969,8 +969,8 @@ RUNTIME_FUNCTION(Runtime_RegExpExecTreatMatchAtEndAsFailure) {
 RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
-  Handle<String> subject = args.at<String>(1);
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<String> subject = args.at<String>(1);
   int32_t index = 0;
   CHECK(Object::ToInt32(args[2], &index));
   Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
@@ -984,8 +984,8 @@ RUNTIME_FUNCTION(
     Runtime_RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
-  Handle<String> subject = args.at<String>(1);
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<String> subject = args.at<String>(1);
   int32_t index = 0;
   CHECK(Object::ToInt32(args[2], &index));
   Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
@@ -1178,9 +1178,13 @@ class VectorBackedMatch : public String::Match {
 
 // Create the groups object (see also the RegExp result creation in
 // RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo).
+// TODO(42203211): We cannot simply pass a std::function here, as the closure
+// may contain direct handles and they cannot be stored off-stack.
+template <typename FunctionType,
+          typename = std::enable_if_t<std::is_function_v<Tagged<Object>(int)>>>
 Handle<JSObject> ConstructNamedCaptureGroupsObject(
     Isolate* isolate, DirectHandle<FixedArray> capture_map,
-    const std::function<Tagged<Object>(int)>& f_get_capture) {
+    const FunctionType& f_get_capture) {
   Handle<JSObject> groups = isolate->factory()->NewJSObjectWithNullProto();
 
   const int named_capture_count = capture_map->length() >> 1;
@@ -1219,7 +1223,7 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
 // separate last match info.  See comment on that function.
 template <bool has_capture>
 static Tagged<Object> SearchRegExpMultiple(
-    Isolate* isolate, Handle<String> subject, Handle<JSRegExp> regexp,
+    Isolate* isolate, Handle<String> subject, DirectHandle<JSRegExp> regexp,
     DirectHandle<RegExpData> regexp_data,
     Handle<RegExpMatchInfo> last_match_array) {
   DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
@@ -1297,7 +1301,7 @@ static Tagged<Object> SearchRegExpMultiple(
     {
       // Avoid accumulating new handles inside loop.
       HandleScope temp_scope(isolate);
-      Handle<String> match;
+      DirectHandle<String> match;
       if (!first) {
         match = isolate->factory()->NewProperSubString(subject, match_start,
                                                        match_end);
@@ -1320,7 +1324,8 @@ static Tagged<Object> SearchRegExpMultiple(
         const int argc =
             has_named_captures ? 4 + capture_count : 3 + capture_count;
 
-        Handle<FixedArray> elements = isolate->factory()->NewFixedArray(argc);
+        DirectHandle<FixedArray> elements =
+            isolate->factory()->NewFixedArray(argc);
         int cursor = 0;
 
         elements->set(cursor++, *match);
@@ -1517,7 +1522,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
   HandleScope handles(isolate);
   DCHECK_EQ(3, args.length());
 
-  Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
   Handle<String> subject = args.at<String>(1);
   Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(2);
 
@@ -1544,7 +1549,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Handle<String> subject = args.at<String>(0);
-  Handle<JSRegExp> regexp = args.at<JSRegExp>(1);
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(1);
   Handle<JSReceiver> replace_obj = args.at<JSReceiver>(2);
 
   DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
@@ -1604,7 +1609,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   const int m = match_indices->number_of_capture_registers() / 2;
 
   bool has_named_captures = false;
-  Handle<FixedArray> capture_map;
+  DirectHandle<FixedArray> capture_map;
   if (m > 1) {
     SBXCHECK(Is<IrRegExpData>(*data));
 
@@ -1612,7 +1617,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
         Cast<IrRegExpData>(data)->capture_name_map();
     if (IsFixedArray(maybe_capture_map)) {
       has_named_captures = true;
-      capture_map = handle(Cast<FixedArray>(maybe_capture_map), isolate);
+      capture_map = direct_handle(Cast<FixedArray>(maybe_capture_map), isolate);
     }
   }
 

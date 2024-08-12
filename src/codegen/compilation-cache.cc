@@ -312,9 +312,9 @@ MaybeHandle<RegExpData> CompilationCache::LookupRegExp(Handle<String> source,
   return reg_exp_.Lookup(source, flags);
 }
 
-void CompilationCache::PutScript(Handle<String> source,
-                                 LanguageMode language_mode,
-                                 Handle<SharedFunctionInfo> function_info) {
+void CompilationCache::PutScript(
+    Handle<String> source, LanguageMode language_mode,
+    DirectHandle<SharedFunctionInfo> function_info) {
   if (!IsEnabledScript(language_mode)) return;
   LOG(isolate(), CompilationCacheEvent("put", "script", *function_info));
 
@@ -323,9 +323,9 @@ void CompilationCache::PutScript(Handle<String> source,
 
 void CompilationCache::PutEval(Handle<String> source,
                                Handle<SharedFunctionInfo> outer_info,
-                               Handle<Context> context,
+                               DirectHandle<Context> context,
                                DirectHandle<SharedFunctionInfo> function_info,
-                               Handle<FeedbackCell> feedback_cell,
+                               DirectHandle<FeedbackCell> feedback_cell,
                                int position) {
   if (!IsEnabledScriptAndEval()) return;
 
@@ -337,7 +337,7 @@ void CompilationCache::PutEval(Handle<String> source,
     cache_type = "eval-global";
   } else {
     DCHECK_NE(position, kNoSourcePosition);
-    Handle<Context> native_context(context->native_context(), isolate());
+    DirectHandle<Context> native_context(context->native_context(), isolate());
     eval_contextual_.Put(source, outer_info, function_info, native_context,
                          feedback_cell, position);
     cache_type = "eval-contextual";

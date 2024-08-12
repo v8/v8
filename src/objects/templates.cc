@@ -182,7 +182,7 @@ const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
 // static
 Handle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
     Isolate* isolate, const v8::MemorySpan<const std::string_view>& names) {
-  Handle<FixedArray> property_names = isolate->factory()->NewFixedArray(
+  DirectHandle<FixedArray> property_names = isolate->factory()->NewFixedArray(
       static_cast<int>(names.size()), AllocationType::kOld);
   int index = 0;
   uint32_t unused_array_index;

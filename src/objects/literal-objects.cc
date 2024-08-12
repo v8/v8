@@ -123,8 +123,12 @@ Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
                                entry_out);
 }
 
-template <typename Dictionary>
-void DictionaryUpdateMaxNumberKey(Handle<Dictionary> dictionary,
+// TODO(42203211): The first parameter should be just DirectHandle<Dictionary>
+// but now it does not compile with implicit Handle to DirectHandle conversions.
+template <template <typename T> typename HandleType, typename Dictionary,
+          typename = std::enable_if_t<std::is_convertible_v<
+              HandleType<Dictionary>, DirectHandle<Dictionary>>>>
+void DictionaryUpdateMaxNumberKey(HandleType<Dictionary> dictionary,
                                   DirectHandle<Name> name) {
   static_assert((std::is_same<Dictionary, SwissNameDictionary>::value ||
                  std::is_same<Dictionary, NameDictionary>::value));

@@ -16,11 +16,11 @@ namespace internal {
 BUILTIN(AsyncDisposableStackOnFulfilled) {
   HandleScope scope(isolate);
 
-  Handle<JSDisposableStackBase> stack = Handle<JSDisposableStackBase>(
+  DirectHandle<JSDisposableStackBase> stack(
       Cast<JSDisposableStackBase>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::kStack))),
       isolate);
-  MaybeHandle<Object> maybe_error = MaybeHandle<Object>(
+  MaybeHandle<Object> maybe_error(
       Cast<Object>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::kError))),
       isolate);

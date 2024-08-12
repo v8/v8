@@ -40,7 +40,7 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Tagged<Map> map) {
 }
 
 // static
-void TransitionsAccessor::InsertHelper(Isolate* isolate, Handle<Map> map,
+void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
                                        DirectHandle<Name> name,
                                        DirectHandle<Map> target,
                                        TransitionKindFlag flag) {
@@ -389,7 +389,7 @@ Handle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
 
 // static
 bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
-                                                 Handle<Map> map,
+                                                 DirectHandle<Map> map,
                                                  DirectHandle<Object> prototype,
                                                  DirectHandle<Map> target_map) {
   DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
@@ -403,7 +403,8 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
 
   const int header = TransitionArray::kProtoTransitionHeaderSize;
 
-  Handle<WeakFixedArray> cache(GetPrototypeTransitions(isolate, *map), isolate);
+  DirectHandle<WeakFixedArray> cache(GetPrototypeTransitions(isolate, *map),
+                                     isolate);
   int capacity = cache->length() - header;
   int transitions = TransitionArray::NumberOfPrototypeTransitions(*cache) + 1;
 
@@ -562,14 +563,14 @@ void TransitionsAccessor::ReplaceTransitions(
 
 // static
 void TransitionsAccessor::ReplaceTransitions(
-    Isolate* isolate, Handle<Map> map,
+    Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<TransitionArray> new_transitions) {
   ReplaceTransitions(isolate, map, *new_transitions);
 }
 
 // static
 void TransitionsAccessor::SetPrototypeTransitions(
-    Isolate* isolate, Handle<Map> map,
+    Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<WeakFixedArray> proto_transitions) {
   EnsureHasFullTransitionArray(isolate, map);
   GetTransitionArray(isolate, map->raw_transitions(isolate, kAcquireLoad))
@@ -578,7 +579,7 @@ void TransitionsAccessor::SetPrototypeTransitions(
 
 // static
 void TransitionsAccessor::EnsureHasFullTransitionArray(Isolate* isolate,
-                                                       Handle<Map> map) {
+                                                       DirectHandle<Map> map) {
   Encoding encoding =
       GetEncoding(isolate, map->raw_transitions(isolate, kAcquireLoad));
   if (encoding == kFullTransitionArray) return;
@@ -842,7 +843,7 @@ bool TransitionsAccessor::HasIntegrityLevelTransitionTo(
 
 // static
 void TransitionsAccessor::EnsureHasSideStepTransitions(Isolate* isolate,
-                                                       Handle<Map> map) {
+                                                       DirectHandle<Map> map) {
   EnsureHasFullTransitionArray(isolate, map);
   Tagged<TransitionArray> transitions =
       GetTransitionArray(isolate, map->raw_transitions());
@@ -853,9 +854,9 @@ void TransitionsAccessor::EnsureHasSideStepTransitions(Isolate* isolate,
 
 // static
 void TransitionArray::CreateSideStepTransitions(
-    Isolate* isolate, Handle<TransitionArray> transitions) {
+    Isolate* isolate, DirectHandle<TransitionArray> transitions) {
   DCHECK(!transitions->HasSideStepTransitions());  // Callers must check first.
-  Handle<WeakFixedArray> result = WeakFixedArray::New(
+  DirectHandle<WeakFixedArray> result = WeakFixedArray::New(
       isolate, SideStepTransition::kSize, AllocationType::kYoung,
       handle(SideStepTransition::Empty, isolate));
   transitions->set(kSideStepTransitionsIndex, *result);

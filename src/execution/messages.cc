@@ -368,7 +368,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
   for (int i = 0; i < elems->length(); ++i) {
     builder.AppendCStringLiteral("\n    at ");
 
-    Handle<CallSiteInfo> frame(Cast<CallSiteInfo>(elems->get(i)), isolate);
+    DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(elems->get(i)),
+                                     isolate);
 
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     SerializeCallSiteInfo(isolate, frame, &builder);

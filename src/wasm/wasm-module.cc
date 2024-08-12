@@ -280,7 +280,7 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
   // Create the resulting {FunctionType} object.
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
-  Handle<JSArray> params = factory->NewJSArrayWithElements(param_values);
+  DirectHandle<JSArray> params = factory->NewJSArrayWithElements(param_values);
   Handle<String> params_string = factory->InternalizeUtf8String("parameters");
   Handle<String> results_string = factory->InternalizeUtf8String("results");
   JSObject::AddProperty(isolate, object, params_string, params, NONE);
@@ -297,7 +297,8 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
       DirectHandle<String> type_value = ToValueTypeString(isolate, type);
       result_values->set(result_index++, *type_value);
     }
-    Handle<JSArray> results = factory->NewJSArrayWithElements(result_values);
+    DirectHandle<JSArray> results =
+        factory->NewJSArrayWithElements(result_values);
     JSObject::AddProperty(isolate, object, results_string, results, NONE);
   }
 
@@ -353,7 +354,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  bool is_table64) {
   Factory* factory = isolate->factory();
 
-  Handle<String> element =
+  DirectHandle<String> element =
       factory->InternalizeUtf8String(base::VectorOf(type.name()));
 
   Handle<JSFunction> object_function = isolate->object_function();
@@ -476,11 +477,11 @@ Handle<JSArray> GetImports(Isolate* isolate,
     }
     DCHECK(!import_kind.is_null());
 
-    Handle<String> import_module =
+    DirectHandle<String> import_module =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, import.module_name, kInternalize);
 
-    Handle<String> import_name =
+    DirectHandle<String> import_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, import.field_name, kInternalize);
 
@@ -507,11 +508,11 @@ Handle<JSArray> GetExports(Isolate* isolate,
   Handle<String> kind_string = factory->InternalizeUtf8String("kind");
   Handle<String> type_string = factory->InternalizeUtf8String("type");
 
-  Handle<String> function_string = factory->function_string();
-  Handle<String> table_string = factory->InternalizeUtf8String("table");
-  Handle<String> memory_string = factory->InternalizeUtf8String("memory");
-  Handle<String> global_string = factory->global_string();
-  Handle<String> tag_string = factory->InternalizeUtf8String("tag");
+  DirectHandle<String> function_string = factory->function_string();
+  DirectHandle<String> table_string = factory->InternalizeUtf8String("table");
+  DirectHandle<String> memory_string = factory->InternalizeUtf8String("memory");
+  DirectHandle<String> global_string = factory->global_string();
+  DirectHandle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
   const WasmModule* module = module_object->module();
@@ -528,7 +529,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
   for (int index = 0; index < num_exports; ++index) {
     const WasmExport& exp = module->export_table[index];
 
-    Handle<String> export_kind;
+    DirectHandle<String> export_kind;
     Handle<JSObject> type_value;
     switch (exp.kind) {
       case kExternalFunction:
@@ -578,7 +579,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
 
     Handle<JSObject> entry = factory->NewJSObject(object_function);
 
-    Handle<String> export_name =
+    DirectHandle<String> export_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate, module_object, exp.name, kNoInternalize);
 

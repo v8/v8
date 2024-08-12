@@ -344,15 +344,18 @@ class JsonParser final {
   // Mark that a parsing error has happened at the current character.
   void ReportUnexpectedCharacter(base::uc32 c);
   bool IsSpecialString();
-  MessageTemplate GetErrorMessageWithEllipses(Handle<Object>& arg,
-                                              Handle<Object>& arg2, int pos);
+  MessageTemplate GetErrorMessageWithEllipses(DirectHandle<Object>& arg,
+                                              DirectHandle<Object>& arg2,
+                                              int pos);
   MessageTemplate LookUpErrorMessageForJsonToken(JsonToken token,
-                                                 Handle<Object>& arg,
-                                                 Handle<Object>& arg2, int pos);
+                                                 DirectHandle<Object>& arg,
+                                                 DirectHandle<Object>& arg2,
+                                                 int pos);
 
   // Calculate line and column based on the current cursor position.
   // Both values start at 1.
-  void CalculateFileLocation(Handle<Object>& line, Handle<Object>& column);
+  void CalculateFileLocation(DirectHandle<Object>& line,
+                             DirectHandle<Object>& column);
   // Mark that a parsing error has happened at the current token.
   void ReportUnexpectedToken(
       JsonToken token,

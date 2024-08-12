@@ -551,7 +551,7 @@ TEST_F(HeapTest, Regress341769455) {
       original_concurrent_minor_ms_marking_value;
   Heap* heap = iso->heap();
   HandleScope outer(iso);
-  Handle<JSArrayBuffer> ab;
+  DirectHandle<JSArrayBuffer> ab;
   {
     // Make sure new space is empty
     InvokeAtomicMajorGC();

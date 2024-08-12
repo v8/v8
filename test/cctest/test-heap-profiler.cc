@@ -651,7 +651,7 @@ TEST(HeapSnapshotConsString) {
   i::Factory* factory = CcTest::i_isolate()->factory();
   i::Handle<i::String> first = factory->NewStringFromStaticChars("0123456789");
   i::Handle<i::String> second = factory->NewStringFromStaticChars("0123456789");
-  i::Handle<i::String> cons_string =
+  i::DirectHandle<i::String> cons_string =
       factory->NewConsString(first, second).ToHandleChecked();
 
   global_proxy->SetInternalField(0, v8::ToApiHandle<v8::String>(cons_string));

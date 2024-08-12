@@ -1971,7 +1971,7 @@ Local<Script> UnboundScript::BindToCurrentContext() {
   DCHECK(!InReadOnlySpace(*function_info));
   i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*function_info);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSFunction> function =
+  i::DirectHandle<i::JSFunction> function =
       i::Factory::JSFunctionBuilder{i_isolate, function_info,
                                     i_isolate->native_context()}
           .Build();
@@ -1996,7 +1996,8 @@ int UnboundScript::GetLineNumber(int code_pos) {
     i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
     API_RCS_SCOPE(i_isolate, UnboundScript, GetLineNumber);
-    i::Handle<i::Script> script(i::Cast<i::Script>(obj->script()), i_isolate);
+    i::DirectHandle<i::Script> script(i::Cast<i::Script>(obj->script()),
+                                      i_isolate);
     return i::Script::GetLineNumber(script, code_pos);
   } else {
     return -1;
@@ -2012,7 +2013,8 @@ int UnboundScript::GetColumnNumber(int code_pos) {
     i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
     API_RCS_SCOPE(i_isolate, UnboundScript, GetColumnNumber);
-    i::Handle<i::Script> script(i::Cast<i::Script>(obj->script()), i_isolate);
+    i::DirectHandle<i::Script> script(i::Cast<i::Script>(obj->script()),
+                                      i_isolate);
     return i::Script::GetColumnNumber(script, code_pos);
   } else {
     return -1;
@@ -2206,7 +2208,8 @@ Local<CompileHintsCollector> Script::GetCompileHintsCollector() const {
   i::Isolate* i_isolate = func->GetIsolate();
   i::Tagged<i::SharedFunctionInfo> sfi = func->shared();
   CHECK(IsScript(sfi->script()));
-  i::Handle<i::Script> script(i::Cast<i::Script>(sfi->script()), i_isolate);
+  i::DirectHandle<i::Script> script(i::Cast<i::Script>(sfi->script()),
+                                    i_isolate);
   return ToApiHandle<CompileHintsCollector>(script);
 }
 
@@ -2237,7 +2240,8 @@ Local<PrimitiveArray> PrimitiveArray::New(Isolate* v8_isolate, int length) {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   Utils::ApiCheck(length >= 0, "v8::PrimitiveArray::New",
                   "length must be equal or greater than zero");
-  i::Handle<i::FixedArray> array = i_isolate->factory()->NewFixedArray(length);
+  i::DirectHandle<i::FixedArray> array =
+      i_isolate->factory()->NewFixedArray(length);
   return ToApiHandle<PrimitiveArray>(array);
 }
 
@@ -2359,8 +2363,8 @@ Location Module::SourceOffsetToLocation(int offset) const {
   Utils::ApiCheck(
       i::IsSourceTextModule(*self), "v8::Module::SourceOffsetToLocation",
       "v8::Module::SourceOffsetToLocation must be used on an SourceTextModule");
-  i::Handle<i::Script> script(i::Cast<i::SourceTextModule>(self)->GetScript(),
-                              i_isolate);
+  i::DirectHandle<i::Script> script(
+      i::Cast<i::SourceTextModule>(self)->GetScript(), i_isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, offset, &info);
   return v8::Location(info.line, info.column);
@@ -2373,7 +2377,7 @@ Local<Value> Module::GetModuleNamespace() {
   auto self = Utils::OpenHandle(this);
   auto i_isolate = self->GetIsolate();
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSModuleNamespace> module_namespace =
+  i::DirectHandle<i::JSModuleNamespace> module_namespace =
       i::Module::GetModuleNamespace(i_isolate, self);
   return ToApiHandle<Value>(module_namespace);
 }
@@ -3263,7 +3267,7 @@ Local<String> StackTrace::CurrentScriptNameOrSourceURL(Isolate* v8_isolate) {
 Location StackFrame::GetLocation() const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
-  i::Handle<i::Script> script(self->script(), i_isolate);
+  i::DirectHandle<i::Script> script(self->script(), i_isolate);
   i::Script::PositionInfo info;
   CHECK(i::Script::GetPositionInfo(
       script, i::StackFrameInfo::GetSourcePosition(self), &info));
@@ -3860,7 +3864,7 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
 }
 
 MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::Object> obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate;
   if (!context.IsEmpty()) {
     i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
@@ -4904,7 +4908,7 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(
     KeyConversionMode key_conversion) {
   PREPARE_FOR_EXECUTION(context, Object, GetPropertyNames);
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::FixedArray> value;
+  i::DirectHandle<i::FixedArray> value;
   i::KeyAccumulator accumulator(
       i_isolate, static_cast<i::KeyCollectionMode>(mode),
       static_cast<i::PropertyFilter>(property_filter));
@@ -5656,8 +5660,8 @@ int Function::GetScriptLineNumber() const {
   }
   auto func = i::Cast<i::JSFunction>(self);
   if (i::IsScript(func->shared()->script())) {
-    i::Handle<i::Script> script(i::Cast<i::Script>(func->shared()->script()),
-                                func->GetIsolate());
+    i::DirectHandle<i::Script> script(
+        i::Cast<i::Script>(func->shared()->script()), func->GetIsolate());
     return i::Script::GetLineNumber(script, func->shared()->StartPosition());
   }
   return kLineOffsetNotFound;
@@ -5670,8 +5674,8 @@ int Function::GetScriptColumnNumber() const {
   }
   auto func = i::Cast<i::JSFunction>(self);
   if (i::IsScript(func->shared()->script())) {
-    i::Handle<i::Script> script(i::Cast<i::Script>(func->shared()->script()),
-                                func->GetIsolate());
+    i::DirectHandle<i::Script> script(
+        i::Cast<i::Script>(func->shared()->script()), func->GetIsolate());
     return i::Script::GetColumnNumber(script, func->shared()->StartPosition());
   }
   return kLineOffsetNotFound;
@@ -6722,10 +6726,10 @@ static i::Handle<ObjectType> CreateEnvironment(
     v8::Local<ObjectTemplate> proxy_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
-    i::Handle<i::UnionOf<i::Undefined, i::InterceptorInfo>> named_interceptor(
-        i_isolate->factory()->undefined_value());
-    i::Handle<i::UnionOf<i::Undefined, i::InterceptorInfo>> indexed_interceptor(
-        i_isolate->factory()->undefined_value());
+    i::DirectHandle<i::UnionOf<i::Undefined, i::InterceptorInfo>>
+        named_interceptor(i_isolate->factory()->undefined_value());
+    i::DirectHandle<i::UnionOf<i::Undefined, i::InterceptorInfo>>
+        indexed_interceptor(i_isolate->factory()->undefined_value());
 
     if (!maybe_global_template.IsEmpty()) {
       v8::Local<v8::ObjectTemplate> global_template =
@@ -9238,8 +9242,9 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
       return Local<Type##Array>();                                          \
     }                                                                       \
     auto buffer = Utils::OpenHandle(*array_buffer);                         \
-    i::Handle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray( \
-        i::kExternal##Type##Array, buffer, byte_offset, length);            \
+    i::DirectHandle<i::JSTypedArray> obj =                                  \
+        i_isolate->factory()->NewJSTypedArray(i::kExternal##Type##Array,    \
+                                              buffer, byte_offset, length); \
     return Utils::ToLocal##Type##Array(obj);                                \
   }                                                                         \
   Local<Type##Array> Type##Array::New(                                      \
@@ -9257,8 +9262,9 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
       return Local<Type##Array>();                                          \
     }                                                                       \
     auto buffer = Utils::OpenHandle(*shared_array_buffer);                  \
-    i::Handle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray( \
-        i::kExternal##Type##Array, buffer, byte_offset, length);            \
+    i::DirectHandle<i::JSTypedArray> obj =                                  \
+        i_isolate->factory()->NewJSTypedArray(i::kExternal##Type##Array,    \
+                                              buffer, byte_offset, length); \
     return Utils::ToLocal##Type##Array(obj);                                \
   }
 
@@ -9279,7 +9285,7 @@ Local<Float16Array> Float16Array::New(Local<ArrayBuffer> array_buffer,
     return Local<Float16Array>();
   }
   auto buffer = Utils::OpenHandle(*array_buffer);
-  i::Handle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
+  i::DirectHandle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
       i::kExternalFloat16Array, buffer, byte_offset, length);
   return Utils::ToLocalFloat16Array(obj);
 }
@@ -9299,7 +9305,7 @@ Local<Float16Array> Float16Array::New(
     return Local<Float16Array>();
   }
   auto buffer = Utils::OpenHandle(*shared_array_buffer);
-  i::Handle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
+  i::DirectHandle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
       i::kExternalFloat16Array, buffer, byte_offset, length);
   return Utils::ToLocalFloat16Array(obj);
 }
@@ -11040,7 +11046,7 @@ Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* i_isolate = node->isolate();
   const i::CodeEntry* entry = node->entry();
-  i::Handle<i::String> name =
+  i::DirectHandle<i::String> name =
       i_isolate->factory()->InternalizeUtf8String(entry->name());
   return ToApiHandle<String>(name);
 }

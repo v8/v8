@@ -96,7 +96,7 @@ class CompileImportWrapperJob final : public JobTask {
 
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
                             int struct_index, Handle<Map> opt_rtt_parent,
-                            Handle<WasmTrustedInstanceData> trusted_data,
+                            DirectHandle<WasmTrustedInstanceData> trusted_data,
                             Handle<WasmInstanceObject> instance) {
   const wasm::StructType* type = module->struct_type(struct_index);
   const int inobject_properties = 0;
@@ -123,7 +123,7 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
 
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
                            int array_index, Handle<Map> opt_rtt_parent,
-                           Handle<WasmTrustedInstanceData> trusted_data,
+                           DirectHandle<WasmTrustedInstanceData> trusted_data,
                            Handle<WasmInstanceObject> instance) {
   const wasm::ArrayType* type = module->array_type(array_index);
   const int inobject_properties = 0;
@@ -155,12 +155,13 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   // Recursive calls for supertypes may already have created this map.
   if (IsMap(maybe_shared_maps->get(type_index))) return;
 
-  Handle<WeakArrayList> canonical_rtts;
+  DirectHandle<WeakArrayList> canonical_rtts;
   uint32_t canonical_type_index =
       module->isorecursive_canonical_type_ids[type_index];
 
   // Try to find the canonical map for this type in the isolate store.
-  canonical_rtts = handle(isolate->heap()->wasm_canonical_rtts(), isolate);
+  canonical_rtts =
+      direct_handle(isolate->heap()->wasm_canonical_rtts(), isolate);
   DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
             canonical_type_index);
   Tagged<MaybeObject> maybe_canonical_map =
@@ -185,7 +186,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
     // inherit from a shared type and vice verca.
     rtt_parent = handle(Cast<Map>(maybe_shared_maps->get(supertype)), isolate);
   }
-  Handle<Map> map;
+  DirectHandle<Map> map;
   switch (module->types[type_index].kind) {
     case TypeDefinition::kStruct:
       map = CreateStructMap(isolate, module, type_index, rtt_parent,
@@ -2122,7 +2123,7 @@ bool InstanceBuilder::ProcessImportedTable(
   }
   const WasmTable& table = module_->tables[table_index];
 
-  Handle<WasmTableObject> table_object = Cast<WasmTableObject>(value);
+  DirectHandle<WasmTableObject> table_object = Cast<WasmTableObject>(value);
 
   uint32_t imported_table_size =
       static_cast<uint32_t>(table_object->current_length());
@@ -2882,7 +2883,8 @@ void InstanceBuilder::ProcessExports(
 
 namespace {
 V8_INLINE void SetFunctionTablePlaceholder(
-    Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
+    Isolate* isolate,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTableObject> table_object, uint32_t entry_index,
     uint32_t func_index) {
   const WasmModule* module = trusted_instance_data->module();
@@ -3118,7 +3120,7 @@ void InstanceBuilder::LoadTableSegments(
 
     const size_t count = elem_segment.element_count;
 
-    Handle<WasmTableObject> table_object = handle(
+    DirectHandle<WasmTableObject> table_object(
         Cast<WasmTableObject>((table->shared ? shared_trusted_instance_data
                                              : trusted_instance_data)
                                   ->tables()

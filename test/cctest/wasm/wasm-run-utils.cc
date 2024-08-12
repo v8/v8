@@ -349,7 +349,8 @@ uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
   uint32_t index = static_cast<uint32_t>(test_module_->tags.size());
   test_module_->tags.emplace_back(sig, AddSignature(sig));
   DirectHandle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
-  Handle<FixedArray> table(trusted_instance_data_->tags_table(), isolate_);
+  DirectHandle<FixedArray> table(trusted_instance_data_->tags_table(),
+                                 isolate_);
   table = isolate_->factory()->CopyFixedArrayAndGrow(table, 1);
   trusted_instance_data_->set_tags_table(*table);
   table->set(index, *tag);

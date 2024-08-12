@@ -103,13 +103,11 @@ static i::Handle<i::BreakPoint> SetBreakPoint(v8::Local<v8::Function> fun,
   return break_point;
 }
 
-
-static void ClearBreakPoint(i::Handle<i::BreakPoint> break_point) {
+static void ClearBreakPoint(i::DirectHandle<i::BreakPoint> break_point) {
   v8::internal::Isolate* isolate = CcTest::i_isolate();
   v8::internal::Debug* debug = isolate->debug();
   debug->ClearBreakPoint(break_point);
 }
-
 
 // Change break on exception.
 static void ChangeBreakOnException(v8::Isolate* isolate, bool caught,
@@ -304,12 +302,12 @@ TEST(DebugInfo) {
   CHECK(!HasBreakInfo(bar));
   EnableDebugger(env->GetIsolate());
   // One function (foo) is debugged.
-  i::Handle<i::BreakPoint> bp1 = SetBreakPoint(foo, 0);
+  i::DirectHandle<i::BreakPoint> bp1 = SetBreakPoint(foo, 0);
   CHECK_EQ(1, v8::internal::GetDebuggedFunctions()->length());
   CHECK(HasBreakInfo(foo));
   CHECK(!HasBreakInfo(bar));
   // Two functions are debugged.
-  i::Handle<i::BreakPoint> bp2 = SetBreakPoint(bar, 0);
+  i::DirectHandle<i::BreakPoint> bp2 = SetBreakPoint(bar, 0);
   CHECK_EQ(2, v8::internal::GetDebuggedFunctions()->length());
   CHECK(HasBreakInfo(foo));
   CHECK(HasBreakInfo(bar));
@@ -343,7 +341,7 @@ TEST(BreakPointICStore) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
+  i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
   foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(1, break_point_hit_count);
   foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
@@ -374,7 +372,7 @@ TEST(BreakPointCondition) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0, "a == true");
+  i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(foo, 0, "a == true");
   CompileRun("foo()");
   CHECK_EQ(0, break_point_hit_count);
 
@@ -408,7 +406,7 @@ TEST(BreakPointICLoad) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
+  i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
   foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(1, break_point_hit_count);
   foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
@@ -440,7 +438,7 @@ TEST(BreakPointICCall) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
+  i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
   foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   CHECK_EQ(1, break_point_hit_count);
   foo->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
@@ -476,7 +474,7 @@ TEST(BreakPointICCallWithGC) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
+  i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
   CHECK_EQ(1, foo->Call(context, env->Global(), 0, nullptr)
                   .ToLocalChecked()
                   ->Int32Value(context)
@@ -518,7 +516,7 @@ TEST(BreakPointConstructCallWithGC) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
+  i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
   CHECK_EQ(1, foo->Call(context, env->Global(), 0, nullptr)
                   .ToLocalChecked()
                   ->Int32Value(context)
@@ -548,7 +546,7 @@ TEST(BreakPointBuiltin) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test simple builtin ===
   break_point_hit_count = 0;
@@ -682,7 +680,7 @@ TEST(BreakPointJSBuiltin) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test JS builtin ===
   break_point_hit_count = 0;
@@ -713,7 +711,7 @@ TEST(BreakPointBoundBuiltin) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test bound function from a builtin ===
   break_point_hit_count = 0;
@@ -746,7 +744,7 @@ TEST(BreakPointConstructorBuiltin) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test Promise constructor ===
   break_point_hit_count = 0;
@@ -809,7 +807,7 @@ TEST(BreakPointInlinedBuiltin) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test inlined builtin ===
   break_point_hit_count = 0;
@@ -853,7 +851,7 @@ TEST(BreakPointInlineBoundBuiltin) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test inlined bound builtin ===
   break_point_hit_count = 0;
@@ -901,7 +899,7 @@ TEST(BreakPointInlinedConstructorBuiltin) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test inlined constructor builtin (regular construct builtin) ===
   break_point_hit_count = 0;
@@ -945,7 +943,7 @@ TEST(BreakPointBuiltinConcurrentOpt) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test concurrent optimization ===
   break_point_hit_count = 0;
@@ -986,7 +984,7 @@ TEST(BreakPointBuiltinTFOperator) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test builtin represented as operator ===
   break_point_hit_count = 0;
@@ -1029,9 +1027,9 @@ TEST(BreakPointBuiltinNewContext) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
-// === Test builtin from a new context ===
+  // === Test builtin from a new context ===
   break_point_hit_count = 0;
   builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
   CompileRun("'a'.repeat(10)");
@@ -1074,7 +1072,7 @@ TEST(BreakPointApiFunction) {
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
@@ -1116,7 +1114,7 @@ TEST(BreakPointApiConstructor) {
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
@@ -1165,7 +1163,7 @@ TEST(BreakPointApiGetter) {
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
@@ -1219,7 +1217,7 @@ TEST(BreakPointApiSetter) {
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
@@ -1286,7 +1284,7 @@ TEST(BreakPointApiAccessor) {
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // Create 'foo' class, with a hidden property.
   v8::Local<v8::ObjectTemplate> obj_template =
@@ -1365,7 +1363,7 @@ TEST(Regress1163547) {
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   auto constructor_tmpl = v8::FunctionTemplate::New(env->GetIsolate());
   auto prototype_tmpl = constructor_tmpl->PrototypeTemplate();
@@ -1477,7 +1475,7 @@ TEST(BreakPointInlineApiFunction) {
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
@@ -1523,7 +1521,7 @@ TEST(BreakPointConditionBuiltin) {
   DebugEventCounter delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
   v8::Local<v8::Function> builtin;
-  i::Handle<i::BreakPoint> bp;
+  i::DirectHandle<i::BreakPoint> bp;
 
   // === Test global variable ===
   break_point_hit_count = 0;
@@ -1664,7 +1662,7 @@ TEST(BreakPointInlining) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  i::Handle<i::BreakPoint> bp = SetBreakPoint(inlinee, 0);
+  i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(inlinee, 0);
   CompileRun("f(0.1);");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(0.2);");
@@ -1882,7 +1880,7 @@ TEST(DebuggerStatementBreakpoint) {
     foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
     CHECK_EQ(1, break_point_hit_count);
 
-    i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
+    i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(foo, 0);
 
     // Set breakpoint does not duplicate hits
     foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
@@ -3437,7 +3435,7 @@ TEST(DebugScriptLineEndsAreAscending) {
           .ToLocalChecked();
   USE(script);
 
-  Handle<v8::internal::FixedArray> instances;
+  DirectHandle<v8::internal::FixedArray> instances;
   {
     v8::internal::Debug* debug = CcTest::i_isolate()->debug();
     instances = debug->GetLoadedScripts();
@@ -4380,7 +4378,7 @@ UNINITIALIZED_TEST(Bug1511649UnlockerRestoreDebug) {
 
     v8::Local<v8::Function> test =
         CompileFunction(isolate, "function test() {}", "test");
-    i::Handle<i::BreakPoint> bp = SetBreakPoint(test, 0);
+    i::DirectHandle<i::BreakPoint> bp = SetBreakPoint(test, 0);
 
     {
       isolate->Exit();
@@ -5002,7 +5000,7 @@ TEST(SourceInfo) {
       "}\n";
   v8::Local<v8::Script> v8_script =
       v8::Script::Compile(env.local(), v8_str(source)).ToLocalChecked();
-  i::Handle<i::Script> i_script(
+  i::DirectHandle<i::Script> i_script(
       i::Cast<i::Script>(
           v8::Utils::OpenDirectHandle(*v8_script)->shared()->script()),
       CcTest::i_isolate());

@@ -1414,7 +1414,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Error.stack accessor callbacks:
   {
-    Handle<FunctionTemplateInfo> function_template;
+    DirectHandle<FunctionTemplateInfo> function_template;
     function_template = ApiNatives::CreateAccessorFunctionTemplateInfo(
         isolate_, Accessors::ErrorStackGetter, 0,
         SideEffectType::kHasSideEffect);
@@ -1429,7 +1429,7 @@ void Heap::CreateInitialMutableObjects() {
   // Create internal SharedFunctionInfos.
   // Async functions:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncFunctionAwaitRejectClosure, 1);
     set_async_function_await_reject_shared_fun(*info);
 
@@ -1440,7 +1440,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Async generators:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncGeneratorAwaitResolveClosure, 1);
     set_async_generator_await_resolve_shared_fun(*info);
 
@@ -1481,7 +1481,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Promises:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseCapabilityDefaultResolve, 1,
         FunctionKind::kConciseMethod);
     info->set_native(true);
@@ -1504,7 +1504,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Promises / finally:
   {
-    Handle<SharedFunctionInfo> info =
+    DirectHandle<SharedFunctionInfo> info =
         CreateSharedFunctionInfo(isolate(), Builtin::kPromiseThenFinally, 1);
     info->set_native(true);
     set_promise_then_finally_shared_fun(*info);
@@ -1525,7 +1525,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Promise combinators:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseAllResolveElementClosure, 1);
     set_promise_all_resolve_element_shared_fun(*info);
 
@@ -1558,7 +1558,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // SourceTextModule:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kCallAsyncModuleFulfilled, 0);
     set_source_text_module_execute_async_module_fulfilled_sfi(*info);
 
@@ -1569,7 +1569,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Array.fromAsync:
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kArrayFromAsyncIterableOnFulfilled, 0);
     set_array_from_async_iterable_on_fulfilled_shared_fun(*info);
 
@@ -1588,7 +1588,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Atomics.Mutex
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAtomicsMutexAsyncUnlockResolveHandler, 1);
     set_atomics_mutex_async_unlock_resolve_handler_sfi(*info);
     info = CreateSharedFunctionInfo(
@@ -1605,7 +1605,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Async Disposable Stack
   {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAsyncDisposableStackOnFulfilled, 0);
     set_async_disposable_stack_on_fulfilled_shared_fun(*info);
 
@@ -1633,7 +1633,7 @@ void Heap::CreateInitialMutableObjects() {
 void Heap::CreateInternalAccessorInfoObjects() {
   Isolate* isolate = this->isolate();
   HandleScope scope(isolate);
-  Handle<AccessorInfo> accessor_info;
+  DirectHandle<AccessorInfo> accessor_info;
 
 #define INIT_ACCESSOR_INFO(_, accessor_name, AccessorName, ...) \
   accessor_info = Accessors::Make##AccessorName##Info(isolate); \

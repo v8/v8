@@ -214,7 +214,7 @@ void WasmTableObject::AddUse(Isolate* isolate,
   table_obj->set_uses(*new_uses);
 }
 
-int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
+int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
                           uint32_t count, DirectHandle<Object> init_value) {
   uint32_t old_size = table->current_length();
   if (count == 0) return old_size;  // Degenerate case: nothing to do.
@@ -320,7 +320,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
   if (WasmExportedFunction::IsWasmExportedFunction(*external)) {
     auto exported_function = Cast<WasmExportedFunction>(external);
     auto func_data = exported_function->shared()->wasm_exported_function_data();
-    Handle<WasmTrustedInstanceData> target_instance_data(
+    DirectHandle<WasmTrustedInstanceData> target_instance_data(
         func_data->instance_data(), isolate);
     int func_index = func_data->function_index();
     const WasmModule* module = target_instance_data->module();
@@ -454,9 +454,9 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   return func_ref;
 }
 
-void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
-                           uint32_t start, DirectHandle<Object> entry,
-                           uint32_t count) {
+void WasmTableObject::Fill(Isolate* isolate,
+                           DirectHandle<WasmTableObject> table, uint32_t start,
+                           DirectHandle<Object> entry, uint32_t count) {
   // Bounds checks must be done by the caller.
   DCHECK_LE(start, table->current_length());
   DCHECK_LE(count, table->current_length());
@@ -1570,7 +1570,7 @@ std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
   bool table_is_shared = module->tables[table_index].shared;
   bool segment_is_shared = module->elem_segments[segment_index].shared;
 
-  Handle<WasmTableObject> table_object(
+  DirectHandle<WasmTableObject> table_object(
       Cast<WasmTableObject>((table_is_shared ? shared_trusted_instance_data
                                              : trusted_instance_data)
                                 ->tables()
@@ -2591,7 +2591,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig);
   Factory* factory = isolate->factory();
 
-  Handle<Map> rtt;
+  DirectHandle<Map> rtt;
   Handle<NativeContext> context(isolate->native_context());
 
   uint32_t canonical_type_index =
@@ -2607,7 +2607,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 
   if (maybe_canonical_map.IsStrongOrWeak() &&
       IsMap(maybe_canonical_map.GetHeapObject())) {
-    rtt = handle(Cast<Map>(maybe_canonical_map.GetHeapObject()), isolate);
+    rtt =
+        direct_handle(Cast<Map>(maybe_canonical_map.GetHeapObject()), isolate);
   } else {
     rtt = CreateFuncRefMap(isolate, Handle<Map>());
     canonical_rtts->Set(canonical_type_index, MakeWeak(*rtt));

@@ -213,7 +213,7 @@ class ClearWeakScriptHandleTask : public CancelableTask {
 
 class WeakScriptHandle {
  public:
-  WeakScriptHandle(Handle<Script> script, Isolate* isolate)
+  WeakScriptHandle(DirectHandle<Script> script, Isolate* isolate)
       : script_id_(script->id()), isolate_(isolate) {
     DCHECK(IsString(script->name()) || IsUndefined(script->name()));
     if (IsString(script->name())) {
@@ -594,7 +594,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
-    Handle<Script> script,
+    DirectHandle<Script> script,
     base::Vector<const uint8_t> asm_js_offset_table_bytes,
     DirectHandle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -711,7 +711,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
 #endif
 
   constexpr base::Vector<const char> kNoSourceUrl;
-  Handle<Script> script =
+  DirectHandle<Script> script =
       GetOrCreateScript(isolate, native_module, kNoSourceUrl);
 
   native_module->LogWasmCodes(isolate, *script);
@@ -995,7 +995,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
                     .ToHandleChecked();
     }
   }
-  Handle<PrimitiveHeapObject> source_map_url =
+  DirectHandle<PrimitiveHeapObject> source_map_url =
       isolate->factory()->undefined_value();
   const WasmDebugSymbols& debug_symbols = module->debug_symbols;
   if (debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
@@ -1058,7 +1058,7 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     base::Vector<const char> source_url) {
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  Handle<Script> script =
+  DirectHandle<Script> script =
       GetOrCreateScript(isolate, shared_native_module, source_url);
   native_module->LogWasmCodes(isolate, *script);
   Handle<WasmModuleObject> module_object =
