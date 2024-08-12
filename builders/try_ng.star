@@ -53,27 +53,8 @@ def trybot_pair(
     )
 
     # Generate compilator trybot.
-    # TODO(b/358995679): Replace with `defaults_try` again, after bots are back
-    # online.
-    pool = kwargs.pop("pool", "luci.v8.try")
-    default_dimensions = {
-        "pool": pool,
-    }
-    if pool != "luci.flex.try":
-        default_dimensions["host_class"] = "default"
-
-    defaults = {
-        "executable": "recipe:v8",
-        "swarming_tags": ["vpython:native-python-wrapper"],
-        "dimensions": default_dimensions,
-        "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
-        "execution_timeout": 1800,
-        "properties": {"builder_group": "tryserver.v8"},
-        "resultdb_bq_table_prefix": "try",
-    }
-
     v8_builder(
-        defaults,
+        bucket_defaults["try"],
         name = compilator_name,
         bucket = "try",
         execution_timeout = build_timeout,
@@ -594,7 +575,6 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_mac_arm64_gc_stress_dbg",
-    pool = "luci.flex.try",
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
@@ -603,9 +583,9 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_mac_arm64_rel",
-    pool = "luci.flex.try",
     total_timeout = 7200,
-    cq_properties = CQ.BLOCK,
+    # TODO(b/358995679): Set to blocking, after bots are available again.
+    cq_properties = CQ.OPTIONAL,
     # TODO(https://crbug.com/v8/13008): Promote to blocking after M110.
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
@@ -614,7 +594,6 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_mac_arm64_dbg",
-    pool = "luci.flex.try",
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
@@ -623,7 +602,6 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_mac_arm64_full_dbg",
-    pool = "luci.flex.try",
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
@@ -632,7 +610,6 @@ trybot_pair(
 
 trybot_pair(
     name = "v8_mac_arm64_no_pointer_compression_dbg",
-    pool = "luci.flex.try",
     total_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac", "cpu": "arm64"},
