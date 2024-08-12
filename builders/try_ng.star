@@ -55,10 +55,17 @@ def trybot_pair(
     # Generate compilator trybot.
     # TODO(b/358995679): Replace with `defaults_try` again, after bots are back
     # online.
+    pool = kwargs.pop("pool", "luci.v8.try")
+    default_dimensions = {
+        "pool": pool,
+    }
+    if pool != "luci.flex.try":
+        default_dimensions["host_class"] = "default"
+
     defaults = {
         "executable": "recipe:v8",
         "swarming_tags": ["vpython:native-python-wrapper"],
-        "dimensions": {"host_class": "default", "pool": kwargs.pop("pool", "luci.v8.try")},
+        "dimensions": default_dimensions,
         "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
         "execution_timeout": 1800,
         "properties": {"builder_group": "tryserver.v8"},
