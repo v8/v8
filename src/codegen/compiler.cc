@@ -2324,6 +2324,10 @@ void BackgroundMergeTask::BeginMergeInBackground(
           }
           forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
         }
+        // TODO(355575275): We shouldn't be using the new sfi, so its script
+        // field shouldn't matter -- but there seems to be some cases where we
+        // do, so stay robust and set it. Remove this once this bug is fixed.
+        new_sfi->set_script(*old_script, kReleaseStore);
       } else {
         // The old script didn't have a SharedFunctionInfo for this function
         // literal, so it can use the new SharedFunctionInfo.
@@ -2458,7 +2462,7 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
 
         // Check that the SFI has the right script.
         if (sfi->script() != *old_script) {
-          isolate->PushStackTraceAndDie(
+          isolate->PushStackTraceAndContinue(
               reinterpret_cast<void*>(sfi.ptr()),
               reinterpret_cast<void*>(old_script->ptr()),
               reinterpret_cast<void*>(new_script->ptr()),
@@ -2478,37 +2482,33 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
             if (Is<SharedFunctionInfo>(entry)) {
               Tagged<SharedFunctionInfo> inner_sfi =
                   Cast<SharedFunctionInfo>(entry);
-              if (MakeWeak(inner_sfi) !=
-                  old_script->infos()->get(inner_sfi->function_literal_id())) {
-                isolate->PushStackTraceAndDie(
-                    reinterpret_cast<void*>(sfi.ptr()),
-                    reinterpret_cast<void*>(inner_sfi.ptr()),
-                    reinterpret_cast<void*>(constant_pool.ptr() +
-                                            FixedArray::OffsetOfElementAt(i)),
-                    reinterpret_cast<void*>(
-                        old_script->infos()
-                            ->get(inner_sfi->function_literal_id())
-                            .ptr()),
-                    reinterpret_cast<void*>(
-                        new_script->infos()
-                            ->get(inner_sfi->function_literal_id())
-                            .ptr()));
-              }
-
-              if (inner_sfi->script() != *old_script) {
-                isolate->PushStackTraceAndDie(
+              int id = inner_sfi->function_literal_id();
+              if (MakeWeak(inner_sfi) != old_script->infos()->get(id)) {
+                isolate->PushStackTraceAndContinue(
                     reinterpret_cast<void*>(sfi.ptr()),
                     reinterpret_cast<void*>(inner_sfi.ptr()),
                     reinterpret_cast<void*>(old_script->ptr()),
                     reinterpret_cast<void*>(new_script->ptr()),
                     reinterpret_cast<void*>(
-                        old_script->infos()
-                            ->get(inner_sfi->function_literal_id())
-                            .ptr()),
+                        old_script->infos()->ptr() +
+                        WeakFixedArray::OffsetOfElementAt(id)),
                     reinterpret_cast<void*>(
-                        new_script->infos()
-                            ->get(inner_sfi->function_literal_id())
-                            .ptr()));
+                        new_script->infos()->ptr() +
+                        WeakFixedArray::OffsetOfElementAt(id)));
+              }
+
+              if (inner_sfi->script() != *old_script) {
+                isolate->PushStackTraceAndContinue(
+                    reinterpret_cast<void*>(sfi.ptr()),
+                    reinterpret_cast<void*>(inner_sfi.ptr()),
+                    reinterpret_cast<void*>(old_script->ptr()),
+                    reinterpret_cast<void*>(new_script->ptr()),
+                    reinterpret_cast<void*>(
+                        old_script->infos()->ptr() +
+                        WeakFixedArray::OffsetOfElementAt(id)),
+                    reinterpret_cast<void*>(
+                        new_script->infos()->ptr() +
+                        WeakFixedArray::OffsetOfElementAt(id)));
               }
             }
           }
@@ -2591,6 +2591,16 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     Handle<SharedFunctionInfo> result =
         merge.CompleteMergeInForeground(isolate, script);
     maybe_result = result;
+
+    {
+      // TODO(355575275): We shouldn't be using the new script, so its source
+      // and origin options shouldn't matter -- but there seems to be some cases
+      // where we do, so stay robust and set them. Remove this once this bug is
+      // fixed.
+      Script::SetSource(isolate, script, source);
+      script->set_origin_options(origin_options);
+    }
+
     script = handle(Cast<Script>(result->script()), isolate);
     DCHECK(Object::StrictEquals(script->source(), *source));
     DCHECK(isolate->factory()->script_list()->Contains(MakeWeak(*script)));
