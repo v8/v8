@@ -280,10 +280,7 @@ bool SharedFunctionInfo::HasDebugInfo(Isolate* isolate) const {
 int SharedFunctionInfo::UniqueIdInScript() const {
   // Script scopes start "before" the script to avoid clashing with a scope that
   // starts on character 0.
-  if (function_literal_id() == kFunctionLiteralIdTopLevel) return -2;
-  // Wrapped functions start before the function body, but after the script
-  // start, to avoid clashing with a scope starting on character 0.
-  if (syntax_kind() == FunctionSyntaxKind::kWrapped) return -1;
+  if (function_literal_id() == kFunctionLiteralIdTopLevel) return -1;
   // Default constructors have the same start position as their parent class
   // scope. Use the next char position to distinguish this scope.
   return StartPosition() + IsDefaultConstructor(kind());

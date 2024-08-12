@@ -2791,9 +2791,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // This Scope lives in the main zone. We'll migrate data into that zone later.
   DeclarationScope* scope = NewFunctionScope(kind, parse_zone);
   SetLanguageMode(scope, language_mode);
-  if (is_wrapped) {
-    scope->set_is_wrapped_function();
-  }
 #ifdef DEBUG
   scope->SetScopeName(function_name);
 #endif

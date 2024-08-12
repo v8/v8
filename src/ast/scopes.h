@@ -392,15 +392,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return has_await_using_declaration_;
   }
 
-  bool is_wrapped_function() const {
-    DCHECK_IMPLIES(is_wrapped_function_, is_function_scope());
-    return is_wrapped_function_;
-  }
-  void set_is_wrapped_function() {
-    DCHECK(is_function_scope());
-    is_wrapped_function_ = true;
-  }
-
 #if V8_ENABLE_WEBASSEMBLY
   bool IsAsmModule() const;
   // Returns true if this scope or any inner scopes that might be eagerly
@@ -865,10 +856,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // If declarations include any `using` or `await using` declarations.
   bool has_using_declaration_ : 1;
   bool has_await_using_declaration_ : 1;
-
-  // If the scope was generated for wrapped function syntax, which will affect
-  // its UniqueIdInScript.
-  bool is_wrapped_function_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
