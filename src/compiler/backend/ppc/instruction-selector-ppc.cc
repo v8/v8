@@ -3918,7 +3918,11 @@ SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
   V(F16x8Min)          \
   V(F16x8Max)          \
   V(F16x8Pmin)         \
-  V(F16x8Pmax)
+  V(F16x8Pmax)         \
+  V(F16x8Eq)           \
+  V(F16x8Ne)           \
+  V(F16x8Lt)           \
+  V(F16x8Le)
 
 #define VISIT_F16_OP(name)                                       \
   template <typename Adapter>                                    \
