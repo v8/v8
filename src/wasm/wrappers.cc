@@ -43,8 +43,7 @@ using compiler::turboshaft::Word32;
 using compiler::turboshaft::WordPtr;
 
 namespace {
-const TSCallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone,
-                                                 StubCallMode stub_mode) {
+const TSCallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone) {
   CallInterfaceDescriptor interface_descriptor =
       Builtins::CallInterfaceDescriptorFor(name);
   CallDescriptor* call_desc = compiler::Linkage::GetStubCallDescriptor(
@@ -53,7 +52,7 @@ const TSCallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone,
       interface_descriptor.GetStackParameterCount(),  // stack parameter count
       CallDescriptor::kNoFlags,                       // flags
       compiler::Operator::kNoProperties,              // properties
-      stub_mode);                                     // stub call mode
+      StubCallMode::kCallBuiltinPointer);             // stub call mode
   return TSCallDescriptor::Create(call_desc, compiler::CanThrow::kNo,
                                   compiler::LazyDeoptOnThrow::kNo, zone);
 }
@@ -65,10 +64,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                             const WasmModule* module,
                             const wasm::FunctionSig* sig,
                             StubCallMode stub_mode)
-      : WasmGraphBuilderBase(zone, assembler),
-        module_(module),
-        sig_(sig),
-        stub_mode_(stub_mode) {}
+      : WasmGraphBuilderBase(zone, assembler), module_(module), sig_(sig) {}
 
   void AbortIfNot(V<Word32> condition, AbortReason abort_reason) {
     if (!v8_flags.debug_code) return;
@@ -128,7 +124,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   V<WordPtr> GetTargetForBuiltinCall(Builtin builtin) {
-    return WasmGraphBuilderBase::GetTargetForBuiltinCall(builtin, stub_mode_);
+    return WasmGraphBuilderBase::GetTargetForBuiltinCall(
+        builtin, StubCallMode::kCallBuiltinPointer);
   }
 
   template <typename Descriptor, typename... Args>
@@ -138,7 +135,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         __ graph_zone(), Descriptor(), 0,
         frame_state.valid() ? CallDescriptor::kNeedsFrameState
                             : CallDescriptor::kNoFlags,
-        Operator::kNoProperties, stub_mode_);
+        Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kNo,
         compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
@@ -152,7 +149,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                       Args... args) {
     auto call_descriptor = compiler::Linkage::GetStubCallDescriptor(
         __ graph_zone(), Descriptor(), 0, CallDescriptor::kNoFlags,
-        Operator::kNoProperties, stub_mode_);
+        Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
         call_descriptor, compiler::CanThrow::kNo,
         compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
@@ -200,7 +197,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case wasm::kI32:
         return BuildChangeInt32ToNumber(ret);
       case wasm::kI64:
-        return BuildChangeInt64ToBigInt(ret, stub_mode_);
+        return BuildChangeInt64ToBigInt(ret, StubCallMode::kCallBuiltinPointer);
       case wasm::kF32:
         return BuildChangeFloat32ToNumber(ret);
       case wasm::kF64:
@@ -902,7 +899,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
   CallDescriptor* GetBigIntToI64CallDescriptor(bool needs_frame_state) {
     return wasm::GetWasmEngine()->call_descriptors()->GetBigIntToI64Descriptor(
-        stub_mode_, needs_frame_state);
+        needs_frame_state);
   }
 
   OpIndex BuildChangeBigIntToInt64(
@@ -1243,8 +1240,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         OpIndex promise_then =
             GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
         auto* then_call_desc = GetBuiltinCallDescriptor(
-            Builtin::kPerformPromiseThen, __ graph_zone(),
-            StubCallMode::kCallBuiltinPointer);
+            Builtin::kPerformPromiseThen, __ graph_zone());
         base::SmallVector<OpIndex, 16> args{value, on_fulfilled, on_rejected,
                                             LOAD_ROOT(UndefinedValue),
                                             native_context};
@@ -1252,8 +1248,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                 then_call_desc);
 
         OpIndex suspend = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
-        auto* suspend_call_descriptor = GetBuiltinCallDescriptor(
-            Builtin::kWasmSuspend, __ graph_zone(), stub_mode_);
+        auto* suspend_call_descriptor =
+            GetBuiltinCallDescriptor(Builtin::kWasmSuspend, __ graph_zone());
         BuildSwitchBackFromCentralStack(*old_sp);
         OpIndex resolved =
             __ Call(suspend, {suspender}, suspend_call_descriptor);
@@ -1323,7 +1319,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
  private:
   const WasmModule* module_;
   const wasm::FunctionSig* const sig_;
-  StubCallMode stub_mode_;
 };
 
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,

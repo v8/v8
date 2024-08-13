@@ -7032,22 +7032,20 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                           const wasm::WasmModule* module,
                           ParameterMode parameter_mode, Isolate* isolate,
                           compiler::SourcePositionTable* spt,
-                          StubCallMode stub_mode,
                           wasm::WasmEnabledFeatures features)
       : WasmGraphBuilder(nullptr, zone, mcgraph, sig, spt, parameter_mode,
                          isolate, features),
-        module_(module),
-        stub_mode_(stub_mode) {}
+        module_(module) {}
 
   CallDescriptor* GetBigIntToI64CallDescriptor(bool needs_frame_state) {
     return wasm::GetWasmEngine()->call_descriptors()->GetBigIntToI64Descriptor(
-        stub_mode_, needs_frame_state);
+        needs_frame_state);
   }
 
   Node* GetTargetForBuiltinCall(Builtin builtin) {
-    return (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-               ? mcgraph()->RelocatableWasmBuiltinCallTarget(builtin)
-               : gasm_->GetBuiltinPointerTarget(builtin);
+    // Per-process shared wrappers don't have access to a jump table, so they
+    // can't use kCallWasmRuntimeStub mode.
+    return gasm_->GetBuiltinPointerTarget(builtin);
   }
 
   Node* BuildChangeInt32ToNumber(Node* value) {
@@ -7078,7 +7076,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (!int32_to_heapnumber_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), WasmInt32ToHeapNumberDescriptor(), 0,
-          CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
+          CallDescriptor::kNoFlags, Operator::kNoProperties,
+          StubCallMode::kCallBuiltinPointer);
       int32_to_heapnumber_operator_.set(common->Call(call_descriptor));
     }
     Node* call =
@@ -7110,7 +7109,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           mcgraph()->zone(), WasmTaggedNonSmiToInt32Descriptor(), 0,
           frame_state ? CallDescriptor::kNeedsFrameState
                       : CallDescriptor::kNoFlags,
-          Operator::kNoProperties, stub_mode_);
+          Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
       tagged_non_smi_to_int32_operator_.set(common->Call(call_descriptor));
     }
     Node* call = frame_state
@@ -7132,7 +7131,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (!float32_to_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), WasmFloat32ToNumberDescriptor(), 0,
-          CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
+          CallDescriptor::kNoFlags, Operator::kNoProperties,
+          StubCallMode::kCallBuiltinPointer);
       float32_to_number_operator_.set(common->Call(call_descriptor));
     }
     return gasm_->Call(float32_to_number_operator_.get(), target, value);
@@ -7144,7 +7144,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (!float64_to_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), WasmFloat64ToTaggedDescriptor(), 0,
-          CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
+          CallDescriptor::kNoFlags, Operator::kNoProperties,
+          StubCallMode::kCallBuiltinPointer);
       float64_to_number_operator_.set(common->Call(call_descriptor));
     }
     return gasm_->Call(float64_to_number_operator_.get(), target, value);
@@ -7160,7 +7161,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           mcgraph()->zone(), WasmTaggedToFloat64Descriptor(), 0,
           frame_state ? CallDescriptor::kNeedsFrameState
                       : CallDescriptor::kNoFlags,
-          Operator::kNoProperties, stub_mode_);
+          Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
       tagged_to_float64_operator_.set(common->Call(call_descriptor));
     }
     Node* call = needs_frame_state
@@ -7189,7 +7190,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kI32:
         return BuildChangeInt32ToNumber(node);
       case wasm::kI64:
-        return BuildChangeInt64ToBigInt(node, stub_mode_);
+        return BuildChangeInt64ToBigInt(node,
+                                        StubCallMode::kCallBuiltinPointer);
       case wasm::kF32:
         return BuildChangeFloat32ToNumber(node);
       case wasm::kF64:
@@ -7854,8 +7856,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->GotoIfNot(gasm_->TaggedEqual(suspender, active_suspender),
                      &bad_suspender, BranchHint::kFalse);
 
-    auto* call_descriptor =
-        GetBuiltinCallDescriptor(Builtin::kWasmSuspend, zone_, stub_mode_);
+    auto* call_descriptor = GetBuiltinCallDescriptor(
+        Builtin::kWasmSuspend, zone_, StubCallMode::kCallBuiltinPointer);
     Node* call_target = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
     // If {old_sp} is null, it must be that we were on the central stack before
     // entering the wasm-to-js wrapper, which means that there are JS frames in
@@ -8215,9 +8217,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(), interface_descriptor,
         interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
-        Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
-    Node* call_target = mcgraph()->RelocatableWasmBuiltinCallTarget(
-        Builtin::kWasmRethrowExplicitContext);
+        Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
+    Node* call_target =
+        GetTargetForBuiltinCall(Builtin::kWasmRethrowExplicitContext);
     Node* context = gasm_->Load(
         MachineType::TaggedPointer(), Param(0),
         wasm::ObjectAccess::ToTagged(WasmImportData::kNativeContextOffset));
@@ -8472,7 +8474,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
  private:
   const wasm::WasmModule* module_;
-  StubCallMode stub_mode_;
   SetOncePointer<const Operator> int32_to_heapnumber_operator_;
   SetOncePointer<const Operator> tagged_non_smi_to_int32_operator_;
   SetOncePointer<const Operator> float32_to_number_operator_;
@@ -8489,9 +8490,9 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                  compiler::SourcePositionTable* spt,
                                  wasm::WasmEnabledFeatures features,
                                  Node* frame_state, bool set_in_wasm_flag) {
-  WasmWrapperGraphBuilder builder(
-      zone, mcgraph, signature, module, WasmGraphBuilder::kJSFunctionAbiMode,
-      isolate, spt, StubCallMode::kCallBuiltinPointer, features);
+  WasmWrapperGraphBuilder builder(zone, mcgraph, signature, module,
+                                  WasmGraphBuilder::kJSFunctionAbiMode, isolate,
+                                  spt, features);
   builder.BuildJSToWasmWrapper(false, frame_state, set_in_wasm_flag);
 }
 
@@ -8525,9 +8526,9 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
         InstructionSelector::AlignmentRequirements());
     MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-    WasmWrapperGraphBuilder builder(
-        zone.get(), mcgraph, sig, module, WasmGraphBuilder::kJSFunctionAbiMode,
-        isolate, nullptr, StubCallMode::kCallBuiltinPointer, enabled_features);
+    WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module,
+                                    WasmGraphBuilder::kJSFunctionAbiMode,
+                                    isolate, nullptr, enabled_features);
     builder.BuildJSToWasmWrapper();
 
     //----------------------------------------------------------------------------
@@ -8679,7 +8680,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         env->module, sig,
         wasm::WrapperCompilationInfo{CodeKind::WASM_TO_JS_FUNCTION,
-                                     StubCallMode::kCallWasmRuntimeStub, kind,
+                                     StubCallMode::kCallBuiltinPointer, kind,
                                      expected_arity, suspend},
         func_name, WasmStubAssemblerOptions(), nullptr);
   };
@@ -8702,8 +8703,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
 
     WasmWrapperGraphBuilder builder(
         &zone, mcgraph, sig, env->module, WasmGraphBuilder::kWasmImportDataMode,
-        nullptr, source_position_table, StubCallMode::kCallWasmRuntimeStub,
-        env->enabled_features);
+        nullptr, source_position_table, env->enabled_features);
     builder.BuildWasmToJSWrapper(kind, expected_arity, suspend, env->module);
 
     // Schedule and compile to machine code.
@@ -8740,7 +8740,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
     return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         native_module->module(), sig,
         wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION,
-                                     StubCallMode::kCallWasmRuntimeStub},
+                                     StubCallMode::kCallBuiltinPointer},
         debug_name, WasmStubAssemblerOptions(), nullptr);
   };
 
@@ -8754,7 +8754,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
     WasmWrapperGraphBuilder builder(
         &zone, mcgraph, sig, native_module->module(),
         WasmGraphBuilder::kWasmImportDataMode, nullptr, source_positions,
-        StubCallMode::kCallWasmRuntimeStub, native_module->enabled_features());
+        native_module->enabled_features());
 
     builder.BuildCapiCallWrapper();
 
@@ -8801,10 +8801,10 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule* native_module,
   SourcePositionTable* source_positions = nullptr;
   MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
 
-  WasmWrapperGraphBuilder builder(
-      &zone, mcgraph, sig, native_module->module(),
-      WasmGraphBuilder::kWasmImportDataMode, nullptr, source_positions,
-      StubCallMode::kCallWasmRuntimeStub, native_module->enabled_features());
+  WasmWrapperGraphBuilder builder(&zone, mcgraph, sig, native_module->module(),
+                                  WasmGraphBuilder::kWasmImportDataMode,
+                                  nullptr, source_positions,
+                                  native_module->enabled_features());
 
   // Set up the graph start.
   int param_count = static_cast<int>(sig->parameter_count()) +
@@ -8886,8 +8886,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
 
     WasmWrapperGraphBuilder builder(
         zone.get(), mcgraph, sig, module, WasmGraphBuilder::kWasmImportDataMode,
-        nullptr, nullptr, StubCallMode::kCallBuiltinPointer,
-        wasm::WasmEnabledFeatures::FromIsolate(isolate));
+        nullptr, nullptr, wasm::WasmEnabledFeatures::FromIsolate(isolate));
     builder.BuildWasmToJSWrapper(kind, expected_arity, suspend, nullptr);
 
     // Generate the call descriptor.
@@ -8933,7 +8932,6 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
   WasmWrapperGraphBuilder builder(
       zone.get(), mcgraph, sig, module,
       WasmGraphBuilder::kNoSpecialParameterMode, nullptr, nullptr,
-      StubCallMode::kCallBuiltinPointer,
       wasm::WasmEnabledFeatures::FromIsolate(isolate));
   builder.BuildCWasmEntry();
 
