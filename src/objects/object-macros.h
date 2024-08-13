@@ -745,6 +745,16 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
+#define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)
+#else
+#define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)                \
+  do {                                                                  \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                 \
+    JSDispatchHandleWriteBarrier(object, handle, UPDATE_WRITE_BARRIER); \
+  } while (false)
+#endif
+
+#ifdef V8_DISABLE_WRITE_BARRIERS
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)
 #elif V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode) \
