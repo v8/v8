@@ -4,9 +4,10 @@
 //
 // Flags: --allow-natives-syntax --maglev
 
+const a = [1];
+a[3296295157] = 2;
+
 function foo() {
-  const a = [1];
-  a[3296295157] = 2;
   let [x] = a;
   return x;
 }
