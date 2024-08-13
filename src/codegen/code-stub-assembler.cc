@@ -15303,47 +15303,19 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
 
               BIND(&if_lhsisoddball);
               {
-                Label if_lhsisboolean(this), if_lhsisnotboolean(this);
-                Branch(IsBooleanMap(lhs_map), &if_lhsisboolean,
-                       &if_lhsisnotboolean);
-
-                BIND(&if_lhsisboolean);
-                {
-                  OverwriteFeedback(var_type_feedback,
-                                    CompareOperationFeedback::kNumberOrOddball);
-                  GotoIf(IsBooleanMap(rhs_map), &if_notequal);
-                  Goto(&if_not_equivalent_types);
-                }
-
-                BIND(&if_lhsisnotboolean);
-                {
-                  Label if_rhsisheapnumber(this), if_rhsisnotheapnumber(this);
-
                   static_assert(LAST_PRIMITIVE_HEAP_OBJECT_TYPE ==
                                 ODDBALL_TYPE);
                   GotoIf(Int32LessThan(rhs_instance_type,
                                        Int32Constant(ODDBALL_TYPE)),
                          &if_not_equivalent_types);
 
-                  Branch(IsHeapNumberMap(rhs_map), &if_rhsisheapnumber,
-                         &if_rhsisnotheapnumber);
-
-                  BIND(&if_rhsisheapnumber);
-                  {
-                    OverwriteFeedback(
-                        var_type_feedback,
-                        CompareOperationFeedback::kNumberOrOddball);
-                    Goto(&if_not_equivalent_types);
-                  }
-
-                  BIND(&if_rhsisnotheapnumber);
-                  {
-                    OverwriteFeedback(
-                        var_type_feedback,
-                        CompareOperationFeedback::kReceiverOrNullOrUndefined);
-                    Goto(&if_notequal);
-                  }
-                }
+                  // TODO(marja): This is wrong, since null == true will be
+                  // detected as ReceiverOrNullOrUndefined, but true is not
+                  // receiver or null or undefined.
+                  OverwriteFeedback(
+                      var_type_feedback,
+                      CompareOperationFeedback::kReceiverOrNullOrUndefined);
+                  Goto(&if_notequal);
               }
 
               BIND(&if_lhsissymbol);
@@ -15383,30 +15355,16 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
         TNode<Map> rhs_map = LoadMap(CAST(rhs));
 
         // The {rhs} could be a HeapNumber with the same value as {lhs}.
-        Label if_rhsisnumber(this), if_rhsisnotnumber(this);
-        Branch(IsHeapNumberMap(rhs_map), &if_rhsisnumber, &if_rhsisnotnumber);
+        GotoIfNot(IsHeapNumberMap(rhs_map), &if_not_equivalent_types);
 
-        BIND(&if_rhsisnumber);
-        {
-          // Convert {lhs} and {rhs} to floating point values.
-          TNode<Float64T> lhs_value = SmiToFloat64(CAST(lhs));
-          TNode<Float64T> rhs_value = LoadHeapNumberValue(CAST(rhs));
+        // Convert {lhs} and {rhs} to floating point values.
+        TNode<Float64T> lhs_value = SmiToFloat64(CAST(lhs));
+        TNode<Float64T> rhs_value = LoadHeapNumberValue(CAST(rhs));
 
-          CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
+        CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
 
-          // Perform a floating point comparison of {lhs} and {rhs}.
-          Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
-        }
-
-        BIND(&if_rhsisnotnumber);
-        {
-          TNode<Uint16T> rhs_instance_type = LoadMapInstanceType(rhs_map);
-          GotoIfNot(IsOddballInstanceType(rhs_instance_type),
-                    &if_not_equivalent_types);
-          OverwriteFeedback(var_type_feedback,
-                            CompareOperationFeedback::kNumberOrOddball);
-          Goto(&if_notequal);
-        }
+        // Perform a floating point comparison of {lhs} and {rhs}.
+        Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
       }
     }
   }
