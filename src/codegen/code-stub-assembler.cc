@@ -13635,7 +13635,7 @@ TNode<Object> CodeStubAssembler::LoadNestedAllocationSite(
 }
 
 template <typename TIndex>
-TNode<TIndex> CodeStubAssembler::BuildFastLoop(
+void CodeStubAssembler::BuildFastLoop(
     const VariableList& vars, TVariable<TIndex>& var_index,
     TNode<TIndex> start_index, TNode<TIndex> end_index,
     const FastLoopBody<TIndex>& body, int increment,
@@ -13646,6 +13646,7 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(
       !std::is_same<TIndex, Smi>::value,
       "Smi indices are currently not supported because it's not clear whether "
       "the use case allows unsigned comparisons or not");
+  DCHECK_NE(increment, 0);
   var_index = start_index;
   VariableList vars_copy(vars.begin(), vars.end(), zone());
   vars_copy.push_back(&var_index);
@@ -13673,7 +13674,7 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(
     TNode<BoolT> first_check = UintPtrOrSmiEqual(var_index.value(), end_index);
     int32_t first_check_val;
     if (TryToInt32Constant(first_check, &first_check_val)) {
-      if (first_check_val) return var_index.value();
+      if (first_check_val) return;
       Goto(&loop);
     } else {
       Branch(first_check, &done, &loop);
@@ -13693,9 +13694,22 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(
     // Check if there are at least two elements between start_index and
     // end_index.
     DCHECK_EQ(unrolling_mode, LoopUnrollingMode::kYes);
-    CSA_DCHECK(this, increment > 0
-                         ? UintPtrOrSmiLessThanOrEqual(start_index, end_index)
-                         : UintPtrOrSmiLessThanOrEqual(end_index, start_index));
+    if (increment > 0) {
+      CSA_DCHECK(this, UintPtrOrSmiLessThanOrEqual(start_index, end_index));
+      GotoIfNot(UintPtrOrSmiLessThanOrEqual(
+                    IntPtrOrSmiAdd(start_index,
+                                   IntPtrOrSmiConstant<TIndex>(increment)),
+                    end_index),
+                &done);
+    } else {
+      CSA_DCHECK(this, UintPtrOrSmiLessThanOrEqual(end_index, start_index));
+      GotoIfNot(
+          UintPtrOrSmiLessThanOrEqual(
+              IntPtrOrSmiSub(end_index, IntPtrOrSmiConstant<TIndex>(increment)),
+              start_index),
+          &done);
+    }
+
     TNode<TIndex> last_index =
         IntPtrOrSmiSub(end_index, IntPtrOrSmiConstant<TIndex>(increment));
     TNode<BoolT> first_check =
@@ -13732,25 +13746,24 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(
     }
     BIND(&done);
   }
-  return var_index.value();
 }
 
 // Instantiate BuildFastLoop for IntPtrT, UintPtrT and RawPtrT.
-template V8_EXPORT_PRIVATE TNode<IntPtrT> CodeStubAssembler::BuildFastLoop<
-    IntPtrT>(const VariableList& vars, TVariable<IntPtrT>& var_index,
-             TNode<IntPtrT> start_index, TNode<IntPtrT> end_index,
-             const FastLoopBody<IntPtrT>& body, int increment,
-             LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
-template V8_EXPORT_PRIVATE TNode<UintPtrT> CodeStubAssembler::BuildFastLoop<
-    UintPtrT>(const VariableList& vars, TVariable<UintPtrT>& var_index,
-              TNode<UintPtrT> start_index, TNode<UintPtrT> end_index,
-              const FastLoopBody<UintPtrT>& body, int increment,
-              LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
-template V8_EXPORT_PRIVATE TNode<RawPtrT> CodeStubAssembler::BuildFastLoop<
-    RawPtrT>(const VariableList& vars, TVariable<RawPtrT>& var_index,
-             TNode<RawPtrT> start_index, TNode<RawPtrT> end_index,
-             const FastLoopBody<RawPtrT>& body, int increment,
-             LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::BuildFastLoop<IntPtrT>(
+    const VariableList& vars, TVariable<IntPtrT>& var_index,
+    TNode<IntPtrT> start_index, TNode<IntPtrT> end_index,
+    const FastLoopBody<IntPtrT>& body, int increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::BuildFastLoop<UintPtrT>(
+    const VariableList& vars, TVariable<UintPtrT>& var_index,
+    TNode<UintPtrT> start_index, TNode<UintPtrT> end_index,
+    const FastLoopBody<UintPtrT>& body, int increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::BuildFastLoop<RawPtrT>(
+    const VariableList& vars, TVariable<RawPtrT>& var_index,
+    TNode<RawPtrT> start_index, TNode<RawPtrT> end_index,
+    const FastLoopBody<RawPtrT>& body, int increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode);
 
 template <typename TIndex>
 void CodeStubAssembler::BuildFastArrayForEach(
@@ -18555,11 +18568,12 @@ TNode<ArrayList> CodeStubAssembler::ArrayListEnsureSpace(TNode<ArrayList> array,
       &overflow);
   TNode<ArrayList> new_array = AllocateArrayList(new_capacity);
   TNode<Smi> array_length = ArrayListGetLength(array);
+  result_array = new_array;
+  GotoIf(SmiEqual(array_length, SmiConstant(0)), &done);
   StoreObjectFieldNoWriteBarrier(new_array, ArrayList::Shape::kLengthOffset,
                                  array_length);
   CopyRange(new_array, ArrayList::OffsetOfElementAt(0), array,
             ArrayList::OffsetOfElementAt(0), SmiUntag(array_length));
-  result_array = new_array;
   Goto(&done);
 
   BIND(&overflow);
