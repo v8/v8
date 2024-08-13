@@ -3814,6 +3814,8 @@ bool MaglevGraphBuilder::HaveDifferentTypes(ValueNode* lhs, ValueNode* rhs) {
   return HasDifferentType(lhs, GetType(rhs));
 }
 
+// Note: this is conservative, ie, returns true if {lhs} cannot be {rhs}.
+// It might return false even if {lhs} is not {rhs}.
 bool MaglevGraphBuilder::HasDifferentType(ValueNode* lhs, NodeType rhs_type) {
   NodeType lhs_type = GetType(lhs);
   if (lhs_type == NodeType::kUnknown || rhs_type == NodeType::kUnknown) {
@@ -12740,13 +12742,15 @@ void MaglevGraphBuilder::VisitJumpIfUndefinedOrNull() {
 
 MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfJSReceiver(
     BranchBuilder& builder, ValueNode* value) {
+  if (!value->is_tagged() && value->properties().value_representation() !=
+                                 ValueRepresentation::kHoleyFloat64) {
+    return builder.AlwaysFalse();
+  }
   if (CheckType(value, NodeType::kJSReceiver)) {
     return builder.AlwaysTrue();
   } else if (HasDifferentType(value, NodeType::kJSReceiver)) {
     return builder.AlwaysFalse();
   }
-  // Untagged nodes will have been recognized as non-JSReceiver.
-  CHECK(value->properties().is_tagged());
   return builder.Build<BranchIfJSReceiver>({value});
 }
 
