@@ -271,7 +271,7 @@ bucket(name = "ci.br.beta", acls = waterfall_acls)
 bucket(name = "ci.br.stable", acls = waterfall_acls)
 bucket(name = "ci.br.extended", acls = waterfall_acls)
 
-bucket(name = "crossbench.try", acls = tryserver_acls, led_config = led_config([V8_TRY_ACCOUNT]))
+bucket(name = "crossbench.try", acls = tryserver_acls, led_config = led_config([V8_TRY_ACCOUNT], groups = ["project-v8-tryjob-access"] + LED_GROUPS))
 
 exec("//lib/recipes.star")
 
