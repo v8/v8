@@ -483,7 +483,7 @@ void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
     // SealHandleScope may make the prev_limit to point inside the block.
     // Cast possibly-unrelated pointers to plain Addres before comparing them
     // to avoid undefined behavior.
-    if (reinterpret_cast<Address>(block_start) <=
+    if (reinterpret_cast<Address>(block_start) <
             reinterpret_cast<Address>(prev_limit) &&
         reinterpret_cast<Address>(prev_limit) <=
             reinterpret_cast<Address>(block_limit)) {
