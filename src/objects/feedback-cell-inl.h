@@ -64,8 +64,14 @@ void FeedbackCell::clear_dispatch_handle() {
   WriteField<JSDispatchHandle>(kDispatchHandleOffset, kNullJSDispatchHandle);
 }
 
-JSDispatchHandle FeedbackCell::dispatch_handle() {
+JSDispatchHandle FeedbackCell::dispatch_handle() const {
   return ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+}
+
+void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
+  DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
+  WriteField<JSDispatchHandle>(kDispatchHandleOffset, new_handle);
+  JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, new_handle);
 }
 #endif  // V8_ENABLE_LEAPTIERING
 

@@ -2519,6 +2519,9 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   Handle<SharedFunctionInfo> shared =
       factory->NewSharedFunctionInfoForWasmExportedFunction(name,
                                                             function_data);
+  shared->set_length(arity);
+  shared->set_internal_formal_parameter_count(JSParameterCount(arity));
+
   Handle<JSFunction> js_function =
       Factory::JSFunctionBuilder{isolate, shared, context}
           .set_map(function_map)
@@ -2527,8 +2530,6 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   // According to the spec, exported functions should not have a [[Construct]]
   // method. This does not apply to functions exported from asm.js however.
   DCHECK_EQ(is_asm_js_module, IsConstructor(*js_function));
-  shared->set_length(arity);
-  shared->set_internal_formal_parameter_count(JSParameterCount(arity));
   if (instance_data->has_instance_object()) {
     shared->set_script(instance_data->module_object()->script(), kReleaseStore);
   } else {
@@ -2688,12 +2689,12 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   }
   Handle<SharedFunctionInfo> shared =
       factory->NewSharedFunctionInfoForWasmJSFunction(name, function_data);
+  shared->set_internal_formal_parameter_count(
+      JSParameterCount(parameter_count));
   Handle<JSFunction> js_function =
       Factory::JSFunctionBuilder{isolate, shared, context}
           .set_map(isolate->wasm_exported_function_map())
           .Build();
-  js_function->shared()->set_internal_formal_parameter_count(
-      JSParameterCount(parameter_count));
   internal_function->set_external(*js_function);
   return Cast<WasmJSFunction>(js_function);
 }

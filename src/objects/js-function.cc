@@ -555,9 +555,14 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     DirectHandle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
 #ifdef V8_ENABLE_LEAPTIERING
-    Tagged<BytecodeArray> bytecode = shared->GetBytecodeArray(isolate);
-    feedback_cell->initialize_dispatch_handle(isolate,
-                                              bytecode->parameter_count());
+    // This is a rare case where we copy the dispatch entry from a JSFunction
+    // to its FeedbackCell instead of the other way around.
+    // TODO(42204201): investigate whether this can be avoided so that we only
+    // ever copy a dispatch handle from a FeedbackCell to a JSFunction. That
+    // would probably require refactoring the way JSFunctions are built so that
+    // we always allocate a FeedbackCell up front (if needed).
+    DCHECK_NE(function->dispatch_handle(), kNullJSDispatchHandle);
+    feedback_cell->set_dispatch_handle(function->dispatch_handle());
 #endif  // V8_ENABLE_LEAPTIERING
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
     function->SetInterruptBudget(isolate);

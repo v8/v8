@@ -4627,7 +4627,26 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   function->set_context(*context_, kReleaseStore, mode);
   function->set_raw_feedback_cell(*feedback_cell, mode);
 #ifdef V8_ENABLE_LEAPTIERING
-  function->set_dispatch_handle(feedback_cell->dispatch_handle());
+  // If the FeedbackCell doesn't have a dispatch handle, we need to allocate a
+  // dispatch entry now. This should only be the case for functions using the
+  // generic many_closures_cell (for example builtin functions), and only for
+  // functions using certain kinds of code.
+  if (!feedback_cell->dispatch_handle()) {
+    DCHECK_EQ(*feedback_cell, *factory->many_closures_cell());
+    // We currently only expect to see these kinds of Code here. For BASELINE
+    // code, we will allocate a FeedbackCell after building the JSFunction. See
+    // JSFunctionBuilder::Build.
+    DCHECK(code->kind() == CodeKind::BUILTIN ||
+           code->kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+           code->kind() == CodeKind::BASELINE);
+    // TODO(saelo): in the future, we probably want to use
+    // code->parameter_count() here instead, but not all Code objects know
+    // their parameter count yet.
+    function->initialize_dispatch_handle(
+        isolate, sfi_->internal_formal_parameter_count_with_receiver());
+  } else {
+    function->set_dispatch_handle(feedback_cell->dispatch_handle());
+  }
 #endif  // V8_ENABLE_LEAPTIERING
   function->set_code(*code, kReleaseStore, mode);
   if (function->has_prototype_slot()) {
