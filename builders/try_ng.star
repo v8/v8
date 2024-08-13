@@ -584,10 +584,8 @@ trybot_pair(
 trybot_pair(
     name = "v8_mac_arm64_rel",
     total_timeout = 7200,
-    # TODO(b/358995679): Set to blocking, after bots are available again.
-    cq_properties = CQ.OPTIONAL,
-    # TODO(https://crbug.com/v8/13008): Promote to blocking after M110.
-    cq_branch_properties = CQ.OPTIONAL,
+    cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Mac", "cpu": "arm64"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
