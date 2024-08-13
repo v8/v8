@@ -1083,7 +1083,8 @@ struct LoopEffects {
 #endif
         context_slot_written(zone),
         objects_written(zone),
-        keys_cleared(zone) {
+        keys_cleared(zone),
+        allocations(zone) {
   }
 #ifdef DEBUG
   int loop_header;
@@ -1091,11 +1092,13 @@ struct LoopEffects {
   ZoneSet<KnownNodeAspects::LoadedContextSlotsKey> context_slot_written;
   ZoneSet<ValueNode*> objects_written;
   ZoneSet<KnownNodeAspects::LoadedPropertyMapKey> keys_cleared;
+  ZoneSet<InlinedAllocation*> allocations;
   bool unstable_aspects_cleared = false;
   void Clear() {
     context_slot_written.clear();
     objects_written.clear();
     keys_cleared.clear();
+    allocations.clear();
     unstable_aspects_cleared = false;
   }
   void Merge(const LoopEffects* other) {
@@ -1107,6 +1110,7 @@ struct LoopEffects {
     objects_written.insert(other->objects_written.begin(),
                            other->objects_written.end());
     keys_cleared.insert(other->keys_cleared.begin(), other->keys_cleared.end());
+    allocations.insert(other->allocations.begin(), other->allocations.end());
   }
 };
 

@@ -4338,8 +4338,14 @@ bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
     if (IsEscaping(graph_, alloc)) return false;
   }
   // We don't support loop phis inside VirtualObjects, so any access inside a
-  // loop should escape the object.
-  if (IsInsideLoop()) return false;
+  // loop should escape the object, except for objects that were created since
+  // the last loop header.
+  if (IsInsideLoop()) {
+    if (!is_loop_effect_tracking() ||
+        !loop_effects_->allocations.contains(alloc)) {
+      return false;
+    }
+  }
   // Iterate all live objects to be sure that the allocation is not escaping.
   SLOW_DCHECK(
       VerifyIsNotEscaping(current_interpreter_frame_.virtual_objects(), alloc));
@@ -9571,11 +9577,16 @@ bool IsSloppyMappedArgumentsObject(compiler::JSHeapBroker* broker,
 
 std::optional<VirtualObject*>
 MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
-  // Although the arguments object has not been changed so far, since it is not
-  // escaping, it could be modified after this bytecode if it is inside a loop.
-  if (IsInsideLoop()) return {};
   if (!value->Is<InlinedAllocation>()) return {};
   InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
+  // Although the arguments object has not been changed so far, since it is not
+  // escaping, it could be modified after this bytecode if it is inside a loop.
+  if (IsInsideLoop()) {
+    if (!is_loop_effect_tracking() ||
+        !loop_effects_->allocations.contains(alloc)) {
+      return {};
+    }
+  }
   // TODO(victorgomes): We can probably loosen the IsNotEscaping requirement if
   // we keep track of the arguments object changes so far.
   if (alloc->IsEscaping()) return {};
@@ -11645,6 +11656,9 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
                 StoreMap::initializing_kind(allocation_type));
   for (uint32_t i = 0; i < vobject->slot_count(); i++) {
     BuildInitializeStore(allocation, values[i], (i + 1) * kTaggedSize);
+  }
+  if (is_loop_effect_tracking()) {
+    loop_effects_->allocations.insert(allocation);
   }
   return allocation;
 }
