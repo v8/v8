@@ -664,6 +664,15 @@ void WasmTableObject::ClearDispatchTables(int index) {
         is_shared ? non_shared_instance_data->shared_part()
                   : non_shared_instance_data;
     target_instance_data->dispatch_table(table_index)->Clear(index);
+#if V8_ENABLE_DRUMBRAKE
+    if (v8_flags.wasm_jitless &&
+        non_shared_instance_data->has_interpreter_object()) {
+      Handle<WasmInstanceObject> instance_handle(*target_instance_object,
+                                                 isolate);
+      wasm::WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
+          isolate, instance_handle, table_index, index);
+    }
+#endif  // V8_ENABLE_DRUMBRAKE
   }
 }
 

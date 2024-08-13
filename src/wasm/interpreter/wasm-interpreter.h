@@ -1219,8 +1219,10 @@ class WasmEHData {
   };
 
   struct TryBlock {
-    explicit TryBlock(BlockIndex parent_try_index)
-        : parent_try_index(parent_try_index),
+    TryBlock(BlockIndex parent_or_matching_try_block,
+             BlockIndex ancestor_try_index)
+        : ancestor_try_index(ancestor_try_index),
+          parent_or_matching_try_block(parent_or_matching_try_block),
           delegate_try_index(-1),
           end_instruction_code_offset(0) {}
 
@@ -1229,7 +1231,15 @@ class WasmEHData {
     }
     bool IsTryDelegate() const { return delegate_try_index >= 0; }
 
-    BlockIndex parent_try_index;
+    // The index of the first TryBlock that is a direct ancestor of this
+    // TryBlock.
+    BlockIndex ancestor_try_index;
+
+    // If this TryBlock is contained in a CatchBlock, this is the matching
+    // TryBlock index of the CatchBlock. Otherwise it matches
+    // ancestor_try_index.
+    BlockIndex parent_or_matching_try_block;
+
     BlockIndex delegate_try_index;
     std::vector<CatchHandler> catch_handlers;
     size_t end_instruction_code_offset;
@@ -1272,7 +1282,8 @@ class WasmEHDataGenerator : public WasmEHData {
   WasmEHDataGenerator() : current_try_block_index_(-1) {}
 
   void AddTryBlock(BlockIndex try_block_index,
-                   BlockIndex parent_try_block_index);
+                   BlockIndex parent_or_matching_try_block_index,
+                   BlockIndex ancestor_try_block_index);
   void AddCatchBlock(BlockIndex catch_block_index, int tag_index,
                      uint32_t first_param_slot_offset,
                      uint32_t first_param_ref_stack_index,
@@ -1604,7 +1615,7 @@ class WasmBytecodeGenerator {
   inline void EmitBranchTableOffset(uint32_t delta, uint32_t code_pos);
   inline uint32_t GetCurrentBranchDepth() const;
   inline int32_t GetTargetBranch(uint32_t delta) const;
-  int GetCurrentTryBlockIndex() const;
+  int GetCurrentTryBlockIndex(bool return_matching_try_for_catch_blocks) const;
   void PatchBranchOffsets();
   void PatchLoopJumpInstructions();
   void RestoreIfElseParams(uint32_t if_block_index);
@@ -1792,7 +1803,17 @@ class WasmBytecodeGenerator {
   void CopyToSlotAndPop(ValueType value_type, uint32_t to, bool is_tee,
                         bool copy_from_reg);
 
-  inline void SetSlotType(uint32_t slot_index, ValueType type);
+  inline void SetSlotType(uint32_t stack_index, ValueType type) {
+    DCHECK_LT(stack_index, stack_.size());
+
+    uint32_t slot_index = stack_[stack_index];
+    slots_[slot_index].value_type = type;
+
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    TraceSetSlotType(stack_index, type);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
+  }
+
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
   void TraceSetSlotType(uint32_t stack_index, ValueType typo);
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
@@ -1800,6 +1821,12 @@ class WasmBytecodeGenerator {
   inline void UpdateStack(uint32_t index, uint32_t slot_index) {
     DCHECK_LT(index, stack_.size());
     stack_[index] = slot_index;
+  }
+  inline void UpdateStack(uint32_t index, uint32_t slot_index,
+                          ValueType value_type) {
+    DCHECK_LT(index, stack_.size());
+    stack_[index] = slot_index;
+    SetSlotType(index, value_type);
   }
 
   inline uint32_t stack_top_index() const {

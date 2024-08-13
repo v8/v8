@@ -560,6 +560,9 @@
   # --experimental-wasm-memory64
   'test-run-wasm-memory64/*': [SKIP],
 
+  # --experimental-wasm-fp16
+  'test-run-wasm-f16/*': [SKIP],
+
  }],  # has_wasm_interpreter
 
 ##############################################################################

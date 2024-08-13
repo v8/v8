@@ -488,8 +488,6 @@ void InitTrapHandlersOnce(Isolate* isolate) {
       embedded_data.InstructionSizeOf(Builtin::k##name), 0, nullptr);
   FOREACH_LOAD_STORE_INSTR_HANDLER(V)
 #undef V
-
-  trap_handler::SetLandingPad(reinterpret_cast<Address>(TrapMemOutOfBounds));
 }
 
 void InitInstructionTableOnce(Isolate* isolate) {
@@ -531,6 +529,8 @@ WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
   base::CallOnce(&init_instruction_table_once, &InitInstructionTableOnce,
                  isolate);
   base::CallOnce(&init_trap_handlers_once, &InitTrapHandlersOnce, isolate);
+
+  trap_handler::SetLandingPad(reinterpret_cast<Address>(TrapMemOutOfBounds));
 #endif  // !V8_DRUMBRAKE_BOUNDS_CHECKS
 }
 
@@ -3225,7 +3225,12 @@ INSTRUCTION_HANDLER_FUNC r2s_PreserveCopyFp0ToSlot64(
 INSTRUCTION_HANDLER_FUNC s2s_RefNull(const uint8_t* code, uint32_t* sp,
                                      WasmInterpreterRuntime* wasm_runtime,
                                      int64_t r0, double fp0) {
-  push<WasmRef>(sp, code, wasm_runtime, wasm_runtime->GetNullRef());
+  const uint32_t ref_bitfield = ReadI32(code);
+  ValueType ref_type = ValueType::FromRawBitField(ref_bitfield);
+
+  push<WasmRef>(
+      sp, code, wasm_runtime,
+      handle(wasm_runtime->GetNullValue(ref_type), wasm_runtime->GetIsolate()));
 
   NextOp();
 }
@@ -5270,53 +5275,55 @@ INSTRUCTION_HANDLER_FUNC s2s_ArrayNewFixed(const uint8_t* code, uint32_t* sp,
     // initialization.
     DisallowHeapAllocation no_gc;
 
-    const ArrayType* array_type = array_new_result.second;
-    const ValueKind kind = array_type->element_type().kind();
-    const uint32_t element_size = value_kind_size(kind);
+    if (elem_count > 0) {
+      const ArrayType* array_type = array_new_result.second;
+      const ValueKind kind = array_type->element_type().kind();
+      const uint32_t element_size = value_kind_size(kind);
 
-    Address element_addr = array->ElementAddress(0);
-    for (uint32_t i = 0; i < elem_count; i++) {
-      switch (kind) {
-        case kI8:
-          *reinterpret_cast<int8_t*>(element_addr) =
-              pop<int32_t>(sp, code, wasm_runtime);
-          break;
-        case kI16:
-          base::WriteUnalignedValue<int16_t>(
-              element_addr, pop<int32_t>(sp, code, wasm_runtime));
-          break;
-        case kI32:
-          base::WriteUnalignedValue<int32_t>(
-              element_addr, pop<int32_t>(sp, code, wasm_runtime));
-          break;
-        case kI64:
-          base::WriteUnalignedValue<int64_t>(
-              element_addr, pop<int64_t>(sp, code, wasm_runtime));
-          break;
-        case kF32:
-          base::WriteUnalignedValue<float>(element_addr,
-                                           pop<float>(sp, code, wasm_runtime));
-          break;
-        case kF64:
-          base::WriteUnalignedValue<double>(
-              element_addr, pop<double>(sp, code, wasm_runtime));
-          break;
-        case kS128:
-          base::WriteUnalignedValue<Simd128>(
-              element_addr, pop<Simd128>(sp, code, wasm_runtime));
-          break;
-        case kRef:
-        case kRefNull: {
-          WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
-          base::WriteUnalignedValue<Tagged_t>(
-              element_addr,
-              V8HeapCompressionScheme::CompressObject((*ref).ptr()));
-          break;
+      Address element_addr = array->ElementAddress(elem_count - 1);
+      for (uint32_t i = 0; i < elem_count; i++) {
+        switch (kind) {
+          case kI8:
+            *reinterpret_cast<int8_t*>(element_addr) =
+                pop<int32_t>(sp, code, wasm_runtime);
+            break;
+          case kI16:
+            base::WriteUnalignedValue<int16_t>(
+                element_addr, pop<int32_t>(sp, code, wasm_runtime));
+            break;
+          case kI32:
+            base::WriteUnalignedValue<int32_t>(
+                element_addr, pop<int32_t>(sp, code, wasm_runtime));
+            break;
+          case kI64:
+            base::WriteUnalignedValue<int64_t>(
+                element_addr, pop<int64_t>(sp, code, wasm_runtime));
+            break;
+          case kF32:
+            base::WriteUnalignedValue<float>(
+                element_addr, pop<float>(sp, code, wasm_runtime));
+            break;
+          case kF64:
+            base::WriteUnalignedValue<double>(
+                element_addr, pop<double>(sp, code, wasm_runtime));
+            break;
+          case kS128:
+            base::WriteUnalignedValue<Simd128>(
+                element_addr, pop<Simd128>(sp, code, wasm_runtime));
+            break;
+          case kRef:
+          case kRefNull: {
+            WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
+            base::WriteUnalignedValue<Tagged_t>(
+                element_addr,
+                V8HeapCompressionScheme::CompressObject((*ref).ptr()));
+            break;
+          }
+          default:
+            UNREACHABLE();
         }
-        default:
-          UNREACHABLE();
+        element_addr -= element_size;
       }
-      element_addr += element_size;
     }
   }
 
@@ -5533,8 +5540,12 @@ INSTRUCTION_HANDLER_FUNC s2s_ArrayCopy(const uint8_t* code, uint32_t* sp,
     TRAP(TrapReason::kTrapArrayOutOfBounds)
   }
 
-  bool ok = wasm_runtime->WasmArrayCopy(dest_array, dest_offset, src_array,
-                                        src_offset, size);
+  bool ok = true;
+  if (size > 0) {
+    ok = wasm_runtime->WasmArrayCopy(dest_array, dest_offset, src_array,
+                                     src_offset, size);
+  }
+
   if (V8_UNLIKELY(!ok)) {
     wasm::TrapReason reason = WasmInterpreterThread::GetRuntimeLastWasmError(
         wasm_runtime->GetIsolate());
@@ -5839,6 +5850,8 @@ INSTRUCTION_HANDLER_FUNC
                         double fp0) {
   pop<WasmRef>(sp, code, wasm_runtime);
   push<int32_t>(sp, code, wasm_runtime, 1);  // true
+
+  NextOp();
 }
 
 INSTRUCTION_HANDLER_FUNC
@@ -5846,6 +5859,8 @@ s2s_RefTestFails(const uint8_t* code, uint32_t* sp,
                  WasmInterpreterRuntime* wasm_runtime, int64_t r0, double fp0) {
   pop<WasmRef>(sp, code, wasm_runtime);
   push<int32_t>(sp, code, wasm_runtime, 0);  // false
+
+  NextOp();
 }
 
 INSTRUCTION_HANDLER_FUNC s2s_RefIsNonNull(const uint8_t* code, uint32_t* sp,
@@ -6163,7 +6178,8 @@ const WasmEHData::TryBlock* WasmEHData::GetTryBlock(
 
 const WasmEHData::TryBlock* WasmEHData::GetParentTryBlock(
     const WasmEHData::TryBlock* try_block) const {
-  const auto& try_it = try_blocks_.find(try_block->parent_try_index);
+  const auto& try_it =
+      try_blocks_.find(try_block->parent_or_matching_try_block);
   return try_it != try_blocks_.end() ? &try_it->second : nullptr;
 }
 
@@ -6204,10 +6220,13 @@ WasmEHData::BlockIndex WasmEHData::GetTryBranchOf(
   return it->second.try_block_index;
 }
 
-void WasmEHDataGenerator::AddTryBlock(BlockIndex try_block_index,
-                                      BlockIndex parent_try_block_index) {
+void WasmEHDataGenerator::AddTryBlock(
+    BlockIndex try_block_index, BlockIndex parent_or_matching_try_block_index,
+    BlockIndex ancestor_try_block_index) {
   DCHECK_EQ(try_blocks_.find(try_block_index), try_blocks_.end());
-  try_blocks_.insert({try_block_index, TryBlock{parent_try_block_index}});
+  try_blocks_.insert(
+      {try_block_index,
+       TryBlock{parent_or_matching_try_block_index, ancestor_try_block_index}});
   current_try_block_index_ = try_block_index;
 }
 
@@ -6248,7 +6267,7 @@ WasmEHData::BlockIndex WasmEHDataGenerator::EndTryCatchBlocks(
   const auto& try_it = try_blocks_.find(try_block_index);
   DCHECK_NE(try_it, try_blocks_.end());
   try_it->second.end_instruction_code_offset = code_offset;
-  current_try_block_index_ = try_it->second.parent_try_index;
+  current_try_block_index_ = try_it->second.parent_or_matching_try_block;
   return try_block_index;
 }
 
@@ -6266,8 +6285,8 @@ void WasmEHDataGenerator::RecordPotentialExceptionThrowingInstruction(
   bool inside_catch_handler = !try_block.catch_handlers.empty();
   if (inside_catch_handler) {
     // If we are throwing from inside a catch block, the exception should only
-    // be caught by ancestor try/catch blocks.
-    try_block_index = try_block.parent_try_index;
+    // be caught by the catch handler of an ancestor try block.
+    try_block_index = try_block.ancestor_try_index;
     if (try_block_index < 0) return;
   }
 
@@ -6389,6 +6408,7 @@ bool WasmBytecodeGenerator::FindSharedSlot(uint32_t stack_index,
                                            uint32_t* new_slot_index) {
   *new_slot_index = UINT_MAX;
   ValueType value_type = slots_[stack_[stack_index]].value_type;
+  if (value_type.is_reference()) return false;
 
   // Only consider stack entries added in the current block.
   // We don't need to consider ancestor blocks because if a block has a
@@ -6530,7 +6550,7 @@ void WasmBytecodeGenerator::CopyToSlot(ValueType value_type,
   const ValueKind kind = value_type.kind();
   uint32_t to_slot_index = stack_[to_stack_index];
   DCHECK(copy_from_reg || CheckEqualKind(kind, slots_[from_slot_index].kind()));
-  DCHECK_EQ(slots_[to_slot_index].kind(), kind);
+  DCHECK(CheckEqualKind(slots_[to_slot_index].kind(), kind));
 
   uint32_t new_slot_index;
   // If the slot is shared {FindSharedSlot} creates a new slot and makes all the
@@ -6706,6 +6726,8 @@ void WasmBytecodeGenerator::StoreBlockParamsIntoSlots(
       EmitCopySlot(GetParamType(target_block_data, i), from_slot_index,
                    to_slot_index);
       if (update_stack) {
+        DCHECK_EQ(GetParamType(target_block_data, i),
+                  slots_[first_param_slot_index + i].value_type);
         UpdateStack(stack_top_index() - (params_count - 1) + i,
                     first_param_slot_index + i);
 
@@ -6763,6 +6785,8 @@ void WasmBytecodeGenerator::StoreBlockParamsAndResultsIntoSlots(
     stack_.resize(new_stack_height);
 
     for (uint32_t i = 0; i < rets_count; i++) {
+      DCHECK_EQ(GetReturnType(target_block_data, i),
+                slots_[target_block_data.first_block_index_ + i].value_type);
       UpdateStack(target_block_data.stack_size_ - params_count + i,
                   target_block_data.first_block_index_ + i);
 
@@ -6787,10 +6811,8 @@ void WasmBytecodeGenerator::RestoreIfElseParams(uint32_t if_block_index) {
   stack_.resize(blocks_[if_block_index].stack_size_);
   uint32_t params_count = if_block_index == 0 ? 0 : ParamsCount(if_block_data);
   for (uint32_t i = 0; i < params_count; i++) {
-    SetSlotType(if_block_data.stack_size_ - params_count + i,
-                GetParamType(if_block_data, i));
     UpdateStack(if_block_data.stack_size_ - params_count + i,
-                if_block_data.GetParam(i));
+                if_block_data.GetParam(i), GetParamType(if_block_data, i));
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_execution) {
       EMIT_INSTR_HANDLER(trace_UpdateStack);
@@ -7780,9 +7802,11 @@ RegMode WasmBytecodeGenerator::EncodeInstruction(const WasmInstruction& instr,
     }
     case kExprTry: {
       PreserveArgsAndLocals();
-      int parent_try_block_index = GetCurrentTryBlockIndex();
+      int parent_or_matching_try_block_index = GetCurrentTryBlockIndex(true);
+      int ancestor_try_block_index = GetCurrentTryBlockIndex(false);
       int try_block_index = BeginBlock(instr.opcode, instr.optional.block);
-      eh_data_.AddTryBlock(try_block_index, parent_try_block_index);
+      eh_data_.AddTryBlock(try_block_index, parent_or_matching_try_block_index,
+                           ancestor_try_block_index);
       break;
     }
     case kExprIf: {
@@ -8011,46 +8035,71 @@ RegMode WasmBytecodeGenerator::EncodeInstruction(const WasmInstruction& instr,
       }
       break;
     }
-    case kExprBrOnNull:
+    case kExprBrOnNull: {
+      DCHECK_EQ(mode, kS2S);
+      int32_t target_branch_index = GetTargetBranch(instr.optional.depth);
+      const WasmBytecodeGenerator::BlockData& target_block_data =
+          blocks_[target_branch_index];
+      if (HasVoidSignature(target_block_data)) {
+        EMIT_INSTR_HANDLER(s2s_BranchOnNull);
+        ValueType value_type = RefPop();  // pop condition
+        EmitI32Const(value_type.raw_bit_field());
+        // Remove nullability.
+        if (value_type.kind() == kRefNull) {
+          value_type = ValueType::Ref(value_type.heap_type());
+        }
+        RefPush(value_type);  // re-push condition value
+        // Emit code offset to branch to if the condition is true.
+        EmitBranchOffset(instr.optional.depth);
+      } else {
+        EMIT_INSTR_HANDLER(s2s_BranchOnNullWithParams);
+        ValueType value_type = RefPop();  // pop condition
+        EmitI32Const(value_type.raw_bit_field());
+        // Remove nullability.
+        if (value_type.kind() == kRefNull) {
+          value_type = ValueType::Ref(value_type.heap_type());
+        }
+        RefPush(value_type);  // re-push condition value
+
+        // Emit code offset to branch to if the condition is not true.
+        const uint32_t if_false_code_offset = CurrentCodePos();
+        Emit(&if_false_code_offset, sizeof(if_false_code_offset));
+
+        uint32_t stack_top = stack_.back();
+        RefPop(false);  // Drop the null reference.
+
+        StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrIf);
+
+        EMIT_INSTR_HANDLER(s2s_Branch);
+        EmitBranchOffset(instr.optional.depth);
+
+        stack_.push_back(stack_top);  // re-push non-null ref on top of stack
+
+        // Patch the 'if-false' offset with the correct jump offset.
+        int32_t delta = CurrentCodePos() - if_false_code_offset;
+        base::WriteUnalignedValue<uint32_t>(
+            reinterpret_cast<Address>(code_.data() + if_false_code_offset),
+            delta);
+      }
+      break;
+    }
     case kExprBrOnNonNull: {
       DCHECK_EQ(mode, kS2S);
       int32_t target_branch_index = GetTargetBranch(instr.optional.depth);
       const WasmBytecodeGenerator::BlockData& target_block_data =
           blocks_[target_branch_index];
       if (HasVoidSignature(target_block_data)) {
-        if (instr.opcode == kExprBrOnNull) {
-          EMIT_INSTR_HANDLER(s2s_BranchOnNull);
-          ValueType value_type = RefPop();  // pop condition
-          EmitI32Const(value_type.raw_bit_field());
-          // Remove nullability.
-          if (value_type.kind() == kRefNull) {
-            value_type = ValueType::Ref(value_type.heap_type());
-          }
-          RefPush(value_type);  // re-push condition value
-        } else {
-          EMIT_INSTR_HANDLER(s2s_BranchOnNonNull);
-          ValueType value_type = RefPop();  // pop condition
-          EmitI32Const(value_type.raw_bit_field());
-          RefPush(value_type);  // re-push condition value
-        }
+        EMIT_INSTR_HANDLER(s2s_BranchOnNonNull);
+        ValueType value_type = RefPop();  // pop condition
+        EmitI32Const(value_type.raw_bit_field());
+        RefPush(value_type);  // re-push condition value
         // Emit code offset to branch to if the condition is true.
         EmitBranchOffset(instr.optional.depth);
       } else {
-        if (instr.opcode == kExprBrOnNull) {
-          EMIT_INSTR_HANDLER(s2s_BranchOnNullWithParams);
-          ValueType value_type = RefPop();  // pop condition
-          EmitI32Const(value_type.raw_bit_field());
-          // Remove nullability.
-          if (value_type.kind() == kRefNull) {
-            value_type = ValueType::Ref(value_type.heap_type());
-          }
-          RefPush(value_type);  // re-push condition value
-        } else {
-          EMIT_INSTR_HANDLER(s2s_BranchOnNonNullWithParams);
-          ValueType value_type = RefPop();  // pop condition
-          EmitI32Const(value_type.raw_bit_field());
-          RefPush(value_type);  // re-push condition value
-        }
+        EMIT_INSTR_HANDLER(s2s_BranchOnNonNullWithParams);
+        ValueType value_type = RefPop();  // pop condition
+        EmitI32Const(value_type.raw_bit_field());
+        RefPush(value_type);  // re-push condition value
 
         // Emit code offset to branch to if the condition is not true.
         const uint32_t if_false_code_offset = CurrentCodePos();
@@ -8066,6 +8115,8 @@ RegMode WasmBytecodeGenerator::EncodeInstruction(const WasmInstruction& instr,
         base::WriteUnalignedValue<uint32_t>(
             reinterpret_cast<Address>(code_.data() + if_false_code_offset),
             delta);
+
+        RefPop(false);  // Drop the null reference.
       }
       break;
     }
@@ -8841,7 +8892,8 @@ RegMode WasmBytecodeGenerator::EncodeInstruction(const WasmInstruction& instr,
             case kS2R:
               UNREACHABLE();
             case kS2S:
-              CopyToSlotAndPop(value_type, instr.optional.index, false, false);
+              CopyToSlotAndPop(slots_[stack_.back()].value_type,
+                               instr.optional.index, false, false);
               return RegMode::kNoReg;
           }
           break;
@@ -8895,7 +8947,8 @@ RegMode WasmBytecodeGenerator::EncodeInstruction(const WasmInstruction& instr,
             case kS2R:
               UNREACHABLE();
             case kS2S:
-              CopyToSlotAndPop(value_type, instr.optional.index, true, false);
+              CopyToSlotAndPop(slots_[stack_.back()].value_type,
+                               instr.optional.index, true, false);
               return RegMode::kNoReg;
           }
           break;
@@ -9474,10 +9527,14 @@ RegMode WasmBytecodeGenerator::EncodeInstruction(const WasmInstruction& instr,
       FOREACH_EXTENSION_UNOP(EXECUTE_UNOP)
 #undef EXECUTE_UNOP
 
-    case kExprRefNull:
+    case kExprRefNull: {
       EMIT_INSTR_HANDLER(s2s_RefNull);
-      RefPush(ValueType::RefNull(HeapType(instr.optional.ref_type)));
+      ValueType value_type =
+          ValueType::RefNull(HeapType(instr.optional.ref_type));
+      EmitI32Const(value_type.raw_bit_field());
+      RefPush(value_type);
       break;
+    }
 
     case kExprRefIsNull:
       EMIT_INSTR_HANDLER(s2s_RefIsNull);
@@ -11247,12 +11304,17 @@ int32_t WasmBytecodeGenerator::BeginBlock(
   return current_block_index_;
 }
 
-int WasmBytecodeGenerator::GetCurrentTryBlockIndex() const {
+int WasmBytecodeGenerator::GetCurrentTryBlockIndex(
+    bool return_matching_try_for_catch_blocks) const {
   DCHECK_GE(current_block_index_, 0);
   int index = current_block_index_;
   while (index >= 0) {
     const auto& block = blocks_[index];
     if (block.IsTry()) return index;
+    if (return_matching_try_for_catch_blocks &&
+        (block.IsCatch() || block.IsCatchAll())) {
+      return block.parent_try_block_index_;
+    }
     index = blocks_[index].parent_block_index_;
   }
   return -1;

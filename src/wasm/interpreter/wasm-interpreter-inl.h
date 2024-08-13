@@ -538,18 +538,6 @@ inline void WasmBytecodeGenerator::PushConstSlot(uint32_t slot_index) {
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 }
 
-inline void WasmBytecodeGenerator::SetSlotType(uint32_t stack_index,
-                                               ValueType type) {
-  DCHECK_LT(stack_index, stack_.size());
-
-  uint32_t slot_index = stack_[stack_index];
-  slots_[slot_index].value_type = type;
-
-#ifdef V8_ENABLE_DRUMBRAKE_TRACING
-  TraceSetSlotType(stack_index, type);
-#endif  // V8_ENABLE_DRUMBRAKE_TRACING
-}
-
 inline bool WasmBytecodeGenerator::HasVoidSignature(
     const WasmBytecodeGenerator::BlockData& block_data) const {
   if (block_data.signature_.value_type() == kWasmBottom) {

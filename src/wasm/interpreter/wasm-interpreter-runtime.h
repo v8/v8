@@ -87,6 +87,10 @@ class WasmInterpreterRuntime {
   static void UpdateIndirectCallTable(Isolate* isolate,
                                       Handle<WasmInstanceObject> instance,
                                       uint32_t table_index);
+  static void ClearIndirectCallCacheEntry(Isolate* isolate,
+                                          Handle<WasmInstanceObject> instance,
+                                          uint32_t table_index,
+                                          uint32_t entry_index);
 
   static void UpdateMemoryAddress(Handle<WasmInstanceObject> instance);
 
@@ -138,7 +142,6 @@ class WasmInterpreterRuntime {
     return function_result_[index];
   }
 
-  inline Handle<Object> GetNullRef() const;
   inline bool IsRefNull(Handle<Object> ref) const;
   inline Handle<Object> GetFunctionRef(uint32_t index) const;
   void StoreWasmRef(uint32_t ref_stack_index, const WasmRef& ref);

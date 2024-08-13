@@ -180,33 +180,6 @@ void Builtins::Generate_WasmInterpreterEntry(MacroAssembler* masm) {
   __ ret(0);
 }
 
-// Copied from builtins/x64/builtins-x64.cc.
-static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
-                                      Register sfi, Register scratch) {
-#ifdef V8_ENABLE_SANDBOX
-  DCHECK(!AreAliased(data, scratch));
-  DCHECK(!AreAliased(sfi, scratch));
-  // Use trusted_function_data if non-empy, otherwise the regular function_data.
-  Label use_tagged_field, done;
-  __ movl(scratch,
-          FieldOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
-
-  __ testl(scratch, scratch);
-  __ j(zero, &use_tagged_field, Label::kNear);
-  __ ResolveIndirectPointerHandle(data, scratch, kUnknownIndirectPointerTag);
-  __ jmp(&done);
-
-  __ bind(&use_tagged_field);
-  __ LoadTaggedField(
-      data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-
-  __ bind(&done);
-#else
-  __ LoadTaggedField(
-      data, FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-#endif  // V8_ENABLE_SANDBOX
-}
-
 void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
                                      Register function_data,
                                      Register wasm_instance) {
@@ -218,8 +191,11 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
           closure,
           wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
   closure = no_reg;
-  GetSharedFunctionInfoData(masm, function_data, shared_function_info,
-                            kScratchRegister);
+  __ LoadTrustedPointerField(
+      function_data,
+      FieldOperand(shared_function_info,
+                   SharedFunctionInfo::kTrustedFunctionDataOffset),
+      kUnknownIndirectPointerTag, kScratchRegister);
   shared_function_info = no_reg;
 
   Register trusted_instance_data = wasm_instance;
@@ -1388,10 +1364,19 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ incq(rax);  // Count receiver.
   __ Call(BUILTIN_CODE(masm->isolate(), Call_ReceiverIsAny),
           RelocInfo::CODE_TARGET);
+
+  __ movq(rsp, MemOperand(rbp, WasmToJSInterpreterFrameConstants::kGCSPOffset));
   __ movq(MemOperand(rbp, WasmToJSInterpreterFrameConstants::kGCSPOffset),
           Immediate(0));
 
-  __ popq(context);
+  __ popq(receiver);
+
+  // Retrieve context.
+  __ movq(context,  // param_count
+          MemOperand(
+              rbp, WasmToJSInterpreterFrameConstants::kGCScanSlotCountOffset));
+  __ subq(context, Immediate(2));  // do not count receiver and context.
+  __ movq(context, Operand(rsp, context, times_system_pointer_size, 0));
 
   // -------------------------------------------
   // Return handling.

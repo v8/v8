@@ -173,32 +173,6 @@ void Builtins::Generate_WasmInterpreterEntry(MacroAssembler* masm) {
   __ Ret();
 }
 
-// Copied from builtins/arm64/builtins-arm64.cc.
-static void GetSharedFunctionInfoData(MacroAssembler* masm, Register data,
-                                      Register sfi, Register scratch) {
-#ifdef V8_ENABLE_SANDBOX
-  DCHECK(!AreAliased(data, scratch));
-  DCHECK(!AreAliased(sfi, scratch));
-  // Use trusted_function_data if non-empy, otherwise the regular function_data.
-  Label use_tagged_field, done;
-  __ Ldr(scratch.W(),
-         FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset));
-
-  __ Cbz(scratch.W(), &use_tagged_field);
-  __ ResolveIndirectPointerHandle(data, scratch, kUnknownIndirectPointerTag);
-  __ B(&done);
-
-  __ Bind(&use_tagged_field);
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-
-  __ Bind(&done);
-#else
-  __ LoadTaggedField(
-      data, FieldMemOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-#endif  // V8_ENABLE_SANDBOX
-}
-
 void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
                                      Register function_data,
                                      Register wasm_instance) {
@@ -210,7 +184,12 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
           closure,
           wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
   closure = no_reg;
-  GetSharedFunctionInfoData(masm, function_data, shared_function_info, x11);
+  __ LoadTrustedPointerField(
+      function_data,
+      FieldMemOperand(shared_function_info,
+                      SharedFunctionInfo::kTrustedFunctionDataOffset),
+
+      kUnknownIndirectPointerTag);
   shared_function_info = no_reg;
 
   Register trusted_instance_data = wasm_instance;

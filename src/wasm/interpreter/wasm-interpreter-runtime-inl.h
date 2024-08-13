@@ -126,11 +126,6 @@ inline bool WasmInterpreterRuntime::IsNull(Isolate* isolate, const WasmRef obj,
   }
 }
 
-inline Handle<Object> WasmInterpreterRuntime::GetNullRef() const {
-  // This function assumes that it is executed in a HandleScope.
-  return isolate_->factory()->wasm_null();
-}
-
 inline bool WasmInterpreterRuntime::IsRefNull(Handle<Object> object) const {
   // This function assumes that it is executed in a HandleScope.
   return i::IsNull(*object, isolate_) || IsWasmNull(*object, isolate_);

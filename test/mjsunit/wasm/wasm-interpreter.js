@@ -1522,3 +1522,369 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   instance = builder.instantiate();
   assertTraps(kTrapIllegalCast, () => instance.exports.main());
 })();
+
+(function TestWasmGCBrOnNonNull() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let sig_v_v = builder.addType(kSig_v_v);
+  let sig_i_v = builder.addType(kSig_i_v);
+
+  builder.addFunction("test_br_on_non_null_with_nullref_nonvoidsig", kSig_i_i)
+    .exportAs("test_br_on_non_null_with_nullref_nonvoidsig").addBody([
+      kExprLoop, sig_i_v,
+        ...wasmI32Const(5),
+        kGCPrefix, kExprArrayNewDefault, array_type_index,
+        ...wasmI32Const(-8),
+        kGCPrefix, kExprStructNew, struct_type_index,
+        kExprRefNull, array_type_index,
+        kExprBrOnNonNull, 0, // drop null ref and don't jump
+        kExprDrop, // drop the struct
+        kExprLocalGet, 0, // array index
+        kGCPrefix, kExprArrayGet, array_type_index,
+      kExprEnd,
+  ]);
+
+  builder.addFunction("test_br_on_non_null_with_nullref_voidsig", kSig_v_v)
+    .exportAs("test_br_on_non_null_with_nullref_voidsig").addBody([
+      kExprLoop, sig_v_v,
+        ...wasmI32Const(-8),
+        kGCPrefix, kExprStructNew, struct_type_index,
+        kExprRefNull, array_type_index,
+        kExprBrOnNonNull, 0, // drop null ref and don't jump
+        kExprDrop, // drop the struct
+      kExprEnd,
+    ]);
+
+  builder.addFunction("test_br_on_non_null_with_nonnullref_nonvoidsig", kSig_i_i)
+    .exportAs("test_br_on_non_null_with_nonnullref_nonvoidsig")
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, sig_i_v,
+        ...wasmI32Const(42),
+        kExprLocalGet, 1,
+        ...wasmI32Const(1),
+        kExprLocalSet, 1, // set local to 0 to end loop at next iteration.
+        kExprBrIf, 1,
+        ...wasmI32Const(5),
+        kGCPrefix, kExprArrayNewDefault, array_type_index,
+        ...wasmI32Const(-8),
+        kGCPrefix, kExprStructNew, struct_type_index,
+        kExprBrOnNonNull, 0, // non null ref => fallthru
+        kExprLocalGet, 0, // array index
+        kGCPrefix, kExprArrayGet, array_type_index,
+        kExprDrop,
+      kExprEnd,
+    ]);
+
+  builder.addFunction("test_br_on_non_null_with_nonnullref_voidsig", kSig_v_i)
+    .exportAs("test_br_on_non_null_with_nonnullref_voidsig")
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, sig_v_v,
+        kExprLocalGet, 1,
+        ...wasmI32Const(1),
+        kExprLocalSet, 1, // set local to 0 to end loop at next iteration.
+        kExprBrIf, 1,
+        ...wasmI32Const(5),
+        kGCPrefix, kExprArrayNewDefault, array_type_index,
+        ...wasmI32Const(-8),
+        kGCPrefix, kExprStructNew, struct_type_index,
+        kExprBrOnNonNull, 0, // non null ref => fallthru
+        kExprLocalGet, 0, // array index
+        kGCPrefix, kExprArrayGet, array_type_index,
+        kExprDrop,
+      kExprEnd,
+    ]);
+
+  builder.addFunction("test_br_on_null_with_nullref_nonvoidsig", kSig_i_i)
+    .exportAs("test_br_on_null_with_nullref_nonvoidsig")
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, sig_i_v,
+        ...wasmI32Const(42),
+        kExprLocalGet, 1,
+        ...wasmI32Const(1),
+        kExprLocalSet, 1, // set local to 0 to end loop at next iteration.
+        kExprBrIf, 1,
+        ...wasmI32Const(5),
+        ...wasmI32Const(5),
+        kGCPrefix, kExprArrayNew, array_type_index,
+        ...wasmI32Const(-8),
+        kGCPrefix, kExprStructNew, struct_type_index,
+        kExprRefNull, array_type_index,
+        kExprBrOnNull, 0,
+        kExprDrop, // drop the ref
+        kExprDrop, // drop the struct
+        kExprLocalGet, 0, // array index
+        kGCPrefix, kExprArrayGet, array_type_index,
+        kExprDrop,
+      kExprEnd,
+    ]);
+
+  builder.addFunction("test_br_on_null_with_nullref_voidsig", kSig_v_v)
+    .exportAs("test_br_on_null_with_nullref_voidsig")
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, sig_v_v,
+        kExprLocalGet, 0,
+        ...wasmI32Const(1),
+        kExprLocalSet, 0, // set local to 0 to end loop at next iteration.
+        kExprBrIf, 1,
+        kExprRefNull, array_type_index,
+        kExprBrOnNull, 0,
+        kExprDrop, // drop the ref
+      kExprEnd,
+    ]);
+
+  builder.addFunction("test_br_on_null_with_nonnullref_nonvoidsig", kSig_i_i)
+    .exportAs("test_br_on_null_with_nonnullref_nonvoidsig")
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, sig_i_v,
+        ...wasmI32Const(42),
+        kExprLocalGet, 1,
+        kExprBrIf, 1,
+        ...wasmI32Const(5),
+        ...wasmI32Const(5),
+        kGCPrefix, kExprArrayNew, array_type_index,
+        ...wasmI32Const(-8),
+        kGCPrefix, kExprStructNew, struct_type_index,
+        kExprBrOnNull, 0,
+        kExprDrop, // drop the struct
+        kExprLocalGet, 0, // array index
+        kGCPrefix, kExprArrayGet, array_type_index,
+        kExprLocalSet, 1, // set local to end loop
+      kExprEnd,
+    ]);
+
+  builder.addFunction("test_br_on_null_with_nonnullref_voidsig", kSig_v_i)
+    .exportAs("test_br_on_null_with_nonnullref_voidsig")
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, sig_v_v,
+        kExprLocalGet, 1,
+        kExprBrIf, 1,
+        ...wasmI32Const(5),
+        ...wasmI32Const(5),
+        kGCPrefix, kExprArrayNew, array_type_index,
+        ...wasmI32Const(-8),
+        kGCPrefix, kExprStructNew, struct_type_index,
+        kExprBrOnNull, 0,
+        kExprDrop, // drop the struct
+        kExprLocalGet, 0, // array index
+        kGCPrefix, kExprArrayGet, array_type_index,
+        kExprLocalSet, 1, // set local to end loop
+      kExprEnd,
+    ]);
+
+  let instance = builder.instantiate();
+  assertEquals(0, instance.exports.test_br_on_non_null_with_nullref_nonvoidsig(1));
+  assertTraps(kTrapArrayOutOfBounds, () => instance.exports.test_br_on_non_null_with_nullref_nonvoidsig(1234));
+  instance.exports.test_br_on_non_null_with_nullref_voidsig();
+  assertEquals(42, instance.exports.test_br_on_non_null_with_nonnullref_nonvoidsig(1234));
+  instance.exports.test_br_on_non_null_with_nonnullref_voidsig(1234);
+  assertEquals(42, instance.exports.test_br_on_null_with_nullref_nonvoidsig(1234));
+  instance.exports.test_br_on_null_with_nullref_voidsig();
+  assertEquals(42, instance.exports.test_br_on_null_with_nonnullref_nonvoidsig(1));
+  assertTraps(kTrapArrayOutOfBounds, () => instance.exports.test_br_on_null_with_nonnullref_nonvoidsig(1234));
+  instance.exports.test_br_on_null_with_nonnullref_voidsig(1);
+  assertTraps(kTrapArrayOutOfBounds, () => instance.exports.test_br_on_null_with_nonnullref_voidsig(1234));
+})();
+
+(function testNestedTryCatch() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+  let except = builder.addTag(kSig_v_v);
+
+  builder.addFunction("main", kSig_i_iii)
+    .addBody([
+      kExprTry, kWasmI32,
+        ...wasmF32Const(3.14),
+        ...wasmF32Const(3.14),
+        kExprTry, kWasmI32,
+          ...wasmI32Const(1),
+        kExprCatch, except,
+          kExprTry, kWasmI32,
+            ...wasmI32Const(2),
+          kExprEnd,
+        kExprCatch, except,
+          ...wasmI32Const(3),
+        kExprEnd,
+        kExprDrop,
+        kExprF32Ne,
+      kExprEnd,
+    ])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  let result = instance.exports.main();
+  assertEquals(0, result);
+})();
+
+(function TestReturnCallWithRefs() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+  const table_size = 3;
+  let table = builder.addTable(kWasmFuncRef, table_size, table_size);
+
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let sig_index = builder.addType(kSig_v_v);
+
+  // Function 0
+  builder.addImport("imports", "imported_func", kSig_v_v);
+
+  // Function 1
+  let f1 = builder.addFunction("main", kSig_v_v)
+    .addBody([
+      kExprRefNull, array_type_index,
+      ...wasmI32Const(13),
+      ...wasmI32Const(-2),
+      ...wasmI32Const(1),
+      kExprCallIndirect, sig_index, table.index,
+      kGCPrefix, kExprArraySet, array_type_index,
+    ])
+    .exportAs("main");
+
+  // Function 2
+  let f2 = builder.addFunction("f2", kSig_v_v)
+    .addBody([
+      ...wasmI32Const(2),
+      kExprReturnCallIndirect, sig_index, kTableZero,
+    ]);
+
+  // Function 3
+  let f3 = builder.addFunction("f3", kSig_v_v)
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      ...wasmI32Const(-8),
+      kGCPrefix, kExprStructNew, struct_type_index,
+      kExprCallFunction, 0, // call $import0
+      kExprLocalSet, 0
+    ]);
+
+  builder.addActiveElementSegment(
+    table.index, wasmI32Const(0),
+    [[kExprRefFunc, f1.index], [kExprRefFunc, f2.index], [kExprRefFunc, f3.index]],
+    kWasmFuncRef);
+
+  let instance = builder.instantiate({ imports: { imported_func: function() {} } });
+  assertTraps(kTrapNullDereference, () => instance.exports.main());
+})();
+
+(function TestRefsParamsAndRetsInIfBlock() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let sig_a_in = builder.addType(makeSig([kWasmI32, wasmRefNullType(array_type_index)], [kWasmAnyFunc]));
+
+  // Function 0
+  builder.addImport("imports", "imported_func", kSig_v_v);
+
+  // Function 1
+  let f1 = builder.addFunction("main", kSig_v_v)
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      ...wasmI32Const(1),
+      kExprRefNull, array_type_index,
+      ...wasmI32Const(1),
+      kExprIf, sig_a_in,
+        kExprDrop,
+        kExprDrop,
+        kExprRefNull, kAnyFuncCode,
+      kExprElse,
+        kExprDrop,
+        kExprDrop,
+        kExprRefNull, kAnyFuncCode,
+      kExprEnd,
+      kExprDrop,
+      ...wasmI32Const(-8),
+      kGCPrefix, kExprStructNew, struct_type_index,
+      kExprLocalSet, 0,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefCast, array_type_index, // invalid cast
+      kExprCallFunction, 0,
+      ...wasmI32Const(13),
+      ...wasmI32Const(-2),
+      kGCPrefix, kExprArraySet, array_type_index,
+    ])
+    .exportAs("main");
+
+  let instance = builder.instantiate({
+    "imports": {
+      imported_func: () => {
+        oob_arr = [1.1, 2.2, 3.3, 4.4];
+        double_arr = [1.1, 2.2, 3.3, 4.4];
+        obj_arr = [double_arr, double_arr];
+      },
+    }
+  });
+  assertTraps(kTrapIllegalCast, () => instance.exports.main());
+})();
+
+(function TestCatchExceptionThrownByCalledFunction() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+  builder.addMemory(1, 32);
+  let $tag = builder.addTag(builder.addType(kSig_v_v));
+
+  // Function 0
+  let f1 = builder.addFunction("main", kSig_i_i)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprTry, kWasmI32,
+        kExprCallFunction, 1,
+        ...wasmI32Const(0),
+      kExprCatch, $tag,
+      kExprLocalGet, 0, // oob read offset
+      kExprI32LoadMem, 0, 0,
+      kExprEnd,
+    ])
+    .exportAs("main");
+
+  // Function 1
+  let f2 = builder.addFunction("f1", kSig_v_v)
+    .addBody([
+      kExprThrow, $tag,
+    ]);
+
+  let instance = builder.instantiate();
+  assertThrows(() => instance.exports.main(0xffffffff), WebAssembly.RuntimeError);
+})();
+
+(function TestRefTypeReturnedByJSFunctions() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let sig_a_a = builder.addType(makeSig([wasmRefNullType(array_type_index)], [wasmRefNullType(array_type_index)]));
+
+  // Function 0
+  builder.addImport("imports", "imported_func", sig_a_a);
+
+  // Function 1
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      kExprRefNull, array_type_index,
+      kExprCallFunction, 0,
+      ...wasmI32Const(0),
+      kGCPrefix, kExprArrayGet, array_type_index,
+      kExprDrop
+    ])
+    .exportAs("main");
+
+  let instance = builder.instantiate({
+    "imports": {
+      imported_func: (refVal) => {
+        return refVal + 0x41414141;
+      },
+    }
+  });
+  assertThrows(() => instance.exports.main(), TypeError);
+})();
