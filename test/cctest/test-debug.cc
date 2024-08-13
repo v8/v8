@@ -5633,6 +5633,177 @@ TEST(GetPrivateStaticAndInstanceMethodsAndAccessors) {
   }
 }
 
+TEST(GetPrivateAutoAccessors) {
+  i::v8_flags.js_decorators = true;
+  LocalContext env;
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::HandleScope scope(v8_isolate);
+  v8::Local<v8::Context> context = env.local();
+  v8::Local<v8::String> source = v8_str(
+      "var Y = class {\n"
+      "  static accessor #static_base_field = 4;\n"
+      "  accessor #base_field = 3;\n"
+      "}\n"
+      "var X = class extends Y{\n"
+      "  static accessor #static_field = 2\n;"
+      "  accessor #field = 1;\n"
+      "}\n"
+      "var y = new Y();\n"
+      "var x = new X();");
+  CompileRun(source);
+  int field_filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateFields);
+  int accessor_filter =
+      static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateAccessors);
+
+  v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "Y"))
+          .ToLocalChecked());
+  v8::LocalVector<v8::Value> names(v8_isolate);
+  v8::LocalVector<v8::Value> values(v8_isolate);
+  CHECK(v8::debug::GetPrivateMembers(context, object, field_filter, &names,
+                                     &values));
+
+  CHECK_EQ(names.size(), 1);
+  CHECK(names[0]->IsString());
+  {
+    std::string name_str = FromString(v8_isolate, names[0].As<v8::String>());
+    CHECK_EQ(name_str, ".accessor-storage-0");
+    CHECK(values[0]->Equals(context, v8_num(4)).FromJust());
+  }
+
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+
+  CHECK_EQ(names.size(), 1);
+  CHECK(names[0]->IsString());
+  {
+    std::string name_str = FromString(v8_isolate, names[0].As<v8::String>());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(values[0]));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        values[0].As<v8::debug::AccessorPair>();
+    CHECK_EQ(name_str, "#static_base_field");
+    CHECK(accessors->getter()->IsFunction());
+    CHECK(accessors->setter()->IsFunction());
+  }
+
+  object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "y"))
+          .ToLocalChecked());
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, field_filter, &names,
+                                     &values));
+
+  CHECK_EQ(names.size(), 1);
+  CHECK(names[0]->IsString());
+  {
+    std::string name_str = FromString(v8_isolate, names[0].As<v8::String>());
+    CHECK_EQ(name_str, ".accessor-storage-1");
+    CHECK(values[0]->Equals(context, v8_num(3)).FromJust());
+  }
+
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+
+  CHECK_EQ(names.size(), 1);
+  CHECK(names[0]->IsString());
+  {
+    std::string name_str = FromString(v8_isolate, names[0].As<v8::String>());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(values[0]));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        values[0].As<v8::debug::AccessorPair>();
+    CHECK_EQ(name_str, "#base_field");
+    CHECK(accessors->getter()->IsFunction());
+    CHECK(accessors->setter()->IsFunction());
+  }
+
+  object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "X"))
+          .ToLocalChecked());
+  names.clear();
+  values.clear();
+
+  CHECK(v8::debug::GetPrivateMembers(context, object, field_filter, &names,
+                                     &values));
+
+  CHECK_EQ(names.size(), 1);
+  CHECK(names[0]->IsString());
+  {
+    std::string name_str = FromString(v8_isolate, names[0].As<v8::String>());
+    CHECK_EQ(name_str, ".accessor-storage-0");
+    CHECK(values[0]->Equals(context, v8_num(2)).FromJust());
+  }
+
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+
+  CHECK_EQ(names.size(), 1);
+  CHECK(names[0]->IsString());
+  {
+    std::string name_str = FromString(v8_isolate, names[0].As<v8::String>());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(values[0]));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        values[0].As<v8::debug::AccessorPair>();
+    CHECK_EQ(name_str, "#static_field");
+    CHECK(accessors->getter()->IsFunction());
+    CHECK(accessors->setter()->IsFunction());
+  }
+
+  object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "x"))
+          .ToLocalChecked());
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, field_filter, &names,
+                                     &values));
+
+  CHECK_EQ(names.size(), 2);
+  int expected[2] = {/*#base_field=*/3, /*#field=*/1};
+  for (int i = 0; i < 2; i++) {
+    v8::Local<v8::Value> name = names[i];
+    v8::Local<v8::Value> value = values[i];
+    CHECK(name->IsString());
+    std::string name_str = FromString(v8_isolate, name.As<v8::String>());
+    CHECK_EQ(name_str, ".accessor-storage-1");
+    CHECK(value->Equals(context, v8_num(expected[i])).FromJust());
+  }
+
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, accessor_filter, &names,
+                                     &values));
+
+  CHECK_EQ(names.size(), 2);
+  for (int i = 0; i < 2; i++) {
+    v8::Local<v8::Value> name = names[i];
+    v8::Local<v8::Value> value = values[i];
+    CHECK(name->IsString());
+    std::string name_str = FromString(v8_isolate, name.As<v8::String>());
+    CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
+    v8::Local<v8::debug::AccessorPair> accessors =
+        value.As<v8::debug::AccessorPair>();
+    if (name_str == "#base_field") {
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsFunction());
+    } else {
+      CHECK_EQ(name_str, "#field");
+      CHECK(accessors->getter()->IsFunction());
+      CHECK(accessors->setter()->IsFunction());
+    }
+  }
+}
+
 namespace {
 class SetTerminateOnResumeDelegate : public v8::debug::DebugDelegate {
  public:

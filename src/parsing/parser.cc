@@ -84,6 +84,94 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   return function_literal;
 }
 
+FunctionLiteral* Parser::MakeAutoAccessorGetter(VariableProxy* name_proxy,
+                                                const AstRawString* name,
+                                                bool is_static, int pos) {
+  ScopedPtrList<Statement> body(pointer_buffer());
+  DeclarationScope* function_scope =
+      NewFunctionScope(is_static ? FunctionKind::kGetterFunction
+                                 : FunctionKind::kStaticGetterFunction);
+  SetLanguageMode(function_scope, LanguageMode::kStrict);
+  function_scope->set_start_position(pos);
+  function_scope->set_end_position(pos);
+  {
+    FunctionState function_state(&function_state_, &scope_, function_scope);
+    body.Add(factory()->NewAutoAccessorGetterBody(name_proxy, pos));
+  }
+  // TODO(42202709): Enable lazy compilation by adding custom handling in
+  //                 `Parser::DoParseFunction`.
+  FunctionLiteral* getter = factory()->NewFunctionLiteral(
+      nullptr, function_scope, body, 0, 0, 0,
+      FunctionLiteral::kNoDuplicateParameters,
+      FunctionSyntaxKind::kAccessorOrMethod,
+      FunctionLiteral::kShouldEagerCompile, pos, true, GetNextInfoId());
+  const AstRawString* prefix =
+      name ? ast_value_factory()->get_space_string() : nullptr;
+  SetFunctionName(getter, name, prefix);
+  return getter;
+}
+
+FunctionLiteral* Parser::MakeAutoAccessorSetter(VariableProxy* name_proxy,
+                                                const AstRawString* name,
+                                                bool is_static, int pos) {
+  ScopedPtrList<Statement> body(pointer_buffer());
+  DeclarationScope* function_scope =
+      NewFunctionScope(is_static ? FunctionKind::kSetterFunction
+                                 : FunctionKind::kStaticSetterFunction);
+  SetLanguageMode(function_scope, LanguageMode::kStrict);
+  function_scope->set_start_position(pos);
+  function_scope->set_end_position(pos);
+  function_scope->DeclareParameter(ast_value_factory()->empty_string(),
+                                   VariableMode::kTemporary, false, false,
+                                   ast_value_factory(), kNoSourcePosition);
+  {
+    FunctionState function_state(&function_state_, &scope_, function_scope);
+    body.Add(factory()->NewAutoAccessorSetterBody(name_proxy, pos));
+  }
+  // TODO(42202709): Enable lazy compilation by adding custom handling in
+  //                 `Parser::DoParseFunction`.
+  FunctionLiteral* setter = factory()->NewFunctionLiteral(
+      nullptr, function_scope, body, 0, 1, 0,
+      FunctionLiteral::kNoDuplicateParameters,
+      FunctionSyntaxKind::kAccessorOrMethod,
+      FunctionLiteral::kShouldEagerCompile, pos, true, GetNextInfoId());
+  const AstRawString* prefix =
+      name ? ast_value_factory()->set_space_string() : nullptr;
+  SetFunctionName(setter, name, prefix);
+  return setter;
+}
+
+AutoAccessorInfo* Parser::NewAutoAccessorInfo(ClassScope* scope,
+                                              ClassInfo* class_info,
+                                              const AstRawString* name,
+                                              bool is_static, int pos) {
+  VariableProxy* accessor_storage_name_proxy =
+      CreateSyntheticContextVariableProxy(
+          scope, class_info,
+          AutoAccessorVariableName(ast_value_factory(),
+                                   class_info->autoaccessor_count++),
+          is_static);
+  // The property value position will match the beginning of the "accessor"
+  // keyword, which can be the same as the start of the parent class scope, use
+  // the position of the next two characters to distinguish them.
+  FunctionLiteral* getter = MakeAutoAccessorGetter(accessor_storage_name_proxy,
+                                                   name, is_static, pos + 1);
+  FunctionLiteral* setter = MakeAutoAccessorSetter(accessor_storage_name_proxy,
+                                                   name, is_static, pos + 2);
+  return factory()->NewAutoAccessorInfo(getter, setter,
+                                        accessor_storage_name_proxy);
+}
+
+ClassLiteralProperty* Parser::NewClassLiteralPropertyWithAccessorInfo(
+    ClassScope* scope, ClassInfo* class_info, const AstRawString* name,
+    Expression* key, Expression* value, bool is_static, bool is_computed_name,
+    bool is_private, int pos) {
+  AutoAccessorInfo* accessor_info =
+      NewAutoAccessorInfo(scope, class_info, name, is_static, pos);
+  return factory()->NewClassLiteralProperty(
+      key, value, accessor_info, is_static, is_computed_name, is_private);
+}
+
 void Parser::ReportUnexpectedTokenAt(Scanner::Location location,
                                      Token::Value token,
                                      MessageTemplate message) {
@@ -3142,8 +3230,16 @@ void Parser::DeclareClassVariable(ClassScope* scope, const AstRawString* name,
   declaration->set_var(class_variable);
 }
 
-VariableProxy* Parser::CreateSyntheticContextVariable(
-    const AstRawString* name) {
+VariableProxy* Parser::CreateSyntheticContextVariableProxy(
+    ClassScope* scope, ClassInfo* class_info, const AstRawString* name,
+    bool is_static) {
+  if (scope->is_reparsed()) {
+    DeclarationScope* declaration_scope =
+        is_static ? class_info->static_elements_scope
+                  : class_info->instance_members_scope;
+    return declaration_scope->NewUnresolved(factory()->ast_node_factory(), name,
+                                            position());
+  }
   VariableProxy* proxy =
       DeclareBoundVariable(name, VariableMode::kConst, kNoSourcePosition);
   proxy->var()->ForceContextAllocation();
@@ -3184,15 +3280,8 @@ void Parser::DeclarePublicClassField(ClassScope* scope,
     // analysis doesn't dedupe the vars.
     const AstRawString* name = ClassFieldVariableName(
         ast_value_factory(), class_info->computed_field_count);
-    VariableProxy* proxy;
-    if (scope->is_reparsed()) {
-      DeclarationScope* scope = is_static ? class_info->static_elements_scope
-                                          : class_info->instance_members_scope;
-      proxy =
-          scope->NewUnresolved(factory()->ast_node_factory(), name, position());
-    } else {
-      proxy = CreateSyntheticContextVariable(name);
-    }
+    VariableProxy* proxy =
+        CreateSyntheticContextVariableProxy(scope, class_info, name, is_static);
     property->set_computed_name_proxy(proxy);
     class_info->public_members->Add(property, zone());
   }
@@ -3203,7 +3292,8 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
                                        ClassLiteralProperty* property,
                                        ClassLiteralProperty::Kind kind,
                                        bool is_static, ClassInfo* class_info) {
-  if (kind == ClassLiteralProperty::Kind::FIELD) {
+  if (kind == ClassLiteralProperty::Kind::FIELD ||
+      kind == ClassLiteralProperty::Kind::AUTO_ACCESSOR) {
     if (is_static) {
       class_info->static_elements->Add(
           factory()->NewClassLiteralStaticElement(property), zone());
@@ -3229,7 +3319,7 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
     }
     proxy->var()->set_initializer_position(pos);
   }
-  property->set_private_name_proxy(proxy);
+  property->SetPrivateNameProxy(proxy);
 }
 
 // This method declares a property of the given class.  It updates the

@@ -359,6 +359,14 @@ void Processor::VisitInitializeClassStaticElementsStatement(
   replacement_ = node;
 }
 
+void Processor::VisitAutoAccessorGetterBody(AutoAccessorGetterBody* node) {
+  replacement_ = node;
+}
+
+void Processor::VisitAutoAccessorSetterBody(AutoAccessorSetterBody* node) {
+  replacement_ = node;
+}
+
 // Expressions are never visited.
 #define DEF_VISIT(type)                                         \
   void Processor::Visit##type(type* expr) { UNREACHABLE(); }

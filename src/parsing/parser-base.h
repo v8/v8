@@ -184,6 +184,7 @@ template <typename Impl>
 struct ParserTypes;
 
 enum class ParsePropertyKind : uint8_t {
+  kAutoAccessorClassField,
   kAccessorGetter,
   kAccessorSetter,
   kValue,
@@ -647,6 +648,7 @@ class ParserBase {
     DeclarationScope* instance_members_scope = nullptr;
     Variable* home_object_variable = nullptr;
     Variable* static_home_object_variable = nullptr;
+    int autoaccessor_count = 0;
     int static_elements_function_id = -1;
     int instance_members_function_id = -1;
     int computed_field_count = 0;
@@ -760,6 +762,8 @@ class ParserBase {
 
   ClassLiteralProperty::Kind ClassPropertyKindFor(ParsePropertyKind kind) {
     switch (kind) {
+      case ParsePropertyKind::kAutoAccessorClassField:
+        return ClassLiteralProperty::AUTO_ACCESSOR;
       case ParsePropertyKind::kAccessorGetter:
         return ClassLiteralProperty::GETTER;
       case ParsePropertyKind::kAccessorSetter:
@@ -784,12 +788,20 @@ class ParserBase {
         return VariableMode::kPrivateGetterOnly;
       case ClassLiteralProperty::Kind::SETTER:
         return VariableMode::kPrivateSetterOnly;
+      case ClassLiteralProperty::Kind::AUTO_ACCESSOR:
+        return VariableMode::kPrivateGetterAndSetter;
     }
   }
 
   const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,
                                              int index) {
     std::string name = ".class-field-" + std::to_string(index);
+    return ast_value_factory->GetOneByteString(name.c_str());
+  }
+
+  const AstRawString* AutoAccessorVariableName(
+      AstValueFactory* ast_value_factory, int index) {
+    std::string name = ".accessor-storage-" + std::to_string(index);
     return ast_value_factory->GetOneByteString(name.c_str());
   }
 
@@ -1294,6 +1306,14 @@ class ParserBase {
 
   ExpressionT ParseProperty(ParsePropertyInfo* prop_info);
   ExpressionT ParseObjectLiteral();
+  V8_INLINE bool VerifyCanHaveAutoAccessorOrThrow(ParsePropertyInfo* prop_info,
+                                                  ExpressionT name_expression,
+                                                  int name_token_position);
+  V8_INLINE bool ParseCurrentSymbolAsClassFieldOrMethod(
+      ParsePropertyInfo* prop_info, ExpressionT* name_expression);
+  V8_INLINE bool ParseAccessorPropertyOrAutoAccessors(
+      ParsePropertyInfo* prop_info, ExpressionT* name_expression,
+      int* name_token_position);
   ClassLiteralPropertyT ParseClassPropertyDefinition(
       ClassInfo* class_info, ParsePropertyInfo* prop_info, bool has_extends);
   void CheckClassFieldName(IdentifierT name, bool is_static);
@@ -2537,6 +2557,66 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
 }
 
 template <typename Impl>
+bool ParserBase<Impl>::VerifyCanHaveAutoAccessorOrThrow(
+    ParsePropertyInfo* prop_info, ExpressionT name_expression,
+    int name_token_position) {
+  switch (prop_info->kind) {
+    case ParsePropertyKind::kAssign:
+    case ParsePropertyKind::kClassField:
+    case ParsePropertyKind::kShorthandOrClassField:
+    case ParsePropertyKind::kNotSet:
+      prop_info->kind = ParsePropertyKind::kAutoAccessorClassField;
+      return true;
+    default:
+      impl()->ReportUnexpectedTokenAt(
+          Scanner::Location(name_token_position, name_expression->position()),
+          Token::kAccessor);
+      return false;
+  }
+}
+
+template <typename Impl>
+bool ParserBase<Impl>::ParseCurrentSymbolAsClassFieldOrMethod(
+    ParsePropertyInfo* prop_info, ExpressionT* name_expression) {
+  if (peek() == Token::kLeftParen) {
+    prop_info->kind = ParsePropertyKind::kMethod;
+    prop_info->name = impl()->GetIdentifier();
+    *name_expression = factory()->NewStringLiteral(prop_info->name, position());
+    return true;
+  }
+  if (peek() == Token::kAssign || peek() == Token::kSemicolon ||
+      peek() == Token::kRightBrace) {
+    prop_info->name = impl()->GetIdentifier();
+    *name_expression = factory()->NewStringLiteral(prop_info->name, position());
+    return true;
+  }
+  return false;
+}
+
+template <typename Impl>
+bool ParserBase<Impl>::ParseAccessorPropertyOrAutoAccessors(
+    ParsePropertyInfo* prop_info, ExpressionT* name_expression,
+    int* name_token_position) {
+  // accessor [no LineTerminator here] ClassElementName[?Yield, ?Await]
+  // Initializer[~In, ?Yield, ?Await]opt ;
+  Consume(Token::kAccessor);
+  *name_token_position = scanner()->peek_location().beg_pos;
+  // If there is a line terminator here, it cannot be an auto-accessor.
+  if (scanner()->HasLineTerminatorBeforeNext()) {
+    prop_info->kind = ParsePropertyKind::kClassField;
+    prop_info->name = impl()->GetIdentifier();
+    *name_expression = factory()->NewStringLiteral(prop_info->name, position());
+    return true;
+  }
+  if (ParseCurrentSymbolAsClassFieldOrMethod(prop_info, name_expression)) {
+    return true;
+  }
+  *name_expression = ParseProperty(prop_info);
+  return VerifyCanHaveAutoAccessorOrThrow(prop_info, *name_expression,
+                                          *name_token_position);
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::ClassLiteralPropertyT
 ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
                                                ParsePropertyInfo* prop_info,
@@ -2551,21 +2631,21 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
   if (name_token == Token::kStatic) {
     Consume(Token::kStatic);
     name_token_position = scanner()->peek_location().beg_pos;
-    if (peek() == Token::kLeftParen) {
-      prop_info->kind = ParsePropertyKind::kMethod;
-      // TODO(bakkot) specialize on 'static'
-      prop_info->name = impl()->GetIdentifier();
-      name_expression =
-          factory()->NewStringLiteral(prop_info->name, position());
-    } else if (peek() == Token::kAssign || peek() == Token::kSemicolon ||
-               peek() == Token::kRightBrace) {
-      // TODO(bakkot) specialize on 'static'
-      prop_info->name = impl()->GetIdentifier();
-      name_expression =
-          factory()->NewStringLiteral(prop_info->name, position());
-    } else {
+    if (!ParseCurrentSymbolAsClassFieldOrMethod(prop_info, &name_expression)) {
       prop_info->is_static = true;
-      name_expression = ParseProperty(prop_info);
+      if (v8_flags.js_decorators && peek() == Token::kAccessor) {
+        if (!ParseAccessorPropertyOrAutoAccessors(prop_info, &name_expression,
+                                                  &name_token_position)) {
+          return impl()->NullLiteralProperty();
+        }
+      } else {
+        name_expression = ParseProperty(prop_info);
+      }
+    }
+  } else if (v8_flags.js_decorators && name_token == Token::kAccessor) {
+    if (!ParseAccessorPropertyOrAutoAccessors(prop_info, &name_expression,
+                                              &name_token_position)) {
+      return impl()->NullLiteralProperty();
     }
   } else {
     name_expression = ParseProperty(prop_info);
@@ -2573,6 +2653,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
 
   switch (prop_info->kind) {
     case ParsePropertyKind::kAssign:
+    case ParsePropertyKind::kAutoAccessorClassField:
     case ParsePropertyKind::kClassField:
     case ParsePropertyKind::kShorthandOrClassField:
     case ParsePropertyKind::kNotSet: {  // This case is a name followed by a
@@ -2584,21 +2665,32 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
                                         // will be a syntax error after parsing
                                         // the first name as an uninitialized
                                         // field.
-      prop_info->kind = ParsePropertyKind::kClassField;
       DCHECK_IMPLIES(prop_info->is_computed_name, !prop_info->is_private);
 
       if (!prop_info->is_computed_name) {
         CheckClassFieldName(prop_info->name, prop_info->is_static);
       }
 
-      ExpressionT initializer = ParseMemberInitializer(
-          class_info, property_beg_pos, prop_info->is_static);
+      ExpressionT value = ParseMemberInitializer(class_info, property_beg_pos,
+                                                 prop_info->is_static);
       ExpectSemicolon();
 
-      ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
-          name_expression, initializer, ClassLiteralProperty::FIELD,
-          prop_info->is_static, prop_info->is_computed_name,
-          prop_info->is_private);
+      ClassLiteralPropertyT result;
+      if (prop_info->kind == ParsePropertyKind::kAutoAccessorClassField) {
+        // Declare the auto-accessor synthetic getter and setter here where we
+        // have access to the property position in parsing and preparsing.
+        result = impl()->NewClassLiteralPropertyWithAccessorInfo(
+            scope()->AsClassScope(), class_info, prop_info->name,
+            name_expression, value, prop_info->is_static,
+            prop_info->is_computed_name, prop_info->is_private,
+            property_beg_pos);
+      } else {
+        prop_info->kind = ParsePropertyKind::kClassField;
+        result = factory()->NewClassLiteralProperty(
+            name_expression, value, ClassLiteralProperty::FIELD,
+            prop_info->is_static, prop_info->is_computed_name,
+            prop_info->is_private);
+      }
       impl()->SetFunctionNameFromPropertyName(result, prop_info->name);
 
       return result;
@@ -2902,6 +2994,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
       return result;
     }
 
+    case ParsePropertyKind::kAutoAccessorClassField:
     case ParsePropertyKind::kClassField:
     case ParsePropertyKind::kNotSet:
       ReportUnexpectedToken(Next());
@@ -5151,6 +5244,7 @@ void ParserBase<Impl>::ParseClassLiteralBody(ClassInfo& class_info,
 
     ClassLiteralProperty::Kind property_kind =
         ClassPropertyKindFor(prop_info.kind);
+
     if (!class_info.has_static_computed_names && prop_info.is_static &&
         prop_info.is_computed_name) {
       class_info.has_static_computed_names = true;
@@ -5162,12 +5256,9 @@ void ParserBase<Impl>::ParseClassLiteralBody(ClassInfo& class_info,
     if (V8_UNLIKELY(prop_info.is_private)) {
       DCHECK(!is_constructor);
       class_info.requires_brand |= (!is_field && !prop_info.is_static);
-      if (prop_info.is_static) {
-        class_info.has_static_private_methods_or_accessors |=
-            property_kind == ClassLiteralProperty::METHOD ||
-            property_kind == ClassLiteralProperty::GETTER ||
-            property_kind == ClassLiteralProperty::SETTER;
-      }
+      class_info.has_static_private_methods_or_accessors |=
+          (prop_info.is_static && !is_field);
+
       impl()->DeclarePrivateClassMember(scope()->AsClassScope(), prop_info.name,
                                         property, property_kind,
                                         prop_info.is_static, &class_info);

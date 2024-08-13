@@ -1154,26 +1154,30 @@ class PreParser : public ParserBase<PreParser> {
     DCHECK(class_info->has_static_elements());
   }
 
+  V8_INLINE void AddSyntheticFunctionDeclaration(FunctionKind kind, int pos) {
+    // Creating and disposing of a FunctionState makes tracking of
+    // next_function_is_likely_called match what Parser does. TODO(marja):
+    // Make the lazy function + next_function_is_likely_called + default ctor
+    // logic less surprising. Default ctors shouldn't affect the laziness of
+    // functions.
+    DeclarationScope* function_scope = NewFunctionScope(kind);
+    SetLanguageMode(function_scope, LanguageMode::kStrict);
+    function_scope->set_start_position(pos);
+    function_scope->set_end_position(pos);
+    FunctionState function_state(&function_state_, &scope_, function_scope);
+    GetNextInfoId();
+  }
+
   V8_INLINE PreParserExpression
   RewriteClassLiteral(ClassScope* scope, const PreParserIdentifier& name,
                       ClassInfo* class_info, int pos) {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
     if (has_default_constructor) {
-      // Creating and disposing of a FunctionState makes tracking of
-      // next_function_is_likely_called match what Parser does. TODO(marja):
-      // Make the lazy function + next_function_is_likely_called + default ctor
-      // logic less surprising. Default ctors shouldn't affect the laziness of
-      // functions.
       bool has_extends = class_info->extends.IsNull();
       FunctionKind kind = has_extends ? FunctionKind::kDefaultDerivedConstructor
                                       : FunctionKind::kDefaultBaseConstructor;
-      DeclarationScope* function_scope = NewFunctionScope(kind);
-      SetLanguageMode(function_scope, LanguageMode::kStrict);
-      function_scope->set_start_position(pos);
-      function_scope->set_end_position(pos);
-      FunctionState function_state(&function_state_, &scope_, function_scope);
-      GetNextInfoId();
+      AddSyntheticFunctionDeclaration(kind, pos);
     }
     return PreParserExpression::Default();
   }
@@ -1504,6 +1508,29 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserStatementList NewStatementList(int size) const {
     return PreParserStatementList();
+  }
+
+  V8_INLINE PreParserExpression NewClassLiteralPropertyWithAccessorInfo(
+      ClassScope* scope, ClassInfo* class_info, const PreParserIdentifier& name,
+      const PreParserExpression& key, const PreParserExpression& value,
+      bool is_static, bool is_computed_name, bool is_private, int pos) {
+    // Declare the accessor storage name variable and generated getter and
+    // setter.
+    bool was_added;
+    DeclareVariableName(
+        AutoAccessorVariableName(ast_value_factory(),
+                                 class_info->autoaccessor_count++),
+        VariableMode::kConst, scope, &was_added);
+    DCHECK(was_added);
+    FunctionKind kind = is_static ? FunctionKind::kGetterFunction
+                                  : FunctionKind::kStaticGetterFunction;
+    AddSyntheticFunctionDeclaration(kind, pos + 1);
+    kind = is_static ? FunctionKind::kSetterFunction
+                     : FunctionKind::kStaticSetterFunction;
+    AddSyntheticFunctionDeclaration(kind, pos + 2);
+    return factory()->NewClassLiteralProperty(
+        key, value, ClassLiteralProperty::Kind::AUTO_ACCESSOR, is_static,
+        is_computed_name, is_private);
   }
 
   V8_INLINE PreParserExpression

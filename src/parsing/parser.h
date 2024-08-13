@@ -324,8 +324,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                              FunctionLiteral* function, VariableMode mode,
                              VariableKind kind, int beg_pos, int end_pos,
                              ZonePtrList<const AstRawString>* names);
-  VariableProxy* CreateSyntheticContextVariable(
-      const AstRawString* synthetic_name);
+  VariableProxy* CreateSyntheticContextVariableProxy(ClassScope* scope,
+                                                     ClassInfo* class_info,
+                                                     const AstRawString* name,
+                                                     bool is_static);
   VariableProxy* CreatePrivateNameVariable(ClassScope* scope, VariableMode mode,
                                            IsStaticFlag is_static_flag,
                                            const AstRawString* name);
@@ -435,6 +437,23 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Factory methods.
   FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
                                       int pos);
+
+  FunctionLiteral* MakeAutoAccessorGetter(VariableProxy* name_proxy,
+                                          const AstRawString* name,
+                                          bool is_static, int pos);
+
+  FunctionLiteral* MakeAutoAccessorSetter(VariableProxy* name_proxy,
+                                          const AstRawString* name,
+                                          bool is_static, int pos);
+
+  AutoAccessorInfo* NewAutoAccessorInfo(ClassScope* scope,
+                                        ClassInfo* class_info,
+                                        const AstRawString* name,
+                                        bool is_static, int pos);
+  ClassLiteralProperty* NewClassLiteralPropertyWithAccessorInfo(
+      ClassScope* scope, ClassInfo* class_info, const AstRawString* name,
+      Expression* key, Expression* value, bool is_static, bool is_computed_name,
+      bool is_private, int pos);
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.

@@ -692,6 +692,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::New(IsolateT* isolate,
           ++dynamic_argument_index;
         }
         continue;
+      case ClassLiteral::Property::AUTO_ACCESSOR:
+        UNIMPLEMENTED();
     }
 
     ObjectDescriptor<IsolateT>& desc =
