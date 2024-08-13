@@ -589,3 +589,29 @@ function TestNestedSuspenders(suspend) {
   let wrapped_export = WebAssembly.promising(instance.exports.test);
   assertPromiseResult(wrapped_export(), v => assertEquals(undefined, v));
 })();
+
+(function TestSuspendTwoModules() {
+  print(arguments.callee.name);
+  let builder1 = new WasmModuleBuilder();
+  import_index = builder1.addImport('m', 'import', kSig_i_v);
+  builder1.addFunction("f", kSig_i_v)
+      .addBody([
+          kExprCallFunction, import_index, // suspend
+          kExprI32Const, 1,
+          kExprI32Add,
+      ]).exportFunc();
+  let js_import = new WebAssembly.Suspending(() => Promise.resolve(1));
+  let instance1 = builder1.instantiate({m: {import: js_import}});
+  let builder2 = new WasmModuleBuilder();
+  import_index = builder2.addImport('m', 'import', kSig_i_v);
+  builder2.addFunction("main", kSig_i_v)
+      .addBody([
+          kExprCallFunction, import_index,
+          kExprI32Const, 1,
+          kExprI32Add,
+      ]).exportFunc();
+  let instance2 = builder2.instantiate({m: {import: instance1.exports.f}});
+  let wrapped_export = WebAssembly.promising(instance2.exports.main);
+  let combined_promise = wrapped_export();
+  assertPromiseResult(combined_promise, v => assertEquals(3, v));
+})();
