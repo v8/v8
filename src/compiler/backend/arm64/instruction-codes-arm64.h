@@ -70,6 +70,13 @@ namespace compiler {
   V(Arm64F32x4DemoteF64x2Zero)          \
   V(Arm64F16x8Pmin)                     \
   V(Arm64F16x8Pmax)                     \
+  V(Arm64F32x4PromoteLowF16x8)          \
+  V(Arm64F16x8SConvertI16x8)            \
+  V(Arm64F16x8UConvertI16x8)            \
+  V(Arm64F16x8DemoteF32x4Zero)          \
+  V(Arm64F16x8DemoteF64x2Zero)          \
+  V(Arm64I16x8SConvertF16x8)            \
+  V(Arm64I16x8UConvertF16x8)            \
   V(Arm64I64x2ShrU)                     \
   V(Arm64I64x2BitMask)                  \
   V(Arm64I32x4SConvertF32x4)            \

@@ -410,6 +410,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord64Select = 1u << 28,
     kLoadStorePairs = 1u << 29,
     kFloat16 = 1u << 30,
+    kFloat64ToFloat16 = 1u << 31,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
@@ -419,7 +420,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kInt32AbsWithOverflow | kInt64AbsWithOverflow | kWord32Rol |
         kWord64Rol | kWord64RolLowerable | kSatConversionIsSafe |
         kFloat32Select | kFloat64Select | kWord32Select | kWord64Select |
-        kLoadStorePairs | kFloat16
+        kLoadStorePairs | kFloat16 | kFloat64ToFloat16
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -873,6 +874,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F16x8Ne();
   const Operator* F16x8Lt();
   const Operator* F16x8Le();
+  const Operator* F16x8SConvertI16x8();
+  const Operator* F16x8UConvertI16x8();
+  const Operator* I16x8SConvertF16x8();
+  const Operator* I16x8UConvertF16x8();
+  const Operator* F32x4PromoteLowF16x8();
+  const Operator* F16x8DemoteF32x4Zero();
+  const Operator* F16x8DemoteF64x2Zero();
 
   const Operator* I64x2Splat();
   const Operator* I64x2SplatI32Pair();

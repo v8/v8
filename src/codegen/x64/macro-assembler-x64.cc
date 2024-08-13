@@ -2073,7 +2073,7 @@ void MacroAssembler::I32x8SConvertF32x8(YMMRegister dst, YMMRegister src,
   vpxor(dst, dst, tmp);
 }
 
-void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, YMMRegister src,
+void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, XMMRegister src,
                                         YMMRegister tmp, Register scratch) {
   ASM_CODE_COMMENT(this);
   DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&
@@ -2122,7 +2122,7 @@ void MacroAssembler::I16x8SConvertF16x8(YMMRegister dst, YMMRegister src,
   //         └────────────── from upper half of {tmp} (ignored)
 }
 
-void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, YMMRegister src,
+void MacroAssembler::I16x8TruncF16x8U(YMMRegister dst, XMMRegister src,
                                       YMMRegister tmp) {
   ASM_CODE_COMMENT(this);
   DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2) &&

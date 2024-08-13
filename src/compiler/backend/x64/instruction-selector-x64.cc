@@ -5993,6 +5993,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x8SConvertI32x8)     \
   V(F32x4DemoteF64x2Zero)   \
   V(F32x4DemoteF64x4)       \
+  V(I16x8SConvertF16x8)     \
+  V(I16x8UConvertF16x8)     \
+  V(F16x8SConvertI16x8)     \
+  V(F16x8UConvertI16x8)     \
+  V(F16x8DemoteF32x4Zero)   \
+  V(F32x4PromoteLowF16x8)   \
   V(I64x2SConvertI32x4Low)  \
   V(I64x2SConvertI32x4High) \
   V(I64x4SConvertI32x4)     \
@@ -7218,6 +7224,11 @@ void InstructionSelectorT<Adapter>::VisitF16x8Pmax(node_t node) {
 
   Emit(instr_code, dst, g.UseUniqueRegister(this->input_at(node, 1)),
        g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8DemoteF64x2Zero(node_t node) {
+  UNREACHABLE();
 }
 
 template <typename Adapter>

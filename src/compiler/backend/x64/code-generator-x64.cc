@@ -4029,6 +4029,55 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vcvtdq2ps(i.OutputSimd256Register(), i.InputSimd256Register(0));
       break;
     }
+    case kX64I16x8SConvertF16x8: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      CpuFeatureScope f16c_scope(masm(), F16C);
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+
+      YMMRegister ydst =
+          YMMRegister::from_code(i.OutputSimd128Register().code());
+      __ I16x8SConvertF16x8(ydst, i.InputSimd128Register(0), kScratchSimd256Reg,
+                            kScratchRegister);
+      break;
+    }
+    case kX64I16x8UConvertF16x8: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      CpuFeatureScope f16c_scope(masm(), F16C);
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+
+      YMMRegister ydst =
+          YMMRegister::from_code(i.OutputSimd128Register().code());
+      __ I16x8TruncF16x8U(ydst, i.InputSimd128Register(0), kScratchSimd256Reg);
+      break;
+    }
+    case kX64F16x8SConvertI16x8: {
+      CpuFeatureScope f16c_scope(masm(), F16C);
+      CpuFeatureScope avx_scope(masm(), AVX);
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      __ vpmovsxwd(kScratchSimd256Reg, i.InputSimd128Register(0));
+      __ vcvtdq2ps(kScratchSimd256Reg, kScratchSimd256Reg);
+      __ vcvtps2ph(i.OutputSimd128Register(), kScratchSimd256Reg, 0);
+      break;
+    }
+    case kX64F16x8UConvertI16x8: {
+      CpuFeatureScope f16c_scope(masm(), F16C);
+      CpuFeatureScope avx_scope(masm(), AVX);
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      __ vpmovzxwd(kScratchSimd256Reg, i.InputSimd128Register(0));
+      __ vcvtdq2ps(kScratchSimd256Reg, kScratchSimd256Reg);
+      __ vcvtps2ph(i.OutputSimd128Register(), kScratchSimd256Reg, 0);
+      break;
+    }
+    case kX64F16x8DemoteF32x4Zero: {
+      CpuFeatureScope f16c_scope(masm(), F16C);
+      __ vcvtps2ph(i.OutputSimd128Register(), i.InputSimd128Register(0), 0);
+      break;
+    }
+    case kX64F32x4PromoteLowF16x8: {
+      CpuFeatureScope f16c_scope(masm(), F16C);
+      __ vcvtph2ps(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kX64F32x4UConvertI32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       DCHECK_NE(i.OutputSimd128Register(), kScratchDoubleReg);

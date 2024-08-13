@@ -3361,6 +3361,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Trunc, float16, wasm_f16x8_trunc)
       HANDLE_UNARY_OPTIONAL_OPCODE(F16x8NearestInt, float16,
                                    wasm_f16x8_nearest_int)
+      HANDLE_UNARY_OPTIONAL_OPCODE(I16x8SConvertF16x8, float16,
+                                   wasm_i16x8_sconvert_f16x8)
+      HANDLE_UNARY_OPTIONAL_OPCODE(I16x8UConvertF16x8, float16,
+                                   wasm_i16x8_uconvert_f16x8)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8SConvertI16x8, float16,
+                                   wasm_f16x8_sconvert_i16x8)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8UConvertI16x8, float16,
+                                   wasm_f16x8_uconvert_i16x8)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF32x4Zero, float16,
+                                   wasm_f16x8_demote_f32x4_zero)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF64x2Zero, float64_to_float16,
+                                   wasm_f16x8_demote_f64x2_zero)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F32x4PromoteLowF16x8, float16,
+                                   wasm_f32x4_promote_low_f16x8)
       HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Ceil, float32_round_up, wasm_f32x4_ceil)
       HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Floor, float32_round_down,
                                    wasm_f32x4_floor)
@@ -3442,23 +3456,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(HANDLE_TERNARY_OTHER_OPCODE)
 #undef HANDLE_TERNARY_OTHER_OPCODE
 
-#define HANDLE_F16X8_UN_OPCODE(kind, extern_ref)                               \
-  case kExpr##kind:                                                            \
-    result->op =                                                               \
-        CallCStackSlotToStackSlot(args[0].op, ExternalReference::extern_ref(), \
-                                  MemoryRepresentation::Simd128());            \
-    break;
-        HANDLE_F16X8_UN_OPCODE(I16x8SConvertF16x8, wasm_i16x8_sconvert_f16x8)
-        HANDLE_F16X8_UN_OPCODE(I16x8UConvertF16x8, wasm_i16x8_uconvert_f16x8)
-        HANDLE_F16X8_UN_OPCODE(F16x8SConvertI16x8, wasm_f16x8_sconvert_i16x8)
-        HANDLE_F16X8_UN_OPCODE(F16x8UConvertI16x8, wasm_f16x8_uconvert_i16x8)
-        HANDLE_F16X8_UN_OPCODE(F16x8DemoteF32x4Zero,
-                               wasm_f16x8_demote_f32x4_zero)
-        HANDLE_F16X8_UN_OPCODE(F16x8DemoteF64x2Zero,
-                               wasm_f16x8_demote_f64x2_zero)
-        HANDLE_F16X8_UN_OPCODE(F32x4PromoteLowF16x8,
-                               wasm_f32x4_promote_low_f16x8)
-#undef HANDLE_F16X8_UN_OPCODE
 #define HANDLE_F16X8_TERN_OPCODE(kind, extern_ref)                        \
   case kExpr##kind:                                                       \
     result->op = CallCStackSlotToStackSlot(                               \

@@ -1318,6 +1318,7 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(sat_conversion_is_safe, SatConversionIsSafe)   \
   V(word32_select, Word32Select)                   \
   V(word64_select, Word64Select)                   \
+  V(float64_to_float16, Float64ToFloat16)          \
   V(float16, Float16)
 
 class V8_EXPORT_PRIVATE SupportedOperations {
@@ -7529,6 +7530,13 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(F16x8Floor)                                                               \
   V(F16x8Trunc)                                                               \
   V(F16x8NearestInt)                                                          \
+  V(I16x8SConvertF16x8)                                                       \
+  V(I16x8UConvertF16x8)                                                       \
+  V(F16x8SConvertI16x8)                                                       \
+  V(F16x8UConvertI16x8)                                                       \
+  V(F16x8DemoteF32x4Zero)                                                     \
+  V(F16x8DemoteF64x2Zero)                                                     \
+  V(F32x4PromoteLowF16x8)                                                     \
   V(F32x4Ceil)                                                                \
   V(F32x4Floor)                                                               \
   V(F32x4Trunc)                                                               \

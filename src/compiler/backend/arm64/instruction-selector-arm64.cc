@@ -7040,6 +7040,13 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)               \
   V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)               \
   V(F32x4DemoteF64x2Zero, kArm64F32x4DemoteF64x2Zero)           \
+  V(F16x8SConvertI16x8, kArm64F16x8SConvertI16x8)               \
+  V(F16x8UConvertI16x8, kArm64F16x8UConvertI16x8)               \
+  V(I16x8SConvertF16x8, kArm64I16x8SConvertF16x8)               \
+  V(I16x8UConvertF16x8, kArm64I16x8UConvertF16x8)               \
+  V(F16x8DemoteF32x4Zero, kArm64F16x8DemoteF32x4Zero)           \
+  V(F16x8DemoteF64x2Zero, kArm64F16x8DemoteF64x2Zero)           \
+  V(F32x4PromoteLowF16x8, kArm64F32x4PromoteLowF16x8)           \
   V(I64x2BitMask, kArm64I64x2BitMask)                           \
   V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)               \
   V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)               \
@@ -8481,30 +8488,33 @@ void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kFloat32RoundDown |
-         MachineOperatorBuilder::kFloat64RoundDown |
-         MachineOperatorBuilder::kFloat32RoundUp |
-         MachineOperatorBuilder::kFloat64RoundUp |
-         MachineOperatorBuilder::kFloat32RoundTruncate |
-         MachineOperatorBuilder::kFloat64RoundTruncate |
-         MachineOperatorBuilder::kFloat64RoundTiesAway |
-         MachineOperatorBuilder::kFloat32RoundTiesEven |
-         MachineOperatorBuilder::kFloat64RoundTiesEven |
-         MachineOperatorBuilder::kWord32Popcnt |
-         MachineOperatorBuilder::kWord64Popcnt |
-         MachineOperatorBuilder::kWord32ShiftIsSafe |
-         MachineOperatorBuilder::kInt32DivIsSafe |
-         MachineOperatorBuilder::kUint32DivIsSafe |
-         MachineOperatorBuilder::kWord32ReverseBits |
-         MachineOperatorBuilder::kWord64ReverseBits |
-         MachineOperatorBuilder::kSatConversionIsSafe |
-         MachineOperatorBuilder::kFloat32Select |
-         MachineOperatorBuilder::kFloat64Select |
-         MachineOperatorBuilder::kWord32Select |
-         MachineOperatorBuilder::kWord64Select |
-         MachineOperatorBuilder::kLoadStorePairs |
-         (CpuFeatures::IsSupported(FP16) ? MachineOperatorBuilder::kFloat16
-                                         : MachineOperatorBuilder::kNoFlags);
+  auto flags = MachineOperatorBuilder::kFloat32RoundDown |
+               MachineOperatorBuilder::kFloat64RoundDown |
+               MachineOperatorBuilder::kFloat32RoundUp |
+               MachineOperatorBuilder::kFloat64RoundUp |
+               MachineOperatorBuilder::kFloat32RoundTruncate |
+               MachineOperatorBuilder::kFloat64RoundTruncate |
+               MachineOperatorBuilder::kFloat64RoundTiesAway |
+               MachineOperatorBuilder::kFloat32RoundTiesEven |
+               MachineOperatorBuilder::kFloat64RoundTiesEven |
+               MachineOperatorBuilder::kWord32Popcnt |
+               MachineOperatorBuilder::kWord64Popcnt |
+               MachineOperatorBuilder::kWord32ShiftIsSafe |
+               MachineOperatorBuilder::kInt32DivIsSafe |
+               MachineOperatorBuilder::kUint32DivIsSafe |
+               MachineOperatorBuilder::kWord32ReverseBits |
+               MachineOperatorBuilder::kWord64ReverseBits |
+               MachineOperatorBuilder::kSatConversionIsSafe |
+               MachineOperatorBuilder::kFloat32Select |
+               MachineOperatorBuilder::kFloat64Select |
+               MachineOperatorBuilder::kWord32Select |
+               MachineOperatorBuilder::kWord64Select |
+               MachineOperatorBuilder::kLoadStorePairs;
+  if (CpuFeatures::IsSupported(FP16)) {
+    flags |= MachineOperatorBuilder::kFloat16 |
+             MachineOperatorBuilder::kFloat64ToFloat16;
+  }
+  return flags;
 }
 
 // static

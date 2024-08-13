@@ -944,6 +944,13 @@
   IF_WASM(V, F16x8Le)                     \
   IF_WASM(V, F16x8Gt)                     \
   IF_WASM(V, F16x8Ge)                     \
+  IF_WASM(V, I16x8SConvertF16x8)          \
+  IF_WASM(V, I16x8UConvertF16x8)          \
+  IF_WASM(V, F16x8SConvertI16x8)          \
+  IF_WASM(V, F16x8UConvertI16x8)          \
+  IF_WASM(V, F16x8DemoteF32x4Zero)        \
+  IF_WASM(V, F16x8DemoteF64x2Zero)        \
+  IF_WASM(V, F32x4PromoteLowF16x8)        \
   IF_WASM(V, I64x2Splat)                  \
   IF_WASM(V, I64x2SplatI32Pair)           \
   IF_WASM(V, I64x2ExtractLane)            \

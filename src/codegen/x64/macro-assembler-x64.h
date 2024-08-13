@@ -259,9 +259,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void I32x8SConvertF32x8(YMMRegister dst, YMMRegister src, YMMRegister tmp,
                           Register scratch);
-  void I16x8SConvertF16x8(YMMRegister dst, YMMRegister src, YMMRegister tmp,
+  void I16x8SConvertF16x8(YMMRegister dst, XMMRegister src, YMMRegister tmp,
                           Register scratch);
-  void I16x8TruncF16x8U(YMMRegister dst, YMMRegister src, YMMRegister tmp);
+  void I16x8TruncF16x8U(YMMRegister dst, XMMRegister src, YMMRegister tmp);
   void F16x8Qfma(YMMRegister dst, XMMRegister src1, XMMRegister src2,
                  XMMRegister src3, YMMRegister tmp, YMMRegister tmp2);
   void F16x8Qfms(YMMRegister dst, XMMRegister src1, XMMRegister src2,

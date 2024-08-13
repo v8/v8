@@ -2488,6 +2488,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0).V2S());
       break;
     }
+      SIMD_UNOP_CASE(kArm64F16x8SConvertI16x8, Scvtf, 8H);
+      SIMD_UNOP_CASE(kArm64F16x8UConvertI16x8, Ucvtf, 8H);
+      SIMD_UNOP_CASE(kArm64I16x8UConvertF16x8, Fcvtzu, 8H);
+      SIMD_UNOP_CASE(kArm64I16x8SConvertF16x8, Fcvtzs, 8H);
+    case kArm64F16x8DemoteF32x4Zero: {
+      __ Fcvtn(i.OutputSimd128Register().V4H(),
+               i.InputSimd128Register(0).V4S());
+      break;
+    }
+    case kArm64F16x8DemoteF64x2Zero: {
+      // There is no vector f64 -> f16 conversion instruction,
+      // so convert them by component using scalar version.
+      // Convert high double to a temp reg first, because dst and src
+      // can overlap.
+      __ Mov(fp_scratch.D(), i.InputSimd128Register(0).V2D(), 1);
+      __ Fcvt(fp_scratch.H(), fp_scratch.D());
+
+      __ Fcvt(i.OutputSimd128Register().H(), i.InputSimd128Register(0).D());
+      __ Mov(i.OutputSimd128Register().V8H(), 1, fp_scratch.V8H(), 0);
+      break;
+    }
+    case kArm64F32x4PromoteLowF16x8: {
+      __ Fcvtl(i.OutputSimd128Register().V4S(),
+               i.InputSimd128Register(0).V4H());
+      break;
+    }
     case kArm64FExtractLane: {
       VectorFormat dst_f =
           ScalarFormatFromLaneSize(LaneSizeField::decode(opcode));

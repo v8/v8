@@ -4485,8 +4485,7 @@ bool LiftoffAssembler::emit_i16x8_sconvert_f16x8(LiftoffRegister dst,
   CpuFeatureScope avx2_scope(this, AVX2);
 
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
-  YMMRegister ysrc = YMMRegister::from_code(src.fp().code());
-  I16x8SConvertF16x8(ydst, ysrc, kScratchSimd256Reg, kScratchRegister);
+  I16x8SConvertF16x8(ydst, src.fp(), kScratchSimd256Reg, kScratchRegister);
   return true;
 }
 
@@ -4502,8 +4501,7 @@ bool LiftoffAssembler::emit_i16x8_uconvert_f16x8(LiftoffRegister dst,
   CpuFeatureScope avx2_scope(this, AVX2);
 
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
-  YMMRegister ysrc = YMMRegister::from_code(src.fp().code());
-  I16x8TruncF16x8U(ydst, ysrc, kScratchSimd256Reg);
+  I16x8TruncF16x8U(ydst, src.fp(), kScratchSimd256Reg);
   return true;
 }
 

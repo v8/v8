@@ -4143,6 +4143,25 @@ UNIMPLEMENTED_SIMD_UNOP_LIST(SIMD_VISIT_UNIMPL_UNOP)
 #undef SIMD_VISIT_UNIMPL_UNOP
 #undef UNIMPLEMENTED_SIMD_UNOP_LIST
 
+#define UNIMPLEMENTED_SIMD_CVTOP_LIST(V) \
+  V(F16x8SConvertI16x8)                  \
+  V(F16x8UConvertI16x8)                  \
+  V(I16x8SConvertF16x8)                  \
+  V(I16x8UConvertF16x8)                  \
+  V(F32x4PromoteLowF16x8)                \
+  V(F16x8DemoteF32x4Zero)                \
+  V(F16x8DemoteF64x2Zero)
+
+#define SIMD_VISIT_UNIMPL_CVTOP(Name)                            \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    UNIMPLEMENTED();                                             \
+  }
+
+UNIMPLEMENTED_SIMD_CVTOP_LIST(SIMD_VISIT_UNIMPL_CVTOP)
+#undef SIMD_VISIT_UNIMPL_CVTOP
+#undef UNIMPLEMENTED_SIMD_CVTOP_LIST
+
 #define SIMD_VISIT_SHIFT_OP(Name, width)                         \
   template <typename Adapter>                                    \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \

@@ -239,6 +239,12 @@ namespace compiler {
   V(X64F32x4DemoteF64x2Zero)                         \
   V(X64F32x4DemoteF64x4)                             \
   V(X64F16x8Round)                                   \
+  V(X64I16x8SConvertF16x8)                           \
+  V(X64I16x8UConvertF16x8)                           \
+  V(X64F16x8SConvertI16x8)                           \
+  V(X64F16x8UConvertI16x8)                           \
+  V(X64F16x8DemoteF32x4Zero)                         \
+  V(X64F32x4PromoteLowF16x8)                         \
   V(X64Minph)                                        \
   V(X64Maxph)                                        \
   V(X64ISplat)                                       \
