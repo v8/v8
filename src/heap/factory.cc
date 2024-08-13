@@ -1610,6 +1610,36 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+
+Handle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData() {
+  Tagged<WasmTrustedInstanceData> result =
+      Cast<WasmTrustedInstanceData>(AllocateRawWithImmortalMap(
+          WasmTrustedInstanceData::kSize, AllocationType::kTrusted,
+          read_only_roots().wasm_trusted_instance_data_map()));
+  DisallowGarbageCollection no_gc;
+  result->init_self_indirect_pointer(isolate());
+  result->clear_padding();
+  for (int offset : WasmTrustedInstanceData::kTaggedFieldOffsets) {
+    result->RawField(offset).store(read_only_roots().undefined_value());
+  }
+  return handle(result, isolate());
+}
+
+Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(int length) {
+  CHECK_LE(length, WasmDispatchTable::kMaxLength);
+  int bytes = WasmDispatchTable::SizeFor(length);
+  Tagged<WasmDispatchTable> result = UncheckedCast<WasmDispatchTable>(
+      AllocateRawWithImmortalMap(bytes, AllocationType::kTrusted,
+                                 read_only_roots().wasm_dispatch_table_map()));
+  result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
+  result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
+  for (int i = 0; i < length; ++i) {
+    result->Clear(i);
+    result->clear_entry_padding(i);
+  }
+  return handle(result, isolate());
+}
+
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     Address type_address, Handle<Map> opt_parent,
     DirectHandle<WasmTrustedInstanceData> opt_trusted_data,
