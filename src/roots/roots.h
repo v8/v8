@@ -324,13 +324,13 @@ class RootVisitor;
   V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
     AsyncIteratorValueUnwrapSharedFun)                                         \
   V(SharedFunctionInfo, promise_all_resolve_element_shared_fun,                \
-    PromiseAllResolveElementSharedFun)                                         \
+    PromiseAllResolveElementClosureSharedFun)                                  \
   V(SharedFunctionInfo, promise_all_settled_resolve_element_shared_fun,        \
-    PromiseAllSettledResolveElementSharedFun)                                  \
+    PromiseAllSettledResolveElementClosureSharedFun)                           \
   V(SharedFunctionInfo, promise_all_settled_reject_element_shared_fun,         \
-    PromiseAllSettledRejectElementSharedFun)                                   \
+    PromiseAllSettledRejectElementClosureSharedFun)                            \
   V(SharedFunctionInfo, promise_any_reject_element_shared_fun,                 \
-    PromiseAnyRejectElementSharedFun)                                          \
+    PromiseAnyRejectElementClosureSharedFun)                                   \
   V(SharedFunctionInfo, promise_capability_default_reject_shared_fun,          \
     PromiseCapabilityDefaultRejectSharedFun)                                   \
   V(SharedFunctionInfo, promise_capability_default_resolve_shared_fun,         \

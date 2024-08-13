@@ -4172,6 +4172,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #ifdef V8_ENABLE_LEAPTIERING
   // Load a builtin's handle into the JSDispatchTable.
   TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(Builtin builtin);
+  TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(RootIndex idx);
   TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(TNode<Smi> builtin_id);
 
   // Load a Code object from the JSDispatchTable.
@@ -4200,6 +4201,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<JSDispatchHandleT> dispatch_handle,
 #endif
       TNode<Context> context);
+  TNode<JSFunction> AllocateRootFunctionWithContext(RootIndex function,
+                                                    TNode<Context> context) {
+    return AllocateFunctionWithContext(
+        UncheckedCast<SharedFunctionInfo>(LoadRoot(function)),
+#ifdef V8_ENABLE_LEAPTIERING
+        LoadBuiltinDispatchHandle(function),
+#endif
+        context);
+  }
+  // Used from Torque because Torque
+  TNode<JSFunction> AllocateRootFunctionWithContext(intptr_t function,
+                                                    TNode<Context> context) {
+    return AllocateRootFunctionWithContext(static_cast<RootIndex>(function),
+                                           context);
+  }
 
   // Promise helpers
   TNode<Uint32T> PromiseHookFlags();

@@ -58,16 +58,18 @@
     AsyncFromSyncIteratorCloseSyncAndRethrowSharedFun)                         \
   V(AsyncIteratorValueUnwrapSharedFun, async_iterator_value_unwrap_shared_fun, \
     AsyncIteratorValueUnwrapSharedFun)                                         \
-  V(PromiseAllResolveElementSharedFun, promise_all_resolve_element_shared_fun, \
-    PromiseAllResolveElementSharedFun)                                         \
-  V(PromiseAllSettledRejectElementSharedFun,                                   \
+  V(PromiseAllResolveElementClosureSharedFun,                                  \
+    promise_all_resolve_element_shared_fun,                                    \
+    PromiseAllResolveElementClosureSharedFun)                                  \
+  V(PromiseAllSettledRejectElementClosureSharedFun,                            \
     promise_all_settled_reject_element_shared_fun,                             \
-    PromiseAllSettledRejectElementSharedFun)                                   \
-  V(PromiseAllSettledResolveElementSharedFun,                                  \
+    PromiseAllSettledRejectElementClosureSharedFun)                            \
+  V(PromiseAllSettledResolveElementClosureSharedFun,                           \
     promise_all_settled_resolve_element_shared_fun,                            \
-    PromiseAllSettledResolveElementSharedFun)                                  \
-  V(PromiseAnyRejectElementSharedFun, promise_any_reject_element_shared_fun,   \
-    PromiseAnyRejectElementSharedFun)                                          \
+    PromiseAllSettledResolveElementClosureSharedFun)                           \
+  V(PromiseAnyRejectElementClosureSharedFun,                                   \
+    promise_any_reject_element_shared_fun,                                     \
+    PromiseAnyRejectElementClosureSharedFun)                                   \
   V(PromiseCapabilityDefaultRejectSharedFun,                                   \
     promise_capability_default_reject_shared_fun,                              \
     PromiseCapabilityDefaultRejectSharedFun)                                   \

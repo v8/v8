@@ -39,7 +39,23 @@ class Isolate;
 #ifdef V8_ENABLE_LEAPTIERING
 
 struct JSBuiltinDispatchHandleRoot {
-#define JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(V) V(ProxyRevoke)
+#define JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(V) \
+  V(ProxyRevoke)                                \
+  V(ArrayFromAsyncArrayLikeOnFulfilled)         \
+  V(ArrayFromAsyncArrayLikeOnRejected)          \
+  V(ArrayFromAsyncIterableOnFulfilled)          \
+  V(ArrayFromAsyncIterableOnRejected)           \
+  V(PromiseCapabilityDefaultResolve)            \
+  V(PromiseCapabilityDefaultReject)             \
+  V(PromiseGetCapabilitiesExecutor)             \
+  V(PromiseAllSettledResolveElementClosure)     \
+  V(PromiseAllSettledRejectElementClosure)      \
+  V(PromiseAllResolveElementClosure)            \
+  V(PromiseAnyRejectElementClosure)             \
+  V(PromiseThrowerFinally)                      \
+  V(PromiseValueThunkFinally)                   \
+  V(PromiseThenFinally)                         \
+  V(PromiseCatchFinally)
 
   enum Idx {
 #define CASE(builtin_name) k##builtin_name,
@@ -60,6 +76,18 @@ struct JSBuiltinDispatchHandleRoot {
     switch (builtin) {
 #define CASE(builtin_name)       \
   case Builtin::k##builtin_name: \
+    return Idx::k##builtin_name;
+      JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(CASE)
+#undef CASE
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  static inline Idx to_idx(RootIndex root_idx) {
+    switch (root_idx) {
+#define CASE(builtin_name)                    \
+  case RootIndex::k##builtin_name##SharedFun: \
     return Idx::k##builtin_name;
       JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(CASE)
 #undef CASE
