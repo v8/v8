@@ -1606,15 +1606,7 @@ void Heap::CreateInitialMutableObjects() {
   // Async Disposable Stack
   {
     DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kAsyncDisposableStackOnFulfilled, 0);
-    set_async_disposable_stack_on_fulfilled_shared_fun(*info);
-
-    info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kAsyncDisposableStackOnRejected, 0);
-    set_async_disposable_stack_on_rejected_shared_fun(*info);
-
-    info = CreateSharedFunctionInfo(isolate_,
-                                    Builtin::kAsyncDisposeFromSyncDispose, 0);
+        isolate_, Builtin::kAsyncDisposeFromSyncDispose, 0);
     set_async_dispose_from_sync_dispose_shared_fun(*info);
   }
 

@@ -618,8 +618,6 @@ namespace internal {
   CPP(DisposableStackPrototypeMove)                                            \
                                                                                \
   /* Async DisposabeStack*/                                                    \
-  CPP(AsyncDisposableStackOnFulfilled)                                         \
-  CPP(AsyncDisposableStackOnRejected)                                          \
   CPP(AsyncDisposeFromSyncDispose)                                             \
                                                                                \
   /* Error */                                                                  \

@@ -2708,18 +2708,40 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
       // Finally block
       [&](Register body_continuation_token, Register body_continuation_result) {
         RegisterList args = register_allocator()->NewRegisterList(4);
-        builder()
-            ->MoveRegister(current_disposables_stack_, args[0])
-            .MoveRegister(body_continuation_token, args[1])
-            .MoveRegister(body_continuation_result, args[2])
-            .LoadLiteral(Smi::FromEnum(
-                has_await_using ? DisposableStackResourcesType::kAtLeastOneAsync
-                                : DisposableStackResourcesType::kAllSync))
-            .StoreAccumulatorInRegister(args[3]);
-        builder()->CallRuntime(Runtime::kDisposeDisposableStack, args);
+        Register result_register = register_allocator()->NewRegister();
 
         if (has_await_using) {
+          LoopBuilder loop_builder(builder(), nullptr, nullptr,
+                                   feedback_spec());
+          LoopScope loop_scope(this, &loop_builder);
+
+          builder()
+              ->MoveRegister(current_disposables_stack_, args[0])
+              .MoveRegister(body_continuation_token, args[1])
+              .MoveRegister(body_continuation_result, args[2])
+              .LoadLiteral(
+                  Smi::FromEnum(DisposableStackResourcesType::kAtLeastOneAsync))
+              .StoreAccumulatorInRegister(args[3]);
+          builder()->CallRuntime(Runtime::kDisposeDisposableStack, args);
+
+          builder()
+              ->StoreAccumulatorInRegister(result_register)
+              .LoadUndefined()
+              .CompareReference(result_register);
+
+          loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
+
           BuildAwait();
+          loop_builder.BindContinueTarget();
+        } else {
+          builder()
+              ->MoveRegister(current_disposables_stack_, args[0])
+              .MoveRegister(body_continuation_token, args[1])
+              .MoveRegister(body_continuation_result, args[2])
+              .LoadLiteral(
+                  Smi::FromEnum(DisposableStackResourcesType::kAllSync))
+              .StoreAccumulatorInRegister(args[3]);
+          builder()->CallRuntime(Runtime::kDisposeDisposableStack, args);
         }
       },
       catch_prediction());
