@@ -9251,8 +9251,10 @@ ReduceResult MaglevGraphBuilder::BuildCheckNotHole(ValueNode* node) {
   if (!node->is_tagged()) return ReduceResult::Done();
   compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node);
   if (maybe_constant) {
-    return maybe_constant.value().IsTheHole() ? ReduceResult::Done()
-                                              : ReduceResult::DoneWithAbort();
+    if (maybe_constant.value().IsTheHole()) {
+      return EmitUnconditionalDeopt(DeoptimizeReason::kHole);
+    }
+    return ReduceResult::Done();
   }
   AddNewNode<CheckNotHole>({node});
   return ReduceResult::Done();
