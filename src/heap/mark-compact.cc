@@ -1505,11 +1505,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   }
 
   EvacuateVisitorBase(Heap* heap, EvacuationAllocator* local_allocator,
-                      MainAllocator* shared_old_allocator,
                       RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
         local_allocator_(local_allocator),
-        shared_old_allocator_(shared_old_allocator),
         record_visitor_(record_visitor),
         shared_string_table_(v8_flags.shared_string_table &&
                              heap->isolate()->has_shared_space()) {
@@ -1537,13 +1535,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
     AllocationResult allocation;
     if (target_space == OLD_SPACE && ShouldPromoteIntoSharedHeap(map)) {
-      if (heap_->isolate()->is_shared_space_isolate()) {
-        DCHECK_NULL(shared_old_allocator_);
-        allocation = local_allocator_->Allocate(SHARED_SPACE, size, alignment);
-      } else {
-        allocation = shared_old_allocator_->AllocateRaw(size, alignment,
-                                                        AllocationOrigin::kGC);
-      }
+      allocation = local_allocator_->Allocate(SHARED_SPACE, size, alignment);
     } else {
       allocation = local_allocator_->Allocate(target_space, size, alignment);
     }
@@ -1577,7 +1569,6 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   Heap* heap_;
   EvacuationAllocator* local_allocator_;
-  MainAllocator* shared_old_allocator_;
   RecordMigratedSlotVisitor* record_visitor_;
   std::vector<MigrationObserver*> observers_;
   MigrateFunction migration_function_;
@@ -1592,11 +1583,9 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
  public:
   explicit EvacuateNewSpaceVisitor(
       Heap* heap, EvacuationAllocator* local_allocator,
-      MainAllocator* shared_old_allocator,
       RecordMigratedSlotVisitor* record_visitor,
       PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
-      : EvacuateVisitorBase(heap, local_allocator, shared_old_allocator,
-                            record_visitor),
+      : EvacuateVisitorBase(heap, local_allocator, record_visitor),
         promoted_size_(0),
         semispace_copied_size_(0),
         pretenuring_handler_(heap_->pretenuring_handler()),
@@ -1724,10 +1713,8 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
 class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
  public:
   EvacuateOldSpaceVisitor(Heap* heap, EvacuationAllocator* local_allocator,
-                          MainAllocator* shared_old_allocator,
                           RecordMigratedSlotVisitor* record_visitor)
-      : EvacuateVisitorBase(heap, local_allocator, shared_old_allocator,
-                            record_visitor) {}
+      : EvacuateVisitorBase(heap, local_allocator, record_visitor) {}
 
   inline bool Visit(Tagged<HeapObject> object, int size) override {
     Tagged<HeapObject> target_object;
@@ -4302,18 +4289,6 @@ void MarkCompactCollector::EvacuateEpilogue() {
 #endif  // DEBUG
 }
 
-namespace {
-MainAllocator* CreateSharedOldAllocator(Heap* heap) {
-  if (v8_flags.shared_string_table && heap->isolate()->has_shared_space() &&
-      !heap->isolate()->is_shared_space_isolate()) {
-    return new MainAllocator(heap, heap->shared_allocation_space(),
-                             MainAllocator::kInGC);
-  }
-
-  return nullptr;
-}
-}  // namespace
-
 class Evacuator final : public Malloced {
  public:
   enum EvacuationMode {
@@ -4347,16 +4322,13 @@ class Evacuator final : public Malloced {
             PretenuringHandler::kInitialFeedbackCapacity),
         local_allocator_(heap_,
                          CompactionSpaceKind::kCompactionSpaceForMarkCompact),
-        shared_old_allocator_(CreateSharedOldAllocator(heap_)),
         record_visitor_(heap_),
-        new_space_visitor_(heap_, &local_allocator_,
-                           shared_old_allocator_.get(), &record_visitor_,
+        new_space_visitor_(heap_, &local_allocator_, &record_visitor_,
                            &local_pretenuring_feedback_),
         new_to_old_page_visitor_(heap_, &record_visitor_,
                                  &local_pretenuring_feedback_),
 
-        old_space_visitor_(heap_, &local_allocator_,
-                           shared_old_allocator_.get(), &record_visitor_),
+        old_space_visitor_(heap_, &local_allocator_, &record_visitor_),
         duration_(0.0),
         bytes_compacted_(0) {}
 
@@ -4388,9 +4360,6 @@ class Evacuator final : public Malloced {
 
   // Locally cached collector data.
   EvacuationAllocator local_allocator_;
-
-  // Allocator for the shared heap.
-  std::unique_ptr<MainAllocator> shared_old_allocator_;
 
   RecordMigratedSlotVisitor record_visitor_;
 
@@ -4432,7 +4401,6 @@ void Evacuator::EvacuatePage(MutablePageMetadata* page) {
 
 void Evacuator::Finalize() {
   local_allocator_.Finalize();
-  if (shared_old_allocator_) shared_old_allocator_->FreeLinearAllocationArea();
   heap_->tracer()->AddCompactionEvent(duration_, bytes_compacted_);
   heap_->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size() +
                                       new_to_old_page_visitor_.moved_bytes());
