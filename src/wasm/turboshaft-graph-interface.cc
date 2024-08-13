@@ -3456,13 +3456,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(HANDLE_TERNARY_OTHER_OPCODE)
 #undef HANDLE_TERNARY_OTHER_OPCODE
 
-#define HANDLE_F16X8_TERN_OPCODE(kind, extern_ref)                        \
-  case kExpr##kind:                                                       \
-    result->op = CallCStackSlotToStackSlot(                               \
-        ExternalReference::extern_ref(), MemoryRepresentation::Simd128(), \
-        {{args[0].op, MemoryRepresentation::Simd128()},                   \
-         {args[1].op, MemoryRepresentation::Simd128()},                   \
-         {args[2].op, MemoryRepresentation::Simd128()}});                 \
+#define HANDLE_F16X8_TERN_OPCODE(kind, extern_ref)                          \
+  case kExpr##kind:                                                         \
+    if (SupportedOperations::float16()) {                                   \
+      result->op = __ Simd128Ternary(                                       \
+          V<compiler::turboshaft::Simd128>::Cast(args[0].op),               \
+          V<compiler::turboshaft::Simd128>::Cast(args[1].op),               \
+          V<compiler::turboshaft::Simd128>::Cast(args[2].op),               \
+          compiler::turboshaft::Simd128TernaryOp::Kind::k##kind);           \
+    } else {                                                                \
+      result->op = CallCStackSlotToStackSlot(                               \
+          ExternalReference::extern_ref(), MemoryRepresentation::Simd128(), \
+          {{args[0].op, MemoryRepresentation::Simd128()},                   \
+           {args[1].op, MemoryRepresentation::Simd128()},                   \
+           {args[2].op, MemoryRepresentation::Simd128()}});                 \
+    }                                                                       \
     break;
         HANDLE_F16X8_TERN_OPCODE(F16x8Qfma, wasm_f16x8_qfma)
         HANDLE_F16X8_TERN_OPCODE(F16x8Qfms, wasm_f16x8_qfms)

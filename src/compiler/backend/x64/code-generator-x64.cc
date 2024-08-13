@@ -4135,6 +4135,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    kScratchSimd256Reg);
       break;
     }
+    case kX64F16x8Qfma: {
+      YMMRegister ydst =
+          YMMRegister::from_code(i.OutputSimd128Register().code());
+      __ F16x8Qfma(ydst, i.InputSimd128Register(0), i.InputSimd128Register(1),
+                   i.InputSimd128Register(2), i.TempSimd256Register(0),
+                   i.TempSimd256Register(1));
+      break;
+    }
+    case kX64F16x8Qfms: {
+      YMMRegister ydst =
+          YMMRegister::from_code(i.OutputSimd128Register().code());
+      __ F16x8Qfms(ydst, i.InputSimd128Register(0), i.InputSimd128Register(1),
+                   i.InputSimd128Register(2), i.TempSimd256Register(0),
+                   i.TempSimd256Register(1));
+      break;
+    }
     case kX64Minps: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {

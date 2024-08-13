@@ -4534,6 +4534,16 @@ void InstructionSelectorT<Adapter>::VisitF32x4Qfms(node_t node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Qfma(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Qfms(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI16x8DotI8x16I7x16S(node_t node) {
   IA32OperandGeneratorT<Adapter> g(this);
   Emit(kIA32I16x8DotI8x16I7x16S, g.DefineAsRegister(node),

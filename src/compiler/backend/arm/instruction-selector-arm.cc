@@ -4397,6 +4397,15 @@ VISIT_SIMD_QFMOP(F32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
 
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Qfma(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF16x8Qfms(node_t node) {
+  UNIMPLEMENTED();
+}
 namespace {
 
 struct ShuffleEntry {

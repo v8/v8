@@ -77,6 +77,8 @@ namespace compiler {
   V(Arm64F16x8DemoteF64x2Zero)          \
   V(Arm64I16x8SConvertF16x8)            \
   V(Arm64I16x8UConvertF16x8)            \
+  V(Arm64F16x8Qfma)                     \
+  V(Arm64F16x8Qfms)                     \
   V(Arm64I64x2ShrU)                     \
   V(Arm64I64x2BitMask)                  \
   V(Arm64I32x4SConvertF32x4)            \

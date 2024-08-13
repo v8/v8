@@ -203,6 +203,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F16x8DemoteF64x2Zero:
     case kArm64I16x8SConvertF16x8:
     case kArm64I16x8UConvertF16x8:
+    case kArm64F16x8Qfma:
+    case kArm64F16x8Qfms:
     case kArm64IExtractLane:
     case kArm64IReplaceLane:
     case kArm64ISplat:

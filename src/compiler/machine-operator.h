@@ -881,6 +881,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4PromoteLowF16x8();
   const Operator* F16x8DemoteF32x4Zero();
   const Operator* F16x8DemoteF64x2Zero();
+  const Operator* F16x8Qfma();
+  const Operator* F16x8Qfms();
 
   const Operator* I64x2Splat();
   const Operator* I64x2SplatI32Pair();

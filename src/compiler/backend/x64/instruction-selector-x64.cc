@@ -6682,8 +6682,25 @@ VISIT_SIMD_QFMOP(F32x8Qfms)
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #undef VISIT_SIMD_QFMOP
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI64x2Neg(node_t node) {
+#define VISIT_SIMD_F16x8_QFMOP(Opcode)                                   \
+  template <typename Adapter>                                            \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {       \
+    X64OperandGeneratorT<Adapter> g(this);                               \
+    DCHECK_EQ(this->value_input_count(node), 3);                         \
+    InstructionOperand temps[] = {g.TempSimd256Register(),               \
+                                  g.TempSimd256Register()};              \
+    Emit(kX64##Opcode, g.UseRegister(node),                              \
+         g.UseUniqueRegister(this->input_at(node, 0)),                   \
+         g.UseUniqueRegister(this->input_at(node, 1)),                   \
+         g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), \
+         temps);                                                         \
+  }
+
+VISIT_SIMD_F16x8_QFMOP(F16x8Qfma) VISIT_SIMD_F16x8_QFMOP(F16x8Qfms)
+#undef VISIT_SIMD_F16x8_QFMOP
+
+    template <typename Adapter>
+    void InstructionSelectorT<Adapter>::VisitI64x2Neg(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
   // If AVX unsupported, make sure dst != src to avoid a move.

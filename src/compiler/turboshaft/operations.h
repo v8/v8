@@ -7785,9 +7785,14 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(F64x2Qfms)                                   \
   V(I32x4DotI8x16I7x16AddS)
 
+#define FOREACH_SIMD_128_TERNARY_OPTIONAL_OPCODE(V) \
+  V(F16x8Qfma)                                      \
+  V(F16x8Qfms)
+
 #define FOREACH_SIMD_128_TERNARY_OPCODE(V) \
   FOREACH_SIMD_128_TERNARY_MASK_OPCODE(V)  \
-  FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(V)
+  FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(V) \
+  FOREACH_SIMD_128_TERNARY_OPTIONAL_OPCODE(V)
 
 struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
   enum class Kind : uint8_t {
