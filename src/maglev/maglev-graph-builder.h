@@ -2125,7 +2125,8 @@ class MaglevGraphBuilder {
   ValueNode* BuildTestUndetectable(ValueNode* value);
   void BuildToNumberOrToNumeric(Object::Conversion mode);
 
-  bool CanTrackObjectChanges(ValueNode* object);
+  enum class TrackObjectMode { kLoad, kStore };
+  bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
   void BuildInitializeStore(InlinedAllocation* alloc, ValueNode* value,

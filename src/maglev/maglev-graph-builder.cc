@@ -4318,12 +4318,25 @@ bool VerifyIsNotEscaping(VirtualObject::List vos, InlinedAllocation* alloc) {
 }
 }  // namespace
 
-bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver) {
+bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
+                                               TrackObjectMode mode) {
   DCHECK(!receiver->Is<VirtualObject>());
   if (!v8_flags.maglev_object_tracking) return false;
   if (!receiver->Is<InlinedAllocation>()) return false;
   InlinedAllocation* alloc = receiver->Cast<InlinedAllocation>();
-  if (IsEscaping(graph_, alloc)) return false;
+  if (mode == TrackObjectMode::kStore) {
+    // If we have two objects A and B, such that A points to B (it contains B in
+    // one of its field), we cannot change B without also changing A, even if
+    // both can be elided. For now, we escape both objects instead.
+    if (graph_->allocations_elide_map().find(alloc) !=
+        graph_->allocations_elide_map().end()) {
+      return false;
+    }
+    if (alloc->IsEscaping()) return false;
+  } else {
+    DCHECK_EQ(mode, TrackObjectMode::kLoad);
+    if (IsEscaping(graph_, alloc)) return false;
+  }
   // We don't support loop phis inside VirtualObjects, so any access inside a
   // loop should escape the object.
   if (IsInsideLoop()) return false;
@@ -4360,7 +4373,8 @@ VirtualObject* MaglevGraphBuilder::GetModifiableObjectFromAllocation(
 
 ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
                                                     int offset) {
-  if (offset != HeapObject::kMapOffset && CanTrackObjectChanges(object)) {
+  if (offset != HeapObject::kMapOffset &&
+      CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
     VirtualObject* vobject =
         GetObjectFromAllocation(object->Cast<InlinedAllocation>());
     ValueNode* value;
@@ -4388,7 +4402,7 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
                                                               ValueNode* value,
                                                               int offset) {
   if (offset == HeapObject::kMapOffset) return;
-  if (!CanTrackObjectChanges(object)) return;
+  if (!CanTrackObjectChanges(object, TrackObjectMode::kStore)) return;
   // This avoids loop in the object graph.
   if (value->Is<InlinedAllocation>()) return;
   InlinedAllocation* allocation = object->Cast<InlinedAllocation>();
@@ -4468,7 +4482,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
       return GetRootConstant(RootIndex::kTheHoleValue);
     }
   }
-  if (CanTrackObjectChanges(elements)) {
+  if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
     VirtualObject* vobject =
         GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
     CHECK_EQ(vobject->type(), VirtualObject::kDefault);
@@ -4513,7 +4527,7 @@ void MaglevGraphBuilder::BuildStoreFixedArrayElement(ValueNode* elements,
 
 ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
     ValueNode* elements, int index) {
-  if (CanTrackObjectChanges(elements)) {
+  if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
     VirtualObject* vobject =
         GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
     compiler::FixedDoubleArrayRef elements_array = vobject->double_elements();
