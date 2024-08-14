@@ -926,8 +926,15 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                : __ Call(target, {input, context}, ts_call_descriptor);
   }
 
-  OpIndex FromJS(OpIndex input, OpIndex context, ValueType type,
-                 const WasmModule* module, OptionalOpIndex frame_state = {}) {
+  void CheckJsInputNotNull(V<Object> input, V<Context> context) {
+    IF (UNLIKELY(__ TaggedEqual(input, LOAD_ROOT(NullValue)))) {
+      CallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {}, context);
+      __ Unreachable();
+    }
+  }
+
+  V<Any> FromJS(V<Object> input, V<Context> context, ValueType type,
+                const WasmModule* module, OptionalOpIndex frame_state = {}) {
     switch (type.kind()) {
       case wasm::kRef:
       case wasm::kRefNull: {
@@ -938,19 +945,19 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           case wasm::HeapType::kExn:
           case wasm::HeapType::kNoExn:
             if (type.kind() == wasm::kRef) {
-              IF (UNLIKELY(__ TaggedEqual(input, LOAD_ROOT(NullValue)))) {
-                CallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
-                            context);
-                __ Unreachable();
-              }
+              CheckJsInputNotNull(input, context);
             }
             return input;
+          case wasm::HeapType::kAny:
+            if (type.kind() == wasm::kRef) {
+              CheckJsInputNotNull(input, context);
+            }
+            return __ AnyConvertExtern(input);
           case wasm::HeapType::kString:
             return BuildCheckString(input, context, type);
           case wasm::HeapType::kNone:
           case wasm::HeapType::kNoFunc:
           case wasm::HeapType::kI31:
-          case wasm::HeapType::kAny:
           case wasm::HeapType::kFunc:
           case wasm::HeapType::kStruct:
           case wasm::HeapType::kArray:

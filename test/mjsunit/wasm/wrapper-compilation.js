@@ -9,7 +9,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 function compileAdd(val) {
   var builder = new WasmModuleBuilder();
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  let sig = makeSig([kWasmI32], [wasmRefType(struct)])
+  let sig = makeSig([kWasmI32], [wasmRefType(struct)]);
   builder.addFunction(`fct`, sig)
   .addBody([
     kExprLocalGet, 0,
