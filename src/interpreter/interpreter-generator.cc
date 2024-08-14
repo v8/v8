@@ -1694,23 +1694,28 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     TNode<Context> context = GetContext();
 
     TVARIABLE(Smi, var_type_feedback);
+    TVARIABLE(Object, var_exception);
+    Label if_exception(this, Label::kDeferred);
     TNode<Boolean> result;
-    switch (compare_op) {
-      case Operation::kEqual:
-        result = Equal(lhs, rhs, context, &var_type_feedback);
-        break;
-      case Operation::kStrictEqual:
-        result = StrictEqual(lhs, rhs, &var_type_feedback);
-        break;
-      case Operation::kLessThan:
-      case Operation::kGreaterThan:
-      case Operation::kLessThanOrEqual:
-      case Operation::kGreaterThanOrEqual:
-        result = RelationalComparison(compare_op, lhs, rhs, context,
-                                      &var_type_feedback);
-        break;
-      default:
-        UNREACHABLE();
+    {
+      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+      switch (compare_op) {
+        case Operation::kEqual:
+          result = Equal(lhs, rhs, context, &var_type_feedback);
+          break;
+        case Operation::kStrictEqual:
+          result = StrictEqual(lhs, rhs, &var_type_feedback);
+          break;
+        case Operation::kLessThan:
+        case Operation::kGreaterThan:
+        case Operation::kLessThanOrEqual:
+        case Operation::kGreaterThanOrEqual:
+          result = RelationalComparison(compare_op, lhs, rhs, context,
+                                        &var_type_feedback);
+          break;
+        default:
+          UNREACHABLE();
+      }
     }
 
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
@@ -1721,6 +1726,17 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
                    mode);
     SetAccumulator(result);
     Dispatch();
+
+    BIND(&if_exception);
+    {
+      TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
+      TNode<HeapObject> maybe_feedback_vector =
+          LoadFeedbackVectorOrUndefinedIfJitless();
+      UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
+                     slot_index, mode);
+      CallRuntime(Runtime::kReThrow, context, var_exception.value());
+      Unreachable();
+    }
   }
 };
 
