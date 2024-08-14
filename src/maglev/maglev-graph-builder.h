@@ -371,7 +371,8 @@ class MaglevGraphBuilder {
   DeoptFrame GetLatestCheckpointedFrame();
 
   bool need_checkpointed_loop_entry() {
-    return v8_flags.maglev_speculative_hoist_phi_untagging;
+    return v8_flags.maglev_speculative_hoist_phi_untagging ||
+           v8_flags.maglev_licm;
   }
 
   void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs) {
@@ -787,7 +788,7 @@ class MaglevGraphBuilder {
         ProcessMergePoint(offset, preserve_known_node_aspects);
       }
 
-      if (merge_state->is_loop()) {
+      if (is_loop_effect_tracking_enabled() && merge_state->is_loop()) {
         BeginLoopEffects(offset);
       }
       // We pass nullptr for the `predecessor` argument of StartNewBlock because
@@ -873,6 +874,7 @@ class MaglevGraphBuilder {
     // VirtualObjects should never be add to the Maglev graph.
     DCHECK(!node->Is<VirtualObject>());
     current_block_->nodes().Add(node);
+    node->set_owner(current_block_);
     if (has_graph_labeller())
       graph_labeller()->RegisterNode(node, compilation_unit_,
                                      BytecodeOffset(iterator_.current_offset()),
@@ -1815,6 +1817,7 @@ class MaglevGraphBuilder {
     static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
     static_assert(!ControlNodeT::kProperties.can_throw());
     static_assert(!ControlNodeT::kProperties.can_write());
+    control_node->set_owner(current_block_);
     current_block_->set_control_node(control_node);
     // Clear unobserved context slot stores when there is any controlflow.
     // TODO(olivf): More precision could be achieved by tracking dominating
@@ -2134,7 +2137,33 @@ class MaglevGraphBuilder {
                             int offset);
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
-  ValueNode* BuildLoadTaggedField(ValueNode* object, int offset);
+  template <typename Instruction = LoadTaggedField, typename... Args>
+  ValueNode* BuildLoadTaggedField(ValueNode* object, Args&&... args) {
+    auto offset = std::get<0>(std::make_tuple(args...));
+    if (offset != HeapObject::kMapOffset &&
+        CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
+      VirtualObject* vobject =
+          GetObjectFromAllocation(object->Cast<InlinedAllocation>());
+      ValueNode* value;
+      CHECK_NE(vobject->type(), VirtualObject::kHeapNumber);
+      if (vobject->type() == VirtualObject::kDefault) {
+        value = vobject->get(offset);
+      } else {
+        DCHECK_EQ(vobject->type(), VirtualObject::kFixedDoubleArray);
+        // The only offset we're allowed to read from the a FixedDoubleArray as
+        // tagged field is the length.
+        CHECK_EQ(offset, FixedDoubleArray::kLengthOffset);
+        value = GetInt32Constant(vobject->double_elements_length());
+      }
+      if (v8_flags.trace_maglev_object_tracking) {
+        std::cout << "  * Reusing value in virtual object "
+                  << PrintNodeLabel(graph_labeller(), vobject) << "[" << offset
+                  << "]: " << PrintNode(graph_labeller(), value) << std::endl;
+      }
+      return value;
+    }
+    return AddNewNode<Instruction>({object}, std::forward<Args>(args)...);
+  }
 
   Node* BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset,
                               StoreTaggedMode store_mode);
@@ -2189,7 +2218,8 @@ class MaglevGraphBuilder {
 
   // Returns the loaded value node but doesn't update the accumulator yet.
   ValueNode* BuildLoadField(compiler::PropertyAccessInfo const& access_info,
-                            ValueNode* lookup_start_object);
+                            ValueNode* lookup_start_object,
+                            compiler::NameRef name);
   ReduceResult TryBuildStoreField(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       compiler::AccessMode access_mode);
@@ -2861,9 +2891,12 @@ class MaglevGraphBuilder {
     return v8_flags.maglev_optimistic_peeled_loops &&
            peeled_iteration_count_ == 1;
   }
+  bool is_loop_effect_tracking_enabled() {
+    return v8_flags.maglev_escape_analysis || v8_flags.maglev_licm;
+  }
   bool is_loop_effect_tracking() { return loop_effects_; }
   LoopEffects* loop_effects_ = nullptr;
-  ZoneDeque<LoopEffects> loop_effects_stack_;
+  ZoneDeque<LoopEffects*> loop_effects_stack_;
 
   // When processing the peeled iteration of a loop, we need to reset the
   // decremented predecessor counts inside of the loop before processing the

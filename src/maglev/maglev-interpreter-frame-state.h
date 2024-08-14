@@ -292,6 +292,8 @@ struct KnownNodeAspects {
                                        bool optimistic_initial_state,
                                        LoopEffects* loop_effects) const;
 
+  void ClearUnstableNodeAspects();
+
   void ClearUnstableMaps() {
     // A side effect could change existing objects' maps. For stable maps we
     // know this hasn't happened (because we added a dependency on the maps
@@ -815,6 +817,8 @@ class MergePointInterpreterFrameState {
                  MaglevCompilationUnit& compilation_unit,
                  InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block);
+  void set_loop_effects(LoopEffects* loop_effects);
+  const LoopEffects* loop_effects();
   // Merges a frame-state that might not be mergable, in which case we need to
   // re-compile the loop again. Calls FinishBlock only if the merge succeeded.
   bool TryMergeLoop(MaglevGraphBuilder* graph_builder,
@@ -945,11 +949,14 @@ class MergePointInterpreterFrameState {
   DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
 
   const compiler::LoopInfo* loop_info() const {
-    DCHECK(loop_info_.has_value());
-    return loop_info_.value();
+    DCHECK(loop_metadata_.has_value());
+    DCHECK_NOT_NULL(loop_metadata_->loop_info);
+    return loop_metadata_->loop_info;
   }
-  void ClearLoopInfo() { loop_info_.reset(); }
-  bool HasLoopInfo() const { return loop_info_.has_value(); }
+  void ClearLoopInfo() { loop_metadata_->loop_info = nullptr; }
+  bool HasLoopInfo() const {
+    return loop_metadata_.has_value() && loop_metadata_->loop_info;
+  }
 
   interpreter::Register catch_block_context_register() const {
     DCHECK(is_exception_handler());
@@ -1072,7 +1079,11 @@ class MergePointInterpreterFrameState {
     interpreter::Register catch_block_context_register_;
   };
 
-  std::optional<const compiler::LoopInfo*> loop_info_ = std::nullopt;
+  struct LoopMetadata {
+    const compiler::LoopInfo* loop_info;
+    const LoopEffects* loop_effects;
+  };
+  std::optional<LoopMetadata> loop_metadata_ = std::nullopt;
 };
 
 struct LoopEffects {
@@ -1094,6 +1105,7 @@ struct LoopEffects {
   ZoneSet<KnownNodeAspects::LoadedPropertyMapKey> keys_cleared;
   ZoneSet<InlinedAllocation*> allocations;
   bool unstable_aspects_cleared = false;
+  bool may_have_aliasing_contexts = false;
   void Clear() {
     context_slot_written.clear();
     objects_written.clear();
@@ -1104,6 +1116,9 @@ struct LoopEffects {
   void Merge(const LoopEffects* other) {
     if (!unstable_aspects_cleared) {
       unstable_aspects_cleared = other->unstable_aspects_cleared;
+    }
+    if (!may_have_aliasing_contexts) {
+      may_have_aliasing_contexts = other->may_have_aliasing_contexts;
     }
     context_slot_written.insert(other->context_slot_written.begin(),
                                 other->context_slot_written.end());

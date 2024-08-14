@@ -444,7 +444,7 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
           // v8_flags.minimum_invocations_after_ic_update * bytecodes
           int new_consumed_budget = new_budget - current_budget;
           new_invocation_count_before_stable =
-              vector->invocation_count_before_stable() +
+              vector->invocation_count_before_stable(kRelaxedLoad) +
               std::ceil(static_cast<float>(new_consumed_budget) / bytecodes);
         } else {
           // Initial interrupt budget is
@@ -458,6 +458,8 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
           new_invocation_count_before_stable =
               std::ceil(static_cast<float>(total_consumed_budget) / bytecodes);
         }
+        DCHECK_LT(v8_flags.invocation_count_for_early_optimization,
+                  FeedbackVector::kInvocationCountBeforeStableDeoptSentinel);
         if (new_invocation_count_before_stable >
             v8_flags.invocation_count_for_early_optimization) {
           shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);

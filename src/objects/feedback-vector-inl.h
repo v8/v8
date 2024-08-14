@@ -234,6 +234,16 @@ void FeedbackVector::set_interrupt_budget_reset_by_ic_change(bool value) {
   set_flags(InterruptBudgetResetByIcChangeBit::update(flags(), value));
 }
 
+bool FeedbackVector::was_once_deoptimized() const {
+  return invocation_count_before_stable(kRelaxedLoad) ==
+         kInvocationCountBeforeStableDeoptSentinel;
+}
+
+void FeedbackVector::set_was_once_deoptimized() {
+  set_invocation_count_before_stable(kInvocationCountBeforeStableDeoptSentinel,
+                                     kRelaxedStore);
+}
+
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, FeedbackSlot slot) {
   Tagged<MaybeObject> maybe_code = Get(isolate, slot);

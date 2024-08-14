@@ -254,6 +254,10 @@ class FeedbackVector
   using TorqueGeneratedFeedbackVector::set_invocation_count_before_stable;
   DECL_RELAXED_UINT8_ACCESSORS(invocation_count_before_stable)
 
+  // In case a function deoptimizes we set invocation_count_before_stable to
+  // this sentinel.
+  static constexpr uint8_t kInvocationCountBeforeStableDeoptSentinel = 0xff;
+
   // The [osr_urgency] controls when OSR is attempted, and is incremented as
   // the function becomes hotter. When the current loop depth is less than the
   // osr_urgency, JumpLoop calls into runtime to attempt OSR optimization.
@@ -311,6 +315,13 @@ class FeedbackVector
 
   inline bool interrupt_budget_reset_by_ic_change() const;
   inline void set_interrupt_budget_reset_by_ic_change(bool value);
+
+  // Check if this function was ever deoptimized. This flag can be used as a
+  // blanked bailout for optimizations which are not guaranteed to be deopt-loop
+  // free (such as hoisting checks out of loops).
+  // TODO(olivf): Have a more granular (e.g., per loop) mechanism.
+  inline bool was_once_deoptimized() const;
+  inline void set_was_once_deoptimized();
 
   void reset_flags();
 

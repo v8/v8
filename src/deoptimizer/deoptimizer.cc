@@ -1529,6 +1529,7 @@ void Deoptimizer::DoComputeOutputFrames() {
                                        compiled_code_->osr_offset())))) {
     function_->reset_tiering_state();
     function_->SetInterruptBudget(isolate_, CodeKind::INTERPRETED_FUNCTION);
+    function_->feedback_vector()->set_was_once_deoptimized();
   }
 
   // Print some helpful diagnostic information.
