@@ -2525,6 +2525,12 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(
   return CopyArrayAndGrow(array, grow_by, allocation);
 }
 
+Handle<WeakFixedArray> Factory::CopyWeakFixedArray(
+    DirectHandle<WeakFixedArray> src) {
+  DCHECK(!IsTransitionArray(*src));  // Compacted by GC, this code doesn't work
+  return CopyArrayWithMap(src, weak_fixed_array_map(), AllocationType::kOld);
+}
+
 Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
     DirectHandle<WeakFixedArray> src, int grow_by) {
   DCHECK(!IsTransitionArray(*src));  // Compacted by GC, this code doesn't work
