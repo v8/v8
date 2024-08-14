@@ -38,28 +38,16 @@ class Isolate;
 
 #ifdef V8_ENABLE_LEAPTIERING
 
-struct JSBuiltinDispatchHandleRoot {
-#define JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(V) \
-  V(ProxyRevoke)                                \
-  V(ArrayFromAsyncArrayLikeOnFulfilled)         \
-  V(ArrayFromAsyncArrayLikeOnRejected)          \
-  V(ArrayFromAsyncIterableOnFulfilled)          \
-  V(ArrayFromAsyncIterableOnRejected)           \
-  V(PromiseCapabilityDefaultResolve)            \
-  V(PromiseCapabilityDefaultReject)             \
-  V(PromiseGetCapabilitiesExecutor)             \
-  V(PromiseAllSettledResolveElementClosure)     \
-  V(PromiseAllSettledRejectElementClosure)      \
-  V(PromiseAllResolveElementClosure)            \
-  V(PromiseAnyRejectElementClosure)             \
-  V(PromiseThrowerFinally)                      \
-  V(PromiseValueThunkFinally)                   \
-  V(PromiseThenFinally)                         \
-  V(PromiseCatchFinally)
+#define BUILTINS_WITH_DISPATCH_ADAPTER(V, CamelName, underscore_name, ...) \
+  V(CamelName, CamelName##SharedFun)
 
+#define BUILTINS_WITH_DISPATCH_LIST(V) \
+  BUILTINS_WITH_SFI_LIST_GENERATOR(BUILTINS_WITH_DISPATCH_ADAPTER, V)
+
+struct JSBuiltinDispatchHandleRoot {
   enum Idx {
-#define CASE(builtin_name) k##builtin_name,
-    JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(CASE)
+#define CASE(builtin_name, ...) k##builtin_name,
+    BUILTINS_WITH_DISPATCH_LIST(CASE)
 
         kEnd,
     kFirst = 0
@@ -67,17 +55,17 @@ struct JSBuiltinDispatchHandleRoot {
   };
 
   static inline Builtin to_builtin(Idx idx) {
-#define CASE(builtin_name) Builtin::k##builtin_name,
+#define CASE(builtin_name, ...) Builtin::k##builtin_name,
     return std::array<Builtin, Idx::kEnd>{
-        JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(CASE)}[idx];
+        BUILTINS_WITH_DISPATCH_LIST(CASE)}[idx];
 #undef CASE
   }
   static inline Idx to_idx(Builtin builtin) {
     switch (builtin) {
-#define CASE(builtin_name)       \
+#define CASE(builtin_name, ...)  \
   case Builtin::k##builtin_name: \
     return Idx::k##builtin_name;
-      JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(CASE)
+      BUILTINS_WITH_DISPATCH_LIST(CASE)
 #undef CASE
       default:
         UNREACHABLE();
@@ -86,10 +74,10 @@ struct JSBuiltinDispatchHandleRoot {
 
   static inline Idx to_idx(RootIndex root_idx) {
     switch (root_idx) {
-#define CASE(builtin_name)                    \
-  case RootIndex::k##builtin_name##SharedFun: \
+#define CASE(builtin_name, shared_fun_name, ...) \
+  case RootIndex::k##shared_fun_name:            \
     return Idx::k##builtin_name;
-      JS_BUILTIN_DISPATCH_HANDLE_ROOT_LIST(CASE)
+      BUILTINS_WITH_DISPATCH_LIST(CASE)
 #undef CASE
       default:
         UNREACHABLE();

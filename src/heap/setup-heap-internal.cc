@@ -1527,19 +1527,19 @@ void Heap::CreateInitialMutableObjects() {
   {
     DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseAllResolveElementClosure, 1);
-    set_promise_all_resolve_element_shared_fun(*info);
+    set_promise_all_resolve_element_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseAllSettledResolveElementClosure, 1);
-    set_promise_all_settled_resolve_element_shared_fun(*info);
+    set_promise_all_settled_resolve_element_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseAllSettledRejectElementClosure, 1);
-    set_promise_all_settled_reject_element_shared_fun(*info);
+    set_promise_all_settled_reject_element_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate_, Builtin::kPromiseAnyRejectElementClosure, 1);
-    set_promise_any_reject_element_shared_fun(*info);
+    set_promise_any_reject_element_closure_shared_fun(*info);
   }
 
   // ProxyRevoke:
