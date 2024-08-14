@@ -13,7 +13,7 @@ import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import patch, mock_open
 
-from download_profiles import main, parse_args, retrieve_version
+from download_profiles import ProfileDownloader
 
 
 def mock_version_file(major, minor, build, patch):
@@ -33,7 +33,8 @@ class TestDownloadProfiles(unittest.TestCase):
     with self.assertRaises(SystemExit) as se, \
         contextlib.redirect_stdout(out), \
         contextlib.redirect_stderr(err):
-      main(cmd)
+      downloader = ProfileDownloader(cmd)
+      downloader.run()
     self.assertEqual(se.exception.code, exitcode)
     return out.getvalue(), err.getvalue()
 
@@ -44,7 +45,9 @@ class TestDownloadProfiles(unittest.TestCase):
 
   def test_download_profiles(self):
     with TemporaryDirectory() as td, \
-        patch('download_profiles.PGO_PROFILE_DIR', pathlib.Path(td)):
+        patch('download_profiles.PGO_PROFILE_DIR', pathlib.Path(td)), \
+        patch('download_profiles.PGO_CURRENT_PROFILE_VERSION',
+            pathlib.Path(td) / 'profiles_version'):
       out, err = self._test_cmd(['download', '--version', '11.1.0.0'], 0)
       self.assertEqual(len(out), 0)
       self.assertEqual(len(err), 0)
@@ -54,7 +57,7 @@ class TestDownloadProfiles(unittest.TestCase):
         self.assertEqual(f.read(), '11.1.0.0')
 
       # A second download should not be started as profiles exist already
-      with patch('download_profiles.call_gsutil') as gsutil:
+      with patch('download_profiles.ProfileDownloader._call_gsutil') as gsutil:
         out, err = self._test_cmd(['download', '--version', '11.1.0.0'], 0)
         self.assertEqual(
             out,
@@ -63,7 +66,7 @@ class TestDownloadProfiles(unittest.TestCase):
         gsutil.assert_not_called()
 
       # A forced download should always trigger
-      with patch('download_profiles.call_gsutil') as gsutil:
+      with patch('download_profiles.ProfileDownloader._call_gsutil') as gsutil:
         cmd = ['download', '--version', '11.1.0.0', '--force']
         out, err = self._test_cmd(cmd, 0)
         self.assertEqual(len(out), 0)
@@ -102,15 +105,12 @@ class TestRetrieveVersion(unittest.TestCase):
     with patch(
         'builtins.open',
         new=mock_open(read_data=mock_version_file(11, 4, 1, 0))):
-      args = parse_args(['download'])
-      version = retrieve_version(args)
-
-    self.assertEqual(version, '11.4.1.0')
+      downloader = ProfileDownloader(['download'])
+      self.assertEqual(downloader.version, '11.4.1.0')
 
   def test_retrieve_parameter_version(self):
-    args = parse_args(['download', '--version', '11.1.1.42'])
-    version = retrieve_version(args)
-    self.assertEqual(version, '11.1.1.42')
+    downloader = ProfileDownloader(['download', '--version', '11.1.1.42'])
+    self.assertEqual(downloader.version, '11.1.1.42')
 
   def test_retrieve_untagged_version(self):
     out = io.StringIO()
@@ -119,8 +119,8 @@ class TestRetrieveVersion(unittest.TestCase):
         new=mock_open(read_data=mock_version_file(11, 4, 0, 0))), \
         contextlib.redirect_stdout(out), \
         self.assertRaises(SystemExit) as se:
-      args = parse_args(['download'])
-      version = retrieve_version(args)
+      downloader = ProfileDownloader(['download'])
+      downloader.version
 
     self.assertEqual(se.exception.code, 0)
     self.assertEqual(out.getvalue(),

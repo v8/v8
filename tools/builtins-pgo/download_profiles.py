@@ -11,7 +11,7 @@ See argparse documentation for usage details.
 """
 
 import argparse
-import contextlib
+from functools import cached_property
 import os
 import pathlib
 import re
@@ -20,6 +20,7 @@ import sys
 FILENAME = os.path.basename(__file__)
 PGO_PROFILE_BUCKET = 'chromium-v8-builtins-pgo'
 PGO_PROFILE_DIR = pathlib.Path(os.path.dirname(__file__)) / 'profiles'
+PGO_CURRENT_PROFILE_VERSION = PGO_PROFILE_DIR / 'profiles_version'
 
 V8_DIR = PGO_PROFILE_DIR.parents[2]
 DEPOT_TOOLS_DEFAULT_PATH = os.path.join(V8_DIR, 'third_party', 'depot_tools')
@@ -30,181 +31,177 @@ VERSION_RE = r"""#define V8_MAJOR_VERSION (\d+)
 #define V8_PATCH_LEVEL (\d+)"""
 
 
-def main(cmd_args=None):
-  args = parse_args(cmd_args)
-  import_gsutil(args)
-  version = retrieve_version(args)
-  perform_action(version, args)
-  sys.exit(0)
+class ProfileDownloader:
+  def __init__(self, cmd_args=None):
+    self.args = self._parse_args(cmd_args)
+    self._import_gsutil()
 
+  def run(self):
+    if self.args.action == 'download':
+      self._download()
+      sys.exit(0)
 
-def parse_args(cmd_args):
-  parser = argparse.ArgumentParser(
-      description=(
-          f'Download PGO profiles for V8 builtins generated for the version '
-          f'defined in {VERSION_FILE}. If the current checkout has no version '
-          f'(i.e. build and patch level are 0 in {VERSION_FILE}), no profiles '
-          f'exist and the script returns without errors.'),
-      formatter_class=argparse.RawDescriptionHelpFormatter,
-      epilog='\n'.join([
-          f'examples:', f'  {FILENAME} download',
-          f'  {FILENAME} validate --bucket=chromium-v8-builtins-pgo-staging',
-          f'', f'return codes:',
-          f'  0 - profiles successfully downloaded or validated',
-          f'  1 - unexpected error, see stdout',
-          f'  2 - invalid arguments specified, see {FILENAME} --help',
-          f'  3 - invalid path to depot_tools provided'
-          f'  4 - gsutil was unable to retrieve data from the bucket'
-      ]),
-  )
+    if self.args.action == 'validate':
+      self._validate()
+      sys.exit(0)
 
-  parser.add_argument(
-      'action',
-      choices=['download', 'validate'],
-      help=(
-          'download or validate profiles for the currently checked out version'
-      ),
-  )
+    raise AssertionError(f'Invalid action: {args.action}')
 
-  parser.add_argument(
-      '--version',
-      help=('download (or validate) profiles for this version (e.g. 11.0.226.0 '
-            'or 11.0.226.2), defaults to the version in v8\'s version file'),
-  )
+  def _parse_args(self, cmd_args):
+    parser = argparse.ArgumentParser(
+        description=(
+            f'Download PGO profiles for V8 builtins generated for the version '
+            f'defined in {VERSION_FILE}. If the current checkout has no '
+            f'version (i.e. build and patch level are 0 in {VERSION_FILE}), no '
+            f'profiles exist and the script returns without errors.'),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='\n'.join([
+            f'examples:', f'  {FILENAME} download',
+            f'  {FILENAME} validate --bucket=chromium-v8-builtins-pgo-staging',
+            f'', f'return codes:',
+            f'  0 - profiles successfully downloaded or validated',
+            f'  1 - unexpected error, see stdout',
+            f'  2 - invalid arguments specified, see {FILENAME} --help',
+            f'  3 - invalid path to depot_tools provided'
+            f'  4 - gsutil was unable to retrieve data from the bucket'
+        ]),
+    )
 
-  parser.add_argument(
-      '--depot-tools',
-      help=('path to depot tools, defaults to V8\'s version in '
-            f'{DEPOT_TOOLS_DEFAULT_PATH}.'),
-      type=pathlib.Path,
-      default=DEPOT_TOOLS_DEFAULT_PATH,
-  )
+    parser.add_argument(
+        'action',
+        choices=['download', 'validate'],
+        help=(
+            'download or validate profiles for the currently checked out '
+            'version'
+        ),
+    )
 
-  parser.add_argument(
-      '--force',
-      help=('force download, overwriting existing profiles'),
-      action='store_true',
-  )
+    parser.add_argument(
+        '--version',
+        help=('download (or validate) profiles for this version (e.g. '
+              '11.0.226.0 or 11.0.226.2), defaults to the version in v8\'s '
+              'version file'),
+    )
 
-  parser.add_argument(
-      '--quiet',
-      help=('run silently, still display errors'),
-      action='store_true',
-  )
+    parser.add_argument(
+        '--depot-tools',
+        help=('path to depot tools, defaults to V8\'s version in '
+              f'{DEPOT_TOOLS_DEFAULT_PATH}.'),
+        type=pathlib.Path,
+        default=DEPOT_TOOLS_DEFAULT_PATH,
+    )
 
-  return parser.parse_args(cmd_args)
+    parser.add_argument(
+        '--force',
+        help=('force download, overwriting existing profiles'),
+        action='store_true',
+    )
 
+    parser.add_argument(
+        '--quiet',
+        help=('run silently, still display errors'),
+        action='store_true',
+    )
 
-def import_gsutil(args):
-  abs_depot_tools_path = os.path.abspath(args.depot_tools)
-  file = os.path.join(abs_depot_tools_path, 'download_from_google_storage.py')
-  if not pathlib.Path(file).is_file():
-    print(f'{file} does not exist; check --depot-tools path.', file=sys.stderr)
-    sys.exit(3)
+    return parser.parse_args(cmd_args)
 
-  # Put this path at the beginning of the PATH to give it priority.
-  sys.path.insert(0, abs_depot_tools_path)
-  globals()['gcs_download'] = __import__('download_from_google_storage')
+  def _import_gsutil(self):
+    abs_depot_tools_path = os.path.abspath(self.args.depot_tools)
+    file = os.path.join(abs_depot_tools_path, 'download_from_google_storage.py')
+    if not pathlib.Path(file).is_file():
+      message = f'{file} does not exist; check --depot-tools path.'
+      print(message, file=sys.stderr)
+      sys.exit(3)
 
+    # Put this path at the beginning of the PATH to give it priority.
+    sys.path.insert(0, abs_depot_tools_path)
+    globals()['gcs_download'] = __import__('download_from_google_storage')
 
-def retrieve_version(args):
-  if args.version:
-    return args.version
+  @cached_property
+  def version(self):
+    if self.args.version:
+      return self.args.version
 
-  with open(VERSION_FILE) as f:
-    version_tuple = re.search(VERSION_RE, f.read()).groups(0)
+    with open(VERSION_FILE) as f:
+      version_tuple = re.search(VERSION_RE, f.read()).groups(0)
 
-  version = '.'.join(version_tuple)
-  if version_tuple[2] == version_tuple[3] == '0':
-    log(args, f'The version file specifies {version}, which has no profiles.')
-    sys.exit(0)
+    version = '.'.join(version_tuple)
+    if version_tuple[2] == version_tuple[3] == '0':
+      self._log(f'The version file specifies {version}, which has no profiles.')
+      sys.exit(0)
 
-  return version
+    return version
 
+  @cached_property
+  def _remote_profile_path(self):
+    return f'{PGO_PROFILE_BUCKET}/by-version/{self.version}'
 
-def download_profiles(version_path, requested_version, args):
-  if args.force:
-    return True
-
-  if not version_path.is_file():
-    return True
-
-  with open(version_path) as version_file:
-    profiles_version = version_file.read()
-
-  if profiles_version != requested_version:
-    return True
-
-  log(args, 'Profiles already downloaded, use --force to overwrite.')
-  return False
-
-
-@contextlib.contextmanager
-def ensure_profiles(version, args):
-  version_path = PGO_PROFILE_DIR / 'profiles_version'
-  require_profiles = download_profiles(version_path, version, args)
-  yield require_profiles
-  if require_profiles:
-    with open(version_path, 'w') as version_file:
-      version_file.write(version)
-
-
-def perform_action(version, args):
-  path = f'{PGO_PROFILE_BUCKET}/by-version/{version}'
-
-  if args.action == 'download':
-    with ensure_profiles(version, args) as require_profiles:
-      if not require_profiles:
-        return
-
-      cmd = ['cp', '-R', f'gs://{path}/*.profile', str(PGO_PROFILE_DIR)]
-      failure_hint = f'https://storage.googleapis.com/{path} does not exist.'
-      call_gsutil(cmd, failure_hint)
+  def _download(self):
+    if not self._require_download():
       return
 
-  if args.action == 'validate':
-    meta_json = f'{path}/meta.json'
+    path = self._remote_profile_path
+    cmd = ['cp', '-R', f'gs://{path}/*.profile', str(PGO_PROFILE_DIR)]
+    failure_hint = f'https://storage.googleapis.com/{path} does not exist.'
+    self._call_gsutil(cmd, failure_hint)
+
+    with open(PGO_CURRENT_PROFILE_VERSION, 'w') as version_file:
+      version_file.write(self.version)
+
+  def _require_download(self):
+    if self.args.force:
+      return True
+
+    if not PGO_CURRENT_PROFILE_VERSION.is_file():
+      return True
+
+    with open(PGO_CURRENT_PROFILE_VERSION) as version_file:
+      profiles_version = version_file.read()
+
+    if profiles_version != self.version:
+      return True
+
+    self._log('Profiles already downloaded, use --force to overwrite.')
+    return False
+
+  def _validate(self):
+    meta_json = f'{self._remote_profile_path}/meta.json'
     cmd = ['stat', f'gs://{meta_json}']
     failure_hint = f'https://storage.googleapis.com/{meta_json} does not exist.'
-    call_gsutil(cmd, failure_hint)
-    return
+    self._call_gsutil(cmd, failure_hint)
 
-  raise AssertionError(f'Invalid action: {args.action}')
+  def _call_gsutil(self, cmd, failure_hint):
+    # Load gsutil from depot tools, and execute command
+    gsutil = gcs_download.Gsutil(gcs_download.GSUTIL_DEFAULT_PATH)
+    returncode, stdout, stderr = gsutil.check_call(*cmd)
+    if returncode != 0:
+      self._print_error(['gsutil', *cmd], returncode, stdout, stderr, failure_hint)
+      sys.exit(4)
 
+  def _print_error(self, cmd, returncode, stdout, stderr, failure_hint):
+    message = [
+        'The following command did not succeed:',
+        f'  $ {" ".join(cmd)}',
+    ]
+    sections = [
+        ('return code', str(returncode)),
+        ('stdout', stdout.strip()),
+        ('stderr', stderr.strip()),
+        ('hint', failure_hint),
+    ]
+    for label, output in sections:
+      if not output:
+        continue
+      message += [f'{label}:', "  " + "\n  ".join(output.split("\n"))]
 
-def call_gsutil(cmd, failure_hint):
-  # Load gsutil from depot tools, and execute command
-  gsutil = gcs_download.Gsutil(gcs_download.GSUTIL_DEFAULT_PATH)
-  returncode, stdout, stderr = gsutil.check_call(*cmd)
-  if returncode != 0:
-    print_error(['gsutil', *cmd], returncode, stdout, stderr, failure_hint)
-    sys.exit(4)
+    print('\n'.join(message), file=sys.stderr)
 
-
-def print_error(cmd, returncode, stdout, stderr, failure_hint):
-  message = [
-      'The following command did not succeed:',
-      f'  $ {" ".join(cmd)}',
-  ]
-  sections = [
-      ('return code', str(returncode)),
-      ('stdout', stdout.strip()),
-      ('stderr', stderr.strip()),
-      ('hint', failure_hint),
-  ]
-  for label, output in sections:
-    if not output:
-      continue
-    message += [f'{label}:', "  " + "\n  ".join(output.split("\n"))]
-
-  print('\n'.join(message), file=sys.stderr)
-
-
-def log(args, message):
-  if args.quiet:
-    return
-  print(message)
+  def _log(self, message):
+    if self.args.quiet:
+      return
+    print(message)
 
 
 if __name__ == '__main__':
-  main()
+  downloader = ProfileDownloader()
+  downloader.run()
