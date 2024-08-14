@@ -4228,29 +4228,36 @@ SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
 #undef SIMD_VISIT_RELAXED_OP
 #undef SIMD_RELAXED_OP_LIST
 
-#define F16_OP_LIST(V) \
-  V(F16x8Splat)        \
-  V(F16x8ExtractLane)  \
-  V(F16x8ReplaceLane)  \
-  V(F16x8Abs)          \
-  V(F16x8Neg)          \
-  V(F16x8Sqrt)         \
-  V(F16x8Floor)        \
-  V(F16x8Ceil)         \
-  V(F16x8Trunc)        \
-  V(F16x8NearestInt)   \
-  V(F16x8Add)          \
-  V(F16x8Sub)          \
-  V(F16x8Mul)          \
-  V(F16x8Div)          \
-  V(F16x8Min)          \
-  V(F16x8Max)          \
-  V(F16x8Pmin)         \
-  V(F16x8Pmax)         \
-  V(F16x8Eq)           \
-  V(F16x8Ne)           \
-  V(F16x8Lt)           \
-  V(F16x8Le)
+#define F16_OP_LIST(V)    \
+  V(F16x8Splat)           \
+  V(F16x8ExtractLane)     \
+  V(F16x8ReplaceLane)     \
+  V(F16x8Abs)             \
+  V(F16x8Neg)             \
+  V(F16x8Sqrt)            \
+  V(F16x8Floor)           \
+  V(F16x8Ceil)            \
+  V(F16x8Trunc)           \
+  V(F16x8NearestInt)      \
+  V(F16x8Add)             \
+  V(F16x8Sub)             \
+  V(F16x8Mul)             \
+  V(F16x8Div)             \
+  V(F16x8Min)             \
+  V(F16x8Max)             \
+  V(F16x8Pmin)            \
+  V(F16x8Pmax)            \
+  V(F16x8Eq)              \
+  V(F16x8Ne)              \
+  V(F16x8Lt)              \
+  V(F16x8Le)              \
+  V(F16x8SConvertI16x8)   \
+  V(F16x8UConvertI16x8)   \
+  V(I16x8SConvertF16x8)   \
+  V(I16x8UConvertF16x8)   \
+  V(F32x4PromoteLowF16x8) \
+  V(F16x8DemoteF32x4Zero) \
+  V(F16x8DemoteF64x2Zero)
 
 #define VISIT_F16_OP(name)                                       \
   template <typename Adapter>                                    \
