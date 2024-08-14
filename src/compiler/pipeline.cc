@@ -2421,12 +2421,10 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   turboshaft::PrintTurboshaftGraph(&turboshaft_data_, &printing_zone,
                                    code_tracer, "Graph generation");
 
-  // Skip the LoopUnrolling and WasmGCOptimize phases for wrappers.
-  // TODO(14108): Do we need value numbering if wasm_opt is turned off?
   turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_);
-
-  turboshaft_pipeline.Run<turboshaft::WasmLoweringPhase>();
-
+  // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
+  // wrappers.
+  // TODO(14108): Do we need value numbering if wasm_opt is turned off?
   if (v8_flags.wasm_opt) {
     turboshaft_pipeline.Run<turboshaft::WasmOptimizePhase>();
   }
@@ -3150,10 +3148,10 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     turboshaft::PrintTurboshaftGraph(&turboshaft_data, &printing_zone,
                                      code_tracer, "Graph generation");
 
-    // Skip the LoopUnrolling and WasmGCOptimize phases for wrappers.
+    // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
+    // wrappers.
     // TODO(14108): Do we need value numbering if wasm_opt is turned off?
     turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data);
-    turboshaft_pipeline.Run<turboshaft::WasmLoweringPhase>();
     if (v8_flags.wasm_opt) {
       turboshaft_pipeline.Run<turboshaft::WasmOptimizePhase>();
     }
