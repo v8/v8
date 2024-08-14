@@ -517,7 +517,7 @@ Float64 TranslatedValue::double_value() const {
 }
 
 Simd128 TranslatedValue::simd_value() const {
-  DCHECK_EQ(kind(), kSimd128);
+  CHECK_EQ(kind(), kSimd128);
   return simd128_value_;
 }
 
