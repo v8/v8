@@ -49,6 +49,9 @@ enum class ProcessResult {
               // called on the node.
   kRemove,    // Remove the current node from the graph (and do not call the
               // following processors).
+  kHoist,     // Hoist the current instruction to the parent basic block
+              // and reset the current instruction to the beginning of the
+              // block. Parent block must be dominating.
   kAbort,     // Stop processing now, do not process subsequent nodes/blocks.
               // Should not be used when processing Constants.
 };
@@ -142,6 +145,16 @@ class GraphProcessor {
           ++node_it_;
         } else if (result == ProcessResult::kRemove) {
           node_it_ = block->nodes().RemoveAt(node_it_);
+        } else if (result == ProcessResult::kHoist) {
+          DCHECK(block->predecessor_count() == 1 ||
+                 (block->predecessor_count() == 2 && block->is_loop()));
+          BasicBlock* target = block->predecessor_at(0);
+          DCHECK(target->successors().size() == 1);
+          Node* cur = *node_it_;
+          cur->set_owner(target);
+          block->nodes().RemoveAt(node_it_);
+          target->nodes().Add(cur);
+          node_it_ = block->nodes().begin();
         } else {
           DCHECK_EQ(result, ProcessResult::kAbort);
           return;
@@ -225,9 +238,9 @@ class NodeMultiProcessor<Processor, Processors...>
 
   template <typename Node>
   ProcessResult Process(Node* node, const ProcessingState& state) {
-    if (V8_UNLIKELY(processor_.Process(node, state) ==
-                    ProcessResult::kRemove)) {
-      return ProcessResult::kRemove;
+    auto res = processor_.Process(node, state);
+    if (V8_UNLIKELY(res != ProcessResult::kContinue)) {
+      return res;
     }
     return Base::Process(node, state);
   }

@@ -2696,7 +2696,8 @@ class GraphBuilder {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::LoadTaggedField* node,
+  template <typename T>
+  maglev::ProcessResult Process(maglev::AbstractLoadTaggedField<T>* node,
                                 const maglev::ProcessingState& state) {
     V<Object> value =
         __ LoadTaggedField(Map(node->object_input()), node->offset());
@@ -2704,7 +2705,7 @@ class GraphBuilder {
 
     if (generator_analyzer_.has_header_bypasses() &&
         maglev_generator_context_node_ == nullptr &&
-        node->object_input().node()->Is<maglev::RegisterInput>() &&
+        node->object_input().node()->template Is<maglev::RegisterInput>() &&
         node->offset() == JSGeneratorObject::kContextOffset) {
       // This is loading the context of a generator for the 1st time. We save it
       // in {generator_context_} for later use.

@@ -234,6 +234,15 @@ void FeedbackVector::set_interrupt_budget_reset_by_ic_change(bool value) {
   set_flags(InterruptBudgetResetByIcChangeBit::update(flags(), value));
 }
 
+bool FeedbackVector::maybe_was_once_deoptimized() const {
+  return WasOnceDeoptimizedBit::decode(
+      Relaxed_ReadField<uint16_t>(kFlagsOffset));
+}
+
+void FeedbackVector::set_was_once_deoptimized() {
+  set_flags(WasOnceDeoptimizedBit::update(flags(), true));
+}
+
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, FeedbackSlot slot) {
   Tagged<MaybeObject> maybe_code = Get(isolate, slot);

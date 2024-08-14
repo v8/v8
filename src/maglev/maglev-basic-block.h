@@ -35,7 +35,7 @@ class BasicBlock {
         reload_hints_(0, zone),
         spill_hints_(0, zone) {}
 
-  uint32_t first_id() const {
+  NodeIdT first_id() const {
     if (has_phi()) return phis()->first()->id();
     if (nodes_.is_empty()) {
       return control_node()->id();
@@ -47,7 +47,7 @@ class BasicBlock {
     return node ? node->id() : control_node()->id();
   }
 
-  uint32_t FirstNonGapMoveId() const {
+  NodeIdT FirstNonGapMoveId() const {
     if (has_phi()) return phis()->first()->id();
     if (!nodes_.is_empty()) {
       for (const Node* node : nodes_) {
