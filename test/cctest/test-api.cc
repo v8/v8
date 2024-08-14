@@ -30969,3 +30969,41 @@ TEST(ContinuationPreservedEmbedderData_Thenable) {
   isolate->PerformMicrotaskCheckpoint();
   CHECK(did_thenable_callback_run);
 }
+
+TEST(WrappedFunctionWithClass) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
+
+  // Compile a wrapped function whose first character is the start of a class.
+  // This will mean that both the wrapped function and class's start position
+  // will be character 0 -- things should still work.
+  v8::ScriptCompiler::Source source{v8_str("class C{}; return C;")};
+  v8::Local<v8::Function> wrapped_function =
+      v8::ScriptCompiler::CompileFunction(context, &source, 0, nullptr)
+          .ToLocalChecked();
+  v8::Local<v8::Value> result =
+      wrapped_function->Call(context, context->Global(), 0, nullptr)
+          .ToLocalChecked();
+
+  CHECK(result->IsFunction());
+  v8::Local<v8::Function> the_class = v8::Local<v8::Function>::Cast(result);
+  CHECK(the_class->IsConstructor());
+
+  v8::MaybeLocal<v8::Object> maybe_instance =
+      the_class->NewInstance(context, 0, nullptr);
+  CHECK(!maybe_instance.IsEmpty());
+
+  // Make sure the class still works after bytecode flushing.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSFunction> i_class =
+      Cast<i::JSFunction>(v8::Utils::OpenHandle(*the_class));
+  CHECK(i_class->shared()->CanDiscardCompiled());
+  i::SharedFunctionInfo::DiscardCompiled(i_isolate,
+                                         handle(i_class->shared(), i_isolate));
+  i_class->ResetIfCodeFlushed(i_isolate);
+
+  maybe_instance = the_class->NewInstance(context, 0, nullptr);
+  CHECK(!maybe_instance.IsEmpty());
+}

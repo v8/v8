@@ -81,6 +81,7 @@ bitfield struct ScopeFlags extends uint32 {
   has_context_extension_slot: bool: 1 bit;
   is_hidden: bool: 1 bit;
   is_empty: bool: 1 bit;
+  is_wrapped_function: bool: 1 bit;
 }
 
 struct PositionInfo {

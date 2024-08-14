@@ -374,6 +374,8 @@ void Scope::SetDefaults() {
   has_using_declaration_ = false;
   has_await_using_declaration_ = false;
 
+  is_wrapped_function_ = false;
+
   num_stack_slots_ = 0;
   num_heap_slots_ = ContextHeaderLength();
 
@@ -2620,6 +2622,11 @@ int Scope::UniqueIdInScript() const {
   // starts on character 0.
   if (is_script_scope() || scope_type() == EVAL_SCOPE ||
       scope_type() == MODULE_SCOPE) {
+    return -2;
+  }
+  // Wrapped functions start before the function body, but after the script
+  // start, to avoid clashing with a scope starting on character 0.
+  if (is_wrapped_function()) {
     return -1;
   }
   if (is_declaration_scope()) {
