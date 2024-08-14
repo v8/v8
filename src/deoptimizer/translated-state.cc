@@ -2458,9 +2458,16 @@ void TranslatedState::InitializeJSObjectAt(
     } else if (InstanceTypeChecker::IsJSRegExp(map->instance_type()) &&
                offset == JSRegExp::kDataOffset) {
       DirectHandle<HeapObject> field_value = slot->storage();
-      CHECK(IsRegExpDataWrapper(*field_value));
-      Tagged<RegExpData> value =
-          Cast<RegExpDataWrapper>(*field_value)->data(isolate());
+      // If the value comes from the DeoptimizationLiteralArray, it is a
+      // RegExpDataWrapper as we can't store TrustedSpace values in a FixedArray
+      // directly.
+      Tagged<RegExpData> value;
+      if (Is<RegExpDataWrapper>(*field_value)) {
+        value = Cast<RegExpDataWrapper>(*field_value)->data(isolate());
+      } else {
+        CHECK(IsRegExpData(*field_value));
+        value = Cast<RegExpData>(*field_value);
+      }
       object_storage
           ->RawIndirectPointerField(offset, kRegExpDataIndirectPointerTag)
           .Relaxed_Store(value);
