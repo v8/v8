@@ -1087,6 +1087,12 @@ class CompilationUnitBuilder {
   explicit CompilationUnitBuilder(NativeModule* native_module)
       : native_module_(native_module) {}
 
+  void AddImportUnit(uint32_t func_index) {
+    DCHECK_GT(native_module_->module()->num_imported_functions, func_index);
+    baseline_units_.emplace_back(func_index, ExecutionTier::kNone,
+                                 kNotForDebugging);
+  }
+
   void AddJSToWasmWrapperUnit(JSToWasmWrapperCompilationUnit unit) {
     js_to_wasm_wrapper_units_.emplace_back(std::move(unit));
   }
@@ -1969,10 +1975,6 @@ CompilationExecutionResult ExecuteCompilationUnits(
           unit->ExecuteCompilation(&env.value(), wire_bytes.get(), counters,
                                    &per_function_detected_features);
       global_detected_features.Add(per_function_detected_features);
-      bool compilation_succeeded = result.succeeded();
-      ExecutionTier result_tier = result.result_tier;
-      // We don't eagerly compile import wrappers any more.
-      DCHECK_GE(unit->func_index(), env->module->num_imported_functions);
       results_to_publish.emplace_back(std::move(result));
 
       bool yield = delegate && delegate->ShouldYield();
@@ -1981,12 +1983,12 @@ CompilationExecutionResult ExecuteCompilationUnits(
       BackgroundCompileScope compile_scope(native_module);
       if (compile_scope.cancelled()) return kYield;
 
-      if (!compilation_succeeded) {
+      if (!results_to_publish.back().succeeded()) {
         compile_scope.compilation_state()->SetError();
         return kNoMoreUnits;
       }
 
-      if (!unit->for_debugging() && result_tier != current_tier) {
+      if (!unit->for_debugging() && result.result_tier != current_tier) {
         compile_scope.native_module()->AddLiftoffBailout();
       }
 
@@ -2062,17 +2064,44 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
   return static_cast<int>(keys.size());
 }
 
+// Returns the number of units added.
+int AddImportWrapperUnits(NativeModule* native_module,
+                          CompilationUnitBuilder* builder) {
+  std::unordered_set<WasmImportWrapperCache::CacheKey,
+                     WasmImportWrapperCache::CacheKeyHash>
+      keys;
+  int num_imported_functions = native_module->num_imported_functions();
+  for (int func_index = 0; func_index < num_imported_functions; func_index++) {
+    const WasmFunction& function =
+        native_module->module()->functions[func_index];
+    if (!IsJSCompatibleSignature(function.sig)) continue;
+    uint32_t canonical_type_index =
+        native_module->module()
+            ->isorecursive_canonical_type_ids[function.sig_index];
+    WasmImportWrapperCache::CacheKey key(
+        kDefaultImportCallKind, canonical_type_index,
+        static_cast<int>(function.sig->parameter_count()), kNoSuspend);
+    auto it = keys.insert(key);
+    if (it.second) {
+      builder->AddImportUnit(func_index);
+    }
+  }
+  return static_cast<int>(keys.size());
+}
+
 std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
     Isolate* isolate, NativeModule* native_module,
     ProfileInformation* pgo_info) {
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module);
-  // Support for eagerly compiling import wrappers concurrently has been
-  // dropped. We usually use the generic wrapper. If we don't (for testing
-  // or unsupported signatures), we'll have to compile the required wrappers
-  // during instantiation.
-  int num_import_wrappers = 0;
+  // Assume that if the generic wasm-to-js wrapper is enabled, we won't compile
+  // too many wrappers at instantiation time, so add no units here
+  // speculatively.
+  int num_import_wrappers =
+      v8_flags.wasm_jitless || v8_flags.wasm_to_js_generic_wrapper
+          ? 0
+          : AddImportWrapperUnits(native_module, builder.get());
   // Assume that the generic js-to-wasm wrapper can be used if it is enabled and
   // skip eager compilation of any export wrapper. Note that the generic
   // js-to-wasm wrapper does not support asm.js (yet).
@@ -4397,14 +4426,39 @@ void CompilationStateImpl::PublishCompilationResults(
     std::vector<std::unique_ptr<WasmCode>> unpublished_code) {
   if (unpublished_code.empty()) return;
 
-#if DEBUG
-  // We don't compile import wrappers eagerly.
-  for (const auto& code : unpublished_code) {
-    int func_index = code->index();
-    DCHECK_LE(native_module_->num_imported_functions(), func_index);
-    DCHECK_LT(func_index, native_module_->num_functions());
+  // For import wrapper compilation units, add result to the cache.
+  int num_imported_functions = native_module_->num_imported_functions();
+  {
+    std::optional<WasmImportWrapperCache::ModificationScope>
+        import_wrapper_cache_modification_scope;
+    for (const auto& code : unpublished_code) {
+      int func_index = code->index();
+      DCHECK_LE(0, func_index);
+      DCHECK_LT(func_index, native_module_->num_functions());
+      if (func_index < num_imported_functions) {
+        const WasmFunction& function =
+            native_module_->module()->functions[func_index];
+        uint32_t canonical_type_index =
+            native_module_->module()
+                ->isorecursive_canonical_type_ids[function.sig_index];
+        WasmImportWrapperCache::CacheKey key(
+            kDefaultImportCallKind, canonical_type_index,
+            static_cast<int>(function.sig->parameter_count()), kNoSuspend);
+        if (!import_wrapper_cache_modification_scope.has_value()) {
+          import_wrapper_cache_modification_scope.emplace(
+              native_module_->import_wrapper_cache());
+        }
+        // If two imported functions have the same key, only one of them should
+        // have been added as a compilation unit. So it is always the first time
+        // we compile a wrapper for this key here.
+        WasmCode*& cache_slot =
+            import_wrapper_cache_modification_scope.value()[key];
+        DCHECK_NULL(cache_slot);
+        cache_slot = code.get();
+        code->IncRef();
+      }
+    }
   }
-#endif
   PublishCode(base::VectorOf(unpublished_code));
 }
 
