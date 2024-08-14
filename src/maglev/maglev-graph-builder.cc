@@ -1698,13 +1698,50 @@ std::optional<int32_t> MaglevGraphBuilder::TryGetInt32Constant(
   switch (value->opcode()) {
     case Opcode::kInt32Constant:
       return value->Cast<Int32Constant>()->value();
+    case Opcode::kUint32Constant: {
+      uint32_t uint32_value = value->Cast<Uint32Constant>()->value();
+      if (uint32_value <= INT32_MAX) {
+        return static_cast<int32_t>(uint32_value);
+      }
+      return {};
+    }
     case Opcode::kSmiConstant:
       return value->Cast<SmiConstant>()->value().value();
     case Opcode::kFloat64Constant: {
       double double_value =
           value->Cast<Float64Constant>()->value().get_scalar();
-      if (!IsSmiDouble(double_value)) return {};
+      if (!IsInt32Double(double_value)) return {};
       return FastD2I(value->Cast<Float64Constant>()->value().get_scalar());
+    }
+    default:
+      return {};
+  }
+}
+
+std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
+    ValueNode* value) {
+  switch (value->opcode()) {
+    case Opcode::kInt32Constant: {
+      int32_t int32_value = value->Cast<Int32Constant>()->value();
+      if (int32_value >= 0) {
+        return static_cast<uint32_t>(int32_value);
+      }
+      return {};
+    }
+    case Opcode::kUint32Constant:
+      return value->Cast<Uint32Constant>()->value();
+    case Opcode::kSmiConstant: {
+      int32_t smi_value = value->Cast<SmiConstant>()->value().value();
+      if (smi_value >= 0) {
+        return static_cast<uint32_t>(smi_value);
+      }
+      return {};
+    }
+    case Opcode::kFloat64Constant: {
+      double double_value =
+          value->Cast<Float64Constant>()->value().get_scalar();
+      if (!IsUint32Double(double_value)) return {};
+      return FastD2UI(value->Cast<Float64Constant>()->value().get_scalar());
     }
     default:
       return {};
@@ -5320,15 +5357,52 @@ bool CheckConditionIn32(int32_t lhs, int32_t rhs, AssertCondition condition) {
   }
 }
 
+bool CompareInt32(int32_t lhs, int32_t rhs, Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return lhs == rhs;
+    case Operation::kLessThan:
+      return lhs < rhs;
+    case Operation::kLessThanOrEqual:
+      return lhs <= rhs;
+    case Operation::kGreaterThan:
+      return lhs > rhs;
+    case Operation::kGreaterThanOrEqual:
+      return lhs >= rhs;
+    default:
+      UNREACHABLE();
+  }
+}
+
+bool CompareUint32(uint32_t lhs, uint32_t rhs, Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return lhs == rhs;
+    case Operation::kLessThan:
+      return lhs < rhs;
+    case Operation::kLessThanOrEqual:
+      return lhs <= rhs;
+    case Operation::kGreaterThan:
+      return lhs > rhs;
+    case Operation::kGreaterThanOrEqual:
+      return lhs >= rhs;
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace
 
 ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
     ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
     DeoptimizeReason reason) {
-  if (Int32Constant* lhs_const = lhs->TryCast<Int32Constant>()) {
-    if (Int32Constant* rhs_const = rhs->TryCast<Int32Constant>()) {
-      if (CheckConditionIn32(lhs_const->value(), rhs_const->value(),
-                             condition)) {
+  auto lhs_const = TryGetInt32Constant(lhs);
+  if (lhs_const) {
+    auto rhs_const = TryGetInt32Constant(rhs);
+    if (rhs_const) {
+      if (CheckConditionIn32(lhs_const.value(), rhs_const.value(), condition)) {
         return ReduceResult::Done();
       }
       return EmitUnconditionalDeopt(reason);
@@ -12784,13 +12858,27 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfJSReceiver(
 
 MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfInt32Compare(
     BranchBuilder& builder, Operation op, ValueNode* lhs, ValueNode* rhs) {
-  // TODO(victorgomes): Optimize if constants.
+  auto lhs_const = TryGetInt32Constant(lhs);
+  if (lhs_const) {
+    auto rhs_const = TryGetInt32Constant(rhs);
+    if (rhs_const) {
+      return builder.FromBool(
+          CompareInt32(lhs_const.value(), rhs_const.value(), op));
+    }
+  }
   return builder.Build<BranchIfInt32Compare>({lhs, rhs}, op);
 }
 
 MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfUint32Compare(
     BranchBuilder& builder, Operation op, ValueNode* lhs, ValueNode* rhs) {
-  // TODO(victorgomes): Optimize if constants.
+  auto lhs_const = TryGetUint32Constant(lhs);
+  if (lhs_const) {
+    auto rhs_const = TryGetUint32Constant(rhs);
+    if (rhs_const) {
+      return builder.FromBool(
+          CompareUint32(lhs_const.value(), rhs_const.value(), op));
+    }
+  }
   return builder.Build<BranchIfUint32Compare>({lhs, rhs}, op);
 }
 

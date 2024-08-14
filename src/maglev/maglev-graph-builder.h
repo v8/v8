@@ -1441,6 +1441,7 @@ class MaglevGraphBuilder {
   }
 
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
+  std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
 
   // Get an Int32 representation node whose value is equivalent to the given
   // node.
