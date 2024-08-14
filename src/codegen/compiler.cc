@@ -2257,6 +2257,12 @@ void BackgroundMergeTask::SetUpOnMainThread(
   cached_script_ = persistent_handles_->NewHandle(*cached_script);
 }
 
+static bool force_gc_during_next_merge_for_testing_ = false;
+
+void BackgroundMergeTask::ForceGCDuringNextMergeForTesting() {
+  force_gc_during_next_merge_for_testing_ = true;
+}
+
 void BackgroundMergeTask::BeginMergeInBackground(
     LocalIsolate* isolate, DirectHandle<Script> new_script) {
   DCHECK_EQ(state_, kPendingBackgroundWork);
@@ -2298,20 +2304,22 @@ void BackgroundMergeTask::BeginMergeInBackground(
         // this function literal.
         Tagged<SharedFunctionInfo> old_sfi =
             Cast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak());
+        // Make sure to allocate a persistent handle to the old sfi whether or
+        // not it or the new sfi have bytecode -- this is necessary to keep the
+        // old sfi reference in the old script list alive, so that pointers to
+        // the new sfi are redirected to the old sfi.
+        Handle<SharedFunctionInfo> old_sfi_handle =
+            local_heap->NewPersistentHandle(old_sfi);
         if (old_sfi->HasBytecodeArray()) {
           // Reset the old SFI's bytecode age so that it won't likely get
           // flushed right away. This operation might be racing against
           // concurrent modification by another thread, but such a race is not
           // catastrophic.
           old_sfi->set_age(0);
-          // Make sure we'll keep the old sfi alive so it'll be installed in the
-          // new bytecode by the forwarder.
-          local_heap->NewPersistentHandle(old_sfi);
         } else if (new_sfi->HasBytecodeArray()) {
           // Also push the old_sfi to make sure it stays alive / isn't replaced.
           new_compiled_data_for_cached_sfis_.push_back(
-              {local_heap->NewPersistentHandle(old_sfi),
-               local_heap->NewPersistentHandle(new_sfi)});
+              {old_sfi_handle, local_heap->NewPersistentHandle(new_sfi)});
           // Pick up existing scope infos from the old sfi. The new sfi will be
           // copied over the old sfi later. This will ensure that we'll keep
           // using the old sfis. This will also allow us check later whether new
@@ -2346,6 +2354,17 @@ void BackgroundMergeTask::BeginMergeInBackground(
       // newly compiled bytecode points to it).
       new_script->infos()->set(i, maybe_old_info);
     }
+  }
+
+  // Since we are walking the script infos weak list both when figuring out
+  // which SFIs to merge above, and actually merging them below, make sure that
+  // a GC here which clears any dead weak refs or flushes any bytecode doesn't
+  // break anything.
+  if (V8_UNLIKELY(force_gc_during_next_merge_for_testing_)) {
+    // This GC is only synchronous on the main thread at the moment.
+    DCHECK(isolate->is_main_thread());
+    local_heap->AsHeap()->CollectAllAvailableGarbage(
+        GarbageCollectionReason::kTesting);
   }
 
   if (forwarder.HasAnythingToForward()) {

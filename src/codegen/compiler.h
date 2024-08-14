@@ -649,7 +649,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
 
 // Contains all data which needs to be transmitted between threads for
 // background parsing and compiling and finalizing it on the main thread.
-struct ScriptStreamingData {
+struct V8_EXPORT_PRIVATE ScriptStreamingData {
   ScriptStreamingData(
       std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream,
       ScriptCompiler::StreamedSource::Encoding encoding);
