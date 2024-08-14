@@ -199,5 +199,22 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
   return *result;
 }
 
+RUNTIME_FUNCTION(Runtime_ConstructSuppressedError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<JSFunction> target = args.at<JSFunction>(0);
+  Handle<Object> new_target = args.at(1);
+  DirectHandle<Object> message = args.at(2);
+
+  DCHECK_EQ(*target, *isolate->suppressed_error_function());
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      ErrorUtils::Construct(isolate, target, new_target, message,
+                            isolate->factory()->undefined_value()));
+  return *result;
+}
+
 }  // namespace internal
 }  // namespace v8
