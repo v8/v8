@@ -303,7 +303,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                    \
   HARMONY_STAGED_BASE(V)                                     \
-  V(harmony_intl_duration_format, "Intl DurationFormat API") \
   V(harmony_intl_locale_info_func, "Intl Locale Info API as functions")
 #define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
 #else
@@ -324,7 +323,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_promise_try, "Promise.try")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
+#define HARMONY_SHIPPING(V) \
+  HARMONY_SHIPPING_BASE(V)  \
+  V(harmony_intl_duration_format, "Intl DurationFormat API")
 #define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
