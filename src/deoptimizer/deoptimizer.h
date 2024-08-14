@@ -17,6 +17,7 @@
 #include "src/objects/js-function.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/sandbox/hardware-support.h"
 #include "src/wasm/value-type.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -282,6 +283,12 @@ class Deoptimizer : public Malloced {
   // as members for re-use for multiple signatures during one de-optimization.
   std::optional<AccountingAllocator> alloc_;
   std::optional<Zone> zone_;
+#endif
+#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+  // Wasm deoptimizations should not access the heap at all. All deopt data is
+  // stored off-heap.
+  std::optional<SandboxHardwareSupport::BlockAccessScope>
+      no_heap_access_during_wasm_deopt_;
 #endif
 
   friend class DeoptimizedFrameInfo;

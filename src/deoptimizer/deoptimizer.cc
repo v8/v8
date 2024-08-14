@@ -567,6 +567,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
 
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_deopt && function.is_null()) {
+#if V8_ENABLE_SANDBOX
+    no_heap_access_during_wasm_deopt_ =
+        SandboxHardwareSupport::MaybeBlockAccess();
+#endif
     wasm::WasmCode* code =
         wasm::GetWasmCodeManager()->LookupCode(isolate, from);
     compiled_optimized_wasm_code_ = code;
