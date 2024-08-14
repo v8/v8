@@ -1244,12 +1244,12 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     return;
   }
   DCHECK_EQ(result->owner(), owner);
+  NodeType type = GetNodeType(builder->broker(), builder->local_isolate(),
+                              unmerged_aspects, unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessor_count_ - 1, unmerged);
 
-  NodeType type = GetNodeType(builder->broker(), builder->local_isolate(),
-                              unmerged_aspects, unmerged);
   result->merge_post_loop_type(type);
   // We've just merged the backedge, which means that future uses of this Phi
   // will be after the loop, so we can now promote `post_loop_type` to the
