@@ -1492,10 +1492,17 @@ class DeoptInfo {
   int translation_index() const { return translation_index_; }
   void set_translation_index(int index) { translation_index_ = index; }
 
+#ifdef DEBUG
+  size_t input_location_count() { return input_location_count_; }
+#endif  // DEBUG
+
  private:
   DeoptFrame top_frame_;
   const compiler::FeedbackSource feedback_to_update_;
   InputLocation* const input_locations_;
+#ifdef DEBUG
+  size_t input_location_count_;
+#endif  // DEBUG
   Label deopt_entry_label_;
   int translation_index_ = -1;
 };

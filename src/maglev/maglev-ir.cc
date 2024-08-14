@@ -401,8 +401,8 @@ void VirtualObject::List::Print(std::ostream& os, const char* prefix,
 size_t DeoptFrame::GetInputLocationsArraySize() const {
   size_t size = 0;
   const DeoptFrame* frame = this;
-  VirtualObject::List virtual_objects = GetVirtualObjects(*this);
   do {
+    VirtualObject::List virtual_objects = GetVirtualObjects(*frame);
     switch (frame->type()) {
       case DeoptFrame::FrameType::kInterpretedFrame:
         size += GetInputLocationSizeForValueNode(
@@ -479,6 +479,9 @@ DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,
   for (size_t i = 0; i < input_locations_size; ++i) {
     new (&input_locations_[i]) InputLocation();
   }
+#ifdef DEBUG
+  input_location_count_ = input_locations_size;
+#endif  // DEBUG
 }
 
 bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
