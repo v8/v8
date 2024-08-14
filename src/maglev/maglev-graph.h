@@ -166,7 +166,7 @@ class Graph final : public ZoneObject {
     if (auto context_const = context->TryCast<Constant>()) {
       res = context_const->object().AsContext().scope_info(broker);
       DCHECK(res->HasContext());
-    } else if (auto load = context->TryCast<LoadTaggedFieldForContextSlot>()) {
+    } else if (auto load = context->TryCast<LoadTaggedField>()) {
       compiler::OptionalScopeInfoRef cur =
           TryGetScopeInfo(load->input(0).node(), broker);
       DCHECK(load->offset() ==

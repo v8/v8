@@ -312,14 +312,6 @@ class FeedbackVector
   inline bool interrupt_budget_reset_by_ic_change() const;
   inline void set_interrupt_budget_reset_by_ic_change(bool value);
 
-  // Relaxed load of the was_deoptimized flag. The flag is set set if this
-  // function was ever deoptimized. This flag can be used as a blanked bailout
-  // for optimizations which are not guaranteed to be deopt-loop free (such as
-  // hoisting checks out of loops).
-  // TODO(olivf): Have a more granular (e.g., per loop) mechanism.
-  inline bool maybe_was_once_deoptimized() const;
-  inline void set_was_once_deoptimized();
-
   void reset_flags();
 
   // Conversion from a slot to an integer index to the underlying array.

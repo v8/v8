@@ -2304,14 +2304,12 @@ void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
   __ LoadHeapNumberValue(ToDoubleRegister(result()), tmp);
 }
 
-template <typename T>
-void AbstractLoadTaggedField<T>::SetValueLocationConstraints() {
+void LoadTaggedField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
 }
-template <typename T>
-void AbstractLoadTaggedField<T>::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
+void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
   if (this->decompresses_tagged_result()) {
@@ -7072,9 +7070,8 @@ void TruncateNumberOrOddballToInt32::PrintParams(
   os << "(" << conversion_type() << ")";
 }
 
-template <typename T>
-void AbstractLoadTaggedField<T>::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+void LoadTaggedField::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec;
   // Print compression status only after the result is allocated, since that's
   // when we do decompression marking.
@@ -7379,7 +7376,19 @@ void NodeBase::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
   DCHECK(properties().can_write());
   DCHECK(!IsSimpleFieldStore(opcode()));
   DCHECK(!IsElementsArrayWrite(opcode()));
-  known_node_aspects.ClearUnstableNodeAspects();
+
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  ! Clearing unstable node aspects" << std::endl;
+  }
+  known_node_aspects.ClearUnstableMaps();
+  // Side-effects can change object contents, so we have to clear
+  // our known loaded properties -- however, constant properties are known
+  // to not change (and we added a dependency on this), so we don't have to
+  // clear those.
+  known_node_aspects.loaded_properties.clear();
+  known_node_aspects.loaded_context_slots.clear();
+  known_node_aspects.may_have_aliasing_contexts =
+      KnownNodeAspects::ContextSlotLoadsAlias::None;
 }
 
 void StoreMap::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
@@ -7425,10 +7434,6 @@ void MigrateMapIfNeeded::ClearUnstableNodeAspects(
   // This instruction only migrates representations of values, not the values
   // themselves, so cached values are still valid.
 }
-
-template class AbstractLoadTaggedField<LoadTaggedField>;
-template class AbstractLoadTaggedField<LoadTaggedFieldForContextSlot>;
-template class AbstractLoadTaggedField<LoadTaggedFieldForProperty>;
 
 }  // namespace maglev
 }  // namespace internal

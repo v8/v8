@@ -1178,7 +1178,6 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
         Node::New<GapMove>(compilation_info_->zone(), 0,
                            compiler::AllocatedOperand::cast(source), target);
   }
-  gap_move->InitTemporaries();
   if (compilation_info_->has_graph_labeller()) {
     graph_labeller()->RegisterNode(gap_move);
   }

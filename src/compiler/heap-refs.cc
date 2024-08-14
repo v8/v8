@@ -1746,10 +1746,6 @@ ObjectRef FeedbackCellRef::value(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->value(kAcquireLoad));
 }
 
-bool FeedbackVectorRef::maybe_was_once_deoptimized() const {
-  return object()->maybe_was_once_deoptimized();
-}
-
 OptionalObjectRef MapRef::GetStrongValue(JSHeapBroker* broker,
                                          InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());

@@ -105,20 +105,6 @@ bool NextInIgnoreList(typename ZoneSet<Key>::const_iterator& ignore,
 
 }  // namespace
 
-void KnownNodeAspects::ClearUnstableNodeAspects() {
-  if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "  ! Clearing unstable node aspects" << std::endl;
-  }
-  ClearUnstableMaps();
-  // Side-effects can change object contents, so we have to clear
-  // our known loaded properties -- however, constant properties are known
-  // to not change (and we added a dependency on this), so we don't have to
-  // clear those.
-  loaded_properties.clear();
-  loaded_context_slots.clear();
-  may_have_aliasing_contexts = KnownNodeAspects::ContextSlotLoadsAlias::None;
-}
-
 KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(
     Zone* zone, bool optimistic, LoopEffects* loop_effects) const {
   KnownNodeAspects* clone = zone->New<KnownNodeAspects>(zone);
@@ -356,7 +342,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
           BasicBlockType::kLoopHeader, liveness);
   state->bitfield_ =
       kIsLoopWithPeeledIterationBit::update(state->bitfield_, has_been_peeled);
-  state->loop_metadata_ = LoopMetadata{loop_info, nullptr};
+  state->loop_info_ = loop_info;
   if (loop_info->resumable()) {
     state->known_node_aspects_ =
         info.zone()->New<KnownNodeAspects>(info.zone());
@@ -740,7 +726,6 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   DCHECK_NOT_NULL(known_node_aspects_);
   DCHECK(v8_flags.maglev_optimistic_peeled_loops);
 
-  // TODO(olivf): This could be done faster by consulting loop_effects_
   if (!loop_end_state.known_node_aspects()->IsCompatibleWithLoopHeader(
           *known_node_aspects_)) {
     if (v8_flags.trace_maglev_graph_building) {
@@ -798,19 +783,6 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
   ClearLoopInfo();
   return true;
-}
-
-void MergePointInterpreterFrameState::set_loop_effects(
-    LoopEffects* loop_effects) {
-  DCHECK(is_loop());
-  DCHECK(loop_metadata_.has_value());
-  loop_metadata_->loop_effects = loop_effects;
-}
-
-const LoopEffects* MergePointInterpreterFrameState::loop_effects() {
-  DCHECK(is_loop());
-  DCHECK(loop_metadata_.has_value());
-  return loop_metadata_->loop_effects;
 }
 
 void MergePointInterpreterFrameState::MergeThrow(

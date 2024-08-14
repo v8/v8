@@ -192,8 +192,6 @@ class ExceptionHandlerInfo;
   V(HasInPrototypeChain)                            \
   V(InitialValue)                                   \
   V(LoadTaggedField)                                \
-  V(LoadTaggedFieldForProperty)                     \
-  V(LoadTaggedFieldForContextSlot)                  \
   V(LoadDoubleField)                                \
   V(LoadTaggedFieldByFieldIndex)                    \
   V(LoadFixedArrayElement)                          \
@@ -813,8 +811,8 @@ NODE_BASE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
 
 using NodeIdT = uint32_t;
-static constexpr NodeIdT kInvalidNodeId = 0;
-static constexpr NodeIdT kFirstValidNodeId = 1;
+static constexpr uint32_t kInvalidNodeId = 0;
+static constexpr uint32_t kFirstValidNodeId = 1;
 
 // Represents either a direct BasicBlock pointer, or an entry in a list of
 // unresolved BasicBlockRefs which will be mutated (in place) at some point into
@@ -1810,14 +1808,23 @@ class NodeBase : public ZoneObject {
 
   template <typename RegisterT>
   RegListBase<RegisterT>& temporaries() {
-    return owner_or_temporaries_.temporaries<RegisterT>();
+    if constexpr (std::is_same_v<RegisterT, Register>) {
+      return temporaries_;
+    } else {
+      return double_temporaries_;
+    }
   }
-  RegList& general_temporaries() { return temporaries<Register>(); }
-  DoubleRegList& double_temporaries() { return temporaries<DoubleRegister>(); }
+
+  RegList& general_temporaries() { return temporaries_; }
+  DoubleRegList& double_temporaries() { return double_temporaries_; }
 
   template <typename RegisterT>
   void assign_temporaries(RegListBase<RegisterT> list) {
-    owner_or_temporaries_.temporaries<RegisterT>() = list;
+    if constexpr (std::is_same_v<RegisterT, Register>) {
+      temporaries_ = list;
+    } else {
+      double_temporaries_ = list;
+    }
   }
 
   enum class InputAllocationPolicy { kFixedRegister, kArbitraryRegister, kAny };
@@ -1915,12 +1922,6 @@ class NodeBase : public ZoneObject {
   void ClearUnstableNodeAspects(KnownNodeAspects&);
   void ClearElementsProperties(KnownNodeAspects&);
 
-  void set_owner(BasicBlock* block) { owner_or_temporaries_ = block; }
-
-  BasicBlock* owner() const { return owner_or_temporaries_.owner(); }
-
-  void InitTemporaries() { owner_or_temporaries_.InitReglist(); }
-
  protected:
   explicit NodeBase(uint64_t bitfield) : bitfield_(bitfield) {}
 
@@ -1981,12 +1982,10 @@ class NodeBase : public ZoneObject {
 
   // Require that a specific register is free (and therefore clobberable) by the
   // entry into this node.
-  void RequireSpecificTemporary(Register reg) {
-    general_temporaries().set(reg);
-  }
+  void RequireSpecificTemporary(Register reg) { temporaries_.set(reg); }
 
   void RequireSpecificDoubleTemporary(DoubleRegister reg) {
-    double_temporaries().set(reg);
+    double_temporaries_.set(reg);
   }
 
  private:
@@ -2076,63 +2075,8 @@ class NodeBase : public ZoneObject {
 
   uint64_t bitfield_;
   NodeIdT id_ = kInvalidNodeId;
-
-  struct OwnerOrTemporaries {
-    BasicBlock* owner() const {
-      DCHECK_EQ(state_, State::kOwner);
-      DCHECK_NE(store_.owner_, nullptr);
-      return store_.owner_;
-    }
-
-    template <typename RegisterT>
-    RegListBase<RegisterT>& temporaries() {
-      DCHECK_EQ(state_, State::kReglist);
-      if constexpr (std::is_same_v<RegisterT, Register>) {
-        return store_.regs_.temporaries_;
-      } else {
-        return store_.regs_.double_temporaries_;
-      }
-    }
-
-    BasicBlock* operator=(BasicBlock* owner) {
-#ifdef DEBUG
-      DCHECK(state_ == State::kNull || state_ == State::kOwner);
-      state_ = State::kOwner;
-#endif
-      return store_.owner_ = owner;
-    }
-
-    void InitReglist() {
-#ifdef DEBUG
-      DCHECK(state_ == State::kNull || state_ == State::kOwner);
-      state_ = State::kReglist;
-#endif
-      store_.regs_.temporaries_ = RegList();
-      store_.regs_.double_temporaries_ = DoubleRegList();
-    }
-
-   private:
-    struct Regs {
-      RegList temporaries_;
-      DoubleRegList double_temporaries_;
-    };
-    union Store {
-      Store() : owner_(nullptr) {}
-      BasicBlock* owner_;
-      Regs regs_;
-    };
-    Store store_;
-#ifdef DEBUG
-    enum class State{
-        kNull,
-        kOwner,
-        kReglist,
-    };
-    State state_ = State::kNull;
-#endif
-  };
-
-  OwnerOrTemporaries owner_or_temporaries_;
+  RegList temporaries_;
+  DoubleRegList double_temporaries_;
 
   NodeBase() = delete;
   NodeBase(const NodeBase&) = delete;
@@ -6834,13 +6778,11 @@ class PolymorphicAccessInfo {
   };
 };
 
-template <typename Derived = LoadTaggedField>
-class AbstractLoadTaggedField : public FixedInputValueNodeT<1, Derived> {
-  using Base = FixedInputValueNodeT<1, Derived>;
-  using Base::result;
+class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
+  using Base = FixedInputValueNodeT<1, LoadTaggedField>;
 
  public:
-  explicit AbstractLoadTaggedField(uint64_t bitfield, const int offset)
+  explicit LoadTaggedField(uint64_t bitfield, const int offset)
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanRead();
@@ -6849,7 +6791,6 @@ class AbstractLoadTaggedField : public FixedInputValueNodeT<1, Derived> {
 
   int offset() const { return offset_; }
 
-  using Base::input;
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return input(kObjectIndex); }
 
@@ -6859,43 +6800,8 @@ class AbstractLoadTaggedField : public FixedInputValueNodeT<1, Derived> {
 
   auto options() const { return std::tuple{offset()}; }
 
-  using Base::decompresses_tagged_result;
-
  private:
   const int offset_;
-};
-
-class LoadTaggedField : public AbstractLoadTaggedField<LoadTaggedField> {
-  using Base = AbstractLoadTaggedField<LoadTaggedField>;
-
- public:
-  explicit LoadTaggedField(uint64_t bitfield, const int offset)
-      : Base(bitfield, offset) {}
-};
-
-class LoadTaggedFieldForProperty
-    : public AbstractLoadTaggedField<LoadTaggedFieldForProperty> {
-  using Base = AbstractLoadTaggedField<LoadTaggedFieldForProperty>;
-
- public:
-  explicit LoadTaggedFieldForProperty(uint64_t bitfield, const int offset,
-                                      compiler::NameRef name)
-      : Base(bitfield, offset), name_(name) {}
-  compiler::NameRef name() { return name_; }
-
-  auto options() const { return std::tuple{offset(), name_}; }
-
- private:
-  compiler::NameRef name_;
-};
-
-class LoadTaggedFieldForContextSlot
-    : public AbstractLoadTaggedField<LoadTaggedFieldForContextSlot> {
-  using Base = AbstractLoadTaggedField<LoadTaggedFieldForContextSlot>;
-
- public:
-  explicit LoadTaggedFieldForContextSlot(uint64_t bitfield, const int offset)
-      : Base(bitfield, offset) {}
 };
 
 class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {

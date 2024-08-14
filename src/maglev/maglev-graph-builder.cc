@@ -2875,8 +2875,7 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     return cached_value;
   }
   known_node_aspects().UpdateMayHaveAliasingContexts(context);
-  return cached_value = BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(
-             context, offset);
+  return cached_value = BuildLoadTaggedField(context, offset);
 }
 
 bool MaglevGraphBuilder::ContextMayAlias(
@@ -2928,7 +2927,6 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
           cache.second = nullptr;
           if (is_loop_effect_tracking()) {
             loop_effects_->context_slot_written.insert(cache.first);
-            loop_effects_->may_have_aliasing_contexts = true;
           }
         }
       }
@@ -4379,6 +4377,33 @@ VirtualObject* MaglevGraphBuilder::GetModifiableObjectFromAllocation(
   return vobject;
 }
 
+ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
+                                                    int offset) {
+  if (offset != HeapObject::kMapOffset &&
+      CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
+    VirtualObject* vobject =
+        GetObjectFromAllocation(object->Cast<InlinedAllocation>());
+    ValueNode* value;
+    CHECK_NE(vobject->type(), VirtualObject::kHeapNumber);
+    if (vobject->type() == VirtualObject::kDefault) {
+      value = vobject->get(offset);
+    } else {
+      DCHECK_EQ(vobject->type(), VirtualObject::kFixedDoubleArray);
+      // The only offset we're allowed to read from the a FixedDoubleArray as
+      // tagged field is the length.
+      CHECK_EQ(offset, FixedDoubleArray::kLengthOffset);
+      value = GetInt32Constant(vobject->double_elements_length());
+    }
+    if (v8_flags.trace_maglev_object_tracking) {
+      std::cout << "  * Reusing value in virtual object "
+                << PrintNodeLabel(graph_labeller(), vobject) << "[" << offset
+                << "]: " << PrintNode(graph_labeller(), value) << std::endl;
+    }
+    return value;
+  }
+  return AddNewNode<LoadTaggedField>({object}, offset);
+}
+
 void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
                                                               ValueNode* value,
                                                               int offset) {
@@ -4692,7 +4717,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
 
 ValueNode* MaglevGraphBuilder::BuildLoadField(
     compiler::PropertyAccessInfo const& access_info,
-    ValueNode* lookup_start_object, compiler::NameRef name) {
+    ValueNode* lookup_start_object) {
   compiler::OptionalJSObjectRef constant_holder =
       TryGetConstantDataFieldHolder(access_info, lookup_start_object);
   if (constant_holder) {
@@ -4729,8 +4754,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
   if (field_index.is_double()) {
     return AddNewNode<LoadDoubleField>({load_source}, field_index.offset());
   }
-  ValueNode* value = BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-      load_source, field_index.offset(), name);
+  ValueNode* value = BuildLoadTaggedField(load_source, field_index.offset());
   // Insert stable field information if present.
   if (access_info.field_representation().IsSmi()) {
     NodeInfo* known_info = GetOrCreateInfoFor(value);
@@ -4770,8 +4794,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
     return known_length.value();
   }
 
-  ValueNode* length = BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-      js_array, JSArray::kLengthOffset, broker()->length_string());
+  ValueNode* length = BuildLoadTaggedField(js_array, JSArray::kLengthOffset);
   GetOrCreateInfoFor(length)->CombineType(length_type);
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
@@ -4936,8 +4959,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
       return GetRootConstant(RootIndex::kUndefinedValue);
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant: {
-      ValueNode* result =
-          BuildLoadField(access_info, lookup_start_object, name);
+      ValueNode* result = BuildLoadField(access_info, lookup_start_object);
       RecordKnownProperty(lookup_start_object, name, result,
                           AccessInfoGuaranteedConst(access_info),
                           compiler::AccessMode::kLoad);
@@ -4955,8 +4977,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
                                         lookup_start_object);
     case compiler::PropertyAccessInfo::kModuleExport: {
       ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
-      return BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-          cell, Cell::kValueOffset, name);
+      return BuildLoadTaggedField(cell, Cell::kValueOffset);
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
@@ -12239,21 +12260,18 @@ void MaglevGraphBuilder::OsrAnalyzePrequel() {
 }
 
 void MaglevGraphBuilder::BeginLoopEffects(int loop_header) {
-  loop_effects_stack_.push_back(zone()->New<LoopEffects>(loop_header, zone()));
-  loop_effects_ = loop_effects_stack_.back();
+  loop_effects_stack_.push_back(LoopEffects(loop_header, zone()));
+  loop_effects_ = &loop_effects_stack_.back();
 }
 
 void MaglevGraphBuilder::EndLoopEffects(int loop_header) {
-  DCHECK_EQ(loop_effects_, loop_effects_stack_.back());
+  DCHECK_EQ(loop_effects_, &loop_effects_stack_.back());
   DCHECK_EQ(loop_effects_->loop_header, loop_header);
   // TODO(olivf): Update merge states dominated by the loop header with
   // information we know to be unaffected by the loop.
-  if (merge_states_[loop_header] && merge_states_[loop_header]->is_loop()) {
-    merge_states_[loop_header]->set_loop_effects(loop_effects_);
-  }
   if (loop_effects_stack_.size() > 1) {
     LoopEffects* inner_effects = loop_effects_;
-    loop_effects_ = *(loop_effects_stack_.end() - 2);
+    loop_effects_ = &*(loop_effects_stack_.end() - 2);
     loop_effects_->Merge(inner_effects);
   } else {
     loop_effects_ = nullptr;
@@ -12289,14 +12307,13 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   if (is_peeled_loop && in_peeled_iteration()) {
     ClobberAccumulator();
     if (in_optimistic_peeling_iteration()) {
+      DCHECK(is_loop_effect_tracking());
       // Let's see if we can finish this loop without peeling it.
       if (!merge_states_[target]->TryMergeLoop(this, current_interpreter_frame_,
                                                FinishLoopBlock)) {
         merge_states_[target]->MergeDeadLoop(*compilation_unit());
       }
-      if (is_loop_effect_tracking_enabled()) {
-        EndLoopEffects(target);
-      }
+      EndLoopEffects(target);
     }
   } else {
     BasicBlock* block = FinishLoopBlock();
@@ -12305,9 +12322,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
     if (is_peeled_loop) {
       DCHECK(!in_peeled_iteration());
     }
-    if (is_loop_effect_tracking_enabled()) {
-      EndLoopEffects(target);
-    }
+    EndLoopEffects(target);
   }
 }
 void MaglevGraphBuilder::VisitJump() {
@@ -12404,9 +12419,7 @@ void MaglevGraphBuilder::MergeDeadLoopIntoFrameState(int target) {
   } else {
     // If there already is a frame state, merge.
     merge_states_[target]->MergeDeadLoop(*compilation_unit_);
-    if (is_loop_effect_tracking_enabled()) {
-      EndLoopEffects(target);
-    }
+    EndLoopEffects(target);
   }
 }
 

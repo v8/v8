@@ -16,9 +16,7 @@ bitfield struct FeedbackVectorFlags extends uint16 {
   maybe_has_turbofan_code: bool: 1 bit;
   osr_tiering_in_progress: bool: 1 bit;
   interrupt_budget_reset_by_ic_change: bool: 1 bit;
-  // Was this function ever deoptimized.
-  was_once_deoptimized: bool: 1 bit;
-  all_your_bits_are_belong_to_jgruber: uint32: 7 bit;
+  all_your_bits_are_belong_to_jgruber: uint32: 8 bit;
 }
 
 bitfield struct OsrState extends uint8 {

@@ -22,7 +22,6 @@ class ValueLocationConstraintProcessor {
 
 #define DEF_PROCESS_NODE(NAME)                                      \
   ProcessResult Process(NAME* node, const ProcessingState& state) { \
-    node->InitTemporaries();                                        \
     node->SetValueLocationConstraints();                            \
     return ProcessResult::kContinue;                                \
   }
