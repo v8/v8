@@ -1319,23 +1319,20 @@ double GCTracer::CombineSpeedsInBytesPerMillisecond(double default_speed,
 
 double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
     std::optional<base::TimeDelta> selected_duration) const {
-  return BoundedAverageSpeed(
-      recorded_new_generation_allocations_,
-      selected_duration);
+  return BoundedAverageSpeed(recorded_new_generation_allocations_,
+                             selected_duration);
 }
 
 double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
     std::optional<base::TimeDelta> selected_duration) const {
-  return BoundedAverageSpeed(
-      recorded_old_generation_allocations_,
-      selected_duration);
+  return BoundedAverageSpeed(recorded_old_generation_allocations_,
+                             selected_duration);
 }
 
 double GCTracer::EmbedderAllocationThroughputInBytesPerMillisecond(
     std::optional<base::TimeDelta> selected_duration) const {
-  return BoundedAverageSpeed(
-      recorded_embedder_generation_allocations_,
-      selected_duration);
+  return BoundedAverageSpeed(recorded_embedder_generation_allocations_,
+                             selected_duration);
 }
 
 double GCTracer::AllocationThroughputInBytesPerMillisecond(

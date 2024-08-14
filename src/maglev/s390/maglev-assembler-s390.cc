@@ -313,7 +313,6 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   bind(&loop);
 
   if (v8_flags.debug_code) {
-
     // Check if {string} is a string.
     AssertObjectTypeInRange(string, FIRST_STRING_TYPE, LAST_STRING_TYPE,
                             AbortReason::kUnexpectedValue);

@@ -128,7 +128,6 @@ std::vector<ExecutionResult> PerformReferenceRun(
 
   NearHeapLimitCallbackScope near_heap_limit(isolate);
   for (uint32_t i = 0; i < callees.size(); ++i) {
-
     arguments[0] = handle(Smi::FromInt(i), isolate);
     std::unique_ptr<const char[]> exception;
     int32_t result = testing::CallWasmFunctionForTesting(

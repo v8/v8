@@ -985,7 +985,7 @@ namespace internal {
   /* ES #sec-string.fromcodepoint */                                           \
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
-  IF_TSA(TSJ, TFJ)(StringFromCharCode, kDontAdaptArgumentsSentinel)                         \
+  IF_TSA(TSJ, TFJ)(StringFromCharCode, kDontAdaptArgumentsSentinel)            \
   /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf)                                              \
   /* ES #sec-string.prototype.matchAll */                                      \

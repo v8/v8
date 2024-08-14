@@ -72,9 +72,8 @@ constexpr bool kHasUniqueMapOfInstanceType =
 
 template <InstanceType type>
 constexpr RootIndex kUniqueMapOfInstanceType =
-  kHasUniqueMapOfInstanceType<type>?
-    *UniqueMapOfInstanceType(type):
-    RootIndex::kRootListLength;
+    kHasUniqueMapOfInstanceType<type> ? *UniqueMapOfInstanceType(type)
+                                      : RootIndex::kRootListLength;
 
 // Manually curated list of instance type ranges which are associated with a
 // unique range of map addresses on the read only heap. Both ranges are
@@ -165,7 +164,8 @@ UniqueMapRangeOfInstanceTypeRange(InstanceType first, InstanceType last) {
   return {};
 }
 
-constexpr inline TaggedAddressRange NULL_ADDRESS_RANGE{kNullAddress, kNullAddress};
+constexpr inline TaggedAddressRange NULL_ADDRESS_RANGE{kNullAddress,
+                                                       kNullAddress};
 
 template <InstanceType first, InstanceType last>
 constexpr bool kHasUniqueMapRangeOfInstanceTypeRange =
@@ -173,9 +173,9 @@ constexpr bool kHasUniqueMapRangeOfInstanceTypeRange =
 
 template <InstanceType first, InstanceType last>
 constexpr TaggedAddressRange kUniqueMapRangeOfInstanceTypeRange =
-  kHasUniqueMapRangeOfInstanceTypeRange<first, last>?
-    *UniqueMapRangeOfInstanceTypeRange(first, last):
-    NULL_ADDRESS_RANGE;
+    kHasUniqueMapRangeOfInstanceTypeRange<first, last>
+        ? *UniqueMapRangeOfInstanceTypeRange(first, last)
+        : NULL_ADDRESS_RANGE;
 
 inline constexpr std::optional<TaggedAddressRange> UniqueMapRangeOfInstanceType(
     InstanceType type) {
@@ -188,9 +188,8 @@ constexpr bool kHasUniqueMapRangeOfInstanceType =
 
 template <InstanceType type>
 constexpr TaggedAddressRange kUniqueMapRangeOfInstanceType =
-  kHasUniqueMapRangeOfInstanceType<type>?
-    *UniqueMapRangeOfInstanceType(type):
-    NULL_ADDRESS_RANGE;
+    kHasUniqueMapRangeOfInstanceType<type> ? *UniqueMapRangeOfInstanceType(type)
+                                           : NULL_ADDRESS_RANGE;
 
 inline bool MayHaveMapCheckFastCase(InstanceType type) {
   if (UniqueMapOfInstanceType(type)) return true;

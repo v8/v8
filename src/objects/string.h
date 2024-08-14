@@ -755,8 +755,7 @@ class SeqString : public String {
   EXPORT_DECL_VERIFIER(SeqString)
 };
 
-V8_OBJECT class InternalizedString : public String{
-
+V8_OBJECT class InternalizedString : public String {
   // TODO(neis): Possibly move some stuff from String here.
 } V8_OBJECT_END;
 

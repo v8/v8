@@ -1614,7 +1614,8 @@ Address Assembler::target_address_at(Address pc) {
 //  slli(reg, reg, 6); // Space for next 6 bits
 //  ori(reg, reg, a6); // 6 bits are put in. all 48 bis in reg
 //
-// If define RISCV_USE_SV39, a 39-bit target address is stored in an 4-instruction sequence:
+// If define RISCV_USE_SV39, a 39-bit target address is stored in an
+// 4-instruction sequence:
 //  lui(reg, (int32_t)high_20); // 20 high bits
 //  addi(reg, reg, low_12); // 12 following bits. total is 32 high bits in reg.
 //  slli(reg, reg, 7); // Space for next 7 bits
