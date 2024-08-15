@@ -122,6 +122,9 @@ static_assert(sizeof(JSDispatchEntry) == kJSDispatchTableEntrySize);
 class V8_EXPORT_PRIVATE JSDispatchTable
     : public ExternalEntityTable<JSDispatchEntry,
                                  kJSDispatchTableReservationSize> {
+  using Base =
+      ExternalEntityTable<JSDispatchEntry, kJSDispatchTableReservationSize>;
+
  public:
   // Size of a JSDispatchTable, for layout computation in IsolateData.
   static int constexpr kSize = 2 * kSystemPointerSize;
@@ -132,9 +135,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   JSDispatchTable& operator=(const JSDispatchTable&) = delete;
 
   // The Spaces used by a JSDispatchTable.
-  using Space =
-      ExternalEntityTable<JSDispatchEntry, kJSDispatchTableReservationSize>::
-          SpaceWithBlackAllocationSupport;
+  using Space = Base::SpaceWithBlackAllocationSupport;
 
   // Retrieves the entrypoint of the entry referenced by the given handle.
   inline Address GetEntrypoint(JSDispatchHandle handle);
@@ -192,7 +193,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   }
   static void Initialize() {
     CheckInitialization(true);
-    instance_nocheck()->InitializeImpl();
+    instance_nocheck()->Base::Initialize();
   }
 
   static constexpr uintptr_t kEntryCodeObjectOffset =
@@ -214,7 +215,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 #endif
   }
 
-  void InitializeImpl();
   static JSDispatchTable* instance_nocheck() {
     static ::v8::base::LeakyObject<JSDispatchTable> instance;
     return instance.get();

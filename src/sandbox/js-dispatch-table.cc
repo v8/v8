@@ -15,14 +15,6 @@
 namespace v8 {
 namespace internal {
 
-void JSDispatchTable::InitializeImpl() {
-  ExternalEntityTable<JSDispatchEntry,
-                      kJSDispatchTableReservationSize>::Initialize();
-  CHECK(ThreadIsolation::WriteProtectMemory(
-      base(), kJSDispatchTableReservationSize,
-      PageAllocator::Permission::kNoAccess));
-}
-
 Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
   Address ptr = at(index).GetCodePointer();

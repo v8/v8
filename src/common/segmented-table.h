@@ -34,7 +34,7 @@ template <typename Entry, size_t size>
 class V8_EXPORT_PRIVATE SegmentedTable {
  public:
  protected:
-  static constexpr bool IsWriteProtected = Entry::IsWriteProtected;
+  static constexpr bool kIsWriteProtected = Entry::IsWriteProtected;
   static constexpr int kEntrySize = sizeof(Entry);
   static constexpr size_t kReservationSize = size;
   static constexpr size_t kMaxCapacity = kReservationSize / kEntrySize;
@@ -117,7 +117,7 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   SegmentedTable& operator=(const SegmentedTable&) = delete;
 
   // This Iterator also acts as a scope object to temporarily lift any
-  // write-protection (if IsWriteProtected is true).
+  // write-protection (if kIsWriteProtected is true).
   class WriteIterator {
    public:
     explicit WriteIterator(Entry* base, uint32_t index);
@@ -139,7 +139,7 @@ class V8_EXPORT_PRIVATE SegmentedTable {
    private:
     Entry* base_;
     uint32_t index_;
-    std::conditional_t<IsWriteProtected, CFIMetadataWriteScope,
+    std::conditional_t<kIsWriteProtected, CFIMetadataWriteScope,
                        NopRwxMemoryWriteScope>
         write_scope_;
   };
@@ -149,7 +149,7 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   const Entry& at(uint32_t index) const;
 
   // Returns an iterator that can be used to perform multiple write operations
-  // without switching the write-protections all the time (if IsWriteProtected
+  // without switching the write-protections all the time (if kIsWriteProtected
   // is true).
   WriteIterator iter_at(uint32_t index);
 
