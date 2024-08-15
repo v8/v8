@@ -1417,7 +1417,9 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(
   V(I16x8UConvertF16x8)                    \
   V(F16x8DemoteF32x4Zero)                  \
   V(F16x8DemoteF64x2Zero)                  \
-  V(F32x4PromoteLowF16x8)
+  V(F32x4PromoteLowF16x8)                  \
+  V(F16x8Qfma)                             \
+  V(F16x8Qfms)
 
 #define SIMD_VISIT_UNIMPL_FP16_OP(Name)                          \
   template <typename Adapter>                                    \
