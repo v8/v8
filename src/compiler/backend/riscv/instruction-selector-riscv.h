@@ -1522,15 +1522,11 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #define SIMD_VISIT_BINOP_RVV(Name, instruction, VSEW, LMUL)                    \
   template <typename Adapter>                                                  \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) {               \
-    if constexpr (Adapter::IsTurboshaft) {                                     \
-      UNIMPLEMENTED();                                                         \
-    } else {                                                                   \
       RiscvOperandGeneratorT<Adapter> g(this);                                 \
       this->Emit(instruction, g.DefineAsRegister(node),                        \
                  g.UseRegister(this->input_at(node, 0)),                       \
                  g.UseRegister(this->input_at(node, 1)), g.UseImmediate(VSEW), \
                  g.UseImmediate(LMUL));                                        \
-    }                                                                          \
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP_RVV)
 #undef SIMD_VISIT_BINOP_RVV
@@ -2091,17 +2087,14 @@ void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     uint8_t shuffle[kSimd128Size];
     bool is_swizzle;
     // TODO(riscv): Properly use view here once Turboshaft support is
     // implemented.
     auto view = this->simd_shuffle_view(node);
     CanonicalizeShuffle(view, shuffle, &is_swizzle);
-    Node* input0 = this->input_at(node, 0);
-    Node* input1 = this->input_at(node, 1);
+    node_t input0 = view.input(0);
+    node_t input1 = view.input(1);
     RiscvOperandGeneratorT<Adapter> g(this);
     // uint8_t shuffle32x4[4];
     // ArchOpcode opcode;
@@ -2130,14 +2123,10 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     InstructionOperand temps[] = {g.TempSimd128Register()};
     // We don't want input 0 or input 1 to be the same as output, since we will
@@ -2146,7 +2135,6 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
          g.UseUniqueRegister(this->input_at(node, 0)),
          g.UseUniqueRegister(this->input_at(node, 1)), g.UseImmediate(E8),
          g.UseImmediate(m1), arraysize(temps), temps);
-  }
 }
 
 #define VISIT_BIMASK(TYPE, VSEW, LMUL)                                      \
