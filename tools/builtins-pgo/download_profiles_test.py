@@ -6,6 +6,7 @@
 
 import contextlib
 import io
+import json
 import os
 import pathlib
 import unittest
@@ -16,7 +17,7 @@ from unittest.mock import patch, mock_open
 from download_profiles import ProfileDownloader
 
 
-def mock_version_file(major, minor, build, patch):
+def mock_version_file(major, minor, build=0, patch=0):
   return (
       f'#define V8_MAJOR_VERSION {major}\n'
       f'#define V8_MINOR_VERSION {minor}\n'
@@ -34,9 +35,25 @@ class TestDownloadProfiles(unittest.TestCase):
         contextlib.redirect_stdout(out), \
         contextlib.redirect_stderr(err):
       downloader = ProfileDownloader(cmd)
+
+      # Note: This loads the version file before running the downloader to
+      # simplify patching.
+      downloader.version
+
       downloader.run()
+
     self.assertEqual(se.exception.code, exitcode)
     return out.getvalue(), err.getvalue()
+
+  def setUp(self):
+    self.temp_dir = TemporaryDirectory()
+    self.temp_path = pathlib.Path(self.temp_dir.name)
+    self.mock_dir = patch('download_profiles.PGO_PROFILE_DIR', self.temp_path)
+    self.mock_dir.start()
+
+  def tearDown(self):
+    patch.stopall()
+    self.temp_dir.cleanup()
 
   def test_validate_profiles(self):
     out, err = self._test_cmd(['validate', '--version', '11.1.0.0'], 0)
@@ -44,44 +61,37 @@ class TestDownloadProfiles(unittest.TestCase):
     self.assertEqual(len(err), 0)
 
   def test_download_profiles(self):
-    with TemporaryDirectory() as td, \
-        patch('download_profiles.PGO_PROFILE_DIR', pathlib.Path(td)), \
-        patch('download_profiles.PGO_CURRENT_PROFILE_VERSION',
-            pathlib.Path(td) / 'profiles_version'):
+    out, err = self._test_cmd(['download', '--version', '11.1.0.0'], 0)
+    self.assertEqual(len(out), 0)
+    self.assertEqual(len(err), 0)
+    self.assertTrue(any(
+        f.name.endswith('.profile') for f in self.temp_path.glob('*')))
+
+    with open(self.temp_path / 'meta.json') as f:
+      self.assertEqual(json.load(f)['version'], '11.1.0.0')
+
+    # A second download should not be started as profiles exist already
+    with patch('download_profiles.ProfileDownloader._call_gsutil') as gsutil:
       out, err = self._test_cmd(['download', '--version', '11.1.0.0'], 0)
+      self.assertEqual(out,
+          'Profiles already downloaded, use --force to overwrite.\n')
+      gsutil.assert_not_called()
+
+    # A forced download should always trigger
+    with patch('download_profiles.ProfileDownloader._call_gsutil') as gsutil:
+      cmd = ['download', '--version', '11.1.0.0', '--force']
+      out, err = self._test_cmd(cmd, 0)
       self.assertEqual(len(out), 0)
       self.assertEqual(len(err), 0)
-      self.assertGreater(
-          len([f for f in os.listdir(td) if f.endswith('.profile')]), 0)
-      with open(pathlib.Path(td) / 'profiles_version') as f:
-        self.assertEqual(f.read(), '11.1.0.0')
+      gsutil.assert_called_once()
 
-      # A second download should not be started as profiles exist already
-      with patch('download_profiles.ProfileDownloader._call_gsutil') as gsutil:
-        out, err = self._test_cmd(['download', '--version', '11.1.0.0'], 0)
-        self.assertEqual(
-            out,
-            'Profiles already downloaded, use --force to overwrite.\n',
-        )
-        gsutil.assert_not_called()
-
-      # A forced download should always trigger
-      with patch('download_profiles.ProfileDownloader._call_gsutil') as gsutil:
-        cmd = ['download', '--version', '11.1.0.0', '--force']
-        out, err = self._test_cmd(cmd, 0)
-        self.assertEqual(len(out), 0)
-        self.assertEqual(len(err), 0)
-        gsutil.assert_called_once()
-
+  @patch('builtins.open', new=mock_open(read_data=mock_version_file(11, 9)))
   def test_arg_quiet(self):
-    with patch(
-        'builtins.open',
-        new=mock_open(read_data=mock_version_file(11, 9, 0, 0))):
-      out, err = self._test_cmd(['download'], 0)
-      self.assertGreater(len(out), 0)
+    out, err = self._test_cmd(['download'], 0)
+    self.assertGreater(len(out), 0)
 
-      out, err = self._test_cmd(['download', '--quiet'], 0)
-      self.assertEqual(len(out), 0)
+    out, err = self._test_cmd(['download', '--quiet'], 0)
+    self.assertEqual(len(out), 0)
 
   def test_invalid_args(self):
     out, err = self._test_cmd(['invalid-action'], 2)
@@ -101,12 +111,10 @@ class TestDownloadProfiles(unittest.TestCase):
 
 
 class TestRetrieveVersion(unittest.TestCase):
+  @patch('builtins.open', new=mock_open(read_data=mock_version_file(11, 4, 1)))
   def test_retrieve_valid_version(self):
-    with patch(
-        'builtins.open',
-        new=mock_open(read_data=mock_version_file(11, 4, 1, 0))):
-      downloader = ProfileDownloader(['download'])
-      self.assertEqual(downloader.version, '11.4.1.0')
+    downloader = ProfileDownloader(['download'])
+    self.assertEqual(downloader.version, '11.4.1.0')
 
   def test_retrieve_parameter_version(self):
     downloader = ProfileDownloader(['download', '--version', '11.1.1.42'])
@@ -116,7 +124,7 @@ class TestRetrieveVersion(unittest.TestCase):
     out = io.StringIO()
     with patch(
         'builtins.open',
-        new=mock_open(read_data=mock_version_file(11, 4, 0, 0))), \
+        new=mock_open(read_data=mock_version_file(11, 4))), \
         contextlib.redirect_stdout(out), \
         self.assertRaises(SystemExit) as se:
       downloader = ProfileDownloader(['download'])

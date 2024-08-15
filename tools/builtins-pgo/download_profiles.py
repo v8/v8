@@ -12,6 +12,7 @@ See argparse documentation for usage details.
 
 import argparse
 from functools import cached_property
+import json
 import os
 import pathlib
 import re
@@ -20,7 +21,6 @@ import sys
 FILENAME = os.path.basename(__file__)
 PGO_PROFILE_BUCKET = 'chromium-v8-builtins-pgo'
 PGO_PROFILE_DIR = pathlib.Path(os.path.dirname(__file__)) / 'profiles'
-PGO_CURRENT_PROFILE_VERSION = PGO_PROFILE_DIR / 'profiles_version'
 
 V8_DIR = PGO_PROFILE_DIR.parents[2]
 DEPOT_TOOLS_DEFAULT_PATH = os.path.join(V8_DIR, 'third_party', 'depot_tools')
@@ -140,25 +140,33 @@ class ProfileDownloader:
     if not self._require_download():
       return
 
+    # Wipe profiles directory.
+    for file in PGO_PROFILE_DIR.glob('*'):
+      if file.name.startswith('.'):
+        continue
+      file.unlink()
+
+    # Download new profiles.
     path = self._remote_profile_path
-    cmd = ['cp', '-R', f'gs://{path}/*.profile', str(PGO_PROFILE_DIR)]
+    cmd = ['cp', '-R', f'gs://{path}/*', str(PGO_PROFILE_DIR)]
     failure_hint = f'https://storage.googleapis.com/{path} does not exist.'
     self._call_gsutil(cmd, failure_hint)
-
-    with open(PGO_CURRENT_PROFILE_VERSION, 'w') as version_file:
-      version_file.write(self.version)
 
   def _require_download(self):
     if self.args.force:
       return True
 
-    if not PGO_CURRENT_PROFILE_VERSION.is_file():
+    meta_json_path = PGO_PROFILE_DIR / 'meta.json'
+    if not meta_json_path.is_file():
       return True
 
-    with open(PGO_CURRENT_PROFILE_VERSION) as version_file:
-      profiles_version = version_file.read()
+    with open(meta_json_path) as meta_json_file:
+      try:
+        meta_json = json.load(meta_json_file)
+      except json.decoder.JSONDecodeError:
+        return True
 
-    if profiles_version != self.version:
+    if meta_json['version'] != self.version:
       return True
 
     self._log('Profiles already downloaded, use --force to overwrite.')
