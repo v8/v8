@@ -21,6 +21,7 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/serializer-inl.h"
@@ -1261,23 +1262,24 @@ void Serializer::ObjectSerializer::VisitProtectedPointer(
 void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
 #ifdef V8_ENABLE_LEAPTIERING
-  // New dispatch table entries will be allocated during deserialization if
-  // necessary. Here we just serialize an empty handle.
-  // TODO(saelo): we could also emit a kInitializeJSDispatchHandle opcode here
-  // and then allocate a dispatch entry during deserialization when we
-  // encounter that. That way we don't need to hook into object post
-  // processing. If the dispatch handle is empty, we would just skip it here
-  // (and would then serialize the raw null handle, which is correct).
+  // If the slot is empty, we will skip it here and then just serialize the
+  // null handle as raw data.
+  if (handle == kNullJSDispatchHandle) return;
+
   // TODO(saelo): we might want to call OutputRawData here, but for that we
   // first need to pass the slot address to this method (e.g. as part of a
   // JSDispatchHandleSlot struct).
-  static_assert(kJSDispatchHandleSize % kTaggedSize == 0);
-  sink_->Put(
-      FixedRawDataWithSize::Encode(kJSDispatchHandleSize >> kTaggedSizeLog2),
-      "FixedRawData");
-  sink_->PutRaw(reinterpret_cast<const uint8_t*>(&kNullJSDispatchHandle),
-                kJSDispatchHandleSize, "empty js dispatch handle");
+
   bytes_processed_so_far_ += kJSDispatchHandleSize;
+
+  sink_->Put(kAllocateJSDispatchEntry, "AllocateJSDispatchEntry");
+  sink_->PutUint30(handle >> kJSDispatchHandleShift, "EntryID");
+  sink_->PutUint30(GetProcessWideJSDispatchTable()->GetParameterCount(handle),
+                   "ParameterCount");
+
+  // TODO(saelo): in the future, we will probably also need to serialize the
+  // Code object here, then decode it in the deserializer and write it into the
+  // dispatch table entry.
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_LEAPTIERING

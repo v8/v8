@@ -64,7 +64,9 @@ TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpace() {
 #ifdef V8_ENABLE_LEAPTIERING
 JSDispatchTable::Space* IsolateForSandbox::GetJSDispatchTableSpaceFor(
     Address owning_slot) {
-  return isolate_->heap()->js_dispatch_table_space();
+  return ReadOnlyHeap::Contains(owning_slot)
+             ? isolate_->read_only_heap()->js_dispatch_table_space()
+             : isolate_->heap()->js_dispatch_table_space();
 }
 #endif  // V8_ENABLE_LEAPTIERING
 
