@@ -778,7 +778,7 @@ class MaglevCodeGeneratingNodeProcessor {
   void PostProcessGraph(Graph* graph) {}
   void PostPhiProcessing() {}
 
-  void PreProcessBasicBlock(BasicBlock* block) {
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     if (block->is_loop()) {
       __ LoopHeaderAlign();
     }
@@ -788,6 +788,7 @@ class MaglevCodeGeneratingNodeProcessor {
       __ RecordComment(ss.str());
     }
     __ BindBlock(block);
+    return BlockProcessResult::kContinue;
   }
 
   template <typename NodeT>
@@ -1107,7 +1108,9 @@ class SafepointingNodeProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
-  void PreProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   void PostPhiProcessing() {}
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     local_isolate_->heap()->Safepoint();

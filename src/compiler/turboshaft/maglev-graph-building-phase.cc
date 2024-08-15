@@ -570,7 +570,8 @@ class GraphBuilder {
     return is_main_switch_block;
   }
 
-  void PreProcessBasicBlock(maglev::BasicBlock* maglev_block) {
+  maglev::BlockProcessResult PreProcessBasicBlock(
+      maglev::BasicBlock* maglev_block) {
     // Note that it's important to call SetMaglevInputBlock before calling Bind,
     // so that BlockOriginTrackingReducer::Bind records the correct predecessor
     // for the current block.
@@ -601,7 +602,7 @@ class GraphBuilder {
 
     if (maglev_block->is_exception_handler_block()) {
       StartExceptionBlock(maglev_block);
-      return;
+      return maglev::BlockProcessResult::kContinue;
     }
 
     // SetMaglevInputBlock should have been called before calling Bind, and the
@@ -609,7 +610,7 @@ class GraphBuilder {
     DCHECK_EQ(__ maglev_input_block(), maglev_block);
     if (!__ Bind(turboshaft_block)) {
       // The current block is not reachable.
-      return;
+      return maglev::BlockProcessResult::kContinue;
     }
 
     if (maglev_block->is_loop()) {
@@ -617,7 +618,7 @@ class GraphBuilder {
       // apply to loops, since loops always have 2 predecessors in Turboshaft,
       // and in both Turboshaft and Maglev, the backedge is always the last
       // predecessors, so we never need to reorder phi inputs.
-      return;
+      return maglev::BlockProcessResult::kContinue;
     } else if (maglev_block->is_exception_handler_block()) {
       // We need to emit the CatchBlockBegin at the begining of this block. Note
       // that if this block has multiple predecessors (because multiple throwing
@@ -652,6 +653,7 @@ class GraphBuilder {
       ComputePredecessorPermutations(maglev_block, turboshaft_block, false,
                                      false);
     }
+    return maglev::BlockProcessResult::kContinue;
   }
 
   void ComputePredecessorPermutations(maglev::BasicBlock* maglev_block,

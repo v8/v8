@@ -26,7 +26,8 @@ namespace maglev {
     }                                             \
   } while (false)
 
-void MaglevPhiRepresentationSelector::PreProcessBasicBlock(BasicBlock* block) {
+BlockProcessResult MaglevPhiRepresentationSelector::PreProcessBasicBlock(
+    BasicBlock* block) {
   MergeNewNodesInBlock(current_block_);
   PreparePhiTaggings(current_block_, block);
   current_block_ = block;
@@ -62,6 +63,8 @@ void MaglevPhiRepresentationSelector::PreProcessBasicBlock(BasicBlock* block) {
       }
     }
   }
+
+  return BlockProcessResult::kContinue;
 }
 
 bool MaglevPhiRepresentationSelector::CanHoistUntaggingTo(BasicBlock* block) {

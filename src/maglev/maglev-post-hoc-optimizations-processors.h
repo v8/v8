@@ -30,15 +30,17 @@ class LoopOptimizationProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostPhiProcessing() {}
 
-  void PreProcessBasicBlock(BasicBlock* block) {
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     current_block = block;
     if (current_block->is_loop()) {
       loop_effects = current_block->state()->loop_effects();
+      if (loop_effects) return BlockProcessResult::kContinue;
     } else {
       // TODO(olivf): Some dominance analysis would allow us to keep loop
       // effects longer than just the first block of the loop.
       loop_effects = nullptr;
     }
+    return BlockProcessResult::kSkip;
   }
 
   bool IsLoopPhi(Node* input) {
@@ -73,7 +75,7 @@ class LoopOptimizationProcessor {
 
   ProcessResult Process(LoadTaggedFieldForContextSlot* ltf,
                         const ProcessingState& state) {
-    if (!loop_effects) return ProcessResult::kContinue;
+    DCHECK(loop_effects);
     ValueNode* object = ltf->object_input().node();
     if (IsLoopPhi(object)) {
       return ProcessResult::kContinue;
@@ -121,9 +123,10 @@ class LoopOptimizationProcessor {
   }
 
   ProcessResult Process(CheckMaps* maps, const ProcessingState& state) {
+    DCHECK(loop_effects);
     // Conservatively not hoist map checks if we ever deoptimized this function
     // to avoid deopt loops.
-    if (was_deoptimized || !loop_effects) return ProcessResult::kContinue;
+    if (was_deoptimized) return ProcessResult::kContinue;
     ValueNode* object = maps->receiver_input().node();
     if (IsLoopPhi(object)) {
       return ProcessResult::kContinue;
@@ -145,7 +148,10 @@ class LoopOptimizationProcessor {
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     // Ensure we are not hoisting over checks.
-    if (node->properties().can_eager_deopt()) loop_effects = nullptr;
+    if (node->properties().can_eager_deopt()) {
+      loop_effects = nullptr;
+      return ProcessResult::kSkipBlock;
+    }
     return ProcessResult::kContinue;
   }
 
@@ -169,7 +175,9 @@ constexpr bool CanBeStoreToNonEscapedObject() {
 class AnyUseMarkingProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
-  void PreProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   void PostPhiProcessing() {}
 
   template <typename NodeT>
@@ -296,7 +304,9 @@ class DeadNodeSweepingProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
-  void PreProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   void PostPhiProcessing() {}
 
   ProcessResult Process(AllocationBlock* node, const ProcessingState& state) {
