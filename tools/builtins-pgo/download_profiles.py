@@ -18,13 +18,16 @@ import pathlib
 import re
 import sys
 
-FILENAME = os.path.basename(__file__)
-PGO_PROFILE_BUCKET = 'chromium-v8-builtins-pgo'
-PGO_PROFILE_DIR = pathlib.Path(os.path.dirname(__file__)) / 'profiles'
+FILE = pathlib.Path(os.path.abspath(__file__))
+V8_DIR = FILE.parents[2]
+PGO_PROFILE_DIR = V8_DIR / 'tools/builtins-pgo/profiles'
 
-V8_DIR = PGO_PROFILE_DIR.parents[2]
-DEPOT_TOOLS_DEFAULT_PATH = os.path.join(V8_DIR, 'third_party', 'depot_tools')
-VERSION_FILE = V8_DIR / 'include' / 'v8-version.h'
+PGO_PROFILE_BUCKET = 'chromium-v8-builtins-pgo'
+CHROMIUM_DEPS_V8_REVISION = r"'v8_revision': '([0-9a-f]{40})',"
+
+DEPOT_TOOLS_DEFAULT_PATH = V8_DIR / 'third_party/depot_tools'
+
+VERSION_FILE = V8_DIR / 'include/v8-version.h'
 VERSION_RE = r"""#define V8_MAJOR_VERSION (\d+)
 #define V8_MINOR_VERSION (\d+)
 #define V8_BUILD_NUMBER (\d+)
@@ -56,14 +59,17 @@ class ProfileDownloader:
             f'profiles exist and the script returns without errors.'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='\n'.join([
-            f'examples:', f'  {FILENAME} download',
-            f'  {FILENAME} validate --bucket=chromium-v8-builtins-pgo-staging',
+            f'examples:', f'  {FILE.name} download',
+            f'  {FILE.name} validate --bucket=chromium-v8-builtins-pgo-staging',
             f'', f'return codes:',
             f'  0 - profiles successfully downloaded or validated',
             f'  1 - unexpected error, see stdout',
-            f'  2 - invalid arguments specified, see {FILENAME} --help',
+            f'  2 - invalid arguments specified, see {FILE.name} --help',
             f'  3 - invalid path to depot_tools provided'
             f'  4 - gsutil was unable to retrieve data from the bucket'
+            f'  5 - profiles have been generated for a different revision'
+            f'  6 - chromium DEPS file found without v8 revision'
+            f'  7 - no chromium DEPS file found'
         ]),
     )
 
@@ -93,13 +99,19 @@ class ProfileDownloader:
 
     parser.add_argument(
         '--force',
-        help=('force download, overwriting existing profiles'),
+        help='force download, overwriting existing profiles',
         action='store_true',
     )
 
     parser.add_argument(
         '--quiet',
-        help=('run silently, still display errors'),
+        help='run silently, still display errors',
+        action='store_true',
+    )
+
+    parser.add_argument(
+        '--check-v8-revision',
+        help='validate profiles are built for chromium\'s V8 revision',
         action='store_true',
     )
 
@@ -110,8 +122,7 @@ class ProfileDownloader:
     file = os.path.join(abs_depot_tools_path, 'download_from_google_storage.py')
     if not pathlib.Path(file).is_file():
       message = f'{file} does not exist; check --depot-tools path.'
-      print(message, file=sys.stderr)
-      sys.exit(3)
+      self._fail(3, message)
 
     # Put this path at the beginning of the PATH to give it priority.
     sys.path.insert(0, abs_depot_tools_path)
@@ -122,7 +133,7 @@ class ProfileDownloader:
     if self.args.version:
       return self.args.version
 
-    with open(VERSION_FILE) as f:
+    with VERSION_FILE.open() as f:
       version_tuple = re.search(VERSION_RE, f.read()).groups(0)
 
     version = '.'.join(version_tuple)
@@ -136,31 +147,74 @@ class ProfileDownloader:
   def _remote_profile_path(self):
     return f'{PGO_PROFILE_BUCKET}/by-version/{self.version}'
 
+  @cached_property
+  def _meta_json_path(self):
+    return PGO_PROFILE_DIR / 'meta.json'
+
+  @cached_property
+  def _v8_revision(self):
+    """If this script is executed within a chromium checkout, return the V8
+    revision defined in chromium. Otherwise return None."""
+
+    chromium_deps_file = V8_DIR.parent / 'DEPS'
+    if not chromium_deps_file.is_file():
+      message = (
+          f'File {chromium_deps_file} not found. Verify the parent directory '
+          f'of V8 is a valid chromium checkout.'
+      )
+      self._fail(7, message)
+
+    with chromium_deps_file.open() as f:
+      chromum_deps = f.read()
+
+    match = re.search(CHROMIUM_DEPS_V8_REVISION, chromum_deps)
+    if not match:
+      message = (
+          f'No V8 revision can be found in {chromium_deps_file}. Verify this '
+          f'is a valid chromium DEPS file including a v8 version entry.'
+      )
+      self._fail(6, message)
+
+    return match.group(1)
+
   def _download(self):
-    if not self._require_download():
-      return
+    if self._require_download():
+      # Wipe profiles directory.
+      for file in PGO_PROFILE_DIR.glob('*'):
+        if file.name.startswith('.'):
+          continue
+        file.unlink()
 
-    # Wipe profiles directory.
-    for file in PGO_PROFILE_DIR.glob('*'):
-      if file.name.startswith('.'):
-        continue
-      file.unlink()
+      # Download new profiles.
+      path = self._remote_profile_path
+      cmd = ['cp', '-R', f'gs://{path}/*', str(PGO_PROFILE_DIR)]
+      failure_hint = f'https://storage.googleapis.com/{path} does not exist.'
+      self._call_gsutil(cmd, failure_hint)
 
-    # Download new profiles.
-    path = self._remote_profile_path
-    cmd = ['cp', '-R', f'gs://{path}/*', str(PGO_PROFILE_DIR)]
-    failure_hint = f'https://storage.googleapis.com/{path} does not exist.'
-    self._call_gsutil(cmd, failure_hint)
+    # Validate profile revision matches the current V8 revision.
+    if self.args.check_v8_revision:
+      with self._meta_json_path.open() as meta_json_file:
+        meta_json = json.load(meta_json_file)
+
+      if meta_json['revision'] != self._v8_revision:
+        message = (
+            f'V8 Builtins PGO profiles have been built for '
+            f'{meta_json["revision"]}, but this chromium checkout uses '
+            f'{self._v8_revision} in its DEPS file. Invalid profiles might '
+            f'cause the build to fail or result in performance regressions. '
+            f'Select a V8 revision which has up-to-date profiles or build with '
+            f'pgo disabled.'
+        )
+        self._fail(5, message)
 
   def _require_download(self):
     if self.args.force:
       return True
 
-    meta_json_path = PGO_PROFILE_DIR / 'meta.json'
-    if not meta_json_path.is_file():
+    if not self._meta_json_path.is_file():
       return True
 
-    with open(meta_json_path) as meta_json_file:
+    with self._meta_json_path.open() as meta_json_file:
       try:
         meta_json = json.load(meta_json_file)
       except json.decoder.JSONDecodeError:
@@ -208,6 +262,10 @@ class ProfileDownloader:
     if self.args.quiet:
       return
     print(message)
+
+  def _fail(self, returncode, message):
+    print(message, file=sys.stderr)
+    sys.exit(returncode)
 
 
 if __name__ == '__main__':

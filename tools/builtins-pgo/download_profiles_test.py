@@ -17,16 +17,46 @@ from unittest.mock import patch, mock_open
 from download_profiles import ProfileDownloader
 
 
-def mock_version_file(major, minor, build=0, patch=0):
-  return (
-      f'#define V8_MAJOR_VERSION {major}\n'
-      f'#define V8_MINOR_VERSION {minor}\n'
-      f'#define V8_BUILD_NUMBER {build}\n'
-      f'#define V8_PATCH_LEVEL {patch}\n'
-  )
+class BaseTestCase(unittest.TestCase):
+  def setUp(self):
+    self.chromium_dir = TemporaryDirectory()
+    self.chromium_path = pathlib.Path(self.chromium_dir.name)
+
+    os.makedirs(self.profiles_path)
+
+    patch('download_profiles.PGO_PROFILE_DIR', self.profiles_path).start()
+    patch('download_profiles.V8_DIR', self.chromium_path / 'v8').start()
+    patch('download_profiles.VERSION_FILE', self.version_h_path).start()
+
+  def tearDown(self):
+    patch.stopall()
+    self.chromium_dir.cleanup()
+
+  def add_version_h_file(self, major, minor, build=0, patch=0):
+    self.version_h_path.parents[0].mkdir(parents=True, exist_ok=True)
+
+    with self.version_h_path.open('w') as f:
+      f.write(
+        f'#define V8_MAJOR_VERSION {major}\n'
+        f'#define V8_MINOR_VERSION {minor}\n'
+        f'#define V8_BUILD_NUMBER {build}\n'
+        f'#define V8_PATCH_LEVEL {patch}\n'
+      )
+
+  @property
+  def v8_path(self):
+    return self.chromium_path / 'v8'
+
+  @property
+  def profiles_path(self):
+    return self.v8_path / 'tools/builtins-pgo/profiles'
+
+  @property
+  def version_h_path(self):
+    return self.v8_path / 'include/v8-version.h'
 
 
-class TestDownloadProfiles(unittest.TestCase):
+class TestDownloadProfiles(BaseTestCase):
 
   def _test_cmd(self, cmd, exitcode):
     out = io.StringIO()
@@ -45,16 +75,6 @@ class TestDownloadProfiles(unittest.TestCase):
     self.assertEqual(se.exception.code, exitcode)
     return out.getvalue(), err.getvalue()
 
-  def setUp(self):
-    self.temp_dir = TemporaryDirectory()
-    self.temp_path = pathlib.Path(self.temp_dir.name)
-    self.mock_dir = patch('download_profiles.PGO_PROFILE_DIR', self.temp_path)
-    self.mock_dir.start()
-
-  def tearDown(self):
-    patch.stopall()
-    self.temp_dir.cleanup()
-
   def test_validate_profiles(self):
     out, err = self._test_cmd(['validate', '--version', '11.1.0.0'], 0)
     self.assertEqual(len(out), 0)
@@ -65,9 +85,9 @@ class TestDownloadProfiles(unittest.TestCase):
     self.assertEqual(len(out), 0)
     self.assertEqual(len(err), 0)
     self.assertTrue(any(
-        f.name.endswith('.profile') for f in self.temp_path.glob('*')))
+        f.name.endswith('.profile') for f in self.profiles_path.glob('*')))
 
-    with open(self.temp_path / 'meta.json') as f:
+    with (self.profiles_path / 'meta.json').open() as f:
       self.assertEqual(json.load(f)['version'], '11.1.0.0')
 
     # A second download should not be started as profiles exist already
@@ -85,8 +105,9 @@ class TestDownloadProfiles(unittest.TestCase):
       self.assertEqual(len(err), 0)
       gsutil.assert_called_once()
 
-  @patch('builtins.open', new=mock_open(read_data=mock_version_file(11, 9)))
   def test_arg_quiet(self):
+    self.add_version_h_file(11, 9)
+
     out, err = self._test_cmd(['download'], 0)
     self.assertGreater(len(out), 0)
 
@@ -109,10 +130,36 @@ class TestDownloadProfiles(unittest.TestCase):
     self.assertEqual(len(out), 0)
     self.assertGreater(len(err), 0)
 
+  def test_chromium_deps_valid_v8_revision(self):
+    with (self.chromium_path / 'DEPS').open('w') as f:
+      f.write("'v8_revision': '778cc4ae9ebb1973e900d4a56a16e6415492ab1d',")
 
-class TestRetrieveVersion(unittest.TestCase):
-  @patch('builtins.open', new=mock_open(read_data=mock_version_file(11, 4, 1)))
+    cmd = ['download', '--version', '11.1.0.0', '--check-v8-revision']
+    self._test_cmd(cmd, 0)
+
+  def test_chromium_deps_no_file(self):
+    cmd = ['download', '--version', '11.1.0.0', '--check-v8-revision']
+    self._test_cmd(cmd, 7)
+
+  def test_chromium_deps_no_v8_revision(self):
+    with (self.chromium_path / 'DEPS').open('w') as f:
+      pass
+
+    cmd = ['download', '--version', '11.1.0.0', '--check-v8-revision']
+    self._test_cmd(cmd, 6)
+
+  def test_chromium_deps_invalid_v8_revision(self):
+    with (self.chromium_path / 'DEPS').open('w') as f:
+      f.write("'v8_revision': 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef',")
+
+    cmd = ['download', '--version', '11.1.0.0', '--check-v8-revision']
+    self._test_cmd(cmd, 5)
+
+
+class TestRetrieveVersion(BaseTestCase):
   def test_retrieve_valid_version(self):
+    self.add_version_h_file(11, 4, 1)
+
     downloader = ProfileDownloader(['download'])
     self.assertEqual(downloader.version, '11.4.1.0')
 
@@ -121,12 +168,10 @@ class TestRetrieveVersion(unittest.TestCase):
     self.assertEqual(downloader.version, '11.1.1.42')
 
   def test_retrieve_untagged_version(self):
+    self.add_version_h_file(11, 4)
+
     out = io.StringIO()
-    with patch(
-        'builtins.open',
-        new=mock_open(read_data=mock_version_file(11, 4))), \
-        contextlib.redirect_stdout(out), \
-        self.assertRaises(SystemExit) as se:
+    with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as se:
       downloader = ProfileDownloader(['download'])
       downloader.version
 
