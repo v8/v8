@@ -297,15 +297,12 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
 TNode<JSFunction> AsyncFromSyncBuiltinsAssembler::
     CreateAsyncFromSyncIteratorCloseSyncAndRethrowClosure(
         TNode<NativeContext> native_context, TNode<JSReceiver> sync_iterator) {
-  const TNode<Map> map = CAST(LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<SharedFunctionInfo> on_rejected_shared =
-      AsyncFromSyncIteratorCloseSyncAndRethrowSharedFunConstant();
   const TNode<Context> closure_context =
       AllocateAsyncFromSyncIteratorCloseSyncAndRethrowContext(native_context,
                                                               sync_iterator);
-  return AllocateFunctionWithMapAndContext(map, on_rejected_shared,
-                                           closure_context);
+  return AllocateRootFunctionWithContext(
+      RootIndex::kAsyncFromSyncIteratorCloseSyncAndRethrowSharedFun,
+      closure_context);
 }
 
 TNode<Context> AsyncFromSyncBuiltinsAssembler::

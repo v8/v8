@@ -4190,11 +4190,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TVariable<Uint16T>* data_type_out = nullptr,
       Label* if_compile_lazy = nullptr);
 
-  // Deprecated, use the one below.
-  // TODO(olivf, 42204201): Migrate all callers and remove.
-  TNode<JSFunction> AllocateFunctionWithMapAndContext(
-      TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
-      TNode<Context> context);
   TNode<JSFunction> AllocateFunctionWithContext(
       TNode<SharedFunctionInfo> shared_info,
 #ifdef V8_ENABLE_LEAPTIERING

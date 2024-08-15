@@ -2987,7 +2987,7 @@ TEST(NewElementsCapacitySmi) {
       static_cast<int>(JSObject::NewElementsCapacity((*test_value).value())));
 }
 
-TEST(AllocateFunctionWithMapAndContext) {
+TEST(AllocateRootFunctionWithContext) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
@@ -3000,12 +3000,8 @@ TEST(AllocateFunctionWithMapAndContext) {
       m.NewJSPromise(context, m.UndefinedConstant());
   TNode<Context> promise_context = m.CreatePromiseResolvingFunctionsContext(
       context, promise, m.BooleanConstant(false), native_context);
-  TNode<Object> resolve_info =
-      m.PromiseCapabilityDefaultResolveSharedFunConstant();
-  const TNode<Object> map = m.LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  const TNode<JSFunction> resolve = m.AllocateFunctionWithMapAndContext(
-      m.CAST(map), m.CAST(resolve_info), promise_context);
+  const TNode<JSFunction> resolve = m.AllocateRootFunctionWithContext(
+      RootIndex::kPromiseCapabilityDefaultResolveSharedFun, promise_context);
   m.Return(resolve);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);

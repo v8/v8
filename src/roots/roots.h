@@ -262,6 +262,9 @@ class RootVisitor;
 
 #define BUILTINS_WITH_SFI_LIST_GENERATOR(APPLY, V)                             \
   APPLY(V, ProxyRevoke, proxy_revoke)                                          \
+  APPLY(V, AsyncFromSyncIteratorCloseSyncAndRethrow,                           \
+        async_from_sync_iterator_close_sync_and_rethrow)                       \
+  APPLY(V, AsyncIteratorValueUnwrap, async_iterator_value_unwrap)              \
   APPLY(V, ArrayFromAsyncArrayLikeOnFulfilled,                                 \
         array_from_async_array_like_on_fulfilled)                              \
   APPLY(V, ArrayFromAsyncArrayLikeOnRejected,                                  \
@@ -284,7 +287,8 @@ class RootVisitor;
   APPLY(V, PromiseThrowerFinally, promise_thrower_finally)                     \
   APPLY(V, PromiseValueThunkFinally, promise_value_thunk_finally)              \
   APPLY(V, PromiseThenFinally, promise_then_finally)                           \
-  APPLY(V, PromiseCatchFinally, promise_catch_finally)
+  APPLY(V, PromiseCatchFinally, promise_catch_finally)                         \
+  APPLY(V, ShadowRealmImportValueFulfilled, shadow_realm_import_value_fulfilled)
 
 #define BUILTINS_WITH_SFI_ROOTS_LIST_ADAPTER(V, CamelName, underscore_name, \
                                              ...)                           \
@@ -351,13 +355,6 @@ class RootVisitor;
     AsyncGeneratorReturnClosedRejectSharedFun)                                 \
   V(SharedFunctionInfo, async_generator_return_closed_resolve_shared_fun,      \
     AsyncGeneratorReturnClosedResolveSharedFun)                                \
-  V(SharedFunctionInfo,                                                        \
-    async_from_sync_iterator_close_sync_and_rethrow_shared_fun,                \
-    AsyncFromSyncIteratorCloseSyncAndRethrowSharedFun)                         \
-  V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
-    AsyncIteratorValueUnwrapSharedFun)                                         \
-  V(SharedFunctionInfo, shadow_realm_import_value_fulfilled_sfi,               \
-    ShadowRealmImportValueFulfilledSFI)                                        \
   V(SharedFunctionInfo, source_text_module_execute_async_module_fulfilled_sfi, \
     SourceTextModuleExecuteAsyncModuleFulfilledSFI)                            \
   V(SharedFunctionInfo, source_text_module_execute_async_module_rejected_sfi,  \

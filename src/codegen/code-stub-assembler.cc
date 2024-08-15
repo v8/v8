@@ -17144,38 +17144,6 @@ TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {
       LoadObjectField<Int32T>(code, Code::kFlagsOffset));
 }
 
-TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
-    TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
-    TNode<Context> context) {
-  const TNode<Code> code = GetSharedFunctionInfoCode(shared_info);
-
-  // TODO(ishell): All the callers of this function pass map loaded from
-  // Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX. So we can remove
-  // map parameter.
-  CSA_DCHECK(this, Word32BinaryNot(IsConstructorMap(map)));
-  CSA_DCHECK(this, Word32BinaryNot(IsFunctionWithPrototypeSlotMap(map)));
-  const TNode<HeapObject> fun = Allocate(JSFunction::kSizeWithoutPrototype);
-  static_assert(JSFunction::kSizeWithoutPrototype ==
-                (7 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
-  StoreMapNoWriteBarrier(fun, map);
-  StoreObjectFieldRoot(fun, JSObject::kPropertiesOrHashOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(fun, JSObject::kElementsOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(fun, JSFunction::kFeedbackCellOffset,
-                       RootIndex::kManyClosuresCell);
-  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
-                                 shared_info);
-  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
-  StoreCodePointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
-#ifdef V8_ENABLE_LEAPTIERING
-  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kDispatchHandleOffset,
-                                 Int32Constant(kNullJSDispatchHandle));
-#endif  // V8_ENABLE_LEAPTIERING
-
-  return CAST(fun);
-}
-
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithContext(
     TNode<SharedFunctionInfo> shared_info,
 #ifdef V8_ENABLE_LEAPTIERING

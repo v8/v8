@@ -60,14 +60,6 @@
   V(AsyncGeneratorYieldWithAwaitResolveSharedFun,                              \
     async_generator_yield_with_await_resolve_shared_fun,                       \
     AsyncGeneratorYieldWithAwaitResolveSharedFun)                              \
-  V(AsyncFromSyncIteratorCloseSyncAndRethrowSharedFun,                         \
-    async_from_sync_iterator_close_sync_and_rethrow_shared_fun,                \
-    AsyncFromSyncIteratorCloseSyncAndRethrowSharedFun)                         \
-  V(AsyncIteratorValueUnwrapSharedFun, async_iterator_value_unwrap_shared_fun, \
-    AsyncIteratorValueUnwrapSharedFun)                                         \
-  V(ShadowRealmImportValueFulfilledSFI,                                        \
-    shadow_realm_import_value_fulfilled_sfi,                                   \
-    ShadowRealmImportValueFulfilledSFI)                                        \
   BUILTINS_WITH_SFI_OBJECT_LIST(V)
 
 #define UNIQUE_INSTANCE_TYPE_IMMUTABLE_IMMOVABLE_MAP_ADAPTER( \

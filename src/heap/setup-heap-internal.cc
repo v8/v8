@@ -1552,8 +1552,8 @@ void Heap::CreateInitialMutableObjects() {
   // ShadowRealm:
   {
     DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kShadowRealmImportValueFulfilled, 0);
-    set_shadow_realm_import_value_fulfilled_sfi(*info);
+        isolate_, Builtin::kShadowRealmImportValueFulfilled, 1);
+    set_shadow_realm_import_value_fulfilled_shared_fun(*info);
   }
 
   // SourceTextModule:

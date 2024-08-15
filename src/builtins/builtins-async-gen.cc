@@ -190,14 +190,10 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
     TNode<NativeContext> native_context, TNode<Boolean> done) {
-  const TNode<Map> map = CAST(LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<SharedFunctionInfo> on_fulfilled_shared =
-      AsyncIteratorValueUnwrapSharedFunConstant();
   const TNode<Context> closure_context =
       AllocateAsyncIteratorValueUnwrapContext(native_context, done);
-  return AllocateFunctionWithMapAndContext(map, on_fulfilled_shared,
-                                           closure_context);
+  return AllocateRootFunctionWithContext(
+      RootIndex::kAsyncIteratorValueUnwrapSharedFun, closure_context);
 }
 
 TNode<Context> AsyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
