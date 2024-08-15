@@ -816,7 +816,7 @@ Handle<Map> Map::Update(Isolate* isolate, Handle<Map> map) {
 void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
                                 int slack) {
   // Only supports adding slack to owned descriptors.
-  DCHECK(map->owns_descriptors());
+  CHECK(map->owns_descriptors());
 
   DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
                                             isolate);
@@ -1583,7 +1583,7 @@ Handle<Map> Map::AddMissingTransitions(
   DCHECK(descriptors->IsSortedNoDuplicates());
   int split_nof = split_map->NumberOfOwnDescriptors();
   int nof_descriptors = descriptors->number_of_descriptors();
-  DCHECK_LT(split_nof, nof_descriptors);
+  CHECK_LT(split_nof, nof_descriptors);
 
   // Start with creating last map which will own full descriptors array.
   // This is necessary to guarantee that GC will mark the whole descriptor
@@ -2498,6 +2498,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(DirectHandle<Map> fast_map,
   }
 
   Tagged<Map> normalized_map = Cast<Map>(heap_object);
+  CHECK(normalized_map->is_dictionary_map());
   if (!normalized_map->EquivalentToForNormalization(*fast_map, elements_kind,
                                                     prototype, mode)) {
     return MaybeHandle<Map>();

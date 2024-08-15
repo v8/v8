@@ -223,7 +223,7 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   if (ConstructNewMap() == kAtIntegrityLevelSource) {
     ConstructNewMapWithIntegrityLevelTransition();
   }
-  DCHECK_EQ(kEnd, state_);
+  CHECK_EQ(kEnd, state_);
   return result_map_;
 }
 
@@ -283,11 +283,10 @@ Handle<Map> MapUpdater::UpdateImpl() {
   if (ConstructNewMap() == kAtIntegrityLevelSource) {
     ConstructNewMapWithIntegrityLevelTransition();
   }
-  DCHECK_EQ(kEnd, state_);
+  CHECK_EQ(kEnd, state_);
   if (V8_UNLIKELY(v8_flags.fast_map_update && old_map_->is_deprecated())) {
     TransitionsAccessor::SetMigrationTarget(isolate_, old_map_, *result_map_);
   }
-  DCHECK_EQ(kEnd, state_);
   return result_map_;
 }
 
@@ -417,8 +416,8 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   }
   if (result.is_null()) return {};
 
-  DCHECK_EQ(old_map->elements_kind(), (*result)->elements_kind());
-  DCHECK_EQ(old_map->instance_type(), (*result)->instance_type());
+  CHECK_EQ(old_map->elements_kind(), (*result)->elements_kind());
+  CHECK_EQ(old_map->instance_type(), (*result)->instance_type());
   return result;
 }
 
@@ -447,7 +446,7 @@ MapUpdater::State MapUpdater::Normalize(const char* reason) {
 void MapUpdater::CompleteInobjectSlackTracking(Isolate* isolate,
                                                Tagged<Map> initial_map) {
   // Has to be an initial map.
-  DCHECK(IsUndefined(initial_map->GetBackPointer(), isolate));
+  CHECK(IsUndefined(initial_map->GetBackPointer(), isolate));
 
   const int slack = initial_map->ComputeMinObjectSlack(isolate);
   DCHECK_GE(slack, 0);
@@ -1213,7 +1212,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
   PropertyDetails details =
       map->instance_descriptors(isolate)->GetDetails(descriptor);
   if (details.location() != PropertyLocation::kField) return;
-  DCHECK_EQ(PropertyKind::kData, details.kind());
+  CHECK_EQ(PropertyKind::kData, details.kind());
 
   if (new_constness != details.constness() && map->is_prototype_map()) {
     JSObject::InvalidatePrototypeChains(*map);
@@ -1282,7 +1281,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
         details.representation(),
         handle(descriptors->GetFieldType(descriptor), isolate),
         cur_new_representation, new_type, isolate);
-    DCHECK(new_representation.fits_into(cur_new_representation));
+    CHECK(new_representation.fits_into(cur_new_representation));
     // Skip if we already updated the shared descriptor or the target was more
     // general in the first place.
     if (cur_new_constness != details.constness() ||
@@ -1302,7 +1301,7 @@ void MapUpdater::GeneralizeField(Isolate* isolate, DirectHandle<Map> map,
                                  PropertyConstness new_constness,
                                  Representation new_representation,
                                  Handle<FieldType> new_field_type) {
-  DCHECK(!map->is_deprecated());
+  CHECK(!map->is_deprecated());
 
   // Check if we actually need to generalize the field type at all.
   DirectHandle<DescriptorArray> old_descriptors(
@@ -1312,7 +1311,7 @@ void MapUpdater::GeneralizeField(Isolate* isolate, DirectHandle<Map> map,
   Representation old_representation = old_details.representation();
   Handle<FieldType> old_field_type(old_descriptors->GetFieldType(modify_index),
                                    isolate);
-  DCHECK_IMPLIES(IsClass(*old_field_type), old_representation.IsHeapObject());
+  CHECK_IMPLIES(IsClass(*old_field_type), old_representation.IsHeapObject());
 
   // Return if the current map is general enough to hold requested constness and
   // representation/field type.
