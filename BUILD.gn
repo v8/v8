@@ -11,6 +11,7 @@ import("//build/config/mips.gni")
 import("//build/config/riscv.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
+import("//third_party/icu/config.gni")
 
 import("gni/snapshot_toolchain.gni")
 import("gni/v8.gni")
@@ -2451,6 +2452,11 @@ template("run_mksnapshot") {
     script = "tools/run.py"
 
     sources = []
+
+    if (icu_use_data_file) {
+      deps += [ "//third_party/icu:copy_icudata" ]
+      sources += ["$root_out_dir/icudtl.dat" ]
+    }
 
     outputs = []
 
