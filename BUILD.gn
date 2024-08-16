@@ -2455,7 +2455,11 @@ template("run_mksnapshot") {
 
     if (icu_use_data_file) {
       deps += [ "//third_party/icu:copy_icudata" ]
-      sources += ["$root_out_dir/icudtl.dat" ]
+      if (host_byteorder == "big") {
+        sources += [ "$root_out_dir/icudtb.dat" ]
+      } else {
+        sources += [ "$root_out_dir/icudtl.dat" ]
+      }
     }
 
     outputs = []
