@@ -2087,7 +2087,7 @@ void MacroAssembler::UnalignedStoreHelper(Register rd, const MemOperand& rs,
 
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (scratch_other == no_reg) {
-    if (temps.hasAvailable()) {
+    if (temps.CanAcquire()) {
       scratch_other = temps.Acquire();
     } else {
       push(t2);
@@ -2546,8 +2546,8 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (!MustUseReg(j.rmode()) && mode == OPTIMIZE_SIZE) {
     UseScratchRegisterScope temps(this);
-    int count = RV_li_count(j.immediate(), temps.hasAvailable());
-    int reverse_count = RV_li_count(~j.immediate(), temps.hasAvailable());
+    int count = RV_li_count(j.immediate(), temps.CanAcquire());
+    int reverse_count = RV_li_count(~j.immediate(), temps.CanAcquire());
     if (v8_flags.riscv_constant_pool && count >= 4 && reverse_count >= 4) {
       // Ld/Lw an Address from a constant pool.
 #if V8_TARGET_ARCH_RISCV32
@@ -6431,37 +6431,40 @@ void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,
 void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     static_assert(kSmiTag == 0);
-    DCHECK(object != kScratchReg);
-    andi(kScratchReg, object, kSmiTagMask);
-    Check(ne, reason, kScratchReg, Operand(zero_reg));
+    andi(scratch, object, kSmiTagMask);
+    Check(ne, reason, scratch, Operand(zero_reg));
   }
 }
 
 void MacroAssembler::AssertSmi(Register object, AbortReason reason) {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     static_assert(kSmiTag == 0);
-    DCHECK(object != kScratchReg);
-    andi(kScratchReg, object, kSmiTagMask);
-    Check(eq, reason, kScratchReg, Operand(zero_reg));
+    andi(scratch, object, kSmiTagMask);
+    Check(eq, reason, scratch, Operand(zero_reg));
   }
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
-    DCHECK(object != kScratchReg);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     BlockTrampolinePoolScope block_trampoline_pool(this);
     static_assert(kSmiTag == 0);
-    SmiTst(object, kScratchReg);
-    Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, kScratchReg,
+    SmiTst(object, scratch);
+    Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, scratch,
           Operand(zero_reg));
 
-    LoadMap(kScratchReg, object);
-    Lbu(kScratchReg, FieldMemOperand(kScratchReg, Map::kBitFieldOffset));
-    And(kScratchReg, kScratchReg, Operand(Map::Bits1::IsConstructorBit::kMask));
-    Check(ne, AbortReason::kOperandIsNotAConstructor, kScratchReg,
+    LoadMap(scratch, object);
+    Lbu(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    And(scratch, scratch, Operand(Map::Bits1::IsConstructorBit::kMask));
+    Check(ne, AbortReason::kOperandIsNotAConstructor, scratch,
           Operand(zero_reg));
   }
 }
@@ -6470,15 +6473,15 @@ void MacroAssembler::AssertFunction(Register object) {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     static_assert(kSmiTag == 0);
-    DCHECK(object != kScratchReg);
-    SmiTst(object, kScratchReg);
-    Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, kScratchReg,
+    SmiTst(object, scratch);
+    Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, scratch,
           Operand(zero_reg));
     push(object);
     LoadMap(object, object);
-    UseScratchRegisterScope temps(this);
-    Register range = temps.Acquire();
+    Register range = scratch;
     GetInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE, range);
     Check(Uless_equal, AbortReason::kOperandIsNotAFunction, range,
           Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
@@ -6506,13 +6509,14 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
     static_assert(kSmiTag == 0);
-    DCHECK(object != kScratchReg);
-    SmiTst(object, kScratchReg);
-    Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, kScratchReg,
+    SmiTst(object, scratch);
+    Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, scratch,
           Operand(zero_reg));
-    GetObjectType(object, kScratchReg, kScratchReg);
-    Check(eq, AbortReason::kOperandIsNotABoundFunction, kScratchReg,
+    GetObjectType(object, scratch, scratch);
+    Check(eq, AbortReason::kOperandIsNotABoundFunction, scratch,
           Operand(JS_BOUND_FUNCTION_TYPE));
   }
 }
@@ -6521,17 +6525,18 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   static_assert(kSmiTag == 0);
-  DCHECK(object != kScratchReg);
   SmiTst(object, kScratchReg);
-  Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, kScratchReg,
+  Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, scratch,
         Operand(zero_reg));
 
-  LoadMap(kScratchReg, object);
-  GetInstanceTypeRange(kScratchReg, kScratchReg, FIRST_JS_GENERATOR_OBJECT_TYPE,
-                       kScratchReg);
+  LoadMap(scratch, object);
+  GetInstanceTypeRange(scratch, scratch, FIRST_JS_GENERATOR_OBJECT_TYPE,
+                       scratch);
   Check(
-      Uless_equal, AbortReason::kOperandIsNotAGeneratorObject, kScratchReg,
+      Uless_equal, AbortReason::kOperandIsNotAGeneratorObject, scratch,
       Operand(LAST_JS_GENERATOR_OBJECT_TYPE - FIRST_JS_GENERATOR_OBJECT_TYPE));
 }
 

@@ -4642,7 +4642,7 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
   // might be needed for the move to the temp location.
   temps.Exclude(move_cycle_.scratch_regs);
   if (!IsFloatingPoint(rep)) {
-    if (temps.hasAvailable()) {
+    if (temps.CanAcquire()) {
       Register scratch = move_cycle_.temps->Acquire();
       move_cycle_.scratch_reg.emplace(scratch);
     }
