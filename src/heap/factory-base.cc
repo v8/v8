@@ -174,15 +174,11 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
 }
 
 template <typename Impl>
-Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(
-    int length, AllocationType allocation) {
-  DCHECK(allocation == AllocationType::kTrusted ||
-         allocation == AllocationType::kSharedTrusted);
-
+Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(int length) {
   // TODO(saelo): Move this check to TrustedFixedArray::New once we have a RO
   // trusted space.
   if (length == 0) return empty_trusted_fixed_array();
-  return TrustedFixedArray::New(isolate(), length, allocation);
+  return TrustedFixedArray::New(isolate(), length);
 }
 
 template <typename Impl>
@@ -339,9 +335,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
     uint16_t parameter_count, uint16_t max_arguments,
     DirectHandle<TrustedFixedArray> constant_pool,
-    DirectHandle<TrustedByteArray> handler_table, AllocationType allocation) {
-  DCHECK(allocation == AllocationType::kTrusted ||
-         allocation == AllocationType::kSharedTrusted);
+    DirectHandle<TrustedByteArray> handler_table) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
@@ -349,7 +343,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   DirectHandle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(length);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
-      size, allocation, read_only_roots().bytecode_array_map());
+      size, AllocationType::kTrusted, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> instance = Cast<BytecodeArray>(result);
   instance->init_self_indirect_pointer(isolate());
@@ -371,14 +365,10 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
 }
 
 template <typename Impl>
-Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper(
-    AllocationType allocation) {
-  DCHECK(allocation == AllocationType::kOld ||
-         allocation == AllocationType::kSharedOld);
-
+Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper() {
   Handle<BytecodeWrapper> wrapper(
       Cast<BytecodeWrapper>(NewWithImmortalMap(
-          read_only_roots().bytecode_wrapper_map(), allocation)),
+          read_only_roots().bytecode_wrapper_map(), AllocationType::kOld)),
       isolate());
   // The BytecodeWrapper is typically created before the BytecodeArray it
   // wraps, so the bytecode field cannot yet be set. However, as a heap

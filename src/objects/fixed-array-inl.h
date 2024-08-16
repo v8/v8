@@ -318,11 +318,7 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
 // static
 template <class IsolateT>
 Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
-                                                 int capacity,
-                                                 AllocationType allocation) {
-  DCHECK(allocation == AllocationType::kTrusted ||
-         allocation == AllocationType::kSharedTrusted);
-
+                                                 int capacity) {
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
                   TrustedFixedArray::kMaxLength)) {
     FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
@@ -334,8 +330,8 @@ Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
   // The same is true for the other trusted-space arrays below.
 
   std::optional<DisallowGarbageCollection> no_gc;
-  Handle<TrustedFixedArray> result =
-      Cast<TrustedFixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
+  Handle<TrustedFixedArray> result = Cast<TrustedFixedArray>(
+      Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
 }

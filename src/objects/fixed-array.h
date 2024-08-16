@@ -281,9 +281,7 @@ class TrustedFixedArray
 
  public:
   template <class IsolateT>
-  static inline Handle<TrustedFixedArray> New(
-      IsolateT* isolate, int capacity,
-      AllocationType allocation = AllocationType::kTrusted);
+  static inline Handle<TrustedFixedArray> New(IsolateT* isolate, int capacity);
 
   DECL_PRINTER(TrustedFixedArray)
   DECL_VERIFIER(TrustedFixedArray)

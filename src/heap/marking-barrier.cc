@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "src/base/logging.h"
-#include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
@@ -43,21 +42,13 @@ MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklists_.has_value());
+  DCHECK(!InWritableSharedSpace(host));
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
   // must have been initialized because it was just written to.
   Tagged<HeapObject> value = Cast<HeapObject>(slot.load(isolate()));
-
-  // If the host is in shared space, the target must be in the shared trusted
-  // space. No other edges indirect pointers are currently possible in shared
-  // space.
-  DCHECK_IMPLIES(
-      InWritableSharedSpace(host),
-      MemoryChunk::FromHeapObject(value)->Metadata()->owner()->identity() ==
-          SHARED_TRUSTED_SPACE);
-
   if (InReadOnlySpace(value)) return;
 
   DCHECK(!Heap::InYoungGeneration(value));
