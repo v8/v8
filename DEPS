@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e6526e8edb8b123340053d92753eae7bc44baa12',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c21cc4a276ee8e1c0ede68d87a2389f8b4e1983a',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '36b281734ae14829ecc3aa2400fa3ad3f8f58933',
   'buildtools/linux64': {
@@ -491,7 +491,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd3aea2341cdeaf7e717bc257a59aa7a9407d318a',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1f2403c8ecb63596f892dc98889d8ed26107c3c9',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '63b7be17f8981d716ea9a0d65bb04654d79548a8',
   'tools/luci-go': {
       'packages': [
         {
