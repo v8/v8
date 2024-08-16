@@ -2676,8 +2676,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
     }
 
     // Ensure that {receiver} is a HeapObject.
-    effect = graph()->NewNode(simplified()->CheckHeapObject(), receiver, effect,
-                              control);
+    receiver = effect = graph()->NewNode(simplified()->CheckHeapObject(),
+                                         receiver, effect, control);
     speculating_object_is_receiver = true;
   }
 
