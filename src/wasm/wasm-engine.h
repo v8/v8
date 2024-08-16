@@ -477,6 +477,15 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Size of code that became dead since the last GC. If this exceeds a certain
   // threshold, a new GC is triggered.
   size_t new_potentially_dead_code_size_ = 0;
+  // Set of potentially dead code. This set holds one ref for each code object,
+  // until code is detected to be really dead. At that point, the ref count is
+  // decremented and code is moved to the {dead_code} set. If the code is
+  // finally deleted, it is also removed from {dead_code}.
+  std::unordered_set<WasmCode*> potentially_dead_code_;
+  // Code that is not being executed in any isolate any more, but the ref count
+  // did not drop to zero yet.
+  std::unordered_set<WasmCode*> dead_code_;
+  int8_t num_code_gcs_triggered_ = 0;
 
   // If an engine-wide GC is currently running, this pointer stores information
   // about that.
