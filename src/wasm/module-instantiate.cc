@@ -49,51 +49,6 @@ uint8_t* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
          offset;
 }
 
-using ImportWrapperQueue =
-    WrapperQueue<WasmImportWrapperCache::CacheKey, const FunctionSig*,
-                 WasmImportWrapperCache::CacheKeyHash>;
-
-class CompileImportWrapperJob final : public JobTask {
- public:
-  CompileImportWrapperJob(
-      Counters* counters, NativeModule* native_module,
-      ImportWrapperQueue* queue,
-      WasmImportWrapperCache::ModificationScope* cache_scope)
-      : counters_(counters),
-        native_module_(native_module),
-        queue_(queue),
-        cache_scope_(cache_scope) {}
-
-  size_t GetMaxConcurrency(size_t worker_count) const override {
-    size_t flag_limit = static_cast<size_t>(
-        std::max(1, v8_flags.wasm_num_compilation_tasks.value()));
-    // Add {worker_count} to the queue size because workers might still be
-    // processing units that have already been popped from the queue.
-    return std::min(flag_limit, worker_count + queue_->size());
-  }
-
-  void Run(JobDelegate* delegate) override {
-    TRACE_EVENT0("v8.wasm", "wasm.CompileImportWrapperJob.Run");
-    while (std::optional<std::pair<const WasmImportWrapperCache::CacheKey,
-                                   const FunctionSig*>>
-               key = queue_->pop()) {
-      // TODO(wasm): Batch code publishing, to avoid repeated locking and
-      // permission switching.
-      CompileImportWrapper(native_module_, counters_, key->first.kind,
-                           key->second, key->first.canonical_type_index,
-                           key->first.expected_arity, key->first.suspend,
-                           cache_scope_);
-      if (delegate->ShouldYield()) return;
-    }
-  }
-
- private:
-  Counters* const counters_;
-  NativeModule* const native_module_;
-  ImportWrapperQueue* const queue_;
-  WasmImportWrapperCache::ModificationScope* const cache_scope_;
-};
-
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
                             int struct_index, Handle<Map> opt_rtt_parent,
                             DirectHandle<WasmTrustedInstanceData> trusted_data,
@@ -986,11 +941,6 @@ class InstanceBuilder {
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int import_index, const WasmGlobal& global,
       DirectHandle<WasmGlobalObject> global_object);
-
-  // Compile import wrappers in parallel. The result goes into the native
-  // module's import_wrapper_cache.
-  void CompileImportWrappers(
-      DirectHandle<WasmTrustedInstanceData> trusted_instance_data);
 
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
@@ -2017,8 +1967,27 @@ bool InstanceBuilder::ProcessImportedFunction(
       uint32_t canonical_type_index =
           module_->isorecursive_canonical_type_ids
               [module_->functions[func_index].sig_index];
-      WasmCode* wasm_code = native_module->import_wrapper_cache()->Get(
+      WasmCode* wasm_code = native_module->import_wrapper_cache()->MaybeGet(
           kind, canonical_type_index, expected_arity, resolved.suspend());
+      if (!v8_flags.wasm_jitless && wasm_code == nullptr) {
+        WasmImportWrapperCache::ModificationScope cache_scope(
+            native_module->import_wrapper_cache());
+        // Now that we have the lock (in the form of the cache_scope), check
+        // again whether another thread has just created the wrapper.
+        WasmImportWrapperCache::CacheKey key(
+            kind, canonical_type_index, expected_arity, resolved.suspend());
+        wasm_code = cache_scope[key];
+        if (wasm_code == nullptr) {
+          wasm_code = CompileImportWrapper(native_module, isolate_->counters(),
+                                           kind, expected_sig,
+                                           canonical_type_index, expected_arity,
+                                           resolved.suspend(), &cache_scope);
+          if (native_module->log_code()) {
+            GetWasmEngine()->LogCode({&wasm_code, 1});
+            GetWasmEngine()->LogOutstandingCodesForIsolate(isolate_);
+          }
+        }
+      }
       DCHECK(v8_flags.wasm_jitless || wasm_code != nullptr);
       if (v8_flags.wasm_jitless ||
           wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
@@ -2369,74 +2338,6 @@ bool InstanceBuilder::ProcessImportedGlobal(
   return false;
 }
 
-void InstanceBuilder::CompileImportWrappers(
-    DirectHandle<WasmTrustedInstanceData> trusted_instance_data) {
-  int num_imports = static_cast<int>(module_->import_table.size());
-  TRACE_EVENT1("v8.wasm", "wasm.CompileImportWrappers", "num_imports",
-               num_imports);
-  NativeModule* native_module = trusted_instance_data->native_module();
-  WasmImportWrapperCache::ModificationScope cache_scope(
-      native_module->import_wrapper_cache());
-  const WellKnownImportsList& preknown_imports =
-      module_->type_feedback.well_known_imports;
-
-  // Compilation is done in two steps:
-  // 1) Insert nullptr entries in the cache for wrappers that need to be
-  // compiled. 2) Compile wrappers in background tasks using the
-  // ImportWrapperQueue. This way the cache won't invalidate other iterators
-  // when inserting a new WasmCode, since the key will already be there.
-  ImportWrapperQueue import_wrapper_queue;
-  for (int index = 0; index < num_imports; ++index) {
-    Handle<Object> value = sanitized_imports_[index];
-    if (module_->import_table[index].kind != kExternalFunction ||
-        (!IsCallable(*value) && !IsWasmSuspendingObject(*value))) {
-      continue;
-    }
-    auto js_receiver = Cast<JSReceiver>(value);
-    uint32_t func_index = module_->import_table[index].index;
-    const FunctionSig* sig = module_->functions[func_index].sig;
-    uint32_t sig_index = module_->functions[func_index].sig_index;
-    uint32_t canonical_type_index =
-        module_->isorecursive_canonical_type_ids[sig_index];
-    ResolvedWasmImport resolved({}, func_index, js_receiver, sig,
-                                canonical_type_index,
-                                preknown_imports.get(func_index));
-    if (UseGenericWasmToJSWrapper(resolved.kind(), sig, resolved.suspend())) {
-      continue;
-    }
-    ImportCallKind kind = resolved.kind();
-    if (kind == ImportCallKind::kWasmToWasm ||
-        kind == ImportCallKind::kLinkError ||
-        kind == ImportCallKind::kWasmToCapi ||
-        kind == ImportCallKind::kWasmToJSFastApi) {
-      continue;
-    }
-
-    int expected_arity = static_cast<int>(sig->parameter_count());
-    if (kind == ImportCallKind::kJSFunctionArityMismatch) {
-      auto function = Cast<JSFunction>(resolved.callable());
-      Tagged<SharedFunctionInfo> shared = function->shared();
-      expected_arity =
-          shared->internal_formal_parameter_count_without_receiver();
-    }
-    WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
-                                         expected_arity, resolved.suspend());
-    if (cache_scope[key] != nullptr) {
-      // Cache entry already exists, no need to compile it again.
-      continue;
-    }
-    import_wrapper_queue.insert(key, sig);
-  }
-
-  auto compile_job_task = std::make_unique<CompileImportWrapperJob>(
-      isolate_->counters(), native_module, &import_wrapper_queue, &cache_scope);
-  auto compile_job = V8::GetCurrentPlatform()->CreateJob(
-      TaskPriority::kUserVisible, std::move(compile_job_task));
-
-  // Wait for the job to finish, while contributing in this thread.
-  compile_job->Join();
-}
-
 // Process the imports, including functions, tables, globals, and memory, in
 // order, loading them from the {ffi_} object. Returns the number of imported
 // functions.
@@ -2448,7 +2349,6 @@ int InstanceBuilder::ProcessImports(
 
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
 
-  CompileImportWrappers(trusted_instance_data);
   const WellKnownImportsList& preknown_imports =
       module_->type_feedback.well_known_imports;
   int num_imports = static_cast<int>(module_->import_table.size());
