@@ -652,6 +652,13 @@ void MergePointInterpreterFrameState::InitializeLoop(
   predecessors_so_far_ = 1;
 }
 
+void MergePointInterpreterFrameState::InitializeWithBasicBlock(
+    BasicBlock* block) {
+  for (Phi* phi : phis_) {
+    phi->set_owner(block);
+  }
+}
+
 void MergePointInterpreterFrameState::Merge(
     MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
     InterpreterFrameState& unmerged, BasicBlock* predecessor) {

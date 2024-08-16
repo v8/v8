@@ -1756,6 +1756,8 @@ class MaglevGraphBuilder {
     if (merge_state == nullptr) {
       DCHECK_NOT_NULL(predecessor);
       current_block_->set_predecessor(predecessor);
+    } else {
+      merge_state->InitializeWithBasicBlock(current_block_);
     }
     refs_to_block.Bind(current_block_);
   }

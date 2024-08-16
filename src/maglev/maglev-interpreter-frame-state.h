@@ -807,6 +807,7 @@ class MergePointInterpreterFrameState {
                       InterpreterFrameState& unmerged, BasicBlock* predecessor,
                       bool optimistic_initial_state = false,
                       LoopEffects* loop_effects = nullptr);
+  void InitializeWithBasicBlock(BasicBlock* current_block);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
