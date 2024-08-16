@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:23.20240808.4.1',
+  'fuchsia_version': 'version:23.20240815.4.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '63133282fcc684cb05c9a241c5ab5031ff16abda',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e6526e8edb8b123340053d92753eae7bc44baa12',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd32a89311cf6358a0e6e67a96b4a2bc90d185b18',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '36b281734ae14829ecc3aa2400fa3ad3f8f58933',
   'buildtools/linux64': {
     'packages': [
       {
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '39ca85acf5430c7d5f18622453cf3018584cee76',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '37a737c1bc8e16cf70212d73466ccca872068dba',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fuchsia-gn-sdk': {
@@ -303,7 +303,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '0a4a51e9b2b6a1d854cb26ad53dbf2611afbfef9',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '40b967f07bc28295ac3c77671417ee6549d8ad06',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'eb6567388e89d9730c76dee71d68ac82e4a1abf6',
   'third_party/libunwind/src':
