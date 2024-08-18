@@ -2175,4 +2175,15 @@
 # End roll-watcher patch
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-canonical-invalid-index-prototype-chain-set': [SKIP],
+  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-canonical-invalid-index-reflect-set': [SKIP],
+  'built-ins/TypedArrayConstructors/internals/Set/key-is-canonical-invalid-index-prototype-chain-set': [SKIP],
+  'built-ins/TypedArrayConstructors/internals/Set/key-is-canonical-invalid-index-reflect-set': [SKIP],
+}],
+# End roll-watcher patch
+####
+
 ]
