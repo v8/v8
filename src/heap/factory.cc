@@ -22,6 +22,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/flags/flags.h"
+#include "src/heap/allocation-result.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -286,6 +287,12 @@ Tagged<HeapObject> Factory::AllocateRaw(int size, AllocationType allocation,
                                         AllocationAlignment alignment) {
   return allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
       size, allocation, AllocationOrigin::kRuntime, alignment);
+}
+
+AllocationResult Factory::TryAllocateRaw(int size, AllocationType allocation,
+                                         AllocationAlignment alignment) {
+  return allocator()->AllocateRaw(size, allocation, AllocationOrigin::kRuntime,
+                                  alignment);
 }
 
 Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(

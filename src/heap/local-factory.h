@@ -61,6 +61,9 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   Tagged<HeapObject> AllocateRaw(
       int size, AllocationType allocation,
       AllocationAlignment alignment = kTaggedAligned);
+  AllocationResult TryAllocateRaw(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kTaggedAligned);
 
   LocalIsolate* isolate() {
     // Downcast to the privately inherited sub-class using c-style casts to

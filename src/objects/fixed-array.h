@@ -452,6 +452,12 @@ class PrimitiveArrayBase : public Super {
       std::optional<DisallowGarbageCollection>* no_gc_out,
       AllocationType allocation = AllocationType::kYoung);
 
+  template <class IsolateT>
+  static MaybeHandle<Derived> TryAllocate(
+      IsolateT* isolate, int length,
+      std::optional<DisallowGarbageCollection>* no_gc_out,
+      AllocationType allocation = AllocationType::kYoung);
+
   inline bool IsInBounds(int index) const;
 };
 
@@ -795,6 +801,11 @@ class ByteArray : public PrimitiveArrayBase<ByteArray, ByteArrayShape> {
       IsolateT* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
 
+  template <class IsolateT>
+  static inline MaybeHandle<ByteArray> TryNew(
+      IsolateT* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
+
   inline uint32_t get_int(int offset) const;
   inline void set_int(int offset, uint32_t value);
 
@@ -846,7 +857,11 @@ class TrustedByteArray
       IsolateT* isolate, int capacity,
       AllocationType allocation_type = AllocationType::kTrusted);
 
-  // Given the full object size in bytes, return the length that should be
+  template <class IsolateT>
+  static inline MaybeHandle<TrustedByteArray> TryNew(IsolateT* isolate,
+                                                     int capacity);
+
+  // Given the f1ull object size in bytes, return the length that should be
   // passed to New s.t. an object of the same size is created.
   static constexpr int LengthFor(int size_in_bytes) {
     DCHECK(IsAligned(size_in_bytes, kTaggedSize));

@@ -331,6 +331,12 @@ FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
 }
 
 template <typename Impl>
+MaybeHandle<TrustedByteArray> FactoryBase<Impl>::TryNewTrustedByteArray(
+    int length) {
+  return TrustedByteArray::TryNew(isolate(), length);
+}
+
+template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
     uint16_t parameter_count, uint16_t max_arguments,
@@ -1237,6 +1243,25 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
 }
 
 template <typename Impl>
+AllocationResult FactoryBase<Impl>::TryAllocateRawArray(
+    int size, AllocationType allocation) {
+  AllocationResult result = TryAllocateRaw(size, allocation);
+  if (result.IsFailure()) {
+    return result;
+  }
+
+  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
+      (size >
+       isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
+      v8_flags.use_marking_progress_bar) {
+    LargePageMetadata::FromHeapObject(result.ToObject())
+        ->ProgressBar()
+        .Enable();
+  }
+  return result;
+}
+
+template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawFixedArray(
     int length, AllocationType allocation) {
   if (length < 0 || length > FixedArray::kMaxLength) {
@@ -1280,6 +1305,12 @@ template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRaw(
     int size, AllocationType allocation, AllocationAlignment alignment) {
   return impl()->AllocateRaw(size, allocation, alignment);
+}
+
+template <typename Impl>
+AllocationResult FactoryBase<Impl>::TryAllocateRaw(
+    int size, AllocationType allocation, AllocationAlignment alignment) {
+  return impl()->TryAllocateRaw(size, allocation, alignment);
 }
 
 template <typename Impl>
