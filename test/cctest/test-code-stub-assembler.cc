@@ -4439,7 +4439,7 @@ TEST(IntPtrMulHigh) {
   TNode<IntPtrT> res = m.IntPtrMulHigh(a, b);
   m.Return(m.SmiTag(res));
 
-  FunctionTester ft(asm_tester.GenerateCode());
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   CHECK_EQ(
       -147694,
       (*ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))).value());
@@ -4479,7 +4479,7 @@ TEST(UintPtrMulHigh) {
   TNode<IntPtrT> res = m.Signed(m.UintPtrMulHigh(m.Unsigned(a), m.Unsigned(b)));
   m.Return(m.SmiTag(res));
 
-  FunctionTester ft(asm_tester.GenerateCode());
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   CHECK_EQ(
       147693,
       (*ft.CallChecked<Smi>(handle(Smi::FromInt(295387), isolate))).value());
@@ -4526,7 +4526,7 @@ TEST(IntPtrMulWithOverflow) {
     TNode<BoolT> overflow = m.Projection<1>(pair);
     m.Return(m.SelectBooleanConstant(overflow));
 
-    FunctionTester ft(asm_tester.GenerateCode());
+    FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
     CHECK(IsTrue(*ft.Call(handle(Smi::FromInt(-1), isolate)).ToHandleChecked(),
                  isolate));
     CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(1), isolate)).ToHandleChecked(),
@@ -4547,7 +4547,7 @@ TEST(IntPtrMulWithOverflow) {
     TNode<BoolT> overflow = m.Projection<1>(pair);
     m.Return(m.SelectBooleanConstant(overflow));
 
-    FunctionTester ft(asm_tester.GenerateCode());
+    FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
     CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(-1), isolate)).ToHandleChecked(),
                   isolate));
     CHECK(IsFalse(*ft.Call(handle(Smi::FromInt(1), isolate)).ToHandleChecked(),
