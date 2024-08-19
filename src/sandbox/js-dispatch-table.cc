@@ -16,9 +16,7 @@ namespace v8 {
 namespace internal {
 
 Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
-  uint32_t index = HandleToIndex(handle);
-  Address ptr = at(index).GetCodePointer();
-  DCHECK(Internals::HasHeapObjectTag(ptr));
+  Address ptr = GetCodeAddress(handle);
   return Cast<Code>(Tagged<Object>(ptr));
 }
 

@@ -40,6 +40,7 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
 MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
 void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
+#ifdef V8_ENABLE_SANDBOX
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklists_.has_value());
   DCHECK(!InWritableSharedSpace(host));
@@ -66,9 +67,14 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
     MarkValueLocal(value);
   }
 
-  // We never need to record indirect pointer slots (i.e. references through a
-  // pointer table) since the referenced object owns its table entry and will
-  // take care of updating the pointer to itself if it is relocated.
+  // We don't need to record a slot here because the entries in the pointer
+  // tables are not compacted and because the pointers stored in the table
+  // entries are updated after compacting GC.
+  static_assert(!CodePointerTable::kSupportsCompaction);
+  static_assert(!TrustedPointerTable::kSupportsCompaction);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void MarkingBarrier::WriteWithoutHost(Tagged<HeapObject> value) {

@@ -215,6 +215,12 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
       FreelistHead(-1, -1);
 
  public:
+  // Generally, ExternalEntityTables are not compactible. The exception are
+  // CompactibleExternalEntityTables such as the ExternalPointerTable. This
+  // constant can be used to static_assert this property in locations that rely
+  // on a table (not) supporting compaction.
+  static constexpr bool kSupportsCompaction = false;
+
   // Initializes the table by reserving the backing memory, allocating an
   // initial segment, and populating the freelist.
   void Initialize();

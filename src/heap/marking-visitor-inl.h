@@ -304,6 +304,10 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
 #endif  // DEBUG
 
   table->Mark(handle);
+
+  // The code objects referenced from a dispatch table entry are treated as weak
+  // references for the purpose of bytecode/baseline flushing, so they are not
+  // marked here. See also VisitJSFunction below.
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
@@ -317,23 +321,41 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
   if (ShouldFlushBaselineCode(js_function)) {
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
-  } else {
+    return Base::VisitJSFunction(map, js_function);
+  }
+
+  // We're not flushing the Code, so mark it as alive.
 #ifdef V8_ENABLE_SANDBOX
-    VisitIndirectPointer(js_function,
-                         js_function->RawIndirectPointerField(
-                             JSFunction::kCodeOffset, kCodeIndirectPointerTag),
-                         IndirectPointerMode::kStrong);
+  VisitIndirectPointer(js_function,
+                       js_function->RawIndirectPointerField(
+                           JSFunction::kCodeOffset, kCodeIndirectPointerTag),
+                       IndirectPointerMode::kStrong);
 #else
-    VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
+  VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
 #endif  // V8_ENABLE_SANDBOX
-    // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
-    // also include cases where there is old bytecode even when there is no
-    // baseline code and remove this check here.
-    if (IsByteCodeFlushingEnabled(code_flush_mode_) &&
-        js_function->NeedsResetDueToFlushedBytecode(heap_->isolate())) {
-      local_weak_objects_->flushed_js_functions_local.Push(js_function);
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchHandle handle = js_function->Relaxed_ReadField<JSDispatchHandle>(
+      JSFunction::kDispatchHandleOffset);
+  if (GetProcessWideJSDispatchTable()->HasCode(handle)) {
+    Tagged<HeapObject> obj = GetProcessWideJSDispatchTable()->GetCode(handle);
+    // TODO(saelo): maybe factor out common code with VisitIndirectPointer
+    // into a helper routine?
+    SynchronizePageAccess(obj);
+    const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, obj);
+    if (target_worklist) {
+      MarkObject(js_function, obj, target_worklist.value());
     }
   }
+#endif
+
+  // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
+  // also include cases where there is old bytecode even when there is no
+  // baseline code and remove this check here.
+  if (IsByteCodeFlushingEnabled(code_flush_mode_) &&
+      js_function->NeedsResetDueToFlushedBytecode(heap_->isolate())) {
+    local_weak_objects_->flushed_js_functions_local.Push(js_function);
+  }
+
   return Base::VisitJSFunction(map, js_function);
 }
 

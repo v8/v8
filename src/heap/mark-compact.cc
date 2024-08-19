@@ -3407,6 +3407,22 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
     flushed_js_function->ResetIfCodeFlushed(heap_->isolate(),
                                             gc_notify_updated_slot);
   }
+
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* const jdt = GetProcessWideJSDispatchTable();
+  jdt->IterateActiveEntriesIn(
+      heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
+        if (!jdt->HasCode(handle)) return;
+        Tagged<Code> code = jdt->GetCode(handle);
+        if (!InReadOnlySpace(code) && !marking_state_->IsMarked(code)) {
+          // Baseline flushing: if the Code object is no longer alive, it must
+          // have been flushed and so we replace it with the CompileLazy
+          // builtin. Once we use leaptiering on all platforms, we can probably
+          // simplify the other code related to baseline flushing.
+          jdt->SetCode(handle, *BUILTIN_CODE(heap_->isolate(), CompileLazy));
+        }
+      });
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
@@ -5546,6 +5562,20 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         }
       });
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* const jdt = GetProcessWideJSDispatchTable();
+  jdt->IterateActiveEntriesIn(
+      heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
+        if (!jdt->HasCode(handle)) return;
+        Address content = jdt->GetCodeAddress(handle);
+        Tagged<TrustedObject> relocated_object = process_entry(content);
+        if (!relocated_object.is_null()) {
+          CHECK(IsCode(relocated_object));
+          jdt->SetCode(handle, Cast<Code>(relocated_object));
+        }
+      });
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(

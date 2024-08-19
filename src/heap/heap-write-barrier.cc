@@ -131,8 +131,16 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 #ifdef V8_ENABLE_LEAPTIERING
   GetProcessWideJSDispatchTable()->Mark(handle);
 
-  // TODO(saelo): in the future, we'll probably need to mark the Code object in
-  // the table as well here.
+  // We don't need to record a slot here because the entries in the
+  // JSDispatchTable are not compacted and because the pointers stored in the
+  // table entries are updated after compacting GC.
+  static_assert(!JSDispatchTable::kSupportsCompaction);
+
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  if (GetProcessWideJSDispatchTable()->HasCode(handle)) {
+    Tagged<Code> value = GetProcessWideJSDispatchTable()->GetCode(handle);
+    marking_barrier->MarkValue(host, value);
+  }
 #else
   UNREACHABLE();
 #endif

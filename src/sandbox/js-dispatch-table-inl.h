@@ -106,6 +106,13 @@ Address JSDispatchTable::GetEntrypoint(JSDispatchHandle handle) {
   return at(index).GetEntrypoint();
 }
 
+Address JSDispatchTable::GetCodeAddress(JSDispatchHandle handle) {
+  uint32_t index = HandleToIndex(handle);
+  Address ptr = at(index).GetCodePointer();
+  DCHECK(Internals::HasHeapObjectTag(ptr));
+  return ptr;
+}
+
 uint16_t JSDispatchTable::GetParameterCount(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
   return at(index).GetParameterCount();
