@@ -28657,8 +28657,8 @@ void CallWithMoreArguments() {
             "%OptimizeFunctionOnNextCall(func);"
             "func(value);");
 
-  // Passing too many arguments should just ignore the extra ones.
-  CHECK(checker.DidCallFast());
+  // Passing too many arguments should result in a regular call.
+  CHECK(checker.DidCallSlow());
 }
 
 namespace {
