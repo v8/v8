@@ -708,8 +708,7 @@ inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
   // loop if we deopt here.
   LoadTaggedField(scratch,
                   FieldMemOperand(array, JSArrayBufferView::kBufferOffset));
-  LoadTaggedField(scratch,
-                  FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+  LoadU32(scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset));
   tmll(scratch, Operand(JSArrayBuffer::WasDetachedBit::kMask));
   EmitEagerDeoptIf(ne, DeoptimizeReason::kArrayBufferWasDetached, node);
 }
