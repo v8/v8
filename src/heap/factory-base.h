@@ -9,7 +9,6 @@
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
-#include "src/heap/allocation-result.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
@@ -195,9 +194,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<ExternalPointerArray> NewExternalPointerArray(
       int length, AllocationType allocation = AllocationType::kYoung);
-
-  // The function returns a pre-allocated empty byte array for length = 0.
-  MaybeHandle<TrustedByteArray> TryNewTrustedByteArray(int length);
 
   Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
   Handle<DeoptimizationFrameTranslation> NewDeoptimizationFrameTranslation(
@@ -392,8 +388,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Tagged<HeapObject> AllocateRawWeakArrayList(int length,
                                               AllocationType allocation);
 
-  AllocationResult TryAllocateRawArray(int size, AllocationType allocation);
-
   template <typename StructType>
   inline Tagged<StructType> NewStructInternal(InstanceType type,
                                               AllocationType allocation);
@@ -428,10 +422,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }
 
   Tagged<HeapObject> AllocateRaw(
-      int size, AllocationType allocation,
-      AllocationAlignment alignment = kTaggedAligned);
-
-  AllocationResult TryAllocateRaw(
       int size, AllocationType allocation,
       AllocationAlignment alignment = kTaggedAligned);
 

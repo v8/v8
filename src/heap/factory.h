@@ -1252,9 +1252,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Tagged<HeapObject> AllocateRaw(
       int size, AllocationType allocation,
       AllocationAlignment alignment = kTaggedAligned);
-  AllocationResult TryAllocateRaw(
-      int size, AllocationType allocation,
-      AllocationAlignment alignment = kTaggedAligned);
 
   Isolate* isolate() const {
     // Downcast to the privately inherited sub-class using c-style casts to

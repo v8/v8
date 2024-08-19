@@ -38,7 +38,7 @@ class BytecodeOffsetTableBuilder {
   }
 
   template <typename IsolateT>
-  MaybeHandle<TrustedByteArray> ToBytecodeOffsetTable(IsolateT* isolate);
+  Handle<TrustedByteArray> ToBytecodeOffsetTable(IsolateT* isolate);
 
   void Reserve(size_t size) { bytes_.reserve(size); }
 

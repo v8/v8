@@ -55,16 +55,6 @@ Tagged<HeapObject> LocalFactory::AllocateRaw(int size,
       size, allocation, AllocationOrigin::kRuntime, alignment));
 }
 
-AllocationResult LocalFactory::TryAllocateRaw(int size,
-                                              AllocationType allocation,
-                                              AllocationAlignment alignment) {
-  DCHECK(allocation == AllocationType::kOld ||
-         allocation == AllocationType::kSharedOld ||
-         allocation == AllocationType::kTrusted);
-  return isolate()->heap()->AllocateRaw(size, allocation,
-                                        AllocationOrigin::kRuntime, alignment);
-}
-
 int LocalFactory::NumberToStringCacheHash(Tagged<Smi>) { return 0; }
 
 int LocalFactory::NumberToStringCacheHash(double) { return 0; }

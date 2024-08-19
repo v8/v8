@@ -738,38 +738,6 @@ Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
   return handle(xs, isolate);
 }
 
-template <class D, class S, class P>
-template <class IsolateT>
-MaybeHandle<D> PrimitiveArrayBase<D, S, P>::TryAllocate(
-    IsolateT* isolate, int length,
-    std::optional<DisallowGarbageCollection>* no_gc_out,
-    AllocationType allocation) {
-  // Note 0-length is explicitly allowed since not all subtypes can be
-  // assumed to have canonical 0-length instances.
-  DCHECK_GE(length, 0);
-  DCHECK_LE(length, kMaxLength);
-  DCHECK(!no_gc_out->has_value());
-
-  AllocationResult result =
-      isolate->factory()->TryAllocateRawArray(SizeFor(length), allocation);
-
-  if (result.IsFailure()) {
-    return {};
-  }
-
-  Tagged<D> xs = UncheckedCast<D>(result.ToObject());
-
-  ReadOnlyRoots roots{isolate};
-  if (DEBUG_BOOL) no_gc_out->emplace();
-  Tagged<Map> map = Cast<Map>(roots.object_at(S::kMapRootIndex));
-  DCHECK(ReadOnlyHeap::Contains(map));
-
-  xs->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
-  xs->set_length(length);
-
-  return handle(xs, isolate);
-}
-
 double FixedDoubleArray::get_scalar(int index) {
   DCHECK(!is_the_hole(index));
   return Super::get(index);
@@ -957,27 +925,6 @@ Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
   memset(result->AddressOfElementAt(length), 0, padding_size);
 
-  return result;
-}
-
-template <class IsolateT>
-MaybeHandle<TrustedByteArray> TrustedByteArray::TryNew(IsolateT* isolate,
-                                                       int length) {
-  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
-  } else if (V8_UNLIKELY(length == 0)) {
-    return isolate->factory()->empty_trusted_byte_array();
-  }
-
-  std::optional<DisallowGarbageCollection> no_gc;
-  MaybeHandle<TrustedByteArray> result =
-      TryAllocate(isolate, length, &no_gc, AllocationType::kTrusted);
-
-  Handle<TrustedByteArray> r;
-  if (result.ToHandle(&r)) {
-    int padding_size = SizeFor(length) - OffsetOfElementAt(length);
-    memset(r->AddressOfElementAt(length), 0, padding_size);
-  }
   return result;
 }
 

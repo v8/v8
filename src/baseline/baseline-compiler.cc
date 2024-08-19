@@ -61,19 +61,13 @@ namespace internal {
 namespace baseline {
 
 template <typename IsolateT>
-MaybeHandle<TrustedByteArray> BytecodeOffsetTableBuilder::ToBytecodeOffsetTable(
+Handle<TrustedByteArray> BytecodeOffsetTableBuilder::ToBytecodeOffsetTable(
     IsolateT* isolate) {
   if (bytes_.empty()) return isolate->factory()->empty_trusted_byte_array();
-  MaybeHandle<TrustedByteArray> maybe_table =
-      isolate->factory()->TryNewTrustedByteArray(
-          static_cast<int>(bytes_.size()));
-  Handle<TrustedByteArray> table;
-  if (maybe_table.ToHandle(&table)) {
-    MemCopy(table->begin(), bytes_.data(), bytes_.size());
-    return table;
-  } else {
-    return {};
-  }
+  Handle<TrustedByteArray> table =
+      isolate->factory()->NewTrustedByteArray(static_cast<int>(bytes_.size()));
+  MemCopy(table->begin(), bytes_.data(), bytes_.size());
+  return table;
 }
 
 namespace detail {
@@ -344,13 +338,8 @@ MaybeHandle<Code> BaselineCompiler::Build() {
   __ GetCode(local_isolate_, &desc);
 
   // Allocate the bytecode offset table.
-  MaybeHandle<TrustedByteArray> maybe_bytecode_offset_table =
+  Handle<TrustedByteArray> bytecode_offset_table =
       bytecode_offset_table_builder_.ToBytecodeOffsetTable(local_isolate_);
-  Handle<TrustedByteArray> bytecode_offset_table;
-  if (!maybe_bytecode_offset_table.ToHandle(&bytecode_offset_table) ||
-      bytecode_offset_table->length() == 0) {
-    return {};
-  }
 
   Factory::CodeBuilder code_builder(local_isolate_, desc, CodeKind::BASELINE);
   code_builder.set_bytecode_offset_table(bytecode_offset_table);
