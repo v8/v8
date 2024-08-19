@@ -1234,6 +1234,10 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
   MoveRepr(repr, dst, scratch);
 }
 
+inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
+  // Implemented only for x64.
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

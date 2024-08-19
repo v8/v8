@@ -1271,6 +1271,12 @@ inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
   MoveRepr(repr, dst, kScratchRegister);
 }
 
+inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
+  if (v8_flags.cet_compatible) {
+    Nop(Assembler::kIntraSegmentJmpInstrSize);
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

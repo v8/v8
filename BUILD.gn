@@ -730,6 +730,10 @@ if (v8_enable_single_generation == true) {
 assert(!v8_enable_snapshot_compression || v8_use_zlib,
        "Snapshot compression requires zlib")
 
+assert(!v8_enable_cet_shadow_stack ||
+           (v8_target_cpu == "x64" && target_os == "win"),
+       "CET shadow stack is supported only on x64 Windows")
+
 if (v8_expose_public_symbols == "") {
   v8_expose_public_symbols = v8_expose_symbols
 }

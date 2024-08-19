@@ -73,6 +73,10 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 void OptimizedCompilationInfo::ConfigureFlags() {
   if (v8_flags.turbo_inline_js_wasm_calls) set_inline_js_wasm_calls();
 
+  if (v8_flags.cet_compatible) {
+    set_shadow_stack_compliant_lazy_deopt();
+  }
+
   switch (code_kind_) {
     case CodeKind::TURBOFAN:
       set_called_with_code_start_register();

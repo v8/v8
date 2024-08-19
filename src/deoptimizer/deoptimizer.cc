@@ -364,13 +364,18 @@ class ActivationsFinder : public ThreadVisitor {
           DCHECK_IMPLIES(code.SafeEquals(topmost_), safe_to_deopt_);
           static_assert(SafepointEntry::kNoTrampolinePC == -1);
           CHECK_GE(trampoline_pc, 0);
-          // Replace the current pc on the stack with the trampoline.
-          // TODO(v8:10026): avoid replacing a signed pointer.
           if (!it.frame()->InFastCCall()) {
-            Address* pc_addr = it.frame()->pc_address();
             Address new_pc = code->instruction_start() + trampoline_pc;
-            PointerAuthentication::ReplacePC(pc_addr, new_pc,
-                                             kSystemPointerSize);
+            if (v8_flags.cet_compatible) {
+              Address pc = *it.frame()->pc_address();
+              Deoptimizer::PatchJumpToTrampoline(pc, new_pc);
+            } else {
+              // Replace the current pc on the stack with the trampoline.
+              // TODO(v8:10026): avoid replacing a signed pointer.
+              Address* pc_addr = it.frame()->pc_address();
+              PointerAuthentication::ReplacePC(pc_addr, new_pc,
+                                               kSystemPointerSize);
+            }
           }
         }
       }

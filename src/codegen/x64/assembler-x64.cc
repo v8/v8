@@ -517,6 +517,11 @@ bool Assembler::IsNop(Address addr) {
   return false;
 }
 
+bool Assembler::IsJmpRel(Address addr) {
+  uint8_t* a = reinterpret_cast<uint8_t*>(addr);
+  return *a == 0xEB || *a == 0xE9;
+}
+
 void Assembler::bind_to(Label* L, int pos) {
   DCHECK(!L->is_bound());                  // Label may only be bound once.
   DCHECK(0 <= pos && pos <= pc_offset());  // Position must be valid.
