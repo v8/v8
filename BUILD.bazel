@@ -3797,6 +3797,25 @@ filegroup(
 )
 
 v8_library(
+  name = "lib_fast_float",
+  srcs = [
+    "third_party/fast_float/src/include/fast_float/ascii_number.h",
+    "third_party/fast_float/src/include/fast_float/bigint.h",
+    "third_party/fast_float/src/include/fast_float/constexpr_feature_detect.h",
+    "third_party/fast_float/src/include/fast_float/decimal_to_binary.h",
+    "third_party/fast_float/src/include/fast_float/digit_comparison.h",
+    "third_party/fast_float/src/include/fast_float/fast_float.h",
+    "third_party/fast_float/src/include/fast_float/fast_table.h",
+    "third_party/fast_float/src/include/fast_float/float_common.h",
+    "third_party/fast_float/src/include/fast_float/parse_number.h",
+    ],
+  hdrs = [ "third_party/fast_float/src/include/fast_float/fast_float.h" ],
+  includes = [
+    "third_party/fast_float/src/include",
+  ],
+)
+
+v8_library(
   name = "lib_fp16",
   srcs = ["third_party/fp16/src/include/fp16.h"],
   hdrs = [
@@ -4299,6 +4318,7 @@ v8_library(
         ":noicu/generated_torque_definitions",
     ],
     deps = [
+        ":lib_fast_float",
         ":lib_fp16",
         ":v8_libbase",
         "//external:absl_btree",
