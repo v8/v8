@@ -1084,8 +1084,10 @@ HeapEntry::Type V8HeapExplorer::GetSystemEntryType(Tagged<HeapObject> object) {
   if (InstanceTypeChecker::IsAllocationSite(type) ||
       InstanceTypeChecker::IsArrayBoilerplateDescription(type) ||
       InstanceTypeChecker::IsBytecodeArray(type) ||
+      InstanceTypeChecker::IsBytecodeWrapper(type) ||
       InstanceTypeChecker::IsClosureFeedbackCellArray(type) ||
       InstanceTypeChecker::IsCode(type) ||
+      InstanceTypeChecker::IsCodeWrapper(type) ||
       InstanceTypeChecker::IsFeedbackCell(type) ||
       InstanceTypeChecker::IsFeedbackMetadata(type) ||
       InstanceTypeChecker::IsFeedbackVector(type) ||
