@@ -4372,6 +4372,14 @@ bool MaglevGraphBuilder::CanTrackObjectChanges(ValueNode* receiver,
       return false;
     }
     if (alloc->IsEscaping()) return false;
+    // Ensure object is escaped if we are within a try-catch block. This is
+    // crucial because a deoptimization point inside the catch handler could
+    // re-materialize objects differently, depending on whether the throw
+    // occurred before or after this store. We could potentially relax this
+    // requirement by verifying that no throwable nodes have been emitted since
+    // the try-block started,  but for now, err on the side of caution and
+    // always escape.
+    if (IsInsideTryBlock()) return false;
   } else {
     DCHECK_EQ(mode, TrackObjectMode::kLoad);
     if (IsEscaping(graph_, alloc)) return false;
