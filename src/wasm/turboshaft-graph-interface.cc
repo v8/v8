@@ -3174,6 +3174,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       constexpr int kSlowpathCase = 1;
       base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
           case_blocks;
+
+      InstanceCache::Snapshot instance_cache_snapshot =
+          instance_cache_.SaveState();
       for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
         case_blocks.push_back(__ NewBlock());
       }
@@ -3213,6 +3216,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
         // An inlined tail call should still terminate execution.
         DCHECK_NULL(__ current_block());
+        // Restore the instance cache for the next inlinee or the default case.
+        instance_cache_.RestoreFromSnapshot(instance_cache_snapshot);
       }
 
       TSBlock* no_inline_block = case_blocks.back();
