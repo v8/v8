@@ -775,6 +775,36 @@ ValueNode* MaglevGraphBuilder::MaglevSubGraphBuilder::get(
 }
 
 template <typename FCond, typename FTrue, typename FFalse>
+ReduceResult MaglevGraphBuilder::MaglevSubGraphBuilder::Branch(
+    std::initializer_list<MaglevSubGraphBuilder::Variable*> vars, FCond cond,
+    FTrue if_true, FFalse if_false) {
+  MaglevSubGraphBuilder::Label else_branch(this, 1);
+  BranchBuilder builder(builder_, this, BranchType::kBranchIfFalse,
+                        &else_branch);
+  BranchResult branch_result = cond(builder);
+  if (branch_result == BranchResult::kAlwaysTrue) {
+    return if_true();
+  }
+  if (branch_result == BranchResult::kAlwaysFalse) {
+    return if_false();
+  }
+  DCHECK(branch_result == BranchResult::kDefault);
+  MaglevSubGraphBuilder::Label done(this, 2, vars);
+  ReduceResult result_if_true = if_true();
+  CHECK(result_if_true.IsDone());
+  GotoOrTrim(&done);
+  Bind(&else_branch);
+  ReduceResult result_if_false = if_false();
+  CHECK(result_if_false.IsDone());
+  if (result_if_true.IsDoneWithAbort() && result_if_false.IsDoneWithAbort()) {
+    return ReduceResult::DoneWithAbort();
+  }
+  GotoOrTrim(&done);
+  Bind(&done);
+  return ReduceResult::Done();
+}
+
+template <typename FCond, typename FTrue, typename FFalse>
 ValueNode* MaglevGraphBuilder::Select(FCond cond, FTrue if_true,
                                       FFalse if_false) {
   MaglevSubGraphBuilder subgraph(this, 1);
@@ -818,14 +848,14 @@ ReduceResult MaglevGraphBuilder::SelectReduction(FCond cond, FTrue if_true,
   MaglevSubGraphBuilder::Variable ret_val(0);
   MaglevSubGraphBuilder::Label done(&subgraph, 2, {&ret_val});
   ReduceResult result_if_true = if_true();
-  DCHECK(result_if_true.IsDone());
+  CHECK(result_if_true.IsDone());
   if (result_if_true.IsDoneWithValue()) {
     subgraph.set(ret_val, result_if_true.value());
   }
   subgraph.GotoOrTrim(&done);
   subgraph.Bind(&else_branch);
   ReduceResult result_if_false = if_false();
-  DCHECK(result_if_false.IsDone());
+  CHECK(result_if_false.IsDone());
   if (result_if_true.IsDoneWithAbort() && result_if_false.IsDoneWithAbort()) {
     return ReduceResult::DoneWithAbort();
   }
@@ -7765,66 +7795,70 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   MaglevSubGraphBuilder subgraph(this, 2);
   MaglevSubGraphBuilder::Variable is_done(0);
   MaglevSubGraphBuilder::Variable ret_value(1);
-  MaglevSubGraphBuilder::Label else_branch(&subgraph, 1);
-  MaglevSubGraphBuilder::Label done(&subgraph, 2, {&is_done, &ret_value});
-  subgraph.GotoIfFalse<BranchIfUint32Compare>(
-      &else_branch, {uint32_index, uint32_length}, Operation::kLessThan);
-
-  // Index is below length.
-  ValueNode* int32_index = GetInt32(uint32_index);
-  subgraph.set(is_done, GetBooleanConstant(false));
-  DCHECK(iterator->get(JSArrayIterator::kKindOffset)->Is<Int32Constant>());
-  IterationKind iteration_kind =
-      static_cast<IterationKind>(iterator->get(JSArrayIterator::kKindOffset)
-                                     ->Cast<Int32Constant>()
-                                     ->value());
-  if (iteration_kind == IterationKind::kKeys) {
-    subgraph.set(ret_value, index);
-  } else {
-    ValueNode* value;
-    GET_VALUE_OR_ABORT(
-        value, TryBuildElementLoadOnJSArrayOrJSObject(
-                   iterated_object, int32_index, base::VectorOf(maps),
-                   elements_kind, KeyedAccessLoadMode::kHandleOOBAndHoles));
-    if (iteration_kind == IterationKind::kEntries) {
-      subgraph.set(ret_value, BuildAndAllocateKeyValueArray(index, value));
-    } else {
-      subgraph.set(ret_value, value);
-    }
-  }
-  // Add 1 to index
-  ValueNode* next_index =
-      AddNewNode<Int32AddWithOverflow>({int32_index, GetInt32Constant(1)});
-  EnsureType(next_index, NodeType::kSmi);
-  // Update [[NextIndex]]
-  BuildStoreTaggedFieldNoWriteBarrier(receiver, next_index,
-                                      JSArrayIterator::kNextIndexOffset,
-                                      StoreTaggedMode::kDefault);
-  subgraph.Goto(&done);
-
-  // Index is greater or equal than length.
-  subgraph.Bind(&else_branch);
-  subgraph.set(is_done, GetBooleanConstant(true));
-  subgraph.set(ret_value, GetRootConstant(RootIndex::kUndefinedValue));
-  if (!IsTypedArrayElementsKind(elements_kind)) {
-    // Mark the {iterator} as exhausted by setting the [[NextIndex]] to a
-    // value that will never pass the length check again (aka the maximum
-    // value possible for the specific iterated object). Note that this is
-    // different from what the specification says, which is changing the
-    // [[IteratedObject]] field to undefined, but that makes it difficult
-    // to eliminate the map checks and "length" accesses in for..of loops.
-    //
-    // This is not necessary for JSTypedArray's, since the length of those
-    // cannot change later and so if we were ever out of bounds for them
-    // we will stay out-of-bounds forever.
-    BuildStoreTaggedField(receiver, GetFloat64Constant(kMaxUInt32),
-                          JSArrayIterator::kNextIndexOffset,
-                          StoreTaggedMode::kDefault);
-  }
-  subgraph.Goto(&done);
+  RETURN_IF_ABORT(subgraph.Branch(
+      {&is_done, &ret_value},
+      [&](auto& builder) {
+        return BuildBranchIfUint32Compare(builder, Operation::kLessThan,
+                                          uint32_index, uint32_length);
+      },
+      [&] {
+        ValueNode* int32_index = GetInt32(uint32_index);
+        subgraph.set(is_done, GetBooleanConstant(false));
+        DCHECK(
+            iterator->get(JSArrayIterator::kKindOffset)->Is<Int32Constant>());
+        IterationKind iteration_kind = static_cast<IterationKind>(
+            iterator->get(JSArrayIterator::kKindOffset)
+                ->Cast<Int32Constant>()
+                ->value());
+        if (iteration_kind == IterationKind::kKeys) {
+          subgraph.set(ret_value, index);
+        } else {
+          ValueNode* value;
+          GET_VALUE_OR_ABORT(
+              value,
+              TryBuildElementLoadOnJSArrayOrJSObject(
+                  iterated_object, int32_index, base::VectorOf(maps),
+                  elements_kind, KeyedAccessLoadMode::kHandleOOBAndHoles));
+          if (iteration_kind == IterationKind::kEntries) {
+            subgraph.set(ret_value,
+                         BuildAndAllocateKeyValueArray(index, value));
+          } else {
+            subgraph.set(ret_value, value);
+          }
+        }
+        // Add 1 to index
+        ValueNode* next_index = AddNewNode<Int32AddWithOverflow>(
+            {int32_index, GetInt32Constant(1)});
+        EnsureType(next_index, NodeType::kSmi);
+        // Update [[NextIndex]]
+        BuildStoreTaggedFieldNoWriteBarrier(receiver, next_index,
+                                            JSArrayIterator::kNextIndexOffset,
+                                            StoreTaggedMode::kDefault);
+        return ReduceResult::Done();
+      },
+      [&] {
+        // Index is greater or equal than length.
+        subgraph.set(is_done, GetBooleanConstant(true));
+        subgraph.set(ret_value, GetRootConstant(RootIndex::kUndefinedValue));
+        if (!IsTypedArrayElementsKind(elements_kind)) {
+          // Mark the {iterator} as exhausted by setting the [[NextIndex]] to a
+          // value that will never pass the length check again (aka the maximum
+          // value possible for the specific iterated object). Note that this is
+          // different from what the specification says, which is changing the
+          // [[IteratedObject]] field to undefined, but that makes it difficult
+          // to eliminate the map checks and "length" accesses in for..of loops.
+          //
+          // This is not necessary for JSTypedArray's, since the length of those
+          // cannot change later and so if we were ever out of bounds for them
+          // we will stay out-of-bounds forever.
+          BuildStoreTaggedField(receiver, GetFloat64Constant(kMaxUInt32),
+                                JSArrayIterator::kNextIndexOffset,
+                                StoreTaggedMode::kDefault);
+        }
+        return ReduceResult::Done();
+      }));
 
   // Allocate result object and return.
-  subgraph.Bind(&done);
   compiler::MapRef map =
       broker()->target_native_context().iterator_result_map(broker());
   VirtualObject* iter_result = CreateJSIteratorResult(

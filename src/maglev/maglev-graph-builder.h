@@ -420,6 +420,10 @@ class MaglevGraphBuilder {
     void set(Variable& var, ValueNode* value);
     ValueNode* get(const Variable& var) const;
 
+    template <typename FCond, typename FTrue, typename FFalse>
+    ReduceResult Branch(std::initializer_list<Variable*> vars, FCond cond,
+                        FTrue if_true, FFalse if_false);
+
     void MergeIntoLabel(Label* label, BasicBlock* predecessor);
 
    private:
