@@ -856,15 +856,7 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
 
 namespace {
 SnapshotSpace GetSnapshotSpace(Tagged<HeapObject> object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    if (IsInstructionStream(object)) {
-      return SnapshotSpace::kCode;
-    } else if (ReadOnlyHeap::Contains(object)) {
-      return SnapshotSpace::kReadOnlyHeap;
-    } else {
-      return SnapshotSpace::kOld;
-    }
-  } else if (ReadOnlyHeap::Contains(object)) {
+  if (ReadOnlyHeap::Contains(object)) {
     return SnapshotSpace::kReadOnlyHeap;
   } else {
     AllocationSpace heap_space =

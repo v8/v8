@@ -59,8 +59,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_gdbjit
 # v8_check_header_includes
 # v8_enable_lazy_source_positions
-# v8_enable_third_party_heap
-# v8_third_party_heap_files
 # v8_disable_write_barriers
 # v8_enable_unconditional_write_barriers
 # v8_enable_single_generation
@@ -1793,8 +1791,6 @@ filegroup(
         "src/heap/stress-scavenge-observer.h",
         "src/heap/sweeper.cc",
         "src/heap/sweeper.h",
-        "src/heap/third-party/heap-api.h",
-        "src/heap/third-party/heap-api-stub.cc",
         "src/heap/traced-handles-marking-visitor.cc",
         "src/heap/traced-handles-marking-visitor.h",
         "src/heap/weak-object-worklists.cc",

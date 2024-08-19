@@ -75,11 +75,6 @@ class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
 
-namespace third_party_heap {
-class Heap;
-class Impl;
-}  // namespace third_party_heap
-
 class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BackingStore;
@@ -1609,8 +1604,6 @@ class Heap final {
   // Calculates the nof entries for the full sized number to string cache.
   inline int MaxNumberToStringCacheSize() const;
 
-  static Isolate* GetIsolateFromWritableObject(Tagged<HeapObject> object);
-
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.
   V8_EXPORT_PRIVATE void MakeHeapIterable();
@@ -2399,8 +2392,6 @@ class Heap final {
 
   bool is_finalization_registry_cleanup_task_posted_ = false;
 
-  std::unique_ptr<third_party_heap::Heap> tp_heap_;
-
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
@@ -2469,8 +2460,6 @@ class Heap final {
   friend class Sweeper;
   friend class UnifiedHeapMarkingState;
   friend class heap::TestMemoryAllocatorScope;
-  friend class third_party_heap::Heap;
-  friend class third_party_heap::Impl;
 
   // The allocator interface.
   friend class Factory;

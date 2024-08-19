@@ -578,7 +578,6 @@ def build_config_content(cpu, icu):
         ("single_generation", "false"),
         ("slow_dchecks", "false"),
         ("target_cpu", cpu),
-        ("third_party_heap", "false"),
         ("tsan", "false"),
         ("ubsan", "false"),
         ("use_sanitizer", "false"),

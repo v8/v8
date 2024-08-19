@@ -135,13 +135,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-Isolate* Heap::GetIsolateFromWritableObject(Tagged<HeapObject> object) {
-  return reinterpret_cast<Isolate*>(
-      third_party_heap::Heap::GetIsolate(object.address()));
-}
-#endif
-
 // These are outside the Heap class so they can be forward-declared
 // in heap-write-barrier-inl.h.
 bool Heap_PageFlagsAreConsistent(Tagged<HeapObject> object) {
@@ -396,10 +389,9 @@ size_t Heap::SemiSpaceSizeFromYoungGenerationSize(
 }
 
 size_t Heap::Capacity() {
-  if (!HasBeenSetUp()) return 0;
-
-  if (v8_flags.enable_third_party_heap) return tp_heap_->Capacity();
-
+  if (!HasBeenSetUp()) {
+    return 0;
+  }
   return NewSpaceCapacity() + OldGenerationCapacity();
 }
 
@@ -1148,7 +1140,6 @@ void Heap::RemoveAllocationObserversFromAllSpaces(
 }
 
 void Heap::PublishMainThreadPendingAllocations() {
-  if (v8_flags.enable_third_party_heap) return;
   allocator()->PublishPendingAllocations();
 }
 
@@ -1760,11 +1751,8 @@ void Heap::CollectGarbage(AllocationSpace space,
             OptionalTimedHistogramScopeMode::TAKE_TIME);
       }
 
-      if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-        tp_heap_->CollectGarbage();
-      } else {
-        PerformGarbageCollection(collector, gc_reason, collector_reason);
-      }
+      PerformGarbageCollection(collector, gc_reason, collector_reason);
+
       // Clear flags describing the current GC now that the current GC is
       // complete. Do this before GarbageCollectionEpilogue() since that could
       // trigger another unforced GC.
@@ -2819,7 +2807,6 @@ bool Heap::ExternalStringTable::Contains(Tagged<String> string) {
 void Heap::UpdateExternalString(Tagged<String> string, size_t old_payload,
                                 size_t new_payload) {
   DCHECK(IsExternalString(string));
-  if (v8_flags.enable_third_party_heap) return;
 
   PageMetadata* page = PageMetadata::FromHeapObject(string);
 
@@ -3367,13 +3354,11 @@ void Heap::CreateFillerObjectAtRaw(
   size_t size = free_space.Size();
   if (size == 0) return;
   CreateFillerObjectAtImpl(free_space, this, clear_memory_mode);
-  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    Address addr = free_space.Address();
-    if (clear_slots_mode == ClearRecordedSlots::kYes) {
-      ClearRecordedSlotRange(addr, addr + size);
-    } else if (verify_no_slots_recorded == VerifyNoSlotsRecorded::kYes) {
-      VerifyNoNeedToClearSlots(addr, addr + size);
-    }
+  Address addr = free_space.Address();
+  if (clear_slots_mode == ClearRecordedSlots::kYes) {
+    ClearRecordedSlotRange(addr, addr + size);
+  } else if (verify_no_slots_recorded == VerifyNoSlotsRecorded::kYes) {
+    VerifyNoNeedToClearSlots(addr, addr + size);
   }
 }
 
@@ -3406,17 +3391,11 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
 }
 
 bool Heap::IsImmovable(Tagged<HeapObject> object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
-    return third_party_heap::Heap::IsImmovable(object);
-
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   return chunk->NeverEvacuate() || chunk->IsLargePage();
 }
 
 bool Heap::IsLargeObject(Tagged<HeapObject> object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
-    return third_party_heap::Heap::InLargeObjectSpace(object.address()) ||
-           third_party_heap::Heap::InSpace(object.address(), CODE_LO_SPACE);
   return MemoryChunk::FromHeapObject(object)->IsLargePage();
 }
 
@@ -3461,7 +3440,6 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
 
 namespace {
 bool MayContainRecordedSlots(Tagged<HeapObject> object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
   // New space object do not have recorded slots.
   if (Heap::InYoungGeneration(object)) {
     return false;
@@ -4403,9 +4381,6 @@ void Heap::ReportCodeStatistics(const char* title) {
 #endif  // DEBUG
 
 bool Heap::Contains(Tagged<HeapObject> value) const {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    return true;
-  }
   if (ReadOnlyHeap::Contains(value)) {
     return false;
   }
@@ -4429,9 +4404,6 @@ bool Heap::Contains(Tagged<HeapObject> value) const {
 }
 
 bool Heap::ContainsCode(Tagged<HeapObject> value) const {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    return true;
-  }
   // TODO(v8:11880): support external code space.
   if (memory_allocator()->IsOutsideAllocatedSpace(value.address(),
                                                   EXECUTABLE)) {
@@ -4462,8 +4434,6 @@ bool Heap::MustBeInSharedOldSpace(Tagged<HeapObject> value) {
 }
 
 bool Heap::InSpace(Tagged<HeapObject> value, AllocationSpace space) const {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
-    return third_party_heap::Heap::InSpace(value.address(), space);
   if (memory_allocator()->IsOutsideAllocatedSpace(
           value.address(),
           IsAnyCodeSpace(space) ? EXECUTABLE : NOT_EXECUTABLE)) {
@@ -5611,10 +5581,6 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   heap_allocator_->UpdateAllocationTimeout();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-  tp_heap_ = third_party_heap::Heap::New(isolate());
-#endif
-
   // Initialize heap spaces and initial maps and objects.
   //
   // If the heap is not yet configured (e.g. through the API), configure it.
@@ -6367,7 +6333,7 @@ void Heap::CompactWeakArrayLists() {
 
   // Find known WeakArrayLists and compact them.
   Handle<WeakArrayList> scripts(script_list(), isolate());
-  DCHECK_IMPLIES(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL, InOldSpace(*scripts));
+  DCHECK(InOldSpace(*scripts));
   scripts = CompactWeakArrayList(this, scripts, AllocationType::kOld);
   set_script_list(*scripts);
 }
@@ -6705,7 +6671,6 @@ HeapObjectIterator::HeapObjectIterator(
   // Start the iteration.
   CHECK(space_iterator_.HasNext());
   object_iterator_ = space_iterator_.Next()->GetObjectIterator(heap_);
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) heap_->tp_heap_->ResetIterator();
 }
 
 HeapObjectIterator::~HeapObjectIterator() = default;
@@ -6719,7 +6684,6 @@ Tagged<HeapObject> HeapObjectIterator::Next() {
 }
 
 Tagged<HeapObject> HeapObjectIterator::NextObject() {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return heap_->tp_heap_->NextObject();
   // No iterator means we are done.
   if (!object_iterator_) return Tagged<HeapObject>();
 
@@ -6779,7 +6743,7 @@ void Heap::ExternalStringTable::CleanUpAll() {
     old_strings_[last++] = o;
   }
   old_strings_.resize(last);
-  if (v8_flags.verify_heap && !v8_flags.enable_third_party_heap) {
+  if (v8_flags.verify_heap) {
     Verify();
   }
 }
@@ -7158,11 +7122,6 @@ bool Heap::GcSafeInstructionStreamContains(Tagged<InstructionStream> istream,
 
 std::optional<Tagged<InstructionStream>>
 Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    Address start = tp_heap_->GetObjectFromInnerPointer(inner_pointer);
-    return UncheckedCast<InstructionStream>(HeapObject::FromAddress(start));
-  }
-
   std::optional<Address> start =
       ThreadIsolation::StartOfJitAllocationAt(inner_pointer);
   if (start.has_value()) {
@@ -7427,9 +7386,6 @@ void Heap::GenerationalBarrierForCodeSlow(Tagged<InstructionStream> host,
 }
 
 bool Heap::PageFlagsAreConsistent(Tagged<HeapObject> object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    return true;
-  }
   MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(object);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
 

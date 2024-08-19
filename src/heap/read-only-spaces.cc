@@ -600,7 +600,6 @@ Tagged<HeapObject> ReadOnlySpace::TryAllocateLinearlyAligned(
 
 AllocationResult ReadOnlySpace::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment) {
-  DCHECK(!v8_flags.enable_third_party_heap);
   DCHECK(!IsDetached());
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
   int allocation_size = size_in_bytes;
@@ -681,7 +680,6 @@ size_t ReadOnlyPageMetadata::ShrinkToHighWaterMark() {
 }
 
 void ReadOnlySpace::ShrinkPages() {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   MemoryChunkMetadata::UpdateHighWaterMark(top_);
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 

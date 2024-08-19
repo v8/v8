@@ -422,26 +422,6 @@ DEFINE_BOOL(lite_mode, V8_LITE_MODE_BOOL,
 DEFINE_IMPLICATION(lite_mode, jitless)
 DEFINE_IMPLICATION(lite_mode, optimize_for_size)
 
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-#define V8_ENABLE_THIRD_PARTY_HEAP_BOOL true
-#else
-#define V8_ENABLE_THIRD_PARTY_HEAP_BOOL false
-#endif
-
-DEFINE_NEG_IMPLICATION(enable_third_party_heap, inline_new)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap, allocation_site_pretenuring)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap, turbo_allocation_folding)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap, script_streaming)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap,
-                       parallel_compile_tasks_for_eager_toplevel)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap, use_marking_progress_bar)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap, move_object_start)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_marking)
-
-DEFINE_BOOL_READONLY(enable_third_party_heap, V8_ENABLE_THIRD_PARTY_HEAP_BOOL,
-                     "Use third-party heap")
-
 #ifdef V8_ALLOCATION_FOLDING
 #define V8_ALLOCATION_FOLDING_BOOL true
 #else

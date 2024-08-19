@@ -117,12 +117,6 @@
   'wasm-trace-memory64-liftoff': [SKIP],
 }],  # no_simd_hardware == True
 
-################################################################################
-['third_party_heap', {
-  # Performs GC
-  'weakref-finalizationregistry-error': [SKIP],
-}], # third_party_heap
-
 ##############################################################################
 ['not (arch == x64 and mode == release)', {
   # Only run these known slow tests on bots that we think to be reasonably

@@ -15,7 +15,6 @@
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/read-only-spaces.h"
-#include "src/heap/third-party/heap-api.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
@@ -287,11 +286,7 @@ void ReadOnlyHeap::PopulateReadOnlySpaceStatistics(
 
 // static
 bool ReadOnlyHeap::Contains(Address address) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    return third_party_heap::Heap::InReadOnlySpace(address);
-  } else {
-    return MemoryChunk::FromAddress(address)->InReadOnlySpace();
-  }
+  return MemoryChunk::FromAddress(address)->InReadOnlySpace();
 }
 
 // static
@@ -318,7 +313,6 @@ ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(
       current_page_(ro_space->pages().begin()),
       page_iterator_(
           current_page_ == ro_space->pages().end() ? nullptr : *current_page_) {
-  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
 }
 
 Tagged<HeapObject> ReadOnlyHeapObjectIterator::Next() {
@@ -348,7 +342,6 @@ ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(
     : page_(page),
       current_addr_(current_addr),
       skip_free_space_or_filler_(skip_free_space_or_filler) {
-  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
   DCHECK_GE(current_addr, page->GetAreaStart());
   DCHECK_LT(current_addr, page->GetAreaStart() + page->area_size());
 }

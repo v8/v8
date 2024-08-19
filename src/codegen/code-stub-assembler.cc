@@ -13509,14 +13509,12 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
 
 TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
     TNode<IntPtrT> address) {
-  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
   return WordAnd(address,
                  IntPtrConstant(~MemoryChunk::GetAlignmentMaskForAssembler()));
 }
 
 TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
     TNode<IntPtrT> address) {
-  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
 #ifdef V8_ENABLE_SANDBOX
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::memory_chunk_metadata_table_address());
@@ -13541,7 +13539,6 @@ TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
 
 TNode<IntPtrT> CodeStubAssembler::PageMetadataFromAddress(
     TNode<IntPtrT> address) {
-  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
   return PageMetadataFromMemoryChunk(MemoryChunkFromAddress(address));
 }
 

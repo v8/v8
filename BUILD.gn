@@ -266,15 +266,6 @@ declare_args() {
   # Enable lazy source positions by default.
   v8_enable_lazy_source_positions = true
 
-  # Enable third party HEAP library
-  v8_enable_third_party_heap = false
-
-  # Libaries used by third party heap
-  v8_third_party_heap_libs = []
-
-  # Source code used by third party heap
-  v8_third_party_heap_files = []
-
   # Disable write barriers when GCs are non-incremental and
   # heap has single generation.
   v8_disable_write_barriers = false
@@ -556,14 +547,6 @@ if (v8_enable_single_generation == "") {
 if (v8_enable_atomic_object_field_writes == "") {
   v8_enable_atomic_object_field_writes = v8_enable_concurrent_marking
 }
-if (v8_enable_third_party_heap) {
-  v8_disable_write_barriers = true
-  v8_enable_single_generation = true
-  v8_enable_shared_ro_heap = false
-  v8_enable_pointer_compression = false
-  v8_enable_pointer_compression_shared_cage = false
-  v8_enable_allocation_folding = false
-}
 if (v8_enable_single_generation) {
   v8_allocation_site_tracking = false
 }
@@ -709,9 +692,6 @@ assert(!v8_enable_sandbox || v8_enable_pointer_compression_shared_cage,
 
 assert(!v8_enable_sandbox || v8_enable_external_code_space,
        "The sandbox requires the external code space")
-
-assert(!v8_enable_sandbox || !v8_enable_third_party_heap,
-       "The sandbox is incompatible with the third-party heap")
 
 assert(!v8_enable_memory_corruption_api || v8_enable_sandbox,
        "The Memory Corruption API requires the sandbox")
@@ -1173,9 +1153,6 @@ config("features") {
   }
   if (v8_disable_write_barriers) {
     defines += [ "V8_DISABLE_WRITE_BARRIERS" ]
-  }
-  if (v8_enable_third_party_heap) {
-    defines += [ "V8_ENABLE_THIRD_PARTY_HEAP" ]
   }
   if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
@@ -2797,7 +2774,6 @@ action("v8_dump_build_config") {
     "single_generation=$v8_enable_single_generation",
     "slow_dchecks=$v8_enable_slow_dchecks",
     "target_cpu=\"$target_cpu\"",
-    "third_party_heap=$v8_enable_third_party_heap",
     "tsan=$is_tsan",
     "ubsan=$is_ubsan",
     "use_sanitizer=$use_sanitizer",
@@ -4479,12 +4455,6 @@ v8_header_set("v8_internal_headers") {
     ]
   }
 
-  if (!v8_enable_third_party_heap) {
-    sources += filter_include(v8_third_party_heap_files, [ "*.h" ])
-  } else {
-    sources += [ "src/heap/third-party/heap-api.h" ]
-  }
-
   if (v8_enable_i18n_support) {
     sources += [
       "src/objects/intl-objects.h",
@@ -5948,12 +5918,6 @@ v8_source_set("v8_base_without_compiler") {
     }
   }
 
-  if (v8_enable_third_party_heap) {
-    sources += filter_exclude(v8_third_party_heap_files, [ "*.h" ])
-  } else {
-    sources += [ "src/heap/third-party/heap-api-stub.cc" ]
-  }
-
   if (v8_enable_conservative_stack_scanning) {
     sources += [ "src/heap/conservative-stack-visitor.cc" ]
   }
@@ -6327,10 +6291,6 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   libs = []
-
-  if (v8_enable_third_party_heap) {
-    libs += v8_third_party_heap_libs
-  }
 
   # Platforms that don't have CAS support need to link atomic library
   # to implement atomic memory access

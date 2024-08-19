@@ -17076,10 +17076,6 @@ THREADED_TEST(GetHeapStatistics) {
   CHECK_EQ(0u, heap_statistics.used_heap_size());
   c1->GetIsolate()->GetHeapStatistics(&heap_statistics);
   CHECK_NE(static_cast<int>(heap_statistics.total_heap_size()), 0);
-  if (!i::v8_flags.enable_third_party_heap) {
-    // TODO(wenyuzhao): Get used size from third_party_heap interface
-    CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
-  }
 }
 
 TEST(GetHeapSpaceStatistics) {

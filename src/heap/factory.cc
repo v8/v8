@@ -156,11 +156,9 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         code_desc_.body_size(), code_desc_.constant_pool_offset, *reloc_info);
     istream = handle(raw_istream, local_isolate_);
     DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));
-    DCHECK_IMPLIES(
-        !V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
-            !local_isolate_->heap()->heap()->code_region().is_empty(),
-        local_isolate_->heap()->heap()->code_region().contains(
-            istream->address()));
+    DCHECK_IMPLIES(!local_isolate_->heap()->heap()->code_region().is_empty(),
+                   local_isolate_->heap()->heap()->code_region().contains(
+                       istream->address()));
   }
 
   Handle<Code> code;

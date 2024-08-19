@@ -1227,8 +1227,7 @@ template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawArray(
     int size, AllocationType allocation) {
   Tagged<HeapObject> result = AllocateRaw(size, allocation);
-  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
-      (size >
+  if ((size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&
       v8_flags.use_marking_progress_bar) {
     LargePageMetadata::FromHeapObject(result)->ProgressBar().Enable();

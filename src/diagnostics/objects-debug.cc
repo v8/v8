@@ -1577,8 +1577,7 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(instruction_start(), kCodeAlignment));
   CHECK_EQ(*this, code->instruction_stream());
-  CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
-        Size() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
+  CHECK(Size() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
 

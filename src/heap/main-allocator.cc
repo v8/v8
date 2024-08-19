@@ -209,7 +209,6 @@ AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
 
 AllocationResult MainAllocator::AllocateRawSlowUnaligned(
     int size_in_bytes, AllocationOrigin origin) {
-  DCHECK(!v8_flags.enable_third_party_heap);
   if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin)) {
     return AllocationResult::Failure();
   }
@@ -225,7 +224,6 @@ AllocationResult MainAllocator::AllocateRawSlowUnaligned(
 
 AllocationResult MainAllocator::AllocateRawSlowAligned(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  DCHECK(!v8_flags.enable_third_party_heap);
   if (!EnsureAllocation(size_in_bytes, alignment, origin)) {
     return AllocationResult::Failure();
   }
