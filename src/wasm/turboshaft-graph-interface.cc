@@ -2897,6 +2897,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         constexpr bool kNeedsTypeOrNullCheck = false;
         auto [target, _implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
+        InstanceCache::Snapshot instance_cache_snapshot =
+            instance_cache_.SaveState();
 
         base::Vector<InliningTree*> feedback_cases =
             inlining_decisions_->function_calls()[feedback_slot_];
@@ -2968,6 +2970,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
           // An inlined tail call should still terminate execution.
           DCHECK_NULL(__ current_block());
+          // Restore the instance cache for the next inlinee or the default
+          // case.
+          instance_cache_.RestoreFromSnapshot(instance_cache_snapshot);
         }
 
         TSBlock* no_inline_block = case_blocks.back();
