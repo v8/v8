@@ -83,6 +83,12 @@ Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
 void JSFunction::set_code(Tagged<Code> value, WriteBarrierMode mode) {
   WriteCodePointerField(kCodeOffset, value);
   CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+
+#ifdef V8_ENABLE_LEAPTIERING
+  DCHECK_NE(dispatch_handle(), kNullJSDispatchHandle);
+  GetProcessWideJSDispatchTable()->SetCode(dispatch_handle(), value);
+  CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, dispatch_handle(), mode);
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
@@ -94,6 +100,12 @@ void JSFunction::set_code(Tagged<Code> value, ReleaseStoreTag,
                           WriteBarrierMode mode) {
   WriteCodePointerField(kCodeOffset, value);
   CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+
+#ifdef V8_ENABLE_LEAPTIERING
+  DCHECK_NE(dispatch_handle(), kNullJSDispatchHandle);
+  GetProcessWideJSDispatchTable()->SetCode(dispatch_handle(), value);
+  CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, dispatch_handle(), mode);
+#endif  // V8_ENABLE_LEAPTIERING
 
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
     feedback_vector()->set_log_next_execution(true);

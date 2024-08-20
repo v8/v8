@@ -221,10 +221,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 #endif
   }
 
-  static JSDispatchTable* instance_nocheck() {
-    static ::v8::base::LeakyObject<JSDispatchTable> instance;
-    return instance.get();
-  }
+  static JSDispatchTable* instance_nocheck();
 
   inline uint32_t HandleToIndex(JSDispatchHandle handle) const;
   inline JSDispatchHandle IndexToHandle(uint32_t index) const;

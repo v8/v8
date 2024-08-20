@@ -62,6 +62,11 @@ uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters) {
   return num_live_entries;
 }
 
+JSDispatchTable* JSDispatchTable::instance_nocheck() {
+  static base::LeakyObject<JSDispatchTable> instance;
+  return instance.get();
+}
+
 }  // namespace internal
 }  // namespace v8
 
