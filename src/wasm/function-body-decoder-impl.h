@@ -2483,7 +2483,13 @@ class WasmDecoder : public Decoder {
                                          pc + length + flags_imm.length +
                                              branch.length + source_imm.length,
                                          validate);
+            (ios.BrOnCastFlags(flags_imm), ...);
             (ios.BranchDepth(branch), ...);
+            // This code has grown historically (while the GC proposal's design
+            // evolved), but it's convenient: for the text format, we want to
+            // pretend that we have two ValueTypes; whereas the mjsunit
+            // module builder format cares only about the encapsulated
+            // HeapTypes (and the raw flags value, see callback above).
             (ios.ValueType(source_imm, flags_imm.flags.src_is_null), ...);
             (ios.ValueType(target_imm, flags_imm.flags.res_is_null), ...);
             return length + flags_imm.length + branch.length +
