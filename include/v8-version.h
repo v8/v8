@@ -10,7 +10,7 @@
 // system so their names cannot be changed without changing the scripts.
 #define V8_MAJOR_VERSION 12
 #define V8_MINOR_VERSION 9
-#define V8_BUILD_NUMBER 202
+#define V8_BUILD_NUMBER 66680202
 #define V8_PATCH_LEVEL 0
 
 // Use 1 for candidates and 0 otherwise.
