@@ -422,21 +422,8 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfoForBuiltin(
     info->DontAdaptArguments();
   }
 
-#ifdef DEBUG
-  Tagged<Code> code = info->GetCode(isolate);
-  if (code->parameter_count() != kDontAdaptArgumentsSentinel) {
-    DCHECK_EQ(info->internal_formal_parameter_count_with_receiver(),
-              code->parameter_count());
-  }
-#endif
-
   return info;
 }
-
-// TODO(saelo): Switch more users of the below functions to use these constants
-// instead of true/false for better readability.
-constexpr bool kAdapt = true;
-constexpr bool kDontAdapt = false;
 
 V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltin(Isolate* isolate,
                                                         Handle<String> name,
@@ -2174,39 +2161,39 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 
 #ifdef V8_INTL_SUPPORT
 #define CALENDAR_FUNC_LIST_INTL(V) \
-  V(era, Era, 1, kDontAdapt)       \
-  V(eraYear, EraYear, 1, kDontAdapt)
+  V(era, Era, 1)                   \
+  V(eraYear, EraYear, 1)
 #else
 #define CALENDAR_FUNC_LIST_INTL(V)
 #endif  // V8_INTL_SUPPORT
 
-#define CALENDAR_FUNC_LIST(V)                                \
-  CALENDAR_FUNC_LIST_INTL(V)                                 \
-  V(dateFromFields, DateFromFields, 1, kDontAdapt)           \
-  V(yearMonthFromFields, YearMonthFromFields, 1, kDontAdapt) \
-  V(monthDayFromFields, MonthDayFromFields, 1, kDontAdapt)   \
-  V(dateAdd, DateAdd, 2, kDontAdapt)                         \
-  V(dateUntil, DateUntil, 2, kDontAdapt)                     \
-  V(year, Year, 1, kDontAdapt)                               \
-  V(month, Month, 1, kDontAdapt)                             \
-  V(monthCode, MonthCode, 1, kDontAdapt)                     \
-  V(day, Day, 1, kDontAdapt)                                 \
-  V(dayOfWeek, DayOfWeek, 1, kDontAdapt)                     \
-  V(dayOfYear, DayOfYear, 1, kDontAdapt)                     \
-  V(weekOfYear, WeekOfYear, 1, kDontAdapt)                   \
-  V(daysInWeek, DaysInWeek, 1, kDontAdapt)                   \
-  V(daysInMonth, DaysInMonth, 1, kDontAdapt)                 \
-  V(daysInYear, DaysInYear, 1, kDontAdapt)                   \
-  V(monthsInYear, MonthsInYear, 1, kDontAdapt)               \
-  V(inLeapYear, InLeapYear, 1, kDontAdapt)                   \
-  V(fields, Fields, 1, kAdapt)                               \
-  V(mergeFields, MergeFields, 2, kDontAdapt)                 \
-  V(toString, ToString, 0, kDontAdapt)                       \
-  V(toJSON, ToJSON, 0, kDontAdapt)
+#define CALENDAR_FUNC_LIST(V)                    \
+  CALENDAR_FUNC_LIST_INTL(V)                     \
+  V(dateFromFields, DateFromFields, 1)           \
+  V(yearMonthFromFields, YearMonthFromFields, 1) \
+  V(monthDayFromFields, MonthDayFromFields, 1)   \
+  V(dateAdd, DateAdd, 2)                         \
+  V(dateUntil, DateUntil, 2)                     \
+  V(year, Year, 1)                               \
+  V(month, Month, 1)                             \
+  V(monthCode, MonthCode, 1)                     \
+  V(day, Day, 1)                                 \
+  V(dayOfWeek, DayOfWeek, 1)                     \
+  V(dayOfYear, DayOfYear, 1)                     \
+  V(weekOfYear, WeekOfYear, 1)                   \
+  V(daysInWeek, DaysInWeek, 1)                   \
+  V(daysInMonth, DaysInMonth, 1)                 \
+  V(daysInYear, DaysInYear, 1)                   \
+  V(monthsInYear, MonthsInYear, 1)               \
+  V(inLeapYear, InLeapYear, 1)                   \
+  V(fields, Fields, 1)                           \
+  V(mergeFields, MergeFields, 2)                 \
+  V(toString, ToString, 0)                       \
+  V(toJSON, ToJSON, 0)
 
-#define INSTALL_CALENDAR_FUNC(p, N, min, adapt) \
+#define INSTALL_CALENDAR_FUNC(p, N, min)        \
   SimpleInstallFunction(isolate, prototype, #p, \
-                        Builtin::kTemporalCalendarPrototype##N, min, adapt);
+                        Builtin::kTemporalCalendarPrototype##N, min, false);
     CALENDAR_FUNC_LIST(INSTALL_CALENDAR_FUNC)
 #undef CALENDAR_FUNC_LIST
 #undef CALENDAR_FUNC_LIST_INTL
@@ -2222,7 +2209,7 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
         SimpleCreateFunction(isolate,
                              isolate->factory()->InternalizeUtf8String(
                                  "StringFixedArrayFromIterable"),
-                             Builtin::kStringFixedArrayFromIterable, 1, true);
+                             Builtin::kStringFixedArrayFromIterable, 1, false);
     native_context->set_string_fixed_array_from_iterable(*func);
   }
   // The TemporalInsantFixedArrayFromIterable functions is created but not
@@ -2232,7 +2219,7 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
         isolate,
         isolate->factory()->InternalizeUtf8String(
             "TemporalInstantFixedArrayFromIterable"),
-        Builtin::kTemporalInstantFixedArrayFromIterable, 1, true);
+        Builtin::kTemporalInstantFixedArrayFromIterable, 1, false);
     native_context->set_temporal_instant_fixed_array_from_iterable(*func);
   }
 
@@ -4147,10 +4134,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Cast<JSObject>(array_buffer_fun->instance_prototype()), isolate_);
     SimpleInstallGetter(isolate_, array_buffer_prototype,
                         factory->max_byte_length_string(),
-                        Builtin::kArrayBufferPrototypeGetMaxByteLength, true);
+                        Builtin::kArrayBufferPrototypeGetMaxByteLength, false);
     SimpleInstallGetter(isolate_, array_buffer_prototype,
                         factory->resizable_string(),
-                        Builtin::kArrayBufferPrototypeGetResizable, true);
+                        Builtin::kArrayBufferPrototypeGetResizable, false);
     SimpleInstallFunction(isolate_, array_buffer_prototype, "resize",
                           Builtin::kArrayBufferPrototypeResize, 1, true);
     SimpleInstallFunction(isolate_, array_buffer_prototype, "transfer",
@@ -4160,7 +4147,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Builtin::kArrayBufferPrototypeTransferToFixedLength, 0, false);
     SimpleInstallGetter(isolate_, array_buffer_prototype,
                         factory->detached_string(),
-                        Builtin::kArrayBufferPrototypeGetDetached, true);
+                        Builtin::kArrayBufferPrototypeGetDetached, false);
   }
 
   {  // -- S h a r e d A r r a y B u f f e r
@@ -4177,10 +4164,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallGetter(isolate_, shared_array_buffer_prototype,
                         factory->max_byte_length_string(),
                         Builtin::kSharedArrayBufferPrototypeGetMaxByteLength,
-                        true);
+                        false);
     SimpleInstallGetter(isolate_, shared_array_buffer_prototype,
                         factory->growable_string(),
-                        Builtin::kSharedArrayBufferPrototypeGetGrowable, true);
+                        Builtin::kSharedArrayBufferPrototypeGetGrowable, false);
     SimpleInstallFunction(isolate_, shared_array_buffer_prototype, "grow",
                           Builtin::kSharedArrayBufferPrototypeGrow, 1, true);
   }
@@ -5408,7 +5395,7 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
       native_context()->initial_iterator_prototype(), isolate());
   Handle<JSFunction> iterator_function = InstallFunction(
       isolate(), global, "Iterator", JS_OBJECT_TYPE, JSObject::kHeaderSize, 0,
-      iterator_prototype, Builtin::kIteratorConstructor, 0, true);
+      iterator_prototype, Builtin::kIteratorConstructor, 0, false);
   SimpleInstallFunction(isolate(), iterator_function, "from",
                         Builtin::kIteratorFrom, 1, true);
   InstallWithIntrinsicDefaultProto(isolate(), iterator_function,
@@ -5968,7 +5955,7 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(
   Handle<JSFunction> array_buffer_fun =
       CreateFunction(isolate(), name, JS_ARRAY_BUFFER_TYPE,
                      JSArrayBuffer::kSizeWithEmbedderFields, 0, prototype,
-                     Builtin::kArrayBufferConstructor, 1, true);
+                     Builtin::kArrayBufferConstructor, 1, false);
 
   // Install the "constructor" property on the {prototype}.
   JSObject::AddProperty(isolate(), prototype, factory()->constructor_string(),
@@ -5981,7 +5968,7 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(
 
       // Install the "byteLength" getter on the {prototype}.
       SimpleInstallGetter(isolate(), prototype, factory()->byte_length_string(),
-                          Builtin::kArrayBufferPrototypeGetByteLength, true);
+                          Builtin::kArrayBufferPrototypeGetByteLength, false);
       SimpleInstallFunction(isolate(), prototype, "slice",
                             Builtin::kArrayBufferPrototypeSlice, 2, true);
       break;

@@ -813,7 +813,7 @@
 #define CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                   mode)                       \
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
-#endif  // V8_ENABLE_SANDBOX
+#endif
 #define CONDITIONAL_CODE_POINTER_WRITE_BARRIER(object, offset, value, mode) \
   CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(                                \
       object, offset, kCodeIndirectPointerTag, value, mode)
@@ -825,16 +825,6 @@
     ProtectedPointerWriteBarrier(                                          \
         object, (object).RawProtectedPointerField(offset), value, mode);   \
   } while (false)
-
-#ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle, mode)
-#else
-#define CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle, mode) \
-  do {                                                                     \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
-    JSDispatchHandleWriteBarrier(object, handle, mode);                    \
-  } while (false)
-#endif
 
 #define ACQUIRE_READ_INT8_FIELD(p, offset) \
   static_cast<int8_t>(base::Acquire_Load(  \
