@@ -614,6 +614,20 @@ bool OS::DecommitPages(void* address, size_t size) {
 #endif  // !V8_OS_ZOS
 
 // static
+bool OS::SealPages(void* address, size_t size) {
+#ifdef V8_ENABLE_MEMORY_SEALING
+#if V8_OS_LINUX && defined(__NR_mseal)
+  long ret = syscall(__NR_mseal, address, size, 0);
+  return ret == 0;
+#else
+  return false;
+#endif
+#else  // V8_ENABLE_MEMORY_SEALING
+  return false;
+#endif
+}
+
+// static
 bool OS::CanReserveAddressSpace() { return true; }
 
 // static

@@ -96,7 +96,7 @@ size_t CodeRange::GetWritableReservedAreaSize() {
   if (v8_flags.trace_code_range_allocation) PrintF(__VA_ARGS__)
 
 bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
-                                size_t requested) {
+                                size_t requested, bool immutable) {
   DCHECK_NE(requested, 0);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     page_allocator = GetPlatformPageAllocator();
@@ -254,6 +254,15 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
                    base, size, PageAllocator::kReadWriteExecute)) {
       return false;
     }
+    if (immutable) {
+#ifdef DEBUG
+      immutable_ = true;
+#endif
+#ifdef V8_ENABLE_MEMORY_SEALING
+      params.page_allocator->SealPages(base, size);
+#endif
+    }
+    DiscardSealedMemoryScope discard_scope("Discard global code range.");
     if (!params.page_allocator->DiscardSystemPages(base, size)) return false;
   }
 #endif  // !defined(V8_OS_WIN)
@@ -331,6 +340,8 @@ base::AddressRegion CodeRange::GetPreferredRegion(size_t radius_in_megabytes,
 }
 
 void CodeRange::Free() {
+  DCHECK(!immutable_);
+
   if (IsReserved()) {
 #if defined(V8_OS_WIN64)
     if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {

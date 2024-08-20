@@ -1122,6 +1122,9 @@ bool OS::DecommitPages(void* address, size_t size) {
 }
 
 // static
+bool OS::SealPages(void* address, size_t size) { return false; }
+
+// static
 bool OS::CanReserveAddressSpace() {
   return VirtualAlloc2 != nullptr && MapViewOfFile3 != nullptr &&
          UnmapViewOfFile2 != nullptr;

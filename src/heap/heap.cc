@@ -5642,7 +5642,7 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
     // Otherwise, each isolate has its own CodeRange, owned by the heap.
     code_range_ = std::make_unique<CodeRange>();
     if (!code_range_->InitReservation(isolate_->page_allocator(),
-                                      requested_size)) {
+                                      requested_size, false)) {
       V8::FatalProcessOutOfMemory(
           isolate_, "Failed to reserve virtual memory for CodeRange");
     }

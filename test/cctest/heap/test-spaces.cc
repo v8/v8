@@ -735,6 +735,7 @@ class FailingPageAllocator : public v8::PageAllocator {
     return false;
   }
   bool DecommitPages(void* address, size_t length) override { return false; }
+  bool SealPages(void* address, size_t length) override { return false; }
 };
 }  // namespace
 

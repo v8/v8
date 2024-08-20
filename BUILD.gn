@@ -1213,6 +1213,9 @@ config("features") {
   if (v8_enable_cet_ibt) {
     defines += [ "V8_ENABLE_CET_IBT" ]
   }
+  if (v8_enable_memory_sealing) {
+    defines += [ "V8_ENABLE_MEMORY_SEALING" ]
+  }
   if (v8_enable_wasm_gdb_remote_debugging) {
     defines += [ "V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING" ]
   }

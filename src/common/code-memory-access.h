@@ -577,6 +577,12 @@ using CFIMetadataWriteScope = NopRwxMemoryWriteScope;
 using CFIMetadataWriteScope = RwxMemoryWriteScope;
 #endif
 
+#ifdef V8_ENABLE_MEMORY_SEALING
+using DiscardSealedMemoryScope = RwxMemoryWriteScope;
+#else
+using DiscardSealedMemoryScope = NopRwxMemoryWriteScope;
+#endif
+
 }  // namespace internal
 }  // namespace v8
 
