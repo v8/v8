@@ -1983,6 +1983,7 @@ void JSDisposableStackBase::JSDisposableStackBasePrint(std::ostream& os) {
   os << "\n - stack: " << Brief(stack());
   os << "\n - length: " << length();
   os << "\n - state: " << state();
+  os << "\n - error: " << error();
   JSObjectPrintBody(os, *this);
 }
 
@@ -1991,6 +1992,7 @@ void JSAsyncDisposableStack::JSAsyncDisposableStackPrint(std::ostream& os) {
   os << "\n - stack: " << Brief(stack());
   os << "\n - length: " << length();
   os << "\n - state: " << state();
+  os << "\n - error: " << error();
   JSObjectPrintBody(os, *this);
 }
 

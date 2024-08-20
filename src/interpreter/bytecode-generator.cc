@@ -2707,16 +2707,20 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
       [&]() { wrapped_func(); },
       // Finally block
       [&](Register body_continuation_token, Register body_continuation_result) {
-        RegisterList args = register_allocator()->NewRegisterList(4);
-        Register result_register = register_allocator()->NewRegister();
-
         if (has_await_using) {
+          RegisterAllocationScope allocation_scope(this);
+          Register result_register = register_allocator()->NewRegister();
+          Register disposable_stack_register =
+              register_allocator()->NewRegister();
+          builder()->MoveRegister(current_disposables_stack_,
+                                  disposable_stack_register);
           LoopBuilder loop_builder(builder(), nullptr, nullptr,
                                    feedback_spec());
           LoopScope loop_scope(this, &loop_builder);
 
+          RegisterList args = register_allocator()->NewRegisterList(4);
           builder()
-              ->MoveRegister(current_disposables_stack_, args[0])
+              ->MoveRegister(disposable_stack_register, args[0])
               .MoveRegister(body_continuation_token, args[1])
               .MoveRegister(body_continuation_result, args[2])
               .LoadLiteral(
@@ -2731,9 +2735,26 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
 
           loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
 
-          BuildAwait();
+          builder()->LoadAccumulatorWithRegister(result_register);
+          BuildTryCatch(
+              [&]() { BuildAwait(); },
+              [&](Register context) {
+                RegisterList args = register_allocator()->NewRegisterList(2);
+                builder()
+                    ->MoveRegister(current_disposables_stack_, args[0])
+                    .StoreAccumulatorInRegister(args[1])  // exception
+                    .CallRuntime(
+                        Runtime::kHandleExceptionsInDisposeDisposableStack,
+                        args);
+
+                builder()->StoreAccumulatorInRegister(
+                    disposable_stack_register);
+              },
+              catch_prediction());
+
           loop_builder.BindContinueTarget();
         } else {
+          RegisterList args = register_allocator()->NewRegisterList(4);
           builder()
               ->MoveRegister(current_disposables_stack_, args[0])
               .MoveRegister(body_continuation_token, args[1])

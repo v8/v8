@@ -7,6 +7,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/handles/handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects/contexts.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-objects.h"
@@ -74,11 +75,11 @@ class JSDisposableStackBase
       Isolate* isolate, Handle<Object> value, DisposeMethodHint hint);
   static MaybeHandle<Object> DisposeResources(
       Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
-      MaybeHandle<Object> maybe_error,
+      MaybeHandle<Object> maybe_continuation_error,
       DisposableStackResourcesType resources_type);
-  static Handle<JSReceiver> DisposeResourcesAwaitPoint(
+  static void HandleErrorInDisposal(
       Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
-      int length, MaybeHandle<Object> result, MaybeHandle<Object> maybe_error);
+      Handle<Object> current_error);
 
   TQ_OBJECT_CONSTRUCTORS(JSDisposableStackBase)
 };

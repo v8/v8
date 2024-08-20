@@ -26,6 +26,7 @@ extern class JSDisposableStackBase extends JSObject {
   // `kValueIsArgument`).
   stack: FixedArray;
   status: SmiTagged<DisposableStackStatus>;
+  error: Object|Hole;
 }
 
 extern class JSSyncDisposableStack extends JSDisposableStackBase {}

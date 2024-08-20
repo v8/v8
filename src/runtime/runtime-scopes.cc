@@ -319,6 +319,23 @@ RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   return *result;
 }
 
+RUNTIME_FUNCTION(Runtime_HandleExceptionsInDisposeDisposableStack) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  DirectHandle<JSDisposableStackBase> disposable_stack =
+      args.at<JSDisposableStackBase>(0);
+  Handle<Object> exception = args.at<Object>(1);
+
+  if (!isolate->is_catchable_by_javascript(*exception)) {
+    return isolate->Throw(*exception);
+  }
+
+  JSDisposableStackBase::HandleErrorInDisposal(isolate, disposable_stack,
+                                               exception);
+  return *disposable_stack;
+}
+
 namespace {
 
 Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,

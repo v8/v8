@@ -322,6 +322,7 @@ namespace internal {
   F(GetOwnPropertyKeys, 2, 1)                                          \
   F(GetPrivateMember, 2, 1)                                            \
   F(GetProperty, -1 /* [2, 3] */, 1)                                   \
+  F(HandleExceptionsInDisposeDisposableStack, 2, 1)                    \
   F(HasFastPackedElements, 1, 1)                                       \
   F(HasInPrototypeChain, 2, 1)                                         \
   F(HasProperty, 2, 1)                                                 \
