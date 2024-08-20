@@ -490,7 +490,7 @@ bool Heap::CanExpandOldGeneration(size_t size) const {
 }
 
 bool Heap::IsOldGenerationExpansionAllowed(
-    size_t size, const base::MutexGuard& expansion_mutex_guard) const {
+    size_t size, const base::MutexGuard& expansion_mutex_witness) const {
   return OldGenerationCapacity() + size <= max_old_generation_size();
 }
 
@@ -7027,7 +7027,7 @@ size_t Heap::NumberOfDetachedContexts() {
   return detached_contexts()->length() / 2;
 }
 
-bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> obj,
+bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> object,
                                AllocationSpace dst) {
   // Object migration is governed by the following rules:
   //
@@ -7041,9 +7041,11 @@ bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> obj,
   //
   // Since this function is used for debugging only, we do not place
   // asserts here, but check everything explicitly.
-  if (map == ReadOnlyRoots(this).one_pointer_filler_map()) return false;
+  if (map == ReadOnlyRoots(this).one_pointer_filler_map()) {
+    return false;
+  }
   InstanceType type = map->instance_type();
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(obj);
+  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(object);
   AllocationSpace src = chunk->owner_identity();
   switch (src) {
     case NEW_SPACE:
@@ -7102,21 +7104,22 @@ Tagged<GcSafeCode> Heap::GcSafeGetCodeFromInstructionStream(
   return UncheckedCast<GcSafeCode>(istream->raw_code(kAcquireLoad));
 }
 
-bool Heap::GcSafeInstructionStreamContains(Tagged<InstructionStream> istream,
-                                           Address addr) {
-  Tagged<Map> map = GcSafeMapOfHeapObject(istream);
+bool Heap::GcSafeInstructionStreamContains(
+    Tagged<InstructionStream> instruction_stream, Address addr) {
+  Tagged<Map> map = GcSafeMapOfHeapObject(instruction_stream);
   DCHECK_EQ(map, ReadOnlyRoots(this).instruction_stream_map());
 
   Builtin builtin_lookup_result =
       OffHeapInstructionStream::TryLookupCode(isolate(), addr);
   if (Builtins::IsBuiltinId(builtin_lookup_result)) {
     // Builtins don't have InstructionStream objects.
-    DCHECK(!Builtins::IsBuiltinId(istream->code(kAcquireLoad)->builtin_id()));
+    DCHECK(!Builtins::IsBuiltinId(
+        instruction_stream->code(kAcquireLoad)->builtin_id()));
     return false;
   }
 
-  Address start = istream.address();
-  Address end = start + istream->SizeFromMap(map);
+  Address start = instruction_stream.address();
+  Address end = start + instruction_stream->SizeFromMap(map);
   return start <= addr && addr < end;
 }
 
@@ -7375,10 +7378,10 @@ void Heap::WriteBarrierForRange(Tagged<HeapObject> object, TSlot start_slot,
 
 void Heap::GenerationalBarrierForCodeSlow(Tagged<InstructionStream> host,
                                           RelocInfo* rinfo,
-                                          Tagged<HeapObject> object) {
-  DCHECK(InYoungGeneration(object));
+                                          Tagged<HeapObject> value) {
+  DCHECK(InYoungGeneration(value));
   const MarkCompactCollector::RecordRelocSlotInfo info =
-      MarkCompactCollector::ProcessRelocInfo(host, rinfo, object);
+      MarkCompactCollector::ProcessRelocInfo(host, rinfo, value);
 
   base::MutexGuard write_scope(info.page_metadata->mutex());
   RememberedSet<OLD_TO_NEW>::InsertTyped(info.page_metadata, info.slot_type,

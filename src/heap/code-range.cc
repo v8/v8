@@ -4,6 +4,11 @@
 
 #include "src/heap/code-range.h"
 
+#include <algorithm>
+#include <atomic>
+#include <limits>
+#include <utility>
+
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/once.h"

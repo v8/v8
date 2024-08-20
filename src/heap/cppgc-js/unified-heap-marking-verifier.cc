@@ -6,6 +6,8 @@
 
 #include "src/heap/cppgc-js/unified-heap-marking-verifier.h"
 
+#include <memory>
+
 #include "include/cppgc/internal/name-trait.h"
 #include "include/v8-cppgc.h"
 #include "src/handles/traced-handles.h"
