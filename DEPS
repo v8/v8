@@ -76,7 +76,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:32f63e70484f43dd671abd15e5804bd0ef72ea79',
+  'gn_version': 'git_revision:d010e218ca7077928ad7c9e9cc02fe43b5a8a0ad',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4a4042e134673ed8f9dafc35aa1eb4b40314254e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a08af58a2b4cab4dc9a9e2263098dd73edcca02c',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd6d7cf19f05ac770014d71804fbf459557d0a83b',
   'buildtools/linux64': {
@@ -239,7 +239,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '799e21b232f23f6c1391abfd44fe8ab1dd95bd9b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '98d1cbf9f94fe9b1204ffe0a33b62cd6315d429e',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'caa77da9568fb7c48c9db679cf9dc0ae20080585',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '04a2e71a925ee4df863d6973df488dac0e087505',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -307,7 +307,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '627bf9cce8998515159693e44bcb6e0d734fcb01',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'eb6567388e89d9730c76dee71d68ac82e4a1abf6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a834cb253992175f4a896c5fb1352ecd91abf11e',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '116c20dae60d84a77005697cf29f72783f81b0f9',
   'third_party/llvm-build/Release+Asserts': {
