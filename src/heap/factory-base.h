@@ -143,7 +143,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a trusted fixed array in trusted space, initialized with zeros.
-  Handle<TrustedFixedArray> NewTrustedFixedArray(int length);
+  Handle<TrustedFixedArray> NewTrustedFixedArray(
+      int length, AllocationType allocation = AllocationType::kTrusted);
 
   // Allocates a protected fixed array in trusted space, initialized with zeros.
   Handle<ProtectedFixedArray> NewProtectedFixedArray(int length);
@@ -203,9 +204,11 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, const uint8_t* raw_bytecodes, int frame_size,
       uint16_t parameter_count, uint16_t max_arguments,
       DirectHandle<TrustedFixedArray> constant_pool,
-      DirectHandle<TrustedByteArray> handler_table);
+      DirectHandle<TrustedByteArray> handler_table,
+      AllocationType allocation = AllocationType::kTrusted);
 
-  Handle<BytecodeWrapper> NewBytecodeWrapper();
+  Handle<BytecodeWrapper> NewBytecodeWrapper(
+      AllocationType allocation = AllocationType::kOld);
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
