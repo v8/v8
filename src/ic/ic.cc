@@ -5,6 +5,7 @@
 #include "src/ic/ic.h"
 
 #include <optional>
+#include <tuple>
 
 #include "src/api/api-arguments-inl.h"
 #include "src/ast/ast.h"
@@ -380,6 +381,7 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandlesSpan maps,
                               MaybeObjectHandles* handlers) {
   DCHECK(!IsGlobalIC());
   std::vector<MapAndHandler> maps_and_handlers;
+  maps_and_handlers.reserve(maps.size());
   DCHECK_EQ(maps.size(), handlers->size());
   for (size_t i = 0; i < maps.size(); i++) {
     maps_and_handlers.push_back(MapAndHandler(maps[i], handlers->at(i)));
@@ -2457,10 +2459,11 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     std::vector<MapAndHandler>* receiver_maps_and_handlers,
     KeyedAccessStoreMode store_mode) {
   std::vector<Handle<Map>> receiver_maps;
-  for (size_t i = 0; i < receiver_maps_and_handlers->size(); i++) {
-    receiver_maps.push_back(receiver_maps_and_handlers->at(i).first);
+  receiver_maps.reserve(receiver_maps_and_handlers->size());
+  for (auto& [map, handler] : *receiver_maps_and_handlers) {
+    receiver_maps.push_back(map);
+    USE(handler);
   }
-
   for (size_t i = 0; i < receiver_maps_and_handlers->size(); i++) {
     Handle<Map> receiver_map = receiver_maps_and_handlers->at(i).first;
     DCHECK(!receiver_map->is_deprecated());

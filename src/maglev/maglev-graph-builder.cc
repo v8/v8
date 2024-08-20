@@ -5158,7 +5158,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
 
   // Check for monomorphic case.
   if (access_infos.size() == 1) {
-    compiler::PropertyAccessInfo access_info = access_infos.front();
+    compiler::PropertyAccessInfo const& access_info = access_infos.front();
     base::Vector<const compiler::MapRef> maps =
         base::VectorOf(access_info.lookup_start_object_maps());
     if (HasOnlyStringMaps(maps)) {
@@ -5847,7 +5847,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
 
   // Check for monomorphic case.
   if (access_infos.size() == 1) {
-    compiler::ElementAccessInfo access_info = access_infos.front();
+    compiler::ElementAccessInfo const& access_info = access_infos.front();
     // TODO(victorgomes): Support RAB/GSAB backed typed arrays.
     if (IsRabGsabTypedArrayElementsKind(access_info.elements_kind())) {
       return ReduceResult::Fail();
