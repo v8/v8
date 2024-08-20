@@ -12558,6 +12558,11 @@ MaglevGraphBuilder::BuildBranchIfReferenceEqual(BranchBuilder& builder,
   if (RootConstant* root_constant = lhs->TryCast<RootConstant>()) {
     return builder.Build<BranchIfRootConstant>({rhs}, root_constant->index());
   }
+  if (InlinedAllocation* alloc_lhs = lhs->TryCast<InlinedAllocation>()) {
+    if (InlinedAllocation* alloc_rhs = rhs->TryCast<InlinedAllocation>()) {
+      return builder.FromBool(alloc_lhs == alloc_rhs);
+    }
+  }
 
   return builder.Build<BranchIfReferenceEqual>({lhs, rhs});
 }
