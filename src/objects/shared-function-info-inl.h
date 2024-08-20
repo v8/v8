@@ -615,7 +615,6 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
   Tagged<ScopeInfo> outer_info;
   Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
   if (info->IsEmpty()) {
-    if (is_compiled()) return false;
     if (!IsScopeInfo(outer_scope_info())) return false;
     outer_info = Cast<ScopeInfo>(outer_scope_info());
   } else {
