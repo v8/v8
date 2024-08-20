@@ -420,7 +420,7 @@ class GeneratorAnalyzer {
   std::unordered_set<const maglev::BasicBlock*> bypassed_headers_;
 
   // {visit_queue_} is used in FindLoopBody to store nodes that still need to be
-  // visited. It is a instance variable in order to reuse its memory more
+  // visited. It is an instance variable in order to reuse its memory more
   // efficiently.
   ZoneVector<const maglev::BasicBlock*> visit_queue_;
 };
@@ -3518,8 +3518,9 @@ class GraphBuilder {
   maglev::ProcessResult Process(maglev::Int32NegateWithOverflow* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    // Turboshaft doesn't have a Int32NegateWithOverflow operation, but Turbofan
-    // emits mutliplications by -1 for this, so using this as well here.
+    // Turboshaft doesn't have an Int32NegateWithOverflow operation, but
+    // Turbofan emits multiplications by -1 for this, so using this as well
+    // here.
     SetMap(node, __ Word32SignedMulDeoptOnOverflow(
                      Map(node->value_input()), -1, frame_state,
                      node->eager_deopt_info()->feedback_to_update(),

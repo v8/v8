@@ -2016,7 +2016,7 @@ bool HeapObject::NeedsRehashing(PtrComprCageBase cage_base) const {
 
 bool HeapObject::NeedsRehashing(InstanceType instance_type) const {
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // Use map() only when it's guaranteed that it's not a InstructionStream
+    // Use map() only when it's guaranteed that it's not an InstructionStream
     // object.
     DCHECK_IMPLIES(instance_type != INSTRUCTION_STREAM_TYPE,
                    instance_type == map()->instance_type());

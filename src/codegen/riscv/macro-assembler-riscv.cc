@@ -2549,7 +2549,7 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     int count = RV_li_count(j.immediate(), temps.hasAvailable());
     int reverse_count = RV_li_count(~j.immediate(), temps.hasAvailable());
     if (v8_flags.riscv_constant_pool && count >= 4 && reverse_count >= 4) {
-      // Ld/Lw a Address from a constant pool.
+      // Ld/Lw an Address from a constant pool.
 #if V8_TARGET_ARCH_RISCV32
       RecordEntry((uint32_t)j.immediate(), j.rmode());
 #elif V8_TARGET_ARCH_RISCV64

@@ -820,7 +820,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   }
 
   // For debugging purposes we memorize a link from the JSArrayBuffer
-  // to it's owning WasmMemoryObject instance.
+  // to its owning WasmMemoryObject instance.
   Handle<Symbol> symbol = isolate->factory()->array_buffer_wasm_memory_symbol();
   Object::SetProperty(isolate, buffer, symbol, memory_object).Check();
 
@@ -1002,7 +1002,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
         isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
     memory_object->SetNewBuffer(*new_buffer);
     // For debugging purposes we memorize a link from the JSArrayBuffer
-    // to it's owning WasmMemoryObject instance.
+    // to its owning WasmMemoryObject instance.
     Handle<Symbol> symbol =
         isolate->factory()->array_buffer_wasm_memory_symbol();
     Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
@@ -1046,7 +1046,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
   memory_object->SetNewBuffer(*new_buffer);
   // For debugging purposes we memorize a link from the JSArrayBuffer
-  // to it's owning WasmMemoryObject instance.
+  // to its owning WasmMemoryObject instance.
   Handle<Symbol> symbol = isolate->factory()->array_buffer_wasm_memory_symbol();
   Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
   return static_cast<int32_t>(old_pages);  // success

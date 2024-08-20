@@ -71,7 +71,7 @@ class RegExpImpl final : public AllStatic {
   // than one in the case of global regular expressions.
   // The captures and subcaptures are stored into the registers vector.
   // If matching fails, returns RE_FAILURE.
-  // If execution fails, sets a exception and returns RE_EXCEPTION.
+  // If execution fails, sets an exception and returns RE_EXCEPTION.
   static int IrregexpExecRaw(Isolate* isolate,
                              DirectHandle<IrRegExpData> regexp_data,
                              Handle<String> subject, int index, int32_t* output,

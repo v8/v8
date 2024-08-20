@@ -346,14 +346,13 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     Label loop_check;
 
     Register capture_start_address = x12;
-    Register capture_end_addresss = x13;
+    Register capture_end_address = x13;
     Register current_position_address = x14;
 
     __ Add(capture_start_address,
            input_end(),
            Operand(capture_start_offset, SXTW));
-    __ Add(capture_end_addresss,
-           capture_start_address,
+    __ Add(capture_end_address, capture_start_address,
            Operand(capture_length, SXTW));
     __ Add(current_position_address,
            input_end(),
@@ -386,7 +385,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     __ B(eq, &fail);  // Weren't Latin-1 letters.
 
     __ Bind(&loop_check);
-    __ Cmp(capture_start_address, capture_end_addresss);
+    __ Cmp(capture_start_address, capture_end_address);
     __ B(lt, &loop);
     __ B(&success);
 

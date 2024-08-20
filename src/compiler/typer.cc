@@ -1267,7 +1267,7 @@ Type Typer::Visitor::JSStrictEqualTyper(Type lhs, Type rhs, Typer* t) {
   return t->operation_typer()->StrictEqual(lhs, rhs);
 }
 
-// The EcmaScript specification defines the four relational comparison operators
+// The ECMAScript specification defines the four relational comparison operators
 // (<, <=, >=, >) with the help of a single abstract one.  It behaves like <
 // but returns undefined when the inputs cannot be compared.
 // We implement the typing analogously.

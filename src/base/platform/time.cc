@@ -887,8 +887,8 @@ double ThreadTicks::TSCTicksPerSecond() {
   static const uint64_t tsc_initial = __rdtsc();
   static const uint64_t perf_counter_initial = QPCNowRaw();
 
-  // Make a another reading of the TSC and the performance counter every time
-  // that this function is called.
+  // Make another reading of the TSC and the performance counter every time
+  // this function is called.
   uint64_t tsc_now = __rdtsc();
   uint64_t perf_counter_now = QPCNowRaw();
 

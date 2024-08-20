@@ -229,7 +229,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);
 
-  // Compares reg against immmediate before calling BranchOrBacktrack.
+  // Compares reg against immediate before calling BranchOrBacktrack.
   // It makes use of the Cbz and Cbnz instructions.
   void CompareAndBranchOrBacktrack(Register reg,
                                    int immediate,

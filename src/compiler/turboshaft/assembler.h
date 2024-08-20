@@ -973,7 +973,7 @@ class EmitProjectionReducer
     OpIndex new_idx = Continuation{this}.Reduce(args...);
     const Operation& op = Asm().output_graph().Get(new_idx);
     if constexpr (MayThrow(opcode)) {
-      // Operations that can throw are lowered to a Op+DidntThrow, and what we
+      // Operations that can throw are lowered to an Op+DidntThrow, and what we
       // get from Next::Reduce is the DidntThrow.
       return WrapInTupleIfNeeded(op.Cast<DidntThrowOp>(), new_idx);
     }
@@ -5420,7 +5420,7 @@ class Assembler : public AssemblerData,
     intermediate_block->SetOrigin(source->OriginForBlockEnd());
     // Inserting a Goto in {intermediate_block} to {destination}. This will
     // create the edge from {intermediate_block} to {destination}. Note that
-    // this will call AddPredecessor, but we've already removed the eventual
+    // this will call AddPredecessor, but we've already removed the possible
     // edge of {destination} that need splitting, so no risks of infinite
     // recursion here.
     this->Goto(destination);

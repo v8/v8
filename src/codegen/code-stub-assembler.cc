@@ -12255,7 +12255,7 @@ TNode<ClosureFeedbackCellArray> CodeStubAssembler::LoadClosureFeedbackArray(
   TVARIABLE(HeapObject, feedback_cell_array, LoadFeedbackCellValue(closure));
   Label end(this);
 
-  // When feedback vectors are not yet allocated feedback cell contains a
+  // When feedback vectors are not yet allocated feedback cell contains
   // an array of feedback cells used by create closures.
   GotoIf(HasInstanceType(feedback_cell_array.value(),
                          CLOSURE_FEEDBACK_CELL_ARRAY_TYPE),

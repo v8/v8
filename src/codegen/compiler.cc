@@ -2740,7 +2740,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
       handle(shared_info->GetBytecodeArray(isolate), isolate);
 
   // TODO(v8:8510): Push the CLEAR_EXCEPTION flag or something like it down into
-  // the parser so it aborts without setting a exception, which then
+  // the parser so it aborts without setting an exception, which then
   // gets thrown. This would avoid the situation where potentially we'd reparse
   // several times (running out of stack each time) before hitting this limit.
   if (GetCurrentStackPosition() < isolate->stack_guard()->real_climit()) {

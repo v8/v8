@@ -2108,10 +2108,10 @@ void VisitWord32Compare(InstructionSelectorT<Adapter>* selector,
     // in those cases. Unfortunately, the solution is not complete because
     // it might skip cases where Word32 full compare is needed, so
     // basically it is a hack.
-    // When call to a host function in simulator, if the function return a
-    // int32 value, the simulator do not sign-extended to int64 because in
-    // simulator we do not know the function whether return a int32 or int64.
-    // so we need do a full word32 compare in this case.
+    // When calling a host function in the simulator, if the function returns an
+    // int32 value, the simulator does not sign-extend it to int64 because in
+    // the simulator we do not know whether the function returns an int32 or
+    // an int64. So we need to do a full word32 compare in this case.
 #ifndef V8_COMPRESS_POINTERS
 #ifndef USE_SIMULATOR
     if (IsNodeUnsigned(selector->input_at(node, 0)) !=

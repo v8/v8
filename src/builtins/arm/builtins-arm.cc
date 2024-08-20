@@ -1935,8 +1935,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a InstructionStream object,
-    // it must NOT be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is an InstructionStream
+    // object, it must NOT be marked_for_deoptimization (callers must ensure
+    // this).
     __ cmp(maybe_target_code, Operand(Smi::zero()));
     __ b(ne, &jump_to_optimized_code);
   }

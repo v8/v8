@@ -327,7 +327,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
         shared_barrier_slow(this), generational_barrier_slow(this);
 
     // During incremental marking we always reach this slow path, so we need to
-    // check whether this is a old-to-new or old-to-shared reference.
+    // check whether this is an old-to-new or old-to-shared reference.
     TNode<IntPtrT> object = BitcastTaggedToWord(
         UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
 

@@ -3428,10 +3428,10 @@ void LiftoffAssembler::CallCWithStackBuffer(
   if (return_kind != kVoid) {
     constexpr Register kReturnReg = a0;
 #ifdef USE_SIMULATOR
-    // When call to a host function in simulator, if the function return an
-    // int32 value, the simulator does not sign-extend it to int64 because
-    // in simulator we do not know whether the function returns an int32 or
-    // int64. so we need to sign extend it here.
+    // When calling a host function in the simulator, if the function returns an
+    // int32 value, the simulator does not sign-extend it to int64 because in
+    // the simulator we do not know whether the function returns an int32 or
+    // an int64. So we need to sign extend it here.
     if (return_kind == kI32) {
       slli_w(next_result_reg->gp(), kReturnReg, 0);
     } else if (kReturnReg != next_result_reg->gp()) {

@@ -8485,7 +8485,7 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     }
   }
 
-  // We need to retain either the {receiver} itself or it's backing
+  // We need to retain either the {receiver} itself or its backing
   // JSArrayBuffer to make sure that the GC doesn't collect the raw
   // memory. We default to {receiver} here, and only use the buffer
   // if we anyways have to load it (to reduce register pressure).

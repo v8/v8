@@ -276,7 +276,7 @@ class ConstantPool {
   V8_EXPORT_PRIVATE void MaybeCheck();
   void Clear();
 
-  // Constant pool emisssion can be blocked temporarily.
+  // Constant pool emission can be blocked temporarily.
   bool IsBlocked() const;
 
   // Repeated checking whether the constant pool should be emitted is expensive;

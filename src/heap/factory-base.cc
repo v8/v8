@@ -1265,7 +1265,7 @@ template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWithImmortalMap(
     int size, AllocationType allocation, Tagged<Map> map,
     AllocationAlignment alignment) {
-  // TODO(delphick): Potentially you could also pass a immortal immovable Map
+  // TODO(delphick): Potentially you could also pass an immortal immovable Map
   // from OLD_SPACE here, like external_map or message_object_map, but currently
   // no one does so this check is sufficient.
   DCHECK(ReadOnlyHeap::Contains(map));

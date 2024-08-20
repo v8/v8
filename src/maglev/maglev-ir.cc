@@ -1290,7 +1290,7 @@ void AllocateElementsArray::GenerateCode(MaglevAssembler* masm,
   RegisterSnapshot snapshot = register_snapshot();
   snapshot.live_registers.set(length);
 
-  // Return empty fixed array if lenght equal zero.
+  // Return empty fixed array if length equal zero.
   __ CompareInt32AndJumpIf(length, 0, kNotEqual, &allocate_elements,
                            Label::Distance::kNear);
   __ LoadRoot(elements, RootIndex::kEmptyFixedArray);
@@ -6768,7 +6768,7 @@ void BranchIfJSReceiver::GenerateCode(MaglevAssembler* masm,
 
 void Switch::SetValueLocationConstraints() {
   UseAndClobberRegister(value());
-  // TODO(victorgomes): Create a arch-agnostic scratch register scope.
+  // TODO(victorgomes): Create an arch-agnostic scratch register scope.
   set_temporaries_needed(1);
 }
 void Switch::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {

@@ -3017,7 +3017,7 @@ void VisitWord32Compare(InstructionSelectorT<Adapter>* selector,
 #ifdef USE_SIMULATOR
     // When call to a host function in simulator, if the function return a
     // int32 value, the simulator do not sign-extended to int64 because in
-    // simulator we do not know the function whether return a int32 or int64.
+    // simulator we do not know the function whether return an int32 or int64.
     // so we need do a full word32 compare in this case.
     if (node->InputAt(0)->opcode() == IrOpcode::kCall ||
         node->InputAt(1)->opcode() == IrOpcode::kCall) {

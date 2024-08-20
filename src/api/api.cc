@@ -409,7 +409,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
           backing_memory_base, backing_memory_size, kAllocationGranularity);
       end_of_accessible_region_ = region_alloc_->begin();
 
-      // Install a on-merge callback to discard or decommit unused pages.
+      // Install an on-merge callback to discard or decommit unused pages.
       region_alloc_->set_on_merge_callback([this](i::Address start,
                                                   size_t size) {
         mutex_.AssertHeld();
@@ -4179,7 +4179,7 @@ std::unique_ptr<v8::BackingStore> v8::BackingStore::Reallocate(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, ArrayBuffer, BackingStore_Reallocate);
   Utils::ApiCheck(byte_length <= i::JSArrayBuffer::kMaxByteLength,
-                  "v8::BackingStore::Reallocate", "byte_lenght is too large");
+                  "v8::BackingStore::Reallocate", "byte_length is too large");
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::BackingStore* i_backing_store =
       reinterpret_cast<i::BackingStore*>(backing_store.get());
@@ -8192,7 +8192,7 @@ MaybeLocal<v8::Array> v8::Array::New(
     Local<Context> context, size_t length,
     std::function<MaybeLocal<v8::Value>()> next_value_callback) {
   PREPARE_FOR_EXECUTION(context, Array, New);
-  // We should never see a exception here as V8 will not create an
+  // We should never see an exception here as V8 will not create an
   // exception and the callback is invoked by the embedder where the exception
   // is already scheduled.
   USE(has_exception);

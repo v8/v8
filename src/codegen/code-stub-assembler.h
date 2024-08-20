@@ -737,8 +737,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void DCheckReceiver(ConvertReceiverMode mode, TNode<Object> receiver);
 
   // The following Call wrappers call an object according to the semantics that
-  // one finds in the EcmaScript spec, operating on an Callable (e.g. a
-  // JSFunction or proxy) rather than a InstructionStream object.
+  // one finds in the ECMAScript spec, operating on a Callable (e.g. a
+  // JSFunction or proxy) rather than an InstructionStream object.
   template <typename TCallable, class... TArgs>
   inline TNode<Object> Call(TNode<Context> context, TNode<TCallable> callable,
                             ConvertReceiverMode mode, TNode<Object> receiver,

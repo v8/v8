@@ -1344,7 +1344,7 @@
   'wasm/lazy-compilation': [SKIP],
 
   # Tier down/up Wasm functions is non-deterministic with
-  # multiple isolates, as dynamic tiering relies on a array shared
+  # multiple isolates, as dynamic tiering relies on an array shared
   # in the module, that can be modified by all instances.
   'wasm/code-flushing-single-isolate': [SKIP],
   'wasm/enter-and-leave-debug-state': [SKIP],

@@ -902,7 +902,7 @@ class Runtime : public AllStatic {
   static bool NeedsExactContext(FunctionId id);
 
   // Checks whether the runtime function with the given {id} never returns
-  // to it's caller normally, i.e. whether it'll always raise an exception.
+  // to its caller normally, i.e. whether it'll always raise an exception.
   // More specifically: The C++ implementation returns the Heap::exception
   // sentinel, always.
   static bool IsNonReturning(FunctionId id);

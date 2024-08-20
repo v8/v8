@@ -2184,8 +2184,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
-    // precondition here is: if maybe_target_code is a InstructionStream object,
-    // it must NOT be marked_for_deoptimization (callers must ensure this).
+    // precondition here is: if maybe_target_code is an InstructionStream
+    // object, it must NOT be marked_for_deoptimization (callers must ensure
+    // this).
     __ CompareTaggedAndBranch(x0, Smi::zero(), ne, &jump_to_optimized_code);
   }
 
@@ -5205,7 +5206,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ Mov(x5, unwind_limit);
   __ CopyDoubleWords(x3, x1, x5);
   // Since {unwind_limit} is the frame size up to the parameter count, we might
-  // end up with a unaligned stack pointer. This is later recovered when
+  // end up with an unaligned stack pointer. This is later recovered when
   // setting the stack pointer to {caller_frame_top_offset}.
   __ Bic(unwind_limit, unwind_limit, 1);
   __ Drop(unwind_limit);

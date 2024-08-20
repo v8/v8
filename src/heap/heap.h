@@ -523,7 +523,7 @@ class Heap final {
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
 
-  // Checks whether the given object is allowed to be migrated from it's
+  // Checks whether the given object is allowed to be migrated from its
   // current space into the given destination space. Used for debugging.
   bool AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> object,
                            AllocationSpace dest);

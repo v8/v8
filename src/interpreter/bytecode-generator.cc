@@ -2404,7 +2404,7 @@ bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
 
 void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // We need this scope because we visit for register values. We have to
-  // maintain a execution result scope where registers can be allocated.
+  // maintain an execution result scope where registers can be allocated.
   ZonePtrList<CaseClause>* clauses = stmt->cases();
 
   SwitchInfo info;
@@ -3569,7 +3569,7 @@ void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver,
                                 feedback_index(slot));
   } else {
     // We are in the slow case where super() is called from a nested
-    // arrow function or a eval(), so the class scope context isn't
+    // arrow function or an eval(), so the class scope context isn't
     // tracked in a context register in the stack, and we have to
     // walk the context chain from the runtime to find it.
     DCHECK_NE(info()->literal()->scope()->outer_scope(), brand->scope());

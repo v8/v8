@@ -222,7 +222,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   FunctionKind function_kind() const;
 
-  // Returns true if this ScopeInfo is linked to a outer ScopeInfo.
+  // Returns true if this ScopeInfo is linked to an outer ScopeInfo.
   bool HasOuterScopeInfo() const;
 
   // Returns true if this ScopeInfo was created for a debug-evaluate scope.

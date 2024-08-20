@@ -980,7 +980,7 @@ void* AllocateInternal(void* hint, size_t size, size_t alignment,
 
 void CheckIsOOMError(int error) {
   // We expect one of ERROR_NOT_ENOUGH_MEMORY or ERROR_COMMITMENT_LIMIT. We'd
-  // still like to get the actual error code when its not one of the expected
+  // still like to get the actual error code when it's not one of the expected
   // errors, so use the construct below to achieve that.
   if (error != ERROR_NOT_ENOUGH_MEMORY) CHECK_EQ(ERROR_COMMITMENT_LIMIT, error);
 }

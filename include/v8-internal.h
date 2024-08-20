@@ -295,7 +295,8 @@ constexpr size_t kExternalPointerTableReservationSize = 256 * MB;
 
 // The external pointer table indices stored in HeapObjects as external
 // pointers are shifted to the left by this amount to guarantee that they are
-// smaller than the maximum table size.
+// smaller than the maximum table size even after the C++ compiler multiplies
+// them by 8 to be used as indexes into a table of 64 bit pointers.
 constexpr uint32_t kExternalPointerIndexShift = 7;
 #else
 constexpr size_t kExternalPointerTableReservationSize = 512 * MB;

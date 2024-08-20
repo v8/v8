@@ -4012,8 +4012,8 @@ TEST(TestTailCallBuiltinIndirect) {
 
 TEST(InstructionSchedulingCallerSavedRegisters) {
   // This is a regression test for v8:9775, where TF's instruction scheduler
-  // incorrectly moved pure operations in between a ArchSaveCallerRegisters and
-  // a ArchRestoreCallerRegisters instruction.
+  // incorrectly moved pure operations in between an ArchSaveCallerRegisters and
+  // an ArchRestoreCallerRegisters instruction.
   bool old_turbo_instruction_scheduling = v8_flags.turbo_instruction_scheduling;
   v8_flags.turbo_instruction_scheduling = true;
 

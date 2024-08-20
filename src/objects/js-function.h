@@ -136,7 +136,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Address instruction_start(IsolateForSandbox isolate) const;
 
   // Get the abstract code associated with the function, which will either be
-  // a InstructionStream object or a BytecodeArray.
+  // an InstructionStream object or a BytecodeArray.
   template <typename IsolateT>
   inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 

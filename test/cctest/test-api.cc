@@ -12838,7 +12838,7 @@ TEST(FunctionNewInstanceHasNoSideEffect) {
   v8::HandleScope scope(isolate);
   LocalContext context;
 
-  // A allowlisted function that creates a new object with both side-effect
+  // An allowlisted function that creates a new object with both side-effect
   // free/full instantiations. Should throw.
   Local<Function> func0 =
       Function::New(context.local(), NoSideEffectAndSideEffectConstructHandler,
@@ -12851,7 +12851,7 @@ TEST(FunctionNewInstanceHasNoSideEffect) {
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
 
-  // A allowlisted function that creates a new object. Should throw.
+  // An allowlisted function that creates a new object. Should throw.
   Local<Function> func =
       Function::New(context.local(), DefaultConstructHandler, Local<Value>(), 0,
                     v8::ConstructorBehavior::kAllow,
@@ -12863,7 +12863,7 @@ TEST(FunctionNewInstanceHasNoSideEffect) {
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
 
-  // A allowlisted function that creates a new object with explicit intent to
+  // An allowlisted function that creates a new object with explicit intent to
   // have no side-effects (e.g. building an "object wrapper"). Should not throw.
   Local<Function> func2 =
       Function::New(context.local(), NoSideEffectConstructHandler,

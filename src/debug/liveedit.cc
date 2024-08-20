@@ -1013,7 +1013,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
       Tagged<SharedFunctionInfo> inner_sfi =
           Cast<SharedFunctionInfo>(constants->get(i));
-      // See if there is a mapping from this function's start position to a
+      // See if there is a mapping from this function's start position to an
       // unchanged function's id.
       auto unchanged_it =
           start_position_to_unchanged_id.find(inner_sfi->StartPosition());

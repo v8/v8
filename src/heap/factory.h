@@ -1053,7 +1053,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Returns a null handle when the given name is unknown.
   Handle<Object> GlobalConstantFor(Handle<Name> name);
 
-  // Converts the given ToPrimitive hint to it's string representation.
+  // Converts the given ToPrimitive hint to its string representation.
   Handle<String> ToPrimitiveHintString(ToPrimitiveHint hint);
 
   Handle<JSPromise> NewJSPromiseWithoutHook();

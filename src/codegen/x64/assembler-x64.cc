@@ -480,7 +480,7 @@ void Assembler::AlignForJCCErratum(int inst_size) {
   //       pc_offset
   //
   // However, if bbb need to be aligned at the start of a 32-byte boundary,
-  // the second run might crash because the distance is no longer a int8:
+  // the second run might crash because the distance is no longer an int8:
   //
   //   aaa......bbb
   //      ^     ^

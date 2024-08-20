@@ -1186,7 +1186,7 @@ using HeapObjectSlot = SlotTraits::THeapObjectSlot;
 using OffHeapObjectSlot = SlotTraits::TOffHeapObjectSlot;
 
 // A InstructionStreamSlot instance describes a kTaggedSize-sized field
-// ("slot") holding a strong pointer to a InstructionStream object. The
+// ("slot") holding a strong pointer to an InstructionStream object. The
 // InstructionStream object slots might be compressed and since code space might
 // be allocated off the main heap the load operations require explicit cage base
 // value for code space.
