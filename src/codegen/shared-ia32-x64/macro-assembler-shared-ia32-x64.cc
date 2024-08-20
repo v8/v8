@@ -755,7 +755,18 @@ void SharedMacroAssemblerBase::I32x4DotI8x16I7x16AddS(
     XMMRegister scratch, XMMRegister splat_reg) {
   ASM_CODE_COMMENT(this);
 #if V8_TARGET_ARCH_X64
-  if (CpuFeatures::IsSupported(AVX_VNNI)) {
+  if (CpuFeatures::IsSupported(AVX_VNNI_INT8)) {
+    CpuFeatureScope avx_vnni_int8_scope(this, AVX_VNNI_INT8);
+    if (dst == src3) {
+      vpdpbssd(dst, src2, src1);
+    } else {
+      DCHECK_NE(dst, src1);
+      DCHECK_NE(dst, src2);
+      Movdqa(dst, src3);
+      vpdpbssd(dst, src2, src1);
+    }
+    return;
+  } else if (CpuFeatures::IsSupported(AVX_VNNI)) {
     CpuFeatureScope avx_scope(this, AVX_VNNI);
     if (dst == src3) {
       vpdpbusd(dst, src2, src1);

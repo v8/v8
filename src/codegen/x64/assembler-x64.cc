@@ -102,6 +102,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     SetSupported(AVX);
     if (cpu.has_avx2()) SetSupported(AVX2);
     if (cpu.has_avx_vnni()) SetSupported(AVX_VNNI);
+    if (cpu.has_avx_vnni_int8()) SetSupported(AVX_VNNI_INT8);
     if (cpu.has_fma3()) SetSupported(FMA3);
   }
 
@@ -130,6 +131,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (!v8_flags.enable_avx || !IsSupported(SSE4_2)) SetUnsupported(AVX);
   if (!v8_flags.enable_avx2 || !IsSupported(AVX)) SetUnsupported(AVX2);
   if (!v8_flags.enable_avx_vnni || !IsSupported(AVX)) SetUnsupported(AVX_VNNI);
+  if (!v8_flags.enable_avx_vnni_int8 || !IsSupported(AVX))
+    SetUnsupported(AVX_VNNI_INT8);
   if (!v8_flags.enable_fma3 || !IsSupported(AVX)) SetUnsupported(FMA3);
   if (!v8_flags.enable_f16c || !IsSupported(AVX)) SetUnsupported(F16C);
 
@@ -150,6 +153,7 @@ void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
   printf(
       "SSE3=%d SSSE3=%d SSE4_1=%d SSE4_2=%d SAHF=%d AVX=%d AVX2=%d AVX_VNNI=%d "
+      "AVX_VNNI_INT8=%d "
       "FMA3=%d "
       "F16C=%d "
       "BMI1=%d "
@@ -160,10 +164,10 @@ void CpuFeatures::PrintFeatures() {
       CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SSE4_2),
       CpuFeatures::IsSupported(SAHF), CpuFeatures::IsSupported(AVX),
       CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(AVX_VNNI),
-      CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(F16C),
-      CpuFeatures::IsSupported(BMI1), CpuFeatures::IsSupported(BMI2),
-      CpuFeatures::IsSupported(LZCNT), CpuFeatures::IsSupported(POPCNT),
-      CpuFeatures::IsSupported(INTEL_ATOM));
+      CpuFeatures::IsSupported(AVX_VNNI_INT8), CpuFeatures::IsSupported(FMA3),
+      CpuFeatures::IsSupported(F16C), CpuFeatures::IsSupported(BMI1),
+      CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
+      CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(INTEL_ATOM));
 }
 
 // -----------------------------------------------------------------------------
@@ -3900,7 +3904,8 @@ void Assembler::vinstr(uint8_t op, XMMRegister dst, XMMRegister src1,
                        XMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
                        CpuFeature feature) {
   DCHECK(IsEnabled(feature));
-  DCHECK(feature == AVX || feature == AVX2 || feature == AVX_VNNI);
+  DCHECK(feature == AVX || feature == AVX2 || feature == AVX_VNNI ||
+         feature == AVX_VNNI_INT8);
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, kLIG, pp, m, w);
   emit(op);
@@ -3922,7 +3927,8 @@ template <typename Reg1, typename Reg2, typename Op>
 void Assembler::vinstr(uint8_t op, Reg1 dst, Reg2 src1, Op src2, SIMDPrefix pp,
                        LeadingOpcode m, VexW w, CpuFeature feature) {
   DCHECK(IsEnabled(feature));
-  DCHECK(feature == AVX || feature == AVX2 || feature == AVX_VNNI);
+  DCHECK(feature == AVX || feature == AVX2 || feature == AVX_VNNI ||
+         feature == AVX_VNNI_INT8);
   DCHECK(
       (std::is_same_v<Reg1, YMMRegister> || std::is_same_v<Reg2, YMMRegister>));
   EnsureSpace ensure_space(this);

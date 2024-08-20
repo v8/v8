@@ -5728,7 +5728,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // If AVX_VNNI supported, pass kScratchDoubleReg twice as unused
       // arguments.
       XMMRegister tmp = kScratchDoubleReg;
-      if (!CpuFeatures::IsSupported(AVX_VNNI)) {
+      if (!(CpuFeatures::IsSupported(AVX_VNNI) ||
+            CpuFeatures::IsSupported(AVX_VNNI_INT8))) {
         tmp = i.TempSimd128Register(0);
       }
       __ I32x4DotI8x16I7x16AddS(

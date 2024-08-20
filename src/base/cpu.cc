@@ -428,6 +428,7 @@ CPU::CPU()
       has_avx_(false),
       has_avx2_(false),
       has_avx_vnni_(false),
+      has_avx_vnni_int8_(false),
       has_fma3_(false),
       has_f16c_(false),
       has_bmi1_(false),
@@ -510,6 +511,7 @@ CPU::CPU()
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
     has_avx2_ = (cpu_info70[1] & 0x00000020) != 0;
     has_avx_vnni_ = (cpu_info71[0] & 0x00000010) != 0;
+    has_avx_vnni_int8_ = (cpu_info71[3] & 0x00000020) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
     has_f16c_ = (cpu_info[2] & 0x20000000) != 0;
     // CET shadow stack feature flag. See

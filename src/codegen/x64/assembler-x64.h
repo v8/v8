@@ -2282,6 +2282,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x50, dst, src1, src2, k66, k0F38, kW0, AVX_VNNI);
   }
 
+  // AVX-VNNI-INT8 instruction
+  void vpdpbssd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr(0x50, dst, src1, src2, kF2, k0F38, kW0, AVX_VNNI_INT8);
+  }
+  void vpdpbssd(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr(0x50, dst, src1, src2, kF2, k0F38, kW0, AVX_VNNI_INT8);
+  }
+
   // BMI instruction
   void andnq(Register dst, Register src1, Register src2) {
     bmi1q(0xf2, dst, src1, src2);
