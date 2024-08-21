@@ -9,6 +9,8 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <optional>
+
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
 
@@ -57,6 +59,23 @@ class StackMemory {
   void set_index(size_t index) { index_ = index; }
   size_t index() { return index_; }
 
+  struct StackSwitchInfo {
+    // Source FP and target SP of the frame that switched to the central stack.
+    // The source FP is in the secondary stack, the target SP is in the central
+    // stack.
+    // The stack cannot be suspended while it is on the central stack, so there
+    // can be at most one switch for a given stack.
+    Address source_fp;
+    Address target_sp;
+  };
+  std::optional<StackSwitchInfo> stack_switch_info() {
+    return stack_switch_info_;
+  }
+  void set_stack_switch_info(Address fp, Address sp) {
+    stack_switch_info_ = {fp, sp};
+  }
+  void clear_stack_switch_info() { stack_switch_info_.reset(); }
+
 #ifdef DEBUG
   static constexpr int kJSLimitOffsetKB = 80;
 #else
@@ -82,6 +101,7 @@ class StackMemory {
   // allows us to add and remove from the vector in constant time (see
   // return_switch()).
   size_t index_;
+  std::optional<StackSwitchInfo> stack_switch_info_;
 };
 
 // A pool of "finished" stacks, i.e. stacks whose last frame have returned and

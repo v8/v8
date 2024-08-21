@@ -3836,12 +3836,7 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
   for (size_t i = arraysize(wasm::kGpParamRegisters) - 1; i > 0; --i) {
     __ push(wasm::kGpParamRegisters[i]);
   }
-  // Reserve fixed slots for the CSA wrapper.
-  // Two slots for stack-switching (central stack pointer and secondary stack
-  // limit):
-  __ push(Immediate(0));
-  __ push(Immediate(0));
-  // One slot for the signature:
+  // Reserve a slot for the signature.
   __ push(eax);
   // Push the return address again.
   __ push(scratch);

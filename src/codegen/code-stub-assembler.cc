@@ -18577,45 +18577,31 @@ TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {
 
 #if V8_ENABLE_WEBASSEMBLY
 TNode<RawPtrT> CodeStubAssembler::SwitchToTheCentralStack() {
-  TNode<WordT> stack_limit_slot = IntPtrAdd(
-      LoadFramePointer(),
-      IntPtrConstant(WasmToJSWrapperConstants::kSecondaryStackLimitOffset));
-
   TNode<ExternalReference> do_switch = ExternalConstant(
       ExternalReference::wasm_switch_to_the_central_stack_for_js());
   TNode<RawPtrT> central_stack_sp = TNode<RawPtrT>::UncheckedCast(CallCFunction(
       do_switch, MachineType::Pointer(),
       std::make_pair(MachineType::Pointer(),
                      ExternalConstant(ExternalReference::isolate_address())),
-      std::make_pair(MachineType::Pointer(), stack_limit_slot)));
+      std::make_pair(MachineType::Pointer(), LoadFramePointer())));
 
   TNode<RawPtrT> old_sp = LoadStackPointer();
   SetStackPointer(central_stack_sp);
-  StoreNoWriteBarrier(
-      MachineType::PointerRepresentation(), LoadFramePointer(),
-      IntPtrConstant(WasmToJSWrapperConstants::kCentralStackSPOffset),
-      central_stack_sp);
   return old_sp;
 }
 
 void CodeStubAssembler::SwitchFromTheCentralStack(TNode<RawPtrT> old_sp) {
-  TNode<WordT> stack_limit = Load<RawPtrT>(
-      LoadFramePointer(),
-      IntPtrConstant(WasmToJSWrapperConstants::kSecondaryStackLimitOffset));
-
   TNode<ExternalReference> do_switch = ExternalConstant(
       ExternalReference::wasm_switch_from_the_central_stack_for_js());
+  Label skip(this);
+  GotoIf(IntPtrEqual(old_sp, UintPtrConstant(0)), &skip);
   CallCFunction(
       do_switch, MachineType::Pointer(),
       std::make_pair(MachineType::Pointer(),
-                     ExternalConstant(ExternalReference::isolate_address())),
-      std::make_pair(MachineType::Pointer(), stack_limit));
-
-  StoreNoWriteBarrier(
-      MachineType::PointerRepresentation(), LoadFramePointer(),
-      IntPtrConstant(WasmToJSWrapperConstants::kCentralStackSPOffset),
-      IntPtrConstant(0));
+                     ExternalConstant(ExternalReference::isolate_address())));
   SetStackPointer(old_sp);
+  Goto(&skip);
+  Bind(&skip);
 }
 
 TNode<RawPtrT> CodeStubAssembler::SwitchToTheCentralStackIfNeeded() {

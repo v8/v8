@@ -7909,11 +7909,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildSwitchToTheCentralStack() {
-    Node* stack_limit_slot = gasm_->IntPtrAdd(
-        gasm_->LoadFramePointer(),
-        gasm_->IntPtrConstant(
-            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset));
-
     Node* do_switch = gasm_->ExternalConstant(
         ExternalReference::wasm_switch_to_the_central_stack_for_js());
     MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer(),
@@ -7923,36 +7918,25 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* central_stack_sp = BuildCCall(
         &sig, do_switch,
         gasm_->ExternalConstant(ExternalReference::isolate_address()),
-        stack_limit_slot);
+        gasm_->LoadFramePointer());
     Node* old_sp = gasm_->LoadStackPointer();
     // Temporarily disallow sp-relative offsets.
     gasm_->SetStackPointer(central_stack_sp);
-    gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                     kNoWriteBarrier),
-                 gasm_->LoadFramePointer(),
-                 WasmImportWrapperFrameConstants::kCentralStackSPOffset,
-                 central_stack_sp);
     return old_sp;
   }
 
   void BuildSwitchBackFromCentralStack(Node* old_sp) {
-    Node* stack_limit = gasm_->Load(
-        MachineType::Pointer(), gasm_->LoadFramePointer(),
-        WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset);
-
+    auto skip = gasm_->MakeLabel();
+    gasm_->GotoIf(gasm_->IntPtrEqual(old_sp, gasm_->IntPtrConstant(0)), &skip);
     Node* do_switch = gasm_->ExternalConstant(
         ExternalReference::wasm_switch_from_the_central_stack_for_js());
-    MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer()};
-    MachineSignature sig(0, 2, reps);
+    MachineType reps[] = {MachineType::Pointer()};
+    MachineSignature sig(0, 1, reps);
     BuildCCall(&sig, do_switch,
-               gasm_->ExternalConstant(ExternalReference::isolate_address()),
-               stack_limit);
-    gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                     kNoWriteBarrier),
-                 gasm_->LoadFramePointer(),
-                 WasmImportWrapperFrameConstants::kCentralStackSPOffset,
-                 gasm_->IntPtrConstant(0));
+               gasm_->ExternalConstant(ExternalReference::isolate_address()));
     gasm_->SetStackPointer(old_sp);
+    gasm_->Goto(&skip);
+    gasm_->Bind(&skip);
   }
 
   Node* BuildSwitchToTheCentralStackIfNeeded() {
@@ -8129,13 +8113,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
     BuildModifyThreadInWasmFlag(true);
 
-    auto done = gasm_->MakeLabel();
-    gasm_->GotoIf(gasm_->IntPtrEqual(old_sp, gasm_->IntPtrConstant(0)), &done,
-                  BranchHint::kTrue);
     BuildSwitchBackFromCentralStack(old_sp);
-    gasm_->Goto(&done);
-    gasm_->Bind(&done);
-
     if (sig_->return_count() <= 1) {
       Return(val);
     } else {

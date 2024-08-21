@@ -296,16 +296,6 @@ class WasmInterpreterCWasmEntryConstants : public TypedFrameConstants {
 };
 #endif  // V8_ENABLE_DRUMBRAKE
 
-class WasmImportWrapperFrameConstants : public WasmFrameConstants {
- public:
-  // FP-relative.
-  static constexpr int kCentralStackSPOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static constexpr int kSecondaryStackLimitOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
-  DEFINE_TYPED_FRAME_SIZES(3);
-};
-
 class WasmExitFrameConstants : public WasmFrameConstants {
  public:
   // FP-relative.
@@ -390,8 +380,6 @@ class WasmToJSWrapperConstants {
  public:
   // FP-relative.
   static constexpr size_t kSignatureOffset = 2 * kSystemPointerSize;
-  static constexpr size_t kCentralStackSPOffset = 3 * kSystemPointerSize;
-  static constexpr size_t kSecondaryStackLimitOffset = 4 * kSystemPointerSize;
 };
 
 #if V8_ENABLE_DRUMBRAKE

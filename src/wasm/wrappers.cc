@@ -654,9 +654,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       }
     }
     BuildModifyThreadInWasmFlag(__ phase_zone(), true);
-    IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
-      BuildSwitchBackFromCentralStack(old_sp);
-    }
+    BuildSwitchBackFromCentralStack(old_sp);
     if (sig_->return_count() <= 1) {
       __ Return(val);
     } else {
@@ -1131,11 +1129,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   OpIndex BuildSwitchToTheCentralStack() {
-    V<WordPtr> stack_limit_slot = __ WordPtrAdd(
-        __ FramePointer(),
-        __ UintPtrConstant(
-            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset));
-
     MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer(),
                           MachineType::Pointer()};
     MachineSignature sig(1, 2, reps);
@@ -1143,13 +1136,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     OpIndex central_stack_sp = CallC(
         &sig, ExternalReference::wasm_switch_to_the_central_stack_for_js(),
         {__ ExternalConstant(ExternalReference::isolate_address()),
-         stack_limit_slot});
+         __ FramePointer()});
     OpIndex old_sp = __ LoadStackPointer();
     // Temporarily disallow sp-relative offsets.
     __ SetStackPointer(central_stack_sp);
-    __ Store(__ FramePointer(), central_stack_sp, StoreOp::Kind::RawAligned(),
-             MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
-             WasmImportWrapperFrameConstants::kCentralStackSPOffset);
     return old_sp;
   }
 
@@ -1172,21 +1162,14 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   void BuildSwitchBackFromCentralStack(OpIndex old_sp) {
-    OpIndex stack_limit =
-        __ Load(__ FramePointer(), LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::UintPtr(),
-                WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset);
-
     MachineType reps[] = {MachineType::Pointer(), MachineType::Pointer()};
-    MachineSignature sig(0, 2, reps);
-    CallC(&sig, ExternalReference::wasm_switch_from_the_central_stack_for_js(),
-          {__ ExternalConstant(ExternalReference::isolate_address()),
-           stack_limit});
-    __ Store(__ FramePointer(), __ IntPtrConstant(0),
-             StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
-             compiler::kNoWriteBarrier,
-             WasmImportWrapperFrameConstants::kCentralStackSPOffset);
-    __ SetStackPointer(old_sp);
+    MachineSignature sig(0, 1, reps);
+    IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
+      CallC(&sig,
+            ExternalReference::wasm_switch_from_the_central_stack_for_js(),
+            {__ ExternalConstant(ExternalReference::isolate_address())});
+      __ SetStackPointer(old_sp);
+    }
   }
 
   OpIndex BuildSuspend(OpIndex value, V<Object> suspender,
@@ -1199,7 +1182,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
     ScopedVar<Object> result(this, value);
-    ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
+    ScopedVar<WordPtr> old_sp_var(this, *old_sp);
     IF_NOT (__ IsSmi(value)) {
       IF (__ HasInstanceType(value, JS_PROMISE_TYPE)) {
         IF (__ TaggedEqual(active_suspender, LOAD_ROOT(UndefinedValue))) {

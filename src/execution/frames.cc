@@ -30,6 +30,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
+#include "src/roots/roots.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/zone/zone-containers.h"
@@ -226,8 +227,15 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
   } else {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
   }
-    handler_ = StackHandler::FromAddress(Isolate::handler(top));
-    SetNewFrame(type, &state);
+  handler_ = StackHandler::FromAddress(Isolate::handler(top));
+#if V8_ENABLE_WEBASSEMBLY
+  auto active_continuation = isolate_->root(RootIndex::kActiveContinuation);
+  if (!IsUndefined(active_continuation, isolate_)) {
+    wasm_stack_ = reinterpret_cast<wasm::StackMemory*>(
+        Cast<WasmContinuationObject>(active_continuation)->stack());
+  }
+#endif
+  SetNewFrame(type, &state);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -238,6 +246,7 @@ void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
   StackFrame::State state;
   StackSwitchFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
+  wasm_stack_ = stack;
   SetNewFrame(StackFrame::STACK_SWITCH, &state);
 }
 #endif
@@ -1698,12 +1707,44 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot frame_header_limit(
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
 
-  // Parameters passed to the callee.
-  Address central_stack_sp = Memory<Address>(
-      fp() + WasmImportWrapperFrameConstants::kCentralStackSPOffset);
+  // Visit parameters passed to the callee.
+  // Frame layout without stack switching (stack grows upwards):
+  //
+  //         | callee      |
+  //         | frame       |
+  //         |-------------| <- sp()
+  //         | out params  |
+  //         |-------------| <- frame_header_base - spill_slot_space
+  //         | spill slots |
+  //         |-------------| <- frame_header_base
+  //         | frame header|
+  //         |-------------| <- fp()
+  //
+  // With stack-switching:
+  //
+  //        Secondary stack:      Central stack:
+  //
+  //                              | callee     |
+  //                              | frame      |
+  //                              |------------| <- sp()
+  //                              | out params |
+  //        |-------------|       |------------| <- maybe_stack_switch
+  //        | spill slots |                         ->target_sp
+  //        |-------------| <- frame_header_base
+  //        | frame header|
+  //        |-------------| <- fp()
+  //
+  // The base (lowest address) of the outgoing stack parameters area is always
+  // sp(), and the limit (highest address) is either {frame_header_base -
+  // spill_slot_space} or {maybe_stack_switch->target_sp} depending on
+  // stack-switching.
+  std::optional<wasm::StackMemory::StackSwitchInfo> maybe_stack_switch;
+  if (iterator_->wasm_stack() != nullptr) {
+    maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
+  }
   FullObjectSlot parameters_limit(
-      type == WASM_TO_JS && central_stack_sp != kNullAddress
-          ? central_stack_sp
+      type == WASM_TO_JS && maybe_stack_switch.has_value()
+          ? maybe_stack_switch->target_sp
           : frame_header_base.address() - spill_slot_space);
   FullObjectSlot spill_space_end =
       FullObjectSlot(frame_header_base.address() - spill_slot_space);
@@ -1825,8 +1866,8 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
           break;
         }
       }
-      // Caller FP + return address + signature + two stack-switching slots.
-      size_t param_start_offset = 2 + size_of_sig + 2;
+      // Caller FP + return address + signature.
+      size_t param_start_offset = 2 + size_of_sig;
       FullObjectSlot param_start(fp() +
                                  param_start_offset * kSystemPointerSize);
       FullObjectSlot tagged_slot = param_start + slot_offset;
@@ -1836,13 +1877,13 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
       // back to a positive offset (to be added to the frame's FP to find the
       // slot).
       int slot_offset = -l.GetLocation() - 1;
-      // Caller FP + return address + signature + two stack-switching slots +
-      // spilled registers (without the instance register).
+      // Caller FP + return address + signature + spilled registers (without the
+      // instance register).
       size_t slots_per_float64 = kDoubleSize / kSystemPointerSize;
       size_t param_start_offset =
           arraysize(wasm::kGpParamRegisters) - 1 +
           (arraysize(wasm::kFpParamRegisters) * slots_per_float64) + 2 +
-          size_of_sig + 2;
+          size_of_sig;
 
       // The wasm-to-js wrapper pushes all but the first gp parameter register
       // on the stack, so if the number of gp parameter registers is even, this
@@ -1935,23 +1976,44 @@ void TypedFrame::Iterate(RootVisitor* v) const {
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
   // Parameters passed to the callee.
 #if V8_ENABLE_WEBASSEMBLY
-  // Load the central stack SP value from the fixed slot.
-  // If it is null, the import wrapper didn't switch and the layout is the same
-  // as regular typed frames: the outgoing stack parameters end where the spill
-  // area begins.
-  // Otherwise, it holds the address in the central stack where the import
-  // wrapper switched to before pushing the outgoing stack parameters and
-  // calling the target. It marks the limit of the stack param area, and is
-  // distinct from the beginning of the spill area.
-  int central_stack_sp_offset =
-      is_generic_wasm_to_js
-          ? WasmToJSWrapperConstants::kCentralStackSPOffset
-          : WasmImportWrapperFrameConstants::kCentralStackSPOffset;
-  Address central_stack_sp = Memory<Address>(fp() + central_stack_sp_offset);
+  // Frame layout without stack switching (stack grows upwards):
+  //
+  //         | callee      |
+  //         | frame       |
+  //         |-------------| <- sp()
+  //         | out params  |
+  //         |-------------| <- frame_header_base - spill_slot_space
+  //         | spill slots |
+  //         |-------------| <- frame_header_base
+  //         | frame header|
+  //         |-------------| <- fp()
+  //
+  // With stack-switching:
+  //
+  //        Secondary stack:      Central stack:
+  //
+  //                              | callee     |
+  //                              | frame      |
+  //                              |------------| <- sp()
+  //                              | out params |
+  //        |-------------|       |------------| <- maybe_stack_switch
+  //        | spill slots |                         ->target_sp
+  //        |-------------| <- frame_header_base
+  //        | frame header|
+  //        |-------------| <- fp()
+  //
+  // The base (lowest address) of the outgoing stack parameters area is always
+  // sp(), and the limit (highest address) is either {frame_header_base -
+  // spill_slot_size} or {maybe_stack_switch->target_sp} depending on
+  // stack-switching.
+  std::optional<wasm::StackMemory::StackSwitchInfo> maybe_stack_switch;
+  if (iterator_->wasm_stack() != nullptr) {
+    maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
+  }
   FullObjectSlot parameters_limit(
       (is_generic_wasm_to_js || is_optimized_wasm_to_js) &&
-              central_stack_sp != kNullAddress
-          ? central_stack_sp
+              maybe_stack_switch.has_value()
+          ? maybe_stack_switch->target_sp
           : frame_header_base.address() - spill_slots_size);
 #else
   FullObjectSlot parameters_limit(frame_header_base.address() -
