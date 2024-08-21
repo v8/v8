@@ -431,7 +431,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       CHECK_EQ(bytes, ExternalBackingStoreBytes(
                           ExternalBackingStoreType::kArrayBuffer));
     } else if (identity() == NEW_SPACE) {
-      DCHECK(v8_flags.minor_ms);
+      CHECK(v8_flags.minor_ms);
       size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
       CHECK_EQ(bytes, ExternalBackingStoreBytes(
                           ExternalBackingStoreType::kArrayBuffer));

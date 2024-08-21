@@ -504,17 +504,17 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
     for (InternalIndex i : map()->IterateOwnDescriptors()) {
       PropertyDetails details = descriptors->GetDetails(i);
       if (details.location() == PropertyLocation::kField) {
-        DCHECK_EQ(PropertyKind::kData, details.kind());
+        CHECK_EQ(PropertyKind::kData, details.kind());
         Representation r = details.representation();
         FieldIndex index = FieldIndex::ForDetails(map(), details);
         if (COMPRESS_POINTERS_BOOL && index.is_inobject()) {
           VerifyObjectField(isolate, index.offset());
         }
         Tagged<Object> value = RawFastPropertyAt(index);
-        if (r.IsDouble()) DCHECK(IsHeapNumber(value));
+        CHECK_IMPLIES(r.IsDouble(), IsHeapNumber(value));
         if (IsUninitialized(value, isolate)) continue;
-        if (r.IsSmi()) DCHECK(IsSmi(value));
-        if (r.IsHeapObject()) DCHECK(IsHeapObject(value));
+        CHECK_IMPLIES(r.IsSmi(), IsSmi(value));
+        CHECK_IMPLIES(r.IsHeapObject(), IsHeapObject(value));
         Tagged<FieldType> field_type = descriptors->GetFieldType(i);
         bool type_is_none = IsNone(field_type);
         bool type_is_any = IsAny(field_type);
@@ -2598,7 +2598,7 @@ class StringTableVerifier : public RootVisitor {
     // Visit all HeapObject pointers in [start, end).
     for (OffHeapObjectSlot p = start; p < end; ++p) {
       Tagged<Object> o = p.load(isolate_);
-      DCHECK(!HasWeakHeapObjectTag(o));
+      CHECK(!HasWeakHeapObjectTag(o));
       if (IsHeapObject(o)) {
         Tagged<HeapObject> object = Cast<HeapObject>(o);
         // Check that the string is actually internalized.
@@ -2612,7 +2612,7 @@ class StringTableVerifier : public RootVisitor {
 };
 
 void StringTable::VerifyIfOwnedBy(Isolate* isolate) {
-  DCHECK_EQ(isolate->string_table(), this);
+  CHECK_EQ(isolate->string_table(), this);
   if (!isolate->OwnsStringTables()) return;
   StringTableVerifier verifier(isolate);
   IterateElements(&verifier);

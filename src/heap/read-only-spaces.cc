@@ -504,11 +504,11 @@ void ReadOnlySpace::VerifyCounters(Heap* heap) const {
     total_allocated += page->allocated_bytes();
     // The real size can be smaller than the accounted size if array trimming,
     // object slack tracking happened after sweeping.
-    DCHECK_LE(real_allocated, accounting_stats_.AllocatedOnPage(page));
-    DCHECK_EQ(page->allocated_bytes(), accounting_stats_.AllocatedOnPage(page));
+    CHECK_LE(real_allocated, accounting_stats_.AllocatedOnPage(page));
+    CHECK_EQ(page->allocated_bytes(), accounting_stats_.AllocatedOnPage(page));
   }
-  DCHECK_EQ(total_capacity, accounting_stats_.Capacity());
-  DCHECK_EQ(total_allocated, accounting_stats_.Size());
+  CHECK_EQ(total_capacity, accounting_stats_.Capacity());
+  CHECK_EQ(total_allocated, accounting_stats_.Size());
 }
 #endif  // DEBUG
 #endif  // VERIFY_HEAP
