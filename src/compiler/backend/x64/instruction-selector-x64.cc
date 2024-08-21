@@ -647,17 +647,8 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     if (!this->IsLoadOrLoadImmutable(input)) return false;
     if (!selector()->CanCover(node, input)) return false;
 
-    if constexpr (Adapter::IsTurboshaft) {
-      // A ProtectedLoad increases the effect level by 1.
-      int effect_level_after_input = selector()->GetEffectLevel(input) +
-                                     (this->IsProtectedLoad(node) ? 1 : 0);
-      if (effect_level != effect_level_after_input) {
-        return false;
-      }
-    } else {
-      if (effect_level != selector()->GetEffectLevel(input)) {
-        return false;
-      }
+    if (effect_level != selector()->GetEffectLevel(input)) {
+      return false;
     }
 
     MachineRepresentation rep =
@@ -3680,7 +3671,8 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
       avx_opcode |= AddressingModeField::encode(addressing_mode);
       sse_opcode |= AddressingModeField::encode(addressing_mode);
       if constexpr (Adapter::IsTurboshaft) {
-        if (g.IsProtectedLoad(right)) {
+        if (g.IsProtectedLoad(right) &&
+            selector->CanCoverProtectedLoad(node, right)) {
           // In {CanBeMemoryOperand} we have already checked that
           // CanCover(node, right) succeds, which means that there is no
           // instruction with Effects required_when_unused or
