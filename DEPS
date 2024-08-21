@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b8f47779f5cfa23076144d3e69d2189d6074077c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2fb4df2b33c448ad00d076c10369a7b703cae563',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2470cca5b26e6e9ce55c97e00724c61d9f90bf2b',
   'buildtools/linux64': {
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd3aea2341cdeaf7e717bc257a59aa7a9407d318a',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '06a29b5bbf392c68d73dc8df9015163cc5a98c40',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '4533290e05e175cc05f4546fc09bc92cdd172f3e',
   'tools/luci-go': {
       'packages': [
         {
@@ -511,7 +511,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '70388dabfdbf8adda2a344a990a5fc20997bedf8',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '1b7ed5a1932647009b72fdad8e0e834d55cf40d8',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
