@@ -6941,7 +6941,13 @@ void Heap::KeepDuringJob(DirectHandle<HeapObject> target) {
     table =
         handle(Cast<OrderedHashSet>(weak_refs_keep_during_job()), isolate());
   }
-  table = OrderedHashSet::Add(isolate(), table, target).ToHandleChecked();
+  MaybeHandle<OrderedHashSet> maybe_table =
+      OrderedHashSet::Add(isolate(), table, target);
+  if (!maybe_table.ToHandle(&table)) {
+    FATAL(
+        "Fatal JavaScript error: Too many distinct WeakRef objects "
+        "created or dereferenced during single event loop turn.");
+  }
   set_weak_refs_keep_during_job(*table);
 }
 
