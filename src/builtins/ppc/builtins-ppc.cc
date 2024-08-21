@@ -3192,15 +3192,8 @@ void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
     gp_regs.set(wasm::kGpParamRegisters[i]);
   }
   __ MultiPush(gp_regs);
-  // Reserve fixed slots for the CSA wrapper.
-  // Two slots for stack-switching (central stack pointer and secondary stack
-  // limit):
-  Register scratch = r4;
-  __ mov(scratch, Operand::Zero());
-  __ Push(scratch);
-  __ Push(scratch);
-  // One slot for the signature:
-  __ Push(r0);
+  // Reserve a slot for the signature.
+  __ Push(r3);
   __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
 }
 
