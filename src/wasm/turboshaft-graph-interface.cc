@@ -466,7 +466,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         ssa_env_[index] = real_parameters_[index + 1];
       }
       if (!is_inlined_tail_call_) {
-        return_phis_->InitReturnPhis(decoder->sig_->returns(), instance_cache_);
+        return_phis_->InitReturnPhis(decoder->sig_->returns());
       }
     }
     while (index < decoder->num_locals()) {
@@ -628,15 +628,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       OpIndex phi = __ PendingLoopPhi(stack_base[i].op,
                                       RepresentationFor(stack_base[i].type));
       block->start_merge[i].op = phi;
-    }
-    if (assigned->Contains(decoder->num_locals())) {
-      uint32_t cached_values = instance_cache_.num_mutable_fields();
-      for (uint32_t i = 0; i < cached_values; i++) {
-        OpIndex phi = __ PendingLoopPhi(
-            instance_cache_.mutable_field_value(i),
-            RepresentationFor(instance_cache_.mutable_field_type(i)));
-        instance_cache_.set_mutable_field_value(i, phi);
-      }
     }
 
     StackCheck(WasmStackCheckOp::Kind::kLoop);
@@ -918,23 +909,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           // phis.
           block->false_or_loop_or_catch_block->SetKind(
               compiler::turboshaft::Block::Kind::kMerge);
-          auto to = __ output_graph()
-                        .operations(*block->false_or_loop_or_catch_block)
-                        .begin();
-          bool contains_instance_cache =
-              block->assigned->Contains(decoder->num_locals());
-          size_t num_phis =
-              block->assigned->Count() - (contains_instance_cache ? 1 : 0) +
-              block->br_merge()->arity +
-              (contains_instance_cache ? instance_cache_.num_mutable_fields()
-                                       : 0);
-          for (uint32_t i = 0; i < num_phis; ++i, ++to) {
-            // TODO(manoskouk): Add `->` operator to the iterator.
-            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
-            OpIndex replaced = __ output_graph().Index(*to);
+          for (auto& op : __ output_graph().operations(
+                   *block->false_or_loop_or_catch_block)) {
+            PendingLoopPhiOp* pending_phi = op.TryCast<PendingLoopPhiOp>();
+            if (!pending_phi) break;
+            OpIndex replaced = __ output_graph().Index(op);
             __ output_graph().Replace<compiler::turboshaft::PhiOp>(
-                replaced, base::VectorOf({pending_phi.first()}),
-                pending_phi.rep);
+                replaced, base::VectorOf({pending_phi -> first()}),
+                pending_phi->rep);
           }
         } else {
           // We abuse the start merge of the loop, which is not used otherwise
@@ -943,39 +925,33 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           BindBlockAndGeneratePhis(decoder, block->merge_block,
                                    block->br_merge());
           __ Goto(block->false_or_loop_or_catch_block);
-          auto to = __ output_graph()
-                        .operations(*block->false_or_loop_or_catch_block)
-                        .begin();
+          auto operations = __ output_graph().operations(
+              *block -> false_or_loop_or_catch_block);
+          auto to = operations.begin();
+          // The VariableReducer can introduce loop phis as well which are at
+          // the beginning of the block. We need to skip them.
+          while (to != operations.end() &&
+                 to->Is<compiler::turboshaft::PhiOp>()) {
+            ++to;
+          }
           for (auto it = block->assigned->begin(); it != block->assigned->end();
                ++it, ++to) {
             // The last bit represents the instance cache.
             if (*it == static_cast<int>(ssa_env_.size())) break;
-            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
+            PendingLoopPhiOp& pending_phi = to->Cast<PendingLoopPhiOp>();
             OpIndex replaced = __ output_graph().Index(*to);
             __ output_graph().Replace<compiler::turboshaft::PhiOp>(
                 replaced, base::VectorOf({pending_phi.first(), ssa_env_[*it]}),
                 pending_phi.rep);
           }
           for (uint32_t i = 0; i < block->br_merge()->arity; ++i, ++to) {
-            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
+            PendingLoopPhiOp& pending_phi = to->Cast<PendingLoopPhiOp>();
             OpIndex replaced = __ output_graph().Index(*to);
             __ output_graph().Replace<compiler::turboshaft::PhiOp>(
                 replaced,
                 base::VectorOf(
                     {pending_phi.first(), (*block->br_merge())[i].op}),
                 pending_phi.rep);
-          }
-          if (block->assigned->Contains(decoder->num_locals())) {
-            for (uint32_t i = 0; i < instance_cache_.num_mutable_fields();
-                 ++i, ++to) {
-              PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
-              OpIndex replaced = __ output_graph().Index(*to);
-              __ output_graph().Replace<compiler::turboshaft::PhiOp>(
-                  replaced,
-                  base::VectorOf({pending_phi.first(),
-                                  instance_cache_.mutable_field_value(i)}),
-                  pending_phi.rep);
-            }
           }
         }
         BindBlockAndGeneratePhis(decoder, post_loop, nullptr);
@@ -1017,11 +993,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       if (__ generating_unreachable_operations()) return;
       for (size_t i = 0; i < return_count; i++) {
         return_phis_->AddInputForPhi(i, return_values[i]);
-      }
-      uint32_t cached_values = instance_cache_.num_mutable_fields();
-      for (uint32_t i = 0; i < cached_values; i++) {
-        return_phis_->AddInputForPhi(return_count + i,
-                                     instance_cache_.mutable_field_value(i));
       }
       __ Goto(return_block_);
     }
@@ -2718,14 +2689,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           case_blocks.push_back(__ NewBlock());
         }
         TSBlock* merge = __ NewBlock();
-        // For the control flow between the case blocks, we don't use the usual
-        // NewBlockWithPhis / SetupControlFlowEdge / BindBlockAndGeneratePhis
-        // helpers, because we don't need all their functionality. Instead, we
-        // inline trimmed-down copies of them, doing only what we need, which is
-        // handling the mutable fields cached on the InstanceCache.
-        uint32_t cached_fields = instance_cache_.num_mutable_fields();
-        BlockPhis merge_phis(decoder->zone_, instance_cache_);
-        InstanceCache::Snapshot saved_cache = instance_cache_.SaveState();
         __ Goto(case_blocks[0]);
 
         bool use_deopt_slowpath = deopts_enabled_;
@@ -2810,7 +2773,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             __ Bind(inline_block);
           }
 
-          instance_cache_.RestoreFromSnapshot(saved_cache);
           SmallZoneVector<Value, 4> direct_returns(return_count,
                                                    decoder->zone_);
           if (v8_flags.trace_wasm_inlining) {
@@ -2833,7 +2795,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             for (size_t ret = 0; ret < direct_returns.size(); ret++) {
               case_returns[ret].push_back(direct_returns[ret].op);
             }
-            merge_phis.AddPhiInputs(instance_cache_);
             __ Goto(merge);
           }
         }
@@ -2841,7 +2802,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         if (!use_deopt_slowpath) {
           TSBlock* no_inline_block = case_blocks.back();
           __ Bind(no_inline_block);
-          instance_cache_.RestoreFromSnapshot(saved_cache);
           auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
               decoder, index_wordptr, imm);
           SmallZoneVector<Value, 4> indirect_returns(return_count,
@@ -2851,7 +2811,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           for (size_t ret = 0; ret < indirect_returns.size(); ret++) {
             case_returns[ret].push_back(indirect_returns[ret].op);
           }
-          merge_phis.AddPhiInputs(instance_cache_);
           __ Goto(merge);
         }
 
@@ -2859,11 +2818,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         for (size_t i = 0; i < case_returns.size(); i++) {
           returns[i].op = __ Phi(base::VectorOf(case_returns[i]),
                                  RepresentationFor(imm.sig->GetReturn(i)));
-        }
-        for (uint32_t i = 0; i < cached_fields; i++) {
-          OpIndex phi =
-              MaybePhi(merge_phis.phi_inputs(i), merge_phis.phi_type(i));
-          instance_cache_.set_mutable_field_value(i, phi);
         }
 
         return;
@@ -2897,8 +2851,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         constexpr bool kNeedsTypeOrNullCheck = false;
         auto [target, _implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
-        InstanceCache::Snapshot instance_cache_snapshot =
-            instance_cache_.SaveState();
 
         base::Vector<InliningTree*> feedback_cases =
             inlining_decisions_->function_calls()[feedback_slot_];
@@ -2970,9 +2922,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
           // An inlined tail call should still terminate execution.
           DCHECK_NULL(__ current_block());
-          // Restore the instance cache for the next inlinee or the default
-          // case.
-          instance_cache_.RestoreFromSnapshot(instance_cache_snapshot);
         }
 
         TSBlock* no_inline_block = case_blocks.back();
@@ -3029,14 +2978,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         case_blocks.push_back(__ NewBlock());
       }
       TSBlock* merge = __ NewBlock();
-      // For the control flow between the case blocks, we don't use the usual
-      // NewBlockWithPhis / SetupControlFlowEdge / BindBlockAndGeneratePhis
-      // helpers, because we don't need all their functionality. Instead, we
-      // inline trimmed-down copies of them, doing only what we need, which is
-      // handling the mutable fields cached on the InstanceCache.
-      uint32_t cached_fields = instance_cache_.num_mutable_fields();
-      BlockPhis merge_phis(decoder->zone_, instance_cache_);
-      InstanceCache::Snapshot saved_cache = instance_cache_.SaveState();
       __ Goto(case_blocks[0]);
 
       bool use_deopt_slowpath = deopts_enabled_;
@@ -3093,7 +3034,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           __ Bind(inline_block);
         }
 
-        instance_cache_.RestoreFromSnapshot(saved_cache);
         SmallZoneVector<Value, 4> direct_returns(return_count, decoder->zone_);
         if (v8_flags.trace_wasm_inlining) {
           PrintF(
@@ -3114,7 +3054,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           for (size_t ret = 0; ret < direct_returns.size(); ret++) {
             case_returns[ret].push_back(direct_returns[ret].op);
           }
-          merge_phis.AddPhiInputs(instance_cache_);
           __ Goto(merge);
         }
       }
@@ -3122,7 +3061,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       if (!use_deopt_slowpath) {
         TSBlock* no_inline_block = case_blocks.back();
         __ Bind(no_inline_block);
-        instance_cache_.RestoreFromSnapshot(saved_cache);
         auto [target, implicit_arg] =
             BuildFunctionReferenceTargetAndImplicitArg(
                 func_ref.op, func_ref.type, signature_hash);
@@ -3132,7 +3070,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         for (size_t ret = 0; ret < ref_returns.size(); ret++) {
           case_returns[ret].push_back(ref_returns[ret].op);
         }
-        merge_phis.AddPhiInputs(instance_cache_);
         __ Goto(merge);
       }
 
@@ -3140,11 +3077,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       for (size_t i = 0; i < case_returns.size(); i++) {
         returns[i].op = __ Phi(base::VectorOf(case_returns[i]),
                                RepresentationFor(sig->GetReturn(i)));
-      }
-      for (uint32_t i = 0; i < cached_fields; i++) {
-        OpIndex phi =
-            MaybePhi(merge_phis.phi_inputs(i), merge_phis.phi_type(i));
-        instance_cache_.set_mutable_field_value(i, phi);
       }
     } else {
       auto [target, implicit_arg] = BuildFunctionReferenceTargetAndImplicitArg(
@@ -3180,8 +3112,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
           case_blocks;
 
-      InstanceCache::Snapshot instance_cache_snapshot =
-          instance_cache_.SaveState();
       for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
         case_blocks.push_back(__ NewBlock());
       }
@@ -3221,8 +3151,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
         // An inlined tail call should still terminate execution.
         DCHECK_NULL(__ current_block());
-        // Restore the instance cache for the next inlinee or the default case.
-        instance_cache_.RestoreFromSnapshot(instance_cache_snapshot);
       }
 
       TSBlock* no_inline_block = case_blocks.back();
@@ -5404,7 +5332,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // conditional branches).
   class InstanceCache {
    public:
-    explicit InstanceCache(Assembler& assembler) : asm_(assembler) {}
+    explicit InstanceCache(Assembler& assembler)
+        : mem_start_(assembler), mem_size_(assembler), asm_(assembler) {}
 
     void Initialize(V<WasmTrustedInstanceData> trusted_instance_data,
                     const WasmModule* mod) {
@@ -5435,34 +5364,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // Trap handler enabled memories never move.
         // Memories that can't grow have no reason to move.
         // Shared memories can only be grown in-place.
-        bool memory_can_move = mem.bounds_checks != kTrapHandler &&
-                               memory_can_grow_ && !mem.is_shared;
+        memory_can_move_ = mem.bounds_checks != kTrapHandler &&
+                           memory_can_grow_ && !mem.is_shared;
         memory_is_shared_ = mem.is_shared;
         if (memory_size_cached_) {
-          if (memory_can_grow_) memory_size_index_ = num_mutable_fields_++;
           mem_size_ = LoadMemSize();
         }
-        if (memory_can_move) {
-          memory_start_index_ = num_mutable_fields_++;
-        }
         mem_start_ = LoadMemStart();
-      }
-    }
-
-    using Snapshot = base::SmallVector<OpIndex, 2>;
-
-    Snapshot SaveState() {
-      Snapshot snapshot(num_mutable_fields_);
-      for (uint32_t i = 0; i < num_mutable_fields_; i++) {
-        snapshot[i] = mutable_field_value(i);
-      }
-      return snapshot;
-    }
-
-    void RestoreFromSnapshot(Snapshot& snapshot) {
-      DCHECK_EQ(snapshot.size(), num_mutable_fields_);
-      for (uint32_t i = 0; i < num_mutable_fields_; i++) {
-        set_mutable_field_value(i, snapshot[i]);
       }
     }
 
@@ -5471,30 +5379,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     void ReloadCachedMemory() {
       if (memory_can_move()) mem_start_ = LoadMemStart();
       if (memory_can_grow_ && memory_size_cached_) mem_size_ = LoadMemSize();
-    }
-
-    uint32_t num_mutable_fields() { return num_mutable_fields_; }
-
-    ValueType mutable_field_type(uint32_t index) {
-      // Currently both cached fields have WordPtr type.
-      DCHECK(0 <= index && index <= 1);
-      static constexpr ValueType kWordPtrType = Is64() ? kWasmI64 : kWasmI32;
-      return kWordPtrType;
-    }
-
-    OpIndex mutable_field_value(uint32_t index) {
-      if (index == memory_size_index_) return mem_size_;
-      DCHECK_EQ(memory_start_index_, index);
-      return mem_start_;
-    }
-
-    void set_mutable_field_value(uint32_t index, OpIndex value) {
-      if (index == memory_size_index_) {
-        mem_size_ = V<WordPtr>::Cast(value);
-        return;
-      }
-      DCHECK_EQ(memory_start_index_, index);
-      mem_start_ = V<WordPtr>::Cast(value);
     }
 
     V<WasmTrustedInstanceData> trusted_instance_data() { return trusted_data_; }
@@ -5537,7 +5421,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                      WasmTrustedInstanceData::kMemory0SizeOffset);
     }
 
-    bool memory_can_move() { return memory_start_index_ != kUnused; }
+    bool memory_can_move() { return memory_can_move_; }
 
     // For compatibility with `__` macro.
     Assembler& Asm() { return asm_; }
@@ -5547,18 +5431,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<FixedArray> managed_object_maps_;
     V<NativeContext> native_context_;
 
-    // Cached mutable fields (must be integrated with Phi handling):
-    V<WordPtr> mem_start_;
-    V<WordPtr> mem_size_;
+    // Cached mutable fields:
+    ScopedVar<WordPtr> mem_start_;
+    ScopedVar<WordPtr> mem_size_;
 
     // Other fields for internal usage.
     Assembler& asm_;
     bool memory_is_shared_{false};
     bool memory_can_grow_{false};
+    bool memory_can_move_{false};
     bool memory_size_cached_{false};
-    uint8_t memory_size_index_{kUnused};
-    uint8_t memory_start_index_{kUnused};
-    uint8_t num_mutable_fields_{0};
 #if DEBUG
     bool has_memory_{false};
 #endif
@@ -5575,25 +5457,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   class BlockPhis {
    public:
     // Ctor for regular blocks.
-    V8_INLINE BlockPhis(FullDecoder* decoder, Merge<Value>* merge,
-                        InstanceCache& instance_cache)
-        : incoming_exceptions_(decoder->zone()) {
+    V8_INLINE BlockPhis(FullDecoder* decoder, Merge<Value>* merge)
+        : incoming_exceptions_(decoder -> zone()) {
       // Allocate space and initialize the types of all phis.
       uint32_t num_locals = decoder->num_locals();
       uint32_t merge_arity = merge != nullptr ? merge->arity : 0;
-      uint32_t cached_fields = instance_cache.num_mutable_fields();
 
-      phi_count_ = num_locals + merge_arity + cached_fields;
+      phi_count_ = num_locals + merge_arity;
       phi_types_ = decoder->zone()->AllocateArray<ValueType>(phi_count_);
 
       base::Vector<ValueType> locals = decoder->local_types();
       std::uninitialized_copy(locals.begin(), locals.end(), phi_types_);
       for (uint32_t i = 0; i < merge_arity; i++) {
         new (&phi_types_[num_locals + i]) ValueType((*merge)[i].type);
-      }
-      for (uint32_t i = 0; i < cached_fields; i++) {
-        new (&phi_types_[num_locals + merge_arity + i])
-            ValueType(instance_cache.mutable_field_type(i));
       }
       AllocatePhiInputs(decoder->zone());
     }
@@ -5611,44 +5487,20 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 #endif
     }
 
-    // Ctor for places of "compiler-internal" control flow where we only
-    // need to merge the InstanceCache, but no locals or stack. An example
-    // is CallRef inlining.
-    BlockPhis(Zone* zone, InstanceCache& instance_cache)
-        : phi_count_(instance_cache.num_mutable_fields()),
-          incoming_exceptions_(zone) {
-      phi_types_ = zone->AllocateArray<ValueType>(phi_count_);
-      for (uint32_t i = 0; i < phi_count_; i++) {
-        new (&phi_types_[i]) ValueType(instance_cache.mutable_field_type(i));
-      }
-      AllocatePhiInputs(zone);
-    }
-    void AddPhiInputs(InstanceCache& instance_cache) {
-      DCHECK_EQ(phi_count_, instance_cache.num_mutable_fields());
-      for (uint32_t i = 0; i < phi_count_; i++) {
-        DCHECK(instance_cache.mutable_field_value(i).valid());
-        AddInputForPhi(i, instance_cache.mutable_field_value(i));
-      }
-    }
-
     // Default ctor and later initialization for function returns.
     explicit BlockPhis(Zone* zone) : incoming_exceptions_(zone) {}
-    void InitReturnPhis(base::Vector<const ValueType> return_types,
-                        InstanceCache& instance_cache) {
+    void InitReturnPhis(base::Vector<const ValueType> return_types) {
       // For `return_phis_`, nobody should have inserted into `this` before
       // calling `InitReturnPhis`.
       DCHECK_EQ(phi_count_, 0);
       DCHECK_EQ(inputs_per_phi_, 0);
 
       uint32_t return_count = static_cast<uint32_t>(return_types.size());
-      phi_count_ = return_count + instance_cache.num_mutable_fields();
+      phi_count_ = return_count;
       phi_types_ = zone()->AllocateArray<ValueType>(phi_count_);
 
       std::uninitialized_copy(return_types.begin(), return_types.end(),
                               phi_types_);
-      for (uint32_t i = 0; i < instance_cache.num_mutable_fields(); i++) {
-        phi_types_[return_count + i] = instance_cache.mutable_field_type(i);
-      }
       AllocatePhiInputs(zone());
     }
 
@@ -5809,7 +5661,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // for that merge.
   TSBlock* NewBlockWithPhis(FullDecoder* decoder, Merge<Value>* merge) {
     TSBlock* block = __ NewBlock();
-    block_phis_.emplace(block, BlockPhis(decoder, merge, instance_cache_));
+    block_phis_.emplace(block, BlockPhis(decoder, merge));
     return block;
   }
 
@@ -5822,10 +5674,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                             Merge<Value>* stack_values = nullptr) {
     if (__ current_block() == nullptr) return;
     // It is guaranteed that this element exists.
+    DCHECK_NE(block_phis_.find(block), block_phis_.end());
     BlockPhis& phis_for_block = block_phis_.find(block)->second;
-    uint32_t cached_fields = instance_cache_.num_mutable_fields();
     uint32_t merge_arity = static_cast<uint32_t>(phis_for_block.phi_count()) -
-                           decoder->num_locals() - cached_fields;
+                           decoder->num_locals();
 
     for (size_t i = 0; i < ssa_env_.size(); i++) {
       phis_for_block.AddInputForPhi(i, ssa_env_[i]);
@@ -5840,10 +5692,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       DCHECK(stack_base[i].op.valid());
       phis_for_block.AddInputForPhi(decoder->num_locals() + i,
                                     stack_base[i].op);
-    }
-    for (uint32_t i = 0; i < cached_fields; i++) {
-      phis_for_block.AddInputForPhi(decoder->num_locals() + merge_arity + i,
-                                    instance_cache_.mutable_field_value(i));
     }
     if (exception.valid()) {
       phis_for_block.AddIncomingException(exception);
@@ -5872,9 +5720,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     BlockPhis& block_phis = block_phis_it->second;
 
     uint32_t merge_arity = merge != nullptr ? merge->arity : 0;
-    uint32_t cached_fields = instance_cache_.num_mutable_fields();
-    DCHECK_EQ(decoder->num_locals() + merge_arity + cached_fields,
-              block_phis.phi_count());
+    DCHECK_EQ(decoder->num_locals() + merge_arity, block_phis.phi_count());
 
 #ifdef DEBUG
     // Check consistency of Phi storage. We do this here rather than inside
@@ -5889,12 +5735,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       uint32_t phi_index = decoder->num_locals() + i;
       (*merge)[i].op = MaybePhi(block_phis.phi_inputs(phi_index),
                                 block_phis.phi_type(phi_index));
-    }
-    for (uint32_t i = 0; i < cached_fields; i++) {
-      uint32_t phi_index = decoder->num_locals() + merge_arity + i;
-      instance_cache_.set_mutable_field_value(
-          i, MaybePhi(block_phis.phi_inputs(phi_index),
-                      block_phis.phi_type(phi_index)));
     }
     DCHECK_IMPLIES(exception == nullptr,
                    block_phis.incoming_exceptions().empty());
@@ -7528,11 +7368,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       for (size_t i = 0; i < return_count; i++) {
         return_phis_->AddInputForPhi(i, returns[i].op);
       }
-      uint32_t cached_values = instance_cache_.num_mutable_fields();
-      for (uint32_t i = 0; i < cached_values; i++) {
-        return_phis_->AddInputForPhi(return_count + i,
-                                     instance_cache_.mutable_field_value(i));
-      }
       __ Goto(return_block_);
     }
   }
@@ -7646,13 +7481,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (handled_in_this_frame) {
       // The exceptional operation could have modified memory size; we need
       // to reload the memory context into the exceptional control path.
-      // Saving and restoring the InstanceCache's state makes sure that once
-      // we get back to handling the success path, the cache correctly
-      // reflects the values available on that path.
-      InstanceCache::Snapshot saved = instance_cache_.SaveState();
       instance_cache_.ReloadCachedMemory();
       SetupControlFlowEdge(decoder, catch_block, 0, exception);
-      instance_cache_.RestoreFromSnapshot(saved);
     } else {
       DCHECK_EQ(mode_, kInlinedWithCatch);
       if (exception.valid()) return_phis_->AddIncomingException(exception);
@@ -8331,13 +8161,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         catch_block = current_catch->false_or_loop_or_catch_block;
         // The exceptional operation could have modified memory size; we need
         // to reload the memory context into the exceptional control path.
-        // Saving and restoring the InstanceCache's state makes sure that once
-        // we get back to handling the success path, the cache correctly
-        // reflects the values available on that path.
-        InstanceCache::Snapshot saved = instance_cache_.SaveState();
         instance_cache_.ReloadCachedMemory();
         SetupControlFlowEdge(decoder, catch_block, 0, exception);
-        instance_cache_.RestoreFromSnapshot(saved);
       } else {
         DCHECK_EQ(mode_, kInlinedWithCatch);
         catch_block = return_catch_block_;
@@ -8355,13 +8180,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       for (size_t i = 0; i < return_count; i++) {
         returns[i].op =
             MaybePhi(return_phis->phi_inputs(i), return_phis->phi_type(i));
-      }
-
-      uint32_t cached_values = instance_cache_.num_mutable_fields();
-      for (uint32_t i = 0; i < cached_values; i++) {
-        OpIndex phi = MaybePhi(return_phis->phi_inputs(i + return_count),
-                               instance_cache_.mutable_field_type(i));
-        instance_cache_.set_mutable_field_value(i, phi);
       }
     }
 
