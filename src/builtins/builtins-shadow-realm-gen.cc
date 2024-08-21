@@ -82,7 +82,8 @@ ShadowRealmBuiltinsAssembler::AllocateImportValueFulfilledFunction(
       CreateImportValueFulfilledFunctionContext(caller_context, eval_context,
                                                 specifier, export_name);
   return AllocateRootFunctionWithContext(
-      RootIndex::kShadowRealmImportValueFulfilledSharedFun, function_context);
+      RootIndex::kShadowRealmImportValueFulfilledSharedFun, function_context,
+      {});
 }
 
 void ShadowRealmBuiltinsAssembler::CheckAccessor(TNode<DescriptorArray> array,

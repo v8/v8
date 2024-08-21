@@ -302,7 +302,7 @@ TNode<JSFunction> AsyncFromSyncBuiltinsAssembler::
                                                               sync_iterator);
   return AllocateRootFunctionWithContext(
       RootIndex::kAsyncFromSyncIteratorCloseSyncAndRethrowSharedFun,
-      closure_context);
+      closure_context, native_context);
 }
 
 TNode<Context> AsyncFromSyncBuiltinsAssembler::

@@ -264,6 +264,22 @@ class RootVisitor;
   APPLY(V, ProxyRevoke, proxy_revoke)                                          \
   APPLY(V, AsyncFromSyncIteratorCloseSyncAndRethrow,                           \
         async_from_sync_iterator_close_sync_and_rethrow)                       \
+  APPLY(V, AsyncFunctionAwaitRejectClosure,                                    \
+        async_function_await_reject_closure)                                   \
+  APPLY(V, AsyncFunctionAwaitResolveClosure,                                   \
+        async_function_await_resolve_closure)                                  \
+  APPLY(V, AsyncGeneratorAwaitRejectClosure,                                   \
+        async_generator_await_reject_closure)                                  \
+  APPLY(V, AsyncGeneratorAwaitResolveClosure,                                  \
+        async_generator_await_resolve_closure)                                 \
+  APPLY(V, AsyncGeneratorYieldWithAwaitResolveClosure,                         \
+        async_generator_yield_with_await_resolve_closure)                      \
+  APPLY(V, AsyncGeneratorReturnClosedResolveClosure,                           \
+        async_generator_return_closed_resolve_closure)                         \
+  APPLY(V, AsyncGeneratorReturnClosedRejectClosure,                            \
+        async_generator_return_closed_reject_closure)                          \
+  APPLY(V, AsyncGeneratorReturnResolveClosure,                                 \
+        async_generator_return_resolve_closure)                                \
   APPLY(V, AsyncIteratorValueUnwrap, async_iterator_value_unwrap)              \
   APPLY(V, ArrayFromAsyncArrayLikeOnFulfilled,                                 \
         array_from_async_array_like_on_fulfilled)                              \
@@ -339,22 +355,6 @@ class RootVisitor;
   /* Indirection lists for isolate-independent builtins */                     \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
   /* Internal SharedFunctionInfos */                                           \
-  V(SharedFunctionInfo, async_function_await_reject_shared_fun,                \
-    AsyncFunctionAwaitRejectSharedFun)                                         \
-  V(SharedFunctionInfo, async_function_await_resolve_shared_fun,               \
-    AsyncFunctionAwaitResolveSharedFun)                                        \
-  V(SharedFunctionInfo, async_generator_await_reject_shared_fun,               \
-    AsyncGeneratorAwaitRejectSharedFun)                                        \
-  V(SharedFunctionInfo, async_generator_await_resolve_shared_fun,              \
-    AsyncGeneratorAwaitResolveSharedFun)                                       \
-  V(SharedFunctionInfo, async_generator_yield_with_await_resolve_shared_fun,   \
-    AsyncGeneratorYieldWithAwaitResolveSharedFun)                              \
-  V(SharedFunctionInfo, async_generator_return_resolve_shared_fun,             \
-    AsyncGeneratorReturnResolveSharedFun)                                      \
-  V(SharedFunctionInfo, async_generator_return_closed_reject_shared_fun,       \
-    AsyncGeneratorReturnClosedRejectSharedFun)                                 \
-  V(SharedFunctionInfo, async_generator_return_closed_resolve_shared_fun,      \
-    AsyncGeneratorReturnClosedResolveSharedFun)                                \
   V(SharedFunctionInfo, source_text_module_execute_async_module_fulfilled_sfi, \
     SourceTextModuleExecuteAsyncModuleFulfilledSFI)                            \
   V(SharedFunctionInfo, source_text_module_execute_async_module_rejected_sfi,  \
@@ -527,7 +527,10 @@ enum class RootIndex : uint16_t {
       kFirstImmortalImmovableRoot + kImmortalImmovableRootsCount - 1,
 
   kFirstSmiRoot = kLastStrongRoot + 1,
-  kLastSmiRoot = kLastRoot
+  kLastSmiRoot = kLastRoot,
+
+  kFirstBuiltinWithSfiRoot = kProxyRevokeSharedFun,
+  kLastBuiltinWithSfiRoot = kFirstBuiltinWithSfiRoot + BUILTINS_WITH_SFI_ROOTS_LIST(COUNT_ROOT) - 1,
 #undef COUNT_ROOT
 };
 // clang-format on

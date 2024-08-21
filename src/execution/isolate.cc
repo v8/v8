@@ -5569,8 +5569,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     StartupDeserializer startup_deserializer(this, startup_snapshot_data,
                                              can_rehash);
     startup_deserializer.DeserializeIntoIsolate();
-    InitializeBuiltinJSDispatchTable();
   }
+  InitializeBuiltinJSDispatchTable();
   if (DEBUG_BOOL) VerifyStaticRoots();
   load_stub_cache_->Initialize();
   store_stub_cache_->Initialize();

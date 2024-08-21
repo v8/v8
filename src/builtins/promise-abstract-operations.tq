@@ -35,7 +35,7 @@ const kResolveString: String = ResolveStringConstant();
 extern macro IsPromiseResolveProtectorCellInvalid(): bool;
 
 extern macro AllocateRootFunctionWithContext(
-    constexpr intptr, FunctionContext): JSFunction;
+    constexpr intptr, FunctionContext, NativeContext): JSFunction;
 
 extern macro PromiseReactionMapConstant(): Map;
 extern macro PromiseFulfillReactionJobTaskMapConstant(): Map;
@@ -329,9 +329,9 @@ macro CreatePromiseResolvingFunctions(
       promise, debugEvent, nativeContext);
 
   const resolve: JSFunction = AllocateRootFunctionWithContext(
-      kPromiseCapabilityDefaultResolveSharedFun, promiseContext);
+      kPromiseCapabilityDefaultResolveSharedFun, promiseContext, nativeContext);
   const reject: JSFunction = AllocateRootFunctionWithContext(
-      kPromiseCapabilityDefaultRejectSharedFun, promiseContext);
+      kPromiseCapabilityDefaultRejectSharedFun, promiseContext, nativeContext);
   return PromiseResolvingFunctions{
     resolve: resolve,
     reject: reject,
@@ -361,7 +361,8 @@ transitioning macro InnerNewPromiseCapability(
     const executorContext =
         CreatePromiseCapabilitiesExecutorContext(nativeContext, capability);
     const executor = AllocateRootFunctionWithContext(
-        kPromiseGetCapabilitiesExecutorSharedFun, executorContext);
+        kPromiseGetCapabilitiesExecutorSharedFun, executorContext,
+        nativeContext);
 
     const promiseConstructor = UnsafeCast<Constructor>(constructor);
     const promise = Construct(promiseConstructor, executor);

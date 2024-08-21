@@ -16943,7 +16943,7 @@ TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
   static_assert(Isolate::kBuiltinDispatchHandlesAreStatic);
   DCHECK_LT(dispatch_root_idx, JSBuiltinDispatchHandleRoot::Idx::kCount);
   return ReinterpretCast<JSDispatchHandleT>(
-      Int32Constant(isolate()->builtin_dispatch_handle(dispatch_root_idx)));
+      Uint32Constant(isolate()->builtin_dispatch_handle(dispatch_root_idx)));
 }
 #endif  // V8_ENABLE_LEAPTIERING
 
@@ -17124,16 +17124,21 @@ TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {
       LoadObjectField<Int32T>(code, Code::kFlagsOffset));
 }
 
-TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithContext(
-    TNode<SharedFunctionInfo> shared_info,
-#ifdef V8_ENABLE_LEAPTIERING
-    TNode<JSDispatchHandleT> dispatch_handle,
-#endif
-    TNode<Context> context) {
-  const TNode<Code> code = GetSharedFunctionInfoCode(shared_info);
-  const TNode<Map> map = CAST(
-      LoadContextElement(LoadNativeContext(context),
-                         Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
+TNode<JSFunction> CodeStubAssembler::AllocateRootFunctionWithContext(
+    RootIndex function, TNode<Context> context,
+    std::optional<TNode<NativeContext>> maybe_native_context) {
+  DCHECK_GE(function, RootIndex::kFirstBuiltinWithSfiRoot);
+  DCHECK_LE(function, RootIndex::kLastBuiltinWithSfiRoot);
+  DCHECK(v8::internal::IsSharedFunctionInfo(
+      isolate()->root(function).GetHeapObject()));
+  Tagged<SharedFunctionInfo> sfi = v8::internal::Cast<SharedFunctionInfo>(
+      isolate()->root(function).GetHeapObject());
+  const TNode<SharedFunctionInfo> sfi_obj =
+      UncheckedCast<SharedFunctionInfo>(LoadRoot(function));
+  const TNode<NativeContext> native_context =
+      maybe_native_context ? *maybe_native_context : LoadNativeContext(context);
+  const TNode<Map> map = CAST(LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<HeapObject> fun = Allocate(JSFunction::kSizeWithoutPrototype);
   static_assert(JSFunction::kSizeWithoutPrototype ==
                 (7 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
@@ -17145,10 +17150,17 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithContext(
   StoreObjectFieldRoot(fun, JSFunction::kFeedbackCellOffset,
                        RootIndex::kManyClosuresCell);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
-                                 shared_info);
+                                 sfi_obj);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
+  // For the native closures that are initialized here we statically know their
+  // builtin id, so there's no need to use
+  // CodeStubAssembler::GetSharedFunctionInfoCode().
+  DCHECK(sfi->HasBuiltinId());
+  const TNode<Code> code = LoadBuiltin(SmiConstant(sfi->builtin_id()));
   StoreCodePointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
 #ifdef V8_ENABLE_LEAPTIERING
+  const TNode<JSDispatchHandleT> dispatch_handle =
+      LoadBuiltinDispatchHandle(function);
   CSA_DCHECK(this, TaggedEqual(code, ResolveJSDispatchHandle(dispatch_handle)));
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kDispatchHandleOffset,
                                  dispatch_handle);

@@ -200,14 +200,11 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait() {
   auto value = Parameter<Object>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  TNode<SharedFunctionInfo> on_resolve_sfi =
-      AsyncFunctionAwaitResolveSharedFunConstant();
-  TNode<SharedFunctionInfo> on_reject_sfi =
-      AsyncFunctionAwaitRejectSharedFunConstant();
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
-  Await(context, async_function_object, value, outer_promise, on_resolve_sfi,
-        on_reject_sfi);
+  Await(context, async_function_object, value, outer_promise,
+        RootIndex::kAsyncFunctionAwaitResolveClosureSharedFun,
+        RootIndex::kAsyncFunctionAwaitRejectClosureSharedFun);
 
   // Return outer promise to avoid adding an load of the outer promise before
   // suspending in BytecodeGenerator.

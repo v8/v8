@@ -1431,38 +1431,38 @@ void Heap::CreateInitialMutableObjects() {
   {
     DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncFunctionAwaitRejectClosure, 1);
-    set_async_function_await_reject_shared_fun(*info);
+    set_async_function_await_reject_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncFunctionAwaitResolveClosure, 1);
-    set_async_function_await_resolve_shared_fun(*info);
+    set_async_function_await_resolve_closure_shared_fun(*info);
   }
 
   // Async generators:
   {
     DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncGeneratorAwaitResolveClosure, 1);
-    set_async_generator_await_resolve_shared_fun(*info);
+    set_async_generator_await_resolve_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncGeneratorAwaitRejectClosure, 1);
-    set_async_generator_await_reject_shared_fun(*info);
+    set_async_generator_await_reject_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure, 1);
-    set_async_generator_yield_with_await_resolve_shared_fun(*info);
+    set_async_generator_yield_with_await_resolve_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncGeneratorReturnResolveClosure, 1);
-    set_async_generator_return_resolve_shared_fun(*info);
+    set_async_generator_return_resolve_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncGeneratorReturnClosedResolveClosure, 1);
-    set_async_generator_return_closed_resolve_shared_fun(*info);
+    set_async_generator_return_closed_resolve_closure_shared_fun(*info);
 
     info = CreateSharedFunctionInfo(
         isolate(), Builtin::kAsyncGeneratorReturnClosedRejectClosure, 1);
-    set_async_generator_return_closed_reject_shared_fun(*info);
+    set_async_generator_return_closed_reject_closure_shared_fun(*info);
   }
 
   // AsyncIterator:

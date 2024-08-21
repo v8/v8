@@ -75,11 +75,10 @@ TNode<Context> ProxiesCodeStubAssembler::CreateProxyRevokeFunctionContext(
 TNode<JSFunction> ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
     TNode<Context> context, TNode<JSProxy> proxy) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
-
   const TNode<Context> proxy_context =
       CreateProxyRevokeFunctionContext(proxy, native_context);
   return AllocateRootFunctionWithContext(RootIndex::kProxyRevokeSharedFun,
-                                         proxy_context);
+                                         proxy_context, native_context);
 }
 
 TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {

@@ -4192,26 +4192,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TVariable<Uint16T>* data_type_out = nullptr,
       Label* if_compile_lazy = nullptr);
 
-  TNode<JSFunction> AllocateFunctionWithContext(
-      TNode<SharedFunctionInfo> shared_info,
-#ifdef V8_ENABLE_LEAPTIERING
-      TNode<JSDispatchHandleT> dispatch_handle,
-#endif
-      TNode<Context> context);
-  TNode<JSFunction> AllocateRootFunctionWithContext(RootIndex function,
-                                                    TNode<Context> context) {
-    return AllocateFunctionWithContext(
-        UncheckedCast<SharedFunctionInfo>(LoadRoot(function)),
-#ifdef V8_ENABLE_LEAPTIERING
-        LoadBuiltinDispatchHandle(function),
-#endif
-        context);
-  }
+  TNode<JSFunction> AllocateRootFunctionWithContext(
+      RootIndex function, TNode<Context> context,
+      std::optional<TNode<NativeContext>> maybe_native_context);
   // Used from Torque because Torque
-  TNode<JSFunction> AllocateRootFunctionWithContext(intptr_t function,
-                                                    TNode<Context> context) {
+  TNode<JSFunction> AllocateRootFunctionWithContext(
+      intptr_t function, TNode<Context> context,
+      TNode<NativeContext> native_context) {
     return AllocateRootFunctionWithContext(static_cast<RootIndex>(function),
-                                           context);
+                                           context, native_context);
   }
 
   // Promise helpers

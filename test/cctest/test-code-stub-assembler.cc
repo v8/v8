@@ -3001,7 +3001,8 @@ TEST(AllocateRootFunctionWithContext) {
   TNode<Context> promise_context = m.CreatePromiseResolvingFunctionsContext(
       context, promise, m.BooleanConstant(false), native_context);
   const TNode<JSFunction> resolve = m.AllocateRootFunctionWithContext(
-      RootIndex::kPromiseCapabilityDefaultResolveSharedFun, promise_context);
+      RootIndex::kPromiseCapabilityDefaultResolveSharedFun, promise_context,
+      native_context);
   m.Return(resolve);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
