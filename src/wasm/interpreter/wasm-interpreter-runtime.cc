@@ -2067,11 +2067,11 @@ void WasmInterpreterRuntime::ExecuteCallRef(
   if (IsWasmInternalFunction(*func_ref)) {
     Tagged<WasmInternalFunction> wasm_internal_function =
         Cast<WasmInternalFunction>(*func_ref);
-    Tagged<Object> ref = wasm_internal_function->implicit_arg();
-    if (IsWasmImportData(ref)) {
-      func_ref = handle(ref, isolate_);
+    Tagged<Object> implicit_arg = wasm_internal_function->implicit_arg();
+    if (IsWasmImportData(implicit_arg)) {
+      func_ref = handle(implicit_arg, isolate_);
     } else {
-      DCHECK(IsWasmTrustedInstanceData(ref));
+      DCHECK(IsWasmTrustedInstanceData(implicit_arg));
       func_ref = WasmInternalFunction::GetOrCreateExternal(
           handle(wasm_internal_function, isolate_));
       DCHECK(IsJSFunction(*func_ref) || IsUndefined(*func_ref));

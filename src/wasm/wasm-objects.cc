@@ -506,7 +506,7 @@ void WasmTableObject::UpdateDispatchTables(
   DirectHandle<FixedArray> uses(table->uses(), isolate);
   DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
-  DirectHandle<TrustedObject> call_ref =
+  DirectHandle<TrustedObject> implicit_arg =
       func->imported
           // The function in the target instance was imported. Use its imports
           // table to look up the ref.
@@ -536,17 +536,20 @@ void WasmTableObject::UpdateDispatchTables(
     DirectHandle<WasmInstanceObject> instance_object(
         Cast<WasmInstanceObject>(uses->get(i + TableUses::kInstanceOffset)),
         isolate);
-    if (v8_flags.wasm_to_js_generic_wrapper && IsWasmImportData(*call_ref)) {
-      auto orig_ref = Cast<WasmImportData>(call_ref);
-      DirectHandle<WasmImportData> new_ref =
-          isolate->factory()->NewWasmImportData(orig_ref);
-      if (new_ref->instance_data() == instance_object->trusted_data(isolate)) {
-        WasmImportData::SetIndexInTableAsCallOrigin(new_ref, entry_index);
+    if (v8_flags.wasm_to_js_generic_wrapper &&
+        IsWasmImportData(*implicit_arg)) {
+      auto import_data = Cast<WasmImportData>(implicit_arg);
+      DirectHandle<WasmImportData> new_import_data =
+          isolate->factory()->NewWasmImportData(import_data);
+      if (new_import_data->instance_data() ==
+          instance_object->trusted_data(isolate)) {
+        WasmImportData::SetIndexInTableAsCallOrigin(new_import_data,
+                                                    entry_index);
       } else {
         WasmImportData::SetCrossInstanceTableIndexAsCallOrigin(
-            isolate, new_ref, instance_object, entry_index);
+            isolate, new_import_data, instance_object, entry_index);
       }
-      call_ref = new_ref;
+      implicit_arg = new_import_data;
     }
     Tagged<WasmTrustedInstanceData> non_shared_instance_data =
         instance_object->trusted_data(isolate);
@@ -558,7 +561,7 @@ void WasmTableObject::UpdateDispatchTables(
     SBXCHECK(FunctionSigMatchesTable(
         canonical_sig_id, target_instance_data->module(), table_index));
     target_instance_data->dispatch_table(table_index)
-        ->Set(entry_index, *call_ref, call_target, canonical_sig_id);
+        ->Set(entry_index, *implicit_arg, call_target, canonical_sig_id);
 #else   // !V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless &&
         instance_object->trusted_data(isolate)->has_interpreter_object()) {
@@ -567,7 +570,7 @@ void WasmTableObject::UpdateDispatchTables(
           isolate, instance_handle, table_index);
     }
     target_instance_data->dispatch_table(table_index)
-        ->Set(entry_index, *call_ref, call_target, canonical_sig_id,
+        ->Set(entry_index, *implicit_arg, call_target, canonical_sig_id,
               target_func_index);
 #endif  // !V8_ENABLE_DRUMBRAKE
   }
@@ -1175,16 +1178,18 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
   DCHECK(v8_flags.wasm_jitless ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToJsWrapper ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToCapiWrapper);
-  DirectHandle<WasmImportData> ref = isolate->factory()->NewWasmImportData(
-      callable, suspend, instance_data_,
-      wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig));
+  DirectHandle<WasmImportData> import_data =
+      isolate->factory()->NewWasmImportData(
+          callable, suspend, instance_data_,
+          wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig));
   // The wasm-to-js wrapper is already optimized, the call_origin should never
   // be accessed.
-  ref->set_call_origin(Smi::FromInt(WasmImportData::kInvalidCallOrigin));
+  import_data->set_call_origin(
+      Smi::FromInt(WasmImportData::kInvalidCallOrigin));
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
-  dispatch_table->SetForImport(index_, *ref,
+  dispatch_table->SetForImport(index_, *import_data,
                                v8_flags.wasm_jitless
                                    ? Address()
                                    : wasm_to_js_wrapper->instruction_start());
@@ -1791,14 +1796,14 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
 
 // static
 void WasmImportData::SetImportIndexAsCallOrigin(
-    DirectHandle<WasmImportData> ref, int entry_index) {
-  ref->set_call_origin(Smi::FromInt(-entry_index - 1));
+    DirectHandle<WasmImportData> import_data, int entry_index) {
+  import_data->set_call_origin(Smi::FromInt(-entry_index - 1));
 }
 
 // static
 void WasmImportData::SetIndexInTableAsCallOrigin(
-    DirectHandle<WasmImportData> ref, int entry_index) {
-  ref->set_call_origin(Smi::FromInt(entry_index + 1));
+    DirectHandle<WasmImportData> import_data, int entry_index) {
+  import_data->set_call_origin(Smi::FromInt(entry_index + 1));
 }
 
 // static
@@ -1824,18 +1829,19 @@ int WasmImportData::CallOriginAsIndex(DirectHandle<Object> call_origin) {
 
 // static
 void WasmImportData::SetCrossInstanceTableIndexAsCallOrigin(
-    Isolate* isolate, DirectHandle<WasmImportData> ref,
+    Isolate* isolate, DirectHandle<WasmImportData> import_data,
     DirectHandle<WasmInstanceObject> instance_object, int entry_index) {
   DirectHandle<Tuple2> tuple = isolate->factory()->NewTuple2(
       instance_object, direct_handle(Smi::FromInt(entry_index + 1), isolate),
       AllocationType::kOld);
-  ref->set_call_origin(*tuple);
+  import_data->set_call_origin(*tuple);
 }
 
 // static
 void WasmImportData::SetFuncRefAsCallOrigin(
-    DirectHandle<WasmImportData> ref, DirectHandle<WasmFuncRef> func_ref) {
-  ref->set_call_origin(*func_ref);
+    DirectHandle<WasmImportData> import_data,
+    DirectHandle<WasmFuncRef> func_ref) {
+  import_data->set_call_origin(*func_ref);
 }
 
 // static
@@ -1920,18 +1926,19 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   // Update the dispatch table.
   int sig_id = static_cast<int>(
       std::distance(module_canonical_ids.begin(), sig_in_module));
-  DirectHandle<WasmImportData> ref = isolate->factory()->NewWasmImportData(
-      callable, suspend, trusted_instance_data,
-      wasm::SerializedSignatureHelper::SerializeSignature(
-          isolate, module->signature(sig_id)));
+  DirectHandle<WasmImportData> import_data =
+      isolate->factory()->NewWasmImportData(
+          callable, suspend, trusted_instance_data,
+          wasm::SerializedSignatureHelper::SerializeSignature(
+              isolate, module->signature(sig_id)));
 
-  WasmImportData::SetIndexInTableAsCallOrigin(ref, entry_index);
+  WasmImportData::SetIndexInTableAsCallOrigin(import_data, entry_index);
 #if !V8_ENABLE_DRUMBRAKE
   trusted_instance_data->dispatch_table(table_index)
-      ->Set(entry_index, *ref, call_target, canonical_sig_index);
+      ->Set(entry_index, *import_data, call_target, canonical_sig_index);
 #else   // !V8_ENABLE_DRUMBRAKE
   trusted_instance_data->dispatch_table(table_index)
-      ->Set(entry_index, *ref, call_target, canonical_sig_index,
+      ->Set(entry_index, *import_data, call_target, canonical_sig_index,
             WasmDispatchTable::kInvalidFunctionIndex);
 #endif  // !V8_ENABLE_DRUMBRAKE
 }

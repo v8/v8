@@ -32,28 +32,28 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   TVARIABLE(NativeContext, context_result);
   TNode<HeapObject> function_or_instance =
       CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
-  Label js(this);
-  Label apifunc(this);
+  Label is_js_function(this);
+  Label is_import_data(this);
   Label done(this);
   TNode<Uint16T> instance_type =
       LoadMapInstanceType(LoadMap(function_or_instance));
-  GotoIf(IsJSFunctionInstanceType(instance_type), &js);
+  GotoIf(IsJSFunctionInstanceType(instance_type), &is_js_function);
   GotoIf(Word32Equal(instance_type, Int32Constant(WASM_IMPORT_DATA_TYPE)),
-         &apifunc);
+         &is_import_data);
   context_result = LoadContextFromInstanceData(CAST(function_or_instance));
   Goto(&done);
 
-  BIND(&js);
+  BIND(&is_js_function);
   TNode<JSFunction> function = CAST(function_or_instance);
   TNode<Context> context =
       LoadObjectField<Context>(function, JSFunction::kContextOffset);
   context_result = LoadNativeContext(context);
   Goto(&done);
 
-  BIND(&apifunc);
-  TNode<WasmImportData> apiref = CAST(function_or_instance);
+  BIND(&is_import_data);
+  TNode<WasmImportData> import_data = CAST(function_or_instance);
   context_result = LoadObjectField<NativeContext>(
-      apiref, WasmImportData::kNativeContextOffset);
+      import_data, WasmImportData::kNativeContextOffset);
   Goto(&done);
 
   BIND(&done);
@@ -167,10 +167,10 @@ TF_BUILTIN(WasmToJsWrapperCSA, WasmBuiltinsAssembler) {
 }
 
 TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
-  TNode<WasmImportData> ref =
+  TNode<WasmImportData> data =
       UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData);
   TNode<Context> context =
-      LoadObjectField<Context>(ref, WasmImportData::kNativeContextOffset);
+      LoadObjectField<Context>(data, WasmImportData::kNativeContextOffset);
 
   CallRuntime(Runtime::kWasmThrowJSTypeError, context);
   Unreachable();

@@ -3540,7 +3540,8 @@ void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
   ASM_CODE_COMMENT(masm);
   __ StoreWord(zero_reg,
                MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
-  __ StoreWord(zero_reg, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+  __ StoreWord(zero_reg,
+               MemOperand(fp, StackSwitchFrameConstants::kImplicitArgOffset));
 }
 
 void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
@@ -3914,9 +3915,10 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
 }
 
 // Loads the context field of the WasmTrustedInstanceData or WasmImportData
-// depending on the ref's type, and places the result in the input register.
-void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
-  __ LoadTaggedField(scratch, FieldMemOperand(ref, HeapObject::kMapOffset));
+// depending on the data's type, and places the result in the input register.
+void GetContextFromImplicitArg(MacroAssembler* masm, Register data,
+                               Register scratch) {
+  __ LoadTaggedField(scratch, FieldMemOperand(data, HeapObject::kMapOffset));
   Label instance;
   Label end;
   __ GetInstanceTypeRange(scratch, scratch, WASM_TRUSTED_INSTANCE_DATA_TYPE,
@@ -3924,11 +3926,12 @@ void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
   // __ CompareInstanceType(scratch, scratch, WASM_TRUSTED_INSTANCE_DATA_TYPE);
   __ Branch(&instance, eq, scratch, Operand(zero_reg));
   __ LoadTaggedField(
-      ref, FieldMemOperand(ref, WasmImportData::kNativeContextOffset));
+      data, FieldMemOperand(data, WasmImportData::kNativeContextOffset));
   __ Branch(&end);
   __ bind(&instance);
   __ LoadTaggedField(
-      ref, FieldMemOperand(ref, WasmTrustedInstanceData::kNativeContextOffset));
+      data,
+      FieldMemOperand(data, WasmTrustedInstanceData::kNativeContextOffset));
   __ bind(&end);
 }
 
@@ -3948,8 +3951,8 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Label* return_promise) {
       promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
 
   __ LoadWord(kContextRegister,
-              MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
-  GetContextFromRef(masm, kContextRegister, tmp);
+              MemOperand(fp, StackSwitchFrameConstants::kImplicitArgOffset));
+  GetContextFromImplicitArg(masm, kContextRegister, tmp);
 
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp,
                            tmp2);
@@ -3991,10 +3994,10 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
       promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
 
   __ LoadWord(kContextRegister,
-              MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+              MemOperand(fp, StackSwitchFrameConstants::kImplicitArgOffset));
   Register tmp = kScratchReg;
   Register tmp2 = kScratchReg2;
-  GetContextFromRef(masm, kContextRegister, tmp);
+  GetContextFromImplicitArg(masm, kContextRegister, tmp);
   ReloadParentContinuation(masm, promise, reason, kContextRegister, tmp, tmp2);
   RestoreParentSuspender(masm, tmp, tmp2);
 
@@ -4022,9 +4025,10 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
       sp, sp,
       Operand(StackSwitchFrameConstants::kNumSpillSlots * kSystemPointerSize));
 
-  Register ref = kWasmInstanceRegister;
-  __ LoadWord(ref,
-              MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset));
+  Register implicit_arg = kWasmInstanceRegister;
+  __ LoadWord(
+      implicit_arg,
+      MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
 
   Register wrapper_buffer =
       WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
@@ -4032,7 +4036,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   Register original_fp = kScratchReg;
   Register new_wrapper_buffer = kScratchReg2;
   if (stack_switch) {
-    SwitchToAllocatedStack(masm, ref, wrapper_buffer, original_fp,
+    SwitchToAllocatedStack(masm, implicit_arg, wrapper_buffer, original_fp,
                            new_wrapper_buffer, &suspend);
   } else {
     original_fp = fp;
@@ -4044,7 +4048,9 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
         new_wrapper_buffer,
         MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
     if (stack_switch) {
-      __ StoreWord(ref, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+      __ StoreWord(
+          implicit_arg,
+          MemOperand(fp, StackSwitchFrameConstants::kImplicitArgOffset));
       UseScratchRegisterScope temps(masm);
       Register scratch = temps.Acquire();
       __ LoadWord(
@@ -4205,17 +4211,18 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   if (stack_switch) {
     __ LoadWord(a1,
                 MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
-    __ LoadWord(a0, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+    __ LoadWord(a0,
+                MemOperand(fp, StackSwitchFrameConstants::kImplicitArgOffset));
   } else {
     __ LoadWord(
         a1,
         MemOperand(fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
     __ LoadWord(a0,
-                MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset));
+                MemOperand(fp, JSToWasmWrapperFrameConstants::kParamOffset));
   }
   {
     UseScratchRegisterScope temps(masm);
-    GetContextFromRef(masm, a0, temps.Acquire());
+    GetContextFromImplicitArg(masm, a0, temps.Acquire());
   }
   __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 

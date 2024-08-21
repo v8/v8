@@ -3532,12 +3532,11 @@ void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
 Tagged<WasmInstanceObject> WasmToJsFrame::wasm_instance() const {
   // WasmToJsFrames hold the {WasmImportData} object in the instance slot.
   // Load the instance from there.
-  const int offset = WasmFrameConstants::kWasmInstanceOffset;
-  Tagged<Object> func_ref_obj(Memory<Address>(fp() + offset));
-  Tagged<WasmImportData> func_ref = Cast<WasmImportData>(func_ref_obj);
+  Tagged<WasmImportData> import_data = Cast<WasmImportData>(Tagged<Object>{
+      Memory<Address>(fp() + WasmFrameConstants::kWasmInstanceOffset)});
   // TODO(42204563): Avoid crashing if the instance object is not available.
-  CHECK(func_ref->instance_data()->has_instance_object());
-  return func_ref->instance_data()->instance_object();
+  CHECK(import_data->instance_data()->has_instance_object());
+  return import_data->instance_data()->instance_object();
 }
 
 Tagged<WasmTrustedInstanceData> WasmToJsFrame::trusted_instance_data() const {
@@ -3728,7 +3727,7 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
                        spill_slot_limit);
   // Also visit fixed spill slots that contain references.
   FullObjectSlot instance_slot(
-      &Memory<Address>(fp() + StackSwitchFrameConstants::kRefOffset));
+      &Memory<Address>(fp() + StackSwitchFrameConstants::kImplicitArgOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, instance_slot);
   FullObjectSlot result_array_slot(
       &Memory<Address>(fp() + StackSwitchFrameConstants::kResultArrayOffset));

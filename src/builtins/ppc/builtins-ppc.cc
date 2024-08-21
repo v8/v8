@@ -3159,20 +3159,22 @@ void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
 }
 
 // Loads the context field of the WasmTrustedInstanceData or WasmImportData
-// depending on the ref's type, and places the result in the input register.
-void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
-  __ LoadTaggedField(scratch, FieldMemOperand(ref, HeapObject::kMapOffset), r0);
+// depending on the data's type, and places the result in the input register.
+void GetContextFromImplicitArg(MacroAssembler* masm, Register data,
+                               Register scratch) {
+  __ LoadTaggedField(scratch, FieldMemOperand(data, HeapObject::kMapOffset),
+                     r0);
   __ CompareInstanceType(scratch, scratch, WASM_TRUSTED_INSTANCE_DATA_TYPE);
   Label instance;
   Label end;
   __ beq(&instance);
   __ LoadTaggedField(
-      ref, FieldMemOperand(ref, WasmImportData::kNativeContextOffset), r0);
+      data, FieldMemOperand(data, WasmImportData::kNativeContextOffset), r0);
   __ jmp(&end);
   __ bind(&instance);
   __ LoadTaggedField(
-      ref, FieldMemOperand(ref, WasmTrustedInstanceData::kNativeContextOffset),
-      r0);
+      data,
+      FieldMemOperand(data, WasmTrustedInstanceData::kNativeContextOffset), r0);
   __ bind(&end);
 }
 
@@ -3226,7 +3228,8 @@ void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
   __ Move(zero, Smi::zero());
   __ StoreU64(zero,
               MemOperand(fp, StackSwitchFrameConstants::kResultArrayOffset));
-  __ StoreU64(zero, MemOperand(fp, StackSwitchFrameConstants::kRefOffset));
+  __ StoreU64(zero,
+              MemOperand(fp, StackSwitchFrameConstants::kImplicitArgOffset));
 }
 
 void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
@@ -3318,7 +3321,7 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
 
   // Load the instance into r6.
   __ LoadU64(kWasmInstanceRegister,
-             MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset),
+             MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset),
              r0);
 
   {
@@ -3383,10 +3386,11 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
       r4,
       MemOperand(fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset),
       r0);
-  __ LoadU64(r3, MemOperand(fp, JSToWasmWrapperFrameConstants::kRefParamOffset),
+  __ LoadU64(r3,
+             MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset),
              r0);
   Register scratch = r6;
-  GetContextFromRef(masm, r3, scratch);
+  GetContextFromImplicitArg(masm, r3, scratch);
 
   __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 

@@ -992,8 +992,8 @@ class WasmImportData
 
   static constexpr int kInvalidCallOrigin = 0;
 
-  static void SetImportIndexAsCallOrigin(DirectHandle<WasmImportData> ref,
-                                         int entry_index);
+  static void SetImportIndexAsCallOrigin(
+      DirectHandle<WasmImportData> import_data, int entry_index);
 
   static bool CallOriginIsImportIndex(DirectHandle<Object> call_origin);
 
@@ -1001,14 +1001,14 @@ class WasmImportData
 
   static int CallOriginAsIndex(DirectHandle<Object> call_origin);
 
-  static void SetIndexInTableAsCallOrigin(DirectHandle<WasmImportData> ref,
-                                          int entry_index);
+  static void SetIndexInTableAsCallOrigin(
+      DirectHandle<WasmImportData> import_data, int entry_index);
 
   static void SetCrossInstanceTableIndexAsCallOrigin(
-      Isolate* isolate, DirectHandle<WasmImportData> ref,
+      Isolate* isolate, DirectHandle<WasmImportData> import_data,
       DirectHandle<WasmInstanceObject> instance_object, int entry_index);
 
-  static void SetFuncRefAsCallOrigin(DirectHandle<WasmImportData> ref,
+  static void SetFuncRefAsCallOrigin(DirectHandle<WasmImportData> import_data,
                                      DirectHandle<WasmFuncRef> func_ref);
 
   using BodyDescriptor =

@@ -3394,18 +3394,19 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
 }
 
 // Loads the context field of the WasmTrustedInstanceData or WasmImportData
-// depending on the ref's type, and places the result in the input register.
-void GetContextFromRef(MacroAssembler* masm, Register ref, Register scratch) {
-  __ Move(scratch, FieldOperand(ref, HeapObject::kMapOffset));
+// depending on the data's type, and places the result in the input register.
+void GetContextFromImplicitArg(MacroAssembler* masm, Register data,
+                               Register scratch) {
+  __ Move(scratch, FieldOperand(data, HeapObject::kMapOffset));
   __ CmpInstanceType(scratch, WASM_TRUSTED_INSTANCE_DATA_TYPE);
   Label instance;
   Label end;
   __ j(equal, &instance);
-  __ Move(ref, FieldOperand(ref, WasmImportData::kNativeContextOffset));
+  __ Move(data, FieldOperand(data, WasmImportData::kNativeContextOffset));
   __ jmp(&end);
   __ bind(&instance);
-  __ Move(ref,
-          FieldOperand(ref, WasmTrustedInstanceData::kNativeContextOffset));
+  __ Move(data,
+          FieldOperand(data, WasmTrustedInstanceData::kNativeContextOffset));
   __ bind(&end);
 }
 
@@ -3437,7 +3438,8 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
 }
 
 void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
-  __ mov(MemOperand(ebp, StackSwitchFrameConstants::kRefOffset), Immediate(0));
+  __ mov(MemOperand(ebp, StackSwitchFrameConstants::kImplicitArgOffset),
+         Immediate(0));
   __ mov(MemOperand(ebp, StackSwitchFrameConstants::kResultArrayOffset),
          Immediate(0));
 }
@@ -3527,8 +3529,8 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp,
   __ LoadRoot(promise, RootIndex::kActiveSuspender);
   __ Move(promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   __ mov(kContextRegister,
-         MemOperand(ebp, StackSwitchFrameConstants::kRefOffset));
-  GetContextFromRef(masm, kContextRegister, tmp);
+         MemOperand(ebp, StackSwitchFrameConstants::kImplicitArgOffset));
+  GetContextFromImplicitArg(masm, kContextRegister, tmp);
 
   ReloadParentContinuation(masm, promise, return_value, kContextRegister, tmp,
                            tmp2);
@@ -3573,12 +3575,12 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   __ Move(promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
 
   __ mov(kContextRegister,
-         MemOperand(ebp, StackSwitchFrameConstants::kRefOffset));
+         MemOperand(ebp, StackSwitchFrameConstants::kImplicitArgOffset));
   constexpr Register tmp1 = edi;
   static_assert(tmp1 != promise && tmp1 != reason && tmp1 != kContextRegister);
   constexpr Register tmp2 = edx;
   static_assert(tmp2 != promise && tmp2 != reason && tmp2 != kContextRegister);
-  GetContextFromRef(masm, kContextRegister, tmp1);
+  GetContextFromImplicitArg(masm, kContextRegister, tmp1);
   ReloadParentContinuation(masm, promise, reason, kContextRegister, tmp1, tmp2);
   __ Push(promise);
   RestoreParentSuspender(masm, promise, edi);
@@ -3625,8 +3627,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   if (stack_switch) {
     // Preserve wasm_instance across the switch.
     __ mov(eax, MemOperand(original_fp,
-                           JSToWasmWrapperFrameConstants::kRefParamOffset));
-    __ mov(MemOperand(ebp, StackSwitchFrameConstants::kRefOffset), eax);
+                           JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+    __ mov(MemOperand(ebp, StackSwitchFrameConstants::kImplicitArgOffset), eax);
 
     Register result_array = eax;
     __ mov(result_array,
@@ -3723,10 +3725,10 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // Pick up the instance from frame.
   if (stack_switch) {
     __ mov(kWasmInstanceRegister,
-           MemOperand(ebp, StackSwitchFrameConstants::kRefOffset));
+           MemOperand(ebp, StackSwitchFrameConstants::kImplicitArgOffset));
   } else {
     __ mov(kWasmInstanceRegister,
-           MemOperand(ebp, JSToWasmWrapperFrameConstants::kRefParamOffset));
+           MemOperand(ebp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
   }
 
   Register call_target = edi;
@@ -3771,17 +3773,17 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // ecx: the result JSArray for multi-return.
   // edx: pointer to the byte buffer which contains all parameters.
   if (stack_switch) {
-    __ mov(eax, MemOperand(ebp, StackSwitchFrameConstants::kRefOffset));
+    __ mov(eax, MemOperand(ebp, StackSwitchFrameConstants::kImplicitArgOffset));
     __ mov(ecx, MemOperand(ebp, StackSwitchFrameConstants::kResultArrayOffset));
   } else {
     __ mov(eax,
-           MemOperand(ebp, JSToWasmWrapperFrameConstants::kRefParamOffset));
+           MemOperand(ebp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
     __ mov(ecx,
            MemOperand(ebp,
                       JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
   }
   Register scratch = edx;
-  GetContextFromRef(masm, eax, scratch);
+  GetContextFromImplicitArg(masm, eax, scratch);
   __ mov(edx, wrapper_buffer);
   __ CallBuiltin(Builtin::kJSToWasmHandleReturns);
 
