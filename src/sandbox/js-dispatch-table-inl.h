@@ -121,8 +121,8 @@ uint16_t JSDispatchTable::GetParameterCount(JSDispatchHandle handle) {
 void JSDispatchTable::Mark(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
 
-  // The null entry is immortal and immutable, so no need to mark it as alive.
-  if (handle == kNullJSDispatchHandle) return;
+  // The read-only space is immortal and cannot be written to.
+  if (index < kEndOfInternalReadOnlySegment) return;
 
   CFIMetadataWriteScope write_scope("JSDispatchTable write");
   at(index).Mark();

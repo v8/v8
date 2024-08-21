@@ -254,12 +254,14 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
     ExternalEntityTable<Entry, size>* const table_;
   };
 
+ protected:
+  static constexpr uint32_t kInternalReadOnlySegmentOffset = 0;
+  static constexpr uint32_t kInternalNullEntryIndex = 0;
+  static constexpr uint32_t kEndOfInternalReadOnlySegment = kEntriesPerSegment;
+
  private:
   // Required for Isolate::CheckIsolateLayout().
   friend class Isolate;
-
-  static constexpr uint32_t kInternalReadOnlySegmentOffset = 0;
-  static constexpr uint32_t kInternalNullEntryIndex = 0;
 
   // Helpers to toggle the first segment's permissions between kRead (sealed)
   // and kReadWrite (unsealed).

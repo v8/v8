@@ -16939,28 +16939,11 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
 
 #ifdef V8_ENABLE_LEAPTIERING
 TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
-    Builtin builtin) {
-  return LoadBuiltinDispatchHandle(
-      SmiConstant(JSBuiltinDispatchHandleRoot::to_idx(builtin)));
-}
-
-TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
-    RootIndex root_idx) {
-  return LoadBuiltinDispatchHandle(
-      SmiConstant(JSBuiltinDispatchHandleRoot::to_idx(root_idx)));
-}
-
-TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
-    TNode<Smi> builtin_id) {
-  CSA_DCHECK(this, SmiBelow(builtin_id, SmiConstant(Builtins::kBuiltinCount)));
-
-  TNode<IntPtrT> offset =
-      ElementOffsetFromIndex(SmiToBInt(builtin_id), PACKED_SMI_ELEMENTS);
-
-  TNode<ExternalReference> table =
-      IsolateField(IsolateFieldId::kBuiltinDispatchTable);
-
-  return Load<JSDispatchHandleT>(table, offset);
+    JSBuiltinDispatchHandleRoot::Idx dispatch_root_idx) {
+  static_assert(Isolate::kBuiltinDispatchHandlesAreStatic);
+  DCHECK_LT(dispatch_root_idx, JSBuiltinDispatchHandleRoot::Idx::kCount);
+  return ReinterpretCast<JSDispatchHandleT>(
+      Int32Constant(isolate()->builtin_dispatch_handle(dispatch_root_idx)));
 }
 #endif  // V8_ENABLE_LEAPTIERING
 

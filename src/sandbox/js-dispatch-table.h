@@ -169,6 +169,23 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   JSDispatchHandle AllocateAndInitializeEntry(Space* space,
                                               uint16_t parameter_count);
 
+  // The following methods are used to pre allocate entries and then initialize
+  // them later.
+  JSDispatchHandle PreAllocateEntries(Space* space, int num,
+                                      bool ensure_static_handles);
+  bool PreAllocatedEntryNeedsInitialization(Space* space,
+                                            JSDispatchHandle handle);
+  void InitializePreAllocatedEntry(Space* space, JSDispatchHandle handle,
+                                   Tagged<Code> code, uint16_t parameter_count);
+
+  // Can be used to statically predict the handles if the pre allocated entries
+  // are in the overall first read only segment of the whole table.
+  inline static JSDispatchHandle GetStaticHandleForInitialSegmentEntry(
+      int index) {
+    return static_cast<JSDispatchHandle>(kInternalNullEntryIndex + 1 + index)
+           << kJSDispatchHandleShift;
+  }
+
   // Marks the specified entry as alive.
   //
   // This method is atomic and can be called from background threads.

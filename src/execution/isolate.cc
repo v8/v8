@@ -108,6 +108,7 @@
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/roots/static-roots.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/embedded/embedded-file-writer-interface.h"
 #include "src/snapshot/read-only-deserializer.h"
@@ -7381,25 +7382,40 @@ void DefaultWasmAsyncResolvePromiseCallback(
   CHECK(ret.IsJust() ? ret.FromJust() : isolate->IsExecutionTerminating());
 }
 
+// Mutex used to ensure that the dispatch table entries for builtins are only
+// initialized once.
+base::LazyMutex read_only_dispatch_entries_mutex_ = LAZY_MUTEX_INITIALIZER;
+
 void Isolate::InitializeBuiltinJSDispatchTable() {
 #ifdef V8_ENABLE_LEAPTIERING
-  for (JSBuiltinDispatchHandleRoot::Idx idx =
-           JSBuiltinDispatchHandleRoot::kFirst;
-       idx < JSBuiltinDispatchHandleRoot::kEnd;
-       idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
-           static_cast<int>(idx) + 1)) {
-    Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
-    Tagged<Code> code = builtins_.code(builtin);
-    DCHECK(code->entrypoint_tag() == CodeEntrypointTag::kJSEntrypointTag);
-    // TODO(olivf, 40931165): It might be more robust to get the static
-    // parameter count of this builtin.
-    JSDispatchHandle handle =
-        GetProcessWideJSDispatchTable()->AllocateAndInitializeEntry(
-            read_only_heap()->js_dispatch_table_space(),
-            code->parameter_count());
-    DCHECK(!GetProcessWideJSDispatchTable()->HasCode(handle));
-    GetProcessWideJSDispatchTable()->SetCode(handle, code);
-    builtin_dispatch_table()[idx] = handle;
+  // Ideally these entries would be created when the read only heap is
+  // initialized. However, since builtins are deserialized later, we need to
+  // patch it up here. Also, we need a mutex so the shared read only heaps space
+  // is not initialized multiple times. This must be blocking as no isolate
+  // should be allowed to proceed until the table is initialized.
+  base::MutexGuard guard(read_only_dispatch_entries_mutex_.Pointer());
+  auto jdt = GetProcessWideJSDispatchTable();
+  if (jdt->PreAllocatedEntryNeedsInitialization(
+          read_only_heap_->js_dispatch_table_space(),
+          builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst))) {
+    JSDispatchTable::UnsealReadOnlySegmentScope unseal_scope(jdt);
+    for (JSBuiltinDispatchHandleRoot::Idx idx =
+             JSBuiltinDispatchHandleRoot::kFirst;
+         idx < JSBuiltinDispatchHandleRoot::kCount;
+         idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
+             static_cast<int>(idx) + 1)) {
+      Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
+      DCHECK(Builtins::IsIsolateIndependent(builtin));
+      Tagged<Code> code = builtins_.code(builtin);
+      DCHECK(code->entrypoint_tag() == CodeEntrypointTag::kJSEntrypointTag);
+      JSDispatchHandle handle = builtin_dispatch_handle(builtin);
+      // TODO(olivf, 40931165): It might be more robust to get the static
+      // parameter count of this builtin.
+      int parameter_count = code->parameter_count();
+      jdt->InitializePreAllocatedEntry(
+          read_only_heap_->js_dispatch_table_space(), handle, code,
+          parameter_count);
+    }
   }
 #endif
 }
