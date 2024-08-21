@@ -265,7 +265,7 @@ namespace internal {
     "proxy target")                                                            \
   T(ProxyGetOwnPropertyDescriptorNonConfigurableWritable,                      \
     "'getOwnPropertyDescriptor' on proxy: trap reported non-configurable "     \
-    "and writable for property '%' which is non-configurable, non-writable "   \
+    "and non-writable for property '%' which is non-configurable, writable "   \
     "in the proxy target")                                                     \
   T(ProxyGetOwnPropertyDescriptorNonExtensible,                                \
     "'getOwnPropertyDescriptor' on proxy: trap returned undefined for "        \
