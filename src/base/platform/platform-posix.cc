@@ -55,6 +55,8 @@
 #if V8_OS_DARWIN
 #include <mach/mach.h>
 #include <malloc/malloc.h>
+#elif V8_OS_OPENBSD
+#include <sys/malloc.h>
 #elif !V8_OS_ZOS
 #include <malloc.h>
 #endif
@@ -1363,6 +1365,15 @@ bool MainThreadIsCurrentThread() {
 Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
 #if V8_OS_ZOS
   return __get_stack_start();
+#elif V8_OS_OPENBSD
+  stack_t stack;
+  int error = pthread_stackseg_np(pthread_self(), &stack);
+  if(error) {
+    DCHECK(MainThreadIsCurrentThread());
+    return nullptr;
+  }
+  void* stack_start = reinterpret_cast<uint8_t*>(stack.ss_sp) + stack.ss_size;
+  return stack_start;
 #else
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);

@@ -64,6 +64,12 @@ extern "C" unsigned long __readfsdword(unsigned long);  // NOLINT(runtime/int)
 #endif                                       // V8_CC_MSVC && V8_HOST_ARCH_IA32
 #endif                                       // V8_NO_FAST_TLS
 
+#if V8_OS_OPENBSD
+#define PERMISSION_MUTABLE_SECTION __attribute__((section(".openbsd.mutable")))
+#else
+#define PERMISSION_MUTABLE_SECTION
+#endif
+
 namespace heap::base {
 class Stack;
 }
