@@ -475,12 +475,6 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 }
 
 uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
-  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool) {
-    ConstantPoolEntry::Access access;
-    CHECK(Assembler::IsConstantPoolLoadStart(pc, &access));
-    return Memory<uint32_t>(Assembler::target_constant_pool_address_at(
-        pc, constant_pool, access, ConstantPoolEntry::INTPTR));
-  }
   Instr instr1 = instr_at(pc);
   Instr instr2 = instr_at(pc + kInstrSize);
   // Set by Assembler::mov.
@@ -492,14 +486,6 @@ uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
 void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
                                        uint32_t new_constant,
                                        ICacheFlushMode icache_flush_mode) {
-  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool) {
-    ConstantPoolEntry::Access access;
-    CHECK(Assembler::IsConstantPoolLoadStart(pc, &access));
-    Memory<uint32_t>(Assembler::target_constant_pool_address_at(
-        pc, constant_pool, access, ConstantPoolEntry::INTPTR)) = new_constant;
-    // Icache flushing not needed for Ldr via the constant pool.
-    return;
-  }
   Instr instr1 = instr_at(pc);
   Instr instr2 = instr_at(pc + kInstrSize);
   // Set by Assembler::mov.
