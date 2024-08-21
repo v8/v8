@@ -2708,7 +2708,6 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
       // Finally block
       [&](Register body_continuation_token, Register body_continuation_result) {
         if (has_await_using) {
-          RegisterAllocationScope allocation_scope(this);
           Register result_register = register_allocator()->NewRegister();
           Register disposable_stack_register =
               register_allocator()->NewRegister();
@@ -2718,15 +2717,18 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
                                    feedback_spec());
           LoopScope loop_scope(this, &loop_builder);
 
-          RegisterList args = register_allocator()->NewRegisterList(4);
-          builder()
-              ->MoveRegister(disposable_stack_register, args[0])
-              .MoveRegister(body_continuation_token, args[1])
-              .MoveRegister(body_continuation_result, args[2])
-              .LoadLiteral(
-                  Smi::FromEnum(DisposableStackResourcesType::kAtLeastOneAsync))
-              .StoreAccumulatorInRegister(args[3]);
-          builder()->CallRuntime(Runtime::kDisposeDisposableStack, args);
+          {
+            RegisterAllocationScope allocation_scope(this);
+            RegisterList args = register_allocator()->NewRegisterList(4);
+            builder()
+                ->MoveRegister(disposable_stack_register, args[0])
+                .MoveRegister(body_continuation_token, args[1])
+                .MoveRegister(body_continuation_result, args[2])
+                .LoadLiteral(Smi::FromEnum(
+                    DisposableStackResourcesType::kAtLeastOneAsync))
+                .StoreAccumulatorInRegister(args[3]);
+            builder()->CallRuntime(Runtime::kDisposeDisposableStack, args);
+          }
 
           builder()
               ->StoreAccumulatorInRegister(result_register)
