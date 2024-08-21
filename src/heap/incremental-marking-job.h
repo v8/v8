@@ -26,9 +26,9 @@ class IncrementalMarkingJob final {
   IncrementalMarkingJob(const IncrementalMarkingJob&) = delete;
   IncrementalMarkingJob& operator=(const IncrementalMarkingJob&) = delete;
 
-  // Schedules a task with a given `task_type`. Safe to be called from any
+  // Schedules a task with the given `priority`. Safe to be called from any
   // thread.
-  void ScheduleTask();
+  void ScheduleTask(TaskPriority priority = TaskPriority::kUserBlocking);
 
   // Returns a weighted average of time to task. For delayed tasks the time to
   // task is only recorded after the initial delay. In case a task is currently
@@ -41,7 +41,8 @@ class IncrementalMarkingJob final {
   class Task;
 
   Heap* const heap_;
-  const std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  const std::shared_ptr<v8::TaskRunner> user_blocking_task_runner_;
+  const std::shared_ptr<v8::TaskRunner> user_visible_task_runner_;
   mutable base::Mutex mutex_;
   v8::base::TimeTicks scheduled_time_;
   bool pending_task_ = false;

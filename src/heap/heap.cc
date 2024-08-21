@@ -2081,7 +2081,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
         break;
       case IncrementalMarkingLimit::kSoftLimit:
         if (auto* job = incremental_marking()->incremental_marking_job()) {
-          job->ScheduleTask();
+          job->ScheduleTask(TaskPriority::kUserVisible);
         }
         break;
       case IncrementalMarkingLimit::kFallbackForEmbedderLimit:
@@ -5927,8 +5927,10 @@ void Heap::InitializeHashSeed() {
           kInt64Size);
 }
 
-std::shared_ptr<v8::TaskRunner> Heap::GetForegroundTaskRunner() const {
-  return task_runner_;
+std::shared_ptr<v8::TaskRunner> Heap::GetForegroundTaskRunner(
+    TaskPriority priority) const {
+  return V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+      reinterpret_cast<v8::Isolate*>(isolate()), priority);
 }
 
 // static
@@ -7604,7 +7606,7 @@ void Heap::NotifyLoadingEnded() {
   if (auto* job = incremental_marking()->incremental_marking_job()) {
     // The task will start incremental marking (if needed not already started)
     // and advance marking if incremental marking is active.
-    job->ScheduleTask();
+    job->ScheduleTask(TaskPriority::kUserVisible);
   }
 }
 
