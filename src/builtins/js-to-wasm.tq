@@ -611,6 +611,15 @@ macro JSToWasmWrapperHelper(
 
   let locationAllocator = LocationAllocatorForParams(paramBuffer);
   let hasRefParam: bool = false;
+  // A storage for converted reference parameters, so that they don't get
+  // garbage collected if the conversion of primitive parameters causes a GC.
+  // The storage gets allocated lazily when the first reference parameter gets
+  // converted to avoid performance regressions for signatures without tagged
+  // parameters. An old implementation used the `arguments` array as the storage
+  // for converted reference parameters, but this does not work because then
+  // converted reference parameters can be accessed from JavaScript using
+  // `Function.prototype.arguments`.
+  let convertedTagged: FixedArray|Smi = Convert<Smi>(0);
 
   let paramTypeIndex: int32 = 0;
   for (let paramIndex: int32 = 0; paramTypeIndex < paramCount; paramIndex++) {
@@ -661,7 +670,12 @@ macro JSToWasmWrapperHelper(
       // primitive types are finished. For now we write the converted parameter
       // back to the stack.
       hasRefParam = true;
-      arguments[Convert<intptr>(paramIndex)] =
+      if (TaggedIsSmi(convertedTagged)) {
+        convertedTagged =
+            WasmAllocateZeroedFixedArray(Convert<intptr>(paramCount));
+      }
+      UnsafeCast<FixedArray>(convertedTagged)
+          .objects[Convert<intptr>(paramIndex)] =
           JSToWasmObject(context, trustedInstanceData, paramType, param);
     }
   }
@@ -687,7 +701,8 @@ macro JSToWasmWrapperHelper(
         paramIndex++;
         continue;
       }
-      const param = arguments[Convert<intptr>(paramIndex++)];
+      const param = UnsafeCast<FixedArray>(convertedTagged)
+                        .objects[Convert<intptr>(paramIndex++)];
       let toRef = locationAllocator.GetGPSlot();
       *toRef = BitcastTaggedToWord(param);
       k++;
