@@ -25,6 +25,8 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 // -----------------------------------------------------------------------------
 // TurboFan support builtins.
 
@@ -1685,6 +1687,8 @@ TF_BUILTIN(GetOwnPropertyDescriptor, CodeStubAssembler) {
   TailCallRuntime(Runtime::kGetOwnPropertyDescriptorObject, context, receiver,
                   key);
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

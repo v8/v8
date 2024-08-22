@@ -36,6 +36,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 namespace {
 
 using Label = CodeAssemblerLabel;
@@ -4557,6 +4559,8 @@ TEST(IntPtrMulWithOverflow) {
                  isolate));
   }
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace compiler
 }  // namespace internal

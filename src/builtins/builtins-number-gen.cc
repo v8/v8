@@ -11,6 +11,8 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 // -----------------------------------------------------------------------------
 // ES6 section 20.1 Number Objects
 
@@ -292,6 +294,8 @@ TF_BUILTIN(StrictEqual_Baseline, CodeStubAssembler) {
 
   Return(result);
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

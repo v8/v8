@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 class AsyncFunctionBuiltinsAssembler : public AsyncBuiltinsAssembler {
  public:
   explicit AsyncFunctionBuiltinsAssembler(compiler::CodeAssemblerState* state)
@@ -215,6 +217,8 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait() {
 TF_BUILTIN(AsyncFunctionAwait, AsyncFunctionBuiltinsAssembler) {
   AsyncFunctionAwait<Descriptor>();
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

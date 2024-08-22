@@ -43,6 +43,15 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
+#ifdef DEBUG
+#define CSA_DCHECK_BRANCH(csa, gen, ...) \
+  (csa)->Dcheck(gen, #gen, __FILE__, __LINE__, CSA_DCHECK_ARGS(__VA_ARGS__))
+#else
+#define CSA_DCHECK_BRANCH(csa, ...) ((void)0)
+#endif
+
 namespace {
 
 Builtin BigIntComparisonBuiltinOf(Operation const& op) {
@@ -18625,6 +18634,10 @@ void CodeStubAssembler::GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
     *mask = WordShl(IntPtrConstant(1), r1);
   }
 }
+
+#undef CSA_DCHECK_BRANCH
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

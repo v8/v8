@@ -21,6 +21,8 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 void Builtins::Generate_ConstructVarargs(MacroAssembler* masm) {
   Generate_CallOrConstructVarargs(masm, Builtin::kConstruct);
 }
@@ -760,6 +762,8 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
       },
       kTaggedSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

@@ -24,6 +24,8 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
  public:
   explicit ObjectEntriesValuesBuiltinsAssembler(
@@ -1712,5 +1714,8 @@ TNode<HeapObject> ObjectBuiltinsAssembler::GetAccessorOrUndefined(
   BIND(&return_result);
   return result.value();
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
+
 }  // namespace internal
 }  // namespace v8

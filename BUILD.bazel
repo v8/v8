@@ -3612,6 +3612,8 @@ filegroup(
         "third_party/v8/codegen/fp16-inl.h",
         "src/codegen/code-stub-assembler-inl.h",
         "src/codegen/code-stub-assembler.h",
+        "src/codegen/define-code-stub-assembler-macros.inc",
+        "src/codegen/undef-code-stub-assembler-macros.inc",
         "src/heap/setup-heap-internal.cc",
         "src/ic/accessor-assembler.cc",
         "src/ic/accessor-assembler.h",

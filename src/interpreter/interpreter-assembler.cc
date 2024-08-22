@@ -19,6 +19,8 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 using compiler::CodeAssemblerState;
 
 InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
@@ -1710,6 +1712,10 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
   SetAccumulator(var_result.value());
   Dispatch();
 }
+
+#undef TVARIABLE_CONSTRUCTOR
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace interpreter
 }  // namespace internal

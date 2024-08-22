@@ -30,6 +30,8 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 namespace {
 
 using compiler::CodeAssemblerState;
@@ -3335,6 +3337,8 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
 
   return code;
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace interpreter
 }  // namespace internal

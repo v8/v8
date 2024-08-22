@@ -48,6 +48,8 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 class CallInterfaceDescriptor;
 class CodeStubArguments;
 class CodeStubAssembler;
@@ -55,102 +57,6 @@ class StatsCounter;
 class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
-
-#ifdef DEBUG
-#define CSA_CHECK(csa, x) \
-  (csa)->Check([&]() -> TNode<BoolT> { return x; }, #x, __FILE__, __LINE__)
-#else
-#define CSA_CHECK(csa, x) (csa)->FastCheck(x)
-#endif
-
-#define CSA_CHECK_WITH_ABORT(csa, x) \
-  (csa)->Check([&]() -> TNode<BoolT> { return x; }, #x, __FILE__, __LINE__)
-
-// This is a check that always calls into the runtime if it aborts.
-// This also exits silently when --hole-fuzzing is enabled.
-#define CSA_HOLE_SECURITY_CHECK(csa, x) CSA_CHECK_WITH_ABORT(csa, x)
-
-#ifdef DEBUG
-// CSA_DCHECK_ARGS generates an
-// std::initializer_list<CodeStubAssembler::ExtraNode> from __VA_ARGS__. It
-// currently supports between 0 and 2 arguments.
-
-// clang-format off
-#define CSA_DCHECK_0_ARGS(...) {}
-#define CSA_DCHECK_1_ARG(a, ...) {{a, #a}}
-#define CSA_DCHECK_2_ARGS(a, b, ...) {{a, #a}, {b, #b}}
-// clang-format on
-#define SWITCH_CSA_DCHECK_ARGS(dummy, a, b, FUNC, ...) FUNC(a, b)
-#define CSA_DCHECK_ARGS(...)                                        \
-  CALL(SWITCH_CSA_DCHECK_ARGS, (, ##__VA_ARGS__, CSA_DCHECK_2_ARGS, \
-                                CSA_DCHECK_1_ARG, CSA_DCHECK_0_ARGS))
-// Workaround for MSVC to skip comma in empty __VA_ARGS__.
-#define CALL(x, y) x y
-
-// CSA_DCHECK(csa, <condition>, <extra values to print...>)
-
-#define CSA_DCHECK(csa, condition_node, ...)                         \
-  (csa)->Dcheck(condition_node, #condition_node, __FILE__, __LINE__, \
-                CSA_DCHECK_ARGS(__VA_ARGS__))
-
-// CSA_DCHECK_BRANCH(csa, [](Label* ok, Label* not_ok) {...},
-//     <extra values to print...>)
-
-#define CSA_DCHECK_BRANCH(csa, gen, ...) \
-  (csa)->Dcheck(gen, #gen, __FILE__, __LINE__, CSA_DCHECK_ARGS(__VA_ARGS__))
-
-#define CSA_DCHECK_JS_ARGC_OP(csa, Op, op, expected)                           \
-  (csa)->Dcheck(                                                               \
-      [&]() -> TNode<BoolT> {                                                  \
-        const TNode<Word32T> argc = (csa)->UncheckedParameter<Word32T>(        \
-            Descriptor::kJSActualArgumentsCount);                              \
-        return (csa)->Op(argc,                                                 \
-                         (csa)->Int32Constant(i::JSParameterCount(expected))); \
-      },                                                                       \
-      "argc " #op " " #expected, __FILE__, __LINE__,                           \
-      {{SmiFromInt32((csa)->UncheckedParameter<Int32T>(                        \
-            Descriptor::kJSActualArgumentsCount)),                             \
-        "argc"}})
-
-#define CSA_DCHECK_JS_ARGC_EQ(csa, expected) \
-  CSA_DCHECK_JS_ARGC_OP(csa, Word32Equal, ==, expected)
-
-#define CSA_DEBUG_INFO(name) \
-  { #name, __FILE__, __LINE__ }
-#define BIND(label) Bind(label, CSA_DEBUG_INFO(label))
-#define TYPED_VARIABLE_DEF(type, name, ...) \
-  TVariable<type> name(CSA_DEBUG_INFO(name), __VA_ARGS__)
-#define TYPED_VARIABLE_CONSTRUCTOR(name, ...) \
-  name(CSA_DEBUG_INFO(name), __VA_ARGS__)
-#else  // DEBUG
-#define CSA_DCHECK(csa, ...) ((void)0)
-#define CSA_DCHECK_BRANCH(csa, ...) ((void)0)
-#define CSA_DCHECK_JS_ARGC_EQ(csa, expected) ((void)0)
-#define BIND(label) Bind(label)
-#define TYPED_VARIABLE_DEF(type, name, ...) TVariable<type> name(__VA_ARGS__)
-#define TYPED_VARIABLE_CONSTRUCTOR(name, ...) name(__VA_ARGS__)
-#endif  // DEBUG
-
-#define TVARIABLE(...) EXPAND(TYPED_VARIABLE_DEF(__VA_ARGS__, this))
-#define TVARIABLE_CONSTRUCTOR(...) \
-  EXPAND(TYPED_VARIABLE_CONSTRUCTOR(__VA_ARGS__, this))
-
-#ifdef ENABLE_SLOW_DCHECKS
-#define CSA_SLOW_DCHECK(csa, ...)     \
-  if (v8_flags.enable_slow_asserts) { \
-    CSA_DCHECK(csa, __VA_ARGS__);     \
-  }
-#else
-#define CSA_SLOW_DCHECK(csa, ...) ((void)0)
-#endif
-
-// Similar to SBXCHECK in C++, these become a CSA_CHECK in sandbox-enabled
-// builds, otherwise a CSA_DCHECK.
-#ifdef V8_ENABLE_SANDBOX
-#define CSA_SBXCHECK(csa, ...) CSA_CHECK(csa, __VA_ARGS__)
-#else
-#define CSA_SBXCHECK(csa, ...) CSA_DCHECK(csa, __VA_ARGS__)
-#endif
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
@@ -4945,9 +4851,12 @@ DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags)
   inline TNode<Map> CodeStubAssembler::GetClassMapConstant<class_name>() { \
     return class_name##MapConstant();                                      \
   }
-
 UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(CLASS_MAP_CONSTANT_ADAPTER, _)
+#undef CLASS_MAP_CONSTANT_ADAPTER
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8
+
 #endif  // V8_CODEGEN_CODE_STUB_ASSEMBLER_H_

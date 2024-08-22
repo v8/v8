@@ -13,6 +13,8 @@
 
 namespace v8::internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
   return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
@@ -175,5 +177,7 @@ TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
   CallRuntime(Runtime::kWasmThrowJSTypeError, context);
   Unreachable();
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace v8::internal
