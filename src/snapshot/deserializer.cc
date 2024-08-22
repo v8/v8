@@ -1297,18 +1297,21 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
   uint32_t entry_id = source_.GetUint30();
   uint32_t parameter_count = source_.GetUint30();
   DCHECK_LE(parameter_count, kMaxUInt16);
+  Handle<Code> code = Cast<Code>(ReadObject());
 
   JSDispatchHandle handle;
   auto it = js_dispatch_entries_map_.find(entry_id);
   if (it != js_dispatch_entries_map_.end()) {
     handle = it->second;
     DCHECK_EQ(parameter_count, jdt->GetParameterCount(handle));
+    DCHECK_EQ(*code, jdt->GetCode(handle));
   } else {
     JSDispatchTable::Space* space =
         IsolateForSandbox(isolate()).GetJSDispatchTableSpaceFor(
             host->address());
     handle = jdt->AllocateAndInitializeEntry(space, parameter_count);
     js_dispatch_entries_map_[entry_id] = handle;
+    jdt->SetCode(handle, *code);
   }
 
   host->Relaxed_WriteField<JSDispatchHandle>(slot_accessor.offset(), handle);

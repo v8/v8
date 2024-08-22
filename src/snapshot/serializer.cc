@@ -1254,6 +1254,7 @@ void Serializer::ObjectSerializer::VisitProtectedPointer(
 void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
 #ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
   // If the slot is empty, we will skip it here and then just serialize the
   // null handle as raw data.
   if (handle == kNullJSDispatchHandle) return;
@@ -1266,12 +1267,13 @@ void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
 
   sink_->Put(kAllocateJSDispatchEntry, "AllocateJSDispatchEntry");
   sink_->PutUint30(handle >> kJSDispatchHandleShift, "EntryID");
-  sink_->PutUint30(GetProcessWideJSDispatchTable()->GetParameterCount(handle),
-                   "ParameterCount");
+  sink_->PutUint30(jdt->GetParameterCount(handle), "ParameterCount");
 
-  // TODO(saelo): in the future, we will probably also need to serialize the
-  // Code object here, then decode it in the deserializer and write it into the
-  // dispatch table entry.
+  // Currently we cannot see pending objects here, but we may need to support
+  // them in the future. They should already be supported by the deserializer.
+  Handle<Code> code(jdt->GetCode(handle), isolate());
+  CHECK(!serializer_->SerializePendingObject(*code));
+  serializer_->SerializeObject(code, SlotType::kAnySlot);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_LEAPTIERING
