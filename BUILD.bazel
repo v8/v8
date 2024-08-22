@@ -490,8 +490,7 @@ v8_config(
             ],
             "@v8//bazel/config:v8_target_ppc64le": [
                 # NOTE: Bazel rules for ppc64le weren't tested on a real system.
-                "V8_TARGET_ARCH_PPC64",
-                "V8_TARGET_ARCH_PPC_LE",
+                "V8_TARGET_ARCH_PPC64"
             ],
         },
         no_match_error = "Please specify a target cpu supported by v8",

@@ -745,7 +745,7 @@ void OS::DebugBreak() {
   asm("break");
 #elif V8_HOST_ARCH_LOONG64
   asm("break 0");
-#elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
+#elif V8_HOST_ARCH_PPC64
   asm("twge 2,2");
 #elif V8_HOST_ARCH_IA32
   asm("int $3");

@@ -4,7 +4,7 @@
 
 [
 [ALWAYS, {
-  'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
+  'skip-stack-guard-page': [PASS, ['((arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
   # "data" is supposed to fail for "data segment does not fit"; missing rebase
@@ -170,7 +170,7 @@
    'func': ['variant == stress', SKIP],
 }],  # 'arch == riscv32'
 
-['arch == ppc or arch == ppc64', {
+['arch == ppc64', {
   # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
   'f32': [SKIP],
   'f64': [SKIP],
@@ -188,7 +188,7 @@
   'proposals/bulk-memory-operations/conversions': [SKIP],
   'proposals/reference-types/conversions':  [SKIP],
   'proposals/tail-call/conversions':  [SKIP],
-}],  # 'arch == ppc or arch == ppc64'
+}],  # 'arch == ppc64'
 
 ['arch == s390 or arch == s390x', {
   # These tests fail because s390 float min and max doesn't convert sNaN to qNaN.

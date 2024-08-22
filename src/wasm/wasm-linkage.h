@@ -79,9 +79,9 @@ constexpr Register kGpReturnRegisters[] = {a0, a1};
 constexpr DoubleRegister kFpParamRegisters[] = {f0, f1, f2, f3, f4, f5, f6, f7};
 constexpr DoubleRegister kFpReturnRegisters[] = {f0, f1};
 
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 // ===========================================================================
-// == ppc & ppc64 ============================================================
+// == ppc64 ==================================================================
 // ===========================================================================
 constexpr Register kGpParamRegisters[] = {r10, r3, r5, r6, r7, r8, r9};
 constexpr Register kGpReturnRegisters[] = {r3, r4};

@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_PPC64
 
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
@@ -1992,4 +1992,4 @@ void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
 
 }  // namespace disasm
 
-#endif  // V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#endif  // V8_TARGET_ARCH_PPC64

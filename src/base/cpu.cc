@@ -20,7 +20,7 @@
 #if V8_OS_QNX
 #include <sys/syspage.h>  // cpuinfo
 #endif
-#if V8_OS_LINUX && (V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64)
+#if V8_OS_LINUX && V8_HOST_ARCH_PPC64
 #include <elf.h>
 #endif
 #if V8_OS_AIX
@@ -900,7 +900,7 @@ CPU::CPU()
 #endif  // V8_OS_IOS
 #endif  // V8_OS_WIN
 
-#elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
+#elif V8_HOST_ARCH_PPC64
 
 #ifndef USE_SIMULATOR
 #if V8_OS_LINUX

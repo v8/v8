@@ -1422,27 +1422,18 @@ config("toolchain") {
       cflags += [ "-march=z196" ]
     }
   }
-  if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
-    if (v8_current_cpu == "ppc") {
-      defines += [ "V8_TARGET_ARCH_PPC" ]
-    } else if (v8_current_cpu == "ppc64") {
-      defines += [ "V8_TARGET_ARCH_PPC64" ]
-      cflags += [ "-ffp-contract=off" ]
-    }
-    if (host_byteorder == "little") {
-      defines += [ "V8_TARGET_ARCH_PPC_LE" ]
-    } else if (host_byteorder == "big") {
-      defines += [ "V8_TARGET_ARCH_PPC_BE" ]
-      if (current_os == "aix") {
-        cflags += [
-          # Work around AIX ceil, trunc and round oddities.
-          "-mcpu=power5+",
-          "-mfprnd",
+  if (v8_current_cpu == "ppc64") {
+    defines += [ "V8_TARGET_ARCH_PPC64" ]
+    cflags += [ "-ffp-contract=off" ]
+    if (current_os == "aix") {
+      cflags += [
+        # Work around AIX ceil, trunc and round oddities.
+        "-mcpu=power5+",
+        "-mfprnd",
 
-          # Work around AIX assembler popcntb bug.
-          "-mno-popcntb",
-        ]
-      }
+        # Work around AIX assembler popcntb bug.
+        "-mno-popcntb",
+      ]
     }
   }
 
@@ -3028,11 +3019,6 @@ v8_source_set("v8_initializers") {
     sources += [
       ### gcmole(loong64) ###
       "src/builtins/loong64/builtins-loong64.cc",
-    ]
-  } else if (v8_current_cpu == "ppc") {
-    sources += [
-      ### gcmole(ppc) ###
-      "src/builtins/ppc/builtins-ppc.cc",
     ]
   } else if (v8_current_cpu == "ppc64") {
     sources += [
@@ -4706,23 +4692,6 @@ v8_header_set("v8_internal_headers") {
         sources += [ "src/trap-handler/trap-handler-simulator.h" ]
       }
     }
-  } else if (v8_current_cpu == "ppc") {
-    sources += [
-      ### gcmole(ppc) ###
-      "src/codegen/ppc/assembler-ppc-inl.h",
-      "src/codegen/ppc/assembler-ppc.h",
-      "src/codegen/ppc/constants-ppc.h",
-      "src/codegen/ppc/interface-descriptors-ppc-inl.h",
-      "src/codegen/ppc/macro-assembler-ppc.h",
-      "src/codegen/ppc/register-ppc.h",
-      "src/codegen/ppc/reglist-ppc.h",
-      "src/compiler/backend/ppc/instruction-codes-ppc.h",
-      "src/compiler/backend/ppc/unwinding-info-writer-ppc.h",
-      "src/execution/ppc/frame-constants-ppc.h",
-      "src/execution/ppc/simulator-ppc.h",
-      "src/regexp/ppc/regexp-macro-assembler-ppc.h",
-      "src/wasm/baseline/ppc/liftoff-assembler-ppc-inl.h",
-    ]
   } else if (v8_current_cpu == "ppc64") {
     sources += [
       ### gcmole(ppc64) ###
@@ -5059,14 +5028,6 @@ if (v8_current_cpu == "x86") {
     "src/compiler/backend/loong64/code-generator-loong64.cc",
     "src/compiler/backend/loong64/instruction-scheduler-loong64.cc",
     "src/compiler/backend/loong64/instruction-selector-loong64.cc",
-  ]
-} else if (v8_current_cpu == "ppc") {
-  v8_compiler_sources += [
-    ### gcmole(ppc) ###
-    "src/compiler/backend/ppc/code-generator-ppc.cc",
-    "src/compiler/backend/ppc/instruction-scheduler-ppc.cc",
-    "src/compiler/backend/ppc/instruction-selector-ppc.cc",
-    "src/compiler/backend/ppc/unwinding-info-writer-ppc.cc",
   ]
 } else if (v8_current_cpu == "ppc64") {
   v8_compiler_sources += [
@@ -6094,21 +6055,6 @@ v8_source_set("v8_base_without_compiler") {
         sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
       }
     }
-  } else if (v8_current_cpu == "ppc") {
-    sources += [
-      ### gcmole(ppc) ###
-      "src/codegen/ppc/assembler-ppc.cc",
-      "src/codegen/ppc/constants-ppc.cc",
-      "src/codegen/ppc/cpu-ppc.cc",
-      "src/codegen/ppc/macro-assembler-ppc.cc",
-      "src/deoptimizer/ppc/deoptimizer-ppc.cc",
-      "src/diagnostics/ppc/disasm-ppc.cc",
-      "src/diagnostics/ppc/eh-frame-ppc.cc",
-      "src/diagnostics/ppc/unwinder-ppc.cc",
-      "src/execution/ppc/frame-constants-ppc.cc",
-      "src/execution/ppc/simulator-ppc.cc",
-      "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
-    ]
   } else if (v8_current_cpu == "ppc64") {
     sources += [
       ### gcmole(ppc64) ###
@@ -6299,7 +6245,7 @@ v8_source_set("v8_base_without_compiler") {
   # Platforms that don't have CAS support need to link atomic library
   # to implement atomic memory access
   if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
-      v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
+      v8_current_cpu == "ppc64" ||
       (current_os != "zos" &&
        (v8_current_cpu == "s390" || v8_current_cpu == "s390x")) ||
       v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {

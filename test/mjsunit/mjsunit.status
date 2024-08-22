@@ -1126,7 +1126,7 @@
 }],  # 'arch in (mips64el, mips64)'
 
 ##############################################################################
-['arch in (mips64el, mips64, ppc, ppc64)', {
+['arch in (mips64el, mips64, ppc64)', {
   # These tests fail because qNaN and sNaN values are encoded differently on
   # MIPS and ARM/x86 architectures
   'wasm/float-constant-folding': [SKIP],
@@ -1698,7 +1698,7 @@
 
   # Goes OOM on ODROID devices: https://crbug.com/v8/9026
   # Too slow on PPC: https://crbug.com/v8/9246
-  'es6/large-classes-properties': [PASS, SLOW, ['(arch == arm and not simulator_run) or arch in [ppc, ppc64]', SKIP]],
+  'es6/large-classes-properties': [PASS, SLOW, ['(arch == arm and not simulator_run) or arch == ppc64', SKIP]],
   'regress/regress-1122': [PASS, ['tsan', SKIP]],
 
   # Too slow with gc_stress on arm64.
