@@ -1285,6 +1285,7 @@ class WasmFrame : public TypedFrame {
   Tagged<WasmModuleObject> module_object() const;
 };
 
+// Wasm to C-API exit frame.
 class WasmExitFrame : public WasmFrame {
  public:
   Type type() const override { return WASM_EXIT; }
@@ -1438,7 +1439,7 @@ class WasmLiftoffSetupFrame : public TypedFrame {
  public:
   Type type() const override { return WASM_LIFTOFF_SETUP; }
 
-  FullObjectSlot wasm_instance_slot() const;
+  FullObjectSlot wasm_instance_data_slot() const;
 
   int GetDeclaredFunctionIndex() const;
 

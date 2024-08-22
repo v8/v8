@@ -1140,7 +1140,7 @@ Address ExitFrame::ComputeStackPointer(Address fp) {
 Address WasmExitFrame::ComputeStackPointer(Address fp) {
   // For WASM_EXIT frames, {sp} is only needed for finding the PC slot,
   // everything else is handled via safepoint information.
-  Address sp = fp + WasmExitFrameConstants::kWasmInstanceOffset;
+  Address sp = fp + WasmExitFrameConstants::kWasmInstanceDataOffset;
   DCHECK_EQ(sp - 1 * kPCOnStackSize,
             fp + WasmExitFrameConstants::kCallingPCOffset);
   return sp;
@@ -3376,8 +3376,8 @@ Tagged<WasmInstanceObject> WasmFrame::wasm_instance() const {
 }
 
 Tagged<WasmTrustedInstanceData> WasmFrame::trusted_instance_data() const {
-  const int offset = WasmFrameConstants::kWasmInstanceOffset;
-  Tagged<Object> trusted_data(Memory<Address>(fp() + offset));
+  Tagged<Object> trusted_data(
+      Memory<Address>(fp() + WasmFrameConstants::kWasmInstanceDataOffset));
   return Cast<WasmTrustedInstanceData>(trusted_data);
 }
 
@@ -3534,7 +3534,7 @@ Tagged<WasmInstanceObject> WasmToJsFrame::wasm_instance() const {
   // WasmToJsFrames hold the {WasmImportData} object in the instance slot.
   // Load the instance from there.
   Tagged<WasmImportData> import_data = Cast<WasmImportData>(Tagged<Object>{
-      Memory<Address>(fp() + WasmFrameConstants::kWasmInstanceOffset)});
+      Memory<Address>(fp() + WasmFrameConstants::kWasmInstanceDataOffset)});
   // TODO(42204563): Avoid crashing if the instance object is not available.
   CHECK(import_data->instance_data()->has_instance_object());
   return import_data->instance_data()->instance_object();
@@ -3788,8 +3788,8 @@ Tagged<HeapObject> WasmInterpreterEntryFrame::unchecked_code() const {
 }
 
 Tagged<WasmInstanceObject> WasmInterpreterEntryFrame::wasm_instance() const {
-  const int offset = WasmInterpreterFrameConstants::kWasmInstanceOffset;
-  Tagged<Object> instance(Memory<Address>(fp() + offset));
+  Tagged<Object> instance(Memory<Address>(
+      fp() + WasmInterpreterFrameConstants::kWasmInstanceObjectOffset));
   return Cast<WasmInstanceObject>(instance);
 }
 
@@ -3847,9 +3847,9 @@ wasm::NativeModule* WasmLiftoffSetupFrame::GetNativeModule() const {
       sp() + WasmLiftoffSetupFrameConstants::kNativeModuleOffset);
 }
 
-FullObjectSlot WasmLiftoffSetupFrame::wasm_instance_slot() const {
+FullObjectSlot WasmLiftoffSetupFrame::wasm_instance_data_slot() const {
   return FullObjectSlot(&Memory<Address>(
-      sp() + WasmLiftoffSetupFrameConstants::kWasmInstanceOffset));
+      sp() + WasmLiftoffSetupFrameConstants::kWasmInstanceDataOffset));
 }
 
 void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
@@ -3857,8 +3857,8 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
       fp() + WasmLiftoffSetupFrameConstants::kInstanceSpillOffset));
   v->VisitRootPointer(Root::kStackRoots, "spilled wasm instance",
                       spilled_instance_slot);
-  v->VisitRootPointer(Root::kStackRoots, "wasm instance parameter",
-                      wasm_instance_slot());
+  v->VisitRootPointer(Root::kStackRoots, "wasm instance data",
+                      wasm_instance_data_slot());
 
   wasm::NativeModule* native_module = GetNativeModule();
   int func_index = GetDeclaredFunctionIndex() +

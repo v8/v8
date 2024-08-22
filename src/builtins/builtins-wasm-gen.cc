@@ -15,7 +15,7 @@ namespace v8::internal {
 
 TNode<WasmTrustedInstanceData>
 WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
-  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
+  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
 }
 
 TNode<WasmTrustedInstanceData>
@@ -28,10 +28,10 @@ WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   static_assert(BuiltinFrameConstants::kFunctionOffset ==
-                WasmFrameConstants::kWasmInstanceOffset);
+                WasmFrameConstants::kWasmInstanceDataOffset);
   TVARIABLE(NativeContext, context_result);
   TNode<HeapObject> function_or_instance =
-      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
+      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
   Label is_js_function(this);
   Label is_import_data(this);
   Label done(this);

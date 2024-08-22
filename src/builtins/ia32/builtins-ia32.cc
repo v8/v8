@@ -3122,7 +3122,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   // [saved ebp]
   Operand marker_slot = Operand(ebp, WasmFrameConstants::kFrameTypeOffset);
   Operand instance_data_slot =
-      Operand(ebp, WasmFrameConstants::kWasmInstanceOffset);
+      Operand(ebp, WasmFrameConstants::kWasmInstanceDataOffset);
 
   // Load the feedback vector from the trusted instance data.
   __ mov(tmp, FieldOperand(kWasmImplicitArgRegister,

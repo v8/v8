@@ -3275,7 +3275,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ PopXRegList(kSavedGpRegs);
   // Restore the instance data from the frame.
   __ Ldr(kWasmImplicitArgRegister,
-         MemOperand(fp, WasmFrameConstants::kWasmInstanceOffset));
+         MemOperand(fp, WasmFrameConstants::kWasmInstanceDataOffset));
   __ Mov(scratch, StackFrame::TypeToMarker(StackFrame::WASM));
   __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
   __ B(&done);
@@ -3299,7 +3299,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // alignment reasons). The instance is needed because once this builtin is
     // done, we'll call a regular Wasm function.
     __ Str(kWasmImplicitArgRegister,
-           MemOperand(fp, WasmFrameConstants::kWasmInstanceOffset));
+           MemOperand(fp, WasmFrameConstants::kWasmInstanceDataOffset));
 
     // Save registers that we need to keep alive across the runtime call.
     __ PushXRegList(kSavedGpRegs);
@@ -3320,7 +3320,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ PopXRegList(kSavedGpRegs);
     // Restore the instance data from the frame.
     __ Ldr(kWasmImplicitArgRegister,
-           MemOperand(fp, WasmFrameConstants::kWasmInstanceOffset));
+           MemOperand(fp, WasmFrameConstants::kWasmInstanceDataOffset));
   }
 
   // The runtime function returned the jump table slot offset as a Smi (now in

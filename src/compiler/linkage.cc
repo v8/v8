@@ -766,10 +766,11 @@ LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
     }
   }
 #if V8_ENABLE_WEBASSEMBLY
-  static const int kWasmInstanceSlot = 3 + StandardFrameConstants::kCPSlotCount;
+  static const int kWasmInstanceDataSlot =
+      3 + StandardFrameConstants::kCPSlotCount;
   if (incoming_->IsWasmFunctionCall()) {
     DCHECK(IsTaggedReg(loc, kWasmImplicitArgRegister));
-    return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceSlot,
+    return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceDataSlot,
                                                MachineType::AnyTagged());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

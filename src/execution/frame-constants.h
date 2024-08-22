@@ -247,7 +247,8 @@ class CWasmEntryFrameConstants : public TypedFrameConstants {
 class WasmFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
-  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kWasmInstanceDataOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   DEFINE_TYPED_FRAME_SIZES(1);
 
   // The WasmTrapHandlerLandingPad builtin gets called from the WebAssembly
@@ -273,7 +274,13 @@ class WasmFrameConstants : public TypedFrameConstants {
 };
 
 #if V8_ENABLE_DRUMBRAKE
-class WasmInterpreterFrameConstants : public WasmFrameConstants {};
+class WasmInterpreterFrameConstants : public TypedFrameConstants {
+ public:
+  // FP-relative.
+  static constexpr int kWasmInstanceObjectOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  DEFINE_TYPED_FRAME_SIZES(1);
+};
 
 // Fixed frame slots shared by the interpreter wasm-to-js wrapper.
 class WasmToJSInterpreterFrameConstants : public TypedFrameConstants {

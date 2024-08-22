@@ -2888,7 +2888,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ MultiPopFPU(kSavedFpRegs);
   __ MultiPop(kSavedGpRegs);
   __ Ld_d(kWasmImplicitArgRegister,
-          MemOperand(fp, WasmFrameConstants::kWasmInstanceOffset));
+          MemOperand(fp, WasmFrameConstants::kWasmInstanceDataOffset));
   __ li(scratch, StackFrame::TypeToMarker(StackFrame::WASM));
   __ St_d(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
   __ Branch(&done);

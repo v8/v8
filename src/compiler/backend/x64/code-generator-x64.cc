@@ -7298,7 +7298,7 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
       __ pushq(rax);
       __ pushq(rbx);
       // Load the address of the counter into rbx.
-      __ movq(rbx, Operand(rbp, WasmFrameConstants::kWasmInstanceOffset));
+      __ movq(rbx, Operand(rbp, WasmFrameConstants::kWasmInstanceDataOffset));
       __ movq(
           rbx,
           Operand(rbx, WasmTrustedInstanceData::kStressDeoptCounterOffset - 1));

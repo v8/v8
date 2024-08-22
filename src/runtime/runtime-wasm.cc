@@ -92,8 +92,8 @@ Tagged<WasmTrustedInstanceData> GetWasmInstanceDataOnStackTop(
       Memory<intptr_t>(fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   DCHECK(StackFrame::MarkerToType(marker) == StackFrame::WASM);
 #endif
-  const int offset = WasmFrameConstants::kWasmInstanceOffset;
-  Tagged<Object> trusted_instance_data(Memory<Address>(fp + offset));
+  Tagged<Object> trusted_instance_data(
+      Memory<Address>(fp + WasmFrameConstants::kWasmInstanceDataOffset));
   return Cast<WasmTrustedInstanceData>(trusted_instance_data);
 }
 
