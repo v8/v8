@@ -345,7 +345,9 @@ base::AddressRegion CodeRange::GetPreferredRegion(size_t radius_in_megabytes,
 }
 
 void CodeRange::Free() {
-  DCHECK(!immutable_);
+  // TODO(361480580): this DCHECK is temporarily disabled since we free the
+  // global CodeRange in the PoolTest.
+  // DCHECK(!immutable_);
 
   if (IsReserved()) {
 #if defined(V8_OS_WIN64)
