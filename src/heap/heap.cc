@@ -2223,6 +2223,7 @@ void Heap::EnsureWasmCanonicalRttsSize(int length) {
 void Heap::ClearWasmCanonicalRttsForTesting() {
   ReadOnlyRoots roots(this);
   set_wasm_canonical_rtts(roots.empty_weak_array_list());
+  set_js_to_wasm_wrappers(roots.empty_weak_array_list());
 }
 #endif
 
