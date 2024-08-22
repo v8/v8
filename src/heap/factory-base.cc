@@ -86,8 +86,8 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
       AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
   code->init_self_indirect_pointer(isolate());
-  code->initialize_flags(options.kind, options.is_turbofanned,
-                         options.stack_slots);
+  code->initialize_flags(options.kind, options.is_context_specialized,
+                         options.is_turbofanned, options.stack_slots);
   code->set_builtin_id(options.builtin);
   code->set_instruction_size(options.instruction_size);
   code->set_metadata_size(options.metadata_size);

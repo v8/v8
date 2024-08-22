@@ -168,6 +168,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     NewCodeOptions new_code_options = {
         kind_,
         builtin_,
+        is_context_specialized_,
         is_turbofanned_,
         stack_slots_,
         parameter_count_,
@@ -2850,6 +2851,7 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(DirectHandle<Code> code,
   NewCodeOptions new_code_options = {
       code->kind(),
       code->builtin_id(),
+      code->is_context_specialized(),
       code->is_turbofanned(),
       code->stack_slots(),
       code->parameter_count(),

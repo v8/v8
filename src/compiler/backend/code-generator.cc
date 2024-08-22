@@ -540,6 +540,10 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
       .set_profiler_data(info()->profiler_data())
       .set_osr_offset(info()->osr_offset());
 
+  if (info()->function_context_specializing()) {
+    builder.set_is_context_specialized();
+  }
+
   if (CodeKindUsesDeoptimizationData(info()->code_kind())) {
     builder.set_deoptimization_data(GenerateDeoptimizationData());
     DCHECK(info()->has_bytecode_array() ||

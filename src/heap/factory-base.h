@@ -74,6 +74,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) TorqueGeneratedFactory {
 struct NewCodeOptions {
   CodeKind kind;
   Builtin builtin;
+  bool is_context_specialized;
   bool is_turbofanned;
   int stack_slots;
   uint16_t parameter_count;
