@@ -17,9 +17,6 @@ struct WasmToJSResult {
   result3: float64;
 }
 
-extern macro SwitchToTheCentralStackIfNeeded(): RawPtr;
-extern macro SwitchFromTheCentralStack(RawPtr): void;
-
 extern builtin IterableToFixedArrayForWasm(Context, JSAny, Smi): FixedArray;
 
 extern macro StackAlignmentInBytes(): intptr;

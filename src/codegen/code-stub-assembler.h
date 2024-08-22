@@ -4593,15 +4593,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               TNode<Uint8T> property_details,
                               Label* needs_resize);
 
-  // If the current code is running on a secondary stack, move the stack pointer
-  // to the central stack (but not the frame pointer) and adjust the stack
-  // limit. Returns the old stack pointer, or nullptr if no switch was
-  // performed.
-  TNode<RawPtrT> SwitchToTheCentralStackIfNeeded();
-  // Switch the SP back to the secondary stack after switching to the central
-  // stack.
-  void SwitchFromTheCentralStack(TNode<RawPtrT> old_sp);
-
   TNode<BoolT> IsMarked(TNode<Object> object);
 
   void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
@@ -4778,8 +4769,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void EmitElementStoreTypedArrayUpdateValue(
       TNode<Object> value, ElementsKind elements_kind,
       TNode<TValue> converted_value, TVariable<Object>* maybe_converted_value);
-
-  TNode<RawPtrT> SwitchToTheCentralStack();
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {

@@ -2137,6 +2137,7 @@
   'wasm/stack-switching-generic-wrapper': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP],
   'regress/wasm/regress-346597059': [SKIP],
+  'regress/wasm/regress-349640002': [SKIP],
   'compiler/regress-347724915': [SKIP],
 
   # TODO(v8:14581): Re-enable this test once TransitionElementsKindOrCheckMap is

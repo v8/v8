@@ -135,6 +135,9 @@ extern macro WasmBuiltinsAssembler::StringToFloat64(String): float64;
 extern macro WasmBuiltinsAssembler::SignatureCheckFail(
     WasmInternalFunction, uintptr): Smi;
 
+extern macro SwitchToTheCentralStackIfNeeded(): RawPtr;
+extern macro SwitchFromTheCentralStack(RawPtr): void;
+
 macro LoadContextFromFrame(): NativeContext {
   return LoadContextFromInstanceData(LoadInstanceDataFromFrame());
 }

@@ -1681,11 +1681,13 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   DrumBrakeWasmCode* wasm_code = interpreter_wasm_code.get();
 #endif  // !V8_ENABLE_DRUMBRAKE
 
+#ifdef DEBUG
   intptr_t marker =
       Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
   DCHECK(StackFrame::IsTypeMarker(marker));
   StackFrame::Type type = StackFrame::MarkerToType(marker);
   DCHECK(type == WASM_TO_JS || type == WASM || type == WASM_EXIT);
+#endif
 
   // Determine the fixed header and spill slot area size.
   // The last value in the frame header is the calling PC, which should
@@ -1743,7 +1745,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
     maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
   }
   FullObjectSlot parameters_limit(
-      type == WASM_TO_JS && maybe_stack_switch.has_value()
+      maybe_stack_switch.has_value() && maybe_stack_switch->source_fp == fp()
           ? maybe_stack_switch->target_sp
           : frame_header_base.address() - spill_slot_space);
   FullObjectSlot spill_space_end =
@@ -2011,8 +2013,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
     maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
   }
   FullObjectSlot parameters_limit(
-      (is_generic_wasm_to_js || is_optimized_wasm_to_js) &&
-              maybe_stack_switch.has_value()
+      maybe_stack_switch.has_value() && maybe_stack_switch->source_fp == fp()
           ? maybe_stack_switch->target_sp
           : frame_header_base.address() - spill_slots_size);
 #else

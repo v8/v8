@@ -2420,21 +2420,14 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       }
 
       case StackFrame::STUB: {
+#if V8_ENABLE_WEBASSEMBLY
+        HandleStackSwitch(iter);
+#endif
         // Some stubs are able to handle exceptions.
         if (!catchable_by_js) break;
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
 #if V8_ENABLE_WEBASSEMBLY
-#if DEBUG
         DCHECK_NULL(wasm::GetWasmCodeManager()->LookupCode(this, frame->pc()));
-#endif
-        {
-          Tagged<Code> code = stub_frame->LookupCode();
-          if (code->builtin_id() == Builtin::kWasmToJsWrapperCSA) {
-            // If the wasm-to-js wrapper was on a secondary stack and switched
-            // to the central stack, handle the implicit switch back.
-            HandleStackSwitch(iter);
-          }
-        }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
         // The code might be a dynamically generated stub or a turbofanned
