@@ -91,10 +91,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   template <typename T>
   using ConstOrV = compiler::turboshaft::ConstOrV<T>;
 
-  using ValidationTag = Decoder::FullValidationTag;
-  using FullDecoder =
-      WasmFullDecoder<ValidationTag, TurboshaftGraphBuildingInterface>;
-
   OpIndex CallRuntime(Zone* zone, Runtime::FunctionId f,
                       std::initializer_list<const OpIndex> args,
                       V<Context> context);

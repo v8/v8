@@ -361,7 +361,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     kInlinedWithCatch,
     kInlinedTailCall
   };
-  using ValidationTag = Decoder::FullValidationTag;
+  using ValidationTag = Decoder::NoValidationTag;
   using FullDecoder =
       WasmFullDecoder<ValidationTag, TurboshaftGraphBuildingInterface>;
   static constexpr bool kUsesPoppedArgs = true;
@@ -8100,7 +8100,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                            /*args*/ nullptr);
     }
 
-    WasmFullDecoder<Decoder::FullValidationTag,
+    WasmFullDecoder<TurboshaftGraphBuildingInterface::ValidationTag,
                     TurboshaftGraphBuildingInterface>
         inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
                         decoder->detected_, inlinee_body, decoder->zone_, env_,
@@ -8135,10 +8135,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           no_liftoff_inlining_budget_);
     }
     inlinee_decoder.Decode();
-    // Turboshaft runs with validation, but the function should already be
-    // validated, so graph building must always succeed, unless we bailed out.
-    DCHECK_IMPLIES(!inlinee_decoder.ok(),
-                   inlinee_decoder.interface().did_bailout());
+    // The function was already validated above, so graph building must always
+    // succeed, unless we bailed out.
+    DCHECK_EQ(!inlinee_decoder.ok(), inlinee_decoder.interface().did_bailout());
     if (!inlinee_decoder.ok()) {
       Bailout(decoder);
       return;
@@ -8376,9 +8375,11 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
     const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
     AssumptionsJournal* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index) {
+  DCHECK(env->module->function_was_validated(func_index));
   Zone zone(allocator, ZONE_NAME);
   WasmGraphBuilderBase::Assembler assembler(data, graph, graph, &zone);
-  WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
+  WasmFullDecoder<TurboshaftGraphBuildingInterface::ValidationTag,
+                  TurboshaftGraphBuildingInterface>
       decoder(&zone, env->module, env->enabled_features, detected, func_body,
               &zone, env, assembler, assumptions, inlining_positions,
               func_index, func_body.is_shared, wire_bytes);
