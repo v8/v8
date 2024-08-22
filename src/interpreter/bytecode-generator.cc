@@ -3313,6 +3313,30 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         continue;
       }
 
+      if (property->kind() == ClassLiteral::Property::AUTO_ACCESSOR) {
+        {
+          RegisterAllocationScope private_name_register_scope(this);
+          Register name_register = register_allocator()->NewRegister();
+          Variable* accessor_storage_private_name_var =
+              property->auto_accessor_info()
+                  ->accessor_storage_name_proxy()
+                  ->var();
+          builder()
+              ->LoadLiteral(accessor_storage_private_name_var->raw_name())
+              .StoreAccumulatorInRegister(name_register)
+              .CallRuntime(Runtime::kCreatePrivateNameSymbol, name_register);
+          BuildVariableAssignment(accessor_storage_private_name_var,
+                                  Token::kInit, HoleCheckMode::kElided);
+        }
+
+        Register getter = register_allocator()->GrowRegisterList(&args);
+        Register setter = register_allocator()->GrowRegisterList(&args);
+        AutoAccessorInfo* auto_accessor_info = property->auto_accessor_info();
+        VisitForRegisterValue(auto_accessor_info->generated_getter(), getter);
+        VisitForRegisterValue(auto_accessor_info->generated_setter(), setter);
+        continue;
+      }
+
       Register value = register_allocator()->GrowRegisterList(&args);
       VisitForRegisterValue(property->value(), value);
     }
@@ -3451,7 +3475,7 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
   // Private methods are not initialized in BuildClassProperty.
   DCHECK_IMPLIES(property->is_private(),
                  property->kind() == ClassLiteral::Property::FIELD ||
-                     property->kind() == ClassLiteral::Property::AUTO_ACCESSOR);
+                     property->is_auto_accessor());
   builder()->SetExpressionPosition(property->key());
 
   bool is_literal_store =
@@ -3460,7 +3484,7 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
 
   if (!is_literal_store) {
     key = register_allocator()->NewRegister();
-    if (property->kind() == ClassLiteral::Property::AUTO_ACCESSOR) {
+    if (property->is_auto_accessor()) {
       Variable* var =
           property->auto_accessor_info()->accessor_storage_name_proxy()->var();
       DCHECK_NOT_NULL(var);

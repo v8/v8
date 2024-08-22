@@ -1036,7 +1036,6 @@
   'language/expressions/class/decorator/syntax/valid/decorator-member-expr-identifier-reference-yield': [FAIL],
   'language/expressions/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference': [FAIL],
   'language/expressions/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference-yield': [FAIL],
-  'language/expressions/class/elements/syntax/valid/grammar-field-accessor': [FAIL],
   'language/statements/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
   'language/statements/class/decorator/syntax/valid/decorator-call-expr-identifier-reference': [FAIL],
   'language/statements/class/decorator/syntax/valid/decorator-call-expr-identifier-reference-yield': [FAIL],
@@ -1045,7 +1044,6 @@
   'language/statements/class/decorator/syntax/valid/decorator-member-expr-identifier-reference-yield': [FAIL],
   'language/statements/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference': [FAIL],
   'language/statements/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference-yield': [FAIL],
-  'language/statements/class/elements/syntax/valid/grammar-field-accessor': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11989
   'built-ins/ShadowRealm/prototype/evaluate/globalthis-ordinary-object': [FAIL],
