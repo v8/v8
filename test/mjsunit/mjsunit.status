@@ -2162,7 +2162,8 @@
   'regress/wasm/regress-v8-14471': [SKIP],
   'regress/wasm/regress-336852356': [SKIP],
   'regress/wasm/regress-336358915': [SKIP],
-  'regress/wasm/regress-342522151': [SKIP]
+  'regress/wasm/regress-342522151': [SKIP],
+  'regress/wasm/regress-349640002': [SKIP]
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64)
 
 ##############################################################################
