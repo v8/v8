@@ -884,12 +884,11 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
 
   // 12. For each Module m of sortedExecList, do
   for (DirectHandle<SourceTextModule> m : exec_list) {
-    // a. If m.[[Status]] is EVALUATED, then
-    //   i. Assert: m.[[EvaluationError]] is not EMPTY.
-    // (Holds by construction in V8 implementation.)
-
-    // b. Else if m.[[HasTLA]] is true, then
-    if (m->has_toplevel_await()) {
+    if (m->status() == kErrored) {  // a. If m.[[Status]] is EVALUATED, then
+      // i. Assert: m.[[EvaluationError]] is not EMPTY.
+      DCHECK(!IsTheHole(m->exception(), isolate));
+    } else if (m->has_toplevel_await()) {  // b. Else if m.[[HasTLA]] is true,
+                                           // then
       // i. Perform ExecuteAsyncModule(m).
       //
       // The execution may have been terminated and can not be resumed, so just
@@ -904,14 +903,13 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
         // 1. Perform AsyncModuleExecutionRejected(m, result.[[Value]]).
         AsyncModuleExecutionRejected(isolate, m, exception.ToHandleChecked());
       } else {  // iii. Else,
-        // 1. Set m.[[Status]] to EVALUATED.
-        //
-        // TODO(syg): Update comment after spec bug is fixed.
-        // https://github.com/tc39/ecma262/issues/3356
+        // 1. Set m.[[AsyncEvaluation]] to false.
         m->set_async_evaluation_ordinal(kAsyncEvaluateDidFinish);
+
+        // 2. Set m.[[Status]] to EVALUATED.
         m->SetStatus(kEvaluated);
 
-        // 2. If m.[[TopLevelCapability]] is not EMPTY, then
+        // 3. If m.[[TopLevelCapability]] is not EMPTY, then
         if (!IsUndefined(m->top_level_capability(), isolate)) {
           // a. Assert: m.[[CycleRoot]] and m are the same Module Record.
           DCHECK_EQ(*m->GetCycleRoot(isolate), *m);
@@ -1046,7 +1044,7 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   MaybeHandle<Object> ret =
       InnerExecuteAsyncModule(isolate, module, capability);
   if (ret.is_null()) {
-    // The evaluation of async module can not throwing a JavaScript observable
+    // The evaluation of async module cannot throw a JavaScript observable
     // exception.
     DCHECK_IMPLIES(v8_flags.strict_termination_checks,
                    isolate->is_execution_terminating());
