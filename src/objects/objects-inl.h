@@ -1077,13 +1077,18 @@ void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
 
 void HeapObject::InitJSDispatchHandleField(size_t offset,
                                            IsolateForSandbox isolate,
-                                           uint16_t parameter_count) {
+                                           uint16_t parameter_count,
+                                           Tagged<Code> code) {
 #ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
   JSDispatchTable::Space* space =
       isolate.GetJSDispatchTableSpaceFor(field_address(offset));
   JSDispatchHandle handle =
-      GetProcessWideJSDispatchTable()->AllocateAndInitializeEntry(
-          space, parameter_count);
+      jdt->AllocateAndInitializeEntry(space, parameter_count);
+
+  if (!code.is_null()) {
+    jdt->SetCode(handle, code);
+  }
 
   // Use a Release_Store to ensure that the store of the pointer into the table
   // is not reordered after the store of the handle. Otherwise, other threads

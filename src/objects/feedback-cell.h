@@ -40,7 +40,8 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
 
 #ifdef V8_ENABLE_LEAPTIERING
   inline void initialize_dispatch_handle(IsolateForSandbox isolate,
-                                         uint16_t parameter_count);
+                                         uint16_t parameter_count,
+                                         Tagged<Code> code = Tagged<Code>());
   inline void clear_dispatch_handle();
   inline JSDispatchHandle dispatch_handle() const;
   inline void set_dispatch_handle(JSDispatchHandle new_handle);
