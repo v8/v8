@@ -1199,7 +1199,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
     ScopedVar<Object> result(this, value);
-    ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
+    ScopedVar<WordPtr> old_sp_var(this, *old_sp);
     IF_NOT (__ IsSmi(value)) {
       IF (__ HasInstanceType(value, JS_PROMISE_TYPE)) {
         IF (__ TaggedEqual(active_suspender, LOAD_ROOT(UndefinedValue))) {
