@@ -4412,7 +4412,7 @@ void CodeGenerator::AssembleConstructFrame() {
       if (call_descriptor->IsWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
-        __ Push(kWasmInstanceRegister);
+        __ Push(kWasmImplicitArgRegister);
       }
       if (call_descriptor->IsWasmImportWrapper()) {
         // If the wrapper is running on a secondary stack, it will switch to the

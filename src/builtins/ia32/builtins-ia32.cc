@@ -3095,11 +3095,11 @@ void RestoreWasmParams(MacroAssembler* masm, int offset) {
 // When this builtin is called, the topmost stack entry is the calling pc.
 // This is replaced with the following:
 //
-// [    calling pc     ]  <-- esp; popped by {ret}.
-// [  feedback vector  ]
-// [   Wasm instance   ]
-// [ WASM frame marker ]
-// [    saved ebp      ]  <-- ebp; this is where "calling pc" used to be.
+// [    calling pc      ]  <-- esp; popped by {ret}.
+// [  feedback vector   ]
+// [ Wasm instance data ]
+// [ WASM frame marker  ]
+// [    saved ebp       ]  <-- ebp; this is where "calling pc" used to be.
 void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   constexpr Register func_index = wasm::kLiftoffFrameSetupFunctionReg;
 
@@ -3117,14 +3117,15 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ Push(tmp);  // This is the "instance" slot.
 
   // Stack layout is now:
-  // [calling pc]  <-- instance_slot  <-- esp
+  // [calling pc]  <-- instance_data_slot  <-- esp
   // [saved tmp]   <-- marker_slot
   // [saved ebp]
   Operand marker_slot = Operand(ebp, WasmFrameConstants::kFrameTypeOffset);
-  Operand instance_slot = Operand(ebp, WasmFrameConstants::kWasmInstanceOffset);
+  Operand instance_data_slot =
+      Operand(ebp, WasmFrameConstants::kWasmInstanceOffset);
 
-  // Load the feedback vector.
-  __ mov(tmp, FieldOperand(kWasmInstanceRegister,
+  // Load the feedback vector from the trusted instance data.
+  __ mov(tmp, FieldOperand(kWasmImplicitArgRegister,
                            WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ mov(tmp, FieldOperand(tmp, func_index, times_tagged_size,
                            FixedArray::kHeaderSize));
@@ -3133,9 +3134,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
 
   // Vector exists. Finish setting up the stack frame.
   __ Push(tmp);                // Feedback vector.
-  __ mov(tmp, instance_slot);  // Calling PC.
+  __ mov(tmp, instance_data_slot);  // Calling PC.
   __ Push(tmp);
-  __ mov(instance_slot, kWasmInstanceRegister);
+  __ mov(instance_data_slot, kWasmImplicitArgRegister);
   __ mov(tmp, marker_slot);
   __ mov(marker_slot, Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
   __ ret(0);
@@ -3148,7 +3149,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   //
   // [ reserved slot for NativeModule ]  <-- arg[2]
   // [  ("declared") function index   ]  <-- arg[1] for runtime func.
-  // [         Wasm instance          ]  <-- arg[0]
+  // [       Wasm instance data       ]  <-- arg[0]
   // [ ...spilled Wasm parameters...  ]
   // [           calling pc           ]  <-- already in place
   // [   WASM_LIFTOFF_SETUP marker    ]
@@ -3161,7 +3162,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   int offset = SaveWasmParams(masm);
 
   // Arguments to the runtime function: instance, func_index.
-  __ Push(kWasmInstanceRegister);
+  __ Push(kWasmImplicitArgRegister);
   __ SmiTag(func_index);
   __ Push(func_index);
   // Allocate a stack slot where the runtime function can spill a pointer
@@ -3175,16 +3176,16 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   RestoreWasmParams(masm, offset);
 
   // Finish setting up the stack frame:
-  //                                    [   calling pc    ]
-  //                     (tmp reg) ---> [ feedback vector ]
-  // [        calling pc         ]  =>  [  Wasm instance  ]  <-- instance_slot
-  // [ WASM_LIFTOFF_SETUP marker ]      [   WASM marker   ]  <-- marker_slot
-  // [         saved ebp         ]      [    saved ebp    ]
+  //                             [    calling pc      ]
+  //              (tmp reg) ---> [  feedback vector   ]
+  // [     calling pc     ]  =>  [ Wasm instance data ]  <-- instance_data_slot
+  // [ WASM_LIFTOFF_SETUP ]      [       WASM         ]  <-- marker_slot
+  // [      saved ebp     ]      [    saved ebp       ]
   __ mov(marker_slot, Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
   __ Push(tmp);                // Feedback vector.
-  __ mov(tmp, instance_slot);  // Calling PC.
+  __ mov(tmp, instance_data_slot);  // Calling PC.
   __ Push(tmp);
-  __ mov(instance_slot, kWasmInstanceRegister);
+  __ mov(instance_data_slot, kWasmImplicitArgRegister);
   __ ret(0);
 }
 
@@ -3198,7 +3199,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     int offset = SaveWasmParams(masm);
 
     // Push arguments for the runtime function.
-    __ Push(kWasmInstanceRegister);
+    __ Push(kWasmImplicitArgRegister);
     __ Push(kWasmCompileLazyFuncIndexRegister);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -3211,9 +3212,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 
     RestoreWasmParams(masm, offset);
 
-    // After the instance register has been restored, we can add the jump table
-    // start to the jump table offset already stored in edi.
-    __ add(edi, MemOperand(kWasmInstanceRegister,
+    // After the instance data register has been restored, we can add the jump
+    // table start to the jump table offset already stored in edi.
+    __ add(edi, MemOperand(kWasmImplicitArgRegister,
                            WasmTrustedInstanceData::kJumpTableStartOffset -
                                kHeapObjectTag));
   }
@@ -3673,7 +3674,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   Register last_stack_param = ecx;
 
-  // The first GP parameter is the instance, which we handle specially.
+  // The first GP parameter holds the trusted instance data or the import data.
+  // This is handled specially.
   int stack_params_offset =
       (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
       arraysize(wasm::kFpParamRegisters) * kDoubleSize;
@@ -3722,12 +3724,12 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // parameter registers. Make sure it overlaps with the last one we fill.
   DCHECK_EQ(params_start, wasm::kGpParamRegisters[1]);
 
-  // Pick up the instance from frame.
+  // Load the implicit argument (instance data or import data) from the frame.
   if (stack_switch) {
-    __ mov(kWasmInstanceRegister,
+    __ mov(kWasmImplicitArgRegister,
            MemOperand(ebp, StackSwitchFrameConstants::kImplicitArgOffset));
   } else {
-    __ mov(kWasmInstanceRegister,
+    __ mov(kWasmImplicitArgRegister,
            MemOperand(ebp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
   }
 

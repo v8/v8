@@ -255,7 +255,7 @@ void WasmGraphBuilder::Start(unsigned params) {
   // Initialize instance node.
   switch (parameter_mode_) {
     case kInstanceParameterMode: {
-      Node* param = Param(wasm::kWasmInstanceParameterIndex);
+      Node* param = Param(wasm::kWasmInstanceDataParameterIndex);
       if (v8_flags.debug_code) {
         Assert(gasm_->HasInstanceType(param, WASM_TRUSTED_INSTANCE_DATA_TYPE),
                AbortReason::kUnexpectedInstanceType);

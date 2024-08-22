@@ -287,8 +287,7 @@ constexpr Register kJavaScriptCallExtraArg1Register = rbx;
 constexpr Register kRuntimeCallFunctionRegister = rbx;
 constexpr Register kRuntimeCallArgCountRegister = rax;
 constexpr Register kRuntimeCallArgvRegister = r15;
-// TODO(14499): Rename to kWasmInstanceDataRegister.
-constexpr Register kWasmInstanceRegister = rsi;
+constexpr Register kWasmImplicitArgRegister = rsi;
 constexpr Register kWasmTrapHandlerFaultAddressRegister = r10;
 
 // Default scratch register used by MacroAssembler (and other code that needs

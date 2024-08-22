@@ -3195,8 +3195,8 @@ constexpr RegList kSavedGpRegs = ([]() constexpr {
   for (Register gp_param_reg : wasm::kGpParamRegisters) {
     saved_gp_regs.set(gp_param_reg);
   }
-  // The instance has already been stored in the fixed part of the frame.
-  saved_gp_regs.clear(kWasmInstanceRegister);
+  // The instance data has already been stored in the fixed part of the frame.
+  saved_gp_regs.clear(kWasmImplicitArgRegister);
   // All set registers were unique. The instance is skipped.
   CHECK_EQ(saved_gp_regs.Count(), arraysize(wasm::kGpParamRegisters) - 1);
   // We push a multiple of 16 bytes.
@@ -3220,19 +3220,19 @@ constexpr DoubleRegList kSavedFpRegs = ([]() constexpr {
 
 // When entering this builtin, we have just created a Wasm stack frame:
 //
-// [   Wasm instance   ]  <-- sp
-// [ WASM frame marker ]
-// [     saved fp      ]  <-- fp
+// [ Wasm instance data ]  <-- sp
+// [ WASM frame marker  ]
+// [     saved fp       ]  <-- fp
 //
 // Due to stack alignment restrictions, this builtin adds the feedback vector
 // plus a filler to the stack. The stack pointer will be
 // moved an appropriate distance by {PatchPrepareStackFrame}.
 //
-// [     (unused)      ]  <-- sp
-// [  feedback vector  ]
-// [   Wasm instance   ]
-// [ WASM frame marker ]
-// [     saved fp      ]  <-- fp
+// [     (unused)       ]  <-- sp
+// [  feedback vector   ]
+// [ Wasm instance data ]
+// [ WASM frame marker  ]
+// [     saved fp       ]  <-- fp
 void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Register func_index = wasm::kLiftoffFrameSetupFunctionReg;
   Register vector = x9;
@@ -3240,7 +3240,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Label allocate_vector, done;
 
   __ LoadTaggedField(
-      vector, FieldMemOperand(kWasmInstanceRegister,
+      vector, FieldMemOperand(kWasmImplicitArgRegister,
                               WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ Add(vector, vector, Operand(func_index, LSL, kTaggedSizeLog2));
   __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
@@ -3260,11 +3260,11 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ PushQRegList(kSavedFpRegs);
   __ Push<MacroAssembler::kSignLR>(lr, xzr);  // xzr is for alignment.
 
-  // Arguments to the runtime function: instance, func_index, and an
+  // Arguments to the runtime function: instance data, func_index, and an
   // additional stack slot for the NativeModule. The first pushed register
   // is for alignment. {x0} and {x1} are picked arbitrarily.
   __ SmiTag(func_index);
-  __ Push(x0, kWasmInstanceRegister, func_index, x1);
+  __ Push(x0, kWasmImplicitArgRegister, func_index, x1);
   __ Mov(cp, Smi::zero());
   __ CallRuntime(Runtime::kWasmAllocateFeedbackVector, 3);
   __ Mov(vector, kReturnRegister0);
@@ -3273,8 +3273,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ Pop<MacroAssembler::kAuthLR>(xzr, lr);
   __ PopQRegList(kSavedFpRegs);
   __ PopXRegList(kSavedGpRegs);
-  // Restore the instance from the frame.
-  __ Ldr(kWasmInstanceRegister,
+  // Restore the instance data from the frame.
+  __ Ldr(kWasmImplicitArgRegister,
          MemOperand(fp, WasmFrameConstants::kWasmInstanceOffset));
   __ Mov(scratch, StackFrame::TypeToMarker(StackFrame::WASM));
   __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
@@ -3293,19 +3293,19 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Manually save the instance (which kSavedGpRegs skips because its
+    // Manually save the instance data (which kSavedGpRegs skips because its
     // other use puts it into the fixed frame anyway). The stack slot is valid
     // because the {FrameScope} (via {EnterFrame}) always reserves it (for stack
     // alignment reasons). The instance is needed because once this builtin is
     // done, we'll call a regular Wasm function.
-    __ Str(kWasmInstanceRegister,
+    __ Str(kWasmImplicitArgRegister,
            MemOperand(fp, WasmFrameConstants::kWasmInstanceOffset));
 
     // Save registers that we need to keep alive across the runtime call.
     __ PushXRegList(kSavedGpRegs);
     __ PushQRegList(kSavedFpRegs);
 
-    __ Push(kWasmInstanceRegister, kWasmCompileLazyFuncIndexRegister);
+    __ Push(kWasmImplicitArgRegister, kWasmCompileLazyFuncIndexRegister);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Mov(cp, Smi::zero());
@@ -3318,8 +3318,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Restore registers.
     __ PopQRegList(kSavedFpRegs);
     __ PopXRegList(kSavedGpRegs);
-    // Restore the instance from the frame.
-    __ Ldr(kWasmInstanceRegister,
+    // Restore the instance data from the frame.
+    __ Ldr(kWasmImplicitArgRegister,
            MemOperand(fp, WasmFrameConstants::kWasmInstanceOffset));
   }
 
@@ -3328,7 +3328,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // target, to be compliant with CFI.
   constexpr Register temp = x8;
   static_assert(!kSavedGpRegs.has(temp));
-  __ ldr(temp, FieldMemOperand(kWasmInstanceRegister,
+  __ ldr(temp, FieldMemOperand(kWasmImplicitArgRegister,
                                WasmTrustedInstanceData::kJumpTableStartOffset));
   __ add(x17, temp, Operand(x17));
   // Finally, jump to the jump table slot for the function.
@@ -4149,7 +4149,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
          Immediate(StackSwitchFrameConstants::kNumSpillSlots *
                    kSystemPointerSize));
 
-  DEFINE_PINNED(implicit_arg, kWasmInstanceRegister);
+  // Load the implicit argument (instance data or import data) from the frame.
+  DEFINE_PINNED(implicit_arg, kWasmImplicitArgRegister);
   __ Ldr(implicit_arg,
          MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
 
@@ -4212,7 +4213,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     regs.Reserve(reg);
   }
 
-  // The first GP parameter is the instance, which we handle specially.
+  // The first GP parameter holds the trusted instance data or the import data.
+  // This is handled specially.
   int stack_params_offset =
       (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
       arraysize(wasm::kFpParamRegisters) * kDoubleSize;

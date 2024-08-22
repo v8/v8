@@ -830,7 +830,7 @@ class LiftoffCompiler {
       return reg;
     }
 
-    // Input 0 is the code target, 1 is the instance.
+    // Input 0 is the code target, 1 is the instance data.
     static constexpr uint32_t kFirstInputIdx = 2;
 
     LiftoffCompiler* compiler_;
@@ -967,7 +967,7 @@ class LiftoffCompiler {
       if (!CheckSupportedType(decoder, __ local_kind(i), "param")) return;
     }
 
-    // Parameter 0 is the instance parameter.
+    // Parameter 0 is the instance data.
     uint32_t num_params =
         static_cast<uint32_t>(decoder->sig_->parameter_count());
 
@@ -992,14 +992,14 @@ class LiftoffCompiler {
     // LiftoffAssembler methods.
     if (DidAssemblerBailout(decoder)) return;
 
-    // Input 0 is the call target, the instance is at 1.
-    [[maybe_unused]] constexpr int kInstanceParameterIndex = 1;
-    // Check that {kWasmInstanceRegister} matches our call descriptor.
-    DCHECK_EQ(kWasmInstanceRegister,
+    // Input 0 is the call target, the trusted instance data is at 1.
+    [[maybe_unused]] constexpr int kInstanceDataParameterIndex = 1;
+    // Check that {kWasmImplicitArgRegister} matches our call descriptor.
+    DCHECK_EQ(kWasmImplicitArgRegister,
               Register::from_code(
-                  descriptor_->GetInputLocation(kInstanceParameterIndex)
+                  descriptor_->GetInputLocation(kInstanceDataParameterIndex)
                       .AsRegister()));
-    __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
+    __ cache_state() -> SetInstanceCacheRegister(kWasmImplicitArgRegister);
 
     if (num_params) {
       CODE_COMMENT("process parameters");

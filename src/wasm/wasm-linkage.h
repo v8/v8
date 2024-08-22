@@ -148,12 +148,11 @@ constexpr bool kIsBigEndianOnSim = true;
 constexpr bool kIsBigEndianOnSim = false;
 #endif
 
-// The parameter index where the instance parameter should be placed in wasm
+// The parameter index where the trusted instance data should be placed in wasm
 // call descriptors. This is used by the Int64Lowering::LowerNode method.
-// TODO(14499): Rename to kWasmInstanceDataParameterIndex.
-constexpr int kWasmInstanceParameterIndex = 0;
-static_assert(kWasmInstanceRegister ==
-              kGpParamRegisters[kWasmInstanceParameterIndex]);
+constexpr int kWasmInstanceDataParameterIndex = 0;
+static_assert(kWasmImplicitArgRegister ==
+              kGpParamRegisters[kWasmInstanceDataParameterIndex]);
 
 class LinkageAllocator {
  public:

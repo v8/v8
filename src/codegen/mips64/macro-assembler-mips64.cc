@@ -5447,8 +5447,9 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     Push(kScratchReg);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (type == StackFrame::WASM || type == StackFrame::WASM_LIFTOFF_SETUP)
-    Push(kWasmInstanceRegister);
+  if (type == StackFrame::WASM || type == StackFrame::WASM_LIFTOFF_SETUP) {
+    Push(kWasmImplicitArgRegister);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

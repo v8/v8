@@ -5031,8 +5031,9 @@ class TurboshaftAssemblerOpInterface
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
+  // TODO(clemensb): Rename to WasmInstanceDataParameter.
   V<WasmTrustedInstanceData> WasmInstanceParameter() {
-    return Parameter(wasm::kWasmInstanceParameterIndex,
+    return Parameter(wasm::kWasmInstanceDataParameterIndex,
                      RegisterRepresentation::Tagged());
   }
 

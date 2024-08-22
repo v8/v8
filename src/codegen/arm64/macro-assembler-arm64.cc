@@ -3000,18 +3000,16 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   } else {
       Register type_reg = temps.AcquireX();
       Mov(type_reg, StackFrame::TypeToMarker(type));
-      Register fourth_reg = no_reg;
+      Register fourth_reg = padreg;
       if (type == StackFrame::CONSTRUCT || type == StackFrame::FAST_CONSTRUCT) {
         fourth_reg = cp;
-#if V8_ENABLE_WEBASSEMBLY
-      } else if (type == StackFrame::WASM ||
-                 type == StackFrame::WASM_LIFTOFF_SETUP ||
-                 type == StackFrame::WASM_EXIT) {
-        fourth_reg = kWasmInstanceRegister;
-#endif  // V8_ENABLE_WEBASSEMBLY
-      } else {
-        fourth_reg = padreg;
       }
+#if V8_ENABLE_WEBASSEMBLY
+      if (type == StackFrame::WASM || type == StackFrame::WASM_LIFTOFF_SETUP ||
+          type == StackFrame::WASM_EXIT) {
+        fourth_reg = kWasmImplicitArgRegister;
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
       Push<MacroAssembler::kSignLR>(lr, fp, type_reg, fourth_reg);
       static constexpr int kSPToFPDelta  = 2 * kSystemPointerSize;
       Add(fp, sp, kSPToFPDelta);

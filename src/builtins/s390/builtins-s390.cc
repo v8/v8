@@ -3064,14 +3064,14 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Label allocate_vector, done;
 
   __ LoadTaggedField(
-      vector, FieldMemOperand(kWasmInstanceRegister,
+      vector, FieldMemOperand(kWasmImplicitArgRegister,
                               WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ ShiftLeftU64(scratch, func_index, Operand(kTaggedSizeLog2));
   __ AddS64(vector, vector, scratch);
   __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
-  __ push(kWasmInstanceRegister);
+  __ push(kWasmImplicitArgRegister);
   __ push(vector);
   __ Ret();
 
@@ -3088,8 +3088,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ push(r14);
   {
     SaveWasmParamsScope save_params(masm);
-    // Arguments to the runtime function: instance, func_index.
-    __ push(kWasmInstanceRegister);
+    // Arguments to the runtime function: instance data, func_index.
+    __ push(kWasmImplicitArgRegister);
     __ SmiTag(func_index);
     __ push(func_index);
     // Allocate a stack slot where the runtime function can spill a pointer
@@ -3119,8 +3119,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     {
       SaveWasmParamsScope save_params(masm);
 
-      // Push the Wasm instance as an explicit argument to the runtime function.
-      __ push(kWasmInstanceRegister);
+      // Push the instance data as an explicit argument to the runtime function.
+      __ push(kWasmImplicitArgRegister);
       // Push the function index as second argument.
       __ push(kWasmCompileLazyFuncIndexRegister);
       // Initialize the JavaScript context with 0. CEntry will use it to
@@ -3135,10 +3135,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       // Saved parameters are restored at the end of this block.
     }
 
-    // After the instance register has been restored, we can add the jump table
-    // start to the jump table offset already stored in r8.
+    // After the instance data register has been restored, we can add the jump
+    // table start to the jump table offset already stored in r8.
     __ LoadU64(r0,
-               FieldMemOperand(kWasmInstanceRegister,
+               FieldMemOperand(kWasmImplicitArgRegister,
                                WasmTrustedInstanceData::kJumpTableStartOffset));
     __ AddS64(ip, ip, r0);
   }
@@ -3286,7 +3286,8 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
       params_start,
       MemOperand(wrapper_buffer,
                  JSToWasmWrapperFrameConstants::kWrapperBufferParamStart));
-  // The first GP parameter is the instance, which we handle specially.
+  // The first GP parameter holds the trusted instance data or the import data.
+  // This is handled specially.
   int stack_params_offset =
       (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
       arraysize(wasm::kFpParamRegisters) * kDoubleSize;
@@ -3330,8 +3331,8 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
   }
   DCHECK_EQ(next_offset, stack_params_offset);
 
-  // Load the instance into r5.
-  __ LoadU64(kWasmInstanceRegister,
+  // Load the implicit argument into r5.
+  __ LoadU64(kWasmImplicitArgRegister,
              MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
 
   {

@@ -2803,10 +2803,10 @@ struct SaveWasmParamsScope {
 
 // This builtin creates the following stack frame:
 //
-// [  feedback vector  ]  <-- sp  // Added by this builtin.
-// [   Wasm instance   ]          // Added by this builtin.
-// [ WASM frame marker ]          // Already there on entry.
-// [     saved fp      ]  <-- fp  // Already there on entry.
+// [  feedback vector   ]  <-- sp  // Added by this builtin.
+// [ Wasm instance data ]          // Added by this builtin.
+// [ WASM frame marker  ]          // Already there on entry.
+// [     saved fp       ]  <-- fp  // Already there on entry.
 void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Register func_index = wasm::kLiftoffFrameSetupFunctionReg;
   Register vector = r5;
@@ -2814,13 +2814,13 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Label allocate_vector, done;
 
   __ ldr(vector,
-         FieldMemOperand(kWasmInstanceRegister,
+         FieldMemOperand(kWasmImplicitArgRegister,
                          WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ add(vector, vector, Operand(func_index, LSL, kTaggedSizeLog2));
   __ ldr(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
-  __ push(kWasmInstanceRegister);
+  __ push(kWasmImplicitArgRegister);
   __ push(vector);
   __ Ret();
 
@@ -2834,8 +2834,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ str(scratch, MemOperand(sp));
   {
     SaveWasmParamsScope save_params(masm);
-    // Arguments to the runtime function: instance, func_index.
-    __ push(kWasmInstanceRegister);
+    // Arguments to the runtime function: instance data, func_index.
+    __ push(kWasmImplicitArgRegister);
     __ SmiTag(func_index);
     __ push(func_index);
     // Allocate a stack slot where the runtime function can spill a pointer
@@ -2862,8 +2862,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     {
       SaveWasmParamsScope save_params(masm);
 
-      // Push the Wasm instance as an explicit argument to the runtime function.
-      __ push(kWasmInstanceRegister);
+      // Push the instance data as an explicit argument to the runtime function.
+      __ push(kWasmImplicitArgRegister);
       // Push the function index as second argument.
       __ push(kWasmCompileLazyFuncIndexRegister);
       // Initialize the JavaScript context with 0. CEntry will use it to
@@ -2877,9 +2877,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       // Saved parameters are restored at the end of this block.
     }
 
-    // After the instance register has been restored, we can add the jump table
-    // start to the jump table offset already stored in r8.
-    __ ldr(r9, FieldMemOperand(kWasmInstanceRegister,
+    // After the instance data register has been restored, we can add the jump
+    // table start to the jump table offset already stored in r8.
+    __ ldr(r9, FieldMemOperand(kWasmImplicitArgRegister,
                                WasmTrustedInstanceData::kJumpTableStartOffset));
     __ add(r8, r8, r9);
   }
@@ -3723,7 +3723,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ AllocateStackSpace(StackSwitchFrameConstants::kNumSpillSlots *
                         kSystemPointerSize);
 
-  DEFINE_PINNED(implicit_arg, kWasmInstanceRegister);
+  // Load the implicit argument (instance data or import data) from the frame.
+  DEFINE_PINNED(implicit_arg, kWasmImplicitArgRegister);
   __ ldr(implicit_arg,
          MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
 
@@ -3781,7 +3782,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     regs.Reserve(reg);
   }
 
-  // The first GP parameter is the instance, which we handle specially.
+  // The first GP parameter holds the trusted instance data or the import data.
+  // This is handled specially.
   int stack_params_offset =
       (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
       arraysize(wasm::kFpParamRegisters) * kDoubleSize;

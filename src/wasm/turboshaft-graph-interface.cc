@@ -449,7 +449,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     uint32_t index = 0;
     V<WasmTrustedInstanceData> trusted_instance_data;
     if (mode_ == kRegular) {
-      static_assert(kWasmInstanceParameterIndex == 0);
+      static_assert(kWasmInstanceDataParameterIndex == 0);
       trusted_instance_data = __ WasmInstanceParameter();
       for (; index < decoder->sig_->parameter_count(); index++) {
         // Parameter indices are shifted by 1 because parameter 0 is the

@@ -1813,8 +1813,8 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
   size_t parameter_count = wasm::SerializedSignatureHelper::ParamCount(sig);
   wasm::LinkageLocationAllocator allocator(wasm::kGpParamRegisters,
                                            wasm::kFpParamRegisters, 0);
-  // The first parameter is the instance, which we don't have to scan. We have
-  // to tell the LinkageLocationAllocator about it though.
+  // The first parameter is the instance data, which we don't have to scan. We
+  // have to tell the LinkageLocationAllocator about it though.
   allocator.Next(MachineRepresentation::kTaggedPointer);
 
   // Parameters are separated into two groups (first all untagged, then all

@@ -251,10 +251,10 @@ class LiftoffAssembler : public MacroAssembler {
       LiftoffRegList available_regs =
           kGpCacheRegList.MaskOut(pinned).MaskOut(used_registers);
       if (available_regs.is_empty()) return no_reg;
-      // Prefer the {kWasmInstanceRegister}, because that's where the instance
-      // initially is, and where it needs to be for calls.
-      Register new_cache_reg = available_regs.has(kWasmInstanceRegister)
-                                   ? kWasmInstanceRegister
+      // Prefer the {kWasmImplicitArgRegister}, because that's where the
+      // instance data initially is, and where it needs to be for calls.
+      Register new_cache_reg = available_regs.has(kWasmImplicitArgRegister)
+                                   ? kWasmImplicitArgRegister
                                    : available_regs.GetFirstRegSet().gp();
       SetInstanceCacheRegister(new_cache_reg);
       DCHECK_EQ(new_cache_reg, cached_instance_data);
