@@ -184,9 +184,7 @@ V8_INLINE void DecodeError(Decoder* decoder, const uint8_t* pc, const char* str,
   // know this e.g. from the VALIDATE macro, but this assumption tells it again
   // that this path is impossible.
   V8_ASSUME(ValidationTag::validate);
-  if constexpr (!ValidationTag::full_validation) {
-    decoder->MarkError();
-  } else if constexpr (sizeof...(Args) == 0) {
+  if constexpr (sizeof...(Args) == 0) {
     decoder->error(pc, str);
   } else {
     decoder->errorf(pc, str, std::forward<Args>(args)...);
@@ -202,9 +200,7 @@ V8_INLINE void DecodeError(Decoder* decoder, const char* str, Args&&... args) {
   // know this e.g. from the VALIDATE macro, but this assumption tells it again
   // that this path is impossible.
   V8_ASSUME(ValidationTag::validate);
-  if constexpr (!ValidationTag::full_validation) {
-    decoder->MarkError();
-  } else if constexpr (sizeof...(Args) == 0) {
+  if constexpr (sizeof...(Args) == 0) {
     decoder->error(str);
   } else {
     decoder->errorf(str, std::forward<Args>(args)...);
@@ -497,11 +493,7 @@ struct BrOnCastImmediate {
   BrOnCastImmediate(Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
     raw_value = decoder->read_u8<ValidationTag>(pc, "br_on_cast flags");
     if (raw_value > (BrOnCastFlags::SRC_IS_NULL | BrOnCastFlags::RES_IS_NULL)) {
-      if constexpr (ValidationTag::full_validation) {
-        decoder->errorf(pc, "invalid br_on_cast flags %u", raw_value);
-      } else {
-        decoder->MarkError();
-      }
+      decoder->errorf(pc, "invalid br_on_cast flags %u", raw_value);
       return;
     }
     flags = BrOnCastFlags(raw_value);
@@ -989,9 +981,9 @@ struct StringConstImmediate {
   }
 };
 
-template <bool full_validation>
+template <bool validate>
 struct PcForErrors {
-  static_assert(full_validation == false);
+  static_assert(validate == false);
   explicit PcForErrors(const uint8_t* /* pc */) {}
 
   const uint8_t* pc() const { return nullptr; }
@@ -1008,11 +1000,11 @@ struct PcForErrors<true> {
 
 // An entry on the value stack.
 template <typename ValidationTag>
-struct ValueBase : public PcForErrors<ValidationTag::full_validation> {
+struct ValueBase : public PcForErrors<ValidationTag::validate> {
   ValueType type = kWasmVoid;
 
   ValueBase(const uint8_t* pc, ValueType type)
-      : PcForErrors<ValidationTag::full_validation>(pc), type(type) {}
+      : PcForErrors<ValidationTag::validate>(pc), type(type) {}
 };
 
 template <typename Value>
@@ -1057,7 +1049,7 @@ enum Reachability : uint8_t {
 
 // An entry on the control stack (i.e. if, block, loop, or try).
 template <typename Value, typename ValidationTag>
-struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
+struct ControlBase : public PcForErrors<ValidationTag::validate> {
   ControlKind kind = kControlBlock;
   Reachability reachability = kReachable;
 
@@ -1081,7 +1073,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   ControlBase(Zone* zone, ControlKind kind, uint32_t stack_depth,
               uint32_t init_stack_depth, const uint8_t* pc,
               Reachability reachability)
-      : PcForErrors<ValidationTag::full_validation>(pc),
+      : PcForErrors<ValidationTag::validate>(pc),
         kind(kind),
         reachability(reachability),
         stack_depth(stack_depth),
@@ -1463,9 +1455,6 @@ class FastZoneVector {
 // lengths, etc.
 template <typename ValidationTag, DecodingMode decoding_mode = kFunctionBody>
 class WasmDecoder : public Decoder {
-  // {full_validation} implies {validate}.
-  static_assert(!ValidationTag::full_validation || ValidationTag::validate);
-
  public:
   WasmDecoder(Zone* zone, const WasmModule* module, WasmEnabledFeatures enabled,
               WasmDetectedFeatures* detected, const FunctionSig* sig,
