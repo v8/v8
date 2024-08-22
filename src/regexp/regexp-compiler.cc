@@ -3300,6 +3300,9 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler,
       alt0.node()->FillInBMInfo(isolate, 0, kRecursionBudget, bm, false);
     }
   }
+  if (bm != nullptr) {
+    bm->EmitSkipInstructions(macro_assembler);
+  }
   return eats_at_least;
 }
 
