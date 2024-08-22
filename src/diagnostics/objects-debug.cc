@@ -1245,20 +1245,15 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
-  // Currently, the handle can still be the null handle as not all places where
-  // a JSFunction object is created populate the entry correctly. However, in
-  // the future, every JSFunction must have a valid dispatch handle, and then
-  // this check should be removed.
-  if (handle != kNullJSDispatchHandle) {
-    uint16_t parameter_count =
-        GetProcessWideJSDispatchTable()->GetParameterCount(handle);
-    CHECK_EQ(parameter_count,
-             shared(isolate)->internal_formal_parameter_count_with_receiver());
-    if (GetProcessWideJSDispatchTable()->HasCode(handle)) {
-      Tagged<Code> code = GetProcessWideJSDispatchTable()->GetCode(handle);
-      CHECK(code->parameter_count() == kDontAdaptArgumentsSentinel ||
-            code->parameter_count() == parameter_count);
-    }
+  CHECK_NE(handle, kNullJSDispatchHandle);
+  uint16_t parameter_count =
+      GetProcessWideJSDispatchTable()->GetParameterCount(handle);
+  CHECK_EQ(parameter_count,
+           shared(isolate)->internal_formal_parameter_count_with_receiver());
+  if (GetProcessWideJSDispatchTable()->HasCode(handle)) {
+    Tagged<Code> code = GetProcessWideJSDispatchTable()->GetCode(handle);
+    CHECK(code->parameter_count() == kDontAdaptArgumentsSentinel ||
+          code->parameter_count() == parameter_count);
   }
 
   // Currently, a JSFunction must have the same dispatch entry as its
