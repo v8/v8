@@ -1095,7 +1095,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {
-    Bailout(decoder);
+    // This is just for testing bailouts in Liftoff, here it's just a nop.
   }
 
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
@@ -2785,7 +2785,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           InlineWasmCall(decoder, inlined_index, imm.sig,
                          static_cast<uint32_t>(i), false, args,
                          direct_returns.data());
-          if (did_bailout()) return;
 
           if (__ current_block() != nullptr) {
             // Only add phi inputs and a Goto to {merge} if the current_block is
@@ -2918,7 +2917,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           }
           InlineWasmCall(decoder, inlined_index, imm.sig,
                          static_cast<uint32_t>(i), true, args, nullptr);
-          if (did_bailout()) return;
 
           // An inlined tail call should still terminate execution.
           DCHECK_NULL(__ current_block());
@@ -3044,7 +3042,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
         InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
                        false, args, direct_returns.data());
-        if (did_bailout()) return;
 
         if (__ current_block() != nullptr) {
           // Only add phi inputs and a Goto to {merge} if the current_block is
@@ -3147,7 +3144,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
         InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
                        true, args, nullptr);
-        if (did_bailout()) return;
 
         // An inlined tail call should still terminate execution.
         DCHECK_NULL(__ current_block());
@@ -5314,8 +5310,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     to->op = from.op;
   }
 
-  bool did_bailout() { return did_bailout_; }
-
  private:
   // The InstanceCache caches commonly used fields of the
   // WasmTrustedInstanceData.
@@ -5639,12 +5633,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       zone()->DeleteArray(old_phi_inputs, old_phi_inputs_capacity_total);
     }
   };
-
-  void Bailout(FullDecoder* decoder) {
-    decoder->errorf("Unsupported Turboshaft operation: %s",
-                    decoder->SafeOpcodeNameAt(decoder->pc()));
-    did_bailout_ = true;
-  }
 
   // Perform a null check if the input type is nullable.
   V<Object> NullCheck(const Value& value,
@@ -8135,13 +8123,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           no_liftoff_inlining_budget_);
     }
     inlinee_decoder.Decode();
-    // The function was already validated above, so graph building must always
-    // succeed, unless we bailed out.
-    DCHECK_EQ(!inlinee_decoder.ok(), inlinee_decoder.interface().did_bailout());
-    if (!inlinee_decoder.ok()) {
-      Bailout(decoder);
-      return;
-    }
+    // The function was already validated above.
+    DCHECK(inlinee_decoder.ok());
 
     DCHECK_IMPLIES(!is_tail_call && inlinee_mode == kInlinedWithCatch,
                    inlinee_return_phis != nullptr);
@@ -8333,7 +8316,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   ZoneVector<WasmInliningPosition>* inlining_positions_;
   uint8_t inlining_id_ = kNoInliningId;
   ZoneVector<OpIndex> ssa_env_;
-  bool did_bailout_ = false;
   compiler::NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
           ? compiler::NullCheckStrategy::kTrapHandler
@@ -8369,7 +8351,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   OptionalV<FrameState> parent_frame_state_;
 };
 
-V8_EXPORT_PRIVATE bool BuildTSGraph(
+V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
     CompilationEnv* env, WasmDetectedFeatures* detected, Graph& graph,
     const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
@@ -8384,10 +8366,8 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(
               &zone, env, assembler, assumptions, inlining_positions,
               func_index, func_body.is_shared, wire_bytes);
   decoder.Decode();
-  // Turboshaft runs with validation, but the function should already be
-  // validated, so graph building must always succeed, unless we bailed out.
-  DCHECK_IMPLIES(!decoder.ok(), decoder.interface().did_bailout());
-  return decoder.ok();
+  // The function was already validated, so graph building must always succeed.
+  DCHECK(decoder.ok());
 }
 
 #undef LOAD_IMMUTABLE_INSTANCE_FIELD

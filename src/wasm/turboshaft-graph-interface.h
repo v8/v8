@@ -41,7 +41,7 @@ class WireBytesStorage;
 class TurboshaftGraphBuildingInterface;
 struct CompilationEnv;
 
-V8_EXPORT_PRIVATE bool BuildTSGraph(
+V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
     CompilationEnv* env, WasmDetectedFeatures* detected,
     compiler::turboshaft::Graph& graph, const FunctionBody& func_body,

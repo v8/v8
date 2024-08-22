@@ -3515,13 +3515,11 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   turboshaft_data.InitializeGraphComponent(data.source_positions());
 
   AccountingAllocator allocator;
-  if (!wasm::BuildTSGraph(&turboshaft_data, &allocator, env, detected,
-                          turboshaft_data.graph(), compilation_data.func_body,
-                          compilation_data.wire_bytes_storage,
-                          compilation_data.assumptions, &inlining_positions,
-                          compilation_data.func_index)) {
-    return false;
-  }
+  wasm::BuildTSGraph(&turboshaft_data, &allocator, env, detected,
+                     turboshaft_data.graph(), compilation_data.func_body,
+                     compilation_data.wire_bytes_storage,
+                     compilation_data.assumptions, &inlining_positions,
+                     compilation_data.func_index);
   CodeTracer* code_tracer = nullptr;
   if (turboshaft_data.info()->trace_turbo_graph()) {
     // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
