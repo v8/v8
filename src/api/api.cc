@@ -2292,6 +2292,11 @@ Local<String> ModuleRequest::GetSpecifier() const {
   return ToApiHandle<String>(i::direct_handle(self->specifier(), i_isolate));
 }
 
+ModuleImportPhase ModuleRequest::GetPhase() const {
+  auto self = Utils::OpenDirectHandle(this);
+  return self->phase();
+}
+
 int ModuleRequest::GetSourceOffset() const {
   return Utils::OpenDirectHandle(this)->position();
 }
@@ -2425,11 +2430,13 @@ int Module::GetIdentityHash() const {
 }
 
 Maybe<bool> Module::InstantiateModule(Local<Context> context,
-                                      Module::ResolveModuleCallback callback) {
+                                      ResolveModuleCallback module_callback,
+                                      ResolveSourceCallback source_callback) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Module, InstantiateModule, i::HandleScope);
-  has_exception = !i::Module::Instantiate(i_isolate, Utils::OpenHandle(this),
-                                          context, callback);
+  has_exception =
+      !i::Module::Instantiate(i_isolate, Utils::OpenHandle(this), context,
+                              module_callback, source_callback);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
