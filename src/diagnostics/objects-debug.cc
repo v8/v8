@@ -1244,17 +1244,16 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
 #ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
   JSDispatchHandle handle = dispatch_handle();
   CHECK_NE(handle, kNullJSDispatchHandle);
-  uint16_t parameter_count =
-      GetProcessWideJSDispatchTable()->GetParameterCount(handle);
+  uint16_t parameter_count = jdt->GetParameterCount(handle);
   CHECK_EQ(parameter_count,
            shared(isolate)->internal_formal_parameter_count_with_receiver());
-  if (GetProcessWideJSDispatchTable()->HasCode(handle)) {
-    Tagged<Code> code = GetProcessWideJSDispatchTable()->GetCode(handle);
-    CHECK(code->parameter_count() == kDontAdaptArgumentsSentinel ||
-          code->parameter_count() == parameter_count);
-  }
+  CHECK(jdt->HasCode(handle));
+  Tagged<Code> code = jdt->GetCode(handle);
+  CHECK(code->parameter_count() == kDontAdaptArgumentsSentinel ||
+        code->parameter_count() == parameter_count);
 
   // Currently, a JSFunction must have the same dispatch entry as its
   // FeedbackCell, unless the FeedbackCell has no entry.
