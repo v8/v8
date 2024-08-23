@@ -3563,6 +3563,13 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
       }
     }
   }
+  if (result.IsHeapObject()) {
+    // TODO(olivf): Temporary check to investigate crash reports.
+    FastCloneObjectMode clone_mode =
+        GetCloneModeForMap(source_map, false, isolate);
+    CHECK(clone_mode == FastCloneObjectMode::kIdenticalMap ||
+          clone_mode == FastCloneObjectMode::kDifferentMap);
+  }
 #ifdef DEBUG
   FastCloneObjectMode clone_mode =
       GetCloneModeForMap(source_map, false, isolate);
