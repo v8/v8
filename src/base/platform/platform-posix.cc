@@ -338,11 +338,20 @@ void* OS::GetRandomMmapAddr() {
   raw_addr &= 0x007fffff0000ULL;
   raw_addr += 0x7e8000000000ULL;
 #else
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64
   // Currently available CPUs have 48 bits of virtual addressing.  Truncate
   // the hint address to 46 bits to give the kernel a fighting chance of
   // fulfilling our placement request.
   raw_addr &= uint64_t{0x3FFFFFFFF000};
+#elif V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_OS_LINUX) || defined(V8_TARGET_OS_ANDROID)
+  // On Linux, the default virtual address space is limited to 39 bits when
+  // using 4KB pages, see arch/arm64/Kconfig. We truncate to 38 bits.
+  raw_addr &= uint64_t{0x3FFFFFF000};
+#else
+  // On macOS and elsewhere, we use 46 bits, same as on x64.
+  raw_addr &= uint64_t{0x3FFFFFFFF000};
+#endif
 #elif V8_TARGET_ARCH_PPC64
 #if V8_OS_AIX
   // AIX: 64 bits of virtual addressing, but we limit address range to:
