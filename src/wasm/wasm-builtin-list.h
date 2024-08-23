@@ -64,7 +64,6 @@ namespace v8::internal::wasm {
   V(I64ToBigInt)                                                               \
   V(RecordWriteSaveFP)                                                         \
   V(RecordWriteIgnoreFP)                                                       \
-  V(ToNumber)                                                                  \
   V(ThrowDataViewTypeError)                                                    \
   V(ThrowDataViewDetachedError)                                                \
   V(ThrowDataViewOutOfBounds)                                                  \
