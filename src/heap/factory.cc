@@ -1824,7 +1824,6 @@ Handle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
   suspender->set_resume(*undefined_value());
   suspender->set_reject(*undefined_value());
   suspender->set_state(WasmSuspenderObject::kInactive);
-  suspender->set_has_js_frames(0);
   // Instantiate the callable object which resumes this Suspender. This will be
   // used implicitly as the onFulfilled callback of the returned JS promise.
   DirectHandle<WasmResumeData> resume_data =

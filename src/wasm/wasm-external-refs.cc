@@ -1019,13 +1019,8 @@ void switch_from_the_central_stack(Isolate* isolate) {
 }
 
 intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
-  // Set the suspender's {has_js_frames} field. The suspender contains JS
-  // frames iff it is currently on the central stack.
-  // The wasm-to-js wrapper checks this field when calling a suspending import
-  // and traps if the stack contains JS frames.
   auto active_suspender =
       Cast<WasmSuspenderObject>(isolate->root(RootIndex::kActiveSuspender));
-  active_suspender->set_has_js_frames(1);
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
   auto* stack = reinterpret_cast<StackMemory*>(
@@ -1041,7 +1036,6 @@ void switch_from_the_central_stack_for_js(Isolate* isolate) {
   // The stack only contains wasm frames after this JS call.
   auto active_suspender =
       Cast<WasmSuspenderObject>(isolate->root(RootIndex::kActiveSuspender));
-  active_suspender->set_has_js_frames(0);
   auto* stack = reinterpret_cast<StackMemory*>(
       Cast<WasmContinuationObject>(active_suspender->continuation())->stack());
   stack->clear_stack_switch_info();
