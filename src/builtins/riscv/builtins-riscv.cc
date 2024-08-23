@@ -4219,8 +4219,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     __ LoadWord(
         a1,
         MemOperand(fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
-    __ LoadWord(a0,
-                MemOperand(fp, JSToWasmWrapperFrameConstants::kParamOffset));
+    __ LoadWord(
+        a0, MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
   }
   {
     UseScratchRegisterScope temps(masm);
