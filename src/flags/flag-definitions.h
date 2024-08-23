@@ -1468,6 +1468,10 @@ DEFINE_BOOL(profile_guided_optimization_for_empty_feedback_vector, true,
             "profile guided optimization for empty feedback vector")
 DEFINE_INT(invocation_count_for_early_optimization, 30,
            "invocation count threshold for early optimization")
+DEFINE_INT(invocation_count_for_maglev_with_delay, 600,
+           "invocation count for maglev for functions which according to "
+           "profile_guided_optimization are likely to deoptimize before "
+           "reaching this invocation count")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,

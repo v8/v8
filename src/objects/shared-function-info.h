@@ -530,8 +530,6 @@ class SharedFunctionInfo
   DECL_BOOLEAN_ACCESSORS(is_sparkplug_compiling)
   DECL_BOOLEAN_ACCESSORS(maglev_compilation_failed)
 
-  DECL_BOOLEAN_ACCESSORS(sparkplug_compiled)
-
   CachedTieringDecision cached_tiering_decision();
   void set_cached_tiering_decision(CachedTieringDecision decision);
 

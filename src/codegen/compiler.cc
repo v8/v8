@@ -4421,7 +4421,8 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                     Cast<AbstractCode>(code));
     job->RecordCompilationStats(isolate);
     if (v8_flags.profile_guided_optimization &&
-        shared->cached_tiering_decision() == CachedTieringDecision::kPending) {
+        shared->cached_tiering_decision() <=
+            CachedTieringDecision::kEarlySparkplug) {
       shared->set_cached_tiering_decision(CachedTieringDecision::kEarlyMaglev);
     }
     CompilerTracer::TraceFinishMaglevCompile(

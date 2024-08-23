@@ -466,10 +466,6 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  if (v8_flags.profile_guided_optimization) {
-    function->shared()->set_cached_tiering_decision(
-        CachedTieringDecision::kNormal);
-  }
   function->ResetIfCodeFlushed(isolate);
   if (code.is_null()) code = function->code(isolate);
 
@@ -1357,6 +1353,28 @@ void Deoptimizer::GetWasmStackSlotsCounts(const wasm::FunctionSig* sig,
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+namespace {
+
+bool DeoptimizedMaglevvedCodeEarly(Isolate* isolate,
+                                   Tagged<JSFunction> function,
+                                   Tagged<Code> code) {
+  if (!code->is_maglevved()) return false;
+  if (IsRequestTurbofan(function->feedback_vector()->tiering_state())) {
+    // We request turbofan after consuming the invocation_count_for_turbofan
+    // budget which is greater than
+    // invocation_count_for_maglev_with_delay.
+    return false;
+  }
+  int current_invocation_budget =
+      function->raw_feedback_cell()->interrupt_budget() /
+      function->shared()->GetBytecodeArray(isolate)->length();
+  return current_invocation_budget >=
+         v8_flags.invocation_count_for_turbofan -
+             v8_flags.invocation_count_for_maglev_with_delay;
+}
+
+}  // namespace
+
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
 void Deoptimizer::DoComputeOutputFrames() {
@@ -1532,6 +1550,17 @@ void Deoptimizer::DoComputeOutputFrames() {
               DeoptExitIsInsideOsrLoop(isolate(), function_,
                                        bytecode_offset_in_outermost_frame_,
                                        compiled_code_->osr_offset())))) {
+    if (v8_flags.profile_guided_optimization &&
+        function_->shared()->cached_tiering_decision() !=
+            CachedTieringDecision::kDelayMaglev) {
+      if (DeoptimizedMaglevvedCodeEarly(isolate(), function_, compiled_code_)) {
+        function_->shared()->set_cached_tiering_decision(
+            CachedTieringDecision::kDelayMaglev);
+      } else {
+        function_->shared()->set_cached_tiering_decision(
+            CachedTieringDecision::kNormal);
+      }
+    }
     function_->reset_tiering_state();
     function_->SetInterruptBudget(isolate_, CodeKind::INTERPRETED_FUNCTION);
     function_->feedback_vector()->set_was_once_deoptimized();
