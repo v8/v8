@@ -5,6 +5,8 @@
 #ifndef V8_REGEXP_EXPERIMENTAL_EXPERIMENTAL_BYTECODE_H_
 #define V8_REGEXP_EXPERIMENTAL_EXPERIMENTAL_BYTECODE_H_
 
+#include <ios>
+
 #include "src/base/bit-field.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
@@ -102,40 +104,32 @@ struct RegExpInstruction {
     SET_QUANTIFIER_TO_CLOCK,
     FILTER_QUANTIFIER,
     FILTER_GROUP,
-    FILTER_LOOKAROUND,
     FILTER_CHILD,
     BEGIN_LOOP,
     END_LOOP,
-    START_LOOKAROUND,
-    END_LOOKAROUND,
-    WRITE_LOOKAROUND_TABLE,
-    READ_LOOKAROUND_TABLE,
+    WRITE_LOOKBEHIND_TABLE,
+    READ_LOOKBEHIND_TABLE,
   };
 
   struct Uc16Range {
     base::uc16 min;  // Inclusive.
     base::uc16 max;  // Inclusive.
   };
-
-  class LookaroundPayload {
+  class ReadLookbehindTablePayload {
    public:
-    LookaroundPayload() = default;
-    LookaroundPayload(uint32_t lookaround_index, bool is_positive,
-                      RegExpLookaround::Type type)
-        : payload_(Type::update(
-              IsPositive::update(LookaroundIndex::encode(lookaround_index),
-                                 is_positive),
-              type)) {}
+    ReadLookbehindTablePayload() = default;
+    ReadLookbehindTablePayload(int32_t lookbehind_index, bool is_positive)
+        : payload_(IsPositive::update(LookbehindIndex::encode(lookbehind_index),
+                                      is_positive)) {}
 
-    uint32_t index() const { return LookaroundIndex::decode(payload_); }
+    int32_t lookbehind_index() const {
+      return LookbehindIndex::decode(payload_);
+    }
     bool is_positive() const { return IsPositive::decode(payload_); }
-    RegExpLookaround::Type type() const { return Type::decode(payload_); }
 
    private:
     using IsPositive = base::BitField<bool, 0, 1>;
-    using Type = IsPositive::Next<RegExpLookaround::Type, 1>;
-    using LookaroundIndex = Type::Next<uint32_t, 30>;
-
+    using LookbehindIndex = base::BitField<int32_t, 1, 31>;
     uint32_t payload_;
   };
 
@@ -218,13 +212,6 @@ struct RegExpInstruction {
     return result;
   }
 
-  static RegExpInstruction FilterLookaround(int32_t lookaround_id) {
-    RegExpInstruction result;
-    result.opcode = FILTER_LOOKAROUND;
-    result.payload.lookaround_id = lookaround_id;
-    return result;
-  }
-
   static RegExpInstruction FilterChild(int32_t pc) {
     RegExpInstruction result;
     result.opcode = FILTER_CHILD;
@@ -244,34 +231,19 @@ struct RegExpInstruction {
     return result;
   }
 
-  static RegExpInstruction StartLookaround(int lookaround_index,
-                                           bool is_positive,
-                                           RegExpLookaround::Type type) {
-    RegExpInstruction result;
-    result.opcode = START_LOOKAROUND;
-    result.payload.lookaround =
-        LookaroundPayload(lookaround_index, is_positive, type);
-    return result;
-  }
-
-  static RegExpInstruction EndLookaround() {
-    RegExpInstruction result;
-    result.opcode = END_LOOKAROUND;
-    return result;
-  }
-
   static RegExpInstruction WriteLookTable(int32_t index) {
     RegExpInstruction result;
-    result.opcode = WRITE_LOOKAROUND_TABLE;
-    result.payload.lookaround_id = index;
+    result.opcode = WRITE_LOOKBEHIND_TABLE;
+    result.payload.looktable_index = index;
     return result;
   }
 
-  static RegExpInstruction ReadLookTable(int32_t index, bool is_positive,
-                                         RegExpLookaround::Type type) {
+  static RegExpInstruction ReadLookTable(int32_t index, bool is_positive) {
     RegExpInstruction result;
-    result.opcode = READ_LOOKAROUND_TABLE;
-    result.payload.lookaround = LookaroundPayload(index, is_positive, type);
+    result.opcode = READ_LOOKBEHIND_TABLE;
+
+    result.payload.read_lookbehind =
+        ReadLookbehindTablePayload(index, is_positive);
     return result;
   }
 
@@ -298,10 +270,10 @@ struct RegExpInstruction {
     int32_t quantifier_id;
     // Payload of FILTER_GROUP:
     int32_t group_id;
-    // Payload of WRITE_LOOKAROUND_TABLE and FILTER_LOOKAROUND:
-    int32_t lookaround_id;
-    // Payload of READ_LOOKAROUND_TABLE and START_LOOKAROUND:
-    LookaroundPayload lookaround;
+    // Payload of WRITE_LOOKBEHIND_TABLE:
+    int32_t looktable_index;
+    // Payload of READ_LOOKBEHIND_TABLE:
+    ReadLookbehindTablePayload read_lookbehind;
   } payload;
   static_assert(sizeof(payload) == 4);
 };
@@ -331,8 +303,6 @@ static_assert(sizeof(RegExpInstruction) == 8);
 std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst);
 std::ostream& operator<<(std::ostream& os,
                          base::Vector<const RegExpInstruction> insts);
-std::ostream& operator<<(std::ostream& os,
-                         const RegExpInstruction::LookaroundPayload& inst);
 
 }  // namespace internal
 }  // namespace v8
