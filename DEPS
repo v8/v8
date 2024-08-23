@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:250f32bbb04e51117d17db783c9535dd956f7d44',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:ad7b787aa0ee53a81bc88fb4f7fee7a3ff1e8c29',
+  'luci_go': 'git_revision:5845c6112f584c023a47776b31c3b6f08f562fb8',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '203462117f03d4e6d37ce1d88b05567bf66daf6c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '54c431687eecd0f704ce4bfb49ed8e20ad9ad967',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '941596c255e47c28a395e271086a4fd0bda4f410',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a8c444eac65bd626f0eb4eec57020e4707d49abb',
   'buildtools/linux64': {
     'packages': [
       {
@@ -231,15 +231,15 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/boringssl': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '4d98a91cde88f349b96f4018c00053b6699ffd88',
+    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '3b818f4d644a181593e120cdb0b6e85fa5a0ea44',
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '11f334121fd0d13830fefdf08041183da2d30ef3',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'f1b043c28352a4e79114324ca2e86df33922e843',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '9f91481f1d7eec6be3e0d9cc89a6acf8bf5f7d9f',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c530bb2c89bf6d71018bdc6f0fef155a6eb3931d',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,13 +253,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8f617b46176734ebd25b08ed4f2ab817e57c3a8a',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6f7b0f88672195ca5bb7734dc678381ba0c5e644',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
     Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + '3e57d8dcfb0a04b5a8a26b486b54490a2e9b310f',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '30fee7b68b3675e351fa47303c3b6ef322941ccd',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '0ea3c0308526d07eae3a6277b442b8ea6185a264',
     'condition': 'checkout_fuchsia',
   },
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
@@ -305,11 +305,11 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '9c3fb06173cf5a291faf8823dfb82a3da6835bc3',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6491ee32bae0a46b1424aea71a7da1d57119318f',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a834cb253992175f4a896c5fb1352ecd91abf11e',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '116c20dae60d84a77005697cf29f72783f81b0f9',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'dc70138c3e68e2f946585f134e20815851e26263',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
