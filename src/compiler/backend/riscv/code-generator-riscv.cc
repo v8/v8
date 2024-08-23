@@ -4414,24 +4414,7 @@ void CodeGenerator::AssembleConstructFrame() {
           call_descriptor->IsWasmCapiFunction()) {
         __ Push(kWasmImplicitArgRegister);
       }
-      if (call_descriptor->IsWasmImportWrapper()) {
-        // If the wrapper is running on a secondary stack, it will switch to the
-        // central stack and fill these slots with the central stack pointer and
-        // secondary stack limit. Otherwise the slots remain empty.
-#if V8_TARGET_ARCH_RISCV64
-        static_assert(WasmImportWrapperFrameConstants::kCentralStackSPOffset ==
-                      -24);
-        static_assert(
-            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset == -32);
-#elif V8_TARGET_ARCH_RISCV32
-        static_assert(WasmImportWrapperFrameConstants::kCentralStackSPOffset ==
-                      -12);
-        static_assert(
-            WasmImportWrapperFrameConstants::kSecondaryStackLimitOffset == -16);
-#endif
-        __ push(zero_reg);
-        __ push(zero_reg);
-      } else if (call_descriptor->IsWasmCapiFunction()) {
+      if (call_descriptor->IsWasmCapiFunction()) {
         // Reserve space for saving the PC later.
         __ SubWord(sp, sp, Operand(kSystemPointerSize));
       }
