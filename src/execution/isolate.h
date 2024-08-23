@@ -2007,7 +2007,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     if (V8_UNLIKELY(v8_flags.efficiency_mode.value().has_value())) {
       return *v8_flags.efficiency_mode.value();
     }
-    return is_backgrounded();
+    return priority_ != v8::Isolate::Priority::kUserBlocking;
   }
 
   // This is a temporary api until we use it by default.

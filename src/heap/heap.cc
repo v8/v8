@@ -3870,7 +3870,8 @@ bool Heap::HasHighFragmentation() {
 
 bool Heap::ShouldOptimizeForMemoryUsage() {
   const size_t kOldGenerationSlack = max_old_generation_size() / 8;
-  return v8_flags.optimize_for_size || isolate()->EfficiencyModeEnabled() ||
+  return v8_flags.optimize_for_size ||
+         isolate()->priority() == v8::Isolate::Priority::kBestEffort ||
          HighMemoryPressure() || !CanExpandOldGeneration(kOldGenerationSlack);
 }
 
