@@ -4308,13 +4308,9 @@ MaybeHandle<Code> Compiler::CompileOptimizedOSR(Isolate* isolate,
 
 // static
 void Compiler::DisposeTurbofanCompilationJob(Isolate* isolate,
-                                             TurbofanCompilationJob* job,
-                                             bool restore_function_code) {
+                                             TurbofanCompilationJob* job) {
   DirectHandle<JSFunction> function = job->compilation_info()->closure();
   ResetTieringState(isolate, *function, job->compilation_info()->osr_offset());
-  if (restore_function_code) {
-    function->set_code(function->shared()->GetCode(isolate));
-  }
 }
 
 // static
