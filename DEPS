@@ -76,7 +76,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:d010e218ca7077928ad7c9e9cc02fe43b5a8a0ad',
+  'gn_version': 'git_revision:9e0c7b7cefb270ce9d340777e4379c9fed9ea9df',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0ad9d6f1982d74345c80f98509c09903c9922b94',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6672ff7714bb19cac39bbf1d130fa5699fca8c47',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a8c444eac65bd626f0eb4eec57020e4707d49abb',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0932737f617c4e23f4ae4f530c48d887bca4f1b6',
   'buildtools/linux64': {
     'packages': [
       {
@@ -239,7 +239,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c530bb2c89bf6d71018bdc6f0fef155a6eb3931d',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '4917becfcf533ef31071fde42fa13ec417c71930',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -305,7 +305,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6491ee32bae0a46b1424aea71a7da1d57119318f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '0f818c09a7fd9a6bac4947cdca35912b5666c4eb',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a834cb253992175f4a896c5fb1352ecd91abf11e',
   'third_party/libunwind/src':
