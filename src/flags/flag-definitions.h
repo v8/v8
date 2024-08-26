@@ -2179,7 +2179,7 @@ DEFINE_NEG_NEG_IMPLICATION(cppheap_incremental_marking,
                            cppheap_concurrent_marking)
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, cppheap_concurrent_marking)
 DEFINE_WEAK_IMPLICATION(concurrent_marking, cppheap_concurrent_marking)
-DEFINE_BOOL(cppheap_optimize_sweep_for_mutator, false,
+DEFINE_BOOL(cppheap_optimize_sweep_for_mutator, true,
             "optimize sweeping for mutator time (i.e. spend less time in "
             "synchronous sweeping and idle time)")
 
