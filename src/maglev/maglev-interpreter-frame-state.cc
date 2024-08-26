@@ -1238,6 +1238,11 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
     return {};
   }
 
+  // We don't have LoopPhis inside a VirtualObject, but this can happen if the
+  // block is a diamond-merge and a loop entry at the same time. For now, we
+  // should escape.
+  if (is_loop()) return {};
+
   result = Node::New<Phi>(builder->zone(), predecessor_count_, this,
                           interpreter::Register::invalid_value());
   if (v8_flags.trace_maglev_graph_building) {
