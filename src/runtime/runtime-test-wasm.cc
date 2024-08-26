@@ -493,15 +493,15 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
 // Return undefined if unsuccessful.
 RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   HandleScope scope(isolate);
-  if (args.length() != 2 || !IsJSArrayBuffer(args[0]) ||
-      !IsJSTypedArray(args[1])) {
-    return CrashUnlessFuzzing(isolate);
-  }
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
+  CHECK_EQ(2, args.length());
+  CHECK(IsJSArrayBuffer(args[0]));
+  CHECK(IsJSTypedArray(args[1]));
+
   DirectHandle<JSArrayBuffer> buffer = args.at<JSArrayBuffer>(0);
   DirectHandle<JSTypedArray> wire_bytes = args.at<JSTypedArray>(1);
-  if (buffer->was_detached() || wire_bytes->WasDetached()) {
-    return CrashUnlessFuzzing(isolate);
-  }
+  CHECK(!buffer->was_detached());
+  CHECK(!wire_bytes->WasDetached());
 
   DirectHandle<JSArrayBuffer> wire_bytes_buffer = wire_bytes->GetBuffer();
   base::Vector<const uint8_t> wire_bytes_vec{
