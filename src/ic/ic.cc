@@ -3252,11 +3252,25 @@ enum class FastCloneObjectMode {
   kNotSupported,
 };
 
+template <bool ENSURE_CLONABLE = false>
 FastCloneObjectMode GetCloneModeForMap(DirectHandle<Map> map,
                                        bool null_proto_literal,
-                                       Isolate* isolate) {
+                                       Isolate* isolate,
+                                       std::optional<Tagged<Map>> target = {}) {
+  // TODO(olivf, 362017087): Temporary check to investigate crash reports.
+#define NOT_CLONABLE                                            \
+  if (ENSURE_CLONABLE) {                                        \
+    isolate->PushParamsAndDie(                                  \
+        reinterpret_cast<void*>(map->address()),                \
+        reinterpret_cast<void*>((*target)->address()),          \
+        reinterpret_cast<void*>(map->instance_type()),          \
+        reinterpret_cast<void*>(map->NumberOfOwnDescriptors()), \
+        reinterpret_cast<void*>(map->is_dictionary_map()));     \
+  }
+
   DisallowGarbageCollection no_gc;
   if (!IsJSObjectMap(*map)) {
+    NOT_CLONABLE
     // Everything that produces the empty object literal can be supported since
     // we have a special case for that.
     if (null_proto_literal) return FastCloneObjectMode::kNotSupported;
@@ -3268,14 +3282,17 @@ FastCloneObjectMode GetCloneModeForMap(DirectHandle<Map> map,
   ElementsKind elements_kind = map->elements_kind();
   if (!IsSmiOrObjectElementsKind(elements_kind) &&
       !IsAnyNonextensibleElementsKind(elements_kind)) {
+    NOT_CLONABLE
     return FastCloneObjectMode::kNotSupported;
   }
   if (!map->OnlyHasSimpleProperties()) {
+    NOT_CLONABLE
     return FastCloneObjectMode::kNotSupported;
   }
 
   // TODO(olivf): Think about cases where cross-context copies are safe.
   if (*map->map()->native_context() != *isolate->native_context()) {
+    NOT_CLONABLE
     return FastCloneObjectMode::kNotSupported;
   }
 
@@ -3300,8 +3317,16 @@ FastCloneObjectMode GetCloneModeForMap(DirectHandle<Map> map,
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
     Tagged<Name> key = descriptors->GetKey(i);
-    if (details.kind() != PropertyKind::kData || !details.IsEnumerable() ||
-        key->IsPrivateName()) {
+    if (details.kind() != PropertyKind::kData) {
+      NOT_CLONABLE
+      return FastCloneObjectMode::kNotSupported;
+    }
+    if (!details.IsEnumerable()) {
+      NOT_CLONABLE
+      return FastCloneObjectMode::kNotSupported;
+    }
+    if (key->IsPrivateName()) {
+      NOT_CLONABLE
       return FastCloneObjectMode::kNotSupported;
     }
     if (!details.IsConfigurable() || details.IsReadOnly()) {
@@ -3564,11 +3589,9 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
     }
   }
   if (result.IsHeapObject()) {
-    // TODO(olivf): Temporary check to investigate crash reports.
-    FastCloneObjectMode clone_mode =
-        GetCloneModeForMap(source_map, false, isolate);
-    CHECK(clone_mode == FastCloneObjectMode::kIdenticalMap ||
-          clone_mode == FastCloneObjectMode::kDifferentMap);
+    // TODO(olivf, 362017087): Temporary check to investigate crash reports.
+    GetCloneModeForMap<true>(source_map, false, isolate,
+                             Cast<Map>(result.GetHeapObject()));
   }
 #ifdef DEBUG
   FastCloneObjectMode clone_mode =
@@ -3641,6 +3664,9 @@ void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
   }
   DCHECK_EQ(GetCloneTargetMap<kind>(isolate, source_map, override_map),
             *new_target_map);
+
+  // TODO(olivf, 362017087): Temporary check to investigate crash reports.
+  GetCloneModeForMap<true>(source_map, false, isolate, *new_target_map);
 }
 
 template <SideStepTransition::Kind kind>
