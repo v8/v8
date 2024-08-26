@@ -3342,8 +3342,7 @@ bool CanCacheCloneTargetMapTransition(
   // TODO(olivf): Either remove that dcheck or move it to GetCloneModeForMap.
   DCHECK(!InReadOnlySpace(*source_map));
   if (InReadOnlySpace(*source_map) || source_map->is_deprecated() ||
-      source_map->is_prototype_map() ||
-      !TransitionsAccessor::CanHaveMoreTransitions(isolate, source_map)) {
+      source_map->is_prototype_map()) {
     return false;
   }
   if (!target_map) {
@@ -3906,8 +3905,10 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
     }
   };
   auto UpdateCacheNotClonable = [&]() {
-    SetCloneTargetMapUnsupported<SideStepTransition::Kind::kObjectAssign>(
-        isolate, source_map, target_map);
+    if (CanCacheCloneTargetMapTransition(source_map, {}, false, isolate)) {
+      SetCloneTargetMapUnsupported<SideStepTransition::Kind::kObjectAssign>(
+          isolate, source_map, target_map);
+    }
   };
 
   // In case we are still slack tracking let's defer a decision. The fast case
