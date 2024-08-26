@@ -839,6 +839,7 @@ class D8WasmAsyncResolvePromiseTask : public v8::Task {
   void Run() override {
     v8::HandleScope scope(isolate_);
     v8::Local<v8::Context> context = context_.Get(isolate_);
+    v8::Context::Scope context_scope(context);
     MicrotasksScope microtasks_scope(context,
                                      MicrotasksScope::kDoNotRunMicrotasks);
     v8::Local<v8::Promise::Resolver> resolver = resolver_.Get(isolate_);
