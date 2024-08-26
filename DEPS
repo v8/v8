@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:2@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:250f32bbb04e51117d17db783c9535dd956f7d44',
+  'siso_version': 'git_revision:7707357c02fed4b33defd2f61a40742aac590c73',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:5845c6112f584c023a47776b31c3b6f08f562fb8',
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6672ff7714bb19cac39bbf1d130fa5699fca8c47',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ab3d168af986fd77d7eecbc5cd48e8cf99a39e4f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4434cfea96b6a5b778a4a0af1496cbe8d666c834',
   'buildtools/linux64': {
