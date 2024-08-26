@@ -688,6 +688,8 @@ class InstructionSelectorT final : public Adapter {
     }
   }
 
+  void UpdateSourcePosition(Instruction* instruction, node_t node);
+
  private:
   friend class OperandGeneratorT<Adapter>;
 

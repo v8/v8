@@ -3643,6 +3643,7 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
   size_t input_count = 0;
   InstructionOperand outputs[1];
   size_t output_count = 0;
+  typename Adapter::node_t trapping_load = {};
 
   if (left == right) {
     // If both inputs refer to the same operand, enforce allocating a register
@@ -3685,6 +3686,7 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
           sse_opcode |=
               AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
           selector->SetProtectedLoadToRemove(right);
+          trapping_load = right;
         }
       }
     } else {
@@ -3695,17 +3697,16 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
 
   DCHECK_NE(0u, input_count);
   DCHECK_GE(arraysize(inputs), input_count);
-
-  if (selector->IsSupported(AVX)) {
-    outputs[output_count++] = g.DefineAsRegister(node);
-    DCHECK_EQ(1u, output_count);
-    DCHECK_GE(arraysize(outputs), output_count);
-    selector->Emit(avx_opcode, output_count, outputs, input_count, inputs);
-  } else {
-    outputs[output_count++] = g.DefineSameAsFirst(node);
-    DCHECK_EQ(1u, output_count);
-    DCHECK_GE(arraysize(outputs), output_count);
-    selector->Emit(sse_opcode, output_count, outputs, input_count, inputs);
+  InstructionCode code = selector->IsSupported(AVX) ? avx_opcode : sse_opcode;
+  outputs[output_count++] = selector->IsSupported(AVX)
+                                ? g.DefineAsRegister(node)
+                                : g.DefineSameAsFirst(node);
+  DCHECK_EQ(1u, output_count);
+  DCHECK_GE(arraysize(outputs), output_count);
+  Instruction* instr =
+      selector->Emit(code, output_count, outputs, input_count, inputs);
+  if (selector->valid(trapping_load)) {
+    selector->UpdateSourcePosition(instr, trapping_load);
   }
 }
 

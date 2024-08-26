@@ -1680,6 +1680,16 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::UpdateSourcePosition(
+    Instruction* instruction, node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    sequence()->SetSourcePosition(instruction, (*source_positions_)[node]);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+template <typename Adapter>
 bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
   if (source_position_mode_ == InstructionSelector::kAllSourcePositions) {
     return true;
