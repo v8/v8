@@ -66,6 +66,7 @@
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/megadom-handler-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
@@ -1626,12 +1627,21 @@ Handle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData() {
 
 Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(int length) {
   CHECK_LE(length, WasmDispatchTable::kMaxLength);
+
+  // TODO(jkummerow): Any chance to get a better estimate?
+  size_t estimated_offheap_size = 0;
+  Handle<TrustedManaged<WasmDispatchTableData>> offheap_data =
+      TrustedManaged<WasmDispatchTableData>::From(
+          isolate(), estimated_offheap_size,
+          std::make_shared<WasmDispatchTableData>());
+
   int bytes = WasmDispatchTable::SizeFor(length);
   Tagged<WasmDispatchTable> result = UncheckedCast<WasmDispatchTable>(
       AllocateRawWithImmortalMap(bytes, AllocationType::kTrusted,
                                  read_only_roots().wasm_dispatch_table_map()));
   result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
   result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
+  result->set_protected_offheap_data(*offheap_data);
   for (int i = 0; i < length; ++i) {
     result->Clear(i);
     result->clear_entry_padding(i);

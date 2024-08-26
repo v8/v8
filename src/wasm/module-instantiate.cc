@@ -18,6 +18,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/constant-expression-interface.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder-impl.h"
@@ -1907,23 +1908,21 @@ bool InstanceBuilder::ProcessImportedFunction(
     case ImportCallKind::kWasmToCapi: {
       NativeModule* native_module = trusted_instance_data->native_module();
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
-      WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
-      // TODO(jkummerow): Consider precompiling CapiCallWrappers in parallel,
-      // just like other import wrappers.
+      WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
       uint32_t canonical_type_index =
           module_->isorecursive_canonical_type_ids
               [module_->functions[func_index].sig_index];
+      WasmCodeRefScope code_ref_scope;
       WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
                                             expected_arity, kNoSuspend);
       if (wasm_code == nullptr) {
-        WasmCodeRefScope code_ref_scope;
         WasmImportWrapperCache::ModificationScope cache_scope(cache);
-        wasm_code =
+        WasmCompilationResult result =
             compiler::CompileWasmCapiCallWrapper(native_module, expected_sig);
         WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
                                              expected_arity, kNoSuspend);
-        cache_scope[key] = wasm_code;
-        wasm_code->IncRef();
+        wasm_code = cache_scope.AddWrapper(key, std::move(result),
+                                           WasmCode::Kind::kWasmToCapiWrapper);
         isolate_->counters()->wasm_generated_code_size()->Increment(
             wasm_code->instructions().length());
         isolate_->counters()->wasm_reloc_size()->Increment(
@@ -1940,8 +1939,21 @@ bool InstanceBuilder::ProcessImportedFunction(
       NativeModule* native_module = trusted_instance_data->native_module();
       DCHECK(IsJSFunction(*js_receiver) || IsJSBoundFunction(*js_receiver));
       WasmCodeRefScope code_ref_scope;
-      WasmCode* wasm_code = compiler::CompileWasmJSFastCallWrapper(
+      // Note: the wrapper we're about to compile is specific to this
+      // instantiation, so it cannot be shared. However, its lifetime must
+      // be managed by the WasmImportWrapperCache, so that it can be used
+      // in WasmDispatchTables whose lifetime might exceed that of this
+      // instance's NativeModule.
+      // So the {CacheKey} is a dummy, and we don't look for an existing
+      // wrapper. Key collisions are not a concern because lifetimes are
+      // determined by refcounting.
+      WasmCompilationResult result = compiler::CompileWasmJSFastCallWrapper(
           native_module, expected_sig, js_receiver);
+      WasmImportWrapperCache::ModificationScope cache_scope(
+          GetWasmImportWrapperCache());
+      WasmImportWrapperCache::CacheKey dummy_key(kind, 0, 0, kNoSuspend);
+      WasmCode* wasm_code = cache_scope.AddWrapper(
+          dummy_key, std::move(result), WasmCode::Kind::kWasmToJsWrapper);
       imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
                                          kNoSuspend, expected_sig);
       break;
@@ -1955,6 +1967,12 @@ bool InstanceBuilder::ProcessImportedFunction(
                                           resolved.suspend(), expected_sig);
         break;
       }
+      if (v8_flags.wasm_jitless) {
+        WasmCode* no_code = nullptr;
+        imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, no_code,
+                                           resolved.suspend(), expected_sig);
+        break;
+      }
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       if (kind == ImportCallKind::kJSFunctionArityMismatch) {
         auto function = Cast<JSFunction>(js_receiver);
@@ -1963,34 +1981,45 @@ bool InstanceBuilder::ProcessImportedFunction(
             shared->internal_formal_parameter_count_without_receiver();
       }
 
-      NativeModule* native_module = trusted_instance_data->native_module();
       uint32_t canonical_type_index =
           module_->isorecursive_canonical_type_ids
               [module_->functions[func_index].sig_index];
-      WasmCode* wasm_code = native_module->import_wrapper_cache()->MaybeGet(
-          kind, canonical_type_index, expected_arity, resolved.suspend());
-      if (!v8_flags.wasm_jitless && wasm_code == nullptr) {
-        WasmImportWrapperCache::ModificationScope cache_scope(
-            native_module->import_wrapper_cache());
-        // Now that we have the lock (in the form of the cache_scope), check
-        // again whether another thread has just created the wrapper.
+      WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
+      WasmCodeRefScope code_ref_scope;
+      WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
+                                            expected_arity, resolved.suspend());
+      if (!wasm_code) {
+        // This should be a very rare fallback case. We expect that the
+        // generic wrapper will be used (see above).
+        NativeModule* native_module = trusted_instance_data->native_module();
+        bool source_positions = is_asmjs_module(native_module->module());
+        CompilationEnv env = CompilationEnv::ForModule(native_module);
+        WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
+            &env, kind, expected_sig, source_positions, expected_arity,
+            resolved.suspend());
+        WasmImportWrapperCache::ModificationScope cache_scope(cache);
         WasmImportWrapperCache::CacheKey key(
             kind, canonical_type_index, expected_arity, resolved.suspend());
+        // Now that we have the lock (in the form of the cache_scope), check
+        // again whether another thread has just created the wrapper.
         wasm_code = cache_scope[key];
-        if (wasm_code == nullptr) {
-          wasm_code = CompileImportWrapper(native_module, isolate_->counters(),
-                                           kind, expected_sig,
-                                           canonical_type_index, expected_arity,
-                                           resolved.suspend(), &cache_scope);
-          if (native_module->log_code()) {
-            GetWasmEngine()->LogCode({&wasm_code, 1});
+        if (!wasm_code) {
+          wasm_code = cache_scope.AddWrapper(key, std::move(result),
+                                             WasmCode::Kind::kWasmToJsWrapper);
+          isolate_->counters()->wasm_generated_code_size()->Increment(
+              wasm_code->instructions().length());
+          isolate_->counters()->wasm_reloc_size()->Increment(
+              wasm_code->reloc_info().length());
+          if (V8_UNLIKELY(native_module->log_code())) {
+            GetWasmEngine()->LogWrapperCode(base::VectorOf(&wasm_code, 1));
+            // Log the code immediately in the current isolate.
             GetWasmEngine()->LogOutstandingCodesForIsolate(isolate_);
           }
         }
       }
-      DCHECK(v8_flags.wasm_jitless || wasm_code != nullptr);
-      if (v8_flags.wasm_jitless ||
-          wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
+
+      DCHECK_NOT_NULL(wasm_code);
+      if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
         // Wasm to JS wrappers are treated specially in the import table.
         imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
                                            resolved.suspend(), expected_sig);

@@ -731,7 +731,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           __ graph_zone(), interface_descriptor,
           interface_descriptor.GetStackParameterCount(),
           CallDescriptor::kNoFlags, Operator::kNoProperties,
-          StubCallMode::kCallWasmRuntimeStub);
+          StubCallMode::kCallBuiltinPointer);
       const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
           call_descriptor, compiler::CanThrow::kYes,
           compiler::LazyDeoptOnThrow::kNo, __ graph_zone());

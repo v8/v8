@@ -942,10 +942,12 @@ bool CodeGenerator::GetSlotAboveSPBeforeTailCall(Instruction* instr,
 StubCallMode CodeGenerator::DetermineStubCallMode() const {
 #if V8_ENABLE_WEBASSEMBLY
   CodeKind code_kind = info()->code_kind();
-  if (code_kind == CodeKind::WASM_FUNCTION ||
-      code_kind == CodeKind::WASM_TO_CAPI_FUNCTION ||
-      code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
+  if (code_kind == CodeKind::WASM_FUNCTION) {
     return StubCallMode::kCallWasmRuntimeStub;
+  }
+  if (code_kind == CodeKind::WASM_TO_CAPI_FUNCTION ||
+      code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
+    return StubCallMode::kCallBuiltinPointer;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return StubCallMode::kCallCodeObject;

@@ -625,6 +625,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   if (IsWasmFuncRef(*origin)) {
     // The tierup for `WasmInternalFunction is special, as there may not be an
     // instance.
+    // TODO(jkummerow): Use the WasmImportWrapperCache here.
     size_t expected_arity = sig.parameter_count();
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
     if (IsJSFunction(import_data->callable())) {
@@ -710,7 +711,6 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-  wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
   // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
   int expected_arity = static_cast<int>(sig.parameter_count());
   if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
@@ -719,36 +719,31 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
                          ->internal_formal_parameter_count_without_receiver();
   }
 
-  wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
+  wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   wasm::WasmCode* wasm_code =
       cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
   if (!wasm_code) {
+    wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
         &env, kind, &sig, false, expected_arity, suspend);
-    std::unique_ptr<wasm::WasmCode> compiled_code = native_module->AddCode(
-        result.func_index, result.code_desc, result.frame_slot_count,
-        result.ool_spill_count, result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(),
-        result.inlining_positions.as_vector(), result.deopt_data.as_vector(),
-        GetCodeKind(result), wasm::ExecutionTier::kNone,
-        wasm::kNotForDebugging);
-    wasm_code = native_module->PublishCode(std::move(compiled_code));
+    wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
+    wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
+                                               expected_arity, suspend);
+    wasm_code = cache_scope.AddWrapper(key, std::move(result),
+                                       wasm::WasmCode::Kind::kWasmToJsWrapper);
     isolate->counters()->wasm_generated_code_size()->Increment(
         wasm_code->instructions().length());
     isolate->counters()->wasm_reloc_size()->Increment(
         wasm_code->reloc_info().length());
     if (V8_UNLIKELY(native_module->log_code())) {
-      wasm::GetWasmEngine()->LogCode(base::VectorOf(&wasm_code, 1));
+      wasm::GetWasmEngine()->LogWrapperCode(base::VectorOf(&wasm_code, 1));
       // Log the code immediately in the current isolate.
       wasm::GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
     }
-
-    wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
-    wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
-                                               expected_arity, suspend);
-    cache_scope[key] = wasm_code;
   }
+  // Note: we don't need to decrement any refcounts here, because tier-up
+  // doesn't overwrite an existing compiled wrapper, and the generic wrapper
+  // isn't refcounted.
 
   if (WasmImportData::CallOriginIsImportIndex(origin)) {
     int func_index = WasmImportData::CallOriginAsIndex(origin);
@@ -765,6 +760,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
           trusted_data->dispatch_table(table_index);
       if (entry_index < table->length() &&
           table->implicit_arg(entry_index) == *import_data) {
+        table->offheap_data()->Add(wasm_code->instruction_start());
         table->SetTarget(entry_index, wasm_code->instruction_start());
         // {ref} is used in at most one table.
         break;

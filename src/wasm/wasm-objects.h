@@ -703,6 +703,22 @@ class WasmTagObject
   TQ_OBJECT_CONSTRUCTORS(WasmTagObject)
 };
 
+// Off-heap data object owned by a WasmDispatchTable. Currently used for
+// tracking referenced WasmToJS wrappers (shared per process), so we can
+// decrement their refcounts when the WasmDispatchTable is freed.
+class WasmDispatchTableData {
+ public:
+  WasmDispatchTableData() = default;
+  ~WasmDispatchTableData();
+
+  void Add(Address call_target);
+  void Remove(Address call_target);
+
+ private:
+  base::Mutex mutex_;
+  std::map<wasm::WasmCode*, size_t> wrappers_;
+};
+
 // The dispatch table is referenced from a WasmTableObject and from every
 // WasmTrustedInstanceData which uses the table. It is used from generated code
 // for executing indirect calls.
@@ -715,7 +731,10 @@ class WasmDispatchTable : public TrustedObject {
 
   static constexpr size_t kLengthOffset = kHeaderSize;
   static constexpr size_t kCapacityOffset = kLengthOffset + kUInt32Size;
-  static constexpr size_t kEntriesOffset = kCapacityOffset + kUInt32Size;
+  static constexpr size_t kProtectedOffheapDataOffset =
+      kCapacityOffset + kUInt32Size;
+  static constexpr size_t kEntriesOffset =
+      kProtectedOffheapDataOffset + kTaggedSize;
 
   // Entries consist of
   // - target (pointer)
@@ -771,6 +790,10 @@ class WasmDispatchTable : public TrustedObject {
   // The current capacity. Can be bigger than the current length to allow for
   // more efficient growing.
   inline int capacity() const;
+
+  DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,
+                                   TrustedManaged<WasmDispatchTableData>)
+  inline WasmDispatchTableData* offheap_data() const;
 
   // Accessors.
   // {implicit_arg} will be a WasmImportData, a WasmTrustedInstanceData, or

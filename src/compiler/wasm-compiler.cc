@@ -8708,8 +8708,8 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   return result;
 }
 
-wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
-                                           const wasm::FunctionSig* sig) {
+wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
+    wasm::NativeModule* native_module, const wasm::FunctionSig* sig) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmCapiFunction");
   const char* debug_name = "WasmCapiCall";
@@ -8747,31 +8747,17 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
         call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION, debug_name,
         WasmStubAssemblerOptions(), source_positions);
   };
-  wasm::WasmCompilationResult result = v8_flags.turboshaft_wasm_wrappers
-                                           ? compile_with_turboshaft()
+  return v8_flags.turboshaft_wasm_wrappers ? compile_with_turboshaft()
                                            : compile_with_turbofan();
-  wasm::WasmCode* published_code;
-  {
-    std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
-        wasm::kAnonymousFuncIndex, result.code_desc, result.frame_slot_count,
-        result.ool_spill_count, result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(),
-        result.inlining_positions.as_vector(), result.deopt_data.as_vector(),
-        wasm::WasmCode::kWasmToCapiWrapper, wasm::ExecutionTier::kNone,
-        wasm::kNotForDebugging);
-    published_code = native_module->PublishCode(std::move(wasm_code));
-  }
-  return published_code;
 }
 
 bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
   return fast_api_call::CanOptimizeFastSignature(sig);
 }
 
-wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule* native_module,
-                                             const wasm::FunctionSig* sig,
-                                             Handle<JSReceiver> callable) {
+wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
+    wasm::NativeModule* native_module, const wasm::FunctionSig* sig,
+    Handle<JSReceiver> callable) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmJSFastCallWrapper");
 
@@ -8802,17 +8788,7 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule* native_module,
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
       call_descriptor, mcgraph, CodeKind::WASM_TO_JS_FUNCTION, debug_name,
       WasmStubAssemblerOptions(), source_positions);
-  {
-    std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
-        wasm::kAnonymousFuncIndex, result.code_desc, result.frame_slot_count,
-        result.ool_spill_count, result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(),
-        result.inlining_positions.as_vector(), result.deopt_data.as_vector(),
-        wasm::WasmCode::kWasmToJsWrapper, wasm::ExecutionTier::kNone,
-        wasm::kNotForDebugging);
-    return native_module->PublishCode(std::move(wasm_code));
-  }
+  return result;
 }
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,

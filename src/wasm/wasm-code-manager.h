@@ -28,7 +28,6 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
-#include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module-sourcemap.h"
 #include "src/wasm/wasm-tier.h"
@@ -295,6 +294,13 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // belonging to different {NativeModule}s. Dead code will be deleted.
   static void DecrementRefCount(base::Vector<WasmCode* const>);
 
+  // Called by the WasmEngine when it shuts down for code it thinks is
+  // probably dead (i.e. is in the "potentially_dead_code_" set). Wrapped
+  // in a method only because {ref_count_} is private.
+  void DcheckRefCountIsOne() {
+    DCHECK_EQ(1, ref_count_.load(std::memory_order_acquire));
+  }
+
   // Returns the last source position before {offset}.
   SourcePosition GetSourcePositionBefore(int code_offset);
   int GetSourceOffsetBefore(int code_offset);
@@ -326,6 +332,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
  private:
   friend class NativeModule;
+  friend class WasmImportWrapperCache;
 
   WasmCode(NativeModule* native_module, int index,
            base::Vector<uint8_t> instructions, int stack_slots, int ool_spills,
@@ -462,6 +469,10 @@ class WasmCodeAllocator {
   // Call before use, after the {NativeModule} is set up completely.
   void Init(VirtualMemory code_space);
 
+  // Call on newly allocated code ranges, to write platform-specific headers.
+  void InitializeCodeRange(NativeModule* native_module,
+                           base::AddressRegion region);
+
   size_t committed_code_space() const {
     return committed_code_space_.load(std::memory_order_acquire);
   }
@@ -475,6 +486,8 @@ class WasmCodeAllocator {
   // Allocate code space. Returns a valid buffer or fails with OOM (crash).
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   base::Vector<uint8_t> AllocateForCode(NativeModule*, size_t size);
+  // Same, but for wrappers (which are shared across NativeModules).
+  base::Vector<uint8_t> AllocateForWrapper(size_t size);
 
   // Allocate code space within a specific region. Returns a valid buffer or
   // fails with OOM (crash).
@@ -712,10 +725,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
 
   WasmCode* Lookup(Address) const;
-
-  WasmImportWrapperCache* import_wrapper_cache() {
-    return &import_wrapper_cache_;
-  }
 
   WasmEnabledFeatures enabled_features() const { return enabled_features_; }
   const CompileTimeImports& compile_imports() const { return compile_imports_; }
@@ -958,9 +967,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // hence needs to be destructed first when this native module dies.
   std::unique_ptr<CompilationState> compilation_state_;
 
-  // A cache of the import wrappers, keyed on the kind and signature.
-  WasmImportWrapperCache import_wrapper_cache_;
-
   // Array to handle number of function calls.
   std::unique_ptr<std::atomic<uint32_t>[]> tiering_budgets_;
 
@@ -1093,8 +1099,9 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
  private:
   friend class WasmCodeAllocator;
-  friend class WasmEngine;
   friend class WasmCodeLookupCache;
+  friend class WasmEngine;
+  friend class WasmImportWrapperCache;
 
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmEnabledFeatures enabled_features,

@@ -776,28 +776,7 @@ void MacroAssembler::CallTSANStoreStub(Register address, Register value,
   // Prepare argument registers for calling GetTSANStoreStub.
   MovePair(address_parameter, address, value_parameter, value);
 
-  if (isolate()) {
-    CallBuiltin(CodeFactory::GetTSANStoreStub(fp_mode, size, order));
-  }
-#if V8_ENABLE_WEBASSEMBLY
-  // There are two different kinds of wasm-to-js functions: one lives in the
-  // wasm code space, and another one lives on the heap. Both of them have the
-  // same CodeKind (WASM_TO_JS_FUNCTION), but depending on where they are they
-  // have to either use the wasm stub calls, or call the builtin using the
-  // isolate like JS does. In order to know which wasm-to-js function we are
-  // compiling right now, we check if the isolate is null.
-  // TODO(solanes, v8:11600): Split CodeKind::WASM_TO_JS_FUNCTION into two
-  // different CodeKinds and pass the CodeKind as a parameter so that we can use
-  // that instead of a nullptr check.
-  // NOLINTNEXTLINE(readability/braces)
-  else {
-    DCHECK_EQ(mode, StubCallMode::kCallWasmRuntimeStub);
-    // Use {near_call} for direct Wasm call within a module.
-    auto wasm_target = static_cast<intptr_t>(
-        wasm::WasmCode::GetTSANStoreBuiltin(fp_mode, size, order));
-    near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
+  CallBuiltin(CodeFactory::GetTSANStoreStub(fp_mode, size, order));
 
   PopAll(registers);
 }
@@ -816,28 +795,7 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
   // Prepare argument registers for calling TSANRelaxedLoad.
   Move(address_parameter, address);
 
-  if (isolate()) {
-    CallBuiltin(CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size));
-  }
-#if V8_ENABLE_WEBASSEMBLY
-  // There are two different kinds of wasm-to-js functions: one lives in the
-  // wasm code space, and another one lives on the heap. Both of them have the
-  // same CodeKind (WASM_TO_JS_FUNCTION), but depending on where they are they
-  // have to either use the wasm stub calls, or call the builtin using the
-  // isolate like JS does. In order to know which wasm-to-js function we are
-  // compiling right now, we check if the isolate is null.
-  // TODO(solanes, v8:11600): Split CodeKind::WASM_TO_JS_FUNCTION into two
-  // different CodeKinds and pass the CodeKind as a parameter so that we can use
-  // that instead of a nullptr check.
-  // NOLINTNEXTLINE(readability/braces)
-  else {
-    DCHECK_EQ(mode, StubCallMode::kCallWasmRuntimeStub);
-    // Use {near_call} for direct Wasm call within a module.
-    auto wasm_target = static_cast<intptr_t>(
-        wasm::WasmCode::GetTSANRelaxedLoadBuiltin(fp_mode, size));
-    near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
+  CallBuiltin(CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size));
 
   PopAll(registers);
 }

@@ -560,8 +560,12 @@ void WasmTableObject::UpdateDispatchTables(
 #if !V8_ENABLE_DRUMBRAKE
     SBXCHECK(FunctionSigMatchesTable(
         canonical_sig_id, target_instance_data->module(), table_index));
-    target_instance_data->dispatch_table(table_index)
-        ->Set(entry_index, *implicit_arg, call_target, canonical_sig_id);
+    Tagged<WasmDispatchTable> table =
+        target_instance_data->dispatch_table(table_index);
+    // Decrement the refcount of any overwritten entry.
+    table->offheap_data()->Remove(table->target(entry_index));
+    table->offheap_data()->Add(call_target);
+    table->Set(entry_index, *implicit_arg, call_target, canonical_sig_id);
 #else   // !V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless &&
         instance_object->trusted_data(isolate)->has_interpreter_object()) {
@@ -606,6 +610,7 @@ void WasmTableObject::UpdateDispatchTables(
   std::unique_ptr<wasm::ValueType[]> reps;
   wasm::FunctionSig sig = wasm::SerializedSignatureHelper::DeserializeSignature(
       capi_function->GetSerializedSignature(), &reps);
+  wasm::WasmCodeRefScope code_ref_scope;
 
   // Update the dispatch table for each instance that imports this table.
   for (int i = 0; i < uses->length(); i += TableUses::kNumElements) {
@@ -615,7 +620,7 @@ void WasmTableObject::UpdateDispatchTables(
             ->trusted_data(isolate),
         isolate);
     wasm::NativeModule* native_module = trusted_instance_data->native_module();
-    wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
+    wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
     auto kind = wasm::ImportCallKind::kWasmToCapi;
     uint32_t canonical_type_index =
         wasm::GetTypeCanonicalizer()->AddRecursiveGroup(&sig);
@@ -623,13 +628,13 @@ void WasmTableObject::UpdateDispatchTables(
     wasm::WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
                                                 param_count, wasm::kNoSuspend);
     if (wasm_code == nullptr) {
-      wasm::WasmCodeRefScope code_ref_scope;
       wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
-      wasm_code = compiler::CompileWasmCapiCallWrapper(native_module, &sig);
+      wasm::WasmCompilationResult result =
+          compiler::CompileWasmCapiCallWrapper(native_module, &sig);
       wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
                                                  param_count, wasm::kNoSuspend);
-      cache_scope[key] = wasm_code;
-      wasm_code->IncRef();
+      wasm_code = cache_scope.AddWrapper(
+          key, std::move(result), wasm::WasmCode::Kind::kWasmToCapiWrapper);
       isolate->counters()->wasm_generated_code_size()->Increment(
           wasm_code->instructions().length());
       isolate->counters()->wasm_reloc_size()->Increment(
@@ -640,13 +645,17 @@ void WasmTableObject::UpdateDispatchTables(
                                           ->internal()
                                           ->implicit_arg();
     Address call_target = wasm_code->instruction_start();
-    trusted_instance_data->dispatch_table(table_index)
-        ->Set(entry_index, implicit_arg, call_target, canonical_type_index
+    Tagged<WasmDispatchTable> table =
+        trusted_instance_data->dispatch_table(table_index);
+    // Decrement the refcount of any overwritten entry.
+    table->offheap_data()->Remove(table->target(entry_index));
+    table->offheap_data()->Add(call_target);
+    table->Set(entry_index, implicit_arg, call_target, canonical_type_index
 #if V8_ENABLE_DRUMBRAKE
-              ,
-              WasmDispatchTable::kInvalidFunctionIndex
+               ,
+               WasmDispatchTable::kInvalidFunctionIndex
 #endif  // V8_ENABLE_DRUMBRAKE
-        );
+    );
   }
 }
 
@@ -666,7 +675,10 @@ void WasmTableObject::ClearDispatchTables(int index) {
     Tagged<WasmTrustedInstanceData> target_instance_data =
         is_shared ? non_shared_instance_data->shared_part()
                   : non_shared_instance_data;
-    target_instance_data->dispatch_table(table_index)->Clear(index);
+    Tagged<WasmDispatchTable> table =
+        target_instance_data->dispatch_table(table_index);
+    table->offheap_data()->Remove(table->target(index));
+    table->Clear(index);
 #if V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless &&
         non_shared_instance_data->has_interpreter_object()) {
@@ -1189,10 +1201,13 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
-  dispatch_table->SetForImport(index_, *import_data,
-                               v8_flags.wasm_jitless
-                                   ? Address()
-                                   : wasm_to_js_wrapper->instruction_start());
+  if (V8_UNLIKELY(v8_flags.wasm_jitless)) {
+    dispatch_table->SetForImport(index_, *import_data, Address());
+  } else {
+    Address call_target = wasm_to_js_wrapper->instruction_start();
+    dispatch_table->offheap_data()->Add(call_target);
+    dispatch_table->SetForImport(index_, *import_data, call_target);
+  }
 
 #if V8_ENABLE_DRUMBRAKE
   instance_data_->imported_function_indices()->set(index_, -1);
@@ -1213,6 +1228,7 @@ void ImportedFunctionEntry::SetWasmToWasm(
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
+  dispatch_table->offheap_data()->Add(call_target);
   dispatch_table->SetForImport(index_, target_instance_data, call_target);
 
 #if V8_ENABLE_DRUMBRAKE
@@ -1242,8 +1258,10 @@ Address ImportedFunctionEntry::target() {
 }
 
 void ImportedFunctionEntry::set_target(Address new_target) {
-  return instance_data_->dispatch_table_for_imports()->SetTarget(index_,
-                                                                 new_target);
+  Tagged<WasmDispatchTable> table =
+      instance_data_->dispatch_table_for_imports();
+  table->offheap_data()->Add(new_target);
+  table->SetTarget(index_, new_target);
 }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -1890,7 +1908,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
                          ->internal_formal_parameter_count_without_receiver();
   }
 
-  wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
+  wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   wasm::WasmCode* wasm_code =
       cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
   Address call_target;
@@ -1902,24 +1920,20 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
     wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
         &env, kind, sig, false, expected_arity, suspend);
-    std::unique_ptr<wasm::WasmCode> compiled_code = native_module->AddCode(
-        result.func_index, result.code_desc, result.frame_slot_count,
-        result.ool_spill_count, result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(),
-        result.inlining_positions.as_vector(), result.deopt_data.as_vector(),
-        GetCodeKind(result), wasm::ExecutionTier::kNone,
-        wasm::kNotForDebugging);
-    wasm_code = native_module->PublishCode(std::move(compiled_code));
+    wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
+    wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
+                                               expected_arity, suspend);
+    wasm_code = cache_scope.AddWrapper(key, std::move(result),
+                                       wasm::WasmCode::Kind::kWasmToJsWrapper);
     isolate->counters()->wasm_generated_code_size()->Increment(
         wasm_code->instructions().length());
     isolate->counters()->wasm_reloc_size()->Increment(
         wasm_code->reloc_info().length());
-
-    wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
-    wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
-                                               expected_arity, suspend);
-    cache_scope[key] = wasm_code;
+    if (V8_UNLIKELY(native_module->log_code())) {
+      wasm::GetWasmEngine()->LogWrapperCode(base::VectorOf(&wasm_code, 1));
+      // Log the code immediately in the current isolate.
+      wasm::GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
+    }
     call_target = wasm_code->instruction_start();
   }
 
@@ -1934,8 +1948,12 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
 
   WasmImportData::SetIndexInTableAsCallOrigin(import_data, entry_index);
 #if !V8_ENABLE_DRUMBRAKE
-  trusted_instance_data->dispatch_table(table_index)
-      ->Set(entry_index, *import_data, call_target, canonical_sig_index);
+  Tagged<WasmDispatchTable> table =
+      trusted_instance_data->dispatch_table(table_index);
+  // Decrement the refcount of any overwritten entry.
+  table->offheap_data()->Remove(table->target(entry_index));
+  table->offheap_data()->Add(call_target);
+  table->Set(entry_index, *import_data, call_target, canonical_sig_index);
 #else   // !V8_ENABLE_DRUMBRAKE
   trusted_instance_data->dispatch_table(table_index)
       ->Set(entry_index, *import_data, call_target, canonical_sig_index,
@@ -2100,6 +2118,45 @@ const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
       zone, function_data->serialized_signature());
 }
 
+WasmDispatchTableData::~WasmDispatchTableData() {
+  std::vector<wasm::WasmCode*> codes;
+  codes.reserve(wrappers_.size());
+  for (auto it : wrappers_) {
+    DCHECK_GT(it.second, 0);
+    codes.push_back(it.first);
+  }
+  wasm::WasmCode::DecrementRefCount(base::VectorOf(codes));
+}
+
+void WasmDispatchTableData::Add(Address call_target) {
+  base::MutexGuard lock(&mutex_);
+  wasm::WasmCode* code =
+      wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+  if (!code) return;  // Not a wrapper.
+  auto [it, inserted] = wrappers_.emplace(code, 1);
+  if (inserted) {
+    code->IncRef();
+  } else {
+    it->second++;
+  }
+}
+
+void WasmDispatchTableData::Remove(Address call_target) {
+  base::MutexGuard lock(&mutex_);
+  wasm::WasmCode* code =
+      wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+  if (!code) return;  // Not a wrapper.
+  auto it = wrappers_.find(code);
+  DCHECK_NE(it, wrappers_.end());
+  if (it->second == 1) {
+    // This was the last reference to this wrapper in this table.
+    wasm::WasmCode::DecrementRefCount({&code, 1});
+    wrappers_.erase(it);
+  } else {
+    it->second--;
+  }
+}
+
 void WasmDispatchTable::Set(int index, Tagged<Object> implicit_arg,
                             Address call_target, int sig_id
 #if V8_ENABLE_DRUMBRAKE
@@ -2202,14 +2259,18 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
   // Writing non-atomically is fine here because this is a freshly allocated
   // object.
   new_table->WriteField<int>(kLengthOffset, new_length);
+  WasmDispatchTableData* offheap_data = new_table->offheap_data();
   for (int i = 0; i < old_length; ++i) {
-    new_table->Set(i, old_table->implicit_arg(i), old_table->target(i),
-                   old_table->sig(i)
+    Address call_target = old_table->target(i);
+    offheap_data->Add(call_target);
+    new_table->Set(i, old_table->implicit_arg(i), call_target, old_table->sig(i)
 #if V8_ENABLE_DRUMBRAKE
-                       ,
+                                                                   ,
                    old_table->function_index(i)
 #endif  // V8_ENABLE_DRUMBRAKE
     );
+    // When the old table dies, it'll decrement the refcounts of any wrappers
+    // in it.
   }
   return new_table;
 }
@@ -2667,8 +2728,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
         kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
       }
     }
-    // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
-    // signature instead of compiling a new one for every instantiation.
+    // TODO(jkummerow): Now that we have a per-process WasmImportWrapperCache,
+    // make use of that here.
 #if V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless) {
       function_data->func_ref()->internal(isolate)->set_call_target(

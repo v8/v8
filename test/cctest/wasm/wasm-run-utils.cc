@@ -84,6 +84,7 @@ TestingModuleBuilder::TestingModuleBuilder(
   trusted_instance_data_->set_tables(*tables);
 
   if (maybe_import) {
+    WasmCodeRefScope code_ref_scope;
     const wasm::FunctionSig* sig = maybe_import->sig;
     // Manually compile an import wrapper and insert it into the instance.
     uint32_t canonical_type_index =
@@ -93,16 +94,13 @@ TestingModuleBuilder::TestingModuleBuilder(
                                 WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
-    WasmImportWrapperCache::ModificationScope cache_scope(
-        native_module_->import_wrapper_cache());
-    WasmImportWrapperCache::CacheKey key(
+    WasmCode* import_wrapper = GetWasmImportWrapperCache()->MaybeGet(
         kind, canonical_type_index, static_cast<int>(sig->parameter_count()),
         kNoSuspend);
-    auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
-      import_wrapper = CompileImportWrapper(
+      import_wrapper = CompileImportWrapperForTest(
           native_module_, isolate_->counters(), kind, sig, canonical_type_index,
-          static_cast<int>(sig->parameter_count()), kNoSuspend, &cache_scope);
+          static_cast<int>(sig->parameter_count()), kNoSuspend);
     }
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)

@@ -4632,46 +4632,44 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
   }
 }
 
-WasmCode* CompileImportWrapper(
-    NativeModule* native_module, Counters* counters, ImportCallKind kind,
-    const FunctionSig* sig, uint32_t canonical_type_index, int expected_arity,
-    Suspend suspend, WasmImportWrapperCache::ModificationScope* cache_scope) {
-  // Entry should exist, so that we don't insert a new one and invalidate
-  // other threads' iterators/references, but it should not have been compiled
-  // yet.
+WasmCode* CompileImportWrapperForTest(NativeModule* native_module,
+                                      Counters* counters, ImportCallKind kind,
+                                      const FunctionSig* sig,
+                                      uint32_t canonical_type_index,
+                                      int expected_arity, Suspend suspend) {
+  bool source_positions = is_asmjs_module(native_module->module());
+  if (v8_flags.wasm_jitless) {
+    WasmImportWrapperCache::ModificationScope cache_scope(
+        GetWasmImportWrapperCache());
+    WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
+                                         expected_arity, suspend);
+    DCHECK_NULL(cache_scope[key]);
+    return nullptr;
+  }
+
+  CompilationEnv env = CompilationEnv::ForModule(native_module);
+  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
+      &env, kind, sig, source_positions, expected_arity, suspend);
+
+  DCHECK(result.inlining_positions.empty());
+  DCHECK(result.deopt_data.empty());
+  // There was no cache entry when we called this function, but in the
+  // meantime a different module could have created one. Simply discard the
+  // new wrapper if so.
+  WasmImportWrapperCache::ModificationScope cache_scope(
+      GetWasmImportWrapperCache());
   WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
                                        expected_arity, suspend);
-  DCHECK_NULL((*cache_scope)[key]);
-  bool source_positions = is_asmjs_module(native_module->module());
-  // Keep the {WasmCode} alive until we explicitly call {IncRef}.
-  WasmCode* published_code = nullptr;
-  if (v8_flags.wasm_jitless) {
-    DCHECK_NULL((*cache_scope)[key]);
-  } else {
-    WasmCodeRefScope code_ref_scope;
-    CompilationEnv env = CompilationEnv::ForModule(native_module);
-    WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-        &env, kind, sig, source_positions, expected_arity, suspend);
-
-    DCHECK(result.inlining_positions.empty());
-    DCHECK(result.deopt_data.empty());
-
-    std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
-        result.func_index, result.code_desc, result.frame_slot_count,
-        result.ool_spill_count, result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(),
-        result.inlining_positions.as_vector(), result.deopt_data.as_vector(),
-        GetCodeKind(result), ExecutionTier::kNone, kNotForDebugging);
-    published_code = native_module->PublishCode(std::move(wasm_code));
-    (*cache_scope)[key] = published_code;
-    published_code->IncRef();
-    counters->wasm_generated_code_size()->Increment(
-        published_code->instructions().length());
-    counters->wasm_reloc_size()->Increment(
-        published_code->reloc_info().length());
+  if (V8_UNLIKELY(cache_scope[key] != nullptr)) return cache_scope[key];
+  WasmCode* code = cache_scope.AddWrapper(key, std::move(result),
+                                          WasmCode::Kind::kWasmToJsWrapper);
+  counters->wasm_generated_code_size()->Increment(
+      code->instructions().length());
+  counters->wasm_reloc_size()->Increment(code->reloc_info().length());
+  if (native_module->log_code()) {
+    GetWasmEngine()->LogWrapperCode(base::VectorOf(&code, 1));
   }
-  return published_code;
+  return code;
 }
 
 }  // namespace v8::internal::wasm

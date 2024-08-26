@@ -1118,6 +1118,7 @@ class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    IterateProtectedPointer(obj, kProtectedOffheapDataOffset, v);
     int length = Cast<WasmDispatchTable>(obj)->length(kAcquireLoad);
     for (int i = 0; i < length; ++i) {
       IterateProtectedPointer(obj, OffsetOf(i) + kImplicitArgBias, v);
