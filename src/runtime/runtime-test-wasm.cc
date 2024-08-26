@@ -609,6 +609,10 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   auto func_data = exp_fun->shared()->wasm_exported_function_data();
   Tagged<WasmTrustedInstanceData> trusted_data = func_data->instance_data();
   int func_index = func_data->function_index();
+  if (static_cast<uint32_t>(func_index) <
+      trusted_data->module()->num_imported_functions) {
+    return CrashUnlessFuzzing(isolate);
+  }
   wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
   return ReadOnlyRoots(isolate).undefined_value();
 }
