@@ -419,9 +419,9 @@ void MaglevAssembler::TestTypeOf(
       JumpIfSmi(object, is_false, false_distance);
       // Check it has the undetectable bit set and it is not null.
       LoadMap(scratch, object);
-      TestInt32AndJumpIfAllClear(FieldMemOperand(scratch, Map::kBitFieldOffset),
-                                 Map::Bits1::IsUndetectableBit::kMask, is_false,
-                                 false_distance);
+      LoadByte(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+      TestInt32AndJumpIfAllClear(scratch, Map::Bits1::IsUndetectableBit::kMask,
+                                 is_false, false_distance);
       CompareRoot(object, RootIndex::kNullValue);
       Branch(kNotEqual, is_true, true_distance, fallthrough_when_true, is_false,
              false_distance, fallthrough_when_false);
