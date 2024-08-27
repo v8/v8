@@ -1592,6 +1592,53 @@ void MacroAssembler::Cvttsd2siq(Register dst, Operand src) {
   }
 }
 
+void MacroAssembler::Cvtpd2ph(XMMRegister dst, XMMRegister src, Register tmp) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope f16c_scope(this, F16C);
+  Register tmp2 = kScratchRegister;
+  DCHECK_NE(tmp, tmp2);
+  DCHECK_NE(dst, src);
+
+  // Conversion algo from
+  // https://github.com/tc39/proposal-float16array/issues/12#issuecomment-2256642971
+  Label f32tof16;
+  // Convert Float64 -> Float32.
+  Cvtsd2ss(dst, src);
+  vmovd(tmp, dst);
+  // Mask off sign bit.
+  andl(tmp, Immediate(kFP32WithoutSignMask));
+  // Underflow to zero.
+  cmpl(tmp, Immediate(kFP32MinFP16ZeroRepresentable));
+  j(below, &f32tof16);
+  // Overflow to infinity.
+  cmpl(tmp, Immediate(kFP32MaxFP16Representable));
+  j(above_equal, &f32tof16);
+  // Detection of subnormal numbers.
+  cmpl(tmp, Immediate(kFP32SubnormalThresholdOfFP16));
+  setcc(above_equal, tmp2);
+  movzxbl(tmp2, tmp2);
+  // Compute 0x1000 for normal and 0x0000 for denormal numbers.
+  shll(tmp2, Immediate(12));
+  // Look at the last thirteen bits of the mantissa which will be shifted out
+  // when converting from float32 to float16. (The round and sticky bits.)
+  // Normal numbers: If the round bit is set and sticky bits are zero, then
+  // adjust the float32 mantissa.
+  // Denormal numbers: If all bits are zero, then adjust the mantissa.
+  andl(tmp, Immediate(0x1fff));
+  // Check round and sticky bits.
+  cmpl(tmp, tmp2);
+  j(not_equal, &f32tof16);
+
+  // Adjust mantissa by -1/0/+1.
+  Move(kScratchDoubleReg, static_cast<uint32_t>(1));
+  psignd(kScratchDoubleReg, src);
+  paddd(dst, kScratchDoubleReg);
+
+  bind(&f32tof16);
+  // Convert Float32 -> Float16.
+  vcvtps2ph(dst, dst, 4);
+}
+
 namespace {
 template <typename OperandOrXMMRegister, bool is_double>
 void ConvertFloatToUint64(MacroAssembler* masm, Register dst,

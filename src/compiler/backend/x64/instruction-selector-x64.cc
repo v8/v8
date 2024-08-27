@@ -7238,7 +7238,14 @@ void InstructionSelectorT<Adapter>::VisitF16x8Pmax(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF16x8DemoteF64x2Zero(node_t node) {
-  UNREACHABLE();
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  size_t temp_count = arraysize(temps);
+
+  Emit(kX64F16x8DemoteF64x2Zero, g.DefineAsRegister(node),
+       g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
 }
 
 template <typename Adapter>
@@ -7688,7 +7695,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   if (CpuFeatures::IsSupported(F16C)) {
-    flags |= MachineOperatorBuilder::kFloat16;
+    flags |= MachineOperatorBuilder::kFloat16 |
+             MachineOperatorBuilder::kFloat64ToFloat16;
   }
   return flags;
 }

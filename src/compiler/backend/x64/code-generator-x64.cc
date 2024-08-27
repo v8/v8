@@ -4084,6 +4084,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vcvtps2ph(i.OutputSimd128Register(), i.InputSimd128Register(0), 0);
       break;
     }
+    case kX64F16x8DemoteF64x2Zero: {
+      CpuFeatureScope f16c_scope(masm(), F16C);
+      CpuFeatureScope avx_scope(masm(), AVX);
+      Register tmp = i.TempRegister(0);
+      XMMRegister ftmp = i.TempSimd128Register(1);
+      XMMRegister ftmp2 = i.TempSimd128Register(2);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      __ F64x2ExtractLane(ftmp, src, 1);
+      // Cvtpd2ph requires dst and src to not overlap.
+      __ Cvtpd2ph(ftmp2, ftmp, tmp);
+      __ Cvtpd2ph(dst, src, tmp);
+      __ vmovd(tmp, ftmp2);
+      __ vpinsrw(dst, dst, tmp, 1);
+      // Set ftmp to 0.
+      __ pxor(ftmp, ftmp);
+      // Reset all unaffected lanes.
+      __ F64x2ReplaceLane(dst, dst, ftmp, 1);
+      __ vinsertps(dst, dst, ftmp, (1 << 4) & 0x30);
+      break;
+    }
     case kX64F32x4PromoteLowF16x8: {
       CpuFeatureScope f16c_scope(masm(), F16C);
       __ vcvtph2ps(i.OutputSimd128Register(), i.InputSimd128Register(0));

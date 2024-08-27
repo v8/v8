@@ -172,6 +172,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Cvttss2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
   void Cvttss2ui(Register dst, Operand src, Label* fail = nullptr);
   void Cvttss2ui(Register dst, XMMRegister src, Label* fail = nullptr);
+  void Cvtpd2ph(XMMRegister dst, XMMRegister src, Register tmp);
 
   // cvtsi2sd and cvtsi2ss instructions only write to the low 64/32-bit of dst
   // register, which hinders register renaming and makes dependence chains

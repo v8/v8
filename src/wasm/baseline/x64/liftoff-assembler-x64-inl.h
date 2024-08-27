@@ -4553,7 +4553,34 @@ bool LiftoffAssembler::emit_f16x8_demote_f32x4_zero(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f16x8_demote_f64x2_zero(LiftoffRegister dst,
                                                     LiftoffRegister src) {
-  return false;
+  if (!CpuFeatures::IsSupported(F16C) || !CpuFeatures::IsSupported(AVX)) {
+    return false;
+  }
+
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope f16c_scope(this, F16C);
+  LiftoffRegister tmp = GetUnusedRegister(RegClass::kGpReg, {});
+  LiftoffRegister ftmp =
+      GetUnusedRegister(RegClass::kFpReg, LiftoffRegList{dst, src});
+  LiftoffRegister ftmp2 =
+      GetUnusedRegister(RegClass::kFpReg, LiftoffRegList{dst, src, ftmp});
+  F64x2ExtractLane(ftmp.fp(), src.fp(), 1);
+  Cvtpd2ph(ftmp2.fp(), ftmp.fp(), tmp.gp());
+  // Cvtpd2ph requires dst and src to not overlap.
+  if (dst == src) {
+    Move(ftmp.fp(), src.fp(), kF64);
+    Cvtpd2ph(dst.fp(), ftmp.fp(), tmp.gp());
+  } else {
+    Cvtpd2ph(dst.fp(), src.fp(), tmp.gp());
+  }
+  vmovd(tmp.gp(), ftmp2.fp());
+  vpinsrw(dst.fp(), dst.fp(), tmp.gp(), 1);
+  // Set ftmp to 0.
+  pxor(ftmp.fp(), ftmp.fp());
+  // Reset all unaffected lanes.
+  F64x2ReplaceLane(dst.fp(), dst.fp(), ftmp.fp(), 1);
+  vinsertps(dst.fp(), dst.fp(), ftmp.fp(), (1 << 4) & 0x30);
+  return true;
 }
 
 bool LiftoffAssembler::emit_f32x4_promote_low_f16x8(LiftoffRegister dst,
