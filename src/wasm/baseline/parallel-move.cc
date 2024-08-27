@@ -11,9 +11,26 @@ namespace v8::internal::wasm {
 void ParallelMove::TransferToStack(int dst_offset, const VarState& src) {
   switch (src.loc()) {
     case VarState::kStack:
-      if (src.offset() != dst_offset) {
-        asm_->MoveStackValue(dst_offset, src.offset(), src.kind());
+      DCHECK_NE(src.offset(), dst_offset);
+#if DEBUG
+      // Check that the stack value at `dst_offset` is not used in a pending
+      // register load.
+      for (LiftoffRegister reg : load_dst_regs_) {
+        DCHECK(!reg.is_pair());
+        RegisterLoad* load = register_load(reg);
+        if (load->load_kind == RegisterLoad::kStack ||
+            load->load_kind == RegisterLoad::kLowHalfStack) {
+          // We overwrite the lower half of the stack value for sure.
+          DCHECK_NE(load->value, dst_offset);
+        } else if (load->load_kind == RegisterLoad::kHighHalfStack &&
+                   value_kind_size(src.kind()) > kInt32Size) {
+          // We overwrite the full stack slot, but we still need the higher half
+          // later.
+          DCHECK_NE(load->value, dst_offset);
+        }
       }
+#endif
+      asm_->MoveStackValue(dst_offset, src.offset(), src.kind());
       break;
     case VarState::kRegister:
       asm_->Spill(dst_offset, src.reg(), src.kind());
