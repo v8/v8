@@ -1895,10 +1895,6 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return BytecodeArray::SizeFor(
         UncheckedCast<BytecodeArray>(*this)->length(kAcquireLoad));
   }
-  if (instance_type == EXTERNAL_POINTER_ARRAY_TYPE) {
-    return ExternalPointerArray::SizeFor(
-        UncheckedCast<ExternalPointerArray>(*this)->length(kAcquireLoad));
-  }
   if (instance_type == FREE_SPACE_TYPE) {
     return UncheckedCast<FreeSpace>(*this)->size(kRelaxedLoad);
   }

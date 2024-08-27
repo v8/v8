@@ -596,24 +596,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(Handle<FixedDoubleArray> array);
 
-  template <ExternalPointerTag tag>
-  Handle<ExternalPointerArray> CopyExternalPointerArrayAndGrow(
-      DirectHandle<ExternalPointerArray> src, int grow_by,
-      AllocationType alloction = AllocationType::kYoung) {
-    int old_len = src->length();
-    int new_len = old_len + grow_by;
-    Handle<ExternalPointerArray> result = NewExternalPointerArray(new_len);
-
-    // Copy the pointers one-by-one. We can't just do a memcpy here since when
-    // the sandbox is enabled, this array will contain external pointer handles
-    // which must not be copied/moved between objects.
-    for (int i = 0; i < old_len; i++) {
-      result->set<tag>(i, isolate(), src->get<tag>(i, isolate()));
-    }
-
-    return result;
-  }
-
   // Creates a new HeapNumber in read-only space if possible otherwise old
   // space.
   Handle<HeapNumber> NewHeapNumberForCodeAssembler(double value);

@@ -442,8 +442,6 @@ OBJECT_CONSTRUCTORS_IMPL(ByteArray, ByteArray::Super)
 
 OBJECT_CONSTRUCTORS_IMPL(TrustedByteArray, TrustedByteArray::Super)
 
-OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray, FixedArrayBase)
-
 OBJECT_CONSTRUCTORS_IMPL(ArrayList, ArrayList::Super)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
@@ -1032,24 +1030,6 @@ template <typename T, typename Base>
 int FixedIntegerArrayBase<T, Base>::length() const {
   DCHECK_EQ(Base::length() % sizeof(T), 0);
   return Base::length() / sizeof(T);
-}
-
-template <ExternalPointerTag tag>
-inline Address ExternalPointerArray::get(int index, Isolate* isolate) {
-  return ReadExternalPointerField<tag>(OffsetOfElementAt(index), isolate);
-}
-
-template <ExternalPointerTag tag>
-inline void ExternalPointerArray::set(int index, Isolate* isolate,
-                                      Address value) {
-  WriteLazilyInitializedExternalPointerField<tag>(OffsetOfElementAt(index),
-                                                  isolate, value);
-}
-
-// static
-Handle<ExternalPointerArray> ExternalPointerArray::New(
-    Isolate* isolate, int length, AllocationType allocation) {
-  return isolate->factory()->NewExternalPointerArray(length, allocation);
 }
 
 template <class T, class Super>

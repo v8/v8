@@ -762,33 +762,6 @@ class BytecodeWrapper::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class ExternalPointerArray::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    Tagged<ExternalPointerArray> array =
-        UncheckedCast<ExternalPointerArray>(obj);
-    for (int i = 0; i < array->length(); i++) {
-      // We don't currently track the (expected) tag of the elements of this
-      // array, so we have to use the generic tag here. This is ok as long as
-      // the visitor does not try to dereference the pointer (which it never
-      // should). The alternative would probably be to store the tag as
-      // additional metadata in the array itself, but then we also need to be
-      // careful since an attacker could then modify the tag.
-      v->VisitExternalPointer(array,
-                              array->RawExternalPointerField(
-                                  ExternalPointerArray::OffsetOfElementAt(i),
-                                  kAnyExternalPointerTag));
-    }
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
-    return ExternalPointerArray::SizeFor(
-        Cast<ExternalPointerArray>(obj)->length(kAcquireLoad));
-  }
-};
-
 class BigInt::BodyDescriptor final : public DataOnlyBodyDescriptor {
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
@@ -1655,8 +1628,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(SharedFunctionInfo);
     case HEAP_NUMBER_TYPE:
       return CALL_APPLY(HeapNumber);
-    case EXTERNAL_POINTER_ARRAY_TYPE:
-      return CALL_APPLY(ExternalPointerArray);
     case BIGINT_TYPE:
       return CALL_APPLY(BigInt);
     case ALLOCATION_SITE_TYPE:

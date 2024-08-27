@@ -53,7 +53,6 @@ enum InstanceType : uint16_t;
   V(DebugInfo)                       \
   V(EmbedderDataArray)               \
   V(EphemeronHashTable)              \
-  V(ExternalPointerArray)            \
   V(ExternalString)                  \
   V(FeedbackCell)                    \
   V(Foreign)                         \

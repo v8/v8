@@ -194,9 +194,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<TrustedByteArray> NewTrustedByteArray(
       int length, AllocationType allocation_type = AllocationType::kTrusted);
 
-  Handle<ExternalPointerArray> NewExternalPointerArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
-
   Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
   Handle<DeoptimizationFrameTranslation> NewDeoptimizationFrameTranslation(
       int length);

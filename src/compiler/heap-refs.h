@@ -231,8 +231,6 @@ struct ref_traits<PropertyArray> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<ByteArray> : public ref_traits<HeapObject> {};
 template <>
-struct ref_traits<ExternalPointerArray> : public ref_traits<HeapObject> {};
-template <>
 struct ref_traits<TrustedFixedArray> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<ClosureFeedbackCellArray> : public ref_traits<HeapObject> {};

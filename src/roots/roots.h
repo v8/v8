@@ -156,7 +156,6 @@ class RootVisitor;
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
   V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
   V(Map, weak_cell_map, WeakCellMap)                                           \
-  V(Map, external_pointer_array_map, ExternalPointerArrayMap)                  \
   V(Map, trusted_fixed_array_map, TrustedFixedArrayMap)                        \
   V(Map, trusted_weak_fixed_array_map, TrustedWeakFixedArrayMap)               \
   V(Map, trusted_byte_array_map, TrustedByteArrayMap)                          \
@@ -208,8 +207,6 @@ class RootVisitor;
   V(EnumCache, empty_enum_cache, EmptyEnumCache)                               \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
-  V(ExternalPointerArray, empty_external_pointer_array,                        \
-    EmptyExternalPointerArray)                                                 \
   V(ObjectBoilerplateDescription, empty_object_boilerplate_description,        \
     EmptyObjectBoilerplateDescription)                                         \
   V(ArrayBoilerplateDescription, empty_array_boilerplate_description,          \

@@ -99,9 +99,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
   }
 
   switch (instance_type) {
-    case EXTERNAL_POINTER_ARRAY_TYPE:
-      return kVisitExternalPointerArray;
-
     case FILLER_TYPE:
       return kVisitFiller;
     case FREE_SPACE_TYPE:

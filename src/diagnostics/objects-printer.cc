@@ -1097,12 +1097,6 @@ void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
   os << "\n";
 }
 
-void ExternalPointerArray::ExternalPointerArrayPrint(std::ostream& os) {
-  PrintHeader(os, "ExternalPointerArray");
-  os << "\n - length: " << length();
-  os << "\n";
-}
-
 void SloppyArgumentsElements::SloppyArgumentsElementsPrint(std::ostream& os) {
   PrintHeader(os, "SloppyArgumentsElements");
   os << "\n - length: " << length();
@@ -3357,10 +3351,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     case BYTECODE_ARRAY_TYPE:
       os << "<BytecodeArray[" << Cast<BytecodeArray>(*this)->length() << "]>";
-      break;
-    case EXTERNAL_POINTER_ARRAY_TYPE:
-      os << "<ExternalPointerArray["
-         << Cast<ExternalPointerArray>(*this)->length() << "]>";
       break;
     case DESCRIPTOR_ARRAY_TYPE:
       os << "<DescriptorArray["

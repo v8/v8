@@ -778,7 +778,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             wasm_dispatch_table);
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
-    ALLOCATE_VARSIZE_MAP(EXTERNAL_POINTER_ARRAY_TYPE, external_pointer_array)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, InterpreterData::kSize,
                  interpreter_data)
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_WRAPPER_TYPE,
@@ -1225,18 +1224,6 @@ bool Heap::CreateReadOnlyObjects() {
   DirectHandle<ScopeInfo> shadow_realm_scope_info =
       ScopeInfo::CreateForShadowRealmNativeContext(isolate());
   set_shadow_realm_scope_info(*shadow_realm_scope_info);
-
-  // EmptyExternalPointerArray:
-  {
-    if (!AllocateRaw(ExternalPointerArray::SizeFor(0),
-                     AllocationType::kReadOnly)
-             .To(&obj))
-      return false;
-    obj->set_map_after_allocation(roots.external_pointer_array_map(),
-                                  SKIP_WRITE_BARRIER);
-    Cast<ExternalPointerArray>(obj)->set_length(0);
-    set_empty_external_pointer_array(Cast<ExternalPointerArray>(obj));
-  }
 
   // Initialize the wasm null_value.
 

@@ -355,21 +355,6 @@ Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
   return LoadFromObject(type, byte_array, offset);
 }
 
-Node* WasmGraphAssembler::LoadExternalPointerArrayElement(
-    Node* array, Node* index_intptr, ExternalPointerTag tag,
-    Node* isolate_root) {
-  Node* offset = IntAdd(
-      IntMul(index_intptr, IntPtrConstant(kExternalPointerSlotSize)),
-      IntPtrConstant(
-          wasm::ObjectAccess::ToTagged(ExternalPointerArray::kHeaderSize)));
-#ifdef V8_ENABLE_SANDBOX
-  Node* handle = LoadFromObject(MachineType::Uint32(), array, offset);
-  return BuildDecodeSandboxedExternalPointer(handle, tag, isolate_root);
-#else
-  return LoadFromObject(MachineType::Pointer(), array, offset);
-#endif
-}
-
 Node* WasmGraphAssembler::LoadImmutableTrustedPointerFromObject(
     Node* object, int field_offset, IndirectPointerTag tag) {
   Node* offset = IntPtrConstant(field_offset);
