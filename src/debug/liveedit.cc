@@ -991,11 +991,11 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       js_function->initialize_dispatch_handle(
           isolate, new_sfi->internal_formal_parameter_count_with_receiver());
 #endif
-      js_function->set_shared(*new_sfi);
-      js_function->set_code(js_function->shared()->GetCode(isolate));
-
       js_function->set_raw_feedback_cell(
           *isolate->factory()->many_closures_cell());
+      js_function->set_shared(*new_sfi);
+      js_function->UpdateCode(js_function->shared()->GetCode(isolate));
+
       if (!js_function->is_compiled(isolate)) continue;
       IsCompiledScope is_compiled_scope(
           js_function->shared()->is_compiled_scope(isolate));

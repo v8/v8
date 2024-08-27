@@ -147,7 +147,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // TODO(saelo): in the future, we might store either a Code or a
   // BytecodeArray in the entries. At that point, this could be changed to
   // return a Tagged<Union<Code, BytecodeArray>>.
-  Tagged<Code> GetCode(JSDispatchHandle handle);
+  inline Tagged<Code> GetCode(JSDispatchHandle handle);
 
   // Returns the address of the Code object stored in the specified entry.
   inline Address GetCodeAddress(JSDispatchHandle handle);
@@ -158,7 +158,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // Updates the entry referenced by the given handle to the given Code and its
   // entrypoint. The code must be compatible with the specified entry. In
   // particular, the two must use the same parameter count.
-  void SetCode(JSDispatchHandle handle, Tagged<Code> new_code);
+  inline void SetCode(JSDispatchHandle handle, Tagged<Code> new_code);
   // TODO(saelo): once every entry of the table has a Code object, many calls
   // to this function can probably be deleted.
   bool HasCode(JSDispatchHandle handle);
@@ -166,8 +166,12 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // Allocates a new entry in the table and initialize it.
   //
   // This method is atomic and can be called from background threads.
-  JSDispatchHandle AllocateAndInitializeEntry(Space* space,
-                                              uint16_t parameter_count);
+  inline JSDispatchHandle AllocateAndInitializeEntry(Space* space,
+                                                     uint16_t parameter_count);
+  inline JSDispatchHandle AllocateAndInitializeEntry(Space* space,
+                                                     uint16_t parameter_count,
+                                                     Tagged<Code> code,
+                                                     Address instruction_start);
 
   // The following methods are used to pre allocate entries and then initialize
   // them later.
@@ -180,10 +184,12 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
   // Can be used to statically predict the handles if the pre allocated entries
   // are in the overall first read only segment of the whole table.
-  inline static JSDispatchHandle GetStaticHandleForInitialSegmentEntry(
-      int index) {
+  static JSDispatchHandle GetStaticHandleForReadOnlySegmentEntry(int index) {
     return static_cast<JSDispatchHandle>(kInternalNullEntryIndex + 1 + index)
            << kJSDispatchHandleShift;
+  }
+  static bool InReadOnlySegment(JSDispatchHandle handle) {
+    return HandleToIndex(handle) <= kEndOfInternalReadOnlySegment;
   }
 
   // Marks the specified entry as alive.
@@ -241,10 +247,19 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 #endif  // DEBUG
   }
 
-  static JSDispatchTable* instance_nocheck();
+  static base::LeakyObject<JSDispatchTable> instance_;
+  static JSDispatchTable* instance_nocheck() { return instance_.get(); }
 
-  inline uint32_t HandleToIndex(JSDispatchHandle handle) const;
-  inline JSDispatchHandle IndexToHandle(uint32_t index) const;
+  static uint32_t HandleToIndex(JSDispatchHandle handle) {
+    uint32_t index = handle >> kJSDispatchHandleShift;
+    DCHECK_EQ(handle, index << kJSDispatchHandleShift);
+    return index;
+  }
+  static JSDispatchHandle IndexToHandle(uint32_t index) {
+    JSDispatchHandle handle = index << kJSDispatchHandleShift;
+    DCHECK_EQ(index, handle >> kJSDispatchHandleShift);
+    return handle;
+  }
 };
 
 static_assert(sizeof(JSDispatchTable) == JSDispatchTable::kSize);

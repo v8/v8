@@ -5601,7 +5601,7 @@ static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DirectHandle<JSFunction> fun = Cast<JSFunction>(obj);
   // Bytecode is code too.
   SharedFunctionInfo::DiscardCompiled(isolate, handle(fun->shared(), isolate));
-  fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
+  fun->UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
   heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 }
 

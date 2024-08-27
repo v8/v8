@@ -545,7 +545,7 @@
   EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, offset, \
                                                   tag)
 
-#define DECL_TRUSTED_POINTER_ACCESSORS(name, type)                           \
+#define DECL_TRUSTED_POINTER_GETTERS(name, type)                             \
   /* Trusted pointers currently always have release-acquire semantics. */    \
   /* However, we still expose explicit release-acquire accessors so it */    \
   /* can be made clear when they are required. */                            \
@@ -553,12 +553,23 @@
   /* routines for relaxed- and release-acquire semantics in the future. */   \
   inline Tagged<type> name(IsolateForSandbox isolate) const;                 \
   inline Tagged<type> name(IsolateForSandbox isolate, AcquireLoadTag) const; \
-  inline void set_##name(Tagged<type> value,                                 \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);      \
-  inline void set_##name(Tagged<type> value, ReleaseStoreTag,                \
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);      \
-  inline bool has_##name() const;                                            \
+  inline bool has_##name() const;
+
+#define DECL_TRUSTED_POINTER_SETTERS(name, type)                           \
+  /* Trusted pointers currently always have release-acquire semantics. */  \
+  /* However, we still expose explicit release-acquire accessors so it */  \
+  /* can be made clear when they are required. */                          \
+  /* If desired, we could create separate {Read|Write}TrustedPointer */    \
+  /* routines for relaxed- and release-acquire semantics in the future. */ \
+  inline void set_##name(Tagged<type> value,                               \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);    \
+  inline void set_##name(Tagged<type> value, ReleaseStoreTag,              \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);    \
   inline void clear_##name();
+
+#define DECL_TRUSTED_POINTER_ACCESSORS(name, type) \
+  DECL_TRUSTED_POINTER_GETTERS(name, type)         \
+  DECL_TRUSTED_POINTER_SETTERS(name, type)
 
 #define TRUSTED_POINTER_ACCESSORS(holder, name, type, offset, tag)             \
   Tagged<type> holder::name(IsolateForSandbox isolate) const {                 \

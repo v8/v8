@@ -6,6 +6,7 @@
 #define V8_SANDBOX_JS_DISPATCH_TABLE_INL_H_
 
 #include "src/common/code-memory-access-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/js-dispatch-table.h"
 
@@ -48,6 +49,56 @@ uint16_t JSDispatchEntry::GetParameterCount() const {
   CHECK(!IsFreelistEntry());
   Address payload = encoded_word_.load(std::memory_order_relaxed);
   return payload & kParameterCountMask;
+}
+
+Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
+  Address ptr = GetCodeAddress(handle);
+  return Cast<Code>(Tagged<Object>(ptr));
+}
+
+void JSDispatchTable::SetCode(JSDispatchHandle handle, Tagged<Code> new_code) {
+  // The new code must use JS linkage and its parameter count must match that
+  // of the entry, unless the code does not assume a particular parameter count
+  // (so uses the kDontAdaptArgumentsSentinel).
+  CHECK_EQ(new_code->entrypoint_tag(), kJSEntrypointTag);
+  CHECK(new_code->parameter_count() == kDontAdaptArgumentsSentinel ||
+        new_code->parameter_count() == GetParameterCount(handle));
+
+  // The object should be in old space to avoid creating old-to-new references.
+  DCHECK(!Heap::InYoungGeneration(new_code));
+
+  uint32_t index = HandleToIndex(handle);
+  Address new_entrypoint = new_code->instruction_start();
+  CFIMetadataWriteScope write_scope("JSDispatchTable update");
+  at(index).SetCodeAndEntrypointPointer(new_code.ptr(), new_entrypoint);
+}
+
+JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
+    Space* space, uint16_t parameter_count) {
+  DCHECK(space->BelongsTo(this));
+  uint32_t index = AllocateEntry(space);
+  CFIMetadataWriteScope write_scope("JSDispatchTable initialize");
+  at(index).MakeJSDispatchEntry(kNullAddress, kNullAddress, parameter_count,
+                                space->allocate_black());
+  return IndexToHandle(index);
+}
+
+JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
+    Space* space, uint16_t parameter_count, Tagged<Code> new_code,
+    Address new_entrypoint) {
+  DCHECK(space->BelongsTo(this));
+  DCHECK_EQ(new_code->instruction_start(), new_entrypoint);
+  CHECK_EQ(new_code->entrypoint_tag(), kJSEntrypointTag);
+  CHECK(new_code->parameter_count() == kDontAdaptArgumentsSentinel ||
+        new_code->parameter_count() == parameter_count);
+
+  uint32_t index = AllocateEntry(space);
+  JSDispatchEntry& entry = at(index);
+  CFIMetadataWriteScope write_scope("JSDispatchTable initialize");
+  entry.MakeJSDispatchEntry(kNullAddress, kNullAddress, parameter_count,
+                            space->allocate_black());
+  entry.SetCodeAndEntrypointPointer(new_code.ptr(), new_entrypoint);
+  return IndexToHandle(index);
 }
 
 void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
@@ -152,18 +203,6 @@ void JSDispatchTable::IterateActiveEntriesIn(Space* space, Callback callback) {
       callback(IndexToHandle(index));
     }
   });
-}
-
-uint32_t JSDispatchTable::HandleToIndex(JSDispatchHandle handle) const {
-  uint32_t index = handle >> kJSDispatchHandleShift;
-  DCHECK_EQ(handle, index << kJSDispatchHandleShift);
-  return index;
-}
-
-JSDispatchHandle JSDispatchTable::IndexToHandle(uint32_t index) const {
-  JSDispatchHandle handle = index << kJSDispatchHandleShift;
-  DCHECK_EQ(index, handle >> kJSDispatchHandleShift);
-  return handle;
 }
 
 }  // namespace internal

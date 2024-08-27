@@ -1262,7 +1262,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address* builtin_entry_table() { return isolate_data_.builtin_entry_table(); }
 
 #ifdef V8_ENABLE_LEAPTIERING
-  // Predicting the handles using `GetStaticHandleForInitialSegmentEntry` is
+  // Predicting the handles using `GetStaticHandleForReadOnlySegmentEntry` is
   // only possible if we have just one sole read only heap. In case we extend
   // support to other build configurations we need a table of dispatch entries
   // per isolate. See https://crrev.com/c/5783686 on how to do that.
@@ -1272,7 +1272,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static V8_INLINE JSDispatchHandle
   builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx idx) {
     static_assert(kBuiltinDispatchHandlesAreStatic);
-    return JSDispatchTable::GetStaticHandleForInitialSegmentEntry(idx);
+    return JSDispatchTable::GetStaticHandleForReadOnlySegmentEntry(idx);
   }
   V8_INLINE JSDispatchHandle builtin_dispatch_handle(Builtin builtin) {
     return builtin_dispatch_handle(

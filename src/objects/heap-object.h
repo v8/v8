@@ -398,8 +398,12 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // current code for a JSFunction.
   inline void InitJSDispatchHandleField(size_t offset,
                                         IsolateForSandbox isolate,
+                                        uint16_t parameter_count);
+  inline void InitJSDispatchHandleField(size_t offset,
+                                        IsolateForSandbox isolate,
                                         uint16_t parameter_count,
-                                        Tagged<Code> code = Tagged<Code>());
+                                        Tagged<Code> code,
+                                        Address instruction_start);
 
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.

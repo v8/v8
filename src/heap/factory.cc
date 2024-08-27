@@ -4683,7 +4683,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   // dispatch entry now. This should only be the case for functions using the
   // generic many_closures_cell (for example builtin functions), and only for
   // functions using certain kinds of code.
-  if (!feedback_cell->dispatch_handle()) {
+  if (feedback_cell->dispatch_handle() == kNullJSDispatchHandle) {
     DCHECK_EQ(*feedback_cell, *factory->many_closures_cell());
     // We currently only expect to see these kinds of Code here. For BASELINE
     // code, we will allocate a FeedbackCell after building the JSFunction. See
@@ -4695,12 +4695,25 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // code->parameter_count() here instead, but not all Code objects know
     // their parameter count yet.
     function->initialize_dispatch_handle(
-        isolate, sfi_->internal_formal_parameter_count_with_receiver());
+        isolate, sfi_->internal_formal_parameter_count_with_receiver(), *code,
+        code->instruction_start());
   } else {
-    function->set_dispatch_handle(feedback_cell->dispatch_handle());
+    // TODO(olivf, 42204201): Here we are explicitly not updating (only
+    // potentially initializing) the code. Worst case the dispatch handle still
+    // contains bytecode or CompileLazy and we'll tier on the next call. Otoh,
+    // if we would UpdateCode we would risk tiering down already existing
+    // closures with optimized code installed.
+    JSDispatchHandle handle = feedback_cell->dispatch_handle();
+    JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+    if (!jdt->HasCode(handle)) {
+      jdt->SetCode(handle, *code);
+    }
+    function->set_dispatch_handle(handle);
   }
+  function->set_code_pointer_only(*code);
+#else
+  function->UpdateCode(*code, mode);
 #endif  // V8_ENABLE_LEAPTIERING
-  function->set_code(*code, kReleaseStore, mode);
   if (function->has_prototype_slot()) {
     function->set_prototype_or_initial_map(
         ReadOnlyRoots(isolate).the_hole_value(), kReleaseStore,

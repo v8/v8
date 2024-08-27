@@ -2984,10 +2984,12 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
             .ToHandle(&maybe_code)) {
       code = maybe_code;
     }
+
+    function->UpdateMaybeContextSpecializedCode(isolate, *code);
+  } else {
+    function->UpdateCode(*code);
   }
 
-  // Install code on closure.
-  function->set_code(*code);
   // Install a feedback vector if necessary.
   if (code->kind() == CodeKind::BASELINE) {
     JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
@@ -3066,7 +3068,7 @@ bool Compiler::CompileBaseline(Isolate* isolate,
 
   Tagged<Code> baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-  function->set_code(baseline_code);
+  function->UpdateCode(baseline_code);
   return true;
 }
 
@@ -3111,7 +3113,7 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   Handle<Code> code;
   if (GetOrCompileOptimized(isolate, function, mode, code_kind)
           .ToHandle(&code)) {
-    function->set_code(*code);
+    function->UpdateMaybeContextSpecializedCode(isolate, *code);
   }
 
 #ifdef DEBUG
@@ -4356,7 +4358,12 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
           CompilerTracer::TraceOptimizeOSRFinished(isolate, function,
                                                    osr_offset);
         } else {
-          function->set_code(*compilation_info->code());
+          if (job->compilation_info()->function_context_specializing()) {
+            function->UpdateContextSpecializedCode(isolate,
+                                                   *compilation_info->code());
+          } else {
+            function->UpdateCode(*compilation_info->code());
+          }
         }
       }
       return;
@@ -4370,7 +4377,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   if (V8_LIKELY(use_result)) {
     ResetTieringState(isolate, *function, osr_offset);
     if (!IsOSR(osr_offset)) {
-      function->set_code(shared->GetCode(isolate));
+      function->UpdateCode(shared->GetCode(isolate));
     }
   }
 }
@@ -4406,7 +4413,11 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
     Handle<Code> code = job->code().ToHandleChecked();
     if (!job->is_osr()) {
-      job->function()->set_code(*code);
+      if (job->specialize_to_function_context()) {
+        job->function()->UpdateContextSpecializedCode(isolate, *code);
+      } else {
+        job->function()->UpdateCode(*code);
+      }
     }
 
     DCHECK(code->is_maglevved());
@@ -4453,8 +4464,9 @@ void Compiler::PostInstantiation(Isolate* isolate,
         // Caching of optimized code enabled and optimized code found.
         DCHECK(!code->marked_for_deoptimization());
         DCHECK(function->shared()->is_compiled());
-
-        function->set_code(code);
+        // TODO(olivf, 42204201): In leaptiering we should check that the code
+        // in the dispatch table is already up-to-date here.
+        function->UpdateCode(code);
       }
     }
 

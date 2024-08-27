@@ -56,10 +56,15 @@ void FeedbackCell::clear_interrupt_budget() {
 
 #ifdef V8_ENABLE_LEAPTIERING
 void FeedbackCell::initialize_dispatch_handle(IsolateForSandbox isolate,
+                                              uint16_t parameter_count) {
+  InitJSDispatchHandleField(kDispatchHandleOffset, isolate, parameter_count);
+}
+void FeedbackCell::initialize_dispatch_handle(IsolateForSandbox isolate,
                                               uint16_t parameter_count,
-                                              Tagged<Code> code) {
+                                              Tagged<Code> code,
+                                              Address entrypoint) {
   InitJSDispatchHandleField(kDispatchHandleOffset, isolate, parameter_count,
-                            code);
+                            code, entrypoint);
 }
 
 void FeedbackCell::clear_dispatch_handle() {

@@ -123,7 +123,17 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // optimized code object, or when reading from the background thread.
   // Storing a builtin doesn't require release semantics because these objects
   // are fully initialized.
-  DECL_CODE_POINTER_ACCESSORS(code)
+  DECL_TRUSTED_POINTER_GETTERS(code, Code)
+
+  inline void UpdateContextSpecializedCode(
+      Isolate* isolate, Tagged<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void UpdateMaybeContextSpecializedCode(
+      Isolate* isolate, Tagged<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void UpdateCode(
+      Tagged<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Returns the raw content of the Code field. When reading from a background
   // thread, the code field may still be uninitialized, in which case the field
@@ -141,10 +151,19 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 
 #ifdef V8_ENABLE_LEAPTIERING
+  // TODO(olivf): This ShouldBeCamelCase.
   inline void initialize_dispatch_handle(IsolateForSandbox isolate,
                                          uint16_t parameter_count);
+  inline void initialize_dispatch_handle(IsolateForSandbox isolate,
+                                         uint16_t parameter_count,
+                                         Tagged<Code> code, Address entrypoint);
   inline void clear_dispatch_handle();
   inline JSDispatchHandle dispatch_handle();
+  inline void set_dispatch_handle(JSDispatchHandle handle);
+
+  inline void set_code_pointer_only(
+      Tagged<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 #endif  // V8_ENABLE_LEAPTIERING
 
   // The predicates for querying code kinds related to this function have
@@ -267,7 +286,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Resets function to clear compiled data after bytecode has been flushed.
   inline bool NeedsResetDueToFlushedBytecode(IsolateForSandbox isolate);
   inline void ResetIfCodeFlushed(
-      IsolateForSandbox isolate,
+      Isolate* isolate,
       std::optional<
           std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                              Tagged<HeapObject> target)>>

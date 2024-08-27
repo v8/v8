@@ -313,7 +313,7 @@ i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
   i::DirectHandle<i::Code> code =
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate)
           .ToHandleChecked();
-  function->set_code(*code, v8::kReleaseStore);
+  function->UpdateCode(*code);
   return function;
 }
 #endif  // V8_ENABLE_TURBOFAN

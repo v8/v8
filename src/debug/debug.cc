@@ -1756,7 +1756,7 @@ void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
     if (IsJSFunction(obj)) {
       Tagged<JSFunction> fun = Cast<JSFunction>(obj);
       if (fun->shared() == shared && fun->ActiveTierIsBaseline(isolate_)) {
-        fun->set_code(*trampoline);
+        fun->UpdateCode(*trampoline);
       }
     }
   }
@@ -1774,7 +1774,7 @@ void Debug::DiscardAllBaselineCode() {
     if (IsJSFunction(obj)) {
       Tagged<JSFunction> fun = Cast<JSFunction>(obj);
       if (fun->ActiveTierIsBaseline(isolate_)) {
-        fun->set_code(*trampoline);
+        fun->UpdateCode(*trampoline);
       }
     } else if (IsSharedFunctionInfo(obj)) {
       Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(obj);
@@ -1895,7 +1895,7 @@ void Debug::InstallDebugBreakTrampoline() {
         if (!fun->is_compiled(isolate_)) {
           needs_compile.push_back(handle(fun, isolate_));
         } else {
-          fun->set_code(*trampoline);
+          fun->UpdateCode(*trampoline);
         }
       } else if (IsJSObject(obj)) {
         Tagged<JSObject> object = Cast<JSObject>(obj);
@@ -1932,13 +1932,13 @@ void Debug::InstallDebugBreakTrampoline() {
     Handle<Object> getter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_GETTER);
     if (IsJSFunctionAndNeedsTrampoline(isolate_, *getter)) {
-      Cast<JSFunction>(getter)->set_code(*trampoline);
+      Cast<JSFunction>(getter)->UpdateCode(*trampoline);
     }
 
     DirectHandle<Object> setter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_SETTER);
     if (IsJSFunctionAndNeedsTrampoline(isolate_, *setter)) {
-      Cast<JSFunction>(setter)->set_code(*trampoline);
+      Cast<JSFunction>(setter)->UpdateCode(*trampoline);
     }
   }
 
@@ -1949,7 +1949,7 @@ void Debug::InstallDebugBreakTrampoline() {
     Compiler::Compile(isolate_, fun, Compiler::CLEAR_EXCEPTION,
                       &is_compiled_scope);
     DCHECK(is_compiled_scope.is_compiled());
-    fun->set_code(*trampoline);
+    fun->UpdateCode(*trampoline);
   }
 }
 

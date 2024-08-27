@@ -125,8 +125,8 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   CSA_DCHECK(this, IsFeedbackVector(feedback_cell_value));
 
   // Is there a tiering state or optimized code in the feedback vector?
-  // TODO(olivf): Skip this with leaptiering once calls go through the dispatch
-  // table.
+  // TODO(olivf, 42204201): Skip this with leaptiering once calls go through the
+  // dispatch table.
   MaybeTailCallOptimizedCodeSlot(function, CAST(feedback_cell_value));
   Goto(&maybe_use_sfi_code);
 

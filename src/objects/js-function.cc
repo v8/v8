@@ -562,6 +562,8 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     // would probably require refactoring the way JSFunctions are built so that
     // we always allocate a FeedbackCell up front (if needed).
     DCHECK_NE(function->dispatch_handle(), kNullJSDispatchHandle);
+    // The feedback cell should never contain context specialized code.
+    DCHECK(!function->code(isolate)->is_context_specialized());
     feedback_cell->set_dispatch_handle(function->dispatch_handle());
 #endif  // V8_ENABLE_LEAPTIERING
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);

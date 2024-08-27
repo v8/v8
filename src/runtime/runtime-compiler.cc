@@ -89,7 +89,7 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
     }
     DisallowGarbageCollection no_gc;
     Tagged<Code> baseline_code = sfi->baseline_code(kAcquireLoad);
-    function->set_code(baseline_code);
+    function->UpdateCode(baseline_code);
     if V8_LIKELY (!v8_flags.log_function_events) return baseline_code;
   }
   DCHECK(v8_flags.log_function_events);
@@ -222,7 +222,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   shared->set_is_asm_wasm_broken(true);
 #endif
   DCHECK_EQ(function->code(isolate), *BUILTIN_CODE(isolate, InstantiateAsmJs));
-  function->set_code(*BUILTIN_CODE(isolate, CompileLazy));
+  function->UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
   DCHECK(!isolate->has_exception());
   return Smi::zero();
 }
@@ -481,8 +481,10 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
     // 1) we've started a concurrent compilation job - everything is fine.
     // 2) synchronous compilation failed for some reason.
 
+    // TODO(olivf, 42204201) With leaptiering enabled, we should just check that
+    // it's up-to-date already.
     if (!function->HasAttachedOptimizedCode(isolate)) {
-      function->set_code(function->shared()->GetCode(isolate));
+      function->UpdateCode(function->shared()->GetCode(isolate));
     }
 
     return Smi::zero();
