@@ -79,12 +79,14 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
   DCHECK(sfi->HasBaselineCode());
-  IsCompiledScope is_compiled_scope(*sfi, isolate);
-  DCHECK(!function->HasAvailableOptimizedCode(isolate));
-  DCHECK(!function->has_feedback_vector());
-  JSFunction::CreateAndAttachFeedbackVector(isolate, function,
-                                            &is_compiled_scope);
   {
+    if (!V8_ENABLE_LEAPTIERING_BOOL || !function->has_feedback_vector()) {
+      IsCompiledScope is_compiled_scope(*sfi, isolate);
+      DCHECK(!function->HasAvailableOptimizedCode(isolate));
+      DCHECK(!function->has_feedback_vector());
+      JSFunction::CreateAndAttachFeedbackVector(isolate, function,
+                                                &is_compiled_scope);
+    }
     DisallowGarbageCollection no_gc;
     Tagged<Code> baseline_code = sfi->baseline_code(kAcquireLoad);
     function->set_code(baseline_code);

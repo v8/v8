@@ -1236,6 +1236,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ bind(&is_baseline);
   {
+#ifndef V8_ENABLE_LEAPTIERING
+    // TODO(olivf, 42204201): This fastcase is difficult to support with the
+    // sandbox as it requires getting write access to the dispatch table. See
+    // `JSFunction::UpdateCode`. We might want to remove it for all
+    // configurations as it does not seem to be performance sensitive.
+
     // Load the feedback vector from the closure.
     TaggedRegister feedback_cell(feedback_vector);
     __ LoadTaggedField(feedback_cell,
@@ -1262,6 +1268,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ JumpCodeObject(rcx, kJSEntrypointTag);
 
     __ bind(&install_baseline_code);
+#endif  // V8_ENABLE_LEAPTIERING
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
 #endif  // !V8_JITLESS

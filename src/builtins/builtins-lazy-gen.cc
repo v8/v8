@@ -125,6 +125,8 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   CSA_DCHECK(this, IsFeedbackVector(feedback_cell_value));
 
   // Is there a tiering state or optimized code in the feedback vector?
+  // TODO(olivf): Skip this with leaptiering once calls go through the dispatch
+  // table.
   MaybeTailCallOptimizedCodeSlot(function, CAST(feedback_cell_value));
   Goto(&maybe_use_sfi_code);
 
@@ -143,6 +145,15 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   Goto(&tailcall_code);
 
   BIND(&baseline);
+#ifdef V8_ENABLE_LEAPTIERING
+  // TODO(olivf, 42204201): This fastcase is difficult to support with the
+  // sandbox as it requires getting write access to the dispatch table. See
+  // `JSFunction::UpdateCode`. We might want to remove it for all configurations
+  // as it does not seem to be performance sensitive.
+
+  code = CAST(CallRuntime(Runtime::kInstallBaselineCode,
+                          Parameter<Context>(Descriptor::kContext), function));
+#else
   // Ensure we have a feedback vector.
   code = Select<Code>(
       IsFeedbackVector(feedback_cell_value), [=]() { return sfi_code; },
@@ -151,6 +162,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
                                 Parameter<Context>(Descriptor::kContext),
                                 function));
       });
+#endif  // V8_ENABLE_LEAPTIERING
   Goto(&tailcall_code);
 
   BIND(&tailcall_code);
