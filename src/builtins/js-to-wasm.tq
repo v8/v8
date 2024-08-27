@@ -8,7 +8,8 @@ namespace runtime {
 extern runtime WasmGenericJSToWasmObject(
     Context, WasmTrustedInstanceData|Undefined, JSAny, Smi): JSAny;
 extern runtime WasmGenericWasmToJSObject(Context, Object): JSAny;
-extern runtime WasmCompileWrapper(NoContext, WasmExportedFunctionData): JSAny;
+extern runtime TierUpJSToWasmWrapper(NoContext, WasmExportedFunctionData):
+    JSAny;
 extern runtime WasmAllocateSuspender(Context): JSAny;
 }  // namespace runtime
 
@@ -490,7 +491,7 @@ macro JSToWasmWrapperHelper(
         UnsafeCast<Smi>(functionData.wrapper_budget.value) - SmiConstant(1);
     functionData.wrapper_budget.value = budget;
     if (budget == SmiConstant(0)) {
-      runtime::WasmCompileWrapper(kNoContext, functionData);
+      runtime::TierUpJSToWasmWrapper(kNoContext, functionData);
     }
   }
 

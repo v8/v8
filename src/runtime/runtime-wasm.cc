@@ -539,9 +539,10 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
 }
 
 namespace {
-void ReplaceWrapper(Isolate* isolate,
-                    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-                    int function_index, DirectHandle<Code> wrapper_code) {
+void ReplaceJSToWasmWrapper(
+    Isolate* isolate,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+    int function_index, DirectHandle<Code> wrapper_code) {
   Tagged<WasmFuncRef> func_ref;
   CHECK(trusted_instance_data->try_get_func_ref(function_index, &func_ref));
   Tagged<JSFunction> external_function;
@@ -553,7 +554,7 @@ void ReplaceWrapper(Isolate* isolate,
 }
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
+RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<WasmExportedFunctionData> function_data(
@@ -586,19 +587,17 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to ensure that the wrapper is replaced, even if the function
   // is implicitly exported and is not part of the export_table.
-  ReplaceWrapper(isolate, trusted_data, function_index, wrapper_code);
+  ReplaceJSToWasmWrapper(isolate, trusted_data, function_index, wrapper_code);
 
   // Iterate over all exports to replace eagerly the wrapper for all functions
   // that share the signature of the function that tiered up.
   for (wasm::WasmExport exp : module->export_table) {
-    if (exp.kind != wasm::kExternalFunction) {
-      continue;
-    }
+    if (exp.kind != wasm::kExternalFunction) continue;
     int index = static_cast<int>(exp.index);
     const wasm::WasmFunction& exp_function = module->functions[index];
-    if (exp_function.sig == sig && index != function_index) {
-      ReplaceWrapper(isolate, trusted_data, index, wrapper_code);
-    }
+    if (index == function_index) continue;  // Already replaced.
+    if (exp_function.sig != sig) continue;  // Different signature.
+    ReplaceJSToWasmWrapper(isolate, trusted_data, index, wrapper_code);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
