@@ -236,12 +236,12 @@ static void VisitUniqueRRR(InstructionSelectorT<Adapter>* selector,
 
 template <typename Adapter>
 void VisitRRRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-               Node* node) {
+               typename Adapter::node_t node) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineSameAsFirst(node),
                  g.UseRegister(selector->input_at(node, 0)),
                  g.UseRegister(selector->input_at(node, 1)),
-                 g.UseRegister(node->InputAt(2)));
+                 g.UseRegister(selector->input_at(node, 2)));
 }
 
 template <typename Adapter>
@@ -1546,21 +1546,13 @@ SIMD_UNOP_LIST2(SIMD_VISIT_UNOP2)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitS128Select(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitRRRR(this, kRiscvS128Select, node);
-  }
 }
 
 #define SIMD_VISIT_SELECT_LANE(Name)                             \
   template <typename Adapter>                                    \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
-    if constexpr (Adapter::IsTurboshaft) {                       \
-      UNIMPLEMENTED();                                           \
-    } else {                                                     \
       VisitRRRR(this, kRiscvS128Select, node);                   \
-    }                                                            \
   }
 SIMD_VISIT_SELECT_LANE(I8x16RelaxedLaneSelect)
 SIMD_VISIT_SELECT_LANE(I16x8RelaxedLaneSelect)
@@ -1571,11 +1563,7 @@ SIMD_VISIT_SELECT_LANE(I64x2RelaxedLaneSelect)
 #define VISIT_SIMD_QFMOP(Name, instruction)                      \
   template <typename Adapter>                                    \
   void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
-    if constexpr (Adapter::IsTurboshaft) {                       \
-      UNIMPLEMENTED();                                           \
-    } else {                                                     \
       VisitRRRR(this, instruction, node);                        \
-    }                                                            \
   }
 VISIT_SIMD_QFMOP(F64x2Qfma, kRiscvF64x2Qfma)
 VISIT_SIMD_QFMOP(F64x2Qfms, kRiscvF64x2Qfms)
