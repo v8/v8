@@ -813,6 +813,7 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::WASM_EXIT:
     case StackFrame::WASM_LIFTOFF_SETUP:
     case StackFrame::WASM_TO_JS:
+    case StackFrame::WASM_SEGMENT_START:
 #if V8_ENABLE_DRUMBRAKE
     case StackFrame::C_WASM_ENTRY:
     case StackFrame::WASM_INTERPRETER_ENTRY:
@@ -1686,7 +1687,8 @@ void WasmFrame::Iterate(RootVisitor* v) const {
       Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
   DCHECK(StackFrame::IsTypeMarker(marker));
   StackFrame::Type type = StackFrame::MarkerToType(marker);
-  DCHECK(type == WASM_TO_JS || type == WASM || type == WASM_EXIT);
+  DCHECK(type == WASM_TO_JS || type == WASM || type == WASM_EXIT ||
+         type == WASM_SEGMENT_START);
 #endif
 
   // Determine the fixed header and spill slot area size.

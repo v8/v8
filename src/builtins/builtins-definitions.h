@@ -1164,6 +1164,7 @@ namespace internal {
   IF_WASM(ASM, WasmLiftoffFrameSetup, WasmDummy)                               \
   IF_WASM(ASM, WasmDebugBreak, WasmDummy)                                      \
   IF_WASM(ASM, WasmOnStackReplace, WasmDummy)                                  \
+  IF_WASM(ASM, WasmHandleStackOverflow, WasmHandleStackOverflow)               \
   IF_WASM(TFC, WasmFloat32ToNumber, WasmFloat32ToNumber)                       \
   IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToTagged)                       \
   IF_WASM(TFC, WasmFloat64ToString, WasmFloat64ToTagged)                       \

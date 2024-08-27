@@ -126,6 +126,7 @@ class StackHandler {
   IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
   IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
   IF_WASM(V, WASM_LIFTOFF_SETUP, WasmLiftoffSetupFrame)                   \
+  IF_WASM(V, WASM_SEGMENT_START, WasmSegmentStartFrame)                   \
   V(INTERPRETED, InterpretedFrame)                                        \
   V(BASELINE, BaselineFrame)                                              \
   V(MAGLEV, MaglevFrame)                                                  \
@@ -252,7 +253,7 @@ class StackFrame {
   bool is_turbofan() const { return type() == TURBOFAN; }
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm() const {
-    return this->type() == WASM
+    return this->type() == WASM || this->type() == WASM_SEGMENT_START
 #ifdef V8_ENABLE_DRUMBRAKE
            || this->type() == WASM_INTERPRETER_ENTRY
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1283,6 +1284,21 @@ class WasmFrame : public TypedFrame {
  private:
   friend class StackFrameIteratorBase;
   Tagged<WasmModuleObject> module_object() const;
+};
+
+// WasmSegmentStartFrame is a regular Wasm frame moved to the
+// beginning of a new stack segment allocated for growable stack.
+// It requires special handling on return. To indicate that, the WASM frame type
+// is replaced by WASM_SEGMENT_START.
+class WasmSegmentStartFrame : public WasmFrame {
+ public:
+  Type type() const override { return WASM_SEGMENT_START; }
+
+ protected:
+  inline explicit WasmSegmentStartFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
 };
 
 // Wasm to C-API exit frame.

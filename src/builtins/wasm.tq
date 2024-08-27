@@ -32,7 +32,7 @@ extern runtime WasmThrowDataViewDetachedError(Context, Smi): never;
 extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
 extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmTrustedInstanceData): JSAny;
-extern runtime WasmStackGuard(Context): JSAny;
+extern runtime WasmStackGuard(Context, Smi): JSAny;
 extern runtime ThrowWasmStackOverflow(Context): JSAny;
 extern runtime WasmTraceMemory(Context, Smi): JSAny;
 extern runtime WasmTraceEnter(Context): JSAny;
@@ -107,6 +107,8 @@ const kAnyType: constexpr int31
     generates 'wasm::kWasmAnyRef.raw_bit_field()';
 const kMaxPolymorphism:
     constexpr int31 generates 'wasm::kMaxPolymorphism';
+const kFixedFrameSizeAboveFp: constexpr int32
+    generates 'CommonFrameConstants::kFixedFrameSizeAboveFp';
 
 extern macro WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
     WasmInstanceObject): WasmTrustedInstanceData;
@@ -452,8 +454,18 @@ builtin WasmTriggerTierUp(): JSAny {
   tail runtime::WasmTriggerTierUp(LoadContextFromFrame(), trustedData);
 }
 
+extern builtin WasmHandleStackOverflow(RawPtr, uint32): JSAny;
+
+// {paramSlotsSize} is the size of the incoming stack parameters of the
+// currently-executing function, which have to be copied along with its
+// stack frame if the stack needs to be grown.
+builtin WasmGrowableStackGuard(paramSlotsSize: intptr): JSAny {
+  tail WasmHandleStackOverflow(
+      LoadParentFramePointer() + paramSlotsSize + kFixedFrameSizeAboveFp, 0);
+}
+
 builtin WasmStackGuard(): JSAny {
-  tail runtime::WasmStackGuard(LoadContextFromFrame());
+  tail runtime::WasmStackGuard(LoadContextFromFrame(), SmiConstant(0));
 }
 
 builtin WasmStackOverflow(): JSAny {

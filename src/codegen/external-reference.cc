@@ -549,6 +549,9 @@ FUNCTION_REFERENCE(wasm_switch_to_the_central_stack_for_js,
                    wasm::switch_to_the_central_stack_for_js)
 FUNCTION_REFERENCE(wasm_switch_from_the_central_stack_for_js,
                    wasm::switch_from_the_central_stack_for_js)
+FUNCTION_REFERENCE(wasm_grow_stack, wasm::grow_stack)
+FUNCTION_REFERENCE(wasm_shrink_stack, wasm::shrink_stack)
+FUNCTION_REFERENCE(wasm_load_old_fp, wasm::load_old_fp)
 FUNCTION_REFERENCE(wasm_f32_trunc, wasm::f32_trunc_wrapper)
 FUNCTION_REFERENCE(wasm_f32_floor, wasm::f32_floor_wrapper)
 FUNCTION_REFERENCE(wasm_f32_ceil, wasm::f32_ceil_wrapper)

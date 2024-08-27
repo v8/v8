@@ -63,7 +63,10 @@
   /* FP16 proposal. */                                                         \
   /* https://github.com/WebAssembly/half-precision */                          \
   /* V8 side owner: irezvov */                                                 \
-  V(fp16, "fp16", false)
+  V(fp16, "fp16", false)                                                       \
+                                                                               \
+  /* V8 side owner: irezvov */                                                 \
+  V(growable_stacks, "growable stacks for jspi", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

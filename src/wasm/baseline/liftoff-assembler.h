@@ -675,7 +675,8 @@ class LiftoffAssembler : public MacroAssembler {
                               int stack_param_delta);
   inline void AlignFrameSize();
   inline void PatchPrepareStackFrame(int offset, SafepointTableBuilder*,
-                                     bool feedback_vector_slot);
+                                     bool feedback_vector_slot,
+                                     size_t stack_param_slots);
   inline void FinishCode();
   inline void AbortCompilation();
   inline static constexpr int StaticStackFrameSize();
@@ -684,6 +685,8 @@ class LiftoffAssembler : public MacroAssembler {
 
   inline void CheckTierUp(int declared_func_index, int budget_used,
                           Label* ool_label, const FreezeCacheState& frozen);
+  inline Register LoadOldFramePointer();
+  inline void CheckStackShrink();
   inline void LoadConstant(LiftoffRegister, WasmValue);
   inline void LoadInstanceDataFromFrame(Register dst);
   inline void LoadTrustedPointer(Register dst, Register src_addr, int offset,
@@ -776,7 +779,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
                                   ValueKind);
   inline void StoreCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
-                                   ValueKind);
+                                   ValueKind, Register frame_pointer);
   inline void LoadReturnStackSlot(LiftoffRegister, int offset, ValueKind);
   inline void MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                              ValueKind);
@@ -1596,7 +1599,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void bailout(LiftoffBailoutReason reason, const char* detail);
 
  private:
-  LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half);
+  LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half,
+                                          LiftoffRegList pinned);
 
   // Spill one of the candidate registers.
   V8_NOINLINE V8_PRESERVE_MOST LiftoffRegister

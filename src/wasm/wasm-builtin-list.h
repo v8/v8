@@ -47,11 +47,13 @@ namespace v8::internal::wasm {
   V(WasmTableSetFuncRef)                                                       \
   V(WasmFunctionTableGet)                                                      \
   V(WasmStackGuard)                                                            \
+  V(WasmGrowableStackGuard)                                                    \
   V(WasmStackOverflow)                                                         \
   V(WasmAllocateFixedArray)                                                    \
   V(WasmThrow)                                                                 \
   V(WasmRethrow)                                                               \
   V(WasmRethrowExplicitContext)                                                \
+  V(WasmHandleStackOverflow)                                                   \
   V(WasmTraceEnter)                                                            \
   V(WasmTraceExit)                                                             \
   V(WasmTraceMemory)                                                           \

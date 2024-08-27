@@ -524,7 +524,7 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
-    bool feedback_vector_slot) {
+    bool feedback_vector_slot, size_t stack_param_slots) {
   // The frame_size includes the frame marker and the instance slot. Both are
   // pushed as part of frame construction, so we don't need to allocate memory
   // for them anymore.
@@ -651,6 +651,13 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
     str(budget, budget_addr);
   }
   b(ool_label, mi);
+}
+
+Register LiftoffAssembler::LoadOldFramePointer() { return fp; }
+
+void LiftoffAssembler::CheckStackShrink() {
+  // TODO(irezvov): 42202153
+  UNIMPLEMENTED();
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -1478,8 +1485,9 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
-                                            ValueKind kind) {
-  MemOperand dst(fp, (caller_slot_idx + 1) * kSystemPointerSize);
+                                            ValueKind kind,
+                                            Register frame_pointer) {
+  MemOperand dst(frame_pointer, (caller_slot_idx + 1) * kSystemPointerSize);
   liftoff::Store(this, src, dst, kind);
 }
 

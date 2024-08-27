@@ -12,6 +12,7 @@
 #include "src/base/ieee754.h"
 #include "src/base/safe_conversions.h"
 #include "src/common/assert-scope.h"
+#include "src/execution/pointer-authentication.h"
 #include "src/numbers/conversions.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
@@ -1044,6 +1045,85 @@ void switch_from_the_central_stack_for_js(Isolate* isolate) {
   StackGuard* stack_guard = isolate->stack_guard();
   stack_guard->SetStackLimitForStackSwitching(
       reinterpret_cast<uintptr_t>(stack->jslimit()));
+}
+
+// frame_size includes param slots area and extra frame slots above FP.
+Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
+                   size_t gap, Address current_fp) {
+  // Check if this is a real stack overflow.
+  StackLimitCheck check(isolate);
+  if (check.WasmHasOverflowed(gap)) {
+    Tagged<WasmContinuationObject> current_continuation =
+        Cast<WasmContinuationObject>(
+            isolate->root(RootIndex::kActiveContinuation));
+    // If there is no parent, then the current stack is the main isolate stack.
+    if (IsUndefined(current_continuation->parent())) {
+      return 0;
+    }
+    auto stack =
+        reinterpret_cast<wasm::StackMemory*>(current_continuation->stack());
+    DCHECK(stack->IsActive());
+    if (!stack->Grow(current_fp)) {
+      return 0;
+    }
+
+    Address new_sp = stack->base() - frame_size;
+    // Here we assume stack values don't refer other moved stack slots.
+    // A stack grow event happens right in the beginning of the function
+    // call so moved slots contain only incoming params and frame header.
+    // So, it is reasonable to assume no self references.
+    std::memcpy(reinterpret_cast<void*>(new_sp), current_sp, frame_size);
+
+#if V8_TARGET_ARCH_ARM64
+    Address new_fp =
+        new_sp + (current_fp - reinterpret_cast<Address>(current_sp));
+    Address old_pc_address = current_fp + CommonFrameConstants::kCallerPCOffset;
+    Address new_pc_address = new_fp + CommonFrameConstants::kCallerPCOffset;
+    Address old_signed_pc = base::Memory<Address>(old_pc_address);
+    Address new_signed_pc = PointerAuthentication::MoveSignedPC(
+        isolate, old_signed_pc, new_pc_address + kSystemPointerSize,
+        old_pc_address + kSystemPointerSize);
+    WriteUnalignedValue<Address>(new_pc_address, new_signed_pc);
+#endif
+
+    isolate->stack_guard()->SetStackLimitForStackSwitching(
+        reinterpret_cast<uintptr_t>(stack->jslimit()));
+    return new_sp;
+  }
+
+  return 0;
+}
+
+Address shrink_stack(Isolate* isolate) {
+  Tagged<WasmContinuationObject> current_continuation =
+      Cast<WasmContinuationObject>(
+          isolate->root(RootIndex::kActiveContinuation));
+  // If there is no parent, then the current stack is the main isolate stack.
+  if (IsUndefined(current_continuation->parent())) {
+    return 0;
+  }
+  auto stack =
+      reinterpret_cast<wasm::StackMemory*>(current_continuation->stack());
+  DCHECK(stack->IsActive());
+  Address old_fp = stack->Shrink();
+
+  isolate->stack_guard()->SetStackLimitForStackSwitching(
+      reinterpret_cast<uintptr_t>(stack->jslimit()));
+  return old_fp;
+}
+
+Address load_old_fp(Isolate* isolate) {
+  Tagged<WasmContinuationObject> current_continuation =
+      Cast<WasmContinuationObject>(
+          isolate->root(RootIndex::kActiveContinuation));
+  // If there is no parent, then the current stack is the main isolate stack.
+  if (IsUndefined(current_continuation->parent())) {
+    return 0;
+  }
+  auto stack =
+      reinterpret_cast<wasm::StackMemory*>(current_continuation->stack());
+  DCHECK_EQ(stack->jmpbuf()->state, wasm::JumpBuffer::Active);
+  return stack->old_fp();
 }
 
 }  // namespace v8::internal::wasm

@@ -48,16 +48,71 @@ class StackMemory {
   static StackMemory* GetCurrentStackView(Isolate* isolate);
 
   ~StackMemory();
-  void* jslimit() const { return limit_ + kJSLimitOffsetKB * KB; }
-  Address base() const { return reinterpret_cast<Address>(limit_ + size_); }
+  void* jslimit() const {
+    return (active_segment_ ? active_segment_->limit_ : limit_) +
+           kJSLimitOffsetKB * KB;
+  }
+  Address base() const {
+    return active_segment_ ? active_segment_->base()
+                           : reinterpret_cast<Address>(limit_ + size_);
+  }
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   bool Contains(Address addr) {
-    return reinterpret_cast<Address>(jslimit()) <= addr && addr < base();
+    if (!owned_) {
+      return reinterpret_cast<Address>(jslimit()) <= addr && addr < base();
+    }
+    for (auto segment = first_segment_; segment;
+         segment = segment->next_segment_) {
+      if (reinterpret_cast<Address>(segment->limit_) <= addr &&
+          addr < segment->base()) {
+        return true;
+      }
+      if (segment == active_segment_) break;
+    }
+    return false;
   }
   int id() { return id_; }
   bool IsActive() { return jmpbuf_.state == JumpBuffer::Active; }
   void set_index(size_t index) { index_ = index; }
   size_t index() { return index_; }
+  size_t allocated_size() {
+    size_t size = 0;
+    auto segment = first_segment_;
+    while (segment) {
+      size += segment->size_;
+      segment = segment->next_segment_;
+    }
+    return size;
+  }
+  void FillWith(uint8_t value) {
+    auto segment = first_segment_;
+    while (segment) {
+      memset(segment->limit_, value, segment->size_);
+      segment = segment->next_segment_;
+    }
+  }
+  Address old_fp() { return active_segment_->old_fp; }
+  bool Grow(Address current_fp);
+  Address Shrink();
+  void Reset();
+
+  class StackSegment {
+   public:
+    Address base() const { return reinterpret_cast<Address>(limit_ + size_); }
+
+   private:
+    explicit StackSegment(size_t size);
+    ~StackSegment();
+    uint8_t* limit_;
+    size_t size_;
+
+    // References to segments of segmented stack
+    StackSegment* next_segment_ = nullptr;
+    StackSegment* prev_segment_ = nullptr;
+    Address old_fp = 0;
+
+    friend class StackMemory;
+  };
 
   struct StackSwitchInfo {
     // Source FP and target SP of the frame that switched to the central stack.
@@ -102,6 +157,8 @@ class StackMemory {
   // return_switch()).
   size_t index_;
   std::optional<StackSwitchInfo> stack_switch_info_;
+  StackSegment* first_segment_ = nullptr;
+  StackSegment* active_segment_ = nullptr;
 };
 
 // A pool of "finished" stacks, i.e. stacks whose last frame have returned and
