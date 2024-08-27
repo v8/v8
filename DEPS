@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:2@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:250f32bbb04e51117d17db783c9535dd956f7d44',
+  'siso_version': 'git_revision:10bd8dc16d411e512d5a9d0cfe7435a7cee10071',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:5845c6112f584c023a47776b31c3b6f08f562fb8',
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '96625099e899909656e8f7eafbcac9daba1414cb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fb97ed0c58cbb9c19a89101ffe0c4de23288f79a',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3a0b59c52fa0ae29e1bb1a01add8b7fe77c9bd1c',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f8f6777fcf684dd891658ff32b195589e88fe2d8',
   'buildtools/linux64': {
     'packages': [
       {
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f5e10923392588205925c036948e111f72b80271',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c1457823a0f713e5a81dd899868e10d5af1a4c5b',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd3aea2341cdeaf7e717bc257a59aa7a9407d318a',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'f7fd8eedc41c89d3667f38e9e2fbf87b2b73c0a8',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'fb801f8a4b25776becf0119b8b578d9b5a096285',
   'tools/luci-go': {
       'packages': [
         {
