@@ -1402,6 +1402,12 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, false,
             "run instruction selection on Turboshaft IR directly for wasm, on "
             "architectures where we are staging the feature")
+// If turboshaft_wasm is set, also enable instruction selection on the
+// Turboshaft IR directly (as the slow path via RecreateSchedule is mostly for
+// non-official platforms and we do not plan on shipping this combination any
+// more.)
+DEFINE_WEAK_IMPLICATION(turboshaft_wasm,
+                        turboshaft_wasm_instruction_selection_staged)
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_from_maglev,
                             "build the Turboshaft graph from Maglev")
 // inline_api_calls are not supported by the Turboshaft->Maglev translation.
