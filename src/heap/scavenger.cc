@@ -496,6 +496,7 @@ void ScavengerCollector::CollectGarbage() {
         &Heap::UpdateYoungReferenceInExternalStringTableEntry);
 
     heap_->incremental_marking()->UpdateMarkingWorklistAfterScavenge();
+    heap_->incremental_marking()->UpdateExternalPointerTableAfterScavenge();
 
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_->UpdateRetainersAfterScavenge();
