@@ -949,11 +949,7 @@ class Sweeper::SweeperImpl final {
       foreground_task_runner_ = platform_->GetForegroundTaskRunner();
       // We start with a 0-delay sweeping task to get through a burst of work
       // in case this was started from synchronous execution.
-      regular_task_is_delayed_idle_task_ =
-          config_.sweeping_strategy ==
-                  SweepingStrategy::kMinimizeMutatorInterference
-              ? true
-              : false;
+      regular_task_is_delayed_idle_task_ = true;
       ScheduleIncrementalSweeping();
     }
     if (config.sweeping_type >=
@@ -965,20 +961,17 @@ class Sweeper::SweeperImpl final {
   void SweepForTask(v8::base::TimeDelta max_duration) {
     // Before sweeping in a task, handle idle sweeping cases. These are no-ops
     // if idle sweeping is not running.
-    if (config_.sweeping_strategy ==
-        SweepingStrategy::kMinimizeMutatorInterference) {
-      if (regular_task_is_delayed_idle_task_) {
-        // Idle task asked for delayed schedule.
-        regular_task_is_delayed_idle_task_ = false;
-        ScheduleIdleIncrementalSweeping();
-        ScheduleIncrementalSweeping(kDelayWhileIdleSweepingMakesProgress);
-        return;
-      }
-      if (saved_idle_task_count_ != idle_task_count_) {
-        // Idle task made progress. Reschedule with delay.
-        ScheduleIncrementalSweeping(kDelayWhileIdleSweepingMakesProgress);
-        return;
-      }
+    if (regular_task_is_delayed_idle_task_) {
+      // Idle task asked for delayed schedule.
+      regular_task_is_delayed_idle_task_ = false;
+      ScheduleIdleIncrementalSweeping();
+      ScheduleIncrementalSweeping(kDelayWhileIdleSweepingMakesProgress);
+      return;
+    }
+    if (saved_idle_task_count_ != idle_task_count_) {
+      // Idle task made progress. Reschedule with delay.
+      ScheduleIncrementalSweeping(kDelayWhileIdleSweepingMakesProgress);
+      return;
     }
 
     // Idle sweeping is not running or not being invoked on time.
@@ -1438,17 +1431,15 @@ class Sweeper::SweeperImpl final {
     DCHECK(platform_);
     DCHECK_GE(config_.sweeping_type,
               SweepingConfig::SweepingType::kIncremental);
-    DCHECK_NE(config_.sweeping_strategy, SweepingStrategy::kMinimizeMemory);
 
-    if (!foreground_task_runner_) {
+    if (!foreground_task_runner_ ||
+        !foreground_task_runner_->IdleTasksEnabled()) {
       return;
     }
 
-    if (foreground_task_runner_->IdleTasksEnabled()) {
-      incremental_sweeper_idle_handle_.CancelIfNonEmpty();
-      incremental_sweeper_idle_handle_ = IncrementalSweepIdleTask::Post(
-          *this, platform_, foreground_task_runner_);
-    }
+    incremental_sweeper_idle_handle_.CancelIfNonEmpty();
+    incremental_sweeper_idle_handle_ = IncrementalSweepIdleTask::Post(
+        *this, platform_, foreground_task_runner_);
   }
 
   void ScheduleConcurrentSweeping() {

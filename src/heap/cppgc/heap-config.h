@@ -38,10 +38,6 @@ struct MarkingConfig {
   bool bailout_of_marking_when_ahead_of_schedule = false;
 };
 
-enum class SweepingStrategy {
-  kMinimizeMutatorInterference,
-  kMinimizeMemory,
-};
 struct SweepingConfig {
   using SweepingType = cppgc::Heap::SweepingType;
   enum class CompactableSpaceHandling { kSweep, kIgnore };
@@ -51,7 +47,6 @@ struct SweepingConfig {
   CompactableSpaceHandling compactable_space_handling =
       CompactableSpaceHandling::kSweep;
   FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
-  SweepingStrategy sweeping_strategy = SweepingStrategy::kMinimizeMemory;
 };
 
 struct GCConfig {

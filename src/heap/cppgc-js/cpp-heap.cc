@@ -952,12 +952,7 @@ void CppHeap::CompactAndSweep() {
             ? cppgc::internal::SweepingConfig::FreeMemoryHandling::
                   kDiscardWherePossible
             : cppgc::internal::SweepingConfig::FreeMemoryHandling::
-                  kDoNotDiscard,
-        // CppHeap is initialized before V8 flags are necessarily set which
-        // prohibits us from reading the flag at creation.
-        v8_flags.cppheap_optimize_sweep_for_mutator
-            ? cppgc::internal::SweepingStrategy::kMinimizeMutatorInterference
-            : cppgc::internal::SweepingStrategy::kMinimizeMemory};
+                  kDoNotDiscard};
     DCHECK_IMPLIES(!isolate_,
                    SweepingType::kAtomic == sweeping_config.sweeping_type);
     sweeper().Start(sweeping_config);
