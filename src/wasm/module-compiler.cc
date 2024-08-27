@@ -4653,16 +4653,22 @@ WasmCode* CompileImportWrapperForTest(NativeModule* native_module,
 
   DCHECK(result.inlining_positions.empty());
   DCHECK(result.deopt_data.empty());
-  // There was no cache entry when we called this function, but in the
-  // meantime a different module could have created one. Simply discard the
-  // new wrapper if so.
-  WasmImportWrapperCache::ModificationScope cache_scope(
-      GetWasmImportWrapperCache());
-  WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
-                                       expected_arity, suspend);
-  if (V8_UNLIKELY(cache_scope[key] != nullptr)) return cache_scope[key];
-  WasmCode* code = cache_scope.AddWrapper(key, std::move(result),
-                                          WasmCode::Kind::kWasmToJsWrapper);
+  WasmCode* code;
+  {
+    // There was no cache entry when we called this function, but in the
+    // meantime a different module could have created one. Simply discard the
+    // new wrapper if so.
+    WasmImportWrapperCache::ModificationScope cache_scope(
+        GetWasmImportWrapperCache());
+    WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
+                                         expected_arity, suspend);
+    if (V8_UNLIKELY(cache_scope[key] != nullptr)) return cache_scope[key];
+    code = cache_scope.AddWrapper(key, std::move(result),
+                                  WasmCode::Kind::kWasmToJsWrapper);
+  }
+  // To avoid lock order inversion, code printing must happen after the
+  // end of the {cache_scope}.
+  code->MaybePrint();
   counters->wasm_generated_code_size()->Increment(
       code->instructions().length());
   counters->wasm_reloc_size()->Increment(code->reloc_info().length());

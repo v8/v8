@@ -1921,13 +1921,18 @@ bool InstanceBuilder::ProcessImportedFunction(
       WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
                                             expected_arity, kNoSuspend);
       if (wasm_code == nullptr) {
-        WasmImportWrapperCache::ModificationScope cache_scope(cache);
-        WasmCompilationResult result =
-            compiler::CompileWasmCapiCallWrapper(native_module, expected_sig);
-        WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
-                                             expected_arity, kNoSuspend);
-        wasm_code = cache_scope.AddWrapper(key, std::move(result),
-                                           WasmCode::Kind::kWasmToCapiWrapper);
+        {
+          WasmImportWrapperCache::ModificationScope cache_scope(cache);
+          WasmCompilationResult result =
+              compiler::CompileWasmCapiCallWrapper(native_module, expected_sig);
+          WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
+                                               expected_arity, kNoSuspend);
+          wasm_code = cache_scope.AddWrapper(
+              key, std::move(result), WasmCode::Kind::kWasmToCapiWrapper);
+        }
+        // To avoid lock order inversion, code printing must happen after the
+        // end of the {cache_scope}.
+        wasm_code->MaybePrint();
         isolate_->counters()->wasm_generated_code_size()->Increment(
             wasm_code->instructions().length());
         isolate_->counters()->wasm_reloc_size()->Increment(
@@ -1962,6 +1967,9 @@ bool InstanceBuilder::ProcessImportedFunction(
         wasm_code = cache_scope.AddWrapper(dummy_key, std::move(result),
                                            WasmCode::Kind::kWasmToJsWrapper);
       }
+      // To avoid lock order inversion, code printing must happen after the
+      // end of the {cache_scope}.
+      wasm_code->MaybePrint();
       imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
                                          kNoSuspend, expected_sig);
       break;
@@ -2005,15 +2013,24 @@ bool InstanceBuilder::ProcessImportedFunction(
         WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
             &env, kind, expected_sig, source_positions, expected_arity,
             resolved.suspend());
-        WasmImportWrapperCache::ModificationScope cache_scope(cache);
-        WasmImportWrapperCache::CacheKey key(
-            kind, canonical_type_index, expected_arity, resolved.suspend());
-        // Now that we have the lock (in the form of the cache_scope), check
-        // again whether another thread has just created the wrapper.
-        wasm_code = cache_scope[key];
-        if (!wasm_code) {
-          wasm_code = cache_scope.AddWrapper(key, std::move(result),
-                                             WasmCode::Kind::kWasmToJsWrapper);
+        bool code_is_new = false;
+        {
+          WasmImportWrapperCache::ModificationScope cache_scope(cache);
+          WasmImportWrapperCache::CacheKey key(
+              kind, canonical_type_index, expected_arity, resolved.suspend());
+          // Now that we have the lock (in the form of the cache_scope), check
+          // again whether another thread has just created the wrapper.
+          wasm_code = cache_scope[key];
+          if (!wasm_code) {
+            wasm_code = cache_scope.AddWrapper(
+                key, std::move(result), WasmCode::Kind::kWasmToJsWrapper);
+            code_is_new = true;
+          }
+        }
+        if (code_is_new) {
+          // To avoid lock order inversion, code printing must happen after the
+          // end of the {cache_scope}.
+          wasm_code->MaybePrint();
           isolate_->counters()->wasm_generated_code_size()->Increment(
               wasm_code->instructions().length());
           isolate_->counters()->wasm_reloc_size()->Increment(

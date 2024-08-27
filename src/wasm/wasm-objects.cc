@@ -628,13 +628,18 @@ void WasmTableObject::UpdateDispatchTables(
     wasm::WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
                                                 param_count, wasm::kNoSuspend);
     if (wasm_code == nullptr) {
-      wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
       wasm::WasmCompilationResult result =
           compiler::CompileWasmCapiCallWrapper(native_module, &sig);
-      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
-                                                 param_count, wasm::kNoSuspend);
-      wasm_code = cache_scope.AddWrapper(
-          key, std::move(result), wasm::WasmCode::Kind::kWasmToCapiWrapper);
+      {
+        wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
+        wasm::WasmImportWrapperCache::CacheKey key(
+            kind, canonical_type_index, param_count, wasm::kNoSuspend);
+        wasm_code = cache_scope.AddWrapper(
+            key, std::move(result), wasm::WasmCode::Kind::kWasmToCapiWrapper);
+      }
+      // To avoid lock order inversion, code printing must happen after the
+      // end of the {cache_scope}.
+      wasm_code->MaybePrint();
       isolate->counters()->wasm_generated_code_size()->Increment(
           wasm_code->instructions().length());
       isolate->counters()->wasm_reloc_size()->Increment(
@@ -1920,11 +1925,16 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
     wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
         &env, kind, sig, false, expected_arity, suspend);
-    wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
-    wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
-                                               expected_arity, suspend);
-    wasm_code = cache_scope.AddWrapper(key, std::move(result),
-                                       wasm::WasmCode::Kind::kWasmToJsWrapper);
+    {
+      wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
+      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
+                                                 expected_arity, suspend);
+      wasm_code = cache_scope.AddWrapper(
+          key, std::move(result), wasm::WasmCode::Kind::kWasmToJsWrapper);
+    }
+    // To avoid lock order inversion, code printing must happen after the
+    // end of the {cache_scope}.
+    wasm_code->MaybePrint();
     isolate->counters()->wasm_generated_code_size()->Increment(
         wasm_code->instructions().length());
     isolate->counters()->wasm_reloc_size()->Increment(

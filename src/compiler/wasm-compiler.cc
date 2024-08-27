@@ -9049,6 +9049,9 @@ AssemblerOptions WasmStubAssemblerOptions() {
       // Relocation info not necessary because stubs are not serialized.
       .record_reloc_info_for_serialization = false,
       .enable_root_relative_access = false,
+      // TODO(jkummerow): Would it be better to have a far jump table in
+      // the wrapper cache's code space, and call builtins through that?
+      .builtin_call_jump_mode = BuiltinCallJumpMode::kIndirect,
       .is_wasm = true,
   };
 }

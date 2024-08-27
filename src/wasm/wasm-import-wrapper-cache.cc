@@ -125,7 +125,6 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   WasmCodeRefScope::AddRef(code);
   code->DecRefOnLiveCode();
 
-  code->MaybePrint();
   code->Validate();
   cache_->entry_map_[key] = code;
   // As an optimization, we assume that wrappers are allocated in increasing

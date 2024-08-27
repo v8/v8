@@ -776,7 +776,19 @@ void MacroAssembler::CallTSANStoreStub(Register address, Register value,
   // Prepare argument registers for calling GetTSANStoreStub.
   MovePair(address_parameter, address, value_parameter, value);
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (mode != StubCallMode::kCallWasmRuntimeStub) {
+    // JS functions and Wasm wrappers.
+    CallBuiltin(CodeFactory::GetTSANStoreStub(fp_mode, size, order));
+  } else {
+    // Wasm functions should call builtins through their far jump table.
+    auto wasm_target = static_cast<intptr_t>(
+        wasm::WasmCode::GetTSANStoreBuiltin(fp_mode, size, order));
+    near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  }
+#else
   CallBuiltin(CodeFactory::GetTSANStoreStub(fp_mode, size, order));
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   PopAll(registers);
 }
@@ -795,7 +807,19 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
   // Prepare argument registers for calling TSANRelaxedLoad.
   Move(address_parameter, address);
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (mode != StubCallMode::kCallWasmRuntimeStub) {
+    // JS functions and Wasm wrappers.
+    CallBuiltin(CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size));
+  } else {
+    // Wasm functions should call builtins through their far jump table.
+    auto wasm_target = static_cast<intptr_t>(
+        wasm::WasmCode::GetTSANRelaxedLoadBuiltin(fp_mode, size));
+    near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  }
+#else
   CallBuiltin(CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size));
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   PopAll(registers);
 }
