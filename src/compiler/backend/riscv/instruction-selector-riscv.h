@@ -846,38 +846,26 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWord32PairToFloat64(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
-    Node* left = this->input_at(node, 0);
-    Node* right = this->input_at(node, 1);
+    node_t left = this->input_at(node, 0);
+    node_t right = this->input_at(node, 1);
     Emit(kRiscvFloat64InsertLowWord32, g.DefineSameAsFirst(node),
          g.UseRegister(left), g.UseRegister(right));
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
-    Node* left = this->input_at(node, 0);
-    Node* right = this->input_at(node, 1);
+    node_t left = this->input_at(node, 0);
+    node_t right = this->input_at(node, 1);
     Emit(kRiscvFloat64InsertHighWord32, g.DefineSameAsFirst(node),
          g.UseRegister(left), g.UseRegister(right));
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     Emit(kRiscvSync, g.NoOutput());
-  }
 }
 
 template <typename Adapter>
