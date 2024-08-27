@@ -230,12 +230,15 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 #endif  // DEBUG
 
  private:
+#ifdef DEBUG
+  static std::atomic<bool> initialized_;
+#endif  // DEBUG
+
   static void CheckInitialization(bool is_initializing) {
 #ifdef DEBUG
-    static std::atomic<bool> initialized = false;
-    DCHECK_NE(is_initializing, initialized.load());
-    initialized.store(true);
-#endif
+    DCHECK_NE(is_initializing, initialized_.load());
+    initialized_.store(true);
+#endif  // DEBUG
   }
 
   static JSDispatchTable* instance_nocheck();

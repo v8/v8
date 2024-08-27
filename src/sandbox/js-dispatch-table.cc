@@ -105,6 +105,11 @@ JSDispatchTable* JSDispatchTable::instance_nocheck() {
   return instance.get();
 }
 
+#ifdef DEBUG
+// Static
+std::atomic<bool> JSDispatchTable::initialized_ = false;
+#endif  // DEBUG
+
 }  // namespace internal
 }  // namespace v8
 
