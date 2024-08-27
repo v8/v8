@@ -250,8 +250,11 @@ Tagged<Object> AddToDisposableStack(Isolate* isolate,
                                     DisposeMethodHint hint) {
   // a. If V is either null or undefined and hint is sync-dispose, return
   // unused.
-  if (IsNullOrUndefined(*value)) {
+  if (IsNullOrUndefined(*value) && hint == DisposeMethodHint::kSyncDispose) {
     return *value;
+  } else if (IsNullOrUndefined(*value) &&
+             hint == DisposeMethodHint::kAsyncDispose) {
+    value = ReadOnlyRoots(isolate).undefined_value_handle();
   }
 
   Handle<Object> method;

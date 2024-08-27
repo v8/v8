@@ -362,6 +362,10 @@ class RootVisitor;
     AtomicsMutexAsyncUnlockRejectHandlerSFI)                                   \
   V(SharedFunctionInfo, atomics_condition_acquire_lock_sfi,                    \
     AtomicsConditionAcquireLockSFI)                                            \
+  V(SharedFunctionInfo, async_disposable_stack_on_fulfilled_shared_fun,        \
+    AsyncDisposableStackOnFulfilledSharedFun)                                  \
+  V(SharedFunctionInfo, async_disposable_stack_on_rejected_shared_fun,         \
+    AsyncDisposableStackOnRejectedSharedFun)                                   \
   V(SharedFunctionInfo, async_dispose_from_sync_dispose_shared_fun,            \
     AsyncDisposeFromSyncDisposeSharedFun)                                      \
   BUILTINS_WITH_SFI_ROOTS_LIST(V)                                              \

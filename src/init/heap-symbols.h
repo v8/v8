@@ -232,6 +232,7 @@
   V(_, deleteProperty_string, "deleteProperty")                               \
   V(_, detached_string, "detached")                                           \
   V(_, disjunction_string, "disjunction")                                     \
+  V(_, disposed_string, "disposed")                                           \
   V(_, done_string, "done")                                                   \
   V(_, dot_brand_string, ".brand")                                            \
   V(_, dot_catch_string, ".catch")                                            \

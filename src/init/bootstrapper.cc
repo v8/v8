@@ -5833,6 +5833,7 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
   native_context()->set_js_disposable_stack_map(*js_disposable_stack_map);
   LOG(isolate(), MapDetails(*js_disposable_stack_map));
 
+  // SyncDisposableStack
   Handle<JSObject> sync_disposable_stack_prototype =
       factory->NewJSObject(isolate()->object_function(), AllocationType::kOld);
 
@@ -5856,8 +5857,39 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
   InstallToStringTag(isolate(), sync_disposable_stack_prototype,
                      "DisposableStack");
   SimpleInstallGetter(isolate(), sync_disposable_stack_prototype,
-                      factory->InternalizeUtf8String("disposed"),
+                      factory->disposed_string(),
                       Builtin::kDisposableStackPrototypeGetDisposed, true);
+
+  // AsyncDisposableStack
+  Handle<JSObject> async_disposable_stack_prototype =
+      factory->NewJSObject(isolate()->object_function(), AllocationType::kOld);
+
+  Handle<JSFunction> async_disposable_stack_function = InstallFunction(
+      isolate(), global, "AsyncDisposableStack", JS_ASYNC_DISPOSABLE_STACK_TYPE,
+      JSAsyncDisposableStack::kHeaderSize, 0, async_disposable_stack_prototype,
+      Builtin::kAsyncDisposableStackConstructor, 0, kDontAdapt);
+  InstallWithIntrinsicDefaultProto(
+      isolate(), async_disposable_stack_function,
+      Context::JS_ASYNC_DISPOSABLE_STACK_FUNCTION_INDEX);
+  async_disposable_stack_function->shared()->DontAdaptArguments();
+  async_disposable_stack_function->shared()->set_length(0);
+  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "use",
+                        Builtin::kAsyncDisposableStackPrototypeUse, 1, true);
+  SimpleInstallFunction(
+      isolate(), async_disposable_stack_prototype, "disposeAsync",
+      Builtin::kAsyncDisposableStackPrototypeDisposeAsync, 0, true);
+  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "adopt",
+                        Builtin::kAsyncDisposableStackPrototypeAdopt, 2, true);
+  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "defer",
+                        Builtin::kAsyncDisposableStackPrototypeDefer, 1, true);
+  SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "move",
+                        Builtin::kAsyncDisposableStackPrototypeMove, 0, true);
+
+  InstallToStringTag(isolate(), async_disposable_stack_prototype,
+                     "AsyncDisposableStack");
+  SimpleInstallGetter(isolate(), async_disposable_stack_prototype,
+                      factory->disposed_string(),
+                      Builtin::kAsyncDisposableStackPrototypeGetDisposed, true);
 }
 
 void Genesis::InitializeGlobal_js_float16array() {

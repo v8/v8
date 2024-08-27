@@ -380,6 +380,7 @@ namespace internal {
   T(AccessedUnavailableVariable, "Cannot access '%' from debugger")            \
   T(DisposableStackIsDisposed,                                                 \
     "Cannot call % on an already-disposed DisposableStack")                    \
+  T(NotAnAsyncDisposableStack, "Receiver is not an AsyncDisposableStack")      \
   /* RangeError */                                                             \
   T(BigIntDivZero, "Division by zero")                                         \
   T(BigIntTooBig, "Maximum BigInt size exceeded")                              \
