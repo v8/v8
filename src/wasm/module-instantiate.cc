@@ -761,6 +761,11 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   if (well_known_status_ == WellKnownImport::kLinkError) {
     return ImportCallKind::kLinkError;
   }
+  // TODO(jkummerow): It would be nice to return {kJSFunctionArityMatch} here
+  // whenever {well_known_status_ != kGeneric}, so that the generic wrapper
+  // can be used instead of a compiled wrapper; but that requires adding
+  // support for calling bound functions to the generic wrapper first.
+
   // For JavaScript calls, determine whether the target has an arity match.
   if (IsJSFunction(*callable_)) {
     auto function = Cast<JSFunction>(callable_);
