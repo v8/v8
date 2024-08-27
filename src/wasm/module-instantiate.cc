@@ -1949,11 +1949,14 @@ bool InstanceBuilder::ProcessImportedFunction(
       // determined by refcounting.
       WasmCompilationResult result = compiler::CompileWasmJSFastCallWrapper(
           native_module, expected_sig, js_receiver);
-      WasmImportWrapperCache::ModificationScope cache_scope(
-          GetWasmImportWrapperCache());
-      WasmImportWrapperCache::CacheKey dummy_key(kind, 0, 0, kNoSuspend);
-      WasmCode* wasm_code = cache_scope.AddWrapper(
-          dummy_key, std::move(result), WasmCode::Kind::kWasmToJsWrapper);
+      WasmCode* wasm_code;
+      {
+        WasmImportWrapperCache::ModificationScope cache_scope(
+            GetWasmImportWrapperCache());
+        WasmImportWrapperCache::CacheKey dummy_key(kind, 0, 0, kNoSuspend);
+        wasm_code = cache_scope.AddWrapper(dummy_key, std::move(result),
+                                           WasmCode::Kind::kWasmToJsWrapper);
+      }
       imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
                                          kNoSuspend, expected_sig);
       break;

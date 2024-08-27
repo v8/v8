@@ -92,6 +92,7 @@ class WasmImportWrapperCache {
   // Returns nullptr if {call_target} doesn't belong to a known wrapper.
   WasmCode* FindWrapper(Address call_target) {
     if (call_target == kNullAddress) return nullptr;
+    base::RecursiveMutexGuard lock(&mutex_);
     auto iter = codes_.find(call_target);
     if (iter == codes_.end()) return nullptr;
     return iter->second;
