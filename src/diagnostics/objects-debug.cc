@@ -1025,6 +1025,9 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
       Tagged<HeapObject> target;
       if (maybe_target.GetHeapObjectIfWeak(&target)) {
         CHECK(IsMap(target));
+        if (!owner.is_null()) {
+          CHECK_EQ(target->map(), owner->map());
+        }
       } else {
         CHECK(maybe_target == SideStepTransition::Unreachable ||
               maybe_target == SideStepTransition::Empty ||
@@ -2834,6 +2837,7 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
           DCHECK_IMPLIES(map_->prototype() != target->prototype(),
                          IsUndefined(map_->GetBackPointer()));
         }
+        DCHECK_EQ(target->map(), map_->map());
 #endif  // DEBUG
         if (!CheckOneBackPointer(map_, target)) {
           success = false;
@@ -2848,6 +2852,7 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
       },
       [&](Tagged<Object> side_step) {
         if (!side_step.IsSmi()) {
+          DCHECK_EQ(Cast<Map>(side_step)->map(), map_->map());
           DCHECK(!Cast<Map>(side_step)->IsInobjectSlackTrackingInProgress());
           DCHECK_EQ(
               Cast<Map>(side_step)->GetInObjectProperties() -

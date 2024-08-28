@@ -3561,6 +3561,9 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
                                  DirectHandle<Map> override_map) {
   static_assert(kind == SideStepTransition::Kind::kObjectAssign ||
                 kind == SideStepTransition::Kind::kCloneObject);
+  if (source_map->map()->native_context() != *isolate->native_context()) {
+    return SideStepTransition::Empty;
+  }
   if (!v8_flags.clone_object_sidestep_transitions) return {};
   Tagged<Object> result = SideStepTransition::Empty;
   TransitionsAccessor transitions(isolate, *source_map);
@@ -3568,7 +3571,8 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
     result = transitions.GetSideStepTransition(kind);
     if (result.IsHeapObject()) {
       // Exclude deprecated maps.
-      bool is_valid = !Cast<Map>(result.GetHeapObject())->is_deprecated();
+      auto map = Cast<Map>(result.GetHeapObject());
+      bool is_valid = !map->is_deprecated();
       // In the case of object assign we need to check the prototype validity
       // cell on the override map. If the override map changed we cannot assume
       // that it is correct to set all properties without any getter/setter in
@@ -3889,6 +3893,7 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
   DCHECK(!target_map->is_deprecated());
   DCHECK(target_map->is_extensible());
   DCHECK(!IsUndefined(*source, isolate) && !IsNull(*source, isolate));
+  DCHECK_EQ(source_map->map()->native_context(), *isolate->native_context());
 
   ReadOnlyRoots roots(isolate);
   {
