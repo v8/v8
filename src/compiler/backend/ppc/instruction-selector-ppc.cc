@@ -208,117 +208,164 @@ void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
   }
 }
 
-static void VisitLoadCommon(InstructionSelectorT<TurboshaftAdapter>* selector,
-                            TurboshaftAdapter::node_t node,
-                            LoadRepresentation load_rep) {
-  using namespace turboshaft;  // NOLINT(build/namespaces)
-  using node_t = TurboshaftAdapter::node_t;
-  PPCOperandGeneratorT<TurboshaftAdapter> g(selector);
-  auto load_view = selector->load_view(node);
-  MemoryRepresentation loaded_rep = load_view.ts_loaded_rep();
-  RegisterRepresentation result_rep = load_view.ts_result_rep();
-  node_t base = load_view.base();
-  node_t offset = load_view.index();
-
-  InstructionCode opcode = kArchNop;
-  ImmediateMode mode;
-  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-    mode = kInt34Imm;
-  } else {
-    mode = kInt16Imm;
-  }
+ArchOpcode SelectLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
+                            turboshaft::RegisterRepresentation result_rep,
+                            ImmediateMode* mode) {
   // NOTE: The meaning of `loaded_rep` = `MemoryRepresentation::AnyTagged()` is
   // we are loading a compressed tagged field, while `result_rep` =
   // `RegisterRepresentation::Tagged()` refers to an uncompressed tagged value.
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    *mode = kInt34Imm;
+  } else {
+    *mode = kInt16Imm;
+  }
   switch (loaded_rep) {
     case MemoryRepresentation::Int8():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
-      opcode = kPPC_LoadWordS8;
-      break;
+      return kPPC_LoadWordS8;
     case MemoryRepresentation::Uint8():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
-      opcode = kPPC_LoadWordU8;
-      break;
+      return kPPC_LoadWordU8;
     case MemoryRepresentation::Int16():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
-      opcode = kPPC_LoadWordS16;
+      return kPPC_LoadWordS16;
       break;
     case MemoryRepresentation::Uint16():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
-      opcode = kPPC_LoadWordU16;
-      break;
+      return kPPC_LoadWordU16;
     case MemoryRepresentation::Int32():
     case MemoryRepresentation::Uint32():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
-      opcode = kPPC_LoadWordU32;
-      break;
+      return kPPC_LoadWordU32;
     case MemoryRepresentation::Int64():
     case MemoryRepresentation::Uint64():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word64());
-      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-      opcode = kPPC_LoadWord64;
+      if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
+      return kPPC_LoadWord64;
       break;
     case MemoryRepresentation::Float16():
       UNIMPLEMENTED();
     case MemoryRepresentation::Float32():
       DCHECK_EQ(result_rep, RegisterRepresentation::Float32());
-      opcode = kPPC_LoadFloat32;
-      break;
+      return kPPC_LoadFloat32;
     case MemoryRepresentation::Float64():
       DCHECK_EQ(result_rep, RegisterRepresentation::Float64());
-      opcode = kPPC_LoadDouble;
-      break;
+      return kPPC_LoadDouble;
 #ifdef V8_COMPRESS_POINTERS
     case MemoryRepresentation::AnyTagged():
     case MemoryRepresentation::TaggedPointer():
       if (result_rep == RegisterRepresentation::Compressed()) {
-        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-        opcode = kPPC_LoadWordS32;
-        break;
+        if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
+        return kPPC_LoadWordS32;
       }
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
-      opcode = kPPC_LoadDecompressTagged;
-      break;
+      return kPPC_LoadDecompressTagged;
     case MemoryRepresentation::TaggedSigned():
       if (result_rep == RegisterRepresentation::Compressed()) {
-        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-        opcode = kPPC_LoadWordS32;
-        break;
+        if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
+        return kPPC_LoadWordS32;
       }
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
-      opcode = kPPC_LoadDecompressTaggedSigned;
-      break;
+      return kPPC_LoadDecompressTaggedSigned;
 #else
       USE(result_rep);
     case MemoryRepresentation::AnyTagged():
     case MemoryRepresentation::TaggedPointer():
     case MemoryRepresentation::TaggedSigned():
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
-      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-      opcode = kPPC_LoadWord64;
+      if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
+      return kPPC_LoadWord64;
       break;
 #endif
     case MemoryRepresentation::AnyUncompressedTagged():
     case MemoryRepresentation::UncompressedTaggedPointer():
     case MemoryRepresentation::UncompressedTaggedSigned():
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
-      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-      opcode = kPPC_LoadWord64;
-      break;
+      if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
+      return kPPC_LoadWord64;
     case MemoryRepresentation::SandboxedPointer():
-      opcode = kPPC_LoadDecodeSandboxedPointer;
-      break;
+      return kPPC_LoadDecodeSandboxedPointer;
     case MemoryRepresentation::Simd128():
       DCHECK_EQ(result_rep, RegisterRepresentation::Simd128());
-      opcode = kPPC_LoadSimd128;
       // Vectors do not support MRI mode, only MRR is available.
-      mode = kNoImmediate;
-      break;
+      *mode = kNoImmediate;
+      return kPPC_LoadSimd128;
     case MemoryRepresentation::ProtectedPointer():
     case MemoryRepresentation::IndirectPointer():
     case MemoryRepresentation::Simd256():
       UNREACHABLE();
   }
+}
+
+ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep, ImmediateMode* mode) {
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    *mode = kInt34Imm;
+  } else {
+    *mode = kInt16Imm;
+  }
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat32:
+      return kPPC_LoadFloat32;
+    case MachineRepresentation::kFloat64:
+      return kPPC_LoadDouble;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      return load_rep.IsSigned() ? kPPC_LoadWordS8 : kPPC_LoadWordU8;
+    case MachineRepresentation::kWord16:
+      return load_rep.IsSigned() ? kPPC_LoadWordS16 : kPPC_LoadWordU16;
+    case MachineRepresentation::kWord32:
+      return kPPC_LoadWordU32;
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+#ifdef V8_COMPRESS_POINTERS
+      if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
+      return kPPC_LoadWordS32;
+#else
+      UNREACHABLE();
+#endif
+      case MachineRepresentation::kIndirectPointer:
+        UNREACHABLE();
+      case MachineRepresentation::kSandboxedPointer:
+        return kPPC_LoadDecodeSandboxedPointer;
+#ifdef V8_COMPRESS_POINTERS
+      case MachineRepresentation::kTaggedSigned:
+        return kPPC_LoadDecompressTaggedSigned;
+      case MachineRepresentation::kTaggedPointer:
+        return kPPC_LoadDecompressTagged;
+      case MachineRepresentation::kTagged:
+        return kPPC_LoadDecompressTagged;
+#else
+      case MachineRepresentation::kTaggedSigned:   // Fall through.
+      case MachineRepresentation::kTaggedPointer:  // Fall through.
+      case MachineRepresentation::kTagged:         // Fall through.
+#endif
+      case MachineRepresentation::kWord64:
+        if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
+        return kPPC_LoadWord64;
+      case MachineRepresentation::kSimd128:
+        // Vectors do not support MRI mode, only MRR is available.
+        *mode = kNoImmediate;
+        return kPPC_LoadSimd128;
+      case MachineRepresentation::kFloat16:
+        UNIMPLEMENTED();
+      case MachineRepresentation::kProtectedPointer:  // Fall through.
+      case MachineRepresentation::kSimd256:  // Fall through.
+      case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kNone:
+        UNREACHABLE();
+  }
+}
+
+static void VisitLoadCommon(InstructionSelectorT<TurboshaftAdapter>* selector,
+                            TurboshaftAdapter::node_t node, ImmediateMode mode,
+                            InstructionCode opcode) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  using node_t = TurboshaftAdapter::node_t;
+  PPCOperandGeneratorT<TurboshaftAdapter> g(selector);
+  auto load_view = selector->load_view(node);
+  node_t base = load_view.base();
+  node_t offset = load_view.index();
 
   bool is_atomic = load_view.is_atomic();
 
@@ -342,84 +389,13 @@ static void VisitLoadCommon(InstructionSelectorT<TurboshaftAdapter>* selector,
 }
 
 static void VisitLoadCommon(InstructionSelectorT<TurbofanAdapter>* selector,
-                            TurbofanAdapter::node_t node,
-                            LoadRepresentation load_rep) {
+                            TurbofanAdapter::node_t node, ImmediateMode mode,
+                            InstructionCode opcode) {
   using node_t = TurbofanAdapter::node_t;
   PPCOperandGeneratorT<TurbofanAdapter> g(selector);
   auto load_view = selector->load_view(node);
   node_t base = load_view.base();
   node_t offset = load_view.index();
-
-  InstructionCode opcode = kArchNop;
-  ImmediateMode mode;
-  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-    mode = kInt34Imm;
-  } else {
-    mode = kInt16Imm;
-  }
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kFloat32:
-      opcode = kPPC_LoadFloat32;
-      break;
-    case MachineRepresentation::kFloat64:
-      opcode = kPPC_LoadDouble;
-      break;
-    case MachineRepresentation::kBit:  // Fall through.
-    case MachineRepresentation::kWord8:
-      opcode = load_rep.IsSigned() ? kPPC_LoadWordS8 : kPPC_LoadWordU8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = load_rep.IsSigned() ? kPPC_LoadWordS16 : kPPC_LoadWordU16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kPPC_LoadWordU32;
-      break;
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:
-#ifdef V8_COMPRESS_POINTERS
-      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-      opcode = kPPC_LoadWordS32;
-      break;
-#else
-      UNREACHABLE();
-#endif
-      case MachineRepresentation::kIndirectPointer:
-        UNREACHABLE();
-      case MachineRepresentation::kSandboxedPointer:
-        opcode = kPPC_LoadDecodeSandboxedPointer;
-        break;
-#ifdef V8_COMPRESS_POINTERS
-      case MachineRepresentation::kTaggedSigned:
-        opcode = kPPC_LoadDecompressTaggedSigned;
-        break;
-      case MachineRepresentation::kTaggedPointer:
-        opcode = kPPC_LoadDecompressTagged;
-        break;
-      case MachineRepresentation::kTagged:
-        opcode = kPPC_LoadDecompressTagged;
-        break;
-#else
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:         // Fall through.
-#endif
-      case MachineRepresentation::kWord64:
-        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-        opcode = kPPC_LoadWord64;
-        break;
-      case MachineRepresentation::kSimd128:
-        opcode = kPPC_LoadSimd128;
-        // Vectors do not support MRI mode, only MRR is available.
-        mode = kNoImmediate;
-        break;
-      case MachineRepresentation::kFloat16:
-        UNIMPLEMENTED();
-      case MachineRepresentation::kProtectedPointer:  // Fall through.
-      case MachineRepresentation::kSimd256:  // Fall through.
-      case MachineRepresentation::kMapWord:  // Fall through.
-      case MachineRepresentation::kNone:
-        UNREACHABLE();
-  }
 
   bool is_atomic = load_view.is_atomic();
 
@@ -444,9 +420,16 @@ static void VisitLoadCommon(InstructionSelectorT<TurbofanAdapter>* selector,
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
-  typename Adapter::LoadView load = this->load_view(node);
-  LoadRepresentation load_rep = load.loaded_rep();
-  VisitLoadCommon(this, node, load_rep);
+  typename Adapter::LoadView load_view = this->load_view(node);
+  ImmediateMode mode;
+  if constexpr (Adapter::IsTurboshaft) {
+    InstructionCode opcode = SelectLoadOpcode(load_view.ts_loaded_rep(),
+                                              load_view.ts_result_rep(), &mode);
+    VisitLoadCommon(this, node, mode, opcode);
+  } else {
+    InstructionCode opcode = SelectLoadOpcode(load_view.loaded_rep(), &mode);
+    VisitLoadCommon(this, node, mode, opcode);
+  }
 }
 
 template <typename Adapter>
@@ -3237,16 +3220,18 @@ void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
-  auto load = this->load_view(node);
-  LoadRepresentation load_rep = load.loaded_rep();
-  VisitLoadCommon(this, node, load_rep);
+  auto load_view = this->load_view(node);
+  ImmediateMode mode;
+  InstructionCode opcode = SelectLoadOpcode(load_view.loaded_rep(), &mode);
+  VisitLoadCommon(this, node, mode, opcode);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(node_t node) {
-  auto load = this->load_view(node);
-  LoadRepresentation load_rep = load.loaded_rep();
-  VisitLoadCommon(this, node, load_rep);
+  auto load_view = this->load_view(node);
+  ImmediateMode mode;
+  InstructionCode opcode = SelectLoadOpcode(load_view.loaded_rep(), &mode);
+  VisitLoadCommon(this, node, mode, opcode);
 }
 
 template <typename Adapter>
