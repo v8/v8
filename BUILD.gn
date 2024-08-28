@@ -2423,6 +2423,11 @@ template("run_mksnapshot") {
   }
   action("run_mksnapshot_" + name) {
     deps = [ ":mksnapshot($v8_snapshot_toolchain)" ]
+    if (v8_verify_deterministic_mksnapshot) {
+      # We archive the snapshot executable when verifying snapshot
+      # determinism to ease debugging.
+      data_deps = [ ":mksnapshot($v8_snapshot_toolchain)" ]
+    }
 
     script = "tools/run.py"
 
@@ -2610,11 +2615,15 @@ if (v8_verify_deterministic_mksnapshot) {
     }
   }
 
-  action("verify_deterministic_mksnapshot") {
-    deps = []
+  group("snapshot_set") {
+    data_deps = []
     foreach(i, runs) {
-      deps += [ ":run_mksnapshot_$i" ]
+      data_deps += [ ":run_mksnapshot_$i" ]
     }
+  }
+
+  action("verify_deterministic_mksnapshot") {
+    deps = [ ":snapshot_set" ]
     report_file = "$target_gen_dir/mksnapshot_comparison.txt"
     script = "tools/snapshot/compare_mksnapshot_output.py"
     args = [
