@@ -66,7 +66,12 @@ struct JSDispatchEntry {
   // Test whether this entry is currently marked as alive.
   inline bool IsMarked() const;
 
+  // Constants for access from generated code.
+  // These are static_assert'ed to be correct in CheckFieldOffsets().
   static constexpr uint32_t kObjectPointerShift = 16;
+  static constexpr uintptr_t kEntrypointOffset = 0;
+  static constexpr uintptr_t kCodeObjectOffset = 8;
+  static void CheckFieldOffsets();
 
  private:
   friend class JSDispatchTable;
@@ -75,7 +80,10 @@ struct JSDispatchEntry {
   // bits and are tagged with this tag.
   static constexpr Address kFreeEntryTag = 0xffff000000000000ull;
 
-  // The first word of the entry contains (1) the pointer to the code object
+  // The first word contains the pointer to the (executable) entrypoint.
+  std::atomic<Address> entrypoint_;
+
+  // The second word of the entry contains (1) the pointer to the code object
   // associated with this entry, (2) the marking bit of the entry in the LSB of
   // the object pointer (which must be unused as the address must be aligned),
   // and (3) the 16-bit parameter count. The parameter count is stored in the
@@ -90,9 +98,6 @@ struct JSDispatchEntry {
   static constexpr Address kMarkingBit = 1 << 16;
   static constexpr uint32_t kParameterCountMask = 0xffff;
   std::atomic<Address> encoded_word_;
-
-  // A pointer to the (executable) entrypoint of the code for this entry.
-  std::atomic<Address> entrypoint_;
 };
 
 static_assert(sizeof(JSDispatchEntry) == kJSDispatchTableEntrySize);
@@ -224,11 +229,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
     CheckInitialization(true);
     instance_nocheck()->Base::Initialize();
   }
-
-  static constexpr uintptr_t kEntryCodeObjectOffset =
-      offsetof(JSDispatchEntry, encoded_word_);
-  static constexpr uintptr_t kEntryEntrypointOffset =
-      offsetof(JSDispatchEntry, entrypoint_);
 
 #ifdef DEBUG
   inline void VerifyEntry(JSDispatchHandle handle, Space* space,

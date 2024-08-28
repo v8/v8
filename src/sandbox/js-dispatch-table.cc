@@ -15,6 +15,13 @@
 namespace v8 {
 namespace internal {
 
+void JSDispatchEntry::CheckFieldOffsets() {
+  static_assert(JSDispatchEntry::kEntrypointOffset ==
+                offsetof(JSDispatchEntry, entrypoint_));
+  static_assert(JSDispatchEntry::kCodeObjectOffset ==
+                offsetof(JSDispatchEntry, encoded_word_));
+}
+
 JSDispatchHandle JSDispatchTable::PreAllocateEntries(
     Space* space, int count, bool ensure_static_handles) {
   DCHECK(space->BelongsTo(this));

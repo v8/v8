@@ -1921,8 +1921,8 @@ TNode<Code> CodeStubAssembler::ResolveJSDispatchHandle(
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::js_dispatch_table_address());
   TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
-  offset = UintPtrAdd(offset,
-                      UintPtrConstant(JSDispatchTable::kEntryCodeObjectOffset));
+  offset =
+      UintPtrAdd(offset, UintPtrConstant(JSDispatchEntry::kCodeObjectOffset));
   TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
   // The LSB is used as marking bit by the js dispatch table, so here we have
   // to set it using a bitwise OR as it may or may not be set.
