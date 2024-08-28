@@ -639,12 +639,18 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void TestInt32AndJumpIfAnySet(MemOperand operand, int32_t mask,
                                        Label* target,
                                        Label::Distance distance = Label::kFar);
+  inline void TestUint8AndJumpIfAnySet(MemOperand operand, uint8_t mask,
+                                       Label* target,
+                                       Label::Distance distance = Label::kFar);
 
   inline void TestInt32AndJumpIfAllClear(
       Register r1, int32_t mask, Label* target,
       Label::Distance distance = Label::kFar);
   inline void TestInt32AndJumpIfAllClear(
       MemOperand operand, int32_t mask, Label* target,
+      Label::Distance distance = Label::kFar);
+  inline void TestUint8AndJumpIfAllClear(
+      MemOperand operand, uint8_t mask, Label* target,
       Label::Distance distance = Label::kFar);
 
   inline void Int32ToDouble(DoubleRegister result, Register src);

@@ -3775,13 +3775,11 @@ void HasInPrototypeChain::GenerateCode(MaglevAssembler* masm,
           // check if we need to use the if_objectisspecial path in the runtime.
           __ JumpIfEqual(instance_type, JS_PROXY_TYPE, &return_runtime);
 
-          Register object_bitfield = instance_type;
-          __ LoadByte(object_bitfield,
-                      FieldMemOperand(map, Map::kBitFieldOffset));
           int mask = Map::Bits1::HasNamedInterceptorBit::kMask |
                      Map::Bits1::IsAccessCheckNeededBit::kMask;
-          __ TestInt32AndJumpIfAllClear(object_bitfield, mask,
-                                        *if_objectisdirect);
+          __ TestUint8AndJumpIfAllClear(
+              FieldMemOperand(map, Map::kBitFieldOffset), mask,
+              *if_objectisdirect);
 
           __ bind(&return_runtime);
           {
@@ -5070,10 +5068,9 @@ void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
   Register scratch = temps.Acquire();
   __ LoadMap(scratch, ToRegister(constructor()));
   static_assert(Map::kBitFieldOffsetEnd + 1 - Map::kBitFieldOffset == 1);
-  __ LoadUnsignedField(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset),
-                       1);
-  __ TestInt32AndJumpIfAllClear(
-      scratch, Map::Bits1::IsConstructorBit::kMask,
+  __ TestUint8AndJumpIfAllClear(
+      FieldMemOperand(scratch, Map::kBitFieldOffset),
+      Map::Bits1::IsConstructorBit::kMask,
       __ MakeDeferredCode(
           [](MaglevAssembler* masm, ThrowIfNotSuperConstructor* node) {
             __ Push(ToRegister(node->constructor()),

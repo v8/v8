@@ -100,9 +100,9 @@ void MaglevAssembler::JumpIfNotUndetectable(Register object, Register scratch,
   }
   // For heap objects, check the map's undetectable bit.
   LoadMap(scratch, object);
-  LoadByte(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-  TestInt32AndJumpIfAllClear(scratch, Map::Bits1::IsUndetectableBit::kMask,
-                             target, distance);
+  TestUint8AndJumpIfAllClear(FieldMemOperand(scratch, Map::kBitFieldOffset),
+                             Map::Bits1::IsUndetectableBit::kMask, target,
+                             distance);
 }
 
 void MaglevAssembler::JumpIfUndetectable(Register object, Register scratch,
@@ -116,9 +116,9 @@ void MaglevAssembler::JumpIfUndetectable(Register object, Register scratch,
   }
   // For heap objects, check the map's undetectable bit.
   LoadMap(scratch, object);
-  LoadByte(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-  TestInt32AndJumpIfAnySet(scratch, Map::Bits1::IsUndetectableBit::kMask,
-                           target, distance);
+  TestUint8AndJumpIfAnySet(FieldMemOperand(scratch, Map::kBitFieldOffset),
+                           Map::Bits1::IsUndetectableBit::kMask, target,
+                           distance);
   bind(&detectable);
 }
 
@@ -132,8 +132,8 @@ void MaglevAssembler::JumpIfNotCallable(Register object, Register scratch,
   }
   LoadMap(scratch, object);
   static_assert(Map::kBitFieldOffsetEnd + 1 - Map::kBitFieldOffset == 1);
-  LoadUnsignedField(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset), 1);
-  TestInt32AndJumpIfAllClear(scratch, Map::Bits1::IsCallableBit::kMask, target,
+  TestUint8AndJumpIfAllClear(FieldMemOperand(scratch, Map::kBitFieldOffset),
+                             Map::Bits1::IsCallableBit::kMask, target,
                              distance);
 }
 
@@ -234,7 +234,7 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
            ->dependencies()
            ->DependOnNoUndetectableObjectsProtector()) {
     // Check if {{value}} is undetectable.
-    TestInt32AndJumpIfAnySet(FieldMemOperand(map, Map::kBitFieldOffset),
+    TestUint8AndJumpIfAnySet(FieldMemOperand(map, Map::kBitFieldOffset),
                              Map::Bits1::IsUndetectableBit::kMask, *is_false);
   }
 
@@ -413,15 +413,15 @@ void MaglevAssembler::TestTypeOf(
     }
     case LiteralFlag::kUndefined: {
       MaglevAssembler::TemporaryRegisterScope temps(this);
-      Register scratch = temps.AcquireScratch();
+      Register map = temps.AcquireScratch();
       // Make sure `object` isn't a valid temp here, since we re-use it.
       DCHECK(!temps.Available().has(object));
       JumpIfSmi(object, is_false, false_distance);
       // Check it has the undetectable bit set and it is not null.
-      LoadMap(scratch, object);
-      LoadByte(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-      TestInt32AndJumpIfAllClear(scratch, Map::Bits1::IsUndetectableBit::kMask,
-                                 is_false, false_distance);
+      LoadMap(map, object);
+      TestUint8AndJumpIfAllClear(FieldMemOperand(map, Map::kBitFieldOffset),
+                                 Map::Bits1::IsUndetectableBit::kMask, is_false,
+                                 false_distance);
       CompareRoot(object, RootIndex::kNullValue);
       Branch(kNotEqual, is_true, true_distance, fallthrough_when_true, is_false,
              false_distance, fallthrough_when_false);
