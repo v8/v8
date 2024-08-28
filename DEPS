@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '79c275e801e742a6dd4734e6f7e4ee79c0fe8a88',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '162c225df12d17ca67ce48c578af2d0946820119',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f8f6777fcf684dd891658ff32b195589e88fe2d8',
   'buildtools/linux64': {
@@ -239,7 +239,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '4917becfcf533ef31071fde42fa13ec417c71930',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c903c60cb7c1125882e5650d1d299c41707f1b5a',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,13 +253,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c1457823a0f713e5a81dd899868e10d5af1a4c5b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1f6ef165b726ed7316b8e88666390e90a82e8e50',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
     Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + '3e57d8dcfb0a04b5a8a26b486b54490a2e9b310f',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '0ea3c0308526d07eae3a6277b442b8ea6185a264',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '13a831eb9d0fec5443b5309373766899e1996550',
     'condition': 'checkout_fuchsia',
   },
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
