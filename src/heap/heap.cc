@@ -6109,6 +6109,15 @@ const ::heap::base::Stack& Heap::stack() const {
 }
 
 void Heap::StartTearDown() {
+  if (owning_cpp_heap_) {
+    // Release the pointer. The non-owning pointer is still set which allows
+    // DetachCppHeap() to work properly.
+    auto* cpp_heap = owning_cpp_heap_.release();
+    DetachCppHeap();
+    // Termination will free up all managed C++ memory and invoke destructors.
+    cpp_heap->Terminate();
+  }
+
   // Finish any ongoing sweeping to avoid stray background tasks still accessing
   // the heap during teardown.
   CompleteSweepingFull();
@@ -6174,15 +6183,6 @@ void Heap::TearDown() {
     }
   }
 
-  if (cpp_heap_) {
-    CppHeap::From(cpp_heap_)->DetachIsolate();
-    cpp_heap_ = nullptr;
-    if (owning_cpp_heap_) {
-      auto* cpp_heap = owning_cpp_heap_.release();
-      cpp_heap->Terminate();
-    }
-  }
-
   minor_gc_task_observer_.reset();
   minor_gc_job_.reset();
 
@@ -6231,6 +6231,11 @@ void Heap::TearDown() {
   dead_object_stats_.reset();
 
   embedder_roots_handler_ = nullptr;
+
+  if (cpp_heap_) {
+    CppHeap::From(cpp_heap_)->DetachIsolate();
+    cpp_heap_ = nullptr;
+  }
 
   tracer_.reset();
 
