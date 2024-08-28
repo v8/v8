@@ -19,3 +19,8 @@ assertTrue(%IsTurboFanFunction(wasm.main));
 // Calling WasmTierUpFunction on non-imported function doesn't crash when
 // fuzzing.
 %WasmTierUpFunction(wasm.jsFunc);
+assertEquals(undefined, %IsTurboFanFunction(wasm.jsFunc));
+assertEquals(undefined, %IsWasmDebugFunction(wasm.jsFunc));
+assertEquals(undefined, %IsLiftoffFunction(wasm.jsFunc));
+assertEquals(undefined, %IsUncompiledWasmFunction(wasm.jsFunc));
+assertEquals(undefined, %WasmDeoptsExecutedForFunction(wasm.jsFunc));

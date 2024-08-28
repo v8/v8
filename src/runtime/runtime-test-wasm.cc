@@ -797,6 +797,10 @@ RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
+  if (static_cast<uint32_t>(func_index) <
+      data->instance_data()->module()->num_imported_functions) {
+    return CrashUnlessFuzzing(isolate);
+  }
   wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
   return isolate->heap()->ToBoolean(code && code->is_liftoff() &&
@@ -816,6 +820,10 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
+  if (static_cast<uint32_t>(func_index) <
+      data->instance_data()->module()->num_imported_functions) {
+    return CrashUnlessFuzzing(isolate);
+  }
   wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
   return isolate->heap()->ToBoolean(code && code->is_liftoff());
@@ -834,6 +842,10 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
+  if (static_cast<uint32_t>(func_index) <
+      data->instance_data()->module()->num_imported_functions) {
+    return CrashUnlessFuzzing(isolate);
+  }
   wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
   return isolate->heap()->ToBoolean(code && code->is_turbofan());
@@ -852,6 +864,10 @@ RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
+  if (static_cast<uint32_t>(func_index) <
+      data->instance_data()->module()->num_imported_functions) {
+    return CrashUnlessFuzzing(isolate);
+  }
   return isolate->heap()->ToBoolean(!native_module->HasCode(func_index));
 }
 
@@ -915,13 +931,17 @@ RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedForFunction) {
   }
   Handle<Object> arg = args.at(0);
   if (!WasmExportedFunction::IsWasmExportedFunction(*arg)) {
-    return Smi::FromInt(-1);
+    return CrashUnlessFuzzing(isolate);
   }
   auto wasm_func = Cast<WasmExportedFunction>(arg);
   auto func_data = wasm_func->shared()->wasm_exported_function_data();
   const wasm::WasmModule* module =
       func_data->instance_data()->native_module()->module();
   uint32_t func_index = func_data->function_index();
+  if (static_cast<uint32_t>(func_index) <
+      func_data->instance_data()->module()->num_imported_functions) {
+    return CrashUnlessFuzzing(isolate);
+  }
   const wasm::TypeFeedbackStorage& feedback = module->type_feedback;
   base::SharedMutexGuard<base::kExclusive> mutex_guard(&feedback.mutex);
   auto entry = feedback.deopt_count_for_function.find(func_index);
