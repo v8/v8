@@ -771,7 +771,7 @@ RELAXED_UINT32_ACCESSORS(Code, flags, kFlagsOffset)
 
 void Code::initialize_flags(CodeKind kind, bool is_context_specialized,
                             bool is_turbofanned, int stack_slots) {
-  CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
+  CHECK(StackSlotsField::is_valid(stack_slots));
   DCHECK(!CodeKindIsInterpretedJSFunction(kind));
   uint32_t value = KindField::encode(kind) |
                    IsContextSpecializedField::encode(is_context_specialized) |
