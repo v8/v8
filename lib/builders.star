@@ -38,6 +38,12 @@ def v8_basic_builder(defaults, **kwargs):
     ))
     properties.update(gclient_vars_properties(kwargs.pop("gclient_vars", [])))
 
+    always_isolate_targets = kwargs.pop("always_isolate_targets", [])
+    if always_isolate_targets:
+        v8_properties = dict(properties.pop("$build/v8", {}))
+        v8_properties["always_isolate_targets"] = always_isolate_targets
+        properties["$build/v8"] = v8_properties
+
     # Fake property to move WIP builders to a special console by a generator
     # in the end.
     properties["__wip__"] = kwargs.pop("work_in_progress", False)

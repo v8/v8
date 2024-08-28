@@ -189,8 +189,9 @@ in_category(
         name = "V8 Linux64 - verify deterministic",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"default_targets": ["verify_deterministic_mksnapshot"]},
+        always_isolate_targets = ["snapshot_set"],
         use_remoteexec = RECLIENT.DEFAULT,
-        first_branch_version = "11.3",
+        first_branch_version = "13.0",
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(

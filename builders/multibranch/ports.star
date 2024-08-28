@@ -48,8 +48,9 @@ in_category(
         name = "V8 Android Arm - verify deterministic - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "default_targets": ["verify_deterministic_mksnapshot"]},
+        always_isolate_targets = ["snapshot_set"],
         use_remoteexec = RECLIENT.DEFAULT,
-        first_branch_version = "12.8",
+        first_branch_version = "13.0",
         barrier = BARRIER.NONE,
     ),
     multibranch_builder_pair(
