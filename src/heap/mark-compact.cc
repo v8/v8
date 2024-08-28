@@ -326,7 +326,8 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
       (mode == StartCompactionMode::kAtomic && heap_->IsGCWithStack() &&
        !v8_flags.compact_with_stack) ||
       (v8_flags.gc_experiment_less_compaction &&
-       !heap_->ShouldReduceMemory())) {
+       !heap_->ShouldReduceMemory()) ||
+      heap_->isolate()->serializer_enabled()) {
     return false;
   }
 
