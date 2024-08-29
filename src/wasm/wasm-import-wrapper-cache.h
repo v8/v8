@@ -66,7 +66,7 @@ class WasmImportWrapperCache {
 
    private:
     WasmImportWrapperCache* const cache_;
-    base::RecursiveMutexGuard guard_;
+    base::MutexGuard guard_;
   };
 
   WasmImportWrapperCache() = default;
@@ -92,7 +92,7 @@ class WasmImportWrapperCache {
   // Returns nullptr if {call_target} doesn't belong to a known wrapper.
   WasmCode* FindWrapper(Address call_target) {
     if (call_target == kNullAddress) return nullptr;
-    base::RecursiveMutexGuard lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     auto iter = codes_.find(call_target);
     if (iter == codes_.end()) return nullptr;
     return iter->second;
@@ -100,7 +100,7 @@ class WasmImportWrapperCache {
 
  private:
   std::unique_ptr<WasmCodeAllocator> code_allocator_;
-  mutable base::RecursiveMutex mutex_;
+  mutable base::Mutex mutex_;
   std::unordered_map<CacheKey, WasmCode*, CacheKeyHash> entry_map_;
   // Lookup support. The map key is the instruction start address.
   std::map<Address, WasmCode*> codes_;

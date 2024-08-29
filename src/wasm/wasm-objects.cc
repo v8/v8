@@ -529,6 +529,8 @@ void WasmTableObject::UpdateDispatchTables(
 
   const WasmModule* target_module = target_instance_data->module();
   uint32_t canonical_sig_id = target_module->canonical_sig_id(func->sig_index);
+  IsAWrapper is_a_wrapper =
+      func->imported ? IsAWrapper::kMaybe : IsAWrapper::kNo;
 
   for (int i = 0, len = uses->length(); i < len; i += TableUses::kNumElements) {
     int table_index = Cast<Smi>(uses->get(i + TableUses::kIndexOffset)).value();
@@ -563,7 +565,7 @@ void WasmTableObject::UpdateDispatchTables(
         target_instance_data->dispatch_table(table_index);
     // Decrement the refcount of any overwritten entry.
     table->offheap_data()->Remove(table->target(entry_index));
-    table->offheap_data()->Add(call_target);
+    table->offheap_data()->Add(call_target, nullptr, is_a_wrapper);
     table->Set(entry_index, *implicit_arg, call_target, canonical_sig_id);
 #else   // !V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless &&
@@ -653,7 +655,7 @@ void WasmTableObject::UpdateDispatchTables(
         trusted_instance_data->dispatch_table(table_index);
     // Decrement the refcount of any overwritten entry.
     table->offheap_data()->Remove(table->target(entry_index));
-    table->offheap_data()->Add(call_target);
+    table->offheap_data()->Add(call_target, wasm_code, IsAWrapper::kYes);
     table->Set(entry_index, implicit_arg, call_target, canonical_type_index
 #if V8_ENABLE_DRUMBRAKE
                ,
@@ -1184,7 +1186,7 @@ void ImportedFunctionEntry::SetGenericWasmToJs(
 
 void ImportedFunctionEntry::SetCompiledWasmToJs(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
-    const wasm::WasmCode* wasm_to_js_wrapper, wasm::Suspend suspend,
+    wasm::WasmCode* wasm_to_js_wrapper, wasm::Suspend suspend,
     const wasm::FunctionSig* sig) {
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=%p}\n",
@@ -1209,7 +1211,8 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
     dispatch_table->SetForImport(index_, *import_data, Address());
   } else {
     Address call_target = wasm_to_js_wrapper->instruction_start();
-    dispatch_table->offheap_data()->Add(call_target);
+    dispatch_table->offheap_data()->Add(call_target, wasm_to_js_wrapper,
+                                        IsAWrapper::kYes);
     dispatch_table->SetForImport(index_, *import_data, call_target);
   }
 
@@ -1232,7 +1235,7 @@ void ImportedFunctionEntry::SetWasmToWasm(
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
-  dispatch_table->offheap_data()->Add(call_target);
+  dispatch_table->offheap_data()->Add(call_target, nullptr, IsAWrapper::kNo);
   dispatch_table->SetForImport(index_, target_instance_data, call_target);
 
 #if V8_ENABLE_DRUMBRAKE
@@ -1261,10 +1264,13 @@ Address ImportedFunctionEntry::target() {
   return instance_data_->dispatch_table_for_imports()->target(index_);
 }
 
-void ImportedFunctionEntry::set_target(Address new_target) {
+void ImportedFunctionEntry::set_target(Address new_target,
+                                       wasm::WasmCode* wrapper_if_known,
+                                       IsAWrapper contextual_knowledge) {
   Tagged<WasmDispatchTable> table =
       instance_data_->dispatch_table_for_imports();
-  table->offheap_data()->Add(new_target);
+  table->offheap_data()->Add(new_target, wrapper_if_known,
+                             contextual_knowledge);
   table->SetTarget(index_, new_target);
 }
 
@@ -1958,7 +1964,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
       trusted_instance_data->dispatch_table(table_index);
   // Decrement the refcount of any overwritten entry.
   table->offheap_data()->Remove(table->target(entry_index));
-  table->offheap_data()->Add(call_target);
+  table->offheap_data()->Add(call_target, wasm_code, IsAWrapper::kYes);
   table->Set(entry_index, *import_data, call_target, canonical_sig_id);
 #else   // !V8_ENABLE_DRUMBRAKE
   trusted_instance_data->dispatch_table(table_index)
@@ -2134,10 +2140,39 @@ WasmDispatchTableData::~WasmDispatchTableData() {
   wasm::WasmCode::DecrementRefCount(base::VectorOf(codes));
 }
 
-void WasmDispatchTableData::Add(Address call_target) {
-  base::MutexGuard lock(&mutex_);
-  wasm::WasmCode* code =
-      wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+void WasmDispatchTableData::Add(Address call_target,
+                                wasm::WasmCode* wrapper_if_known,
+                                IsAWrapper contextual_knowledge) {
+  // If the caller knows that the call_target is not a wrapper, return
+  // immediately. Note: we *could* remember this fact for the benefit of
+  // later calls to {Remove()} by putting a {nullptr} entry into the
+  // {lookup_cache_}, but for real-world cases we're aware of that's not
+  // worth the memory consumption: overwriting of existing function entries
+  // is exceedingly rare.
+  if (contextual_knowledge == IsAWrapper::kNo) {
+    DCHECK_NULL(wasm::GetWasmImportWrapperCache()->FindWrapper(call_target));
+    return;
+  }
+
+  wasm::WasmCode* code = wrapper_if_known;
+  if (code) {
+    // If the caller knows that the call_target is a wrapper, remember that.
+    lookup_cache_[call_target] = code;
+  } else {
+    // Otherwise, first check lock-free whether we already know that it
+    // either is or isn't a wrapper.
+    auto entry = lookup_cache_.find(call_target);
+    if (entry == lookup_cache_.end()) {
+      // No entry means we don't know, so we have to perform the relatively
+      // expensive mutex-protected lookup to find out.
+      code = wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+      lookup_cache_[call_target] = code;
+    } else {
+      // A cached entry could be a WasmCode* (if it's a wrapper) or nullptr
+      // (if it's guaranteed not to be a wrapper).
+      code = entry->second;
+    }
+  }
   if (!code) return;  // Not a wrapper.
   auto [it, inserted] = wrappers_.emplace(code, 1);
   if (inserted) {
@@ -2148,9 +2183,14 @@ void WasmDispatchTableData::Add(Address call_target) {
 }
 
 void WasmDispatchTableData::Remove(Address call_target) {
-  base::MutexGuard lock(&mutex_);
-  wasm::WasmCode* code =
-      wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+  if (call_target == kNullAddress) return;
+  wasm::WasmCode* code = nullptr;
+  auto entry = lookup_cache_.find(call_target);
+  if (entry != lookup_cache_.end()) {
+    code = entry->second;
+  } else {
+    code = wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+  }
   if (!code) return;  // Not a wrapper.
   auto it = wrappers_.find(code);
   DCHECK_NE(it, wrappers_.end());
@@ -2268,7 +2308,7 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
   WasmDispatchTableData* offheap_data = new_table->offheap_data();
   for (int i = 0; i < old_length; ++i) {
     Address call_target = old_table->target(i);
-    offheap_data->Add(call_target);
+    offheap_data->Add(call_target, nullptr, IsAWrapper::kMaybe);
     new_table->Set(i, old_table->implicit_arg(i), call_target, old_table->sig(i)
 #if V8_ENABLE_DRUMBRAKE
                                                                    ,

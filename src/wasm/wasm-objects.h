@@ -61,6 +61,7 @@ class WasmModuleObject;
 enum class SharedFlag : uint8_t;
 
 enum class WasmTableFlag : uint8_t { kTable32, kTable64 };
+enum class IsAWrapper : uint8_t { kYes, kMaybe, kNo };
 
 template <typename CppType>
 class Managed;
@@ -119,10 +120,11 @@ class ImportedFunctionEntry {
   // parameter since it allocates a WasmImportData.
   void SetGenericWasmToJs(Isolate*, DirectHandle<JSReceiver> callable,
                           wasm::Suspend suspend, const wasm::FunctionSig* sig);
-  V8_EXPORT_PRIVATE void SetCompiledWasmToJs(
-      Isolate*, DirectHandle<JSReceiver> callable,
-      const wasm::WasmCode* wasm_to_js_wrapper, wasm::Suspend suspend,
-      const wasm::FunctionSig* sig);
+  V8_EXPORT_PRIVATE void SetCompiledWasmToJs(Isolate*,
+                                             DirectHandle<JSReceiver> callable,
+                                             wasm::WasmCode* wasm_to_js_wrapper,
+                                             wasm::Suspend suspend,
+                                             const wasm::FunctionSig* sig);
 
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_object,
@@ -137,7 +139,8 @@ class ImportedFunctionEntry {
   Tagged<Object> maybe_callable();
   Tagged<Object> implicit_arg();
   Address target();
-  void set_target(Address new_target);
+  void set_target(Address new_target, wasm::WasmCode* wrapper_if_known,
+                  IsAWrapper contextual_knowledge);
 
 #if V8_ENABLE_DRUMBRAKE
   int function_index_in_called_module();
@@ -711,11 +714,31 @@ class WasmDispatchTableData {
   WasmDispatchTableData() = default;
   ~WasmDispatchTableData();
 
-  void Add(Address call_target);
+  // We need to map {call_target} to a WasmCode* if it is an import wrapper.
+  // Doing that via the wrapper cache has overhead, so as a performance
+  // optimization, callers can avoid that lookup by providing additional
+  // information: a non-nullptr WasmCode* if they have it; and otherwise
+  // {contextual_knowledge == kNo} when they know for sure that {call_target}
+  // does not belong to a wrapper.
+  // Passing {wrapper_if_known == nullptr} and {contextual_knowledge == kMaybe}
+  // is always safe, but might be slower.
+  void Add(Address call_target, wasm::WasmCode* wrapper_if_known,
+           IsAWrapper contextual_knowledge);
   void Remove(Address call_target);
 
  private:
-  base::Mutex mutex_;
+  // Maps call targets to wrappers. When an entry's value is {nullptr}, that
+  // means we know for sure it's not a wrapper.
+  // This duplicates information we could get from
+  // {wasm::GetWasmImportWrapperCache()->FindWrapper}, but doesn't require
+  // any locks, which is important for applications with many worker threads.
+  std::unordered_map<Address, wasm::WasmCode*> lookup_cache_;
+
+  // We manage the lifetime of wrappers, like all WasmCode, by refcounting.
+  // Each table only maintains a refcount of 1 for each wrapper; so this
+  // map stores the number of references in the table for a given wrapper.
+  // When it drops to zero, or when the table is collected, the wrapper's
+  // refcount is decremented.
   std::map<wasm::WasmCode*, size_t> wrappers_;
 };
 
