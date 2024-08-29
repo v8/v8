@@ -3250,27 +3250,15 @@ enum class FastCloneObjectMode {
   kDifferentMap,
   // The source map is to complicated to handle.
   kNotSupported,
+  // Returned by PreCheck
+  kMaybeSupported
 };
 
-template <bool ENSURE_CLONABLE = false>
-FastCloneObjectMode GetCloneModeForMap(DirectHandle<Map> map,
-                                       bool null_proto_literal,
-                                       Isolate* isolate,
-                                       std::optional<Tagged<Map>> target = {}) {
-  // TODO(olivf, 362017087): Temporary check to investigate crash reports.
-#define NOT_CLONABLE                                            \
-  if (ENSURE_CLONABLE) {                                        \
-    isolate->PushParamsAndDie(                                  \
-        reinterpret_cast<void*>(map->address()),                \
-        reinterpret_cast<void*>((*target)->address()),          \
-        reinterpret_cast<void*>(map->instance_type()),          \
-        reinterpret_cast<void*>(map->NumberOfOwnDescriptors()), \
-        reinterpret_cast<void*>(map->is_dictionary_map()));     \
-  }
-
+FastCloneObjectMode GetCloneModeForMapPreCheck(DirectHandle<Map> map,
+                                               bool null_proto_literal,
+                                               Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   if (!IsJSObjectMap(*map)) {
-    NOT_CLONABLE
     // Everything that produces the empty object literal can be supported since
     // we have a special case for that.
     if (null_proto_literal) return FastCloneObjectMode::kNotSupported;
@@ -3282,18 +3270,27 @@ FastCloneObjectMode GetCloneModeForMap(DirectHandle<Map> map,
   ElementsKind elements_kind = map->elements_kind();
   if (!IsSmiOrObjectElementsKind(elements_kind) &&
       !IsAnyNonextensibleElementsKind(elements_kind)) {
-    NOT_CLONABLE
     return FastCloneObjectMode::kNotSupported;
   }
   if (!map->OnlyHasSimpleProperties()) {
-    NOT_CLONABLE
     return FastCloneObjectMode::kNotSupported;
   }
 
   // TODO(olivf): Think about cases where cross-context copies are safe.
   if (*map->map()->native_context() != *isolate->native_context()) {
-    NOT_CLONABLE
     return FastCloneObjectMode::kNotSupported;
+  }
+
+  return FastCloneObjectMode::kMaybeSupported;
+}
+
+FastCloneObjectMode GetCloneModeForMap(DirectHandle<Map> map,
+                                       bool null_proto_literal,
+                                       Isolate* isolate) {
+  FastCloneObjectMode pre_check =
+      GetCloneModeForMapPreCheck(map, null_proto_literal, isolate);
+  if (pre_check != FastCloneObjectMode::kMaybeSupported) {
+    return pre_check;
   }
 
   // The clone must always start from an object literal map, it must be an
@@ -3302,7 +3299,7 @@ FastCloneObjectMode GetCloneModeForMap(DirectHandle<Map> map,
   // directly use it as the target map.
   FastCloneObjectMode mode =
       map->instance_type() == JS_OBJECT_TYPE &&
-              !IsAnyNonextensibleElementsKind(elements_kind) &&
+              !IsAnyNonextensibleElementsKind(map->elements_kind()) &&
               map->GetConstructor() == *isolate->object_function() &&
               map->prototype() == *isolate->object_function_prototype() &&
               !map->is_prototype_map()
@@ -3317,16 +3314,8 @@ FastCloneObjectMode GetCloneModeForMap(DirectHandle<Map> map,
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
     Tagged<Name> key = descriptors->GetKey(i);
-    if (details.kind() != PropertyKind::kData) {
-      NOT_CLONABLE
-      return FastCloneObjectMode::kNotSupported;
-    }
-    if (!details.IsEnumerable()) {
-      NOT_CLONABLE
-      return FastCloneObjectMode::kNotSupported;
-    }
-    if (key->IsPrivateName()) {
-      NOT_CLONABLE
+    if (details.kind() != PropertyKind::kData || !details.IsEnumerable() ||
+        key->IsPrivateName()) {
       return FastCloneObjectMode::kNotSupported;
     }
     if (!details.IsConfigurable() || details.IsReadOnly()) {
@@ -3587,15 +3576,15 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
                          Map::kPrototypeChainValid;
         }
       }
-      if (V8_UNLIKELY(!is_valid)) {
+      if (V8_LIKELY(is_valid)) {
+        if (result.IsHeapObject()) {
+          CHECK_EQ(GetCloneModeForMapPreCheck(source_map, false, isolate),
+                   FastCloneObjectMode::kMaybeSupported);
+        }
+      } else {
         result = SideStepTransition::Empty;
       }
     }
-  }
-  if (result.IsHeapObject()) {
-    // TODO(olivf, 362017087): Temporary check to investigate crash reports.
-    GetCloneModeForMap<true>(source_map, false, isolate,
-                             Cast<Map>(result.GetHeapObject()));
   }
 #ifdef DEBUG
   FastCloneObjectMode clone_mode =
@@ -3609,6 +3598,8 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
       case FastCloneObjectMode::kIdenticalMap:
         DCHECK_EQ(kind, SideStepTransition::Kind::kObjectAssign);
         break;
+      case FastCloneObjectMode::kMaybeSupported:
+        UNREACHABLE();
     }
   } else if (result != SideStepTransition::Empty) {
     Tagged<Map> target = Cast<Map>(result.GetHeapObject());
@@ -3668,9 +3659,6 @@ void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
   }
   DCHECK_EQ(GetCloneTargetMap<kind>(isolate, source_map, override_map),
             *new_target_map);
-
-  // TODO(olivf, 362017087): Temporary check to investigate crash reports.
-  GetCloneModeForMap<true>(source_map, false, isolate, *new_target_map);
 }
 
 template <SideStepTransition::Kind kind>
@@ -3788,6 +3776,8 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
           case FastCloneObjectMode::kNotSupported: {
             break;
           }
+          case FastCloneObjectMode::kMaybeSupported:
+            UNREACHABLE();
         }
         DCHECK(clone_mode == FastCloneObjectMode::kNotSupported);
         if (nexus) {
@@ -3839,6 +3829,7 @@ bool MaybeCanCloneObjectForObjectAssign(Handle<JSReceiver> source,
     case FastCloneObjectMode::kNotSupported:
       return false;
     case FastCloneObjectMode::kEmptyObject:
+    case FastCloneObjectMode::kMaybeSupported:
       // Cannot happen since we should only be called with JSObjects.
       UNREACHABLE();
   }
