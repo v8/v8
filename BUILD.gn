@@ -2452,7 +2452,19 @@ template("run_mksnapshot") {
       ext = "s"
     }
 
-    args = [
+    args = []
+
+    if (v8_verify_deterministic_mksnapshot) {
+      # Output redirection must be the first argument to run.py. We capture
+      # output when verifying snapshot determinism for debugging.
+      args += [
+        "--redirect-stdout",
+        rebase_path("$root_out_dir/mksnapshot_output${suffix}.log", root_build_dir),
+      ]
+      data += [ "$root_out_dir/mksnapshot_output${suffix}.log" ]
+    }
+
+    args += [
       "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
                                         "root_out_dir") + "/mksnapshot",
                          root_build_dir),
@@ -2469,6 +2481,11 @@ template("run_mksnapshot") {
       "--embedded_src",
       rebase_path("$target_gen_dir/embedded${suffix}.${ext}", root_build_dir),
     ]
+
+    if (v8_verify_deterministic_mksnapshot) {
+      # Flags that help debugging snapshot determinism.
+      args += ["--trace-read-only-promotion"]
+    }
 
     if (v8_log_builtins_block_count_input != "") {
       args += [
