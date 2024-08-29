@@ -3627,17 +3627,10 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   // Do fast-path convert from double to int.
   __ ConvertDoubleToInt64(double_scratch,
-#if !V8_TARGET_ARCH_PPC64
-                          scratch,
-#endif
                           result_reg, d0);
 
 // Test for overflow
-#if V8_TARGET_ARCH_PPC64
   __ TestIfInt32(result_reg, r0);
-#else
-  __ TestIfInt32(scratch, result_reg, r0);
-#endif
   __ beq(&fastpath_done);
 
   __ Push(scratch_high, scratch_low);
@@ -3703,9 +3696,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Input_high ASR 31 equals 0xFFFFFFFF and scratch_high LSR 31 equals 1.
   // New result = (result eor 0xFFFFFFFF) + 1 = 0 - result.
   __ srawi(r0, scratch_high, 31);
-#if V8_TARGET_ARCH_PPC64
   __ srdi(r0, r0, Operand(32));
-#endif
   __ xor_(result_reg, result_reg, r0);
   __ srwi(r0, scratch_high, Operand(31));
   __ add(result_reg, result_reg, r0);

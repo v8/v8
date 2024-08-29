@@ -908,11 +908,7 @@ CPU::CPU()
   char* auxv_cpu_type = nullptr;
   FILE* fp = base::Fopen("/proc/self/auxv", "r");
   if (fp != nullptr) {
-#if V8_TARGET_ARCH_PPC64
     Elf64_auxv_t entry;
-#else
-    Elf32_auxv_t entry;
-#endif
     for (;;) {
       size_t n = fread(&entry, sizeof(entry), 1, fp);
       if (n == 0 || entry.a_type == AT_NULL) {
