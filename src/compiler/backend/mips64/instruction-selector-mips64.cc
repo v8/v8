@@ -2256,12 +2256,11 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
   auto value = input_at(node, 0);
   if (CanCover(node, value)) {
     if (Get(value).Is<Opmask::kWord64ShiftRightArithmetic>()) {
+      auto shift_value = input_at(value, 1);
       if (CanCover(value, input_at(value, 0)) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
-      } else {
-        auto shift_value = input_at(value, 1);
-        DCHECK(g.IsIntegerConstant(shift_value));
+      } else if (g.IsIntegerConstant(shift_value)) {
         auto constant = g.GetIntegerConstantValue(constant_view(shift_value));
 
         if (constant >= 32 && constant <= 63) {
@@ -2274,7 +2273,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
       }
     }
   }
-  Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(input_at(node, 0)),
+  Emit(kMips64Shl, g.DefineAsRegister(node), g.UseRegister(value),
        g.TempImmediate(0));
 }
 
@@ -3842,12 +3841,8 @@ void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    Mips64OperandGeneratorT<Adapter> g(this);
-    Emit(kMips64Sync, g.NoOutput());
-  }
+  Mips64OperandGeneratorT<Adapter> g(this);
+  Emit(kMips64Sync, g.NoOutput());
 }
 
 template <typename Adapter>

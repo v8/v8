@@ -2426,12 +2426,11 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
   auto value = input_at(node, 0);
   if (CanCover(node, value)) {
     if (Get(value).Is<Opmask::kWord64ShiftRightArithmetic>()) {
+      auto shift_value = input_at(value, 1);
       if (CanCover(value, input_at(value, 0)) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
-      } else {
-        auto shift_value = input_at(value, 1);
-        DCHECK(g.IsIntegerConstant(shift_value));
+      } else if (g.IsIntegerConstant(shift_value)) {
         auto constant = g.GetIntegerConstantValue(constant_view(shift_value));
 
         if (constant >= 32 && constant <= 63) {
@@ -2443,8 +2442,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
       }
     }
   }
-  Emit(kLoong64Sll_w, g.DefineAsRegister(node),
-       g.UseRegister(input_at(node, 0)), g.TempImmediate(0));
+  Emit(kLoong64Sll_w, g.DefineAsRegister(node), g.UseRegister(value),
+       g.TempImmediate(0));
 }
 
 template <typename Adapter>
