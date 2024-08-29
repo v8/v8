@@ -17,10 +17,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define TRACE_UNIMPL() \
-  PrintF("UNIMPLEMENTED instr_sel: %s at line %d\n", __FUNCTION__, __LINE__)
-
-#define TRACE() PrintF("instr_sel: %s at line %d\n", __FUNCTION__, __LINE__)
+#define TRACE(...) PrintF(__VA_ARGS__)
 
 // Adds RISC-V-specific methods for generating InstructionOperands.
 template <typename Adapter>
@@ -134,7 +131,7 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
 
  private:
   bool ImmediateFitsAddrMode1Instruction(int32_t imm) const {
-    TRACE_UNIMPL();
+    TRACE("UNIMPLEMENTED instr_sel: %s at line %d\n", __FUNCTION__, __LINE__);
     return false;
   }
 };
@@ -2250,12 +2247,17 @@ void InstructionSelectorT<Adapter>::VisitSetStackPointer(node_t node) {
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 #endif
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
 
 #undef SIMD_BINOP_LIST
 #undef SIMD_SHIFT_OP_LIST
 #undef SIMD_UNOP_LIST
+#undef SIMD_UNOP_LIST2
 #undef SIMD_TYPE_LIST
+#undef SIMD_INT_TYPE_LIST
+#undef TRACE
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
+
 #endif  // V8_COMPILER_BACKEND_RISCV_INSTRUCTION_SELECTOR_RISCV_H_

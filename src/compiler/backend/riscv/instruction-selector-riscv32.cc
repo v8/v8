@@ -15,6 +15,9 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+#define TRACE(...) PrintF(__VA_ARGS__)
+
 template <typename Adapter>
 int64_t RiscvOperandGeneratorT<Adapter>::GetIntegerConstantValue(Node* node) {
   DCHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
@@ -1222,7 +1225,8 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWordCompareZero(
                     this, node, kRiscvMulOvf32, cont);
               case IrOpcode::kInt64AddWithOverflow:
               case IrOpcode::kInt64SubWithOverflow:
-                TRACE_UNIMPL();
+                TRACE("UNIMPLEMENTED instr_sel: %s at line %d\n", __FUNCTION__,
+                      __LINE__);
                 break;
               default:
                 break;
@@ -2083,7 +2087,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat32RoundTiesEven;
 }
-#undef TRACE_UNIMPL
+
 #undef TRACE
 
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)

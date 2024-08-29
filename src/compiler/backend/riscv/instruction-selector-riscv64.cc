@@ -3611,8 +3611,6 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kFloat32RoundTiesEven;
 }
-#undef TRACE_UNIMPL
-#undef TRACE
 
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurbofanAdapter>;
