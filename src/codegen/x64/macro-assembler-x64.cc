@@ -2269,54 +2269,6 @@ void MacroAssembler::F16x8Qfms(YMMRegister dst, XMMRegister src1,
   vcvtps2ph(dst, dst, 0);
 }
 
-// Helper macro to define qfma macro-assembler. This takes care of every
-// possible case of register aliasing to minimize the number of instructions.
-#define QFMA(ps_or_pd)                        \
-  if (CpuFeatures::IsSupported(FMA3)) {       \
-    CpuFeatureScope fma3_scope(this, FMA3);   \
-    if (dst == src1) {                        \
-      vfmadd213##ps_or_pd(dst, src2, src3);   \
-    } else if (dst == src2) {                 \
-      vfmadd213##ps_or_pd(dst, src1, src3);   \
-    } else if (dst == src3) {                 \
-      vfmadd231##ps_or_pd(dst, src2, src1);   \
-    } else {                                  \
-      CpuFeatureScope avx_scope(this, AVX);   \
-      vmovups(dst, src1);                     \
-      vfmadd213##ps_or_pd(dst, src2, src3);   \
-    }                                         \
-  } else if (CpuFeatures::IsSupported(AVX)) { \
-    CpuFeatureScope avx_scope(this, AVX);     \
-    vmul##ps_or_pd(tmp, src1, src2);          \
-    vadd##ps_or_pd(dst, tmp, src3);           \
-  } else {                                    \
-    UNREACHABLE();                            \
-  }
-
-// Helper macro to define qfms macro-assembler. This takes care of every
-// possible case of register aliasing to minimize the number of instructions.
-#define QFMS(ps_or_pd)                        \
-  if (CpuFeatures::IsSupported(FMA3)) {       \
-    CpuFeatureScope fma3_scope(this, FMA3);   \
-    if (dst == src1) {                        \
-      vfnmadd213##ps_or_pd(dst, src2, src3);  \
-    } else if (dst == src2) {                 \
-      vfnmadd213##ps_or_pd(dst, src1, src3);  \
-    } else if (dst == src3) {                 \
-      vfnmadd231##ps_or_pd(dst, src2, src1);  \
-    } else {                                  \
-      CpuFeatureScope avx_scope(this, AVX);   \
-      vmovups(dst, src1);                     \
-      vfnmadd213##ps_or_pd(dst, src2, src3);  \
-    }                                         \
-  } else if (CpuFeatures::IsSupported(AVX)) { \
-    CpuFeatureScope avx_scope(this, AVX);     \
-    vmul##ps_or_pd(tmp, src1, src2);          \
-    vsub##ps_or_pd(dst, src3, tmp);           \
-  } else {                                    \
-    UNREACHABLE();                            \
-  }
-
 void MacroAssembler::F32x8Qfma(YMMRegister dst, YMMRegister src1,
                                YMMRegister src2, YMMRegister src3,
                                YMMRegister tmp) {
