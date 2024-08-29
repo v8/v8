@@ -3826,9 +3826,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
     return NoChange();
   }
 
-  // Signal TurboFan that it should run the 'wasm-inlining' phase.
-  has_wasm_calls_ = true;
-
   const wasm::WasmModule* wasm_module = shared.wasm_module();
   if (wasm_module_for_inlining_ == nullptr) {
     wasm_module_for_inlining_ = wasm_module;

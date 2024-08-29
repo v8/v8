@@ -1005,12 +1005,13 @@ struct InliningPhase {
     info->set_inlined_bytecode_size(inlining.total_inlined_bytecode_size());
 
 #if V8_ENABLE_WEBASSEMBLY
-    // Skip the "wasm-inlining" phase if there are no Wasm functions calls.
-    if (call_reducer.has_wasm_calls()) {
-      data->set_has_js_wasm_calls(true);
-      DCHECK(call_reducer.wasm_module_for_inlining() != nullptr);
-      data->set_wasm_module_for_inlining(
-          call_reducer.wasm_module_for_inlining());
+    // Not forwarding this information to the TurboFan pipeline data here later
+    // skips `JSWasmInliningPhase` if there are no JS-to-Wasm functions calls.
+    if (call_reducer.has_js_wasm_calls()) {
+      const wasm::WasmModule* wasm_module =
+          call_reducer.wasm_module_for_inlining();
+      DCHECK_NOT_NULL(wasm_module);
+      data->set_wasm_module_for_inlining(wasm_module);
       // Enable source positions if not enabled yet. While JS only uses the
       // source position table for tracing, profiling, ..., wasm needs it at
       // compile time for keeping track of source locations for wasm traps.
@@ -1031,7 +1032,7 @@ struct JSWasmInliningPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(JSWasmInlining)
   void Run(TFPipelineData* data, Zone* temp_zone) {
     DCHECK(data->has_js_wasm_calls());
-    DCHECK(data->wasm_module_for_inlining() != nullptr);
+    DCHECK_NOT_NULL(data->wasm_module_for_inlining());
 
     OptimizedCompilationInfo* info = data->info();
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
@@ -1057,7 +1058,7 @@ struct JSWasmLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(JSWasmLowering)
   void Run(TFPipelineData* data, Zone* temp_zone) {
     DCHECK(data->has_js_wasm_calls());
-    DCHECK_NE(data->wasm_module_for_inlining(), nullptr);
+    DCHECK_NOT_NULL(data->wasm_module_for_inlining());
 
     OptimizedCompilationInfo* info = data->info();
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
