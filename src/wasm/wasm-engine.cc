@@ -33,6 +33,7 @@
 #include "src/wasm/stacks.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/wasm-code-pointer-table.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -2042,10 +2043,14 @@ void WasmEngine::InitializeOncePerProcess() {
     WasmInterpreter::InitializeOncePerProcess();
   }
 #endif  // V8_ENABLE_DRUMBRAKE
+
+  GetProcessWideWasmCodePointerTable()->Initialize();
 }
 
 // static
 void WasmEngine::GlobalTearDown() {
+  GetProcessWideWasmCodePointerTable()->TearDown();
+
 #ifdef V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     WasmInterpreter::GlobalTearDown();
