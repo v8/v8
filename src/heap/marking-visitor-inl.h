@@ -325,14 +325,6 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
   }
 
   // We're not flushing the Code, so mark it as alive.
-#ifdef V8_ENABLE_SANDBOX
-  VisitIndirectPointer(js_function,
-                       js_function->RawIndirectPointerField(
-                           JSFunction::kCodeOffset, kCodeIndirectPointerTag),
-                       IndirectPointerMode::kStrong);
-#else
-  VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
-#endif  // V8_ENABLE_SANDBOX
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = js_function->Relaxed_ReadField<JSDispatchHandle>(
       JSFunction::kDispatchHandleOffset);
@@ -346,7 +338,16 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
       MarkObject(js_function, obj, target_worklist.value());
     }
   }
-#endif
+#else
+#ifdef V8_ENABLE_SANDBOX
+  VisitIndirectPointer(js_function,
+                       js_function->RawIndirectPointerField(
+                           JSFunction::kCodeOffset, kCodeIndirectPointerTag),
+                       IndirectPointerMode::kStrong);
+#else
+  VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
+#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_ENABLE_LEAPTIERING
 
   // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
   // also include cases where there is old bytecode even when there is no

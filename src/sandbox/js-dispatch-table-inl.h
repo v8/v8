@@ -73,6 +73,12 @@ void JSDispatchTable::SetCode(JSDispatchHandle handle, Tagged<Code> new_code) {
   at(index).SetCodeAndEntrypointPointer(new_code.ptr(), new_entrypoint);
 }
 
+bool JSDispatchTable::HasCode(JSDispatchHandle handle) {
+  uint32_t index = HandleToIndex(handle);
+  Address ptr = at(index).GetCodePointer();
+  return ptr != kTaggedNullAddress;
+}
+
 JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
     Space* space, uint16_t parameter_count) {
   DCHECK(space->BelongsTo(this));

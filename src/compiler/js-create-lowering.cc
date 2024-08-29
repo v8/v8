@@ -933,7 +933,9 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   CreateClosureParameters const& p = n.Parameters();
   SharedFunctionInfoRef shared = p.shared_info();
   FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
+#ifndef V8_ENABLE_LEAPTIERING
   HeapObjectRef code = p.code();
+#endif
   Effect effect = n.effect();
   Control control = n.control();
   Node* context = n.context();
@@ -987,8 +989,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   AllocationType allocation = AllocationType::kYoung;
 
   // Emit code to allocate the JSFunction instance.
-  static_assert(JSFunction::kSizeWithoutPrototype ==
-                (7 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
+  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   AllocationBuilder a(jsgraph(), broker(), effect, control);
   a.Allocate(function_map.instance_size(), allocation,
              Type::CallableFunction());
@@ -1003,15 +1004,14 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
 #ifdef V8_ENABLE_LEAPTIERING
   a.Store(AccessBuilder::ForJSFunctionDispatchHandleNoWriteBarrier(),
           dispatch_handle);
-#endif  // V8_ENABLE_LEAPTIERING
+#else
   a.Store(AccessBuilder::ForJSFunctionCode(), code);
-  static_assert(JSFunction::kSizeWithoutPrototype ==
-                (7 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
+#endif  // V8_ENABLE_LEAPTIERING
+  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   if (function_map.has_prototype_slot()) {
     a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
             jsgraph()->TheHoleConstant());
-    static_assert(JSFunction::kSizeWithPrototype ==
-                  (8 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
+    static_assert(JSFunction::kSizeWithPrototype == 8 * kTaggedSize);
   }
   for (int i = 0; i < function_map.GetInObjectProperties(); i++) {
     a.Store(AccessBuilder::ForJSObjectInObjectProperty(function_map, i),

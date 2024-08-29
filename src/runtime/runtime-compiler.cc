@@ -98,6 +98,17 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   return sfi->baseline_code(kAcquireLoad);
 }
 
+RUNTIME_FUNCTION(Runtime_InstallSFICode) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
+  Tagged<SharedFunctionInfo> sfi = function->shared();
+  DCHECK(sfi->is_compiled());
+  Tagged<Code> sfi_code = sfi->GetCode(isolate);
+  function->UpdateCode(sfi_code);
+  return sfi_code;
+}
+
 RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -215,8 +226,9 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     isolate->counters()->asmjs_instantiate_result()->AddSample(
         kAsmJsInstantiateFail);
 
-    // Remove wasm data, mark as broken for asm->wasm, replace function code
-    // with UncompiledData, and return a smi 0 to indicate failure.
+    // Remove wasm data, mark as broken for asm->wasm, replace AsmWasmData on
+    // the SFI with UncompiledData and set entrypoint to CompileLazy builtin,
+    // and return a smi 0 to indicate failure.
     SharedFunctionInfo::DiscardCompiled(isolate, shared);
   }
   shared->set_is_asm_wasm_broken(true);

@@ -3498,7 +3498,13 @@ TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
 }
 
 TNode<Code> CodeStubAssembler::LoadJSFunctionCode(TNode<JSFunction> function) {
+#ifdef V8_ENABLE_LEAPTIERING
+  TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
+      function, JSFunction::kDispatchHandleOffset);
+  return ResolveJSDispatchHandle(dispatch_handle);
+#else
   return LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoTrustedData(
@@ -17149,8 +17155,7 @@ TNode<JSFunction> CodeStubAssembler::AllocateRootFunctionWithContext(
   const TNode<Map> map = CAST(LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<HeapObject> fun = Allocate(JSFunction::kSizeWithoutPrototype);
-  static_assert(JSFunction::kSizeWithoutPrototype ==
-                (7 + V8_ENABLE_LEAPTIERING_BOOL) * kTaggedSize);
+  static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   StoreMapNoWriteBarrier(fun, map);
   StoreObjectFieldRoot(fun, JSObject::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
@@ -17165,14 +17170,17 @@ TNode<JSFunction> CodeStubAssembler::AllocateRootFunctionWithContext(
   // builtin id, so there's no need to use
   // CodeStubAssembler::GetSharedFunctionInfoCode().
   DCHECK(sfi->HasBuiltinId());
-  const TNode<Code> code = LoadBuiltin(SmiConstant(sfi->builtin_id()));
-  StoreCodePointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
 #ifdef V8_ENABLE_LEAPTIERING
   const TNode<JSDispatchHandleT> dispatch_handle =
       LoadBuiltinDispatchHandle(function);
-  CSA_DCHECK(this, TaggedEqual(code, ResolveJSDispatchHandle(dispatch_handle)));
+  CSA_DCHECK(this, TaggedEqual(LoadBuiltin(SmiConstant(sfi->builtin_id())),
+                               ResolveJSDispatchHandle(dispatch_handle)));
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kDispatchHandleOffset,
                                  dispatch_handle);
+  USE(sfi);
+#else
+  const TNode<Code> code = LoadBuiltin(SmiConstant(sfi->builtin_id()));
+  StoreCodePointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
 #endif  // V8_ENABLE_LEAPTIERING
 
   return CAST(fun);

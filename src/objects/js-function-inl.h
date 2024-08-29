@@ -77,10 +77,6 @@ Tagged<AbstractCode> JSFunction::abstract_code(IsolateT* isolate) {
 
 int JSFunction::length() { return shared()->length(); }
 
-Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
-  return ReadCodePointerField(kCodeOffset, isolate);
-}
-
 void JSFunction::UpdateMaybeContextSpecializedCode(Isolate* isolate,
                                                    Tagged<Code> value,
                                                    WriteBarrierMode mode) {
@@ -96,9 +92,6 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
                                               WriteBarrierMode mode) {
   DisallowGarbageCollection no_gc;
   DCHECK(value->is_context_specialized());
-
-  WriteCodePointerField(kCodeOffset, value);
-  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
 
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
@@ -125,6 +118,9 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
     CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, specialized_handle,
                                                  mode);
   }
+#else
+  WriteCodePointerField(kCodeOffset, value);
+  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
 #endif  // V8_ENABLE_LEAPTIERING
 
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
@@ -135,9 +131,6 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
 void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
   DisallowGarbageCollection no_gc;
   DCHECK(!value->is_context_specialized());
-
-  WriteCodePointerField(kCodeOffset, value);
-  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
 
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle canonical_handle = raw_feedback_cell()->dispatch_handle();
@@ -167,6 +160,9 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
     jdt->SetCode(handle, value);
     CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
   }
+#else
+  WriteCodePointerField(kCodeOffset, value);
+  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
 #endif  // V8_ENABLE_LEAPTIERING
 
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
@@ -174,13 +170,37 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
   }
 }
 
+Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
+#ifdef V8_ENABLE_LEAPTIERING
+  return GetProcessWideJSDispatchTable()->GetCode(dispatch_handle());
+#else
+  return ReadCodePointerField(kCodeOffset, isolate);
+#endif
+}
+
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
                               AcquireLoadTag tag) const {
+#ifdef V8_ENABLE_LEAPTIERING
+  return GetProcessWideJSDispatchTable()->GetCode(dispatch_handle(tag));
+#else
   return ReadCodePointerField(kCodeOffset, isolate);
+#endif
 }
 
 Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
-#ifdef V8_ENABLE_SANDBOX
+#if V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchHandle handle = dispatch_handle();
+  // TODO(saelo): consieder adding a MaybeGetCode method instead.
+  if (!jdt->HasCode(handle)) {
+    // This is invoked on background threads so we could see a JSFunction here
+    // that currently switches to a new dispatch table entry (e.g. due to
+    // context specialization). In that case, the table entry may not be fully
+    // initialized yet.
+    return Smi::zero();
+  }
+  return jdt->GetCode(handle);
+#elif V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Relaxed_Load(isolate);
 #else
@@ -190,7 +210,19 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
 
 Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
                                     AcquireLoadTag tag) const {
-#ifdef V8_ENABLE_SANDBOX
+#if V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchHandle handle = dispatch_handle(tag);
+  // TODO(saelo): consider adding a MaybeGetCode method instead.
+  if (!jdt->HasCode(handle)) {
+    // This is invoked on background threads so we could see a JSFunction here
+    // that currently switches to a new dispatch table entry (e.g. due to
+    // context specialization). In that case, the table entry may not be fully
+    // initialized yet.
+    return Smi::zero();
+  }
+  return jdt->GetCode(handle);
+#elif V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Acquire_Load(isolate);
 #else
@@ -218,14 +250,12 @@ void JSFunction::clear_dispatch_handle() {
 void JSFunction::set_dispatch_handle(JSDispatchHandle handle) {
   Relaxed_WriteField<JSDispatchHandle>(kDispatchHandleOffset, handle);
 }
-JSDispatchHandle JSFunction::dispatch_handle() {
+JSDispatchHandle JSFunction::dispatch_handle() const {
   return Relaxed_ReadField<JSDispatchHandle>(kDispatchHandleOffset);
 }
-void JSFunction::set_code_pointer_only(Tagged<Code> value,
-                                       WriteBarrierMode mode) {
-  DisallowGarbageCollection no_gc;
-  WriteCodePointerField(kCodeOffset, value);
-  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+
+JSDispatchHandle JSFunction::dispatch_handle(AcquireLoadTag tag) const {
+  return Acquire_ReadField<JSDispatchHandle>(kDispatchHandleOffset);
 }
 #endif  // V8_ENABLE_LEAPTIERING
 

@@ -314,6 +314,23 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     for (auto [src, dst] : moves) {
       dst->Iterate(isolate, &v);
     }
+
+#ifdef V8_ENABLE_LEAPTIERING
+    // Iterate all entries in the JSDispatchTable as they could contain
+    // pointers to promoted Code objects.
+    JSDispatchTable* const jdt = GetProcessWideJSDispatchTable();
+    jdt->IterateActiveEntriesIn(heap->js_dispatch_table_space(),
+                                [&](JSDispatchHandle handle) {
+                                  Tagged<Code> old_code = jdt->GetCode(handle);
+                                  auto it = moves.find(old_code);
+                                  if (it == moves.end()) return;
+                                  Tagged<HeapObject> new_code = it->second;
+                                  CHECK(IsCode(new_code));
+                                  // TODO(saelo): is it worth logging something
+                                  // in this case?
+                                  jdt->SetCode(handle, Cast<Code>(new_code));
+                                });
+#endif  // V8_ENABLE_LEAPTIERING
   }
 
   static void DeleteDeadObjects(Isolate* isolate,
@@ -426,22 +443,6 @@ class ReadOnlyPromotionImpl final : public AllStatic {
         VisitCodePointer(host, slot);
       }
 #endif  // V8_ENABLE_SANDBOX
-    }
-    void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
-                                   JSDispatchHandle handle) final {
-      // Here we need to update entries in the JSDispatchTable if the Code
-      // object they point to was promoted into read-only space.
-#ifdef V8_ENABLE_LEAPTIERING
-      JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
-      if (!jdt->HasCode(handle)) return;
-      Tagged<HeapObject> old_code = jdt->GetCode(handle);
-      auto it = moves_->find(old_code);
-      if (it == moves_->end()) return;
-      Tagged<HeapObject> new_code = it->second;
-      CHECK(IsCode(new_code));
-      // TODO(saelo): is it worth logging something in this case?
-      jdt->SetCode(handle, Cast<Code>(new_code));
-#endif
     }
     void VisitRootPointers(Root root, const char* description,
                            OffHeapObjectSlot start,

@@ -525,6 +525,11 @@ class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
 class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static const int kStartOffset = JSObject::BodyDescriptor::kStartOffset;
+#ifdef V8_ENABLE_LEAPTIERING
+  static const int kCodeFieldOffset = JSFunction::kDispatchHandleOffset;
+#else
+  static const int kCodeFieldOffset = JSFunction::kCodeOffset;
+#endif
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
@@ -532,8 +537,11 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
     // Iterate JSFunction header fields first.
     int header_size = JSFunction::GetHeaderSize(map->has_prototype_slot());
     DCHECK_GE(object_size, header_size);
-    IteratePointers(obj, kStartOffset, kCodeOffset, v);
+    IteratePointers(obj, kStartOffset, kCodeFieldOffset, v);
 
+#ifdef V8_ENABLE_LEAPTIERING
+    IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
+#else
     // The code field is treated as a custom weak pointer. This field
     // is visited as a weak pointer if the Code is baseline code
     // and the bytecode array corresponding to this function is old. In the rest
@@ -541,13 +549,10 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
     // See MarkingVisitorBase::VisitJSFunction.
     IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kCustom);
     DCHECK_GE(header_size, kCodeOffset);
-
-#ifdef V8_ENABLE_LEAPTIERING
-    IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
-#endif
+#endif  // V8_ENABLE_LEAPTIERING
 
     // Iterate rest of the header fields
-    IteratePointers(obj, kCodeOffset + kTaggedSize, header_size, v);
+    IteratePointers(obj, kCodeFieldOffset + kTaggedSize, header_size, v);
     // Iterate rest of the fields starting after the header.
     IterateJSObjectBodyImpl(map, obj, header_size, object_size, v);
   }

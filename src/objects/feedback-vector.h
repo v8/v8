@@ -240,6 +240,9 @@ class FeedbackVector
   static constexpr uint32_t kFlagsLogNextExecution =
       FeedbackVector::LogNextExecutionBit::kMask;
 
+  static constexpr inline uint32_t FlagMaskForNeedsProcessingCheckFrom(
+      CodeKind code_kind);
+
   inline bool is_empty() const;
 
   DECL_GETTER(metadata, Tagged<FeedbackMetadata>)

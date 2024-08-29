@@ -322,6 +322,20 @@ void HeapObject::Relaxed_WriteField(size_t offset, T value) {
       static_cast<AtomicT>(value));
 }
 
+template <class T,
+          typename std::enable_if<(std::is_arithmetic<T>::value ||
+                                   std::is_enum<T>::value) &&
+                                      !std::is_floating_point<T>::value,
+                                  int>::type>
+T HeapObject::Acquire_ReadField(size_t offset) const {
+  // Pointer compression causes types larger than kTaggedSize to be
+  // unaligned. Atomic loads must be aligned.
+  DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, sizeof(T) <= kTaggedSize);
+  using AtomicT = typename base::AtomicTypeFromByteWidth<sizeof(T)>::type;
+  return static_cast<T>(base::AsAtomicImpl<AtomicT>::Acquire_Load(
+      reinterpret_cast<AtomicT*>(field_address(offset))));
+}
+
 // static
 template <typename CompareAndSwapImpl>
 Tagged<Object> HeapObject::SeqCst_CompareAndSwapField(

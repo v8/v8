@@ -3114,6 +3114,16 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   if (GetOrCompileOptimized(isolate, function, mode, code_kind)
           .ToHandle(&code)) {
     function->UpdateMaybeContextSpecializedCode(isolate, *code);
+  } else {
+#ifdef V8_ENABLE_LEAPTIERING
+    // We can get here from CompileLazy when we have requested optimized code
+    // which isn't yet ready. Without Leaptiering, we'll already have set the
+    // function's code to the bytecode/baseline code on the SFI. However, in the
+    // leaptiering case, we potentially need to do this now.
+    if (!function->is_compiled(isolate)) {
+      function->UpdateCode(function->shared()->GetCode(isolate));
+    }
+#endif  // V8_ENABLE_LEAPTIERING
   }
 
 #ifdef DEBUG

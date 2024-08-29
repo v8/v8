@@ -2364,4 +2364,11 @@
   'wasm/generate-random-module': [FAIL],
 }],  # 'official_build'
 
+##############################################################################
+['leaptiering', {
+  # Skip tests that test the old tiering behavior.
+  'baseline/test-baseline': [SKIP],
+  'baseline/cross-realm': [SKIP],
+}],  # 'leaptiering'
+
 ]

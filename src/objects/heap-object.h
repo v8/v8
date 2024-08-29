@@ -274,6 +274,15 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                     int>::type = 0>
   inline void Relaxed_WriteField(size_t offset, T value);
 
+  // Atomically reads a field using acquire memory ordering. Can only be used
+  // with integral types whose size is <= kTaggedSize (to guarantee alignment).
+  template <class T,
+            typename std::enable_if<(std::is_arithmetic<T>::value ||
+                                     std::is_enum<T>::value) &&
+                                        !std::is_floating_point<T>::value,
+                                    int>::type = 0>
+  inline T Acquire_ReadField(size_t offset) const;
+
   // Atomically compares and swaps a field using seq cst memory ordering.
   // Contains the required logic to properly handle number comparison.
   template <typename CompareAndSwapImpl>

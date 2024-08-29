@@ -166,7 +166,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   inline void SetCode(JSDispatchHandle handle, Tagged<Code> new_code);
   // TODO(saelo): once every entry of the table has a Code object, many calls
   // to this function can probably be deleted.
-  bool HasCode(JSDispatchHandle handle);
+  inline bool HasCode(JSDispatchHandle handle);
 
   // Allocates a new entry in the table and initialize it.
   //

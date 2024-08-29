@@ -815,6 +815,12 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                         CodeEntrypointTag tag);
 #endif  // V8_ENABLE_SANDBOX
 
+#ifdef V8_ENABLE_LEAPTIERING
+  // Load the entrypoint pointer of a JSDispatchTable entry.
+  void LoadCodeEntrypointFromJSDispatchTable(Register destination,
+                                             Operand field_operand);
+#endif  // V8_ENABLE_LEAPTIERING
+
   void LoadProtectedPointerField(Register destination, Operand field_operand);
 
   // Loads and stores the value of an external reference.

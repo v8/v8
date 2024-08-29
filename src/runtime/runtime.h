@@ -119,6 +119,7 @@ namespace internal {
   F(CompileBaseline, 1, 1)                      \
   F(CompileOptimized, 1, 1)                     \
   F(InstallBaselineCode, 1, 1)                  \
+  F(InstallSFICode, 1, 1)                       \
   F(HealOptimizedCodeSlot, 1, 1)                \
   F(FunctionLogNextExecution, 1, 1)             \
   F(InstantiateAsmJs, 4, 1)                     \

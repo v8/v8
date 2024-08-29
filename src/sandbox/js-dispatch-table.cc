@@ -63,12 +63,6 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
                                 parameter_count, space->allocate_black());
 }
 
-bool JSDispatchTable::HasCode(JSDispatchHandle handle) {
-  uint32_t index = HandleToIndex(handle);
-  Address ptr = at(index).GetCodePointer();
-  return ptr != kTaggedNullAddress;
-}
-
 uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters) {
   uint32_t num_live_entries = GenericSweep(space);
   counters->js_dispatch_table_entries_count()->AddSample(num_live_entries);

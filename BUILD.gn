@@ -2720,6 +2720,8 @@ action("v8_dump_build_config") {
   simulator_run = target_cpu != v8_target_cpu
   use_sanitizer = is_asan || is_cfi || is_msan || is_tsan || is_ubsan
 
+  use_leaptiering = v8_enable_sandbox && !v8_disable_leaptiering
+
   # This lists all build-time switches consumed by the test framework. All
   # switches can be used automatically in the status files as is - no
   # further files need to be modified.
@@ -2788,6 +2790,7 @@ action("v8_dump_build_config") {
     "verify_heap=$v8_enable_verify_heap",
     "verify_predictable=$v8_enable_verify_predictable",
     "memory_corruption_api=$v8_enable_memory_corruption_api",
+    "leaptiering=$use_leaptiering",
   ]
 }
 

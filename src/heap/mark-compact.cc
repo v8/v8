@@ -5575,6 +5575,11 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         if (!relocated_object.is_null()) {
           CHECK(IsCode(relocated_object));
           jdt->SetCode(handle, Cast<Code>(relocated_object));
+        } else {
+          // We still need to do SetCode because the InstructionStream object
+          // (to which a pointer is stored in the table) may have moved.
+          // TODO(saelo): can we be smarter here?
+          jdt->SetCode(handle, Cast<Code>(Tagged<Object>(content)));
         }
       });
 #endif  // V8_ENABLE_LEAPTIERING

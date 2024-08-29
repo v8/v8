@@ -8,7 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/objects/code-inl.h"
-#include "src/objects/feedback-vector.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {
@@ -40,11 +40,10 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
       LoadObjectField<Uint16T>(feedback_vector, FeedbackVector::kFlagsOffset);
 
   // Fall through if no optimization trigger or optimized code.
-  GotoIfNot(
-      IsSetWord32(flags, FeedbackVector::kFlagsHasAnyOptimizedCode |
-                             FeedbackVector::kFlagsTieringStateIsAnyRequested |
-                             FeedbackVector::kFlagsLogNextExecution),
-      &fallthrough);
+  constexpr uint32_t kFlagMask =
+      FeedbackVector::FlagMaskForNeedsProcessingCheckFrom(
+          CodeKind::INTERPRETED_FUNCTION);
+  GotoIfNot(IsSetWord32(flags, kFlagMask), &fallthrough);
 
   GotoIfNot(
       IsSetWord32(flags, FeedbackVector::kFlagsTieringStateIsAnyRequested),
@@ -53,12 +52,21 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
 
   BIND(&maybe_needs_logging);
   {
+#ifdef V8_ENABLE_LEAPTIERING
+    // In the leaptiering case, we don't tier up to optimized code through the
+    // feedback vector (but instead through the dispatch table), so we can only
+    // get here if kFlagsLogNextExecution is set.
+    CSA_DCHECK(this,
+               IsSetWord32(flags, FeedbackVector::kFlagsLogNextExecution));
+#else
     GotoIfNot(IsSetWord32(flags, FeedbackVector::kFlagsLogNextExecution),
               &may_have_optimized_code);
+#endif
     GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution,
                                    function);
   }
 
+#ifndef V8_ENABLE_LEAPTIERING
   BIND(&may_have_optimized_code);
   {
     Label heal_optimized_code_slot(this);
@@ -88,6 +96,7 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
     BIND(&heal_optimized_code_slot);
     GenerateTailCallToReturnedCode(Runtime::kHealOptimizedCodeSlot, function);
   }
+#endif  // V8_ENABLE_LEAPTIERING
 
   // Fall-through if the optimized code cell is clear and the tiering state is
   // kNone.
@@ -114,7 +123,12 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
 
   CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstantNoHole(BUILTIN_CODE(
                                                 isolate(), CompileLazy))));
+  USE(sfi_code);
+#ifndef V8_ENABLE_LEAPTIERING
+  // In the leaptiering case, the code is installed below, through the
+  // InstallSFICode runtime function.
   StoreCodePointerField(function, JSFunction::kCodeOffset, sfi_code);
+#endif  // V8_ENABLE_LEAPTIERING
 
   Label maybe_use_sfi_code(this);
   // If there is no feedback, don't check for optimized code.
@@ -125,8 +139,6 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   CSA_DCHECK(this, IsFeedbackVector(feedback_cell_value));
 
   // Is there a tiering state or optimized code in the feedback vector?
-  // TODO(olivf, 42204201): Skip this with leaptiering once calls go through the
-  // dispatch table.
   MaybeTailCallOptimizedCodeSlot(function, CAST(feedback_cell_value));
   Goto(&maybe_use_sfi_code);
 
@@ -135,6 +147,13 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // A usual case would be the InterpreterEntryTrampoline to start executing
   // existing bytecode.
   BIND(&maybe_use_sfi_code);
+#ifdef V8_ENABLE_LEAPTIERING
+  // In the leaptiering case, we now simply install the code of the SFI on the
+  // function's dispatch table entry and call it. Installing the code is
+  // necessary as the dispatch table entry may still contain the CompileLazy
+  // builtin at this point (we can only update dispatch table code from C++).
+  GenerateTailCallToReturnedCode(Runtime::kInstallSFICode, function);
+#else
   Label tailcall_code(this), baseline(this);
   TVARIABLE(Code, code);
 
@@ -145,15 +164,6 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   Goto(&tailcall_code);
 
   BIND(&baseline);
-#ifdef V8_ENABLE_LEAPTIERING
-  // TODO(olivf, 42204201): This fastcase is difficult to support with the
-  // sandbox as it requires getting write access to the dispatch table. See
-  // `JSFunction::UpdateCode`. We might want to remove it for all configurations
-  // as it does not seem to be performance sensitive.
-
-  code = CAST(CallRuntime(Runtime::kInstallBaselineCode,
-                          Parameter<Context>(Descriptor::kContext), function));
-#else
   // Ensure we have a feedback vector.
   code = Select<Code>(
       IsFeedbackVector(feedback_cell_value), [=]() { return sfi_code; },
@@ -162,11 +172,11 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
                                 Parameter<Context>(Descriptor::kContext),
                                 function));
       });
-#endif  // V8_ENABLE_LEAPTIERING
   Goto(&tailcall_code);
 
   BIND(&tailcall_code);
   GenerateTailCallToJSCode(code.value(), function);
+#endif  // V8_ENABLE_LEAPTIERING
 
   BIND(&compile_function);
   GenerateTailCallToReturnedCode(Runtime::kCompileLazy, function);
@@ -182,8 +192,10 @@ TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
 
   TNode<Code> code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
+#ifndef V8_ENABLE_LEAPTIERING
   // Set the code slot inside the JSFunction to CompileLazy.
   StoreCodePointerField(function, JSFunction::kCodeOffset, code);
+#endif  // V8_ENABLE_LEAPTIERING
   GenerateTailCallToJSCode(code, function);
 }
 

@@ -158,12 +158,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
                                          uint16_t parameter_count,
                                          Tagged<Code> code, Address entrypoint);
   inline void clear_dispatch_handle();
-  inline JSDispatchHandle dispatch_handle();
+  inline JSDispatchHandle dispatch_handle() const;
+  inline JSDispatchHandle dispatch_handle(AcquireLoadTag) const;
   inline void set_dispatch_handle(JSDispatchHandle handle);
-
-  inline void set_code_pointer_only(
-      Tagged<Code> code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 #endif  // V8_ENABLE_LEAPTIERING
 
   // The predicates for querying code kinds related to this function have
