@@ -571,7 +571,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   const wasm::WasmFunction& function = module->functions[function_index];
   const wasm::FunctionSig* sig = function.sig;
   const uint32_t canonical_sig_index =
-      module->isorecursive_canonical_type_ids[function.sig_index];
+      module->canonical_sig_id(function.sig_index);
 
   // The start function is not guaranteed to be registered as
   // an exported function (although it is called as one).
@@ -677,8 +677,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   if (WasmImportData::CallOriginIsImportIndex(origin)) {
     int func_index = WasmImportData::CallOriginAsIndex(origin);
     canonical_sig_index =
-        module->isorecursive_canonical_type_ids[module->functions[func_index]
-                                                    .sig_index];
+        module->canonical_sig_id(module->functions[func_index].sig_index);
   } else {
     // Indirect function table index.
     int entry_index = WasmImportData::CallOriginAsIndex(origin);

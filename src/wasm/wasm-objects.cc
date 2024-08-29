@@ -483,7 +483,7 @@ bool FunctionSigMatchesTable(uint32_t canonical_sig_id,
   // (2) Most function types are expected to be final, so they can be compared
   //     cheaply by canonicalized index equality.
   uint32_t canonical_table_type =
-      module->isorecursive_canonical_type_ids[table_type.ref_index()];
+      module->canonical_sig_id(table_type.ref_index());
   if (V8_LIKELY(canonical_sig_id == canonical_table_type)) return true;
   // (3) In the remaining cases, perform the full subtype check.
   return wasm::GetWasmEngine()->type_canonicalizer()->IsCanonicalSubtype(
@@ -528,8 +528,7 @@ void WasmTableObject::UpdateDispatchTables(
 #endif  // V8_ENABLE_DRUMBRAKE
 
   const WasmModule* target_module = target_instance_data->module();
-  uint32_t canonical_sig_id =
-      target_module->isorecursive_canonical_type_ids[func->sig_index];
+  uint32_t canonical_sig_id = target_module->canonical_sig_id(func->sig_index);
 
   for (int i = 0, len = uses->length(); i < len; i += TableUses::kNumElements) {
     int table_index = Cast<Smi>(uses->get(i + TableUses::kIndexOffset)).value();
@@ -1680,12 +1679,11 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
     auto import_data = Cast<WasmImportData>(implicit_arg);
     const wasm::WellKnownImportsList& preknown_imports =
         module->type_feedback.well_known_imports;
-    uint32_t canonical_type_index =
-        module->isorecursive_canonical_type_ids[sig_index];
+    uint32_t canonical_sig_id = module->canonical_sig_id(sig_index);
     auto callable =
         handle<JSReceiver>(Cast<JSReceiver>(import_data->callable()), isolate);
     wasm::ResolvedWasmImport resolved(trusted_instance_data, function_index,
-                                      callable, sig, canonical_type_index,
+                                      callable, sig, canonical_sig_id,
                                       preknown_imports.get(function_index));
     setup_new_ref_with_generic_wrapper =
         UseGenericWasmToJSWrapper(resolved.kind(), sig, resolved.suspend());
@@ -1769,10 +1767,9 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
                           isolate);
   const WasmModule* module = instance_data->module();
   const WasmFunction& function = module->functions[internal->function_index()];
-  uint32_t canonical_sig_index =
-      module->isorecursive_canonical_type_ids[function.sig_index];
-  isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_sig_index + 1);
-  int wrapper_index = canonical_sig_index;
+  uint32_t canonical_sig_id = module->canonical_sig_id(function.sig_index);
+  isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_sig_id + 1);
+  int wrapper_index = canonical_sig_id;
 
   Tagged<MaybeObject> entry =
       isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
@@ -1796,7 +1793,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
     // this signature. We compile it and store the wrapper in the module for
     // later use.
     wrapper_code = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-        isolate, function.sig, canonical_sig_index, module);
+        isolate, function.sig, canonical_sig_id, module);
   }
   if (!wrapper_code->is_builtin()) {
     // Store the wrapper in the isolate, or make its reference weak now that we
@@ -1877,23 +1874,22 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
       js_function->shared()->wasm_js_function_data();
   // Get the function's canonical signature index. Note that the function's
   // signature may not be present in the importing module.
-  uint32_t canonical_sig_index = function_data->canonical_sig_index();
+  uint32_t canonical_sig_id = function_data->canonical_sig_index();
   const wasm::FunctionSig* sig =
       wasm::GetWasmEngine()->type_canonicalizer()->LookupSignature(
-          canonical_sig_index);
+          canonical_sig_id);
 
   Handle<JSReceiver> callable(function_data->GetCallable(), isolate);
   wasm::Suspend suspend = function_data->GetSuspend();
   wasm::WasmCodeRefScope code_ref_scope;
 
   const wasm::WasmModule* module = trusted_instance_data->module();
-  SBXCHECK(FunctionSigMatchesTable(canonical_sig_index, module, table_index));
+  SBXCHECK(FunctionSigMatchesTable(canonical_sig_id, module, table_index));
   auto module_canonical_ids = module->isorecursive_canonical_type_ids;
   // TODO(manoskouk): Consider adding a set of canonical indices to the module
   // to avoid this linear search.
-  auto sig_in_module =
-      std::find(module_canonical_ids.begin(), module_canonical_ids.end(),
-                canonical_sig_index);
+  auto sig_in_module = std::find(module_canonical_ids.begin(),
+                                 module_canonical_ids.end(), canonical_sig_id);
 
   if (sig_in_module == module_canonical_ids.end()) {
     trusted_instance_data->dispatch_table(table_index)->Clear(entry_index);
@@ -1901,7 +1897,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   }
 
   wasm::NativeModule* native_module = trusted_instance_data->native_module();
-  wasm::ResolvedWasmImport resolved({}, -1, callable, sig, canonical_sig_index,
+  wasm::ResolvedWasmImport resolved({}, -1, callable, sig, canonical_sig_id,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
@@ -1915,7 +1911,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   wasm::WasmCode* wasm_code =
-      cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
+      cache->MaybeGet(kind, canonical_sig_id, expected_arity, suspend);
   Address call_target;
   if (wasm_code) {
     call_target = wasm_code->instruction_start();
@@ -1927,7 +1923,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
         &env, kind, sig, false, expected_arity, suspend);
     {
       wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
-      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
+      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_id,
                                                  expected_arity, suspend);
       wasm_code = cache_scope.AddWrapper(
           key, std::move(result), wasm::WasmCode::Kind::kWasmToJsWrapper);
@@ -1963,10 +1959,10 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   // Decrement the refcount of any overwritten entry.
   table->offheap_data()->Remove(table->target(entry_index));
   table->offheap_data()->Add(call_target);
-  table->Set(entry_index, *import_data, call_target, canonical_sig_index);
+  table->Set(entry_index, *import_data, call_target, canonical_sig_id);
 #else   // !V8_ENABLE_DRUMBRAKE
   trusted_instance_data->dispatch_table(table_index)
-      ->Set(entry_index, *import_data, call_target, canonical_sig_index,
+      ->Set(entry_index, *import_data, call_target, canonical_sig_id,
             WasmDispatchTable::kInvalidFunctionIndex);
 #endif  // !V8_ENABLE_DRUMBRAKE
 }
@@ -2551,12 +2547,11 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
           ? wasm::kPromise
           : wasm::kNoPromise;
   uint32_t sig_index = module->functions[func_index].sig_index;
-  uint32_t canonical_type_index =
-      module->isorecursive_canonical_type_ids[sig_index];
+  uint32_t canonical_sig_id = module->canonical_sig_id(sig_index);
   DirectHandle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
           export_wrapper, instance_data, func_ref, internal_function, sig,
-          canonical_type_index, v8_flags.wasm_wrapper_tiering_budget, promise);
+          canonical_sig_id, v8_flags.wasm_wrapper_tiering_budget, promise);
 
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
@@ -2682,16 +2677,16 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   DirectHandle<Map> rtt;
   Handle<NativeContext> context(isolate->native_context());
 
-  uint32_t canonical_type_index =
+  uint32_t canonical_sig_id =
       wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
 
-  isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_type_index + 1);
+  isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_sig_id + 1);
 
   DirectHandle<WeakArrayList> canonical_rtts(
       isolate->heap()->wasm_canonical_rtts(), isolate);
 
   Tagged<MaybeObject> maybe_canonical_map =
-      canonical_rtts->Get(canonical_type_index);
+      canonical_rtts->Get(canonical_sig_id);
 
   if (maybe_canonical_map.IsStrongOrWeak() &&
       IsMap(maybe_canonical_map.GetHeapObject())) {
@@ -2699,7 +2694,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
         direct_handle(Cast<Map>(maybe_canonical_map.GetHeapObject()), isolate);
   } else {
     rtt = CreateFuncRefMap(isolate, Handle<Map>());
-    canonical_rtts->Set(canonical_type_index, MakeWeak(*rtt));
+    canonical_rtts->Set(canonical_sig_id, MakeWeak(*rtt));
   }
 
   DirectHandle<Code> js_to_js_wrapper_code =
@@ -2714,9 +2709,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 #endif
 
   DirectHandle<WasmJSFunctionData> function_data =
-      factory->NewWasmJSFunctionData(canonical_type_index, callable,
-                                     serialized_sig, js_to_js_wrapper_code, rtt,
-                                     suspend, wasm::kNoPromise, signature_hash);
+      factory->NewWasmJSFunctionData(canonical_sig_id, callable, serialized_sig,
+                                     js_to_js_wrapper_code, rtt, suspend,
+                                     wasm::kNoPromise, signature_hash);
   DirectHandle<WasmInternalFunction> internal_function{
       function_data->internal(), isolate};
 

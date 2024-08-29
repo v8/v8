@@ -7166,8 +7166,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         WasmDispatchTable::kEntriesOffset);
 
     if (needs_type_check) {
-      uint32_t canonical_sig_id =
-          env_->module->isorecursive_canonical_type_ids[sig_index];
+      uint32_t canonical_sig_id = env_->module->canonical_sig_id(sig_index);
       V<Word32> expected_canonical_sig =
           __ RelocatableWasmCanonicalSignatureId(canonical_sig_id);
 

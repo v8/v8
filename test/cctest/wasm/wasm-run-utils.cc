@@ -296,8 +296,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   if (function_indexes) {
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
-      int sig_id =
-          test_module_->isorecursive_canonical_type_ids[function.sig_index];
+      int sig_id = test_module_->canonical_sig_id(function.sig_index);
       FunctionTargetAndImplicitArg entry(isolate_, trusted_instance_data_,
                                          function.func_index);
 #if !V8_ENABLE_DRUMBRAKE

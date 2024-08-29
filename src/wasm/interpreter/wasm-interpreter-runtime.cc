@@ -1858,8 +1858,7 @@ bool WasmInterpreterRuntime::CheckIndirectCallSignature(
     const IndirectCallTable& dispatch_table =
         indirect_call_tables_[table_index];
     uint32_t real_sig_id = dispatch_table[entry_index].sig_index;
-    uint32_t canonical_sig_id =
-        module_->isorecursive_canonical_type_ids[sig_index];
+    uint32_t canonical_sig_id = module_->canonical_sig_id(sig_index);
     if (!needs_type_check) {
       // Only check for -1 (nulled table entry).
       if (real_sig_id == uint32_t(-1)) return false;

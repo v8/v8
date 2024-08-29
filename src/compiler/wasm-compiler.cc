@@ -2991,8 +2991,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   // Skip check if table type matches declared signature.
   if (needs_type_check) {
     // Embed the expected signature ID as a relocatable constant.
-    uint32_t canonical_sig_id =
-        env_->module->isorecursive_canonical_type_ids[sig_index];
+    uint32_t canonical_sig_id = env_->module->canonical_sig_id(sig_index);
     Node* expected_sig_id = mcgraph()->RelocatableInt32Constant(
         canonical_sig_id, RelocInfo::WASM_CANONICAL_SIG_ID);
 

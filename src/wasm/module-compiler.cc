@@ -2037,12 +2037,11 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     auto& function = module->functions[exp.index];
-    uint32_t canonical_type_index =
-        module->isorecursive_canonical_type_ids[function.sig_index];
-    if (static_cast<int>(canonical_type_index) <
+    uint32_t canonical_sig_id = module->canonical_sig_id(function.sig_index);
+    if (static_cast<int>(canonical_sig_id) <
         isolate->heap()->js_to_wasm_wrappers()->length()) {
       Tagged<MaybeObject> existing_wrapper =
-          isolate->heap()->js_to_wasm_wrappers()->Get(canonical_type_index);
+          isolate->heap()->js_to_wasm_wrappers()->Get(canonical_sig_id);
       if (existing_wrapper.IsStrongOrWeak() &&
           !IsUndefined(existing_wrapper.GetHeapObject())) {
         DCHECK(IsCodeWrapper(existing_wrapper.GetHeapObject()));
@@ -2052,10 +2051,9 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
         continue;
       }
     }
-    if (!keys.insert(canonical_type_index).second)
-      continue;  // Already triggered.
+    if (!keys.insert(canonical_sig_id).second) continue;  // Already triggered.
     builder->AddJSToWasmWrapperUnit(JSToWasmWrapperCompilationUnit{
-        isolate, function.sig, canonical_type_index, module,
+        isolate, function.sig, canonical_sig_id, module,
         native_module->enabled_features()});
   }
 
@@ -4580,9 +4578,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
         !function.imported &&
         CanUseGenericJsToWasmWrapper(module, function.sig);
     if (use_generic_wrapper) continue;  // Nothing to compile.
-    uint32_t canonical_type_index =
-        module->isorecursive_canonical_type_ids[function.sig_index];
-    int wrapper_index = canonical_type_index;
+    uint32_t canonical_sig_id = module->canonical_sig_id(function.sig_index);
+    int wrapper_index = canonical_sig_id;
     Tagged<MaybeObject> existing_wrapper =
         isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
     if (existing_wrapper.IsStrongOrWeak() &&
@@ -4591,11 +4588,11 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
       continue;
     }
 
-    const auto [it, inserted] = set.insert(canonical_type_index);
+    const auto [it, inserted] = set.insert(canonical_sig_id);
     if (!inserted) continue;  // Compilation already triggered.
     auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
-        isolate, function.sig, canonical_type_index, module, enabled_features);
-    compilation_units.emplace_back(canonical_type_index, std::move(unit));
+        isolate, function.sig, canonical_sig_id, module, enabled_features);
+    compilation_units.emplace_back(canonical_sig_id, std::move(unit));
   }
 
   if (compilation_units.empty()) return;
