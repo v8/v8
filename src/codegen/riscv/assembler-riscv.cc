@@ -77,6 +77,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
+#ifdef USE_SIMULATOR
 static unsigned SimulatorFeatures() {
   unsigned answer = 0;
   answer |= 1u << RISCV_SIMD;
@@ -87,6 +88,7 @@ static unsigned SimulatorFeatures() {
   answer |= 1u << FPU;
   return answer;
 }
+#endif
 
 bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(RISCV_SIMD); }
 
