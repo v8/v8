@@ -283,7 +283,6 @@ TEST_F(ApiWasmTest, WasmInstallJSPI) {
   i::wasm::WasmEnabledFeatures features =
       i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
   EXPECT_FALSE(features.has_jspi());
-  EXPECT_FALSE(features.has_type_reflection());
 
   // Test installing JSPI via flag.
   isolate()->SetWasmJSPIEnabledCallback([](auto) { return true; });
@@ -292,14 +291,12 @@ TEST_F(ApiWasmTest, WasmInstallJSPI) {
   EXPECT_FALSE(i_isolate()->IsWasmJSPIEnabled(context));
   features = i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
   EXPECT_FALSE(features.has_jspi());
-  EXPECT_FALSE(features.has_type_reflection());
 
   i::WasmJs::InstallConditionalFeatures(i_isolate(), context);
 
   EXPECT_TRUE(i_isolate()->IsWasmJSPIEnabled(context));
   features = i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
   EXPECT_TRUE(features.has_jspi());
-  EXPECT_TRUE(features.has_type_reflection());
 }
 
 }  // namespace v8
