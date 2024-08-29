@@ -54,6 +54,7 @@ WasmEnabledFeatures WasmEnabledFeatures::FromContext(
     }
     if (isolate->IsWasmJSPIEnabled(context)) {
       features.Add(WasmEnabledFeature::jspi);
+      features.Add(WasmEnabledFeature::type_reflection);
     }
   }
   // This space intentionally left blank for future Wasm origin trials.
