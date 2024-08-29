@@ -2753,21 +2753,22 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   // We ignore little endian argument if type is a byte size.
   if (type_ != ExternalArrayType::kExternalInt8Array) {
     if (is_little_endian_constant()) {
-      // TODO(v8:7700): Support big endian architectures.
-      static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
-      if (!FromConstantToBool(masm, is_little_endian_input().node())) {
+      if (!V8_TARGET_BIG_ENDIAN_BOOL &&
+          !FromConstantToBool(masm, is_little_endian_input().node())) {
         DCHECK_EQ(reg_with_result, result_reg);
         __ ReverseByteOrder(result_reg, element_size);
       }
     } else {
-      ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
       DCHECK_NE(reg_with_result, ToRegister(is_little_endian_input()));
-      __ ToBoolean(ToRegister(is_little_endian_input()),
-                   CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
-                   false);
-      __ bind(*is_big_endian);
+      __ ToBoolean(
+          ToRegister(is_little_endian_input()), CheckType::kCheckHeapObject,
+          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
+          false);
+      __ bind(*reverse_byte_order);
       __ ReverseByteOrder(reg_with_result, element_size);
-      __ bind(*is_little_endian);
+      __ bind(*keep_byte_order);
       if (reg_with_result != result_reg) {
         __ Move(result_reg, reg_with_result);
       }
@@ -2809,19 +2810,20 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   // We ignore little endian argument if type is a byte size.
   if (element_size > 1) {
     if (is_little_endian_constant()) {
-      // TODO(v8:7700): Support big endian architectures.
-      static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
-      if (!FromConstantToBool(masm, is_little_endian_input().node())) {
+      if (!V8_TARGET_BIG_ENDIAN_BOOL &&
+          !FromConstantToBool(masm, is_little_endian_input().node())) {
         __ ReverseByteOrder(value, element_size);
       }
     } else {
-      ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
-      __ ToBoolean(ToRegister(is_little_endian_input()),
-                   CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
-                   false);
-      __ bind(*is_big_endian);
+      ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
+      __ ToBoolean(
+          ToRegister(is_little_endian_input()), CheckType::kCheckHeapObject,
+          V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+          V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order,
+          false);
+      __ bind(*reverse_byte_order);
       __ ReverseByteOrder(value, element_size);
-      __ bind(*is_little_endian);
+      __ bind(*keep_byte_order);
     }
   }
 
@@ -2863,10 +2865,9 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   __ LoadExternalPointerField(
       data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
 
-  // TODO(v8:7700): Support big endian architectures.
-  static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
   if (is_little_endian_constant()) {
-    if (FromConstantToBool(masm, is_little_endian_input().node())) {
+    if (!V8_TARGET_BIG_ENDIAN_BOOL &&
+        FromConstantToBool(masm, is_little_endian_input().node())) {
       __ LoadUnalignedFloat64(result_reg, data_pointer, index);
     } else {
       __ LoadUnalignedFloat64AndReverseByteOrder(result_reg, data_pointer,
@@ -2874,18 +2875,19 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     }
   } else {
     Label done;
-    ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+    ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
     // TODO(leszeks): We're likely to be calling this on an existing boolean --
     // maybe that's a case we should fast-path here and re-use that boolean
     // value?
-    __ ToBoolean(ToRegister(is_little_endian_input()),
-                 CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
-                 true);
-    __ bind(*is_little_endian);
+    __ ToBoolean(
+        ToRegister(is_little_endian_input()), CheckType::kCheckHeapObject,
+        V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+        V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order, true);
+    __ bind(*keep_byte_order);
     __ LoadUnalignedFloat64(result_reg, data_pointer, index);
     __ Jump(&done);
     // We should swap the bytes if big endian.
-    __ bind(*is_big_endian);
+    __ bind(*reverse_byte_order);
     __ LoadUnalignedFloat64AndReverseByteOrder(result_reg, data_pointer, index);
     __ bind(&done);
   }
@@ -2921,28 +2923,28 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   __ LoadExternalPointerField(
       data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
 
-  // TODO(v8:7700): Support big endian architectures.
-  static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
   if (is_little_endian_constant()) {
-    if (FromConstantToBool(masm, is_little_endian_input().node())) {
+    if (!V8_TARGET_BIG_ENDIAN_BOOL &&
+        FromConstantToBool(masm, is_little_endian_input().node())) {
       __ StoreUnalignedFloat64(data_pointer, index, value);
     } else {
       __ ReverseByteOrderAndStoreUnalignedFloat64(data_pointer, index, value);
     }
   } else {
     Label done;
-    ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+    ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
     // TODO(leszeks): We're likely to be calling this on an existing boolean --
     // maybe that's a case we should fast-path here and re-use that boolean
     // value?
-    __ ToBoolean(ToRegister(is_little_endian_input()),
-                 CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
-                 true);
-    __ bind(*is_little_endian);
+    __ ToBoolean(
+        ToRegister(is_little_endian_input()), CheckType::kCheckHeapObject,
+        V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
+        V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order, true);
+    __ bind(*keep_byte_order);
     __ StoreUnalignedFloat64(data_pointer, index, value);
     __ Jump(&done);
     // We should swap the bytes if big endian.
-    __ bind(*is_big_endian);
+    __ bind(*reverse_byte_order);
     __ ReverseByteOrderAndStoreUnalignedFloat64(data_pointer, index, value);
     __ bind(&done);
   }

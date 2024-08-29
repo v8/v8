@@ -1006,5 +1006,10 @@ V8 shared library set USING_V8_SHARED.
 #else
 #define V8_STATIC_ROOTS_BOOL true
 #endif
+#ifdef V8_TARGET_BIG_ENDIAN
+#define V8_TARGET_BIG_ENDIAN_BOOL true
+#else
+#define V8_TARGET_BIG_ENDIAN_BOOL false
+#endif
 
 #endif  // V8CONFIG_H_
