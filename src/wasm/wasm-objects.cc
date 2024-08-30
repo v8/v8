@@ -2132,10 +2132,22 @@ const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
 
 WasmDispatchTableData::~WasmDispatchTableData() {
   std::vector<wasm::WasmCode*> codes;
+  // All wrappers are both in {wrappers_} and {lookup_cache_}.
+  // TODO(clemensb): Remove one of the data structures.
+#if DEBUG
+  for (auto [instruction_start, wrapper] : lookup_cache_) {
+    if (!wrapper) continue;
+    DCHECK(wrappers_.contains(wrapper));
+    DCHECK_EQ(instruction_start, wrapper->instruction_start());
+  }
+#endif
   codes.reserve(wrappers_.size());
-  for (auto it : wrappers_) {
-    DCHECK_GT(it.second, 0);
-    codes.push_back(it.first);
+  for (auto [wrapper, count] : wrappers_) {
+    DCHECK(lookup_cache_.contains(wrapper->instruction_start()));
+    DCHECK_EQ(wrapper,
+              lookup_cache_.find(wrapper->instruction_start())->second);
+    DCHECK_GT(count, 0);
+    codes.push_back(wrapper);
   }
   wasm::WasmCode::DecrementRefCount(base::VectorOf(codes));
 }
@@ -2154,29 +2166,29 @@ void WasmDispatchTableData::Add(Address call_target,
     return;
   }
 
-  wasm::WasmCode* code = wrapper_if_known;
-  if (code) {
-    // If the caller knows that the call_target is a wrapper, remember that.
-    lookup_cache_[call_target] = code;
-  } else {
-    // Otherwise, first check lock-free whether we already know that it
-    // either is or isn't a wrapper.
-    auto entry = lookup_cache_.find(call_target);
-    if (entry == lookup_cache_.end()) {
-      // No entry means we don't know, so we have to perform the relatively
-      // expensive mutex-protected lookup to find out.
-      code = wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
-      lookup_cache_[call_target] = code;
-    } else {
-      // A cached entry could be a WasmCode* (if it's a wrapper) or nullptr
-      // (if it's guaranteed not to be a wrapper).
-      code = entry->second;
+  // Perform lookup and insertion in a single operation; we never have to update
+  // existing entries.
+  auto [cache_entry, was_inserted] =
+      lookup_cache_.emplace(call_target, wrapper_if_known);
+  wasm::WasmCode*& wrapper = cache_entry->second;
+  DCHECK(wrapper_if_known == nullptr || wrapper_if_known == wrapper);
+  if (!was_inserted) {
+    // We already knew if this was a wrapper or not.
+    if (!wrapper) {
+      DCHECK_NULL(wrapper_if_known);
+      return;  // Not a wrapper.
     }
+  } else if (wrapper_if_known == nullptr) {
+    DCHECK_NULL(wrapper);
+    // No cache entry, and we are not sure if this is a wrapper. So we have to
+    // perform the relatively expensive mutex-protected lookup to find out.
+    wrapper = wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+    if (!wrapper) return;  // Not a wrapper.
   }
-  if (!code) return;  // Not a wrapper.
-  auto [it, inserted] = wrappers_.emplace(code, 1);
+  DCHECK_NOT_NULL(wrapper);
+  auto [it, inserted] = wrappers_.emplace(wrapper, 1);
   if (inserted) {
-    code->IncRef();
+    wrapper->IncRef();
   } else {
     it->second++;
   }
@@ -2184,19 +2196,19 @@ void WasmDispatchTableData::Add(Address call_target,
 
 void WasmDispatchTableData::Remove(Address call_target) {
   if (call_target == kNullAddress) return;
-  wasm::WasmCode* code = nullptr;
+  wasm::WasmCode* wrapper = nullptr;
   auto entry = lookup_cache_.find(call_target);
   if (entry != lookup_cache_.end()) {
-    code = entry->second;
+    wrapper = entry->second;
   } else {
-    code = wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+    wrapper = wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
   }
-  if (!code) return;  // Not a wrapper.
-  auto it = wrappers_.find(code);
+  if (!wrapper) return;
+  auto it = wrappers_.find(wrapper);
   DCHECK_NE(it, wrappers_.end());
   if (it->second == 1) {
     // This was the last reference to this wrapper in this table.
-    wasm::WasmCode::DecrementRefCount({&code, 1});
+    wasm::WasmCode::DecrementRefCount({&wrapper, 1});
     wrappers_.erase(it);
   } else {
     it->second--;
