@@ -4344,6 +4344,8 @@ void CompilationStateImpl::PublishDetectedFeaturesAfterCompilation(
       {WasmDetectedFeature::multi_memory, Feature::kWasmMultiMemory},
       {WasmDetectedFeature::gc, Feature::kWasmGC},
       {WasmDetectedFeature::imported_strings, Feature::kWasmImportedStrings},
+      {WasmDetectedFeature::imported_strings_utf8,
+       Feature::kWasmImportedStringsUtf8},
       {WasmDetectedFeature::return_call, Feature::kWasmReturnCall},
       {WasmDetectedFeature::extended_const, Feature::kWasmExtendedConst},
       {WasmDetectedFeature::relaxed_simd, Feature::kWasmRelaxedSimd},

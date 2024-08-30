@@ -1690,6 +1690,9 @@ DEFINE_IMPLICATION(experimental_wasm_jspi, experimental_wasm_type_reflection)
 
 DEFINE_IMPLICATION(experimental_wasm_growable_stacks, experimental_wasm_jspi)
 
+DEFINE_IMPLICATION(experimental_wasm_imported_strings_utf8,
+                   experimental_wasm_imported_strings)
+
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 
 #define WASM_STAGING_IMPLICATION(feat, desc, val) \

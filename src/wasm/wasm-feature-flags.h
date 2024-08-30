@@ -100,6 +100,11 @@
   /* V8 side owner: jkummerow */                                               \
   V(imported_strings, "imported strings", false)                               \
                                                                                \
+  /* Imported Strings TextEncoder/TextDecoder post-MVP extension. */           \
+  /* No upstream repo yet. */                                                  \
+  /* V8 side owner: jkummerow */                                               \
+  V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
+                                                                               \
   /* Exnref */                                                                 \
   /* This flag enables the new exception handling proposal */                  \
   /* V8 side owner: thibaudm */                                                \
