@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:23.20240823.0.1',
+  'fuchsia_version': 'version:23.20240830.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -124,12 +124,12 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_tools-lint_version
   # and whatever else without interference from each other.
-  'android_sdk_cmdline-tools_version': 'fv6JzkTqfxfIbmsRC8u1b2y0EQO7yQDMDzY3-g0NVu4C',
+  'android_sdk_cmdline-tools_version': 'B4p95sDPpm34K8Cf4JcfTM-iYSglWko9qjWgbT9dxWQC',
 }
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '044d18454c422d71381704017aa22c06f6d6774b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0b827d41f4ea1a90d536f656c922d856ff9881e2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'ce0161ffa04d36127f885926541929bf084638f0',
   'buildtools/linux64': {
@@ -231,11 +231,11 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/boringssl': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '849fec2085be54ad359c8e4336c9f4fd938bf5ca',
+    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '25801171ed7d48a897c19797f7d97c902f0f6e14',
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'd3c1afdc1b3ca24469c895dff659cff3accb6c56',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '6c3a63970fbaea7b4f1db23f3213b0c52586cc6c',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
