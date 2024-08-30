@@ -102,9 +102,25 @@ RUNTIME_FUNCTION(Runtime_InstallSFICode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
-  Tagged<SharedFunctionInfo> sfi = function->shared();
-  DCHECK(sfi->is_compiled());
-  Tagged<Code> sfi_code = sfi->GetCode(isolate);
+  {
+    DisallowGarbageCollection no_gc;
+    Tagged<SharedFunctionInfo> sfi = function->shared();
+    DCHECK(sfi->is_compiled());
+    Tagged<Code> sfi_code = sfi->GetCode(isolate);
+    if (V8_LIKELY(sfi_code->kind() != CodeKind::BASELINE ||
+                  function->has_feedback_vector())) {
+      function->UpdateCode(sfi_code);
+      return sfi_code;
+    }
+  }
+  // This could be the first time we are installing baseline code so we need to
+  // ensure that a feedback vectors is allocated.
+  IsCompiledScope is_compiled_scope(function->shared(), isolate);
+  DCHECK(!function->HasAvailableOptimizedCode(isolate));
+  DCHECK(!function->has_feedback_vector());
+  JSFunction::CreateAndAttachFeedbackVector(isolate, function,
+                                            &is_compiled_scope);
+  Tagged<Code> sfi_code = function->shared()->GetCode(isolate);
   function->UpdateCode(sfi_code);
   return sfi_code;
 }
