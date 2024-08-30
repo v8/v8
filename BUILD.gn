@@ -2459,7 +2459,8 @@ template("run_mksnapshot") {
       # output when verifying snapshot determinism for debugging.
       args += [
         "--redirect-stdout",
-        rebase_path("$root_out_dir/mksnapshot_output${suffix}.log", root_build_dir),
+        rebase_path("$root_out_dir/mksnapshot_output${suffix}.log",
+                    root_build_dir),
       ]
       data += [ "$root_out_dir/mksnapshot_output${suffix}.log" ]
     }
@@ -2489,7 +2490,7 @@ template("run_mksnapshot") {
 
     if (v8_verify_deterministic_mksnapshot) {
       # Flags that help debugging snapshot determinism.
-      args += ["--trace-read-only-promotion"]
+      args += [ "--trace-read-only-promotion" ]
     }
 
     if (v8_log_builtins_block_count_input != "") {
@@ -5724,6 +5725,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-test.cc",
     "src/runtime/runtime-trace.cc",
     "src/runtime/runtime-typedarray.cc",
+    "src/runtime/runtime-utils.cc",
     "src/runtime/runtime-weak-refs.cc",
     "src/runtime/runtime.cc",
     "src/sandbox/code-pointer-table.cc",

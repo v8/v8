@@ -2331,6 +2331,7 @@ filegroup(
         "src/runtime/runtime-test.cc",
         "src/runtime/runtime-trace.cc",
         "src/runtime/runtime-typedarray.cc",
+        "src/runtime/runtime-utils.cc",
         "src/runtime/runtime-utils.h",
         "src/runtime/runtime-weak-refs.cc",
         "src/sandbox/bounded-size.h",

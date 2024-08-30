@@ -216,8 +216,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
 // Type checks the object against the type; if the check succeeds, returns the
 // object in its wasm representation; otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
-  // TODO(manoskouk): Use {SaveAndClearThreadInWasmFlag} in runtime-internal.cc
-  // and runtime-strings.cc.
+  // TODO(manoskouk): Use {SaveAndClearThreadInWasmFlag} in runtime-utils.cc.
   bool thread_in_wasm = trap_handler::IsThreadInWasm();
   if (thread_in_wasm) trap_handler::ClearThreadInWasm();
   HandleScope scope(isolate);
