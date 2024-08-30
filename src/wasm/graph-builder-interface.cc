@@ -1858,8 +1858,13 @@ class WasmGraphBuildingInterface {
         // and BrOnNull interacts with the values on the stack.
         // TODO(14034): The compiler shouldn't have to access the stack used by
         // the decoder ideally.
+        // Note: This TypeGuard doesn't add any new type information but we need
+        // a non-const Value that we can return to the decoder for
+        // value_on_branch. The clean solution would be to emit the TypeGuard
+        // with the branch-type in the effect edge of the branch and use
+        // value_on_branch->type as type there.
         SetAndTypeNode(value_on_branch,
-                       builder_->TypeGuard(object.node, value_on_branch->type));
+                       builder_->TypeGuard(object.node, object.type));
         return BrOnNull(decoder, object, br_depth, true, value_on_branch);
       case HeapType::kAny:
         // Any may never need a cast as it is either implicitly convertible or
