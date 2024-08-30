@@ -684,13 +684,6 @@ class Heap final {
         std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  // TODO(manoskouk): Consider inlining/moving this if
-  // STRONG_MUTABLE_MOVABLE_ROOT_LIST setters become public.
-  V8_EXPORT_PRIVATE void EnsureWasmCanonicalRttsSize(int length);
-  V8_EXPORT_PRIVATE void ClearWasmCanonicalRttsForTesting();
-#endif
-
   // ===========================================================================
   // Initialization. ===========================================================
   // ===========================================================================
@@ -885,6 +878,11 @@ class Heap final {
   V8_INLINE void SetMessageListeners(Tagged<ArrayList> value);
   V8_INLINE void SetFunctionsMarkedForManualOptimization(
       Tagged<Object> bytecode);
+
+#if V8_ENABLE_WEBASSEMBLY
+  V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakArrayList> value);
+  V8_INLINE void SetJSToWasmWrappers(Tagged<WeakArrayList> value);
+#endif
 
   StrongRootsEntry* RegisterStrongRoots(const char* label, FullObjectSlot start,
                                         FullObjectSlot end);

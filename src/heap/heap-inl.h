@@ -179,6 +179,16 @@ void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
       hash_table.ptr();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+void Heap::SetWasmCanonicalRtts(Tagged<WeakArrayList> value) {
+  set_wasm_canonical_rtts(value);
+}
+
+void Heap::SetJSToWasmWrappers(Tagged<WeakArrayList> value) {
+  set_js_to_wasm_wrappers(value);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 PagedSpace* Heap::paged_space(int idx) const {
   DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE ||
          idx == TRUSTED_SPACE || idx == SHARED_TRUSTED_SPACE);

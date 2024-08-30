@@ -227,8 +227,8 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
 }
 
 void TestingModuleBuilder::InitializeWrapperCache() {
-  isolate_->heap()->EnsureWasmCanonicalRttsSize(
-      test_module_->MaxCanonicalTypeIndex() + 1);
+  TypeCanonicalizer::PrepareForCanonicalTypeId(
+      isolate_, test_module_->MaxCanonicalTypeIndex());
   Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
       static_cast<int>(test_module_->types.size()));
   for (uint32_t index = 0; index < test_module_->types.size(); index++) {

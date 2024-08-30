@@ -4,7 +4,11 @@
 
 #include "src/wasm/canonical-types.h"
 
+#include "src/execution/isolate.h"
+#include "src/handles/handles-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/init/v8.h"
+#include "src/roots/roots-inl.h"
 #include "src/utils/utils.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-engine.h"
@@ -372,6 +376,42 @@ size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
 size_t TypeCanonicalizer::GetCurrentNumberOfTypes() const {
   base::MutexGuard mutex_guard(&mutex_);
   return canonical_supertypes_.size();
+}
+
+// static
+void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate, int id) {
+  Heap* heap = isolate->heap();
+  CHECK_EQ(heap->wasm_canonical_rtts()->length() * 2,
+           heap->js_to_wasm_wrappers()->length());
+  // TODO(mliedtke): Only use the handle scope when actually needed.
+  HandleScope scope(isolate);
+  // Canonical types are zero-indexed.
+  const int length = id + 1;
+
+  Handle<WeakArrayList> current_rtts =
+      handle(heap->wasm_canonical_rtts(), isolate);
+  if (length <= current_rtts->length()) return;
+  DirectHandle<WeakArrayList> new_rtts = WeakArrayList::EnsureSpace(
+      isolate, current_rtts, length, AllocationType::kOld);
+  new_rtts->set_length(length);
+  heap->SetWasmCanonicalRtts(*new_rtts);
+
+  // Wrappers are indexed by canonical rtt length, and an additional boolean
+  // storing whether the corresponding function is imported or not.
+  int required_wrapper_length = 2 * length;
+  Handle<WeakArrayList> current_wrappers =
+      handle(heap->js_to_wasm_wrappers(), isolate);
+  DirectHandle<WeakArrayList> new_wrappers = WeakArrayList::EnsureSpace(
+      isolate, current_wrappers, required_wrapper_length, AllocationType::kOld);
+  new_wrappers->set_length(required_wrapper_length);
+  heap->SetJSToWasmWrappers(*new_wrappers);
+}
+
+// static
+void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
+  ReadOnlyRoots roots(isolate);
+  isolate->heap()->SetWasmCanonicalRtts(roots.empty_weak_array_list());
+  isolate->heap()->SetJSToWasmWrappers(roots.empty_weak_array_list());
 }
 
 }  // namespace v8::internal::wasm

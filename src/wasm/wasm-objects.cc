@@ -1774,7 +1774,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   const WasmModule* module = instance_data->module();
   const WasmFunction& function = module->functions[internal->function_index()];
   uint32_t canonical_sig_id = module->canonical_sig_id(function.sig_index);
-  isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_sig_id + 1);
+  wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(isolate, canonical_sig_id);
   int wrapper_index = canonical_sig_id;
 
   Tagged<MaybeObject> entry =
@@ -2720,7 +2720,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   uint32_t canonical_sig_id =
       wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
 
-  isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_sig_id + 1);
+  wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(isolate, canonical_sig_id);
 
   DirectHandle<WeakArrayList> canonical_rtts(
       isolate->heap()->wasm_canonical_rtts(), isolate);

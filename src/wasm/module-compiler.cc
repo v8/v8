@@ -4057,8 +4057,8 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
                "wasm.FinalizeJSToWasmWrappers", "wrappers",
                js_to_wasm_wrapper_units_.size());
 
-  isolate->heap()->EnsureWasmCanonicalRttsSize(module->MaxCanonicalTypeIndex() +
-                                               1);
+  TypeCanonicalizer::PrepareForCanonicalTypeId(isolate,
+                                               module->MaxCanonicalTypeIndex());
   for (auto& unit : js_to_wasm_wrapper_units_) {
     DCHECK_EQ(isolate, unit.isolate());
     DirectHandle<Code> code = unit.Finalize();
@@ -4561,8 +4561,8 @@ class CompileJSToWasmWrapperJob final : public BaseCompileJSToWasmWrapperJob {
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
   TRACE_EVENT0("v8.wasm", "wasm.CompileJsToWasmWrappers");
 
-  isolate->heap()->EnsureWasmCanonicalRttsSize(module->MaxCanonicalTypeIndex() +
-                                               1);
+  TypeCanonicalizer::PrepareForCanonicalTypeId(isolate,
+                                               module->MaxCanonicalTypeIndex());
 
   JSToWasmWrapperSet set;
   JSToWasmWrapperUnitVector compilation_units;

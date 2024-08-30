@@ -2202,37 +2202,6 @@ void Heap::CheckCollectionRequested() {
                     current_gc_callback_flags_);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-void Heap::EnsureWasmCanonicalRttsSize(int length) {
-  HandleScope scope(isolate());
-
-  Handle<WeakArrayList> current_rtts = handle(wasm_canonical_rtts(), isolate_);
-  if (length <= current_rtts->length()) return;
-  DirectHandle<WeakArrayList> new_rtts = WeakArrayList::EnsureSpace(
-      isolate(), current_rtts, length, AllocationType::kOld);
-  new_rtts->set_length(length);
-  set_wasm_canonical_rtts(*new_rtts);
-
-  // Wrappers are indexed by canonical rtt length, and an additional boolean
-  // storing whether the corresponding function is imported or not.
-  int required_wrapper_length = 2 * length;
-  Handle<WeakArrayList> current_wrappers =
-      handle(js_to_wasm_wrappers(), isolate_);
-  if (required_wrapper_length <= current_wrappers->length()) return;
-  DirectHandle<WeakArrayList> new_wrappers =
-      WeakArrayList::EnsureSpace(isolate(), current_wrappers,
-                                 required_wrapper_length, AllocationType::kOld);
-  new_wrappers->set_length(required_wrapper_length);
-  set_js_to_wasm_wrappers(*new_wrappers);
-}
-
-void Heap::ClearWasmCanonicalRttsForTesting() {
-  ReadOnlyRoots roots(this);
-  set_wasm_canonical_rtts(roots.empty_weak_array_list());
-  set_js_to_wasm_wrappers(roots.empty_weak_array_list());
-}
-#endif
-
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   if (start_new_space_size == 0) return;
 
