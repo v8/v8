@@ -3542,9 +3542,6 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x2Min(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     InstructionOperand temp1 = g.TempFpRegister(v0);
     InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
@@ -3567,14 +3564,10 @@ void InstructionSelectorT<Adapter>::VisitF64x2Min(node_t node) {
                g.UseImmediate(m1), g.UseImmediate(MaskType::Mask));
     this->Emit(kRiscvVmv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
                g.UseImmediate(m1));
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x2Max(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     InstructionOperand temp1 = g.TempFpRegister(v0);
     InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
@@ -3597,7 +3590,6 @@ void InstructionSelectorT<Adapter>::VisitF64x2Max(node_t node) {
                g.UseImmediate(m1), g.UseImmediate(MaskType::Mask));
     this->Emit(kRiscvVmv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
                g.UseImmediate(m1));
-  }
 }
 // static
 MachineOperatorBuilder::Flags
