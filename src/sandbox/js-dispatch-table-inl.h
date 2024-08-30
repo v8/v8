@@ -109,12 +109,13 @@ JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
 
 void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
                                                   Address new_entrypoint) {
-  // The entry must be alive if it is being set, so make sure that the marking
-  // bit (which is the heap object tag bit) is set. ::Mark relies on this.
-  DCHECK_EQ(new_object & kHeapObjectTag, 1);
-
-  uint16_t parameter_count = GetParameterCount();
-  Address payload = (new_object << kObjectPointerShift) | parameter_count;
+  Address current_payload = encoded_word_.load(std::memory_order_relaxed);
+  Address marking_bit = current_payload & kMarkingBit;
+  Address parameter_count = current_payload & kParameterCountMask;
+  // We want to preserve the marking bit of the entry. Since that happens to be
+  // the tag bit of the pointer, we need to explicitly clear it here.
+  Address object = (new_object << kObjectPointerShift) & ~kMarkingBit;
+  Address payload = object | marking_bit | parameter_count;
   encoded_word_.store(payload, std::memory_order_relaxed);
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
 }
@@ -135,16 +136,16 @@ uint32_t JSDispatchEntry::GetNextFreelistEntryIndex() const {
 }
 
 void JSDispatchEntry::Mark() {
-  Address old_value = encoded_word_.load(std::memory_order_relaxed);
-  Address new_value = old_value | kMarkingBit;
-
-  // We don't need to perform the CAS in a loop since it can only fail if a new
-  // value has been written into the entry. This, however, will also have set
-  // the marking bit.
-  bool success = encoded_word_.compare_exchange_strong(
-      old_value, new_value, std::memory_order_relaxed);
-  DCHECK(success || (old_value & kMarkingBit) == kMarkingBit);
-  USE(success);
+  // TODO(saelo): we probably don't need this loop: if another thread does a
+  // SetCode in between, then that should trigger a write barrier which will
+  // mark the entry as alive.
+  bool success;
+  do {
+    Address old_value = encoded_word_.load(std::memory_order_relaxed);
+    Address new_value = old_value | kMarkingBit;
+    success = encoded_word_.compare_exchange_strong(old_value, new_value,
+                                                    std::memory_order_relaxed);
+  } while (!success);
 }
 
 void JSDispatchEntry::Unmark() {
@@ -206,6 +207,15 @@ template <typename Callback>
 void JSDispatchTable::IterateActiveEntriesIn(Space* space, Callback callback) {
   IterateEntriesIn(space, [&](uint32_t index) {
     if (!at(index).IsFreelistEntry()) {
+      callback(IndexToHandle(index));
+    }
+  });
+}
+
+template <typename Callback>
+void JSDispatchTable::IterateMarkedEntriesIn(Space* space, Callback callback) {
+  IterateEntriesIn(space, [&](uint32_t index) {
+    if (at(index).IsMarked()) {
       callback(IndexToHandle(index));
     }
   });

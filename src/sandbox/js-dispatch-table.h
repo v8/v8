@@ -218,6 +218,9 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   template <typename Callback>
   void IterateActiveEntriesIn(Space* space, Callback callback);
 
+  template <typename Callback>
+  void IterateMarkedEntriesIn(Space* space, Callback callback);
+
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 
