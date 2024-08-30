@@ -327,7 +327,7 @@ declare_args() {
   v8_enable_sandbox = ""
 
   # Explicitly disable leaptiering (on builds where it would otherwise be enabled).
-  v8_disable_leaptiering = ""
+  v8_disable_leaptiering = true
 
   # Enable the memory corruption API. Useful for testing the sandbox.
   # The memory corruption API is only exposed to JavaScript if sandbox testing
