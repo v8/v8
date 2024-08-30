@@ -803,6 +803,23 @@ void RegExpMatchInfo::RegExpMatchInfoVerify(Isolate* isolate) {
   }
 }
 
+void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
+  Tagged<Object> v = value();
+  Object::VerifyPointer(isolate, v);
+  CHECK(IsUndefined(v) || IsClosureFeedbackCellArray(v) || IsFeedbackVector(v));
+
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchHandle handle = dispatch_handle();
+  if (!jdt->HasCode(handle)) return;
+  Tagged<Code> code = jdt->GetCode(handle);
+  CodeKind kind = code->kind();
+  CHECK(kind == CodeKind::FOR_TESTING || kind == CodeKind::BUILTIN ||
+        kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BASELINE ||
+        kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN);
+#endif
+}
+
 void ClosureFeedbackCellArray::ClosureFeedbackCellArrayVerify(
     Isolate* isolate) {
   CHECK(IsSmi(TaggedField<Object>::load(*this, kCapacityOffset)));

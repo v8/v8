@@ -3862,6 +3862,7 @@ void MacroAssembler::LoadCodeEntrypointFromJSDispatchTable(
   // TODO(saelo): can the offset computation be done more efficiently?
   Mov(destination, Operand(destination, LSR, kJSDispatchHandleShift));
   Mov(destination, Operand(destination, LSL, kJSDispatchTableEntrySizeLog2));
+  DCHECK_EQ(JSDispatchEntry::kEntrypointOffset, 0);
   Ldr(destination, MemOperand(scratch, destination));
 }
 #endif

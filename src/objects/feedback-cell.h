@@ -61,6 +61,8 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   // creation by updating the map.
   inline void IncrementClosureCount(Isolate* isolate);
 
+  DECL_VERIFIER(FeedbackCell)
+
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(FeedbackCell)

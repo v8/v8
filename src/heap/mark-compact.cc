@@ -3420,6 +3420,16 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
           // have been flushed and so we replace it with the CompileLazy
           // builtin. Once we use leaptiering on all platforms, we can probably
           // simplify the other code related to baseline flushing.
+
+          // Currently, we can also see optimized code here. This happens when a
+          // FeedbackCell for which no JSFunctions remain references optimized
+          // code. However, in that case we probably do want to delete the
+          // optimized code, so that is working as intended. It does mean,
+          // however, that we cannot DCHECK here that we only see baseline code.
+          DCHECK(code->kind() == CodeKind::FOR_TESTING ||
+                 code->kind() == CodeKind::BASELINE ||
+                 code->kind() == CodeKind::MAGLEV ||
+                 code->kind() == CodeKind::TURBOFAN);
           jdt->SetCode(handle, *BUILTIN_CODE(heap_->isolate(), CompileLazy));
         }
       });
