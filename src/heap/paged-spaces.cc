@@ -127,9 +127,16 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
     // We'll have to come up with a better solution for allocation stepping
     // before shipping, which will likely be using LocalHeap.
   }
+  const bool is_from_client_heap =
+      (other->destination_heap() ==
+       CompactionSpace::DestinationHeap::kSharedSpaceHeap);
+  DCHECK_IMPLIES(is_from_client_heap, identity() == SHARED_SPACE);
   for (auto p : other->GetNewPages()) {
-    heap()->NotifyOldGenerationExpansion(heap()->main_thread_local_heap(),
-                                         identity(), p);
+    heap()->NotifyOldGenerationExpansion(
+        heap()->main_thread_local_heap(), identity(), p,
+        is_from_client_heap
+            ? Heap::OldGenerationExpansionNotificationOrigin::kFromClientHeap
+            : Heap::OldGenerationExpansionNotificationOrigin::kFromSameHeap);
   }
 
   DCHECK_EQ(0u, other->Size());
@@ -622,15 +629,22 @@ void CompactionSpace::RefillFreeList() {
 CompactionSpaceCollection::CompactionSpaceCollection(
     Heap* heap, CompactionSpaceKind compaction_space_kind)
     : old_space_(heap, OLD_SPACE, Executability::NOT_EXECUTABLE,
-                 compaction_space_kind),
+                 compaction_space_kind,
+                 CompactionSpace::DestinationHeap::kSameHeap),
       code_space_(heap, CODE_SPACE, Executability::EXECUTABLE,
-                  compaction_space_kind),
+                  compaction_space_kind,
+                  CompactionSpace::DestinationHeap::kSameHeap),
       trusted_space_(heap, TRUSTED_SPACE, Executability::NOT_EXECUTABLE,
-                     compaction_space_kind) {
+                     compaction_space_kind,
+                     CompactionSpace::DestinationHeap::kSameHeap) {
   if (heap->isolate()->has_shared_space()) {
+    const CompactionSpace::DestinationHeap dest_heap =
+        heap->isolate()->is_shared_space_isolate()
+            ? CompactionSpace::DestinationHeap::kSameHeap
+            : CompactionSpace::DestinationHeap::kSharedSpaceHeap;
     shared_space_.emplace(heap->isolate()->shared_space_isolate()->heap(),
                           SHARED_SPACE, Executability::NOT_EXECUTABLE,
-                          compaction_space_kind);
+                          compaction_space_kind, dest_heap);
   }
 }
 

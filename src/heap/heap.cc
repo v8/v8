@@ -6003,9 +6003,10 @@ void Heap::NotifyBootstrapComplete() {
   }
 }
 
-void Heap::NotifyOldGenerationExpansion(LocalHeap* local_heap,
-                                        AllocationSpace space,
-                                        MutablePageMetadata* chunk_metadata) {
+void Heap::NotifyOldGenerationExpansion(
+    LocalHeap* local_heap, AllocationSpace space,
+    MutablePageMetadata* chunk_metadata,
+    OldGenerationExpansionNotificationOrigin notification_origin) {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!deserialization_complete()) {
     DCHECK_NE(NEW_SPACE, chunk_metadata->owner()->identity());
@@ -6015,11 +6016,15 @@ void Heap::NotifyOldGenerationExpansion(LocalHeap* local_heap,
     isolate()->AddCodeMemoryChunk(chunk_metadata);
   }
 
+  // Don't notify MemoryReducer when calling from client heap as otherwise not
+  // thread safe.
   const size_t kMemoryReducerActivationThreshold = 1 * MB;
   if (local_heap->is_main_thread_for(this) && memory_reducer() != nullptr &&
       old_generation_capacity_after_bootstrap_ && ms_count_ == 0 &&
       OldGenerationCapacity() >= old_generation_capacity_after_bootstrap_ +
                                      kMemoryReducerActivationThreshold &&
+      (notification_origin ==
+       OldGenerationExpansionNotificationOrigin::kFromSameHeap) &&
       v8_flags.memory_reducer_for_small_heaps) {
     memory_reducer()->NotifyPossibleGarbage();
   }
