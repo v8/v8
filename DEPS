@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0b827d41f4ea1a90d536f656c922d856ff9881e2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '54df0492d38dd7ba94d5fef52c4e4490f9fa1ab9',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'ce0161ffa04d36127f885926541929bf084638f0',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '40bbb6dca20fec0402ce9e93763123131cc3516d',
   'buildtools/linux64': {
     'packages': [
       {
@@ -231,7 +231,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/boringssl': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '25801171ed7d48a897c19797f7d97c902f0f6e14',
+    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + '3cbe0a10c2ffe9fed14badc4a3cd4e95af089783',
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b46b033bd71f548d9e28bc55f878cd4e29f76ad1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2836a02f55cd943760ab4949d5846cc5fb1fadcb',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -305,7 +305,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e6b5251bf5fb1d935bb85578bed97e5bb3128f32',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'db9380a7552f8f1e00c47e0f5bfc82d8942d9908',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a834cb253992175f4a896c5fb1352ecd91abf11e',
   'third_party/libunwind/src':
