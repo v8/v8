@@ -2191,4 +2191,16 @@
 # End roll-watcher patch
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds-receiver-is-not-object': [SKIP],
+  'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds-receiver-is-not-typed-array': [SKIP],
+  'language/statements/with/get-mutable-binding-binding-deleted-in-get-unscopables-strict-mode': [SKIP],
+  'language/statements/with/set-mutable-binding-binding-deleted-in-get-unscopables-strict-mode': [SKIP],
+  'language/statements/with/set-mutable-binding-binding-deleted-with-typed-array-in-proto-chain-strict-mode': [SKIP],
+}],
+# End roll-watcher patch
+####
+
 ]
