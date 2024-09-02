@@ -72,7 +72,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        notify_owners = ["saelo@google.com"],
+        notify_owners = ["saelo@google.com", "cffsmith@google.com"],
         notifies = ["blamelist"],
     ),
     experiment_builder(
