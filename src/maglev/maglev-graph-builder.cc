@@ -4277,7 +4277,10 @@ AllocationBlock* GetAllocation(ValueNode* object) {
 bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
                                               ValueNode* value) {
   if (value->Is<RootConstant>()) return true;
-  if (CheckType(value, NodeType::kSmi)) return true;
+  if (CheckType(value, NodeType::kSmi)) {
+    RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
+    return true;
+  }
 
   // No need for a write barrier if both object and value are part of the same
   // folded young allocation.
