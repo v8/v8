@@ -2748,6 +2748,8 @@ action("v8_dump_build_config") {
   # This lists all build-time switches consumed by the test framework. All
   # switches can be used automatically in the status files as is - no
   # further files need to be modified.
+  # However, the switch also has to be entered in `build_config_content` in
+  # `bazel/defs.bzl` so that the switch also works for tests triggered by bazel.
   #
   # Naming conventions: Keep switch names short and remove unnecessary
   # qualifiers. Drop v8_enable_, v8_, is_ where possible.
@@ -2814,6 +2816,9 @@ action("v8_dump_build_config") {
     "verify_predictable=$v8_enable_verify_predictable",
     "memory_corruption_api=$v8_enable_memory_corruption_api",
     "leaptiering=$use_leaptiering",
+
+    # Please add new switches also in `build_config_content` in `bazel/defs.bzl`
+    # so that the switches also work for tests triggered by bazel.
   ]
 }
 

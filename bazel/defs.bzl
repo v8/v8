@@ -561,6 +561,7 @@ def build_config_content(cpu, icu):
         ("is_android", "false"),
         ("is_ios", "false"),
         ("js_shared_memory", "false"),
+        ("leaptiering", "true"),
         ("lite_mode", "false"),
         ("local_off_stack_check", "false"),
         ("memory_corruption_api", "false"),
