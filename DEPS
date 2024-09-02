@@ -76,7 +76,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:225e90c5025bf74f41dbee60d9cde4512c846fe7',
+  'gn_version': 'git_revision:4e4b8d98949995474bf09cef2ca5ec3c496b82f0',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6e610a4a0b56759367d908f1a9e0f0c48a171e33',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '469c6d506225a9aeaf7d3479745ece6d9a24f492',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'ce01263a75bb45bf1282027be40deb105f4895e3',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0811404e1ef9f62bb423e36b0647786b6aa5a43a',
   'buildtools/linux64': {
     'packages': [
       {
@@ -305,7 +305,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '38d6ad0fe69a409b4d49e98481509c87b361fe3f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e9dbf36b5085431e9e37ee2a46afbdc119e040df',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a834cb253992175f4a896c5fb1352ecd91abf11e',
   'third_party/libunwind/src':
