@@ -10174,20 +10174,6 @@ ReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
 }
 
 namespace {
-std::optional<int> TryGetArrayContructorLength(CallArguments& args) {
-  if (args.count() != 1) return {};
-  ValueNode* length = args[0];
-  switch (args[0]->opcode()) {
-    case Opcode::kSmiConstant:
-      return length->Cast<SmiConstant>()->value().value();
-    case Opcode::kInt32Constant:
-      return length->Cast<Int32Constant>()->value();
-    case Opcode::kUint32Constant:
-      return length->Cast<Uint32Constant>()->value();
-    default:
-      return {};
-  }
-}
 
 compiler::OptionalMapRef GetArrayConstructorInitialMap(
     compiler::JSHeapBroker* broker, compiler::JSFunctionRef array_function,
@@ -10227,7 +10213,10 @@ ReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   if (IsDoubleElementsKind(elements_kind)) return ReduceResult::Fail();
   DCHECK(IsFastElementsKind(elements_kind));
 
-  std::optional<int> maybe_length = TryGetArrayContructorLength(args);
+  std::optional<int> maybe_length;
+  if (args.count() == 1) {
+    maybe_length = TryGetInt32Constant(args[0]);
+  }
   compiler::OptionalMapRef maybe_initial_map = GetArrayConstructorInitialMap(
       broker(), array_function, elements_kind, args.count(), maybe_length);
   if (!maybe_initial_map.has_value()) return ReduceResult::Fail();
