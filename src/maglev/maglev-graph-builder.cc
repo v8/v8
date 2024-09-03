@@ -10292,7 +10292,8 @@ ReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
 
 ReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
     compiler::JSFunctionRef builtin,
-    compiler::SharedFunctionInfoRef shared_function_info, CallArguments& args) {
+    compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
+    CallArguments& args) {
   // TODO(victorgomes): specialize more known constants builtin targets.
   switch (shared_function_info.builtin_id()) {
     case Builtin::kArrayConstructor: {
@@ -10303,6 +10304,7 @@ ReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       // If no value is passed, we can immediately lower to a simple
       // constructor.
       if (args.count() == 0) {
+        RETURN_IF_ABORT(BuildCheckValue(target, builtin));
         ValueNode* result = BuildInlinedAllocation(CreateJSConstructor(builtin),
                                                    AllocationType::kYoung);
         // TODO(leszeks): Don't eagerly clear the raw allocation, have the
@@ -10432,8 +10434,8 @@ ReduceResult MaglevGraphBuilder::TryReduceConstruct(
   }
 
   if (shared_function_info.HasBuiltinId()) {
-    RETURN_IF_DONE(
-        TryReduceConstructBuiltin(function, shared_function_info, args));
+    RETURN_IF_DONE(TryReduceConstructBuiltin(function, shared_function_info,
+                                             target, args));
   }
 
   if (shared_function_info.construct_as_builtin()) {
