@@ -1009,7 +1009,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 #endif
     if (v8_flags.print_regexp_bytecode &&
         data->compilation_target == RegExpCompilationTarget::kBytecode) {
-      auto bytecode = Cast<ByteArray>(result.code);
+      auto bytecode = Cast<TrustedByteArray>(result.code);
       std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
       RegExpBytecodeDisassemble(bytecode->begin(), bytecode->length(),
                                 pattern_cstring.get());

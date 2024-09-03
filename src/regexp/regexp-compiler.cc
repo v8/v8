@@ -2955,14 +2955,24 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
 // max_lookahead (inclusive) measured from the current position.  If the
 // character at max_lookahead offset is not one of these characters, then we
 // can safely skip forwards by the number of characters in the range.
+// nibble_table is only used for SIMD variants and encodes the same information
+// as boolean_skip_table but in only 128 bits. It contains 16 bytes where the
+// index into the table represent low nibbles of a character, and the stored
+// byte is a bitset representing matching high nibbles. E.g. to store the
+// character 'b' (0x62) in the nibble table, we set the 6th bit in row 2.
 int BoyerMooreLookahead::GetSkipTable(
     int min_lookahead, int max_lookahead,
-    DirectHandle<ByteArray> boolean_skip_table) {
+    DirectHandle<ByteArray> boolean_skip_table,
+    DirectHandle<ByteArray> nibble_table) {
   const int kSkipArrayEntry = 0;
   const int kDontSkipArrayEntry = 1;
 
   std::memset(boolean_skip_table->begin(), kSkipArrayEntry,
               boolean_skip_table->length());
+  const bool fill_nibble_table = !nibble_table.is_null();
+  if (fill_nibble_table) {
+    std::memset(nibble_table->begin(), 0, nibble_table->length());
+  }
 
   for (int i = max_lookahead; i >= min_lookahead; i--) {
     BoyerMoorePositionInfo::Bitset bitset = bitmaps_->at(i)->raw_bitset();
@@ -2972,6 +2982,13 @@ int BoyerMooreLookahead::GetSkipTable(
     while ((j = BitsetFirstSetBit(bitset)) != -1) {
       DCHECK(bitset[j]);  // Sanity check.
       boolean_skip_table->set(j, kDontSkipArrayEntry);
+      if (fill_nibble_table) {
+        int lo_nibble = j & 0x0f;
+        int hi_nibble = (j >> 4) & 0x07;
+        int row = nibble_table->get(lo_nibble);
+        row |= 1 << hi_nibble;
+        nibble_table->set(lo_nibble, row);
+      }
       bitset.reset(j);
     }
   }
@@ -3019,6 +3036,7 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   }
 
   if (found_single_character) {
+    // TODO(pthier): Add vectorized version.
     Label cont, again;
     masm->Bind(&again);
     masm->LoadCurrentCharacter(max_lookahead, &cont, true);
@@ -3037,17 +3055,19 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   Factory* factory = masm->isolate()->factory();
   Handle<ByteArray> boolean_skip_table =
       factory->NewByteArray(kSize, AllocationType::kOld);
-  int skip_distance =
-      GetSkipTable(min_lookahead, max_lookahead, boolean_skip_table);
+  Handle<ByteArray> nibble_table;
+  const int skip_distance = max_lookahead + 1 - min_lookahead;
+  if (masm->SkipUntilBitInTableUseSimd(skip_distance)) {
+    // The current implementation is tailored specifically for 128-bit tables.
+    static_assert(kSize == 128);
+    nibble_table =
+        factory->NewByteArray(kSize / kBitsPerByte, AllocationType::kOld);
+  }
+  GetSkipTable(min_lookahead, max_lookahead, boolean_skip_table, nibble_table);
   DCHECK_NE(0, skip_distance);
 
-  Label cont, again;
-  masm->Bind(&again);
-  masm->LoadCurrentCharacter(max_lookahead, &cont, true);
-  masm->CheckBitInTable(boolean_skip_table, &cont);
-  masm->AdvanceCurrentPosition(skip_distance);
-  masm->GoTo(&again);
-  masm->Bind(&cont);
+  masm->SkipUntilBitInTable(max_lookahead, boolean_skip_table, nibble_table,
+                            skip_distance);
 }
 
 /* Code generation for choice nodes.
