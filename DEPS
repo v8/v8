@@ -76,7 +76,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:4e4b8d98949995474bf09cef2ca5ec3c496b82f0',
+  'gn_version': 'git_revision:50ecf4c84d08dad3d16d14590221dd43fe65ea62',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
