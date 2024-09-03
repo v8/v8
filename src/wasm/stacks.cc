@@ -113,10 +113,6 @@ Address StackMemory::Shrink() {
 void StackMemory::Reset() {
   active_segment_ = first_segment_;
   size_ = active_segment_->size_;
-#if DEBUG
-  constexpr uint8_t kZapValue = 0xab;
-  FillWith(kZapValue);
-#endif
 }
 
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {
