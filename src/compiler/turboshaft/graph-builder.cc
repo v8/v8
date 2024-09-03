@@ -2168,7 +2168,7 @@ OpIndex GraphBuilder::Process(
       return Map(node->InputAt(0));
 
     case IrOpcode::kAbortCSADcheck:
-      // TODO(nicohartmann@):
+      __ AbortCSADcheck(Map(node->InputAt(0)));
       return OpIndex::Invalid();
 
     case IrOpcode::kDebugBreak:
