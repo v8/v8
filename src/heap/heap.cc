@@ -5025,11 +5025,12 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
   // Initialize initial_semispace_size_.
   {
     initial_semispace_size_ = DefaultMinSemiSpaceSize();
-    if (max_semi_space_size_ == DefaultMaxSemiSpaceSize()) {
+    if (!v8_flags.optimize_for_size) {
       // Start with at least 1*MB semi-space on machines with a lot of memory.
       initial_semispace_size_ =
           std::max(initial_semispace_size_, static_cast<size_t>(1 * MB));
     }
+    DCHECK_GE(initial_semispace_size_, DefaultMinSemiSpaceSize());
     if (constraints.initial_young_generation_size_in_bytes() > 0) {
       initial_semispace_size_ = SemiSpaceSizeFromYoungGenerationSize(
           constraints.initial_young_generation_size_in_bytes());
