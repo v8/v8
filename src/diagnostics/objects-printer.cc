@@ -2366,7 +2366,8 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
 
 void CodeWrapper::CodeWrapperPrint(std::ostream& os) {
   PrintHeader(os, "CodeWrapper");
-  os << "\n    code: " << Brief(code(Isolate::Current()));
+  os << "\n - code: " << Brief(code(Isolate::Current()));
+  os << "\n";
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {
