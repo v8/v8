@@ -1209,7 +1209,9 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
                     unmerged_aspects, unmerged);
     unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                             predecessors_[predecessors_so_far_]);
-    result->set_input(predecessors_so_far_, unmerged);
+    for (int i = predecessors_so_far_; i < predecessor_count_; i++) {
+      result->change_input(i, unmerged);
+    }
     DCHECK_GT(predecessors_so_far_, 0);
     result->merge_type(unmerged_type);
     result->merge_post_loop_type(unmerged_type);
@@ -1266,7 +1268,9 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
       builder->broker(), builder->local_isolate(), unmerged_aspects, unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
-  result->set_input(predecessors_so_far_, unmerged);
+  for (int i = predecessors_so_far_; i < predecessor_count_; i++) {
+    result->set_input(i, unmerged);
+  }
 
   result->set_type(IntersectType(merged_type, unmerged_type));
 
