@@ -293,11 +293,10 @@ template <>
 struct CastTraits<DeoptimizationFrameTranslation>
     : public CastTraits<TrustedByteArray> {};
 
-template <class T,
-          typename std::enable_if<(std::is_arithmetic<T>::value ||
-                                   std::is_enum<T>::value) &&
-                                      !std::is_floating_point<T>::value,
-                                  int>::type>
+template <class T, typename std::enable_if_t<
+                       (std::is_arithmetic_v<T> ||
+                        std::is_enum_v<T>)&&!std::is_floating_point_v<T>,
+                       int>>
 T HeapObject::Relaxed_ReadField(size_t offset) const {
   // Pointer compression causes types larger than kTaggedSize to be
   // unaligned. Atomic loads must be aligned.
@@ -307,11 +306,10 @@ T HeapObject::Relaxed_ReadField(size_t offset) const {
       reinterpret_cast<AtomicT*>(field_address(offset))));
 }
 
-template <class T,
-          typename std::enable_if<(std::is_arithmetic<T>::value ||
-                                   std::is_enum<T>::value) &&
-                                      !std::is_floating_point<T>::value,
-                                  int>::type>
+template <class T, typename std::enable_if_t<
+                       (std::is_arithmetic_v<T> ||
+                        std::is_enum_v<T>)&&!std::is_floating_point_v<T>,
+                       int>>
 void HeapObject::Relaxed_WriteField(size_t offset, T value) {
   // Pointer compression causes types larger than kTaggedSize to be
   // unaligned. Atomic stores must be aligned.
@@ -322,11 +320,10 @@ void HeapObject::Relaxed_WriteField(size_t offset, T value) {
       static_cast<AtomicT>(value));
 }
 
-template <class T,
-          typename std::enable_if<(std::is_arithmetic<T>::value ||
-                                   std::is_enum<T>::value) &&
-                                      !std::is_floating_point<T>::value,
-                                  int>::type>
+template <class T, typename std::enable_if_t<
+                       (std::is_arithmetic_v<T> ||
+                        std::is_enum_v<T>)&&!std::is_floating_point_v<T>,
+                       int>>
 T HeapObject::Acquire_ReadField(size_t offset) const {
   // Pointer compression causes types larger than kTaggedSize to be
   // unaligned. Atomic loads must be aligned.
