@@ -246,12 +246,20 @@ class S390OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     switch (opcode) {
       case kS390_Cmp64:
       case kS390_LoadAndTestWord64:
-        return rep == MachineRepresentation::kWord64 ||
-               (!COMPRESS_POINTERS_BOOL && IsAnyTagged(rep));
+        if (rep == MachineRepresentation::kWord64 ||
+            (!COMPRESS_POINTERS_BOOL && IsAnyTagged(rep))) {
+          DCHECK_EQ(ElementSizeInBits(rep), 64);
+          return true;
+        }
+        break;
       case kS390_LoadAndTestWord32:
       case kS390_Cmp32:
-        return rep == MachineRepresentation::kWord32 ||
-               (COMPRESS_POINTERS_BOOL && IsAnyTagged(rep));
+        if (rep == MachineRepresentation::kWord32 ||
+            (COMPRESS_POINTERS_BOOL && IsAnyCompressed(rep))) {
+          DCHECK_EQ(ElementSizeInBits(rep), 32);
+          return true;
+        }
+        break;
       default:
         break;
     }
