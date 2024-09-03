@@ -354,8 +354,8 @@ void* OS::GetRandomMmapAddr() {
 #endif
 #elif V8_TARGET_ARCH_PPC64
 #if V8_OS_AIX
-  // AIX: 64 bits of virtual addressing, but we limit address range to:
-  //   a) minimize Segment Lookaside Buffer (SLB) misses and
+  // AIX: 64 bits of virtual addressing, but we limit address range to minimize
+  // Segment Lookaside Buffer (SLB) misses.
   raw_addr &= uint64_t{0x3FFFF000};
   // Use extra address space to isolate the mmap regions.
   raw_addr += uint64_t{0x400000000000};
