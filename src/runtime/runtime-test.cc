@@ -1090,8 +1090,14 @@ void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_GetAbstractModuleSource) {
+  // This isn't exposed to fuzzers. Crash if the native context is been
+  // modified.
   HandleScope scope(isolate);
-  return isolate->native_context()->abstract_module_source_function();
+  DisallowGarbageCollection no_gc;
+  Tagged<JSFunction> abstract_module_source_function =
+      isolate->native_context()->abstract_module_source_function();
+  CHECK(IsJSFunction(*abstract_module_source_function));
+  return abstract_module_source_function;
 }
 
 // Returns a callable object which redirects [[Call]] requests to

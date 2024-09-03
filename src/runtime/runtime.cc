@@ -267,6 +267,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kDebugPrint:
     case Runtime::kDisassembleFunction:
     case Runtime::kGetCallable:
+    case Runtime::kGetAbstractModuleSource:
     case Runtime::kTurbofanStaticAssert:
     case Runtime::kClearFunctionFeedback:
 #ifdef V8_ENABLE_WEBASSEMBLY
