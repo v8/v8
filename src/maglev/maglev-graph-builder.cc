@@ -262,14 +262,6 @@ class CallArguments {
 
   ConvertReceiverMode receiver_mode() const { return receiver_mode_; }
 
-  void Truncate(size_t new_args_count) {
-    if (new_args_count >= count()) return;
-    size_t args_to_pop = count() - new_args_count;
-    for (size_t i = 0; i < args_to_pop; i++) {
-      args_.pop_back();
-    }
-  }
-
   void PopArrayLikeArgument() {
     DCHECK_EQ(mode_, kWithArrayLike);
     DCHECK_GT(count(), 0);
@@ -5831,8 +5823,6 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
       object_info && object_info->possible_maps_are_known()
           ? feedback.Refine(broker(), object_info->possible_maps())
           : feedback;
-
-  // TODO(victorgomes): Add fast path for loading from HeapConstant.
 
   if (refined_feedback.HasOnlyStringMaps(broker())) {
     return TryBuildElementAccessOnString(object, index_object, keyed_mode);
