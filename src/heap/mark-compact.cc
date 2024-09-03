@@ -92,6 +92,10 @@
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/utils-inl.h"
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-pointer-table.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -3033,6 +3037,14 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                                             isolate->counters());
   }
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  {
+    TRACE_GC(heap_->tracer(),
+             GCTracer::Scope::MC_SWEEP_WASM_CODE_POINTER_TABLE);
+    wasm::GetProcessWideWasmCodePointerTable()->SweepSegments();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_ENABLE_LEAPTIERING
   {

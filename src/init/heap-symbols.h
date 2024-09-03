@@ -666,6 +666,7 @@
   F(MC_SWEEP_EXTERNAL_POINTER_TABLE)             \
   F(MC_SWEEP_TRUSTED_POINTER_TABLE)              \
   F(MC_SWEEP_CODE_POINTER_TABLE)                 \
+  F(MC_SWEEP_WASM_CODE_POINTER_TABLE)            \
   F(MC_SWEEP_JS_DISPATCH_TABLE)                  \
   F(MC_COMPLETE_SWEEP_ARRAY_BUFFERS)             \
   F(MC_COMPLETE_SWEEPING)                        \
