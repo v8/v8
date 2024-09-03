@@ -401,8 +401,6 @@ class MaglevGraphBuilder {
 
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
     LoopLabel BeginLoop(std::initializer_list<Variable*> loop_vars);
-    // TODO(victorgomes): Change GotoIFXXX to get a lambda returning a
-    // BranchResult.
     template <typename ControlNodeT, typename... Args>
     void GotoIfTrue(Label* true_target,
                     std::initializer_list<ValueNode*> control_inputs,
@@ -558,13 +556,12 @@ class MaglevGraphBuilder {
     // cached directly on the builder instead of on the merge states.
     ResetBuilderCachedState();
 
-    // TODO(victorgomes:349923027): Remove these checks after bug is fixed.
     if (merge_state.is_loop()) {
-      CHECK_EQ(merge_state.predecessors_so_far(),
-               merge_state.predecessor_count() - 1);
+      DCHECK_EQ(merge_state.predecessors_so_far(),
+                merge_state.predecessor_count() - 1);
     } else {
-      CHECK_EQ(merge_state.predecessors_so_far(),
-               merge_state.predecessor_count());
+      DCHECK_EQ(merge_state.predecessors_so_far(),
+                merge_state.predecessor_count());
     }
 
     if (merge_state.predecessor_count() == 1) return;
