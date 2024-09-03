@@ -204,6 +204,7 @@ class V8_EXPORT ThreadIsolation {
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int pkey() { return trusted_data_.pkey; }
+  static bool PkeyIsAvailable() { return trusted_data_.pkey != -1; }
 #endif
 
 #if DEBUG
