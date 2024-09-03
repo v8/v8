@@ -655,7 +655,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_ACQUIRE_GETTER(instance_descriptors, Tagged<DescriptorArray>)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(
       Isolate* isolate, Tagged<DescriptorArray> descriptors,
-      int number_of_own_descriptors);
+      int number_of_own_descriptors,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER);
 
   inline void UpdateDescriptors(Isolate* isolate,
                                 Tagged<DescriptorArray> descriptors,

@@ -2319,8 +2319,11 @@ int Map::ComputeMinObjectSlack(Isolate* isolate) {
 
 void Map::SetInstanceDescriptors(Isolate* isolate,
                                  Tagged<DescriptorArray> descriptors,
-                                 int number_of_own_descriptors) {
-  set_instance_descriptors(descriptors, kReleaseStore);
+                                 int number_of_own_descriptors,
+                                 WriteBarrierMode barrier_mode) {
+  DCHECK_IMPLIES(barrier_mode == WriteBarrierMode::SKIP_WRITE_BARRIER,
+                 IsReadOnlyHeapObject(descriptors));
+  set_instance_descriptors(descriptors, kReleaseStore, barrier_mode);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   WriteBarrier::Marking(descriptors, number_of_own_descriptors);

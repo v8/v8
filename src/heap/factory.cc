@@ -2313,13 +2313,16 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
                           SKIP_WRITE_BARRIER);
   map->set_raw_transitions(Smi::zero(), SKIP_WRITE_BARRIER);
   map->SetInObjectUnusedPropertyFields(inobject_properties);
-  map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
+  map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0,
+                              SKIP_WRITE_BARRIER);
   // Must be called only after |instance_type| and |instance_size| are set.
   map->set_visitor_id(Map::GetVisitorId(map));
   DCHECK(!map->is_in_retained_map_list());
   map->clear_padding();
   map->set_elements_kind(elements_kind);
-  if (v8_flags.log_maps) LOG(isolate(), MapCreate(map));
+  if (V8_UNLIKELY(v8_flags.log_maps)) {
+    LOG(isolate(), MapCreate(map));
+  }
   return map;
 }
 

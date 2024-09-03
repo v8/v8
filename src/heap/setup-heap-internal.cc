@@ -320,7 +320,8 @@ void Heap::FinalizePartialMap(Tagged<Map> map) {
   ReadOnlyRoots roots(this);
   map->set_dependent_code(DependentCode::empty_dependent_code(roots));
   map->set_raw_transitions(Smi::zero());
-  map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
+  map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0,
+                              SKIP_WRITE_BARRIER);
   map->init_prototype_and_constructor_or_back_pointer(roots);
 }
 
