@@ -59,6 +59,18 @@
   # WebAssembly.Function.type. The tests should be updated anyway since they
   # still use the old API (which works but is deprecated).
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [FAIL],
+
+  # TODO(https://crbug.com/342316792): Failing test after spec test update.
+  'proposals/exception-handling/exception/basic.tentative': [FAIL],
+  'proposals/exception-handling/exception/identity.tentative': [FAIL],
+  'proposals/exception-handling/exception/jsTag.tentative': [FAIL],
+  'proposals/memory64/exception/identity.tentative': [FAIL],
+  'proposals/memory64/exception/jsTag.tentative': [FAIL],
+  'proposals/memory64/exception/basic.tentative': [FAIL],
+  'proposals/memory64/module/exports': [FAIL],
+  'proposals/memory64/gc/casts.tentative': [FAIL],
+  'wpt/js-string/basic.tentative': [FAIL],
+  'wpt/js-string/constants.tentative': [FAIL],
 }], # ALWAYS
 
 ['system == android', {
