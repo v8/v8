@@ -217,6 +217,34 @@ constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
   UNREACHABLE();
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+
+// static
+template <Builtin builtin>
+constexpr size_t Builtins::WasmBuiltinHandleArrayIndex() {
+  size_t index;
+  if constexpr (builtin == Builtin::kWasmToOnHeapWasmToJsTrampoline) {
+    index = 0;
+  } else if constexpr (builtin == Builtin::kWasmToJsWrapperInvalidSig) {
+    index = 1;
+  } else {
+    static_assert(builtin == Builtin::kWasmToJsWrapperAsm);
+    index = 2;
+  }
+  static_assert(Builtins::kWasmIndirectlyCallableBuiltins[index] == builtin);
+  return index;
+}
+
+// static
+template <Builtin builtin>
+wasm::WasmCodePointerTable::Handle Builtins::WasmBuiltinHandleOf(
+    Isolate* isolate) {
+  return isolate
+      ->wasm_builtin_code_handles()[WasmBuiltinHandleArrayIndex<builtin>()];
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 }  // namespace internal
 }  // namespace v8
 

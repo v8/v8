@@ -141,10 +141,12 @@
 #endif  // V8_ENABLE_MAGLEV
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/builtins/builtins-inl.h"
 #include "src/debug/debug-wasm-objects.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -4097,6 +4099,15 @@ Isolate::Isolate(IsolateGroup* isolate_group)
         embedded_data.InstructionStartOf(Builtin::kWasmTrapHandlerLandingPad);
     i::trap_handler::SetLandingPad(landing_pad);
   }
+  wasm::WasmCodePointerTable* wasm_code_pointer_table =
+      wasm::GetProcessWideWasmCodePointerTable();
+  for (size_t i = 0; i < Builtins::kNumWasmIndirectlyCallableBuiltins; i++) {
+    // TODO(sroettger): investigate if we can use a global set of handles for
+    // these builtins.
+    wasm_builtin_code_handles_[i] =
+        wasm_code_pointer_table->AllocateAndInitializeEntry(Builtins::EntryOf(
+            Builtins::kWasmIndirectlyCallableBuiltins[i], this));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   MicrotaskQueue::SetUpDefaultMicrotaskQueue(this);
@@ -4598,6 +4609,14 @@ Isolate::~Isolate() {
     delete read_only_heap_;
     read_only_heap_ = nullptr;
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmCodePointerTable* wasm_code_pointer_table =
+      wasm::GetProcessWideWasmCodePointerTable();
+  for (size_t i = 0; i < Builtins::kNumWasmIndirectlyCallableBuiltins; i++) {
+    wasm_code_pointer_table->FreeEntry(wasm_builtin_code_handles_[i]);
+  }
+#endif
 
   // isolate_group_ released in caller, to ensure that all member destructors
   // run before potentially unmapping the isolate's VirtualMemoryArea.

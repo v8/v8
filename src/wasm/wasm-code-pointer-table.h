@@ -65,6 +65,8 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   WasmCodePointerTable(const WasmCodePointerTable&) = delete;
   WasmCodePointerTable& operator=(const WasmCodePointerTable&) = delete;
 
+  using Handle = uint32_t;
+
   using WriteScope = CFIMetadataWriteScope;
 
   // The table should be initialized exactly once before use.
