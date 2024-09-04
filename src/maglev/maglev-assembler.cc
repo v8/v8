@@ -534,18 +534,10 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
       },
       done, object, offset, value, register_snapshot, value_is_compressed);
 
-  if (!value_can_be_smi) {
-    AssertNotSmi(value);
-  }
-
-#if V8_STATIC_ROOTS_BOOL
-  // Quick check for Read-only and small Smi values.
-  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-  JumpIfLessThan(value, kRegularPageSize, *done);
-#endif  // V8_STATIC_ROOTS_BOOL
-
   if (value_can_be_smi) {
     JumpIfSmi(value, *done);
+  } else {
+    AssertNotSmi(value);
   }
 
   MaglevAssembler::TemporaryRegisterScope temp(this);
