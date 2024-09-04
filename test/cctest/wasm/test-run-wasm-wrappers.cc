@@ -446,7 +446,14 @@ TEST(JSToWasmWrapperGarbageCollection) {
 
   // After GC all compiled wrappers must be cleared again.
   Cleanup();
+
+#if !V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  // Conservative stack scanning can keep the wrappers alive for longer than
+  // expected. This cannot be fixed reliably, since we can't control the stack
+  // usage of the compiler.
+  // that GC can clear the weak reference.
   CHECK_EQ(0, NumCompiledJSToWasmWrappers());
+#endif  // !V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 #endif
 
