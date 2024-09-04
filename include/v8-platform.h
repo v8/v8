@@ -1098,11 +1098,8 @@ class Platform {
    * Returns a TaskRunner which can be used to post a task on the foreground.
    * The TaskRunner's NonNestableTasksEnabled() must be true. This function
    * should only be called from a foreground thread.
-   * TODO(chromium:1448758): Deprecate once |GetForegroundTaskRunner(Isolate*,
-   * TaskPriority)| is ready.
    */
-  virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      Isolate* isolate) {
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(Isolate* isolate) {
     return GetForegroundTaskRunner(isolate, TaskPriority::kUserBlocking);
   }
 
@@ -1110,12 +1107,9 @@ class Platform {
    * Returns a TaskRunner with a specific |priority| which can be used to post a
    * task on the foreground thread. The TaskRunner's NonNestableTasksEnabled()
    * must be true. This function should only be called from a foreground thread.
-   * TODO(chromium:1448758): Make pure virtual once embedders implement it.
    */
   virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      Isolate* isolate, TaskPriority priority) {
-    return GetForegroundTaskRunner(isolate);
-  }
+      Isolate* isolate, TaskPriority priority) = 0;
 
   /**
    * Schedules a task to be invoked on a worker thread.
