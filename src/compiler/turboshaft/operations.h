@@ -3755,10 +3755,12 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
 struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
   using Kind = JSStackCheckOp::Kind;
   Kind kind;
+  int parameter_slots;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
 
-  explicit WasmStackCheckOp(Kind kind) : Base(), kind(kind) {}
+  explicit WasmStackCheckOp(Kind kind, int parameter_slots)
+      : Base(), kind(kind), parameter_slots(parameter_slots) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -3769,7 +3771,7 @@ struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
 
   void Validate(const Graph& graph) const {}
 
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{kind, parameter_slots}; }
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

@@ -3165,8 +3165,8 @@ class TurboshaftAssemblerOpInterface
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  void WasmStackCheck(WasmStackCheckOp::Kind kind) {
-    ReduceIfReachableWasmStackCheck(kind);
+  void WasmStackCheck(WasmStackCheckOp::Kind kind, int parameter_slots) {
+    ReduceIfReachableWasmStackCheck(kind, parameter_slots);
   }
 #endif
 
