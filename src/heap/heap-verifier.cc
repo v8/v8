@@ -346,6 +346,34 @@ void HeapVerification::Verify() {
     }
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  // wasm_canonical_rtts holds weak references to maps or (strong) undefined.
+  Tagged<WeakArrayList> canonical_rtts = heap()->wasm_canonical_rtts();
+  for (int i = 0, e = canonical_rtts->length(); i < e; ++i) {
+    Tagged<MaybeObject> maybe_rtt = canonical_rtts->get(i);
+    if (maybe_rtt.IsStrong()) {
+      CHECK(IsUndefined(maybe_rtt.GetHeapObjectAssumeStrong()));
+    } else if (maybe_rtt.IsWeak()) {
+      CHECK(IsMap(maybe_rtt.GetHeapObjectAssumeWeak()));
+    } else {
+      CHECK(maybe_rtt.IsCleared());
+    }
+  }
+
+  // js_to_wasm_wrappers holds weak references to code or (strong) undefined.
+  Tagged<WeakArrayList> wrappers = heap()->js_to_wasm_wrappers();
+  for (int i = 0, e = wrappers->length(); i < e; ++i) {
+    Tagged<MaybeObject> maybe_wrapper = wrappers->get(i);
+    if (maybe_wrapper.IsStrong()) {
+      CHECK(IsUndefined(maybe_wrapper.GetHeapObjectAssumeStrong()));
+    } else if (maybe_wrapper.IsWeak()) {
+      CHECK(IsCodeWrapper(maybe_wrapper.GetHeapObjectAssumeWeak()));
+    } else {
+      CHECK(maybe_wrapper.IsCleared());
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // The heap verifier can't deal with partially deserialized objects, so
   // disable it if a deserializer is active.
   // TODO(leszeks): Enable verification during deserialization, e.g. by only

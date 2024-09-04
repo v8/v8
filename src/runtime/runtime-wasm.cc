@@ -539,51 +539,75 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
 
 namespace {
 void ReplaceJSToWasmWrapper(
-    Isolate* isolate,
-    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-    int function_index, DirectHandle<Code> wrapper_code) {
+    Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data,
+    int function_index, Tagged<Code> wrapper_code) {
   Tagged<WasmFuncRef> func_ref;
   CHECK(trusted_instance_data->try_get_func_ref(function_index, &func_ref));
   Tagged<JSFunction> external_function;
   CHECK(func_ref->internal(isolate)->try_get_external(&external_function));
   if (external_function->shared()->HasWasmJSFunctionData()) return;
   CHECK(external_function->shared()->HasWasmExportedFunctionData());
-  external_function->UpdateCode(*wrapper_code);
+  external_function->UpdateCode(wrapper_code);
   Tagged<WasmExportedFunctionData> function_data =
       external_function->shared()->wasm_exported_function_data();
-  function_data->set_wrapper_code(*wrapper_code);
+  function_data->set_wrapper_code(wrapper_code);
 }
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
-  HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DirectHandle<WasmExportedFunctionData> function_data(
-      Cast<WasmExportedFunctionData>(args[0]), isolate);
-  DirectHandle<WasmTrustedInstanceData> trusted_data{
-      function_data->instance_data(), isolate};
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(trusted_data->native_context());
+
+  // Avoid allocating a HandleScope and handles on the fast path.
+  Tagged<WasmExportedFunctionData> function_data =
+      Cast<WasmExportedFunctionData>(args[0]);
+  Tagged<WasmTrustedInstanceData> trusted_data = function_data->instance_data();
 
   const wasm::WasmModule* module = trusted_data->module();
   const int function_index = function_data->function_index();
   const wasm::WasmFunction& function = module->functions[function_index];
-  const wasm::FunctionSig* sig = function.sig;
   const uint32_t canonical_sig_index =
       module->canonical_sig_id(function.sig_index);
 
   // The start function is not guaranteed to be registered as
   // an exported function (although it is called as one).
   // If there is no entry for the start function, the tier-up is abandoned.
-  Tagged<WasmFuncRef> func_ref;
-  if (!trusted_data->try_get_func_ref(function_index, &func_ref)) {
+  Tagged<WasmFuncRef> unused_func_ref;
+  if (!trusted_data->try_get_func_ref(function_index, &unused_func_ref)) {
     DCHECK_EQ(function_index, module->start_function_index);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  DirectHandle<Code> wrapper_code =
-      wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-          isolate, sig, canonical_sig_index, module);
+  Tagged<MaybeObject> maybe_cached_wrapper =
+      isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_index);
+  Tagged<Code> wrapper_code;
+  Tagged<CodeWrapper> wrapper_code_wrapper;
+  if (maybe_cached_wrapper.GetHeapObjectIfWeak(&wrapper_code_wrapper)) {
+    wrapper_code = wrapper_code_wrapper->code(isolate);
+  } else {
+    // The wrapper code is cleared or undefined (meaning was never set).
+    DCHECK(maybe_cached_wrapper.IsCleared() ||
+           (maybe_cached_wrapper.IsStrong() &&
+            IsUndefined(maybe_cached_wrapper.GetHeapObjectAssumeStrong())));
+
+    // Set the context on the isolate and open a handle scope for allocation of
+    // new objects. Wrap {trusted_data} in a handle so it survives GCs.
+    DCHECK(isolate->context().is_null());
+    isolate->set_context(trusted_data->native_context());
+    HandleScope scope(isolate);
+    Handle<WasmTrustedInstanceData> trusted_data_handle{trusted_data, isolate};
+    DirectHandle<Code> new_wrapper_code =
+        wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+            isolate, function.sig, canonical_sig_index, module);
+
+    // Compilation must have installed the wrapper into the cache.
+    DCHECK_EQ(MakeWeak(new_wrapper_code->wrapper()),
+              isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_index));
+
+    // Reset raw pointers still needed outside the slow path.
+    wrapper_code = *new_wrapper_code;
+    trusted_data = *trusted_data_handle;
+    function_data = {};
+  }
 
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to ensure that the wrapper is replaced, even if the function
@@ -597,7 +621,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
     int index = static_cast<int>(exp.index);
     const wasm::WasmFunction& exp_function = module->functions[index];
     if (index == function_index) continue;  // Already replaced.
-    if (exp_function.sig != sig) continue;  // Different signature.
+    if (exp_function.sig != function.sig) continue;  // Different signature.
     ReplaceJSToWasmWrapper(isolate, trusted_data, index, wrapper_code);
   }
 

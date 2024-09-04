@@ -1890,12 +1890,6 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
 
 namespace {
 
-void RecordStats(Tagged<Code> code, Counters* counters) {
-  if (!code->has_instruction_stream()) return;
-  counters->wasm_generated_code_size()->Increment(code->body_size());
-  counters->wasm_reloc_size()->Increment(code->relocation_size());
-}
-
 enum CompilationExecutionResult : int8_t { kNoMoreUnits, kYield };
 
 const char* GetCompilationEventName(const WasmCompilationUnit& unit,
@@ -4061,14 +4055,14 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
                                                module->MaxCanonicalTypeIndex());
   for (auto& unit : js_to_wasm_wrapper_units_) {
     DCHECK_EQ(isolate, unit.isolate());
-    DirectHandle<Code> code = unit.Finalize();
+    [[maybe_unused]] DirectHandle<Code> code = unit.Finalize();
     // Each JSToWasmWrapperCompilationUnit compiles an actual wrappers and never
     // returns the generic builtin.
     DCHECK(!code->is_builtin());
-    uint32_t index = unit.canonical_sig_index();
-    isolate->heap()->js_to_wasm_wrappers()->Set(index, code->wrapper());
-    RecordStats(*code, isolate->counters());
-    isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
+    // The compilation unit should have added the code to the per-isolate cache.
+    DCHECK_EQ(MakeWeak(code->wrapper()),
+              isolate->heap()->js_to_wasm_wrappers()->Get(
+                  unit.canonical_sig_index()));
   }
   // Clearing needs to hold the mutex to avoid racing with
   // {EstimateCurrentMemoryConsumption}.
@@ -4617,17 +4611,14 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
   }
 
   // Finalize compilation jobs on the main thread.
-  for (auto& pair : compilation_units) {
-    uint32_t key = pair.first;
-    JSToWasmWrapperCompilationUnit* unit = pair.second.get();
+  for (auto& [canonical_sig_id, unit] : compilation_units) {
     DCHECK_EQ(isolate, unit->isolate());
-    DirectHandle<Code> code = unit->Finalize();
-    DCHECK(!code->is_builtin() || v8_flags.wasm_jitless);
+    [[maybe_unused]] DirectHandle<Code> code = unit->Finalize();
     if (v8_flags.wasm_jitless) continue;
-    isolate->heap()->js_to_wasm_wrappers()->Set(key, code->wrapper());
-    // Do not increase code stats for non-jitted wrappers.
-    RecordStats(*code, isolate->counters());
-    isolate->counters()->wasm_compiled_export_wrapper()->Increment(1);
+    DCHECK(!code->is_builtin());
+    // Each unit should have installed the code in the per-isolate cache.
+    DCHECK_EQ(MakeWeak(code->wrapper()),
+              isolate->heap()->js_to_wasm_wrappers()->Get(canonical_sig_id));
   }
 }
 
