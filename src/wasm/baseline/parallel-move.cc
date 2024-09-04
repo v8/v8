@@ -11,7 +11,9 @@ namespace v8::internal::wasm {
 void ParallelMove::TransferToStack(int dst_offset, const VarState& src) {
   switch (src.loc()) {
     case VarState::kStack:
-      DCHECK_NE(src.offset(), dst_offset);
+      // Same offsets can happen even if we move values down in the value stack,
+      // because of alignment.
+      if (src.offset() == dst_offset) return;
 #if DEBUG
       // Check that the stack value at `dst_offset` is not used in a pending
       // register load.
