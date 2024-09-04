@@ -190,7 +190,8 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
         result_register_(result_register),
         message_register_(message_register),
         return_token_(-1),
-        async_return_token_(-1) {
+        async_return_token_(-1),
+        fallthrough_needed_(false) {
     // There's always a rethrow path.
     // TODO(leszeks): We could decouple deferred_ index and token to allow us
     // to still push this lazily.
@@ -250,6 +251,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
   // Records the dispatch token to be used to identify the implicit fall-through
   // path at the end of a try-block into the corresponding finally-block.
   void RecordFallThroughPath() {
+    fallthrough_needed_ = true;
     builder()->LoadLiteral(Smi::FromInt(
         static_cast<int>(TryFinallyContinuationToken::kFallthroughToken)));
     builder()->StoreAccumulatorInRegister(token_register_);
@@ -272,10 +274,12 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
       // entry token.
       const Entry& entry = deferred_[0];
 
-      builder()
-          ->LoadLiteral(Smi::FromInt(entry.token))
-          .CompareReference(token_register_)
-          .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &fall_through);
+      if (fallthrough_needed_) {
+        builder()
+            ->LoadLiteral(Smi::FromInt(entry.token))
+            .CompareReference(token_register_)
+            .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &fall_through);
+      }
 
       if (entry.command == CMD_RETHROW) {
         // Pending message object is restored on exit.
@@ -297,8 +301,10 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
           builder()->AllocateJumpTable(static_cast<int>(deferred_.size()), 0);
       builder()
           ->LoadAccumulatorWithRegister(token_register_)
-          .SwitchOnSmiNoFeedback(jump_table)
-          .Jump(&fall_through);
+          .SwitchOnSmiNoFeedback(jump_table);
+
+      if (fallthrough_needed_) builder()->Jump(&fall_through);
+
       for (const Entry& entry : deferred_) {
         builder()->Bind(jump_table, entry.token);
 
@@ -317,7 +323,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
       }
     }
 
-    builder()->Bind(&fall_through);
+    if (fallthrough_needed_) builder()->Bind(&fall_through);
   }
 
   BytecodeArrayBuilder* builder() { return generator_->builder(); }
@@ -368,6 +374,9 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
   // Tokens for commands that don't need a statement.
   int return_token_;
   int async_return_token_;
+
+  // Whether a fallthrough is possible.
+  bool fallthrough_needed_;
 };
 
 // Scoped class for dealing with control flow reaching the function level.
@@ -1829,8 +1838,10 @@ void BytecodeGenerator::GenerateBodyStatements() {
   GenerateBodyStatementsWithoutImplicitFinalReturn();
 
   // Emit an implicit return instruction in case control flow can fall off the
-  // end of the function without an explicit return being present on all
-  // paths.
+  // end of the function without an explicit return being present on all paths.
+  //
+  // ControlScope is used instead of building the Return bytecode directly, as
+  // the entire body is wrapped in a try-finally block for async generators.
   if (!builder()->RemainderOfBlockIsDead()) {
     builder()->LoadUndefined();
     const int pos = info()->literal()->return_position();
@@ -1839,9 +1850,9 @@ void BytecodeGenerator::GenerateBodyStatements() {
     if ((IsAsyncFunction(function_kind()) &&
          !IsAsyncGeneratorFunction(function_kind())) ||
         IsModuleWithTopLevelAwait(function_kind())) {
-      BuildAsyncReturn(pos);
+      execution_control()->AsyncReturnAccumulator(pos);
     } else {
-      BuildReturn(pos);
+      execution_control()->ReturnAccumulator(pos);
     }
   }
 }
@@ -2678,7 +2689,9 @@ void BytecodeGenerator::BuildTryFinally(
   try_control_builder.EndTry();
 
   // Record fall-through and exception cases.
-  commands.RecordFallThroughPath();
+  if (!builder()->RemainderOfBlockIsDead()) {
+    commands.RecordFallThroughPath();
+  }
   try_control_builder.LeaveTry();
   try_control_builder.BeginHandler();
   commands.RecordHandlerReThrowPath();
