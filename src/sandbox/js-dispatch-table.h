@@ -175,8 +175,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
                                                      uint16_t parameter_count);
   inline JSDispatchHandle AllocateAndInitializeEntry(Space* space,
                                                      uint16_t parameter_count,
-                                                     Tagged<Code> code,
-                                                     Address instruction_start);
+                                                     Tagged<Code> code);
 
   // The following methods are used to pre allocate entries and then initialize
   // them later.

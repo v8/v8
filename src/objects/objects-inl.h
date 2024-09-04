@@ -1089,43 +1089,24 @@ void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
   i::WriteCodeEntrypointViaCodePointerField(field_address(offset), value, tag);
 }
 
-void HeapObject::InitJSDispatchHandleField(size_t offset,
-                                           IsolateForSandbox isolate,
-                                           uint16_t parameter_count) {
+void HeapObject::AllocateAndInstallJSDispatchHandle(size_t offset,
+                                                    IsolateForSandbox isolate,
+                                                    uint16_t parameter_count,
+                                                    Tagged<Code> code,
+                                                    WriteBarrierMode mode) {
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
   JSDispatchTable::Space* space =
       isolate.GetJSDispatchTableSpaceFor(field_address(offset));
   JSDispatchHandle handle =
-      jdt->AllocateAndInitializeEntry(space, parameter_count);
+      jdt->AllocateAndInitializeEntry(space, parameter_count, code);
 
   // Use a Release_Store to ensure that the store of the pointer into the table
   // is not reordered after the store of the handle. Otherwise, other threads
   // may access an uninitialized table entry and crash.
   auto location = reinterpret_cast<JSDispatchHandle*>(field_address(offset));
   base::AsAtomic32::Release_Store(location, handle);
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
-void HeapObject::InitJSDispatchHandleField(size_t offset,
-                                           IsolateForSandbox isolate,
-                                           uint16_t parameter_count,
-                                           Tagged<Code> code,
-                                           Address entrypoint) {
-#ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
-  JSDispatchTable::Space* space =
-      isolate.GetJSDispatchTableSpaceFor(field_address(offset));
-  JSDispatchHandle handle =
-      jdt->AllocateAndInitializeEntry(space, parameter_count, code, entrypoint);
-
-  // Use a Release_Store to ensure that the store of the pointer into the table
-  // is not reordered after the store of the handle. Otherwise, other threads
-  // may access an uninitialized table entry and crash.
-  auto location = reinterpret_cast<JSDispatchHandle*>(field_address(offset));
-  base::AsAtomic32::Release_Store(location, handle);
+  CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_LEAPTIERING

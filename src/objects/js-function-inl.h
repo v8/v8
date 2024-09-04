@@ -96,8 +96,7 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
   JSDispatchHandle canonical_handle = raw_feedback_cell()->dispatch_handle();
-  auto jdt = GetProcessWideJSDispatchTable();
-  bool has_context_specialized_dispatch_entry = handle != canonical_handle;
+
   // For specialized code we allocate their own dispatch entry, which is
   // different from the one in the dispatch cell.
   // TODO(olivf): In case we have a NoClosuresFeedbackCell we could steal the
@@ -106,17 +105,12 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
   DCHECK_NE(canonical_handle, kNullJSDispatchHandle);
   DCHECK(value->is_context_specialized());
   DCHECK(value->is_optimized_code());
-  DCHECK(jdt->HasCode(canonical_handle));
+  DCHECK(GetProcessWideJSDispatchTable()->HasCode(canonical_handle));
+  bool has_context_specialized_dispatch_entry = handle != canonical_handle;
   if (has_context_specialized_dispatch_entry) {
-    jdt->SetCode(handle, value);
-    CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
+    set_code(value, mode);
   } else {
-    JSDispatchHandle specialized_handle = jdt->AllocateAndInitializeEntry(
-        isolate->heap()->js_dispatch_table_space(), value->parameter_count(),
-        value, value->instruction_start());
-    set_dispatch_handle(specialized_handle);
-    CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, specialized_handle,
-                                                 mode);
+    allocate_dispatch_handle(isolate, value->parameter_count(), value, mode);
   }
 #else
   WriteCodePointerField(kCodeOffset, value);
@@ -134,13 +128,13 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
 
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle canonical_handle = raw_feedback_cell()->dispatch_handle();
-  auto jdt = GetProcessWideJSDispatchTable();
 
 #ifdef DEBUG
   bool has_context_specialized_dispatch_entry =
       canonical_handle != kNullJSDispatchHandle &&
       dispatch_handle() != canonical_handle;
   if (has_context_specialized_dispatch_entry) {
+    auto jdt = GetProcessWideJSDispatchTable();
     DCHECK_IMPLIES(
         jdt->HasCode(dispatch_handle()) &&
             jdt->GetCode(dispatch_handle())->kind() != CodeKind::BUILTIN,
@@ -152,14 +146,10 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
   if (canonical_handle != kNullJSDispatchHandle) {
     // Ensure we are using the canonical dispatch handle (needed in case this
     // function was specialized before).
-    jdt->SetCode(canonical_handle, value);
-    set_dispatch_handle(canonical_handle);
-    CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, canonical_handle, mode);
-  } else {
-    JSDispatchHandle handle = dispatch_handle();
-    jdt->SetCode(handle, value);
-    CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
+    set_dispatch_handle(canonical_handle, mode);
   }
+  set_code(value, mode);
+
 #else
   WriteCodePointerField(kCodeOffset, value);
   CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
@@ -231,24 +221,26 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
 }
 
 #ifdef V8_ENABLE_LEAPTIERING
-void JSFunction::initialize_dispatch_handle(IsolateForSandbox isolate,
-                                            uint16_t parameter_count) {
-  InitJSDispatchHandleField(kDispatchHandleOffset, isolate, parameter_count);
-}
-
-void JSFunction::initialize_dispatch_handle(IsolateForSandbox isolate,
-                                            uint16_t parameter_count,
-                                            Tagged<Code> code,
-                                            Address entrypoint) {
-  InitJSDispatchHandleField(kDispatchHandleOffset, isolate, parameter_count,
-                            code, entrypoint);
+void JSFunction::allocate_dispatch_handle(IsolateForSandbox isolate,
+                                          uint16_t parameter_count,
+                                          Tagged<Code> code,
+                                          WriteBarrierMode mode) {
+  AllocateAndInstallJSDispatchHandle(kDispatchHandleOffset, isolate,
+                                     parameter_count, code, mode);
 }
 
 void JSFunction::clear_dispatch_handle() {
   WriteField<JSDispatchHandle>(kDispatchHandleOffset, kNullJSDispatchHandle);
 }
-void JSFunction::set_dispatch_handle(JSDispatchHandle handle) {
+void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
+                                     WriteBarrierMode mode) {
   Relaxed_WriteField<JSDispatchHandle>(kDispatchHandleOffset, handle);
+  CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
+}
+void JSFunction::set_code(Tagged<Code> new_code, WriteBarrierMode mode) {
+  JSDispatchHandle handle = dispatch_handle();
+  GetProcessWideJSDispatchTable()->SetCode(handle, new_code);
+  CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
 JSDispatchHandle JSFunction::dispatch_handle() const {
   return Relaxed_ReadField<JSDispatchHandle>(kDispatchHandleOffset);

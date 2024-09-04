@@ -152,15 +152,19 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
 #ifdef V8_ENABLE_LEAPTIERING
   // TODO(olivf): This ShouldBeCamelCase.
-  inline void initialize_dispatch_handle(IsolateForSandbox isolate,
-                                         uint16_t parameter_count);
-  inline void initialize_dispatch_handle(IsolateForSandbox isolate,
-                                         uint16_t parameter_count,
-                                         Tagged<Code> code, Address entrypoint);
+  inline void allocate_dispatch_handle(
+      IsolateForSandbox isolate, uint16_t parameter_count, Tagged<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void clear_dispatch_handle();
   inline JSDispatchHandle dispatch_handle() const;
   inline JSDispatchHandle dispatch_handle(AcquireLoadTag) const;
-  inline void set_dispatch_handle(JSDispatchHandle handle);
+  inline void set_dispatch_handle(
+      JSDispatchHandle handle,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  // Updates the Code in this function's dispatch table entry.
+  inline void set_code(
+      Tagged<Code> new_code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 #endif  // V8_ENABLE_LEAPTIERING
 
   // The predicates for querying code kinds related to this function have

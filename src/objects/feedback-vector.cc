@@ -229,8 +229,7 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
     uint16_t parameter_count =
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
     Tagged<Code> initial_code = *BUILTIN_CODE(isolate, CompileLazy);
-    cell->initialize_dispatch_handle(isolate, parameter_count, initial_code,
-                                     initial_code->instruction_start());
+    cell->allocate_dispatch_handle(isolate, parameter_count, initial_code);
 #endif
     cells.push_back(cell);
   }

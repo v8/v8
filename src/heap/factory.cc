@@ -4697,9 +4697,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // TODO(saelo): in the future, we probably want to use
     // code->parameter_count() here instead, but not all Code objects know
     // their parameter count yet.
-    function->initialize_dispatch_handle(
-        isolate, sfi_->internal_formal_parameter_count_with_receiver(), *code,
-        code->instruction_start());
+    function->allocate_dispatch_handle(
+        isolate, sfi_->internal_formal_parameter_count_with_receiver(), *code);
   } else {
     // TODO(olivf, 42204201): Here we are explicitly not updating (only
     // potentially initializing) the code. Worst case the dispatch handle still
