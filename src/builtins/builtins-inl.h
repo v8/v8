@@ -222,15 +222,10 @@ constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
 // static
 template <Builtin builtin>
 constexpr size_t Builtins::WasmBuiltinHandleArrayIndex() {
-  size_t index;
-  if constexpr (builtin == Builtin::kWasmToOnHeapWasmToJsTrampoline) {
-    index = 0;
-  } else if constexpr (builtin == Builtin::kWasmToJsWrapperInvalidSig) {
-    index = 1;
-  } else {
-    static_assert(builtin == Builtin::kWasmToJsWrapperAsm);
-    index = 2;
-  }
+  constexpr size_t index =
+      std::find(std::begin(Builtins::kWasmIndirectlyCallableBuiltins),
+                std::end(Builtins::kWasmIndirectlyCallableBuiltins), builtin) -
+      std::begin(Builtins::kWasmIndirectlyCallableBuiltins);
   static_assert(Builtins::kWasmIndirectlyCallableBuiltins[index] == builtin);
   return index;
 }
