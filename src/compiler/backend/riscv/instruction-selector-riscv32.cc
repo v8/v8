@@ -186,11 +186,12 @@ void EmitLoad(InstructionSelectorT<TurboshaftAdapter>* selector,
 }
 
 template <typename Adapter>
-void EmitS128Load(InstructionSelectorT<Adapter>* selector, Node* node,
-                  InstructionCode opcode, VSew sew, Vlmul lmul) {
+void EmitS128Load(InstructionSelectorT<Adapter>* selector,
+                  typename Adapter::node_t node, InstructionCode opcode,
+                  VSew sew, Vlmul lmul) {
   RiscvOperandGeneratorT<Adapter> g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
+  typename Adapter::node_t base = selector->input_at(node, 0);
+  typename Adapter::node_t index = selector->input_at(node, 1);
 
   if (g.CanBeImmediate(index, opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
@@ -1788,23 +1789,24 @@ void InstructionSelectorT<Adapter>::VisitI64x2ReplaceLaneI32Pair(node_t node) {
 // Shared routine for multiple shift operations.
 template <typename Adapter>
 static void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
-                                 InstructionCode opcode, Node* node) {
+                                 InstructionCode opcode,
+                                 typename Adapter::node_t node) {
   RiscvOperandGeneratorT<Adapter> g(selector);
-  Int32Matcher m(node->InputAt(2));
   InstructionOperand shift_operand;
-  if (m.HasResolvedValue()) {
-    shift_operand = g.UseImmediate(m.node());
+  typename Adapter::node_t shift_by = selector->input_at(node, 2);
+  if (selector->is_integer_constant(shift_by)) {
+    shift_operand = g.UseImmediate(shift_by);
   } else {
-    shift_operand = g.UseUniqueRegister(m.node());
+    shift_operand = g.UseUniqueRegister(shift_by);
   }
 
   // We use UseUniqueRegister here to avoid register sharing with the output
   // register.
-  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
-                                 g.UseUniqueRegister(node->InputAt(1)),
-                                 shift_operand};
+  InstructionOperand inputs[] = {
+      g.UseUniqueRegister(selector->input_at(node, 0)),
+      g.UseUniqueRegister(selector->input_at(node, 1)), shift_operand};
 
-  Node* projection1 = NodeProperties::FindProjection(node, 1);
+  typename Adapter::node_t projection1 = selector->FindProjection(node, 1);
 
   InstructionOperand outputs[2];
   InstructionOperand temps[1];
@@ -1812,7 +1814,7 @@ static void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
   int32_t temp_count = 0;
 
   outputs[output_count++] = g.DefineAsRegister(node);
-  if (projection1) {
+  if (selector->valid(projection1)) {
     outputs[output_count++] = g.DefineAsRegister(projection1);
   } else {
     temps[temp_count++] = g.TempRegister();
@@ -1823,29 +1825,17 @@ static void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32PairShl(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitWord32PairShift(this, kRiscvShlPair, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32PairShr(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitWord32PairShift(this, kRiscvShrPair, node);
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32PairSar(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     VisitWord32PairShift(this, kRiscvSarPair, node);
-  }
 }
 
 template <typename Adapter>

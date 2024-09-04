@@ -311,11 +311,12 @@ void EmitLoad(InstructionSelectorT<TurboshaftAdapter>* selector,
 }
 
 template <typename Adapter>
-void EmitS128Load(InstructionSelectorT<Adapter>* selector, Node* node,
-                  InstructionCode opcode, VSew sew, Vlmul lmul) {
+void EmitS128Load(InstructionSelectorT<Adapter>* selector,
+                  typename Adapter::node_t node, InstructionCode opcode,
+                  VSew sew, Vlmul lmul) {
   RiscvOperandGeneratorT<Adapter> g(selector);
-  Node* base = selector->input_at(node, 0);
-  Node* index = selector->input_at(node, 1);
+  typename Adapter::node_t base = selector->input_at(node, 0);
+  typename Adapter::node_t index = selector->input_at(node, 1);
   if (g.CanBeImmediate(index, opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                    g.DefineAsRegister(node), g.UseRegister(base),
@@ -332,60 +333,97 @@ void EmitS128Load(InstructionSelectorT<Adapter>* selector, Node* node,
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStoreLane(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    StoreLaneParameters params = StoreLaneParametersOf(node->op());
-    LoadStoreLaneParams f(params.rep, params.laneidx);
-    InstructionCode opcode = kRiscvS128StoreLane;
-    opcode |=
-        LaneSizeField::encode(ElementSizeInBytes(params.rep) * kBitsPerByte);
-    if (params.kind == MemoryAccessKind::kProtected) {
-      opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-    }
-    RiscvOperandGeneratorT<Adapter> g(this);
-    Node* base = this->input_at(node, 0);
-    Node* index = this->input_at(node, 1);
-    InstructionOperand addr_reg = g.TempRegister();
-    Emit(kRiscvAdd64, addr_reg, g.UseRegister(base), g.UseRegister(index));
-    InstructionOperand inputs[4] = {
-        g.UseRegister(node->InputAt(2)),
-        g.UseImmediate(f.laneidx),
-        addr_reg,
-        g.TempImmediate(0),
-    };
-    opcode |= AddressingModeField::encode(kMode_MRI);
-    Emit(opcode, 0, nullptr, 4, inputs);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitStoreLane(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Simd128LaneMemoryOp& store = Get(node).Cast<Simd128LaneMemoryOp>();
+  InstructionCode opcode = kRiscvS128StoreLane;
+  opcode |= LaneSizeField::encode(store.lane_size() * kBitsPerByte);
+  if (store.kind.with_trap_handler) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
+
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+  node_t base = this->input_at(node, 0);
+  node_t index = this->input_at(node, 1);
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kRiscvAdd64, addr_reg, g.UseRegister(base), g.UseRegister(index));
+  InstructionOperand inputs[4] = {
+      g.UseRegister(input_at(node, 2)),
+      g.UseImmediate(store.lane),
+      addr_reg,
+      g.TempImmediate(0),
+  };
+  opcode |= AddressingModeField::encode(kMode_MRI);
+  Emit(opcode, 0, nullptr, 4, inputs);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    LoadLaneParameters params = LoadLaneParametersOf(node->op());
-    DCHECK(params.rep == MachineType::Int8() ||
-           params.rep == MachineType::Int16() ||
-           params.rep == MachineType::Int32() ||
-           params.rep == MachineType::Int64());
-    LoadStoreLaneParams f(params.rep.representation(), params.laneidx);
-    InstructionCode opcode = kRiscvS128LoadLane;
-    opcode |= LaneSizeField::encode(params.rep.MemSize() * kBitsPerByte);
-    if (params.kind == MemoryAccessKind::kProtected) {
-      opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-    }
-    RiscvOperandGeneratorT<Adapter> g(this);
-    Node* base = this->input_at(node, 0);
-    Node* index = this->input_at(node, 1);
-    InstructionOperand addr_reg = g.TempRegister();
-    Emit(kRiscvAdd64, addr_reg, g.UseRegister(base), g.UseRegister(index));
-    opcode |= AddressingModeField::encode(kMode_MRI);
-    Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
-         g.UseImmediate(params.laneidx), addr_reg, g.TempImmediate(0));
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitStoreLane(Node* node) {
+  StoreLaneParameters params = StoreLaneParametersOf(node->op());
+  LoadStoreLaneParams f(params.rep, params.laneidx);
+  InstructionCode opcode = kRiscvS128StoreLane;
+  opcode |=
+      LaneSizeField::encode(ElementSizeInBytes(params.rep) * kBitsPerByte);
+  if (params.kind == MemoryAccessKind::kProtected) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
+  RiscvOperandGeneratorT<TurbofanAdapter> g(this);
+  Node* base = this->input_at(node, 0);
+  Node* index = this->input_at(node, 1);
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kRiscvAdd64, addr_reg, g.UseRegister(base), g.UseRegister(index));
+  InstructionOperand inputs[4] = {
+      g.UseRegister(this->input_at(node, 2)),
+      g.UseImmediate(f.laneidx),
+      addr_reg,
+      g.TempImmediate(0),
+  };
+  opcode |= AddressingModeField::encode(kMode_MRI);
+  Emit(opcode, 0, nullptr, 4, inputs);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoadLane(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Simd128LaneMemoryOp& load = this->Get(node).Cast<Simd128LaneMemoryOp>();
+  InstructionCode opcode = kRiscvS128LoadLane;
+  opcode |= LaneSizeField::encode(load.lane_size() * kBitsPerByte);
+  if (load.kind.with_trap_handler) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  }
+
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+  node_t base = this->input_at(node, 0);
+  node_t index = this->input_at(node, 1);
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kRiscvAdd64, addr_reg, g.UseRegister(base), g.UseRegister(index));
+  opcode |= AddressingModeField::encode(kMode_MRI);
+  Emit(opcode, g.DefineSameAsFirst(node),
+       g.UseRegister(this->input_at(node, 2)), g.UseImmediate(load.lane),
+       addr_reg, g.TempImmediate(0));
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoadLane(Node* node) {
+  LoadLaneParameters params = LoadLaneParametersOf(node->op());
+  DCHECK(
+      params.rep == MachineType::Int8() || params.rep == MachineType::Int16() ||
+      params.rep == MachineType::Int32() || params.rep == MachineType::Int64());
+  LoadStoreLaneParams f(params.rep.representation(), params.laneidx);
+  InstructionCode opcode = kRiscvS128LoadLane;
+  opcode |= LaneSizeField::encode(params.rep.MemSize() * kBitsPerByte);
+  if (params.kind == MemoryAccessKind::kProtected) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  }
+  RiscvOperandGeneratorT<TurbofanAdapter> g(this);
+  Node* base = this->input_at(node, 0);
+  Node* index = this->input_at(node, 1);
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kRiscvAdd64, addr_reg, g.UseRegister(base), g.UseRegister(index));
+  opcode |= AddressingModeField::encode(kMode_MRI);
+  Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
+       g.UseImmediate(params.laneidx), addr_reg, g.TempImmediate(0));
 }
 
 namespace {
@@ -2012,14 +2050,11 @@ void InstructionSelectorT<Adapter>::EmitPrepareArguments(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     auto load = this->load_view(node);
     LoadRepresentation load_rep = load.loaded_rep();
     RiscvOperandGeneratorT<Adapter> g(this);
-    Node* base = this->input_at(node, 0);
-    Node* index = this->input_at(node, 1);
+    node_t base = this->input_at(node, 0);
+    node_t index = this->input_at(node, 1);
 
     InstructionCode opcode = kArchNop;
     switch (load_rep.representation()) {
@@ -2079,7 +2114,6 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
       // Emit desired load opcode, using temp addr_reg.
       Emit(opcode | AddressingModeField::encode(kMode_MRI),
            g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
-    }
   }
 }
 
