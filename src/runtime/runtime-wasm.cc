@@ -542,6 +542,9 @@ void ReplaceJSToWasmWrapper(
     Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data,
     int function_index, Tagged<Code> wrapper_code) {
   Tagged<WasmFuncRef> func_ref;
+  // Always expect a func_ref. If this fails, we are maybe compiling a wrapper
+  // for the start function. This function is only called once, so this should
+  // not happen.
   CHECK(trusted_instance_data->try_get_func_ref(function_index, &func_ref));
   Tagged<JSFunction> external_function;
   CHECK(func_ref->internal(isolate)->try_get_external(&external_function));
@@ -567,15 +570,6 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   const wasm::WasmFunction& function = module->functions[function_index];
   const uint32_t canonical_sig_index =
       module->canonical_sig_id(function.sig_index);
-
-  // The start function is not guaranteed to be registered as
-  // an exported function (although it is called as one).
-  // If there is no entry for the start function, the tier-up is abandoned.
-  Tagged<WasmFuncRef> unused_func_ref;
-  if (!trusted_data->try_get_func_ref(function_index, &unused_func_ref)) {
-    DCHECK_EQ(function_index, module->start_function_index);
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
 
   Tagged<MaybeObject> maybe_cached_wrapper =
       isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_index);
