@@ -60,7 +60,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.158.0.ddc2270e-gomaip',
+  'reclient_version': 're_client_version:0.159.2.996d35d3-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -76,7 +76,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:50ecf4c84d08dad3d16d14590221dd43fe65ea62',
+  'gn_version': 'git_revision:e080b4d340c28f8dc135a45cb9da05c7276b362e',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '469c6d506225a9aeaf7d3479745ece6d9a24f492',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '23a46ebf231dce7e4a158646abf203361860a448',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd33351b9914332a8d7ce5d17d3330beec155cc93',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c0b937cf552e969be01aebeb90ed52fc7ff299bc',
   'buildtools/linux64': {
     'packages': [
       {
@@ -239,7 +239,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '21462dff937ce89720e90a43b7dc58425c82535d',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c282fc3e7b5112f924f5ef5885b5c0c676a017f5',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd3aea2341cdeaf7e717bc257a59aa7a9407d318a',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b8d4c963cc945859452b1604c337da445fd3c98e',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ae6ce3418e748d333744a35c47e333ee7162517d',
   'tools/luci-go': {
       'packages': [
         {
