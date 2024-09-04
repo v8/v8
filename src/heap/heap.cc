@@ -4933,8 +4933,14 @@ size_t Heap::DefaultMaxSemiSpaceSize() {
 // static
 size_t Heap::OldGenerationToSemiSpaceRatio() {
   DCHECK(!v8_flags.minor_ms);
-  static constexpr size_t kOldGenerationToSemiSpaceRatio =
-      128 * kHeapLimitMultiplier / kPointerMultiplier;
+  // Compute a ration such that when old gen max capacity is set to the highest
+  // supported value, young gen max capacity would also be set to the max.
+  static size_t kMaxOldGenSizeToMaxYoungGenSizeRatio =
+      V8HeapTrait::kMaxSize /
+      (v8_flags.scavenger_max_new_space_capacity_mb * MB);
+  static size_t kOldGenerationToSemiSpaceRatio =
+      kMaxOldGenSizeToMaxYoungGenSizeRatio * kHeapLimitMultiplier /
+      kPointerMultiplier;
   return kOldGenerationToSemiSpaceRatio;
 }
 
