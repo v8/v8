@@ -108,15 +108,22 @@ JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
 
 void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
                                                   Address new_entrypoint) {
-  CHECK(!IsFreelistEntry());
-  Address current_payload = encoded_word_.load(std::memory_order_relaxed);
-  Address marking_bit = current_payload & kMarkingBit;
-  Address parameter_count = current_payload & kParameterCountMask;
-  // We want to preserve the marking bit of the entry. Since that happens to be
-  // the tag bit of the pointer, we need to explicitly clear it here.
-  Address object = (new_object << kObjectPointerShift) & ~kMarkingBit;
-  Address payload = object | marking_bit | parameter_count;
-  encoded_word_.store(payload, std::memory_order_relaxed);
+  // We currently need a CAS loop here since this can race with ::Mark() and so
+  // could otherwise lead to us dropping the marking bit of an entry.
+  // TODO(saelo): see if there's a better way to solve this than two CAS loops.
+  bool success;
+  do {
+    Address old_payload = encoded_word_.load(std::memory_order_relaxed);
+    Address marking_bit = old_payload & kMarkingBit;
+    Address parameter_count = old_payload & kParameterCountMask;
+    // We want to preserve the marking bit of the entry. Since that happens to
+    // be the tag bit of the pointer, we need to explicitly clear it here.
+    Address object = (new_object << kObjectPointerShift) & ~kMarkingBit;
+    Address new_payload = object | marking_bit | parameter_count;
+    success = encoded_word_.compare_exchange_strong(old_payload, new_payload,
+                                                    std::memory_order_relaxed);
+  } while (!success);
+
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
 }
 
