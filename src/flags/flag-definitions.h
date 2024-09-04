@@ -1909,9 +1909,10 @@ DEFINE_SIZE_T(
     "both max_semi_space_size and max_old_space_size take precedence. "
     "All three flags cannot be specified at the same time.")
 DEFINE_SIZE_T(initial_heap_size, 0, "initial size of the heap (in Mbytes)")
+// TODO(omerkatz): Remove `huge_max_old_generation_size` once node is updated to
+// not check that it exists.
 DEFINE_BOOL(huge_max_old_generation_size, true,
-            "Increase max size of the old space to 4 GB for x64 systems with"
-            "the physical memory bigger than 16 GB")
+            "deprecated (this flag is a nop and has no impact)")
 DEFINE_SIZE_T(initial_old_space_size, 0, "initial old space size (in Mbytes)")
 DEFINE_BOOL(separate_gc_phases, false,
             "young and full garbage collection phases are not overlapping")

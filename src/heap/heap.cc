@@ -364,12 +364,12 @@ size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
   // memory at least 16GB. The theshold is set to 15GB to accomodate for some
   // memory being reserved by the hardware.
-  constexpr bool x64_bit = Heap::kHeapLimitMultiplier >= 2;
-  if (v8_flags.huge_max_old_generation_size && x64_bit &&
-      (physical_memory / GB) >= 15) {
+#ifdef V8_HOST_ARCH_64_BIT
+  if ((physical_memory / GB) >= 15) {
     DCHECK_EQ(max_size / GB, 2u);
     max_size *= 2;
   }
+#endif  // V8_HOST_ARCH_64_BIT
   return std::min(max_size, AllocatorLimitOnMaxOldGenerationSize());
 }
 
