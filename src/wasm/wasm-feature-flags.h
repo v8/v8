@@ -95,11 +95,6 @@
   /* V8 side owner: jkummerow */                                               \
   V(stringref, "reference-typed strings", false)                               \
                                                                                \
-  /* Imported Strings Proposal. */                                             \
-  /* https://github.com/WebAssembly/js-string-builtins */                      \
-  /* V8 side owner: jkummerow */                                               \
-  V(imported_strings, "imported strings", false)                               \
-                                                                               \
   /* Imported Strings TextEncoder/TextDecoder post-MVP extension. */           \
   /* No upstream repo yet. */                                                  \
   /* V8 side owner: jkummerow */                                               \
@@ -132,7 +127,13 @@
   /* Shipped in V12.7 */                                                       \
   /* Shipped for wasm-gc modules as part of wasm-gc in v11.9 */                \
   /* Launch bug: https://crbug.com/40898108 */                                 \
-  V(inlining, "wasm-into-wasm inlining", true)
+  V(inlining, "wasm-into-wasm inlining", true)                                 \
+                                                                               \
+  /* Imported Strings Proposal. */                                             \
+  /* https://github.com/WebAssembly/js-string-builtins */                      \
+  /* V8 side owner: jkummerow */                                               \
+  /* Shipped in v13.0 */                                                       \
+  V(imported_strings, "imported strings", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \

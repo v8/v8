@@ -224,21 +224,34 @@ TEST_F(ApiWasmTest, WasmEnableDisableImportedStrings) {
     i::FlagScope<bool> flag_strings(
         &i::v8_flags.experimental_wasm_imported_strings, true);
     EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+
+    // When flag is on, callback return value has no effect.
+    isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return true; });
+    EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+    EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                    .has_imported_strings());
+    isolate()->SetWasmImportedStringsEnabledCallback(
+        [](auto) { return false; });
+    EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+    EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                    .has_imported_strings());
   }
   {
     i::FlagScope<bool> flag_strings(
         &i::v8_flags.experimental_wasm_imported_strings, false);
     EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
+
+    // Test enabling/disabling via callback.
+    isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return true; });
+    EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+    EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                    .has_imported_strings());
+    isolate()->SetWasmImportedStringsEnabledCallback(
+        [](auto) { return false; });
+    EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
+    EXPECT_FALSE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                     .has_imported_strings());
   }
-  // Test enabling/disabling via callback.
-  isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return true; });
-  EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
-  EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
-                  .has_imported_strings());
-  isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return false; });
-  EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
-  EXPECT_FALSE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
-                   .has_imported_strings());
 }
 
 TEST_F(ApiWasmTest, WasmEnableDisableJSPI) {
