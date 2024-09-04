@@ -404,11 +404,15 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // JSDispatchHandles.
   //
   // These are references to entries in the JSDispatchTable, which contain the
-  // current code for a function.
-  inline void AllocateAndInstallJSDispatchHandle(
-      size_t offset, IsolateForSandbox isolate, uint16_t parameter_count,
-      Tagged<Code> code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  // current code for a JSFunction.
+  inline void InitJSDispatchHandleField(size_t offset,
+                                        IsolateForSandbox isolate,
+                                        uint16_t parameter_count);
+  inline void InitJSDispatchHandleField(size_t offset,
+                                        IsolateForSandbox isolate,
+                                        uint16_t parameter_count,
+                                        Tagged<Code> code,
+                                        Address instruction_start);
 
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.

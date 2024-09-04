@@ -1315,7 +1315,6 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
   }
 
   host->Relaxed_WriteField<JSDispatchHandle>(slot_accessor.offset(), handle);
-  JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle);
 
   return 1;
 #else

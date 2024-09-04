@@ -90,8 +90,10 @@ JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
 }
 
 JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
-    Space* space, uint16_t parameter_count, Tagged<Code> new_code) {
+    Space* space, uint16_t parameter_count, Tagged<Code> new_code,
+    Address new_entrypoint) {
   DCHECK(space->BelongsTo(this));
+  DCHECK_EQ(new_code->instruction_start(), new_entrypoint);
   CHECK_EQ(new_code->entrypoint_tag(), kJSEntrypointTag);
   CHECK(new_code->parameter_count() == kDontAdaptArgumentsSentinel ||
         new_code->parameter_count() == parameter_count);
@@ -99,8 +101,8 @@ JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
   uint32_t index = AllocateEntry(space);
   JSDispatchEntry& entry = at(index);
   CFIMetadataWriteScope write_scope("JSDispatchTable initialize");
-  entry.MakeJSDispatchEntry(new_code.address(), new_code->instruction_start(),
-                            parameter_count, space->allocate_black());
+  entry.MakeJSDispatchEntry(new_code.address(), new_entrypoint, parameter_count,
+                            space->allocate_black());
   return IndexToHandle(index);
 }
 
