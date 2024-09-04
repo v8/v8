@@ -6529,7 +6529,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   static_assert(kSmiTag == 0);
-  SmiTst(object, kScratchReg);
+  SmiTst(object, scratch);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, scratch,
         Operand(zero_reg));
 
