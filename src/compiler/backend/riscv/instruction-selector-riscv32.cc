@@ -1320,7 +1320,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
                   TryCast<OverflowCheckedBinopOp>(node)) {
             const bool is64 = binop->rep == WordRepresentation::Word64();
             if (is64) {
-              TRACE_UNIMPL();
+              UNREACHABLE();
             } else {
               switch (binop->kind) {
                 case OverflowCheckedBinopOp::Kind::kSignedAdd:
