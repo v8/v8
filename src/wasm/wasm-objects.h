@@ -727,19 +727,22 @@ class WasmDispatchTableData {
   void Remove(Address call_target);
 
  private:
-  // Maps call targets to wrappers. When an entry's value is {nullptr}, that
-  // means we know for sure it's not a wrapper.
-  // This duplicates information we could get from
-  // {wasm::GetWasmImportWrapperCache()->FindWrapper}, but doesn't require
-  // any locks, which is important for applications with many worker threads.
-  std::unordered_map<Address, wasm::WasmCode*> lookup_cache_;
-
-  // We manage the lifetime of wrappers, like all WasmCode, by refcounting.
-  // Each table only maintains a refcount of 1 for each wrapper; so this
-  // map stores the number of references in the table for a given wrapper.
-  // When it drops to zero, or when the table is collected, the wrapper's
-  // refcount is decremented.
-  std::map<wasm::WasmCode*, size_t> wrappers_;
+  // The {wrappers_} data structure serves two purposes:
+  // 1) It maps call targets to wrappers.
+  //    When an entry's value is {nullptr}, that means we know for sure it's not
+  //    a wrapper. This duplicates information we could get from
+  //    {wasm::GetWasmImportWrapperCache()->FindWrapper}, but doesn't require
+  //    any locks, which is important for applications with many worker threads.
+  // 2) It keeps track of all wrappers that are currently installed in this
+  //    table, and how often they are stored in this table. The first time a
+  //    wrapper is added to the table, we increment the ref count. When we
+  //    remove the last reference, we decrement the ref count, which potentially
+  //    triggers code GC.
+  struct WrapperEntry {
+    wasm::WasmCode* code;  // {nullptr} if this is not a wrapper.
+    int count = 1;         // irrelevant if this is not a wrapper.
+  };
+  std::unordered_map<Address, WrapperEntry> wrappers_;
 };
 
 // The dispatch table is referenced from a WasmTableObject and from every

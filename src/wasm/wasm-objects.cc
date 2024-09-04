@@ -1959,7 +1959,11 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
       trusted_instance_data->dispatch_table(table_index);
   // Decrement the refcount of any overwritten entry.
   table->offheap_data()->Remove(table->target(entry_index));
-  table->offheap_data()->Add(call_target, wasm_code, IsAWrapper::kYes);
+  DCHECK(wasm_code ||
+         call_target ==
+             Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+  table->offheap_data()->Add(call_target, wasm_code,
+                             wasm_code ? IsAWrapper::kYes : IsAWrapper::kNo);
   table->Set(entry_index, *import_data, call_target, canonical_sig_id);
 #else   // !V8_ENABLE_DRUMBRAKE
   trusted_instance_data->dispatch_table(table_index)
@@ -2126,23 +2130,11 @@ const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
 }
 
 WasmDispatchTableData::~WasmDispatchTableData() {
+  if (wrappers_.empty()) return;
   std::vector<wasm::WasmCode*> codes;
-  // All wrappers are both in {wrappers_} and {lookup_cache_}.
-  // TODO(clemensb): Remove one of the data structures.
-#if DEBUG
-  for (auto [instruction_start, wrapper] : lookup_cache_) {
-    if (!wrapper) continue;
-    DCHECK(wrappers_.contains(wrapper));
-    DCHECK_EQ(instruction_start, wrapper->instruction_start());
-  }
-#endif
-  codes.reserve(wrappers_.size());
-  for (auto [wrapper, count] : wrappers_) {
-    DCHECK(lookup_cache_.contains(wrapper->instruction_start()));
-    DCHECK_EQ(wrapper,
-              lookup_cache_.find(wrapper->instruction_start())->second);
-    DCHECK_GT(count, 0);
-    codes.push_back(wrapper);
+  for (auto [address, entry] : wrappers_) {
+    DCHECK_LT(0, entry.count);
+    if (entry.code) codes.push_back(entry.code);
   }
   wasm::WasmCode::DecrementRefCount(base::VectorOf(codes));
 }
@@ -2157,56 +2149,66 @@ void WasmDispatchTableData::Add(Address call_target,
   // worth the memory consumption: overwriting of existing function entries
   // is exceedingly rare.
   if (contextual_knowledge == IsAWrapper::kNo) {
+    DCHECK_NULL(wrapper_if_known);
     DCHECK_NULL(wasm::GetWasmImportWrapperCache()->FindWrapper(call_target));
+    DCHECK(!wrappers_.count(call_target) ||
+           wrappers_.find(call_target)->second.code == nullptr);
     return;
   }
 
   // Perform lookup and insertion in a single operation; we never have to update
   // existing entries.
-  auto [cache_entry, was_inserted] =
-      lookup_cache_.emplace(call_target, wrapper_if_known);
-  wasm::WasmCode*& wrapper = cache_entry->second;
-  DCHECK(wrapper_if_known == nullptr || wrapper_if_known == wrapper);
-  if (!was_inserted) {
-    // We already knew if this was a wrapper or not.
-    if (!wrapper) {
-      DCHECK_NULL(wrapper_if_known);
-      return;  // Not a wrapper.
+  auto [wrapper_cache, was_inserted] =
+      wrappers_.emplace(call_target, WrapperEntry{wrapper_if_known});
+  auto& [wrapper_code, count] = wrapper_cache->second;
+  DCHECK(wrapper_if_known == nullptr || wrapper_if_known == wrapper_code);
+  if (was_inserted) {
+    if (wrapper_if_known == nullptr) {
+      // No cache entry, and we are not sure if this is a wrapper. So we have to
+      // perform the relatively expensive mutex-protected lookup to find out.
+      DCHECK_NULL(wrapper_code);
+      wrapper_code =
+          wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+      DCHECK_IMPLIES(contextual_knowledge == IsAWrapper::kYes,
+                     wrapper_code != nullptr);
+      if (!wrapper_code) return;  // Not a wrapper.
     }
-  } else if (wrapper_if_known == nullptr) {
-    DCHECK_NULL(wrapper);
-    // No cache entry, and we are not sure if this is a wrapper. So we have to
-    // perform the relatively expensive mutex-protected lookup to find out.
-    wrapper = wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
-    if (!wrapper) return;  // Not a wrapper.
-  }
-  DCHECK_NOT_NULL(wrapper);
-  auto [it, inserted] = wrappers_.emplace(wrapper, 1);
-  if (inserted) {
-    wrapper->IncRef();
+    // We added a wrapper to the table; increment its ref-count.
+    DCHECK_EQ(1, count);
+    wrapper_code->IncRef();
   } else {
-    it->second++;
+    // We already knew if this was a wrapper or not.
+    DCHECK_IMPLIES(wrapper_code == nullptr, wrapper_if_known == nullptr);
+    if (wrapper_code == nullptr) return;  // Not a wrapper.
+    DCHECK_LE(1, count);
+    ++count;
   }
 }
 
 void WasmDispatchTableData::Remove(Address call_target) {
   if (call_target == kNullAddress) return;
-  wasm::WasmCode* wrapper = nullptr;
-  auto entry = lookup_cache_.find(call_target);
-  if (entry != lookup_cache_.end()) {
-    wrapper = entry->second;
-  } else {
-    wrapper = wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
+  auto entry = wrappers_.find(call_target);
+  if (entry == wrappers_.end()) {
+    // This is certainly not a wrapper.
+    DCHECK_NULL(wasm::GetWasmImportWrapperCache()->FindWrapper(call_target));
+    return;
   }
-  if (!wrapper) return;
-  auto it = wrappers_.find(wrapper);
-  DCHECK_NE(it, wrappers_.end());
-  if (it->second == 1) {
+  auto& [wrapper_code, count] = entry->second;
+  if (!wrapper_code) {
+    // Avoid leaking memory by removing the entry. We don't know for sure if
+    // this was the last entry with {call_target} but we can always add it back.
+    wrappers_.erase(entry);
+    return;
+  }
+
+  if (count == 1) {
     // This was the last reference to this wrapper in this table.
-    wasm::WasmCode::DecrementRefCount({&wrapper, 1});
-    wrappers_.erase(it);
+    // TODO(clemensb): We should speed this up by doing
+    // {WasmCodeRefScope::AddRef} and then {DecRefOnLiveCode}.
+    wasm::WasmCode::DecrementRefCount({&wrapper_code, 1});
+    wrappers_.erase(entry);
   } else {
-    it->second--;
+    --count;
   }
 }
 
