@@ -276,7 +276,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                       Cast<AbstractCode>(code), name));
   }
-  isolate_->heap()->js_to_wasm_wrappers()->Set(canonical_sig_index_,
+  isolate_->heap()->js_to_wasm_wrappers()->set(canonical_sig_index_,
                                                MakeWeak(code->wrapper()));
   Counters* counters = isolate_->counters();
   counters->wasm_generated_code_size()->Increment(code->body_size());

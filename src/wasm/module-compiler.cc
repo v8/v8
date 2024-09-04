@@ -2035,8 +2035,8 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
     if (static_cast<int>(canonical_sig_id) <
         isolate->heap()->js_to_wasm_wrappers()->length()) {
       Tagged<MaybeObject> existing_wrapper =
-          isolate->heap()->js_to_wasm_wrappers()->Get(canonical_sig_id);
-      if (existing_wrapper.IsStrongOrWeak() &&
+          isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_id);
+      if (!existing_wrapper.IsCleared() &&
           !IsUndefined(existing_wrapper.GetHeapObject())) {
         DCHECK(IsCodeWrapper(existing_wrapper.GetHeapObject()));
         // Skip wrapper compilation as the wrapper is already cached.
@@ -4061,7 +4061,7 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
     DCHECK(!code->is_builtin());
     // The compilation unit should have added the code to the per-isolate cache.
     DCHECK_EQ(MakeWeak(code->wrapper()),
-              isolate->heap()->js_to_wasm_wrappers()->Get(
+              isolate->heap()->js_to_wasm_wrappers()->get(
                   unit.canonical_sig_index()));
   }
   // Clearing needs to hold the mutex to avoid racing with
@@ -4577,8 +4577,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     uint32_t canonical_sig_id = module->canonical_sig_id(function.sig_index);
     int wrapper_index = canonical_sig_id;
     Tagged<MaybeObject> existing_wrapper =
-        isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
-    if (existing_wrapper.IsStrongOrWeak() &&
+        isolate->heap()->js_to_wasm_wrappers()->get(wrapper_index);
+    if (!existing_wrapper.IsCleared() &&
         !IsUndefined(existing_wrapper.GetHeapObject())) {
       DCHECK(IsCodeWrapper(existing_wrapper.GetHeapObject()));
       continue;
@@ -4618,7 +4618,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     DCHECK(!code->is_builtin());
     // Each unit should have installed the code in the per-isolate cache.
     DCHECK_EQ(MakeWeak(code->wrapper()),
-              isolate->heap()->js_to_wasm_wrappers()->Get(canonical_sig_id));
+              isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_id));
   }
 }
 

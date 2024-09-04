@@ -381,7 +381,7 @@ TEST(JSToWasmWrapperGarbageCollection) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto NumCompiledJSToWasmWrappers = [isolate]() {
     int num_wrappers = 0;
-    Tagged<WeakArrayList> wrappers = isolate->heap()->js_to_wasm_wrappers();
+    Tagged<WeakFixedArray> wrappers = isolate->heap()->js_to_wasm_wrappers();
     for (int i = 0, e = wrappers->length(); i < e; ++i) {
       // Entries are either weak code wrappers, cleared entries, or undefined.
       Tagged<MaybeObject> maybe_wrapper = wrappers->get(i);

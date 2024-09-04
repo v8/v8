@@ -255,10 +255,10 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
 #if V8_ENABLE_WEBASSEMBLY
     // Clear the cached js-to-wasm wrappers.
-    DirectHandle<WeakArrayList> wrappers(isolate->heap()->js_to_wasm_wrappers(),
-                                         isolate);
-    for (int i = 0; i < wrappers->length(); ++i) {
-      wrappers->Set(i, Tagged<MaybeObject>{});
+    DirectHandle<WeakFixedArray> wrappers(
+        isolate->heap()->js_to_wasm_wrappers(), isolate);
+    for (int i = 0, e = wrappers->length(); i < e; ++i) {
+      wrappers->set(i, Tagged<MaybeObject>{});
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

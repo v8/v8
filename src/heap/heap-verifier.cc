@@ -348,7 +348,7 @@ void HeapVerification::Verify() {
 
 #if V8_ENABLE_WEBASSEMBLY
   // wasm_canonical_rtts holds weak references to maps or (strong) undefined.
-  Tagged<WeakArrayList> canonical_rtts = heap()->wasm_canonical_rtts();
+  Tagged<WeakFixedArray> canonical_rtts = heap()->wasm_canonical_rtts();
   for (int i = 0, e = canonical_rtts->length(); i < e; ++i) {
     Tagged<MaybeObject> maybe_rtt = canonical_rtts->get(i);
     if (maybe_rtt.IsStrong()) {
@@ -361,7 +361,7 @@ void HeapVerification::Verify() {
   }
 
   // js_to_wasm_wrappers holds weak references to code or (strong) undefined.
-  Tagged<WeakArrayList> wrappers = heap()->js_to_wasm_wrappers();
+  Tagged<WeakFixedArray> wrappers = heap()->js_to_wasm_wrappers();
   for (int i = 0, e = wrappers->length(); i < e; ++i) {
     Tagged<MaybeObject> maybe_wrapper = wrappers->get(i);
     if (maybe_wrapper.IsStrong()) {

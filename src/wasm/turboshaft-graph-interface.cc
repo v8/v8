@@ -7252,11 +7252,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // Note: The reference cannot have been cleared: Since the loaded_sig
         // corresponds to a function of the same canonical type, that function
         // will have kept the type alive.
-        V<WeakArrayList> rtts = LOAD_ROOT(WasmCanonicalRtts);
+        V<WeakFixedArray> rtts = LOAD_ROOT(WasmCanonicalRtts);
         V<Object> weak_rtt = __ Load(
             rtts, __ ChangeInt32ToIntPtr(loaded_sig),
             LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
-            WeakArrayList::kHeaderSize, kTaggedSizeLog2);
+            WeakFixedArray::kHeaderSize, kTaggedSizeLog2);
         V<Map> real_rtt =
             V<Map>::Cast(__ BitcastWordPtrToTagged(__ WordPtrBitwiseAnd(
                 __ BitcastHeapObjectToWordPtr(V<HeapObject>::Cast(weak_rtt)),

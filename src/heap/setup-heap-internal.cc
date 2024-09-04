@@ -1340,8 +1340,8 @@ void Heap::CreateInitialMutableObjects() {
 #ifdef V8_ENABLE_WEBASSEMBLY
   set_active_continuation(roots.undefined_value());
   set_active_suspender(roots.undefined_value());
-  set_js_to_wasm_wrappers(roots.empty_weak_array_list());
-  set_wasm_canonical_rtts(roots.empty_weak_array_list());
+  set_js_to_wasm_wrappers(roots.empty_weak_fixed_array());
+  set_wasm_canonical_rtts(roots.empty_weak_fixed_array());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   set_script_list(roots.empty_weak_array_list());

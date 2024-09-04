@@ -307,13 +307,12 @@ Node* WasmGraphAssembler::LoadFixedArrayElement(Node* fixed_array,
   return LoadFromObject(type, fixed_array, offset);
 }
 
-Node* WasmGraphAssembler::LoadWeakArrayListElement(Node* fixed_array,
-                                                   Node* index_intptr,
-                                                   MachineType type) {
-  Node* offset = IntAdd(
-      IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
-      IntPtrConstant(wasm::ObjectAccess::ToTagged(WeakArrayList::kHeaderSize)));
-  return LoadFromObject(type, fixed_array, offset);
+Node* WasmGraphAssembler::LoadWeakFixedArrayElement(Node* fixed_array,
+                                                    Node* index_intptr) {
+  Node* offset = IntAdd(IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
+                        IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                            WeakFixedArray::kHeaderSize)));
+  return LoadFromObject(MachineType::AnyTagged(), fixed_array, offset);
 }
 
 Node* WasmGraphAssembler::LoadImmutableFixedArrayElement(Node* fixed_array,

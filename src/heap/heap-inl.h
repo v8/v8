@@ -180,12 +180,10 @@ void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void Heap::SetWasmCanonicalRtts(Tagged<WeakArrayList> value) {
-  set_wasm_canonical_rtts(value);
-}
-
-void Heap::SetJSToWasmWrappers(Tagged<WeakArrayList> value) {
-  set_js_to_wasm_wrappers(value);
+void Heap::SetWasmCanonicalRttsAndJSToWasmWrappers(
+    Tagged<WeakFixedArray> rtts, Tagged<WeakFixedArray> js_to_wasm_wrappers) {
+  set_wasm_canonical_rtts(rtts);
+  set_js_to_wasm_wrappers(js_to_wasm_wrappers);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

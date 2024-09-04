@@ -3024,7 +3024,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
       // will have kept the type alive.
       Node* rtts = LOAD_MUTABLE_ROOT(WasmCanonicalRtts, wasm_canonical_rtts);
       Node* real_rtt =
-          gasm_->WordAnd(gasm_->LoadWeakArrayListElement(rtts, loaded_sig),
+          gasm_->WordAnd(gasm_->LoadWeakFixedArrayElement(rtts, loaded_sig),
                          gasm_->IntPtrConstant(~kWeakHeapObjectMask));
       Node* type_info = gasm_->LoadWasmTypeInfo(real_rtt);
 

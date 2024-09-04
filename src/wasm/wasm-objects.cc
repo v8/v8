@@ -1778,7 +1778,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   int wrapper_index = canonical_sig_id;
 
   Tagged<MaybeObject> entry =
-      isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
+      isolate->heap()->js_to_wasm_wrappers()->get(wrapper_index);
 
   DirectHandle<Code> wrapper_code;
   // {entry} can be cleared, {undefined}, or a ready {CodeWrapper}.
@@ -1800,7 +1800,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
         isolate, function.sig, canonical_sig_id, module);
     // This should have added an entry in the per-isolate cache.
     DCHECK_EQ(MakeWeak(wrapper_code->wrapper()),
-              isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index));
+              isolate->heap()->js_to_wasm_wrappers()->get(wrapper_index));
   }
   DirectHandle<WasmFuncRef> func_ref{
       Cast<WasmFuncRef>(
@@ -2729,11 +2729,11 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 
   wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(isolate, canonical_sig_id);
 
-  DirectHandle<WeakArrayList> canonical_rtts(
+  DirectHandle<WeakFixedArray> canonical_rtts(
       isolate->heap()->wasm_canonical_rtts(), isolate);
 
   Tagged<MaybeObject> maybe_canonical_map =
-      canonical_rtts->Get(canonical_sig_id);
+      canonical_rtts->get(canonical_sig_id);
 
   if (maybe_canonical_map.IsStrongOrWeak() &&
       IsMap(maybe_canonical_map.GetHeapObject())) {
@@ -2741,7 +2741,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
         direct_handle(Cast<Map>(maybe_canonical_map.GetHeapObject()), isolate);
   } else {
     rtt = CreateFuncRefMap(isolate, Handle<Map>());
-    canonical_rtts->Set(canonical_sig_id, MakeWeak(*rtt));
+    canonical_rtts->set(canonical_sig_id, MakeWeak(*rtt));
   }
 
   DirectHandle<Code> js_to_js_wrapper_code =

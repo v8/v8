@@ -113,19 +113,18 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   // Recursive calls for supertypes may already have created this map.
   if (IsMap(maybe_shared_maps->get(type_index))) return;
 
-  DirectHandle<WeakArrayList> canonical_rtts;
   uint32_t canonical_type_index =
       module->isorecursive_canonical_type_ids[type_index];
 
   // Try to find the canonical map for this type in the isolate store.
-  canonical_rtts =
+  DirectHandle<WeakFixedArray> canonical_rtts =
       direct_handle(isolate->heap()->wasm_canonical_rtts(), isolate);
   DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
             canonical_type_index);
   Tagged<MaybeObject> maybe_canonical_map =
-      canonical_rtts->Get(canonical_type_index);
-  if (maybe_canonical_map.IsStrongOrWeak() &&
-      IsMap(maybe_canonical_map.GetHeapObject())) {
+      canonical_rtts->get(canonical_type_index);
+  if (!maybe_canonical_map.IsCleared() &&
+      !IsUndefined(maybe_canonical_map.GetHeapObject())) {
     maybe_shared_maps->set(type_index, maybe_canonical_map.GetHeapObject());
     return;
   }
@@ -158,7 +157,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateFuncRefMap(isolate, rtt_parent);
       break;
   }
-  canonical_rtts->Set(canonical_type_index, MakeWeak(*map));
+  canonical_rtts->set(canonical_type_index, MakeWeak(*map));
   maybe_shared_maps->set(type_index, *map);
 }
 
