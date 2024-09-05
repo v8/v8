@@ -129,6 +129,15 @@ void WriteBarrier::MarkingSlow(Tagged<TrustedObject> host,
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
                                JSDispatchHandle handle) {
 #ifdef V8_ENABLE_LEAPTIERING
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+
+  // The JSDispatchTable is only marked during major GC so we can skip the
+  // barrier if we're only doing a minor GC.
+  // This is mostly an optimization, but it does help avoid scenarios where a
+  // minor GC marking barrier marks a table entry as alive but not the Code
+  // object contained in it (because it's not a young-gen object).
+  if (marking_barrier->is_minor()) return;
+
   GetProcessWideJSDispatchTable()->Mark(handle);
 
   // We don't need to record a slot here because the entries in the
@@ -136,7 +145,6 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   // table entries are updated after compacting GC.
   static_assert(!JSDispatchTable::kSupportsCompaction);
 
-  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   if (GetProcessWideJSDispatchTable()->HasCode(handle)) {
     Tagged<Code> value = GetProcessWideJSDispatchTable()->GetCode(handle);
     marking_barrier->MarkValue(host, value);
