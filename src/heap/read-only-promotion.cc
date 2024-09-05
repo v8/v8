@@ -53,7 +53,7 @@ class Committee final {
     //
     // We keep a separate HeapObjectList as there's no standard-equivalent for a
     // hash set that can maintain insertion order.
-    HeapObjectList promotees;
+    HeapObjectList promo_accepted_list;
 
     // We assume that a full and precise GC has reclaimed all dead objects
     // and therefore that no filtering of unreachable objects is required here.
@@ -67,8 +67,10 @@ class Committee final {
       // could be solved if necessary (with more complex code), but for now
       // there are no performance issues.
       HeapObjectSet accepted_subgraph;  // Either all are accepted or none.
+      HeapObjectList accepted_subgraph_list;
       HeapObjectSet visited;            // Cycle detection.
-      if (!EvaluateSubgraph(o, &accepted_subgraph, &visited, &promotees)) {
+      if (!EvaluateSubgraph(o, &accepted_subgraph, &visited,
+                            &accepted_subgraph_list)) {
         continue;
       }
       if (accepted_subgraph.empty()) {
@@ -80,7 +82,23 @@ class Committee final {
       }
       promo_accepted_.insert(accepted_subgraph.begin(),
                              accepted_subgraph.end());
+      promo_accepted_list.insert(promo_accepted_list.end(),
+                                 accepted_subgraph_list.begin(),
+                                 accepted_subgraph_list.end());
     }
+
+    // Remove duplicates from the promo_accepted_list. Note we have to jump
+    // through these hoops in order to preserve deterministic ordering
+    // (otherwise simply using the promo_accepted_ set would be sufficient).
+    HeapObjectSet seen_promotees;
+    HeapObjectList promotees;
+    promotees.reserve(promo_accepted_list.size());
+    for (Tagged<HeapObject> o : promo_accepted_list) {
+      if (Contains(seen_promotees, o)) continue;
+      seen_promotees.insert(o);
+      promotees.push_back(o);
+    }
+    CHECK_EQ(promotees.size(), promo_accepted_.size());
 
     return promotees;
   }

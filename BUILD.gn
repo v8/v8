@@ -2482,9 +2482,9 @@ template("run_mksnapshot") {
       "--embedded_src",
       rebase_path("$target_gen_dir/embedded${suffix}.${ext}", root_build_dir),
 
-      # Run with predictable mode to create deterministic snapshots. For most
-      # parts snapshots are already predictable except for GC. The flag could
-      # also be replated with --single-threaded-gc.
+      # mksnapshot runs in predictable mode to create deterministic snapshots.
+      # Note this flag is also set implicitly by mksnapshot itself (see
+      # mksnapshot.cc). We set it here as well for clarity.
       "--predictable",
     ]
 
