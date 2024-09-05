@@ -2732,7 +2732,7 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
 
           builder()
               ->StoreAccumulatorInRegister(result_register)
-              .LoadUndefined()
+              .LoadTrue()
               .CompareReference(result_register);
 
           loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
