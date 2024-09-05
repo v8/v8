@@ -386,10 +386,6 @@ TEST(JSToWasmWrapperGarbageCollection) {
       // Entries are either weak code wrappers, cleared entries, or undefined.
       Tagged<MaybeObject> maybe_wrapper = wrappers->get(i);
       if (maybe_wrapper.IsCleared()) continue;
-      if (maybe_wrapper.IsStrong()) {
-        CHECK(IsUndefined(maybe_wrapper.GetHeapObjectAssumeStrong()));
-        continue;
-      }
       CHECK(maybe_wrapper.IsWeak());
       CHECK(IsCodeWrapper(maybe_wrapper.GetHeapObjectAssumeWeak()));
       Tagged<Code> code =

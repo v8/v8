@@ -574,15 +574,12 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   Tagged<MaybeObject> maybe_cached_wrapper =
       isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_index);
   Tagged<Code> wrapper_code;
-  Tagged<CodeWrapper> wrapper_code_wrapper;
-  if (maybe_cached_wrapper.GetHeapObjectIfWeak(&wrapper_code_wrapper)) {
-    wrapper_code = wrapper_code_wrapper->code(isolate);
+  DCHECK(maybe_cached_wrapper.IsWeakOrCleared());
+  if (!maybe_cached_wrapper.IsCleared()) {
+    wrapper_code =
+        Cast<CodeWrapper>(maybe_cached_wrapper.GetHeapObjectAssumeWeak())
+            ->code(isolate);
   } else {
-    // The wrapper code is cleared or undefined (meaning was never set).
-    DCHECK(maybe_cached_wrapper.IsCleared() ||
-           (maybe_cached_wrapper.IsStrong() &&
-            IsUndefined(maybe_cached_wrapper.GetHeapObjectAssumeStrong())));
-
     // Set the context on the isolate and open a handle scope for allocation of
     // new objects. Wrap {trusted_data} in a handle so it survives GCs.
     DCHECK(isolate->context().is_null());
@@ -1880,7 +1877,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
   // that the canonical RTT is still around.
   DirectHandle<Map> map(
       Cast<Map>(rtts->get(wasm::TypeCanonicalizer::kPredefinedArrayI8Index)
-                    .GetHeapObject()),
+                    .GetHeapObjectAssumeWeak()),
       isolate);
   Handle<WasmArray> array = isolate->factory()->NewWasmArray(
       wasm::kWasmI8, length, initial_value, map);

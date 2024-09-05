@@ -2036,9 +2036,8 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
         isolate->heap()->js_to_wasm_wrappers()->length()) {
       Tagged<MaybeObject> existing_wrapper =
           isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_id);
-      if (!existing_wrapper.IsCleared() &&
-          !IsUndefined(existing_wrapper.GetHeapObject())) {
-        DCHECK(IsCodeWrapper(existing_wrapper.GetHeapObject()));
+      if (!existing_wrapper.IsCleared()) {
+        DCHECK(IsCodeWrapper(existing_wrapper.GetHeapObjectAssumeWeak()));
         // Skip wrapper compilation as the wrapper is already cached.
         // Note that this does not guarantee that the wrapper is still cached
         // at the moment at which the WasmInternalFunction is instantiated.
@@ -4578,9 +4577,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     int wrapper_index = canonical_sig_id;
     Tagged<MaybeObject> existing_wrapper =
         isolate->heap()->js_to_wasm_wrappers()->get(wrapper_index);
-    if (!existing_wrapper.IsCleared() &&
-        !IsUndefined(existing_wrapper.GetHeapObject())) {
-      DCHECK(IsCodeWrapper(existing_wrapper.GetHeapObject()));
+    if (!existing_wrapper.IsCleared()) {
+      DCHECK(IsCodeWrapper(existing_wrapper.GetHeapObjectAssumeWeak()));
       continue;
     }
 

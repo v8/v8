@@ -457,7 +457,7 @@ inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
 }
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
-inline void MemsetTagged(Tagged_t* start, Tagged<Object> value,
+inline void MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
                          size_t counter) {
 #ifdef V8_COMPRESS_POINTERS
   // CompressAny since many callers pass values which are not valid objects.
@@ -471,7 +471,7 @@ inline void MemsetTagged(Tagged_t* start, Tagged<Object> value,
 
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
 template <typename T>
-inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<Object> value,
+inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<MaybeObject> value,
                          size_t counter) {
   MemsetTagged(start.location(), value, counter);
 }

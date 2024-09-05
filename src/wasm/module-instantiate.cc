@@ -123,9 +123,9 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
             canonical_type_index);
   Tagged<MaybeObject> maybe_canonical_map =
       canonical_rtts->get(canonical_type_index);
-  if (!maybe_canonical_map.IsCleared() &&
-      !IsUndefined(maybe_canonical_map.GetHeapObject())) {
-    maybe_shared_maps->set(type_index, maybe_canonical_map.GetHeapObject());
+  if (!maybe_canonical_map.IsCleared()) {
+    maybe_shared_maps->set(type_index,
+                           maybe_canonical_map.GetHeapObjectAssumeWeak());
     return;
   }
 

@@ -257,9 +257,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
     // Clear the cached js-to-wasm wrappers.
     DirectHandle<WeakFixedArray> wrappers(
         isolate->heap()->js_to_wasm_wrappers(), isolate);
-    for (int i = 0, e = wrappers->length(); i < e; ++i) {
-      wrappers->set(i, Tagged<MaybeObject>{});
-    }
+    MemsetTagged(wrappers->RawFieldOfFirstElement(), ClearedValue(isolate),
+                 wrappers->length());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Must happen after heap iteration since SFI::DiscardCompiled may allocate.

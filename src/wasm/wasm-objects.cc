@@ -1781,12 +1781,11 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
       isolate->heap()->js_to_wasm_wrappers()->get(wrapper_index);
 
   DirectHandle<Code> wrapper_code;
-  // {entry} can be cleared, {undefined}, or a ready {CodeWrapper}.
-  DCHECK(entry.IsCleared() || IsUndefined(entry.GetHeapObject()) ||
-         IsCodeWrapper(entry.GetHeapObject()));
-  if (entry.IsStrongOrWeak() && IsCodeWrapper(entry.GetHeapObject())) {
+  // {entry} can be cleared or a weak reference to a ready {CodeWrapper}.
+  if (!entry.IsCleared()) {
     wrapper_code = direct_handle(
-        Cast<CodeWrapper>(entry.GetHeapObject())->code(isolate), isolate);
+        Cast<CodeWrapper>(entry.GetHeapObjectAssumeWeak())->code(isolate),
+        isolate);
 #if V8_ENABLE_DRUMBRAKE
   } else if (v8_flags.wasm_jitless) {
     wrapper_code = isolate->builtins()->code_handle(
@@ -2737,10 +2736,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Tagged<MaybeObject> maybe_canonical_map =
       canonical_rtts->get(canonical_sig_id);
 
-  if (maybe_canonical_map.IsStrongOrWeak() &&
-      IsMap(maybe_canonical_map.GetHeapObject())) {
-    rtt =
-        direct_handle(Cast<Map>(maybe_canonical_map.GetHeapObject()), isolate);
+  if (!maybe_canonical_map.IsCleared()) {
+    rtt = direct_handle(
+        Cast<Map>(maybe_canonical_map.GetHeapObjectAssumeWeak()), isolate);
   } else {
     rtt = CreateFuncRefMap(isolate, Handle<Map>());
     canonical_rtts->set(canonical_sig_id, MakeWeak(*rtt));

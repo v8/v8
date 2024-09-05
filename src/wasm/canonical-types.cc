@@ -404,13 +404,20 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate, int id) {
   Handle<WeakFixedArray> old_wrappers{old_wrappers_raw, isolate};
   old_rtts_raw = old_wrappers_raw = {};
 
+  // We allocate the WeakFixedArray filled with undefined values, as we cannot
+  // pass the cleared value in a Handle (see https://crbug.com/364591622). We
+  // overwrite the new entries via {MemsetTagged} afterwards.
   Handle<WeakFixedArray> new_rtts =
       WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
   WeakFixedArray::CopyElements(isolate, *new_rtts, 0, *old_rtts, 0, old_length);
+  MemsetTagged(new_rtts->RawFieldOfFirstElement() + old_length,
+               ClearedValue(isolate), new_length - old_length);
   Handle<WeakFixedArray> new_wrappers =
       WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
   WeakFixedArray::CopyElements(isolate, *new_wrappers, 0, *old_wrappers, 0,
                                old_length);
+  MemsetTagged(new_wrappers->RawFieldOfFirstElement() + old_length,
+               ClearedValue(isolate), new_length - old_length);
   heap->SetWasmCanonicalRttsAndJSToWasmWrappers(*new_rtts, *new_wrappers);
 }
 
