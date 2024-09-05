@@ -383,25 +383,21 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate, int id) {
   Heap* heap = isolate->heap();
   // {2 * (id + 1)} needs to fit in an int.
   CHECK_LE(id, kMaxInt / 2 - 1);
-  // Canonical types are zero-indexed.
-  const int rtts_length = id + 1;
+  // Canonical types and wrappers are zero-indexed.
+  const int length = id + 1;
   // The fast path is non-handlified.
   Tagged<WeakFixedArray> old_rtts_raw = heap->wasm_canonical_rtts();
   Tagged<WeakFixedArray> old_wrappers_raw = heap->js_to_wasm_wrappers();
-  // Wrappers are indexed by canonical rtt length, and an additional boolean
-  // storing whether the corresponding function is imported or not.
-  DCHECK_EQ(old_rtts_raw->length() * 2, old_wrappers_raw->length());
 
-  // Fastest path: Lengths are sufficient.
-  if (old_rtts_raw->length() >= rtts_length) return;
+  // Fast path: Lengths are sufficient.
+  int old_length = old_rtts_raw->length();
+  DCHECK_EQ(old_length, old_wrappers_raw->length());
+  if (old_length >= length) return;
 
   // Allocate bigger WeakFixedArrays for rtts and wrappers. Grow them
   // exponentially.
-  const int new_rtts_length =
-      std::max(old_rtts_raw->length() * 3 / 2, rtts_length);
-  const int new_wrappers_length = 2 * new_rtts_length;
-  CHECK_LT(old_rtts_raw->length(), new_rtts_length);
-  CHECK_LT(old_wrappers_raw->length(), new_wrappers_length);
+  const int new_length = std::max(old_length * 3 / 2, length);
+  CHECK_LT(old_length, new_length);
 
   // Allocation can invalidate previous unhandled pointers.
   Handle<WeakFixedArray> old_rtts{old_rtts_raw, isolate};
@@ -409,13 +405,12 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate, int id) {
   old_rtts_raw = old_wrappers_raw = {};
 
   Handle<WeakFixedArray> new_rtts =
-      WeakFixedArray::New(isolate, new_rtts_length, AllocationType::kOld);
-  WeakFixedArray::CopyElements(isolate, *new_rtts, 0, *old_rtts, 0,
-                               old_rtts->length());
+      WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
+  WeakFixedArray::CopyElements(isolate, *new_rtts, 0, *old_rtts, 0, old_length);
   Handle<WeakFixedArray> new_wrappers =
-      WeakFixedArray::New(isolate, new_wrappers_length, AllocationType::kOld);
+      WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
   WeakFixedArray::CopyElements(isolate, *new_wrappers, 0, *old_wrappers, 0,
-                               old_wrappers->length());
+                               old_length);
   heap->SetWasmCanonicalRttsAndJSToWasmWrappers(*new_rtts, *new_wrappers);
 }
 
