@@ -3284,22 +3284,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 }
 
 // Check whether embedder allows code generation in this context.
-// (via v8::Isolate::SetAllowCodeGenerationFromStringsCallback)
-bool CodeGenerationFromStringsAllowed(Isolate* isolate,
-                                      Handle<NativeContext> context,
-                                      Handle<String> source) {
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
-  DCHECK(IsFalse(context->allow_code_gen_from_strings(), isolate));
-  DCHECK(isolate->allow_code_gen_callback());
-  AllowCodeGenerationFromStringsCallback callback =
-      isolate->allow_code_gen_callback();
-  ExternalCallbackScope external_callback(isolate,
-                                          reinterpret_cast<Address>(callback));
-  // Callback set. Let it decide if code generation is allowed.
-  return callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(source));
-}
-
-// Check whether embedder allows code generation in this context.
 // (via v8::Isolate::SetModifyCodeGenerationFromStringsCallback)
 bool ModifyCodeGenerationFromStrings(Isolate* isolate,
                                      Handle<NativeContext> context,
@@ -3349,25 +3333,6 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
   if (!IsFalse(context->allow_code_gen_from_strings(), isolate) &&
       IsString(*original_source)) {
     return {Cast<String>(original_source), false};
-  }
-
-  // Check if the context allows code generation for this string.
-  // allow_code_gen_callback only allows proper strings.
-  // (I.e., let allow_code_gen_callback decide, if it has been set.)
-  if (isolate->allow_code_gen_callback()) {
-    // If we run into this condition, the embedder has marked some object
-    // templates as "code like", but has given us a callback that only accepts
-    // strings. That makes no sense.
-    DCHECK(!Object::IsCodeLike(*original_source, isolate));
-
-    if (!IsString(*original_source)) {
-      return {MaybeHandle<String>(), true};
-    }
-    Handle<String> string_source = Cast<String>(original_source);
-    if (!CodeGenerationFromStringsAllowed(isolate, context, string_source)) {
-      return {MaybeHandle<String>(), false};
-    }
-    return {string_source, false};
   }
 
   // Check if the context wants to block or modify this source object.
