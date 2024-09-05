@@ -371,14 +371,21 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // src is always unchanged.
   SmiIndex SmiToIndex(Register dst, Register src, int shift);
 
-  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+  void JumpIf(Condition cond, Register a, int32_t b, Label* dest) {
     cmpl(a, Immediate(b));
-    j(equal, dest);
+    j(cond, dest);
+  }
+
+  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+    JumpIf(equal, a, b, dest);
   }
 
   void JumpIfLessThan(Register a, int32_t b, Label* dest) {
-    cmpl(a, Immediate(b));
-    j(less, dest);
+    JumpIf(less, a, b, dest);
+  }
+
+  void JumpIfUnsignedLessThan(Register a, int32_t b, Label* dest) {
+    JumpIf(below, a, b, dest);
   }
 
   // Caution: if {reg} is a 32-bit negative int, it should be sign-extended to
@@ -876,6 +883,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void RecordWriteField(
       Register object, int offset, Register value, Register slot_address,
       SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // For page containing |object| mark region covering |address|
@@ -886,6 +894,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void RecordWrite(
       Register object, Register slot_address, Register value,
       SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // Allocates an EXIT/BUILTIN_EXIT/API_CALLBACK_EXIT frame with given number

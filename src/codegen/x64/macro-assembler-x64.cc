@@ -428,12 +428,22 @@ void MacroAssembler::DecompressProtected(Register destination,
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register slot_address,
                                       SaveFPRegsMode save_fp,
-                                      SmiCheck smi_check, SlotDescriptor slot) {
+                                      SmiCheck smi_check,
+                                      ReadOnlyCheck ro_check,
+                                      SlotDescriptor slot) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(object, value, slot_address));
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis.
+  // catch stores of Smis and read-only objects.
   Label done;
+
+#if V8_STATIC_ROOTS_BOOL
+  if (ro_check == ReadOnlyCheck::kInline) {
+    // Quick check for Read-only and small Smi values.
+    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
 
   // Skip barrier if writing a smi.
   if (smi_check == SmiCheck::kInline) {
@@ -454,7 +464,8 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     bind(&ok);
   }
 
-  RecordWrite(object, slot_address, value, save_fp, SmiCheck::kOmit, slot);
+  RecordWrite(object, slot_address, value, save_fp, SmiCheck::kOmit,
+              ReadOnlyCheck::kOmit, slot);
 
   bind(&done);
 
@@ -841,7 +852,8 @@ void MacroAssembler::CallTSANRelaxedLoadStub(Register address,
 
 void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  Register value, SaveFPRegsMode fp_mode,
-                                 SmiCheck smi_check, SlotDescriptor slot) {
+                                 SmiCheck smi_check, ReadOnlyCheck ro_check,
+                                 SlotDescriptor slot) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(object, slot_address, value));
   AssertNotSmi(object);
@@ -874,8 +886,17 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   }
 
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of smis and stores into the young generation.
+  // catch stores of smis and read-only objects, as well as stores into the
+  // young generation.
   Label done;
+
+#if V8_STATIC_ROOTS_BOOL
+  if (ro_check == ReadOnlyCheck::kInline) {
+    // Quick check for Read-only and small Smi values.
+    static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
+    JumpIfUnsignedLessThan(value, kRegularPageSize, &done);
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
 
   if (smi_check == SmiCheck::kInline) {
     // Skip barrier if writing a smi.
@@ -1179,7 +1200,7 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
 
   RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
                    SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
-                   SlotDescriptor::ForCodePointerSlot());
+                   ReadOnlyCheck::kOmit, SlotDescriptor::ForCodePointerSlot());
 #endif  // V8_ENABLE_LEAPTIERING
 }
 

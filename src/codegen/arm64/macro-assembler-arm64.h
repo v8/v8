@@ -1004,8 +1004,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void JumpIfSmi(Register value, Label* smi_label,
                         Label* not_smi_label = nullptr);
 
+  inline void JumpIf(Condition cond, Register x, int32_t y, Label* dest);
   inline void JumpIfEqual(Register x, int32_t y, Label* dest);
   inline void JumpIfLessThan(Register x, int32_t y, Label* dest);
+  inline void JumpIfUnsignedLessThan(Register x, int32_t y, Label* dest);
 
   void JumpIfMarking(Label* is_marking,
                      Label::Distance condition_met_distance = Label::kFar);
@@ -2257,6 +2259,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void RecordWriteField(
       Register object, int offset, Register value, LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // For a given |object| notify the garbage collector that the slot at |offset|
@@ -2265,6 +2268,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       Register object, Operand offset, Register value,
       LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
       SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // ---------------------------------------------------------------------------

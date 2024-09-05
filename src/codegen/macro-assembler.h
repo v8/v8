@@ -35,6 +35,7 @@ enum class JumpMode {
 };
 
 enum class SmiCheck { kOmit, kInline };
+enum class ReadOnlyCheck { kOmit, kInline };
 
 enum class ComparisonMode {
   // The default compare mode will use a 32-bit comparison when pointer
