@@ -76,7 +76,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:a737c2849f13f47b7808020f1a37c8403da66d92',
+  'gn_version': 'git_revision:60a28b63605752b63b6f1d467e1c8363d6e81a79',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:578c7a731c5efa9fde8ef210e34e38df0bcf0d34',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:5845c6112f584c023a47776b31c3b6f08f562fb8',
+  'luci_go': 'git_revision:1d383421736c86faeb7dea6d2039d8ea2ef6d648',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '259b72d9ae9bd1c34f8183ae9142c204075568b1',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cc4ecb706f18833b5a00a0b60b5c49d556d27853',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9c4d44a89a3e0ba6324d909caf619afe2c5faedc',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '012c060b76f063701ba9749166dacc853dd9cc89',
   'buildtools/linux64': {
     'packages': [
       {
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3a7d070966a55bd1bb113e2ec262ddeffe144c6b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9e910795821d2ee420a0a810b72f8588ee1c6f42',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -305,7 +305,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'b6405588e4b581c753dda40adbdc491552fa5e84',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'a4812f9f726e74b536daccdc8756e9bca5736886',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a834cb253992175f4a896c5fb1352ecd91abf11e',
   'third_party/libunwind/src':
