@@ -694,8 +694,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   int target_at(int pos, bool is_internal);
 
   // Patch branch instruction at pos to branch to given branch target pos.
-  void target_at_put(int pos, int target_pos, bool is_internal,
-                     bool trampoline = false);
+  void target_at_put(int pos, int target_pos, bool is_internal);
 
   // Say if we need to relocate with this mode.
   bool MustUseReg(RelocInfo::Mode rmode);
@@ -839,6 +838,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
         trampoline_slot = next_slot_;
         free_slot_count_--;
         next_slot_ += kTrampolineSlotsSize;
+        DEBUG_PRINTF("\ttrampoline  slot %d next %d free %d\n", trampoline_slot,
+                     next_slot_, free_slot_count_)
       }
       return trampoline_slot;
     }

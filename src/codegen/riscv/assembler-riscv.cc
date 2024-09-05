@@ -541,8 +541,7 @@ void Assembler::disassembleInstr(uint8_t* pc) {
   DEBUG_PRINTF("%s\n", disasm_buffer.begin());
 }
 
-void Assembler::target_at_put(int pos, int target_pos, bool is_internal,
-                              bool trampoline) {
+void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
   if (is_internal) {
     uintptr_t imm = reinterpret_cast<uintptr_t>(buffer_start_) + target_pos;
     *reinterpret_cast<uintptr_t*>(buffer_start_ + pos) = imm;
@@ -562,8 +561,28 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal,
     } break;
     case JAL: {
       DCHECK(IsJal(instr));
-      instr = SetJalOffset(pos, target_pos, instr);
-      instr_at_put(pos, instr);
+      intptr_t offset = target_pos - pos;
+      if (is_intn(offset, Assembler::kJumpOffsetBits)) {
+        instr = SetJalOffset(pos, target_pos, instr);
+        instr_at_put(pos, instr);
+      } else {
+        Instr instr_I = instr_at(pos + 4);
+        CHECK_EQ(instr_I, kNopByte);
+        CHECK(is_int32(offset + 0x800));
+        Instr instr_auipc = AUIPC | t6.code() << kRdShift;
+        instr_I = RO_JALR | t6.code() << kRs1Shift;
+
+        int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
+        int32_t Lo12 = (int32_t)offset << 20 >> 20;
+
+        instr_auipc = SetAuipcOffset(Hi20, instr_auipc);
+        instr_at_put(pos, instr_auipc);
+
+        instr_I = SetJalrOffset(Lo12, instr_I);
+        instr_at_put(pos + 4, instr_I);
+        DCHECK_EQ(offset, BrachlongOffset(Assembler::instr_at(pos),
+                                          Assembler::instr_at(pos + 4)));
+      }
     } break;
     case LUI: {
       Address pc = reinterpret_cast<Address>(buffer_start_ + pos);
@@ -576,7 +595,8 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal,
       DCHECK(IsJalr(instr_I) || IsAddi(instr_I));
 
       intptr_t offset = target_pos - pos;
-      if (is_int21(offset) && IsJalr(instr_I) && trampoline) {
+      if (is_int21(offset) && IsJalr(instr_I)) {
+        DEBUG_PRINTF("\ttarget_at_put: Relpace by JAL pos:(%d) \n", pos);
         DCHECK(is_int21(offset) && ((offset & 1) == 0));
         Instr instr = JAL;
         instr = SetJalOffset(pos, target_pos, instr);
@@ -590,8 +610,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal,
         int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
         int32_t Lo12 = (int32_t)offset << 20 >> 20;
 
-        instr_auipc =
-            (instr_auipc & ~kImm31_12Mask) | ((Hi20 & kImm19_0Mask) << 12);
+        SetAuipcOffset(Hi20, instr_auipc);
         instr_at_put(pos, instr_auipc);
 
         const int kImm31_20Mask = ((1 << 12) - 1) << 20;
@@ -679,7 +698,7 @@ void Assembler::bind_to(Label* L, int pos) {
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
-          target_at_put(fixup_pos, trampoline_pos, false, true);
+          target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
         }
         target_at_put(fixup_pos, pos, false);
@@ -691,7 +710,7 @@ void Assembler::bind_to(Label* L, int pos) {
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxJumpOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
-          target_at_put(fixup_pos, trampoline_pos, false, true);
+          target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
         }
         target_at_put(fixup_pos, pos, false);
@@ -779,7 +798,7 @@ int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
 int32_t Assembler::get_trampoline_entry(int32_t pos) {
   int32_t trampoline_entry = kInvalidSlotPos;
   if (!internal_trampoline_exception_) {
-    DEBUG_PRINTF("\tstart: %d,pos: %d\n", trampoline_.start(), pos);
+    DEBUG_PRINTF("\ttrampoline start: %d,pos: %d\n", trampoline_.start(), pos);
     if (trampoline_.start() > pos) {
       trampoline_entry = trampoline_.take_slot();
     }
