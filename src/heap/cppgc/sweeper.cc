@@ -63,11 +63,6 @@ constexpr const char* ToString(MutatorThreadSweepingMode sweeping_mode) {
   }
 }
 
-enum class StickyBits : uint8_t {
-  kDisabled,
-  kEnabled,
-};
-
 class ObjectStartBitmapVerifier
     : private HeapVisitor<ObjectStartBitmapVerifier> {
   friend class HeapVisitor<ObjectStartBitmapVerifier>;
@@ -602,9 +597,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
         unused_destroyed_pages_(unused_destroyed_pages),
         free_memory_handling_(free_memory_handling),
         empty_page_handling_(empty_page_handling),
-        sticky_bits_(heap->generational_gc_supported()
-                         ? StickyBits::kEnabled
-                         : StickyBits::kDisabled) {}
+        sticky_bits_(heap->sticky_bits()) {}
 
   void Sweep(SpaceStates& states) {
     for (SweepingState& state : states) {
@@ -754,9 +747,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
         empty_pages_(empty_pages),
         platform_(platform),
         free_memory_handling_(free_memory_handling),
-        sticky_bits_(heap.generational_gc_supported() ? StickyBits::kEnabled
-                                                      : StickyBits::kDisabled) {
-  }
+        sticky_bits_(heap.sticky_bits()) {}
 
   void Run(cppgc::JobDelegate* delegate) final {
     StatsCollector::EnabledConcurrentScope stats_scope(
