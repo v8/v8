@@ -2357,7 +2357,7 @@ bool InstanceBuilder::ProcessImportedGlobal(
     if (!wasm::JSToWasmObject(isolate_, module_, value, global.type,
                               &error_message)
              .ToHandle(&wasm_value)) {
-      thrower_->LinkError("%s: %s", ImportName(global_index).c_str(),
+      thrower_->LinkError("%s: %s", ImportName(import_index).c_str(),
                           error_message);
       return false;
     }
