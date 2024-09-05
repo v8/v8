@@ -1139,7 +1139,7 @@ bool ExecuteWasmDebugBreaks(
     }
   }
 
-  if (debug_info->IsStepping(frame)) {
+  if (debug_info->IsStepping(frame) && !debug_info->IsFrameBlackboxed(frame)) {
     debug_info->ClearStepping(isolate);
     StepAction step_action = isolate->debug()->last_step_action();
     isolate->debug()->ClearStepping();

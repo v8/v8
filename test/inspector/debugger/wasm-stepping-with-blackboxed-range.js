@@ -1,40 +1,28 @@
-// Copyright 2020 the V8 project authors. All rights reserved.
+// Copyright 2024 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 utils.load('test/inspector/wasm-inspector-test.js');
 
 let {session, contextGroup, Protocol} =
-    InspectorTest.start('Tests stepping through wasm scripts by byte offsets');
+    InspectorTest.start('Tests stepping through wasm script with blackboxed range by byte offsets');
 session.setupScriptMap();
-
-var not_ignored_module = new WasmModuleBuilder();
-not_ignored_module
-    .addFunction('not_ignored', kSig_v_v)
-    .addBody([kExprNop, kExprNop])
-    .exportAs('not_ignored')
-
-var not_ignored_module_bytes = not_ignored_module.toArray();
-
-var ignored_module = new WasmModuleBuilder();
-
-var imported_not_ignored_function_idx =
-  ignored_module.addImport('not_ignored_module', 'not_ignored', kSig_v_v)
-
-ignored_module
-    .addFunction('ignored', kSig_v_v)
-    .addBody([kExprNop, kExprCallFunction, imported_not_ignored_function_idx])
-    .exportAs('ignored')
-
-var ignored_module_bytes = ignored_module.toArray();
 
 var main_module = new WasmModuleBuilder();
 
-var imported_ignored_function_idx =
-    main_module.addImport('ignored_module', 'ignored', kSig_v_v)
+var not_ignored_function_idx = main_module
+    .addFunction('not_ignored', kSig_v_v)
+    .addBody([kExprNop, kExprNop])
+    .index;
 
-var func_a_idx =
-    main_module.addFunction('wasm_A', kSig_v_i).addBody([kExprNop, kExprNop]).index;
+var ignored_function = main_module
+    .addFunction('ignored', kSig_v_v)
+    .addBody([kExprNop, kExprCallFunction, not_ignored_function_idx])
+
+var func_a_idx = main_module
+    .addFunction('wasm_A', kSig_v_i)
+    .addBody([kExprNop, kExprNop])
+    .index;
 
 // wasm_B calls wasm_A <param0> times.
 var func_b = main_module.addFunction('wasm_B', kSig_v_i)
@@ -49,32 +37,13 @@ var func_b = main_module.addFunction('wasm_B', kSig_v_i)
           kExprLocalSet, 0,               // decrease <param0>
           ...wasmI32Const(1024),          // some longer i32 const (2 byte imm)
           kExprCallFunction, func_a_idx,  // -
-          kExprCallFunction, imported_ignored_function_idx,
+          kExprCallFunction, ignored_function.index,
           kExprBr, 1,                     // continue
           kExprEnd,                       // -
         kExprEnd,                         // break
       // clang-format on
     ])
     .exportAs('main');
-
-let fact = main_module.addFunction('fact', kSig_i_i)
-    .addLocals(kWasmI32, 1)
-    .addBody([
-    // clang-format off
-    kExprLocalGet, 0,
-    kExprIf, kWasmI32,               // if <param0> != 0
-      kExprLocalGet, 0,
-      kExprI32Const, 1,
-      kExprI32Sub,
-      kExprCallFunction, 3,
-      kExprLocalGet, 0,
-      kExprI32Mul,                   //   return fact(<param0> - 1) * <param0>
-    kExprElse,                       // else
-      kExprI32Const, 1,              //   return 1
-    kExprEnd,
-    // clang-format on
-  ])
-  .exportAs('fact');
 
 var main_module_bytes = main_module.toArray();
 
@@ -87,25 +56,24 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Debugger.enable();
     InspectorTest.log('Setting up global instance variable.');
 
-
-    WasmInspectorTest.instantiate(not_ignored_module_bytes, 'not_ignored_module');
-    const [, {params: notIgnoredModuleScript}] = await Protocol.Debugger.onceScriptParsed(2);
-
-    InspectorTest.log('Got wasm script: ' + notIgnoredModuleScript.url);
-
-    WasmInspectorTest.instantiate(ignored_module_bytes, 'ignored_module', '{not_ignored_module: not_ignored_module.exports}');
-    const [, {params: ignoredModuleScript}] = await Protocol.Debugger.onceScriptParsed(2);
-
-    InspectorTest.log('Got wasm script: ' + ignoredModuleScript.url);
-
-    WasmInspectorTest.instantiate(main_module_bytes, 'instance', '{ignored_module: ignored_module.exports}');
+    WasmInspectorTest.instantiate(main_module_bytes);
     const [, {params: mainWasmScript}] = await Protocol.Debugger.onceScriptParsed(2)
 
     InspectorTest.log('Got wasm script: ' + mainWasmScript.url);
 
-    await Protocol.Debugger.setBlackboxPatterns({patterns: [ignoredModuleScript.url]})
+    var function_declaration_size = 2
+    var ignored_function_start = ignored_function.body_offset - function_declaration_size
+    var ignored_function_end = ignored_function_start + ignored_function.body.length + function_declaration_size
 
-    InspectorTest.log('Blackbox wasm script: ' + ignoredModuleScript.url);
+    await Protocol.Debugger.setBlackboxedRanges({
+      scriptId: mainWasmScript.scriptId,
+      positions: [
+        {lineNumber: 0, columnNumber: ignored_function_start},
+        {lineNumber: 0, columnNumber: ignored_function_end},
+      ]
+    })
+
+    InspectorTest.log('Blackbox wasm script ' + mainWasmScript.url + ' in range from ' + ignored_function_start + ' to ' + ignored_function_end);
 
     // Set the breakpoint on a non-breakable position. This should resolve to the
     // next instruction.
@@ -139,28 +107,6 @@ InspectorTest.runAsyncTestSuite([
     // Then just resume.
     await waitForPauseAndStep('resume');
     InspectorTest.log('exports.main returned!');
-
-    InspectorTest.log('Test stepping over a recursive call');
-    // Set a breakpoint at the recursive call and run.
-    offset = fact.body_offset + 9; // Offset of the recursive call instruction.
-    InspectorTest.log(
-        `Setting breakpoint on the recursive call instruction @+` + offset +
-        `, url ${mainWasmScript.url}`);
-    bpmsg = await Protocol.Debugger.setBreakpoint({
-      location: {scriptId: mainWasmScript.scriptId, lineNumber: 0, columnNumber: offset}
-    });
-
-    actualLocation = bpmsg.result.actualLocation;
-    InspectorTest.logMessage(actualLocation);
-    Protocol.Runtime.evaluate({ expression: 'instance.exports.fact(4)' });
-    await waitForPause();
-
-    // Remove the breakpoint before stepping over.
-    InspectorTest.log('Removing breakpoint');
-    let breakpointId = bpmsg.result.breakpointId;
-    await Protocol.Debugger.removeBreakpoint({breakpointId});
-    await Protocol.Debugger.stepOver();
-    await waitForPauseAndStep('resume');
   }
 ]);
 
