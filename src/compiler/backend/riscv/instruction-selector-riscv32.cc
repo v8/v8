@@ -209,51 +209,89 @@ void EmitS128Load(InstructionSelectorT<Adapter>* selector,
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStoreLane(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    StoreLaneParameters params = StoreLaneParametersOf(node->op());
-    LoadStoreLaneParams f(params.rep, params.laneidx);
-    InstructionCode opcode = kRiscvS128StoreLane;
-    opcode |= MiscField::encode(f.sz);
-
-    RiscvOperandGeneratorT<Adapter> g(this);
-    Node* base = node->InputAt(0);
-    Node* index = node->InputAt(1);
-    InstructionOperand addr_reg = g.TempRegister();
-    Emit(kRiscvAdd32, addr_reg, g.UseRegister(base), g.UseRegister(index));
-    InstructionOperand inputs[4] = {
-        g.UseRegister(node->InputAt(2)),
-        g.UseImmediate(f.laneidx),
-        addr_reg,
-        g.TempImmediate(0),
-    };
-    opcode |= AddressingModeField::encode(kMode_MRI);
-    Emit(opcode, 0, nullptr, 4, inputs);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitStoreLane(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Simd128LaneMemoryOp& store = Get(node).Cast<Simd128LaneMemoryOp>();
+  InstructionCode opcode = kRiscvS128StoreLane;
+  opcode |= LaneSizeField::encode(store.lane_size() * kBitsPerByte);
+  if (store.kind.with_trap_handler) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
+
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+  node_t base = this->input_at(node, 0);
+  node_t index = this->input_at(node, 1);
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kRiscvAdd32, addr_reg, g.UseRegister(base), g.UseRegister(index));
+  InstructionOperand inputs[4] = {
+      g.UseRegister(input_at(node, 2)),
+      g.UseImmediate(store.lane),
+      addr_reg,
+      g.TempImmediate(0),
+  };
+  opcode |= AddressingModeField::encode(kMode_MRI);
+  Emit(opcode, 0, nullptr, 4, inputs);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    LoadLaneParameters params = LoadLaneParametersOf(node->op());
-    LoadStoreLaneParams f(params.rep.representation(), params.laneidx);
-    InstructionCode opcode = kRiscvS128LoadLane;
-    opcode |= MiscField::encode(f.sz);
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitStoreLane(Node* node) {
+  StoreLaneParameters params = StoreLaneParametersOf(node->op());
+  LoadStoreLaneParams f(params.rep, params.laneidx);
+  InstructionCode opcode = kRiscvS128StoreLane;
+  opcode |= MiscField::encode(f.sz);
 
-    RiscvOperandGeneratorT<Adapter> g(this);
-    Node* base = node->InputAt(0);
-    Node* index = node->InputAt(1);
-    InstructionOperand addr_reg = g.TempRegister();
-    Emit(kRiscvAdd32, addr_reg, g.UseRegister(base), g.UseRegister(index));
-    opcode |= AddressingModeField::encode(kMode_MRI);
-    Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
-         g.UseImmediate(params.laneidx), addr_reg, g.TempImmediate(0));
+  RiscvOperandGeneratorT<TurbofanAdapter> g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kRiscvAdd32, addr_reg, g.UseRegister(base), g.UseRegister(index));
+  InstructionOperand inputs[4] = {
+      g.UseRegister(node->InputAt(2)),
+      g.UseImmediate(f.laneidx),
+      addr_reg,
+      g.TempImmediate(0),
+  };
+  opcode |= AddressingModeField::encode(kMode_MRI);
+  Emit(opcode, 0, nullptr, 4, inputs);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoadLane(node_t node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const Simd128LaneMemoryOp& load = this->Get(node).Cast<Simd128LaneMemoryOp>();
+  InstructionCode opcode = kRiscvS128LoadLane;
+  opcode |= LaneSizeField::encode(load.lane_size() * kBitsPerByte);
+  if (load.kind.with_trap_handler) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
+
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(this);
+  node_t base = this->input_at(node, 0);
+  node_t index = this->input_at(node, 1);
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kRiscvAdd32, addr_reg, g.UseRegister(base), g.UseRegister(index));
+  opcode |= AddressingModeField::encode(kMode_MRI);
+  Emit(opcode, g.DefineSameAsFirst(node),
+       g.UseRegister(this->input_at(node, 2)), g.UseImmediate(load.lane),
+       addr_reg, g.TempImmediate(0));
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoadLane(Node* node) {
+  LoadLaneParameters params = LoadLaneParametersOf(node->op());
+  LoadStoreLaneParams f(params.rep.representation(), params.laneidx);
+  InstructionCode opcode = kRiscvS128LoadLane;
+  opcode |= MiscField::encode(f.sz);
+
+  RiscvOperandGeneratorT<TurbofanAdapter> g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  InstructionOperand addr_reg = g.TempRegister();
+  Emit(kRiscvAdd32, addr_reg, g.UseRegister(base), g.UseRegister(index));
+  opcode |= AddressingModeField::encode(kMode_MRI);
+  Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
+       g.UseImmediate(params.laneidx), addr_reg, g.TempImmediate(0));
 }
 
 template <typename Adapter>
@@ -1998,19 +2036,16 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x2Min(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     InstructionOperand temp1 = g.TempFpRegister(v0);
     InstructionOperand mask_reg = g.TempFpRegister(v0);
     InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
     const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
-    this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(node->InputAt(0)),
-               g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+    this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(this->input_at(node, 0)),
+               g.UseRegister(this->input_at(node, 0)), g.UseImmediate(E64),
                g.UseImmediate(m1));
-    this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(node->InputAt(1)),
-               g.UseRegister(node->InputAt(1)), g.UseImmediate(E64),
+    this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(this->input_at(node, 1)),
+               g.UseRegister(this->input_at(node, 1)), g.UseImmediate(E64),
                g.UseImmediate(m1));
     this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
                g.UseImmediate(m1));
@@ -2022,29 +2057,25 @@ void InstructionSelectorT<Adapter>::VisitF64x2Min(node_t node) {
                g.UseImmediate(m1));
     this->Emit(kRiscvVsll, temp4, temp3, g.UseImmediate(kNaNShift),
                g.UseImmediate(E64), g.UseImmediate(m1));
-    this->Emit(kRiscvVfminVv, temp5, g.UseRegister(node->InputAt(1)),
-               g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+    this->Emit(kRiscvVfminVv, temp5, g.UseRegister(this->input_at(node, 1)),
+               g.UseRegister(this->input_at(node, 0)), g.UseImmediate(E64),
                g.UseImmediate(m1), g.UseImmediate(Mask));
     this->Emit(kRiscvVmv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
                g.UseImmediate(m1));
-  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF64x2Max(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
     RiscvOperandGeneratorT<Adapter> g(this);
     InstructionOperand temp1 = g.TempFpRegister(v0);
     InstructionOperand mask_reg = g.TempFpRegister(v0);
     InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
     const int32_t kNaN = 0x7ff80000L, kNaNShift = 32;
-    this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(node->InputAt(0)),
-               g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+    this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(this->input_at(node, 0)),
+               g.UseRegister(this->input_at(node, 0)), g.UseImmediate(E64),
                g.UseImmediate(m1));
-    this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(node->InputAt(1)),
-               g.UseRegister(node->InputAt(1)), g.UseImmediate(E64),
+    this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(this->input_at(node, 1)),
+               g.UseRegister(this->input_at(node, 1)), g.UseImmediate(E64),
                g.UseImmediate(m1));
     this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
                g.UseImmediate(m1));
@@ -2056,12 +2087,11 @@ void InstructionSelectorT<Adapter>::VisitF64x2Max(node_t node) {
                g.UseImmediate(m1));
     this->Emit(kRiscvVsll, temp4, temp3, g.UseImmediate(kNaNShift),
                g.UseImmediate(E64), g.UseImmediate(m1));
-    this->Emit(kRiscvVfmaxVv, temp5, g.UseRegister(node->InputAt(1)),
-               g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+    this->Emit(kRiscvVfmaxVv, temp5, g.UseRegister(this->input_at(node, 1)),
+               g.UseRegister(this->input_at(node, 0)), g.UseImmediate(E64),
                g.UseImmediate(m1), g.UseImmediate(Mask));
     this->Emit(kRiscvVmv, g.DefineAsRegister(node), temp5, g.UseImmediate(E64),
                g.UseImmediate(m1));
-  }
 }
 // static
 MachineOperatorBuilder::Flags
