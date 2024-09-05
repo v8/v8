@@ -4839,14 +4839,6 @@ const char* JSPromise::Status(v8::Promise::PromiseState status) {
   UNREACHABLE();
 }
 
-int JSPromise::async_task_id() const {
-  return AsyncTaskIdBits::decode(flags());
-}
-
-void JSPromise::set_async_task_id(int id) {
-  set_flags(AsyncTaskIdBits::update(flags(), id));
-}
-
 // static
 Handle<Object> JSPromise::Fulfill(DirectHandle<JSPromise> promise,
                                   DirectHandle<Object> value) {

@@ -2680,7 +2680,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   debug::AsyncEventDelegate* async_event_delegate_ = nullptr;
   uint32_t promise_hook_flags_ = 0;
-  int async_task_count_ = 0;
+  uint32_t current_async_task_id_ = 0;
 
   std::unique_ptr<LocalIsolate> main_thread_local_isolate_;
 

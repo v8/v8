@@ -6707,11 +6707,13 @@ void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
 
 void Isolate::OnAsyncFunctionSuspended(Handle<JSPromise> promise,
                                        Handle<JSPromise> parent) {
-  DCHECK_EQ(0, promise->async_task_id());
+  DCHECK(!promise->has_async_task_id());
   RunAllPromiseHooks(PromiseHookType::kInit, promise, parent);
   if (HasAsyncEventDelegate()) {
     DCHECK_NE(nullptr, async_event_delegate_);
-    promise->set_async_task_id(++async_task_count_);
+    current_async_task_id_ =
+        JSPromise::GetNextAsyncTaskId(current_async_task_id_);
+    promise->set_async_task_id(current_async_task_id_);
     async_event_delegate_->AsyncEventOccurred(debug::kDebugAwait,
                                               promise->async_task_id(), false);
   }
@@ -6744,8 +6746,10 @@ void Isolate::OnPromiseThen(DirectHandle<JSPromise> promise) {
         }
       }
       if (info->IsUserJavaScript() && action_type.IsJust()) {
-        DCHECK_EQ(0, promise->async_task_id());
-        promise->set_async_task_id(++async_task_count_);
+        DCHECK(!promise->has_async_task_id());
+        current_async_task_id_ =
+            JSPromise::GetNextAsyncTaskId(current_async_task_id_);
+        promise->set_async_task_id(current_async_task_id_);
         async_event_delegate_->AsyncEventOccurred(action_type.FromJust(),
                                                   promise->async_task_id(),
                                                   debug()->IsBlackboxed(info));
@@ -6759,7 +6763,7 @@ void Isolate::OnPromiseBefore(Handle<JSPromise> promise) {
   RunPromiseHook(PromiseHookType::kBefore, promise,
                  factory()->undefined_value());
   if (HasAsyncEventDelegate()) {
-    if (promise->async_task_id()) {
+    if (promise->has_async_task_id()) {
       async_event_delegate_->AsyncEventOccurred(
           debug::kDebugWillHandle, promise->async_task_id(), false);
     }
@@ -6770,7 +6774,7 @@ void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
   RunPromiseHook(PromiseHookType::kAfter, promise,
                  factory()->undefined_value());
   if (HasAsyncEventDelegate()) {
-    if (promise->async_task_id()) {
+    if (promise->has_async_task_id()) {
       async_event_delegate_->AsyncEventOccurred(
           debug::kDebugDidHandle, promise->async_task_id(), false);
     }
