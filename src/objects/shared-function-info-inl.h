@@ -937,6 +937,13 @@ DEF_GETTER(SharedFunctionInfo, wasm_resume_data, Tagged<WasmResumeData>) {
   return Cast<WasmResumeData>(GetUntrustedData());
 }
 
+bool SharedFunctionInfo::is_promising_wasm_export() const {
+  Tagged<WasmExportedFunctionData> function_data =
+      wasm_exported_function_data();
+  return WasmFunctionData::PromiseField::decode(
+             function_data->js_promise_flags()) == wasm::kPromise;
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool SharedFunctionInfo::HasBuiltinId() const {

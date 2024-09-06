@@ -1102,7 +1102,8 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, requires_instance_members_initializer)                \
   IF_WASM(V, const wasm::WasmModule*, wasm_module)              \
   IF_WASM(V, const wasm::FunctionSig*, wasm_function_signature) \
-  IF_WASM(V, int, wasm_function_index)
+  IF_WASM(V, int, wasm_function_index)                          \
+  IF_WASM(V, bool, is_promising_wasm_export)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:
