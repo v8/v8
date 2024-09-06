@@ -645,7 +645,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // for legacy API reasons.
   static void Delete(Isolate* isolate);
 
-  void SetUpFromReadOnlyArtifacts(std::shared_ptr<ReadOnlyArtifacts> artifacts,
+  void SetUpFromReadOnlyArtifacts(ReadOnlyArtifacts* artifacts,
                                   ReadOnlyHeap* ro_heap);
   void set_read_only_heap(ReadOnlyHeap* ro_heap) { read_only_heap_ = ro_heap; }
 
@@ -756,7 +756,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   ReadOnlyArtifacts* read_only_artifacts() const {
-    ReadOnlyArtifacts* artifacts = artifacts_.get();
+    ReadOnlyArtifacts* artifacts = isolate_group()->read_only_artifacts();
     DCHECK_IMPLIES(ReadOnlyHeap::IsReadOnlySpaceShared(), artifacts != nullptr);
     return artifacts;
   }
@@ -2342,8 +2342,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     EntryStackItem* previous_item;
   };
 
-  static Isolate* process_wide_shared_space_isolate_;
-
   void Deinit();
 
   static void SetIsolateThreadLocals(Isolate* isolate,
@@ -2403,7 +2401,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   IsolateGroup* isolate_group_;
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
-  std::shared_ptr<ReadOnlyArtifacts> artifacts_;
 
   // These are guaranteed empty when !OwnsStringTables().
   std::unique_ptr<StringTable> string_table_;

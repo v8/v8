@@ -510,8 +510,6 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   return hash;
 }
 
-Isolate* Isolate::process_wide_shared_space_isolate_{nullptr};
-
 thread_local Isolate::PerIsolateThreadData* g_current_per_isolate_thread_data_
     V8_CONSTINIT = nullptr;
 thread_local Isolate* g_current_isolate_ V8_CONSTINIT = nullptr;
@@ -4022,11 +4020,10 @@ void Isolate::Delete(Isolate* isolate) {
   SetIsolateThreadLocals(saved_isolate, saved_data);
 }
 
-void Isolate::SetUpFromReadOnlyArtifacts(
-    std::shared_ptr<ReadOnlyArtifacts> artifacts, ReadOnlyHeap* ro_heap) {
+void Isolate::SetUpFromReadOnlyArtifacts(ReadOnlyArtifacts* artifacts,
+                                         ReadOnlyHeap* ro_heap) {
   if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
     DCHECK_NOT_NULL(artifacts);
-    artifacts_ = artifacts;
     InitializeNextUniqueSfiId(artifacts->initial_next_unique_sfi_id());
   } else {
     DCHECK_NULL(artifacts);
@@ -4062,6 +4059,8 @@ Isolate::Isolate(IsolateGroup* isolate_group)
       cancelable_task_manager_(new CancelableTaskManager()) {
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();
+
+  isolate_group->IncrementIsolateCount();
 
   // ThreadManager is initialized early to support locking an isolate
   // before it is entered.
@@ -4402,6 +4401,7 @@ void Isolate::Deinit() {
   DumpAndResetStats();
 
   heap_.TearDown();
+  ReadOnlyHeap::TearDown(this);
 
   delete inner_pointer_to_code_cache_;
   inner_pointer_to_code_cache_ = nullptr;
@@ -4502,17 +4502,13 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
   g_current_per_isolate_thread_data_ = data;
 
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  if (isolate) {
-    V8HeapCompressionScheme::InitBase(isolate->cage_base());
+  V8HeapCompressionScheme::InitBase(isolate ? isolate->cage_base()
+                                            : kNullAddress);
+  IsolateGroup::set_current(isolate ? isolate->isolate_group() : nullptr);
 #ifdef V8_EXTERNAL_CODE_SPACE
-    ExternalCodeCompressionScheme::InitBase(isolate->code_cage_base());
-#endif  // V8_EXTERNAL_CODE_SPACE
-  } else {
-    V8HeapCompressionScheme::InitBase(kNullAddress);
-#ifdef V8_EXTERNAL_CODE_SPACE
-    ExternalCodeCompressionScheme::InitBase(kNullAddress);
-#endif  // V8_EXTERNAL_CODE_SPACE
-  }
+  ExternalCodeCompressionScheme::InitBase(isolate ? isolate->code_cage_base()
+                                                  : kNullAddress);
+#endif
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
   if (isolate && isolate->main_thread_local_isolate()) {
@@ -4604,13 +4600,6 @@ Isolate::~Isolate() {
                  default_microtask_queue_ == default_microtask_queue_->next());
   delete default_microtask_queue_;
   default_microtask_queue_ = nullptr;
-
-  // The ReadOnlyHeap should not be destroyed when sharing without pointer
-  // compression as the object itself is shared.
-  if (read_only_heap_->IsOwnedByIsolate()) {
-    delete read_only_heap_;
-    read_only_heap_ = nullptr;
-  }
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodePointerTable* wasm_code_pointer_table =
@@ -5326,12 +5315,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   Isolate* use_shared_space_isolate = nullptr;
 
   if (HasFlagThatRequiresSharedHeap()) {
-    if (process_wide_shared_space_isolate_) {
+    if (isolate_group_->has_shared_space_isolate()) {
       owns_shareable_data_ = false;
-      use_shared_space_isolate = process_wide_shared_space_isolate_;
+      use_shared_space_isolate = isolate_group_->shared_space_isolate();
     } else {
-      process_wide_shared_space_isolate_ = this;
-      use_shared_space_isolate = this;
+      isolate_group_->init_shared_space_isolate(this);
+      use_shared_space_isolate = isolate_group_->shared_space_isolate();
       is_shared_space_isolate_ = true;
       DCHECK(owns_shareable_data_);
     }
