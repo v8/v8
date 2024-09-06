@@ -76,8 +76,12 @@
   # (https://github.com/WebAssembly/memory64/pull/83)
   'proposals/memory64/module/exports': [FAIL],
 
-  # TODO(https://crbug.com/364917761): Investigate failing js-string tests.
+  # Already fixed upstream in WPT, waiting on merge to spec repo:
+  # https://github.com/WebAssembly/js-string-builtins/pull/43
   'wpt/js-string/basic.tentative': [FAIL],
+
+  # TODO(https://crbug.com/364508698): failures should throw CompileError,
+  # not LinkError.
   'wpt/js-string/constants.tentative': [FAIL],
 }], # ALWAYS
 
