@@ -5,9 +5,11 @@
 #include "src/heap/paged-spaces.h"
 
 #include <atomic>
+#include <iterator>
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/safe_conversions.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
@@ -323,12 +325,7 @@ bool PagedSpaceBase::TryExpand(LocalHeap* local_heap, AllocationOrigin origin) {
 }
 
 int PagedSpaceBase::CountTotalPages() const {
-  int count = 0;
-  for (const PageMetadata* page : *this) {
-    count++;
-    USE(page);
-  }
-  return count;
+  return base::checked_cast<int>(std::distance(begin(), end()));
 }
 
 size_t PagedSpaceBase::Available() const {
