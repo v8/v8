@@ -1348,12 +1348,9 @@ class Heap final {
     survived_since_last_expansion_ += survived;
   }
 
-  void UpdateNewSpaceAllocationCounter();
+  V8_EXPORT_PRIVATE size_t NewSpaceAllocationCounter() const;
 
-  V8_EXPORT_PRIVATE size_t NewSpaceAllocationCounter();
-
-  // This should be used only for testing.
-  void set_new_space_allocation_counter(size_t new_value) {
+  void SetNewSpaceAllocationCounterForTesting(size_t new_value) {
     new_space_allocation_counter_ = new_value;
   }
 
@@ -1656,6 +1653,7 @@ class Heap final {
   bool ShouldUseIncrementalMarking() const;
 
   HeapAllocator* allocator() { return heap_allocator_; }
+  const HeapAllocator* allocator() const { return heap_allocator_; }
 
   bool use_new_space() const {
     DCHECK_IMPLIES(new_space(), !v8_flags.sticky_mark_bits);

@@ -5494,7 +5494,7 @@ TEST(NewSpaceAllocationCounter) {
   // Test counter overflow.
   heap->FreeMainThreadLinearAllocationAreas();
   size_t max_counter = static_cast<size_t>(-1);
-  heap->set_new_space_allocation_counter(max_counter - 10 * kSize);
+  heap->SetNewSpaceAllocationCounterForTesting(max_counter - 10 * kSize);
   size_t start = heap->NewSpaceAllocationCounter();
   for (int i = 0; i < 20; i++) {
     AllocateInSpace(isolate, kSize, NEW_SPACE);

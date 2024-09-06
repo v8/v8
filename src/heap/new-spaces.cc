@@ -756,15 +756,15 @@ size_t SemiSpaceNewSpace::AllocatedSinceLastGC() const {
 }
 
 void SemiSpaceNewSpace::GarbageCollectionPrologue() {
+  ResetParkedAllocationBuffers();
+
   // We need to commit from space here to be able to check for from/to space
   // pages later on in the GC. We need to commit before sweeping starts to avoid
   // empty pages being reused for commiting from space and thus ending up with
   // remembered set entries that point to from space instead of freed memory.
-
-  if (from_space_.IsCommitted() || from_space_.Commit()) {
-    return;
+  if (!from_space_.IsCommitted() && !from_space_.Commit()) {
+    heap_->FatalProcessOutOfMemory("Committing semi space failed.");
   }
-  heap_->FatalProcessOutOfMemory("Committing semi space failed.");
 }
 
 void SemiSpaceNewSpace::EvacuatePrologue() {

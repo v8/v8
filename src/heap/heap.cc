@@ -1078,10 +1078,10 @@ void Heap::GarbageCollectionPrologue(
 void Heap::GarbageCollectionPrologueInSafepoint() {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
   gc_count_++;
+  new_space_allocation_counter_ = NewSpaceAllocationCounter();
 
   DCHECK_EQ(ResizeNewSpaceMode::kNone, resize_new_space_mode_);
   if (new_space_) {
-    UpdateNewSpaceAllocationCounter();
     if (!v8_flags.minor_ms) {
       resize_new_space_mode_ = ShouldResizeNewSpace();
       // Pretenuring heuristics require that new space grows before pretenuring
@@ -1089,16 +1089,11 @@ void Heap::GarbageCollectionPrologueInSafepoint() {
       if (resize_new_space_mode_ == ResizeNewSpaceMode::kGrow) {
         ExpandNewSpaceSize();
       }
-      SemiSpaceNewSpace::From(new_space_)->ResetParkedAllocationBuffers();
     }
   }
 }
 
-void Heap::UpdateNewSpaceAllocationCounter() {
-  new_space_allocation_counter_ = NewSpaceAllocationCounter();
-}
-
-size_t Heap::NewSpaceAllocationCounter() {
+size_t Heap::NewSpaceAllocationCounter() const {
   size_t counter = new_space_allocation_counter_;
   if (new_space_) {
     DCHECK(!allocator()->new_space_allocator()->IsLabValid());
