@@ -76,7 +76,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:f792b9756418af8ab8a91a4c15b582431cb86ff9',
+  'gn_version': 'git_revision:60a28b63605752b63b6f1d467e1c8363d6e81a79',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e1e4980ae40ee911499cfc2d6288c4dc272ca7a9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0f665af83d239a975953e7a4593927ece5148879',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '012c060b76f063701ba9749166dacc853dd9cc89',
   'buildtools/linux64': {
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '28edf94b2becfe0adbac7d38a89d5d1c404b8075',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '43691064b48769d3b084d8feee29990f2bd70dff',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd3aea2341cdeaf7e717bc257a59aa7a9407d318a',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '0c221a19d6db086461484c2857eeb6e5f093d2b5',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5208ebe9c2e5e20b332798f99501e3faaaa059b6',
   'tools/luci-go': {
       'packages': [
         {
