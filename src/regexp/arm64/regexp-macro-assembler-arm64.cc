@@ -669,7 +669,8 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
     __ Movi(nibble_mask.V16B(), nibble_mask_imm, nibble_mask_imm);
     VRegister hi_nibble_lookup_mask = v2;
     const uint64_t hi_nibble_mask_imm = 0x80402010'08040201;
-    __ Movi(hi_nibble_lookup_mask.V1D(), hi_nibble_mask_imm);
+    __ Movi(hi_nibble_lookup_mask.V16B(), hi_nibble_mask_imm,
+            hi_nibble_mask_imm);
 
     Bind(&simd_repeat);
     // Load next characters into vector.

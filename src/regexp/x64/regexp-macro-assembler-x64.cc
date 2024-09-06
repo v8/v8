@@ -633,6 +633,7 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
     XMMRegister hi_nibble_lookup_mask = xmm3;
     __ Move(r11, 0x80402010'08040201);
     __ movq(hi_nibble_lookup_mask, r11);
+    __ Movddup(hi_nibble_lookup_mask, hi_nibble_lookup_mask);
 
     Bind(&simd_repeat);
     // Load next characters into vector.
