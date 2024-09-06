@@ -66,6 +66,7 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   WasmCodePointerTable& operator=(const WasmCodePointerTable&) = delete;
 
   using Handle = uint32_t;
+  static constexpr Handle kInvalidHandle = -1;
 
   using WriteScope = CFIMetadataWriteScope;
 

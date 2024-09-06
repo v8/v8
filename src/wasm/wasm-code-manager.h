@@ -27,6 +27,7 @@
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/wasm-code-pointer-table.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module-sourcemap.h"
@@ -334,6 +335,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   friend class NativeModule;
   friend class WasmImportWrapperCache;
 
+  static bool ShouldAllocateCodePointerHandle(int index, Kind kind);
+  static WasmCodePointerTable::Handle MaybeAllocateCodePointerHandle(
+      NativeModule* native_module, int index, Kind kind);
+
   WasmCode(NativeModule* native_module, int index,
            base::Vector<uint8_t> instructions, int stack_slots, int ool_spills,
            uint32_t tagged_parameter_slots, int safepoint_table_offset,
@@ -348,6 +353,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
            bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
+        code_pointer_handle_(
+            MaybeAllocateCodePointerHandle(native_module, index, kind)),
         meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
                                      source_position_table, inlining_positions,
                                      deopt_data})),
@@ -401,6 +408,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   NativeModule* const native_module_ = nullptr;
   uint8_t* const instructions_;
+  const WasmCodePointerTable::Handle code_pointer_handle_;
   // {meta_data_} contains several byte vectors concatenated into one:
   //  - protected instructions data of size {protected_instructions_size_}
   //  - relocation info of size {reloc_info_size_}
@@ -600,6 +608,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Allocates and initializes the {lazy_compile_table_} and initializes the
   // first jump table with jumps to the {lazy_compile_table_}.
   void InitializeJumpTableForLazyCompilation(uint32_t num_wasm_functions);
+
+  // Initialize/Free the code pointer table handles for declared functions.
+  void InitializeCodePointerTableHandles(uint32_t num_wasm_functions);
+  void FreeCodePointerTableHandles();
 
   // Use {UseLazyStubLocked} to setup lazy compilation per function. It will use
   // the existing {WasmCode::kWasmCompileLazy} runtime stub and populate the
@@ -856,6 +868,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return fast_api_signatures_.get();
   }
 
+  WasmCodePointerTable::Handle GetCodePointerHandle(int index) const;
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -996,6 +1010,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {WasmModule::num_declared_functions}, i.e. there are no entries for
   // imported functions.
   std::unique_ptr<WasmCode*[]> code_table_;
+
+  // CodePointerTable handles for all declared functions. The entries are
+  // initialized to point to the lazy compile table and will later be updated to
+  // point to the compiled code.
+  std::unique_ptr<WasmCodePointerTable::Handle[]> code_pointer_handles_;
+  // The size will usually be num_declared_functions, except that we sometimes
+  // allocate larger arrays for testing.
+  size_t code_pointer_handles_size_ = 0;
 
   // Data (especially jump table) per code space.
   std::vector<CodeSpaceData> code_space_data_;

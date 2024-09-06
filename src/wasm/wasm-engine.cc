@@ -2049,8 +2049,6 @@ void WasmEngine::InitializeOncePerProcess() {
 
 // static
 void WasmEngine::GlobalTearDown() {
-  GetProcessWideWasmCodePointerTable()->TearDown();
-
 #ifdef V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     WasmInterpreter::GlobalTearDown();
@@ -2062,6 +2060,8 @@ void WasmEngine::GlobalTearDown() {
   // {global_wasm_state} will be nullptr then.
   delete global_wasm_state;
   global_wasm_state = nullptr;
+
+  GetProcessWideWasmCodePointerTable()->TearDown();
 }
 
 WasmEngine* GetWasmEngine() {

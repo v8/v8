@@ -146,6 +146,9 @@ uint32_t WasmCodePointerTable::AllocateEntryFromFreelistNonAtomic(
 }
 
 void WasmCodePointerTable::FreeEntry(uint32_t entry) {
+  // TODO(sroettger): adding to the inline freelist requires a WriteScope. We
+  // could keep a second fixed size out-of-line freelist to avoid frequent
+  // permission changes here.
   LinkFreelist(FreelistHead(entry, 1), entry);
 }
 

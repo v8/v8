@@ -39,6 +39,7 @@
 #include "src/wasm/pgo.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-builtin-list.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-deopt-data.h"
 #include "src/wasm/wasm-engine.h"
@@ -73,7 +74,7 @@ using trap_handler::ProtectedInstructionData;
 // Increase the limit if needed, but first check if the size increase is
 // justified.
 #ifndef V8_GC_MOLE
-static_assert(sizeof(WasmCode) <= 96);
+static_assert(sizeof(WasmCode) <= 104);
 #endif
 
 base::AddressRegion DisjointAllocationPool::Merge(
@@ -534,9 +535,38 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
   return "unknown kind";
 }
 
+// static
+bool WasmCode::ShouldAllocateCodePointerHandle(int index, Kind kind) {
+  return index == kAnonymousFuncIndex && kind != kJumpTable;
+}
+
+// static
+WasmCodePointerTable::Handle WasmCode::MaybeAllocateCodePointerHandle(
+    NativeModule* native_module, int index, Kind kind) {
+  if (index != kAnonymousFuncIndex) {
+    DCHECK(!ShouldAllocateCodePointerHandle(index, kind));
+    return native_module->GetCodePointerHandle(index);
+  }
+  switch (kind) {
+    case kWasmFunction:
+    case kWasmToCapiWrapper:
+    case kWasmToJsWrapper:
+      DCHECK(ShouldAllocateCodePointerHandle(index, kind));
+      return GetProcessWideWasmCodePointerTable()->AllocateUninitializedEntry();
+    case kJumpTable:
+      DCHECK(!ShouldAllocateCodePointerHandle(index, kind));
+      return WasmCodePointerTable::kInvalidHandle;
+  }
+}
+
 WasmCode::~WasmCode() {
   if (has_trap_handler_index()) {
     trap_handler::ReleaseHandlerData(trap_handler_index());
+  }
+
+  // Free the code_pointer_handle_ only if we allocated it.
+  if (ShouldAllocateCodePointerHandle(index_, kind())) {
+    GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer_handle_);
   }
 }
 
@@ -607,7 +637,7 @@ std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
 }
 
 size_t WasmCode::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 96);
+  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 104);
   size_t result = sizeof(WasmCode);
   // For meta_data_.
   result += protected_instructions_size_ + reloc_info_size_ +
@@ -938,6 +968,7 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled,
   if (module_->num_declared_functions > 0) {
     code_table_ =
         std::make_unique<WasmCode*[]>(module_->num_declared_functions);
+    InitializeCodePointerTableHandles(module_->num_declared_functions);
     tiering_budgets_ = std::make_unique<std::atomic<uint32_t>[]>(
         module_->num_declared_functions);
     // The tiering budget is accessed directly from generated code.
@@ -971,6 +1002,7 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
            module_->num_declared_functions * sizeof(WasmCode*));
   }
   code_table_ = std::move(new_table);
+  InitializeCodePointerTableHandles(max_functions);
 
   base::RecursiveMutexGuard guard(&allocation_mutex_);
   CHECK_EQ(1, code_space_data_.size());
@@ -1143,6 +1175,19 @@ void NativeModule::InitializeJumpTableForLazyCompilation(
   JumpTableAssembler::InitializeJumpsToLazyCompileTable(
       code_space_data.jump_table->instruction_start(), num_wasm_functions,
       lazy_compile_table_->instruction_start());
+
+  WasmCodePointerTable* code_pointer_table =
+      GetProcessWideWasmCodePointerTable();
+  WasmCodePointerTable::WriteScope write_scope(
+      "Initialize WasmCodePointerTable");
+  DCHECK_LE(num_wasm_functions, code_pointer_handles_size_);
+  for (uint32_t i = 0; i < num_wasm_functions; i++) {
+    code_pointer_table->SetEntrypointWithWriteScope(
+        code_pointer_handles_[i],
+        lazy_compile_table_->instruction_start() +
+            JumpTableAssembler::LazyCompileSlotIndexToOffset(i),
+        write_scope);
+  }
 }
 
 void NativeModule::UseLazyStubLocked(uint32_t func_index) {
@@ -1191,6 +1236,34 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
       protected_instructions_data, source_position_table, inlining_positions,
       deopt_data, kind, tier, for_debugging, frame_has_feedback_slot,
       code_space, jump_table_ref);
+}
+
+void NativeModule::FreeCodePointerTableHandles() {
+  WasmCodePointerTable* code_pointer_table =
+      GetProcessWideWasmCodePointerTable();
+  for (uint32_t i = 0; i < code_pointer_handles_size_; i++) {
+    code_pointer_table->FreeEntry(code_pointer_handles_[i]);
+  }
+
+  code_pointer_handles_.reset();
+  code_pointer_handles_size_ = 0;
+}
+
+void NativeModule::InitializeCodePointerTableHandles(
+    uint32_t num_wasm_functions) {
+  if (code_pointer_handles_size_ != 0) {
+    // During testing, we might already have code pointer handles allocated.
+    FreeCodePointerTableHandles();
+  }
+  code_pointer_handles_ =
+      std::make_unique<WasmCodePointerTable::Handle[]>(num_wasm_functions);
+  code_pointer_handles_size_ = num_wasm_functions;
+
+  WasmCodePointerTable* code_pointer_table =
+      GetProcessWideWasmCodePointerTable();
+  for (uint32_t i = 0; i < num_wasm_functions; i++) {
+    code_pointer_handles_[i] = code_pointer_table->AllocateUninitializedEntry();
+  }
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
@@ -1603,6 +1676,9 @@ void NativeModule::UpdateCodeSize(size_t size, ExecutionTier tier,
 void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target) {
   allocation_mutex_.AssertHeld();
 
+  GetProcessWideWasmCodePointerTable()->SetEntrypoint(
+      code_pointer_handles_[slot_index], target);
+
   for (auto& code_space_data : code_space_data_) {
     // TODO(sroettger): need to unlock both jump tables together
     DCHECK_IMPLIES(code_space_data.jump_table, code_space_data.far_jump_table);
@@ -1926,6 +2002,17 @@ Builtin NativeModule::GetBuiltinInJumptableSlot(Address target) const {
   return Builtin::kNoBuiltinId;
 }
 
+WasmCodePointerTable::Handle NativeModule::GetCodePointerHandle(
+    int index) const {
+  DCHECK_IMPLIES(index != kAnonymousFuncIndex, index >= 0);
+  if (index == kAnonymousFuncIndex ||
+      static_cast<uint32_t>(index) < module_->num_imported_functions) {
+    // TODO(sroettger): do ImportWrappers need a code pointer handle?
+    return WasmCodePointerTable::kInvalidHandle;
+  }
+  return code_pointer_handles_[declared_function_index(module_.get(), index)];
+}
+
 NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", this);
   // Cancel all background compilation before resetting any field of the
@@ -1938,6 +2025,8 @@ NativeModule::~NativeModule() {
   if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
     DumpProfileToFile(module_.get(), wire_bytes(), tiering_budgets_.get());
   }
+
+  FreeCodePointerTableHandles();
 }
 
 WasmCodeManager::WasmCodeManager()
@@ -2595,7 +2684,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 464);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 480);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
