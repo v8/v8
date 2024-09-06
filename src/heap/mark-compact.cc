@@ -5589,16 +5589,17 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
   JSDispatchTable* const jdt = GetProcessWideJSDispatchTable();
   jdt->IterateActiveEntriesIn(
       heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
-        Address content = jdt->GetCodeAddress(handle);
-        Tagged<TrustedObject> relocated_object = process_entry(content);
-        if (!relocated_object.is_null()) {
-          CHECK(IsCode(relocated_object));
-          jdt->SetCode(handle, Cast<Code>(relocated_object));
-        } else {
-          // We still need to do SetCode because the InstructionStream object
-          // (to which a pointer is stored in the table) may have moved.
-          // TODO(saelo): can we be smarter here?
-          jdt->SetCode(handle, Cast<Code>(Tagged<Object>(content)));
+        Address code_address = jdt->GetCodeAddress(handle);
+        Address entrypoint_address = jdt->GetEntrypoint(handle);
+        Tagged<TrustedObject> relocated_code = process_entry(code_address);
+        bool code_object_was_relocated = !relocated_code.is_null();
+        Tagged<Code> code = Cast<Code>(code_object_was_relocated
+                                           ? relocated_code
+                                           : Tagged<Object>(code_address));
+        bool instruction_stream_was_relocated =
+            code->instruction_start() != entrypoint_address;
+        if (code_object_was_relocated || instruction_stream_was_relocated) {
+          jdt->SetCode(handle, code);
         }
       });
 #endif  // V8_ENABLE_LEAPTIERING
