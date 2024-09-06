@@ -433,8 +433,9 @@ int Assembler::target_at(int pos, bool is_internal) {
   }
 }
 
-static inline Instr SetBranchOffset(int32_t pos, int32_t target_pos,
-                                    Instr instr) {
+[[nodiscard]] static inline Instr SetBranchOffset(int32_t pos,
+                                                  int32_t target_pos,
+                                                  Instr instr) {
   int32_t imm = target_pos - pos;
   DCHECK_EQ(imm & 1, 0);
   DCHECK(is_intn(imm, Assembler::kBranchOffsetBits));
@@ -448,7 +449,7 @@ static inline Instr SetBranchOffset(int32_t pos, int32_t target_pos,
   return instr | (imm12 & kBImm12Mask);
 }
 
-static inline Instr SetLoadOffset(int32_t offset, Instr instr) {
+[[nodiscard]] static inline Instr SetLoadOffset(int32_t offset, Instr instr) {
 #if V8_TARGET_ARCH_RISCV64
   DCHECK(Assembler::IsLd(instr));
 #elif V8_TARGET_ARCH_RISCV32
@@ -460,14 +461,14 @@ static inline Instr SetLoadOffset(int32_t offset, Instr instr) {
   return instr | (imm12 & kImm12Mask);
 }
 
-static inline Instr SetAuipcOffset(int32_t offset, Instr instr) {
+[[nodiscard]] static inline Instr SetAuipcOffset(int32_t offset, Instr instr) {
   DCHECK(Assembler::IsAuipc(instr));
   DCHECK(is_int20(offset));
   instr = (instr & ~kImm31_12Mask) | ((offset & kImm19_0Mask) << 12);
   return instr;
 }
 
-static inline Instr SetJalrOffset(int32_t offset, Instr instr) {
+[[nodiscard]] static inline Instr SetJalrOffset(int32_t offset, Instr instr) {
   DCHECK(Assembler::IsJalr(instr));
   DCHECK(is_int12(offset));
   instr &= ~kImm12Mask;
@@ -477,7 +478,8 @@ static inline Instr SetJalrOffset(int32_t offset, Instr instr) {
   return instr | (imm12 & kImm12Mask);
 }
 
-static inline Instr SetJalOffset(int32_t pos, int32_t target_pos, Instr instr) {
+[[nodiscard]] static inline Instr SetJalOffset(int32_t pos, int32_t target_pos,
+                                               Instr instr) {
   DCHECK(Assembler::IsJal(instr));
   int32_t imm = target_pos - pos;
   DCHECK_EQ(imm & 1, 0);
@@ -492,8 +494,9 @@ static inline Instr SetJalOffset(int32_t pos, int32_t target_pos, Instr instr) {
   return instr | (imm20 & kImm20Mask);
 }
 
-static inline ShortInstr SetCJalOffset(int32_t pos, int32_t target_pos,
-                                       Instr instr) {
+[[nodiscard]] static inline ShortInstr SetCJalOffset(int32_t pos,
+                                                     int32_t target_pos,
+                                                     Instr instr) {
   DCHECK(Assembler::IsCJal(instr));
   int32_t imm = target_pos - pos;
   DCHECK_EQ(imm & 1, 0);
@@ -507,8 +510,9 @@ static inline ShortInstr SetCJalOffset(int32_t pos, int32_t target_pos,
   DCHECK(Assembler::IsCJal(instr | (imm11 & kImm11Mask)));
   return instr | (imm11 & kImm11Mask);
 }
-static inline Instr SetCBranchOffset(int32_t pos, int32_t target_pos,
-                                     Instr instr) {
+[[nodiscard]] static inline Instr SetCBranchOffset(int32_t pos,
+                                                   int32_t target_pos,
+                                                   Instr instr) {
   DCHECK(Assembler::IsCBranch(instr));
   int32_t imm = target_pos - pos;
   DCHECK_EQ(imm & 1, 0);
@@ -592,10 +596,17 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     case AUIPC: {
       Instr instr_auipc = instr;
       Instr instr_I = instr_at(pos + 4);
+      Instruction* instruction_I = Instruction::At(buffer_start_ + pos + 4);
       DCHECK(IsJalr(instr_I) || IsAddi(instr_I));
 
       intptr_t offset = target_pos - pos;
-      if (is_int21(offset) && IsJalr(instr_I)) {
+      if (is_int21(offset) && IsJalr(instr_I) &&
+          (instruction->RdValue() == instruction_I->Rs1Value()) &&
+          (instruction_I->RdValue() == zero_reg.code())) {
+        if (v8_flags.riscv_debug) {
+          disassembleInstr(buffer_start_ + pos);
+          disassembleInstr(buffer_start_ + pos + 4);
+        }
         DEBUG_PRINTF("\ttarget_at_put: Relpace by JAL pos:(%d) \n", pos);
         DCHECK(is_int21(offset) && ((offset & 1) == 0));
         Instr instr = JAL;
@@ -610,7 +621,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
         int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
         int32_t Lo12 = (int32_t)offset << 20 >> 20;
 
-        SetAuipcOffset(Hi20, instr_auipc);
+        instr_auipc = SetAuipcOffset(Hi20, instr_auipc);
         instr_at_put(pos, instr_auipc);
 
         const int kImm31_20Mask = ((1 << 12) - 1) << 20;
@@ -2231,6 +2242,5 @@ int Assembler::GeneralLiCount(int64_t imm, bool is_get_temp_reg) {
 
 RegList Assembler::DefaultTmpList() { return {t3, t5}; }
 DoubleRegList Assembler::DefaultFPTmpList() { return {kScratchDoubleReg}; }
-
 }  // namespace internal
 }  // namespace v8
