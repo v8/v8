@@ -54,7 +54,6 @@ enum ContextLookupFlags {
     async_module_evaluate_internal)                                            \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                            \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)                    \
-  V(PERFORM_PROMISE_THEN_INDEX, JSFunction, perform_promise_then)              \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                              \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                        \
   V(FUNCTION_PROTOTYPE_APPLY_INDEX, JSFunction, function_prototype_apply)      \

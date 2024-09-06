@@ -488,18 +488,6 @@ transitioning macro PerformPromiseThenImpl(
   promise.SetHasHandler();
 }
 
-transitioning javascript builtin PerformPromiseThenFunction(
-    js-implicit context: NativeContext, receiver: JSAny)(onFulfilled: JSAny,
-    onRejected: JSAny): JSAny {
-  const jsPromise = Cast<JSPromise>(receiver) otherwise unreachable;
-  const callableOnFulfilled = Cast<Callable>(onFulfilled) otherwise unreachable;
-  const callableOnRejected = Cast<Callable>(onRejected) otherwise unreachable;
-
-  PerformPromiseThenImpl(
-      jsPromise, callableOnFulfilled, callableOnRejected, Undefined);
-  return Undefined;
-}
-
 // https://tc39.es/ecma262/#sec-performpromisethen
 transitioning builtin PerformPromiseThen(
     implicit context: Context)(promise: JSPromise,
