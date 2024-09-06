@@ -138,17 +138,15 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   // object contained in it (because it's not a young-gen object).
   if (marking_barrier->is_minor()) return;
 
-  GetProcessWideJSDispatchTable()->Mark(handle);
+  // Mark both the table entry and its content.
+  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  jdt->Mark(handle);
+  marking_barrier->MarkValue(host, jdt->GetCode(handle));
 
   // We don't need to record a slot here because the entries in the
   // JSDispatchTable are not compacted and because the pointers stored in the
   // table entries are updated after compacting GC.
   static_assert(!JSDispatchTable::kSupportsCompaction);
-
-  if (GetProcessWideJSDispatchTable()->HasCode(handle)) {
-    Tagged<Code> value = GetProcessWideJSDispatchTable()->GetCode(handle);
-    marking_barrier->MarkValue(host, value);
-  }
 #else
   UNREACHABLE();
 #endif

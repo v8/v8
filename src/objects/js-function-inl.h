@@ -105,7 +105,6 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
   DCHECK_NE(canonical_handle, kNullJSDispatchHandle);
   DCHECK(value->is_context_specialized());
   DCHECK(value->is_optimized_code());
-  DCHECK(GetProcessWideJSDispatchTable()->HasCode(canonical_handle));
   bool has_context_specialized_dispatch_entry = handle != canonical_handle;
   if (has_context_specialized_dispatch_entry) {
     set_code(value, mode);
@@ -135,10 +134,8 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
       dispatch_handle() != canonical_handle;
   if (has_context_specialized_dispatch_entry) {
     auto jdt = GetProcessWideJSDispatchTable();
-    DCHECK_IMPLIES(
-        jdt->HasCode(dispatch_handle()) &&
-            jdt->GetCode(dispatch_handle())->kind() != CodeKind::BUILTIN,
-        jdt->GetCode(dispatch_handle())->is_context_specialized());
+    DCHECK_IMPLIES(jdt->GetCode(dispatch_handle())->kind() != CodeKind::BUILTIN,
+                   jdt->GetCode(dispatch_handle())->is_context_specialized());
   }
   DCHECK_NE(dispatch_handle(), kNullJSDispatchHandle);
 #endif  // DEBUG
@@ -179,17 +176,9 @@ Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
 
 Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
 #if V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
   JSDispatchHandle handle = dispatch_handle();
-  // TODO(saelo): consieder adding a MaybeGetCode method instead.
-  if (!jdt->HasCode(handle)) {
-    // This is invoked on background threads so we could see a JSFunction here
-    // that currently switches to a new dispatch table entry (e.g. due to
-    // context specialization). In that case, the table entry may not be fully
-    // initialized yet.
-    return Smi::zero();
-  }
-  return jdt->GetCode(handle);
+  if (handle == kNullJSDispatchHandle) return Smi::zero();
+  return GetProcessWideJSDispatchTable()->GetCode(handle);
 #elif V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Relaxed_Load(isolate);
@@ -201,17 +190,9 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
 Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
                                     AcquireLoadTag tag) const {
 #if V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
   JSDispatchHandle handle = dispatch_handle(tag);
-  // TODO(saelo): consider adding a MaybeGetCode method instead.
-  if (!jdt->HasCode(handle)) {
-    // This is invoked on background threads so we could see a JSFunction here
-    // that currently switches to a new dispatch table entry (e.g. due to
-    // context specialization). In that case, the table entry may not be fully
-    // initialized yet.
-    return Smi::zero();
-  }
-  return jdt->GetCode(handle);
+  if (handle == kNullJSDispatchHandle) return Smi::zero();
+  return GetProcessWideJSDispatchTable()->GetCode(handle);
 #elif V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Acquire_Load(isolate);

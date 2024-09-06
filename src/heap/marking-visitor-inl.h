@@ -326,9 +326,11 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
 
   // We're not flushing the Code, so mark it as alive.
 #ifdef V8_ENABLE_LEAPTIERING
+  // Here we can see JSFunctions that aren't fully initialized (e.g. during
+  // deserialization) so we need to check for the null handle.
   JSDispatchHandle handle = js_function->Relaxed_ReadField<JSDispatchHandle>(
       JSFunction::kDispatchHandleOffset);
-  if (GetProcessWideJSDispatchTable()->HasCode(handle)) {
+  if (handle != kNullJSDispatchHandle) {
     Tagged<HeapObject> obj = GetProcessWideJSDispatchTable()->GetCode(handle);
     // TODO(saelo): maybe factor out common code with VisitIndirectPointer
     // into a helper routine?

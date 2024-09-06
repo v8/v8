@@ -3425,7 +3425,6 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
   JSDispatchTable* const jdt = GetProcessWideJSDispatchTable();
   jdt->IterateMarkedEntriesIn(
       heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
-        if (!jdt->HasCode(handle)) return;
         Tagged<Code> code = jdt->GetCode(handle);
         if (!InReadOnlySpace(code) && !marking_state_->IsMarked(code)) {
           // Baseline flushing: if the Code object is no longer alive, it must
@@ -5590,7 +5589,6 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
   JSDispatchTable* const jdt = GetProcessWideJSDispatchTable();
   jdt->IterateActiveEntriesIn(
       heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
-        if (!jdt->HasCode(handle)) return;
         Address content = jdt->GetCodeAddress(handle);
         Tagged<TrustedObject> relocated_object = process_entry(content);
         if (!relocated_object.is_null()) {
