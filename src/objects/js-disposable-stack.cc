@@ -70,63 +70,91 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
         DisposeCallTypeBit::decode(stack_type_case);
     DisposeMethodHint hint = DisposeHintBit::decode(stack_type_case);
 
-    // (TODO:rezvan):
-    // https://github.com/tc39/proposal-explicit-resource-management/pull/219
     //  d. If hint is sync-dispose and needsAwait is true and hasAwaited is
     //  false, then
     //    i. Perform ! Await(undefined).
     //    ii. Set needsAwait to false.
 
-    //  e. If method is not undefined, then
-    //    i. Let result be Completion(Call(method, value)).
-    //    ii. If result is a normal completion and hint is async-dispose, then
-    //      1. Set result to Completion(Await(result.[[Value]])).
-    //      2. Set hasAwaited to true.
-    //    iii. If result is a throw completion, then
-    //  Else,
-    //    i. Assert: hint is async-dispose.
-    //    ii. Set needsAwait to true.
-    //    iii. NOTE: This can only indicate a case where either null or
-    //    undefined was the initialized value of an await using declaration.
-    // 4. If needsAwait is true and hasAwaited is false, then
-    //   a. Perform ! Await(undefined).
-    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-    try_catch.SetVerbose(false);
-    try_catch.SetCaptureMessage(false);
+    if (hint == DisposeMethodHint::kSyncDispose &&
+        disposable_stack->needsAwait() == true &&
+        disposable_stack->hasAwaited() == false) {
+      //  i. Perform ! Await(undefined).
+      //  ii. Set needsAwait to false.
+      disposable_stack->set_needsAwait(false);
 
-    if (call_type == DisposeMethodCallType::kValueIsReceiver) {
-      result = Execution::Call(isolate, method, value, 0, nullptr);
-    } else if (call_type == DisposeMethodCallType::kValueIsArgument) {
-      result = Execution::Call(isolate, method,
-                               ReadOnlyRoots(isolate).undefined_value_handle(),
-                               1, argv);
+      return ResolveAPromiseWithValueAndReturnIt(
+          isolate, ReadOnlyRoots(isolate).undefined_value_handle());
     }
 
-    Handle<Object> result_handle;
+    //  e. If method is not undefined, then
+    if (!IsUndefined(*method)) {
+      //    i. Let result be Completion(Call(method, value)).
+      v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+      try_catch.SetVerbose(false);
+      try_catch.SetCaptureMessage(false);
 
-    if (result.ToHandle(&result_handle)) {
-      if (hint == DisposeMethodHint::kAsyncDispose) {
-        DCHECK_NE(resources_type, DisposableStackResourcesType::kAllSync);
-        disposable_stack->set_length(length);
+      if (call_type == DisposeMethodCallType::kValueIsReceiver) {
+        result = Execution::Call(isolate, method, value, 0, nullptr);
+      } else if (call_type == DisposeMethodCallType::kValueIsArgument) {
+        result = Execution::Call(
+            isolate, method, ReadOnlyRoots(isolate).undefined_value_handle(), 1,
+            argv);
+      }
 
-        Handle<JSFunction> promise_function = isolate->promise_function();
-        Handle<Object> argv[] = {result_handle};
-        Handle<Object> resolve_result =
-            Execution::CallBuiltin(isolate, isolate->promise_resolve(),
-                                   promise_function, arraysize(argv), argv)
-                .ToHandleChecked();
-        return Cast<JSReceiver>(resolve_result);
+      Handle<Object> result_handle;
+      //    ii. If result is a normal completion and hint is async-dispose, then
+      //      1. Set result to Completion(Await(result.[[Value]])).
+      //      2. Set hasAwaited to true.
+      if (result.ToHandle(&result_handle)) {
+        if (hint == DisposeMethodHint::kAsyncDispose) {
+          DCHECK_NE(resources_type, DisposableStackResourcesType::kAllSync);
+          disposable_stack->set_length(length);
+
+          disposable_stack->set_hasAwaited(true);
+
+          return ResolveAPromiseWithValueAndReturnIt(isolate, result_handle);
+        }
+      } else {
+        //    iii. If result is a throw completion, then
+        //      1. If completion is a throw completion, then
+        //        a. Set result to result.[[Value]].
+        //        b. Let suppressed be completion.[[Value]].
+        //        c. Let error be a newly created SuppressedError object.
+        //        d. Perform CreateNonEnumerableDataPropertyOrThrow(error,
+        //        "error", result). e. Perform
+        //        CreateNonEnumerableDataPropertyOrThrow(error, "suppressed",
+        //        suppressed). f. Set completion to ThrowCompletion(error).
+        //      2. Else,
+        //        a. Set completion to result.
+        DCHECK(isolate->has_exception());
+        DCHECK(try_catch.HasCaught());
+        Handle<Object> current_error(isolate->exception(), isolate);
+        if (!isolate->is_catchable_by_javascript(*current_error)) {
+          return {};
+        }
+        HandleErrorInDisposal(isolate, disposable_stack, current_error);
       }
     } else {
-      // b. If result is a throw completion, then
-      DCHECK(isolate->has_exception());
-      DCHECK(try_catch.HasCaught());
-      Handle<Object> current_error(isolate->exception(), isolate);
-      if (!isolate->is_catchable_by_javascript(*current_error)) {
-        return {};
-      }
-      HandleErrorInDisposal(isolate, disposable_stack, current_error);
+      //  Else,
+      //    i. Assert: hint is async-dispose.
+      DCHECK_EQ(hint, DisposeMethodHint::kAsyncDispose);
+      //    ii. Set needsAwait to true.
+      //    iii. NOTE: This can only indicate a case where either null or
+      //    undefined was the initialized value of an await using declaration.
+      disposable_stack->set_length(length);
+      disposable_stack->set_needsAwait(true);
     }
+  }
+
+  // 4. If needsAwait is true and hasAwaited is false, then
+  //   a. Perform ! Await(undefined).
+  if (disposable_stack->needsAwait() == true &&
+      disposable_stack->hasAwaited() == false) {
+    disposable_stack->set_length(length);
+    disposable_stack->set_hasAwaited(true);
+
+    return ResolveAPromiseWithValueAndReturnIt(
+        isolate, ReadOnlyRoots(isolate).undefined_value_handle());
   }
 
   // 5. NOTE: After disposeCapability has been disposed, it will never be used
@@ -146,7 +174,18 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
     isolate->Throw(*existing_error_handle);
     return MaybeHandle<Object>();
   }
-  return isolate->factory()->undefined_value();
+  return isolate->factory()->true_value();
+}
+
+Handle<JSReceiver> JSDisposableStackBase::ResolveAPromiseWithValueAndReturnIt(
+    Isolate* isolate, Handle<Object> value) {
+  Handle<JSFunction> promise_function = isolate->promise_function();
+  Handle<Object> argv[] = {value};
+  Handle<Object> resolve_result =
+      Execution::CallBuiltin(isolate, isolate->promise_resolve(),
+                             promise_function, arraysize(argv), argv)
+          .ToHandleChecked();
+  return Cast<JSReceiver>(resolve_result);
 }
 
 Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
@@ -169,7 +208,7 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
   Handle<Object> result_handle;
 
   if (result.ToHandle(&result_handle)) {
-    if (!IsUndefined(*result_handle)) {
+    if (!IsTrue(*result_handle)) {
       Handle<Context> async_disposable_stack_context =
           isolate->factory()->NewBuiltinContext(
               isolate->native_context(),
@@ -201,8 +240,8 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
               .Build();
 
       Handle<Object> argv[] = {on_fulfilled, on_rejected};
-      // (TODO:rezvan): Add a wrapper function for PerformPromiseThen.
-      Execution::CallBuiltin(isolate, isolate->promise_then(),
+
+      Execution::CallBuiltin(isolate, isolate->perform_promise_then(),
                              Cast<JSPromise>(result_handle), arraysize(argv),
                              argv)
           .ToHandleChecked();

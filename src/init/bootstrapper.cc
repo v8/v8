@@ -3272,6 +3272,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, prototype, "then", Builtin::kPromisePrototypeThen, 2, kAdapt);
     native_context()->set_promise_then(*promise_then);
 
+    DirectHandle<JSFunction> perform_promise_then =
+        SimpleCreateFunction(isolate_, factory->empty_string(),
+                             Builtin::kPerformPromiseThenFunction, 2, kAdapt);
+    native_context()->set_perform_promise_then(*perform_promise_then);
+
     InstallFunctionWithBuiltinId(isolate_, prototype, "catch",
                                  Builtin::kPromisePrototypeCatch, 1, kAdapt);
 
