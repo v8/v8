@@ -4414,10 +4414,15 @@ bool F16x8BinOpViaF32(LiftoffAssembler* assm, LiftoffRegister dst,
   }
   CpuFeatureScope f16c_scope(assm, F16C);
   CpuFeatureScope avx_scope(assm, AVX);
+  static constexpr RegClass res_rc = reg_class_for(kS128);
+  LiftoffRegister tmp =
+      assm->GetUnusedRegister(res_rc, LiftoffRegList{dst, lhs, rhs});
+  YMMRegister ytmp = YMMRegister::from_code(tmp.fp().code());
   YMMRegister ydst = YMMRegister::from_code(dst.fp().code());
-  assm->vcvtph2ps(ydst, lhs.fp());
+  // dst can overlap with rhs or lhs, so cannot be used as temporary reg.
+  assm->vcvtph2ps(ytmp, lhs.fp());
   assm->vcvtph2ps(kScratchSimd256Reg, rhs.fp());
-  (assm->*avx_op)(ydst, ydst, kScratchSimd256Reg);
+  (assm->*avx_op)(ydst, ytmp, kScratchSimd256Reg);
   assm->vcvtps2ph(dst.fp(), ydst, 0);
   return true;
 }

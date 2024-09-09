@@ -938,6 +938,41 @@ let kExprI16x8RelaxedQ15MulRS = wasmSignedLeb(0x111);
 let kExprI16x8DotI8x16I7x16S = wasmSignedLeb(0x112);
 let kExprI32x4DotI8x16I7x16AddS = wasmSignedLeb(0x113);
 
+// FP16 SIMD
+let kExprF16x8Splat = wasmSignedLeb(0x120);
+let kExprF16x8ExtractLane = wasmSignedLeb(0x121);
+let kExprF16x8ReplaceLane = wasmSignedLeb(0x122);
+let kExprF16x8Abs = wasmSignedLeb(0x130);
+let kExprF16x8Neg = wasmSignedLeb(0x131);
+let kExprF16x8Sqrt = wasmSignedLeb(0x132);
+let kExprF16x8Ceil = wasmSignedLeb(0x133);
+let kExprF16x8Floor = wasmSignedLeb(0x134);
+let kExprF16x8Trunc = wasmSignedLeb(0x135);
+let kExprF16x8NearestInt = wasmSignedLeb(0x136);
+let kExprF16x8Eq = wasmSignedLeb(0x137);
+let kExprF16x8Ne = wasmSignedLeb(0x138);
+let kExprF16x8Lt = wasmSignedLeb(0x139);
+let kExprF16x8Gt = wasmSignedLeb(0x13a);
+let kExprF16x8Le = wasmSignedLeb(0x13b);
+let kExprF16x8Ge = wasmSignedLeb(0x13c);
+let kExprF16x8Add = wasmSignedLeb(0x13d);
+let kExprF16x8Sub = wasmSignedLeb(0x13e);
+let kExprF16x8Mul = wasmSignedLeb(0x13f);
+let kExprF16x8Div = wasmSignedLeb(0x140);
+let kExprF16x8Min = wasmSignedLeb(0x141);
+let kExprF16x8Max = wasmSignedLeb(0x142);
+let kExprF16x8Pmin = wasmSignedLeb(0x143);
+let kExprF16x8Pmax = wasmSignedLeb(0x144);
+let kExprI16x8SConvertF16x8 = wasmSignedLeb(0x145);
+let kExprI16x8UConvertF16x8 = wasmSignedLeb(0x146);
+let kExprF16x8SConvertI16x8 = wasmSignedLeb(0x147);
+let kExprF16x8UConvertI16x8 = wasmSignedLeb(0x148);
+let kExprF16x8DemoteF32x4Zero = wasmSignedLeb(0x149);
+let kExprF16x8DemoteF64x2Zero = wasmSignedLeb(0x14a);
+let kExprF32x4PromoteLowF16x8 = wasmSignedLeb(0x14b);
+let kExprF16x8Qfma = wasmSignedLeb(0x14e);
+let kExprF16x8Qfms = wasmSignedLeb(0x14f);
+
 // Compilation hint constants.
 let kCompilationHintStrategyDefault = 0x00;
 let kCompilationHintStrategyLazy = 0x01;
