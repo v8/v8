@@ -343,9 +343,11 @@ inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
                                                     int offset) {
-  ShiftLeftU64(result, index, Operand(ShiftFromScale(scale)));
-  AddU64(result, result, object);
-  MacroAssembler::LoadTaggedField(result, FieldMemOperand(result, offset));
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  ShiftLeftU64(scratch, index, Operand(ShiftFromScale(scale)));
+  AddU64(scratch, scratch, object);
+  MacroAssembler::LoadTaggedField(result, FieldMemOperand(scratch, offset));
 }
 
 inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
