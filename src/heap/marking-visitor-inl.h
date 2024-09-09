@@ -605,8 +605,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     // WeakMaps and WeakSets and therefore cannot be ephemeron keys. See also
     // MarkCompactCollector::ProcessEphemeron.
     DCHECK(!InWritableSharedSpace(key));
-    if (InReadOnlySpace(key) ||
-        concrete_visitor()->marking_state()->IsMarked(key)) {
+    if (MarkingHelper::IsMarkedOrAlwaysLive(
+            heap_, concrete_visitor()->marking_state(), key)) {
       VisitPointer(table, value_slot);
     } else {
       Tagged<Object> value_obj = table->ValueAt(i);
@@ -644,8 +644,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(
     SynchronizePageAccess(target);
     concrete_visitor()->AddWeakReferenceForReferenceSummarizer(weak_ref,
                                                                target);
-    if (InReadOnlySpace(target) ||
-        concrete_visitor()->marking_state()->IsMarked(target)) {
+    if (MarkingHelper::IsMarkedOrAlwaysLive(
+            heap_, concrete_visitor()->marking_state(), target)) {
       // Record the slot inside the JSWeakRef, since the VisitJSWeakRef above
       // didn't visit it.
       ObjectSlot slot = weak_ref->RawField(JSWeakRef::kTargetOffset);
@@ -666,10 +666,10 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(
   Tagged<HeapObject> unregister_token = weak_cell->relaxed_unregister_token();
   SynchronizePageAccess(target);
   SynchronizePageAccess(unregister_token);
-  if ((InReadOnlySpace(target) ||
-       concrete_visitor()->marking_state()->IsMarked(target)) &&
-      (InReadOnlySpace(unregister_token) ||
-       concrete_visitor()->marking_state()->IsMarked(unregister_token))) {
+  if (MarkingHelper::IsMarkedOrAlwaysLive(
+          heap_, concrete_visitor()->marking_state(), target) &&
+      MarkingHelper::IsMarkedOrAlwaysLive(
+          heap_, concrete_visitor()->marking_state(), unregister_token)) {
     // Record the slots inside the WeakCell, since its IterateBody doesn't visit
     // it.
     ObjectSlot slot = weak_cell->RawField(WeakCell::kTargetOffset);
