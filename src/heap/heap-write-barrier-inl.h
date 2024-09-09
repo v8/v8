@@ -57,29 +57,6 @@ inline bool HeapObjectInYoungGeneration(Tagged<HeapObject> object) {
 // internals are only intended to shortcut write barrier checks.
 namespace heap_internals {
 
-V8_INLINE constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
-#if V8_STATIC_ROOTS_BOOL
-  // The following assert ensures that the page size check covers all our static
-  // roots. This is not strictly necessary and can be relaxed in future as the
-  // most prominent static roots are anyways allocated at the beginning of the
-  // first page.
-  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-  return obj < kRegularPageSize;
-#else   // !V8_STATIC_ROOTS_BOOL
-  return false;
-#endif  // !V8_STATIC_ROOTS_BOOL
-}
-
-V8_INLINE constexpr bool IsReadOnlyObjectOrSmi(Tagged<Object> object) {
-  if (FastInReadOnlySpaceOrSmallSmi(static_cast<Tagged_t>(object.ptr()))) {
-    return true;
-  }
-  if (object.IsSmi()) {
-    return true;
-  }
-  return false;
-}
-
 inline void CombinedWriteBarrierInternal(Tagged<HeapObject> host,
                                          HeapObjectSlot slot,
                                          Tagged<HeapObject> value,
@@ -125,9 +102,7 @@ inline void WriteBarrierForCode(Tagged<InstructionStream> host,
                                 RelocInfo* rinfo, Tagged<Object> value,
                                 WriteBarrierMode mode) {
   DCHECK(!HasWeakHeapObjectTag(value));
-  if (heap_internals::IsReadOnlyObjectOrSmi(value)) {
-    return;
-  }
+  if (!value.IsHeapObject()) return;
   WriteBarrierForCode(host, rinfo, Cast<HeapObject>(value), mode);
 }
 
@@ -158,9 +133,8 @@ inline void CombinedWriteBarrier(Tagged<HeapObject> host, ObjectSlot slot,
     SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
     return;
   }
-  if (heap_internals::IsReadOnlyObjectOrSmi(value)) {
-    return;
-  }
+
+  if (!value.IsHeapObject()) return;
   heap_internals::CombinedWriteBarrierInternal(host, HeapObjectSlot(slot),
                                                Cast<HeapObject>(value), mode);
 }
@@ -174,13 +148,7 @@ inline void CombinedWriteBarrier(Tagged<HeapObject> host, MaybeObjectSlot slot,
   }
 
   Tagged<HeapObject> value_object;
-  if (!value.GetHeapObject(&value_object)) {
-    return;
-  }
-  if (heap_internals::FastInReadOnlySpaceOrSmallSmi(
-          static_cast<Tagged_t>(value.ptr()))) {
-    return;
-  }
+  if (!value.GetHeapObject(&value_object)) return;
   heap_internals::CombinedWriteBarrierInternal(host, HeapObjectSlot(slot),
                                                value_object, mode);
 }
@@ -192,9 +160,8 @@ inline void CombinedWriteBarrier(HeapObjectLayout* host,
     SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
     return;
   }
-  if (heap_internals::IsReadOnlyObjectOrSmi(value)) {
-    return;
-  }
+
+  if (!value.IsHeapObject()) return;
   heap_internals::CombinedWriteBarrierInternal(
       Tagged(host), HeapObjectSlot(ObjectSlot(member)), Cast<HeapObject>(value),
       mode);
@@ -207,11 +174,9 @@ inline void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> host,
     SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
     return;
   }
-  DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
 
-  if (heap_internals::IsReadOnlyObjectOrSmi(value)) {
-    return;
-  }
+  DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
+  if (!value.IsHeapObject()) return;
 
   MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
 
@@ -340,9 +305,7 @@ bool WriteBarrier::IsMarking(Tagged<HeapObject> object) {
 void WriteBarrier::Marking(Tagged<HeapObject> host, ObjectSlot slot,
                            Tagged<Object> value) {
   DCHECK(!HasWeakHeapObjectTag(value));
-  if (heap_internals::IsReadOnlyObjectOrSmi(value)) {
-    return;
-  }
+  if (!value.IsHeapObject()) return;
   Tagged<HeapObject> value_heap_object = Cast<HeapObject>(value);
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
@@ -410,9 +373,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, JSDispatchHandle handle) {
 
 // static
 void WriteBarrier::MarkingFromGlobalHandle(Tagged<Object> value) {
-  if (heap_internals::IsReadOnlyObjectOrSmi(value)) {
-    return;
-  }
+  if (!value.IsHeapObject()) return;
   MarkingSlowFromGlobalHandle(Cast<HeapObject>(value));
 }
 
