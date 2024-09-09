@@ -200,12 +200,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                 int element_size);
   template <typename BitField>
   inline void LoadBitField(Register result, MemOperand operand) {
-    // Pick a load with the right size, which makes sure to read the whole
-    // field.
-    static constexpr int load_size =
-        RoundUp<8>(BitField::kSize + BitField::kShift) / 8;
-    // TODO(leszeks): If the shift is 8 or 16, we could have loaded from a
-    // shifted address instead.
+    static constexpr int load_size = sizeof(typename BitField::BaseType);
     LoadUnsignedField(result, operand, load_size);
     DecodeField<BitField>(result);
   }
