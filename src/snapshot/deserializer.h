@@ -68,6 +68,7 @@ class Deserializer : public SerializerDeserializer {
   // This returns the address of an object that has been described in the
   // snapshot by object vector index.
   Handle<HeapObject> GetBackReferencedObject();
+  Handle<HeapObject> GetBackReferencedObject(uint32_t index);
 
   // Add an object to back an attached reference. The order to add objects must
   // mirror the order they are added in the serializer.
@@ -335,6 +336,8 @@ class Deserializer : public SerializerDeserializer {
     unsigned int original_gc_stats_;
   };
   DisableGCStats no_gc_stats_;
+
+  int depth_ = 0;
 
 #ifdef DEBUG
   uint32_t num_api_references_;

@@ -2646,6 +2646,7 @@ DEFINE_BOOL(verify_snapshot_checksum, DEBUG_BOOL,
             "default in debug builds and once per process for Android.")
 DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
+DEFINE_BOOL(trace_deserialization, false, "Trace the snapshot deserialization.")
 DEFINE_BOOL(serialization_statistics, false,
             "Collect statistics on serialized objects.")
 // Regexp
