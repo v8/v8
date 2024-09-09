@@ -937,18 +937,6 @@ CPU::CPU()
       part_ = kPPCPower9;
     } else if (strcmp(auxv_cpu_type, "power8") == 0) {
       part_ = kPPCPower8;
-    } else if (strcmp(auxv_cpu_type, "power7") == 0) {
-      part_ = kPPCPower7;
-    } else if (strcmp(auxv_cpu_type, "power6") == 0) {
-      part_ = kPPCPower6;
-    } else if (strcmp(auxv_cpu_type, "power5") == 0) {
-      part_ = kPPCPower5;
-    } else if (strcmp(auxv_cpu_type, "ppc970") == 0) {
-      part_ = kPPCG5;
-    } else if (strcmp(auxv_cpu_type, "ppc7450") == 0) {
-      part_ = kPPCG4;
-    } else if (strcmp(auxv_cpu_type, "pa6t") == 0) {
-      part_ = kPPCPA6T;
     }
   }
 
@@ -962,15 +950,6 @@ CPU::CPU()
       break;
     case POWER_8:
       part_ = kPPCPower8;
-      break;
-    case POWER_7:
-      part_ = kPPCPower7;
-      break;
-    case POWER_6:
-      part_ = kPPCPower6;
-      break;
-    case POWER_5:
-      part_ = kPPCPower5;
       break;
   }
 #endif  // V8_OS_AIX

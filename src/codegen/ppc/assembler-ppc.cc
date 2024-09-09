@@ -99,10 +99,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     supported_ |= (1u << PPC_9_PLUS);
   } else if (cpu.part() == base::CPU::kPPCPower8) {
     supported_ |= (1u << PPC_8_PLUS);
-  } else if (cpu.part() == base::CPU::kPPCPower7) {
-    supported_ |= (1u << PPC_7_PLUS);
-  } else if (cpu.part() == base::CPU::kPPCPower6) {
-    supported_ |= (1u << PPC_6_PLUS);
   }
 #if V8_OS_LINUX
   if (cpu.icache_line_size() != base::CPU::kUnknownCacheLineSize) {
@@ -112,8 +108,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #endif
   if (supported_ & (1u << PPC_10_PLUS)) supported_ |= (1u << PPC_9_PLUS);
   if (supported_ & (1u << PPC_9_PLUS)) supported_ |= (1u << PPC_8_PLUS);
-  if (supported_ & (1u << PPC_8_PLUS)) supported_ |= (1u << PPC_7_PLUS);
-  if (supported_ & (1u << PPC_7_PLUS)) supported_ |= (1u << PPC_6_PLUS);
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -129,8 +123,6 @@ void CpuFeatures::PrintTarget() {
 }
 
 void CpuFeatures::PrintFeatures() {
-  printf("PPC_6_PLUS=%d\n", CpuFeatures::IsSupported(PPC_6_PLUS));
-  printf("PPC_7_PLUS=%d\n", CpuFeatures::IsSupported(PPC_7_PLUS));
   printf("PPC_8_PLUS=%d\n", CpuFeatures::IsSupported(PPC_8_PLUS));
   printf("PPC_9_PLUS=%d\n", CpuFeatures::IsSupported(PPC_9_PLUS));
   printf("PPC_10_PLUS=%d\n", CpuFeatures::IsSupported(PPC_10_PLUS));

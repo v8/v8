@@ -2062,88 +2062,27 @@ void MacroAssembler::SubAndCheckForOverflow(Register dst, Register left,
 
 void MacroAssembler::MinF64(DoubleRegister dst, DoubleRegister lhs,
                             DoubleRegister rhs, DoubleRegister scratch) {
-  Label check_zero, return_left, return_right, return_nan, done;
+  Label return_nan, done;
   fcmpu(lhs, rhs);
   bunordered(&return_nan);
-  if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
-    xsmindp(dst, lhs, rhs);
-    b(&done);
-  }
-  beq(&check_zero);
-  ble(&return_left);
-  b(&return_right);
-
-  bind(&check_zero);
-  fcmpu(lhs, kDoubleRegZero);
-  /* left == right != 0. */
-  bne(&return_left);
-  /* At this point, both left and right are either 0 or -0. */
-  /* Min: The algorithm is: -((-L) + (-R)), which in case of L and R */
-  /* being different registers is most efficiently expressed */
-  /* as -((-L) - R). */
-  fneg(scratch, lhs);
-  if (scratch == rhs) {
-    fadd(dst, scratch, rhs);
-  } else {
-    fsub(dst, scratch, rhs);
-  }
-  fneg(dst, dst);
+  xsmindp(dst, lhs, rhs);
   b(&done);
-
   bind(&return_nan);
   /* If left or right are NaN, fadd propagates the appropriate one.*/
   fadd(dst, lhs, rhs);
-  b(&done);
-
-  bind(&return_right);
-  if (rhs != dst) {
-    fmr(dst, rhs);
-  }
-  b(&done);
-
-  bind(&return_left);
-  if (lhs != dst) {
-    fmr(dst, lhs);
-  }
   bind(&done);
 }
 
 void MacroAssembler::MaxF64(DoubleRegister dst, DoubleRegister lhs,
                             DoubleRegister rhs, DoubleRegister scratch) {
-  Label check_zero, return_left, return_right, return_nan, done;
+  Label return_nan, done;
   fcmpu(lhs, rhs);
   bunordered(&return_nan);
-  if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
-    xsmaxdp(dst, lhs, rhs);
-    b(&done);
-  }
-  beq(&check_zero);
-  bge(&return_left);
-  b(&return_right);
-
-  bind(&check_zero);
-  fcmpu(lhs, kDoubleRegZero);
-  /* left == right != 0. */
-  bne(&return_left);
-  /* At this point, both left and right are either 0 or -0. */
-  fadd(dst, lhs, rhs);
+  xsmaxdp(dst, lhs, rhs);
   b(&done);
-
   bind(&return_nan);
   /* If left or right are NaN, fadd propagates the appropriate one.*/
   fadd(dst, lhs, rhs);
-  b(&done);
-
-  bind(&return_right);
-  if (rhs != dst) {
-    fmr(dst, rhs);
-  }
-  b(&done);
-
-  bind(&return_left);
-  if (lhs != dst) {
-    fmr(dst, lhs);
-  }
   bind(&done);
 }
 
@@ -2917,189 +2856,74 @@ void MacroAssembler::LoadDoubleLiteral(DoubleRegister result,
 
   litVal.dval = value.AsUint64();
 
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    mov(scratch, Operand(litVal.ival));
-    mtfprd(result, scratch);
-    return;
-  }
-
-  addi(sp, sp, Operand(-kDoubleSize));
   mov(scratch, Operand(litVal.ival));
-  std(scratch, MemOperand(sp));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lfd(result, MemOperand(sp, 0));
-  addi(sp, sp, Operand(kDoubleSize));
+  mtfprd(result, scratch);
 }
 
 void MacroAssembler::MovIntToDouble(DoubleRegister dst, Register src,
                                     Register scratch) {
-// sign-extend src to 64-bit
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    mtfprwa(dst, src);
-    return;
-  }
-
-  DCHECK(src != scratch);
-  subi(sp, sp, Operand(kDoubleSize));
-  extsw(scratch, src);
-  std(scratch, MemOperand(sp, 0));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lfd(dst, MemOperand(sp, 0));
-  addi(sp, sp, Operand(kDoubleSize));
+  // sign-extend src to 64-bit
+  mtfprwa(dst, src);
 }
 
 void MacroAssembler::MovUnsignedIntToDouble(DoubleRegister dst, Register src,
                                             Register scratch) {
-// zero-extend src to 64-bit
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    mtfprwz(dst, src);
-    return;
-  }
-
-  DCHECK(src != scratch);
-  subi(sp, sp, Operand(kDoubleSize));
-  clrldi(scratch, src, Operand(32));
-  std(scratch, MemOperand(sp, 0));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lfd(dst, MemOperand(sp, 0));
-  addi(sp, sp, Operand(kDoubleSize));
+  // zero-extend src to 64-bit
+  mtfprwz(dst, src);
 }
 
 void MacroAssembler::MovInt64ToDouble(DoubleRegister dst,
                                       Register src) {
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    mtfprd(dst, src);
-    return;
-  }
-
-  subi(sp, sp, Operand(kDoubleSize));
-  std(src, MemOperand(sp, 0));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lfd(dst, MemOperand(sp, 0));
-  addi(sp, sp, Operand(kDoubleSize));
+  mtfprd(dst, src);
 }
 
 void MacroAssembler::MovInt64ComponentsToDouble(DoubleRegister dst,
                                                 Register src_hi,
                                                 Register src_lo,
                                                 Register scratch) {
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    ShiftLeftU64(scratch, src_hi, Operand(32));
-    rldimi(scratch, src_lo, 0, 32);
-    mtfprd(dst, scratch);
-    return;
-  }
-
-  subi(sp, sp, Operand(kDoubleSize));
-  stw(src_hi, MemOperand(sp, Register::kExponentOffset));
-  stw(src_lo, MemOperand(sp, Register::kMantissaOffset));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lfd(dst, MemOperand(sp));
-  addi(sp, sp, Operand(kDoubleSize));
+  ShiftLeftU64(scratch, src_hi, Operand(32));
+  rldimi(scratch, src_lo, 0, 32);
+  mtfprd(dst, scratch);
 }
 
 void MacroAssembler::InsertDoubleLow(DoubleRegister dst, Register src,
                                      Register scratch) {
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    mffprd(scratch, dst);
-    rldimi(scratch, src, 0, 32);
-    mtfprd(dst, scratch);
-    return;
-  }
-
-  subi(sp, sp, Operand(kDoubleSize));
-  stfd(dst, MemOperand(sp));
-  stw(src, MemOperand(sp, Register::kMantissaOffset));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lfd(dst, MemOperand(sp));
-  addi(sp, sp, Operand(kDoubleSize));
+  mffprd(scratch, dst);
+  rldimi(scratch, src, 0, 32);
+  mtfprd(dst, scratch);
 }
 
 void MacroAssembler::InsertDoubleHigh(DoubleRegister dst, Register src,
                                       Register scratch) {
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    mffprd(scratch, dst);
-    rldimi(scratch, src, 32, 0);
-    mtfprd(dst, scratch);
-    return;
-  }
-
-  subi(sp, sp, Operand(kDoubleSize));
-  stfd(dst, MemOperand(sp));
-  stw(src, MemOperand(sp, Register::kExponentOffset));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lfd(dst, MemOperand(sp));
-  addi(sp, sp, Operand(kDoubleSize));
+  mffprd(scratch, dst);
+  rldimi(scratch, src, 32, 0);
+  mtfprd(dst, scratch);
 }
 
 void MacroAssembler::MovDoubleLowToInt(Register dst, DoubleRegister src) {
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    mffprwz(dst, src);
-    return;
-  }
-
-  subi(sp, sp, Operand(kDoubleSize));
-  stfd(src, MemOperand(sp));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lwz(dst, MemOperand(sp, Register::kMantissaOffset));
-  addi(sp, sp, Operand(kDoubleSize));
+  mffprwz(dst, src);
 }
 
 void MacroAssembler::MovDoubleHighToInt(Register dst, DoubleRegister src) {
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    mffprd(dst, src);
-    srdi(dst, dst, Operand(32));
-    return;
-  }
-
-  subi(sp, sp, Operand(kDoubleSize));
-  stfd(src, MemOperand(sp));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lwz(dst, MemOperand(sp, Register::kExponentOffset));
-  addi(sp, sp, Operand(kDoubleSize));
+  mffprd(dst, src);
+  srdi(dst, dst, Operand(32));
 }
 
-void MacroAssembler::MovDoubleToInt64(
-    Register dst, DoubleRegister src) {
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    mffprd(dst, src);
-    return;
-  }
-
-  subi(sp, sp, Operand(kDoubleSize));
-  stfd(src, MemOperand(sp));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  ld(dst, MemOperand(sp, 0));
-  addi(sp, sp, Operand(kDoubleSize));
+void MacroAssembler::MovDoubleToInt64(Register dst, DoubleRegister src) {
+  mffprd(dst, src);
 }
 
 void MacroAssembler::MovIntToFloat(DoubleRegister dst, Register src,
                                    Register scratch) {
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    ShiftLeftU64(scratch, src, Operand(32));
-    mtfprd(dst, scratch);
-    xscvspdpn(dst, dst);
-    return;
-  }
-  subi(sp, sp, Operand(kFloatSize));
-  stw(src, MemOperand(sp, 0));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lfs(dst, MemOperand(sp, 0));
-  addi(sp, sp, Operand(kFloatSize));
+  ShiftLeftU64(scratch, src, Operand(32));
+  mtfprd(dst, scratch);
+  xscvspdpn(dst, dst);
 }
 
 void MacroAssembler::MovFloatToInt(Register dst, DoubleRegister src,
                                    DoubleRegister scratch) {
-  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
-    xscvdpspn(scratch, src);
-    mffprwz(dst, scratch);
-    return;
-  }
-  subi(sp, sp, Operand(kFloatSize));
-  stfs(src, MemOperand(sp, 0));
-  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
-  lwz(dst, MemOperand(sp, 0));
-  addi(sp, sp, Operand(kFloatSize));
+  xscvdpspn(scratch, src);
+  mffprwz(dst, scratch);
 }
 
 void MacroAssembler::AddS64(Register dst, Register src, Register value, OEBit s,

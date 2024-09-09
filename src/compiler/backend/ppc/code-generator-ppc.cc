@@ -1821,30 +1821,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
       __ ConvertDoubleToInt64(i.InputDoubleRegister(0),
                               i.OutputRegister(0), kScratchDoubleReg);
-        CRegister cr = cr7;
-        int crbit = v8::internal::Assembler::encode_crbit(
-            cr, static_cast<CRBit>(VXCVI % CRWIDTH));
-        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
-        // Handle conversion failures (such as overflow).
-        if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
-          if (check_conversion) {
-            __ li(i.OutputRegister(1), Operand(1));
-            __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
-          } else {
-            __ isel(i.OutputRegister(0), r0, i.OutputRegister(0), crbit);
-          }
-        } else {
-          if (check_conversion) {
-            __ li(i.OutputRegister(1), Operand::Zero());
-            __ bc(v8::internal::kInstrSize * 2, BT, crbit);
-            __ li(i.OutputRegister(1), Operand(1));
-          } else {
-            __ mr(ip, i.OutputRegister(0));
-            __ li(i.OutputRegister(0), Operand::Zero());
-            __ bc(v8::internal::kInstrSize * 2, BT, crbit);
-            __ mr(i.OutputRegister(0), ip);
-          }
-        }
+      CRegister cr = cr7;
+      int crbit = v8::internal::Assembler::encode_crbit(
+          cr, static_cast<CRBit>(VXCVI % CRWIDTH));
+      __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+      // Handle conversion failures (such as overflow).
+      if (check_conversion) {
+        __ li(i.OutputRegister(1), Operand(1));
+        __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
+      } else {
+        __ isel(i.OutputRegister(0), r0, i.OutputRegister(0), crbit);
+      }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
@@ -1861,14 +1848,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
-        if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
-          __ li(i.OutputRegister(1), Operand(1));
-          __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
-        } else {
-          __ li(i.OutputRegister(1), Operand::Zero());
-          __ bc(v8::internal::kInstrSize * 2, BT, crbit);
-          __ li(i.OutputRegister(1), Operand(1));
-        }
+        __ li(i.OutputRegister(1), Operand(1));
+        __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
       }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2962,30 +2943,23 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     // Unnecessary for eq/lt & ne/ge since only FU bit will be set.
   }
-
-  if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
-    switch (cond) {
-      case eq:
-      case lt:
-      case gt:
-        if (reg_value != 1) __ li(reg, Operand(1));
-        __ li(kScratchReg, Operand::Zero());
-        __ isel(cond, reg, reg, kScratchReg, cr);
-        break;
-      case ne:
-      case ge:
-      case le:
-        if (reg_value != 1) __ li(reg, Operand(1));
-        // r0 implies logical zero in this form
-        __ isel(NegateCondition(cond), reg, r0, reg, cr);
-        break;
-      default:
-        UNREACHABLE();
-    }
-  } else {
-    if (reg_value != 0) __ li(reg, Operand::Zero());
-    __ b(NegateCondition(cond), &done, cr);
-    __ li(reg, Operand(1));
+  switch (cond) {
+    case eq:
+    case lt:
+    case gt:
+      if (reg_value != 1) __ li(reg, Operand(1));
+      __ li(kScratchReg, Operand::Zero());
+      __ isel(cond, reg, reg, kScratchReg, cr);
+      break;
+    case ne:
+    case ge:
+    case le:
+      if (reg_value != 1) __ li(reg, Operand(1));
+      // r0 implies logical zero in this form
+      __ isel(NegateCondition(cond), reg, r0, reg, cr);
+      break;
+    default:
+      UNREACHABLE();
   }
   __ bind(&done);
 }
