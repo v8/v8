@@ -191,7 +191,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
         message_register_(message_register),
         return_token_(-1),
         async_return_token_(-1),
-        fallthrough_needed_(false) {
+        fallthrough_from_try_block_needed_(false) {
     // There's always a rethrow path.
     // TODO(leszeks): We could decouple deferred_ index and token to allow us
     // to still push this lazily.
@@ -251,7 +251,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
   // Records the dispatch token to be used to identify the implicit fall-through
   // path at the end of a try-block into the corresponding finally-block.
   void RecordFallThroughPath() {
-    fallthrough_needed_ = true;
+    fallthrough_from_try_block_needed_ = true;
     builder()->LoadLiteral(Smi::FromInt(
         static_cast<int>(TryFinallyContinuationToken::kFallthroughToken)));
     builder()->StoreAccumulatorInRegister(token_register_);
@@ -262,68 +262,91 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
     builder()->StoreAccumulatorInRegister(result_register_);
   }
 
+  void ApplyDeferredCommand(const Entry& entry) {
+    if (entry.command == CMD_RETHROW) {
+      // Pending message object is restored on exit.
+      builder()
+          ->LoadAccumulatorWithRegister(message_register_)
+          .SetPendingMessage();
+    }
+
+    if (CommandUsesAccumulator(entry.command)) {
+      builder()->LoadAccumulatorWithRegister(result_register_);
+    }
+    execution_control()->PerformCommand(entry.command, entry.statement,
+                                        kNoSourcePosition);
+  }
+
   // Applies all recorded control-flow commands after the finally-block again.
   // This generates a dynamic dispatch on the token from the entry point.
   void ApplyDeferredCommands() {
     if (deferred_.empty()) return;
 
-    BytecodeLabel fall_through;
+    BytecodeLabel fall_through_from_try_block;
 
     if (deferred_.size() == 1) {
       // For a single entry, just jump to the fallthrough if we don't match the
       // entry token.
       const Entry& entry = deferred_[0];
 
-      if (fallthrough_needed_) {
+      if (fallthrough_from_try_block_needed_) {
         builder()
             ->LoadLiteral(Smi::FromInt(entry.token))
             .CompareReference(token_register_)
-            .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &fall_through);
+            .JumpIfFalse(ToBooleanMode::kAlreadyBoolean,
+                         &fall_through_from_try_block);
       }
 
-      if (entry.command == CMD_RETHROW) {
-        // Pending message object is restored on exit.
-        builder()
-            ->LoadAccumulatorWithRegister(message_register_)
-            .SetPendingMessage();
-      }
-
-      if (CommandUsesAccumulator(entry.command)) {
-        builder()->LoadAccumulatorWithRegister(result_register_);
-      }
-      execution_control()->PerformCommand(entry.command, entry.statement,
-                                          kNoSourcePosition);
+      ApplyDeferredCommand(entry);
     } else {
       // For multiple entries, build a jump table and switch on the token,
       // jumping to the fallthrough if none of them match.
+      //
+      // If fallthrough from the try block is not needed, generate a jump table
+      // with one (1) fewer entries and reuse the fallthrough path for the final
+      // entry.
+      const int jump_table_base_value =
+          fallthrough_from_try_block_needed_ ? 0 : 1;
+      const int jump_table_size =
+          static_cast<int>(deferred_.size() - jump_table_base_value);
 
-      BytecodeJumpTable* jump_table =
-          builder()->AllocateJumpTable(static_cast<int>(deferred_.size()), 0);
-      builder()
-          ->LoadAccumulatorWithRegister(token_register_)
-          .SwitchOnSmiNoFeedback(jump_table);
+      if (jump_table_size == 1) {
+        DCHECK_EQ(2, deferred_.size());
+        BytecodeLabel fall_through_to_final_entry;
+        const Entry& first_entry = deferred_[0];
+        const Entry& final_entry = deferred_[1];
+        builder()
+            ->LoadLiteral(Smi::FromInt(first_entry.token))
+            .CompareReference(token_register_)
+            .JumpIfFalse(ToBooleanMode::kAlreadyBoolean,
+                         &fall_through_to_final_entry);
+        ApplyDeferredCommand(first_entry);
+        builder()->Bind(&fall_through_to_final_entry);
+        ApplyDeferredCommand(final_entry);
+      } else {
+        BytecodeJumpTable* jump_table = builder()->AllocateJumpTable(
+            jump_table_size, jump_table_base_value);
+        builder()
+            ->LoadAccumulatorWithRegister(token_register_)
+            .SwitchOnSmiNoFeedback(jump_table);
 
-      if (fallthrough_needed_) builder()->Jump(&fall_through);
-
-      for (const Entry& entry : deferred_) {
-        builder()->Bind(jump_table, entry.token);
-
-        if (entry.command == CMD_RETHROW) {
-          // Pending message object is restored on exit.
-          builder()
-              ->LoadAccumulatorWithRegister(message_register_)
-              .SetPendingMessage();
+        const Entry& first_entry = deferred_.front();
+        if (fallthrough_from_try_block_needed_) {
+          builder()->Jump(&fall_through_from_try_block);
+          builder()->Bind(jump_table, first_entry.token);
         }
+        ApplyDeferredCommand(first_entry);
 
-        if (CommandUsesAccumulator(entry.command)) {
-          builder()->LoadAccumulatorWithRegister(result_register_);
+        for (const Entry& entry : base::IterateWithoutFirst(deferred_)) {
+          builder()->Bind(jump_table, entry.token);
+          ApplyDeferredCommand(entry);
         }
-        execution_control()->PerformCommand(entry.command, entry.statement,
-                                            kNoSourcePosition);
       }
     }
 
-    if (fallthrough_needed_) builder()->Bind(&fall_through);
+    if (fallthrough_from_try_block_needed_) {
+      builder()->Bind(&fall_through_from_try_block);
+    }
   }
 
   BytecodeArrayBuilder* builder() { return generator_->builder(); }
@@ -376,7 +399,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
   int async_return_token_;
 
   // Whether a fallthrough is possible.
-  bool fallthrough_needed_;
+  bool fallthrough_from_try_block_needed_;
 };
 
 // Scoped class for dealing with control flow reaching the function level.
