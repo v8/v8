@@ -76,7 +76,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:f792b9756418af8ab8a91a4c15b582431cb86ff9',
+  'gn_version': 'git_revision:20806f79c6b4ba295274e3a589d85db41a02fdaa',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:eaee19cf51478b64614e2e8daad77378238a3c6c',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:1d383421736c86faeb7dea6d2039d8ea2ef6d648',
+  'luci_go': 'git_revision:1aca70b6bf116c1bd8fbf0526c9a89e9be308718',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '58e988bf3be6ac9ac855d75840be7db928c61f2a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1c773de893f14f90ae3c05a47f1384beea4bf981',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c50379e934fd5c1d3938356fc6c71d5e557fb7be',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6a71c9b405a84a5fa0081f062ad700e666cda838',
   'buildtools/linux64': {
     'packages': [
       {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '01e1ae3687e391a076fe470471f096db1f6d6bb4',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'f10c1dc37174843c504a80e94c252e35b7b1eb61',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '753e45cfb999f676e785e60d6fb01aba62a2d5cf',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '39de890708247c0b53588fb927f1ecfd9884b83d',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ae3745656b1111c995e41ec70eaa4397eaea7951',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '46f5de67e137de4101c1337dd9b95252d14523e9',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -305,7 +305,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '7ef1f0a187aa3320426084c19e42833568f779a9',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '9be1056e883d3fe5cd6666ac69702a6c5e9a39df',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '11b62edaf245bb83bc259c37f269446cb34ef01e',
   'third_party/libunwind/src':
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd3aea2341cdeaf7e717bc257a59aa7a9407d318a',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '56a998c9bb0cbcfb0c4ef1f661d280a9edb18661',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '25c90d0f7051c7ac7641717147a23e30216386b0',
   'tools/luci-go': {
       'packages': [
         {
@@ -511,7 +511,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'ea8a06debe2dc70afb1a257dd75f89ba056a526f',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '1f7e21e34c3807a8841c9562cfc8b3213eb50bfc',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
