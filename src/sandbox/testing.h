@@ -76,6 +76,10 @@ class SandboxTesting : public AllStatic {
   // Returns true if the access violation happened inside the target page.
   static bool IsInsideTargetPage(Address faultaddr);
 
+  // Returns a mapping of type names to their InstanceType.
+  using InstanceTypeMap = std::unordered_map<std::string, InstanceType>;
+  static InstanceTypeMap& GetInstanceTypeMap();
+
   // Returns a mapping of instance types to known field offsets. This is useful
   // mainly for the Sandbox.getFieldOffsetOf API which provides access to
   // internal field offsets of HeapObject to JavaScript.
