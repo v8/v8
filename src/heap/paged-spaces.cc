@@ -549,20 +549,6 @@ size_t PagedSpaceBase::RelinkFreeListCategories(PageMetadata* page) {
   return added;
 }
 
-namespace {
-
-void DropFreeListCategories(PageMetadata* page, FreeList* free_list) {
-  size_t previously_available = 0;
-  page->ForAllFreeListCategories(
-      [free_list, &previously_available](FreeListCategory* category) {
-        previously_available += category->available();
-        category->Reset(free_list);
-      });
-  page->add_wasted_memory(previously_available);
-}
-
-}  // namespace
-
 void PagedSpaceBase::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList.
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
@@ -575,7 +561,7 @@ void PagedSpaceBase::RefillFreeList() {
     // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
     // entries here to make them unavailable for allocations.
     if (p->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE)) {
-      DropFreeListCategories(p, free_list());
+      free_list_->EvictFreeListItems(p);
     }
 
     ConcurrentAllocationMutex guard(this);
@@ -607,7 +593,7 @@ void CompactionSpace::RefillFreeList() {
     // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
     // entries here to make them unavailable for allocations.
     if (p->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE)) {
-      DropFreeListCategories(p, free_list());
+      free_list()->EvictFreeListItems(p);
     }
 
     // Only during compaction pages can actually change ownership. This is
