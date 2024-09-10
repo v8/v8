@@ -535,20 +535,7 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
   static constexpr int kFCIImplicitArgsOffset =
       EXIT_FRAME_PUSHED_VALUE_OFFSET(2);
 
-  // Padding might be required to keep the stack 16-byte aligned.
-  static constexpr int kOptionalPaddingOffset =
-      EXIT_FRAME_PUSHED_VALUE_OFFSET(3);
-
-#if V8_TARGET_ARCH_ARM64
-  static constexpr int kOptionalPaddingSize = kSystemPointerSize;
-
-  DEFINE_EXIT_FRAME_SIZES(4)
-  static_assert(kFixedFrameSize % 16 == 0);
-#else
-  static constexpr int kOptionalPaddingSize = 0;
-
   DEFINE_EXIT_FRAME_SIZES(3)
-#endif  // V8_TARGET_ARCH_ARM64
   static_assert(kSPOffset - kSystemPointerSize == kFCIArgcOffset);
 
   // v8::FunctionCallbackInfo's struct allocated right below the exit frame.

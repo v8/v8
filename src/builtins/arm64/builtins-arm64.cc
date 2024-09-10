@@ -4929,7 +4929,24 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
                     StackFrame::API_CALLBACK_EXIT);
 
-  MemOperand argc_operand = MemOperand(fp, FC::kFCIArgcOffset);
+  // This is a workaround for performance regression observed on Apple Silicon
+  // (https://crbug.com/347741609): reading argc value after the call via
+  //   MemOperand argc_operand = MemOperand(fp, FC::kFCIArgcOffset);
+  // is noticeably slower than using sp-based access:
+  MemOperand argc_operand = ExitFrameStackSlotOperand(FCA::kLengthOffset);
+  if (v8_flags.debug_code) {
+    // Ensure sp-based calculation of FC::length_'s address matches the
+    // fp-based one.
+    Label ok;
+    // +kSystemPointerSize is for the slot at [sp] which is reserved in all
+    // ExitFrames for storing the return PC.
+    __ Add(scratch, sp,
+           FCA::kLengthOffset + kSystemPointerSize - FC::kFCIArgcOffset);
+    __ cmp(scratch, fp);
+    __ B(eq, &ok);
+    __ DebugBreak();
+    __ Bind(&ok);
+  }
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::FunctionCallbackInfo");
     // FunctionCallbackInfo::length_.
