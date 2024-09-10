@@ -17,6 +17,7 @@
 #include "src/objects/backing-store.h"
 #include "src/objects/code.h"
 #include "src/objects/map.h"
+#include "src/objects/objects.h"
 #include "src/objects/string-table.h"
 #include "src/objects/string.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -156,11 +157,13 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int WriteHeapPointer(SlotAccessor slot_accessor,
                        Tagged<HeapObject> heap_object,
-                       ReferenceDescriptor descr);
+                       ReferenceDescriptor descr,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <typename SlotAccessor>
   int WriteHeapPointer(SlotAccessor slot_accessor,
                        Handle<HeapObject> heap_object,
-                       ReferenceDescriptor descr);
+                       ReferenceDescriptor descr,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int WriteExternalPointer(Tagged<HeapObject> host,
                                   ExternalPointerSlot dest, Address value);

@@ -59,24 +59,25 @@ class SlotAccessorForHeapObject {
   Handle<HeapObject> object() const { return object_; }
   int offset() const { return offset_; }
 
-  // Writes the given value to this slot, optionally with an offset (e.g. for
-  // repeat writes). Returns the number of slots written (which is one).
-  int Write(Tagged<MaybeObject> value, int slot_offset = 0) {
+  // Writes the given value to this slot, with an offset (e.g. for repeat
+  // writes). Returns the number of slots written (which is one).
+  int Write(Tagged<MaybeObject> value, int slot_offset, WriteBarrierMode mode) {
     MaybeObjectSlot current_slot = slot() + slot_offset;
     current_slot.Relaxed_Store(value);
-    CombinedWriteBarrier(*object_, current_slot, value, UPDATE_WRITE_BARRIER);
+    CombinedWriteBarrier(*object_, current_slot, value, mode);
     return 1;
   }
   int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
-            int slot_offset = 0) {
-    return Write(Tagged<HeapObjectReference>(value, ref_type), slot_offset);
+            int slot_offset, WriteBarrierMode mode) {
+    return Write(Tagged<HeapObjectReference>(value, ref_type), slot_offset,
+                 mode);
   }
   int Write(DirectHandle<HeapObject> value, HeapObjectReferenceType ref_type,
-            int slot_offset = 0) {
-    return Write(*value, ref_type, slot_offset);
+            int slot_offset, WriteBarrierMode mode) {
+    return Write(*value, ref_type, slot_offset, mode);
   }
 
-  int WriteIndirectPointerTo(Tagged<HeapObject> value) {
+  int WriteIndirectPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
     // Only ExposedTrustedObjects can be referenced via indirect pointers, so
     // we must have one of these objects here. See the comments in
     // trusted-object.h for more details.
@@ -88,16 +89,17 @@ class SlotAccessorForHeapObject {
     IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
     dest.store(object);
 
-    IndirectPointerWriteBarrier(*object_, dest, value, UPDATE_WRITE_BARRIER);
+    IndirectPointerWriteBarrier(*object_, dest, value, mode);
     return 1;
   }
 
-  int WriteProtectedPointerTo(Tagged<TrustedObject> value) {
+  int WriteProtectedPointerTo(Tagged<TrustedObject> value,
+                              WriteBarrierMode mode) {
     DCHECK(IsTrustedObject(*object_));
     Tagged<TrustedObject> host = Cast<TrustedObject>(*object_);
     ProtectedPointerSlot dest = host->RawProtectedPointerField(offset_);
     dest.store(value);
-    ProtectedPointerWriteBarrier(host, dest, value, UPDATE_WRITE_BARRIER);
+    ProtectedPointerWriteBarrier(host, dest, value, mode);
     return 1;
   }
 
@@ -121,23 +123,29 @@ class SlotAccessorForRootSlots {
   Handle<HeapObject> object() const { UNREACHABLE(); }
   int offset() const { UNREACHABLE(); }
 
-  // Writes the given value to this slot, optionally with an offset (e.g. for
-  // repeat writes). Returns the number of slots written (which is one).
-  int Write(Tagged<MaybeObject> value, int slot_offset = 0) {
+  // Writes the given value to this slot, with an offset (e.g. for repeat
+  // writes). Returns the number of slots written (which is one).
+  int Write(Tagged<MaybeObject> value, int slot_offset, WriteBarrierMode mode) {
     FullMaybeObjectSlot current_slot = slot() + slot_offset;
     current_slot.Relaxed_Store(value);
     return 1;
   }
   int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
-            int slot_offset = 0) {
-    return Write(Tagged<HeapObjectReference>(value, ref_type), slot_offset);
+            int slot_offset, WriteBarrierMode mode) {
+    return Write(Tagged<HeapObjectReference>(value, ref_type), slot_offset,
+                 mode);
   }
   int Write(DirectHandle<HeapObject> value, HeapObjectReferenceType ref_type,
-            int slot_offset = 0) {
-    return Write(*value, ref_type, slot_offset);
+            int slot_offset, WriteBarrierMode mode) {
+    return Write(*value, ref_type, slot_offset, mode);
   }
-  int WriteIndirectPointerTo(Tagged<HeapObject> value) { UNREACHABLE(); }
-  int WriteProtectedPointerTo(Tagged<TrustedObject> value) { UNREACHABLE(); }
+  int WriteIndirectPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+    UNREACHABLE();
+  }
+  int WriteProtectedPointerTo(Tagged<TrustedObject> value,
+                              WriteBarrierMode mode) {
+    UNREACHABLE();
+  }
 
  private:
   const FullMaybeObjectSlot slot_;
@@ -158,23 +166,30 @@ class SlotAccessorForHandle {
   Handle<HeapObject> object() const { UNREACHABLE(); }
   int offset() const { UNREACHABLE(); }
 
-  int Write(Tagged<MaybeObject> value, int slot_offset = 0) { UNREACHABLE(); }
+  int Write(Tagged<MaybeObject> value, int slot_offset, WriteBarrierMode mode) {
+    UNREACHABLE();
+  }
   int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
-            int slot_offset = 0) {
+            int slot_offset, WriteBarrierMode mode) {
     DCHECK_EQ(slot_offset, 0);
     DCHECK_EQ(ref_type, HeapObjectReferenceType::STRONG);
     *handle_ = handle(value, isolate_);
     return 1;
   }
   int Write(Handle<HeapObject> value, HeapObjectReferenceType ref_type,
-            int slot_offset = 0) {
+            int slot_offset, WriteBarrierMode mode) {
     DCHECK_EQ(slot_offset, 0);
     DCHECK_EQ(ref_type, HeapObjectReferenceType::STRONG);
     *handle_ = value;
     return 1;
   }
-  int WriteIndirectPointerTo(Tagged<HeapObject> value) { UNREACHABLE(); }
-  int WriteProtectedPointerTo(Tagged<TrustedObject> value) { UNREACHABLE(); }
+  int WriteIndirectPointerTo(Tagged<HeapObject> value, WriteBarrierMode mode) {
+    UNREACHABLE();
+  }
+  int WriteProtectedPointerTo(Tagged<TrustedObject> value,
+                              WriteBarrierMode mode) {
+    UNREACHABLE();
+  }
 
  private:
   Handle<HeapObject>* handle_;
@@ -185,11 +200,12 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
                                              Tagged<HeapObject> heap_object,
-                                             ReferenceDescriptor descr) {
+                                             ReferenceDescriptor descr,
+                                             WriteBarrierMode mode) {
   if (descr.is_indirect_pointer) {
-    return slot_accessor.WriteIndirectPointerTo(heap_object);
+    return slot_accessor.WriteIndirectPointerTo(heap_object, mode);
   } else {
-    return slot_accessor.Write(heap_object, descr.type);
+    return slot_accessor.Write(heap_object, descr.type, 0, mode);
   }
 }
 
@@ -197,15 +213,16 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
                                              Handle<HeapObject> heap_object,
-                                             ReferenceDescriptor descr) {
+                                             ReferenceDescriptor descr,
+                                             WriteBarrierMode mode) {
   if (descr.is_indirect_pointer) {
-    return slot_accessor.WriteIndirectPointerTo(*heap_object);
+    return slot_accessor.WriteIndirectPointerTo(*heap_object, mode);
   } else if (descr.is_protected_pointer) {
     DCHECK(IsTrustedObject(*heap_object));
     return slot_accessor.WriteProtectedPointerTo(
-        Cast<TrustedObject>(*heap_object));
+        Cast<TrustedObject>(*heap_object), mode);
   } else {
-    return slot_accessor.Write(heap_object, descr.type);
+    return slot_accessor.Write(heap_object, descr.type, 0, mode);
   }
 }
 
@@ -827,7 +844,8 @@ int Deserializer<IsolateT>::ReadRepeatedObject(SlotAccessor slot_accessor,
   DCHECK(!Heap::InYoungGeneration(*heap_object));
   for (int i = 0; i < repeat_count; i++) {
     // TODO(leszeks): Use a ranged barrier here.
-    slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG, i);
+    slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG, i,
+                        UPDATE_WRITE_BARRIER);
   }
   return repeat_count;
 }
@@ -1012,7 +1030,8 @@ int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
   Tagged<HeapObject> heap_object = HeapObject::FromAddress(address);
 
   return WriteHeapPointer(slot_accessor, heap_object,
-                          GetAndResetNextReferenceDescriptor());
+                          GetAndResetNextReferenceDescriptor(),
+                          SKIP_WRITE_BARRIER);
 }
 
 // Find an object in the roots array and write a pointer to it to the
@@ -1026,8 +1045,10 @@ int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
   Handle<HeapObject> heap_object =
       Cast<HeapObject>(isolate()->root_handle(root_index));
   hot_objects_.Add(heap_object);
-  return WriteHeapPointer(slot_accessor, heap_object,
-                          GetAndResetNextReferenceDescriptor());
+  return WriteHeapPointer(
+      slot_accessor, heap_object, GetAndResetNextReferenceDescriptor(),
+      RootsTable::IsReadOnly(root_index) ? SKIP_WRITE_BARRIER
+                                         : UPDATE_WRITE_BARRIER);
 }
 
 // Find an object in the startup object cache and write a pointer to it to
@@ -1071,7 +1092,8 @@ int Deserializer<IsolateT>::ReadNewMetaMap(uint8_t data,
                             ? SnapshotSpace::kReadOnlyHeap
                             : SnapshotSpace::kOld;
   Handle<HeapObject> heap_object = ReadMetaMap(space);
-  return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG);
+  return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG, 0,
+                             UPDATE_WRITE_BARRIER);
 }
 
 // Find an external reference and write a pointer to it to the current
@@ -1238,7 +1260,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadClearedWeakReference(
     uint8_t data, SlotAccessor slot_accessor) {
-  return slot_accessor.Write(ClearedValue(isolate()));
+  return slot_accessor.Write(ClearedValue(isolate()), 0, SKIP_WRITE_BARRIER);
 }
 
 template <typename IsolateT>
@@ -1348,7 +1370,8 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
   RootIndex root_index = RootArrayConstant::Decode(data);
   Handle<HeapObject> heap_object =
       Cast<HeapObject>(isolate()->root_handle(root_index));
-  return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG);
+  return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG, 0,
+                             SKIP_WRITE_BARRIER);
 }
 
 template <typename IsolateT>
