@@ -435,7 +435,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionTagId) {
   for (int index = 0; index < tags_table->length(); ++index) {
     if (tags_table->get(index) == *tag) return Smi::FromInt(index);
   }
-  UNREACHABLE();
+  return CrashUnlessFuzzing(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
