@@ -2884,7 +2884,7 @@ void AsyncCompileJob::Failed() {
                                                    wire_bytes_.module_bytes(),
                                                    job->compile_imports_);
     CHECK(error.has_error());
-    thrower.LinkError("%s", error.message().c_str());
+    thrower.CompileError("%s", error.message().c_str());
   }
   resolver_->OnCompilationFailed(thrower.Reify());
 }
@@ -3104,10 +3104,10 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       }
       if (result.ok()) {
         const WasmModule* module = result.value().get();
-        if (WasmError link_error = ValidateAndSetBuiltinImports(
+        if (WasmError error = ValidateAndSetBuiltinImports(
                 module, job->wire_bytes_.module_bytes(),
                 job->compile_imports_)) {
-          result = ModuleResult{std::move(link_error)};
+          result = ModuleResult{std::move(error)};
         }
       }
     }

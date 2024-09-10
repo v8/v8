@@ -586,9 +586,9 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kSync);
   if (result.failed()) return false;
-  WasmError link_error = ValidateAndSetBuiltinImports(
+  WasmError error = ValidateAndSetBuiltinImports(
       result.value().get(), bytes.module_bytes(), compile_imports);
-  return !link_error.has_error();
+  return !error.has_error();
 }
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
@@ -680,7 +680,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     module = std::move(result).value();
     if (WasmError error = ValidateAndSetBuiltinImports(
             module.get(), bytes.module_bytes(), compile_imports)) {
-      thrower->LinkError("%s @+%u", error.message().c_str(), error.offset());
+      thrower->CompileError("%s @+%u", error.message().c_str(), error.offset());
       return {};
     }
   }
