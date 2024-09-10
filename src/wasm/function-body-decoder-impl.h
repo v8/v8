@@ -2900,14 +2900,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
     }
 
-    // Even without validation, compilation could fail because of bailouts,
-    // e.g., unsupported operations in Liftoff or the decoder for Wasm-in-JS
-    // inlining. In those cases, {pc_} did not necessarily advance until {end_}.
+    // Even without validation, compilation could fail because of unsupported
+    // Liftoff operations. In that case, {pc_} did not necessarily advance until
+    // {end_}. Thus do not wrap the next check in {VALIDATE}.
     if (this->pc_ != this->end_) {
-      // `DecodeError` is only available when validating, hence this guard.
-      if constexpr (ValidationTag::validate) {
-        this->DecodeError("Beyond end of code");
-      }
+      this->DecodeError("Beyond end of code");
     }
   }
 

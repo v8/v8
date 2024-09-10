@@ -381,7 +381,6 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
                               TurboshaftCodeEliminationAndSimplification)     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaBranchElimination)    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmInJSInlining)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
                               TurboshaftCsaEarlyMachineOptimization)          \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaLateEscapeAnalysis)   \

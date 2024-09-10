@@ -49,7 +49,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 }  // namespace v8::internal
 namespace v8::internal::compiler {
 class CallDescriptor;
-class JSWasmCallParameters;
 class DeoptimizeParameters;
 class FrameStateInfo;
 class Node;
@@ -3902,31 +3901,21 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
   base::Vector<const RegisterRepresentation> out_reps;
   CanThrow can_throw;
   LazyDeoptOnThrow lazy_deopt_on_throw;
-  // TODO(dlehmann,353475584): Since the `JSWasmCallParameters` are specific to
-  // one particular call site, this assumes that (only works correctly if)
-  // `TSCallDescriptor`s are not shared across different calls (which they are
-  // not at the moment).
-  // For sharing call descriptors, the `JSWasmCallParameters` need to be moved
-  // to the CallOp, which causes a lot of code churn (needs touching all
-  // `REDUCE(Call)`).
-  const JSWasmCallParameters* js_wasm_call_parameters;
 
   TSCallDescriptor(const CallDescriptor* descriptor,
                    base::Vector<const RegisterRepresentation> in_reps,
                    base::Vector<const RegisterRepresentation> out_reps,
-                   CanThrow can_throw, LazyDeoptOnThrow lazy_deopt_on_throw,
-                   const JSWasmCallParameters* js_wasm_call_parameters)
+                   CanThrow can_throw, LazyDeoptOnThrow lazy_deopt_on_throw)
       : descriptor(descriptor),
         in_reps(in_reps),
         out_reps(out_reps),
         can_throw(can_throw),
-        lazy_deopt_on_throw(lazy_deopt_on_throw),
-        js_wasm_call_parameters(js_wasm_call_parameters) {}
+        lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
-  static const TSCallDescriptor* Create(
-      const CallDescriptor* descriptor, CanThrow can_throw,
-      LazyDeoptOnThrow lazy_deopt_on_throw, Zone* graph_zone,
-      const JSWasmCallParameters* js_wasm_call_parameters = nullptr) {
+  static const TSCallDescriptor* Create(const CallDescriptor* descriptor,
+                                        CanThrow can_throw,
+                                        LazyDeoptOnThrow lazy_deopt_on_throw,
+                                        Zone* graph_zone) {
     DCHECK_IMPLIES(can_throw == CanThrow::kNo,
                    lazy_deopt_on_throw == LazyDeoptOnThrow::kNo);
     base::Vector<RegisterRepresentation> in_reps =
@@ -3944,8 +3933,7 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
           descriptor->GetReturnType(i).representation());
     }
     return graph_zone->New<TSCallDescriptor>(descriptor, in_reps, out_reps,
-                                             can_throw, lazy_deopt_on_throw,
-                                             js_wasm_call_parameters);
+                                             can_throw, lazy_deopt_on_throw);
   }
 };
 
