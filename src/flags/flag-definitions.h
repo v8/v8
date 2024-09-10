@@ -1352,7 +1352,10 @@ DEFINE_BOOL_READONLY(
     turbo_compress_frame_translations, false,
     "compress deoptimization frame translations (experimental)")
 #endif  // V8_USE_ZLIB
-DEFINE_BOOL(turbo_inline_js_wasm_calls, true, "inline JS->Wasm calls")
+DEFINE_BOOL(
+    turbo_inline_js_wasm_calls, true,
+    "inline JS->Wasm calls (specifically: inline JS-to-Wasm wrappers and then "
+    "the body of the Wasm function, if applicable)")
 
 DEFINE_BOOL(turbo_optimize_apply, true, "optimize Function.prototype.apply")
 DEFINE_BOOL(turbo_optimize_math_minmax, true,
@@ -1381,6 +1384,21 @@ DEFINE_WEAK_IMPLICATION(future, turboshaft_wasm)
 DEFINE_BOOL(turboshaft_wasm_load_elimination, false,
             "enable Turboshaft's WasmLoadElimination")
 DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_wasm_load_elimination)
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    turboshaft_wasm_in_js_inlining,
+    "inline Wasm code into JS functions via Turboshaft (instead of via "
+    "TurboFan). Only the Wasm code is inlined in Turboshaft, the JS-to-Wasm "
+    "wrappers are still inlined in TurboFan. For controlling whether to inline "
+    "at all, see --turbo-inline-js-wasm-calls.")
+// Can't use Turboshaft Wasm-in-JS inlining without the Turboshaft JavaScript
+// pipeline. Note however, that this feature is independent of the Turboshaft
+// Wasm pipeline (since the inlinee gets compiled with the JS pipeline).
+// For performance comparisons, please still enable `--turboshaft-wasm`, such
+// that both inlined and non-inlined Wasm functions go through the same
+// Turboshaft frontend (although it's technically not a requirement).
+DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turboshaft)
+DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turbo_inline_js_wasm_calls)
 
 DEFINE_BOOL(turboshaft_instruction_selection, true,
             "run instruction selection on Turboshaft IR directly")
