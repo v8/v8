@@ -353,6 +353,12 @@ void SandboxGetInstanceTypeIdFor(
 // Additionally, if a field is removed, testcases that use it will fail and can
 // then be deleted if they are no longer useful.
 //
+// TODO(saelo): instead of this, consider adding an API like
+// `Sandbox.getTypeDescriptor(Number|String) -> Object` which, given an
+// instance type id or name, returns an object containing the offset constants
+// as properties as well as potentially other information such as the types of
+// the object's fields.
+//
 // Sandbox.getFieldOffset(Number, String) -> Number
 void SandboxGetFieldOffset(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
@@ -851,7 +857,12 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["JS_FUNCTION_TYPE"] = JS_FUNCTION_TYPE;
     types["JS_ARRAY_TYPE"] = JS_ARRAY_TYPE;
     types["SLICED_ONE_BYTE_STRING_TYPE"] = SLICED_ONE_BYTE_STRING_TYPE;
+    types["SHARED_FUNCTION_INFO_TYPE"] = SHARED_FUNCTION_INFO_TYPE;
+    types["SCRIPT_TYPE"] = SCRIPT_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
+    types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
+    types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
+    types["WASM_FUNC_REF_TYPE"] = WASM_FUNC_REF_TYPE;
     types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
@@ -867,10 +878,28 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
   auto& fields = *g_known_fields.get();
   bool is_initialized = fields.size() != 0;
   if (!is_initialized) {
+    fields[JS_FUNCTION_TYPE]["shared_function_info"] =
+        JSFunction::kSharedFunctionInfoOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
     fields[SLICED_ONE_BYTE_STRING_TYPE]["parent"] =
         offsetof(SlicedString, parent_);
+    fields[SHARED_FUNCTION_INFO_TYPE]["trusted_function_data"] =
+        SharedFunctionInfo::kTrustedFunctionDataOffset;
+    fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
+        Script::kEvalFromPositionOffset;
 #ifdef V8_ENABLE_WEBASSEMBLY
+    fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
+        WasmModuleObject::kManagedNativeModuleOffset;
+    fields[WASM_MODULE_OBJECT_TYPE]["script"] = WasmModuleObject::kScriptOffset;
+    fields[WASM_INSTANCE_OBJECT_TYPE]["module_object"] =
+        WasmInstanceObject::kModuleObjectOffset;
+    fields[WASM_FUNC_REF_TYPE]["trusted_internal"] =
+        WasmFuncRef::kTrustedInternalOffset;
+    fields[WASM_TABLE_OBJECT_TYPE]["entries"] = WasmTableObject::kEntriesOffset;
+    fields[WASM_TABLE_OBJECT_TYPE]["current_length"] =
+        WasmTableObject::kCurrentLengthOffset;
+    fields[WASM_TABLE_OBJECT_TYPE]["maximum_length"] =
+        WasmTableObject::kMaximumLengthOffset;
     fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
         WasmTableObject::kRawTypeOffset;
 #endif  // V8_ENABLE_WEBASSEMBLY
