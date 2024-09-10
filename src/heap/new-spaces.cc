@@ -135,20 +135,14 @@ bool SemiSpace::Commit() {
     // Pages in the new spaces can be moved to the old space by the full
     // collector. Therefore, they must be initialized with the same FreeList as
     // old pages.
-    PageMetadata* new_page = heap()->memory_allocator()->AllocatePage(
-        MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
-    if (new_page == nullptr) {
+    if (!AllocateFreshPage()) {
       if (pages_added) RewindPages(pages_added);
       DCHECK(!IsCommitted());
       return false;
     }
-    memory_chunk_list_.PushBack(new_page);
-    IncrementCommittedPhysicalMemory(new_page->CommittedPhysicalMemory());
-    heap()->CreateFillerObjectAt(new_page->area_start(),
-                                 static_cast<int>(new_page->area_size()));
   }
   Reset();
-  AccountCommitted(target_capacity_);
+  DCHECK_EQ(target_capacity_, CommittedMemory());
   if (age_mark_ == kNullAddress) {
     age_mark_ = first_page()->area_start();
   }
@@ -194,19 +188,16 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   const int delta_pages = static_cast<int>(delta / PageMetadata::kPageSize);
   DCHECK(last_page());
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
-    if (!AllocateFreshPageWithoutAccounting()) {
+    if (!AllocateFreshPage()) {
       if (pages_added) RewindPages(pages_added);
       return false;
     }
   }
-  AccountCommitted(delta);
   target_capacity_ = new_capacity;
   return true;
 }
 
-bool SemiSpace::AllocateFreshPageWithoutAccounting() {
-  DCHECK(IsCommitted());
-  DCHECK(last_page());
+bool SemiSpace::AllocateFreshPage() {
   PageMetadata* new_page = heap()->memory_allocator()->AllocatePage(
       MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
   if (new_page == nullptr) {
@@ -215,14 +206,9 @@ bool SemiSpace::AllocateFreshPageWithoutAccounting() {
   memory_chunk_list_.PushBack(new_page);
   new_page->ClearLiveness();
   IncrementCommittedPhysicalMemory(new_page->CommittedPhysicalMemory());
+  AccountCommitted(PageMetadata::kPageSize);
   heap()->CreateFillerObjectAt(new_page->area_start(),
                                static_cast<int>(new_page->area_size()));
-  return true;
-}
-
-bool SemiSpace::AllocateFreshPage() {
-  if (!AllocateFreshPageWithoutAccounting()) return false;
-  AccountCommitted(PageMetadata::kPageSize);
   return true;
 }
 
@@ -231,8 +217,9 @@ void SemiSpace::RewindPages(int num_pages) {
   DCHECK(last_page());
   while (num_pages > 0) {
     MutablePageMetadata* last = last_page();
-    memory_chunk_list_.Remove(last);
+    AccountUncommitted(PageMetadata::kPageSize);
     DecrementCommittedPhysicalMemory(last->CommittedPhysicalMemory());
+    memory_chunk_list_.Remove(last);
     heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, last);
     num_pages--;
   }
@@ -247,7 +234,6 @@ void SemiSpace::ShrinkTo(size_t new_capacity) {
     DCHECK(IsAligned(delta, PageMetadata::kPageSize));
     int delta_pages = static_cast<int>(delta / PageMetadata::kPageSize);
     RewindPages(delta_pages);
-    AccountUncommitted(delta);
   }
   target_capacity_ = new_capacity;
 }

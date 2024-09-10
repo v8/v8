@@ -181,7 +181,6 @@ class SemiSpace final : public Space {
   void AddRangeToActiveSystemPages(Address start, Address end);
 
  private:
-  bool AllocateFreshPageWithoutAccounting();
   bool AllocateFreshPage();
 
   void RewindPages(int num_pages);
