@@ -76,7 +76,7 @@ class SerializerDeserializer : public RootVisitor {
   // 32 common raw data lengths.
   static const int kFixedRawDataCount = 0x20;
   // 16 repeats lengths.
-  static const int kFixedRepeatCount = 0x10;
+  static const int kFixedRepeatRootCount = 0x10;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kHotObjectCount = 8;
@@ -108,8 +108,8 @@ class SerializerDeserializer : public RootVisitor {
     // Examine the build process for architecture, version or configuration
     // mismatches.
     kSynchronize,
-    // Repeats of variable length.
-    kVariableRepeat,
+    // Repeats of variable length of a root.
+    kVariableRepeatRoot,
     // Used for embedder-allocated backing stores for TypedArrays.
     kOffHeapBackingStore,
     kOffHeapResizableBackingStore,
@@ -181,7 +181,7 @@ class SerializerDeserializer : public RootVisitor {
     //
 
     // 0x80..0x8f
-    kFixedRepeat = 0x80,
+    kFixedRepeatRoot = 0x80,
 
     // 0x90..0x97
     kHotObject = 0x90,
@@ -242,30 +242,30 @@ class SerializerDeserializer : public RootVisitor {
                            kLastEncodableFixedRawDataSize>;
 
   // Repeat count encoding helpers.
-  static const int kFirstEncodableRepeatCount = 2;
-  static const int kLastEncodableFixedRepeatCount =
-      kFirstEncodableRepeatCount + kFixedRepeatCount - 1;
-  static const int kFirstEncodableVariableRepeatCount =
-      kLastEncodableFixedRepeatCount + 1;
+  static const int kFirstEncodableRepeatRootCount = 2;
+  static const int kLastEncodableFixedRepeatRootCount =
+      kFirstEncodableRepeatRootCount + kFixedRepeatRootCount - 1;
+  static const int kFirstEncodableVariableRepeatRootCount =
+      kLastEncodableFixedRepeatRootCount + 1;
 
-  using FixedRepeatWithCount =
-      BytecodeValueEncoder<kFixedRepeat, kFirstEncodableRepeatCount,
-                           kLastEncodableFixedRepeatCount>;
+  using FixedRepeatRootWithCount =
+      BytecodeValueEncoder<kFixedRepeatRoot, kFirstEncodableRepeatRootCount,
+                           kLastEncodableFixedRepeatRootCount>;
 
   // Encodes/decodes repeat count into a serialized variable repeat count
   // value.
-  struct VariableRepeatCount {
+  struct VariableRepeatRootCount {
     static constexpr bool IsEncodable(int repeat_count) {
-      return repeat_count >= kFirstEncodableVariableRepeatCount;
+      return repeat_count >= kFirstEncodableVariableRepeatRootCount;
     }
 
     static constexpr int Encode(int repeat_count) {
       DCHECK(IsEncodable(repeat_count));
-      return repeat_count - kFirstEncodableVariableRepeatCount;
+      return repeat_count - kFirstEncodableVariableRepeatRootCount;
     }
 
     static constexpr int Decode(int value) {
-      return value + kFirstEncodableVariableRepeatCount;
+      return value + kFirstEncodableVariableRepeatRootCount;
     }
   };
 

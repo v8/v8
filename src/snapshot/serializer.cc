@@ -326,13 +326,17 @@ void Serializer::PutAttachedReference(SerializerReference reference) {
   sink_.PutUint30(reference.attached_reference_index(), "AttachedRefIndex");
 }
 
-void Serializer::PutRepeat(int repeat_count) {
-  if (repeat_count <= kLastEncodableFixedRepeatCount) {
-    sink_.Put(FixedRepeatWithCount::Encode(repeat_count), "FixedRepeat");
+void Serializer::PutRepeatRoot(int repeat_count, RootIndex root_index) {
+  if (repeat_count <= kLastEncodableFixedRepeatRootCount) {
+    sink_.Put(FixedRepeatRootWithCount::Encode(repeat_count),
+              "FixedRepeatRoot");
   } else {
-    sink_.Put(kVariableRepeat, "VariableRepeat");
-    sink_.PutUint30(VariableRepeatCount::Encode(repeat_count), "repeat count");
+    sink_.Put(kVariableRepeatRoot, "VariableRepeatRoot");
+    sink_.PutUint30(VariableRepeatRootCount::Encode(repeat_count),
+                    "repeat count");
   }
+  DCHECK_LE(static_cast<uint32_t>(root_index), UINT8_MAX);
+  sink_.Put(static_cast<uint8_t>(root_index), "root index");
 }
 
 void Serializer::PutPendingForwardReference(PendingObjectReferences& refs) {
@@ -999,11 +1003,15 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
       RootIndex root_index;
       // Compute repeat count and write repeat prefix if applicable.
       // Repeats are not subject to the write barrier so we can only use
-      // immortal immovable root members.
+      // immortal immovable root members. In practice we're most likely to only
+      // repeat smaller root indices, so we limit the root index to 256 to keep
+      // decoding simple.
+      static_assert(UINT8_MAX <=
+                    static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
       MaybeObjectSlot repeat_end = current + 1;
       if (repeat_end < end &&
           serializer_->root_index_map()->Lookup(*obj, &root_index) &&
-          RootsTable::IsImmortalImmovable(root_index) &&
+          static_cast<uint32_t>(root_index) <= UINT8_MAX &&
           current.load(cage_base) == repeat_end.load(cage_base) &&
           reference_type == HeapObjectReferenceType::STRONG) {
         DCHECK(!Heap::InYoungGeneration(*obj));
@@ -1014,13 +1022,12 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
         int repeat_count = static_cast<int>(repeat_end - current);
         current = repeat_end;
         bytes_processed_so_far_ += repeat_count * kTaggedSize;
-        serializer_->PutRepeat(repeat_count);
+        serializer_->PutRepeatRoot(repeat_count, root_index);
       } else {
         bytes_processed_so_far_ += kTaggedSize;
         ++current;
+        serializer_->SerializeObject(obj, SlotType::kAnySlot);
       }
-      // Now write the object itself.
-      serializer_->SerializeObject(obj, SlotType::kAnySlot);
     }
   }
 }

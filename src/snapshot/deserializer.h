@@ -213,7 +213,7 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadVariableRawData(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
-  int ReadVariableRepeat(uint8_t data, SlotAccessor slot_accessor);
+  int ReadVariableRepeatRoot(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadOffHeapBackingStore(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
@@ -238,7 +238,7 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadFixedRawData(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
-  int ReadFixedRepeat(uint8_t data, SlotAccessor slot_accessor);
+  int ReadFixedRepeatRoot(uint8_t data, SlotAccessor slot_accessor);
 
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
@@ -252,7 +252,7 @@ class Deserializer : public SerializerDeserializer {
   ReferenceDescriptor GetAndResetNextReferenceDescriptor();
 
   template <typename SlotGetter>
-  int ReadRepeatedObject(SlotGetter slot_getter, int repeat_count);
+  int ReadRepeatedRoot(SlotGetter slot_getter, int repeat_count);
 
   // Special handling for serialized code like hooking up internalized strings.
   void PostProcessNewObject(DirectHandle<Map> map, Handle<HeapObject> obj,

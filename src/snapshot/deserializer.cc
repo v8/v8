@@ -876,16 +876,23 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadRepeatedObject(SlotAccessor slot_accessor,
-                                               int repeat_count) {
+int Deserializer<IsolateT>::ReadRepeatedRoot(SlotAccessor slot_accessor,
+                                             int repeat_count) {
   CHECK_LE(2, repeat_count);
 
-  Handle<HeapObject> heap_object = ReadObject();
-  DCHECK(!Heap::InYoungGeneration(*heap_object));
+  uint8_t id = source_.Get();
+  RootIndex root_index = static_cast<RootIndex>(id);
+  if (v8_flags.trace_deserialization) {
+    PrintF("%s", RootsTable::name(root_index));
+  }
+  DCHECK(RootsTable::IsReadOnly(root_index));
+
+  Tagged<HeapObject> heap_object =
+      Cast<HeapObject>(isolate()->root(root_index));
+
   for (int i = 0; i < repeat_count; i++) {
-    // TODO(leszeks): Use a ranged barrier here.
     slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG, i,
-                        UPDATE_WRITE_BARRIER);
+                        SKIP_WRITE_BARRIER);
   }
   return repeat_count;
 }
@@ -990,8 +997,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       UNREACHABLE();
     case kVariableRawData:
       return ReadVariableRawData(data, slot_accessor);
-    case kVariableRepeat:
-      return ReadVariableRepeat(data, slot_accessor);
+    case kVariableRepeatRoot:
+      return ReadVariableRepeatRoot(data, slot_accessor);
     case kOffHeapBackingStore:
     case kOffHeapResizableBackingStore:
       return ReadOffHeapBackingStore(data, slot_accessor);
@@ -1016,8 +1023,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadHotObject(data, slot_accessor);
     case CASE_RANGE(kFixedRawData, 32):
       return ReadFixedRawData(data, slot_accessor);
-    case CASE_RANGE(kFixedRepeat, 16):
-      return ReadFixedRepeat(data, slot_accessor);
+    case CASE_RANGE(kFixedRepeatRoot, 16):
+      return ReadFixedRepeatRoot(data, slot_accessor);
 
 #ifdef DEBUG
 #define UNUSED_CASE(byte_code) \
@@ -1311,16 +1318,15 @@ int Deserializer<IsolateT>::ReadVariableRawData(uint8_t data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadVariableRepeat(uint8_t data,
-                                               SlotAccessor slot_accessor) {
-  int repeats = VariableRepeatCount::Decode(source_.GetUint30());
+int Deserializer<IsolateT>::ReadVariableRepeatRoot(uint8_t data,
+                                                   SlotAccessor slot_accessor) {
+  int repeats = VariableRepeatRootCount::Decode(source_.GetUint30());
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sVariableRepeat [%u]\n", depth_, "", repeats);
-    ++depth_;
+    PrintF("%*sVariableRepeat [%u] : ", depth_, "", repeats);
   }
-  int ret = ReadRepeatedObject(slot_accessor, repeats);
+  int ret = ReadRepeatedRoot(slot_accessor, repeats);
   if (v8_flags.trace_deserialization) {
-    --depth_;
+    PrintF("\n");
   }
   return ret;
 }
@@ -1570,16 +1576,15 @@ int Deserializer<IsolateT>::ReadFixedRawData(uint8_t data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadFixedRepeat(uint8_t data,
-                                            SlotAccessor slot_accessor) {
-  int repeats = FixedRepeatWithCount::Decode(data);
+int Deserializer<IsolateT>::ReadFixedRepeatRoot(uint8_t data,
+                                                SlotAccessor slot_accessor) {
+  int repeats = FixedRepeatRootWithCount::Decode(data);
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sFixedRepeat [%u]\n", depth_, "", repeats);
-    ++depth_;
+    PrintF("%*sFixedRepeat [%u] : ", depth_, "", repeats);
   }
-  int ret = ReadRepeatedObject(slot_accessor, repeats);
+  int ret = ReadRepeatedRoot(slot_accessor, repeats);
   if (v8_flags.trace_deserialization) {
-    --depth_;
+    PrintF("\n");
   }
   return ret;
 }
