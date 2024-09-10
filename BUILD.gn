@@ -442,6 +442,12 @@ declare_args() {
   v8_enable_experimental_tsa_builtins = false
 
   v8_dcheck_always_on = dcheck_always_on
+
+  # Remote builds require an explicit dependency on icudat, but
+  # this breaks locally building V8 with ICU support when the file
+  # isn't present, which some embedders rely on. This option controls
+  # the explicit dependency and allows the build to complete.
+  v8_depend_on_icu_data_file = icu_use_data_file
 }
 
 # Derived defaults.
@@ -2433,7 +2439,7 @@ template("run_mksnapshot") {
 
     sources = []
 
-    if (icu_use_data_file) {
+    if (v8_depend_on_icu_data_file) {
       deps += [ "//third_party/icu:copy_icudata" ]
       if (host_byteorder == "big") {
         sources += [ "$root_out_dir/icudtb.dat" ]
