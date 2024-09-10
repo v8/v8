@@ -120,7 +120,9 @@ DEF_BINOP_RHS_SMI(ShiftRightLogicalSmi_Baseline,
                                                                  \
     Return(result);                                              \
   }
+#ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 DEF_UNOP(BitwiseNot_WithFeedback, Generate_BitwiseNotWithFeedback)
+#endif
 DEF_UNOP(Decrement_WithFeedback, Generate_DecrementWithFeedback)
 DEF_UNOP(Increment_WithFeedback, Generate_IncrementWithFeedback)
 DEF_UNOP(Negate_WithFeedback, Generate_NegateWithFeedback)

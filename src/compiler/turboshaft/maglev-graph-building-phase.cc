@@ -1097,7 +1097,8 @@ class GraphBuilder {
     std::string reg_string_name = node->source().ToString();
     base::Vector<char> debug_name_arr =
         graph_zone()->NewVector<char>(reg_string_name.length() + /* \n */ 1);
-    strcpy(debug_name_arr.data(), reg_string_name.c_str());
+    snprintf(debug_name_arr.data(), debug_name_arr.length(), "%s",
+             reg_string_name.c_str());
     char* debug_name = debug_name_arr.data();
 #else
     char* debug_name = nullptr;
@@ -3585,7 +3586,7 @@ class GraphBuilder {
                                 const maglev::ProcessingState& state) {
     V<Word32> input = Map(node->input());
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    ScopedVariable<Word32, AssemblerT> result(this, input);
+    ScopedVar<Word32, AssemblerT> result(this, input);
 
     IF (__ Int32LessThan(input, 0)) {
       V<Tuple<Word32, Word32>> result_with_ovf =
@@ -3622,8 +3623,7 @@ class GraphBuilder {
       // adjusting if the difference exceeds 0.5 (like SimplifiedLowering does
       // for lower Float64Round).
       OpIndex input = Map(node->input());
-      ScopedVariable<Float64, AssemblerT> result(this,
-                                                 __ Float64RoundUp(input));
+      ScopedVar<Float64, AssemblerT> result(this, __ Float64RoundUp(input));
       IF_NOT (__ Float64LessThanOrEqual(__ Float64Sub(result, 0.5), input)) {
         result = __ Float64Sub(result, 1.0);
       }
@@ -4050,7 +4050,7 @@ class GraphBuilder {
   static constexpr int kMinClampedUint8 = 0;
   static constexpr int kMaxClampedUint8 = 255;
   V<Word32> Int32ToUint8Clamped(V<Word32> value) {
-    ScopedVariable<Word32, AssemblerT> result(this);
+    ScopedVar<Word32, AssemblerT> result(this);
     IF (__ Int32LessThan(value, kMinClampedUint8)) {
       result = __ Word32Constant(kMinClampedUint8);
     } ELSE IF (__ Int32LessThan(value, kMaxClampedUint8)) {
@@ -4061,7 +4061,7 @@ class GraphBuilder {
     return result;
   }
   V<Word32> Float64ToUint8Clamped(V<Float64> value) {
-    ScopedVariable<Word32, AssemblerT> result(this);
+    ScopedVar<Word32, AssemblerT> result(this);
     IF (__ Float64LessThan(value, kMinClampedUint8)) {
       result = __ Word32Constant(kMinClampedUint8);
     } ELSE IF (__ Float64LessThan(kMaxClampedUint8, value)) {
@@ -4082,7 +4082,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::Uint32ToUint8Clamped* node,
                                 const maglev::ProcessingState& state) {
-    ScopedVariable<Word32, AssemblerT> result(this);
+    ScopedVar<Word32, AssemblerT> result(this);
     V<Word32> value = Map(node->input());
     IF (__ Uint32LessThan(value, kMaxClampedUint8)) {
       result = value;
@@ -4099,7 +4099,7 @@ class GraphBuilder {
   }
   maglev::ProcessResult Process(maglev::CheckedNumberToUint8Clamped* node,
                                 const maglev::ProcessingState& state) {
-    ScopedVariable<Word32, AssemblerT> result(this);
+    ScopedVar<Word32, AssemblerT> result(this);
     V<Object> value = Map(node->input());
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     IF (__ IsSmi(value)) {

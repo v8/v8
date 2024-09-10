@@ -857,13 +857,13 @@ class MaglevGraphBuilder {
   case interpreter::Bytecode::k##name: \
     Visit##name();                     \
     break;
-      BYTECODE_LIST(BYTECODE_CASE)
+      BYTECODE_LIST(BYTECODE_CASE, BYTECODE_CASE)
 #undef BYTECODE_CASE
     }
   }
 
 #define BYTECODE_VISITOR(name, ...) void Visit##name();
-  BYTECODE_LIST(BYTECODE_VISITOR)
+  BYTECODE_LIST(BYTECODE_VISITOR, BYTECODE_VISITOR)
 #undef BYTECODE_VISITOR
 
 #define DECLARE_VISITOR(name, ...) \
@@ -1247,8 +1247,10 @@ class MaglevGraphBuilder {
   ValueNode* BuildToString(ValueNode* value, ToString::ConversionMode mode);
 
   constexpr bool RuntimeFunctionCanThrow(Runtime::FunctionId function_id) {
-#define BAILOUT(name, ...) \
-  if (function_id == Runtime::k##name) return true;
+#define BAILOUT(name, ...)               \
+  if (function_id == Runtime::k##name) { \
+    return true;                         \
+  }
     FOR_EACH_THROWING_INTRINSIC(BAILOUT)
 #undef BAILOUT
     return false;

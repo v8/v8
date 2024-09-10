@@ -845,7 +845,7 @@ namespace internal {
   TFC(Decrement_Baseline, UnaryOp_Baseline)                                    \
   TFC(Increment_Baseline, UnaryOp_Baseline)                                    \
   TFC(Negate_Baseline, UnaryOp_Baseline)                                       \
-  TFC(BitwiseNot_WithFeedback, UnaryOp_WithFeedback)                           \
+  IF_TSA(TSC, TFC)(BitwiseNot_WithFeedback, UnaryOp_WithFeedback)              \
   TFC(Decrement_WithFeedback, UnaryOp_WithFeedback)                            \
   TFC(Increment_WithFeedback, UnaryOp_WithFeedback)                            \
   TFC(Negate_WithFeedback, UnaryOp_WithFeedback)                               \

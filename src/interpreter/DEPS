@@ -3,13 +3,13 @@
 # found in the LICENSE file.
 
 specific_include_rules = {
-  "setup-builtins-internal.cc": [
+  "interpreter-generator.cc": [
+    "+src/compiler/linkage.h",
     "+src/compiler/pipeline.h",
     "+src/compiler/turboshaft/builtin-compiler.h",
-    "+src/compiler/turboshaft/phase.h",
   ],
-  "number-builtins-reducer-inl.h": [
-    "+src/compiler",
+  "interpreter-generator-tsa.h": [
+    "+src/compiler/turboshaft/builtin-compiler.h",
   ],
   ".*-tsa.cc": [
     "+src/compiler",

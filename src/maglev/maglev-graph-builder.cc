@@ -1238,7 +1238,7 @@ MaglevGraphBuilder::GetResultLocationAndSize() const {
   case Bytecode::k##Name:                                         \
     return GetResultLocationAndSizeForBytecode<Bytecode::k##Name, \
                                                __VA_ARGS__>(iterator_);
-    BYTECODE_LIST(CASE)
+    BYTECODE_LIST(CASE, CASE)
 #undef CASE
   }
   UNREACHABLE();
