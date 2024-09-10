@@ -365,7 +365,10 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
 
   // Allocation for the first object must succeed independent from the capacity.
   if (SizeOfObjects() > 0 && static_cast<size_t>(object_size) > Available()) {
-    return AllocationResult::Failure();
+    if (!v8_flags.separate_gc_phases ||
+        !heap()->ShouldExpandYoungGenerationOnSlowAllocation(object_size)) {
+      return AllocationResult::Failure();
+    }
   }
 
   LargePageMetadata* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
@@ -390,6 +393,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
 }
 
 size_t NewLargeObjectSpace::Available() const {
+  DCHECK_GE(capacity_, SizeOfObjects());
   return capacity_ - SizeOfObjects();
 }
 

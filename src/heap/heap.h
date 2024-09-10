@@ -1965,7 +1965,7 @@ class Heap final {
 
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                  AllocationOrigin origin);
-  bool ShouldExpandYoungGenerationOnSlowAllocation();
+  bool ShouldExpandYoungGenerationOnSlowAllocation(size_t allocation_size);
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
@@ -2459,6 +2459,8 @@ class Heap final {
   friend class Scavenger;
   friend class ScavengerCollector;
   friend class ScheduleMinorGCTaskObserver;
+  friend class SemiSpaceNewSpace;
+  friend class SemiSpaceNewSpaceAllocatorPolicy;
   friend class StressConcurrentAllocationObserver;
   friend class Space;
   friend class SpaceWithLinearArea;

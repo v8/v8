@@ -458,7 +458,16 @@ bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
 
   std::optional<std::pair<Address, Address>> allocation_result =
       space_->Allocate(size_in_bytes, alignment);
-  if (!allocation_result) return false;
+  if (!allocation_result) {
+    if (!v8_flags.separate_gc_phases ||
+        !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
+            PageMetadata::kPageSize)) {
+      return false;
+    }
+    allocation_result =
+        space_->AllocateOnNewPageBeyondCapacity(size_in_bytes, alignment);
+    if (!allocation_result) return false;
+  }
 
   Address start = allocation_result->first;
   Address end = allocation_result->second;
@@ -608,7 +617,8 @@ bool IsPagedNewSpaceAtFullCapacity(const PagedNewSpace* space) {
 bool PagedNewSpaceAllocatorPolicy::TryAllocatePage(int size_in_bytes,
                                                    AllocationOrigin origin) {
   if (IsPagedNewSpaceAtFullCapacity(space_) &&
-      !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation())
+      !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
+          PageMetadata::kPageSize))
     return false;
   if (!space_->paged_space()->AllocatePage()) return false;
   return paged_space_allocator_policy_->TryAllocationFromFreeList(size_in_bytes,

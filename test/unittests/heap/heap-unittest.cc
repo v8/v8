@@ -10,6 +10,7 @@
 
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
+#include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -505,6 +506,48 @@ TEST_F(HeapTest, Regress978156) {
   heap->marking_state()->TryMarkAndAccountLiveBytes(filler);
 }
 
+TEST_F(HeapTest, SemiSpaceNewSpaceGrowsDuringFullGCIncrementalMarking) {
+  if (!v8_flags.incremental_marking) return;
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  v8_flags.separate_gc_phases = true;
+  ManualGCScope manual_gc_scope(isolate());
+
+  HandleScope handle_scope(isolate());
+  Heap* heap = isolate()->heap();
+
+  // 1. Record gc_count and last scavenger epoch.
+  auto gc_count = heap->gc_count();
+  auto last_scavenger_epoch =
+      heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::SCAVENGER);
+  // 2. Fill the new space with FixedArrays.
+  std::vector<Handle<FixedArray>> arrays;
+  SimulateFullSpace(heap->new_space(), &arrays);
+  CHECK_EQ(0, heap->new_space()->Available());
+  AllocationResult failed_allocation = heap->allocator()->AllocateRaw(
+      2 * kTaggedSize, AllocationType::kYoung, AllocationOrigin::kRuntime);
+  EXPECT_TRUE(failed_allocation.IsFailure());
+  // 3. Start incremental marking.
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  CHECK(marking->IsStopped());
+  {
+    IsolateSafepointScope scope(heap);
+    heap->tracer()->StartCycle(GarbageCollector::MARK_COMPACTOR,
+                               GarbageCollectionReason::kTesting, "tesing",
+                               GCTracer::MarkingType::kIncremental);
+    marking->Start(GarbageCollector::MARK_COMPACTOR,
+                   i::GarbageCollectionReason::kTesting);
+  }
+  // 4. Allocate in new space.
+  AllocationResult allocation = heap->allocator()->AllocateRaw(
+      2 * kTaggedSize, AllocationType::kYoung, AllocationOrigin::kRuntime);
+  EXPECT_FALSE(allocation.IsFailure());
+  // 5. Allocation should succeed without triggering a GC.
+  EXPECT_EQ(gc_count, heap->gc_count());
+  EXPECT_EQ(last_scavenger_epoch,
+            heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::SCAVENGER));
+}
+
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
 namespace {
 struct RandomGCIntervalTestSetter {
@@ -532,13 +575,13 @@ TEST_F(HeapTestWithRandomGCInterval, AllocationTimeout) {
 
   for (int i = 0; i < initial_allocation_timeout - 1; ++i) {
     AllocationResult allocation = allocator->AllocateRaw(
-        2 * kTaggedAligned, AllocationType::kYoung, AllocationOrigin::kRuntime);
+        2 * kTaggedSize, AllocationType::kYoung, AllocationOrigin::kRuntime);
     EXPECT_FALSE(allocation.IsFailure());
   }
 
   // The last allocation must fail.
   AllocationResult allocation = allocator->AllocateRaw(
-      2 * kTaggedAligned, AllocationType::kYoung, AllocationOrigin::kRuntime);
+      2 * kTaggedSize, AllocationType::kYoung, AllocationOrigin::kRuntime);
   EXPECT_TRUE(allocation.IsFailure());
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT

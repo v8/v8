@@ -3164,7 +3164,9 @@ void* Heap::AllocateExternalBackingStore(
   if (!always_allocate() && new_space()) {
     size_t new_space_backing_store_bytes =
         new_space()->ExternalBackingStoreOverallBytes();
-    if (new_space_backing_store_bytes >= 2 * DefaultMaxSemiSpaceSize() &&
+    if ((!v8_flags.separate_gc_phases ||
+         !incremental_marking()->IsMajorMarking()) &&
+        new_space_backing_store_bytes >= 2 * DefaultMaxSemiSpaceSize() &&
         new_space_backing_store_bytes >= byte_length) {
       // Performing a young generation GC amortizes over the allocated backing
       // store bytes and may free enough external bytes for this allocation.
@@ -5348,15 +5350,14 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
 // This predicate is called when an young generation space cannot allocated
 // from the free list and is about to add a new page. Returning false will
 // cause a GC.
-bool Heap::ShouldExpandYoungGenerationOnSlowAllocation() {
+bool Heap::ShouldExpandYoungGenerationOnSlowAllocation(size_t allocation_size) {
   DCHECK(deserialization_complete());
-  DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
 
   if (always_allocate()) return true;
 
   if (gc_state() == TEAR_DOWN) return true;
 
-  if (!CanPromoteYoungAndExpandOldGeneration(PageMetadata::kPageSize)) {
+  if (!CanPromoteYoungAndExpandOldGeneration(allocation_size)) {
     // Assuming all of new space is alive, doing a full GC and promoting all
     // objects should still succeed. Don't let new space grow if it means it
     // will exceed the available size of old space.
