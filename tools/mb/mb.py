@@ -731,6 +731,7 @@ class MetaBuildWrapper():
         label = isolate_map[target]['label']
         runtime_deps_targets = [
             target + '.runtime_deps',
+            'obj/%s.runtime_deps' % label.replace(':', '/'),
             'obj/%s.stamp.runtime_deps' % label.replace(':', '/')]
       elif (isolate_map[target]['type'] == 'script' or
             isolate_map[target].get('label_type') == 'group'):
@@ -740,6 +741,7 @@ class MetaBuildWrapper():
         # also be an executable.
         label = isolate_map[target]['label']
         runtime_deps_targets = [
+            'obj/%s.runtime_deps' % label.replace(':', '/'),
             'obj/%s.stamp.runtime_deps' % label.replace(':', '/')]
         if self.platform == 'win32':
           runtime_deps_targets += [ target + '.exe.runtime_deps' ]
