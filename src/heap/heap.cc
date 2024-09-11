@@ -1169,15 +1169,6 @@ static GCType GetGCTypeFromGarbageCollector(GarbageCollector collector) {
 }
 
 void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
-  if (collector == GarbageCollector::MARK_COMPACTOR) {
-    memory_pressure_level_.store(MemoryPressureLevel::kNone,
-                                 std::memory_order_relaxed);
-
-    if (v8_flags.stress_marking > 0) {
-      stress_marking_percentage_ = NextStressMarkingLimit();
-    }
-  }
-
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
 
   {
@@ -1253,8 +1244,21 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
     semi_space_new_space->MakeAllPagesInFromSpaceIterable();
+  }
 
-    // Discard pooled pages for scavenger if needed.
+  // Young generation GCs only run with  memory reducing flags during
+  // interleaved GCs.
+  DCHECK_IMPLIES(
+      v8_flags.separate_gc_phases && IsYoungGenerationCollector(collector),
+      !ShouldReduceMemory());
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    memory_pressure_level_.store(MemoryPressureLevel::kNone,
+                                 std::memory_order_relaxed);
+
+    if (v8_flags.stress_marking > 0) {
+      stress_marking_percentage_ = NextStressMarkingLimit();
+    }
+    // Discard memory if the GC was requested to reduce memory.
     if (ShouldReduceMemory()) {
       memory_allocator_->pool()->ReleasePooledChunks();
 #if V8_ENABLE_WEBASSEMBLY
