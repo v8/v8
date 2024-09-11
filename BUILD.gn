@@ -2492,6 +2492,13 @@ template("run_mksnapshot") {
       # Note this flag is also set implicitly by mksnapshot itself (see
       # mksnapshot.cc). We set it here as well for clarity.
       "--predictable",
+
+      # Disable ICs globally in mksnapshot to avoid problems with Code handlers.
+      # See https://crbug.com/345280736.
+      # TODO(jgruber): Re-enable once a better fix is available.
+      # Note this flag is also set implicitly by mksnapshot itself (see
+      # mksnapshot.cc). We set it here as well for clarity.
+      "--no-use-ic",
     ]
 
     if (v8_verify_deterministic_mksnapshot) {

@@ -226,6 +226,11 @@ int main(int argc, char** argv) {
   // Make mksnapshot runs predictable to create reproducible snapshots.
   i::v8_flags.predictable = true;
 
+  // Disable ICs globally in mksnapshot to avoid problems with Code handlers.
+  // See https://crbug.com/345280736.
+  // TODO(jgruber): Re-enable once a better fix is available.
+  i::v8_flags.use_ic = false;
+
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   using HelpOptions = i::FlagList::HelpOptions;
