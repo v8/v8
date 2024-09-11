@@ -878,6 +878,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
   auto& fields = *g_known_fields.get();
   bool is_initialized = fields.size() != 0;
   if (!is_initialized) {
+    fields[JS_FUNCTION_TYPE]["dispatch_handle"] =
+        JSFunction::kDispatchHandleOffset;
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
         JSFunction::kSharedFunctionInfoOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;

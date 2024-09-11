@@ -1657,7 +1657,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #ifdef V8_ENABLE_LEAPTIERING
   // Load the entrypoint pointer of a JSDispatchTable entry.
   void LoadCodeEntrypointFromJSDispatchTable(Register destination,
-                                             MemOperand field_operand);
+                                             Register dispatch_handle);
+  // Load the parameter count of a JSDispatchTable entry.
+  void LoadParameterCountFromJSDispatchTable(Register destination,
+                                             Register dispatch_handle);
 #endif  // V8_ENABLE_LEAPTIERING
 
   // Load a protected pointer field.
@@ -2075,13 +2078,37 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // 'expected' must use an immediate or x2.
   // 'call_kind' must be x5.
   void InvokePrologue(Register expected_parameter_count,
-                      Register actual_parameter_count, Label* done,
-                      InvokeType type);
+                      Register actual_parameter_count, InvokeType type);
 
   // On function call, call into the debugger.
-  void CallDebugOnFunctionCall(Register fun, Register new_target,
-                               Register expected_parameter_count,
-                               Register actual_parameter_count);
+  void CallDebugOnFunctionCall(
+      Register fun, Register new_target,
+      Register expected_parameter_count_or_dispatch_handle,
+      Register actual_parameter_count);
+
+  // The way we invoke JSFunctions differs depending on whether leaptiering is
+  // enabled. As such, these functions exist in two variants. In the future,
+  // leaptiering will be used on all platforms. At that point, the
+  // non-leaptiering variants will disappear.
+
+#ifdef V8_ENABLE_LEAPTIERING
+  // Invoke the JavaScript function in the given register. Changes the
+  // current context to the context in the function before invoking.
+  void InvokeFunction(Register function, Register actual_parameter_count,
+                      InvokeType type,
+                      ArgumentAdaptionMode argument_adaption_mode =
+                          ArgumentAdaptionMode::kAdapt);
+  // Invoke the JavaScript function in the given register.
+  // Changes the current context to the context in the function before invoking.
+  void InvokeFunctionWithNewTarget(Register function, Register new_target,
+                                   Register actual_parameter_count,
+                                   InvokeType type);
+  // Invoke the JavaScript function code by either calling or jumping.
+  void InvokeFunctionCode(Register function, Register new_target,
+                          Register actual_parameter_count, InvokeType type,
+                          ArgumentAdaptionMode argument_adaption_mode =
+                              ArgumentAdaptionMode::kAdapt);
+#else
   void InvokeFunctionCode(Register function, Register new_target,
                           Register expected_parameter_count,
                           Register actual_parameter_count, InvokeType type);
@@ -2092,6 +2119,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                    InvokeType type);
   void InvokeFunction(Register function, Register expected_parameter_count,
                       Register actual_parameter_count, InvokeType type);
+#endif
 
   // ---- InstructionStream generation helpers ----
 

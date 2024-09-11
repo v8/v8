@@ -68,9 +68,10 @@ struct JSDispatchEntry {
 
   // Constants for access from generated code.
   // These are static_assert'ed to be correct in CheckFieldOffsets().
-  static constexpr uint32_t kObjectPointerShift = 16;
   static constexpr uintptr_t kEntrypointOffset = 0;
   static constexpr uintptr_t kCodeObjectOffset = 8;
+  static constexpr uint32_t kObjectPointerShift = 16;
+  static constexpr uint32_t kParameterCountMask = 0xffff;
   static void CheckFieldOffsets();
 
  private:
@@ -96,7 +97,6 @@ struct JSDispatchEntry {
   // +------------------------+-------------+-----------------+
   //
   static constexpr Address kMarkingBit = 1 << 16;
-  static constexpr uint32_t kParameterCountMask = 0xffff;
   std::atomic<Address> encoded_word_;
 };
 

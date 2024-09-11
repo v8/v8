@@ -672,15 +672,29 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
 
 #ifdef V8_ENABLE_LEAPTIERING
 void MacroAssembler::LoadCodeEntrypointFromJSDispatchTable(
-    Register destination, Operand field_operand) {
+    Register destination, Register dispatch_handle) {
   DCHECK(!AreAliased(destination, kScratchRegister));
-  DCHECK(!field_operand.AddressUsesRegister(kScratchRegister));
   LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
-  movl(destination, field_operand);
+  if (destination != dispatch_handle) {
+    movq(destination, dispatch_handle);
+  }
   shrl(destination, Immediate(kJSDispatchHandleShift));
   shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
   movq(destination, Operand(kScratchRegister, destination, times_1,
                             JSDispatchEntry::kEntrypointOffset));
+}
+void MacroAssembler::LoadParameterCountFromJSDispatchTable(
+    Register destination, Register dispatch_handle) {
+  DCHECK(!AreAliased(destination, kScratchRegister));
+  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  if (destination != dispatch_handle) {
+    movq(destination, dispatch_handle);
+  }
+  shrl(destination, Immediate(kJSDispatchHandleShift));
+  shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
+  movq(destination, Operand(kScratchRegister, destination, times_1,
+                            JSDispatchEntry::kCodeObjectOffset));
+  andl(destination, Immediate(JSDispatchEntry::kParameterCountMask));
 }
 #endif
 
@@ -3186,8 +3200,8 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 void MacroAssembler::CallJSFunction(Register function_object) {
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
 #ifdef V8_ENABLE_LEAPTIERING
-  LoadCodeEntrypointFromJSDispatchTable(
-      rcx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  movl(rcx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  LoadCodeEntrypointFromJSDispatchTable(rcx, rcx);
   call(rcx);
 #elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
@@ -3207,8 +3221,8 @@ void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
 #ifdef V8_ENABLE_LEAPTIERING
-  LoadCodeEntrypointFromJSDispatchTable(
-      rcx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  movl(rcx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  LoadCodeEntrypointFromJSDispatchTable(rcx, rcx);
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   jmp(rcx);
 #elif V8_ENABLE_SANDBOX
@@ -3858,6 +3872,81 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value) {
   }
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+void MacroAssembler::InvokeFunction(
+    Register function, Register new_target, Register actual_parameter_count,
+    InvokeType type, ArgumentAdaptionMode argument_adaption_mode) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_EQ(function, rdi);
+  LoadTaggedField(rsi, FieldOperand(function, JSFunction::kContextOffset));
+  InvokeFunctionCode(rdi, new_target, actual_parameter_count, type,
+                     argument_adaption_mode);
+}
+
+void MacroAssembler::InvokeFunctionCode(
+    Register function, Register new_target, Register actual_parameter_count,
+    InvokeType type, ArgumentAdaptionMode argument_adaption_mode) {
+  ASM_CODE_COMMENT(this);
+  // You can't call a function without a valid frame.
+  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
+  DCHECK_EQ(function, rdi);
+  DCHECK_IMPLIES(new_target.is_valid(), new_target == rdx);
+
+  Register dispatch_handle = r15;
+  movl(dispatch_handle,
+       FieldOperand(function, JSFunction::kDispatchHandleOffset));
+
+  AssertFunction(function);
+
+  // On function call, call into the debugger if necessary.
+  Label debug_hook, continue_after_hook;
+  {
+    ExternalReference debug_hook_active =
+        ExternalReference::debug_hook_on_function_call_address(isolate());
+    Operand debug_hook_active_operand =
+        ExternalReferenceAsOperand(debug_hook_active);
+    cmpb(debug_hook_active_operand, Immediate(0));
+    j(not_equal, &debug_hook);
+  }
+  bind(&continue_after_hook);
+
+  // Clear the new.target register if not given.
+  if (!new_target.is_valid()) {
+    LoadRoot(rdx, RootIndex::kUndefinedValue);
+  }
+
+  if (argument_adaption_mode == ArgumentAdaptionMode::kAdapt) {
+    Register expected_parameter_count = rbx;
+    LoadParameterCountFromJSDispatchTable(expected_parameter_count,
+                                          dispatch_handle);
+    InvokePrologue(expected_parameter_count, actual_parameter_count, type);
+  }
+
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+  LoadCodeEntrypointFromJSDispatchTable(rcx, dispatch_handle);
+  switch (type) {
+    case InvokeType::kCall:
+      call(rcx);
+      break;
+    case InvokeType::kJump:
+      jmp(rcx);
+      break;
+  }
+  Label done;
+  jmp(&done, Label::kNear);
+
+  // Deferred debug hook.
+  bind(&debug_hook);
+  CallDebugOnFunctionCall(function, new_target, dispatch_handle,
+                          actual_parameter_count);
+  jmp(&continue_after_hook);
+
+  bind(&done);
+}
+#else
 void MacroAssembler::InvokeFunction(Register function, Register new_target,
                                     Register actual_parameter_count,
                                     InvokeType type) {
@@ -3933,6 +4022,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
   bind(&done);
 }
+#endif  // V8_ENABLE_LEAPTIERING
 
 Operand MacroAssembler::StackLimitAsOperand(StackLimitKind kind) {
   DCHECK(root_array_available());
@@ -4034,9 +4124,10 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     bind(&regular_invoke);
 }
 
-void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
-                                             Register expected_parameter_count,
-                                             Register actual_parameter_count) {
+void MacroAssembler::CallDebugOnFunctionCall(
+    Register fun, Register new_target,
+    Register expected_parameter_count_or_dispatch_handle,
+    Register actual_parameter_count) {
   ASM_CODE_COMMENT(this);
   // Load receiver to pass it later to DebugOnFunctionCall hook.
   // Receiver is located on top of the stack if we have a frame (usually a
@@ -4047,8 +4138,8 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
   FrameScope frame(
       this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
 
-  SmiTag(expected_parameter_count);
-  Push(expected_parameter_count);
+  SmiTag(expected_parameter_count_or_dispatch_handle);
+  Push(expected_parameter_count_or_dispatch_handle);
 
   SmiTag(actual_parameter_count);
   Push(actual_parameter_count);
@@ -4067,8 +4158,8 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
   }
   Pop(actual_parameter_count);
   SmiUntag(actual_parameter_count);
-  Pop(expected_parameter_count);
-  SmiUntag(expected_parameter_count);
+  Pop(expected_parameter_count_or_dispatch_handle);
+  SmiUntag(expected_parameter_count_or_dispatch_handle);
 }
 
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
