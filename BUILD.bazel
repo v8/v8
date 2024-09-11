@@ -2553,6 +2553,8 @@ filegroup(
             "src/codegen/x64/assembler-x64.cc",
             "src/codegen/x64/assembler-x64.h",
             "src/codegen/x64/assembler-x64-inl.h",
+            "src/codegen/x64/builtin-jump-table-info-x64.cc",
+            "src/codegen/x64/builtin-jump-table-info-x64.h",
             "src/codegen/x64/constants-x64.h",
             "src/codegen/x64/cpu-x64.cc",
             "src/codegen/x64/fma-instr.h",

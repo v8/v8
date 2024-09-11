@@ -4587,6 +4587,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
       "src/codegen/x64/assembler-x64-inl.h",
       "src/codegen/x64/assembler-x64.h",
+      "src/codegen/x64/builtin-jump-table-info-x64.h",
       "src/codegen/x64/constants-x64.h",
       "src/codegen/x64/fma-instr.h",
       "src/codegen/x64/interface-descriptors-x64-inl.h",
@@ -5979,6 +5980,7 @@ v8_source_set("v8_base_without_compiler") {
       ### gcmole(x64) ###
       "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.cc",
       "src/codegen/x64/assembler-x64.cc",
+      "src/codegen/x64/builtin-jump-table-info-x64.cc",
       "src/codegen/x64/cpu-x64.cc",
       "src/codegen/x64/macro-assembler-x64.cc",
       "src/deoptimizer/x64/deoptimizer-x64.cc",

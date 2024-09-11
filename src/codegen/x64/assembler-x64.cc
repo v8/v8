@@ -384,6 +384,7 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   GetCode(isolate->main_thread_local_isolate(), desc);
 }
+
 void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
                         SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
@@ -400,6 +401,7 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   DCHECK(constpool_.IsEmpty());
 
   const int code_comments_size = WriteCodeComments();
+  const int builtin_jump_table_info_size = WriteBuiltinJumpTableInfos();
 
   // At this point overflow() may be true, but the gap ensures
   // that we are still not overlapping instructions and relocation info.
@@ -413,7 +415,10 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
 
   static constexpr int kConstantPoolSize = 0;
   const int instruction_size = pc_offset();
-  const int code_comments_offset = instruction_size - code_comments_size;
+  const int builtin_jump_table_info_offset =
+      instruction_size - builtin_jump_table_info_size;
+  const int code_comments_offset =
+      builtin_jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -427,7 +432,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, reloc_info_offset);
+                       code_comments_offset, builtin_jump_table_info_offset,
+                       reloc_info_offset);
 }
 
 void Assembler::FinalizeJumpOptimizationInfo() {
@@ -4700,12 +4706,24 @@ void Assembler::dq(Label* label) {
   }
 }
 
-void Assembler::WriteBuiltinJumpTableEntry(Label* label, const int table_pos) {
+void Assembler::WriteBuiltinJumpTableEntry(Label* label, int table_pos) {
   EnsureSpace ensure_space(this);
   CHECK(label->is_bound());
   int32_t value = label->pos() - table_pos;
-  RecordRelocInfo(RelocInfo::RELATIVE_SWITCH_TABLE_ENTRY, label->pos());
+  if constexpr (V8_BUILTIN_JUMP_TABLE_INFO_BOOL) {
+    builtin_jump_table_info_writer_.Add(pc_offset(), label->pos());
+  }
   emitl(value);
+}
+
+int Assembler::WriteBuiltinJumpTableInfos() {
+  if (builtin_jump_table_info_writer_.entry_count() == 0) return 0;
+  CHECK(V8_BUILTIN_JUMP_TABLE_INFO_BOOL);
+  int offset = pc_offset();
+  builtin_jump_table_info_writer_.Emit(this);
+  int size = pc_offset() - offset;
+  DCHECK_EQ(size, builtin_jump_table_info_writer_.size_in_bytes());
+  return size;
 }
 
 // Relocation information implementations.

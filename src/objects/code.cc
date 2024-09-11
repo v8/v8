@@ -116,7 +116,6 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                 RelocInfo::ModeMask(RelocInfo::RELATIVE_SWITCH_TABLE_ENTRY) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                  RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
                  RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
@@ -142,9 +141,6 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       if (Builtins::IsIsolateIndependentBuiltin(target)) {
         continue;
       }
-    } else if (RelocInfo::IsRelativeSwitchTableEntry(it.rinfo()->rmode())) {
-      CHECK(is_builtin());
-      continue;
     }
     return false;
   }

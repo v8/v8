@@ -85,6 +85,7 @@ struct NewCodeOptions {
   int handler_table_offset;
   int constant_pool_offset;
   int code_comments_offset;
+  int32_t builtin_jump_table_info_offset;
   int32_t unwinding_info_offset;
   MaybeHandle<TrustedObject> bytecode_or_interpreter_data;
   MaybeHandle<DeoptimizationData> deoptimization_data;
