@@ -3678,6 +3678,16 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
                       Control* block, base::Vector<Value> values) {
+    if (deopts_enabled_) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF(
+            "[function %d%s: Disabling deoptimizations for speculative "
+            "inlineing due to legacy exception handling usage]\n",
+            func_index_, mode_ == kRegular ? "" : " (inlined)");
+      }
+      deopts_enabled_ = false;
+    }
+
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
     V<NativeContext> native_context = instance_cache_.native_context();
@@ -3775,6 +3785,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);
+
+    if (deopts_enabled_) {
+      if (v8_flags.trace_wasm_inlining) {
+        // TODO(42204618): Would it be worthwhile to add support for this?
+        // The difficulty is the handling of the exception which is handled as a
+        // value on the value stack in Liftoff but handled very differently in
+        // Turboshaft (and it would need to be passed on in the FrameState).
+        PrintF(
+            "[function %d%s: Disabling deoptimizations for speculative "
+            "inlineing due to legacy exception handling usage]\n",
+            func_index_, mode_ == kRegular ? "" : " (inlined)");
+      }
+      deopts_enabled_ = false;
+    }
+
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
   }
