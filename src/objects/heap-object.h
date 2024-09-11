@@ -596,6 +596,7 @@ V8_INLINE bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj);
 // objects or Smis. This can be used for a fast RO space/Smi check which are
 // objects for e.g. GC than can be exlucded for processing.
 V8_INLINE constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj);
+V8_INLINE constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged<MaybeObject> obj);
 
 }  // namespace internal
 }  // namespace v8

@@ -383,6 +383,10 @@ constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
 #endif  // !V8_STATIC_ROOTS_BOOL
 }
 
+constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged<MaybeObject> obj) {
+  return FastInReadOnlySpaceOrSmallSmi(static_cast<Tagged_t>(obj.ptr()));
+}
+
 bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #ifdef V8_ENABLE_SANDBOX
   return !InsideSandbox(obj.address()) ||
