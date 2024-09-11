@@ -1227,23 +1227,13 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
 #endif
 
   if (new_space() && !v8_flags.minor_ms) {
-    SemiSpaceNewSpace* semi_space_new_space =
-        SemiSpaceNewSpace::From(new_space());
-    if (heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
-      semi_space_new_space->ZapUnusedMemory();
-    }
-
-    DCHECK(!allocator()->new_space_allocator()->IsLabValid());
-
     {
       TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
       if (resize_new_space_mode_ == ResizeNewSpaceMode::kShrink) {
         ReduceNewSpaceSize();
       }
+      resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
     }
-    resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
-
-    semi_space_new_space->MakeAllPagesInFromSpaceIterable();
   }
 
   // Young generation GCs only run with  memory reducing flags during

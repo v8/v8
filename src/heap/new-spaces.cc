@@ -789,11 +789,20 @@ void SemiSpaceNewSpace::EvacuatePrologue() {
 }
 
 void SemiSpaceNewSpace::GarbageCollectionEpilogue() {
+  DCHECK(!heap()->allocator()->new_space_allocator()->IsLabValid());
   set_age_mark_to_top();
+
+  if (heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
+    ZapUnusedMemory();
+  }
+
+  MakeAllPagesInFromSpaceIterable();
 }
 
 void SemiSpaceNewSpace::ZapUnusedMemory() {
-  if (!IsFromSpaceCommitted()) return;
+  if (!IsFromSpaceCommitted()) {
+    return;
+  }
   for (PageMetadata* page : PageRange(from_space().first_page(), nullptr)) {
     heap::ZapBlock(page->area_start(),
                    page->HighWaterMark() - page->area_start(),
