@@ -26,7 +26,7 @@ transitioning javascript builtin SetPrototypeIsSubsetOf(
 
   // 5. If thisSize > otherRec.[[Size]], return false.
   if (!(otherRec.size == V8_INFINITY) &&
-      thisSize > Convert<int32>(otherRec.size)) {
+      Convert<Number>(thisSize) > otherRec.size) {
     return False;
   }
 
