@@ -65,10 +65,11 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
 
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
     if (InWritableSharedSpace(value)) {
-      // A client isolate does not need a marking barrier for shared trusted
-      // objects. This is because all entries in the trusted pointer table will
-      // be marked for client isolates in the atomic pause.
+      // References to the shared trusted space may only originate from the
+      // shared space.
+      CHECK(InWritableSharedSpace(host));
       DCHECK(MemoryChunk::FromHeapObject(value)->IsTrusted());
+      MarkValueShared(value);
     } else {
       MarkValueLocal(value);
     }

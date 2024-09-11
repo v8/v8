@@ -1086,7 +1086,7 @@ class InternalizedStringTableCleaner final : public RootVisitor {
   int pointers_removed_ = 0;
 };
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 class MarkExternalPointerFromExternalStringTable : public RootVisitor {
  public:
   explicit MarkExternalPointerFromExternalStringTable(
@@ -1152,7 +1152,7 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
 
   MarkExternalPointerTableVisitor visitor;
 };
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
 // are retained.
@@ -1951,7 +1951,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
     }
   }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(IsSharedExternalPointerType(kExternalStringResourceTag));
   DCHECK(IsSharedExternalPointerType(kExternalStringResourceDataTag));
   // All ExternalString resources are stored in the shared external pointer
@@ -1962,18 +1962,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   MarkExternalPointerFromExternalStringTable external_string_visitor(
       &shared_table, shared_space);
   client_heap->external_string_table_.IterateAll(&external_string_visitor);
-
-  TrustedPointerTable* const tpt = &client->trusted_pointer_table();
-  tpt->IterateActiveEntriesIn(
-      client->heap()->trusted_pointer_space(),
-      [collector = this](TrustedPointerHandle handle, Address content) {
-        Tagged<HeapObject> heap_obj = Cast<HeapObject>(Tagged<Object>(content));
-        DCHECK(IsExposedTrustedObject(heap_obj));
-        if (!InWritableSharedSpace(heap_obj)) return;
-        collector->MarkRootObject(Root::kClientHeap, heap_obj,
-                                  MarkingHelper::WorklistTarget::kRegular);
-      });
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
@@ -5554,24 +5543,6 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
     if (typed_slot_count == 0 || chunk->InYoungGeneration())
       page->ReleaseTypedSlotSet(OLD_TO_SHARED);
   }
-
-#ifdef V8_ENABLE_SANDBOX
-  TrustedPointerTable* const tpt = &client->trusted_pointer_table();
-  tpt->IterateActiveEntriesIn(
-      client->heap()->trusted_pointer_space(),
-      [tpt](TrustedPointerHandle handle, Address content) {
-        Tagged<HeapObject> heap_obj = Cast<HeapObject>(Tagged<Object>(content));
-        MapWord map_word = heap_obj->map_word(kRelaxedLoad);
-        if (!map_word.IsForwardingAddress()) return;
-        Tagged<HeapObject> relocated_object =
-            map_word.ToForwardingAddress(heap_obj);
-        DCHECK(IsExposedTrustedObject(relocated_object));
-        DCHECK(InWritableSharedSpace(relocated_object));
-        auto instance_type = relocated_object->map()->instance_type();
-        auto tag = IndirectPointerTagFromInstanceType(instance_type);
-        tpt->Set(handle, relocated_object.ptr(), tag);
-      });
-#endif  // V8_ENABLE_SANDBOX
 }
 
 void MarkCompactCollector::UpdatePointersInPointerTables() {
