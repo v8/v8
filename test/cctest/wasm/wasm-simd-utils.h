@@ -78,7 +78,7 @@ class TSSimd256VerifyScope {
 
     std::function<void(const compiler::turboshaft::Graph&)> handler;
 
-    handler = [=](const compiler::turboshaft::Graph& graph) {
+    handler = [=, this](const compiler::turboshaft::Graph& graph) {
       check_pass_ = raw_handler(graph);
     };
 
