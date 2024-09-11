@@ -144,6 +144,7 @@
 ['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev doesn't support inlining of Wasm code.
   'wasm-inlining-into-js': [FAIL],
+  'wasm-in-js-inlining-turboshaft': [FAIL],
 }],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ##############################################################################

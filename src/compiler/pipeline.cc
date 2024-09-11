@@ -984,10 +984,10 @@ struct InliningPhase {
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(), flags, temp_zone,
         info->zone());
-    JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
-                                 data->jsgraph(), data->broker(),
-                                 data->source_positions(), data->node_origins(),
-                                 JSInliningHeuristic::kJSOnly);
+    JSInliningHeuristic inlining(
+        &graph_reducer, temp_zone, data->info(), data->jsgraph(),
+        data->broker(), data->source_positions(), data->node_origins(),
+        JSInliningHeuristic::kJSOnly, nullptr, nullptr);
 
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
                                            data->broker());
@@ -1042,11 +1042,18 @@ struct JSWasmInliningPhase {
     CommonOperatorReducer common_reducer(
         &graph_reducer, data->graph(), data->broker(), data->common(),
         data->machine(), temp_zone, BranchSemantics::kMachine);
-    JSInliningHeuristic::Mode mode = JSInliningHeuristic::kWasmFullInlining;
-    JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
-                                 data->jsgraph(), data->broker(),
-                                 data->source_positions(), data->node_origins(),
-                                 mode, data->wasm_module_for_inlining());
+    // If we want to inline in Turboshaft instead (i.e., later in the
+    // pipeline), only inline the wrapper here in TurboFan.
+    // TODO(dlehmann,353475584): Long-term, also inline the JS-to-Wasm wrappers
+    // in Turboshaft (or in Maglev, depending on the shared frontend).
+    JSInliningHeuristic::Mode mode =
+        (v8_flags.turboshaft_wasm_in_js_inlining)
+            ? JSInliningHeuristic::kWasmWrappersOnly
+            : JSInliningHeuristic::kWasmFullInlining;
+    JSInliningHeuristic inlining(
+        &graph_reducer, temp_zone, data->info(), data->jsgraph(),
+        data->broker(), data->source_positions(), data->node_origins(), mode,
+        data->wasm_module_for_inlining(), data->js_wasm_calls_sidetable());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &inlining);
