@@ -26,8 +26,7 @@ transitioning javascript builtin SetPrototypeIsSupersetOf(
   const thisSize = table.LoadSize();
 
   // 5. If thisSize < otherRec.[[Size]], return false.
-  if (otherRec.size == V8_INFINITY ||
-      Convert<Number>(thisSize) < otherRec.size) {
+  if (Convert<Number>(thisSize) < otherRec.size) {
     return False;
   }
 
