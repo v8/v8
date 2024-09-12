@@ -1257,6 +1257,9 @@
   'shared-memory/condition-async-wait-realm-disposed' :['pointer_compression', SKIP],
   'shared-memory/mutex-async-lock-workers-timeout' :['pointer_compression', SKIP],
   'shared-memory/mutex-async-lock-realm-disposed' :['pointer_compression', SKIP],
+
+  # Needs FP16 support.
+  'wasm/simd-fp16': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
