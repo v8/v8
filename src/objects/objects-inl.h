@@ -384,7 +384,14 @@ constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
 }
 
 constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged<MaybeObject> obj) {
-  return FastInReadOnlySpaceOrSmallSmi(static_cast<Tagged_t>(obj.ptr()));
+#ifdef V8_COMPRESS_POINTERS
+  // This check is only valid for objects in the main cage.
+  DCHECK(obj.IsSmi() || obj.IsInMainCageBase());
+  return FastInReadOnlySpaceOrSmallSmi(
+      V8HeapCompressionScheme::CompressAny(obj.ptr()));
+#else   // V8_COMPRESS_POINTERS
+  return false;
+#endif  // V8_COMPRESS_POINTERS
 }
 
 bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
