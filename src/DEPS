@@ -18,7 +18,6 @@ include_rules = [
   "-src/heap",
   "+src/heap/memory-chunk-metadata.h",
   "+src/heap/code-range.h",
-  "+src/heap/read-only-spaces.h",
   "+src/heap/trusted-range.h",
   "+src/heap/combined-heap.h",
   "+src/heap/factory.h",

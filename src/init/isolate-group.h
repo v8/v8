@@ -10,7 +10,6 @@
 #include "include/v8-memory-span.h"
 #include "src/base/once.h"
 #include "src/base/page-allocator.h"
-#include "src/base/platform/mutex.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -29,9 +28,6 @@ namespace internal {
 class Sandbox;
 #endif
 class CodeRange;
-class Isolate;
-class ReadOnlyHeap;
-class ReadOnlyArtifacts;
 
 // An IsolateGroup allows an API user to control which isolates get allocated
 // together in a shared pointer cage.
@@ -89,9 +85,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     if (--reference_count_ == 0) delete this;
   }
 
-  int IncrementIsolateCount() { return ++isolate_count_; }
-  int DecrementIsolateCount() { return --isolate_count_; }
-
   v8::PageAllocator* page_allocator() const { return page_allocator_; }
 
 #ifdef V8_COMPRESS_POINTERS
@@ -126,38 +119,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   MemorySpan<Address> external_ref_table() { return external_ref_table_; }
 
-  bool has_shared_space_isolate() const {
-    return shared_space_isolate_ != nullptr;
-  }
-
-  Isolate* shared_space_isolate() const {
-    DCHECK(has_shared_space_isolate());
-    return shared_space_isolate_;
-  }
-
-  void init_shared_space_isolate(Isolate* isolate) {
-    DCHECK(!has_shared_space_isolate());
-    shared_space_isolate_ = isolate;
-  }
-
-  void ClearSharedSpaceIsolate();
-
-  ReadOnlyHeap* shared_read_only_heap() const { return shared_read_only_heap_; }
-  void set_shared_read_only_heap(ReadOnlyHeap* heap) {
-    shared_read_only_heap_ = heap;
-  }
-
-  base::Mutex* read_only_heap_creation_mutex() {
-    return &read_only_heap_creation_mutex_;
-  }
-
-  ReadOnlyArtifacts* read_only_artifacts() {
-    return read_only_artifacts_.get();
-  }
-
-  ReadOnlyArtifacts* InitializeReadOnlyArtifacts();
-  void ClearReadOnlyArtifacts();
-
  private:
   friend class base::LeakyObject<IsolateGroup>;
 #ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
@@ -187,10 +148,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static void set_current_non_inlined(IsolateGroup* group);
 #endif
 
-  int IsolateCount() const { return isolate_count_.load(); }
-
   std::atomic<int> reference_count_{1};
-  std::atomic<int> isolate_count_{0};
   v8::PageAllocator* page_allocator_ = nullptr;
 
 #ifdef V8_COMPRESS_POINTERS
@@ -209,12 +167,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
       {0};
 
   bool process_wide_;
-
-  // Mutex used to ensure that ReadOnlyArtifacts creation is only done once.
-  base::Mutex read_only_heap_creation_mutex_;
-  std::unique_ptr<ReadOnlyArtifacts> read_only_artifacts_;
-  ReadOnlyHeap* shared_read_only_heap_ = nullptr;
-  Isolate* shared_space_isolate_ = nullptr;
 };
 
 }  // namespace internal

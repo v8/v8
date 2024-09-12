@@ -663,9 +663,11 @@ class RootsTable {
   friend class Factory;
   friend class FactoryBase<Factory>;
   friend class FactoryBase<LocalFactory>;
+  friend class PointerCompressedReadOnlyArtifacts;
   friend class ReadOnlyHeap;
   friend class ReadOnlyRoots;
   friend class RootsSerializer;
+  friend class SoleReadOnlyHeap;
 };
 
 #define ROOT_TYPE_FWD_DECL(Type, name, CamelName) class Type;

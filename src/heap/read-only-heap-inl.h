@@ -12,18 +12,10 @@
 namespace v8 {
 namespace internal {
 
-ReadOnlyHeap* ReadOnlyHeap::GetSharedReadOnlyHeap() {
-#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  return IsolateGroup::current()->shared_read_only_heap();
-#else
-  return ReadOnlyHeap::shared_ro_heap_;
-#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-}
-
 // static
 ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged<HeapObject> object) {
 #ifdef V8_SHARED_RO_HEAP
-  ReadOnlyHeap* shared_ro_heap = GetSharedReadOnlyHeap();
+  auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
   if (shared_ro_heap && shared_ro_heap->roots_init_complete()) {
     return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
   }
@@ -36,7 +28,7 @@ ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged<HeapObject> object) {
 // static
 ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(Tagged<HeapObject> object) {
 #ifdef V8_SHARED_RO_HEAP
-  ReadOnlyHeap* shared_ro_heap = GetSharedReadOnlyHeap();
+  auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
   // If this check fails in code that runs during initialization use
   // EarlyGetReadOnlyRoots instead.
   DCHECK(shared_ro_heap && shared_ro_heap->roots_init_complete());
