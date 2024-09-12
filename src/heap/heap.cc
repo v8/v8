@@ -2528,13 +2528,15 @@ Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ExternalMemoryBytes",
                 heap->external_memory());
 #endif
+  const HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
   double v8_gc_speed =
       heap->tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
   double v8_mutator_speed =
       heap->tracer()
           ->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
   double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
-      heap, heap->max_old_generation_size(), v8_gc_speed, v8_mutator_speed);
+      heap, heap->max_old_generation_size(), v8_gc_speed, v8_mutator_speed,
+      mode);
   double embedder_gc_speed =
       heap->tracer()->EmbedderSpeedInBytesPerMillisecond();
   double embedder_speed =
@@ -2544,28 +2546,27 @@ Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
       (embedder_gc_speed > 0 && embedder_speed > 0)
           ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
                 heap, heap->max_global_memory_size_, embedder_gc_speed,
-                embedder_speed)
+                embedder_speed, mode)
           : 0;
   double global_growing_factor =
       std::max(v8_growing_factor, embedder_growing_factor);
 
-  size_t old_gen_size = heap->OldGenerationConsumedBytes();
-  size_t global_size = heap->GlobalConsumedBytes();
   size_t new_space_capacity = heap->NewSpaceTargetCapacity();
-  HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
 
   size_t new_old_generation_allocation_limit =
-      MemoryController<V8HeapTrait>::CalculateAllocationLimit(
-          heap, old_gen_size, heap->min_old_generation_size_,
-          heap->max_old_generation_size(), new_space_capacity,
-          v8_growing_factor, mode);
+      MemoryController<V8HeapTrait>::BoundAllocationLimit(
+          heap, heap->OldGenerationConsumedBytes(),
+          heap->OldGenerationConsumedBytes() * v8_growing_factor,
+          heap->min_old_generation_size_, heap->max_old_generation_size(),
+          new_space_capacity, mode);
 
   DCHECK_GT(global_growing_factor, 0);
   size_t new_global_allocation_limit =
-      MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
-          heap, global_size, heap->min_global_memory_size_,
-          heap->max_global_memory_size_, new_space_capacity,
-          global_growing_factor, mode);
+      MemoryController<GlobalMemoryTrait>::BoundAllocationLimit(
+          heap, heap->GlobalConsumedBytes(),
+          heap->GlobalConsumedBytes() * global_growing_factor,
+          heap->min_global_memory_size_, heap->max_global_memory_size_,
+          new_space_capacity, mode);
 
   return {new_old_generation_allocation_limit, new_global_allocation_limit};
 }
