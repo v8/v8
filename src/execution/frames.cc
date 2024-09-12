@@ -510,14 +510,20 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
         StackFrame::ResolveReturnAddressLocation(reinterpret_cast<Address*>(
             fp + StandardFrameConstants::kCallerPCOffset));
 
+    bool can_lookup_frame_type =
+        // Ensure frame structure is not broken, otherwise it doesn't make
+        // sense to try to detect a frame type.
+        (sp < fp) &&
+        // Ensure there is a context/frame type value in the frame.
+        (fp - sp) >= TypedFrameConstants::kFixedFrameSizeFromFp;
+
     // If the current PC is in a bytecode handler, the top stack frame isn't
     // the bytecode handler's frame and the top of stack or link register is a
     // return address into the interpreter entry trampoline, then we are likely
     // in a bytecode handler with elided frame. In that case, set the PC
     // properly and make sure we do not drop the frame.
     bool is_no_frame_bytecode_handler = false;
-    bool cant_lookup_frame_type = false;
-    if (IsNoFrameBytecodeHandlerPc(isolate, pc, fp)) {
+    if (can_lookup_frame_type && IsNoFrameBytecodeHandlerPc(isolate, pc, fp)) {
       Address* top_location = nullptr;
       if (top_link_register_) {
         top_location = &top_link_register_;
@@ -531,7 +537,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
       // Since we're in a signal handler, the pc lookup might not be possible
       // since the required locks are taken by the same thread.
       if (!is_interpreter_frame_pc.has_value()) {
-        cant_lookup_frame_type = true;
+        can_lookup_frame_type = false;
       } else if (is_interpreter_frame_pc.value()) {
         state.pc_address = top_location;
         is_no_frame_bytecode_handler = true;
@@ -546,7 +552,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
     static_assert(StandardFrameConstants::kFunctionOffset <
                   StandardFrameConstants::kContextOffset);
     Address function_slot = fp + StandardFrameConstants::kFunctionOffset;
-    if (cant_lookup_frame_type) {
+    if (!can_lookup_frame_type) {
       type = StackFrame::NO_FRAME_TYPE;
     } else if (IsValidStackAddress(function_slot)) {
       if (is_no_frame_bytecode_handler) {
@@ -978,10 +984,6 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
   const intptr_t marker = Memory<intptr_t>(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   if (StackFrame::IsTypeMarker(marker)) {
-    if (static_cast<uintptr_t>(marker) > StackFrame::NUMBER_OF_TYPES) {
-      // We've read some bogus value from the stack.
-      return StackFrame::NATIVE;
-    }
     return SafeStackFrameType(StackFrame::MarkerToType(marker));
   }
 
