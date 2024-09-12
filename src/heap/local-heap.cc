@@ -426,6 +426,17 @@ void LocalHeap::UnmarkSharedLinearAllocationsArea() {
   }
 }
 
+void LocalHeap::FreeLinearAllocationAreasAndResetFreeLists() {
+  heap_allocator_.FreeLinearAllocationAreasAndResetFreeLists();
+}
+
+void LocalHeap::FreeSharedLinearAllocationAreasAndResetFreeLists() {
+  if (heap_allocator_.shared_space_allocator()) {
+    heap_allocator_.shared_space_allocator()
+        ->FreeLinearAllocationAreaAndResetFreeList();
+  }
+}
+
 void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,
                                       GCCallbacksInSafepoint::GCType gc_type) {
   DCHECK(IsRunning());

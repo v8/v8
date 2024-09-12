@@ -407,11 +407,21 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
     for (int i = 0; i < kNumIterations * kObjectsAllocatedPerIteration; i++) {
       Address address = objects[i];
       Tagged<HeapObject> object = HeapObject::FromAddress(address);
-
-      if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
+      if (v8_flags.black_allocated_pages) {
         CHECK(heap->marking_state()->IsUnmarked(object));
+        if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
+          CHECK(!PageMetadata::FromHeapObject(object)->Chunk()->IsFlagSet(
+              MemoryChunk::BLACK_ALLOCATED));
+        } else {
+          CHECK(PageMetadata::FromHeapObject(object)->Chunk()->IsFlagSet(
+              MemoryChunk::BLACK_ALLOCATED));
+        }
       } else {
-        CHECK(heap->marking_state()->IsMarked(object));
+        if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
+          CHECK(heap->marking_state()->IsUnmarked(object));
+        } else {
+          CHECK(heap->marking_state()->IsMarked(object));
+        }
       }
     }
   }

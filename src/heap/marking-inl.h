@@ -365,6 +365,11 @@ std::optional<MarkingHelper::WorklistTarget> MarkingHelper::ShouldMarkObject(
   if (flags & MemoryChunk::READ_ONLY_HEAP) {
     return {};
   }
+  if (v8_flags.black_allocated_pages &&
+      V8_UNLIKELY(flags & MemoryChunk::BLACK_ALLOCATED)) {
+    DCHECK(!(flags & MemoryChunk::kIsInYoungGenerationMask));
+    return {};
+  }
   if (V8_LIKELY(!(flags & MemoryChunk::IN_WRITABLE_SHARED_SPACE))) {
     return {MarkingHelper::WorklistTarget::kRegular};
   }
@@ -384,6 +389,10 @@ MarkingHelper::LivenessMode MarkingHelper::GetLivenessMode(
   const auto* chunk = MemoryChunk::FromHeapObject(object);
   const auto flags = chunk->GetFlags();
   if (flags & MemoryChunk::READ_ONLY_HEAP) {
+    return MarkingHelper::LivenessMode::kAlwaysLive;
+  }
+  if (v8_flags.black_allocated_pages &&
+      (flags & MemoryChunk::BLACK_ALLOCATED)) {
     return MarkingHelper::LivenessMode::kAlwaysLive;
   }
   if (V8_LIKELY(!(flags & MemoryChunk::IN_WRITABLE_SHARED_SPACE))) {

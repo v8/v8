@@ -435,6 +435,9 @@ declare_args() {
   # Enable Turboshaft CSA pipeline.
   v8_enable_turboshaft_csa = false
 
+  # Black allocate objects on separate pages.
+  v8_enable_black_allocated_pages = ""
+
   # Use sticky mark-bits for separating object generations.
   v8_enable_sticky_mark_bits = false
 
@@ -494,6 +497,9 @@ if (v8_enable_drumbrake && v8_enable_webassembly) {
   assert(
       is_drumbrake_supported,
       "DrumBrake is only available on x64, arm64 on Windows, Linux and MacOS.")
+}
+if (v8_enable_black_allocated_pages == "") {
+  v8_enable_black_allocated_pages = !v8_enable_sticky_mark_bits
 }
 
 # Toggle pointer compression for correctness fuzzing when building the
@@ -739,6 +745,14 @@ assert(!v8_enable_snapshot_compression || v8_use_zlib,
 assert(!v8_enable_cet_shadow_stack ||
            (v8_target_cpu == "x64" && target_os == "win"),
        "CET shadow stack is supported only on x64 Windows")
+
+if (v8_enable_sticky_mark_bits) {
+  # To support sticky mark bits, pretenured allocations must be allocated from
+  # a separate free-list and the atomic pause (or the sweeper) must fix up the
+  # mark bits.
+  assert(!v8_enable_black_allocated_pages,
+         "Black allocated pages are not yet supported with sticky mark bits")
+}
 
 if (v8_expose_public_symbols == "") {
   v8_expose_public_symbols = v8_expose_symbols
@@ -1316,6 +1330,9 @@ config("features") {
   }
   if (v8_enable_local_off_stack_check) {
     defines += [ "V8_ENABLE_LOCAL_OFF_STACK_CHECK" ]
+  }
+  if (v8_enable_black_allocated_pages) {
+    defines += [ "V8_ENABLE_BLACK_ALLOCATED_PAGES" ]
   }
   if (v8_enable_sticky_mark_bits) {
     defines += [ "V8_ENABLE_STICKY_MARK_BITS" ]

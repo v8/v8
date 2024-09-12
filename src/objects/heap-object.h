@@ -585,6 +585,7 @@ STRUCT_LIST(DECL_STRUCT_PREDICATE)
 V8_INLINE bool InAnySharedSpace(Tagged<HeapObject> obj);
 V8_INLINE bool InWritableSharedSpace(Tagged<HeapObject> obj);
 V8_INLINE bool InReadOnlySpace(Tagged<HeapObject> obj);
+V8_INLINE bool InBlackAllocatedPage(Tagged<HeapObject> obj);
 // Whether the object is located outside of the sandbox or in read-only
 // space. Currently only needed due to Code objects. Once they are fully
 // migrated into trusted space, this can be replaced by !InsideSandbox().

@@ -370,6 +370,12 @@ bool InReadOnlySpace(Tagged<HeapObject> obj) {
   return IsReadOnlyHeapObject(obj);
 }
 
+bool InBlackAllocatedPage(Tagged<HeapObject> obj) {
+  DCHECK(v8_flags.black_allocated_pages);
+  return MemoryChunk::FromHeapObject(obj)->GetFlags() &
+         MemoryChunk::BLACK_ALLOCATED;
+}
+
 constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
 #if V8_STATIC_ROOTS_BOOL
   // The following assert ensures that the page size check covers all our static

@@ -609,6 +609,7 @@ void ZapDeadObjectsOnPage(Heap* heap, PageMetadata* p) {
 void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
     MutablePageMetadata* page) {
   DCHECK(v8_flags.minor_ms);
+  DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK_NOT_NULL(page);
   {
     base::MutexGuard guard(page->mutex());
@@ -669,6 +670,8 @@ V8_INLINE bool ComparePagesForSweepingOrder(const PageMetadata* a,
     return a->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   // We sort in descending order of live bytes, i.e., ascending order of
   // free bytes, because GetSweepingPageSafe returns pages in reverse order.
+  // This works automatically for black allocated pages, since we set live bytes
+  // for them to the area size.
   return a->live_bytes() > b->live_bytes();
 }
 }  // namespace
@@ -1011,6 +1014,7 @@ void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(PageMetadata* page,
 void Sweeper::RawSweep(PageMetadata* p,
                        FreeSpaceTreatmentMode free_space_treatment_mode,
                        SweepingMode sweeping_mode, bool should_reduce_memory) {
+  DCHECK_NOT_NULL(p);
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
@@ -1020,6 +1024,7 @@ void Sweeper::RawSweep(PageMetadata* p,
          (space->identity() == NEW_SPACE && v8_flags.minor_ms));
   DCHECK(!p->Chunk()->IsEvacuationCandidate());
   DCHECK(!p->SweepingDone());
+  DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK_IMPLIES(space->identity() == NEW_SPACE,
                  !heap_->incremental_marking()->IsMinorMarking());
   DCHECK_IMPLIES(space->identity() != NEW_SPACE,
@@ -1054,6 +1059,7 @@ void Sweeper::RawSweep(PageMetadata* p,
   // Iterate over the page using the live objects and free the memory before
   // the given live object.
   Address free_start = p->area_start();
+
   for (auto [object, size] : LiveObjectRange(p)) {
     DCHECK(marking_state_->IsMarked(object));
     Address free_end = object.address();
@@ -1248,6 +1254,7 @@ void Sweeper::AddNewSpacePage(PageMetadata* page) {
 
 void Sweeper::AddPageImpl(AllocationSpace space, PageMetadata* page) {
   DCHECK(heap_->IsMainThread());
+  DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK(IsValidSweepingSpace(space));
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping && (space != NEW_SPACE),
                  !major_sweeping_state_.HasValidJob());
@@ -1311,6 +1318,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, PageMetadata* page) {
   } else {
     paged_space = heap_->paged_space(space);
   }
+
   paged_space->IncreaseAllocatedBytes(page->live_bytes(), page);
 
   // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
@@ -1320,6 +1328,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, PageMetadata* page) {
 }
 
 void Sweeper::PrepareToBeIteratedPromotedPage(PageMetadata* page) {
+  DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK_EQ(OLD_SPACE, page->owner_identity());
   VerifyPreparedPage(page);
   page->set_concurrent_sweeping_state(

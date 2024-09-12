@@ -183,8 +183,10 @@ class FullMarkingVerifier : public MarkingVerifierBase {
       CHECK(heap_->SharedHeapContains(heap_object));
     }
 
-    CHECK(InReadOnlySpace(heap_object) ||
-          marking_state_->IsMarked(heap_object));
+    CHECK(
+        InReadOnlySpace(heap_object) ||
+        (v8_flags.black_allocated_pages && InBlackAllocatedPage(heap_object)) ||
+        marking_state_->IsMarked(heap_object));
   }
 
   V8_INLINE bool ShouldVerifyObject(Tagged<HeapObject> heap_object) {
@@ -300,6 +302,7 @@ void MarkCompactCollector::TearDown() {
 
 void MarkCompactCollector::AddEvacuationCandidate(PageMetadata* p) {
   DCHECK(!p->Chunk()->NeverEvacuate());
+  DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
 
   if (v8_flags.trace_evacuation_candidates) {
     PrintIsolate(
@@ -1897,8 +1900,14 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
 
           if (obj.GetHeapObject(&heap_object) &&
               InWritableSharedSpace(heap_object)) {
-            collector->MarkRootObject(Root::kClientHeap, heap_object,
-                                      MarkingHelper::WorklistTarget::kRegular);
+            // If the object points to the black allocated shared page, don't
+            // mark the object, but still keep the slot.
+            if (MarkingHelper::ShouldMarkObject(collector->heap(),
+                                                heap_object)) {
+              collector->MarkRootObject(
+                  Root::kClientHeap, heap_object,
+                  MarkingHelper::WorklistTarget::kRegular);
+            }
             return KEEP_SLOT;
           } else {
             return REMOVE_SLOT;
@@ -1916,8 +1925,14 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
               UpdateTypedSlotHelper::GetTargetObject(client_heap, slot_type,
                                                      slot);
           if (InWritableSharedSpace(heap_object)) {
-            collector->MarkRootObject(Root::kClientHeap, heap_object,
-                                      MarkingHelper::WorklistTarget::kRegular);
+            // If the object points to the black allocated shared page, don't
+            // mark the object, but still keep the slot.
+            if (MarkingHelper::ShouldMarkObject(collector->heap(),
+                                                heap_object)) {
+              collector->MarkRootObject(
+                  Root::kClientHeap, heap_object,
+                  MarkingHelper::WorklistTarget::kRegular);
+            }
             return KEEP_SLOT;
           } else {
             return REMOVE_SLOT;
@@ -1937,9 +1952,14 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
 
               if (obj.GetHeapObject(&heap_object) &&
                   InWritableSharedSpace(heap_object)) {
-                collector->MarkRootObject(
-                    Root::kClientHeap, heap_object,
-                    MarkingHelper::WorklistTarget::kRegular);
+                // If the object points to the black allocated shared page,
+                // don't mark the object, but still keep the slot.
+                if (MarkingHelper::ShouldMarkObject(collector->heap(),
+                                                    heap_object)) {
+                  collector->MarkRootObject(
+                      Root::kClientHeap, heap_object,
+                      MarkingHelper::WorklistTarget::kRegular);
+                }
                 return KEEP_SLOT;
               } else {
                 return REMOVE_SLOT;
@@ -1965,13 +1985,17 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
 
   TrustedPointerTable* const tpt = &client->trusted_pointer_table();
   tpt->IterateActiveEntriesIn(
-      client->heap()->trusted_pointer_space(),
+      client_heap->trusted_pointer_space(),
       [collector = this](TrustedPointerHandle handle, Address content) {
         Tagged<HeapObject> heap_obj = Cast<HeapObject>(Tagged<Object>(content));
         DCHECK(IsExposedTrustedObject(heap_obj));
-        if (!InWritableSharedSpace(heap_obj)) return;
-        collector->MarkRootObject(Root::kClientHeap, heap_obj,
-                                  MarkingHelper::WorklistTarget::kRegular);
+        if (InWritableSharedSpace(heap_obj)) {
+          // Don't mark the object if it's on black allocated page.
+          if (MarkingHelper::ShouldMarkObject(collector->heap(), heap_obj)) {
+            collector->MarkRootObject(Root::kClientHeap, heap_obj,
+                                      MarkingHelper::WorklistTarget::kRegular);
+          }
+        }
       });
 #endif  // V8_ENABLE_SANDBOX
 }
@@ -3345,6 +3369,7 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   // flushed it before processing this candidate. This can happen when using
   // CloneSharedFunctionInfo().
   Isolate* const isolate = heap_->isolate();
+
   const bool bytecode_already_decompiled =
       flushing_candidate->HasUncompiledData();
   if (!bytecode_already_decompiled) {
@@ -3832,6 +3857,8 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences() {
     Tagged<HeapObject> value = (*slot.slot).GetHeapObjectAssumeWeak();
     DCHECK(!IsWeakCell(value));
     DCHECK(!InReadOnlySpace(value));
+    DCHECK_IMPLIES(v8_flags.black_allocated_pages,
+                   !InBlackAllocatedPage(value));
     DCHECK(!non_atomic_marking_state_->IsMarked(value));
     DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(slot.heap_object,
                                                             value));
@@ -4813,6 +4840,9 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     for (auto it = new_lo_space->begin(); it != new_lo_space->end();) {
       LargePageMetadata* current = *(it++);
       Tagged<HeapObject> object = current->GetObject();
+      // The black-allocated flag was already cleared in SweepLargeSpace().
+      DCHECK_IMPLIES(v8_flags.black_allocated_pages,
+                     !InBlackAllocatedPage(object));
       if (marking_state_->IsMarked(object)) {
         heap_->lo_space()->PromoteNewLargeObject(current);
         current->Chunk()->SetFlagNonExecutable(
@@ -5751,6 +5781,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     PageMetadata* p = *(it++);
     DCHECK(p->SweepingDone());
+    DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
 
     if (p->live_bytes() > 0) {
       // Non-empty pages will be evacuated/promoted.
@@ -5772,6 +5803,21 @@ void MarkCompactCollector::StartSweepNewSpace() {
   }
 }
 
+void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(
+    PagedSpace* space, PageMetadata* page) {
+  DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  DCHECK_EQ(page->live_bytes(), 0);
+  DCHECK_GE(page->allocated_bytes(), 0);
+  DCHECK(page->marking_bitmap()->IsClean());
+  std::optional<RwxMemoryWriteScope> scope;
+  if (page->Chunk()->InCodeSpace()) {
+    scope.emplace("For writing flags.");
+  }
+  page->Chunk()->ClearFlagUnlocked(MemoryChunk::BLACK_ALLOCATED);
+  space->IncreaseAllocatedBytes(page->allocated_bytes(), page);
+  space->RelinkFreeListCategories(page);
+}
+
 void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
   DCHECK_NE(NEW_SPACE, space->identity());
   space->ClearAllocatorState();
@@ -5787,8 +5833,16 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     DCHECK(p->SweepingDone());
 
     if (p->Chunk()->IsEvacuationCandidate()) {
+      DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
       DCHECK_NE(NEW_SPACE, space->identity());
       // Will be processed in Evacuate.
+      continue;
+    }
+
+    // If the page is black, just reset the flag and don't add the page to the
+    // sweeper.
+    if (p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED)) {
+      ResetAndRelinkBlackAllocatedPage(space, p);
       continue;
     }
 
@@ -5843,6 +5897,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
           : MemoryAllocator::FreeMode::kImmediately;
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
+    DCHECK(!current->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
     Tagged<HeapObject> object = current->GetObject();
     if (!marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.

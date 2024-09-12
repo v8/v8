@@ -6094,6 +6094,7 @@ TEST(Regress631969) {
 }
 
 TEST(ContinuousRightTrimFixedArrayInBlackArea) {
+  if (v8_flags.black_allocated_pages) return;
   if (!v8_flags.incremental_marking) return;
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
   CcTest::InitializeVM();
@@ -6133,7 +6134,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
       MarkingBitmap::LimitAddressToIndex(end_address)));
   CHECK(heap->old_space()->Contains(*array));
 
-  // Trim it once by one word to make checking for white marking color uniform.
+  // Trim it once by one word to check that the trimmed area gets unmarked.
   Address previous = end_address - kTaggedSize;
   isolate->heap()->RightTrimArray(*array, 99, 100);
 
@@ -6154,6 +6155,69 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   }
 
   heap::InvokeAtomicMajorGC(heap);
+}
+
+TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
+  if (!v8_flags.black_allocated_pages) return;
+  if (!v8_flags.incremental_marking) return;
+  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  heap::InvokeMajorGC(heap);
+
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kV8Only);
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                  i::GarbageCollectionReason::kTesting);
+  }
+  CHECK(marking->IsMarking());
+  CHECK(marking->black_allocation());
+
+  // Ensure that we allocate a new page, set up a bump pointer area, and
+  // perform the allocation in a black area.
+  heap::SimulateFullSpace(heap->old_space());
+  isolate->factory()->NewFixedArray(10, AllocationType::kOld);
+
+  // Allocate the fixed array that will be trimmed later.
+  DirectHandle<FixedArray> array =
+      isolate->factory()->NewFixedArray(100, AllocationType::kOld);
+  Address start_address = array->address();
+  Address end_address = start_address + array->Size();
+  PageMetadata* page = PageMetadata::FromAddress(start_address);
+  CHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  CHECK(heap->old_space()->Contains(*array));
+
+  // Trim it once by one word, which shouldn't affect the BLACK_ALLOCATED flag.
+  Address previous = end_address - kTaggedSize;
+  isolate->heap()->RightTrimArray(*array, 99, 100);
+
+  Tagged<HeapObject> filler = HeapObject::FromAddress(previous);
+  CHECK(IsFreeSpaceOrFiller(filler));
+  CHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  heap::InvokeAtomicMajorGC(heap);
+  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
+                                i::GarbageCollectionReason::kTesting);
+
+  // Allocate the large fixed array that will be trimmed later.
+  array = isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
+  start_address = array->address();
+  end_address = start_address + array->Size();
+  CHECK(heap->lo_space()->Contains(*array));
+  page = PageMetadata::FromAddress(start_address);
+  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  heap::InvokeAtomicMajorGC(heap);
+  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
 }
 
 TEST(Regress618958) {

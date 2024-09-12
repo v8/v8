@@ -2867,8 +2867,20 @@ DEFINE_BOOL(concurrent_minor_ms_marking, true,
             "perform young generation marking concurrently")
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_ms_marking)
 
+#ifdef V8_ENABLE_BLACK_ALLOCATED_PAGES
+#define V8_ENABLE_BLACK_ALLOCATED_PAGES_BOOL true
+#else
+#define V8_ENABLE_BLACK_ALLOCATED_PAGES_BOOL false
+#endif
+DEFINE_BOOL_READONLY(
+    black_allocated_pages, V8_ENABLE_BLACK_ALLOCATED_PAGES_BOOL,
+    "allocate non-young objects during incremental marking on separate pages")
+
 #ifdef V8_ENABLE_STICKY_MARK_BITS
 #define V8_ENABLE_STICKY_MARK_BITS_BOOL true
+#if V8_ENABLE_BLACK_ALLOCATED_PAGES_BOOL
+#error "Black allocated pages are not supported with sticky mark bits"
+#endif  // V8_ENABLE_BLACK_ALLOCATED_PAGES_BOOL
 #else
 #define V8_ENABLE_STICKY_MARK_BITS_BOOL false
 #endif
