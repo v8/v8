@@ -579,7 +579,8 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
         CHECK_EQ(instr_I, kNopByte);
         CHECK(is_int32(offset + 0x800));
         Instr instr_auipc = AUIPC | t6.code() << kRdShift;
-        instr_I = RO_JALR | t6.code() << kRs1Shift;
+        instr_I = RO_JALR | (t6.code() << kRs1Shift) |
+                  (instruction->RdValue() << kRdShift);
 
         int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
         int32_t Lo12 = (int32_t)offset << 20 >> 20;
@@ -606,15 +607,14 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
 
       intptr_t offset = target_pos - pos;
       if (is_int21(offset) && IsJalr(instr_I) &&
-          (instruction->RdValue() == instruction_I->Rs1Value()) &&
-          (instruction_I->RdValue() == zero_reg.code())) {
+          (instruction->RdValue() == instruction_I->Rs1Value())) {
         if (v8_flags.riscv_debug) {
           disassembleInstr(buffer_start_ + pos);
           disassembleInstr(buffer_start_ + pos + 4);
         }
         DEBUG_PRINTF("\ttarget_at_put: Relpace by JAL pos:(%d) \n", pos);
         DCHECK(is_int21(offset) && ((offset & 1) == 0));
-        Instr instr = JAL;
+        Instr instr = JAL | (instruction_I->RdValue() << kRdShift);
         instr = SetJalOffset(pos, target_pos, instr);
         DCHECK(IsJal(instr));
         DCHECK(JumpOffset(instr) == offset);
