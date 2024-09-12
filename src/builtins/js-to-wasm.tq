@@ -429,7 +429,7 @@ macro JSToWasmObject(
     targetType: int32, value: JSAny): Object {
   const heapType = (targetType >> kValueTypeKindBits) & kValueTypeHeapTypeMask;
   const kind = targetType & kValueTypeKindBitsMask;
-  if (heapType == HeapType::kExtern || heapType == HeapType::kNoExtern) {
+  if (heapType == HeapType::kExtern) {
     if (kind == ValueKind::kRef && value == Null) {
       ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
     }
@@ -446,6 +446,7 @@ macro JSToWasmObject(
       if (kind == ValueKind::kRef) {
         ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
       } else {
+        dcheck(kind == ValueKind::kRefNull);
         return kWasmNull;
       }
     }

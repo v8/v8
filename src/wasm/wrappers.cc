@@ -929,9 +929,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         switch (type.heap_representation_non_shared()) {
           // TODO(14034): Add more fast paths?
           case HeapType::kExtern:
-          case HeapType::kNoExtern:
           case HeapType::kExn:
-          case HeapType::kNoExn:
             if (type.kind() == kRef) {
               IF (UNLIKELY(__ TaggedEqual(input, LOAD_ROOT(NullValue)))) {
                 CallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
@@ -942,6 +940,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             return input;
           case HeapType::kString:
             return BuildCheckString(input, context, type);
+          case HeapType::kNoExtern:
+          case HeapType::kNoExn:
           case HeapType::kNone:
           case HeapType::kNoFunc:
           case HeapType::kI31:
