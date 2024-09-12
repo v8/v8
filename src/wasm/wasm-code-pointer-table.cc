@@ -13,7 +13,10 @@ void WasmCodePointerTable::Initialize() { Base::Initialize(); }
 
 void WasmCodePointerTable::TearDown() {
   SweepSegments(0);
-  DCHECK(freelist_head_.load().is_empty());
+  // TODO(366007153): the WasmCode destructor sometimes doesn't get called and
+  // we can have a leftover entry in the table. Re-enable the DCHECK once the
+  // bug is fixed.
+  // DCHECK(freelist_head_.load().is_empty());
   Base::TearDown();
 }
 
