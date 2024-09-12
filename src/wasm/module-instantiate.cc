@@ -170,6 +170,11 @@ bool CompareWithNormalizedCType(const CTypeInfo& info, ValueType expected,
   if (t.semantic() == MachineSemantic::kBool) {
     return expected == kWasmI32;
   }
+  if (info.GetType() == CTypeInfo::Type::kSeqOneByteString) {
+    // WebAssembly does not support one byte strings in fast API calls as
+    // runtime type checks are not supported so far.
+    return false;
+  }
 
   if (t.representation() == MachineRepresentation::kWord64) {
     if (int64_rep == CFunctionInfo::Int64Representation::kBigInt) {
