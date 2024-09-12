@@ -72,20 +72,13 @@ class SlotAccessorForHeapObject {
   int Write(Tagged<MaybeObject> value, int slot_offset, WriteBarrierMode mode) {
     MaybeObjectSlot current_slot = slot() + slot_offset;
     current_slot.Relaxed_Store(value);
-#ifdef DEBUG
-    if (V8_STATIC_ROOTS_BOOL && value.IsStrong()) {
-      // The FastInReadOnlySpaceOrSmallSmi check below assumes that the object
-      // is in the main cage.
-      Tagged<HeapObject> o = value.GetHeapObjectAssumeStrong();
-      DCHECK(!IsInstructionStream(o));
-      DCHECK(!IsTrustedObject(o));
-    }
-#endif  // DEBUG
+#ifdef V8_STATIC_ROOTS_BOOL
     if (mode != SKIP_WRITE_BARRIER && FastInReadOnlySpaceOrSmallSmi(value)) {
       // TODO(jgruber): Remove this once CombinedWriteBarrier contains the same
       // check.
       mode = SKIP_WRITE_BARRIER;
     }
+#endif  // V8_STATIC_ROOTS_BOOL
     CombinedWriteBarrier(*object_, current_slot, value, mode);
     return 1;
   }
