@@ -192,7 +192,7 @@ class StackFrame {
   // Note that the marker is not a Smi: Smis on 64-bit architectures are stored
   // in the top 32 bits of a 64-bit value, which in turn makes them expensive
   // (in terms of code/instruction size) to push as immediates onto the stack.
-  static int32_t TypeToMarker(Type type) {
+  static constexpr int32_t TypeToMarker(Type type) {
     DCHECK_GE(type, 0);
     return (type << kSmiTagSize) | kSmiTag;
   }
@@ -201,31 +201,21 @@ class StackFrame {
   //
   // Unlike the return value of TypeToMarker, this takes an intptr_t, as that is
   // the type of the value on the stack.
-  static Type MarkerToType(intptr_t marker) {
+  static constexpr Type MarkerToType(intptr_t marker) {
     DCHECK(IsTypeMarker(marker));
-    intptr_t type = marker >> kSmiTagSize;
-    // TODO(petermarshall): There is a bug in the arm simulators that causes
-    // invalid frame markers.
-#if (defined(USE_SIMULATOR) &&                        \
-     (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM)) || \
-    (V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64)
-    if (static_cast<uintptr_t>(type) >= Type::NUMBER_OF_TYPES) {
-      // Appease UBSan.
-      return Type::NUMBER_OF_TYPES;
-    }
-#else
-    DCHECK_LT(static_cast<uintptr_t>(type), Type::NUMBER_OF_TYPES);
-#endif
-    return static_cast<Type>(type);
+    return static_cast<Type>(marker >> kSmiTagSize);
   }
 
-  // Check if a marker is a stack frame type marker or a tagged pointer.
+  // Check if a marker is a stack frame type marker.
   //
   // Returns true if the given marker is tagged as a stack frame type marker,
   // and should be converted back to a stack frame type using MarkerToType.
-  // Otherwise, the value is a tagged function pointer.
-  static bool IsTypeMarker(intptr_t function_or_marker) {
-    return (function_or_marker & kSmiTagMask) == kSmiTag;
+  static constexpr bool IsTypeMarker(uintptr_t function_or_marker) {
+    static_assert(kSmiTag == 0);
+    static_assert((std::numeric_limits<uintptr_t>::max() >> kSmiTagSize) >
+                  Type::NUMBER_OF_TYPES);
+    return (function_or_marker & kSmiTagMask) == kSmiTag &&
+           function_or_marker < (Type::NUMBER_OF_TYPES << kSmiTagSize);
   }
 
   // Copy constructor; it breaks the connection to host iterator
