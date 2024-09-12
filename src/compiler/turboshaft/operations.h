@@ -1404,7 +1404,7 @@ struct AbortCSADcheckOp : FixedArityOperationT<1, AbortCSADcheckOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  V<String> message() { return Base::input<String>(0); }
+  V<String> message() const { return Base::input<String>(0); }
 
   explicit AbortCSADcheckOp(V<String> message) : Base(message) {}
 
