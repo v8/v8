@@ -2340,6 +2340,11 @@ void MacroAssembler::Abort(AbortReason reason) {
   // will not return here
 }
 
+void MacroAssembler::LoadCompressedMap(Register destination, Register object) {
+  CHECK(COMPRESS_POINTERS_BOOL);
+  LoadU32(destination, FieldMemOperand(object, HeapObject::kMapOffset));
+}
+
 void MacroAssembler::LoadMap(Register destination, Register object) {
   LoadTaggedField(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
