@@ -298,7 +298,7 @@ void WritableRelocInfo::set_target_address(Tagged<InstructionStream> host,
   if (IsCodeTargetMode(rmode_) && !v8_flags.disable_write_barriers) {
     Tagged<InstructionStream> target_code =
         InstructionStream::FromTargetAddress(target);
-    WriteBarrierForCode(host, this, target_code, write_barrier_mode);
+    WriteBarrier::ForRelocInfo(host, this, target_code, write_barrier_mode);
   }
 }
 

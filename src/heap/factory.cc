@@ -2477,7 +2477,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     // clone will be allocated in new space.
     const ObjectSlot start(raw_clone.address());
     const ObjectSlot end(raw_clone.address() + object_size);
-    isolate()->heap()->WriteBarrierForRange(raw_clone, start, end);
+    WriteBarrier::ForRange(isolate()->heap(), raw_clone, start, end);
   }
   if (!site.is_null()) {
     Tagged<AllocationMemento> alloc_memento = UncheckedCast<AllocationMemento>(

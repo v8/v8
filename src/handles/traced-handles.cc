@@ -226,7 +226,7 @@ void TracedHandles::Move(TracedNode& from_node, Address** from, Address** to) {
   if (is_marking_) {
     // Write barrier needs to cover node as well as object.
     to_node->set_markbit();
-    WriteBarrier::MarkingFromGlobalHandle(to_node->object());
+    WriteBarrier::MarkingFromTracedHandle(to_node->object());
   } else if (auto* cpp_heap = GetCppHeapIfUnifiedYoungGC(isolate_)) {
     const bool object_is_young_and_not_yet_recorded =
         !from_node.has_old_host() &&

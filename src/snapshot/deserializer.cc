@@ -74,12 +74,12 @@ class SlotAccessorForHeapObject {
     current_slot.Relaxed_Store(value);
 #ifdef V8_STATIC_ROOTS_BOOL
     if (mode != SKIP_WRITE_BARRIER && FastInReadOnlySpaceOrSmallSmi(value)) {
-      // TODO(jgruber): Remove this once CombinedWriteBarrier contains the same
-      // check.
+      // TODO(jgruber): Remove this once WriteBarrier::ForValue() contains the
+      // same check.
       mode = SKIP_WRITE_BARRIER;
     }
 #endif  // V8_STATIC_ROOTS_BOOL
-    CombinedWriteBarrier(*object_, current_slot, value, mode);
+    WriteBarrier::ForValue(*object_, current_slot, value, mode);
     return 1;
   }
   int Write(Tagged<HeapObject> value, HeapObjectReferenceType ref_type,
@@ -104,7 +104,7 @@ class SlotAccessorForHeapObject {
     IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
     dest.store(object);
 
-    IndirectPointerWriteBarrier(*object_, dest, value, mode);
+    WriteBarrier::ForIndirectPointer(*object_, dest, value, mode);
     return 1;
   }
 
@@ -114,7 +114,7 @@ class SlotAccessorForHeapObject {
     Tagged<TrustedObject> host = Cast<TrustedObject>(*object_);
     ProtectedPointerSlot dest = host->RawProtectedPointerField(offset_);
     dest.store(value);
-    ProtectedPointerWriteBarrier(host, dest, value, mode);
+    WriteBarrier::ForProtectedPointer(host, dest, value, mode);
     return 1;
   }
 

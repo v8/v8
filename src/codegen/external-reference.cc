@@ -478,7 +478,7 @@ FUNCTION_REFERENCE(delete_handle_scope_extensions,
                    HandleScope::DeleteExtensions)
 
 FUNCTION_REFERENCE(ephemeron_key_write_barrier_function,
-                   Heap::EphemeronKeyWriteBarrierFromCode)
+                   WriteBarrier::EphemeronKeyWriteBarrierFromCode)
 
 ExternalPointerHandle AllocateAndInitializeYoungExternalPointerTableEntry(
     Isolate* isolate, Address pointer) {

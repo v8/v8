@@ -707,24 +707,24 @@
 #define WRITE_BARRIER(object, offset, value)
 #define WRITE_BARRIER_CPP(object, offset, value)
 #else
-#define WRITE_BARRIER(object, offset, value)                              \
-  do {                                                                    \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
-    static_assert(kTaggedCanConvertToRawObjects);                         \
-    CombinedWriteBarrier(object, Tagged(object)->RawField(offset), value, \
-                         UPDATE_WRITE_BARRIER);                           \
+#define WRITE_BARRIER(object, offset, value)                                \
+  do {                                                                      \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
+    static_assert(kTaggedCanConvertToRawObjects);                           \
+    WriteBarrier::ForValue(object, Tagged(object)->RawField(offset), value, \
+                           UPDATE_WRITE_BARRIER);                           \
   } while (false)
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WEAK_WRITE_BARRIER(object, offset, value)
 #else
-#define WEAK_WRITE_BARRIER(object, offset, value)                           \
-  do {                                                                      \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
-    static_assert(kTaggedCanConvertToRawObjects);                           \
-    CombinedWriteBarrier(object, Tagged(object)->RawMaybeWeakField(offset), \
-                         value, UPDATE_WRITE_BARRIER);                      \
+#define WEAK_WRITE_BARRIER(object, offset, value)                             \
+  do {                                                                        \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
+    static_assert(kTaggedCanConvertToRawObjects);                             \
+    WriteBarrier::ForValue(object, Tagged(object)->RawMaybeWeakField(offset), \
+                           value, UPDATE_WRITE_BARRIER);                      \
   } while (false)
 #endif
 
@@ -734,12 +734,12 @@
 #define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)           \
-  do {                                                               \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));              \
-    CombinedEphemeronWriteBarrier(Cast<EphemeronHashTable>(object),  \
-                                  (object)->RawField(offset), value, \
-                                  UPDATE_WRITE_BARRIER);             \
+#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)                 \
+  do {                                                                     \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
+    WriteBarrier::ForEphemeronHashTable(Cast<EphemeronHashTable>(object),  \
+                                        (object)->RawField(offset), value, \
+                                        UPDATE_WRITE_BARRIER);             \
   } while (false)
 #endif
 
@@ -749,7 +749,7 @@
 #define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
   do {                                                                       \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
-    IndirectPointerWriteBarrier(                                             \
+    WriteBarrier::ForIndirectPointer(                                        \
         object, Tagged(object)->RawIndirectPointerField(offset, tag), value, \
         UPDATE_WRITE_BARRIER);                                               \
   } while (false)
@@ -758,10 +758,10 @@
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)
 #else
-#define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)                \
-  do {                                                                  \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                 \
-    JSDispatchHandleWriteBarrier(object, handle, UPDATE_WRITE_BARRIER); \
+#define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)                     \
+  do {                                                                       \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    WriteBarrier::ForJSDispatchHandle(object, handle, UPDATE_WRITE_BARRIER); \
   } while (false)
 #endif
 
@@ -771,10 +771,10 @@
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)             \
-  do {                                                                     \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
-    CombinedWriteBarrier(object, (object)->RawField(offset), value, mode); \
+#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)               \
+  do {                                                                       \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    WriteBarrier::ForValue(object, (object)->RawField(offset), value, mode); \
   } while (false)
 #endif
 
@@ -784,11 +784,11 @@
 #define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)          \
-  do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
-    CombinedWriteBarrier(object, (object)->RawMaybeWeakField(offset), value, \
-                         mode);                                              \
+#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)            \
+  do {                                                                         \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                        \
+    WriteBarrier::ForValue(object, (object)->RawMaybeWeakField(offset), value, \
+                           mode);                                              \
   } while (false)
 #endif
 
@@ -798,8 +798,9 @@
 #define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode) \
   do {                                                                       \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
-    CombinedEphemeronWriteBarrier(Cast<EphemeronHashTable>(object),          \
-                                  (object)->RawField(offset), value, mode);  \
+    WriteBarrier::ForEphemeronHashTable(Cast<EphemeronHashTable>(object),    \
+                                        (object)->RawField(offset), value,   \
+                                        mode);                               \
   } while (false)
 #endif
 
@@ -811,7 +812,7 @@
                                                    mode)                       \
   do {                                                                         \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                        \
-    IndirectPointerWriteBarrier(                                               \
+    WriteBarrier::ForIndirectPointer(                                          \
         object, (object).RawIndirectPointerField(offset, tag), value, mode);   \
   } while (false)
 #endif
@@ -833,7 +834,7 @@
                                                     mode)                  \
   do {                                                                     \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
-    ProtectedPointerWriteBarrier(                                          \
+    WriteBarrier::ForProtectedPointer(                                     \
         object, (object).RawProtectedPointerField(offset), value, mode);   \
   } while (false)
 
@@ -843,7 +844,7 @@
 #define CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle, mode) \
   do {                                                                     \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
-    JSDispatchHandleWriteBarrier(object, handle, mode);                    \
+    WriteBarrier::ForJSDispatchHandle(object, handle, mode);               \
   } while (false)
 #endif
 

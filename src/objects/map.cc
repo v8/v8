@@ -643,7 +643,8 @@ void Map::ReplaceDescriptors(Isolate* isolate,
   // all its elements.
   Tagged<Map> current = *this;
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(to_replace, to_replace->number_of_descriptors());
+  WriteBarrier::ForDescriptorArray(to_replace,
+                                   to_replace->number_of_descriptors());
 #endif
   while (current->instance_descriptors(cage_base) == to_replace) {
     Tagged<Map> next;
@@ -841,7 +842,8 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(*descriptors, descriptors->number_of_descriptors());
+  WriteBarrier::ForDescriptorArray(*descriptors,
+                                   descriptors->number_of_descriptors());
 #endif
 
   // Update the descriptors from {map} (inclusive) until the initial map
@@ -2326,7 +2328,7 @@ void Map::SetInstanceDescriptors(Isolate* isolate,
   set_instance_descriptors(descriptors, kReleaseStore, barrier_mode);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(descriptors, number_of_own_descriptors);
+  WriteBarrier::ForDescriptorArray(descriptors, number_of_own_descriptors);
 #endif
 }
 

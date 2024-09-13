@@ -135,29 +135,6 @@
 namespace v8 {
 namespace internal {
 
-// These are outside the Heap class so they can be forward-declared
-// in heap-write-barrier-inl.h.
-bool Heap_PageFlagsAreConsistent(Tagged<HeapObject> object) {
-  return Heap::PageFlagsAreConsistent(object);
-}
-
-void Heap_CombinedGenerationalAndSharedBarrierSlow(Tagged<HeapObject> object,
-                                                   Address slot,
-                                                   Tagged<HeapObject> value) {
-  Heap::CombinedGenerationalAndSharedBarrierSlow(object, slot, value);
-}
-
-void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
-    Tagged<EphemeronHashTable> table, Address slot, Tagged<HeapObject> value) {
-  Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(table, slot, value);
-}
-
-void Heap_GenerationalBarrierForCodeSlow(Tagged<InstructionStream> host,
-                                         RelocInfo* rinfo,
-                                         Tagged<HeapObject> object) {
-  Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
-}
-
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
   DCHECK_EQ(Smi::zero(), construct_stub_create_deopt_pc_offset());
   set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
@@ -2152,8 +2129,10 @@ void Heap::MoveRange(Tagged<HeapObject> dst_object, const ObjectSlot dst_slot,
   } else {
     MemMove(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
   }
-  if (mode == SKIP_WRITE_BARRIER) return;
-  WriteBarrierForRange(dst_object, dst_slot, dst_end);
+  if (mode == SKIP_WRITE_BARRIER) {
+    return;
+  }
+  WriteBarrier::ForRange(this, dst_object, dst_slot, dst_end);
 }
 
 // Instantiate Heap::CopyRange().
@@ -2189,8 +2168,10 @@ void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
   } else {
     MemCopy(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
   }
-  if (mode == SKIP_WRITE_BARRIER) return;
-  WriteBarrierForRange(dst_object, dst_slot, dst_end);
+  if (mode == SKIP_WRITE_BARRIER) {
+    return;
+  }
+  WriteBarrier::ForRange(this, dst_object, dst_slot, dst_end);
 }
 
 bool Heap::CollectionRequested() {
@@ -7221,256 +7202,6 @@ std::optional<Tagged<Code>> Heap::TryFindCodeForInnerPointerForPrinting(
     }
   }
   return {};
-}
-
-void Heap::CombinedGenerationalAndSharedBarrierSlow(Tagged<HeapObject> object,
-                                                    Address slot,
-                                                    Tagged<HeapObject> value) {
-  if (HeapObjectInYoungGeneration(value)) {
-    Heap::GenerationalBarrierSlow(object, slot, value);
-
-  } else {
-    DCHECK(MemoryChunk::FromHeapObject(value)->InWritableSharedSpace());
-    DCHECK(!InWritableSharedSpace(object));
-    Heap::SharedHeapBarrierSlow(object, slot);
-  }
-}
-
-void Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(
-    Tagged<EphemeronHashTable> table, Address slot, Tagged<HeapObject> value) {
-  if (HeapObjectInYoungGeneration(value)) {
-    MutablePageMetadata* table_chunk =
-        MutablePageMetadata::FromHeapObject(table);
-    table_chunk->heap()->RecordEphemeronKeyWrite(table, slot);
-
-  } else {
-    DCHECK(MemoryChunk::FromHeapObject(value)->InWritableSharedSpace());
-    DCHECK(!InWritableSharedSpace(table));
-    Heap::SharedHeapBarrierSlow(table, slot);
-  }
-}
-
-void Heap::GenerationalBarrierSlow(Tagged<HeapObject> object, Address slot,
-                                   Tagged<HeapObject> value) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  MutablePageMetadata* metadata = MutablePageMetadata::cast(chunk->Metadata());
-  if (LocalHeap::Current() == nullptr) {
-    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
-        metadata, chunk->Offset(slot));
-  } else {
-    RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::ATOMIC>(
-        metadata, chunk->Offset(slot));
-  }
-}
-
-void Heap::SharedHeapBarrierSlow(Tagged<HeapObject> object, Address slot) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  DCHECK(!chunk->InWritableSharedSpace());
-  RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
-      MutablePageMetadata::cast(chunk->Metadata()), chunk->Offset(slot));
-}
-
-void Heap::RecordEphemeronKeyWrite(Tagged<EphemeronHashTable> table,
-                                   Address slot) {
-  ephemeron_remembered_set_->RecordEphemeronKeyWrite(table, slot);
-}
-
-void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
-                                            Address key_slot_address,
-                                            Isolate* isolate) {
-  Tagged<EphemeronHashTable> table =
-      Cast<EphemeronHashTable>(Tagged<Object>(raw_object));
-  ObjectSlot key_slot(key_slot_address);
-  CombinedEphemeronWriteBarrier(table, key_slot, *key_slot,
-                                UPDATE_WRITE_BARRIER);
-}
-
-enum RangeWriteBarrierMode {
-  kDoGenerationalOrShared = 1 << 0,
-  kDoMarking = 1 << 1,
-  kDoEvacuationSlotRecording = 1 << 2,
-};
-
-template <int kModeMask, typename TSlot>
-void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_chunk,
-                                    Tagged<HeapObject> object, TSlot start_slot,
-                                    TSlot end_slot) {
-  // At least one of generational or marking write barrier should be requested.
-  static_assert(kModeMask & (kDoGenerationalOrShared | kDoMarking));
-  // kDoEvacuationSlotRecording implies kDoMarking.
-  static_assert(!(kModeMask & kDoEvacuationSlotRecording) ||
-                (kModeMask & kDoMarking));
-
-  MarkingBarrier* marking_barrier = nullptr;
-  static constexpr Tagged_t kPageMask =
-      ~static_cast<Tagged_t>(PageMetadata::kPageSize - 1);
-  Tagged_t cached_uninteresting_page =
-      static_cast<Tagged_t>(read_only_space_->FirstPageAddress()) & kPageMask;
-
-  if (kModeMask & kDoMarking) {
-    marking_barrier = WriteBarrier::CurrentMarkingBarrier(object);
-  }
-
-  MarkCompactCollector* collector = this->mark_compact_collector();
-  MutablePageMetadata* source_page_metadata =
-      MutablePageMetadata::cast(source_chunk->Metadata());
-
-  for (TSlot slot = start_slot; slot < end_slot; ++slot) {
-    // If we *only* need the generational or shared WB, we can skip objects
-    // residing on uninteresting pages.
-    Tagged_t compressed_page;
-    if (kModeMask == kDoGenerationalOrShared) {
-      Tagged_t tagged_value = *slot.location();
-      if (HAS_SMI_TAG(tagged_value)) continue;
-      compressed_page = tagged_value & kPageMask;
-      if (compressed_page == cached_uninteresting_page) {
-#if DEBUG
-        typename TSlot::TObject value = *slot;
-        Tagged<HeapObject> value_heap_object;
-        if (value.GetHeapObject(&value_heap_object)) {
-          CHECK(!Heap::InYoungGeneration(value_heap_object));
-          CHECK(!InWritableSharedSpace(value_heap_object));
-        }
-#endif  // DEBUG
-        continue;
-      }
-      // Fall through to decompressing the pointer and fetching its actual
-      // page header flags.
-    }
-    typename TSlot::TObject value = *slot;
-    Tagged<HeapObject> value_heap_object;
-    if (!value.GetHeapObject(&value_heap_object)) continue;
-
-    if (kModeMask & kDoGenerationalOrShared) {
-      if (Heap::InYoungGeneration(value_heap_object)) {
-        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
-            source_page_metadata, source_chunk->Offset(slot.address()));
-      } else if (InWritableSharedSpace(value_heap_object)) {
-        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
-            source_page_metadata, source_chunk->Offset(slot.address()));
-      } else if (kModeMask == kDoGenerationalOrShared) {
-        cached_uninteresting_page = compressed_page;
-      }
-    }
-
-    if (kModeMask & kDoMarking) {
-      marking_barrier->MarkValue(object, value_heap_object);
-      if (kModeMask & kDoEvacuationSlotRecording) {
-        collector->RecordSlot(source_chunk, HeapObjectSlot(slot),
-                              value_heap_object);
-      }
-    }
-  }
-}
-
-// Instantiate Heap::WriteBarrierForRange() for ObjectSlot and MaybeObjectSlot.
-template void Heap::WriteBarrierForRange<ObjectSlot>(Tagged<HeapObject> object,
-                                                     ObjectSlot start_slot,
-                                                     ObjectSlot end_slot);
-template void Heap::WriteBarrierForRange<MaybeObjectSlot>(
-    Tagged<HeapObject> object, MaybeObjectSlot start_slot,
-    MaybeObjectSlot end_slot);
-
-template <typename TSlot>
-void Heap::WriteBarrierForRange(Tagged<HeapObject> object, TSlot start_slot,
-                                TSlot end_slot) {
-  if (v8_flags.disable_write_barriers) return;
-  MemoryChunk* source_chunk = MemoryChunk::FromHeapObject(object);
-  base::Flags<RangeWriteBarrierMode> mode;
-
-  if (!HeapObjectInYoungGeneration(object) &&
-      !source_chunk->InWritableSharedSpace()) {
-    mode |= kDoGenerationalOrShared;
-  }
-
-  if (incremental_marking()->IsMarking()) {
-    mode |= kDoMarking;
-    if (!source_chunk->ShouldSkipEvacuationSlotRecording()) {
-      mode |= kDoEvacuationSlotRecording;
-    }
-  }
-
-  switch (mode) {
-    // Nothing to be done.
-    case 0:
-      return;
-
-    // Generational only.
-    case kDoGenerationalOrShared:
-      return WriteBarrierForRangeImpl<kDoGenerationalOrShared>(
-          source_chunk, object, start_slot, end_slot);
-    // Marking, no evacuation slot recording.
-    case kDoMarking:
-      return WriteBarrierForRangeImpl<kDoMarking>(source_chunk, object,
-                                                  start_slot, end_slot);
-    // Marking with evacuation slot recording.
-    case kDoMarking | kDoEvacuationSlotRecording:
-      return WriteBarrierForRangeImpl<kDoMarking | kDoEvacuationSlotRecording>(
-          source_chunk, object, start_slot, end_slot);
-
-    // Generational and marking, no evacuation slot recording.
-    case kDoGenerationalOrShared | kDoMarking:
-      return WriteBarrierForRangeImpl<kDoGenerationalOrShared | kDoMarking>(
-          source_chunk, object, start_slot, end_slot);
-
-    // Generational and marking with evacuation slot recording.
-    case kDoGenerationalOrShared | kDoMarking | kDoEvacuationSlotRecording:
-      return WriteBarrierForRangeImpl<kDoGenerationalOrShared | kDoMarking |
-                                      kDoEvacuationSlotRecording>(
-          source_chunk, object, start_slot, end_slot);
-
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Heap::GenerationalBarrierForCodeSlow(Tagged<InstructionStream> host,
-                                          RelocInfo* rinfo,
-                                          Tagged<HeapObject> value) {
-  DCHECK(InYoungGeneration(value));
-  const MarkCompactCollector::RecordRelocSlotInfo info =
-      MarkCompactCollector::ProcessRelocInfo(host, rinfo, value);
-
-  base::MutexGuard write_scope(info.page_metadata->mutex());
-  RememberedSet<OLD_TO_NEW>::InsertTyped(info.page_metadata, info.slot_type,
-                                         info.offset);
-}
-
-bool Heap::PageFlagsAreConsistent(Tagged<HeapObject> object) {
-  MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(object);
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-
-  // Slim chunk flags consistency.
-  CHECK_EQ(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING),
-           chunk->IsMarking());
-
-  if (!v8_flags.sticky_mark_bits) {
-    AllocationSpace identity = metadata->owner()->identity();
-
-    // Generation consistency.
-    CHECK_EQ(identity == NEW_SPACE || identity == NEW_LO_SPACE,
-             chunk->InYoungGeneration());
-  }
-
-  // Marking consistency.
-  if (metadata->IsWritable()) {
-    // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
-    // find a heap. The exception is when the ReadOnlySpace is writeable, during
-    // bootstrapping, so explicitly allow this case.
-    Heap* heap = Heap::FromWritableHeapObject(object);
-    if (chunk->InWritableSharedSpace()) {
-      // The marking bit is not set for chunks in shared spaces during MinorMS
-      // concurrent marking.
-      CHECK_EQ(chunk->IsMarking(),
-               heap->incremental_marking()->IsMajorMarking());
-    } else {
-      CHECK_EQ(chunk->IsMarking(), heap->incremental_marking()->IsMarking());
-    }
-  } else {
-    // Non-writable RO_SPACE must never have marking flag set.
-    CHECK(!chunk->IsMarking());
-  }
-  return true;
 }
 
 #ifdef DEBUG

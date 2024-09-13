@@ -376,35 +376,6 @@ class Heap final {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
-  // Executes generational and/or marking write barrier for a [start, end) range
-  // of non-weak slots inside |object|.
-  template <typename TSlot>
-  V8_EXPORT_PRIVATE void WriteBarrierForRange(Tagged<HeapObject> object,
-                                              TSlot start, TSlot end);
-
-  // Implements slow path of both generational & shared heap barrier.
-  V8_EXPORT_PRIVATE static void CombinedGenerationalAndSharedBarrierSlow(
-      Tagged<HeapObject> object, Address slot, Tagged<HeapObject> value);
-  V8_EXPORT_PRIVATE static void
-  CombinedGenerationalAndSharedEphemeronBarrierSlow(
-      Tagged<EphemeronHashTable> table, Address slot, Tagged<HeapObject> value);
-
-  V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(
-      Tagged<HeapObject> object, Address slot, Tagged<HeapObject> value);
-
-  V8_EXPORT_PRIVATE static void SharedHeapBarrierSlow(Tagged<HeapObject> object,
-                                                      Address slot);
-  V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
-      Tagged<InstructionStream> host, RelocInfo* rinfo,
-      Tagged<HeapObject> value);
-  V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(
-      Tagged<HeapObject> object);
-
-  V8_EXPORT_PRIVATE inline void RecordEphemeronKeyWrite(
-      Tagged<EphemeronHashTable> table, Address key_slot);
-  V8_EXPORT_PRIVATE static void EphemeronKeyWriteBarrierFromCode(
-      Address raw_object, Address address, Isolate* isolate);
-
   EphemeronRememberedSet* ephemeron_remembered_set() {
     return ephemeron_remembered_set_.get();
   }
@@ -1802,12 +1773,6 @@ class Heap final {
                                ClearFreedMemoryMode clear_memory_mode,
                                ClearRecordedSlots clear_slots_mode,
                                VerifyNoSlotsRecorded verify_no_slots_recorded);
-
-  // Range write barrier implementation.
-  template <int kModeMask, typename TSlot>
-  V8_INLINE void WriteBarrierForRangeImpl(MemoryChunk* source_page,
-                                          Tagged<HeapObject> object,
-                                          TSlot start_slot, TSlot end_slot);
 
   // Deopts all code that contains allocation instruction which are tenured or
   // not tenured. Moreover it clears the pretenuring allocation site statistics.

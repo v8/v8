@@ -949,7 +949,7 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
     ObjectSlot start(reinterpret_cast<Address>(initial_element_address));
     ObjectSlot end(
         reinterpret_cast<Address>(initial_element_address + bytes_to_set));
-    isolate->heap()->WriteBarrierForRange(array, start, end);
+    WriteBarrier::ForRange(isolate->heap(), array, start, end);
   }
 }
 

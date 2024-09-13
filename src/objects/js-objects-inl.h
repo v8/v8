@@ -645,7 +645,7 @@ void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
       reinterpret_cast<Address>(instance));
   if (instance) {
-    WriteBarrier::CombinedBarrierForCppHeapPointer(object_, instance);
+    WriteBarrier::ForCppHeapPointer(object_, instance);
   }
 }
 
@@ -655,7 +655,7 @@ void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
       reinterpret_cast<Address>(instance), tag);
   if (instance) {
-    WriteBarrier::CombinedBarrierForCppHeapPointer(object_, instance);
+    WriteBarrier::ForCppHeapPointer(object_, instance);
   }
 }
 

@@ -1266,8 +1266,8 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
                                    RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
     Tagged<HeapObject> object = rinfo->target_object(cage_base());
-    GenerationalBarrierForCode(host, rinfo, object);
-    WriteBarrier::Shared(host, rinfo, object);
+    WriteBarrier::GenerationalForRelocInfo(host, rinfo, object);
+    WriteBarrier::SharedForRelocInfo(host, rinfo, object);
     heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, object);
   }
 

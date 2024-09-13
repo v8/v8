@@ -1377,7 +1377,7 @@ void HeapObject::set_map(Tagged<Map> value, MemoryOrder order,
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     if (emit_write_barrier == EmitWriteBarrier::kYes) {
-      CombinedWriteBarrier(*this, map_slot(), value, UPDATE_WRITE_BARRIER);
+      WriteBarrier::ForValue(*this, map_slot(), value, UPDATE_WRITE_BARRIER);
     } else {
       DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
       SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
@@ -1398,7 +1398,7 @@ void HeapObject::set_map_after_allocation(Tagged<Map> value,
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
-    CombinedWriteBarrier(*this, map_slot(), value, mode);
+    WriteBarrier::ForValue(*this, map_slot(), value, mode);
   } else {
     SLOW_DCHECK(
         // We allow writes of a null map before root initialisation.
@@ -1555,12 +1555,12 @@ bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
 
 WriteBarrierMode HeapObjectLayout::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
-  return GetWriteBarrierModeForObject(this, &promise);
+  return WriteBarrier::GetWriteBarrierModeForObject(this, promise);
 }
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
-  return GetWriteBarrierModeForObject(*this, &promise);
+  return WriteBarrier::GetWriteBarrierModeForObject(*this, promise);
 }
 
 // static
