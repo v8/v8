@@ -2100,7 +2100,7 @@ DEFINE_BOOL(memory_reducer_for_small_heaps, true,
 DEFINE_INT(memory_reducer_gc_count, 2,
            "Maximum number of memory reducer GCs scheduled")
 DEFINE_BOOL(
-    external_memory_accounted_in_global_limit, true,
+    external_memory_accounted_in_global_limit, false,
     "External memory limits are computed as part of global limits in v8 Heap.")
 DEFINE_INT(heap_growing_percent, 0,
            "specifies heap growing factor as (1 + heap_growing_percent/100)")
