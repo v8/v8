@@ -18,17 +18,13 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // Free lists for old object spaces implementation
 
-void FreeListCategory::Unlink(FreeList* owner) {
+void FreeListCategory::Reset(FreeList* owner) {
   if (is_linked(owner) && !top().is_null()) {
     owner->DecreaseAvailableBytes(available_);
   }
+  set_top(FreeSpace());
   set_prev(nullptr);
   set_next(nullptr);
-}
-
-void FreeListCategory::Reset(FreeList* owner) {
-  Unlink(owner);
-  set_top(FreeSpace());
   available_ = 0;
 }
 
@@ -254,11 +250,6 @@ void FreeListManyCached::Reset() {
   FreeListMany::Reset();
 }
 
-void FreeListManyCached::ResetForNonBlackAllocatedPages() {
-  ResetCache();
-  FreeListMany::ResetForNonBlackAllocatedPages();
-}
-
 bool FreeListManyCached::AddCategory(FreeListCategory* category) {
   bool was_added = FreeList::AddCategory(category);
 
@@ -442,25 +433,6 @@ Tagged<FreeSpace> FreeListManyCachedOrigin::Allocate(size_t size_in_bytes,
 void FreeList::Reset() {
   ForAllFreeListCategories(
       [this](FreeListCategory* category) { category->Reset(this); });
-  for (int i = kFirstCategory; i < number_of_categories_; i++) {
-    categories_[i] = nullptr;
-  }
-  wasted_bytes_ = 0;
-  available_ = 0;
-}
-
-void FreeList::ResetForNonBlackAllocatedPages() {
-  DCHECK(v8_flags.black_allocated_pages);
-  ForAllFreeListCategories([this](FreeListCategory* category) {
-    if (!category->is_empty()) {
-      auto* chunk = MemoryChunk::FromHeapObject(category->top());
-      if (chunk->IsFlagSet(MemoryChunk::BLACK_ALLOCATED)) {
-        category->Unlink(this);
-        return;
-      }
-    }
-    category->Reset(this);
-  });
   for (int i = kFirstCategory; i < number_of_categories_; i++) {
     categories_[i] = nullptr;
   }

@@ -378,8 +378,6 @@ class MarkCompactCollector final {
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
 
-  void ResetAndRelinkBlackAllocatedPage(PagedSpace*, PageMetadata*);
-
   Heap* const heap_;
 
   base::Mutex mutex_;

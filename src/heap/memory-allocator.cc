@@ -431,20 +431,6 @@ PageMetadata* MemoryAllocator::AllocatePage(
   }
   MemoryChunk* chunk;
   MemoryChunk::MainThreadFlags flags = metadata->InitialFlags(executable);
-  if (v8_flags.black_allocated_pages && space->identity() != NEW_SPACE &&
-      space->identity() != NEW_LO_SPACE &&
-      isolate_->heap()->incremental_marking()->black_allocation()) {
-    // Disable the write barrier for objects pointing to this page. We don't
-    // need to trigger the barrier for pointers to old black-allocated pages,
-    // since those are never considered for evacuation. However, we have to
-    // keep the old->shared remembered set across multiple GCs, so those
-    // pointers still need to be recorded.
-    if (!IsAnySharedSpace(space->identity())) {
-      flags &= ~MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
-    }
-    // And mark the page as black allocated.
-    flags |= MemoryChunk::BLACK_ALLOCATED;
-  }
   if (executable) {
     RwxMemoryWriteScope scope("Initialize a new MemoryChunk.");
     chunk = new (chunk_info->chunk) MemoryChunk(flags, metadata);

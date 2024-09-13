@@ -1749,13 +1749,9 @@ class Heap final {
   // Make all LABs of all threads iterable.
   void MakeLinearAllocationAreasIterable();
 
-  // Enables/Disables black allocation in shared LABs when not using black
-  // allocated pages.
+  // Enables/Disables black allocation in shared LABs.
   void MarkSharedLinearAllocationAreasBlack();
   void UnmarkSharedLinearAllocationAreas();
-
-  // Free shared LABs and reset freelists.
-  void FreeSharedLinearAllocationAreasAndResetFreeLists();
 
   // Performs garbage collection in a safepoint.
   void PerformGarbageCollection(GarbageCollector collector,

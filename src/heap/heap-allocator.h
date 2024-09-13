@@ -101,18 +101,14 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
 #endif  // DEBUG
 
   // Mark/Unmark all LABs except for new and shared space. Use for black
-  // allocation with sticky mark bits.
+  // allocation.
   void MarkLinearAllocationAreasBlack();
   void UnmarkLinearAllocationsArea();
 
   // Mark/Unmark linear allocation areas in shared heap black. Used for black
-  // allocation with sticky mark bits.
+  // allocation.
   void MarkSharedLinearAllocationAreasBlack();
   void UnmarkSharedLinearAllocationAreas();
-
-  // Free linear allocation areas and reset free-lists.
-  void FreeLinearAllocationAreasAndResetFreeLists();
-  void FreeSharedLinearAllocationAreasAndResetFreeLists();
 
   void PauseAllocationObservers();
   void ResumeAllocationObservers();

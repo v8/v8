@@ -51,9 +51,6 @@ class FreeListCategory {
     next_ = nullptr;
   }
 
-  // Unlinks the category from the freelist.
-  void Unlink(FreeList* owner);
-  // Resets all the fields of the category.
   void Reset(FreeList* owner);
 
   void RepairFreeList(Heap* heap);
@@ -163,7 +160,6 @@ class FreeList {
       size_t size_in_bytes) = 0;
 
   virtual void Reset();
-  virtual void ResetForNonBlackAllocatedPages();
 
   // Return the number of bytes available on the free list.
   size_t Available() {
@@ -362,7 +358,6 @@ class V8_EXPORT_PRIVATE FreeListManyCached : public FreeListMany {
   size_t Free(const WritableFreeSpace& free_space, FreeMode mode) override;
 
   void Reset() override;
-  void ResetForNonBlackAllocatedPages() override;
 
   bool AddCategory(FreeListCategory* category) override;
   void RemoveCategory(FreeListCategory* category) override;

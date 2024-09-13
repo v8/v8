@@ -19,8 +19,6 @@ void IncrementalMarking::TransferColor(Tagged<HeapObject> from,
                                        Tagged<HeapObject> to) {
   DCHECK(marking_state()->IsUnmarked(to));
   DCHECK(!black_allocation());
-  DCHECK(!MemoryChunk::FromHeapObject(to)->IsFlagSet(
-      MemoryChunk::BLACK_ALLOCATED));
 
   if (marking_state()->IsMarked(from)) {
     bool success = marking_state()->TryMark(to);

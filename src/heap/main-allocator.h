@@ -228,9 +228,8 @@ class MainAllocator {
 
   V8_EXPORT_PRIVATE void MakeLinearAllocationAreaIterable();
 
-  V8_EXPORT_PRIVATE void MarkLinearAllocationAreaBlack();
-  V8_EXPORT_PRIVATE void UnmarkLinearAllocationArea();
-  V8_EXPORT_PRIVATE void FreeLinearAllocationAreaAndResetFreeList();
+  void MarkLinearAllocationAreaBlack();
+  void UnmarkLinearAllocationArea();
 
   V8_EXPORT_PRIVATE Address AlignTopForTesting(AllocationAlignment alignment,
                                                int offset);
