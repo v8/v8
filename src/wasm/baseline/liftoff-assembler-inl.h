@@ -22,7 +22,7 @@
 #include "src/wasm/baseline/mips64/liftoff-assembler-mips64-inl.h"
 #elif V8_TARGET_ARCH_LOONG64
 #include "src/wasm/baseline/loong64/liftoff-assembler-loong64-inl.h"
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
 #include "src/wasm/baseline/s390/liftoff-assembler-s390-inl.h"
 #elif V8_TARGET_ARCH_RISCV64
 #include "src/wasm/baseline/riscv/liftoff-assembler-riscv64-inl.h"

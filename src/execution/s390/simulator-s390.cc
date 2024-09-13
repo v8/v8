@@ -2291,7 +2291,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       }
       int64_t saved_lr = *reinterpret_cast<intptr_t*>(
           get_register(sp) + kStackFrameRASlot * kSystemPointerSize);
-#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
+#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390X)
       // On zLinux-31, the saved_lr might be tagged with a high bit of 1.
       // Cleanse it before proceeding with simulation.
       saved_lr &= 0x7FFFFFFF;
@@ -4985,7 +4985,7 @@ EVALUATE(BCR) {
   DECODE_RR_INSTRUCTION(r1, r2);
   if (TestConditionCode(Condition(r1))) {
     intptr_t r2_val = get_register(r2);
-#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
+#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390X)
     // On 31-bit, the top most bit may be 0 or 1, but is ignored by the
     // hardware.  Cleanse the top bit before jumping to it, unless it's one
     // of the special PCs
@@ -5021,7 +5021,7 @@ EVALUATE(BASR) {
   intptr_t link_addr = get_pc() + 2;
   // If R2 is zero, the BASR does not branch.
   int64_t r2_val = (r2 == 0) ? link_addr : get_register(r2);
-#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
+#if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390X)
   // On 31-bit, the top most bit may be 0 or 1, which can cause issues
   // for stackwalker.  The top bit should either be cleanse before being
   // pushed onto the stack, or during stack walking when dereferenced.

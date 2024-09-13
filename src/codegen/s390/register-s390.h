@@ -124,8 +124,6 @@ const int kStackFrameExtraParamSlot = 24;
 // callee preserved register save area.
 #if V8_TARGET_ARCH_S390X
 const int kCalleeRegisterSaveAreaSize = 160;
-#elif V8_TARGET_ARCH_S390
-const int kCalleeRegisterSaveAreaSize = 96;
 #else
 const int kCalleeRegisterSaveAreaSize = 0;
 #endif

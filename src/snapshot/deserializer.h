@@ -31,7 +31,7 @@ class Object;
 
 // Used for platforms with embedded constant pools to trigger deserialization
 // of objects found in code.
-#if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_S390) ||   \
+#if defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_S390X) ||  \
     defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_RISCV32) || \
     defined(V8_TARGET_ARCH_RISCV64) || V8_EMBEDDED_CONSTANT_POOL_BOOL
 #define V8_CODE_EMBEDS_OBJECT_POINTER 1

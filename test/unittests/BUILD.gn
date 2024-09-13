@@ -746,7 +746,7 @@ v8_source_set("v8_unittests_sources") {
     if (v8_enable_turbofan) {
       sources += [ "compiler/ppc/instruction-selector-ppc-unittest.cc" ]
     }
-  } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+  } else if (v8_current_cpu == "s390x") {
     sources += [
       "assembler/disasm-s390-unittest.cc",
       "assembler/macro-assembler-s390-unittest.cc",

@@ -4,7 +4,7 @@
 
 # Increase the timeout for these:
 SLOW_ARCHS = [
-    "arm", "arm64", "mips64", "mips64el", "s390", "s390x", "riscv32", "riscv64",
+    "arm", "arm64", "mips64", "mips64el", "s390x", "riscv32", "riscv64",
     "loong64"
 ]
 

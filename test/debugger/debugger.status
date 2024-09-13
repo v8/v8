@@ -115,11 +115,11 @@
   'debug/wasm/debug-enabled-tier-down-wasm-unsupported-liftoff': [SKIP],
 }],
 ##############################################################################
-['arch == s390 or arch == s390x', {
+['arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debug/debug-liveedit-check-stack': [SKIP],
-}],  # 'arch == s390 or arch == s390x'
+}],  # 'arch == s390x'
 
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.

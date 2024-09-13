@@ -242,7 +242,7 @@ bool RelocInfo::OffHeapTargetIsCodedSpecially() {
     defined(V8_TARGET_ARCH_X64)
   return false;
 #elif defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_MIPS64) ||   \
-    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390) ||      \
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X) ||     \
     defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_LOONG64) || \
     defined(V8_TARGET_ARCH_RISCV32)
   return true;

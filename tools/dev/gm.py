@@ -52,7 +52,7 @@ BUILD_TARGETS_ALL = ["all"]
 # All arches that this script understands.
 ARCHES = [
     "ia32", "x64", "arm", "arm64", "mips64el", "ppc64", "riscv32", "riscv64",
-    "s390", "s390x", "android_arm", "android_arm64", "loong64", "fuchsia_x64",
+    "s390x", "android_arm", "android_arm64", "loong64", "fuchsia_x64",
     "fuchsia_arm64", "android_riscv64"
 ]
 # Arches that get built/run when you don't specify any.
@@ -524,7 +524,7 @@ class ManagedConfig(RawConfig):
     elif self.arch == "android_riscv64":
       v8_cpu = "riscv64"
     elif self.arch in ("arm", "arm64", "mips64el", "ppc64", "riscv64",
-                       "riscv32", "s390", "s390x", "loong64"):
+                       "riscv32", "s390x", "loong64"):
       v8_cpu = self.arch
     else:
       return []

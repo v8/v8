@@ -38,9 +38,9 @@
 #include <set>
 #include <string>
 
-#if V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_S390X
 
-#if V8_HOST_ARCH_S390 && !V8_OS_ZOS
+#if V8_HOST_ARCH_S390X && !V8_OS_ZOS
 #include <elf.h>  // Required for auxv checks for STFLE support
 #include <sys/auxv.h>
 #endif
@@ -75,7 +75,7 @@ static bool supportsCPUFeature(const char* feature) {
                                   "eimm", "dfp", "etf3eh", "highgprs", "te",
                                   "vx"});
   if (features.empty()) {
-#if V8_HOST_ARCH_S390
+#if V8_HOST_ARCH_S390X
 
 #ifndef HWCAP_S390_VX
 #define HWCAP_S390_VX 2048
@@ -115,7 +115,7 @@ static bool supportsCPUFeature(const char* feature) {
 static bool supportsSTFLE() {
 #if V8_OS_ZOS
   return __is_stfle_available();
-#elif V8_HOST_ARCH_S390
+#elif V8_HOST_ARCH_S390X
   static bool read_tried = false;
   static uint32_t auxv_hwcap = 0;
 
@@ -192,7 +192,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 // Need to define host, as we are generating inlined S390 assembly to test
 // for facilities.
-#if V8_HOST_ARCH_S390
+#if V8_HOST_ARCH_S390X
   if (performSTFLE) {
     // STFLE D(B) requires:
     //    GPR0 to specify # of double words to update minus 1.
@@ -274,14 +274,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 }
 
 void CpuFeatures::PrintTarget() {
-  const char* s390_arch = nullptr;
-
-#if V8_TARGET_ARCH_S390X
-  s390_arch = "s390x";
-#else
-  s390_arch = "s390";
-#endif
-
+  const char* s390_arch = "s390x";
   PrintF("target %s\n", s390_arch);
 }
 
@@ -890,4 +883,4 @@ DoubleRegList Assembler::DefaultFPTmpList() {
 
 }  // namespace internal
 }  // namespace v8
-#endif  // V8_TARGET_ARCH_S390
+#endif  // V8_TARGET_ARCH_S390X

@@ -1416,14 +1416,11 @@ config("toolchain") {
     defines += [ "V8_TARGET_ARCH_LOONG64" ]
   }
 
-  if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    defines += [ "V8_TARGET_ARCH_S390" ]
+  if (v8_current_cpu == "s390x") {
     cflags += [ "-ffp-contract=off" ]
-    if (v8_current_cpu == "s390x") {
-      defines += [ "V8_TARGET_ARCH_S390X" ]
-    }
+    defines += [ "V8_TARGET_ARCH_S390X" ]
     if (host_byteorder == "little") {
-      defines += [ "V8_TARGET_ARCH_S390_LE_SIM" ]
+      defines += [ "V8_TARGET_ARCH_S390X_LE_SIM" ]
     } else if (current_os != "zos") {
       cflags += [ "-march=z196" ]
     }
@@ -3086,7 +3083,7 @@ v8_source_set("v8_initializers") {
       ### gcmole(ppc64) ###
       "src/builtins/ppc/builtins-ppc.cc",
     ]
-  } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+  } else if (v8_current_cpu == "s390x") {
     sources += [
       ### gcmole(s390) ###
       "src/builtins/s390/builtins-s390.cc",
@@ -4781,7 +4778,7 @@ v8_header_set("v8_internal_headers") {
         "src/baseline/ppc/baseline-compiler-ppc-inl.h",
       ]
     }
-  } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+  } else if (v8_current_cpu == "s390x") {
     sources += [
       ### gcmole(s390) ###
       "src/codegen/s390/assembler-s390-inl.h",
@@ -5103,7 +5100,7 @@ if (v8_current_cpu == "x86") {
     "src/compiler/backend/ppc/instruction-selector-ppc.cc",
     "src/compiler/backend/ppc/unwinding-info-writer-ppc.cc",
   ]
-} else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+} else if (v8_current_cpu == "s390x") {
   v8_compiler_sources += [
     ### gcmole(s390) ###
     "src/compiler/backend/s390/code-generator-s390.cc",
@@ -6139,7 +6136,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/ppc/simulator-ppc.cc",
       "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
     ]
-  } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+  } else if (v8_current_cpu == "s390x") {
     sources += [
       ### gcmole(s390) ###
       "src/codegen/s390/assembler-s390.cc",
@@ -6315,8 +6312,7 @@ v8_source_set("v8_base_without_compiler") {
   # to implement atomic memory access
   if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
       v8_current_cpu == "ppc64" ||
-      (current_os != "zos" &&
-       (v8_current_cpu == "s390" || v8_current_cpu == "s390x")) ||
+      (current_os != "zos" && v8_current_cpu == "s390x") ||
       v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
     if (!is_clang) {
       libs += [ "atomic" ]

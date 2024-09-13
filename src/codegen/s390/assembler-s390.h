@@ -41,7 +41,7 @@
 #define V8_CODEGEN_S390_ASSEMBLER_S390_H_
 #include <stdio.h>
 #include <memory>
-#if V8_HOST_ARCH_S390 && !V8_OS_ZOS
+#if V8_HOST_ARCH_S390X && !V8_OS_ZOS
 // elf.h include is required for auxv check for STFLE facility used
 // for hardware detection, which is sensible only on s390 hosts.
 #include <elf.h>

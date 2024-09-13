@@ -1228,7 +1228,7 @@ class CodeGeneratorTester {
                                  int first_unused_stack_slot,
                                  CodeGeneratorTester::PushTypeFlag push_type) {
     generator_->AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390) || \
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390X) || \
     defined(V8_TARGET_ARCH_PPC64)
     // Only folding register pushes is supported on ARM.
     bool supported =

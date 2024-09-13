@@ -5,7 +5,7 @@
 #include <assert.h>  // For assert
 #include <limits.h>  // For LONG_MIN, LONG_MAX.
 
-#if V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_S390X
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
@@ -6917,4 +6917,4 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
 #undef __
 
-#endif  // V8_TARGET_ARCH_S390
+#endif  // V8_TARGET_ARCH_S390X

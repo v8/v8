@@ -480,8 +480,7 @@ v8_config(
             ],
             "@v8//bazel/config:v8_target_arm64": ["V8_TARGET_ARCH_ARM64"],
             "@v8//bazel/config:v8_target_s390x": [
-                "V8_TARGET_ARCH_S390",
-                "V8_TARGET_ARCH_S390X",
+                "V8_TARGET_ARCH_S390X"
             ],
             "@v8//bazel/config:v8_target_riscv64": [
                 # NOTE: Bazel rules for riscv64 weren't tested on a real system.

@@ -921,7 +921,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Cleanse pointer address on 31bit by zero out top  bit.
   // This is a NOP on 64-bit.
   void CleanseP(Register src) {
-#if (V8_HOST_ARCH_S390 && !(V8_TARGET_ARCH_S390X))
+#if (V8_HOST_ARCH_S390X && !(V8_TARGET_ARCH_S390X))
     nilh(src, Operand(0x7FFF));
 #endif
   }

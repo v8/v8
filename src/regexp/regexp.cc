@@ -917,7 +917,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 #elif V8_TARGET_ARCH_ARM64
     macro_assembler.reset(new RegExpMacroAssemblerARM64(isolate, zone, mode,
                                                         output_register_count));
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
     macro_assembler.reset(new RegExpMacroAssemblerS390(isolate, zone, mode,
                                                        output_register_count));
 #elif V8_TARGET_ARCH_PPC64
