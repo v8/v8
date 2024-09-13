@@ -1747,7 +1747,7 @@ class V8_EXPORT Isolate {
   friend class PersistentValueMapBase;
 
   internal::Address* GetDataFromSnapshotOnce(size_t index);
-  void ReportExternalAllocationLimitReached();
+  void HandleExternalMemoryInterrupt();
 };
 
 void Isolate::SetData(uint32_t slot, void* data) {

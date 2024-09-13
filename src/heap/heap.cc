@@ -715,7 +715,7 @@ void Heap::PrintShortHeapStatistics() {
                memory_allocator()->pool()->NumberOfCommittedChunks(),
                CommittedMemoryOfPool() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
-               external_memory_.total() / KB);
+               external_memory() / KB);
   PrintIsolate(isolate_, "Backing store memory: %6" PRIu64 " KB\n",
                backing_store_bytes() / KB);
   PrintIsolate(isolate_, "External memory global %zu KB\n",
@@ -1535,19 +1535,17 @@ void Heap::PreciseCollectAllGarbage(GCFlags gc_flags,
   CollectAllGarbage(gc_flags, gc_reason, gc_callback_flags);
 }
 
-void Heap::ReportExternalMemoryPressure() {
+void Heap::HandleExternalMemoryInterrupt() {
   const GCCallbackFlags kGCCallbackFlagsForExternalMemory =
       static_cast<GCCallbackFlags>(
           kGCCallbackFlagSynchronousPhantomCallbackProcessing |
           kGCCallbackFlagCollectAllExternalMemory);
-  int64_t current = external_memory_.total();
-  int64_t baseline = external_memory_.low_since_mark_compact();
-  int64_t limit = external_memory_.limit();
-  TRACE_EVENT2(
-      "devtools.timeline,v8", "V8.ExternalMemoryPressure", "external_memory_mb",
-      static_cast<int>((current - baseline) / MB), "external_memory_limit_mb",
-      static_cast<int>((limit - baseline) / MB));
-  if (current > baseline + external_memory_hard_limit()) {
+  int64_t current = external_memory();
+  if (current > external_memory_hard_limit()) {
+    TRACE_EVENT2("devtools.timeline,v8", "V8.ExternalMemoryPressure",
+                 "external_memory_mb", static_cast<int>((current) / MB),
+                 "external_memory_hard_limit_mb",
+                 static_cast<int>((external_memory_hard_limit()) / MB));
     CollectAllGarbage(
         GCFlag::kReduceMemoryFootprint,
         GarbageCollectionReason::kExternalMemoryPressure,
@@ -1555,6 +1553,23 @@ void Heap::ReportExternalMemoryPressure() {
                                      kGCCallbackFlagsForExternalMemory));
     return;
   }
+  if (v8_flags.external_memory_accounted_in_global_limit) {
+    // Under `external_memory_accounted_in_global_limit`, external interrupt
+    // only triggers a check to allocation limits.
+    external_memory_.UpdateLimitForInterrupt(current);
+    StartIncrementalMarkingIfAllocationLimitIsReached(
+        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
+        kGCCallbackFlagsForExternalMemory);
+    return;
+  }
+  int64_t soft_limit = external_memory_.soft_limit();
+  if (current <= soft_limit) {
+    return;
+  }
+  TRACE_EVENT2("devtools.timeline,v8", "V8.ExternalMemoryPressure",
+               "external_memory_mb", static_cast<int>((current) / MB),
+               "external_memory_soft_limit_mb",
+               static_cast<int>((soft_limit) / MB));
   if (incremental_marking()->IsStopped()) {
     if (incremental_marking()->CanAndShouldBeStarted()) {
       StartIncrementalMarking(GCFlagsForIncrementalMarking(),
@@ -1573,7 +1588,13 @@ void Heap::ReportExternalMemoryPressure() {
   }
 }
 
-int64_t Heap::external_memory_limit() { return external_memory_.limit(); }
+int64_t Heap::external_memory_limit_for_interrupt() {
+  return external_memory_.limit_for_interrupt();
+}
+
+int64_t Heap::external_memory_soft_limit() {
+  return external_memory_.soft_limit();
+}
 
 Heap::DevToolsTraceEventScope::DevToolsTraceEventScope(Heap* heap,
                                                        const char* event_name,
@@ -2555,16 +2576,16 @@ Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
 
   size_t new_old_generation_allocation_limit =
       MemoryController<V8HeapTrait>::BoundAllocationLimit(
-          heap, heap->OldGenerationConsumedBytes(),
-          heap->OldGenerationConsumedBytes() * v8_growing_factor,
+          heap, heap->OldGenerationConsumedBytesAtLastGC(),
+          heap->OldGenerationConsumedBytesAtLastGC() * v8_growing_factor,
           heap->min_old_generation_size_, heap->max_old_generation_size(),
           new_space_capacity, mode);
 
   DCHECK_GT(global_growing_factor, 0);
   size_t new_global_allocation_limit =
       MemoryController<GlobalMemoryTrait>::BoundAllocationLimit(
-          heap, heap->GlobalConsumedBytes(),
-          heap->GlobalConsumedBytes() * global_growing_factor,
+          heap, heap->GlobalConsumedBytesAtLastGC(),
+          heap->GlobalConsumedBytesAtLastGC() * global_growing_factor,
           heap->min_global_memory_size_, heap->max_global_memory_size_,
           new_space_capacity, mode);
 
@@ -2584,8 +2605,6 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
   size_t new_global_allocation_limit = new_limits.global_allocation_limit;
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
-    external_memory_.ResetAfterGC();
-
     if (v8_flags.memory_balancer) {
       // Now recompute the new allocation limit.
       mb_->RecomputeLimits(new_limits.global_allocation_limit -
@@ -2629,6 +2648,12 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
     DCHECK(!AllocationLimitOvershotByLargeMargin());
     return;
   }
+
+  UpdateOldGenerationAllocationCounter();
+  old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
+  old_generation_wasted_at_last_gc_ = OldGenerationWastedBytes();
+  external_memory_.UpdateLowSinceMarkCompact(external_memory_.total());
+  embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
 
   auto new_limits = ComputeNewAllocationLimits(this);
   size_t new_old_generation_allocation_limit =
@@ -2702,7 +2727,8 @@ void Heap::MarkCompact() {
       static_cast<size_t>(promoted_objects_size_);
   old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
   old_generation_wasted_at_last_gc_ = OldGenerationWastedBytes();
-  global_consumed_memory_at_last_gc_ = GlobalConsumedBytes();
+  external_memory_.UpdateLowSinceMarkCompact(external_memory_.total());
+  embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
 }
 
 void Heap::MinorMarkSweep() {
@@ -4188,7 +4214,7 @@ void Heap::CollectGarbageOnMemoryPressure() {
 
   // Estimate how much memory we can free.
   int64_t potential_garbage =
-      (CommittedMemory() - SizeOfObjects()) + external_memory_.total();
+      (CommittedMemory() - SizeOfObjects()) + external_memory();
   // If we can potentially free large amount of memory, then start GC right
   // away instead of waiting for memory reducer.
   if (potential_garbage >= kGarbageThresholdInBytes &&
@@ -5245,13 +5271,26 @@ size_t Heap::EmbedderSizeOfObjects() const {
 }
 
 size_t Heap::GlobalSizeOfObjects() const {
-  return OldGenerationSizeOfObjects() + EmbedderSizeOfObjects();
+  return OldGenerationSizeOfObjects() + EmbedderSizeOfObjects() +
+         (v8_flags.external_memory_accounted_in_global_limit ? external_memory()
+                                                             : 0);
 }
 
 size_t Heap::GlobalWastedBytes() const { return OldGenerationWastedBytes(); }
 
 size_t Heap::GlobalConsumedBytes() const {
   return GlobalSizeOfObjects() + GlobalWastedBytes();
+}
+
+size_t Heap::OldGenerationConsumedBytesAtLastGC() const {
+  return old_generation_size_at_last_gc_ + old_generation_wasted_at_last_gc_;
+}
+
+size_t Heap::GlobalConsumedBytesAtLastGC() const {
+  return OldGenerationConsumedBytesAtLastGC() + embedder_size_at_last_gc_ +
+         (v8_flags.external_memory_accounted_in_global_limit
+              ? external_memory_.low_since_mark_compact()
+              : 0);
 }
 
 uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() const {
@@ -5263,8 +5302,10 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
   // The number is chosen based on v8.browsing_mobile on Nexus 7v2.
   constexpr size_t kMarginForSmallHeaps = 32u * MB;
 
-  uint64_t size_now =
-      OldGenerationConsumedBytes() + AllocatedExternalMemorySinceMarkCompact();
+  uint64_t size_now = OldGenerationConsumedBytes();
+  if (!v8_flags.external_memory_accounted_in_global_limit) {
+    size_now += AllocatedExternalMemorySinceMarkCompact();
+  }
   if (v8_flags.minor_ms && incremental_marking()->IsMajorMarking()) {
     size_now += YoungGenerationConsumedBytes();
   }
@@ -5424,14 +5465,14 @@ double PercentToLimit(size_t size_at_gc, size_t size_now, size_t limit) {
 }  // namespace
 
 double Heap::PercentToOldGenerationLimit() const {
-  return PercentToLimit(
-      old_generation_size_at_last_gc_ + old_generation_wasted_at_last_gc_,
-      OldGenerationConsumedBytes(), old_generation_allocation_limit());
+  return PercentToLimit(OldGenerationConsumedBytesAtLastGC(),
+                        OldGenerationConsumedBytes(),
+                        old_generation_allocation_limit());
 }
 
 double Heap::PercentToGlobalMemoryLimit() const {
-  return PercentToLimit(global_consumed_memory_at_last_gc_,
-                        GlobalConsumedBytes(), global_allocation_limit());
+  return PercentToLimit(GlobalConsumedBytesAtLastGC(), GlobalConsumedBytes(),
+                        global_allocation_limit());
 }
 
 // - kNoLimit means that either incremental marking is disabled or it is too
@@ -6773,6 +6814,15 @@ size_t Heap::YoungArrayBufferBytes() {
   return array_buffer_sweeper()->YoungBytes();
 }
 
+int64_t Heap::UpdateExternalMemory(int64_t delta) {
+  int64_t amount = external_memory_.UpdateAmount(delta);
+  int64_t low_since_mark_compact = external_memory_.low_since_mark_compact();
+  if (amount < low_since_mark_compact) {
+    external_memory_.UpdateLowSinceMarkCompact(amount);
+  }
+  return amount;
+}
+
 size_t Heap::OldArrayBufferBytes() {
   return array_buffer_sweeper()->OldBytes();
 }
@@ -7567,6 +7617,17 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   DCHECK_IMPLIES(
       mode == SweepingForcedFinalizationMode::kUnifiedHeap || !cpp_heap(),
       !tracer()->IsSweepingInProgress());
+
+  if (v8_flags.external_memory_accounted_in_global_limit) {
+    if (GlobalConsumedBytesAtLastGC() == 0 ||
+        OldGenerationConsumedBytesAtLastGC() == 0) {
+      return;
+    }
+    auto new_limits = ComputeNewAllocationLimits(this);
+    SetOldGenerationAndGlobalAllocationLimit(
+        new_limits.old_generation_allocation_limit,
+        new_limits.global_allocation_limit);
+  }
 }
 
 void Heap::EnsureYoungSweepingCompleted() {

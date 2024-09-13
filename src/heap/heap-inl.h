@@ -102,11 +102,7 @@ bool Heap::IsMainThread() const {
   return isolate()->thread_id() == ThreadId::Current();
 }
 
-int64_t Heap::external_memory() { return external_memory_.total(); }
-
-int64_t Heap::update_external_memory(int64_t delta) {
-  return external_memory_.Update(delta);
-}
+int64_t Heap::external_memory() const { return external_memory_.total(); }
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
