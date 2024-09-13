@@ -11,6 +11,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/external-reference.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/x64/assembler-x64.h"
@@ -29,6 +30,7 @@
 #include "src/objects/smi.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -7636,13 +7638,31 @@ void CodeGenerator::AssembleConstructFrame() {
         __ j(above_equal, &done, Label::kNear);
       }
 
-      __ near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-                   RelocInfo::WASM_STUB_CALL);
-      // The call does not return, hence we can ignore any references and just
-      // define an empty safepoint.
-      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-      RecordSafepoint(reference_map);
-      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+      if (v8_flags.experimental_wasm_growable_stacks) {
+        RegList regs_to_save;
+        regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
+        regs_to_save.set(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+        for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
+        __ PushAll(regs_to_save);
+        __ movq(WasmHandleStackOverflowDescriptor::GapRegister(),
+                Immediate(required_slots * kSystemPointerSize));
+        __ movq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), rbp);
+        __ addq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
+                Immediate(static_cast<int32_t>(
+                    call_descriptor->ParameterSlotCount() * kSystemPointerSize +
+                    CommonFrameConstants::kFixedFrameSizeAboveFp)));
+        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ PopAll(regs_to_save);
+      } else {
+        __ near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+                     RelocInfo::WASM_STUB_CALL);
+        // The call does not return, hence we can ignore any references and just
+        // define an empty safepoint.
+        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
+        RecordSafepoint(reference_map);
+        __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+      }
       __ bind(&done);
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -7730,6 +7750,30 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
       __ Assert(equal, AbortReason::kUnexpectedAdditionalPopValue);
     }
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsWasmFunctionCall() &&
+      v8_flags.experimental_wasm_growable_stacks) {
+    __ movq(kScratchRegister,
+            MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset));
+    __ cmpq(
+        kScratchRegister,
+        Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+    Label done;
+    __ j(not_equal, &done);
+    RegList regs_to_save;
+    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
+    __ PushAll(regs_to_save);
+    __ PrepareCallCFunction(1);
+    __ LoadAddress(kCArgRegs[0], ExternalReference::isolate_address());
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+    // Restore old FP. We don't need to restore old SP explicitly, because
+    // it will be restored from FP inside of AssembleDeconstructFrame.
+    __ movq(rbp, kReturnRegister0);
+    __ PopAll(regs_to_save);
+    __ bind(&done);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Register argc_reg = rcx;
   // Functions with JS linkage have at least one parameter (the receiver).

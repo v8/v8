@@ -4268,7 +4268,69 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
 #if V8_ENABLE_WEBASSEMBLY
 void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
-  __ Trap();
+  using ER = ExternalReference;
+  Register frame_base = WasmHandleStackOverflowDescriptor::FrameBaseRegister();
+  Register gap = WasmHandleStackOverflowDescriptor::GapRegister();
+  {
+    DCHECK_NE(kCArgRegs[1], frame_base);
+    DCHECK_NE(kCArgRegs[3], frame_base);
+    __ movq(kCArgRegs[3], gap);
+    __ movq(kCArgRegs[1], rsp);
+    __ movq(kCArgRegs[2], frame_base);
+    __ subq(kCArgRegs[2], kCArgRegs[1]);
+#ifdef V8_TARGET_OS_WIN
+    Register old_fp = rcx;
+    // On windows we need preserve rbp value somewhere before entering
+    // INTERNAL frame later. It will be placed on the stack as an argument.
+    __ movq(old_fp, rbp);
+#else
+    __ movq(kCArgRegs[4], rbp);
+#endif
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ pushq(kCArgRegs[3]);
+    __ PrepareCallCFunction(5);
+    // On windows put the arguments on the stack (PrepareCallCFunction
+    // has created space for this).
+#ifdef V8_TARGET_OS_WIN
+    __ movq(Operand(rsp, 4 * kSystemPointerSize), old_fp);
+#endif
+    __ Move(kCArgRegs[0], ER::isolate_address());
+    __ CallCFunction(ER::wasm_grow_stack(), 5);
+    __ popq(gap);
+    DCHECK_NE(kReturnRegister0, gap);
+  }
+  Label call_runtime;
+  // wasm_grow_stack returns zero if it cannot grow a stack.
+  __ testq(kReturnRegister0, kReturnRegister0);
+  __ j(zero, &call_runtime, Label::kNear);
+  // Calculate old FP - SP offset to adjust FP accordingly to new SP.
+  __ subq(rbp, rsp);
+  __ addq(rbp, kReturnRegister0);
+  __ movq(rsp, kReturnRegister0);
+  __ movq(kScratchRegister,
+          Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+  __ movq(MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
+          kScratchRegister);
+  __ ret(0);
+
+  // If wasm_grow_stack returns zero, interruption or stack overflow
+  // should be handled by runtime call.
+  {
+    __ bind(&call_runtime);
+    __ movq(kWasmImplicitArgRegister,
+            MemOperand(rbp, WasmFrameConstants::kWasmInstanceDataOffset));
+    __ LoadTaggedField(
+        kContextRegister,
+        FieldOperand(kWasmImplicitArgRegister,
+                     WasmTrustedInstanceData::kNativeContextOffset));
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ EnterFrame(StackFrame::INTERNAL);
+    __ SmiTag(gap);
+    __ pushq(gap);
+    __ CallRuntime(Runtime::kWasmStackGuard);
+    __ LeaveFrame(StackFrame::INTERNAL);
+    __ ret(0);
+  }
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

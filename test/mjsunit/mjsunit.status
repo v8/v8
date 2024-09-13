@@ -2175,10 +2175,10 @@
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64)
 
 ##############################################################################
-['(arch != arm64) or conservative_stack_scanning', {
-  # Growable stacks are only supported on arm64.
+['(arch != arm64 and arch != x64) or conservative_stack_scanning', {
+  # Growable stacks are only supported on arm64 and x64.
   'wasm/growable-stacks': [SKIP]
-}],  # (arch != arm64)
+}],  # (arch != arm64 and arch != x64)
 
 ##############################################################################
 ['arch != x64 and arch != arm64 and arch != loong64 and arch != mips64', {

@@ -9,6 +9,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
@@ -291,11 +292,28 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     j(above_equal, &continuation, Label::kNear);
   }
 
-  near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-            RelocInfo::WASM_STUB_CALL);
-  // The call will not return; just define an empty safepoint.
-  safepoint_table_builder->DefineSafepoint(this);
-  AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+  if (v8_flags.experimental_wasm_growable_stacks) {
+    LiftoffRegList regs_to_save;
+    regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
+    regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+    for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
+    PushRegisters(regs_to_save);
+    movq(WasmHandleStackOverflowDescriptor::GapRegister(),
+         Immediate(frame_size));
+    movq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), rbp);
+    addq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
+         Immediate(static_cast<int32_t>(
+             stack_param_slots * kStackSlotSize +
+             CommonFrameConstants::kFixedFrameSizeAboveFp)));
+    CallBuiltin(Builtin::kWasmHandleStackOverflow);
+    PopRegisters(regs_to_save);
+  } else {
+    near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+              RelocInfo::WASM_STUB_CALL);
+    // The call will not return; just define an empty safepoint.
+    safepoint_table_builder->DefineSafepoint(this);
+    AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+  }
 
   bind(&continuation);
 
@@ -346,11 +364,52 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   j(negative, ool_label);
 }
 
-Register LiftoffAssembler::LoadOldFramePointer() { return rbp; }
+Register LiftoffAssembler::LoadOldFramePointer() {
+  if (!v8_flags.experimental_wasm_growable_stacks) {
+    return rbp;
+  }
+  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
+  Label done, call_runtime;
+  movq(old_fp.gp(), MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset));
+  cmpq(old_fp.gp(),
+       Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+  j(equal, &call_runtime);
+  movq(old_fp.gp(), rbp);
+  jmp(&done);
+
+  bind(&call_runtime);
+  LiftoffRegList regs_to_save = cache_state()->used_registers;
+  PushRegisters(regs_to_save);
+  PrepareCallCFunction(1);
+  LoadAddress(kCArgRegs[0], ExternalReference::isolate_address());
+  CallCFunction(ExternalReference::wasm_load_old_fp(), 1);
+  if (old_fp.gp() != kReturnRegister0) {
+    movq(old_fp.gp(), kReturnRegister0);
+  }
+  PopRegisters(regs_to_save);
+
+  bind(&done);
+  return old_fp.gp();
+}
 
 void LiftoffAssembler::CheckStackShrink() {
-  // TODO(irezvov): 42202153
-  UNIMPLEMENTED();
+  movq(kScratchRegister,
+       MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset));
+  cmpq(kScratchRegister,
+       Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+  Label done;
+  j(not_equal, &done);
+  LiftoffRegList regs_to_save;
+  for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
+  PushRegisters(regs_to_save);
+  PrepareCallCFunction(1);
+  LoadAddress(kCArgRegs[0], ExternalReference::isolate_address());
+  CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+  // Restore old FP. We don't need to restore old SP explicitly, because
+  // it will be restored from FP in LeaveFrame before return.
+  movq(rbp, kReturnRegister0);
+  PopRegisters(regs_to_save);
+  bind(&done);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
