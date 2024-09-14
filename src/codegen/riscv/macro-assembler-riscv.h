@@ -884,6 +884,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
   bool IsSingleZeroRegSet() { return has_single_zero_reg_set_; }
 
+  inline void MoveIfZero(Register rd, Register rj, Register rk) {
+    CHECK(CpuFeatures::IsSupported(ZICOND));
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    czero_nez(scratch, rj, rk);
+    czero_eqz(rd, rd, rk);
+    or_(rd, rd, scratch);
+  }
+
   inline void Move(Register dst, Tagged<Smi> smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {

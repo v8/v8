@@ -686,7 +686,19 @@ TEST(RISCV0) {
 }
 
 TEST(RISCVZicond) {
+  if (!CpuFeatures::IsSupported(ZICOND)) return;
   CcTest::InitializeVM();
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      auto fn = [i, j](MacroAssembler& assm) {
+        __ li(a1, i);
+        __ li(a0, j);
+        __ MoveIfZero(a0, a1, a0);
+      };
+      auto res = GenAndRunTest(fn);
+      CHECK_EQ(j != 0 ? j : i, res);
+    }
+  }
 
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
