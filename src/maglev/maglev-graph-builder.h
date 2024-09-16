@@ -263,8 +263,10 @@ class MaglevGraphBuilder {
   void BuildBody() {
     while (!source_position_iterator_.done() &&
            source_position_iterator_.code_offset() < entrypoint_) {
+      current_source_position_ = SourcePosition(
+          source_position_iterator_.source_position().ScriptOffset(),
+          inlining_id_);
       source_position_iterator_.Advance();
-      UpdateSourceAndBytecodePosition(source_position_iterator_.code_offset());
     }
     for (iterator_.SetOffset(entrypoint_); !iterator_.done();
          iterator_.Advance()) {
