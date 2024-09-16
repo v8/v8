@@ -432,7 +432,7 @@ def _v8_target_cpu_transition_impl(settings,
         "armeabi-v7a": "arm32",
         "s390x": "s390x",
         "riscv64": "riscv64",
-        "ppc": "ppc64le",
+        "ppc64": "ppc64le",
     }
     v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
     return {"@v8//bazel/config:v8_target_cpu": v8_target_cpu}
