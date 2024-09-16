@@ -105,6 +105,9 @@ class IncrementalStringBuilder {
 
   void AppendString(DirectHandle<String> string);
 
+  template <typename SrcChar>
+  void AppendSubstring(const SrcChar* src, size_t from, size_t to);
+
   MaybeDirectHandle<String> Finish();
 
   V8_INLINE bool HasOverflowed() const { return overflowed_; }
