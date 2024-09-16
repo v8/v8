@@ -1342,6 +1342,12 @@ DEFINE_BOOL(turbo_fast_api_calls, true, "enable fast API calls from TurboFan")
 DEFINE_BOOL(fast_api_allow_float_in_sim, false,
             "allow float parameters to be passed in simulator mode")
 
+// Float parameters in fast API calls don't work in the simulator in general,
+// only for some specially prepared test functions. With this flag implication
+// we want to make sure that the fuzzer does not enable float parameters also
+// for other tests, which would just lead to errors or crashes.
+DEFINE_NEG_IMPLICATION(fuzzing, fast_api_allow_float_in_sim)
+
 #ifdef V8_USE_ZLIB
 DEFINE_BOOL(turbo_compress_frame_translations, false,
             "compress deoptimization frame translations (experimental)")
