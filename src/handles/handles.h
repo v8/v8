@@ -112,6 +112,9 @@ class HandleBase {
 template <typename T>
 class Handle final : public HandleBase {
  public:
+  // Handles denote strong references.
+  static_assert(!is_maybe_weak_v<T>);
+
   V8_INLINE Handle() : HandleBase(nullptr) {}
 
   V8_INLINE explicit Handle(Address* location) : HandleBase(location) {
@@ -447,6 +450,9 @@ class V8_TRIVIAL_ABI DirectHandleBase :
 template <typename T>
 class DirectHandle : public DirectHandleBase {
  public:
+  // Handles denote strong references.
+  static_assert(!is_maybe_weak_v<T>);
+
   V8_INLINE DirectHandle() : DirectHandle(kTaggedNullAddress) {}
 
   V8_INLINE explicit DirectHandle(Address object) : DirectHandleBase(object) {}
