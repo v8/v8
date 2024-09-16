@@ -7,6 +7,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 
 namespace v8 {
 namespace internal {
@@ -51,12 +52,18 @@ CodePointerTable::Space* IsolateForSandbox::GetCodePointerTableSpaceFor(
              : isolate_->heap()->code_pointer_space();
 }
 
-TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTable() {
-  return isolate_->trusted_pointer_table();
+TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTableFor(
+    IndirectPointerTag tag) {
+  return IsSharedTrustedPointerType(tag)
+             ? isolate_->shared_trusted_pointer_table()
+             : isolate_->trusted_pointer_table();
 }
 
-TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpace() {
-  return isolate_->heap()->trusted_pointer_space();
+TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpaceFor(
+    IndirectPointerTag tag) {
+  return IsSharedTrustedPointerType(tag)
+             ? isolate_->shared_trusted_pointer_space()
+             : isolate_->heap()->trusted_pointer_space();
 }
 
 #endif  // V8_ENABLE_SANDBOX

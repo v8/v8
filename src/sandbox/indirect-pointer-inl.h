@@ -31,8 +31,9 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
     handle = GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(
         space, host.address(), kNullAddress, kDefaultCodeEntrypointTag);
   } else {
-    TrustedPointerTable::Space* space = isolate.GetTrustedPointerTableSpace();
-    handle = isolate.GetTrustedPointerTable().AllocateAndInitializeEntry(
+    TrustedPointerTable::Space* space =
+        isolate.GetTrustedPointerTableSpaceFor(tag);
+    handle = isolate.GetTrustedPointerTableFor(tag).AllocateAndInitializeEntry(
         space, host.ptr(), tag);
   }
 
@@ -51,7 +52,7 @@ namespace {
 template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) {
-  const TrustedPointerTable& table = isolate.GetTrustedPointerTable();
+  const TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
   return Tagged<Object>(table.Get(handle, tag));
 }
 

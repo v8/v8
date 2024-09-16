@@ -86,7 +86,9 @@ enum class IsolateFieldId : uint8_t;
   V(shared_external_pointer_table_address_address,              \
     "Isolate::shared_external_pointer_table_address_address()") \
   V(trusted_pointer_table_base_address,                         \
-    "Isolate::trusted_pointer_table_base_address()")
+    "Isolate::trusted_pointer_table_base_address()")            \
+  V(shared_trusted_pointer_table_base_address,                  \
+    "Isolate::shared_trusted_pointer_table_base_address()")
 #else
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX

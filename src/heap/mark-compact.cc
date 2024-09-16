@@ -77,6 +77,7 @@
 #include "src/objects/foreign.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-objects-inl.h"
@@ -87,6 +88,7 @@
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -3033,6 +3035,10 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_TRUSTED_POINTER_TABLE);
     isolate->trusted_pointer_table().Sweep(heap_->trusted_pointer_space(),
                                            isolate->counters());
+    if (isolate->owns_shareable_data()) {
+      isolate->shared_trusted_pointer_table().Sweep(
+          isolate->shared_trusted_pointer_space(), isolate->counters());
+    }
   }
 
   {
@@ -3217,6 +3223,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
       shared_info->GetBytecodeArray(heap_->isolate());
 
 #ifdef V8_ENABLE_SANDBOX
+  DCHECK(!InWritableSharedSpace(shared_info));
   // Zap the old entry in the trusted pointer table.
   TrustedPointerTable& table = heap_->isolate()->trusted_pointer_table();
   IndirectPointerSlot self_indirect_pointer_slot =
@@ -5569,6 +5576,21 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
           auto instance_type = relocated_object->map()->instance_type();
           auto tag = IndirectPointerTagFromInstanceType(instance_type);
           tpt->Set(handle, relocated_object.ptr(), tag);
+        }
+      });
+
+  TrustedPointerTable* const stpt =
+      &heap_->isolate()->shared_trusted_pointer_table();
+  stpt->IterateActiveEntriesIn(
+      heap_->isolate()->shared_trusted_pointer_space(),
+      [&](TrustedPointerHandle handle, Address content) {
+        Tagged<ExposedTrustedObject> relocated_object = process_entry(content);
+        if (!relocated_object.is_null()) {
+          DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
+          auto instance_type = relocated_object->map()->instance_type();
+          auto tag = IndirectPointerTagFromInstanceType(instance_type);
+          DCHECK(IsSharedTrustedPointerType(tag));
+          stpt->Set(handle, relocated_object.ptr(), tag);
         }
       });
 

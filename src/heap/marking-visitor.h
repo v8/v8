@@ -74,7 +74,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 #endif  // V8_COMPRESS_POINTERS
 #ifdef V8_ENABLE_SANDBOX
         ,
-        trusted_pointer_table_(&heap->isolate()->trusted_pointer_table())
+        trusted_pointer_table_(&heap->isolate()->trusted_pointer_table()),
+        shared_trusted_pointer_table_(
+            &heap->isolate()->shared_trusted_pointer_table())
 #endif  // V8_ENABLE_SANDBOX
   {
   }
@@ -222,6 +224,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 #endif  // V8_COMPRESS_POINTERS
 #ifdef V8_ENABLE_SANDBOX
   TrustedPointerTable* const trusted_pointer_table_;
+  TrustedPointerTable* const shared_trusted_pointer_table_;
 #endif  // V8_ENABLE_SANDBOX
 };
 

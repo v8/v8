@@ -9,6 +9,7 @@
 #include "src/sandbox/cppheap-pointer-table.h"
 #include "src/sandbox/external-buffer-table.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
 
@@ -41,8 +42,9 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline JSDispatchTable::Space* GetJSDispatchTableSpaceFor(
       Address owning_slot);
 
-  inline TrustedPointerTable& GetTrustedPointerTable();
-  inline TrustedPointerTable::Space* GetTrustedPointerTableSpace();
+  inline TrustedPointerTable& GetTrustedPointerTableFor(IndirectPointerTag tag);
+  inline TrustedPointerTable::Space* GetTrustedPointerTableSpaceFor(
+      IndirectPointerTag tag);
 
 #endif  // V8_ENABLE_SANDBOX
 

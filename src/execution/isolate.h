@@ -2145,6 +2145,23 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address trusted_pointer_table_base_address() const {
     return isolate_data_.trusted_pointer_table_.base_address();
   }
+
+  TrustedPointerTable& shared_trusted_pointer_table() {
+    return *isolate_data_.shared_trusted_pointer_table_;
+  }
+
+  const TrustedPointerTable& shared_trusted_pointer_table() const {
+    return *isolate_data_.shared_trusted_pointer_table_;
+  }
+
+  TrustedPointerTable::Space* shared_trusted_pointer_space() {
+    return shared_trusted_pointer_space_;
+  }
+
+  Address shared_trusted_pointer_table_base_address() {
+    return reinterpret_cast<Address>(
+        &isolate_data_.shared_trusted_pointer_table_);
+  }
 #endif  // V8_ENABLE_SANDBOX
 
   Address continuation_preserved_embedder_data_address() {
@@ -2721,6 +2738,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // table.
   ExternalPointerTable::Space* shared_external_pointer_space_ = nullptr;
 #endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_ENABLE_SANDBOX
+  // Stores the trusted pointer table space for the shared trusted pointer
+  // table.
+  TrustedPointerTable::Space* shared_trusted_pointer_space_ = nullptr;
+#endif  // V8_ENABLE_SANDBOX
 
   // List to manage the lifetime of the WaiterQueueNodes used to track async
   // waiters for JSSynchronizationPrimitives.

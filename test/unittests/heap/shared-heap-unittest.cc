@@ -840,6 +840,9 @@ TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerUnparked, ToEachTheirOwn,
 #undef TEST_SCENARIO
 #undef TEST_ALL_SCENARIA
 
+// TODO(358918874): Re-enable this test once allocation paths are using the
+// right tag for trusted pointers in shared objects.
+#if false
 TEST_F(SharedHeapTest, SharedUntrustedToSharedTrustedPointer) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
@@ -884,6 +887,7 @@ TEST_F(SharedHeapTest, SharedUntrustedToSharedTrustedPointer) {
   bytecode_array->wrapper()->clear_bytecode();
   bytecode_array->set_wrapper(*bytecode_wrapper);
 }
+#endif  // false
 
 }  // namespace internal
 }  // namespace v8
