@@ -59,9 +59,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     int compilation_id, v8::metrics::Recorder::ContextId context_id,
     ProfileInformation* pgo_info);
 
-V8_EXPORT_PRIVATE
-void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module);
-
 V8_EXPORT_PRIVATE WasmError ValidateAndSetBuiltinImports(
     const WasmModule* module, base::Vector<const uint8_t> wire_bytes,
     const CompileTimeImports& imports);

@@ -275,12 +275,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // for tearing down an isolate, or to clean it up to be reused.
   void DeleteCompileJobsOnIsolate(Isolate* isolate);
 
-  // Get a token for compiling wrappers for an Isolate. The token is used to
-  // synchronize background tasks on isolate shutdown. The caller should only
-  // hold the token while compiling export wrappers. If the isolate is already
-  // shutting down, this method will return an invalid token.
-  OperationsBarrier::Token StartWrapperCompilation(Isolate*);
-
   // Manage the set of Isolates that use this WasmEngine.
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);

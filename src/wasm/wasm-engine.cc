@@ -454,8 +454,7 @@ struct WasmEngine::CurrentGCInfo {
 struct WasmEngine::IsolateInfo {
   explicit IsolateInfo(Isolate* isolate)
       : log_codes(WasmCode::ShouldBeLogged(isolate)),
-        async_counters(isolate->async_counters()),
-        wrapper_compilation_barrier_(std::make_shared<OperationsBarrier>()) {
+        async_counters(isolate->async_counters()) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Platform* platform = V8::GetCurrentPlatform();
     foreground_task_runner = platform->GetForegroundTaskRunner(v8_isolate);
@@ -506,12 +505,6 @@ struct WasmEngine::IsolateInfo {
   // Keep track whether we already added a sample for PKU support (we only want
   // one sample per Isolate).
   bool pku_support_sampled = false;
-
-  // Operations barrier to synchronize on wrapper compilation on isolate
-  // shutdown.
-  // TODO(wasm): Remove this once we can use the generic js-to-wasm wrapper
-  // everywhere.
-  std::shared_ptr<OperationsBarrier> wrapper_compilation_barrier_;
 };
 
 void WasmEngine::ClearWeakScriptHandle(Isolate* isolate,
@@ -1192,7 +1185,6 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
   // the mutex, such that deletion can reenter the WasmEngine.
   std::vector<std::unique_ptr<AsyncCompileJob>> jobs_to_delete;
   std::vector<std::weak_ptr<NativeModule>> modules_in_isolate;
-  std::shared_ptr<OperationsBarrier> wrapper_compilation_barrier;
   {
     base::MutexGuard guard(&mutex_);
     for (auto it = async_compile_jobs_.begin();
@@ -1206,7 +1198,6 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
     }
     DCHECK_EQ(1, isolates_.count(isolate));
     auto* isolate_info = isolates_[isolate].get();
-    wrapper_compilation_barrier = isolate_info->wrapper_compilation_barrier_;
     for (auto* native_module : isolate_info->native_modules) {
       DCHECK_EQ(1, native_modules_.count(native_module));
       modules_in_isolate.emplace_back(native_modules_[native_module]->weak_ptr);
@@ -1222,17 +1213,6 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
       shared_module->compilation_state()->CancelInitialCompilation();
     }
   }
-
-  // After cancelling, wait for all current wrapper compilation to actually
-  // finish.
-  wrapper_compilation_barrier->CancelAndWait();
-}
-
-OperationsBarrier::Token WasmEngine::StartWrapperCompilation(Isolate* isolate) {
-  base::MutexGuard guard(&mutex_);
-  auto isolate_info_it = isolates_.find(isolate);
-  if (isolate_info_it == isolates_.end()) return {};
-  return isolate_info_it->second->wrapper_compilation_barrier_->TryLock();
 }
 
 void WasmEngine::AddIsolate(Isolate* isolate) {
@@ -1967,7 +1947,7 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 800);
-  UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 184);
+  UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 168);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 56);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);
   size_t result = sizeof(WasmEngine);

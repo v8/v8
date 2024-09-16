@@ -112,7 +112,6 @@ class WireBytesStorage {
 // {kFinishedBaselineCompilation}.
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
-  kFinishedExportWrappers,
   kFinishedCompilationChunk,
   kFailedCompilation,
 };
