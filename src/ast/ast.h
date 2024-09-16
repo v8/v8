@@ -322,6 +322,9 @@ class Block final : public BreakableStatement {
     return IgnoreCompletionField::decode(bit_field_);
   }
   bool is_breakable() const { return IsBreakableField::decode(bit_field_); }
+  bool is_initialization_block_for_parameters() const {
+    return IsInitializationBlockForParametersField::decode(bit_field_);
+  }
 
   Scope* scope() const { return scope_; }
   void set_scope(Scope* scope) { scope_ = scope; }
@@ -341,19 +344,25 @@ class Block final : public BreakableStatement {
 
   using IgnoreCompletionField = BreakableStatement::NextBitField<bool, 1>;
   using IsBreakableField = IgnoreCompletionField::Next<bool, 1>;
+  using IsInitializationBlockForParametersField =
+      IsBreakableField::Next<bool, 1>;
 
  protected:
   Block(Zone* zone, int capacity, bool ignore_completion_value,
-        bool is_breakable)
+        bool is_breakable, bool is_initialization_block_for_parameters)
       : BreakableStatement(kNoSourcePosition, kBlock),
         statements_(capacity, zone),
         scope_(nullptr) {
     bit_field_ |= IgnoreCompletionField::encode(ignore_completion_value) |
-                  IsBreakableField::encode(is_breakable);
+                  IsBreakableField::encode(is_breakable) |
+                  IsInitializationBlockForParametersField::encode(
+                      is_initialization_block_for_parameters);
   }
 
-  Block(bool ignore_completion_value, bool is_breakable)
-      : Block(nullptr, 0, ignore_completion_value, is_breakable) {}
+  Block(bool ignore_completion_value, bool is_breakable,
+        bool is_initialization_block_for_parameters)
+      : Block(nullptr, 0, ignore_completion_value, is_breakable,
+              is_initialization_block_for_parameters) {}
 };
 
 class Declaration : public AstNode {
@@ -3015,16 +3024,26 @@ class AstNodeFactory final {
   }
 
   Block* NewBlock(int capacity, bool ignore_completion_value) {
-    return zone_->New<Block>(zone_, capacity, ignore_completion_value, false);
+    return zone_->New<Block>(zone_, capacity, ignore_completion_value, false,
+                             false);
   }
 
   Block* NewBlock(bool ignore_completion_value, bool is_breakable) {
-    return zone_->New<Block>(ignore_completion_value, is_breakable);
+    return zone_->New<Block>(ignore_completion_value, is_breakable, false);
   }
 
   Block* NewBlock(bool ignore_completion_value,
                   const ScopedPtrList<Statement>& statements) {
     Block* result = NewBlock(ignore_completion_value, false);
+    result->InitializeStatements(statements, zone_);
+    return result;
+  }
+
+  Block* NewParameterInitializationBlock(
+      const ScopedPtrList<Statement>& statements) {
+    Block* result = zone_->New<Block>(
+        /* ignore_completion_value */ true, /* is_breakable */ false,
+        /* is_initialization_block_for_parameters */ true);
     result->InitializeStatements(statements, zone_);
     return result;
   }

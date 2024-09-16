@@ -2195,92 +2195,14 @@ void Parser::ParseGeneratorFunctionBody(int pos, FunctionKind kind,
   ParseStatementList(body, Token::kRightBrace);
 }
 
-void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
-    int pos, FunctionKind kind, ScopedPtrList<Statement>* body) {
-  // For ES2017 Async Generators, we produce:
-  //
-  // try {
-  //   InitialYield;
-  //   ...body...;
-  //   // fall through to the implicit return after the try-finally
-  // } catch (.catch) {
-  //   %AsyncGeneratorReject(generator, .catch);
-  // } finally {
-  //   %_GeneratorClose(generator);
-  // }
-  //
-  // - InitialYield yields the actual generator object.
-  // - Any return statement inside the body will have its argument wrapped
-  //   in an iterator result object with a "done" property set to `true`.
-  // - If the generator terminates for whatever reason, we must close it.
-  //   Hence the finally clause.
-  // - BytecodeGenerator performs special handling for ReturnStatements in
-  //   async generator functions, resolving the appropriate Promise with an
-  //   "done" iterator result object containing a Promise-unwrapped value.
+void Parser::ParseAsyncGeneratorFunctionBody(int pos, FunctionKind kind,
+                                             ScopedPtrList<Statement>* body) {
   DCHECK(IsAsyncGeneratorFunction(kind));
 
-  Block* try_block;
-  {
-    ScopedPtrList<Statement> statements(pointer_buffer());
-    Expression* initial_yield = BuildInitialYield(pos, kind);
-    statements.Add(
-        factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
-    ParseStatementList(&statements, Token::kRightBrace);
-    // Since the whole body is wrapped in a try-catch, make the implicit
-    // end-of-function return explicit to ensure BytecodeGenerator's special
-    // handling for ReturnStatements in async generators applies.
-    statements.Add(factory()->NewSyntheticAsyncReturnStatement(
-        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition));
-
-    // Don't create iterator result for async generators, as the resume methods
-    // will create it.
-    try_block = factory()->NewBlock(false, statements);
-  }
-
-  // For AsyncGenerators, a top-level catch block will reject the Promise.
-  Scope* catch_scope = NewHiddenCatchScope();
-
-  Block* catch_block;
-  {
-    ScopedPtrList<Expression> reject_args(pointer_buffer());
-    reject_args.Add(factory()->NewVariableProxy(
-        function_state_->scope()->generator_object_var()));
-    reject_args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
-
-    Expression* reject_call = factory()->NewCallRuntime(
-        Runtime::kInlineAsyncGeneratorReject, reject_args, kNoSourcePosition);
-    catch_block = IgnoreCompletion(factory()->NewReturnStatement(
-        reject_call, kNoSourcePosition, kNoSourcePosition));
-  }
-
-  {
-    ScopedPtrList<Statement> statements(pointer_buffer());
-    TryStatement* try_catch = factory()->NewTryCatchStatementForAsyncAwait(
-        try_block, catch_scope, catch_block, kNoSourcePosition);
-    statements.Add(try_catch);
-    try_block = factory()->NewBlock(false, statements);
-  }
-
-  Expression* close_call;
-  {
-    ScopedPtrList<Expression> close_args(pointer_buffer());
-    VariableProxy* call_proxy = factory()->NewVariableProxy(
-        function_state_->scope()->generator_object_var());
-    close_args.Add(call_proxy);
-    close_call = factory()->NewCallRuntime(Runtime::kInlineGeneratorClose,
-                                           close_args, kNoSourcePosition);
-  }
-
-  Block* finally_block;
-  {
-    ScopedPtrList<Statement> statements(pointer_buffer());
-    statements.Add(
-        factory()->NewExpressionStatement(close_call, kNoSourcePosition));
-    finally_block = factory()->NewBlock(false, statements);
-  }
-
-  body->Add(factory()->NewTryFinallyStatement(try_block, finally_block,
-                                              kNoSourcePosition));
+  Expression* initial_yield = BuildInitialYield(pos, kind);
+  body->Add(
+      factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
+  ParseStatementList(body, Token::kRightBrace);
 }
 
 void Parser::DeclareFunctionNameVar(const AstRawString* function_name,
@@ -3112,7 +3034,7 @@ Block* Parser::BuildParameterInitializationBlock(
 
     ++index;
   }
-  return factory()->NewBlock(true, init_statements);
+  return factory()->NewParameterInitializationBlock(init_statements);
 }
 
 // TODO(verwaest): Consider building these try/catches in the bytecode generator

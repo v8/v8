@@ -4806,8 +4806,7 @@ void ParserBase<Impl>::ParseFunctionBody(
               : Token::kRightBrace;
 
       if (IsAsyncGeneratorFunction(kind)) {
-        impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind,
-                                                          &inner_body);
+        impl()->ParseAsyncGeneratorFunctionBody(pos, kind, &inner_body);
       } else if (IsGeneratorFunction(kind)) {
         impl()->ParseGeneratorFunctionBody(pos, kind, &inner_body);
       } else {

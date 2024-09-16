@@ -314,8 +314,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  const CatchInfo& catch_info, int pos);
   void ParseGeneratorFunctionBody(int pos, FunctionKind kind,
                                   ScopedPtrList<Statement>* body);
-  void ParseAndRewriteAsyncGeneratorFunctionBody(
-      int pos, FunctionKind kind, ScopedPtrList<Statement>* body);
+  void ParseAsyncGeneratorFunctionBody(int pos, FunctionKind kind,
+                                       ScopedPtrList<Statement>* body);
   void DeclareFunctionNameVar(const AstRawString* function_name,
                               FunctionSyntaxKind function_syntax_kind,
                               DeclarationScope* function_scope);

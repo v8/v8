@@ -1680,10 +1680,13 @@ void BytecodeGenerator::GenerateBytecodeBody() {
     GenerateBaseConstructorBody();
   } else if (function_kind() == FunctionKind::kDerivedConstructor) {
     GenerateDerivedConstructorBody();
-  } else if ((IsAsyncFunction(function_kind()) &&
-              !IsAsyncGeneratorFunction(function_kind())) ||
+  } else if (IsAsyncFunction(function_kind()) ||
              IsModuleWithTopLevelAwait(function_kind())) {
-    GenerateAsyncFunctionBody();
+    if (IsAsyncGeneratorFunction(function_kind())) {
+      GenerateAsyncGeneratorFunctionBody();
+    } else {
+      GenerateAsyncFunctionBody();
+    }
   } else {
     GenerateBodyStatements();
   }
@@ -1857,8 +1860,73 @@ void BytecodeGenerator::GenerateAsyncFunctionBody() {
       catch_prediction());
 }
 
-void BytecodeGenerator::GenerateBodyStatements() {
-  GenerateBodyStatementsWithoutImplicitFinalReturn();
+void BytecodeGenerator::GenerateAsyncGeneratorFunctionBody() {
+  DCHECK(IsAsyncGeneratorFunction(function_kind()));
+  set_catch_prediction(HandlerTable::ASYNC_AWAIT);
+
+  // For ES2017 Async Generators, we produce:
+  //
+  // try {
+  //   InitialYield;
+  //   ...body...;
+  // } catch (.catch) {
+  //   %AsyncGeneratorReject(generator, .catch);
+  // } finally {
+  //   %_GeneratorClose(generator);
+  // }
+  //
+  // - InitialYield yields the actual generator object.
+  // - Any return statement inside the body will have its argument wrapped
+  //   in an iterator result object with a "done" property set to `true`.
+  // - If the generator terminates for whatever reason, we must close it.
+  //   Hence the finally clause.
+  // - BytecodeGenerator performs special handling for ReturnStatements in
+  //   async generator functions, resolving the appropriate Promise with an
+  //   "done" iterator result object containing a Promise-unwrapped value.
+
+  // In async generator functions, when parameters are not simple,
+  // a parameter initialization block will be added as the first block to the
+  // AST. Since this block can throw synchronously, it should not be wrapped
+  // in the following try-finally. We visit this block outside the try-finally
+  // and remove it from the AST.
+  int start = 0;
+  ZonePtrList<Statement>* statements = info()->literal()->body();
+  Statement* stmt = statements->at(0);
+  if (stmt->IsBlock()) {
+    Block* block = static_cast<Block*>(statements->at(0));
+    if (block->is_initialization_block_for_parameters()) {
+      VisitBlockDeclarationsAndStatements(block);
+      start = 1;
+    }
+  }
+
+  BuildTryFinally(
+      [&]() {
+        BuildTryCatch(
+            [&]() { GenerateBodyStatements(start); },
+            [&](Register context) {
+              RegisterAllocationScope register_scope(this);
+              RegisterList args = register_allocator()->NewRegisterList(2);
+              builder()
+                  ->MoveRegister(generator_object(), args[0])
+                  .StoreAccumulatorInRegister(args[1])  // exception
+                  .CallRuntime(Runtime::kInlineAsyncGeneratorReject, args);
+              execution_control()->ReturnAccumulator(kNoSourcePosition);
+            },
+            catch_prediction());
+      },
+      [&](Register body_continuation_token, Register body_continuation_result) {
+        RegisterAllocationScope register_scope(this);
+        Register arg = register_allocator()->NewRegister();
+        builder()
+            ->MoveRegister(generator_object(), arg)
+            .CallRuntime(Runtime::kInlineGeneratorClose, arg);
+      },
+      catch_prediction());
+}
+
+void BytecodeGenerator::GenerateBodyStatements(int start) {
+  GenerateBodyStatementsWithoutImplicitFinalReturn(start);
 
   // Emit an implicit return instruction in case control flow can fall off the
   // end of the function without an explicit return being present on all paths.
@@ -1868,10 +1936,7 @@ void BytecodeGenerator::GenerateBodyStatements() {
   if (!builder()->RemainderOfBlockIsDead()) {
     builder()->LoadUndefined();
     const int pos = info()->literal()->return_position();
-    // TODO(358404372): Handle AsyncGeneratorFunction as well once its AST
-    // rewrite is removed from the parser.
-    if ((IsAsyncFunction(function_kind()) &&
-         !IsAsyncGeneratorFunction(function_kind())) ||
+    if (IsAsyncFunction(function_kind()) ||
         IsModuleWithTopLevelAwait(function_kind())) {
       execution_control()->AsyncReturnAccumulator(pos);
     } else {
@@ -1880,15 +1945,16 @@ void BytecodeGenerator::GenerateBodyStatements() {
   }
 }
 
-void BytecodeGenerator::GenerateBodyStatementsWithoutImplicitFinalReturn() {
+void BytecodeGenerator::GenerateBodyStatementsWithoutImplicitFinalReturn(
+    int start) {
   ZonePtrList<Statement>* body = info()->literal()->body();
   if (v8_flags.js_explicit_resource_management && closure_scope() != nullptr &&
       (closure_scope()->has_using_declaration() ||
        closure_scope()->has_await_using_declaration())) {
-    BuildDisposeScope([&]() { VisitStatements(body); },
+    BuildDisposeScope([&]() { VisitStatements(body, start); },
                       closure_scope()->has_await_using_declaration());
   } else {
-    VisitStatements(body);
+    VisitStatements(body, start);
   }
 }
 
@@ -2155,8 +2221,8 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 }
 
 void BytecodeGenerator::VisitStatements(
-    const ZonePtrList<Statement>* statements) {
-  for (int i = 0; i < statements->length(); i++) {
+    const ZonePtrList<Statement>* statements, int start) {
+  for (int i = start; i < statements->length(); i++) {
     // Allocate an outer register allocations scope for the statement.
     RegisterAllocationScope allocation_scope(this);
     Statement* stmt = statements->at(i);

@@ -1050,7 +1050,7 @@ class PreParser : public ParserBase<PreParser> {
       int pos, FunctionKind kind, PreParserScopedStatementList* body) {
     ParseStatementList(body, Token::kRightBrace);
   }
-  V8_INLINE void ParseAndRewriteAsyncGeneratorFunctionBody(
+  V8_INLINE void ParseAsyncGeneratorFunctionBody(
       int pos, FunctionKind kind, PreParserScopedStatementList* body) {
     ParseStatementList(body, Token::kRightBrace);
   }
