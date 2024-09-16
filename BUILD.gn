@@ -6071,15 +6071,14 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
     ]
     if (v8_enable_webassembly) {
-      # Trap handling is enabled on arm64 Mac and Linux and in simulators on
-      # x64 on Linux, Mac, and Windows.
+      # Trap handling is enabled on arm64 and x64, on Linux, Mac and Windows.
       if ((current_cpu == "arm64" && (is_linux || is_chromeos || is_apple)) ||
           (current_cpu == "x64" && (is_linux || is_chromeos || is_mac))) {
         sources += [
           "src/trap-handler/handler-inside-posix.cc",
           "src/trap-handler/handler-outside-posix.cc",
         ]
-      } else if (current_cpu == "x64" && is_win) {
+      } else if ((current_cpu == "arm64" || current_cpu == "x64") && is_win) {
         sources += [
           "src/trap-handler/handler-inside-win.cc",
           "src/trap-handler/handler-outside-win.cc",

@@ -35,7 +35,7 @@
 
 #if V8_TRAP_HANDLER_SUPPORTED
 
-#if V8_HOST_ARCH_ARM64 && (!V8_OS_LINUX && !V8_OS_DARWIN)
+#if V8_HOST_ARCH_ARM64 && (!V8_OS_LINUX && !V8_OS_DARWIN && !V8_OS_WIN)
 #error Unsupported platform
 #endif
 
@@ -247,7 +247,13 @@ class TrapHandlerTest : public TestWithIsolate,
     RemoveVectoredExceptionHandler(g_registered_handler);
     g_registered_handler = nullptr;
     g_test_handler_executed = true;
+#if V8_HOST_ARCH_X64
     exception->ContextRecord->Rip = g_recovery_address;
+#elif V8_HOST_ARCH_ARM64
+    exception->ContextRecord->Pc = g_recovery_address;
+#else
+#error Unsupported architecture
+#endif  // V8_HOST_ARCH_X64
     return EXCEPTION_CONTINUE_EXECUTION;
   }
 #endif
