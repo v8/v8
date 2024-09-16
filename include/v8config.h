@@ -831,11 +831,7 @@ V8 shared library set USING_V8_SHARED.
 #define V8_HOST_ARCH_64_BIT 1
 #elif defined(__s390x__)
 #define V8_HOST_ARCH_S390X 1
-#if defined(__s390x__)
 #define V8_HOST_ARCH_64_BIT 1
-#else
-#define V8_HOST_ARCH_32_BIT 1
-#endif
 #elif defined(__riscv) || defined(__riscv__)
 #if __riscv_xlen == 64
 #define V8_HOST_ARCH_RISCV64 1

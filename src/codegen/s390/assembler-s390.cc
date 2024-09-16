@@ -125,13 +125,8 @@ static bool supportsSTFLE() {
 
     read_tried = true;
     if (fd != -1) {
-#if V8_TARGET_ARCH_S390X
       static Elf64_auxv_t buffer[16];
       Elf64_auxv_t* auxv_element;
-#else
-      static Elf32_auxv_t buffer[16];
-      Elf32_auxv_t* auxv_element;
-#endif
       int bytes_read = 0;
       while (bytes_read >= 0) {
         // Read a chunk of the AUXV
@@ -440,19 +435,11 @@ Condition Assembler::GetCondition(Instr instr) {
   }
 }
 
-#if V8_TARGET_ARCH_S390X
 // This code assumes a FIXED_SEQUENCE for 64bit loads (iihf/iilf)
 bool Assembler::Is64BitLoadIntoIP(SixByteInstr instr1, SixByteInstr instr2) {
   // Check the instructions are the iihf/iilf load into ip
   return (((instr1 >> 32) == 0xC0C8) && ((instr2 >> 32) == 0xC0C9));
 }
-#else
-// This code assumes a FIXED_SEQUENCE for 32bit loads (iilf)
-bool Assembler::Is32BitLoadIntoIP(SixByteInstr instr) {
-  // Check the instruction is an iilf load into ip/r12.
-  return ((instr >> 32) == 0xC0C9);
-}
-#endif
 
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.

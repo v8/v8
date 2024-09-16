@@ -66,9 +66,7 @@ class S390OperandConverter final : public InstructionOperandConverter {
       case Constant::kFloat64:
         return Operand::EmbeddedNumber(constant.ToFloat64().value());
       case Constant::kInt64:
-#if V8_TARGET_ARCH_S390X
         return Operand(constant.ToInt64());
-#endif
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
       case Constant::kCompressedHeapObject:
@@ -463,7 +461,6 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
 #define ASSEMBLE_BIN_OP(_rr, _rm, _ri) AssembleBinOp(instr, _rr, _rm, _ri)
 #define ASSEMBLE_UNARY_OP(_r, _m, _i) AssembleUnaryOp(instr, _r, _m, _i)
 
-#ifdef V8_TARGET_ARCH_S390X
 #define CHECK_AND_ZERO_EXT_OUTPUT(num)                                \
   ([&](int index) {                                                   \
     DCHECK(HasImmediateInput(instr, (index)));                        \
@@ -473,10 +470,6 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
 
 #define ASSEMBLE_BIN32_OP(_rr, _rm, _ri) \
   { CHECK_AND_ZERO_EXT_OUTPUT(AssembleBinOp(instr, _rr, _rm, _ri)); }
-#else
-#define ASSEMBLE_BIN32_OP ASSEMBLE_BIN_OP
-#define CHECK_AND_ZERO_EXT_OUTPUT(num)
-#endif
 
 }  // namespace
 
@@ -1129,13 +1122,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
   switch (opcode) {
     case kArchComment:
-#ifdef V8_TARGET_ARCH_S390X
       __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)),
                        SourceLocation());
-#else
-      __ RecordComment(reinterpret_cast<const char*>(i.InputInt32(0)),
-                       SourceLocation());
-#endif
       break;
     case kArchCallCodeObject: {
       if (HasRegisterInput(instr, 0)) {
@@ -1914,28 +1902,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CountLeadingZerosU32(i.OutputRegister(), i.InputRegister(0), r0);
       break;
     }
-#if V8_TARGET_ARCH_S390X
     case kS390_Cntlz64: {
       __ CountLeadingZerosU64(i.OutputRegister(), i.InputRegister(0), r0);
       break;
     }
-#endif
     case kS390_Popcnt32:
       __ Popcnt32(i.OutputRegister(), i.InputRegister(0));
       break;
-#if V8_TARGET_ARCH_S390X
     case kS390_Popcnt64:
       __ Popcnt64(i.OutputRegister(), i.InputRegister(0));
       break;
-#endif
     case kS390_Cmp32:
       ASSEMBLE_COMPARE32(CmpS32, CmpU32);
       break;
-#if V8_TARGET_ARCH_S390X
     case kS390_Cmp64:
       ASSEMBLE_COMPARE(CmpS64, CmpU64);
       break;
-#endif
     case kS390_CmpFloat:
       ASSEMBLE_FLOAT_COMPARE(cebr, ceb, ley);
       // __ cebr(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
@@ -2266,14 +2248,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_BitcastInt32ToFloat32:
       __ MovIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
-#if V8_TARGET_ARCH_S390X
     case kS390_BitcastDoubleToInt64:
       __ MovDoubleToInt64(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_BitcastInt64ToDouble:
       __ MovInt64ToDouble(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
-#endif
     case kS390_LoadWordU8:
       ASSEMBLE_LOAD_INTEGER(LoadU8);
       break;
@@ -2363,11 +2343,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_StoreWord32:
       ASSEMBLE_STORE_INTEGER(StoreU32);
       break;
-#if V8_TARGET_ARCH_S390X
     case kS390_StoreWord64:
       ASSEMBLE_STORE_INTEGER(StoreU64);
       break;
-#endif
     case kS390_StoreReverse16:
       ASSEMBLE_STORE_INTEGER(strvh);
       break;

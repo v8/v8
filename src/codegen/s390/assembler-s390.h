@@ -301,11 +301,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // a target is resolved and written.
   static constexpr int kSpecialTargetSize = 0;
 // Number of bytes for instructions used to store pointer sized constant.
-#if V8_TARGET_ARCH_S390X
   static constexpr int kBytesForPtrConstant = 12;  // IIHF + IILF
-#else
-  static constexpr int kBytesForPtrConstant = 6;  // IILF
-#endif
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   DoubleRegList* GetScratchDoubleRegisterList() {
@@ -1335,11 +1331,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static Condition GetCondition(Instr instr);
 
   static bool IsBranch(Instr instr);
-#if V8_TARGET_ARCH_S390X
   static bool Is64BitLoadIntoIP(SixByteInstr instr1, SixByteInstr instr2);
-#else
-  static bool Is32BitLoadIntoIP(SixByteInstr instr);
-#endif
 
   static bool IsCmpRegister(Instr instr);
   static bool IsCmpImmediate(Instr instr);

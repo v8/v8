@@ -40,19 +40,12 @@
 #define ABI_PASSES_HANDLES_IN_REGS 1
 
 // ObjectPair is defined under runtime/runtime-util.h.
-// On 31-bit, ObjectPair == uint64_t.  ABI dictates long long
-//            be returned with the lower addressed half in r2
-//            and the higher addressed half in r3. (Returns in Regs)
 // On 64-bit, ObjectPair is a Struct.  ABI dictaes Structs be
 //            returned in a storage buffer allocated by the caller,
 //            with the address of this buffer passed as a hidden
 //            argument in r2. (Does NOT return in Regs)
 // For x86 linux, ObjectPair is returned in registers.
-#if V8_TARGET_ARCH_S390X
 #define ABI_RETURNS_OBJECTPAIR_IN_REGS 0
-#else
-#define ABI_RETURNS_OBJECTPAIR_IN_REGS 1
-#endif
 #endif
 
 #define ABI_CALL_VIA_IP 1

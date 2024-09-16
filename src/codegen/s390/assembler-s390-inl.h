@@ -222,7 +222,6 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
     return pc + dis;
   }
 
-#if V8_TARGET_ARCH_S390X
   int instr1_length =
       Instruction::InstructionLength(reinterpret_cast<const uint8_t*>(pc));
   Opcode op2 = Instruction::S390OpcodeValue(
@@ -234,12 +233,6 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
     return static_cast<Address>(((instr_1 & 0xFFFFFFFF) << 32) |
                                 ((instr_2 & 0xFFFFFFFF)));
   }
-#else
-  // IILF loads 32-bits
-  if (IILF == op1 || CFI == op1) {
-    return static_cast<Address>((instr_1 & 0xFFFFFFFF));
-  }
-#endif
 
   UNIMPLEMENTED();
   return 0;
@@ -293,7 +286,6 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     }
     patched = true;
   } else {
-#if V8_TARGET_ARCH_S390X
     int instr1_length =
         Instruction::InstructionLength(reinterpret_cast<const uint8_t*>(pc));
     Opcode op2 = Instruction::S390OpcodeValue(
@@ -322,21 +314,6 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       }
       patched = true;
     }
-#else
-    // IILF loads 32-bits
-    if (IILF == op1 || CFI == op1) {
-      instr_1 >>= 32;  // Zero out the lower 32-bits
-      instr_1 <<= 32;
-      instr_1 |= reinterpret_cast<uint32_t>(target);
-
-      Instruction::SetInstructionBits<SixByteInstr>(
-          reinterpret_cast<uint8_t*>(pc), instr_1);
-      if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-        FlushInstructionCache(pc, 6);
-      }
-      patched = true;
-    }
-#endif
   }
   if (!patched) UNREACHABLE();
 }

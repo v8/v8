@@ -1022,8 +1022,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ LoadMultipleP(r6, sp, MemOperand(sp, 0));
   __ la(sp, MemOperand(sp, 10 * kSystemPointerSize));
 
-// saving floating point registers
-#if V8_TARGET_ARCH_S390X
   // 64bit ABI requires f8 to f15 be saved
   __ ld(d8, MemOperand(sp));
   __ ld(d9, MemOperand(sp, 1 * kDoubleSize));
@@ -1034,13 +1032,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ ld(d14, MemOperand(sp, 6 * kDoubleSize));
   __ ld(d15, MemOperand(sp, 7 * kDoubleSize));
   __ la(sp, MemOperand(sp, 8 * kDoubleSize));
-#else
-  // 31bit ABI requires you to store f4 and f6:
-  // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_s390.html#AEN417
-  __ ld(d4, MemOperand(sp));
-  __ ld(d6, MemOperand(sp, kDoubleSize));
-  __ la(sp, MemOperand(sp, 2 * kDoubleSize));
-#endif
 
 #if V8_OS_ZOS
   // On z/OS, the return register is r3
@@ -3474,10 +3465,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     arg_stack_space += result_size;
   }
 
-#if V8_TARGET_ARCH_S390X
   // 64-bit linux pass Argument object by reference not value
   arg_stack_space += 2;
-#endif
 
   __ EnterExitFrame(
       scratch, arg_stack_space,
@@ -3744,10 +3733,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Input_high ASR 31 equals 0xFFFFFFFF and scratch_high LSR 31 equals 1.
   // New result = (result eor 0xFFFFFFFF) + 1 = 0 - result.
   __ ShiftRightS32(r0, scratch_high, Operand(31));
-#if V8_TARGET_ARCH_S390X
   __ lgfr(r0, r0);
   __ ShiftRightU64(r0, r0, Operand(32));
-#endif
   __ XorP(result_reg, r0);
   __ ShiftRightU32(r0, scratch_high, Operand(31));
   __ AddS64(result_reg, r0);
@@ -4060,8 +4047,6 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   static constexpr int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kSystemPointerSize) + kDoubleRegsSize;
 
-  // Cleanse the Return address for 31-bit
-  __ CleanseP(r14);
   // Get the address of the location in the code object (r5)(return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register r6.

@@ -1328,11 +1328,7 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch,
 template <typename T>
 static T& frame_entry(Address re_frame, int frame_offset) {
   DCHECK_EQ(kSystemPointerSize, sizeof(T));
-#ifdef V8_TARGET_ARCH_S390X
   return reinterpret_cast<T&>(Memory<uint64_t>(re_frame + frame_offset));
-#else
-  return reinterpret_cast<T&>(Memory<uint32_t>(re_frame + frame_offset));
-#endif
 }
 
 template <typename T>
@@ -1414,7 +1410,6 @@ void RegExpMacroAssemblerS390::SafeReturn() {
 
 void RegExpMacroAssemblerS390::SafeCallTarget(Label* name) {
   __ bind(name);
-  __ CleanseP(r14);
   __ mov(r0, r14);
   __ mov(ip, Operand(masm_->CodeObject()));
   __ SubS64(r0, r0, ip);
