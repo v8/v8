@@ -326,10 +326,10 @@ selects.config_setting_group(
     ],
 )
 
-# Enable isolated cage if v8_enable_pointer_compression and
+# Enable multiple cages if v8_enable_pointer_compression and
 # NOT v8_enable_pointer_compression_shared_cage.
 selects.config_setting_group(
-    name = "enable_pointer_compression_isolated_cage",
+    name = "enable_pointer_compression_multiple_cages",
     match_all = [
         ":is_v8_enable_pointer_compression",
         ":is_not_v8_enable_pointer_compression_shared_cage",
@@ -524,8 +524,8 @@ v8_config(
         ":enable_pointer_compression_shared_cage": [
             "V8_COMPRESS_POINTERS_IN_SHARED_CAGE",
         ],
-        ":enable_pointer_compression_isolated_cage": [
-            "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE",
+        ":enable_pointer_compression_multiple_cages": [
+            "V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES",
         ],
         "//conditions:default": [],
     }) + select({
