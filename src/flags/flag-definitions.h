@@ -821,7 +821,7 @@ DEFINE_BOOL(trace_block_coverage, false,
             "trace collected block coverage information")
 DEFINE_BOOL(trace_protector_invalidation, false,
             "trace protector cell invalidations")
-DEFINE_BOOL(decommit_pooled_pages, false,
+DEFINE_BOOL(decommit_pooled_pages, true,
             "decommit, rather than discard pooled pages")
 
 #ifdef V8_MINORMS_STRING_SHORTCUTTING
