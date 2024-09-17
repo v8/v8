@@ -739,6 +739,9 @@ static Tagged<Object> CreateWasmObject(
 
 // Creates a new wasm struct with one i64 (value 0x7AADF00DBAADF00D).
 RUNTIME_FUNCTION(Runtime_WasmStruct) {
+  if (v8_flags.jitless) {
+    return CrashUnlessFuzzing(isolate);
+  }
   HandleScope scope(isolate);
   /* Recreate with:
     d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
@@ -788,6 +791,9 @@ RUNTIME_FUNCTION(Runtime_WasmStruct) {
 
 // Creates a new wasm array of type i32 with two elements (2x 0xBAADF00D).
 RUNTIME_FUNCTION(Runtime_WasmArray) {
+  if (v8_flags.jitless) {
+    return CrashUnlessFuzzing(isolate);
+  }
   HandleScope scope(isolate);
   /* Recreate with:
     d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
