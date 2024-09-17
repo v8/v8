@@ -14,6 +14,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/logging/counters.h"
@@ -856,9 +857,9 @@ bool ObjectStatsCollectorImpl::SameLiveness(Tagged<HeapObject> obj1,
                                             Tagged<HeapObject> obj2) {
   if (obj1.is_null() || obj2.is_null()) return true;
   const auto obj1_marked =
-      InReadOnlySpace(obj1) || marking_state_->IsMarked(obj1);
+      HeapLayout::InReadOnlySpace(obj1) || marking_state_->IsMarked(obj1);
   const auto obj2_marked =
-      InReadOnlySpace(obj2) || marking_state_->IsMarked(obj2);
+      HeapLayout::InReadOnlySpace(obj2) || marking_state_->IsMarked(obj2);
   return obj1_marked == obj2_marked;
 }
 
@@ -1108,7 +1109,7 @@ class ObjectStatsVisitor {
         phase_(phase) {}
 
   void Visit(Tagged<HeapObject> obj) {
-    if (InReadOnlySpace(obj) || marking_state_->IsMarked(obj)) {
+    if (HeapLayout::InReadOnlySpace(obj) || marking_state_->IsMarked(obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
     } else {

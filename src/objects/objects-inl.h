@@ -21,6 +21,7 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap-inl.h"
@@ -357,19 +358,6 @@ Tagged<Object> HeapObject::SeqCst_CompareAndSwapField(
   } while (true);
 }
 
-bool InAnySharedSpace(Tagged<HeapObject> obj) {
-  if (IsReadOnlyHeapObject(obj)) return V8_SHARED_RO_HEAP_BOOL;
-  return InWritableSharedSpace(obj);
-}
-
-bool InWritableSharedSpace(Tagged<HeapObject> obj) {
-  return MemoryChunk::FromHeapObject(obj)->InWritableSharedSpace();
-}
-
-bool InReadOnlySpace(Tagged<HeapObject> obj) {
-  return IsReadOnlyHeapObject(obj);
-}
-
 constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
 #if V8_STATIC_ROOTS_BOOL
   // The following assert ensures that the page size check covers all our static
@@ -407,7 +395,7 @@ bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
   // never change.
-  return IsJSObject(obj) && !InWritableSharedSpace(*obj);
+  return IsJSObject(obj) && !HeapLayout::InWritableSharedSpace(*obj);
 }
 
 bool IsJSApiWrapperObject(Tagged<Map> map) {
@@ -1758,14 +1746,14 @@ bool IsShared(Tagged<Object> obj) {
   Tagged<HeapObject> object = Cast<HeapObject>(obj);
 
   // RO objects are shared when the RO space is shared.
-  if (IsReadOnlyHeapObject(object)) {
+  if (HeapLayout::InReadOnlySpace(object)) {
     return ReadOnlyHeap::IsReadOnlySpaceShared();
   }
 
   // Check if this object is already shared.
   InstanceType instance_type = object->map()->instance_type();
   if (InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type)) {
-    DCHECK(InAnySharedSpace(object));
+    DCHECK(HeapLayout::InAnySharedSpace(object));
     return true;
   }
   switch (instance_type) {
@@ -1775,7 +1763,7 @@ bool IsShared(Tagged<Object> obj) {
     case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHARED_UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE:
     case SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-      DCHECK(InAnySharedSpace(object));
+      DCHECK(HeapLayout::InAnySharedSpace(object));
       return true;
     case INTERNALIZED_TWO_BYTE_STRING_TYPE:
     case INTERNALIZED_ONE_BYTE_STRING_TYPE:
@@ -1784,12 +1772,12 @@ bool IsShared(Tagged<Object> obj) {
     case UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
       if (v8_flags.shared_string_table) {
-        DCHECK(InAnySharedSpace(object));
+        DCHECK(HeapLayout::InAnySharedSpace(object));
         return true;
       }
       return false;
     case HEAP_NUMBER_TYPE:
-      return InWritableSharedSpace(object);
+      return HeapLayout::InWritableSharedSpace(object);
     default:
       return false;
   }

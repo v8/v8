@@ -19,6 +19,7 @@
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -315,7 +316,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           done = true;
           break;
         }
-        DCHECK(!InReadOnlySpace(object));
+        DCHECK(!HeapLayout::InReadOnlySpace(object));
         DCHECK_EQ(GetIsolateFromWritableObject(object), isolate);
         objects_processed++;
 

@@ -11,6 +11,7 @@
 #include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/mutable-page-metadata.h"
@@ -35,7 +36,7 @@ namespace internal {
 Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
                                    AllocationType allocation) {
   DCHECK_NE(cons->second()->length(), 0);
-  DCHECK(!InAnySharedSpace(*cons));
+  DCHECK(!HeapLayout::InAnySharedSpace(*cons));
 
   // TurboFan can create cons strings with empty first parts.
   while (cons->first()->length() == 0) {
@@ -114,7 +115,7 @@ Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
     case StringTransitionStrategy::kInPlace:
       // A relaxed write is sufficient here, because at this point the string
       // has not yet escaped the current thread.
-      DCHECK(InAnySharedSpace(*flat));
+      DCHECK(HeapLayout::InAnySharedSpace(*flat));
       flat->set_map_no_write_barrier(*new_map.ToHandleChecked());
       return flat;
     case StringTransitionStrategy::kAlreadyTransitioned:
@@ -421,13 +422,13 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (size < static_cast<int>(sizeof(UncachedExternalString))) return false;
   // Read-only strings cannot be made external, since that would mutate the
   // string.
-  if (IsReadOnlyHeapObject(this)) return false;
+  if (HeapLayout::InReadOnlySpace(this)) return false;
   Isolate* isolate = GetIsolateFromWritableObject(this);
   if (IsShared()) {
     DCHECK(isolate->is_shared_space_isolate());
     return MarkForExternalizationDuringGC(isolate, resource);
   }
-  DCHECK_IMPLIES(InWritableSharedSpace(this),
+  DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(this),
                  isolate->is_shared_space_isolate());
   bool is_internalized = IsInternalizedString(this);
   bool has_pointers = StringShape(this).IsIndirect();
@@ -512,13 +513,13 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   if (size < static_cast<int>(sizeof(UncachedExternalString))) return false;
   // Read-only strings cannot be made external, since that would mutate the
   // string.
-  if (IsReadOnlyHeapObject(this)) return false;
+  if (HeapLayout::InReadOnlySpace(this)) return false;
   Isolate* isolate = GetIsolateFromWritableObject(this);
   if (IsShared()) {
     DCHECK(isolate->is_shared_space_isolate());
     return MarkForExternalizationDuringGC(isolate, resource);
   }
-  DCHECK_IMPLIES(InWritableSharedSpace(this),
+  DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(this),
                  isolate->is_shared_space_isolate());
   bool is_internalized = IsInternalizedString(this);
   bool has_pointers = StringShape(this).IsIndirect();
@@ -540,7 +541,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     int new_size = this->SizeFromMap(new_map);
 
     if (has_pointers) {
-      DCHECK(!InWritableSharedSpace(this));
+      DCHECK(!HeapLayout::InWritableSharedSpace(this));
       isolate->heap()->NotifyObjectLayoutChange(
           this, no_gc, InvalidateRecordedSlots::kYes,
           InvalidateExternalPointerSlots::kNo, new_size);
@@ -581,7 +582,7 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
   }
 
   // RO_SPACE strings cannot be externalized.
-  if (IsReadOnlyHeapObject(this)) {
+  if (HeapLayout::InReadOnlySpace(this)) {
     return false;
   }
 

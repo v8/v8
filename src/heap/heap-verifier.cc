@@ -15,6 +15,7 @@
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/ephemeron-remembered-set.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
@@ -640,8 +641,9 @@ class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
                               Tagged<MaybeObject> target) override {
     Tagged<HeapObject> target_heap_object;
     return target.GetHeapObject(&target_heap_object) &&
-           InWritableSharedSpace(target_heap_object) &&
-           !Heap::InYoungGeneration(host) && !InWritableSharedSpace(host);
+           HeapLayout::InWritableSharedSpace(target_heap_object) &&
+           !Heap::InYoungGeneration(host) &&
+           !HeapLayout::InWritableSharedSpace(host);
   }
 };
 
@@ -756,7 +758,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
     CHECK_NULL(chunk->slot_set<TRUSTED_TO_SHARED_TRUSTED>());
   }
 
-  if (InWritableSharedSpace(object)) {
+  if (HeapLayout::InWritableSharedSpace(object)) {
     CHECK_NULL(chunk->slot_set<OLD_TO_SHARED>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_SHARED>());
 
@@ -804,7 +806,7 @@ void HeapVerifier::VerifyReadOnlyHeap(Heap* heap) {
 // static
 void HeapVerifier::VerifyObjectLayoutChangeIsAllowed(
     Heap* heap, Tagged<HeapObject> object) {
-  if (InWritableSharedSpace(object)) {
+  if (HeapLayout::InWritableSharedSpace(object)) {
     // Out of objects in the shared heap, only strings can change layout.
     CHECK(IsString(object));
     // Shared strings only change layout under GC, never concurrently.

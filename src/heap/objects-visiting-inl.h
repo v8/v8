@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/object-lock-inl.h"
 #include "src/heap/objects-visiting.h"
@@ -60,7 +61,7 @@ inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
       PtrComprCageBase cage_base, Tagged<HeapObject> object) {                \
     /* If you see this DCHECK fail we encountered a Map with a VisitorId that \
      * should have only ever appeared in read-only space. */                  \
-    DCHECK(InReadOnlySpace(object->map(cage_base)));                          \
+    DCHECK(HeapLayout::InReadOnlySpace(object->map(cage_base)));              \
     return true;                                                              \
   }
 VISITOR_IDS_WITH_READ_ONLY_MAPS_LIST(DEFINE_READ_ONLY_MAP_SPECIALIZATION)

@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/heap/ephemeron-remembered-set.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
@@ -606,7 +607,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     // Objects in the shared heap are prohibited from being used as keys in
     // WeakMaps and WeakSets and therefore cannot be ephemeron keys. See also
     // MarkCompactCollector::ProcessEphemeron.
-    DCHECK(!InWritableSharedSpace(key));
+    DCHECK(!HeapLayout::InWritableSharedSpace(key));
     if (MarkingHelper::IsMarkedOrAlwaysLive(
             heap_, concrete_visitor()->marking_state(), key)) {
       VisitPointer(table, value_slot);
@@ -776,7 +777,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
   // follows this call:
   // - Array in read only space;
   // - StrongDescriptor array;
-  if (InReadOnlySpace(descriptors) || IsStrongDescriptorArray(descriptors)) {
+  if (HeapLayout::InReadOnlySpace(descriptors) ||
+      IsStrongDescriptorArray(descriptors)) {
     return;
   }
 
@@ -841,7 +843,7 @@ void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
     table->Mark(space, handle);
   } else {
     bool use_shared_table = IsSharedTrustedPointerType(tag);
-    DCHECK_EQ(use_shared_table, InWritableSharedSpace(host));
+    DCHECK_EQ(use_shared_table, HeapLayout::InWritableSharedSpace(host));
     TrustedPointerTable* table = use_shared_table
                                      ? this->shared_trusted_pointer_table_
                                      : this->trusted_pointer_table_;

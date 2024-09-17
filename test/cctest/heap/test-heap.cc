@@ -47,6 +47,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
@@ -5945,7 +5946,8 @@ TEST(Regress598319) {
   // progress bar, we would fail here.
   for (int i = 0; i < arr.get()->length(); i++) {
     Tagged<HeapObject> arr_value = Cast<HeapObject>(arr.get()->get(i));
-    CHECK(InReadOnlySpace(arr_value) || marking_state->IsMarked(arr_value));
+    CHECK(HeapLayout::InReadOnlySpace(arr_value) ||
+          marking_state->IsMarked(arr_value));
   }
 }
 

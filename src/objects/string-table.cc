@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-utils-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/object-list-macros.h"
@@ -437,7 +438,8 @@ DirectHandle<String> StringTable::LookupKey(IsolateT* isolate,
   if (entry.is_found()) {
     DirectHandle<String> result(
         Cast<String>(current_table.GetKey(isolate, entry)), isolate);
-    DCHECK_IMPLIES(v8_flags.shared_string_table, InAnySharedSpace(*result));
+    DCHECK_IMPLIES(v8_flags.shared_string_table,
+                   HeapLayout::InAnySharedSpace(*result));
     return result;
   }
 

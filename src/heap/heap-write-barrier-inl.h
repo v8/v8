@@ -8,6 +8,7 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/memory-chunk.h"
@@ -99,11 +100,6 @@ bool ObjectInYoungGeneration(Tagged<Object> object) {
   return HeapObjectInYoungGeneration(Cast<HeapObject>(object));
 }
 
-bool IsReadOnlyHeapObject(Tagged<HeapObject> object) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  return chunk->InReadOnlySpace();
-}
-
 bool IsCodeSpaceObject(Tagged<HeapObject> object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   return chunk->InCodeSpace();
@@ -114,10 +110,10 @@ bool IsTrustedSpaceObject(Tagged<HeapObject> object) {
   return chunk->InTrustedSpace();
 }
 
-bool IsImmortalImmovableHeapObject(Tagged<HeapObject> object) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+// static
+bool WriteBarrier::IsImmortalImmovableHeapObject(Tagged<HeapObject> object) {
   // All objects in readonly space are immortal and immovable.
-  return chunk->InReadOnlySpace();
+  return HeapLayout::InReadOnlySpace(object);
 }
 
 // static

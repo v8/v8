@@ -22,6 +22,7 @@
 #include "src/execution/tiering-manager.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/handler-configuration.h"
@@ -3340,15 +3341,15 @@ bool CanCacheCloneTargetMapTransition(
   // This is a performance dcheck. If it fails, the clone IC does not handle a
   // case it probably could.
   // TODO(olivf): Either remove that dcheck or move it to GetCloneModeForMap.
-  DCHECK(!InReadOnlySpace(*source_map));
-  if (InReadOnlySpace(*source_map) || source_map->is_deprecated() ||
+  DCHECK(!HeapLayout::InReadOnlySpace(*source_map));
+  if (HeapLayout::InReadOnlySpace(*source_map) || source_map->is_deprecated() ||
       source_map->is_prototype_map()) {
     return false;
   }
   if (!target_map) {
     return true;
   }
-  CHECK(!InReadOnlySpace(**target_map));
+  CHECK(!HeapLayout::InReadOnlySpace(**target_map));
   return !(*target_map)->is_deprecated();
 }
 

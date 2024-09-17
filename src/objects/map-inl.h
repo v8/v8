@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_MAP_INL_H_
 #define V8_OBJECTS_MAP_INL_H_
 
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/cell-inl.h"
@@ -57,7 +58,7 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
 ACCESSORS_CHECKED2(Map, prototype, Tagged<HeapObject>, kPrototypeOffset, true,
                    IsNull(value) || IsJSProxy(value) || IsWasmObject(value) ||
                        (IsJSObject(value) &&
-                        (InWritableSharedSpace(value) ||
+                        (HeapLayout::InWritableSharedSpace(value) ||
                          value->map()->is_prototype_map())))
 
 DEF_GETTER(Map, prototype_info, Tagged<Object>) {
@@ -729,7 +730,7 @@ bool Map::CanTransition() const {
   // Shared JS objects have fixed shapes and do not transition. Their maps are
   // either in shared space or RO space.
   DCHECK_IMPLIES(InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type),
-                 InAnySharedSpace(*this));
+                 HeapLayout::InAnySharedSpace(*this));
   return InstanceTypeChecker::IsJSObject(type) &&
          !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type);
 }

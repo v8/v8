@@ -6,6 +6,7 @@
 #define V8_HEAP_MARKING_BARRIER_INL_H_
 
 #include "src/base/logging.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
@@ -31,7 +32,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, TSlot slot,
 
 void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
                                Tagged<HeapObject> value) {
-  if (InReadOnlySpace(value)) return;
+  if (HeapLayout::InReadOnlySpace(value)) return;
 
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklists_.has_value());
@@ -45,18 +46,20 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
       return;
     }
 
-    if (InWritableSharedSpace(host)) {
+    if (HeapLayout::InWritableSharedSpace(host)) {
       // Invoking shared marking barrier when storing into shared objects.
       MarkValueShared(value);
       return;
-    } else if (InWritableSharedSpace(value)) {
+    } else if (HeapLayout::InWritableSharedSpace(value)) {
       // No marking needed when storing shared objects in local objects.
       return;
     }
   }
 
-  DCHECK_IMPLIES(InWritableSharedSpace(host), is_shared_space_isolate_);
-  DCHECK_IMPLIES(InWritableSharedSpace(value), is_shared_space_isolate_);
+  DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(host),
+                 is_shared_space_isolate_);
+  DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(value),
+                 is_shared_space_isolate_);
 
   DCHECK(is_activated_);
   MarkValueLocal(value);
@@ -64,7 +67,7 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
 
 void MarkingBarrier::MarkValueShared(Tagged<HeapObject> value) {
   // Value is either in read-only space or shared heap.
-  DCHECK(InAnySharedSpace(value));
+  DCHECK(HeapLayout::InAnySharedSpace(value));
 
   // We should only reach this on client isolates (= worker isolates).
   DCHECK(!is_shared_space_isolate_);
@@ -77,7 +80,7 @@ void MarkingBarrier::MarkValueShared(Tagged<HeapObject> value) {
 }
 
 void MarkingBarrier::MarkValueLocal(Tagged<HeapObject> value) {
-  DCHECK(!InReadOnlySpace(value));
+  DCHECK(!HeapLayout::InReadOnlySpace(value));
   if (is_minor()) {
     // We do not need to insert into RememberedSet<OLD_TO_NEW> here because the
     // C++ marking barrier already does this for us.
@@ -127,7 +130,8 @@ bool MarkingBarrier::IsCompacting(Tagged<HeapObject> object) const {
     return true;
   }
 
-  return shared_heap_worklists_.has_value() && InWritableSharedSpace(object);
+  return shared_heap_worklists_.has_value() &&
+         HeapLayout::InWritableSharedSpace(object);
 }
 
 }  // namespace internal

@@ -15,6 +15,7 @@
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-page-metadata-inl.h"
 #include "src/heap/mark-compact-inl.h"
@@ -185,7 +186,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
           page, chunk->Offset(slot.address()));
     }
 
-    if (InWritableSharedSpace(target)) {
+    if (HeapLayout::InWritableSharedSpace(target)) {
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
       MutablePageMetadata* page = MutablePageMetadata::cast(chunk->Metadata());
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
@@ -941,7 +942,7 @@ void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
   Tagged<HeapObject> heap_object;
 
   if (object.GetHeapObject(&heap_object) &&
-      InWritableSharedSpace(heap_object)) {
+      HeapLayout::InWritableSharedSpace(heap_object)) {
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
         page, chunk->Offset(slot.address()));
   }
@@ -953,7 +954,7 @@ void Scavenger::CheckOldToNewSlotForSharedTyped(
   Tagged<HeapObject> heap_object;
 
   if (new_target.GetHeapObject(&heap_object) &&
-      InWritableSharedSpace(heap_object)) {
+      HeapLayout::InWritableSharedSpace(heap_object)) {
     const uintptr_t offset = chunk->Offset(slot_address);
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
 

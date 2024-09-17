@@ -12,7 +12,8 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-utils-inl.h"
-#include "src/heap/heap-inl.h"                // For InOldSpace.
+#include "src/heap/heap-inl.h"  // For InOldSpace.
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/heap/marking-inl.h"
 #include "src/ic/handler-configuration-inl.h"
@@ -1931,7 +1932,7 @@ void JSSharedArray::JSSharedArrayPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSharedArray");
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   os << "\n - isolate: " << isolate;
-  if (InWritableSharedSpace(*this)) os << " (shared)";
+  if (HeapLayout::InWritableSharedSpace(*this)) os << " (shared)";
   JSObjectPrintBody(os, *this);
 }
 
@@ -1939,7 +1940,7 @@ void JSSharedStruct::JSSharedStructPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSharedStruct");
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   os << "\n - isolate: " << isolate;
-  if (InWritableSharedSpace(*this)) os << " (shared)";
+  if (HeapLayout::InWritableSharedSpace(*this)) os << " (shared)";
   JSObjectPrintBody(os, *this);
 }
 
@@ -1947,7 +1948,7 @@ void JSAtomicsMutex::JSAtomicsMutexPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSAtomicsMutex");
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   os << "\n - isolate: " << isolate;
-  if (InWritableSharedSpace(*this)) os << " (shared)";
+  if (HeapLayout::InWritableSharedSpace(*this)) os << " (shared)";
   os << "\n - state: " << this->state();
   os << "\n - owner_thread_id: " << this->owner_thread_id();
   JSObjectPrintBody(os, *this);
@@ -1957,7 +1958,7 @@ void JSAtomicsCondition::JSAtomicsConditionPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSAtomicsCondition");
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   os << "\n - isolate: " << isolate;
-  if (InWritableSharedSpace(*this)) os << " (shared)";
+  if (HeapLayout::InWritableSharedSpace(*this)) os << " (shared)";
   os << "\n - state: " << this->state();
   JSObjectPrintBody(os, *this);
 }
@@ -3722,7 +3723,7 @@ void Map::MapPrint(std::ostream& os) {
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (!IsReadOnlyHeapObject(*this)) {
+  if (!HeapLayout::InReadOnlySpace(*this)) {
     Isolate* isolate = GetIsolateFromWritableObject(*this);
     TransitionsAccessor transitions(isolate, *this);
     int nof_transitions = transitions.NumberOfTransitions();

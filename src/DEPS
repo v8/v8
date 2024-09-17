@@ -30,6 +30,8 @@ include_rules = [
   "+src/heap/heap.h",
   "+src/heap/heap-verifier.h",
   "+src/heap/heap-inl.h",
+  "+src/heap/heap-layout-inl.h",
+  "+src/heap/heap-layout.h",
   "+src/heap/heap-write-barrier-inl.h",
   "+src/heap/heap-write-barrier.h",
   "+src/heap/local-factory-inl.h",

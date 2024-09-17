@@ -57,6 +57,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/heap-controller.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-layout-tracer.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking-inl.h"
@@ -6369,7 +6370,7 @@ void Heap::AddRetainedMaps(DirectHandle<NativeContext> context,
     DisallowGarbageCollection no_gc;
     Tagged<WeakArrayList> raw_array = *array;
     for (DirectHandle<Map> map : maps) {
-      DCHECK(!InAnySharedSpace(*map));
+      DCHECK(!HeapLayout::InAnySharedSpace(*map));
 
       if (map->is_in_retained_map_list()) {
         continue;

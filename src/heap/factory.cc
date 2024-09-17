@@ -24,6 +24,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/large-page-metadata-inl.h"
 #include "src/heap/mark-compact-inl.h"
@@ -369,7 +370,8 @@ Handle<EnumCache> Factory::NewEnumCache(DirectHandle<FixedArray> keys,
   DCHECK(allocation == AllocationType::kOld ||
          allocation == AllocationType::kSharedOld);
   DCHECK_EQ(allocation == AllocationType::kSharedOld,
-            InAnySharedSpace(*keys) && InAnySharedSpace(*indices));
+            HeapLayout::InAnySharedSpace(*keys) &&
+                HeapLayout::InAnySharedSpace(*indices));
   auto result = NewStructInternal<EnumCache>(ENUM_CACHE_TYPE, allocation);
   DisallowGarbageCollection no_gc;
   result->set_keys(*keys);
@@ -930,7 +932,7 @@ StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
   }
   // If the string table is shared, we need to copy if the string is not already
   // in the shared heap.
-  if (v8_flags.shared_string_table && !InAnySharedSpace(*string)) {
+  if (v8_flags.shared_string_table && !HeapLayout::InAnySharedSpace(*string)) {
     return StringTransitionStrategy::kCopy;
   }
   DCHECK_NOT_NULL(internalized_map);
@@ -975,7 +977,7 @@ StringTransitionStrategy Factory::ComputeSharingStrategyForString(
     DirectHandle<String> string, MaybeDirectHandle<Map>* shared_map) {
   DCHECK(v8_flags.shared_string_table);
   // TODO(pthier): Avoid copying LO-space strings. Update page flags instead.
-  if (!InAnySharedSpace(*string)) {
+  if (!HeapLayout::InAnySharedSpace(*string)) {
     return StringTransitionStrategy::kCopy;
   }
   DCHECK_NOT_NULL(shared_map);

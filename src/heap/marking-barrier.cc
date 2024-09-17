@@ -9,6 +9,7 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
@@ -55,19 +56,19 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   // space. No other edges indirect pointers are currently possible in shared
   // space.
   DCHECK_IMPLIES(
-      InWritableSharedSpace(host),
+      HeapLayout::InWritableSharedSpace(host),
       MemoryChunk::FromHeapObject(value)->Metadata()->owner()->identity() ==
           SHARED_TRUSTED_SPACE);
 
-  if (InReadOnlySpace(value)) return;
+  if (HeapLayout::InReadOnlySpace(value)) return;
 
   DCHECK(!Heap::InYoungGeneration(value));
 
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
-    if (InWritableSharedSpace(value)) {
+    if (HeapLayout::InWritableSharedSpace(value)) {
       // References to the shared trusted space may only originate from the
       // shared space.
-      CHECK(InWritableSharedSpace(host));
+      CHECK(HeapLayout::InWritableSharedSpace(host));
       DCHECK(MemoryChunk::FromHeapObject(value)->IsTrusted());
       MarkValueShared(value);
     } else {
@@ -95,18 +96,18 @@ void MarkingBarrier::WriteWithoutHost(Tagged<HeapObject> value) {
   // objects are considered local.
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
     // On client isolates (= worker isolates) shared values can be ignored.
-    if (InWritableSharedSpace(value)) {
+    if (HeapLayout::InWritableSharedSpace(value)) {
       return;
     }
   }
-  if (InReadOnlySpace(value)) return;
+  if (HeapLayout::InReadOnlySpace(value)) return;
   MarkValueLocal(value);
 }
 
 void MarkingBarrier::Write(Tagged<InstructionStream> host,
                            RelocInfo* reloc_info, Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(!InWritableSharedSpace(host));
+  DCHECK(!HeapLayout::InWritableSharedSpace(host));
   DCHECK(is_activated_ || shared_heap_worklists_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
@@ -127,7 +128,7 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
 void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(!InWritableSharedSpace(host));
+  DCHECK(!HeapLayout::InWritableSharedSpace(host));
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   if (is_minor()) {
@@ -142,7 +143,7 @@ void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
 void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
                            int number_of_own_descriptors) {
   DCHECK(IsCurrentMarkingBarrier(descriptor_array));
-  DCHECK(IsReadOnlyHeapObject(descriptor_array->map()));
+  DCHECK(HeapLayout::InReadOnlySpace(descriptor_array->map()));
   DCHECK(MemoryChunk::FromHeapObject(descriptor_array)->IsMarking());
 
   // Only major GC uses custom liveness.
@@ -154,7 +155,8 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
   unsigned gc_epoch;
   MarkingWorklists::Local* worklist;
   if (V8_UNLIKELY(uses_shared_heap_) &&
-      InWritableSharedSpace(descriptor_array) && !is_shared_space_isolate_) {
+      HeapLayout::InWritableSharedSpace(descriptor_array) &&
+      !is_shared_space_isolate_) {
     gc_epoch = isolate()
                    ->shared_space_isolate()
                    ->heap()

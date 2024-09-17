@@ -4,6 +4,7 @@
 
 #include "src/objects/js-struct.h"
 
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/off-heap-hash-table-inl.h"
@@ -213,7 +214,7 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
             ReadOnlyRoots(isolate).undefined_value_handle(), details);
       }
       elements_template->SetInitialNumberOfElements(num_elements);
-      DCHECK(InAnySharedSpace(*elements_template));
+      DCHECK(HeapLayout::InAnySharedSpace(*elements_template));
 
       Descriptor d = Descriptor::DataConstant(
           factory->shared_struct_map_elements_template_symbol(),

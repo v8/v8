@@ -10,6 +10,7 @@
 #include "src/common/assert-scope.h"
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-array-inl.h"
@@ -128,7 +129,9 @@ class PendingDependencies final {
     // to never invalidate assumptions. E.g., maps for shared structs do not
     // have transitions or change the shape of their fields. See
     // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
-    if (InWritableSharedSpace(*object) || InReadOnlySpace(*object)) return;
+    if (HeapLayout::InWritableSharedSpace(*object) ||
+        HeapLayout::InReadOnlySpace(*object))
+      return;
     deps_.LookupOrInsert(object, HandleValueHash(object))->value |= group;
   }
 

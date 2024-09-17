@@ -25,6 +25,7 @@
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
 #include "src/flags/flags.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/ic/stub-cache.h"
@@ -851,7 +852,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
     case CodeKind::INTERPRETED_FUNCTION:
       break;
     case CodeKind::BUILTIN:
-      if (InReadOnlySpace(*sfi)) {
+      if (HeapLayout::InReadOnlySpace(*sfi)) {
         // SFIs for builtin functions are in RO space and thus we cannot set
         // the never-optimize bit. But such SFIs cannot be optimized anyways.
         return CrashUnlessFuzzing(isolate);

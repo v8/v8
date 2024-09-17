@@ -9,6 +9,7 @@
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -177,7 +178,7 @@ void ExternalizeStringExtension::CreateExternalizableString(
   // Read-only strings are never externalizable. Don't try to copy them as
   // some parts of the code might rely on some strings being in RO space (i.e.
   // empty string).
-  if (IsReadOnlyHeapObject(*string)) {
+  if (HeapLayout::InReadOnlySpace(*string)) {
     info.GetIsolate()->ThrowError("Read-only strings cannot be externalized.");
     return;
   }

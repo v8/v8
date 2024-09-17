@@ -12,6 +12,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/log.h"
@@ -2324,7 +2325,7 @@ void Map::SetInstanceDescriptors(Isolate* isolate,
                                  int number_of_own_descriptors,
                                  WriteBarrierMode barrier_mode) {
   DCHECK_IMPLIES(barrier_mode == WriteBarrierMode::SKIP_WRITE_BARRIER,
-                 IsReadOnlyHeapObject(descriptors));
+                 HeapLayout::InReadOnlySpace(descriptors));
   set_instance_descriptors(descriptors, kReleaseStore, barrier_mode);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
 #ifndef V8_DISABLE_WRITE_BARRIERS
@@ -2432,7 +2433,8 @@ void Map::SetPrototype(Isolate* isolate, DirectHandle<Map> map,
     JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
   } else {
     DCHECK(IsNull(*prototype, isolate) || IsJSProxy(*prototype) ||
-           IsWasmObject(*prototype) || InWritableSharedSpace(*prototype));
+           IsWasmObject(*prototype) ||
+           HeapLayout::InWritableSharedSpace(*prototype));
   }
 
   WriteBarrierMode wb_mode =
