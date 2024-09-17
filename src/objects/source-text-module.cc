@@ -389,11 +389,11 @@ bool SourceTextModule::PrepareInstantiate(
             Utils::OpenDirectHandle(*api_requested_module_source);
         CHECK(IsWasmModuleObject(*requested_module_source));
         requested_modules->set(i, *requested_module_source);
+        break;
 #else
         // Only WebAssembly modules can be requested in the source phase.
         UNREACHABLE();
 #endif
-        break;
       }
       default:
         UNREACHABLE();
