@@ -1256,8 +1256,8 @@ DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 DEFINE_BOOL(maglev_escape_analysis, true,
             "avoid inlined allocation of objects that cannot escape")
 DEFINE_BOOL(trace_maglev_escape_analysis, false, "trace maglev escape analysis")
-DEFINE_BOOL(maglev_object_tracking, true,
-            "track object changes to avoid escaping them")
+DEFINE_EXPERIMENTAL_FEATURE(maglev_object_tracking,
+                            "track object changes to avoid escaping them")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_object_tracking)
 DEFINE_BOOL(trace_maglev_object_tracking, false,
             "trace load/stores from maglev virtual objects")
