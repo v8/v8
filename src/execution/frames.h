@@ -1282,7 +1282,9 @@ class WasmFrame : public TypedFrame {
 // is replaced by WASM_SEGMENT_START.
 class WasmSegmentStartFrame : public WasmFrame {
  public:
-  Type type() const override { return WASM_SEGMENT_START; }
+  // type() intentionally returns WASM frame type because WasmSegmentStartFrame
+  // behaves exactly like regular WasmFrame in all scenarios.
+  Type type() const override { return WASM; }
 
  protected:
   inline explicit WasmSegmentStartFrame(StackFrameIteratorBase* iterator);
