@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-generic-wrapper --expose-gc --allow-natives-syntax
-// Flags: --enable-wasm-arm64-generic-wrapper
+// Flags: --enable-wasm-arm64-generic-wrapper --wasm-to-js-generic-wrapper
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
