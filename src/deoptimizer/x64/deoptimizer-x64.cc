@@ -6,6 +6,7 @@
 
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/code-memory-access-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-data.h"
 
@@ -38,6 +39,7 @@ void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
     return;
   }
 
+  RwxMemoryWriteScope rwx_write_scope("Patch jump to deopt trampoline");
   // We'll overwrite only one instruction of 5-bytes. Give enough
   // space not to try to grow the buffer.
   constexpr int kSize = 32;
