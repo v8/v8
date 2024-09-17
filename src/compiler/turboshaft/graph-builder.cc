@@ -2102,6 +2102,8 @@ OpIndex GraphBuilder::Process(
         // regular API call and not unconditionally the return value of the fast
         // API call.
         if (!return_is_void) {
+          __ CodeComment(
+              "An API call returned that was supposed to throw an exception");
           __ Unreachable();
         }
       }
