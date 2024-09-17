@@ -199,6 +199,9 @@ DISALLOWED_FLAGS = [
 
   # Statistics about allocations aren't comparable.
   '--expose-statistics',
+
+  # TODO(https://crbug.com/366323510): Experimental feature.
+  '--turboshaft-frontend',
 ]
 
 # List pairs of flags that lead to contradictory cycles, i.e.:
