@@ -1208,6 +1208,27 @@ TEST_F(ModuleTest, IsGraphAsyncTopLevelAwait) {
   cycle_two_module_global.Reset();
 }
 
+TEST_F(ModuleTest, HasTopLevelAwait) {
+  HandleScope scope(isolate());
+  {
+    Local<String> source_text = NewString("await notExecuted();");
+    ScriptOrigin origin = ModuleOrigin(NewString("async_leaf.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> async_leaf_module =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK(async_leaf_module->HasTopLevelAwait());
+  }
+
+  {
+    Local<String> source_text = NewString("notExecuted();");
+    ScriptOrigin origin = ModuleOrigin(NewString("sync_leaf.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> sync_leaf_module =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK(!sync_leaf_module->HasTopLevelAwait());
+  }
+}
+
 TEST_F(ModuleTest, AsyncEvaluatingInEvaluateEntryPoint) {
   // This test relies on v8::Module::Evaluate _not_ performing a microtask
   // checkpoint.

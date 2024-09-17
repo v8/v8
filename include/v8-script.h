@@ -274,6 +274,13 @@ class V8_EXPORT Module : public Data {
   bool IsGraphAsync() const;
 
   /**
+   * Returns whether this module is individually asynchronous (for example,
+   * if it's a Source Text Module Record containing a top-level await).
+   * See [[HasTLA]] in https://tc39.es/ecma262/#sec-cyclic-module-records
+   */
+  bool HasTopLevelAwait() const;
+
+  /**
    * Returns whether the module is a SourceTextModule.
    */
   bool IsSourceTextModule() const;

@@ -2401,6 +2401,12 @@ int Module::ScriptId() const {
   return i::Cast<i::SourceTextModule>(self)->GetScript()->id();
 }
 
+bool Module::HasTopLevelAwait() const {
+  i::Tagged<i::Module> self = *Utils::OpenDirectHandle(this);
+  if (!i::IsSourceTextModule(self)) return false;
+  return i::Cast<i::SourceTextModule>(self)->has_toplevel_await();
+}
+
 bool Module::IsGraphAsync() const {
   Utils::ApiCheck(
       GetStatus() >= kInstantiated, "v8::Module::IsGraphAsync",
