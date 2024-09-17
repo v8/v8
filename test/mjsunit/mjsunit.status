@@ -2340,6 +2340,8 @@
   'compiler/fast-api-interface-types': [FAIL],
   'compiler/fast-api-sequences*': [FAIL],
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
+  'regress/regress-366323469': [FAIL],
+  'regress/regress-366635361': [FAIL],
   # Maglev doesn't specialise the IsBeingInterpreted runtime func.
   'compiler/is-being-interpreted-1': [FAIL],
   # Maglev doesn't support elements transitions (yet!).

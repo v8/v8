@@ -94,6 +94,17 @@ class FastCApiObject {
     self->fast_call_count_++;
 
     HandleScope handle_scope(options.isolate);
+    if (!out->IsUint8Array()) {
+      options.isolate->ThrowError(
+          "Invalid parameter, the second parameter has to be a a Uint8Array.");
+      return;
+    }
+    Local<Uint8Array> array = out.As<Uint8Array>();
+    if (array->Length() < source.length) {
+      options.isolate->ThrowError(
+          "Invalid parameter, destination array is too small.");
+      return;
+    }
     uint8_t* memory =
         reinterpret_cast<uint8_t*>(out.As<Uint8Array>()->Buffer()->Data());
     memcpy(memory, source.data, source.length);
