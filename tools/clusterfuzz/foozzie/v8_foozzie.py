@@ -197,6 +197,9 @@ DISALLOWED_FLAGS = [
   # Logs non-deterministic internal state.
   '--log',
 
+  # Writes to stdout and is not comparable.
+  '--dump-counters',
+
   # Statistics about allocations aren't comparable.
   '--expose-statistics',
 
