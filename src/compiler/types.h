@@ -202,7 +202,7 @@ namespace compiler {
                                   kOtherCallable | kCallableProxy) \
   V(Callable,                     kDetectableCallable | kOtherUndetectable) \
   V(NonCallable,                  kArray | kStringWrapper | kOtherObject | \
-                                  kOtherProxy) \
+                                  kOtherProxy | kWasmObject) \
   V(NonCallableOrNull,            kNonCallable | kNull) \
   V(DetectableObject,             kArray | kFunction | kBoundFunction | \
                                   kStringWrapper | kOtherCallable | \
