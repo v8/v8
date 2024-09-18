@@ -731,6 +731,8 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     // Resolve the shortcut to the underlying callable and continue.
     ImportedFunctionEntry entry(handle(data->instance_data(), isolate),
                                 func_index);
+    suspend_ = static_cast<Suspend>(
+        Cast<WasmImportData>(entry.implicit_arg())->suspend());
     SetCallable(isolate, entry.callable());
   }
   if (!trusted_function_data_.is_null() &&
