@@ -2676,7 +2676,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
       DCHECK_IMPLIES(prop_info->is_computed_name, !prop_info->is_private);
 
       if (prop_info->is_computed_name) {
-        if (next_info_id != PeekNextInfoId() &&
+        if (!has_error() && next_info_id != PeekNextInfoId() &&
             !(prop_info->is_static ? class_info->has_static_elements()
                                    : class_info->has_instance_members())) {
           impl()->ReindexComputedMemberName(name_expression);
