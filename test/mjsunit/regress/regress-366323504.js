@@ -4,12 +4,11 @@
 
 // Flags: --allow-natives-syntax --fuzzing
 
-// Wasm isn't supported in jitless mode.
-// When fuzzing, these runtime functions just return undefined.
-if (typeof WebAssembly === "undefined") {
-  assertEquals(undefined, %WasmStruct());
-  assertEquals(undefined, %WasmArray());
-} else {
-  assertTrue(typeof %WasmStruct() === "object");
-  assertTrue(typeof %WasmArray() === "object");
-}
+assertTrue(typeof %WasmStruct() === "object");
+assertTrue(typeof %WasmArray() === "object");
+
+// Printing a wasm object causes a TypeError.
+// In --jitless mode (needed for differential fuzzing), the wasm object is
+// replaced with a frozen empty object, reproducing the same behavior).
+assertThrows(() => print(%WasmStruct()), TypeError);
+assertThrows(() => print(%WasmArray()), TypeError);

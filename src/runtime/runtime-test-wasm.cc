@@ -685,8 +685,9 @@ RUNTIME_FUNCTION(Runtime_WasmNull) {
   return ReadOnlyRoots(isolate).wasm_null();
 }
 
-static Tagged<Object> CreateWasmObject(
-    Isolate* isolate, base::Vector<const uint8_t> module_bytes) {
+static Tagged<Object> CreateWasmObject(Isolate* isolate,
+                                       base::Vector<const uint8_t> module_bytes,
+                                       bool is_struct) {
   // Create and compile the wasm module.
   wasm::ErrorThrower thrower(isolate, "CreateWasmObject");
   wasm::ModuleWireBytes bytes(base::VectorOf(module_bytes));
@@ -710,134 +711,84 @@ static Tagged<Object> CreateWasmObject(
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
   }
-  // Get the exports.
-  Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
-  MaybeHandle<Object> maybe_exports =
-      JSObject::GetProperty(isolate, instance, exports);
-  Handle<Object> exports_object;
-  if (!maybe_exports.ToHandle(&exports_object)) {
-    DCHECK(isolate->has_exception());
-    return ReadOnlyRoots(isolate).exception();
+  wasm::WasmValue value(int64_t{0x7AADF00DBAADF00D});
+  int type_index = 0;
+  Tagged<Map> map = Tagged<Map>::cast(
+      instance->trusted_data(isolate)->managed_object_maps()->get(type_index));
+  if (is_struct) {
+    const wasm::StructType* struct_type =
+        instance->module()->struct_type(type_index);
+    DCHECK_EQ(struct_type->field_count(), 1);
+    DCHECK_EQ(struct_type->field(0), wasm::kWasmI64);
+    return *isolate->factory()->NewWasmStruct(struct_type, &value,
+                                              handle(map, isolate));
+  } else {
+    DCHECK_EQ(instance->module()->array_type(type_index)->element_type(),
+              wasm::kWasmI64);
+    return *isolate->factory()->NewWasmArray(wasm::kWasmI64, 1, value,
+                                             handle(map, isolate));
   }
-  // Get function and call it.
-  Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked("f");
-  PropertyDescriptor desc;
-  Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
-      isolate, Cast<JSObject>(exports_object), main_name, &desc);
-  CHECK(property_found.FromMaybe(false));
-  CHECK(IsJSFunction(*desc.value()));
-  Handle<JSFunction> function = Cast<JSFunction>(desc.value());
-  MaybeHandle<Object> maybe_result = Execution::Call(
-      isolate, function, isolate->factory()->undefined_value(), 0, nullptr);
-  Handle<Object> result;
-  if (!maybe_result.ToHandle(&result)) {
-    DCHECK(isolate->has_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  return *result;
+}
+
+// In jitless mode we don't support creation of real wasm objects (they require
+// a NativeModule and instantiating that is not supported in jitless), so this
+// function creates a frozen JS object that should behave the same as a wasm
+// object within JS.
+static Tagged<Object> CreateDummyWasmLookAlikeForFuzzing(Isolate* isolate) {
+  Handle<JSObject> obj = isolate->factory()->NewJSObjectWithNullProto();
+  CHECK(IsJSReceiver(*obj));
+  MAYBE_RETURN(JSReceiver::SetIntegrityLevel(isolate, Cast<JSReceiver>(obj),
+                                             FROZEN, kThrowOnError),
+               ReadOnlyRoots(isolate).exception());
+  return *obj;
 }
 
 // Creates a new wasm struct with one i64 (value 0x7AADF00DBAADF00D).
 RUNTIME_FUNCTION(Runtime_WasmStruct) {
-  if (v8_flags.jitless) {
-    return CrashUnlessFuzzing(isolate);
-  }
   HandleScope scope(isolate);
+  if (v8_flags.jitless) {
+    return CreateDummyWasmLookAlikeForFuzzing(isolate);
+  }
   /* Recreate with:
     d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     let builder = new WasmModuleBuilder();
     let struct = builder.addStruct([makeField(kWasmI64, false)]);
-    builder.addFunction("f", makeSig([], [kWasmAnyRef]))
-      .addBody([
-        ...wasmI64Const(0x7AADF00DBAADF00Dn),
-        kGCPrefix, kExprStructNew, struct
-      ])
-      .exportFunc();
     builder.instantiate();
   */
   static constexpr uint8_t wasm_module_bytes[] = {
       0x00, 0x61, 0x73, 0x6d,  // wasm magic
       0x01, 0x00, 0x00, 0x00,  // wasm version
       0x01,                    // section kind: Type
-      0x0b,                    // section length 11
-      0x02,                    // types count 2
-      0x50, 0x00,              //  subtype extensible, supertype count 0
+      0x07,                    // section length 7
+      0x01, 0x50, 0x00,        // types count 1:  subtype extensible,
+                               // supertype count 0
       0x5f, 0x01, 0x7e, 0x00,  //  kind: struct, field count 1:  i64 immutable
-      0x60,                    //  kind: func
-      0x00,                    // param count 0
-      0x01, 0x6e,              // return count 1:  anyref
-      0x03,                    // section kind: Function
-      0x02,                    // section length 2
-      0x01, 0x01,              // functions count 1: 0 $f (result anyref)
-      0x07,                    // section kind: Export
-      0x05,                    // section length 5
-      0x01,                    // exports count 1: export # 0
-      0x01,                    // field name length:  1
-      0x66,                    // field name: f
-      0x00, 0x00,              // kind: function index:  0
-      0x0a,                    // section kind: Code
-      0x12,                    // section length 18
-      0x01,                    // functions count 1
-                               // function #0 $f
-      0x10,                    // body size 16
-      0x00,                    // 0 entries in locals list
-      0x42, 0x8d, 0xe0, 0xb7, 0xd5, 0xdb, 0x81, 0xfc, 0xd6, 0xfa,
-      0x00,              // i64.const 8839985585355354125
-      0xfb, 0x00, 0x00,  // struct.new $type0
-      0x0b,              // end
   };
-  return CreateWasmObject(isolate, base::VectorOf(wasm_module_bytes));
+  return CreateWasmObject(isolate, base::VectorOf(wasm_module_bytes), true);
 }
 
-// Creates a new wasm array of type i32 with two elements (2x 0xBAADF00D).
+// Creates a new wasm array of type i64 with one element (0x7AADF00DBAADF00D).
 RUNTIME_FUNCTION(Runtime_WasmArray) {
-  if (v8_flags.jitless) {
-    return CrashUnlessFuzzing(isolate);
-  }
   HandleScope scope(isolate);
+  if (v8_flags.jitless) {
+    return CreateDummyWasmLookAlikeForFuzzing(isolate);
+  }
   /* Recreate with:
     d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     let builder = new WasmModuleBuilder();
-    let array = builder.addArray(kWasmI32, false);
-    builder.addFunction("f", makeSig([], [kWasmAnyRef]))
-      .addBody([
-        ...wasmI32Const(0xBAADF00D), kExprI32Const, 2,
-        kGCPrefix, kExprArrayNew, array
-      ])
-      .exportFunc();
+    let array = builder.addArray(kWasmI64, false);
+    builder.instantiate();
   */
   static constexpr uint8_t wasm_module_bytes[] = {
       0x00, 0x61, 0x73, 0x6d,  // wasm magic
       0x01, 0x00, 0x00, 0x00,  // wasm version
       0x01,                    // section kind: Type
-      0x0a,                    // section length 10
-      0x02,                    // types count 2
-      0x50, 0x00,              //  subtype extensible, supertype count 0
-      0x5e, 0x7f, 0x00,        //  kind: array i32 immutable
-      0x60,                    //  kind: func
-      0x00,                    // param count 0
-      0x01, 0x6e,              // return count 1:  anyref
-      0x03,                    // section kind: Function
-      0x02,                    // section length 2
-      0x01, 0x01,              // functions count 1: 0 $f (result anyref)
-      0x07,                    // section kind: Export
-      0x05,                    // section length 5
-      0x01,                    // exports count 1: export # 0
-      0x01,                    // field name length:  1
-      0x66,                    // field name: f
-      0x00, 0x00,              // kind: function index:  0
-      0x0a,                    // section kind: Code
-      0x0f,                    // section length 15
-      0x01,                    // functions count 1
-                               // function #0 $f
-      0x0d,                    // body size 13
-      0x00,                    // 0 entries in locals list
-      0x41, 0x8d, 0xe0, 0xb7, 0xd5, 0x7b,  // i32.const -1163005939
-      0x41, 0x02,                          // i32.const 2
-      0xfb, 0x06, 0x00,                    // array.new $type0
-      0x0b,                                // end
+      0x06,                    // section length 6
+      0x01, 0x50, 0x00,        // types count 1:  subtype extensible,
+                               // supertype count 0
+      0x5e, 0x7e, 0x00,        //  kind: array i64 immutable
   };
-  return CreateWasmObject(isolate, base::VectorOf(wasm_module_bytes));
+  return CreateWasmObject(isolate, base::VectorOf(wasm_module_bytes), false);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmEnterDebugging) {
