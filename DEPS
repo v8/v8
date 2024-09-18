@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd26b9feb99c4f0bb93e1123a20bd411ea4546fe4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '55c1ffcd0293908547f6eab7322d46cd898f43d2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e796a7e40dafb8572f517080436b516597e1e466',
   'buildtools/linux64': {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '2958490127dbe0df3adb72bc8ffb04ebca1f4bbf',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '3d6f9f7f7a4d4642241fd20452ebffa32f7295ca',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '8283581340dbfb515f697d17a8492bbe2acdbaed',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '655f1564f324756efcbaf10c475835fd81c5efcb',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6e9a3df972e3cdaf364868b565d514120a6da0d7',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '74ec76545760d2af557c81315cb3b49acfec4c61',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -511,7 +511,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '20f7b28b4e7582095d74ad5b3c7051290e906ec0',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'ff8e7ea37edb9d34175b5fbf6f19ebd3c1caa47f',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
