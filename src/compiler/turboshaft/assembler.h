@@ -2435,6 +2435,11 @@ class TurboshaftAssemblerOpInterface
         static_cast<uint64_t>(canonical_id));
   }
 
+  V<WordPtr> RelocatableWasmIndirectCallTarget(uint32_t function_index) {
+    return ReduceIfReachableConstant(
+        ConstantOp::Kind::kRelocatableWasmIndirectCallTarget, function_index);
+  }
+
   V<Context> NoContextConstant() {
     return V<Context>::Cast(TagSmi(Context::kNoContext));
   }

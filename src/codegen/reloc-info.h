@@ -117,6 +117,7 @@ class RelocInfo {
 
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
+    WASM_INDIRECT_CALL_TARGET,  // A Wasm fn address embedded as a full pointer.
     WASM_CANONICAL_SIG_ID,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
@@ -212,6 +213,9 @@ class RelocInfo {
   static constexpr bool IsWasmCanonicalSigId(Mode mode) {
     return mode == WASM_CANONICAL_SIG_ID;
   }
+  static constexpr bool IsWasmIndirectCallTarget(Mode mode) {
+    return mode == WASM_INDIRECT_CALL_TARGET;
+  }
   static constexpr bool IsConstPool(Mode mode) { return mode == CONST_POOL; }
   static constexpr bool IsVeneerPool(Mode mode) { return mode == VENEER_POOL; }
   static constexpr bool IsDeoptPosition(Mode mode) {
@@ -282,6 +286,7 @@ class RelocInfo {
   Address wasm_call_address() const;
   Address wasm_stub_call_address() const;
   V8_EXPORT_PRIVATE uint32_t wasm_canonical_sig_id() const;
+  V8_INLINE Address wasm_indirect_call_target() const;
 
   uint32_t wasm_call_tag() const;
 
@@ -419,6 +424,8 @@ class WritableRelocInfo : public RelocInfo {
   void set_wasm_call_address(Address);
   void set_wasm_stub_call_address(Address);
   void set_wasm_canonical_sig_id(uint32_t);
+  V8_INLINE void set_wasm_indirect_call_target(
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   void set_target_address(
       Tagged<InstructionStream> host, Address target,

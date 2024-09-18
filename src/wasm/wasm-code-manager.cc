@@ -372,6 +372,14 @@ void WasmCode::Validate() const {
         CHECK_LE(sig_id, GetTypeCanonicalizer()->GetCurrentNumberOfTypes());
         break;
       }
+      case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
+        Address call_target = it.rinfo()->wasm_indirect_call_target();
+        uint32_t function_index =
+            native_module_->GetFunctionIndexFromIndirectCallTarget(call_target);
+        CHECK_EQ(call_target,
+                 native_module_->GetIndirectCallTarget(function_index));
+        break;
+      }
       case RelocInfo::INTERNAL_REFERENCE:
       case RelocInfo::INTERNAL_REFERENCE_ENCODED: {
         Address target = it.rinfo()->target_internal_reference();
@@ -1093,8 +1101,9 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code) {
     // Apply the relocation delta by iterating over the RelocInfo.
     intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
                      code->instruction_start();
-    int mode_mask =
-        RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
+    int mode_mask = RelocInfo::kApplyMask |
+                    RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+                    RelocInfo::ModeMask(RelocInfo::WASM_INDIRECT_CALL_TARGET);
     auto jump_tables_ref =
         FindJumpTablesForRegionLocked(base::AddressRegionOf(dst_code_bytes));
     Address dst_code_addr = reinterpret_cast<Address>(dst_code_bytes.begin());
@@ -1112,6 +1121,11 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code) {
         Builtin builtin = static_cast<Builtin>(stub_call_tag);
         Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables_ref);
         it.rinfo()->set_wasm_stub_call_address(entry);
+      } else if (RelocInfo::IsWasmIndirectCallTarget(mode)) {
+        Address function_index = it.rinfo()->wasm_indirect_call_target();
+        Address target =
+            GetIndirectCallTarget(base::checked_cast<uint32_t>(function_index));
+        it.rinfo()->set_wasm_indirect_call_target(target, SKIP_ICACHE_FLUSH);
       } else {
         it.rinfo()->apply(delta);
       }
@@ -1300,7 +1314,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     intptr_t delta = dst_code_bytes.begin() - desc.buffer;
     int mode_mask = RelocInfo::kApplyMask |
                     RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-                    RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
+                    RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+                    RelocInfo::ModeMask(RelocInfo::WASM_INDIRECT_CALL_TARGET);
     Address code_start = reinterpret_cast<Address>(dst_code_bytes.begin());
     Address constant_pool_start = code_start + constant_pool_offset;
 
@@ -1319,6 +1334,11 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
         Builtin builtin = static_cast<Builtin>(stub_call_tag);
         Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables);
         it.rinfo()->set_wasm_stub_call_address(entry);
+      } else if (RelocInfo::IsWasmIndirectCallTarget(mode)) {
+        Address function_index = it.rinfo()->wasm_indirect_call_target();
+        Address target =
+            GetIndirectCallTarget(base::checked_cast<uint32_t>(function_index));
+        it.rinfo()->set_wasm_indirect_call_target(target, SKIP_ICACHE_FLUSH);
       } else {
         it.rinfo()->apply(delta);
       }
@@ -1992,6 +2012,21 @@ uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
   return module_->num_imported_functions + slot_idx;
 }
 
+uint32_t NativeModule::GetFunctionIndexFromIndirectCallTarget(
+    Address target) const {
+  // The indirect call target always points to the entry in the main jump table.
+  // See `GetIndirectCallTarget()` for the reverse operation.
+  Address jt_start = jump_table_start();
+  uint32_t jt_size = JumpTableAssembler::SizeForNumberOfSlots(
+      module()->num_declared_functions);
+  CHECK_GE(target, jt_start);
+  uint32_t jt_offset = base::checked_cast<uint32_t>(target - jt_start);
+  CHECK_LT(jt_offset, jt_size);
+  uint32_t declared_function_index =
+      JumpTableAssembler::SlotOffsetToIndex(jt_offset);
+  return module_->num_imported_functions + declared_function_index;
+}
+
 Builtin NativeModule::GetBuiltinInJumptableSlot(Address target) const {
   base::RecursiveMutexGuard guard(&allocation_mutex_);
 
@@ -2022,6 +2057,16 @@ WasmCodePointerTable::Handle NativeModule::GetCodePointerHandle(
     return WasmCodePointerTable::kInvalidHandle;
   }
   return code_pointer_handles_[declared_function_index(module_.get(), index)];
+}
+
+Address NativeModule::GetIndirectCallTarget(int func_index) const {
+  DCHECK_GE(func_index, module_->num_imported_functions);
+  func_index -= module_->num_imported_functions;
+  DCHECK_LT(func_index, module_->num_declared_functions);
+  Address jump_table_slot =
+      jump_table_start() +
+      JumpTableAssembler::JumpSlotIndexToOffset(func_index);
+  return jump_table_slot;
 }
 
 NativeModule::~NativeModule() {

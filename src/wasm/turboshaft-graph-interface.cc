@@ -2773,22 +2773,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             continue;
           }
 
-          // TODO(335082212,dlehmann): We could avoid the following load by
-          // baking the inlined call target as a constant into the instruction
-          // stream and comparing against that constant instead. This would
-          // require a new relocation type since `RelocInfo::WASM_CALL` applies
-          // a delta in `AddCodeWithCodeSpace`, but we want the absolute address
-          // patched in. Something like:
-          // V<WordPtr> inlined_target = __ RelocatableConstant(
-          //     inlined_index, RelocInfo::WASM_CALL_TARGET);
-          bool shared_func =
-              decoder->module_->function_is_shared(inlined_index);
-          V<WordPtr> jump_table_start = LOAD_INSTANCE_FIELD(
-              trusted_instance_data(shared_func), JumpTableStart,
-              MemoryRepresentation::UintPtr());
           V<WordPtr> inlined_target =
-              __ WordPtrAdd(jump_table_start,
-                            JumpTableOffset(decoder->module_, inlined_index));
+              __ RelocatableWasmIndirectCallTarget(inlined_index);
 
           bool is_last_feedback_case = (i == feedback_cases.size() - 1);
           if (use_deopt_slowpath && is_last_feedback_case) {
@@ -2939,22 +2925,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             continue;
           }
 
-          // TODO(335082212,dlehmann): We could avoid the following load by
-          // baking the inlined call target as a constant into the instruction
-          // stream and comparing against that constant instead. This would
-          // require a new relocation type since `RelocInfo::WASM_CALL` applies
-          // a delta in `AddCodeWithCodeSpace`, but we want the absolute address
-          // patched in. Something like:
-          // V<WordPtr> inlined_target = __ RelocatableConstant(
-          //     inlined_index, RelocInfo::WASM_CALL_TARGET);
-          bool shared_func =
-              decoder->module_->function_is_shared(inlined_index);
-          V<WordPtr> jump_table_start = LOAD_INSTANCE_FIELD(
-              trusted_instance_data(shared_func), JumpTableStart,
-              MemoryRepresentation::UintPtr());
           V<WordPtr> inlined_target =
-              __ WordPtrAdd(jump_table_start,
-                            JumpTableOffset(decoder->module_, inlined_index));
+              __ RelocatableWasmIndirectCallTarget(inlined_index);
 
           TSBlock* inline_block = __ NewBlock();
           bool is_last_case = (i == feedback_cases.size() - 1);

@@ -574,6 +574,10 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "relocatable wasm canonical signature ID: "
          << static_cast<int32_t>(storage.integral);
       break;
+    case Kind::kRelocatableWasmIndirectCallTarget:
+      os << "relocatable wasm indirect call target: "
+         << static_cast<uint32_t>(storage.integral);
+      break;
   }
   os << ']';
 }

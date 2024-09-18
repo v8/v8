@@ -2553,6 +2553,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     kTrustedHeapObject,
     kRelocatableWasmCall,
     kRelocatableWasmStubCall,
+    kRelocatableWasmIndirectCallTarget,
     kRelocatableWasmCanonicalSignatureId
   };
 
@@ -2605,6 +2606,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTrustedHeapObject:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
+      case Kind::kRelocatableWasmIndirectCallTarget:
         return RegisterRepresentation::WordPtr();
       case Kind::kSmi:
       case Kind::kHeapObject:
@@ -2706,7 +2708,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     return kind == Kind::kWord32 || kind == Kind::kWord64 ||
            kind == Kind::kRelocatableWasmCall ||
            kind == Kind::kRelocatableWasmStubCall ||
-           kind == Kind::kRelocatableWasmCanonicalSignatureId;
+           kind == Kind::kRelocatableWasmCanonicalSignatureId ||
+           kind == Kind::kRelocatableWasmIndirectCallTarget;
   }
 
   auto options() const { return std::tuple{kind, storage}; }
@@ -2721,6 +2724,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTaggedIndex:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
+      case Kind::kRelocatableWasmIndirectCallTarget:
       case Kind::kRelocatableWasmCanonicalSignatureId:
         return HashWithOptions(storage.integral);
       case Kind::kFloat32:
@@ -2751,6 +2755,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
       case Kind::kRelocatableWasmCanonicalSignatureId:
+      case Kind::kRelocatableWasmIndirectCallTarget:
         return storage.integral == other.storage.integral;
       case Kind::kFloat32:
         // Using a bit_cast to uint32_t in order to return false when comparing

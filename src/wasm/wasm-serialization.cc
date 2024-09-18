@@ -480,6 +480,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
       RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
       RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
       RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) |
+      RelocInfo::ModeMask(RelocInfo::WASM_INDIRECT_CALL_TARGET) |
       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
@@ -514,6 +515,13 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
         uint32_t module_local_sig_id =
             CanonicalSigIdToModuleLocalTypeId(canonical_sig_id);
         iter.rinfo()->set_wasm_canonical_sig_id(module_local_sig_id);
+      } break;
+      case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
+        Address target = orig_iter.rinfo()->wasm_indirect_call_target();
+        uint32_t function_index =
+            native_module_->GetFunctionIndexFromIndirectCallTarget(target);
+        iter.rinfo()->set_wasm_indirect_call_target(function_index,
+                                                    SKIP_ICACHE_FLUSH);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
         Address orig_target = orig_iter.rinfo()->target_external_reference();
@@ -943,6 +951,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
   int kMask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
               RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
               RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) |
+              RelocInfo::ModeMask(RelocInfo::WASM_INDIRECT_CALL_TARGET) |
               RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
@@ -971,6 +980,12 @@ void NativeModuleDeserializer::CopyAndRelocate(
         uint32_t canonical_sig_id =
             native_module_->module()->canonical_sig_id(module_local_sig_id);
         iter.rinfo()->set_wasm_canonical_sig_id(canonical_sig_id);
+      } break;
+      case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
+        Address function_index = iter.rinfo()->wasm_indirect_call_target();
+        Address target = native_module_->GetIndirectCallTarget(
+            base::checked_cast<uint32_t>(function_index));
+        iter.rinfo()->set_wasm_indirect_call_target(target, SKIP_ICACHE_FLUSH);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
