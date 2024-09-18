@@ -105,7 +105,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
      * Note: This would normally be just !IsTrustedObject(obj), however we    \
      * might see trusted objects here before they've been migrated to trusted \
      * space, hence the second condition. */                                  \
-    DCHECK(!IsTrustedObject(object) || !IsTrustedSpaceObject(object));        \
+    DCHECK(!IsTrustedObject(object) || !HeapLayout::InTrustedSpace(object));  \
     return visitor->Visit##TypeName(                                          \
         map, ConcreteVisitor::template Cast<TypeName>(object));
     TYPED_VISITOR_ID_LIST(CASE)

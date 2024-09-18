@@ -100,16 +100,6 @@ bool ObjectInYoungGeneration(Tagged<Object> object) {
   return HeapObjectInYoungGeneration(Cast<HeapObject>(object));
 }
 
-bool IsCodeSpaceObject(Tagged<HeapObject> object) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  return chunk->InCodeSpace();
-}
-
-bool IsTrustedSpaceObject(Tagged<HeapObject> object) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  return chunk->InTrustedSpace();
-}
-
 // static
 bool WriteBarrier::IsImmortalImmovableHeapObject(Tagged<HeapObject> object) {
   // All objects in readonly space are immortal and immovable.
@@ -303,7 +293,7 @@ void WriteBarrier::Marking(Tagged<HeapObject> host, MaybeObjectSlot slot,
   // There must be no stores of InstructionStream values from generated code and
   // all stores of InstructionStream values in C++ must be handled by
   // CombinedWriteBarrierInternal().
-  DCHECK(!IsCodeSpaceObject(value_heap_object));
+  DCHECK(!HeapLayout::InCodeSpace(value_heap_object));
   Marking(host, HeapObjectSlot(slot), value_heap_object);
 }
 

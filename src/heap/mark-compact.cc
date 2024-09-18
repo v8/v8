@@ -1704,7 +1704,7 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
       pretenuring_handler_->UpdateAllocationSite(object->map(), object,
                                                  local_pretenuring_feedback_);
     }
-    DCHECK(!IsCodeSpaceObject(object));
+    DCHECK(!HeapLayout::InCodeSpace(object));
     PtrComprCageBase cage_base = GetPtrComprCageBase(object);
     object->IterateFast(cage_base, record_visitor_);
     return true;

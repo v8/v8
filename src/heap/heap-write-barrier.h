@@ -27,8 +27,6 @@ class MarkingBarrier;
 class RelocInfo;
 
 inline bool ObjectInYoungGeneration(Tagged<Object> object);
-inline bool IsCodeSpaceObject(Tagged<HeapObject> object);
-inline bool IsTrustedSpaceObject(Tagged<HeapObject> object);
 
 // Write barrier interface. It's preferred to use the macros defined in
 // `object-macros.h`.

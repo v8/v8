@@ -11,6 +11,7 @@
 #include "src/base/logging.h"
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/ic/handler-configuration.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
@@ -1733,7 +1734,7 @@ struct CallIterateBody {
       // Note: This would normally be just !IsTrustedObject(obj), however we
       // might see trusted objects here before they've been migrated to trusted
       // space, hence the second condition.
-      DCHECK(!IsTrustedObject(obj) || !IsTrustedSpaceObject(obj));
+      DCHECK(!IsTrustedObject(obj) || !HeapLayout::InTrustedSpace(obj));
     }
     BodyDescriptor::IterateBody(map, obj, object_size, v);
   }

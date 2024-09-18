@@ -30,6 +30,16 @@ bool HeapLayout::InAnySharedSpace(Tagged<HeapObject> object) {
   return HeapLayout::InWritableSharedSpace(object);
 }
 
+// static
+bool HeapLayout::InCodeSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->InCodeSpace();
+}
+
+// static
+bool HeapLayout::InTrustedSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->InTrustedSpace();
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_HEAP_HEAP_LAYOUT_INL_H_

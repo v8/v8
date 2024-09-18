@@ -15,6 +15,7 @@
 #include "src/debug/debug.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/safepoint.h"
 #include "src/numbers/conversions.h"
@@ -2507,8 +2508,8 @@ bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
   if (!IsHeapObject(object)) return false;
   // Avoid comparing objects in other pointer compression cages to objects
   // inside the main cage as the comparison may only look at the lower 32 bits.
-  if (IsCodeSpaceObject(Cast<HeapObject>(object)) ||
-      IsTrustedSpaceObject(Cast<HeapObject>(object))) {
+  if (HeapLayout::InCodeSpace(Cast<HeapObject>(object)) ||
+      HeapLayout::InTrustedSpace(Cast<HeapObject>(object))) {
     return true;
   }
   Isolate* isolate = heap_->isolate();

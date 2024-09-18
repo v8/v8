@@ -26,6 +26,15 @@ class HeapLayout final : public AllStatic {
   static V8_INLINE bool InWritableSharedSpace(Tagged<HeapObject> object);
   // Returns whether `object` is in a shared space.
   static V8_INLINE bool InAnySharedSpace(Tagged<HeapObject> object);
+
+  // Returns whether `object` is in code space. Note that there's various kinds
+  // of different code spaces (regular, external, large object) which are all
+  // covered by this check.
+  static V8_INLINE bool InCodeSpace(Tagged<HeapObject> object);
+
+  // Returns whether `object` is allocated in trusted space. See
+  // src/sandbox/GLOSSARY.md for details.
+  static V8_INLINE bool InTrustedSpace(Tagged<HeapObject> object);
 };
 
 }  // namespace v8::internal
