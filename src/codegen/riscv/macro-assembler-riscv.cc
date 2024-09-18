@@ -5155,6 +5155,13 @@ void MacroAssembler::BranchLong(Label* L) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   int32_t imm;
   imm = branch_long_offset(L);
+  if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
+      (imm & 1) == 0) {
+    j(imm);
+    nop();
+    EmitConstPoolWithJumpIfNeeded();
+    return;
+  }
   GenPCRelativeJump(t6, imm);
   EmitConstPoolWithJumpIfNeeded();
 }
@@ -5164,6 +5171,12 @@ void MacroAssembler::BranchAndLinkLong(Label* L) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   int32_t imm;
   imm = branch_long_offset(L);
+  if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
+      (imm & 1) == 0) {
+    jal(t6, imm);
+    nop();
+    return;
+  }
   GenPCRelativeJumpAndLink(t6, imm);
 }
 
