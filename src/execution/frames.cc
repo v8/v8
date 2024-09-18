@@ -656,7 +656,8 @@ void StackFrameIteratorForProfiler::Advance() {
     if (done()) break;
     ExternalCallbackScope* last_callback_scope = nullptr;
     while (external_callback_scope_ != nullptr &&
-           external_callback_scope_->scope_address() < frame_->fp()) {
+           external_callback_scope_->JSStackComparableAddress() <
+               frame_->fp()) {
       // As long as the setup of a frame is not atomic, we may happen to be
       // in an interval where an ExternalCallbackScope is already created,
       // but the frame is not yet entered. So we are actually observing

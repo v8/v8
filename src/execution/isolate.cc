@@ -4706,8 +4706,9 @@ void Isolate::NotifyExceptionPropagationCallback() {
     // "C++ -> JS" or "C++ -> Api callback" boundary.
     return;
   }
-  if (it.done() || (ext_callback_scope &&
-                    ext_callback_scope->scope_address() < it.frame()->fp())) {
+  if (it.done() ||
+      (ext_callback_scope &&
+       ext_callback_scope->JSStackComparableAddress() < it.frame()->fp())) {
     // There were no crossings of "C++ -> JS" boundary at all or they happened
     // earlier than the last crossing of the  "C++ -> Api callback" boundary.
     // In this case all the data about Api callback is available in the
