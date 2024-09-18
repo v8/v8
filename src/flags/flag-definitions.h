@@ -963,7 +963,10 @@ DEFINE_BOOL(trace_track_allocation_sites, false,
 DEFINE_BOOL(trace_migration, false, "trace object migration")
 DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 
-DEFINE_BOOL(reuse_scope_infos, true, "reuse scope infos from previous compiles")
+DEFINE_BOOL(reuse_scope_infos, false,
+            "reuse scope infos from previous compiles")
+
+DEFINE_IMPLICATION(fuzzing, reuse_scope_infos)
 
 // Flags for Sparkplug
 #undef FLAG
