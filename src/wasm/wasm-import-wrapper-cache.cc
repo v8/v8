@@ -9,6 +9,8 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/common/code-memory-access-inl.h"
+#include "src/compiler/wasm-compiler.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -134,6 +136,41 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   return code;
 }
 
+WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
+    Isolate* isolate, NativeModule* native_module, ImportCallKind kind,
+    const FunctionSig* sig, uint32_t canonical_sig_index, bool source_positions,
+    int expected_arity, Suspend suspend) {
+  CompilationEnv env = CompilationEnv::ForModule(native_module);
+  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
+      &env, kind, sig, source_positions, expected_arity, suspend);
+  WasmCode* wasm_code;
+  {
+    ModificationScope cache_scope(this);
+    CacheKey key(kind, canonical_sig_index, expected_arity, suspend);
+    // Now that we have the lock (in the form of the cache_scope), check
+    // again whether another thread has just created the wrapper.
+    wasm_code = cache_scope[key];
+    if (wasm_code) return wasm_code;
+
+    wasm_code = cache_scope.AddWrapper(key, std::move(result),
+                                       WasmCode::Kind::kWasmToJsWrapper);
+  }
+
+  // To avoid lock order inversion, code printing must happen after the
+  // end of the {cache_scope}.
+  wasm_code->MaybePrint();
+  isolate->counters()->wasm_generated_code_size()->Increment(
+      wasm_code->instructions().length());
+  isolate->counters()->wasm_reloc_size()->Increment(
+      wasm_code->reloc_info().length());
+  if (V8_UNLIKELY(native_module->log_code())) {
+    GetWasmEngine()->LogWrapperCode(base::VectorOf(&wasm_code, 1));
+    // Log the code immediately in the current isolate.
+    GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
+  }
+  return wasm_code;
+}
+
 void WasmImportWrapperCache::LogForIsolate(Isolate* isolate) {
   for (const auto& entry : codes_) {
     entry.second->LogCode(isolate, "", -1);  // No source URL, no ScriptId.
@@ -142,7 +179,7 @@ void WasmImportWrapperCache::LogForIsolate(Isolate* isolate) {
 
 void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
   base::MutexGuard lock(&mutex_);
-  if (entry_map_.empty() || wrappers.empty()) return;
+  if (codes_.empty() || wrappers.empty()) return;
   // {WasmCodeAllocator::FreeCode()} wants code objects to be sorted.
   std::sort(wrappers.begin(), wrappers.end(), [](WasmCode* a, WasmCode* b) {
     return a->instruction_start() < b->instruction_start();

@@ -4222,8 +4222,9 @@ void CompilationStateImpl::TierUpAllFunctions() {
   }
 }
 
-WasmCode* CompileImportWrapperForTest(NativeModule* native_module,
-                                      Counters* counters, ImportCallKind kind,
+WasmCode* CompileImportWrapperForTest(Isolate* isolate,
+                                      NativeModule* native_module,
+                                      ImportCallKind kind,
                                       const FunctionSig* sig,
                                       uint32_t canonical_type_index,
                                       int expected_arity, Suspend suspend) {
@@ -4237,35 +4238,9 @@ WasmCode* CompileImportWrapperForTest(NativeModule* native_module,
     return nullptr;
   }
 
-  CompilationEnv env = CompilationEnv::ForModule(native_module);
-  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      &env, kind, sig, source_positions, expected_arity, suspend);
-
-  DCHECK(result.inlining_positions.empty());
-  DCHECK(result.deopt_data.empty());
-  WasmCode* code;
-  {
-    // There was no cache entry when we called this function, but in the
-    // meantime a different module could have created one. Simply discard the
-    // new wrapper if so.
-    WasmImportWrapperCache::ModificationScope cache_scope(
-        GetWasmImportWrapperCache());
-    WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
-                                         expected_arity, suspend);
-    if (V8_UNLIKELY(cache_scope[key] != nullptr)) return cache_scope[key];
-    code = cache_scope.AddWrapper(key, std::move(result),
-                                  WasmCode::Kind::kWasmToJsWrapper);
-  }
-  // To avoid lock order inversion, code printing must happen after the
-  // end of the {cache_scope}.
-  code->MaybePrint();
-  counters->wasm_generated_code_size()->Increment(
-      code->instructions().length());
-  counters->wasm_reloc_size()->Increment(code->reloc_info().length());
-  if (native_module->log_code()) {
-    GetWasmEngine()->LogWrapperCode(base::VectorOf(&code, 1));
-  }
-  return code;
+  return GetWasmImportWrapperCache()->CompileWasmImportCallWrapper(
+      isolate, native_module, kind, sig, canonical_type_index, source_positions,
+      expected_arity, suspend);
 }
 
 }  // namespace v8::internal::wasm

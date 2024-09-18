@@ -42,9 +42,9 @@ TEST(CacheHit) {
   int expected_arity = static_cast<int>(sig->parameter_count());
   {
     WasmCodeRefScope wasm_code_ref_scope;
-    WasmCode* c1 = CompileImportWrapperForTest(
-        module.get(), isolate->counters(), kind, sig, canonical_type_index,
-        expected_arity, kNoSuspend);
+    WasmCode* c1 = CompileImportWrapperForTest(isolate, module.get(), kind, sig,
+                                               canonical_type_index,
+                                               expected_arity, kNoSuspend);
 
     CHECK_NOT_NULL(c1);
     CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
@@ -79,8 +79,8 @@ TEST(CacheMissSig) {
   uint32_t canonical_type_index2 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig2);
 
-  WasmCode* c1 = CompileImportWrapperForTest(module.get(), isolate->counters(),
-                                             kind, sig1, canonical_type_index1,
+  WasmCode* c1 = CompileImportWrapperForTest(isolate, module.get(), kind, sig1,
+                                             canonical_type_index1,
                                              expected_arity1, kNoSuspend);
 
   CHECK_NOT_NULL(c1);
@@ -105,8 +105,8 @@ TEST(CacheMissKind) {
   uint32_t canonical_type_index =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig);
 
-  WasmCode* c1 = CompileImportWrapperForTest(module.get(), isolate->counters(),
-                                             kind1, sig, canonical_type_index,
+  WasmCode* c1 = CompileImportWrapperForTest(isolate, module.get(), kind1, sig,
+                                             canonical_type_index,
                                              expected_arity, kNoSuspend);
 
   CHECK_NOT_NULL(c1);
@@ -134,8 +134,8 @@ TEST(CacheHitMissSig) {
   uint32_t canonical_type_index2 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig2);
 
-  WasmCode* c1 = CompileImportWrapperForTest(module.get(), isolate->counters(),
-                                             kind, sig1, canonical_type_index1,
+  WasmCode* c1 = CompileImportWrapperForTest(isolate, module.get(), kind, sig1,
+                                             canonical_type_index1,
                                              expected_arity1, kNoSuspend);
 
   CHECK_NOT_NULL(c1);
@@ -146,8 +146,8 @@ TEST(CacheHitMissSig) {
 
   CHECK_NULL(c2);
 
-  c2 = CompileImportWrapperForTest(module.get(), isolate->counters(), kind,
-                                   sig2, canonical_type_index2, expected_arity2,
+  c2 = CompileImportWrapperForTest(isolate, module.get(), kind, sig2,
+                                   canonical_type_index2, expected_arity2,
                                    kNoSuspend);
 
   CHECK_NE(c1, c2);

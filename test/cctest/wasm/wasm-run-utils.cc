@@ -99,7 +99,7 @@ TestingModuleBuilder::TestingModuleBuilder(
         kNoSuspend);
     if (import_wrapper == nullptr) {
       import_wrapper = CompileImportWrapperForTest(
-          native_module_, isolate_->counters(), kind, sig, canonical_type_index,
+          isolate_, native_module_, kind, sig, canonical_type_index,
           static_cast<int>(sig->parameter_count()), kNoSuspend);
     }
 

@@ -67,8 +67,9 @@ V8_EXPORT_PRIVATE WasmError ValidateAndSetBuiltinImports(
 // cache entry. Assumes the key already exists in the cache but has not been
 // compiled yet.
 V8_EXPORT_PRIVATE
-WasmCode* CompileImportWrapperForTest(NativeModule* native_module,
-                                      Counters* counters, ImportCallKind kind,
+WasmCode* CompileImportWrapperForTest(Isolate* isolate,
+                                      NativeModule* native_module,
+                                      ImportCallKind kind,
                                       const FunctionSig* sig,
                                       uint32_t canonical_type_index,
                                       int expected_arity, Suspend suspend);

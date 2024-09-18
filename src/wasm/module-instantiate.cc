@@ -2012,38 +2012,9 @@ bool InstanceBuilder::ProcessImportedFunction(
         // generic wrapper will be used (see above).
         NativeModule* native_module = trusted_instance_data->native_module();
         bool source_positions = is_asmjs_module(native_module->module());
-        CompilationEnv env = CompilationEnv::ForModule(native_module);
-        WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-            &env, kind, expected_sig, source_positions, expected_arity,
-            resolved.suspend());
-        bool code_is_new = false;
-        {
-          WasmImportWrapperCache::ModificationScope cache_scope(cache);
-          WasmImportWrapperCache::CacheKey key(
-              kind, canonical_sig_id, expected_arity, resolved.suspend());
-          // Now that we have the lock (in the form of the cache_scope), check
-          // again whether another thread has just created the wrapper.
-          wasm_code = cache_scope[key];
-          if (!wasm_code) {
-            wasm_code = cache_scope.AddWrapper(
-                key, std::move(result), WasmCode::Kind::kWasmToJsWrapper);
-            code_is_new = true;
-          }
-        }
-        if (code_is_new) {
-          // To avoid lock order inversion, code printing must happen after the
-          // end of the {cache_scope}.
-          wasm_code->MaybePrint();
-          isolate_->counters()->wasm_generated_code_size()->Increment(
-              wasm_code->instructions().length());
-          isolate_->counters()->wasm_reloc_size()->Increment(
-              wasm_code->reloc_info().length());
-          if (V8_UNLIKELY(native_module->log_code())) {
-            GetWasmEngine()->LogWrapperCode(base::VectorOf(&wasm_code, 1));
-            // Log the code immediately in the current isolate.
-            GetWasmEngine()->LogOutstandingCodesForIsolate(isolate_);
-          }
-        }
+        wasm_code = cache->CompileWasmImportCallWrapper(
+            isolate_, native_module, kind, expected_sig, canonical_sig_id,
+            source_positions, expected_arity, resolved.suspend());
       }
 
       DCHECK_NOT_NULL(wasm_code);

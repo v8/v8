@@ -19,7 +19,6 @@
 #include "src/roots/roots-inl.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
-#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
@@ -1918,28 +1917,9 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   } else if (UseGenericWasmToJSWrapper(kind, sig, resolved.suspend())) {
     call_target = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
   } else {
-    wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
-    wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-        &env, kind, sig, false, expected_arity, suspend);
-    {
-      wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
-      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_id,
-                                                 expected_arity, suspend);
-      wasm_code = cache_scope.AddWrapper(
-          key, std::move(result), wasm::WasmCode::Kind::kWasmToJsWrapper);
-    }
-    // To avoid lock order inversion, code printing must happen after the
-    // end of the {cache_scope}.
-    wasm_code->MaybePrint();
-    isolate->counters()->wasm_generated_code_size()->Increment(
-        wasm_code->instructions().length());
-    isolate->counters()->wasm_reloc_size()->Increment(
-        wasm_code->reloc_info().length());
-    if (V8_UNLIKELY(native_module->log_code())) {
-      wasm::GetWasmEngine()->LogWrapperCode(base::VectorOf(&wasm_code, 1));
-      // Log the code immediately in the current isolate.
-      wasm::GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
-    }
+    wasm_code = cache->CompileWasmImportCallWrapper(
+        isolate, native_module, kind, sig, canonical_sig_id, false,
+        expected_arity, suspend);
     call_target = wasm_code->instruction_start();
   }
 

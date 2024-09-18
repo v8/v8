@@ -98,6 +98,11 @@ class WasmImportWrapperCache {
     return iter->second;
   }
 
+  WasmCode* CompileWasmImportCallWrapper(
+      Isolate* isolate, NativeModule* native_module, ImportCallKind kind,
+      const FunctionSig* sig, uint32_t canonical_sig_index,
+      bool source_positions, int expected_arity, Suspend suspend);
+
  private:
   std::unique_ptr<WasmCodeAllocator> code_allocator_;
   mutable base::Mutex mutex_;
