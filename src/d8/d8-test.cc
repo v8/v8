@@ -375,9 +375,9 @@ class FastCApiObject {
     T* memory = reinterpret_cast<T*>(
         typed_array_arg.As<TypedArray>()->Buffer()->Data());
     size_t length = typed_array_arg.As<TypedArray>()->ByteLength() / sizeof(T);
-    T sum = 0;
+    double sum = 0;
     for (size_t i = 0; i < length; ++i) {
-      sum += memory[i];
+      sum += static_cast<double>(memory[i]);
     }
     return static_cast<Type>(sum);
   }
