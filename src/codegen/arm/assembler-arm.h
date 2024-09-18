@@ -316,6 +316,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void AbortedCodeGeneration() override {
     pending_32_bit_constants_.clear();
     first_const_pool_32_use_ = -1;
+    constant_pool_deadline_ = kMaxInt;
   }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
