@@ -2454,14 +2454,8 @@ int InstanceBuilder::ProcessImports(
     }
   }
   if (num_imported_functions > 0) {
-    WellKnownImportsList::UpdateResult result =
-        module_->type_feedback.well_known_imports.Update(
-            base::VectorOf(well_known_imports_));
-    if (result == WellKnownImportsList::UpdateResult::kFoundIncompatibility) {
-      WasmCodeRefScope ref_scope;
-      module_object_->native_module()->RemoveCompiledCode(
-          NativeModule::RemoveFilter::kRemoveTurbofanCode);
-    }
+    module_object_->native_module()->UpdateWellKnownImports(
+        base::VectorOf(well_known_imports_));
   }
   return num_imported_functions;
 }

@@ -1372,7 +1372,6 @@ WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code,
     // Only Turbofan makes assumptions.
     DCHECK_EQ(ExecutionTier::kTurbofan, code->tier());
     WellKnownImportsList& current = module_->type_feedback.well_known_imports;
-    base::MutexGuard wki_lock(current.mutex());
     for (auto [import_index, status] : assumptions->import_statuses()) {
       if (current.get(import_index) != status) {
         compilation_state_->AllowAnotherTopTierJob(code->index());
@@ -1395,6 +1394,19 @@ std::vector<WasmCode*> NativeModule::PublishCode(
     published_code.push_back(PublishCodeLocked(std::move(code)));
   }
   return published_code;
+}
+
+void NativeModule::UpdateWellKnownImports(
+    base::Vector<WellKnownImport> entries) {
+  // The {~WasmCodeRefScope} destructor must run after releasing the {lock},
+  // to avoid lock order inversion.
+  WasmCodeRefScope ref_scope;
+  base::RecursiveMutexGuard lock(&allocation_mutex_);
+  WellKnownImportsList::UpdateResult result =
+      module_->type_feedback.well_known_imports.Update(entries);
+  if (result == WellKnownImportsList::UpdateResult::kFoundIncompatibility) {
+    RemoveCompiledCode(NativeModule::RemoveFilter::kRemoveTurbofanCode);
+  }
 }
 
 WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {

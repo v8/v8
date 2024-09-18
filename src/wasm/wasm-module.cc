@@ -663,9 +663,9 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 size_t WasmModule::EstimateStoredSize() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            920
+                            872
 #else   // V8_ENABLE_DRUMBRAKE
-                            856
+                            808
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   return sizeof(WasmModule) +                            // --
@@ -721,7 +721,7 @@ size_t IndirectNameMap::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 200);
+  UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 152);
   UPDATE_WHEN_CLASS_CHANGES(FunctionTypeFeedback, 48);
   // Not including sizeof(TFS) because that's contained in sizeof(WasmModule).
   base::SharedMutexGuard<base::kShared> lock(&mutex);
@@ -742,9 +742,9 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            920
+                            872
 #else   // V8_ENABLE_DRUMBRAKE
-                            856
+                            808
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   size_t result = EstimateStoredSize();

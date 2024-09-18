@@ -572,6 +572,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
                         AssumptionsJournal* = nullptr);
   std::vector<WasmCode*> PublishCode(base::Vector<std::unique_ptr<WasmCode>>);
 
+  // Clears outdated code as necessary when a new instantiation's imports
+  // conflict with previously seen well-known imports.
+  void UpdateWellKnownImports(base::Vector<WellKnownImport> entries);
+
   // ReinstallDebugCode does a subset of PublishCode: It installs the code in
   // the code table and patches the jump table. The given code must be debug
   // code (with breakpoints) and must be owned by this {NativeModule} already.
