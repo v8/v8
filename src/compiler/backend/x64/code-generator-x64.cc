@@ -8089,9 +8089,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   if (v8_flags.trace_turbo_stack_accesses) {
     IncrementStackAccessCounter(source, destination);
   }
-  // Whether the ymm source should be used as a xmm.
-  const bool src_simd256_as_simd128 =
-      source->IsSimd256Register() && destination->IsSimd128Register();
 
   // Dispatch on the source and destination operand kinds.
   switch (MoveType::InferMove(source, destination)) {
@@ -8109,10 +8106,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
             LocationOperand::cast(source)->representation();
         if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (src_simd256_as_simd128) {
+          // Whether the ymm source should be used as a xmm.
+          if (source->IsSimd256Register() && destination->IsSimd128Register()) {
             __ vmovapd(g.ToSimd128Register(destination),
                        g.ToSimd128Register(source));
-
           } else {
             __ vmovapd(g.ToSimd256Register(destination),
                        g.ToSimd256Register(source));
@@ -8136,7 +8133,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ Movups(dst, src);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (src_simd256_as_simd128) {
+          // Whether the ymm source should be used as a xmm.
+          if (source->IsSimd256Register() &&
+              destination->IsSimd128StackSlot()) {
             __ vmovups(dst, g.ToSimd128Register(source));
           } else {
             __ vmovups(dst, g.ToSimd256Register(source));
@@ -8164,7 +8163,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ Movups(dst, src);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (src_simd256_as_simd128) {
+          if (source->IsSimd256StackSlot() &&
+              destination->IsSimd128Register()) {
             __ vmovups(g.ToSimd128Register(destination), src);
           } else {
             __ vmovups(g.ToSimd256Register(destination), src);
@@ -8197,7 +8197,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ Movups(dst, kScratchDoubleReg);
         } else if (rep == MachineRepresentation::kSimd256) {
           CpuFeatureScope avx_scope(masm(), AVX);
-          if (src_simd256_as_simd128) {
+          if (source->IsSimd256StackSlot() &&
+              destination->IsSimd128StackSlot()) {
             __ vmovups(kScratchDoubleReg, src);
             __ vmovups(dst, kScratchDoubleReg);
           } else {

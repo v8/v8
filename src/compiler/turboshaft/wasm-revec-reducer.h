@@ -246,9 +246,7 @@ class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
     kGeneral,  // force pack 2 different nodes
   };
   explicit PackNode(Zone* zone, const NodeGroup& node_group)
-      : nodes_(node_group),
-        revectorized_node_(),
-        force_pack_right_inputs_(zone) {}
+      : nodes_(node_group), revectorized_node_() {}
   const NodeGroup& nodes() const { return nodes_; }
   bool IsSame(const NodeGroup& node_group) const {
     return nodes_ == node_group;
@@ -263,35 +261,12 @@ class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
   void set_force_pack_type(ForcePackType type) { force_pack_type_ = type; }
   ForcePackType force_pack_type() { return force_pack_type_; }
 
-  void set_force_packed_pair(OpIndex left, OpIndex right) {
-    force_packed_pair_ = {left, right};
-  }
-
-  OpIndex force_packed_left() const {
-    DCHECK(force_packed_pair_.first.valid());
-    return force_packed_pair_.first;
-  }
-  OpIndex force_packed_right() const {
-    DCHECK(force_packed_pair_.second.valid());
-    return force_packed_pair_.second;
-  }
-
-  ZoneSet<OpIndex>& force_pack_right_inputs() {
-    return force_pack_right_inputs_;
-  }
-
   void Print(Graph* graph) const;
 
  private:
   NodeGroup nodes_;
   V<Simd256> revectorized_node_;
   ForcePackType force_pack_type_ = ForcePackType::kNone;
-  // og_index of the force packed nodes.
-  std::pair<OpIndex, OpIndex> force_packed_pair_ = {OpIndex::Invalid(),
-                                                    OpIndex::Invalid()};
-  // When we emit the force packed node, before we emit the right node, we need
-  // to make sure all it's input chains are emitted.
-  ZoneSet<OpIndex> force_pack_right_inputs_;
 };
 
 class ShufflePackNode : public PackNode {
@@ -517,14 +492,17 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
         std::find(pnode->nodes().begin(), pnode->nodes().end(), ig_index) -
         pnode->nodes().begin());
 
+    // Force PackNode has a dedicated use in SimdPack128To256Op.
+    if (pnode->is_force_pack()) {
+      SimdPack128To256Op& op = __ output_graph()
+                                   .Get(pnode -> RevectorizedNode())
+                                   .template Cast<SimdPack128To256Op>();
+      return lane == 0 ? op.left() : op.right();
+    }
+
     for (auto use : analyzer_.uses(ig_index)) {
       if (!analyzer_.GetPackNode(use)) {
-        if (pnode->is_force_pack()) {
-          return lane == 0 ? pnode->force_packed_left()
-                           : pnode->force_packed_right();
-        } else {
-          return __ Simd256Extract128Lane(og_index, lane);
-        }
+        return __ Simd256Extract128Lane(og_index, lane);
       }
     }
 
@@ -902,6 +880,44 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     return Adapter::ReduceInputGraphSimd128Shuffle(ig_index, op);
   }
 
+  void ReduceInputsOfOp(OpIndex cur_index, OpIndex op_index) {
+    // Reduce all the operations of op_index's input tree, which should be
+    // bigger than the cur_index. The traversal is done in a DFS manner
+    // to make sure all inputs are emitted before the use.
+    const Block* current_input_block = Asm().current_input_block();
+    std::stack<OpIndex> inputs;
+    ZoneUnorderedSet<OpIndex> visited(Asm().phase_zone());
+    inputs.push(op_index);
+
+    while (!inputs.empty()) {
+      OpIndex idx = inputs.top();
+      if (visited.find(idx) != visited.end()) {
+        inputs.pop();
+        continue;
+      }
+
+      const Operation& op = __ input_graph().Get(idx);
+      bool has_unvisited_inputs = false;
+      for (OpIndex input : op.inputs()) {
+        if (input > cur_index && visited.find(input) == visited.end()) {
+          inputs.push(input);
+          has_unvisited_inputs = true;
+        }
+      }
+
+      if (!has_unvisited_inputs) {
+        inputs.pop();
+        visited.insert(idx);
+
+        // op_index will be reduced later.
+        if (idx == op_index) continue;
+
+        DCHECK(!Asm().input_graph().Get(idx).template Is<PhiOp>());
+        Asm().template VisitOpAndUpdateMapping<false>(idx, current_input_block);
+      }
+    }
+  }
+
   template <typename Op, typename Continuation>
   OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& op) {
     if (PackNode* pnode = analyzer_.GetPackNode(ig_index);
@@ -911,32 +927,40 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       if (!og_index.valid()) {
         switch (pnode->force_pack_type()) {
           case PackNode::ForcePackType::kSplat: {
-            OpIndex og_left = Continuation{this}.ReduceInputGraph(ig_index, op);
-            og_index = __ SimdPack128To256(og_left, og_left);
-            pnode->set_force_packed_pair(og_left, og_left);
-            pnode->SetRevectorizedNode(og_index);
-            break;
+            OpIndex og_index =
+                Continuation{this}.ReduceInputGraph(ig_index, op);
+            OpIndex revec_index = __ SimdPack128To256(og_index, og_index);
+            pnode->SetRevectorizedNode(revec_index);
+            return og_index;
           }
           case PackNode::ForcePackType::kGeneral: {
-            OpIndex og_left = Continuation{this}.ReduceInputGraph(ig_index, op);
-            // Emit right node's input tree.
+            OpIndex og_index =
+                Continuation{this}.ReduceInputGraph(ig_index, op);
 
-            const Block* current_input_block = Asm().current_input_block();
-            for (OpIndex idx : pnode->force_pack_right_inputs()) {
-              DCHECK(!Asm().input_graph().Get(idx).template Is<PhiOp>());
-              Asm().template VisitOpAndUpdateMapping<false>(
-                  idx, current_input_block);
+            std::array<OpIndex, 2> v;
+            DCHECK_EQ(pnode->nodes().size(), 2);
+            // The operation order in pnode is determined by the store or reduce
+            // seed when build the SLPTree. It is not quaranteed to align with
+            // the visiting order in each basic block from input graph. E.g. we
+            // can have a block including {a1, a2, b1, b2} operations, and the
+            // SLPTree can be pnode1: (a2, a1), pnode2: (b1, b2) if a2 is input
+            // of b1, and a1 is input of b2.
+            for (int i = 0; i < static_cast<int>(pnode->nodes().size()); i++) {
+              OpIndex next_index = pnode->nodes()[i];
+              if (next_index == ig_index) {
+                v[i] = og_index;
+                continue;
+              }
+
+              ReduceInputsOfOp(ig_index, next_index);
+              const Op& next_op =
+                  Asm().input_graph().Get(next_index).template Cast<Op>();
+              v[i] = Continuation{this}.ReduceInputGraph(next_index, next_op);
             }
 
-            OpIndex right_ig_index = pnode->nodes()[1];
-            const Op& right_ig_op =
-                Asm().input_graph().Get(right_ig_index).template Cast<Op>();
-            OpIndex og_right = Continuation{this}.ReduceInputGraph(
-                right_ig_index, right_ig_op);
-            og_index = __ SimdPack128To256(og_left, og_right);
-            pnode->set_force_packed_pair(og_left, og_right);
-            pnode->SetRevectorizedNode(og_index);
-            break;
+            OpIndex revec_index = __ SimdPack128To256(v[0], v[1]);
+            pnode->SetRevectorizedNode(revec_index);
+            return og_index;
           }
           default:
             UNIMPLEMENTED();
@@ -945,7 +969,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       return GetExtractOpIfNeeded(pnode, ig_index, og_index);
     }
 
-    if (__ op_mapping_[ig_index].valid()) {
+    if (__ template MapToNewGraph<true>(ig_index).valid()) {
       // The op is already emitted during emitting force pack right node input
       // trees.
       return OpIndex::Invalid();

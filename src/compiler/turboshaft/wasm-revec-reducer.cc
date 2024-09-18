@@ -247,34 +247,6 @@ PackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
         node_group[0].id(), node_group[1].id());
   PackNode* pnode = NewPackNode(node_group);
   pnode->set_force_pack_type(type);
-  if (type == PackNode::ForcePackType::kGeneral) {
-    // Collect all the operations on right node's input tree, whose OpIndex is
-    // bigger than the left node. The traversal should be done in a BFS manner
-    // to make sure all inputs are emitted before the use.
-    DCHECK(pnode->force_pack_right_inputs().empty());
-    ZoneVector<OpIndex> idx_vec(phase_zone_);
-    const Operation& right_op = graph.Get(node_group[1]);
-    for (OpIndex input : right_op.inputs()) {
-      DCHECK_NE(input, node_group[0]);
-      DCHECK_LT(input, node_group[1]);
-      if (input > node_group[0]) {
-        idx_vec.push_back(input);
-      }
-    }
-    size_t idx = 0;
-    while (idx < idx_vec.size()) {
-      const Operation& op = graph.Get(idx_vec[idx]);
-      for (OpIndex input : op.inputs()) {
-        DCHECK_NE(input, node_group[0]);
-        DCHECK_LT(input, node_group[1]);
-        if (input > node_group[0]) {
-          idx_vec.push_back(input);
-        }
-      }
-      idx++;
-    }
-    pnode->force_pack_right_inputs().insert(idx_vec.begin(), idx_vec.end());
-  }
   return pnode;
 }
 
