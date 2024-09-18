@@ -188,23 +188,20 @@ KNOWN_FAILURES = {
 
 # Flags that are already crashy during smoke tests should not be used.
 DISALLOWED_FLAGS = [
-  # Bails out when sorting, leading to differences in sorted output.
-  '--multi-mapped-mock-allocator',
+    # Bails out when sorting, leading to differences in sorted output.
+    '--multi-mapped-mock-allocator',
 
-  # TODO(https://crbug.com/1393020): Changes the global object.
-  '--harmony-struct',
+    # TODO(https://crbug.com/1393020): Changes the global object.
+    '--harmony-struct',
 
-  # Logs non-deterministic internal state.
-  '--log',
+    # Logs non-deterministic internal state.
+    '--log',
 
-  # Writes to stdout and is not comparable.
-  '--dump-counters',
+    # Writes to stdout and is not comparable.
+    '--dump-counters',
 
-  # Statistics about allocations aren't comparable.
-  '--expose-statistics',
-
-  # TODO(https://crbug.com/366323510): Experimental feature.
-  '--turboshaft-frontend',
+    # Statistics about allocations aren't comparable.
+    '--expose-statistics',
 ]
 
 # List pairs of flags that lead to contradictory cycles, i.e.:

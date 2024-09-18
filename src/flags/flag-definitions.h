@@ -1429,8 +1429,6 @@ DEFINE_NEG_IMPLICATION(turboshaft_from_maglev, maglev_inline_api_calls)
 
 DEFINE_BOOL(turboshaft_csa, true, "run the CSA pipeline with turboshaft")
 DEFINE_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)
-DEFINE_EXPERIMENTAL_FEATURE(turboshaft_frontend,
-                            "run (parts of) the frontend in Turboshaft")
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_future,
     "enable Turboshaft features that we want to ship in the not-too-far future")

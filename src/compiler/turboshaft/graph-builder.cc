@@ -173,31 +173,7 @@ struct GraphBuilder {
     ProcessDeoptInput(builder, frame_state.context(), MachineType::AnyTagged());
     ProcessStateValues(builder, frame_state.locals());
     Node* stack = frame_state.stack();
-    if (v8_flags.turboshaft_frontend) {
-      // If we run graph building before Turbofan's SimplifiedLowering, the
-      // `stack` input of frame states is still a single deopt input, rather
-      // than a StateValues node.
-      if (stack->opcode() == IrOpcode::kHeapConstant &&
-          *HeapConstantOf(stack->op()) ==
-              ReadOnlyRoots(isolate->heap()).optimized_out()) {
-        builder->AddUnusedRegister();
-      } else {
-        const Operation& accumulator_op = __ output_graph().Get(Map(stack));
-        const RegisterRepresentation accumulator_rep =
-            accumulator_op.outputs_rep()[0];
-        MachineType type;
-        switch (accumulator_rep.value()) {
-          case RegisterRepresentation::Tagged():
-            type = MachineType::AnyTagged();
-            break;
-          default:
-            UNIMPLEMENTED();
-        }
-        ProcessDeoptInput(builder, stack, type);
-      }
-    } else {
-      ProcessStateValues(builder, stack);
-    }
+    ProcessStateValues(builder, stack);
   }
 
   Block::Kind BlockKind(BasicBlock* block) {

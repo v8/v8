@@ -571,7 +571,6 @@ v8_source_set("v8_unittests_sources") {
       "compiler/turboshaft/loop-unrolling-analyzer-unittest.cc",
       "compiler/turboshaft/opmask-unittest.cc",
       "compiler/turboshaft/reducer-test.h",
-      "compiler/turboshaft/simplified-lowering-reducer-unittest.cc",
       "compiler/turboshaft/snapshot-table-unittest.cc",
       "compiler/turboshaft/store-store-elimination-reducer-unittest.cc",
       "compiler/turboshaft/turboshaft-typer-unittest.cc",

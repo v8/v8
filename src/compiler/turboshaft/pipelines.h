@@ -26,7 +26,6 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/register-allocation-phase.h"
 #include "src/compiler/turboshaft/sidetable.h"
-#include "src/compiler/turboshaft/simplified-lowering-phase.h"
 #include "src/compiler/turboshaft/store-store-elimination-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
 #include "src/compiler/turboshaft/type-assertions-phase.h"
@@ -167,10 +166,6 @@ class Pipeline {
                                     v8_flags.turboshaft_trace_emitted);
 
     turboshaft::Tracing::Scope tracing_scope(data_->info());
-
-    if (v8_flags.turboshaft_frontend) {
-      Run<turboshaft::SimplifiedLoweringPhase>();
-    }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
     // TODO(dlehmann,353475584): Once the Wasm-in-JS TS inlining MVP is feature-

@@ -96,7 +96,6 @@
 #include "src/compiler/turboshaft/pipelines.h"
 #include "src/compiler/turboshaft/recreate-schedule-phase.h"
 #include "src/compiler/turboshaft/register-allocation-phase.h"
-#include "src/compiler/turboshaft/simplified-lowering-phase.h"
 #include "src/compiler/turboshaft/simplify-tf-loops.h"
 #include "src/compiler/turboshaft/store-store-elimination-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
@@ -2604,55 +2603,53 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
     RunPrintAndVerify(TypeAssertionsPhase::phase_name());
   }
 
-  if (!v8_flags.turboshaft_frontend) {
-    // Perform simplified lowering. This has to run w/o the Typer decorator,
-    // because we cannot compute meaningful types anyways, and the computed
-    // types might even conflict with the representation/truncation logic.
-    Run<SimplifiedLoweringPhase>(linkage);
-    RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
+  // Perform simplified lowering. This has to run w/o the Typer decorator,
+  // because we cannot compute meaningful types anyways, and the computed
+  // types might even conflict with the representation/truncation logic.
+  Run<SimplifiedLoweringPhase>(linkage);
+  RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
 
 #if V8_ENABLE_WEBASSEMBLY
-    if (data->has_js_wasm_calls()) {
-      DCHECK(data->info()->inline_js_wasm_calls());
-      Run<JSWasmInliningPhase>();
-      RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
-      Run<WasmTypingPhase>(-1);
-      RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
-      if (v8_flags.wasm_opt) {
-        Run<WasmGCOptimizationPhase>(data->wasm_module_for_inlining(),
-                                     data->jsgraph());
-        RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
-      }
-      Run<JSWasmLoweringPhase>();
-      RunPrintAndVerify(JSWasmLoweringPhase::phase_name(), true);
+  if (data->has_js_wasm_calls()) {
+    DCHECK(data->info()->inline_js_wasm_calls());
+    Run<JSWasmInliningPhase>();
+    RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
+    Run<WasmTypingPhase>(-1);
+    RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
+    if (v8_flags.wasm_opt) {
+      Run<WasmGCOptimizationPhase>(data->wasm_module_for_inlining(),
+                                   data->jsgraph());
+      RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
     }
+    Run<JSWasmLoweringPhase>();
+    RunPrintAndVerify(JSWasmLoweringPhase::phase_name(), true);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    // From now on it is invalid to look at types on the nodes, because the
-    // types on the nodes might not make sense after representation selection
-    // due to the way we handle truncations; if we'd want to look at types
-    // afterwards we'd essentially need to re-type (large portions of) the
-    // graph.
+  // From now on it is invalid to look at types on the nodes, because the
+  // types on the nodes might not make sense after representation selection
+  // due to the way we handle truncations; if we'd want to look at types
+  // afterwards we'd essentially need to re-type (large portions of) the
+  // graph.
 
-    // In order to catch bugs related to type access after this point, we now
-    // remove the types from the nodes (currently only in Debug builds).
+  // In order to catch bugs related to type access after this point, we now
+  // remove the types from the nodes (currently only in Debug builds).
 #ifdef DEBUG
-    Run<UntyperPhase>();
-    RunPrintAndVerify(UntyperPhase::phase_name(), true);
+  Run<UntyperPhase>();
+  RunPrintAndVerify(UntyperPhase::phase_name(), true);
 #endif
 
-    // Run generic lowering pass.
-    Run<GenericLoweringPhase>();
-    RunPrintAndVerify(GenericLoweringPhase::phase_name(), true);
+  // Run generic lowering pass.
+  Run<GenericLoweringPhase>();
+  RunPrintAndVerify(GenericLoweringPhase::phase_name(), true);
 
-    data->BeginPhaseKind("V8.TFBlockBuilding");
+  data->BeginPhaseKind("V8.TFBlockBuilding");
 
-    data->InitializeFrameData(linkage->GetIncomingDescriptor());
+  data->InitializeFrameData(linkage->GetIncomingDescriptor());
 
-    // Run early optimization pass.
-    Run<EarlyOptimizationPhase>();
-    RunPrintAndVerify(EarlyOptimizationPhase::phase_name(), true);
-  }
+  // Run early optimization pass.
+  Run<EarlyOptimizationPhase>();
+  RunPrintAndVerify(EarlyOptimizationPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json()) {
