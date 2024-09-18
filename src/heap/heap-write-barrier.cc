@@ -12,13 +12,13 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/code-inl.h"
-#include "src/objects/descriptor-array.h"
-#include "src/objects/js-objects.h"
-#include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 
 namespace v8::internal {
+
+class DescriptorArray;
+
 namespace {
 thread_local MarkingBarrier* current_marking_barrier = nullptr;
 }  // namespace

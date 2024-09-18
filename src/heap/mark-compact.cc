@@ -41,6 +41,7 @@
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/live-object-range-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-sweep-utilities.h"
 #include "src/heap/marking-barrier.h"
@@ -357,6 +358,38 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   return compacting_;
 }
 
+namespace {
+
+// Helper function to get the bytecode flushing mode based on the flags. This
+// is required because it is not safe to access flags in concurrent marker.
+base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate) {
+  if (isolate->disable_bytecode_flushing()) {
+    return base::EnumSet<CodeFlushMode>();
+  }
+
+  base::EnumSet<CodeFlushMode> code_flush_mode;
+  if (v8_flags.flush_bytecode) {
+    code_flush_mode.Add(CodeFlushMode::kFlushBytecode);
+  }
+
+  if (v8_flags.flush_baseline_code) {
+    code_flush_mode.Add(CodeFlushMode::kFlushBaselineCode);
+  }
+
+  if (v8_flags.stress_flush_code) {
+    // This is to check tests accidentally don't miss out on adding either flush
+    // bytecode or flush code along with stress flush code. stress_flush_code
+    // doesn't do anything if either one of them isn't enabled.
+    DCHECK(v8_flags.fuzzing || v8_flags.flush_baseline_code ||
+           v8_flags.flush_bytecode);
+    code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
+  }
+
+  return code_flush_mode;
+}
+
+}  // namespace
+
 void MarkCompactCollector::StartMarking() {
   // The state for background thread is saved here and maintained for the whole
   // GC cycle. Both CppHeap and regular V8 heap will refer to this flag.
@@ -390,7 +423,7 @@ void MarkCompactCollector::StartMarking() {
     }
   }
   heap_->tracer()->NotifyMarkingStart();
-  code_flush_mode_ = Heap::GetCodeFlushMode(heap_->isolate());
+  code_flush_mode_ = GetCodeFlushMode(heap_->isolate());
   marking_worklists_.CreateContextWorklists(contexts);
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
   local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(

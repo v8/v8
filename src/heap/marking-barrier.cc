@@ -22,6 +22,7 @@
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/safepoint.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/objects-inl.h"

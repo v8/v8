@@ -358,10 +358,6 @@ class Heap final {
   // Checks whether the space is valid.
   static bool IsValidAllocationSpace(AllocationSpace space);
 
-  // Helper function to get the bytecode flushing mode based on the flags. This
-  // is required because it is not safe to access flags in concurrent marker.
-  static inline base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate);
-
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
     return collector == GarbageCollector::SCAVENGER ||
            collector == GarbageCollector::MINOR_MARK_SWEEPER;
@@ -604,8 +600,8 @@ class Heap final {
   void IncrementDeferredCounts(
       base::Vector<const v8::Isolate::UseCounterFeature> features);
 
-  inline int NextScriptId();
-  inline int NextDebuggingId();
+  int NextScriptId();
+  int NextDebuggingId();
   inline int GetNextTemplateSerialNumber();
 
   void SetSerializedObjects(Tagged<HeapObject> objects);
@@ -899,7 +895,7 @@ class Heap final {
   void RemoveDirtyFinalizationRegistriesOnContext(
       Tagged<NativeContext> context);
 
-  inline bool HasDirtyJSFinalizationRegistries();
+  bool HasDirtyJSFinalizationRegistries();
 
   void PostFinalizationRegistryCleanupTaskIfNeeded();
 

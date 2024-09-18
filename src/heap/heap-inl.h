@@ -6,15 +6,12 @@
 #define V8_HEAP_HEAP_INL_H_
 
 #include <atomic>
-#include <cmath>
 #include <optional>
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Avoid including anything but `heap.h` from `src/heap` where possible.
 #include "src/base/atomic-utils.h"
-#include "src/base/atomicops.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/platform.h"
 #include "src/common/assert-scope.h"
 #include "src/common/code-memory-access-inl.h"
 #include "src/execution/isolate-data.h"
@@ -23,7 +20,6 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/memory-chunk-layout.h"
@@ -31,24 +27,14 @@
 #include "src/heap/new-spaces-inl.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-heap.h"
-#include "src/heap/read-only-spaces.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/cell-inl.h"
-#include "src/objects/descriptor-array.h"
-#include "src/objects/feedback-cell-inl.h"
-#include "src/objects/feedback-vector.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/oddball.h"
-#include "src/objects/property-cell.h"
-#include "src/objects/scope-info.h"
 #include "src/objects/slots-inl.h"
-#include "src/objects/struct-inl.h"
 #include "src/objects/visitors-inl.h"
-#include "src/profiler/heap-profiler.h"
 #include "src/roots/static-roots.h"
-#include "src/strings/string-hasher.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -67,33 +53,6 @@ Tagged<T> ForwardingAddress(Tagged<T> heap_obj) {
   } else {
     return heap_obj;
   }
-}
-
-// static
-base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
-  if (isolate->disable_bytecode_flushing()) {
-    return base::EnumSet<CodeFlushMode>();
-  }
-
-  base::EnumSet<CodeFlushMode> code_flush_mode;
-  if (v8_flags.flush_bytecode) {
-    code_flush_mode.Add(CodeFlushMode::kFlushBytecode);
-  }
-
-  if (v8_flags.flush_baseline_code) {
-    code_flush_mode.Add(CodeFlushMode::kFlushBaselineCode);
-  }
-
-  if (v8_flags.stress_flush_code) {
-    // This is to check tests accidentally don't miss out on adding either flush
-    // bytecode or flush code along with stress flush code. stress_flush_code
-    // doesn't do anything if either one of them isn't enabled.
-    DCHECK(v8_flags.fuzzing || v8_flags.flush_baseline_code ||
-           v8_flags.flush_bytecode);
-    code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
-  }
-
-  return code_flush_mode;
 }
 
 Isolate* Heap::isolate() const { return Isolate::FromHeap(this); }
@@ -451,40 +410,6 @@ Tagged<Boolean> Heap::ToBoolean(bool condition) {
   return roots.boolean_value(condition);
 }
 
-int Heap::NextScriptId() {
-  FullObjectSlot last_script_id_slot(&roots_table()[RootIndex::kLastScriptId]);
-  Tagged<Smi> last_id = Cast<Smi>(last_script_id_slot.Relaxed_Load());
-  Tagged<Smi> new_id, last_id_before_cas;
-  do {
-    if (last_id.value() == Smi::kMaxValue) {
-      static_assert(v8::UnboundScript::kNoScriptId == 0);
-      new_id = Smi::FromInt(1);
-    } else {
-      new_id = Smi::FromInt(last_id.value() + 1);
-    }
-
-    // CAS returns the old value on success, and the current value in the slot
-    // on failure. Therefore, we want to break if the returned value matches the
-    // old value (last_id), and keep looping (with the new last_id value) if it
-    // doesn't.
-    last_id_before_cas = last_id;
-    last_id =
-        Cast<Smi>(last_script_id_slot.Relaxed_CompareAndSwap(last_id, new_id));
-  } while (last_id != last_id_before_cas);
-
-  return new_id.value();
-}
-
-int Heap::NextDebuggingId() {
-  int last_id = last_debugging_id().value();
-  if (last_id == DebugInfo::DebuggingIdBits::kMax) {
-    last_id = DebugInfo::kNoDebuggingId;
-  }
-  last_id++;
-  set_last_debugging_id(Smi::FromInt(last_id));
-  return last_id;
-}
-
 int Heap::GetNextTemplateSerialNumber() {
   int next_serial_number = next_template_serial_number().value();
   set_next_template_serial_number(Smi::FromInt(next_serial_number + 1));
@@ -516,10 +441,6 @@ void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                               size_t amount) {
   base::CheckedDecrement(&backing_store_bytes_, static_cast<uint64_t>(amount),
                          std::memory_order_relaxed);
-}
-
-bool Heap::HasDirtyJSFinalizationRegistries() {
-  return !IsUndefined(dirty_js_finalization_registries_list(), isolate());
 }
 
 AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {

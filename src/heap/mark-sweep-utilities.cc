@@ -7,6 +7,7 @@
 #include "src/common/globals.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/live-object-range-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/new-spaces.h"

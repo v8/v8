@@ -6848,6 +6848,10 @@ void Heap::SetDetachedContexts(Tagged<WeakArrayList> detached_contexts) {
   set_detached_contexts(detached_contexts);
 }
 
+bool Heap::HasDirtyJSFinalizationRegistries() {
+  return !IsUndefined(dirty_js_finalization_registries_list(), isolate());
+}
+
 void Heap::PostFinalizationRegistryCleanupTaskIfNeeded() {
   // Only one cleanup task is posted at a time.
   if (!HasDirtyJSFinalizationRegistries() ||
@@ -7375,6 +7379,40 @@ void Heap::NotifyLoadingEnded() {
 void Heap::UpdateLoadStartTime() {
   load_start_time_ms_.store(MonotonicallyIncreasingTimeInMs(),
                             std::memory_order_relaxed);
+}
+
+int Heap::NextScriptId() {
+  FullObjectSlot last_script_id_slot(&roots_table()[RootIndex::kLastScriptId]);
+  Tagged<Smi> last_id = Cast<Smi>(last_script_id_slot.Relaxed_Load());
+  Tagged<Smi> new_id, last_id_before_cas;
+  do {
+    if (last_id.value() == Smi::kMaxValue) {
+      static_assert(v8::UnboundScript::kNoScriptId == 0);
+      new_id = Smi::FromInt(1);
+    } else {
+      new_id = Smi::FromInt(last_id.value() + 1);
+    }
+
+    // CAS returns the old value on success, and the current value in the slot
+    // on failure. Therefore, we want to break if the returned value matches the
+    // old value (last_id), and keep looping (with the new last_id value) if it
+    // doesn't.
+    last_id_before_cas = last_id;
+    last_id =
+        Cast<Smi>(last_script_id_slot.Relaxed_CompareAndSwap(last_id, new_id));
+  } while (last_id != last_id_before_cas);
+
+  return new_id.value();
+}
+
+int Heap::NextDebuggingId() {
+  int last_id = last_debugging_id().value();
+  if (last_id == DebugInfo::DebuggingIdBits::kMax) {
+    last_id = DebugInfo::kNoDebuggingId;
+  }
+  last_id++;
+  set_last_debugging_id(Smi::FromInt(last_id));
+  return last_id;
 }
 
 EmbedderStackStateScope::EmbedderStackStateScope(

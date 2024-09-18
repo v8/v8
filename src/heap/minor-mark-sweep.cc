@@ -24,6 +24,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/live-object-range-inl.h"
 #include "src/heap/mark-sweep-utilities.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-visitor-inl.h"

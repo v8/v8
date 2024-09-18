@@ -41,6 +41,7 @@
 
 #include "include/v8-locker.h"
 #include "src/handles/global-handles.h"
+#include "src/heap/live-object-range-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-inl.h"
