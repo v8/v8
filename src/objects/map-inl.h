@@ -902,6 +902,22 @@ bool Map::IsPrototypeValidityCellValid() const {
   return cell_value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
+bool Map::BelongsToSameNativeContextAs(Tagged<Map> other_map) const {
+  Tagged<Map> this_meta_map = map();
+  // If the meta map is contextless (as in case of remote object's meta map)
+  // we can't be sure the maps belong to the same context.
+  if (this_meta_map == GetReadOnlyRoots().meta_map()) return false;
+  DCHECK(IsNativeContext(this_meta_map->native_context_or_null()));
+  return this_meta_map == other_map->map();
+}
+
+bool Map::BelongsToSameNativeContextAs(Tagged<Context> context) const {
+  Tagged<Map> context_meta_map = context->map()->map();
+  Tagged<Map> this_meta_map = map();
+  DCHECK_NE(context_meta_map, GetReadOnlyRoots().meta_map());
+  return this_meta_map == context_meta_map;
+}
+
 DEF_GETTER(Map, GetConstructorRaw, Tagged<Object>) {
   Tagged<Object> maybe_constructor = constructor_or_back_pointer(cage_base);
   // Follow any back pointers.

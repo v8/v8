@@ -685,6 +685,13 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // chain state.
   inline bool IsPrototypeValidityCellValid() const;
 
+  // Returns true if this map belongs to the same native context as given map,
+  // i.e. this map's meta map is equal to other_map's meta map.
+  // Returns false if this map is contextless (in case of JSObject map this
+  // means that the object is remote).
+  inline bool BelongsToSameNativeContextAs(Tagged<Map> other_map) const;
+  inline bool BelongsToSameNativeContextAs(Tagged<Context> context) const;
+
   inline Tagged<Name> GetLastDescriptorName(Isolate* isolate) const;
   inline PropertyDetails GetLastDescriptorDetails(Isolate* isolate) const;
 

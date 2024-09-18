@@ -3277,7 +3277,7 @@ FastCloneObjectMode GetCloneModeForMapPreCheck(DirectHandle<Map> map,
   }
 
   // TODO(olivf): Think about cases where cross-context copies are safe.
-  if (*map->map()->native_context() != *isolate->native_context()) {
+  if (!map->BelongsToSameNativeContextAs(isolate->context())) {
     return FastCloneObjectMode::kNotSupported;
   }
 
@@ -3549,10 +3549,14 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
                                  DirectHandle<Map> override_map) {
   static_assert(kind == SideStepTransition::Kind::kObjectAssign ||
                 kind == SideStepTransition::Kind::kCloneObject);
-  if (source_map->map()->native_context() != *isolate->native_context()) {
+  if (!v8_flags.clone_object_sidestep_transitions) {
     return SideStepTransition::Empty;
   }
-  if (!v8_flags.clone_object_sidestep_transitions) return {};
+
+  // Ensure we can follow the sidestep transition NativeContext-wise.
+  if (!source_map->BelongsToSameNativeContextAs(isolate->context())) {
+    return SideStepTransition::Empty;
+  }
   Tagged<Object> result = SideStepTransition::Empty;
   TransitionsAccessor transitions(isolate, *source_map);
   if (transitions.HasSideStepTransitions()) {
@@ -3883,7 +3887,7 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
   DCHECK(!target_map->is_deprecated());
   DCHECK(target_map->is_extensible());
   DCHECK(!IsUndefined(*source, isolate) && !IsNull(*source, isolate));
-  DCHECK_EQ(source_map->map()->native_context(), *isolate->native_context());
+  DCHECK(source_map->BelongsToSameNativeContextAs(isolate->context()));
 
   ReadOnlyRoots roots(isolate);
   {
