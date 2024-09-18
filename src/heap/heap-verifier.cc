@@ -615,7 +615,8 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
     // Keys are handled separately and should never appear in this set.
     CHECK(!InUntypedSet(key));
     Tagged<Object> k = *key;
-    if (!ObjectInYoungGeneration(host) && ObjectInYoungGeneration(k)) {
+    if (!HeapLayout::InYoungGeneration(host) &&
+        HeapLayout::InYoungGeneration(k)) {
       Tagged<EphemeronHashTable> table = Cast<EphemeronHashTable>(host);
       auto it = ephemeron_remembered_set_->find(table);
       CHECK(it != ephemeron_remembered_set_->end());

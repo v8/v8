@@ -23,14 +23,6 @@ namespace {
 thread_local MarkingBarrier* current_marking_barrier = nullptr;
 }  // namespace
 
-bool HeapObjectInYoungGenerationSticky(MemoryChunk* chunk,
-                                       Tagged<HeapObject> object) {
-  DCHECK(v8_flags.sticky_mark_bits);
-  return !chunk->IsOnlyOldOrMajorMarkingOn() &&
-         !MarkingBitmap::MarkBitFromAddress(object.address())
-              .template Get<AccessMode::ATOMIC>();
-}
-
 MarkingBarrier* WriteBarrier::CurrentMarkingBarrier(
     Tagged<HeapObject> verification_candidate) {
   MarkingBarrier* marking_barrier = current_marking_barrier;
@@ -309,7 +301,7 @@ void WriteBarrier::GenerationalBarrierForCodeSlow(
 // static
 void WriteBarrier::CombinedGenerationalAndSharedEphemeronBarrierSlow(
     Tagged<EphemeronHashTable> table, Address slot, Tagged<HeapObject> value) {
-  if (HeapObjectInYoungGeneration(value)) {
+  if (HeapLayout::InYoungGeneration(value)) {
     MutablePageMetadata* table_chunk =
         MutablePageMetadata::FromHeapObject(table);
     table_chunk->heap()->ephemeron_remembered_set()->RecordEphemeronKeyWrite(
@@ -324,7 +316,7 @@ void WriteBarrier::CombinedGenerationalAndSharedEphemeronBarrierSlow(
 // static
 void WriteBarrier::CombinedGenerationalAndSharedBarrierSlow(
     Tagged<HeapObject> object, Address slot, Tagged<HeapObject> value) {
-  if (HeapObjectInYoungGeneration(value)) {
+  if (HeapLayout::InYoungGeneration(value)) {
     GenerationalBarrierSlow(object, slot, value);
 
   } else {
@@ -459,7 +451,7 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
   MemoryChunk* source_chunk = MemoryChunk::FromHeapObject(object);
   base::Flags<RangeWriteBarrierMode> mode;
 
-  if (!HeapObjectInYoungGeneration(object) &&
+  if (!HeapLayout::InYoungGeneration(object) &&
       !source_chunk->InWritableSharedSpace()) {
     mode |= kDoGenerationalOrShared;
   }

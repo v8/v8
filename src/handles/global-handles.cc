@@ -21,8 +21,7 @@
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/heap-write-barrier.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
@@ -616,7 +615,7 @@ namespace {
 
 template <typename NodeType>
 bool NeedsTrackingInYoungNodes(Tagged<Object> value, NodeType* node) {
-  return ObjectInYoungGeneration(value) && !node->is_in_young_list();
+  return HeapLayout::InYoungGeneration(value) && !node->is_in_young_list();
 }
 
 }  // namespace
@@ -781,7 +780,7 @@ void UpdateListOfYoungNodesImpl(Isolate* isolate, std::vector<T*>* node_list) {
   for (T* node : *node_list) {
     DCHECK(node->is_in_young_list());
     if (node->IsInUse() && node->state() != T::NEAR_DEATH) {
-      if (ObjectInYoungGeneration(node->object())) {
+      if (HeapLayout::InYoungGeneration(node->object())) {
         (*node_list)[last++] = node;
         isolate->heap()->IncrementNodesCopiedInNewSpace();
       } else {
@@ -804,7 +803,7 @@ void ClearListOfYoungNodesImpl(Isolate* isolate, std::vector<T*>* node_list) {
     DCHECK(node->is_in_young_list());
     node->set_in_young_list(false);
     DCHECK_IMPLIES(node->IsInUse() && node->state() != T::NEAR_DEATH,
-                   !ObjectInYoungGeneration(node->object()));
+                   !HeapLayout::InYoungGeneration(node->object()));
   }
   isolate->heap()->IncrementNodesDiedInNewSpace(
       static_cast<int>(node_list->size()));
@@ -1031,7 +1030,7 @@ void EternalHandles::IterateYoungRoots(RootVisitor* visitor) {
 void EternalHandles::PostGarbageCollectionProcessing() {
   size_t last = 0;
   for (int index : young_node_indices_) {
-    if (ObjectInYoungGeneration(Tagged<Object>(*GetLocation(index)))) {
+    if (HeapLayout::InYoungGeneration(Tagged<Object>(*GetLocation(index)))) {
       young_node_indices_[last++] = index;
     }
   }
@@ -1055,7 +1054,7 @@ void EternalHandles::Create(Isolate* isolate, Tagged<Object> object,
   }
   DCHECK_EQ(the_hole.ptr(), blocks_[block][offset]);
   blocks_[block][offset] = object.ptr();
-  if (ObjectInYoungGeneration(object)) {
+  if (HeapLayout::InYoungGeneration(object)) {
     young_node_indices_.push_back(size_);
   }
   *index = size_++;

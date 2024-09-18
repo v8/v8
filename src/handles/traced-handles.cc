@@ -14,6 +14,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
@@ -230,7 +231,7 @@ void TracedHandles::Move(TracedNode& from_node, Address** from, Address** to) {
   } else if (auto* cpp_heap = GetCppHeapIfUnifiedYoungGC(isolate_)) {
     const bool object_is_young_and_not_yet_recorded =
         !from_node.has_old_host() &&
-        ObjectInYoungGeneration(from_node.object());
+        HeapLayout::InYoungGeneration(from_node.object());
     if (object_is_young_and_not_yet_recorded &&
         IsCppGCHostOld(*cpp_heap, reinterpret_cast<Address>(to))) {
       DCHECK(from_node.is_in_young_list());
@@ -276,7 +277,7 @@ void TracedHandles::UpdateListOfYoungNodes() {
     for (auto* node : *block) {
       if (!node->is_in_young_list()) continue;
       DCHECK(node->is_in_use());
-      if (ObjectInYoungGeneration(node->object())) {
+      if (HeapLayout::InYoungGeneration(node->object())) {
         contains_young_node = true;
         // The node was discovered through a cppgc object, which will be
         // immediately promoted. Remember the object.
@@ -513,7 +514,7 @@ void TracedHandles::IterateAndMarkYoungRootsWithOldHosts(RootVisitor* visitor) {
       if (node->is_weak()) continue;
 
       node->set_markbit();
-      CHECK(ObjectInYoungGeneration(node->object()));
+      CHECK(HeapLayout::InYoungGeneration(node->object()));
       visitor->VisitRootPointer(Root::kTracedHandles, nullptr,
                                 node->location());
     }
@@ -584,7 +585,7 @@ Tagged<Object> MarkObject(Tagged<Object> obj, TracedNode& node,
   // Being in the young list, the node may still point to an old object, in
   // which case we want to keep the node marked, but not follow the reference.
   if (mark_mode == TracedHandles::MarkMode::kOnlyYoung &&
-      !ObjectInYoungGeneration(obj))
+      !HeapLayout::InYoungGeneration(obj))
     return Smi::zero();
   return obj;
 }

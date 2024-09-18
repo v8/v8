@@ -5,14 +5,47 @@
 #ifndef V8_HEAP_HEAP_LAYOUT_INL_H_
 #define V8_HEAP_HEAP_LAYOUT_INL_H_
 
+#include "src/flags/flags.h"
 #include "src/heap/heap-layout.h"
 #include "src/heap/memory-chunk.h"
+#include "src/objects/casting.h"
+#include "src/objects/objects.h"
 
 namespace v8::internal {
 
 // static
 bool HeapLayout::InReadOnlySpace(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
+}
+
+// static
+bool HeapLayout::InYoungGeneration(const MemoryChunk* chunk,
+                                   Tagged<HeapObject> object) {
+  if constexpr (v8_flags.single_generation.value()) {
+    return false;
+  }
+  if constexpr (v8_flags.sticky_mark_bits.value()) {
+    return InYoungGenerationForStickyMarkbits(chunk, object);
+  }
+  return chunk->InYoungGeneration();
+}
+
+// static
+bool HeapLayout::InYoungGeneration(Tagged<Object> object) {
+  if (object.IsSmi()) {
+    return false;
+  }
+  return InYoungGeneration(Cast<HeapObject>(object));
+}
+
+// static
+bool HeapLayout::InYoungGeneration(Tagged<HeapObject> object) {
+  return InYoungGeneration(MemoryChunk::FromHeapObject(object), object);
+}
+
+// static
+bool HeapLayout::InYoungGeneration(const HeapObjectLayout* object) {
+  return InYoungGeneration(Tagged<HeapObject>(object));
 }
 
 // static

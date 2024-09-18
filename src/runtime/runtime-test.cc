@@ -1632,7 +1632,7 @@ RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
     return CrashUnlessFuzzing(isolate);
   }
   Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(ObjectInYoungGeneration(obj));
+  return isolate->heap()->ToBoolean(HeapLayout::InYoungGeneration(obj));
 }
 
 // Force pretenuring for the allocation site the passed object belongs to.

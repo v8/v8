@@ -32,6 +32,7 @@
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
@@ -379,8 +380,8 @@ Handle<String> JSNativeContextSpecialization::Concatenate(
     // build a SeqString rather than a ConsString, regardless of {length}.
     // TODO(dmercadier, dinfuehr): always build a ConsString here once the
     // generational write-barrier supports background threads.
-    if (!LocalHeap::Current() ||
-        (!ObjectInYoungGeneration(*left) && !ObjectInYoungGeneration(*right))) {
+    if (!LocalHeap::Current() || (!HeapLayout::InYoungGeneration(*left) &&
+                                  !HeapLayout::InYoungGeneration(*right))) {
       return broker()
           ->local_isolate_or_isolate()
           ->factory()
@@ -484,8 +485,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
       // One of {lhs} or {rhs} is not safe to be read in the background.
 
       if (left->length() + right->length() > ConsString::kMinLength &&
-          (!LocalHeap::Current() || (!ObjectInYoungGeneration(*left) &&
-                                     !ObjectInYoungGeneration(*right)))) {
+          (!LocalHeap::Current() || (!HeapLayout::InYoungGeneration(*left) &&
+                                     !HeapLayout::InYoungGeneration(*right)))) {
         // We can create a ConsString with {left} and {right}, without needing
         // to read their content (and this ConsString will not introduce
         // old-to-new pointers from the background).

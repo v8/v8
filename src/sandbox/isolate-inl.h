@@ -6,7 +6,7 @@
 #define V8_SANDBOX_ISOLATE_INL_H_
 
 #include "src/execution/isolate.h"
-#include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 
 namespace v8 {
@@ -112,7 +112,7 @@ IsolateForPointerCompression::GetExternalPointerTableSpaceFor(
     return isolate_->heap()->read_only_external_pointer_space();
   }
 
-  if (HeapObjectInYoungGeneration(HeapObject::FromAddress(host))) {
+  if (HeapLayout::InYoungGeneration(HeapObject::FromAddress(host))) {
     return isolate_->heap()->young_external_pointer_space();
   }
 

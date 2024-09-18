@@ -72,7 +72,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     DCHECK(Heap::IsLargeObject(obj) || IsEphemeronHashTable(obj));
     VisitPointer(obj, value);
 
-    if (ObjectInYoungGeneration(*key)) {
+    if (HeapLayout::InYoungGeneration(*key)) {
       // We cannot check the map here, as it might be a large object.
       scavenger_->RememberPromotedEphemeron(
           UncheckedCast<EphemeronHashTable>(obj), entry);

@@ -14,12 +14,20 @@
 
 namespace v8::internal {
 
+class MemoryChunk;
+
 // Checks for heap layouts. The checks generally use Heap infrastructure (heap,
 // space, page, mark bits, etc) and do not rely on instance types.
 class HeapLayout final : public AllStatic {
  public:
   // Returns whether `object` is part of a read-only space.
   static V8_INLINE bool InReadOnlySpace(Tagged<HeapObject> object);
+
+  static V8_INLINE bool InYoungGeneration(Tagged<Object> object);
+  static V8_INLINE bool InYoungGeneration(Tagged<HeapObject> object);
+  static V8_INLINE bool InYoungGeneration(const HeapObjectLayout* object);
+  static V8_INLINE bool InYoungGeneration(const MemoryChunk* chunk,
+                                          Tagged<HeapObject> object);
 
   // Returns whether `object` is in a writable shared space. The is agnostic to
   // how the shared space itself is managed.
@@ -35,6 +43,10 @@ class HeapLayout final : public AllStatic {
   // Returns whether `object` is allocated in trusted space. See
   // src/sandbox/GLOSSARY.md for details.
   static V8_INLINE bool InTrustedSpace(Tagged<HeapObject> object);
+
+ private:
+  static bool InYoungGenerationForStickyMarkbits(const MemoryChunk* chunk,
+                                                 Tagged<HeapObject> object);
 };
 
 }  // namespace v8::internal

@@ -269,7 +269,7 @@ Tagged<FixedArrayBase> Map::GetInitialElements() const {
   } else {
     UNREACHABLE();
   }
-  DCHECK(!ObjectInYoungGeneration(result));
+  DCHECK(!HeapLayout::InYoungGeneration(result));
   return result;
 }
 

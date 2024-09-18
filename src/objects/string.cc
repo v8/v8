@@ -54,8 +54,8 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
   DCHECK(AllowGarbageCollection::IsAllowed());
   int length = cons->length();
   if (allocation != AllocationType::kSharedOld) {
-    allocation =
-        ObjectInYoungGeneration(*cons) ? allocation : AllocationType::kOld;
+    allocation = HeapLayout::InYoungGeneration(*cons) ? allocation
+                                                      : AllocationType::kOld;
   }
   Handle<SeqString> result;
   if (cons->IsOneByteRepresentation()) {

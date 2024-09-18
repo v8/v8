@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/common/globals.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements.h"
@@ -844,9 +845,10 @@ DEF_GETTER(JSObject, element_dictionary, Tagged<NumberDictionary>) {
 
 void JSReceiver::initialize_properties(Isolate* isolate) {
   ReadOnlyRoots roots(isolate);
-  DCHECK(!ObjectInYoungGeneration(roots.empty_fixed_array()));
-  DCHECK(!ObjectInYoungGeneration(roots.empty_property_dictionary()));
-  DCHECK(!ObjectInYoungGeneration(roots.empty_ordered_property_dictionary()));
+  DCHECK(!HeapLayout::InYoungGeneration(roots.empty_fixed_array()));
+  DCHECK(!HeapLayout::InYoungGeneration(roots.empty_property_dictionary()));
+  DCHECK(!HeapLayout::InYoungGeneration(
+      roots.empty_ordered_property_dictionary()));
   if (map(isolate)->is_dictionary_map()) {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       WRITE_FIELD(*this, kPropertiesOrHashOffset,
@@ -1034,7 +1036,7 @@ static inline bool ShouldConvertToSlowElements(Tagged<JSObject> object,
   DCHECK_LT(index, *new_capacity);
   if (*new_capacity <= JSObject::kMaxUncheckedOldFastElementsLength ||
       (*new_capacity <= JSObject::kMaxUncheckedFastElementsLength &&
-       ObjectInYoungGeneration(object))) {
+       HeapLayout::InYoungGeneration(object))) {
     return false;
   }
   return ShouldConvertToSlowElements(object->GetFastElementsUsage(),
