@@ -1765,8 +1765,17 @@ class MergeAssumptionChecker final : public ObjectVisitor {
       // doesn't have enough information to indicate their usage, so we enqueue
       // those objects here rather than during VisitPointers.
       if (IsScript(current)) {
-        Tagged<HeapObject> infos = Cast<Script>(current)->infos();
+        Tagged<Script> script = Cast<Script>(current);
+        Tagged<HeapObject> infos = script->infos();
         QueueVisit(infos, kScriptInfosList);
+        // Avoid visiting eval_from_shared_or_wrapped_arguments. This field
+        // points to data outside the new Script, and doesn't need to be merged.
+        Tagged<HeapObject> eval_from_shared_or_wrapped_arguments;
+        if (script->eval_from_shared_or_wrapped_arguments()
+                .GetHeapObjectIfStrong(
+                    &eval_from_shared_or_wrapped_arguments)) {
+          visited_.insert(eval_from_shared_or_wrapped_arguments);
+        }
       } else if (IsBytecodeArray(current)) {
         Tagged<HeapObject> constants =
             Cast<BytecodeArray>(current)->constant_pool();
@@ -1794,7 +1803,11 @@ class MergeAssumptionChecker final : public ObjectVisitor {
       if (maybe_obj.GetHeapObject(&obj)) {
         if (IsSharedFunctionInfo(obj)) {
           CHECK((current_object_kind_ == kConstantPool && !is_weak) ||
-                (current_object_kind_ == kScriptInfosList && is_weak));
+                (current_object_kind_ == kScriptInfosList && is_weak) ||
+                (IsScript(host) &&
+                 current.address() ==
+                     host.address() +
+                         Script::kEvalFromSharedOrWrappedArgumentsOffset));
         } else if (IsScopeInfo(obj)) {
           CHECK((current_object_kind_ == kConstantPool && !is_weak) ||
                 (current_object_kind_ == kNormalObject && !is_weak) ||
