@@ -5427,7 +5427,6 @@ int v8::Object::GetIdentityHash() {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = self->GetIsolate();
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::HandleScope scope(i_isolate);
   return self->GetOrCreateIdentityHash(i_isolate).value();
 }
 
