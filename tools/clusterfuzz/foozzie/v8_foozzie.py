@@ -202,6 +202,10 @@ DISALLOWED_FLAGS = [
 
     # Statistics about allocations aren't comparable.
     '--expose-statistics',
+
+    # Cuts off stdout earlier in some situations and might alter the behavior
+    # of neutered runtime functions.
+    '--sandbox-testing',
 ]
 
 # List pairs of flags that lead to contradictory cycles, i.e.:
