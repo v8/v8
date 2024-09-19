@@ -1416,7 +1416,7 @@ Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
       simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
       receiver_map, effect, control);
 
-  if (v8_flags.embedder_instance_types && range_start != 0) {
+  if (v8_flags.experimental_embedder_instance_types && range_start != 0) {
     // Embedder instance ID is set, doing a simple range check.
     Node* diff_to_start =
         graph()->NewNode(simplified()->NumberSubtract(), receiver_instance_type,

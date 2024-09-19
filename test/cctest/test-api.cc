@@ -30075,7 +30075,7 @@ TEST(EmbedderInstanceTypes) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  i::v8_flags.embedder_instance_types = true;
+  i::v8_flags.experimental_embedder_instance_types = true;
   Local<FunctionTemplate> node = FunctionTemplate::New(isolate);
   Local<ObjectTemplate> proto_template = node->PrototypeTemplate();
 
