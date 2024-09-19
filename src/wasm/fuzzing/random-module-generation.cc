@@ -2177,8 +2177,7 @@ class BodyGen {
         mutable_globals_(mutable_globals),
         structs_(structs),
         arrays_(arrays),
-        string_imports_(strings),
-        locals_initialized_(false) {
+        string_imports_(strings) {
     const FunctionSig* sig = fn->signature();
     blocks_.emplace_back();
     for (size_t i = 0; i < sig->return_count(); ++i) {
@@ -3435,11 +3434,11 @@ class BodyGen {
   std::vector<uint8_t> mutable_globals_;  // indexes into {globals_}.
   uint32_t recursion_depth = 0;
   std::vector<int> catch_blocks_;
-  bool has_simd_;
+  bool has_simd_ = false;
   const std::vector<uint32_t>& structs_;
   const std::vector<uint32_t>& arrays_;
   const StringImports& string_imports_;
-  bool locals_initialized_;
+  bool locals_initialized_ = false;
 
   bool recursion_limit_reached() {
     return recursion_depth >= kMaxRecursionDepth;
