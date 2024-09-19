@@ -480,6 +480,12 @@
   'compiler/fast-api-calls-wasm': [SKIP],
 }],  # not has_webassembly or (variant == jitless and not has_wasm_interpreter)
 
+##############################################################################
+['not has_webassembly', {
+  # This test case requires wasm. It is not in the regress/wasm subfolder
+  # as we want to run this test in jitless mode (where it is supposed to pass).
+  'regress/regress-366323504': [SKIP],
+}],  # not has_webassembly
 
 ##############################################################################
 ['not has_wasm_interpreter or variant != jitless', {
