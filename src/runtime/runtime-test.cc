@@ -2165,6 +2165,11 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
     return CrashUnlessFuzzing(isolate);
   }
 
+#ifdef V8_JITLESS
+  // No feedback is collected in jitless mode, so tests calling %GetFeedback
+  // don't make sense.
+  return ReadOnlyRoots(isolate).undefined_value();
+#else
 #ifdef OBJECT_PRINT
   Handle<FeedbackVector> feedback_vector =
       handle(function->feedback_vector(), isolate);
@@ -2205,6 +2210,7 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
 #else
   return ReadOnlyRoots(isolate).undefined_value();
 #endif  // OBJECT_PRINT
+#endif  // not V8_JITLESS
 }
 
 }  // namespace internal
