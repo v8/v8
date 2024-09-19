@@ -2073,5 +2073,191 @@ RUNTIME_FUNCTION(Runtime_RegExpStringFromFlags) {
   return *flags;
 }
 
+namespace {
+
+template <typename SChar, typename PChar>
+inline void RegExpMatchGlobalAtom_OneCharPattern(
+    Isolate* isolate, base::Vector<const SChar> subject, const PChar pattern,
+    int* number_of_matches, int* last_match_index,
+    const DisallowGarbageCollection& no_gc) {
+  for (int i = 0; i < subject.length(); i++) {
+    // Subtle: the valid variants are {SChar,PChar} in:
+    // {uint8_t,uint8_t}, {uc16,uc16}, {uc16,uint8_t}. In the latter case,
+    // we cast the uint8_t pattern to uc16 for the comparison.
+    if (subject[i] != static_cast<const SChar>(pattern)) continue;
+    (*number_of_matches)++;
+    (*last_match_index) = i;
+  }
+}
+
+// Unimplemented.
+template <>
+inline void RegExpMatchGlobalAtom_OneCharPattern(
+    Isolate* isolate, base::Vector<const uint8_t> subject,
+    const base::uc16 pattern, int* number_of_matches, int* last_match_index,
+    const DisallowGarbageCollection& no_gc) = delete;
+
+template <typename Char>
+inline int AdvanceStringIndex(base::Vector<const Char> subject, int index,
+                              bool is_unicode) {
+  // Taken from RegExpUtils::AdvanceStringIndex:
+
+  const int subject_length = subject.length();
+  if (is_unicode && index < subject_length) {
+    const uint16_t first = subject[index];
+    if (first >= 0xD800 && first <= 0xDBFF && index + 1 < subject_length) {
+      DCHECK_LT(index, std::numeric_limits<int>::max());
+      const uint16_t second = subject[index + 1];
+      if (second >= 0xDC00 && second <= 0xDFFF) {
+        return index + 2;
+      }
+    }
+  }
+
+  return index + 1;
+}
+
+template <typename SChar, typename PChar>
+inline void RegExpMatchGlobalAtom_Generic(
+    Isolate* isolate, base::Vector<const SChar> subject,
+    base::Vector<const PChar> pattern, bool is_unicode, int* number_of_matches,
+    int* last_match_index, const DisallowGarbageCollection& no_gc) {
+  const int pattern_length = pattern.length();
+  StringSearch<PChar, SChar> search(isolate, pattern);
+  int start_index = 0;
+  int found_at_index;
+
+  while (true) {
+    found_at_index = search.Search(subject, start_index);
+    if (found_at_index == -1) return;
+
+    (*number_of_matches)++;
+    (*last_match_index) = found_at_index;
+    start_index = pattern_length > 0
+                      ? found_at_index + pattern_length
+                      : AdvanceStringIndex(subject, start_index, is_unicode);
+  }
+}
+
+inline void RegExpMatchGlobalAtom_Dispatch(
+    Isolate* isolate, const String::FlatContent& subject,
+    const String::FlatContent& pattern, bool is_unicode, int* number_of_matches,
+    int* last_match_index, const DisallowGarbageCollection& no_gc) {
+#define CALL_Generic()                                       \
+  RegExpMatchGlobalAtom_Generic(isolate, sv, pv, is_unicode, \
+                                number_of_matches, last_match_index, no_gc);
+#define CALL_OneCharPattern()                                                 \
+  RegExpMatchGlobalAtom_OneCharPattern(isolate, sv, pv[0], number_of_matches, \
+                                       last_match_index, no_gc);
+  DCHECK_NOT_NULL(number_of_matches);
+  DCHECK_NOT_NULL(last_match_index);
+  if (pattern.IsOneByte()) {
+    auto pv = pattern.ToOneByteVector();
+    if (subject.IsOneByte()) {
+      auto sv = subject.ToOneByteVector();
+      if (pattern.length() == 1) {
+        CALL_OneCharPattern();
+      } else {
+        CALL_Generic();
+      }
+    } else {
+      auto sv = subject.ToUC16Vector();
+      if (pattern.length() == 1) {
+        CALL_OneCharPattern();
+      } else {
+        CALL_Generic();
+      }
+    }
+  } else {
+    auto pv = pattern.ToUC16Vector();
+    if (subject.IsOneByte()) {
+      auto sv = subject.ToOneByteVector();
+      CALL_Generic();
+    } else {
+      auto sv = subject.ToUC16Vector();
+      if (pattern.length() == 1) {
+        CALL_OneCharPattern();
+      } else {
+        CALL_Generic();
+      }
+    }
+  }
+#undef CALL_OneCharPattern
+#undef CALL_Generic
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  // TODO(jgruber): Cache results for the same seq string subject. Also
+  // for overlapping slices of the same sliced.parent string.
+
+  Handle<JSRegExp> regexp_handle = args.at<JSRegExp>(0);
+  Handle<String> subject_handle = String::Flatten(isolate, args.at<String>(1));
+  Handle<AtomRegExpData> data_handle = args.at<AtomRegExpData>(2);
+
+  DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp_handle));
+  DCHECK(regexp_handle->flags() & JSRegExp::kGlobal);
+  DCHECK_EQ(data_handle->type_tag(), RegExpData::Type::ATOM);
+
+  // Initialized below.
+  Handle<String> pattern_handle;
+
+  int number_of_matches = 0;
+  int last_match_index = -1;
+
+  {
+    DisallowGarbageCollection no_gc;
+
+    Tagged<JSRegExp> regexp = *regexp_handle;
+    Tagged<String> subject = *subject_handle;
+    Tagged<String> pattern = data_handle->pattern();
+
+    DCHECK(pattern->IsFlat());
+    pattern_handle = handle(pattern, isolate);
+
+    // Reset lastIndex (the final state after this call is always 0).
+    regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
+
+    const bool is_unicode = (regexp->flags() & JSRegExp::kUnicode) != 0;
+    String::FlatContent subject_content = subject->GetFlatContent(no_gc);
+    String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
+    RegExpMatchGlobalAtom_Dispatch(isolate, subject_content, pattern_content,
+                                   is_unicode, &number_of_matches,
+                                   &last_match_index, no_gc);
+  }
+
+  if (last_match_index == -1) {
+    // Not matched.
+    return ReadOnlyRoots(isolate).null_value();
+  }
+
+  // Successfully matched at least once:
+  DCHECK_GE(last_match_index, 0);
+
+  // Update the LastMatchInfo.
+  static constexpr int kNumberOfCaptures = 0;  // ATOM.
+  int32_t match_indices[] = {last_match_index,
+                             last_match_index + pattern_handle->length()};
+  Handle<RegExpMatchInfo> last_match_info = isolate->regexp_last_match_info();
+  RegExp::SetLastMatchInfo(isolate, last_match_info, subject_handle,
+                           kNumberOfCaptures, match_indices);
+
+  // Create the result array.
+  auto elems = isolate->factory()->NewFixedArray(number_of_matches);
+  ObjectSlot dst_slot = elems->RawFieldOfFirstElement();
+  MemsetTagged(dst_slot, *pattern_handle, number_of_matches);
+  if (!HeapLayout::InReadOnlySpace(*pattern_handle)) {
+    WriteBarrier::ForRange(isolate->heap(), *elems, dst_slot,
+                           dst_slot + number_of_matches);
+  }
+  Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(
+      elems, TERMINAL_FAST_ELEMENTS_KIND, number_of_matches);
+  return *result;
+}
+
 }  // namespace internal
 }  // namespace v8

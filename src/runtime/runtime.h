@@ -423,6 +423,7 @@ namespace internal {
   F(RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure, 4, 1) \
   F(RegExpExecMultiple, 3, 1)                                    \
   F(RegExpInitializeAndCompile, 3, 1)                            \
+  F(RegExpMatchGlobalAtom, 3, 1)                                 \
   F(RegExpReplaceRT, 3, 1)                                       \
   F(RegExpSplit, 3, 1)                                           \
   F(RegExpStringFromFlags, 1, 1)                                 \
