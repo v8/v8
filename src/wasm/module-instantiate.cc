@@ -2080,8 +2080,7 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     FunctionTargetAndImplicitArg entry(isolate_, target_instance_data,
                                        function_index);
     Handle<Object> implicit_arg = entry.implicit_arg();
-    if (v8_flags.wasm_to_js_generic_wrapper &&
-        IsWasmImportData(*implicit_arg)) {
+    if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
       auto orig_import_data = Cast<WasmImportData>(implicit_arg);
       Handle<WasmImportData> new_import_data =
           isolate_->factory()->NewWasmImportData(orig_import_data);

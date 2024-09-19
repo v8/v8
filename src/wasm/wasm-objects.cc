@@ -536,8 +536,7 @@ void WasmTableObject::UpdateDispatchTables(
     DirectHandle<WasmInstanceObject> instance_object(
         Cast<WasmInstanceObject>(uses->get(i + TableUses::kInstanceOffset)),
         isolate);
-    if (v8_flags.wasm_to_js_generic_wrapper &&
-        IsWasmImportData(*implicit_arg)) {
+    if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
       auto import_data = Cast<WasmImportData>(implicit_arg);
       DirectHandle<WasmImportData> new_import_data =
           isolate->factory()->NewWasmImportData(import_data);
@@ -1678,7 +1677,7 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
                 : trusted_instance_data;
 
   bool setup_new_ref_with_generic_wrapper = false;
-  if (v8_flags.wasm_to_js_generic_wrapper && IsWasmImportData(*implicit_arg)) {
+  if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
     // Only set up the generic wrapper if it is compatible with the import call
     // kind, which we compute below.
     auto import_data = Cast<WasmImportData>(implicit_arg);
@@ -2429,7 +2428,7 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
 #else
   if (suspend != wasm::Suspend::kNoSuspend) return false;
 
-  return v8_flags.wasm_to_js_generic_wrapper;
+  return v8_flags.wasm_generic_wrapper;
 #endif
 }
 

@@ -41,7 +41,6 @@ ALL_VARIANT_FLAGS = {
         "--turboshaft-future",
         "--turboshaft-wasm",
         "--no-wasm-generic-wrapper",
-        "--no-wasm-to-js-generic-wrapper",
         "--no-liftoff",
     ]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
@@ -71,9 +70,10 @@ ALL_VARIANT_FLAGS = {
     "rehash_snapshot": [["--rehash-snapshot"]],
     "slow_path": [["--force-slow-path"]],
     "stress": [[
-        "--no-liftoff", "--stress-lazy-source-positions",
-        "--no-wasm-generic-wrapper", "--no-wasm-lazy-compilation",
-        "--no-wasm-to-js-generic-wrapper"
+        "--no-liftoff",
+        "--stress-lazy-source-positions",
+        "--no-wasm-generic-wrapper",
+        "--no-wasm-lazy-compilation",
     ]],
     "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
     "stress_concurrent_inlining": [["--stress-concurrent-inlining"]],

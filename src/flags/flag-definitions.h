@@ -1507,9 +1507,6 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, size_t{1})
 DEFINE_BOOL(wasm_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers")
-DEFINE_BOOL(wasm_to_js_generic_wrapper, true,
-            "allow use of the generic wasm-to-js wrapper instead of "
-            "per-signature wrappers")
 DEFINE_BOOL(expose_wasm, true, "expose wasm interface to JavaScript")
 // Do not expose wasm in jitless mode.
 //

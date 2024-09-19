@@ -27,7 +27,6 @@
   [0.1, "--no-enable-popcnt"],
   [0.25, "--no-lazy-feedback-allocation"],
   [0.1, "--no-wasm-generic-wrapper"],
-  [0.1, "--no-wasm-to-js-generic-wrapper"],
   [0.2, "--turboshaft"],
   [0.05, "--turboshaft-from-maglev"],
   [0.2, "--turboshaft-wasm"],
