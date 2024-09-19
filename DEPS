@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:b013f2413d36c465216bb4a6fd2a2f9075c07dd7',
+  'siso_version': 'git_revision:e8827a58e51f92cc53a44fb40db89dbde507f800',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:f395cad73f6f75b2298697b5da01d7505e3116e9',
@@ -239,7 +239,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '655f1564f324756efcbaf10c475835fd81c5efcb',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '676cf2e7937fcecd7b04c1e975df2ac4811b2133',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
