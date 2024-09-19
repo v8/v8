@@ -9179,20 +9179,14 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   size_t bytes_to_copy = std::min(byte_length, self->byte_length());
   if (bytes_to_copy) {
     i::DisallowGarbageCollection no_gc;
-    i::Isolate* i_isolate = self->GetIsolate();
     const char* source;
     if (i::IsJSTypedArray(*self)) {
-      i::DirectHandle<i::JSTypedArray> array(i::Cast<i::JSTypedArray>(*self),
-                                             i_isolate);
+      i::Tagged<i::JSTypedArray> array = i::Cast<i::JSTypedArray>(*self);
       source = reinterpret_cast<char*>(array->DataPtr());
-    } else if (i::IsJSDataView(*self)) {
-      i::DirectHandle<i::JSDataView> data_view(i::Cast<i::JSDataView>(*self),
-                                               i_isolate);
-      source = reinterpret_cast<char*>(data_view->data_pointer());
     } else {
-      DCHECK(IsJSRabGsabDataView(*self));
-      i::DirectHandle<i::JSRabGsabDataView> data_view(
-          i::Cast<i::JSRabGsabDataView>(*self), i_isolate);
+      DCHECK(i::IsJSDataView(*self) || i::IsJSRabGsabDataView(*self));
+      i::Tagged<i::JSDataViewOrRabGsabDataView> data_view =
+          i::Cast<i::JSDataViewOrRabGsabDataView>(*self);
       source = reinterpret_cast<char*>(data_view->data_pointer());
     }
     memcpy(dest, source, bytes_to_copy);
