@@ -6324,9 +6324,11 @@ ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
   return result;
 }
 
+template <typename GenericAccessFunc>
 ReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
     ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
-    compiler::FeedbackSource& feedback_source) {
+    compiler::FeedbackSource& feedback_source,
+    GenericAccessFunc&& build_generic_access) {
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForPropertyAccess(feedback_source,
                                              compiler::AccessMode::kLoad, name);
@@ -6336,14 +6338,6 @@ ReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     case compiler::ProcessedFeedback::kNamedAccess: {
       RETURN_IF_DONE(TryReuseKnownPropertyLoad(lookup_start_object, name));
-      auto build_generic_access = [this, &lookup_start_object,
-                                   &processed_feedback, &feedback_source]() {
-        ValueNode* context = GetContext();
-        return AddNewNode<LoadNamedGeneric>(
-            {context, lookup_start_object},
-            processed_feedback.AsNamedAccess().name(), feedback_source);
-      };
-
       return TryBuildNamedAccess(
           receiver, lookup_start_object, processed_feedback.AsNamedAccess(),
           feedback_source, compiler::AccessMode::kLoad, build_generic_access);
@@ -6351,6 +6345,18 @@ ReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
     default:
       return ReduceResult::Fail();
   }
+}
+
+ReduceResult MaglevGraphBuilder::TryBuildLoadNamedProperty(
+    ValueNode* receiver, compiler::NameRef name,
+    compiler::FeedbackSource& feedback_source) {
+  auto build_generic_access = [this, &receiver, &name, &feedback_source]() {
+    ValueNode* context = GetContext();
+    return AddNewNode<LoadNamedGeneric>({context, receiver}, name,
+                                        feedback_source);
+  };
+  return TryBuildLoadNamedProperty(receiver, receiver, name, feedback_source,
+                                   build_generic_access);
 }
 
 void MaglevGraphBuilder::VisitGetNamedProperty() {
@@ -6418,14 +6424,20 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
       BuildLoadTaggedField(home_object, HeapObject::kMapOffset);
   ValueNode* lookup_start_object =
       BuildLoadTaggedField(home_object_map, Map::kPrototypeOffset);
+
+  auto build_generic_access = [this, &receiver, &lookup_start_object, &name,
+                               &feedback_source]() {
+    ValueNode* context = GetContext();
+    return AddNewNode<LoadNamedFromSuperGeneric>(
+        {context, receiver, lookup_start_object}, name, feedback_source);
+  };
+
   PROCESS_AND_RETURN_IF_DONE(
       TryBuildLoadNamedProperty(receiver, lookup_start_object, name,
-                                feedback_source),
+                                feedback_source, build_generic_access),
       SetAccumulator);
   // Create a generic load.
-  ValueNode* context = GetContext();
-  SetAccumulator(AddNewNode<LoadNamedFromSuperGeneric>(
-      {context, receiver, lookup_start_object}, name, feedback_source));
+  SetAccumulator(build_generic_access());
 }
 
 bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
