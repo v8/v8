@@ -62,7 +62,7 @@ declare_args() {
   # Allows the embedder to add a custom suffix to the version string.
   v8_embedder_string = ""
 
-  # Sets -dENABLE_DISASSEMBLER.
+  # Sets -DENABLE_DISASSEMBLER.
   v8_enable_disassembler = ""
 
   # Sets the number of internal fields on promise objects.
@@ -74,19 +74,19 @@ declare_args() {
   # Sets the number of internal fields on array buffer view objects.
   v8_array_buffer_view_internal_field_count = 0
 
-  # Sets -dENABLE_GDB_JIT_INTERFACE.
+  # Sets -DENABLE_GDB_JIT_INTERFACE.
   v8_enable_gdbjit = ""
 
-  # Sets -dENABLE_VTUNE_JIT_INTERFACE.
+  # Sets -DENABLE_VTUNE_JIT_INTERFACE.
   v8_enable_vtunejit = false
 
-  # Sets -dENABLE_VTUNE_TRACEMARK.
+  # Sets -DENABLE_VTUNE_TRACEMARK.
   v8_enable_vtunetracemark = false
 
-  # Sets -dENABLE_HUGEPAGE
+  # Sets -DENABLE_HUGEPAGE
   v8_enable_hugepage = false
 
-  # Sets -dV8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION.
+  # Sets -DV8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION.
   #
   # This flag speeds up the performance of fork/execve on Linux systems for
   # embedders which use it (like Node.js). It works by marking the pages that
@@ -97,7 +97,7 @@ declare_args() {
   # See v8:7381 for more details.
   v8_enable_private_mapping_fork_optimization = false
 
-  # Sets -dENABLE_HANDLE_ZAPPING.
+  # Sets -DENABLE_HANDLE_ZAPPING.
   v8_enable_handle_zapping = is_asan || is_debug
 
   # Enable slow dchecks.
@@ -118,16 +118,16 @@ declare_args() {
 
   # Allow runtime-enabled code comments (with --code-comments). Enabled by
   # default in debug builds.
-  # Sets -dV8_CODE_COMMENTS
+  # Sets -DV8_CODE_COMMENTS
   v8_code_comments = ""
 
   # Allow runtime-enabled debug code (with --debug-code). Enabled by default in
   # debug builds.
-  # Sets -dV8_ENABLE_DEBUG_CODE
+  # Sets -DV8_ENABLE_DEBUG_CODE
   v8_enable_debug_code = ""
 
   # Enable native counters from the snapshot (impacts performance, sets
-  # -dV8_SNAPSHOT_NATIVE_CODE_COUNTERS).
+  # -DV8_SNAPSHOT_NATIVE_CODE_COUNTERS).
   # This option will generate extra code in the snapshot to increment counters,
   # as per the --native-code-counters flag.
   v8_enable_snapshot_native_code_counters = ""
@@ -142,24 +142,24 @@ declare_args() {
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
 
-  # Sets -dOBJECT_PRINT.
+  # Sets -DOBJECT_PRINT.
   v8_enable_object_print = ""
 
-  # Sets -dV8_TRACE_MAPS.
+  # Sets -DV8_TRACE_MAPS.
   v8_enable_trace_maps = ""
 
-  # Sets -dV8_ENABLE_CHECKS.
+  # Sets -DV8_ENABLE_CHECKS.
   v8_enable_v8_checks = ""
 
-  # Sets -dV8_TRACE_UNOPTIMIZED.
+  # Sets -DV8_TRACE_UNOPTIMIZED.
   v8_enable_trace_unoptimized = ""
   v8_enable_trace_ignition = false
   v8_enable_trace_baseline_exec = false
 
-  # Sets -dV8_TRACE_FEEDBACK_UPDATES.
+  # Sets -DV8_TRACE_FEEDBACK_UPDATES.
   v8_enable_trace_feedback_updates = false
 
-  # Sets -dV8_ATOMIC_OBJECT_FIELD_WRITES and turns all field write operations
+  # Sets -DV8_ATOMIC_OBJECT_FIELD_WRITES and turns all field write operations
   # into relaxed atomic operations.
   v8_enable_atomic_object_field_writes = ""
 
@@ -167,7 +167,7 @@ declare_args() {
   # default setting code below.
   v8_enable_concurrent_marking = true
 
-  # Sets -dV8_IGNITION_DISPATCH_COUNTING.
+  # Sets -DV8_IGNITION_DISPATCH_COUNTING.
   # Enables counting frequencies of bytecode dispatches. After building in this
   # configuration, subsequent runs of d8 can output frequencies for each pair
   # of (current, next) bytecode instructions executed if you specify
@@ -219,12 +219,12 @@ declare_args() {
   v8_enable_test_features = ""
 
   # Enable short builtins call instruction sequences by un-embedding builtins.
-  # Sets -dV8_SHORT_BUILTIN_CALLS
+  # Sets -DV8_SHORT_BUILTIN_CALLS
   v8_enable_short_builtin_calls = ""
 
   # Enable support for external code range relative to the pointer compression
   # cage.
-  # Sets -dV8_EXTERNAL_CODE_SPACE
+  # Sets -DV8_EXTERNAL_CODE_SPACE
   v8_enable_external_code_space = ""
 
   # With post mortem support enabled, metadata is embedded into libv8 that
@@ -354,7 +354,7 @@ declare_args() {
   # Sets -DV8_DICT_PROPERTY_CONST_TRACKING
   v8_dict_property_const_tracking = false
 
-  # Enable map packing & unpacking (sets -dV8_MAP_PACKING).
+  # Enable map packing & unpacking (sets -DV8_MAP_PACKING).
   v8_enable_map_packing = false
 
   # Allow for JS promise hooks (instead of just C++).
@@ -365,7 +365,7 @@ declare_args() {
   # The flag enables disabling the feature, to test this data's overhead.
   v8_enable_continuation_preserved_embedder_data = true
 
-  # Enable allocation folding globally (sets -dV8_ALLOCATION_FOLDING).
+  # Enable allocation folding globally (sets -DV8_ALLOCATION_FOLDING).
   # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
   v8_enable_allocation_folding = true
 
@@ -451,6 +451,10 @@ declare_args() {
   # isn't present, which some embedders rely on. This option controls
   # the explicit dependency and allows the build to complete.
   v8_depend_on_icu_data_file = icu_use_data_file
+
+  # Some fuzzers depend on fuzzing functionality linked into the v8 library.
+  # For binary size reasons this functionality is not always available.
+  v8_wasm_random_fuzzers = ""
 }
 
 # Derived defaults.
@@ -748,6 +752,14 @@ if (v8_enable_sticky_mark_bits) {
 
 if (v8_expose_public_symbols == "") {
   v8_expose_public_symbols = v8_expose_symbols
+}
+
+# Some fuzzers depend on fuzzing functionality linked into the v8 library.
+# For binary size reasons this functionality is not available for official
+# builds, therefore these fuzzers do not function there and should be skipped
+# instead.
+if (v8_wasm_random_fuzzers == "") {
+  v8_wasm_random_fuzzers = !is_official_build
 }
 
 v8_random_seed = "314159265"
@@ -1334,6 +1346,9 @@ config("features") {
   }
   if (v8_disable_leaptiering) {
     defines += [ "V8_DISABLE_LEAPTIERING" ]
+  }
+  if (v8_wasm_random_fuzzers) {
+    defines += [ "V8_WASM_RANDOM_FUZZERS" ]
   }
 }
 
@@ -2830,6 +2845,7 @@ action("v8_dump_build_config") {
     "verify_csa=$v8_enable_verify_csa",
     "verify_heap=$v8_enable_verify_heap",
     "verify_predictable=$v8_enable_verify_predictable",
+    "wasm_random_fuzzers=$v8_wasm_random_fuzzers",
     "memory_corruption_api=$v8_enable_memory_corruption_api",
     "leaptiering=$use_leaptiering",
 
@@ -5939,7 +5955,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/well-known-imports.cc",
       "src/wasm/wrappers.cc",
     ]
-    if (!is_official_build) {
+    if (v8_wasm_random_fuzzers) {
       sources += [
         ### gcmole(all) ###
         "src/wasm/fuzzing/random-module-generation.cc",
@@ -7565,7 +7581,7 @@ group("v8_fuzzers") {
   ]
 
   if (v8_enable_webassembly) {
-    if (!is_official_build) {
+    if (v8_wasm_random_fuzzers) {
       data_deps += [
         ":v8_simple_wasm_compile_all_fuzzer",
         ":v8_simple_wasm_compile_fuzzer",
@@ -7984,11 +8000,7 @@ if (v8_enable_webassembly) {
     sources = [ "test/fuzzer/wasm-streaming.cc" ]
   }
 
-  # Some fuzzers depend on fuzzing functionality linked into the v8 library.
-  # For binary size reasons this functionality is not available for official
-  # builds, therefore these fuzzers do not function there and should be skipped
-  # instead.
-  if (!is_official_build) {
+  if (v8_wasm_random_fuzzers) {
     v8_wasm_fuzzer("wasm_compile_all_fuzzer") {
       sources = [
         "test/common/wasm/test-signatures.h",
@@ -8024,7 +8036,7 @@ if (v8_enable_webassembly) {
     v8_wasm_fuzzer("wasm_deopt_fuzzer") {
       sources = [ "test/fuzzer/wasm-deopt.cc" ]
     }
-  }  # !is_official_build
+  }  # v8_wasm_random_fuzzers
 }
 
 v8_fuzzer("inspector_fuzzer") {

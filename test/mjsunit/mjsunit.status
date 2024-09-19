@@ -2384,10 +2384,10 @@
 }],  # 'clang_coverage and mode == debug'
 
 ##############################################################################
-['official_build', {
+['wasm_random_fuzzers == False', {
   # Random Wasm module generation is not available on official builds.
   'wasm/generate-random-module': [FAIL],
-}],  # 'official_build'
+}],  # 'wasm_random_fuzzers == False'
 
 ##############################################################################
 ['leaptiering', {

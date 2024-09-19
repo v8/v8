@@ -1007,7 +1007,7 @@ RUNTIME_FUNCTION(Runtime_CheckIsOnCentralStack) {
 // The GenerateRandomWasmModule function is only implemented in non-official
 // builds (to save binary size). Hence also skip the runtime function in
 // official builds.
-#ifndef OFFICIAL_BUILD
+#ifdef V8_WASM_RANDOM_FUZZERS
 RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
   HandleScope scope{isolate};
   Zone temporary_zone{isolate->allocator(), "WasmGenerateRandomModule"};
@@ -1070,6 +1070,6 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
   }
   return *maybe_module_object.ToHandleChecked();
 }
-#endif  // OFFICIAL_BUILD
+#endif  // V8_WASM_RANDOM_FUZZERS
 
 }  // namespace v8::internal

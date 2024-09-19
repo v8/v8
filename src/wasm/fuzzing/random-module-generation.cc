@@ -17,8 +17,9 @@
 
 // This whole compilation unit should only be included in non-official builds to
 // reduce binary size (it's a testing-only implementation which lives in src/ so
-// that the GenerateRandomWasmModule runtime function can use it).
-#ifdef OFFICIAL_BUILD
+// that the GenerateRandomWasmModule runtime function can use it).  We normally
+// disable V8_WASM_RANDOM_FUZZERS in official builds.
+#ifndef V8_WASM_RANDOM_FUZZERS
 #error Exclude this compilation unit in official builds.
 #endif
 

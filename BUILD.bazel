@@ -148,6 +148,8 @@ v8_flag(name = "v8_enable_verify_predictable")
 
 v8_flag(name = "v8_enable_test_features")
 
+v8_flag(name = "v8_wasm_random_fuzzers")
+
 v8_flag(
     name = "v8_enable_maglev",
     default = True,
@@ -2881,7 +2883,6 @@ filegroup(
             "src/wasm/function-body-decoder-impl.h",
             "src/wasm/function-compiler.cc",
             "src/wasm/function-compiler.h",
-            "src/wasm/fuzzing/random-module-generation.cc",
             "src/wasm/fuzzing/random-module-generation.h",
             "src/wasm/graph-builder-interface.cc",
             "src/wasm/graph-builder-interface.h",
@@ -2985,6 +2986,11 @@ filegroup(
             "src/wasm/interpreter/wasm-interpreter-runtime-inl.h",
             "src/wasm/interpreter/wasm-interpreter-runtime.h",
             "src/wasm/interpreter/wasm-interpreter-simd.cc",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_v8_wasm_random_fuzzers": [
+            "src/wasm/fuzzing/random-module-generation.cc",
         ],
         "//conditions:default": [],
     }),
