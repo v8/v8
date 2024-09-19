@@ -1980,10 +1980,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
 
   {
     AllowGarbageCollection allow_shared_gc;
-    SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
-                                       ? SafepointKind::kGlobal
-                                       : SafepointKind::kIsolate;
-    safepoint_scope.emplace(isolate(), safepoint_kind);
+    safepoint_scope.emplace(isolate(), kGlobalSafepointForSharedSpaceIsolate);
   }
 
 #ifdef DEBUG
@@ -2283,11 +2280,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   std::optional<SafepointScope> safepoint_scope;
   {
     AllowGarbageCollection allow_shared_gc;
-
-    SafepointKind safepoint_kind = isolate()->is_shared_space_isolate()
-                                       ? SafepointKind::kGlobal
-                                       : SafepointKind::kIsolate;
-    safepoint_scope.emplace(isolate(), safepoint_kind);
+    safepoint_scope.emplace(isolate(), kGlobalSafepointForSharedSpaceIsolate);
   }
 
   if (!incremental_marking_->IsMarking() ||
@@ -4343,7 +4336,8 @@ std::unique_ptr<v8::MeasureMemoryDelegate> Heap::MeasureMemoryDelegate(
 
 void Heap::CollectCodeStatistics() {
   TRACE_EVENT0("v8", "Heap::CollectCodeStatistics");
-  IsolateSafepointScope safepoint_scope(this);
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   MakeHeapIterable();
   CodeStatistics::ResetCodeAndMetadataStatistics(isolate());
   // We do not look for code in new space, or map space.  If code
@@ -6666,9 +6660,7 @@ HeapObjectIterator::HeapObjectIterator(
     : HeapObjectIterator(
           heap,
           new SafepointScope(heap->isolate(),
-                             heap->isolate()->is_shared_space_isolate()
-                                 ? SafepointKind::kGlobal
-                                 : SafepointKind::kIsolate),
+                             kGlobalSafepointForSharedSpaceIsolate),
           filtering) {}
 
 HeapObjectIterator::HeapObjectIterator(Heap* heap,

@@ -2225,7 +2225,8 @@ UNINITIALIZED_TEST(
   i::IncrementalMarking* marking = shared_heap->incremental_marking();
   CHECK(marking->IsStopped());
   {
-    IsolateSafepointScope safepoint_scope(shared_heap);
+    SafepointScope safepoint_scope(shared_isolate,
+                                   kGlobalSafepointForSharedSpaceIsolate);
     shared_heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);

@@ -137,8 +137,10 @@ namespace {
 void FillPageInPagedSpace(PageMetadata* page,
                           std::vector<Handle<FixedArray>>* out_handles) {
   Heap* heap = page->heap();
+  Isolate* isolate = heap->isolate();
   DCHECK(page->SweepingDone());
-  IsolateSafepointScope safepoint_scope(heap);
+  SafepointScope safepoint_scope(isolate,
+                                 kGlobalSafepointForSharedSpaceIsolate);
   PagedSpaceBase* paged_space = static_cast<PagedSpaceBase*>(page->owner());
   heap->FreeLinearAllocationAreas();
 
@@ -171,8 +173,6 @@ void FillPageInPagedSpace(PageMetadata* page,
               }
             });
       });
-
-  Isolate* isolate = heap->isolate();
 
   // Allocate as many max size arrays as possible, while making sure not to
   // leave behind a block too small to fit a FixedArray.
@@ -374,7 +374,8 @@ void CollectSharedGarbage(Heap* heap) {
 void EmptyNewSpaceUsingGC(Heap* heap) { InvokeMajorGC(heap); }
 
 void ForceEvacuationCandidate(PageMetadata* page) {
-  IsolateSafepointScope safepoint(page->owner()->heap());
+  Isolate* isolate = page->owner()->heap()->isolate();
+  SafepointScope safepoint(isolate, kGlobalSafepointForSharedSpaceIsolate);
   CHECK(v8_flags.manual_evacuation_candidates_selection);
   page->Chunk()->SetFlagNonExecutable(
       MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
