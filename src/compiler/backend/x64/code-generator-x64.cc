@@ -7461,11 +7461,11 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   X64OperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   int32_t const case_count = static_cast<int32_t>(instr->InputCount() - 2);
-  Label** cases = zone()->AllocateArray<Label*>(case_count);
+  base::Vector<Label*> cases = zone()->AllocateVector<Label*>(case_count);
   for (int32_t index = 0; index < case_count; ++index) {
     cases[index] = GetLabel(i.InputRpo(index + 2));
   }
-  Label* const table = AddJumpTable(cases, case_count);
+  Label* const table = AddJumpTable(cases);
   __ cmpl(input, Immediate(case_count));
   __ j(above_equal, GetLabel(i.InputRpo(1)));
   __ leaq(kScratchRegister, Operand(table));
@@ -8384,7 +8384,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   }
 }
 
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
 #ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
   // For builtins, the value in table is `target_address - table_address`.
   // The reason is that the builtins code position may be changed so the table
@@ -8392,8 +8392,8 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   if (V8_UNLIKELY(Builtins::IsBuiltinId(masm_.builtin()))) {
     int table_pos = __ pc_offset();
 
-    for (size_t index = 0; index < target_count; ++index) {
-      __ WriteBuiltinJumpTableEntry(targets[index], table_pos);
+    for (auto* target : targets) {
+      __ WriteBuiltinJumpTableEntry(target, table_pos);
     }
     return;
   }
@@ -8402,7 +8402,7 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 
   // For non-builtins, the value in table is just the target absolute address,
   // it's position dependent.
-  for (size_t index = 0; index < target_count; ++index) {
+  for (size_t index = 0; index < targets.size(); ++index) {
     __ dq(targets[index]);
   }
 }

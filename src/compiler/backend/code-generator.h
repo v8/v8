@@ -346,9 +346,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // Adds a jump table that is emitted after the actual code.  Returns label
   // pointing to the beginning of the table.  {targets} is assumed to be static
   // or zone allocated.
-  Label* AddJumpTable(Label** targets, size_t target_count);
+  Label* AddJumpTable(base::Vector<Label*> targets);
   // Emits a jump table.
-  void AssembleJumpTable(Label** targets, size_t target_count);
+  void AssembleJumpTable(base::Vector<Label*> targets);
 
   // ===========================================================================
   // ================== Deoptimization table construction. =====================

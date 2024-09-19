@@ -35,19 +35,17 @@ namespace compiler {
 
 class CodeGenerator::JumpTable final : public ZoneObject {
  public:
-  JumpTable(JumpTable* next, Label** targets, size_t target_count)
-      : next_(next), targets_(targets), target_count_(target_count) {}
+  JumpTable(JumpTable* next, const base::Vector<Label*>& targets)
+      : next_(next), targets_(targets) {}
 
   Label* label() { return &label_; }
   JumpTable* next() const { return next_; }
-  Label** targets() const { return targets_; }
-  size_t target_count() const { return target_count_; }
+  const base::Vector<Label*>& targets() const { return targets_; }
 
  private:
   Label label_;
   JumpTable* const next_;
-  Label** const targets_;
-  size_t const target_count_;
+  base::Vector<Label*> const targets_;
 };
 
 CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
@@ -331,6 +329,12 @@ void CodeGenerator::AssembleCode() {
 
     masm()->bind(GetLabel(current_block_));
 
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+    if (block->IsSwitchTarget()) {
+      masm()->JumpTarget();
+    }
+#endif
+
     if (block->must_construct_frame()) {
       AssembleConstructFrame();
       // We need to setup the root register after we assemble the prologue, to
@@ -436,7 +440,7 @@ void CodeGenerator::AssembleCode() {
     masm()->Align(kSystemPointerSize);
     for (JumpTable* table = jump_tables_; table; table = table->next()) {
       masm()->bind(table->label());
-      AssembleJumpTable(table->targets(), table->target_count());
+      AssembleJumpTable(table->targets());
     }
   }
 
@@ -1108,8 +1112,8 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
-  jump_tables_ = zone()->New<JumpTable>(jump_tables_, targets, target_count);
+Label* CodeGenerator::AddJumpTable(base::Vector<Label*> targets) {
+  jump_tables_ = zone()->New<JumpTable>(jump_tables_, targets);
   return jump_tables_->label();
 }
 
