@@ -508,30 +508,22 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
       return kRiscvLoadFloat;
-      break;
     case MachineRepresentation::kFloat64:
       return kRiscvLoadDouble;
-      break;
     case MachineRepresentation::kBit:  // Fall through.
     case MachineRepresentation::kWord8:
       return load_rep.IsUnsigned() ? kRiscvLbu : kRiscvLb;
-      break;
     case MachineRepresentation::kWord16:
       return load_rep.IsUnsigned() ? kRiscvLhu : kRiscvLh;
-      break;
     case MachineRepresentation::kWord32:
       return load_rep.IsUnsigned() ? kRiscvLwu : kRiscvLw;
-      break;
 #ifdef V8_COMPRESS_POINTERS
       case MachineRepresentation::kTaggedSigned:
         return kRiscvLoadDecompressTaggedSigned;
-        break;
       case MachineRepresentation::kTaggedPointer:
         return kRiscvLoadDecompressTagged;
-        break;
       case MachineRepresentation::kTagged:
         return kRiscvLoadDecompressTagged;
-        break;
 #else
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
@@ -539,24 +531,19 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
 #endif
       case MachineRepresentation::kWord64:
         return kRiscvLd;
-        break;
       case MachineRepresentation::kSimd128:
         return kRiscvRvvLd;
-        break;
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
         return kRiscvLw;
-        break;
 #else
 #endif
       case MachineRepresentation::kProtectedPointer:
         CHECK(V8_ENABLE_SANDBOX_BOOL);
         return kRiscvLoadDecompressProtected;
-        break;
       case MachineRepresentation::kSandboxedPointer:
         return kRiscvLoadDecodeSandboxedPointer;
-        break;
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kIndirectPointer:  // Fall through.
@@ -612,47 +599,36 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kFloat32:
       return kRiscvStoreFloat;
-      break;
     case MachineRepresentation::kFloat64:
       return kRiscvStoreDouble;
-      break;
     case MachineRepresentation::kBit:  // Fall through.
     case MachineRepresentation::kWord8:
       return kRiscvSb;
-      break;
     case MachineRepresentation::kWord16:
       return kRiscvSh;
-      break;
     case MachineRepresentation::kWord32:
       return kRiscvSw;
-      break;
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:
 #ifdef V8_COMPRESS_POINTERS
       return kRiscvStoreCompressTagged;
-      break;
 #endif
     case MachineRepresentation::kWord64:
       return kRiscvSd;
-      break;
     case MachineRepresentation::kSimd128:
       return kRiscvRvvSt;
-      break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
       return kRiscvStoreCompressTagged;
-      break;
 #else
       UNREACHABLE();
 #endif
     case MachineRepresentation::kSandboxedPointer:
       return kRiscvStoreEncodeSandboxedPointer;
-      break;
     case MachineRepresentation::kIndirectPointer:
       return kRiscvStoreIndirectPointer;
-      break;
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kNone:
