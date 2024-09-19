@@ -8301,10 +8301,12 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
       for (uint32_t i = 0; i < length; i++) {
         Tagged<Object> element = elements->get(static_cast<int>(i));
-        if (IsTheHole(element)) continue;
         // TODO(13270): When we switch to CSS, we can pass {element} to
         // the callback directly, without {fake_handle}.
-        Handle<Object> fake_handle(reinterpret_cast<Address*>(&element));
+        auto fake_handle =
+            IsTheHole(element)
+                ? isolate->factory()->undefined_value()
+                : Handle<Object>(reinterpret_cast<Address*>(&element));
         Result result = callback(i, Utils::ToLocal(fake_handle), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
@@ -8319,9 +8321,10 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       DirectHandle<FixedDoubleArray> elements(
           Cast<FixedDoubleArray>(array->elements()), isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, i++, {
-        if (elements->is_the_hole(i)) continue;
-        double element = elements->get_scalar(i);
-        Handle<Object> value = isolate->factory()->NewNumber(element);
+        Handle<Object> value =
+            elements->is_the_hole(i)
+                ? Handle<Object>(isolate->factory()->undefined_value())
+                : isolate->factory()->NewNumber(elements->get_scalar(i));
         Result result = callback(i, Utils::ToLocal(value), callback_data);
         if (result != Result::kContinue) {
           return static_cast<FastIterateResult>(result);
