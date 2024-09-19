@@ -161,7 +161,6 @@ RUNTIME_FUNCTION(Runtime_ConstructSlicedString) {
   Handle<String> string = args.at<String>(0);
   int index = args.smi_value_at(1);
 
-  CHECK(string->IsOneByteRepresentation());
   CHECK_LT(index, string->length());
 
   DirectHandle<String> sliced_string =
@@ -187,12 +186,12 @@ RUNTIME_FUNCTION(Runtime_ConstructThinString) {
   // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
   DCHECK_EQ(args.length(), 1);
   Handle<String> string = args.at<String>(0);
-  CHECK(string->IsOneByteRepresentation());
   if (!IsConsString(*string)) {
-    const bool kIsOneByte = true;
-    string =
-        isolate->factory()->NewConsString(isolate->factory()->empty_string(),
-                                          string, string->length(), kIsOneByte);
+    string = isolate->factory()->NewConsString(
+        isolate->factory()->empty_string(), string, string->length(),
+        string->IsOneByteRepresentation(),
+        // Pretenure to ensure it stays thin.
+        AllocationType::kOld);
   }
   CHECK(IsConsString(*string));
   DirectHandle<String> internalized =
