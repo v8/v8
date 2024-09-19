@@ -989,11 +989,13 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   }
   DirectHandle<PrimitiveHeapObject> source_map_url =
       isolate->factory()->undefined_value();
-  const WasmDebugSymbols& debug_symbols = module->debug_symbols;
-  if (debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
-      !debug_symbols.external_url.is_empty()) {
+  if (module->debug_symbols[WasmDebugSymbols::Type::SourceMap].type !=
+      WasmDebugSymbols::Type::None) {
+    auto source_map_symbols =
+        module->debug_symbols[WasmDebugSymbols::Type::SourceMap];
     base::Vector<const char> external_url =
-        ModuleWireBytes(wire_bytes).GetNameOrNull(debug_symbols.external_url);
+        ModuleWireBytes(wire_bytes)
+            .GetNameOrNull(source_map_symbols.external_url);
     MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(
         external_url, AllocationType::kOld);
     source_map_url = src_map_str.ToHandleChecked();

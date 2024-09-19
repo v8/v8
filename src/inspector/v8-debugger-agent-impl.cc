@@ -1857,36 +1857,39 @@ static String16 getScriptLanguage(const V8DebuggerScript& script) {
 
 #if V8_ENABLE_WEBASSEMBLY
 static const char* getDebugSymbolTypeName(
-    v8::debug::WasmScript::DebugSymbolsType type) {
+    v8::debug::WasmScript::DebugSymbols::Type type) {
   switch (type) {
-    case v8::debug::WasmScript::DebugSymbolsType::None:
-      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::None;
-    case v8::debug::WasmScript::DebugSymbolsType::SourceMap:
+    case v8::debug::WasmScript::DebugSymbols::Type::SourceMap:
       return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
           SourceMap;
-    case v8::debug::WasmScript::DebugSymbolsType::EmbeddedDWARF:
+    case v8::debug::WasmScript::DebugSymbols::Type::EmbeddedDWARF:
       return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
           EmbeddedDWARF;
-    case v8::debug::WasmScript::DebugSymbolsType::ExternalDWARF:
+    case v8::debug::WasmScript::DebugSymbols::Type::ExternalDWARF:
       return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
           ExternalDWARF;
   }
 }
 
-static std::unique_ptr<protocol::Debugger::DebugSymbols> getDebugSymbols(
-    const V8DebuggerScript& script) {
-  v8::debug::WasmScript::DebugSymbolsType type;
-  if (!script.getDebugSymbolsType().To(&type)) return {};
+static void getDebugSymbols(
+    const V8DebuggerScript& script,
+    std::unique_ptr<Array<protocol::Debugger::DebugSymbols>>* debug_symbols) {
+  std::vector<v8::debug::WasmScript::DebugSymbols> v8_script_debug_symbols =
+      script.getDebugSymbols();
 
-  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols =
-      v8_inspector::protocol::Debugger::DebugSymbols::create()
-          .setType(getDebugSymbolTypeName(type))
-          .build();
-  String16 externalUrl;
-  if (script.getExternalDebugSymbolsURL().To(&externalUrl)) {
-    debugSymbols->setExternalURL(externalUrl);
+  *debug_symbols = std::make_unique<Array<protocol::Debugger::DebugSymbols>>();
+  for (size_t i = 0; i < v8_script_debug_symbols.size(); ++i) {
+    v8::debug::WasmScript::DebugSymbols& symbol = v8_script_debug_symbols[i];
+    std::unique_ptr<protocol::Debugger::DebugSymbols> protocolDebugSymbol =
+        v8_inspector::protocol::Debugger::DebugSymbols::create()
+            .setType(getDebugSymbolTypeName(symbol.type))
+            .build();
+    if (symbol.external_url.size() > 0) {
+      protocolDebugSymbol->setExternalURL(
+          String16(symbol.external_url.data(), symbol.external_url.size()));
+    }
+    (*debug_symbols)->emplace_back(std::move(protocolDebugSymbol));
   }
-  return debugSymbols;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1922,11 +1925,12 @@ void V8DebuggerAgentImpl::didParseSource(
   String16 embedderName = script->embedderName();
   String16 scriptLanguage = getScriptLanguage(*script);
   Maybe<int> codeOffset;
-  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols;
+  std::unique_ptr<Array<protocol::Debugger::DebugSymbols>> debugSymbols;
 #if V8_ENABLE_WEBASSEMBLY
-  if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly)
+  if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly) {
     codeOffset = script->codeOffset();
-  debugSymbols = getDebugSymbols(*script);
+    getDebugSymbols(*script, &debugSymbols);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   m_scripts[scriptId] = std::move(script);

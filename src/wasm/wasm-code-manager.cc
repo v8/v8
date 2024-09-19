@@ -282,15 +282,14 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
 
   if (native_module_) {
     const WasmModule* module = native_module_->module();
-    const WasmDebugSymbols& debug_symbols = module->debug_symbols;
+    const WasmDebugSymbols& symbol =
+        module->debug_symbols[WasmDebugSymbols::Type::SourceMap];
     auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
     auto source_map = native_module_->GetWasmSourceMap();
-    if (!source_map &&
-        debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
-        !debug_symbols.external_url.is_empty() && load_wasm_source_map) {
+    if (!source_map && symbol.type == WasmDebugSymbols::Type::SourceMap &&
+        !symbol.external_url.is_empty() && load_wasm_source_map) {
       ModuleWireBytes wire_bytes(native_module_->wire_bytes());
-      WasmName external_url =
-          wire_bytes.GetNameOrNull(debug_symbols.external_url);
+      WasmName external_url = wire_bytes.GetNameOrNull(symbol.external_url);
       std::string external_url_string(external_url.data(), external_url.size());
       HandleScope scope(isolate);
       v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);

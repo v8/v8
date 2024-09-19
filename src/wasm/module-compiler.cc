@@ -2601,12 +2601,14 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
   DirectHandle<Script> script(module_object_->script(), isolate_);
+  auto sourcemap_symbol =
+      module->debug_symbols[WasmDebugSymbols::Type::SourceMap];
   if (script->type() == Script::Type::kWasm &&
-      module->debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
-      !module->debug_symbols.external_url.is_empty()) {
+      sourcemap_symbol.type != WasmDebugSymbols::Type::None &&
+      !sourcemap_symbol.external_url.is_empty()) {
     ModuleWireBytes wire_bytes(native_module_->wire_bytes());
     MaybeHandle<String> src_map_str = isolate_->factory()->NewStringFromUtf8(
-        wire_bytes.GetNameOrNull(module->debug_symbols.external_url),
+        wire_bytes.GetNameOrNull(sourcemap_symbol.external_url),
         AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }

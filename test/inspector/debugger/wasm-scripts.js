@@ -108,6 +108,9 @@ sessions[0]
 
       // Source map + Embedded DWARF (different order)
       testFunction([${createModule(sourceMapSection, embeddedDWARFSection)}]);
+
+      // Source map + Embedded DWARF + External DWARF
+      testFunction([${createModule(sourceMapSection, embeddedDWARFSection, externalDWARFSection)}]);
       `
     })
     .then(
@@ -127,6 +130,11 @@ function trackScripts(debuggerParams) {
   Protocol.Debugger.enable(debuggerParams);
   Protocol.Debugger.onScriptParsed(handleScriptParsed);
 
+  function printDebugSymbols(symbols) {
+    const symbolsLog = symbols.map(symbol => `${symbol.type}:${symbol.externalURL}`);
+    return `debug symbols: [${symbolsLog}]`;
+  }
+
   async function loadScript({
     url,
     scriptId,
@@ -139,8 +147,8 @@ function trackScripts(debuggerParams) {
     let stableId = nextStableId(scriptId);
     InspectorTest.log(`Session #${sessionId}: Script #${
         scripts.length} parsed. URL: ${url}. Script ID: ${
-        stableId}, Source map URL: ${sourceMapURL}, debug symbols: ${
-        debugSymbols.type}:${debugSymbols.externalURL}. module begin: ${
+        stableId}, Source map URL: ${sourceMapURL}, ${
+        printDebugSymbols(debugSymbols)}. module begin: ${
         startColumn}, module end: ${endColumn}, code offset: ${codeOffset}`);
     let {result: {scriptSource, bytecode}} =
         await Protocol.Debugger.getScriptSource({scriptId});
