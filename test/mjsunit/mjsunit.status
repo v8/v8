@@ -83,6 +83,11 @@
   # BUG(chromium:1497251): Probably some data race in the interpreter.
   'regress/regress-1497251': [SKIP],
 
+  # https://crbug.com/332914927: temporarily disable tests requiring read-only
+  # flag --move-prototype-transitions-first to be enabled.
+  'regress/proto-transition-regress': [SKIP],
+  'regress/regress-357651585': [SKIP],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
