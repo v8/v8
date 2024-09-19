@@ -1139,9 +1139,10 @@ void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& info,
     std::cout << "- Copying frame state from merge @" << &state << std::endl;
     state.PrintVirtualObjects(info, virtual_objects());
   }
+  virtual_objects_.Snapshot();
   state.frame_state().ForEachValue(
       info, [&](ValueNode* value, interpreter::Register reg) {
-          frame_[reg] = value;
+        frame_[reg] = value;
       });
   if (preserve_known_node_aspects) {
     known_node_aspects_ = state.CloneKnownNodeAspects(zone);
