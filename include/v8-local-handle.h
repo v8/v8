@@ -434,8 +434,9 @@ class V8_TRIVIAL_ABI LocalUnchecked : public Local<T> {
 #if defined(V8_ENABLE_LOCAL_OFF_STACK_CHECK) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI
   // In this case, the check is also enforced in the copy constructor and we
   // need to suppress it.
-  LocalUnchecked(const LocalUnchecked& other)
-      : Local<T>(other, Local<T>::do_not_check) noexcept {}
+  LocalUnchecked(
+      const LocalUnchecked& other) noexcept  // NOLINT(runtime/explicit)
+      : Local<T>(other, Local<T>::do_not_check) {}
   LocalUnchecked& operator=(const LocalUnchecked&) noexcept = default;
 #endif
 
