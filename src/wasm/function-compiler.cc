@@ -140,7 +140,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
         std::unique_ptr<DebugSideTable> unused_debug_sidetable;
         if (V8_UNLIKELY(declared_index < 32 &&
                         (v8_flags.wasm_debug_mask_for_testing &
-                         (1 << declared_index)) != 0)) {
+                         (1 << declared_index)) != 0) &&
+            // Do not overwrite the debugging setting when performing a
+            // deoptimization.
+            (!v8_flags.wasm_deopt ||
+             env->deopt_location_kind == LocationKindForDeopt::kNone)) {
           options.set_debug_sidetable(&unused_debug_sidetable);
           if (!for_debugging_) options.set_for_debugging(kForDebugging);
         }
