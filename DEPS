@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:24.20240913.4.1',
+  'fuchsia_version': 'version:24.20240919.7.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '027ed8dd79bfb0e5bc6a1bd538cc75338ce547d7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '85000549f99af033e699d6416317ed6dc6248868',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '72eb13ed7e8598677161e9532fcf00c8bb4da4d8',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'efa1a1d8e0882eb8929fe450e1aa0752ace072b6',
   'buildtools/linux64': {
     'packages': [
       {
@@ -305,7 +305,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '50ab693ecb611942ce4440d8c9ed707ee65ed5e8',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '1fe5dc4dbb07fa54613a5d2aa63db25e1ba9d20b',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '09e1cc19f29266293fe36c64e3fbeca54011f94a',
   'third_party/libunwind/src':
@@ -511,7 +511,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'a4c76879fc44c6fd52efa6c4a017c8a279cd1c89',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '0ec07e318844e74f898bbd3f460e24b33def10ed',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
