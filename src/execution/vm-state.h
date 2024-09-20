@@ -62,7 +62,7 @@ class V8_NODISCARD ExternalCallbackScope {
   VMState<EXTERNAL> const vm_state_;
   v8::ExceptionContext exception_context_;
   PauseNestedTimedHistogramScope const pause_timed_histogram_scope_;
-#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER
+#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER || V8_USE_SAFE_STACK
   Address js_stack_comparable_address_;
 #endif
 };

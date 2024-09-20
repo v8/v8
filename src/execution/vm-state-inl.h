@@ -62,7 +62,7 @@ ExternalCallbackScope::ExternalCallbackScope(
       vm_state_(isolate),
       exception_context_(exception_context),
       pause_timed_histogram_scope_(isolate->counters()->execute()) {
-#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER
+#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER || V8_USE_SAFE_STACK
   js_stack_comparable_address_ =
       i::SimulatorStack::RegisterJSStackComparableAddress(isolate);
 #endif
@@ -90,13 +90,13 @@ ExternalCallbackScope::~ExternalCallbackScope() {
   TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
                    "V8.ExternalCallback");
 #endif
-#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER
+#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER || V8_USE_SAFE_STACK
   i::SimulatorStack::UnregisterJSStackComparableAddress(vm_state_.isolate_);
 #endif
 }
 
 Address ExternalCallbackScope::JSStackComparableAddress() {
-#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER
+#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER || V8_USE_SAFE_STACK
   return js_stack_comparable_address_;
 #else
   return reinterpret_cast<Address>(this);
