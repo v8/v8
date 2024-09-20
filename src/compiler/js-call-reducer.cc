@@ -4925,7 +4925,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayBufferIsView(node);
     case Builtin::kDataViewPrototypeGetByteLength:
       // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
-      return ReduceArrayBufferViewByteLengthAccessor(node, JS_DATA_VIEW_TYPE);
+      return ReduceArrayBufferViewByteLengthAccessor(node, JS_DATA_VIEW_TYPE,
+                                                     builtin);
     case Builtin::kDataViewPrototypeGetByteOffset:
       // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
       return ReduceArrayBufferViewAccessor(
@@ -4992,7 +4993,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalBigUint64Array);
     case Builtin::kTypedArrayPrototypeByteLength:
-      return ReduceArrayBufferViewByteLengthAccessor(node, JS_TYPED_ARRAY_TYPE);
+      return ReduceArrayBufferViewByteLengthAccessor(node, JS_TYPED_ARRAY_TYPE,
+                                                     builtin);
     case Builtin::kTypedArrayPrototypeByteOffset:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE,
@@ -7707,7 +7709,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
-    Node* node, InstanceType instance_type) {
+    Node* node, InstanceType instance_type, Builtin builtin) {
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   DCHECK(instance_type == JS_TYPED_ARRAY_TYPE ||
          instance_type == JS_DATA_VIEW_TYPE);
@@ -7737,9 +7739,8 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
     USE(unused_reduction);
     // Call default implementation for non-rab/gsab TAs.
     return ReduceArrayBufferViewAccessor(
-        node, JS_TYPED_ARRAY_TYPE,
-        AccessBuilder::ForJSArrayBufferViewByteLength(),
-        Builtin::kTypedArrayPrototypeByteLength);
+        node, instance_type, AccessBuilder::ForJSArrayBufferViewByteLength(),
+        builtin);
   }
 
   const CallParameters& p = CallParametersOf(node->op());

@@ -191,7 +191,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                         SharedFunctionInfoRef shared);
   Reduction ReduceTypedArrayPrototypeToStringTag(Node* node);
   Reduction ReduceArrayBufferViewByteLengthAccessor(Node* node,
-                                                    InstanceType instance_type);
+                                                    InstanceType instance_type,
+                                                    Builtin builtin);
   Reduction ReduceTypedArrayPrototypeLength(Node* node);
 
   Reduction ReduceForInsufficientFeedback(Node* node, DeoptimizeReason reason);
