@@ -4929,9 +4929,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
                                                      builtin);
     case Builtin::kDataViewPrototypeGetByteOffset:
       // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
-      return ReduceArrayBufferViewAccessor(
-          node, JS_DATA_VIEW_TYPE,
-          AccessBuilder::ForJSArrayBufferViewByteOffset(), builtin);
+      return ReduceArrayBufferViewByteOffsetAccessor(node, JS_DATA_VIEW_TYPE,
+                                                     builtin);
     case Builtin::kDataViewPrototypeGetUint8:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalUint8Array);
@@ -4996,9 +4995,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayBufferViewByteLengthAccessor(node, JS_TYPED_ARRAY_TYPE,
                                                      builtin);
     case Builtin::kTypedArrayPrototypeByteOffset:
-      return ReduceArrayBufferViewAccessor(
-          node, JS_TYPED_ARRAY_TYPE,
-          AccessBuilder::ForJSArrayBufferViewByteOffset(), builtin);
+      return ReduceArrayBufferViewByteOffsetAccessor(node, JS_TYPED_ARRAY_TYPE,
+                                                     builtin);
     case Builtin::kTypedArrayPrototypeLength:
       return ReduceTypedArrayPrototypeLength(node);
     case Builtin::kTypedArrayPrototypeToStringTag:
@@ -7770,6 +7768,45 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
       typed_array, instance_type, std::move(elements_kinds), a.ContextInput());
 
   return ReplaceWithSubgraph(&a, length);
+}
+
+Reduction JSCallReducer::ReduceArrayBufferViewByteOffsetAccessor(
+    Node* node, InstanceType instance_type, Builtin builtin) {
+  // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
+  DCHECK(instance_type == JS_TYPED_ARRAY_TYPE ||
+         instance_type == JS_DATA_VIEW_TYPE);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
+
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() ||
+      !inference.AllOfInstanceTypesAre(instance_type)) {
+    return inference.NoChange();
+  }
+
+  std::set<ElementsKind> elements_kinds;
+  bool maybe_rab_gsab = false;
+  if (instance_type == JS_TYPED_ARRAY_TYPE) {
+    for (MapRef map : inference.GetMaps()) {
+      ElementsKind kind = map.elements_kind();
+      elements_kinds.insert(kind);
+      if (IsRabGsabTypedArrayElementsKind(kind)) maybe_rab_gsab = true;
+    }
+  }
+
+  if (!maybe_rab_gsab) {
+    // We do not perform any change depending on this inference.
+    Reduction unused_reduction = inference.NoChange();
+    USE(unused_reduction);
+    // Call default implementation for non-rab/gsab TAs.
+    return ReduceArrayBufferViewAccessor(
+        node, instance_type, AccessBuilder::ForJSArrayBufferViewByteOffset(),
+        builtin);
+  }
+
+  // TODO(v8:11111): Optimize for RAG/GSAB TypedArray/DataView.
+  return inference.NoChange();
 }
 
 Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {

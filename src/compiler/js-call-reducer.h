@@ -193,6 +193,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayBufferViewByteLengthAccessor(Node* node,
                                                     InstanceType instance_type,
                                                     Builtin builtin);
+  Reduction ReduceArrayBufferViewByteOffsetAccessor(Node* node,
+                                                    InstanceType instance_type,
+                                                    Builtin builtin);
   Reduction ReduceTypedArrayPrototypeLength(Node* node);
 
   Reduction ReduceForInsufficientFeedback(Node* node, DeoptimizeReason reason);
