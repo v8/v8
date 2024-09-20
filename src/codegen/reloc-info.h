@@ -286,7 +286,7 @@ class RelocInfo {
   Address wasm_call_address() const;
   Address wasm_stub_call_address() const;
   V8_EXPORT_PRIVATE uint32_t wasm_canonical_sig_id() const;
-  V8_INLINE Address wasm_indirect_call_target() const;
+  V8_INLINE WasmCodePointer wasm_indirect_call_target() const;
 
   uint32_t wasm_call_tag() const;
 
@@ -425,7 +425,8 @@ class WritableRelocInfo : public RelocInfo {
   void set_wasm_stub_call_address(Address);
   void set_wasm_canonical_sig_id(uint32_t);
   V8_INLINE void set_wasm_indirect_call_target(
-      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+      WasmCodePointer,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   void set_target_address(
       Tagged<InstructionStream> host, Address target,

@@ -1685,11 +1685,12 @@ TEST(Regress_1171759) {
   std::shared_ptr<wasm::NativeModule> module =
       AllocateNativeModule(handles.main_isolate(), code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  uint8_t* code_start = module->AddCodeForTesting(code)->instructions().begin();
+  wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+  WasmCodePointer code_pointer = wasm_code->code_pointer();
 
   // Generate a minimal calling function, to push stack arguments.
   RawMachineAssemblerTester<int32_t> mt;
-  Node* function = mt.PointerConstant(code_start);
+  Node* function = mt.IntPtrConstant(code_pointer);
   Node* dummy_context = mt.PointerConstant(nullptr);
   Node* double_slot = mt.Float64Constant(0);
   Node* single_slot_that_creates_gap = mt.Float32Constant(0);

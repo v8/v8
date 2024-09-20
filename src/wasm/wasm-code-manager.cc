@@ -373,7 +373,7 @@ void WasmCode::Validate() const {
         break;
       }
       case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
-        Address call_target = it.rinfo()->wasm_indirect_call_target();
+        WasmCodePointer call_target = it.rinfo()->wasm_indirect_call_target();
         uint32_t function_index =
             native_module_->GetFunctionIndexFromIndirectCallTarget(call_target);
         CHECK_EQ(call_target,
@@ -1123,7 +1123,7 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code) {
         it.rinfo()->set_wasm_stub_call_address(entry);
       } else if (RelocInfo::IsWasmIndirectCallTarget(mode)) {
         Address function_index = it.rinfo()->wasm_indirect_call_target();
-        Address target =
+        WasmCodePointer target =
             GetIndirectCallTarget(base::checked_cast<uint32_t>(function_index));
         it.rinfo()->set_wasm_indirect_call_target(target, SKIP_ICACHE_FLUSH);
       } else {
@@ -1336,7 +1336,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
         it.rinfo()->set_wasm_stub_call_address(entry);
       } else if (RelocInfo::IsWasmIndirectCallTarget(mode)) {
         Address function_index = it.rinfo()->wasm_indirect_call_target();
-        Address target =
+        WasmCodePointer target =
             GetIndirectCallTarget(base::checked_cast<uint32_t>(function_index));
         it.rinfo()->set_wasm_indirect_call_target(target, SKIP_ICACHE_FLUSH);
       } else {
@@ -2013,7 +2013,7 @@ uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
 }
 
 uint32_t NativeModule::GetFunctionIndexFromIndirectCallTarget(
-    Address target) const {
+    WasmCodePointer target) const {
   // The indirect call target always points to the entry in the main jump table.
   // See `GetIndirectCallTarget()` for the reverse operation.
   Address jt_start = jump_table_start();
@@ -2059,7 +2059,7 @@ WasmCodePointerTable::Handle NativeModule::GetCodePointerHandle(
   return code_pointer_handles_[declared_function_index(module_.get(), index)];
 }
 
-Address NativeModule::GetIndirectCallTarget(int func_index) const {
+WasmCodePointer NativeModule::GetIndirectCallTarget(int func_index) const {
   DCHECK_GE(func_index, module_->num_imported_functions);
   func_index -= module_->num_imported_functions;
   DCHECK_LT(func_index, module_->num_declared_functions);
@@ -2960,6 +2960,15 @@ WasmCodeLookupCache::CacheEntry* WasmCodeLookupCache::GetCacheEntry(
   }
   return entry;
 }
+
+Address WasmCodePointerAddress(WasmCodePointer pointer) {
+#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+  return wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(pointer);
+#else
+  return pointer;
+#endif
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

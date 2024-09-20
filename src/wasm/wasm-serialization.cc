@@ -517,7 +517,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
         iter.rinfo()->set_wasm_canonical_sig_id(module_local_sig_id);
       } break;
       case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
-        Address target = orig_iter.rinfo()->wasm_indirect_call_target();
+        WasmCodePointer target = orig_iter.rinfo()->wasm_indirect_call_target();
         uint32_t function_index =
             native_module_->GetFunctionIndexFromIndirectCallTarget(target);
         iter.rinfo()->set_wasm_indirect_call_target(function_index,
@@ -983,7 +983,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
       } break;
       case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
         Address function_index = iter.rinfo()->wasm_indirect_call_target();
-        Address target = native_module_->GetIndirectCallTarget(
+        WasmCodePointer target = native_module_->GetIndirectCallTarget(
             base::checked_cast<uint32_t>(function_index));
         iter.rinfo()->set_wasm_indirect_call_target(target, SKIP_ICACHE_FLUSH);
       } break;

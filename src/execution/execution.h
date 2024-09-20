@@ -73,7 +73,7 @@ class Execution final : public AllStatic {
   // the function's return values are in {packed_args}.
   V8_EXPORT_PRIVATE static void CallWasm(Isolate* isolate,
                                          DirectHandle<Code> wrapper_code,
-                                         Address wasm_call_target,
+                                         WasmCodePointer wasm_call_target,
                                          DirectHandle<Object> object_ref,
                                          Address packed_args);
 #endif  // V8_ENABLE_WEBASSEMBLY

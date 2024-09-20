@@ -378,10 +378,10 @@ inline Tagged<Object> WasmDispatchTable::implicit_arg(int index) const {
   return implicit_arg;
 }
 
-inline Address WasmDispatchTable::target(int index) const {
+inline WasmCodePointer WasmDispatchTable::target(int index) const {
   DCHECK_LT(index, length());
-  if (v8_flags.wasm_jitless) return kNullAddress;
-  return ReadField<Address>(OffsetOf(index) + kTargetBias);
+  if (v8_flags.wasm_jitless) return wasm::kInvalidWasmCodePointer;
+  return ReadField<WasmCodePointer>(OffsetOf(index) + kTargetBias);
 }
 
 inline int WasmDispatchTable::sig(int index) const {

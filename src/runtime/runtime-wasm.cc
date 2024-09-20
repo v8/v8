@@ -749,8 +749,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   if (WasmImportData::CallOriginIsImportIndex(origin)) {
     int func_index = WasmImportData::CallOriginAsIndex(origin);
     ImportedFunctionEntry entry(trusted_data, func_index);
-    entry.set_target(wasm_code->instruction_start(), wasm_code,
-                     IsAWrapper::kYes);
+    entry.set_target(wasm_code->code_pointer(), wasm_code, IsAWrapper::kYes);
   } else {
     // Indirect function table index.
     int entry_index = WasmImportData::CallOriginAsIndex(origin);
@@ -762,9 +761,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
           trusted_data->dispatch_table(table_index);
       if (entry_index < table->length() &&
           table->implicit_arg(entry_index) == *import_data) {
-        table->offheap_data()->Add(wasm_code->instruction_start(), wasm_code,
+        table->offheap_data()->Add(wasm_code->code_pointer(), wasm_code,
                                    IsAWrapper::kYes);
-        table->SetTarget(entry_index, wasm_code->instruction_start());
+        table->SetTarget(entry_index, wasm_code->code_pointer());
         // {ref} is used in at most one table.
         break;
       }

@@ -1754,7 +1754,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   internal->init_self_indirect_pointer(isolate());
   {
     DisallowGarbageCollection no_gc;
-    internal->set_call_target(kNullAddress);
+    internal->set_call_target(wasm::kInvalidWasmCodePointer);
     DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
            IsWasmImportData(*implicit_arg));
     internal->set_implicit_arg(*implicit_arg);

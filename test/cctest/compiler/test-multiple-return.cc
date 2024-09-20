@@ -189,13 +189,13 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
           handles.main_isolate(), code->instruction_size());
       wasm::WasmCodeRefScope wasm_code_ref_scope;
-      uint8_t* code_start =
-          module->AddCodeForTesting(code)->instructions().begin();
+      wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+      WasmCodePointer code_pointer = wasm_code->code_pointer();
 
       RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
       Node* call_inputs[2 + kMaxParamCount];
-      call_inputs[0] = mt.PointerConstant(code_start);
+      call_inputs[0] = mt.IntPtrConstant(code_pointer);
       // WasmContext dummy
       call_inputs[1] = mt.PointerConstant(nullptr);
       // Special inputs for the test.
@@ -287,13 +287,13 @@ void ReturnLastValue(MachineType type) {
     std::shared_ptr<wasm::NativeModule> module =
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    uint8_t* code_start =
-        module->AddCodeForTesting(code)->instructions().begin();
+    wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+    WasmCodePointer code_pointer = wasm_code->code_pointer();
 
     // Generate caller.
     int expect = return_count - 1;
     RawMachineAssemblerTester<int32_t> mt;
-    Node* inputs[] = {mt.PointerConstant(code_start),
+    Node* inputs[] = {mt.IntPtrConstant(code_pointer),
                       // WasmContext dummy
                       mt.PointerConstant(nullptr)};
 
@@ -352,12 +352,12 @@ void ReturnSumOfReturns(MachineType type) {
     std::shared_ptr<wasm::NativeModule> module =
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    uint8_t* code_start =
-        module->AddCodeForTesting(code)->instructions().begin();
+    wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+    WasmCodePointer code_pointer = wasm_code->code_pointer();
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;
-    Node* call_inputs[] = {mt.PointerConstant(code_start),
+    Node* call_inputs[] = {mt.IntPtrConstant(code_pointer),
                            // WasmContext dummy
                            mt.PointerConstant(nullptr)};
 

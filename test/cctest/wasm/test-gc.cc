@@ -253,7 +253,7 @@ class WasmGCTester {
                         CWasmArgumentsPacker* packer) {
     WasmCodeRefScope code_ref_scope;
     const WasmModule* module = trusted_instance_data_->module();
-    Address wasm_call_target =
+    WasmCodePointer wasm_call_target =
         trusted_instance_data_->GetCallTarget(function_index);
     DirectHandle<Object> object_ref = instance_object_;
     DirectHandle<Code> c_wasm_entry =
