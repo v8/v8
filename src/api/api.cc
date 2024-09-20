@@ -6536,6 +6536,20 @@ bool v8::V8::Initialize(const int build_config) {
         kV8TargetOsIsAndroid ? "Android" : "not Android");
   }
 
+  const bool kEmbedderEnableChecks = (build_config & kEnableChecks) != 0;
+#ifdef V8_ENABLE_CHECKS
+  const bool kV8EnableChecks = true;
+#else
+  const bool kV8EnableChecks = false;
+#endif
+  if (kEmbedderEnableChecks != kV8EnableChecks) {
+    FATAL(
+        "Embedder-vs-V8 build configuration mismatch. On embedder side "
+        "V8_ENABLE_CHECKS is %s while on V8 side it's %s.",
+        kEmbedderEnableChecks ? "ENABLED" : "DISABLED",
+        kV8EnableChecks ? "ENABLED" : "DISABLED");
+  }
+
   i::V8::Initialize();
   return true;
 }
