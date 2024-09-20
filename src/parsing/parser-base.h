@@ -613,26 +613,32 @@ class ParserBase {
       return instance_members_scope != nullptr;
     }
 
-    DeclarationScope* EnsureStaticElementsScope(ParserBase* parser,
-                                                int beg_pos) {
+    DeclarationScope* EnsureStaticElementsScope(ParserBase* parser, int beg_pos,
+                                                int info_id) {
       if (!has_static_elements()) {
         static_elements_scope = parser->NewFunctionScope(
             FunctionKind::kClassStaticInitializerFunction);
         static_elements_scope->SetLanguageMode(LanguageMode::kStrict);
         static_elements_scope->set_start_position(beg_pos);
-        static_elements_function_id = parser->GetNextFunctionLiteralId();
+        static_elements_function_id = info_id;
+        // Actually consume the id. The id that was passed in might be an
+        // earlier id in case of computed property names.
+        parser->GetNextFunctionLiteralId();
       }
       return static_elements_scope;
     }
 
     DeclarationScope* EnsureInstanceMembersScope(ParserBase* parser,
-                                                 int beg_pos) {
+                                                 int beg_pos, int info_id) {
       if (!has_instance_members()) {
         instance_members_scope = parser->NewFunctionScope(
             FunctionKind::kClassMembersInitializerFunction);
         instance_members_scope->SetLanguageMode(LanguageMode::kStrict);
         instance_members_scope->set_start_position(beg_pos);
-        instance_members_function_id = parser->GetNextFunctionLiteralId();
+        instance_members_function_id = info_id;
+        // Actually consume the id. The id that was passed in might be an
+        // earlier id in case of computed property names.
+        parser->GetNextFunctionLiteralId();
       }
       return instance_members_scope;
     }
@@ -1295,7 +1301,7 @@ class ParserBase {
                             ParseFunctionFlags flags, bool is_static,
                             bool* has_seen_constructor);
   ExpressionT ParseMemberInitializer(ClassInfo* class_info, int beg_pos,
-                                     bool is_static);
+                                     int info_id, bool is_static);
   BlockT ParseClassStaticBlock(ClassInfo* class_info);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ParsePropertyInfo* prop_info, bool* has_seen_proto);
@@ -2540,6 +2546,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
   DCHECK_NOT_NULL(class_info);
   DCHECK_EQ(prop_info->position, PropertyPosition::kClassLiteral);
 
+  int next_info_id = PeekNextFunctionLiteralId();
+
   Token::Value name_token = peek();
   int property_beg_pos = peek_position();
   int name_token_position = property_beg_pos;
@@ -2583,12 +2591,18 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
       prop_info->kind = ParsePropertyKind::kClassField;
       DCHECK_IMPLIES(prop_info->is_computed_name, !prop_info->is_private);
 
-      if (!prop_info->is_computed_name) {
+      if (prop_info->is_computed_name) {
+        if (!has_error() && next_info_id != PeekNextFunctionLiteralId() &&
+            !(prop_info->is_static ? class_info->has_static_elements()
+                                   : class_info->has_instance_members())) {
+          impl()->ReindexComputedMemberName(name_expression);
+        }
+      } else {
         CheckClassFieldName(prop_info->name, prop_info->is_static);
       }
 
       ExpressionT initializer = ParseMemberInitializer(
-          class_info, property_beg_pos, prop_info->is_static);
+          class_info, property_beg_pos, next_info_id, prop_info->is_static);
       ExpectSemicolon();
 
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
@@ -2690,11 +2704,12 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
-    ClassInfo* class_info, int beg_pos, bool is_static) {
+    ClassInfo* class_info, int beg_pos, int info_id, bool is_static) {
   FunctionParsingScope body_parsing_scope(impl());
   DeclarationScope* initializer_scope =
-      is_static ? class_info->EnsureStaticElementsScope(this, beg_pos)
-                : class_info->EnsureInstanceMembersScope(this, beg_pos);
+      is_static
+          ? class_info->EnsureStaticElementsScope(this, beg_pos, info_id)
+          : class_info->EnsureInstanceMembersScope(this, beg_pos, info_id);
 
   if (Check(Token::kAssign)) {
     FunctionState initializer_state(&function_state_, &scope_,
@@ -2714,8 +2729,8 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
     ClassInfo* class_info) {
   Consume(Token::kStatic);
 
-  DeclarationScope* initializer_scope =
-      class_info->EnsureStaticElementsScope(this, position());
+  DeclarationScope* initializer_scope = class_info->EnsureStaticElementsScope(
+      this, position(), PeekNextFunctionLiteralId());
 
   FunctionState initializer_state(&function_state_, &scope_, initializer_scope);
   FunctionParsingScope body_parsing_scope(impl());
