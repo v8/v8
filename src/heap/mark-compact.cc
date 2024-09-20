@@ -341,7 +341,9 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 
   CollectEvacuationCandidates(heap_->old_space());
 
-  if (heap_->shared_space()) {
+  // Don't compact shared space when CSS is enabled, since there may be
+  // DirectHandles on stacks of client isolates.
+  if (!v8_flags.conservative_stack_scanning && heap_->shared_space()) {
     CollectEvacuationCandidates(heap_->shared_space());
   }
 
