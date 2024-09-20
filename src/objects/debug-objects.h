@@ -236,6 +236,20 @@ class StackFrameInfo
   TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
 };
 
+class StackTraceInfo
+    : public TorqueGeneratedStackTraceInfo<StackTraceInfo, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  // Dispatched behavior.
+  DECL_VERIFIER(StackTraceInfo)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(StackTraceInfo)
+};
+
 class ErrorStackData
     : public TorqueGeneratedErrorStackData<ErrorStackData, Struct> {
  public:

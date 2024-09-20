@@ -2590,6 +2590,10 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
 }
 
+void StackTraceInfo::StackTraceInfoVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::StackTraceInfoVerify(*this, isolate);
+}
+
 void ErrorStackData::ErrorStackDataVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ErrorStackDataVerify(*this, isolate);
   CHECK_IMPLIES(!IsFixedArray(call_site_infos_or_formatted_stack()),

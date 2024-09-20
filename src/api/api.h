@@ -119,7 +119,7 @@ class RegisteredExtension {
   V(SignatureToLocal, FunctionTemplateInfo, Signature)   \
   V(MessageToLocal, Object, Message)                     \
   V(PromiseToLocal, JSObject, Promise)                   \
-  V(StackTraceToLocal, FixedArray, StackTrace)           \
+  V(StackTraceToLocal, StackTraceInfo, StackTrace)       \
   V(StackFrameToLocal, StackFrameInfo, StackFrame)       \
   V(NumberToLocal, Object, Number)                       \
   V(IntegerToLocal, Object, Integer)                     \
@@ -190,7 +190,7 @@ class RegisteredExtension {
   V(Message, JSMessageObject)                   \
   V(Context, NativeContext)                     \
   V(External, Object)                           \
-  V(StackTrace, FixedArray)                     \
+  V(StackTrace, StackTraceInfo)                 \
   V(StackFrame, StackFrameInfo)                 \
   V(Proxy, JSProxy)                             \
   V(debug::GeneratorObject, JSGeneratorObject)  \

@@ -73,6 +73,7 @@ template <typename>
 class Signature;
 class SourceTextModule;
 class StackFrameInfo;
+class StackTraceInfo;
 class StringSet;
 class StoreHandler;
 class SyntheticModule;
@@ -459,6 +460,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<UnionOf<SharedFunctionInfo, Script>> shared_or_script,
       int bytecode_offset_or_source_position,
       DirectHandle<String> function_name, bool is_constructor);
+  Handle<StackTraceInfo> NewStackTraceInfo(DirectHandle<FixedArray> frames);
 
   // Allocate various microtasks.
   Handle<CallableTask> NewCallableTask(DirectHandle<JSReceiver> callable,

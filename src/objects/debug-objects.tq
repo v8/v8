@@ -81,6 +81,11 @@ extern class StackFrameInfo extends Struct {
   flags: SmiTagged<StackFrameInfoFlags>;
 }
 
+extern class StackTraceInfo extends Struct {
+  // FixedArray of StackFrameInfos.
+  frames: FixedArray;
+}
+
 // This struct is used by V8 as error_data_symbol on JSError
 // instances when the inspector asks V8 to keep (detailed)
 // stack traces in addition to the (simple) stack traces that

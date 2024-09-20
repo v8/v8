@@ -76,6 +76,9 @@ BIT_FIELD_ACCESSORS(StackFrameInfo, flags, bytecode_offset_or_source_position,
 BIT_FIELD_ACCESSORS(StackFrameInfo, flags, is_constructor,
                     StackFrameInfo::IsConstructorBit)
 
+TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceInfo)
+NEVER_READ_ONLY_SPACE_IMPL(StackTraceInfo)
+
 NEVER_READ_ONLY_SPACE_IMPL(ErrorStackData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ErrorStackData)
 

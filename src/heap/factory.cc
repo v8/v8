@@ -3972,6 +3972,15 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   return handle(info, isolate());
 }
 
+Handle<StackTraceInfo> Factory::NewStackTraceInfo(
+    DirectHandle<FixedArray> frames) {
+  Tagged<StackTraceInfo> info = NewStructInternal<StackTraceInfo>(
+      STACK_TRACE_INFO_TYPE, AllocationType::kYoung);
+  DisallowGarbageCollection no_gc;
+  info->set_frames(*frames, SKIP_WRITE_BARRIER);
+  return handle(info, isolate());
+}
+
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
   bool strict_mode_callee = is_strict(callee->shared()->language_mode()) ||
