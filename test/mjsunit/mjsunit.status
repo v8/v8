@@ -759,6 +759,7 @@
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
+  'regress/wasm/regress-368086282': [SKIP],
 
   'maglev/extras-cped': [SKIP],
   'turboshaft/extras-cped': [SKIP],
@@ -870,6 +871,7 @@
 
   # Float parameters are not supported in the fast api on these platforms
   'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
+  'regress/wasm/regress-368086282': [SKIP],
 
   # Needs a huge Uint8Array.
   'regress/regress-1432470': [SKIP],
@@ -1617,6 +1619,7 @@
 
   # Float parameters are not supported in the fast api
   'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
+  'regress/wasm/regress-368086282': [SKIP],
 
 }],  # arch in [ppc64, s390x]'
 
@@ -2349,6 +2352,7 @@
   'compiler/fast-api-interface-types': [FAIL],
   'compiler/fast-api-sequences*': [FAIL],
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
+  'regress/wasm/regress-368086282': [SKIP],
   'regress/regress-366323469': [FAIL],
   'regress/regress-366635361': [FAIL],
   # Maglev doesn't specialise the IsBeingInterpreted runtime func.

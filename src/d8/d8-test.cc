@@ -1373,6 +1373,7 @@ class FastCApiObject {
 
  private:
   static bool IsValidApiObject(Local<Object> object) {
+    if (object->IsInt32()) return false;
     auto instance_type = i::Internals::GetInstanceType(
         internal::ValueHelper::ValueAsAddress(*object));
     return (base::IsInRange(instance_type, i::Internals::kFirstJSApiObjectType,
