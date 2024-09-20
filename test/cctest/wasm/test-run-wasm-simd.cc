@@ -6237,6 +6237,26 @@ TEST(RunWasmTurbofan_RevecCommutativeOp) {
     }
   }
 }
+
+TEST(RunWasmTurbofan_I16x16SConvertI32x8) {
+  RunIntToIntNarrowingRevecTest<int32_t, int16_t>(
+      kExprI16x8SConvertI32x4, compiler::IrOpcode::kI16x16SConvertI32x8);
+}
+
+TEST(RunWasmTurbofan_I16x16UConvertI32x8) {
+  RunIntToIntNarrowingRevecTest<int32_t, uint16_t>(
+      kExprI16x8UConvertI32x4, compiler::IrOpcode::kI16x16UConvertI32x8);
+}
+
+TEST(RunWasmTurbofan_I8x32SConvertI16x16) {
+  RunIntToIntNarrowingRevecTest<int16_t, int8_t>(
+      kExprI8x16SConvertI16x8, compiler::IrOpcode::kI8x32SConvertI16x16);
+}
+
+TEST(RunWasmTurbofan_I8x32UConvertI16x16) {
+  RunIntToIntNarrowingRevecTest<int16_t, uint8_t>(
+      kExprI8x16UConvertI16x8, compiler::IrOpcode::kI8x32UConvertI16x16);
+}
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S

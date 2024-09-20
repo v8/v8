@@ -381,6 +381,9 @@ template <typename T>
 void RunI32x8ConvertF32x8RevecTest(WasmOpcode opcode,
                                    ConvertToIntOp expected_op,
                                    compiler::IrOpcode::Value revec_opcode);
+template <typename S, typename T>
+void RunIntToIntNarrowingRevecTest(WasmOpcode opcode,
+                                   compiler::IrOpcode::Value revec_opcode);
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 }  // namespace wasm

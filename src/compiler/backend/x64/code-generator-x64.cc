@@ -7043,28 +7043,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(masm(), AVX2);
       YMMRegister dst = i.OutputSimd256Register();
       __ vpackssdw(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
-      __ vpermq(dst, dst, 0xD8);  // 0b11011000
       break;
     }
     case kX64I16x16UConvertI32x8: {
       CpuFeatureScope avx_scope(masm(), AVX2);
       YMMRegister dst = i.OutputSimd256Register();
       __ vpackusdw(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
-      __ vpermq(dst, dst, 0xD8);  // 0b11011000
       break;
     }
     case kX64I8x32SConvertI16x16: {
       CpuFeatureScope avx_scope(masm(), AVX2);
       YMMRegister dst = i.OutputSimd256Register();
       __ vpacksswb(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
-      __ vpermq(dst, dst, 0xD8);  // 0b11011000
       break;
     }
     case kX64I8x32UConvertI16x16: {
       CpuFeatureScope avx_scope(masm(), AVX2);
       YMMRegister dst = i.OutputSimd256Register();
       __ vpackuswb(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
-      __ vpermq(dst, dst, 0xD8);  // 0b11011000
       break;
     }
     case kX64I64x4ExtMulI32x4S: {
