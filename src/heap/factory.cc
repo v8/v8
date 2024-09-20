@@ -87,6 +87,7 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-value.h"
@@ -1904,7 +1905,13 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
       NewWasmInternalFunction(import_data, -1, signature_hash);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   WasmImportData::SetFuncRefAsCallOrigin(import_data, func_ref);
+#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+  internal->set_call_target(
+      wasm::GetProcessWideWasmCodePointerTable()
+          ->GetOrCreateHandleForNativeFunction(call_target));
+#else
   internal->set_call_target(call_target);
+#endif
   Tagged<Map> map = *wasm_capi_function_data_map();
   Tagged<WasmCapiFunctionData> result =
       Cast<WasmCapiFunctionData>(AllocateRawWithImmortalMap(

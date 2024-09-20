@@ -97,6 +97,9 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   // early if there's less than `threshold` many elements in the freelist.
   void SweepSegments(size_t threshold = 2 * kEntriesPerSegment);
 
+  // Add an entry for a native function address, used by the C API.
+  uint32_t GetOrCreateHandleForNativeFunction(Address addr);
+
  private:
   // This marker is used to temporarily unlink the freelist to get exclusive
   // access.
@@ -133,10 +136,16 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   V8_INLINE uint32_t
   AllocateEntryFromFreelistNonAtomic(FreelistHead* freelist_head);
 
+  // Free all handles in the `native_function_map_`.
+  void FreeNativeFunctionHandles();
+
   std::atomic<FreelistHead> freelist_head_ = FreelistHead();
   // The mutex is used to avoid two threads from concurrently allocating
   // segments and using more memory than needed.
   base::Mutex segment_allocation_mutex_;
+
+  base::Mutex native_function_map_mutex_;
+  std::map<Address, uint32_t> native_function_map_;
 
   friend class WasmCodePointerTableTest;
 };
