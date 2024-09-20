@@ -113,8 +113,8 @@ bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
       (promotion_heap_choice != kPromoteIntoSharedHeap || mark_shared_heap_)) {
     heap()->incremental_marking()->TransferColor(source, target);
   }
-  pretenuring_handler_->UpdateAllocationSite(map, source,
-                                             &local_pretenuring_feedback_);
+  PretenuringHandler::UpdateAllocationSite(heap_, map, source,
+                                           &local_pretenuring_feedback_);
 
   return true;
 }
@@ -147,7 +147,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
     }
     UpdateHeapObjectReferenceSlot(slot, target);
     if (object_fields == ObjectFields::kMaybePointers) {
-      copied_list_local_.Push(ObjectAndSize(target, object_size));
+      local_copied_list_.Push(ObjectAndSize(target, object_size));
     }
     copied_size_ += object_size;
     return CopyAndForwardResult::SUCCESS_YOUNG_GENERATION;
@@ -194,7 +194,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
     // During incremental marking we want to push every object in order to
     // record slots for map words. Necessary for map space compaction.
     if (object_fields == ObjectFields::kMaybePointers || is_compacting_) {
-      promotion_list_local_.PushRegularObject(target, object_size);
+      local_promotion_list_.PushRegularObject(target, object_size);
     }
     promoted_size_ += object_size;
     return CopyAndForwardResult::SUCCESS_OLD_GENERATION;
@@ -216,10 +216,10 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
     DCHECK(MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace());
     if (object->release_compare_and_swap_map_word_forwarded(
             MapWord::FromMap(map), object)) {
-      surviving_new_large_objects_.insert({object, map});
+      local_surviving_new_large_objects_.insert({object, map});
       promoted_size_ += object_size;
       if (object_fields == ObjectFields::kMaybePointers) {
-        promotion_list_local_.PushLargeObject(object, map, object_size);
+        local_promotion_list_.PushLargeObject(object, map, object_size);
       }
     }
     return true;

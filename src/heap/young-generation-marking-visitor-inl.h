@@ -75,8 +75,8 @@ template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename T, typename TBodyDescriptor>
 int YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
     Tagged<Map> map, Tagged<T> object) {
-  pretenuring_handler_->UpdateAllocationSite(map, object,
-                                             local_pretenuring_feedback_);
+  PretenuringHandler::UpdateAllocationSite(isolate_->heap(), map, object,
+                                           local_pretenuring_feedback_);
   return Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(map, object);
 }
 

@@ -34,8 +34,8 @@ class PretenuringHandler final {
   // If an object has an AllocationMemento trailing it, return it, otherwise
   // return a null AllocationMemento.
   template <FindMementoMode mode>
-  inline Tagged<AllocationMemento> FindAllocationMemento(
-      Tagged<Map> map, Tagged<HeapObject> object);
+  static inline Tagged<AllocationMemento> FindAllocationMemento(
+      Heap* heap, Tagged<Map> map, Tagged<HeapObject> object);
 
   // ===========================================================================
   // Allocation site tracking. =================================================
@@ -43,8 +43,8 @@ class PretenuringHandler final {
 
   // Updates the AllocationSite of a given {object}. The entry (including the
   // count) is cached on the local pretenuring feedback.
-  inline void UpdateAllocationSite(
-      Tagged<Map> map, Tagged<HeapObject> object,
+  static inline void UpdateAllocationSite(
+      Heap* heap, Tagged<Map> map, Tagged<HeapObject> object,
       PretenuringFeedbackMap* pretenuring_feedback);
 
   // Merges local pretenuring feedback into the global one. Note that this

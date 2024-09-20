@@ -1656,8 +1656,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     if (TryEvacuateWithoutCopy(object)) return true;
     Tagged<HeapObject> target_object;
 
-    pretenuring_handler_->UpdateAllocationSite(object->map(), object,
-                                               local_pretenuring_feedback_);
+    PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object,
+                                             local_pretenuring_feedback_);
 
     if (!TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
       heap_->FatalProcessOutOfMemory(
@@ -1745,8 +1745,8 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
 
   inline bool Visit(Tagged<HeapObject> object, int size) override {
     if (v8_flags.minor_ms) {
-      pretenuring_handler_->UpdateAllocationSite(object->map(), object,
-                                                 local_pretenuring_feedback_);
+      PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object,
+                                               local_pretenuring_feedback_);
     }
     DCHECK(!HeapLayout::InCodeSpace(object));
     PtrComprCageBase cage_base = GetPtrComprCageBase(object);
