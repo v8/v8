@@ -381,7 +381,9 @@ class TFPipelineData {
 
   CodeTracer* GetCodeTracer() const {
 #if V8_ENABLE_WEBASSEMBLY
-    if (info_->IsWasm()) return wasm::GetWasmEngine()->GetCodeTracer();
+    if (info_->IsWasm() || info_->IsWasmBuiltin()) {
+      return wasm::GetWasmEngine()->GetCodeTracer();
+    }
 #endif  // V8_ENABLE_WEBASSEMBLY
     return isolate_->GetCodeTracer();
   }
