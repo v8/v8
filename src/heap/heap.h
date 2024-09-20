@@ -602,6 +602,7 @@ class Heap final {
 
   int NextScriptId();
   int NextDebuggingId();
+  int NextStackTraceId();
   inline int GetNextTemplateSerialNumber();
 
   void SetSerializedObjects(Tagged<HeapObject> objects);

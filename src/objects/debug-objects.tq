@@ -82,6 +82,8 @@ extern class StackFrameInfo extends Struct {
 }
 
 extern class StackTraceInfo extends Struct {
+  // Unique ID of this stack trace.
+  id: Smi;
   // FixedArray of StackFrameInfos.
   frames: FixedArray;
 }

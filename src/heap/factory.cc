@@ -3977,6 +3977,7 @@ Handle<StackTraceInfo> Factory::NewStackTraceInfo(
   Tagged<StackTraceInfo> info = NewStructInternal<StackTraceInfo>(
       STACK_TRACE_INFO_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
+  info->set_id(isolate()->heap()->NextStackTraceId());
   info->set_frames(*frames, SKIP_WRITE_BARRIER);
   return handle(info, isolate());
 }

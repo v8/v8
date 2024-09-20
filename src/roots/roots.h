@@ -412,6 +412,7 @@ class RootVisitor;
 #define SMI_ROOT_LIST(V)                                                       \
   V(Smi, last_script_id, LastScriptId)                                         \
   V(Smi, last_debugging_id, LastDebuggingId)                                   \
+  V(Smi, last_stack_trace_id, LastStackTraceId)                                \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
   V(Smi, next_template_serial_number, NextTemplateSerialNumber)                \

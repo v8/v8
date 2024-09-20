@@ -7415,6 +7415,16 @@ int Heap::NextDebuggingId() {
   return last_id;
 }
 
+int Heap::NextStackTraceId() {
+  int last_id = last_stack_trace_id().value();
+  if (last_id == Smi::kMaxValue) {
+    last_id = 0;
+  }
+  last_id++;
+  set_last_stack_trace_id(Smi::FromInt(last_id));
+  return last_id;
+}
+
 EmbedderStackStateScope::EmbedderStackStateScope(
     Heap* heap, EmbedderStackStateOrigin origin, StackState stack_state)
     : heap_(heap),

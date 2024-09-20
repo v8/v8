@@ -1351,6 +1351,7 @@ void Heap::CreateInitialMutableObjects() {
   // Handling of script id generation is in Heap::NextScriptId().
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
   set_last_debugging_id(Smi::FromInt(DebugInfo::kNoDebuggingId));
+  set_last_stack_trace_id(Smi::zero());
   set_next_template_serial_number(Smi::zero());
 
   // Allocate the empty script.

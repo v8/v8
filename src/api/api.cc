@@ -3242,6 +3242,11 @@ void Message::PrintCurrentStackTrace(Isolate* v8_isolate, std::ostream& out) {
 
 // --- S t a c k T r a c e ---
 
+int StackTrace::GetID() const {
+  auto self = Utils::OpenHandle(this);
+  return self->id();
+}
+
 Local<StackFrame> StackTrace::GetFrame(Isolate* v8_isolate,
                                        uint32_t index) const {
   auto self = Utils::OpenHandle(this);
