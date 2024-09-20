@@ -643,6 +643,8 @@ class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
     Tagged<HeapObject> target_heap_object;
     return target.GetHeapObject(&target_heap_object) &&
            HeapLayout::InWritableSharedSpace(target_heap_object) &&
+           !(v8_flags.black_allocated_pages &&
+             HeapLayout::InBlackAllocatedPage(target_heap_object)) &&
            !Heap::InYoungGeneration(host) &&
            !HeapLayout::InWritableSharedSpace(host);
   }

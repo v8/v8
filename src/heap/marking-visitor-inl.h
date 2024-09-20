@@ -549,14 +549,13 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
     if (end < size) {
       // The object can be pushed back onto the marking worklist only after
       // progress bar was updated.
-#ifdef DEBUG
       const auto target_worklist =
           MarkingHelper::ShouldMarkObject(heap_, object);
-      DCHECK(target_worklist);
-      DCHECK_EQ(target_worklist.value(),
-                MarkingHelper::WorklistTarget::kRegular);
-#endif  // DEBUG
-      local_marking_worklists_->Push(object);
+      if (target_worklist) {
+        DCHECK_EQ(target_worklist.value(),
+                  MarkingHelper::WorklistTarget::kRegular);
+        local_marking_worklists_->Push(object);
+      }
     }
   }
   return end - start;
@@ -776,9 +775,15 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
   // Normal processing of descriptor arrays through the pointers iteration that
   // follows this call:
   // - Array in read only space;
+  // - Array in a black allocated page;
   // - StrongDescriptor array;
   if (HeapLayout::InReadOnlySpace(descriptors) ||
       IsStrongDescriptorArray(descriptors)) {
+    return;
+  }
+
+  if (v8_flags.black_allocated_pages &&
+      HeapLayout::InBlackAllocatedPage(descriptors)) {
     return;
   }
 

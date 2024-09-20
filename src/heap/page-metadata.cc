@@ -153,6 +153,7 @@ size_t PageMetadata::ShrinkToHighWaterMark() {
 }
 
 void PageMetadata::CreateBlackArea(Address start, Address end) {
+  DCHECK(!v8_flags.black_allocated_pages);
   DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(v8_flags.sticky_mark_bits ||
          heap()->incremental_marking()->black_allocation());
@@ -167,6 +168,7 @@ void PageMetadata::CreateBlackArea(Address start, Address end) {
 }
 
 void PageMetadata::DestroyBlackArea(Address start, Address end) {
+  DCHECK(!v8_flags.black_allocated_pages);
   DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(v8_flags.sticky_mark_bits ||
          heap()->incremental_marking()->black_allocation());

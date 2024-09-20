@@ -579,6 +579,13 @@ AllocatorPolicy* PagedSpace::CreateAllocatorPolicy(MainAllocator* allocator) {
 // CompactionSpace implementation
 
 void CompactionSpace::NotifyNewPage(PageMetadata* page) {
+  // Incremental marking can be running on the main thread isolate, so when
+  // allocating a new page for the client's compaction space we can get a black
+  // allocated page. This is fine, since the page is not observed the main
+  // isolate until it's merged.
+  DCHECK_IMPLIES(identity() != SHARED_SPACE ||
+                     destination_heap() != DestinationHeap::kSharedSpaceHeap,
+                 !page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   new_pages_.push_back(page);
 }
 

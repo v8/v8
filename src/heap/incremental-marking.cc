@@ -358,15 +358,31 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(!black_allocation_);
   DCHECK(IsMajorMarking());
   black_allocation_ = true;
-  heap()->allocator()->MarkLinearAllocationAreasBlack();
+  if (v8_flags.black_allocated_pages) {
+    heap()->allocator()->FreeLinearAllocationAreasAndResetFreeLists();
+  } else {
+    heap()->allocator()->MarkLinearAllocationAreasBlack();
+  }
   if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
         [](Isolate* client) {
-          client->heap()->MarkSharedLinearAllocationAreasBlack();
+          if (v8_flags.black_allocated_pages) {
+            client->heap()->FreeSharedLinearAllocationAreasAndResetFreeLists();
+          } else {
+            client->heap()->MarkSharedLinearAllocationAreasBlack();
+          }
         });
   }
   heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->MarkLinearAllocationAreasBlack();
+    if (v8_flags.black_allocated_pages) {
+      // The freelists of the underlying spaces must anyway be empty after the
+      // first call to FreeLinearAllocationAreasAndResetFreeLists(). However,
+      // don't call FreeLinearAllocationAreas(), since it also frees the
+      // shared-space areas.
+      local_heap->FreeLinearAllocationAreasAndResetFreeLists();
+    } else {
+      local_heap->MarkLinearAllocationAreasBlack();
+    }
   });
   StartPointerTableBlackAllocation();
   if (v8_flags.trace_incremental_marking) {
@@ -377,15 +393,20 @@ void IncrementalMarking::StartBlackAllocation() {
 
 void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(IsMajorMarking());
-  heap()->allocator()->UnmarkLinearAllocationsArea();
-  if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
-        [](Isolate* client) {
-          client->heap()->UnmarkSharedLinearAllocationAreas();
-        });
+  if (!v8_flags.black_allocated_pages) {
+    heap()->allocator()->UnmarkLinearAllocationsArea();
+
+    if (isolate()->is_shared_space_isolate()) {
+      isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
+          [](Isolate* client) {
+            client->heap()->UnmarkSharedLinearAllocationAreas();
+          });
+    }
+
+    heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+      local_heap->UnmarkLinearAllocationsArea();
+    });
   }
-  heap()->safepoint()->IterateLocalHeaps(
-      [](LocalHeap* local_heap) { local_heap->UnmarkLinearAllocationsArea(); });
   StopPointerTableBlackAllocation();
   if (v8_flags.trace_incremental_marking) {
     isolate()->PrintWithTimestamp(
@@ -395,13 +416,16 @@ void IncrementalMarking::PauseBlackAllocation() {
 }
 
 void IncrementalMarking::FinishBlackAllocation() {
-  if (black_allocation_) {
-    black_allocation_ = false;
-    StopPointerTableBlackAllocation();
-    if (v8_flags.trace_incremental_marking) {
-      isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Black allocation finished\n");
-    }
+  if (!black_allocation_) {
+    return;
+  }
+  // Don't fixup the marking bitmaps of the black allocated pages, since the
+  // concurrent marker may still be running and will access the page flags.
+  black_allocation_ = false;
+  StopPointerTableBlackAllocation();
+  if (v8_flags.trace_incremental_marking) {
+    isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Black allocation finished\n");
   }
 }
 

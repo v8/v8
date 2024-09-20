@@ -3558,15 +3558,17 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
     NotifyObjectSizeChange(
         object, old_size, old_size - bytes_to_trim,
         clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
-    Tagged<HeapObject> filler = HeapObject::FromAddress(new_end);
-    // Clear the mark bits of the black area that belongs now to the filler.
-    // This is an optimization. The sweeper will release black fillers anyway.
-    if (incremental_marking()->black_allocation() &&
-        marking_state()->IsMarked(filler)) {
-      PageMetadata* page = PageMetadata::FromAddress(new_end);
-      page->marking_bitmap()->ClearRange<AccessMode::ATOMIC>(
-          MarkingBitmap::AddressToIndex(new_end),
-          MarkingBitmap::LimitAddressToIndex(new_end + bytes_to_trim));
+    if (!v8_flags.black_allocated_pages) {
+      Tagged<HeapObject> filler = HeapObject::FromAddress(new_end);
+      // Clear the mark bits of the black area that belongs now to the filler.
+      // This is an optimization. The sweeper will release black fillers anyway.
+      if (incremental_marking()->black_allocation() &&
+          marking_state()->IsMarked(filler)) {
+        PageMetadata* page = PageMetadata::FromAddress(new_end);
+        page->marking_bitmap()->ClearRange<AccessMode::ATOMIC>(
+            MarkingBitmap::AddressToIndex(new_end),
+            MarkingBitmap::LimitAddressToIndex(new_end + bytes_to_trim));
+      }
     }
   } else if (clear_slots) {
     // Large objects are not swept, so it is not necessary to clear the
@@ -3632,6 +3634,7 @@ void Heap::FreeMainThreadLinearAllocationAreas() {
 }
 
 void Heap::MarkSharedLinearAllocationAreasBlack() {
+  DCHECK(!v8_flags.black_allocated_pages);
   allocator()->MarkSharedLinearAllocationAreasBlack();
   main_thread_local_heap()->MarkSharedLinearAllocationAreasBlack();
 
@@ -3641,10 +3644,21 @@ void Heap::MarkSharedLinearAllocationAreasBlack() {
 }
 
 void Heap::UnmarkSharedLinearAllocationAreas() {
+  DCHECK(!v8_flags.black_allocated_pages);
   allocator()->UnmarkSharedLinearAllocationAreas();
   main_thread_local_heap()->UnmarkSharedLinearAllocationsArea();
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->UnmarkSharedLinearAllocationsArea();
+  });
+}
+
+void Heap::FreeSharedLinearAllocationAreasAndResetFreeLists() {
+  DCHECK(v8_flags.black_allocated_pages);
+  allocator()->FreeSharedLinearAllocationAreasAndResetFreeLists();
+  main_thread_local_heap()->FreeSharedLinearAllocationAreasAndResetFreeLists();
+
+  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->FreeSharedLinearAllocationAreasAndResetFreeLists();
   });
 }
 

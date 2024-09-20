@@ -135,6 +135,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void MarkSharedLinearAllocationAreasBlack();
   void UnmarkSharedLinearAllocationsArea();
 
+  // Free all LABs and reset free-lists except for the new and shared space.
+  // Used on black allocation.
+  void FreeLinearAllocationAreasAndResetFreeLists();
+  void FreeSharedLinearAllocationAreasAndResetFreeLists();
+
   // Fetches a pointer to the local heap from the thread local storage.
   // It is intended to be used in handle and write barrier code where it is
   // difficult to get a pointer to the current instance of local heap otherwise.

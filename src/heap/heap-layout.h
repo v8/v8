@@ -44,6 +44,10 @@ class HeapLayout final : public AllStatic {
   // src/sandbox/GLOSSARY.md for details.
   static V8_INLINE bool InTrustedSpace(Tagged<HeapObject> object);
 
+  // Returns whether `object` is allocated on a black page (during
+  // incremental/concurrent marking).
+  static V8_INLINE bool InBlackAllocatedPage(Tagged<HeapObject> object);
+
  private:
   static bool InYoungGenerationForStickyMarkbits(const MemoryChunk* chunk,
                                                  Tagged<HeapObject> object);

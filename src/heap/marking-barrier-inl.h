@@ -46,6 +46,11 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
       return;
     }
 
+    if (v8_flags.black_allocated_pages &&
+        HeapLayout::InBlackAllocatedPage(value)) {
+      return;
+    }
+
     if (HeapLayout::InWritableSharedSpace(host)) {
       // Invoking shared marking barrier when storing into shared objects.
       MarkValueShared(value);
@@ -97,7 +102,7 @@ void MarkingBarrier::MarkValueLocal(Tagged<HeapObject> value) {
     // value has gone through all the necessary filters. However, we do want to
     // push to the right target worklist immediately.
     const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, value);
-    DCHECK(target_worklist);
+    if (!target_worklist) return;
     MarkingHelper::TryMarkAndPush(heap_, current_worklists_.get(),
                                   &marking_state_, target_worklist.value(),
                                   value);

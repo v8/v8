@@ -22,8 +22,8 @@
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
+#include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/objects-inl.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -640,6 +640,93 @@ TEST_F(HeapTest, Regress341769455) {
   InvokeAtomicMinorGC();
   InvokeAtomicMajorGC();
 #endif  // V8_COMPRESS_POINTERS
+}
+
+namespace {
+struct CompactionDisabler {
+  CompactionDisabler() : was_enabled_(v8_flags.compact) {
+    v8_flags.compact = false;
+  }
+  ~CompactionDisabler() {
+    if (was_enabled_) {
+      v8_flags.compact = true;
+    }
+  }
+  const bool was_enabled_;
+};
+}  // namespace
+
+TEST_F(HeapTest, BlackAllocatedPages) {
+  if (!v8_flags.black_allocated_pages) return;
+  if (!v8_flags.incremental_marking) return;
+
+  // Disable compaction to test that the FreeListCategories of black allocated
+  // pages are not reset.
+  CompactionDisabler disable_compaction;
+
+  Isolate* iso = isolate();
+  ManualGCScope manual_gc_scope(iso);
+
+  auto in_free_list = [](PageMetadata* page, Address address) {
+    bool found = false;
+    page->ForAllFreeListCategories(
+        [address, &found](FreeListCategory* category) {
+          category->IterateNodesForTesting(
+              [address, &found](Tagged<FreeSpace> node) {
+                found = node.address() == address;
+              });
+        });
+    return found;
+  };
+
+  Heap* heap = iso->heap();
+  SimulateFullSpace(heap->old_space());
+
+  // Allocate an object on a new page.
+  DirectHandle<FixedArray> arr =
+      iso->factory()->NewFixedArray(1, AllocationType::kOld);
+  Address next = arr->address() + arr->Size();
+
+  // Assert that the next address is in the lab.
+  const Address lab_top = heap->allocator()->old_space_allocator()->top();
+  ASSERT_EQ(lab_top, next);
+
+  auto* page = PageMetadata::FromAddress(next);
+  const size_t wasted_before_incremental_marking_start = page->wasted_memory();
+
+  heap->StartIncrementalMarking(
+      GCFlag::kNoFlags, GarbageCollectionReason::kTesting,
+      GCCallbackFlags::kNoGCCallbackFlags, GarbageCollector::MARK_COMPACTOR);
+
+  // Expect the free-space object is created.
+  auto freed = HeapObject::FromAddress(next);
+  EXPECT_TRUE(IsFreeSpaceOrFiller(freed));
+
+  // The free-space object must be accounted as wasted.
+  EXPECT_EQ(wasted_before_incremental_marking_start + freed->Size(),
+            page->wasted_memory());
+
+  // Check that the free-space object is not in freelist.
+  EXPECT_FALSE(in_free_list(page, next));
+
+  // The page allocated before incremental marking is not black.
+  EXPECT_FALSE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  // Allocate a new object on a BLACK_ALLOCATED page.
+  arr = iso->factory()->NewFixedArray(1, AllocationType::kOld);
+  next = arr->address() + arr->Size();
+
+  // Expect the page to be black.
+  page = PageMetadata::FromHeapObject(arr->GetHeapObject());
+  EXPECT_TRUE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  // Invoke GC.
+  InvokeMajorGC();
+
+  // The page is not black now.
+  EXPECT_FALSE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  // After the GC the next free-space object must be in freelist.
+  EXPECT_TRUE(in_free_list(page, next));
 }
 
 }  // namespace internal

@@ -167,10 +167,13 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
     worklist = &*shared_heap_worklists_;
   } else {
 #ifdef DEBUG
-    const auto target_worklist =
-        MarkingHelper::ShouldMarkObject(heap_, descriptor_array);
-    DCHECK(target_worklist);
-    DCHECK_EQ(target_worklist.value(), MarkingHelper::WorklistTarget::kRegular);
+    if (const auto target_worklist =
+            MarkingHelper::ShouldMarkObject(heap_, descriptor_array)) {
+      DCHECK_EQ(target_worklist.value(),
+                MarkingHelper::WorklistTarget::kRegular);
+    } else {
+      DCHECK(HeapLayout::InBlackAllocatedPage(descriptor_array));
+    }
 #endif  // DEBUG
     gc_epoch = major_collector_->epoch();
     worklist = current_worklists_.get();
@@ -182,7 +185,15 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
   // marking visitor does not re-process any already marked descriptors. If we
   // don't mark it black here, the Scavenger may promote a DescriptorArray and
   // any already marked descriptors will not have any slots recorded.
-  marking_state_.TryMark(descriptor_array);
+  if (v8_flags.black_allocated_pages) {
+    // Make sure to only mark the descriptor array for non black allocated
+    // pages. The atomic pause will fix it afterwards.
+    if (MarkingHelper::ShouldMarkObject(heap_, descriptor_array)) {
+      marking_state_.TryMark(descriptor_array);
+    }
+  } else {
+    marking_state_.TryMark(descriptor_array);
+  }
 
   // `TryUpdateIndicesToMark()` acts as a barrier that publishes the slots'
   // values corresponding to `number_of_own_descriptors`.

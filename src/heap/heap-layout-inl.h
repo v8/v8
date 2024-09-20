@@ -73,6 +73,12 @@ bool HeapLayout::InTrustedSpace(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->InTrustedSpace();
 }
 
+bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
+  DCHECK(v8_flags.black_allocated_pages);
+  return MemoryChunk::FromHeapObject(object)->GetFlags() &
+         MemoryChunk::BLACK_ALLOCATED;
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_HEAP_HEAP_LAYOUT_INL_H_
