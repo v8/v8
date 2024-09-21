@@ -205,7 +205,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = "recipe:v8/pgo_builder",
         dimensions = {"host_class": "multibot", "os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"compilators": "x64"},
+        properties = {"compilators": ["x64"]},
         barrier = BARRIER.NONE,
     ),
 )
