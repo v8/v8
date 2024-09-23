@@ -395,7 +395,7 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
   }
 
   CallDescriptor* call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
+      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Get());
 
   Node* c_call_result =
       WrapFastCall(call_descriptor, c_arg_count + extra_input_count + 1, inputs,

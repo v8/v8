@@ -2242,7 +2242,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
     thrower.TypeError("Argument 1 must be a function");
     return;
   }
-  const i::wasm::FunctionSig* sig = builder.Build();
+  const i::wasm::FunctionSig* sig = builder.Get();
   i::wasm::Suspend suspend = i::wasm::kNoSuspend;
 
   i::Handle<i::JSReceiver> callable = Utils::OpenHandle(*info[1].As<Object>());
@@ -2349,7 +2349,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
         builder.AddParam(sig->GetParam(i));
       }
       builder.AddReturn(i::wasm::kWasmExternRef);
-      sig = builder.Build();
+      sig = builder.Get();
     }
   } else if (i::WasmJSFunction::IsWasmJSFunction(*fun)) {
     sig = i::Cast<i::WasmJSFunction>(fun)

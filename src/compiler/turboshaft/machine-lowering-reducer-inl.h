@@ -1256,7 +1256,7 @@ class MachineLoweringReducer : public Next {
             builder.AddReturn(MachineType::Int32());
             builder.AddParam(MachineType::TaggedPointer());
             auto desc = Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
-                                                          builder.Build());
+                                                          builder.Get());
             auto ts_desc = TSCallDescriptor::Create(
                 desc, CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone());
             OpIndex callee = __ ExternalConstant(
@@ -2993,10 +2993,9 @@ class MachineLoweringReducer : public Next {
           __ ExternalConstant(ExternalReference::isolate_address());
       V<String> value_internalized = V<String>::Cast(__ Call(
           try_string_to_index_or_lookup_existing, {isolate_ptr, value},
-          TSCallDescriptor::Create(Linkage::GetSimplifiedCDescriptor(
-                                       __ graph_zone(), builder.Build()),
-                                   CanThrow::kNo, LazyDeoptOnThrow::kNo,
-                                   __ graph_zone())));
+          TSCallDescriptor::Create(
+              Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get()),
+              CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone())));
 
       // Now see if the results match.
       __ DeoptimizeIfNot(__ TaggedEqual(expected, value_internalized),

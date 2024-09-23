@@ -134,7 +134,7 @@ class TestSignatures {
     for (int i = 0; i < count; i++) {
       builder.AddParam(param);
     }
-    return builder.Build();
+    return builder.Get();
   }
 
  private:

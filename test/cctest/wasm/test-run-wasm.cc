@@ -2779,7 +2779,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     for (int i = 0; i < num_params; ++i) {
       b.AddParam(ValueType::For(memtypes[i]));
     }
-    WasmFunctionCompiler& f = r.NewFunction(b.Build());
+    WasmFunctionCompiler& f = r.NewFunction(b.Get());
     f.Build({WASM_LOCAL_GET(which)});
 
     // =========================================================================

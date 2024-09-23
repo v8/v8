@@ -465,12 +465,12 @@ class TestEnvironment : public HandleAndZoneScope {
               GetRegConfig()->num_allocatable_general_registers() - 2);
 
     GenerateLayout(setup_layout_, allocated_slots_in_, &test_signature);
-    test_descriptor_ = MakeCallDescriptor(test_signature.Build());
+    test_descriptor_ = MakeCallDescriptor(test_signature.Get());
 
     if (layout_mode_ == kChangeLayout) {
       GenerateLayout(teardown_layout_, allocated_slots_out_,
                      &teardown_signature);
-      teardown_descriptor_ = MakeCallDescriptor(teardown_signature.Build());
+      teardown_descriptor_ = MakeCallDescriptor(teardown_signature.Get());
     }
     // Else, we just reuse the layout and signature of the setup function for
     // the teardown function since they are the same.
@@ -1664,8 +1664,7 @@ TEST(Regress_1171759) {
 
   builder.AddReturn(wasm::ValueType::For(MachineType::Int32()));
 
-  CallDescriptor* desc =
-      compiler::GetWasmCallDescriptor(&zone, builder.Build());
+  CallDescriptor* desc = compiler::GetWasmCallDescriptor(&zone, builder.Get());
 
   HandleAndZoneScope handles(kCompressGraphZone);
   RawMachineAssembler m(handles.main_isolate(),

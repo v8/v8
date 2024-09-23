@@ -171,7 +171,7 @@ FunctionSig* AsmJsParser::ConvertSignature(AsmType* return_type,
       UNREACHABLE();
     }
   }
-  return sig_builder.Build();
+  return sig_builder.Get();
 }
 
 bool AsmJsParser::Run() {
@@ -357,7 +357,7 @@ void AsmJsParser::ValidateModule() {
     if (info.kind == VarKind::kImportedFunction && !info.function_defined) {
       // For imported functions without a single call site, we insert a dummy
       // import here to preserve the fact that there actually was an import.
-      FunctionSig* void_void_sig = FunctionSig::Builder(zone(), 0, 0).Build();
+      FunctionSig* void_void_sig = FunctionSig::Builder(zone(), 0, 0).Get();
       module_builder_->AddImport(info.import->function_name, void_void_sig);
     }
   }
@@ -374,7 +374,7 @@ void AsmJsParser::ValidateModule() {
   }
   start->Emit(kExprEnd);
   FunctionSig::Builder b(zone(), 0, 0);
-  start->SetSignature(b.Build());
+  start->SetSignature(b.Get());
 }
 
 // 6.1 ValidateModule - parameters

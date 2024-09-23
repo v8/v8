@@ -354,7 +354,7 @@ FunctionSig* CreateSignature(Zone* zone,
   for (auto& type : return_types) {
     builder.AddReturn(type);
   }
-  return builder.Build();
+  return builder.Get();
 }
 
 template <WasmModuleGenerationOptions options>
@@ -395,7 +395,7 @@ class BodyGen {
         DCHECK_NE(type, kWasmVoid);
         builder.AddReturn(type);
       }
-      FunctionSig* sig = builder.Build();
+      FunctionSig* sig = builder.Get();
       const bool is_final = true;
       int sig_id = gen->builder_->builder()->AddSignature(sig, is_final);
       gen->builder_->EmitI32V(sig_id);
@@ -3631,7 +3631,7 @@ class ModuleGen {
     for (int i = 0; i < num_params; ++i) {
       builder.AddParam(GetValueType<options>(module_range_, num_types));
     }
-    return builder.Build();
+    return builder.Get();
   }
 
   // Creates and adds random function signatures.
@@ -4333,7 +4333,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
     FunctionSig::Builder sig_builder(zone, 1, 0);
     sig_builder.AddReturn(return_type);
     uint32_t signature_index =
-        builder.ForceAddSignature(sig_builder.Build(), kIsFinal);
+        builder.ForceAddSignature(sig_builder.Get(), kIsFinal);
     function_signatures.push_back(signature_index);
   }
 

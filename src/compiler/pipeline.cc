@@ -3266,7 +3266,7 @@ void LowerInt64(const wasm::FunctionSig* sig, MachineGraph* mcgraph,
   for (auto param : sig->parameters()) {
     builder.AddParam(param.machine_representation());
   }
-  Signature<MachineRepresentation>* signature = builder.Build();
+  Signature<MachineRepresentation>* signature = builder.Get();
 
   Int64Lowering r(mcgraph->graph(), mcgraph->machine(), mcgraph->common(),
                   simplified, mcgraph->zone(), signature);

@@ -129,7 +129,7 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
     builder.AddReturn(wasm::ValueType::For(type));
   }
 
-  return compiler::GetWasmCallDescriptor(zone, builder.Build());
+  return compiler::GetWasmCallDescriptor(zone, builder.Get());
 }
 
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
@@ -257,7 +257,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   sig_builder.AddReturn(MachineType::Int32());
 
   CallDescriptor* wrapper_desc =
-      Linkage::GetSimplifiedCDescriptor(&zone, sig_builder.Build());
+      Linkage::GetSimplifiedCDescriptor(&zone, sig_builder.Get());
   RawMachineAssembler caller(
       i_isolate, zone.New<Graph>(&zone), wrapper_desc,
       MachineType::PointerRepresentation(),

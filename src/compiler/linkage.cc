@@ -481,7 +481,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
       kDefaultCodeEntrypointTag,        // tag
       target_type,                      // target MachineType
       target_loc,                       // target location
-      locations.Build(),                // location_sig
+      locations.Get(),                  // location_sig
       js_parameter_count,               // stack_parameter_count
       properties,                       // properties
       kNoCalleeSaved,                   // callee-saved
@@ -540,7 +540,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       kJSEntrypointTag,              // tag
       target_type,                   // target MachineType
       target_loc,                    // target location
-      locations.Build(),             // location_sig
+      locations.Get(),               // location_sig
       js_parameter_count,            // stack_parameter_count
       properties,                    // properties
       kNoCalleeSaved,                // callee-saved
@@ -641,7 +641,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       descriptor.tag(),                      // tag
       target_type,                           // target MachineType
       target_loc,                            // target location
-      locations.Build(),                     // location_sig
+      locations.Get(),                       // location_sig
       stack_parameter_count,                 // stack_parameter_count
       properties,                            // properties
       callee_saved_registers,                // callee-saved registers
@@ -689,7 +689,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
       kBytecodeHandlerEntrypointTag,  // tag
       target_type,                    // target MachineType
       target_loc,                     // target location
-      locations.Build(),              // location_sig
+      locations.Get(),                // location_sig
       stack_parameter_count,          // stack_parameter_count
       Operator::kNoProperties,        // properties
       kNoCalleeSaved,                 // callee-saved registers

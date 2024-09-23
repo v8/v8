@@ -40,7 +40,7 @@ CallDescriptor* CreateCallDescriptor(Zone* zone, int return_count,
   for (int i = 0; i < return_count; i++) {
     builder.AddReturn(wasm::ValueType::For(type));
   }
-  return compiler::GetWasmCallDescriptor(zone, builder.Build());
+  return compiler::GetWasmCallDescriptor(zone, builder.Get());
 }
 
 Node* MakeConstant(RawMachineAssembler* m, MachineType type, int value) {

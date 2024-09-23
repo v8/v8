@@ -65,7 +65,7 @@ const wasm::FunctionSig* ReplaceTypeInSig(Zone* zone,
     }
   }
 
-  return builder.Build();
+  return builder.Get();
 }
 }  // namespace
 

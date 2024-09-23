@@ -298,8 +298,8 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
         builder.AddParam(
             CanonicalizeValueType(module, param, recursive_group_start));
       }
-      result = TypeDefinition(builder.Build(), canonical_supertype,
-                              type.is_final, type.is_shared);
+      result = TypeDefinition(builder.Get(), canonical_supertype, type.is_final,
+                              type.is_shared);
       break;
     }
     case TypeDefinition::kStruct: {

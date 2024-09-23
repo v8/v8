@@ -748,7 +748,7 @@ Node* CallCFunctionImpl(
   if (caller_saved_fp_regs) flags |= CallDescriptor::kCallerSavedFPRegisters;
   if (no_function_descriptor) flags |= CallDescriptor::kNoFunctionDescriptor;
   auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Build(), flags);
+      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Get(), flags);
 
   base::SmallVector<Node*, kNumCArgs> nodes(args.size() + 1);
   nodes[0] = function;

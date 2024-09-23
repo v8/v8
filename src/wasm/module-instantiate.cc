@@ -395,7 +395,7 @@ const MachineSignature* GetFunctionSigForFastApiImport(
   for (uint32_t i = param_offset; i < arg_count; ++i) {
     sig_builder.AddParam(MachineType::TypeForCType(info->ArgumentInfo(i)));
   }
-  return sig_builder.Build();
+  return sig_builder.Get();
 }
 
 // This detects imports of the forms:
