@@ -160,15 +160,15 @@ struct SmiTagging<8> {
                                                std::is_signed_v<T>>* = nullptr>
   V8_INLINE static constexpr bool IsValidSmi(T value) {
     // To be representable as a long smi, the value must be a 32-bit integer.
-    return (value == static_cast<int32_t>(value));
+    return std::numeric_limits<int32_t>::min() <= value &&
+           value <= std::numeric_limits<int32_t>::max();
   }
 
   template <class T,
             typename std::enable_if_t<std::is_integral_v<T> &&
                                       std::is_unsigned_v<T>>* = nullptr>
   V8_INLINE static constexpr bool IsValidSmi(T value) {
-    return (static_cast<uintptr_t>(value) ==
-            static_cast<uintptr_t>(static_cast<int32_t>(value)));
+    return value <= std::numeric_limits<int32_t>::max();
   }
 };
 
