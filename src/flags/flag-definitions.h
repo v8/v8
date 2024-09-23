@@ -1726,14 +1726,17 @@ DEFINE_BOOL(wasm_math_intrinsics, true,
 
 // TODO(335082212,dlehmann): Imply from `--future`.
 DEFINE_BOOL(wasm_inlining_call_indirect, false,
-            "enable speculative inlining of Wasm indirect calls, also enables "
-            "--experimental-wasm-inlining and requires --turboshaft-wasm")
-// Requires basic inlining machinery, e.g., for allocating feedback vectors.
-DEFINE_IMPLICATION(wasm_inlining_call_indirect, experimental_wasm_inlining)
+            "enable speculative inlining of Wasm indirect calls, requires "
+            "--turboshaft-wasm")
+// This doesn't make sense without and requires  the basic inlining machinery,
+// e.g., for allocating feedback vectors, so we automatically enable it.
+DEFINE_IMPLICATION(wasm_inlining_call_indirect, wasm_inlining)
 // This is not implemented for Turbofan, so make sure users are aware by
 // forcing them to explicitly enable Turboshaft (until it's the default anyway).
 DEFINE_NEG_NEG_IMPLICATION(turboshaft_wasm, wasm_inlining_call_indirect)
 
+DEFINE_BOOL(wasm_inlining, true,
+            "enable inlining of Wasm functions into Wasm functions")
 DEFINE_SIZE_T(wasm_inlining_budget, 5000,
               "maximum graph size (in TF nodes) that allows inlining more")
 DEFINE_SIZE_T(wasm_inlining_max_size, 500,
@@ -1793,7 +1796,9 @@ DEFINE_SIZE_T(wasm_disassembly_max_mb, 1000,
 
 DEFINE_BOOL(trace_wasm, false, "trace wasm function calls")
 // Inlining breaks --trace-wasm, hence disable that if --trace-wasm is enabled.
-DEFINE_NEG_IMPLICATION(trace_wasm, experimental_wasm_inlining)
+// TODO(40898108,mliedtke,manoskouk): We should fix this; now that inlining is
+// enabled by default, one cannot trace the production configuration anymore.
+DEFINE_NEG_IMPLICATION(trace_wasm, wasm_inlining)
 
 // Flags for Wasm GDB remote debugging.
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING

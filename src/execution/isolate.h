@@ -815,7 +815,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsSharedArrayBufferConstructorEnabled(Handle<NativeContext> context);
 
   bool IsWasmStringRefEnabled(Handle<NativeContext> context);
-  bool IsWasmInliningEnabled(DirectHandle<NativeContext> context);
   bool IsWasmImportedStringsEnabled(Handle<NativeContext> context);
   // Has the JSPI flag been requested?
   // Used only during initialization of contexts.

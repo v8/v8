@@ -486,7 +486,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     }
 
-    if (inlining_enabled(decoder)) {
+    if (v8_flags.wasm_inlining) {
       if (mode_ == kRegular) {
         if (v8_flags.liftoff) {
           inlining_decisions_ = InliningTree::CreateRoot(
@@ -497,6 +497,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
       } else {
 #if DEBUG
+        // We don't have support for inlining asm.js functions, those should
+        // never be selected in `InliningTree`.
+        DCHECK(!wasm::is_asmjs_module(decoder->module_));
+
         if (v8_flags.liftoff && inlining_decisions_) {
           // DCHECK that `inlining_decisions_` is consistent.
           DCHECK(inlining_decisions_->is_inlined());
@@ -2654,8 +2658,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns);
     } else {
       // Locally defined function.
-      if (inlining_enabled(decoder) &&
-          should_inline(decoder, feedback_slot_,
+      if (should_inline(decoder, feedback_slot_,
                         decoder->module_->functions[imm.index].code.length())) {
         if (v8_flags.trace_wasm_inlining) {
           PrintF("[function %d%s: inlining direct call #%d to function %d]\n",
@@ -2683,8 +2686,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args);
     } else {
       // Locally defined function.
-      if (inlining_enabled(decoder) &&
-          should_inline(decoder, feedback_slot_,
+      if (should_inline(decoder, feedback_slot_,
                         decoder->module_->functions[imm.index].code.length())) {
         if (v8_flags.trace_wasm_inlining) {
           PrintF(
@@ -2708,6 +2710,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
     if (v8_flags.wasm_inlining_call_indirect) {
+      CHECK(v8_flags.wasm_inlining);
       feedback_slot_++;
       // In case of being unreachable, skip it because it tries to accesss nodes
       // which might be non-existent (OpIndex::Invalid()) in unreachable code.
@@ -2872,7 +2875,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
         return;
       }  // should_inline
-    }    // if inlining_enabled
+    }    // v8_flags.wasm_inlining_call_indirect
 
     // Didn't inline.
     V<WordPtr> index_wordptr =
@@ -2886,6 +2889,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
     if (v8_flags.wasm_inlining_call_indirect) {
+      CHECK(v8_flags.wasm_inlining);
       feedback_slot_++;
 
       if (should_inline(decoder, feedback_slot_,
@@ -2976,7 +2980,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         TSBlock* no_inline_block = case_blocks.back();
         __ Bind(no_inline_block);
       }  // should_inline
-    }    // if inlining_enabled
+    }    // v8_flags.wasm_inlining_call_indirect
 
     // Didn't inline.
     V<WordPtr> index_wordptr =
@@ -3002,8 +3006,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     uint64_t signature_hash = 0;
 #endif  // V8_ENABLE_SANDBOX
 
-    if (inlining_enabled(decoder) &&
-        should_inline(decoder, feedback_slot_,
+    if (should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
       // These will be shared if we are in a shared function already, and
       // non-shared otherwise.
@@ -3143,8 +3146,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     uint64_t signature_hash = 0;
 #endif  // V8_ENABLE_SANDBOX
 
-    if (inlining_enabled(decoder) &&
-        should_inline(decoder, feedback_slot_,
+    if (should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
       // These will be shared if we are in a shared function already, and
       // non-shared otherwise.
@@ -8332,32 +8334,33 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
  private:
-  bool inlining_enabled(FullDecoder* decoder) {
-    return decoder->enabled_.has_inlining() || decoder->module_->is_wasm_gc;
-  }
-
   bool should_inline(FullDecoder* decoder, int feedback_slot, int size) {
-    if (v8_flags.liftoff) {
-      if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
-        DCHECK_GT(inlining_decisions_->function_calls().size(), feedback_slot);
-        // We should inline if at least one case for this feedback slot needs
-        // to be inlined.
-        for (InliningTree* tree :
-             inlining_decisions_->function_calls()[feedback_slot]) {
-          if (tree && tree->is_inlined()) return true;
-        }
-        return false;
-      } else {
-        return false;
-      }
-    } else {
-      // We check the wasm feature here because we want the ability to force
-      // inlining off in unit tests, whereas {inlining_enabled()} turns it on
-      // for all WasmGC modules.
-      return decoder->enabled_.has_inlining() &&
-             size < no_liftoff_inlining_budget_ &&
+    if (!v8_flags.wasm_inlining) return false;
+
+    // Configuration without Liftoff and feedback, e.g., for testing.
+    if (!v8_flags.liftoff) {
+      return size < no_liftoff_inlining_budget_ &&
+             // In a production configuration, `InliningTree` decides what to
+             // (not) inline, e.g., asm.js functions or to not exceed
+             // `kMaxInlinedCount`. But without Liftoff, we need to "manually"
+             // comply with these constraints here.
+             !is_asmjs_module(decoder->module_) &&
              inlining_positions_->size() < InliningTree::kMaxInlinedCount;
     }
+
+    // Default, production configuration: Liftoff collects feedback, which
+    // decides whether we inline:
+    if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
+      DCHECK_GT(inlining_decisions_->function_calls().size(), feedback_slot);
+      // We should inline if at least one case for this feedback slot needs
+      // to be inlined.
+      for (InliningTree* tree :
+           inlining_decisions_->function_calls()[feedback_slot]) {
+        if (tree && tree->is_inlined()) return true;
+      }
+      return false;
+    }
+    return false;
   }
 
   void set_inlining_decisions(InliningTree* inlining_decisions) {

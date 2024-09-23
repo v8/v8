@@ -1607,7 +1607,7 @@ void TriggerTierUp(Isolate* isolate,
 
   // Before adding the tier-up unit or increasing priority, process type
   // feedback for best code generation.
-  if (native_module->enabled_features().has_inlining() || module->is_wasm_gc) {
+  if (v8_flags.wasm_inlining) {
     // TODO(jkummerow): we could have collisions here if different instances
     // of the same module have collected different feedback. If that ever
     // becomes a problem, figure out a solution.
@@ -1622,8 +1622,7 @@ void TierUpNowForTesting(Isolate* isolate,
                          Tagged<WasmTrustedInstanceData> trusted_instance_data,
                          int func_index) {
   NativeModule* native_module = trusted_instance_data->native_module();
-  if (native_module->enabled_features().has_inlining() ||
-      native_module->module()->is_wasm_gc) {
+  if (v8_flags.wasm_inlining) {
     TransitiveTypeFeedbackProcessor::Process(isolate, trusted_instance_data,
                                              func_index);
   }
@@ -4058,7 +4057,6 @@ void CompilationStateImpl::PublishDetectedFeaturesAfterCompilation(
     // Some features intentionally do not have a use counter.
     constexpr WasmDetectedFeature kIntentionallyNoUseCounter[] = {
         WasmDetectedFeature::stringref,    // Deprecated / unlikely to ship.
-        WasmDetectedFeature::inlining,     // Not a user-visible feature.
         WasmDetectedFeature::js_inlining,  // Not a user-visible feature.
     };
     for (auto no_use_counter_feature : kIntentionallyNoUseCounter) {

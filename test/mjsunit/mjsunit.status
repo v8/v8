@@ -508,7 +508,7 @@
   # Skip tests that require Wasm experimental features not supported by the
   # Wasm interpreter, or that explicitly require compilation.
 
-  # --experimental-wasm-inlining
+  # --wasm-inlining
   'regress/wasm/regress-crbug-1510626': [SKIP],
 
   # --experimental-wasm-typed-funcref

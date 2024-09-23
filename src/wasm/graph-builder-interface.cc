@@ -279,7 +279,7 @@ class WasmGraphBuildingInterface {
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder* decoder) {
-    if (inlining_enabled(decoder)) {
+    if (v8_flags.wasm_inlining) {
       DCHECK_EQ(feedback_instruction_index_, type_feedback_.size());
     }
     if (inlined_status_ == kRegularFunction) {
@@ -1001,7 +1001,7 @@ class WasmGraphBuildingInterface {
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
     int maybe_call_count = -1;
-    if (inlining_enabled(decoder) && !type_feedback_.empty()) {
+    if (v8_flags.wasm_inlining && !type_feedback_.empty()) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -1016,7 +1016,7 @@ class WasmGraphBuildingInterface {
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
     int maybe_call_count = -1;
-    if (inlining_enabled(decoder) && !type_feedback_.empty()) {
+    if (v8_flags.wasm_inlining && !type_feedback_.empty()) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -1046,7 +1046,7 @@ class WasmGraphBuildingInterface {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, const Value args[], Value returns[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (inlining_enabled(decoder) && !type_feedback_.empty()) {
+    if (v8_flags.wasm_inlining && !type_feedback_.empty()) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
@@ -1140,7 +1140,7 @@ class WasmGraphBuildingInterface {
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, const Value args[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (inlining_enabled(decoder) && !type_feedback_.empty()) {
+    if (v8_flags.wasm_inlining && !type_feedback_.empty()) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
@@ -2306,10 +2306,6 @@ class WasmGraphBuildingInterface {
   // - When exiting a loop through Delegate.
   bool emit_loop_exits() {
     return v8_flags.wasm_loop_unrolling || v8_flags.wasm_loop_peeling;
-  }
-
-  bool inlining_enabled(FullDecoder* decoder) {
-    return decoder->enabled_.has_inlining() || decoder->module_->is_wasm_gc;
   }
 
   void GetNodes(TFNode** nodes, const Value* values, size_t count) {

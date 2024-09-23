@@ -3307,7 +3307,6 @@ void Pipeline::GenerateCodeForWasmFunction(
     wasm::WasmDetectedFeatures* detected) {
   auto* wasm_engine = wasm::GetWasmEngine();
   const wasm::WasmModule* module = env->module;
-  wasm::WasmEnabledFeatures enabled = env->enabled_features;
   base::TimeTicks start_time;
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
@@ -3340,8 +3339,11 @@ void Pipeline::GenerateCodeForWasmFunction(
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   data.BeginPhaseKind("V8.WasmOptimization");
-  // Force inlining for wasm-gc modules.
-  if (enabled.has_inlining() || env->module->is_wasm_gc) {
+
+  const bool is_asm_js = is_asmjs_module(module);
+  // Disable inlining for Wasm modules generated from asm.js, since we do not
+  // have correct stack traces then (and possibly other missing parts).
+  if (v8_flags.wasm_inlining && !is_asm_js) {
     pipeline.Run<WasmInliningPhase>(env, compilation_data, inlining_positions,
                                     detected);
     pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
@@ -3354,14 +3356,15 @@ void Pipeline::GenerateCodeForWasmFunction(
     pipeline.Run<WasmLoopUnrollingPhase>(compilation_data.loop_infos);
     pipeline.RunPrintAndVerify(WasmLoopUnrollingPhase::phase_name(), true);
   }
-  const bool is_asm_js = is_asmjs_module(module);
   MachineOperatorReducer::SignallingNanPropagation signalling_nan_propagation =
       is_asm_js ? MachineOperatorReducer::kPropagateSignallingNan
                 : MachineOperatorReducer::kSilenceSignallingNan;
 
 #define DETECTED_IMPLIES_ENABLED(feature, ...) \
   DCHECK_IMPLIES(detected->has_##feature(), enabled.has_##feature());
+  wasm::WasmEnabledFeatures enabled = env->enabled_features;
   FOREACH_WASM_FEATURE_FLAG(DETECTED_IMPLIES_ENABLED)
+  USE(enabled);
 #undef DETECTED_IMPLIES_ENABLED
 
   if (detected->has_gc() || detected->has_stringref() ||

@@ -3554,15 +3554,6 @@ bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
 #endif
 }
 
-bool Isolate::IsWasmInliningEnabled(DirectHandle<NativeContext> context) {
-  // If Wasm GC is explicitly enabled via a callback, also enable inlining.
-#ifdef V8_ENABLE_WEBASSEMBLY
-  return v8_flags.experimental_wasm_inlining;
-#else
-  return false;
-#endif
-}
-
 bool Isolate::IsWasmImportedStringsEnabled(Handle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   v8::WasmImportedStringsEnabledCallback callback =

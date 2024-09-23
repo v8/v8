@@ -961,11 +961,6 @@ class LiftoffCompiler {
             v8_flags.wasm_tier_up_filter == func_index_);
   }
 
-  bool inlining_enabled(FullDecoder* decoder) {
-    // Force inlining for wasm-gc modules, regardless of the flag's value.
-    return decoder->enabled_.has_inlining() || decoder->module_->is_wasm_gc;
-  }
-
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
       if (!CheckSupportedType(decoder, __ local_kind(i), "param")) return;
@@ -977,7 +972,7 @@ class LiftoffCompiler {
 
     __ CodeEntry();
 
-    if (inlining_enabled(decoder)) {
+    if (v8_flags.wasm_inlining) {
       CODE_COMMENT("frame setup");
       int declared_func_index =
           func_index_ - env_->module->num_imported_functions;
@@ -1204,9 +1199,9 @@ class LiftoffCompiler {
       GenerateOutOfLineCode(&ool);
     }
     DCHECK_EQ(frame_size, __ GetTotalFrameSize());
-    __ PatchPrepareStackFrame(
-        pc_offset_stack_frame_construction_, &safepoint_table_builder_,
-        inlining_enabled(decoder), descriptor_->ParameterSlotCount());
+    __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
+                              &safepoint_table_builder_, v8_flags.wasm_inlining,
+                              descriptor_->ParameterSlotCount());
     __ FinishCode();
     safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCountForGC());
     // Emit the handler table.
@@ -1222,7 +1217,7 @@ class LiftoffCompiler {
     DidAssemblerBailout(decoder);
     DCHECK_EQ(num_exceptions_, 0);
 
-    if (inlining_enabled(decoder) && !encountered_call_instructions_.empty()) {
+    if (v8_flags.wasm_inlining && !encountered_call_instructions_.empty()) {
       // Update the call targets stored in the WasmModule.
       TypeFeedbackStorage& type_feedback = env_->module->type_feedback;
       base::SharedMutexGuard<base::kExclusive> mutex_guard(
@@ -8347,7 +8342,7 @@ class LiftoffCompiler {
     // One slot would be enough for call_direct, but would make index
     // computations much more complicated.
     size_t vector_slot = encountered_call_instructions_.size() * 2;
-    if (inlining_enabled(decoder)) {
+    if (v8_flags.wasm_inlining) {
       encountered_call_instructions_.push_back(imm.index);
     }
 
@@ -8389,9 +8384,8 @@ class LiftoffCompiler {
         FinishCall(decoder, &sig, call_descriptor);
       }
     } else {
-      // Inlining direct calls isn't speculative, but existence of the
-      // feedback vector currently depends on this flag.
-      if (inlining_enabled(decoder)) {
+      // Update call counts for inlining.
+      if (v8_flags.wasm_inlining) {
         LiftoffRegister vector = __ GetUnusedRegister(kGpReg, {});
         __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset,
                 kIntPtrKind);
@@ -8816,7 +8810,7 @@ class LiftoffCompiler {
     Register target_reg = no_reg;
     Register implicit_arg_reg = no_reg;
 
-    if (inlining_enabled(decoder)) {
+    if (v8_flags.wasm_inlining) {
       if (v8_flags.wasm_deopt &&
           env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
           env_->deopt_location_kind == LocationKindForDeopt::kEagerDeopt) {
@@ -8860,7 +8854,7 @@ class LiftoffCompiler {
                   decoder->position());
       target_reg = LiftoffRegister(kReturnRegister0).gp();
       implicit_arg_reg = kReturnRegister1;
-    } else {  // inlining_enabled(decoder)
+    } else {  // v8_flags.wasm_inlining
       // Non-feedback-collecting version.
       // Executing a write barrier needs temp registers; doing this on a
       // conditional branch confuses the LiftoffAssembler's register management.
@@ -8894,7 +8888,7 @@ class LiftoffCompiler {
       // Now the call target is in {target_reg} and the first parameter
       // (WasmTrustedInstanceData or WasmImportData) is in
       // {implicit_arg_reg}.
-    }  // inlining_enabled(decoder)
+    }  // v8_flags.wasm_inlining
 
     __ PrepareCall(&sig, call_descriptor, &target_reg, implicit_arg_reg);
     if (tail_call) {
@@ -9384,8 +9378,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.func_index = compiler_options.func_index;
   result.result_tier = ExecutionTier::kLiftoff;
   result.for_debugging = compiler_options.for_debugging;
-  result.frame_has_feedback_slot =
-      env->enabled_features.has_inlining() || env->module->is_wasm_gc;
+  result.frame_has_feedback_slot = v8_flags.wasm_inlining;
   result.liftoff_frame_descriptions = compiler->ReleaseFrameDescriptions();
   if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();

@@ -1656,7 +1656,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   //  |    in_param 0           |  <-- first_tagged_parameter_slot
   //  +-------------------------+-----------------------------------------
   //
-  // (*) Only if compiled by Liftoff and with --experimental-wasm-inlining.
+  // (*) Only if compiled by Liftoff and with --wasm-inlining.
 
 #if !V8_ENABLE_DRUMBRAKE
   auto pair = wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(
