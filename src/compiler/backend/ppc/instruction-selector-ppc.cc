@@ -224,7 +224,6 @@ ArchOpcode SelectLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
     case MemoryRepresentation::Int16():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
       return kPPC_LoadWordS16;
-      break;
     case MemoryRepresentation::Uint16():
       DCHECK_EQ(result_rep, RegisterRepresentation::Word32());
       return kPPC_LoadWordU16;
@@ -237,7 +236,6 @@ ArchOpcode SelectLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Word64());
       if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
       return kPPC_LoadWord64;
-      break;
     case MemoryRepresentation::Float16():
       UNIMPLEMENTED();
     case MemoryRepresentation::Float32():
