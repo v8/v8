@@ -118,23 +118,25 @@ FAILURE_HEADER_TEMPLATE = """#
 DETAILS_TEMPLATE = """#
 # CHECK
 #
-# Compared %(first_config_label)s with %(second_config_label)s
+# Compared %(first_config_arch)s with %(second_config_arch)s
 #
-# Flags of %(first_config_label)s:
+# Common flags:
+%(common_flags)s
+# Baseline flags:
 %(first_config_flags)s
-# Flags of %(second_config_label)s:
+# Comparison flags:
 %(second_config_flags)s
 #
 # Difference:
 %(difference)s%(source_file_text)s
 #
-### Start of configuration %(first_config_label)s:
+### Start of baseline output:
 %(first_config_output)s
-### End of configuration %(first_config_label)s
+### End of baseline output
 #
-### Start of configuration %(second_config_label)s:
+### Start of comparison output:
 %(second_config_output)s
-### End of configuration %(second_config_label)s
+### End of comparison output
 """
 
 FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + DETAILS_TEMPLATE
@@ -281,8 +283,8 @@ class ExecutionArgumentsConfig(object):
 
     flags = filter_flags(CONFIGS[config] + get('config_extra_flags'))
 
-    RunOptions = namedtuple('RunOptions', ['arch', 'config', 'd8', 'flags'])
-    return RunOptions(infer_arch(d8), config, d8, flags)
+    RunOptions = namedtuple('RunOptions', ['arch', 'd8', 'flags'])
+    return RunOptions(infer_arch(d8), d8, flags)
 
 
 class ExecutionConfig(object):
@@ -290,7 +292,6 @@ class ExecutionConfig(object):
     self.options = options
     self.label = label
     self.arch = getattr(options, label).arch
-    self.config = getattr(options, label).config
     d8 = getattr(options, label).d8
     flags = getattr(options, label).flags
     self.command = Command(options, label, d8, flags)
@@ -301,6 +302,14 @@ class ExecutionConfig(object):
     self.fallback = None
     if getattr(options, fallback_label, None):
       self.fallback = ExecutionConfig(options, fallback_label)
+
+  @property
+  def common_flags(self):
+    return self.command.common_flags
+
+  @property
+  def config_flags(self):
+    return self.command.config_flags
 
   @property
   def flags(self):
@@ -356,8 +365,8 @@ def parse_args():
 
   # Ensure we make a valid comparison.
   if (options.first.d8 == options.second.d8 and
-      options.first.config == options.second.config):
-    parser.error('Need either executable or config difference.')
+      options.first.flags == options.second.flags):
+    parser.error('Need either executable or flag difference.')
 
   return options
 
@@ -395,8 +404,6 @@ def format_difference(
   # The first three entries will be parsed by clusterfuzz. Format changes
   # will require changes on the clusterfuzz side.
   source_key = source_key or cluster_failures(source)
-  first_config_label = '%s,%s' % (first_config.arch, first_config.config)
-  second_config_label = '%s,%s' % (second_config.arch, second_config.config)
   source_file_text = SOURCE_FILE_TEMPLATE % source if source else ''
 
   if PYTHON3:
@@ -407,14 +414,17 @@ def format_difference(
     second_stdout = second_config_output.stdout.decode('utf-8', 'replace')
     difference = difference.decode('utf-8', 'replace')
 
+  assert first_config.common_flags == second_config.common_flags
+
   text = (FAILURE_TEMPLATE % dict(
       source_file_text=source_file_text,
       source_key=source_key,
       suppression='', # We can't tie bugs to differences.
-      first_config_label=first_config_label,
-      second_config_label=second_config_label,
-      first_config_flags=' '.join(first_config.flags),
-      second_config_flags=' '.join(second_config.flags),
+      first_config_arch=first_config.arch,
+      second_config_arch=second_config.arch,
+      common_flags=' '.join(first_config.common_flags),
+      first_config_flags=' '.join(first_config.config_flags),
+      second_config_flags=' '.join(second_config.config_flags),
       first_config_output=first_stdout,
       second_config_output=second_stdout,
       source=source,

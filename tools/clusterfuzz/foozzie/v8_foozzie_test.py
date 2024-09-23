@@ -279,11 +279,6 @@ def run_foozzie(second_d8_dir, *extra_flags, **kwargs):
   ] + list(extra_flags), **kwargs)
 
 
-def expected_output(file_name):
-  with open(os.path.join(TEST_DATA, file_name)) as f:
-    return f.read()
-
-
 class SystemTest(unittest.TestCase):
   """This tests the whole correctness-fuzzing harness with fake build
   artifacts.
@@ -296,6 +291,14 @@ class SystemTest(unittest.TestCase):
             causing the script to fail.
     build3: As build1 but with an architecture difference as well.
   """
+
+  def assert_expected(self, file_name, expected):
+    if os.environ.get('GENERATE'):
+      with open(os.path.join(TEST_DATA, file_name), 'w') as f:
+        f.write(expected)
+    with open(os.path.join(TEST_DATA, file_name)) as f:
+      self.assertEqual(f.read(), expected)
+
   def testSyntaxErrorDiffPass(self):
     stdout = run_foozzie('build1', '--skip-smoke-tests')
     self.assertEqual('# V8 correctness - pass\n',
@@ -306,7 +309,7 @@ class SystemTest(unittest.TestCase):
     self.assertNotIn('v8_mock_archs.js', stdout)
     self.assertNotIn('v8_mock_webassembly.js', stdout)
 
-  def _testDifferentOutputFail(self, expected, *args):
+  def _testDifferentOutputFail(self, expected_path, *args):
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
       run_foozzie('build2', '--skip-smoke-tests',
                   '--first-config-extra-flags=--flag1',
@@ -314,17 +317,17 @@ class SystemTest(unittest.TestCase):
                   '--second-config-extra-flags=--flag3', *args)
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertEqual(expected, cut_verbose_output(e.output, 2))
+    self.assert_expected(expected_path, cut_verbose_output(e.output, 2))
 
   def testDifferentOutputFail(self):
-    self._testDifferentOutputFail(expected_output('failure_output.txt'))
+    self._testDifferentOutputFail('failure_output.txt')
 
   def testSmokeTest(self):
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
       run_foozzie('build2')
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertEqual(expected_output('smoke_test_output.txt'), e.output)
+    self.assert_expected('smoke_test_output.txt', e.output)
 
   def testDifferentArch(self):
     """Test that the architecture-specific mocks are passed to both runs when
@@ -342,8 +345,6 @@ class SystemTest(unittest.TestCase):
     """Test that we re-test against x64. This tests the path that also fails
     on x64 and then reports the error as x64.
     """
-    with open(os.path.join(TEST_DATA, 'failure_output_arch.txt')) as f:
-      expected_output = f.read()
     # Build 3 simulates x86 and produces a difference on --bad-flag, but
     # the baseline build shows the same difference when --bad-flag is passed.
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
@@ -351,14 +352,13 @@ class SystemTest(unittest.TestCase):
                   '--second-config-extra-flags=--bad-flag')
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertEqual(expected_output, cut_verbose_output(e.output, 3))
+    self.assert_expected(
+        'failure_output_arch.txt', cut_verbose_output(e.output, 3))
 
   def testDifferentArchFailSecond(self):
     """As above, but we test the path that only fails in the second (ia32)
     run and not with x64 and then reports the error as ia32.
     """
-    with open(os.path.join(TEST_DATA, 'failure_output_second.txt')) as f:
-      expected_output = f.read()
     # Build 3 simulates x86 and produces a difference on --very-bad-flag,
     # which the baseline build doesn't.
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
@@ -366,7 +366,8 @@ class SystemTest(unittest.TestCase):
                   '--second-config-extra-flags=--very-bad-flag')
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertEqual(expected_output, cut_verbose_output(e.output, 3))
+    self.assert_expected(
+        'failure_output_second.txt', cut_verbose_output(e.output, 3))
 
   def testJitless(self):
     """Test that webassembly is mocked out when comparing with jitless."""
