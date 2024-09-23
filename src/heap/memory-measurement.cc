@@ -335,7 +335,7 @@ int MemoryMeasurement::NextGCTaskDelayInSeconds() {
 }
 
 void MemoryMeasurement::ReportResults() {
-  while (!done_.empty()) {
+  while (!done_.empty() && !isolate_->is_execution_terminating()) {
     Request request = std::move(done_.front());
     done_.pop_front();
     HandleScope handle_scope(isolate_);
