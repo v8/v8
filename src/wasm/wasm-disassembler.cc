@@ -1079,7 +1079,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     }
     if (data.shared) out_ << " shared";
     if (data.active) {
-      ValueType type = module_->memories[data.memory_index].is_memory64
+      ValueType type = module_->memories[data.memory_index].is_memory64()
                            ? kWasmI64
                            : kWasmI32;
       PrintInitExpression(data.dest_addr, type);

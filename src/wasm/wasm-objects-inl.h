@@ -529,22 +529,13 @@ wasm::ValueType WasmTableObject::type() {
 }
 
 bool WasmTableObject::is_table64() const {
-  int table64_smi_value =
-      TorqueGeneratedWasmTableObject<WasmTableObject, JSObject>::is_table64();
-  DCHECK_LE(0, table64_smi_value);
-  DCHECK_GE(1, table64_smi_value);
-  return table64_smi_value != 0;
+  return index_type() == wasm::IndexType::kI64;
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 
 bool WasmMemoryObject::is_memory64() const {
-  int memory64_smi_value =
-      TorqueGeneratedWasmMemoryObject<WasmMemoryObject,
-                                      JSObject>::is_memory64();
-  DCHECK_LE(0, memory64_smi_value);
-  DCHECK_GE(1, memory64_smi_value);
-  return memory64_smi_value != 0;
+  return index_type() == wasm::IndexType::kI64;
 }
 
 // static

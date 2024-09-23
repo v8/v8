@@ -58,8 +58,6 @@ static_assert(
                  std::underlying_type<TestExecutionTier>::type>::value,
     "enum types match");
 
-enum TestingModuleMemoryType { kMemory32, kMemory64 };
-
 using base::ReadLittleEndianValue;
 using base::WriteLittleEndianValue;
 
@@ -113,15 +111,15 @@ class TestingModuleBuilder {
   ~TestingModuleBuilder();
 
   uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
-                     TestingModuleMemoryType = kMemory32,
+                     IndexType index_type = wasm::IndexType::kI32,
                      std::optional<size_t> max_size = {});
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count,
-                    TestingModuleMemoryType mem_type = kMemory32) {
-    AddMemory(count * sizeof(T), SharedFlag::kNotShared, mem_type);
+                    IndexType index_type = wasm::IndexType::kI32) {
+    AddMemory(count * sizeof(T), SharedFlag::kNotShared, index_type);
     return raw_mem_start<T>();
   }
 

@@ -552,7 +552,7 @@ uint32_t WasmModuleBuilder::AddTable64(ValueType type, uint32_t min_size,
                      .min_size = min_size,
                      .max_size = max_size,
                      .has_maximum = true,
-                     .is_table64 = true});
+                     .index_type = IndexType::kI64});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
@@ -562,7 +562,7 @@ uint32_t WasmModuleBuilder::AddTable64(ValueType type, uint32_t min_size,
                      .min_size = min_size,
                      .max_size = max_size,
                      .has_maximum = true,
-                     .is_table64 = true,
+                     .index_type = IndexType::kI64,
                      .init = {init}});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
@@ -583,7 +583,7 @@ uint32_t WasmModuleBuilder::AddMemory64(uint32_t min_pages,
   memories_.push_back({.min_pages = min_pages,
                        .max_pages = max_pages,
                        .has_max_pages = true,
-                       .is_memory64 = true});
+                       .index_type = IndexType::kI64});
   return static_cast<uint32_t>(memories_.size() - 1);
 }
 
@@ -773,12 +773,12 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
         buffer->write_u8(0x00);  // reserved byte
       }
       WriteValueType(buffer, table.type);
-      uint8_t limits_byte = (table.is_table64 ? 4 : 0) |
+      uint8_t limits_byte = (table.is_table64() ? 4 : 0) |
                             (table.is_shared ? 2 : 0) |
                             (table.has_maximum ? 1 : 0);
       buffer->write_u8(limits_byte);
       auto WriteValToBuffer = [&](uint32_t val) {
-        table.is_table64 ? buffer->write_u64v(val) : buffer->write_u32v(val);
+        table.is_table64() ? buffer->write_u64v(val) : buffer->write_u32v(val);
       };
       WriteValToBuffer(table.min_size);
       if (table.has_maximum) {
@@ -796,12 +796,13 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kMemorySectionCode, buffer);
     buffer->write_size(memories_.size());
     for (const WasmMemory& memory : memories_) {
-      uint8_t limits_byte = (memory.is_memory64 ? 4 : 0) |
+      uint8_t limits_byte = (memory.is_memory64() ? 4 : 0) |
                             (memory.is_shared ? 2 : 0) |
                             (memory.has_max_pages ? 1 : 0);
       buffer->write_u8(limits_byte);
       auto WriteValToBuffer = [&](uint32_t val) {
-        memory.is_memory64 ? buffer->write_u64v(val) : buffer->write_u32v(val);
+        memory.is_memory64() ? buffer->write_u64v(val)
+                             : buffer->write_u32v(val);
       };
       WriteValToBuffer(memory.min_pages);
       if (memory.has_max_pages) {

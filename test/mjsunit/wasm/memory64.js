@@ -584,7 +584,7 @@ function allowOOM(fn) {
   builder2.addImportedMemory('imp', 'mem');
   assertThrows(
       () => builder2.instantiate({imp: {mem: mem64}}), WebAssembly.LinkError,
-      'WebAssembly.Instance(): cannot import memory64 as memory32');
+      'WebAssembly.Instance(): cannot import i64 memory as i32');
 })();
 
 (function TestImportMemory32AsMemory64() {
@@ -600,7 +600,7 @@ function allowOOM(fn) {
       'imp', 'mem', 1, 1, /* shared */ false, /* memory64 */ true);
   assertThrows(
       () => builder2.instantiate({imp: {mem: mem32}}), WebAssembly.LinkError,
-      'WebAssembly.Instance(): cannot import memory32 as memory64');
+      'WebAssembly.Instance(): cannot import i32 memory as i64');
 })();
 
 function InstantiatingWorkerCode() {
@@ -636,7 +636,7 @@ function InstantiatingWorkerCode() {
   worker.postMessage([mem64, module2]);
   assertEquals(
       'Exception: LinkError: WebAssembly.Instance(): ' +
-          'cannot import memory64 as memory32',
+          'cannot import i64 memory as i32',
       worker.getMessage());
 })();
 
@@ -657,7 +657,7 @@ function InstantiatingWorkerCode() {
   worker.postMessage([mem32, module2]);
   assertEquals(
       'Exception: LinkError: WebAssembly.Instance(): ' +
-          'cannot import memory32 as memory64',
+          'cannot import i32 memory as i64',
       worker.getMessage());
 })();
 

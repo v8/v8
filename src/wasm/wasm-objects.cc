@@ -154,7 +154,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 Handle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
     wasm::ValueType type, uint32_t initial, bool has_maximum, uint32_t maximum,
-    DirectHandle<Object> initial_value, WasmTableFlag table_type) {
+    DirectHandle<Object> initial_value, wasm::IndexType index_type) {
   CHECK(type.is_object_reference());
 
   DCHECK_LE(initial, v8_flags.wasm_max_table_size);
@@ -185,7 +185,7 @@ Handle<WasmTableObject> WasmTableObject::New(
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
   table_obj->set_raw_type(static_cast<int>(type.raw_bit_field()));
-  table_obj->set_is_table64(table_type == WasmTableFlag::kTable64);
+  table_obj->set_index_type(index_type);
 
   table_obj->set_uses(ReadOnlyRoots(isolate).empty_fixed_array());
   return table_obj;
@@ -818,7 +818,7 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
 Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
                                                Handle<JSArrayBuffer> buffer,
                                                int maximum,
-                                               WasmMemoryFlag memory_type) {
+                                               wasm::IndexType index_type) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
 
@@ -826,7 +826,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
       isolate->factory()->NewJSObject(memory_ctor, AllocationType::kOld));
   memory_object->set_array_buffer(*buffer);
   memory_object->set_maximum_pages(maximum);
-  memory_object->set_is_memory64(memory_type == WasmMemoryFlag::kWasmMemory64);
+  memory_object->set_index_type(index_type);
   memory_object->set_instances(ReadOnlyRoots{isolate}.empty_weak_array_list());
 
   std::shared_ptr<BackingStore> backing_store = buffer->GetBackingStore();
@@ -848,10 +848,10 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
 
 MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, int initial, int maximum, SharedFlag shared,
-    WasmMemoryFlag memory_type) {
+    wasm::IndexType index_type) {
   bool has_maximum = maximum != kNoMaximum;
 
-  int engine_maximum = memory_type == WasmMemoryFlag::kWasmMemory64
+  int engine_maximum = index_type == wasm::IndexType::kI64
                            ? static_cast<int>(wasm::max_mem64_pages())
                            : static_cast<int>(wasm::max_mem32_pages());
 
@@ -891,7 +891,10 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
 
   std::unique_ptr<BackingStore> backing_store =
       BackingStore::AllocateWasmMemory(isolate, initial, heuristic_maximum,
-                                       memory_type, shared);
+                                       index_type == wasm::IndexType::kI32
+                                           ? WasmMemoryFlag::kWasmMemory32
+                                           : WasmMemoryFlag::kWasmMemory64,
+                                       shared);
 
   if (!backing_store) return {};
 
@@ -900,7 +903,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
           ? isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store))
           : isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
 
-  return New(isolate, buffer, maximum, memory_type);
+  return New(isolate, buffer, maximum, index_type);
 }
 
 void WasmMemoryObject::UseInInstance(
@@ -1314,7 +1317,7 @@ void WasmTrustedInstanceData::SetRawMemory(int memory_index, uint8_t* mem_start,
                                            size_t mem_size) {
   CHECK_LT(memory_index, module()->memories.size());
 
-  CHECK_LE(mem_size, module()->memories[memory_index].is_memory64
+  CHECK_LE(mem_size, module()->memories[memory_index].is_memory64()
                          ? wasm::max_mem64_bytes()
                          : wasm::max_mem32_bytes());
   // All memory bases and sizes are stored in a TrustedFixedAddressArray.

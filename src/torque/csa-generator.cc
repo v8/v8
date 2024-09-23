@@ -276,6 +276,8 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       out() << "ca_.UintPtrConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
       out() << "ca_.Int32Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetUint8Type())) {
+      out() << "TNode<Uint8T>::UncheckedCast(ca_.Uint32Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
       out() << "ca_.Uint32Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt64Type())) {
@@ -301,6 +303,9 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   PrintCommaSeparatedList(out(), args);
   if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
     out() << ")";
+    if (return_type->IsSubtypeOf(TypeOracle::GetUint8Type())) {
+      out() << ")";
+    }
   }
   if (return_type->StructSupertype()) {
     out() << ").Flatten();\n";

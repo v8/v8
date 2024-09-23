@@ -53,7 +53,7 @@ TEST_F(Table64DecodingTest, TableLimitLEB64) {
   const WasmTable* table = &module.value()->tables[0];
   EXPECT_EQ(5u, table->initial_size);
   EXPECT_FALSE(table->has_maximum_size);
-  EXPECT_TRUE(table->is_table64);
+  EXPECT_TRUE(table->is_table64());
 
   // 3 bytes LEB (32-bit range), with maximum.
   module =
@@ -65,7 +65,7 @@ TEST_F(Table64DecodingTest, TableLimitLEB64) {
   EXPECT_EQ(12u, table->initial_size);
   EXPECT_TRUE(table->has_maximum_size);
   EXPECT_EQ(123u, table->maximum_size);
-  EXPECT_TRUE(table->is_table64);
+  EXPECT_TRUE(table->is_table64());
 
   // 5 bytes LEB (32-bit range), no maximum.
   module = DecodeModule({SECTION(Table, ENTRY_COUNT(1), kExternRefCode,
@@ -75,7 +75,7 @@ TEST_F(Table64DecodingTest, TableLimitLEB64) {
   table = &module.value()->tables[0];
   EXPECT_EQ(7u, table->initial_size);
   EXPECT_FALSE(table->has_maximum_size);
-  EXPECT_TRUE(table->is_table64);
+  EXPECT_TRUE(table->is_table64());
 
   // 10 bytes LEB (32-bit range), with maximum.
   module =
@@ -87,7 +87,7 @@ TEST_F(Table64DecodingTest, TableLimitLEB64) {
   EXPECT_EQ(4u, table->initial_size);
   EXPECT_TRUE(table->has_maximum_size);
   EXPECT_EQ(1234u, table->maximum_size);
-  EXPECT_TRUE(table->is_table64);
+  EXPECT_TRUE(table->is_table64());
 }
 
 TEST_F(Table64DecodingTest, InvalidTableLimits) {
@@ -119,7 +119,7 @@ TEST_F(Table64DecodingTest, ImportedTable64) {
   const WasmTable* table = &module.value()->tables[0];
   EXPECT_EQ(5u, table->initial_size);
   EXPECT_FALSE(table->has_maximum_size);
-  EXPECT_TRUE(table->is_table64);
+  EXPECT_TRUE(table->is_table64());
 
   // 5 bytes LEB (32-bit range), with maximum.
   module = DecodeModule({SECTION(
@@ -130,7 +130,7 @@ TEST_F(Table64DecodingTest, ImportedTable64) {
   table = &module.value()->tables[0];
   EXPECT_EQ(123u, table->initial_size);
   EXPECT_TRUE(table->has_maximum_size);
-  EXPECT_TRUE(table->is_table64);
+  EXPECT_TRUE(table->is_table64());
   EXPECT_EQ(225u, table->maximum_size);
 }
 

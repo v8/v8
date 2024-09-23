@@ -28,6 +28,7 @@
 #include "src/wasm/stacks.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-module.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -60,7 +61,6 @@ class WasmModuleObject;
 
 enum class SharedFlag : uint8_t;
 
-enum class WasmTableFlag : uint8_t { kTable32, kTable64 };
 enum class IsAWrapper : uint8_t { kYes, kMaybe, kNo };
 
 template <typename CppType>
@@ -229,7 +229,7 @@ class WasmTableObject
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
       wasm::ValueType type, uint32_t initial, bool has_maximum,
       uint32_t maximum, DirectHandle<Object> initial_value,
-      WasmTableFlag table_type = WasmTableFlag::kTable32);
+      wasm::IndexType index_type);
 
   // Store that a specific instance uses this table, in order to update the
   // instance's dispatch table when this table grows (and hence needs to
@@ -240,7 +240,6 @@ class WasmTableObject
 
   bool is_in_bounds(uint32_t entry_index);
 
-  // Overwrite the Torque-generated method that returns an int.
   inline bool is_table64() const;
 
   // Thin wrapper around {JsToWasmObject}.
@@ -310,6 +309,8 @@ class WasmTableObject
 class WasmMemoryObject
     : public TorqueGeneratedWasmMemoryObject<WasmMemoryObject, JSObject> {
  public:
+  class BodyDescriptor;
+
   DECL_ACCESSORS(instances, Tagged<WeakArrayList>)
 
   // Add a use of this memory object to the given instance. This updates the
@@ -324,16 +325,15 @@ class WasmMemoryObject
       int memory_index_in_instance);
   inline bool has_maximum_pages();
 
-  // Overwrite the Torque-generated method that returns an int.
   inline bool is_memory64() const;
 
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
       Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum,
-      WasmMemoryFlag memory_type);
+      wasm::IndexType index_type);
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(
       Isolate* isolate, int initial, int maximum, SharedFlag shared,
-      WasmMemoryFlag memory_type);
+      wasm::IndexType index_type);
 
   // Assign a new (grown) buffer to this memory, also updating the shortcut
   // fields of all instances that use this memory.

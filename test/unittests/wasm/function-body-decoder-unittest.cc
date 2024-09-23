@@ -68,10 +68,6 @@ using F = std::pair<ValueType, bool>;
 // Used to construct fixed-size signatures: MakeSig::Returns(...).Params(...);
 using MakeSig = FixedSizeSignature<ValueType>;
 
-enum MemoryType { kMemory32, kMemory64 };
-
-enum TableType { kTable32, kTable64 };
-
 // A helper for tests that require a module environment for functions,
 // globals, or memories.
 class TestModuleBuilder {
@@ -118,7 +114,8 @@ class TestModuleBuilder {
   }
 
   uint8_t AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
-                   uint32_t maximum_size, TableType table_type = kTable32) {
+                   uint32_t maximum_size,
+                   IndexType index_type = IndexType::kI32) {
     CHECK(type.is_object_reference());
     mod.tables.emplace_back();
     WasmTable& table = mod.tables.back();
@@ -126,7 +123,7 @@ class TestModuleBuilder {
     table.initial_size = initial_size;
     table.has_maximum_size = has_maximum_size;
     table.maximum_size = maximum_size;
-    table.is_table64 = table_type == kTable64;
+    table.index_type = index_type;
     return static_cast<uint8_t>(mod.tables.size() - 1);
   }
 
@@ -154,21 +151,16 @@ class TestModuleBuilder {
     return static_cast<uint8_t>(mod.types.size() - 1);
   }
 
-  uint8_t AddMemory(MemoryType mem_indextype = kMemory32) {
+  uint8_t AddMemory(IndexType index_type = IndexType::kI32) {
     mod.memories.push_back(WasmMemory{
-        .initial_pages = 1,
-        .maximum_pages = 100,
-        .is_memory64 = mem_indextype == kMemory64,
-    });
+        .initial_pages = 1, .maximum_pages = 100, .index_type = index_type});
     CHECK_GE(kMaxUInt8, mod.memories.size());
     return static_cast<uint8_t>(mod.memories.size() - 1);
   }
 
-  uint8_t AddTable(wasm::ValueType type, TableType table_indextype = kTable32) {
-    mod.tables.push_back(WasmTable{
-        .type = type,
-        .is_table64 = table_indextype == kTable64,
-    });
+  uint8_t AddTable(wasm::ValueType type,
+                   IndexType index_type = IndexType::kI32) {
+    mod.tables.push_back(WasmTable{.type = type, .index_type = index_type});
     CHECK_GE(kMaxUInt8, mod.tables.size());
     return static_cast<uint8_t>(mod.tables.size() - 1);
   }
@@ -5260,28 +5252,23 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
 
 class FunctionBodyDecoderTestOnBothMemoryTypes
     : public FunctionBodyDecoderTestBase<
-          WithDefaultPlatformMixin<::testing::TestWithParam<MemoryType>>> {
+          WithDefaultPlatformMixin<::testing::TestWithParam<IndexType>>> {
  public:
   FunctionBodyDecoderTestOnBothMemoryTypes() {
     if (is_memory64()) enabled_features_.Add(WasmEnabledFeature::memory64);
   }
 
-  bool is_memory64() const { return GetParam() == kMemory64; }
+  bool is_memory32() const { return GetParam() == IndexType::kI32; }
+  bool is_memory64() const { return GetParam() == IndexType::kI64; }
 };
 
-std::string PrintMemoryType(::testing::TestParamInfo<MemoryType> info) {
-  switch (info.param) {
-    case kMemory32:
-      return "kMemory32";
-    case kMemory64:
-      return "kMemory64";
-  }
-  UNREACHABLE();
+std::string PrintIndexType(::testing::TestParamInfo<IndexType> info) {
+  return IndexTypeToStr(info.param);
 }
 
 INSTANTIATE_TEST_SUITE_P(MemoryTypes, FunctionBodyDecoderTestOnBothMemoryTypes,
-                         ::testing::Values(kMemory32, kMemory64),
-                         PrintMemoryType);
+                         ::testing::Values(IndexType::kI32, IndexType::kI64),
+                         PrintIndexType);
 
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, IndexTypes) {
   builder.AddMemory(GetParam());
@@ -5298,7 +5285,7 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, IndexTypes) {
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory32) {
   // Check that with memory64 enabled, the offset is always decoded as u64, even
   // if the memory is declared as 32-bit memory.
-  builder.AddMemory(kMemory32);
+  builder.AddMemory(IndexType::kI32);
   // Offset is zero encoded in 5 bytes (always works).
   Validate(true, sigs.i_v(),
            {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO)});
@@ -5324,7 +5311,7 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory32) {
 
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory64) {
   // Same as above, but on a 64-bit memory.
-  builder.AddMemory(kMemory64);
+  builder.AddMemory(IndexType::kI64);
   // Offset is zero encoded in 5 bytes.
   Validate(
       true, sigs.i_v(),
@@ -5375,21 +5362,21 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemoryGrow) {
 }
 
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, CopyDifferentMemTypes) {
-  MemoryType mem_type = GetParam();
-  MemoryType other_mem_type = mem_type == kMemory32 ? kMemory64 : kMemory32;
+  IndexType mem_type = GetParam();
+  IndexType other_mem_type = is_memory64() ? IndexType::kI32 : IndexType::kI64;
   uint8_t memory0 = builder.AddMemory(mem_type);
   uint8_t memory1 = builder.AddMemory(other_mem_type);
 
   // Copy from memory0 to memory1 with types i32/i64/i32. Valid if memory0 is
   // 64-bit.
   Validate(
-      mem_type == kMemory64, sigs.v_v(),
+      is_memory64(), sigs.v_v(),
       {WASM_MEMORY_COPY(memory1, memory0, WASM_ZERO, WASM_ZERO64, WASM_ZERO)},
       kAppendEnd);
   // Copy from memory0 to memory1 with types i64/i32/i32. Valid if memory0 is
   // 32-bit.
   Validate(
-      mem_type == kMemory32, sigs.v_v(),
+      is_memory32(), sigs.v_v(),
       {WASM_MEMORY_COPY(memory1, memory0, WASM_ZERO64, WASM_ZERO, WASM_ZERO)},
       kAppendEnd);
   // Passing the size as i64 is always invalid because one memory is always
@@ -5398,14 +5385,14 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, CopyDifferentMemTypes) {
       sigs.v_v(),
       {WASM_MEMORY_COPY(memory1, memory0, WASM_ZERO, WASM_ZERO64, WASM_ZERO64)},
       kAppendEnd,
-      mem_type == kMemory32
+      is_memory32()
           ? "memory.copy[0] expected type i64, found i32.const of type i32"
           : "memory.copy[2] expected type i32, found i64.const of type i64");
   ExpectFailure(
       sigs.v_v(),
       {WASM_MEMORY_COPY(memory1, memory0, WASM_ZERO64, WASM_ZERO, WASM_ZERO64)},
       kAppendEnd,
-      mem_type == kMemory32
+      is_memory32()
           ? "memory.copy[2] expected type i32, found i64.const of type i64"
           : "memory.copy[0] expected type i32, found i64.const of type i64");
 }
@@ -5441,32 +5428,24 @@ TEST_F(FunctionBodyDecoderTest, ExtendedMemoryAccessImmediate) {
 
 class FunctionBodyDecoderTestTable64
     : public FunctionBodyDecoderTestBase<
-          WithDefaultPlatformMixin<::testing::TestWithParam<TableType>>> {
+          WithDefaultPlatformMixin<::testing::TestWithParam<IndexType>>> {
  public:
   FunctionBodyDecoderTestTable64() {
     if (is_table64()) enabled_features_.Add(WasmEnabledFeature::memory64);
   }
 
-  bool is_table64() const { return GetParam() == kTable64; }
+  bool is_table32() const { return GetParam() == IndexType::kI32; }
+  bool is_table64() const { return GetParam() == IndexType::kI64; }
 };
 
-std::string PrintTableType(::testing::TestParamInfo<TableType> info) {
-  switch (info.param) {
-    case kTable32:
-      return "kTable32";
-    case kTable64:
-      return "kTable64";
-  }
-  UNREACHABLE();
-}
-
 INSTANTIATE_TEST_SUITE_P(Table64Tests, FunctionBodyDecoderTestTable64,
-                         ::testing::Values(kTable32, kTable64), PrintTableType);
+                         ::testing::Values(IndexType::kI32, IndexType::kI64),
+                         PrintIndexType);
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Set) {
-  TableType table_type = GetParam();
-  uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
-  uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30, table_type);
+  IndexType index_type = GetParam();
+  uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20, index_type);
+  uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30, index_type);
 
   ValueType sig_types[]{kWasmExternRef, kWasmFuncRef};
   FunctionSig sig(0, 2, sig_types);
@@ -5481,9 +5460,9 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Set) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Get) {
-  TableType table_type = GetParam();
-  uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
-  uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30, table_type);
+  IndexType index_type = GetParam();
+  uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20, index_type);
+  uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30, index_type);
 
   ValueType sig_types[]{kWasmExternRef, kWasmFuncRef};
   FunctionSig sig(0, 2, sig_types);
@@ -5498,9 +5477,9 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Get) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64CallIndirect) {
-  TableType table_type = GetParam();
+  IndexType index_type = GetParam();
   const FunctionSig* sig = sigs.i_i();
-  builder.AddTable(kWasmFuncRef, 20, false, 20, table_type);
+  builder.AddTable(kWasmFuncRef, 20, false, 20, index_type);
 
   uint8_t sig0 = builder.AddSignature(sigs.i_v());
   uint8_t sig1 = builder.AddSignature(sigs.i_i());
@@ -5515,9 +5494,9 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64CallIndirect) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64ReturnCallIndirect) {
-  TableType table_type = GetParam();
+  IndexType index_type = GetParam();
   const FunctionSig* sig = sigs.i_i();
-  builder.AddTable(kWasmFuncRef, 20, true, 30, table_type);
+  builder.AddTable(kWasmFuncRef, 20, true, 30, index_type);
 
   uint8_t sig0 = builder.AddSignature(sigs.i_v());
   uint8_t sig1 = builder.AddSignature(sigs.i_i());
@@ -5532,9 +5511,9 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64ReturnCallIndirect) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Grow) {
-  TableType table_type = GetParam();
-  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, table_type);
-  uint8_t tab_ref = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
+  IndexType index_type = GetParam();
+  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, index_type);
+  uint8_t tab_ref = builder.AddTable(kWasmExternRef, 10, true, 20, index_type);
 
   Validate(
       is_table64(), sigs.l_c(),
@@ -5545,15 +5524,15 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Grow) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Size) {
-  TableType table_type = GetParam();
-  int tab = builder.AddTable(kWasmFuncRef, 10, true, 20, table_type);
+  IndexType index_type = GetParam();
+  int tab = builder.AddTable(kWasmFuncRef, 10, true, 20, index_type);
   Validate(is_table64(), sigs.l_v(), {WASM_TABLE_SIZE(tab)});
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Fill) {
-  TableType table_type = GetParam();
-  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, table_type);
-  uint8_t tab_ref = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
+  IndexType index_type = GetParam();
+  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, index_type);
+  uint8_t tab_ref = builder.AddTable(kWasmExternRef, 10, true, 20, index_type);
   Validate(is_table64(), sigs.v_c(),
            {WASM_TABLE_FILL(tab_func, WASM_ONE64, WASM_REF_NULL(kFuncRefCode),
                             WASM_ONE64)});
@@ -5563,8 +5542,8 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Fill) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Init) {
-  TableType table_type = GetParam();
-  uint8_t tab_func = builder.AddTable(kWasmFuncRef, table_type);
+  IndexType index_type = GetParam();
+  uint8_t tab_func = builder.AddTable(kWasmFuncRef, index_type);
   uint8_t elem_seg = builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
 
   Validate(
@@ -5573,8 +5552,8 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Init) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Copy) {
-  TableType table_type = GetParam();
-  uint8_t table = builder.AddTable(wasm::kWasmVoid, table_type);
+  IndexType index_type = GetParam();
+  uint8_t table = builder.AddTable(wasm::kWasmVoid, index_type);
 
   Validate(
       is_table64(), sigs.v_v(),
@@ -5582,21 +5561,21 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Copy) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64CopyDifferentTypes) {
-  TableType table_type = GetParam();
-  TableType other_table_type = table_type == kTable32 ? kTable64 : kTable32;
-  uint8_t table = builder.AddTable(wasm::kWasmVoid, table_type);
+  IndexType index_type = GetParam();
+  IndexType other_table_type = is_table64() ? IndexType::kI32 : IndexType::kI64;
+  uint8_t table = builder.AddTable(wasm::kWasmVoid, index_type);
   uint8_t other_table = builder.AddTable(wasm::kWasmVoid, other_table_type);
 
   // Copy from `table` to `other_table` with types i32/i64/i32. Valid if `table`
   // is table64 (and hence `other_table` is table32).
   Validate(
-      table_type == kTable64, sigs.v_v(),
+      is_table64(), sigs.v_v(),
       {WASM_TABLE_COPY(other_table, table, WASM_ZERO, WASM_ZERO64, WASM_ZERO)},
       kAppendEnd);
   // Copy from `table` to `other_table` with types i64/i32/i32. Valid if `table`
   // is table32 (and hence `other_table` is table64).
   Validate(
-      table_type == kTable32, sigs.v_v(),
+      is_table32(), sigs.v_v(),
       {WASM_TABLE_COPY(other_table, table, WASM_ZERO64, WASM_ZERO, WASM_ZERO)},
       kAppendEnd);
   // Passing the size as i64 is always invalid because one table is always 32
@@ -5606,7 +5585,7 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64CopyDifferentTypes) {
       {WASM_TABLE_COPY(other_table, table, WASM_ZERO, WASM_ZERO64,
                        WASM_ZERO64)},
       kAppendEnd,
-      table_type == kTable64
+      is_table64()
           ? "table.copy[2] expected type i32, found i64.const of type i64"
           : "table.copy[0] expected type i64, found i32.const of type i32");
   ExpectFailure(
@@ -5614,7 +5593,7 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64CopyDifferentTypes) {
       {WASM_TABLE_COPY(other_table, table, WASM_ZERO64, WASM_ZERO,
                        WASM_ZERO64)},
       kAppendEnd,
-      table_type == kTable32
+      is_table32()
           ? "table.copy[2] expected type i32, found i64.const of type i64"
           : "table.copy[0] expected type i32, found i64.const of type i64");
 }

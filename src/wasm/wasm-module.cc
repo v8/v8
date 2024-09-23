@@ -434,7 +434,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
           std::optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
           type_value = GetTypeForTable(isolate, table.type, table.initial_size,
-                                       maximum_size, table.is_table64);
+                                       maximum_size, table.is_table64());
         }
         import_kind = table_string;
         break;
@@ -447,7 +447,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
           }
           type_value =
               GetTypeForMemory(isolate, memory.initial_pages, maximum_size,
-                               memory.is_shared, memory.is_memory64);
+                               memory.is_shared, memory.is_memory64());
         }
         import_kind = memory_string;
         break;
@@ -541,7 +541,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
           std::optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
           type_value = GetTypeForTable(isolate, table.type, table.initial_size,
-                                       maximum_size, table.is_table64);
+                                       maximum_size, table.is_table64());
         }
         export_kind = table_string;
         break;
@@ -554,7 +554,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
           }
           type_value =
               GetTypeForMemory(isolate, memory.initial_pages, maximum_size,
-                               memory.is_shared, memory.is_memory64);
+                               memory.is_shared, memory.is_memory64());
         }
         export_kind = memory_string;
         break;

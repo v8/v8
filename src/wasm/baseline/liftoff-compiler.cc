@@ -3396,10 +3396,11 @@ class LiftoffCompiler {
     DCHECK_LT(offset, memory->max_memory_size);
 
     // Early return for trap handler.
-    DCHECK_IMPLIES(memory->is_memory64 && !v8_flags.wasm_memory64_trap_handling,
-                   bounds_checks == kExplicitBoundsChecks);
+    DCHECK_IMPLIES(
+        memory->is_memory64() && !v8_flags.wasm_memory64_trap_handling,
+        bounds_checks == kExplicitBoundsChecks);
     if (!force_check && bounds_checks == kTrapHandler) {
-      if (memory->is_memory64) {
+      if (memory->is_memory64()) {
         SCOPED_CODE_COMMENT("bounds check memory");
         // If index is outside the guards pages, sets index to a value that will
         // certainly cause (memory_start + offset + index) to be not accessible,
@@ -3423,7 +3424,7 @@ class LiftoffCompiler {
 
     // Convert the index to ptrsize, bounds-checking the high word on 32-bit
     // systems for memory64.
-    if (!memory->is_memory64) {
+    if (!memory->is_memory64()) {
       __ emit_u32_to_uintptr(index_ptrsize, index_ptrsize);
     } else if (kSystemPointerSize == kInt32Size) {
       DCHECK_GE(kMaxUInt32, memory->max_memory_size);
@@ -3515,7 +3516,7 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     // TODO(14259): Support multiple memories.
     const WasmMemory* memory = env_->module->memories.data();
-    if (memory->is_memory64 && !kNeedI64RegPair) {
+    if (memory->is_memory64() && !kNeedI64RegPair) {
       __ LoadConstant(effective_offset,
                       WasmValue(static_cast<uint64_t>(offset)));
       if (index != no_reg) {
@@ -3543,7 +3544,7 @@ class LiftoffCompiler {
     LiftoffRegister data = effective_offset;
 
     // Now store all information into the MemoryTracingInfo struct.
-    if (kSystemPointerSize == 8 && !memory->is_memory64) {
+    if (kSystemPointerSize == 8 && !memory->is_memory64()) {
       // Zero-extend the effective offset to u64.
       CHECK(__ emit_type_conversion(kExprI64UConvertI32, data, effective_offset,
                                     nullptr));
@@ -3658,7 +3659,7 @@ class LiftoffCompiler {
     // below, if this is not a statically-in-bounds index).
     auto& index_slot = __ cache_state()->stack_state.back();
     DCHECK_EQ(index_val.type.kind(), index_slot.kind());
-    bool i64_offset = imm.memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64();
     DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
     if (IndexStaticallyInBounds(imm.memory, index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
@@ -3777,7 +3778,7 @@ class LiftoffCompiler {
         BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
                        pinned, kDontForceCheck, kDontCheckAlignment);
 
-    bool i64_offset = imm.memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64();
     DCHECK_EQ(i64_offset ? kI64 : kI32, _index.type.kind());
 
     uintptr_t offset = imm.offset;
@@ -3835,7 +3836,7 @@ class LiftoffCompiler {
 
     auto& index_slot = __ cache_state()->stack_state.back();
     DCHECK_EQ(index_val.type.kind(), index_slot.kind());
-    bool i64_offset = imm.memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64();
     DCHECK_EQ(i64_offset ? kI64 : kI32, index_val.type.kind());
     if (IndexStaticallyInBounds(imm.memory, index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
@@ -3887,7 +3888,7 @@ class LiftoffCompiler {
         BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
                        pinned, force_check, kDontCheckAlignment);
 
-    bool i64_offset = imm.memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64();
     DCHECK_EQ(i64_offset ? kI64 : kI32, _index.type.kind());
 
     uintptr_t offset = imm.offset;
@@ -3931,14 +3932,14 @@ class LiftoffCompiler {
     }
     // Convert bytes to pages.
     __ emit_ptrsize_shri(mem_size.gp(), mem_size.gp(), kWasmPageSizeLog2);
-    if (imm.memory->is_memory64 && kNeedI64RegPair) {
+    if (imm.memory->is_memory64() && kNeedI64RegPair) {
       LiftoffRegister high_word =
           __ GetUnusedRegister(kGpReg, LiftoffRegList{mem_size});
       // The high word is always 0 on 32-bit systems.
       __ LoadConstant(high_word, WasmValue{uint32_t{0}});
       mem_size = LiftoffRegister::ForPair(mem_size.gp(), high_word.gp());
     }
-    __ PushRegister(imm.memory->is_memory64 ? kI64 : kI32, mem_size);
+    __ PushRegister(imm.memory->is_memory64() ? kI64 : kI32, mem_size);
   }
 
   void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
@@ -3952,7 +3953,7 @@ class LiftoffCompiler {
 
     Label done;
 
-    if (imm.memory->is_memory64) {
+    if (imm.memory->is_memory64()) {
       // If the high word is not 0, this will always fail (would grow by
       // >=256TB). The int32_t value will be sign-extended below.
       __ LoadConstant(result, WasmValue(int32_t{-1}));
@@ -3997,7 +3998,7 @@ class LiftoffCompiler {
 
     __ bind(&done);
 
-    if (imm.memory->is_memory64) {
+    if (imm.memory->is_memory64()) {
       LiftoffRegister result64 = result;
       if (kNeedI64RegPair) result64 = __ GetUnusedRegister(kGpRegPair, pinned);
       __ emit_type_conversion(kExprI64SConvertI32, result64, result, nullptr);
@@ -5558,7 +5559,7 @@ class LiftoffCompiler {
                       const MemoryAccessImmediate& imm) {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
-    bool i64_offset = imm.memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64();
     auto& index_slot = __ cache_state() -> stack_state.back();
     DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
     uintptr_t offset = imm.offset;
@@ -5593,7 +5594,7 @@ class LiftoffCompiler {
   void AtomicLoadMem(FullDecoder* decoder, LoadType type,
                      const MemoryAccessImmediate& imm) {
     ValueKind kind = type.value_type().kind();
-    bool i64_offset = imm.memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64();
     auto& index_slot = __ cache_state() -> stack_state.back();
     DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
     uintptr_t offset = imm.offset;
@@ -5653,7 +5654,7 @@ class LiftoffCompiler {
 #endif
     auto& index_slot = __ cache_state() -> stack_state.back();
     uintptr_t offset = imm.offset;
-    bool i64_offset = imm.memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64();
     DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
     Register index = no_reg;
 
@@ -5707,7 +5708,7 @@ class LiftoffCompiler {
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
 
     // Pop the index from the stack.
-    bool i64_offset = imm.memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64();
     DCHECK_EQ(i64_offset ? kI64 : kI32,
               __ cache_state()->stack_state.back().kind());
     __ DropValues(1);
@@ -5731,7 +5732,7 @@ class LiftoffCompiler {
 
     auto& index_slot = __ cache_state() -> stack_state.back();
     uintptr_t offset = imm.offset;
-    bool i64_offset = imm.memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64();
     DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
     Register index = no_reg;
 
@@ -6172,7 +6173,7 @@ class LiftoffCompiler {
   // Checks that the top-of-stack value matches the declared memory (64-bit or
   // 32-bit).
   bool MatchingMemTypeOnTopOfStack(const WasmMemory* memory) {
-    return MatchingIndexTypeOnTopOfStack(memory->is_memory64);
+    return MatchingIndexTypeOnTopOfStack(memory->is_memory64());
   }
 
   // Checks that the top-of-stack value matches the expected bitness.
@@ -6186,7 +6187,7 @@ class LiftoffCompiler {
   bool MatchingMemType(const WasmMemory* memory, int stack_index) {
     DCHECK_LE(0, stack_index);
     DCHECK_LT(stack_index, __ cache_state()->stack_state.size());
-    ValueKind expected_kind = memory->is_memory64 ? kI64 : kI32;
+    ValueKind expected_kind = memory->is_memory64() ? kI64 : kI32;
     DCHECK_EQ(expected_kind,
               __ cache_state()->stack_state.end()[-1 - stack_index].kind());
     return true;
@@ -6266,8 +6267,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
 
     // The type of {size} is the min of {src} and {dst} (where {kI32 < kI64}).
-    DCHECK(MatchingIndexTypeOnTopOfStack(imm.memory_dst.memory->is_memory64 &&
-                                         imm.memory_src.memory->is_memory64));
+    DCHECK(MatchingIndexTypeOnTopOfStack(imm.memory_dst.memory->is_memory64() &&
+                                         imm.memory_src.memory->is_memory64()));
     VarState size = PopIndexToVarState(&mem_offsets_high_word, &pinned);
     DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_src.memory));
     VarState src = PopIndexToVarState(&mem_offsets_high_word, &pinned);
@@ -6467,7 +6468,7 @@ class LiftoffCompiler {
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     __ SmiToInt32(kReturnRegister0);
-    if (imm.table->is_table64) {
+    if (imm.table->is_table64()) {
       LiftoffRegister result64 = LiftoffRegister(kReturnRegister0);
       if (kNeedI64RegPair) {
         result64 = LiftoffRegister::ForPair(kReturnRegister0, kReturnRegister1);
@@ -6503,7 +6504,7 @@ class LiftoffCompiler {
 
     __ SmiUntag(result);
 
-    if (imm.table->is_table64) {
+    if (imm.table->is_table64()) {
       LiftoffRegister result64 = LiftoffRegister(result);
       if (kNeedI64RegPair) {
         result64 = LiftoffRegister::ForPair(
@@ -8498,7 +8499,7 @@ class LiftoffCompiler {
                                  trapping);
         } else {
           ValueKind comparison_type = kI32;
-          if (Is64() && table->is_table64) {
+          if (Is64() && table->is_table64()) {
             // {index_reg} is a uintptr, so do a ptrsize comparison.
             __ emit_u32_to_uintptr(table_size.gp_reg(), table_size.gp_reg());
             comparison_type = kIntPtrKind;
@@ -8511,7 +8512,7 @@ class LiftoffCompiler {
         DCHECK_EQ(max_table_size, table->initial_size);
         if (is_static_index) {
           DCHECK_LT(index_slot.i32_const(), max_table_size);
-        } else if (Is64() && table->is_table64) {
+        } else if (Is64() && table->is_table64()) {
           // On 32-bit, this is the same as below, so include the `Is64()` test
           // to statically tell the compiler to skip this branch.
           // Note: {max_table_size} will be sign-extended, which is fine because

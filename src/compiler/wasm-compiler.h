@@ -748,15 +748,15 @@ class WasmGraphBuilder {
                        MachineType result_type, wasm::TrapReason trap_zero,
                        wasm::WasmCodePosition position);
 
-  void MemTypeToUintPtrOrOOBTrap(bool is_memory64,
+  void MemTypeToUintPtrOrOOBTrap(wasm::IndexType index_type,
                                  std::initializer_list<Node**> nodes,
                                  wasm::WasmCodePosition position);
 
-  void TableTypeToUintPtrOrOOBTrap(bool is_table64,
+  void TableTypeToUintPtrOrOOBTrap(wasm::IndexType index_type,
                                    std::initializer_list<Node**> nodes,
                                    wasm::WasmCodePosition position);
 
-  void MemOrTableTypeToUintPtrOrOOBTrap(bool is_64bit,
+  void MemOrTableTypeToUintPtrOrOOBTrap(wasm::IndexType index_type,
                                         std::initializer_list<Node**> nodes,
                                         wasm::WasmCodePosition position,
                                         wasm::TrapReason trap_reason);

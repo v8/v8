@@ -769,7 +769,7 @@ class ModuleDecoderImpl : public Decoder {
               "table", "elements", v8_flags.wasm_max_table_size,
               &table->initial_size, table->has_maximum_size,
               std::numeric_limits<uint32_t>::max(), &table->maximum_size,
-              table->is_table64 ? k64BitLimits : k32BitLimits);
+              table->is_table64() ? k64BitLimits : k32BitLimits);
           break;
         }
         case kExternalMemory: {
@@ -788,14 +788,14 @@ class ModuleDecoderImpl : public Decoder {
           external_memory->index = mem_index;
 
           consume_memory_flags(external_memory);
-          uint32_t max_pages = external_memory->is_memory64
+          uint32_t max_pages = external_memory->is_memory64()
                                    ? kSpecMaxMemory64Pages
                                    : kSpecMaxMemory32Pages;
           consume_resizable_limits(
               "memory", "pages", max_pages, &external_memory->initial_pages,
               external_memory->has_maximum_pages, max_pages,
               &external_memory->maximum_pages,
-              external_memory->is_memory64 ? k64BitLimits : k32BitLimits);
+              external_memory->is_memory64() ? k64BitLimits : k32BitLimits);
           break;
         }
         case kExternalGlobal: {
@@ -917,7 +917,7 @@ class ModuleDecoderImpl : public Decoder {
           "table", "elements", v8_flags.wasm_max_table_size,
           &table->initial_size, table->has_maximum_size,
           std::numeric_limits<uint32_t>::max(), &table->maximum_size,
-          table->is_table64 ? k64BitLimits : k32BitLimits);
+          table->is_table64() ? k64BitLimits : k32BitLimits);
 
       if (has_initializer) {
         table->initial_value =
@@ -949,11 +949,11 @@ class ModuleDecoderImpl : public Decoder {
       if (tracer_) tracer_->MemoryOffset(pc_offset());
       consume_memory_flags(memory);
       uint32_t max_pages =
-          memory->is_memory64 ? kSpecMaxMemory64Pages : kSpecMaxMemory32Pages;
+          memory->is_memory64() ? kSpecMaxMemory64Pages : kSpecMaxMemory32Pages;
       consume_resizable_limits(
           "memory", "pages", max_pages, &memory->initial_pages,
           memory->has_maximum_pages, max_pages, &memory->maximum_pages,
-          memory->is_memory64 ? k64BitLimits : k32BitLimits);
+          memory->is_memory64() ? k64BitLimits : k32BitLimits);
     }
     UpdateComputedMemoryInformation();
   }
@@ -1897,6 +1897,9 @@ class ModuleDecoderImpl : public Decoder {
     bool has_maximum() const { return flags & 0x1; }
     bool is_shared() const { return flags & 0x2; }
     bool is_64bit() const { return flags & 0x4; }
+    IndexType index_type() const {
+      return is_64bit() ? IndexType::kI64 : IndexType::kI32;
+    }
   };
 
   enum LimitsByteType { kMemory, kTable };
@@ -1953,14 +1956,14 @@ class ModuleDecoderImpl : public Decoder {
     LimitsByte limits = consume_limits_byte<kTable>();
     table->has_maximum_size = limits.has_maximum();
     table->shared = limits.is_shared();
-    table->is_table64 = limits.is_64bit();
+    table->index_type = limits.index_type();
   }
 
   void consume_memory_flags(WasmMemory* memory) {
     LimitsByte limits = consume_limits_byte<kMemory>();
     memory->has_maximum_pages = limits.has_maximum();
     memory->is_shared = limits.is_shared();
-    memory->is_memory64 = limits.is_64bit();
+    memory->index_type = limits.index_type();
   }
 
   std::pair<bool, bool> consume_global_flags() {
@@ -2378,7 +2381,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       offset = consume_init_expr(
           module_.get(),
-          module_->tables[table_index].is_table64 ? kWasmI64 : kWasmI32,
+          module_->tables[table_index].is_table64() ? kWasmI64 : kWasmI32,
           is_shared);
       // Failed to parse offset initializer, return early.
       if (failed()) return {};
@@ -2500,7 +2503,7 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       ValueType expected_type =
-          module_->memories[mem_index].is_memory64 ? kWasmI64 : kWasmI32;
+          module_->memories[mem_index].is_memory64() ? kWasmI64 : kWasmI32;
       offset = consume_init_expr(module_.get(), expected_type, is_shared);
     }
 

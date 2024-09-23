@@ -901,7 +901,7 @@ class MjsunitImmediatesPrinter {
       WriteUnsignedLEB(align);
     }
     if (imm.mem_index < owner_->module_->memories.size() &&
-        owner_->module_->memories[imm.mem_index].is_memory64) {
+        owner_->module_->memories[imm.mem_index].is_memory64()) {
       WriteLEB64(imm.offset);
     } else {
       DCHECK_LE(imm.offset, std::numeric_limits<uint32_t>::max());
@@ -1333,7 +1333,7 @@ class MjsunitModuleDis {
             out_ << "undefined, ";
           }
           out_ << (memory.is_shared ? "true" : "false");
-          if (memory.is_memory64) out_ << ", true";
+          if (memory.is_memory64()) out_ << ", true";
           break;
         }
         case kExternalTag: {
@@ -1420,7 +1420,7 @@ class MjsunitModuleDis {
       if (memory.imported) continue;
       out_ << "let ";
       names()->PrintMemoryName(out_, memory.index);
-      if (memory.is_memory64) {
+      if (memory.is_memory64()) {
         out_ << " = builder.addMemory64(";
       } else {
         out_ << " = builder.addMemory(";

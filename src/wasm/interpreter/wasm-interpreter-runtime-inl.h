@@ -80,7 +80,7 @@ inline uint64_t WasmInterpreterRuntime::MemorySize() const {
 }
 
 inline bool WasmInterpreterRuntime::IsMemory64() const {
-  return !module_->memories.empty() && module_->memories[0].is_memory64;
+  return !module_->memories.empty() && module_->memories[0].is_memory64();
 }
 
 inline size_t WasmInterpreterRuntime::GetMemorySize() const {

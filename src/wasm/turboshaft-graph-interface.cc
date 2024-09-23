@@ -1699,7 +1699,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WordPtr> result_wordptr =
         __ WordPtrShiftRightArithmetic(MemSize(imm.index), kWasmPageSizeLog2);
     // In the 32-bit case, truncation happens implicitly.
-    if (imm.memory->is_memory64) {
+    if (imm.memory->is_memory64()) {
       result->op = __ ChangeIntPtrToInt64(result_wordptr);
     } else {
       result->op = __ TruncateWordPtrToWord32(result_wordptr);
@@ -1708,7 +1708,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& value, Value* result) {
-    if (!imm.memory->is_memory64) {
+    if (!imm.memory->is_memory64()) {
       result->op =
           CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmMemoryGrow>(
               decoder, {__ Word32Constant(imm.index), value.op});
@@ -2716,7 +2716,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       if (should_inline(decoder, feedback_slot_,
                         std::numeric_limits<int>::max())) {
         V<WordPtr> index_wordptr = TableIndexToUintPtrOrOOBTrap(
-            imm.table_imm.table->is_table64, index.op);
+            imm.table_imm.table->index_type, index.op);
         // We are only interested in the target here for comparison against
         // the inlined call target below.
         // In particular, we don't need a dynamic type or null check: If the
@@ -2876,7 +2876,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     // Didn't inline.
     V<WordPtr> index_wordptr =
-        TableIndexToUintPtrOrOOBTrap(imm.table_imm.table->is_table64, index.op);
+        TableIndexToUintPtrOrOOBTrap(imm.table_imm.table->index_type, index.op);
     auto [target, implicit_arg] =
         BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr, imm);
     BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns);
@@ -2891,7 +2891,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       if (should_inline(decoder, feedback_slot_,
                         std::numeric_limits<int>::max())) {
         V<WordPtr> index_wordptr = TableIndexToUintPtrOrOOBTrap(
-            imm.table_imm.table->is_table64, index.op);
+            imm.table_imm.table->index_type, index.op);
         // We are only interested in the target here for comparison against
         // the inlined call target below.
         // In particular, we don't need a dynamic type or null check: If the
@@ -2980,7 +2980,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     // Didn't inline.
     V<WordPtr> index_wordptr =
-        TableIndexToUintPtrOrOOBTrap(imm.table_imm.table->is_table64, index.op);
+        TableIndexToUintPtrOrOOBTrap(imm.table_imm.table->index_type, index.op);
     auto [target, implicit_arg] =
         BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr, imm);
     BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args);
@@ -4184,7 +4184,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
     V<WordPtr> dst_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(imm.memory.memory->is_memory64, dst.op);
+        MemoryIndexToUintPtrOrOOBTrap(imm.memory.memory->index_type, dst.op);
     DCHECK_EQ(size.type, kWasmI32);
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
@@ -4201,14 +4201,18 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
-    const bool dst_is_mem64 = imm.memory_dst.memory->is_memory64;
-    const bool src_is_mem64 = imm.memory_src.memory->is_memory64;
+    const WasmMemory* dst_memory = imm.memory_dst.memory;
+    const WasmMemory* src_memory = imm.memory_src.memory;
     V<WordPtr> dst_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(dst_is_mem64, dst.op);
+        MemoryIndexToUintPtrOrOOBTrap(dst_memory->index_type, dst.op);
     V<WordPtr> src_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(src_is_mem64, src.op);
+        MemoryIndexToUintPtrOrOOBTrap(src_memory->index_type, src.op);
+    IndexType min_index_type =
+        dst_memory->is_memory64() && src_memory->is_memory64()
+            ? IndexType::kI64
+            : IndexType::kI32;
     V<WordPtr> size_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(dst_is_mem64 && src_is_mem64, size.op);
+        MemoryIndexToUintPtrOrOOBTrap(min_index_type, size.op);
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
                            MachineType::Uint32(), MachineType::UintPtr(),
@@ -4225,11 +4229,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& dst, const Value& value, const Value& size) {
-    bool is_memory_64 = imm.memory->is_memory64;
-    V<WordPtr> dst_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, dst.op);
+    IndexType index_type = imm.memory->index_type;
+    V<WordPtr> dst_uintptr = MemoryIndexToUintPtrOrOOBTrap(index_type, dst.op);
     V<WordPtr> size_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, size.op);
+        MemoryIndexToUintPtrOrOOBTrap(index_type, size.op);
     auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                    .Params(MachineType::Pointer(), MachineType::Uint32(),
                            MachineType::UintPtr(), MachineType::Uint8(),
@@ -4264,7 +4267,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                               MemoryRepresentation::TaggedSigned(),
                               WasmTableObject::kCurrentLengthOffset);
     V<WordPtr> index_wordptr =
-        TableIndexToUintPtrOrOOBTrap(imm.table->is_table64, index.op);
+        TableIndexToUintPtrOrOOBTrap(imm.table->index_type, index.op);
     DCHECK_GE(kSmiMaxValue, v8_flags.wasm_max_table_size.value());
     V<Word32> in_bounds = __ UintPtrLessThan(
         index_wordptr, __ ChangeUint32ToUintPtr(__ UntagSmi(size_smi)));
@@ -4312,7 +4315,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     bool extract_shared_data = !shared_ && imm.table->shared;
 
     V<WordPtr> index_wordptr =
-        TableIndexToUintPtrOrOOBTrap(imm.table->is_table64, index.op);
+        TableIndexToUintPtrOrOOBTrap(imm.table->index_type, index.op);
 
     if (IsSubtypeOf(imm.table->type, kWasmFuncRef, decoder->module_) ||
         IsSubtypeOf(imm.table->type, ValueType::RefNull(HeapType::kFuncShared),
@@ -4334,7 +4337,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                  const Value& size_val) {
     const WasmTable* table = imm.table.table;
     V<WordPtr> dst_wordptr =
-        TableIndexToUintPtrOrOOBTrap(table->is_table64, dst_val.op);
+        TableIndexToUintPtrOrOOBTrap(table->index_type, dst_val.op);
     V<Word32> src = src_val.op;
     V<Word32> size = size_val.op;
     DCHECK_EQ(table->shared, table->shared);
@@ -4352,14 +4355,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
                  const Value& dst_val, const Value& src_val,
                  const Value& size_val) {
-    const bool dst_is_table64 = imm.table_dst.table->is_table64;
-    const bool src_is_table64 = imm.table_src.table->is_table64;
+    const WasmTable* dst_table = imm.table_dst.table;
+    const WasmTable* src_table = imm.table_src.table;
     V<WordPtr> dst_wordptr =
-        TableIndexToUintPtrOrOOBTrap(dst_is_table64, dst_val.op);
+        TableIndexToUintPtrOrOOBTrap(dst_table->index_type, dst_val.op);
     V<WordPtr> src_wordptr =
-        TableIndexToUintPtrOrOOBTrap(src_is_table64, src_val.op);
-    V<WordPtr> size_wordptr = TableIndexToUintPtrOrOOBTrap(
-        dst_is_table64 && src_is_table64, size_val.op);
+        TableIndexToUintPtrOrOOBTrap(src_table->index_type, src_val.op);
+    IndexType min_index_type =
+        dst_table->is_table64() && src_table->is_table64() ? IndexType::kI64
+                                                           : IndexType::kI32;
+    V<WordPtr> size_wordptr =
+        TableIndexToUintPtrOrOOBTrap(min_index_type, size_val.op);
     bool table_is_shared = imm.table_dst.table->shared;
     // TODO(14616): Is this too restrictive?
     DCHECK_EQ(table_is_shared, imm.table_src.table->shared);
@@ -4376,7 +4382,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WordPtr> delta_wordptr;
 
     // If `delta` is OOB, return -1.
-    if (!imm.table->is_table64) {
+    if (!imm.table->is_table64()) {
       delta_wordptr = __ ChangeUint32ToUintPtr(delta.op);
     } else if constexpr (Is64()) {
       delta_wordptr = delta.op;
@@ -4396,7 +4402,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     GOTO(end, call_result);
 
     BIND(end, result_i32);
-    if (imm.table->is_table64) {
+    if (imm.table->is_table64()) {
       result->op = __ ChangeInt32ToInt64(result_i32);
     } else {
       result->op = result_i32;
@@ -4406,9 +4412,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void TableFill(FullDecoder* decoder, const TableIndexImmediate& imm,
                  const Value& start, const Value& value, const Value& count) {
     V<WordPtr> start_wordptr =
-        TableIndexToUintPtrOrOOBTrap(imm.table->is_table64, start.op);
+        TableIndexToUintPtrOrOOBTrap(imm.table->index_type, start.op);
     V<WordPtr> count_wordptr =
-        TableIndexToUintPtrOrOOBTrap(imm.table->is_table64, count.op);
+        TableIndexToUintPtrOrOOBTrap(imm.table->index_type, count.op);
     bool extract_shared_data = !shared_ && imm.table->shared;
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableFill>(
         decoder,
@@ -4431,7 +4437,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<Word32> size_word32 = __ UntagSmi(__ Load(
         table, LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned(),
         WasmTableObject::kCurrentLengthOffset));
-    if (imm.table->is_table64) {
+    if (imm.table->is_table64()) {
       result->op = __ ChangeUint32ToUint64(size_word32);
     } else {
       result->op = size_word32;
@@ -4860,7 +4866,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<Smi> variant_smi =
         __ SmiConstant(Smi::FromInt(static_cast<int>(variant)));
     V<WordPtr> index =
-        MemoryIndexToUintPtrOrOOBTrap(imm.memory->is_memory64, offset.op);
+        MemoryIndexToUintPtrOrOOBTrap(imm.memory->index_type, offset.op);
     V<WasmStringRefNullable> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringNewWtf8>(
             decoder, {index, size.op, memory, variant_smi});
@@ -4952,7 +4958,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
     V<WordPtr> index =
-        MemoryIndexToUintPtrOrOOBTrap(imm.memory->is_memory64, offset.op);
+        MemoryIndexToUintPtrOrOOBTrap(imm.memory->index_type, offset.op);
     V<String> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringNewWtf16>(
             decoder, {__ Word32Constant(imm.index), index, size.op});
@@ -5014,7 +5020,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         const unibrow::Utf8Variant variant, const Value& str,
                         const Value& offset, Value* result) {
     V<WordPtr> address =
-        MemoryIndexToUintPtrOrOOBTrap(memory.memory->is_memory64, offset.op);
+        MemoryIndexToUintPtrOrOOBTrap(memory.memory->index_type, offset.op);
     V<Word32> mem_index = __ Word32Constant(memory.index);
     V<Word32> utf8 = __ Word32Constant(static_cast<int32_t>(variant));
     result->op = CallBuiltinThroughJumptable<
@@ -5044,7 +5050,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                          const Value& str, const Value& offset, Value* result) {
     V<WordPtr> address =
-        MemoryIndexToUintPtrOrOOBTrap(imm.memory->is_memory64, offset.op);
+        MemoryIndexToUintPtrOrOOBTrap(imm.memory->index_type, offset.op);
     V<Word32> mem_index = __ Word32Constant(static_cast<int32_t>(imm.index));
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringEncodeWtf16>(
@@ -5124,7 +5130,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                             const Value& pos, const Value& bytes,
                             Value* next_pos, Value* bytes_written) {
     V<WordPtr> address =
-        MemoryIndexToUintPtrOrOOBTrap(memory.memory->is_memory64, addr.op);
+        MemoryIndexToUintPtrOrOOBTrap(memory.memory->index_type, addr.op);
     V<Smi> mem_index = __ SmiConstant(Smi::FromInt(memory.index));
     V<Smi> utf8 = __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)));
     OpIndex result = CallBuiltinThroughJumptable<
@@ -5290,7 +5296,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                              const Value& codeunits, Value* result) {
     V<String> string = V<String>::Cast(NullCheck(view));
     V<WordPtr> address =
-        MemoryIndexToUintPtrOrOOBTrap(imm.memory->is_memory64, offset.op);
+        MemoryIndexToUintPtrOrOOBTrap(imm.memory->index_type, offset.op);
     V<Smi> mem_index = __ SmiConstant(Smi::FromInt(imm.index));
     result->op = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmStringViewWtf16Encode>(
@@ -7014,7 +7020,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Convert the index to uintptr.
     // TODO(jkummerow): This should reuse MemoryIndexToUintPtrOrOOBTrap.
     V<WordPtr> converted_index = index;
-    if (!memory->is_memory64) {
+    if (!memory->is_memory64()) {
       // Note: this doesn't just satisfy the compiler's internal consistency
       // checks, it's also load-bearing to prevent escaping from a compromised
       // sandbox (where in-sandbox corruption can cause the high word of
@@ -7050,7 +7056,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       return {converted_index, compiler::BoundsCheckResult::kInBounds};
     }
 
-    if (memory->is_memory64 && kSystemPointerSize == kInt32Size) {
+    if (memory->is_memory64() && kSystemPointerSize == kInt32Size) {
       // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero
       // to succeed the bounds check.
       DCHECK_EQ(kExplicitBoundsChecks, bounds_checks);
@@ -7069,7 +7075,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         __ output_graph().Get(index).Is<ConstantOp>()) {
       ConstantOp& constant_index_op =
           __ output_graph().Get(index).Cast<ConstantOp>();
-      uintptr_t constant_index = memory->is_memory64
+      uintptr_t constant_index = memory->is_memory64()
                                      ? constant_index_op.word64()
                                      : constant_index_op.word32();
       if (constant_index < memory->min_memory_size - end_offset) {
@@ -7080,7 +7086,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (bounds_checks == kTrapHandler &&
         enforce_bounds_check ==
             compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
-      if (memory->is_memory64) {
+      if (memory->is_memory64()) {
         V<Word32> cond = __ __ Uint64LessThan(
             V<Word64>::Cast(converted_index),
             __ Word64Constant(memory->GetMemory64GuardsSize()));
@@ -7648,14 +7654,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                      {{arg0, arg_type}, {arg1, arg_type}});
   }
 
-  V<WordPtr> MemOrTableIndexToUintPtrOrOOBTrap(bool index_type_is_64bit,
+  V<WordPtr> MemOrTableIndexToUintPtrOrOOBTrap(IndexType index_type,
                                                V<Word> index,
                                                TrapId trap_reason) {
     // Note: this {ChangeUint32ToUintPtr} doesn't just satisfy the compiler's
     // consistency checks, it's also load-bearing to prevent escaping from a
     // compromised sandbox (where in-sandbox corruption can cause the high
     // word of what's supposed to be an i32 to be non-zero).
-    if (!index_type_is_64bit) {
+    if (index_type == IndexType::kI32) {
       return __ ChangeUint32ToUintPtr(V<Word32>::Cast(index));
     }
     if constexpr (Is64()) {
@@ -7667,13 +7673,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return V<WordPtr>::Cast(__ TruncateWord64ToWord32(V<Word64>::Cast(index)));
   }
 
-  V<WordPtr> MemoryIndexToUintPtrOrOOBTrap(bool is_memory64, V<Word> index) {
-    return MemOrTableIndexToUintPtrOrOOBTrap(is_memory64, index,
+  V<WordPtr> MemoryIndexToUintPtrOrOOBTrap(IndexType index_type,
+                                           V<Word> index) {
+    return MemOrTableIndexToUintPtrOrOOBTrap(index_type, index,
                                              TrapId::kTrapMemOutOfBounds);
   }
 
-  V<WordPtr> TableIndexToUintPtrOrOOBTrap(bool is_table64, V<Word> index) {
-    return MemOrTableIndexToUintPtrOrOOBTrap(is_table64, index,
+  V<WordPtr> TableIndexToUintPtrOrOOBTrap(IndexType index_type, V<Word> index) {
+    return MemOrTableIndexToUintPtrOrOOBTrap(index_type, index,
                                              TrapId::kTrapTableOutOfBounds);
   }
 

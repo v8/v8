@@ -23,9 +23,7 @@
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone-containers.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 class ZoneBuffer : public ZoneObject {
  public:
@@ -442,7 +440,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   int NumDataSegments() { return static_cast<int>(data_segments_.size()); }
 
-  bool IsMemory64(uint32_t index) { return memories_[index].is_memory64; }
+  bool IsMemory64(uint32_t index) { return memories_[index].is_memory64(); }
 
   const FunctionSig* GetTagType(int index) {
     return types_[tags_[index]].function_sig;
@@ -487,8 +485,10 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     uint32_t max_size = 0;
     bool has_maximum = false;
     bool is_shared = false;
-    bool is_table64 = false;
+    IndexType index_type = IndexType::kI32;
     std::optional<WasmInitExpr> init = {};
+
+    bool is_table64() const { return index_type == IndexType::kI64; }
   };
 
   struct WasmMemory {
@@ -496,7 +496,9 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     uint32_t max_pages = 0;
     bool has_max_pages = false;
     bool is_shared = false;
-    bool is_memory64 = false;
+    IndexType index_type = IndexType::kI32;
+
+    bool is_memory64() const { return index_type == IndexType::kI64; }
   };
 
   struct WasmDataSegment {
@@ -533,8 +535,6 @@ const FunctionSig* WasmFunctionBuilder::signature() const {
   return builder_->types_[signature_index_].function_sig;
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_WASM_MODULE_BUILDER_H_

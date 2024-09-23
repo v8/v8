@@ -1322,9 +1322,40 @@ i::Handle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
   }
   return isolate->factory()->wasm_null();
 }
+
+// Read the index type from a Memory or Table descriptor.
+bool GetIndexType(Isolate* isolate, Local<Context> context,
+                  Local<v8::Object> descriptor, ErrorThrower* thrower,
+                  i::wasm::IndexType* index_type) {
+  constexpr auto kI32 = i::wasm::IndexType::kI32;
+  constexpr auto kI64 = i::wasm::IndexType::kI64;
+  auto Success = [index_type](auto v) -> bool { return *index_type = v, true; };
+  auto Failure = [=]() -> bool {
+    DCHECK(reinterpret_cast<i::Isolate*>(isolate)->has_exception() ||
+           thrower->error());
+    return false;
+  };
+
+  v8::Local<v8::Value> index_value;
+  if (!descriptor->Get(context, v8_str(isolate, "index"))
+           .ToLocal(&index_value)) {
+    return Failure();
+  }
+
+  if (index_value->IsUndefined()) return Success(kI32);
+
+  v8::Local<v8::String> index;
+  if (!index_value->ToString(context).ToLocal(&index)) return Failure();
+
+  if (index->StringEquals(v8_str(isolate, "i64"))) return Success(kI64);
+  if (index->StringEquals(v8_str(isolate, "i32"))) return Success(kI32);
+
+  thrower->TypeError("Unknown index type; pass 'i32' or 'i64'");
+  return Failure();
+}
 }  // namespace
 
-// new WebAssembly.Table(info) -> WebAssembly.Table
+// new WebAssembly.Table(descriptor) -> WebAssembly.Table
 void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
@@ -1401,33 +1432,17 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   // Parse the 'index' property of the descriptor.
-  v8::Local<v8::Value> index_value;
-  if (!descriptor->Get(context, v8_str(isolate, "index"))
-           .ToLocal(&index_value)) {
-    DCHECK(i_isolate->has_exception());
+  i::wasm::IndexType index_type;
+  if (!GetIndexType(isolate, context, descriptor, &thrower, &index_type)) {
+    DCHECK(i_isolate->has_exception() || thrower.error());
     return;
-  }
-
-  i::WasmTableFlag is_table64_flag = i::WasmTableFlag::kTable32;
-  if (!index_value->IsUndefined()) {
-    v8::Local<v8::String> index;
-    if (!index_value->ToString(context).ToLocal(&index)) {
-      DCHECK(i_isolate->has_exception());
-      return;
-    }
-    if (index->StringEquals(v8_str(isolate, "i64"))) {
-      is_table64_flag = i::WasmTableFlag::kTable64;
-    } else if (!index->StringEquals(v8_str(isolate, "i32"))) {
-      thrower.TypeError("Unknown table index");
-      return;
-    }
   }
 
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
       i_isolate, i::Handle<i::WasmTrustedInstanceData>(), type,
       static_cast<uint32_t>(initial), has_maximum,
       static_cast<uint32_t>(maximum), DefaultReferenceValue(i_isolate, type),
-      is_table64_flag);
+      index_type);
 
   // The infrastructure for `new Foo` calls allocates an object, which is
   // available here as {info.This()}. We're going to discard this object
@@ -1480,6 +1495,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   return_value.Set(Utils::ToLocal(i::Cast<i::JSObject>(table_obj)));
 }
 
+// new WebAssembly.Memory(descriptor) -> WebAssembly.Memory
 void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
@@ -1498,28 +1514,12 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<v8::Object> descriptor = Local<Object>::Cast(info[0]);
 
   // Parse the 'index' property of the descriptor.
-  v8::Local<v8::Value> index_value;
-  if (!descriptor->Get(context, v8_str(isolate, "index"))
-           .ToLocal(&index_value)) {
-    DCHECK(i_isolate->has_exception());
+  i::wasm::IndexType index_type;
+  if (!GetIndexType(isolate, context, descriptor, &thrower, &index_type)) {
+    DCHECK(i_isolate->has_exception() || thrower.error());
     return;
   }
-
-  i::WasmMemoryFlag memory_flag = i::WasmMemoryFlag::kWasmMemory32;
-  if (!index_value->IsUndefined()) {
-    v8::Local<v8::String> index;
-    if (!index_value->ToString(context).ToLocal(&index)) {
-      DCHECK(i_isolate->has_exception());
-      return;
-    }
-    if (index->StringEquals(v8_str(isolate, "i64"))) {
-      memory_flag = i::WasmMemoryFlag::kWasmMemory64;
-    } else if (!index->StringEquals(v8_str(isolate, "i32"))) {
-      thrower.TypeError("Unknown memory index");
-      return;
-    }
-  }
-  size_t max_supported_pages = memory_flag == i::WasmMemoryFlag::kWasmMemory64
+  size_t max_supported_pages = index_type == i::wasm::IndexType::kI64
                                    ? i::wasm::kSpecMaxMemory64Pages
                                    : i::wasm::kSpecMaxMemory32Pages;
 
@@ -1558,7 +1558,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   i::Handle<i::JSObject> memory_obj;
   if (!i::WasmMemoryObject::New(i_isolate, static_cast<int>(initial),
-                                static_cast<int>(maximum), shared, memory_flag)
+                                static_cast<int>(maximum), shared, index_type)
            .ToHandle(&memory_obj)) {
     thrower.RangeError("could not allocate memory");
     return;

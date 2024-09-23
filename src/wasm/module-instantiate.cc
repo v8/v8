@@ -1128,8 +1128,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     auto maximum_pages =
         static_cast<int>(RoundUp(buffer->byte_length(), wasm::kWasmPageSize) /
                          wasm::kWasmPageSize);
-    DirectHandle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
-        isolate_, buffer, maximum_pages, WasmMemoryFlag::kWasmMemory32);
+    DirectHandle<WasmMemoryObject> memory_object =
+        WasmMemoryObject::New(isolate_, buffer, maximum_pages, IndexType::kI32);
     constexpr int kMemoryIndexZero = 0;
     WasmMemoryObject::UseInInstance(isolate_, memory_object, trusted_data,
                                     shared_trusted_data, kMemoryIndexZero);
@@ -1260,8 +1260,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
                : Handle<FixedArray>();
     for (int i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
-      auto table_type =
-          table.is_table64 ? WasmTableFlag::kTable64 : WasmTableFlag::kTable32;
       // Initialize tables with null for now. We will initialize non-defaultable
       // tables later, in {SetTableInitialValues}.
       DirectHandle<WasmTableObject> table_obj = WasmTableObject::New(
@@ -1271,7 +1269,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
           IsSubtypeOf(table.type, kWasmExternRef, module_)
               ? Handle<HeapObject>{isolate_->factory()->null_value()}
               : Handle<HeapObject>{isolate_->factory()->wasm_null()},
-          table_type);
+          table.index_type);
       (table.shared ? shared_tables : tables)->set(i, *table_obj);
     }
     trusted_data->set_tables(*tables);
@@ -1697,10 +1695,10 @@ void InstanceBuilder::LoadDataSegments(
     size_t dest_offset;
     ValueOrError result = EvaluateConstantExpression(
         &init_expr_zone_, segment.dest_addr,
-        dst_memory.is_memory64 ? kWasmI64 : kWasmI32, isolate_,
+        dst_memory.is_memory64() ? kWasmI64 : kWasmI32, isolate_,
         trusted_instance_data, shared_trusted_instance_data);
     if (MaybeMarkError(result, thrower_)) return;
-    if (dst_memory.is_memory64) {
+    if (dst_memory.is_memory64()) {
       uint64_t dest_offset_64 = to_value(result).to_u64();
 
       // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
@@ -2153,10 +2151,10 @@ bool InstanceBuilder::ProcessImportedTable(
     }
   }
 
-  if (table.is_table64 != table_object->is_table64()) {
-    thrower_->LinkError("cannot import table%d as table%d",
-                        table_object->is_table64() ? 64 : 32,
-                        table.is_table64 ? 64 : 32);
+  if (table.index_type != table_object->index_type()) {
+    thrower_->LinkError("cannot import %s table as %s",
+                        IndexTypeToStr(table_object->index_type()),
+                        IndexTypeToStr(table.index_type));
     return false;
   }
 
@@ -2486,10 +2484,10 @@ bool InstanceBuilder::ProcessImportedMemories(
     uint32_t imported_cur_pages =
         static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
     const WasmMemory* memory = &module_->memories[memory_index];
-    if (memory->is_memory64 != memory_object->is_memory64()) {
-      thrower_->LinkError("cannot import memory%d as memory%d",
-                          memory_object->is_memory64() ? 64 : 32,
-                          memory->is_memory64 ? 64 : 32);
+    if (memory->index_type != memory_object->index_type()) {
+      thrower_->LinkError("cannot import %s memory as %s",
+                          IndexTypeToStr(memory_object->index_type()),
+                          IndexTypeToStr(memory->index_type));
       return false;
     }
     if (imported_cur_pages < memory->initial_pages) {
@@ -2574,10 +2572,8 @@ MaybeHandle<WasmMemoryObject> InstanceBuilder::AllocateMemory(
                           : WasmMemoryObject::kNoMaximum;
   auto shared = memory.is_shared ? SharedFlag::kShared : SharedFlag::kNotShared;
 
-  auto mem_type = memory.is_memory64 ? WasmMemoryFlag::kWasmMemory64
-                                     : WasmMemoryFlag::kWasmMemory32;
   MaybeHandle<WasmMemoryObject> maybe_memory_object = WasmMemoryObject::New(
-      isolate_, initial_pages, maximum_pages, shared, mem_type);
+      isolate_, initial_pages, maximum_pages, shared, memory.index_type);
   if (maybe_memory_object.is_null()) {
     thrower_->RangeError(
         "Out of memory: Cannot allocate Wasm memory for new instance");
@@ -3025,10 +3021,10 @@ void InstanceBuilder::LoadTableSegments(
     size_t dest_offset;
     ValueOrError result = EvaluateConstantExpression(
         &init_expr_zone_, elem_segment.offset,
-        table->is_table64 ? kWasmI64 : kWasmI32, isolate_,
+        table->is_table64() ? kWasmI64 : kWasmI32, isolate_,
         trusted_instance_data, shared_trusted_instance_data);
     if (MaybeMarkError(result, thrower_)) return;
-    if (table->is_table64) {
+    if (table->is_table64()) {
       uint64_t dest_offset_64 = to_value(result).to_u64();
       // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
       // invalid offset, so we always fail the bounds check below.

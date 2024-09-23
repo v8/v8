@@ -1898,7 +1898,7 @@ class WasmDecoder : public Decoder {
                   imm.mem_index, num_memories);
       return false;
     }
-    if (!VALIDATE(this->module_->memories[imm.mem_index].is_memory64 ||
+    if (!VALIDATE(this->module_->memories[imm.mem_index].is_memory64() ||
                   imm.offset <= kMaxUInt32)) {
       this->DecodeError(pc, "memory offset outside 32-bit range: %" PRIu64,
                         imm.offset);
@@ -2974,11 +2974,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   V8_INLINE ValueType TableIndexType(const WasmTable* table) {
-    return table->is_table64 ? kWasmI64 : kWasmI32;
+    return table->is_table64() ? kWasmI64 : kWasmI32;
   }
 
   V8_INLINE ValueType MemoryIndexType(const WasmMemory* memory) {
-    return memory->is_memory64 ? kWasmI64 : kWasmI32;
+    return memory->is_memory64() ? kWasmI64 : kWasmI32;
   }
 
   V8_INLINE MemoryAccessImmediate
@@ -5965,7 +5965,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
 
     const FunctionSig* sig =
-        WasmOpcodes::SignatureForAtomicOp(opcode, imm.memory->is_memory64);
+        WasmOpcodes::SignatureForAtomicOp(opcode, imm.memory->is_memory64());
     V8_ASSUME(sig != nullptr);
     PoppedArgVector args = PopArgs(sig);
     Value* result = sig->return_count() ? Push(sig->GetReturn()) : nullptr;

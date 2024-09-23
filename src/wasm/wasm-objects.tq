@@ -4,6 +4,8 @@
 
 // For wasm::FunctionSig.
 #include "src/wasm/value-type.h"
+// For wasm::IndexType.
+#include "src/wasm/wasm-module.h"
 
 @useParentTypeChecker
 type PodArrayOfWasmValueType extends ByteArray
@@ -13,6 +15,11 @@ type ManagedWasmNativeModule extends Foreign
     constexpr 'Managed<wasm::NativeModule>';
 
 type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::FunctionSig*';
+
+extern enum IndexType extends uint8 constexpr 'wasm::IndexType' {
+  kI32,
+  kI64
+}
 
 // Trusted instance data, exposed via WasmInstanceObject::trusted_data.
 extern class WasmTrustedInstanceData extends ExposedTrustedObject;
@@ -189,18 +196,26 @@ extern class WasmTableObject extends JSObject {
   // can update the instance's dispatch table when the table grows.
   uses: FixedArray;
   raw_type: Smi;
-  is_table64: Smi;  // Boolean
   // The instance in which this WasmTableObject is defined.
   // This field is undefined if the table is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Table).
   trusted_data: TrustedPointer<WasmTrustedInstanceData>;
+  index_type: IndexType;
+  // TODO(clemensb): Support fixed-sized arrays in torque.
+  padding_for_index_type_0: uint8;
+  padding_for_index_type_1: uint16;
+  @if(TAGGED_SIZE_8_BYTES) padding_for_index_type_2: uint32;
 }
 
 extern class WasmMemoryObject extends JSObject {
   array_buffer: JSArrayBuffer;
   maximum_pages: Smi;
-  is_memory64: Smi;  // Boolean
   instances: WeakArrayList;
+  index_type: IndexType;
+  // TODO(clemensb): Support fixed-sized arrays in torque.
+  padding_for_index_type_0: uint8;
+  padding_for_index_type_1: uint16;
+  @if(TAGGED_SIZE_8_BYTES) padding_for_index_type_2: uint32;
 }
 
 extern class WasmGlobalObject extends JSObject {
