@@ -5064,7 +5064,7 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, uint32_t index) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Object, Delete, i::HandleScope);
   auto self = Utils::OpenHandle(this);
-  Maybe<bool> result = i::JSReceiver::DeleteElement(self, index);
+  Maybe<bool> result = i::JSReceiver::DeleteElement(i_isolate, self, index);
   has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;

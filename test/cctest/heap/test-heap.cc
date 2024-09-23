@@ -790,7 +790,7 @@ TEST(ObjectProperties) {
 
   // delete first
   CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, first, LanguageMode::kSloppy));
+        JSReceiver::DeleteProperty(isolate, obj, first, LanguageMode::kSloppy));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
 
   // add first and then second
@@ -801,10 +801,10 @@ TEST(ObjectProperties) {
 
   // delete first and then second
   CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, first, LanguageMode::kSloppy));
+        JSReceiver::DeleteProperty(isolate, obj, first, LanguageMode::kSloppy));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, second));
-  CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, second, LanguageMode::kSloppy));
+  CHECK(Just(true) == JSReceiver::DeleteProperty(isolate, obj, second,
+                                                 LanguageMode::kSloppy));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, second));
 
@@ -815,11 +815,11 @@ TEST(ObjectProperties) {
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, second));
 
   // delete second and then first
-  CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, second, LanguageMode::kSloppy));
+  CHECK(Just(true) == JSReceiver::DeleteProperty(isolate, obj, second,
+                                                 LanguageMode::kSloppy));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, first));
   CHECK(Just(true) ==
-        JSReceiver::DeleteProperty(obj, first, LanguageMode::kSloppy));
+        JSReceiver::DeleteProperty(isolate, obj, first, LanguageMode::kSloppy));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, second));
 

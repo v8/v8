@@ -991,25 +991,25 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
   }
 }
 
-Maybe<bool> JSReceiver::DeleteElement(Handle<JSReceiver> object, uint32_t index,
+Maybe<bool> JSReceiver::DeleteElement(Isolate* isolate,
+                                      Handle<JSReceiver> object, uint32_t index,
                                       LanguageMode language_mode) {
-  LookupIterator it(object->GetIsolate(), object, index, object,
-                    LookupIterator::OWN);
+  LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return DeleteProperty(&it, language_mode);
 }
 
-Maybe<bool> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
+Maybe<bool> JSReceiver::DeleteProperty(Isolate* isolate,
+                                       Handle<JSReceiver> object,
                                        Handle<Name> name,
                                        LanguageMode language_mode) {
-  LookupIterator it(object->GetIsolate(), object, name, object,
-                    LookupIterator::OWN);
+  LookupIterator it(isolate, object, name, object, LookupIterator::OWN);
   return DeleteProperty(&it, language_mode);
 }
 
-Maybe<bool> JSReceiver::DeletePropertyOrElement(Handle<JSReceiver> object,
+Maybe<bool> JSReceiver::DeletePropertyOrElement(Isolate* isolate,
+                                                Handle<JSReceiver> object,
                                                 Handle<Name> name,
                                                 LanguageMode language_mode) {
-  Isolate* isolate = object->GetIsolate();
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, object, LookupIterator::OWN);
   return DeleteProperty(&it, language_mode);

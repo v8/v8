@@ -1306,7 +1306,7 @@ TEST(TryHasOwnProperty) {
                                   "test");
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
@@ -1332,7 +1332,7 @@ TEST(TryHasOwnProperty) {
     AddProperties(object, names, arraysize(names));
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
@@ -1518,7 +1518,7 @@ TEST(TryGetOwnProperty) {
                                   "test");
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 
@@ -1534,7 +1534,7 @@ TEST(TryGetOwnProperty) {
                   rand_gen.NextInt());
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+    CHECK(JSObject::DeleteProperty(isolate, object, deleted_property_name,
                                    LanguageMode::kSloppy)
               .FromJust());
 

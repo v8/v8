@@ -2921,7 +2921,8 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(DirectHandle<JSProxy> proxy,
       isolate, trap, Object::GetMethod(isolate, handler, trap_name),
       Nothing<bool>());
   if (IsUndefined(*trap, isolate)) {
-    return JSReceiver::DeletePropertyOrElement(target, name, language_mode);
+    return JSReceiver::DeletePropertyOrElement(isolate, target, name,
+                                               language_mode);
   }
 
   Handle<Object> trap_result;
