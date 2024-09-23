@@ -1724,10 +1724,10 @@ DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_enforce_bounds_checks)
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    wasm_inlining_call_indirect,
-    "enable speculative inlining of Wasm indirect calls, also enables "
-    "--experimental-wasm-inlining and requires --turboshaft-wasm")
+// TODO(335082212,dlehmann): Imply from `--future`.
+DEFINE_BOOL(wasm_inlining_call_indirect, false,
+            "enable speculative inlining of Wasm indirect calls, also enables "
+            "--experimental-wasm-inlining and requires --turboshaft-wasm")
 // Requires basic inlining machinery, e.g., for allocating feedback vectors.
 DEFINE_IMPLICATION(wasm_inlining_call_indirect, experimental_wasm_inlining)
 // This is not implemented for Turbofan, so make sure users are aware by
