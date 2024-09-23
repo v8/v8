@@ -2041,6 +2041,8 @@ class WasmDecoder : public Decoder {
       DecodeError(pc, "invalid data segment index: %u", imm.index);
       return false;
     }
+    // TODO(14616): Data segments aren't available during eager validation.
+    // Discussion: github.com/WebAssembly/shared-everything-threads/issues/83
     if (!VALIDATE(!is_shared_ || module_->data_segments[imm.index].shared)) {
       DecodeError(
           pc, "cannot refer to non-shared segment %u from a shared function",

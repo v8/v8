@@ -4244,7 +4244,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    bool shared = decoder->module_->data_segments[imm.index].shared;
+    // TODO(14616): Data segments aren't available during streaming compilation.
+    // Discussion: github.com/WebAssembly/shared-everything-threads/issues/83
+    bool shared = decoder->enabled_.has_shared() &&
+                  decoder->module_->data_segments[imm.index].shared;
     V<FixedUInt32Array> data_segment_sizes = LOAD_IMMUTABLE_INSTANCE_FIELD(
         trusted_instance_data(shared), DataSegmentSizes,
         MemoryRepresentation::TaggedPointer());
@@ -4436,6 +4439,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
+    // Note: Contrary to data segments, elem segments occur before the code
+    // section, so we can be sure that they're available even during streaming
+    // compilation.
     bool shared = decoder->module_->elem_segments[imm.index].shared;
     V<FixedArray> elem_segments = LOAD_IMMUTABLE_INSTANCE_FIELD(
         trusted_instance_data(shared), ElementSegments,
@@ -4657,9 +4663,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                        const IndexImmediate& segment_imm, const Value& offset,
                        const Value& length, Value* result) {
     bool is_element = array_imm.array_type->element_type().is_reference();
+    // TODO(14616): Data segments aren't available during streaming compilation.
+    // Discussion: github.com/WebAssembly/shared-everything-threads/issues/83
     bool segment_is_shared =
-        is_element ? decoder->module_->elem_segments[segment_imm.index].shared
-                   : decoder->module_->data_segments[segment_imm.index].shared;
+        decoder->enabled_.has_shared() &&
+        (is_element
+             ? decoder->module_->elem_segments[segment_imm.index].shared
+             : decoder->module_->data_segments[segment_imm.index].shared);
     // TODO(14616): Add DCHECK that array sharedness is equal to `shared`?
     V<WasmArray> result_value =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmArrayNewSegment>(
@@ -4678,9 +4688,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         const Value& array_index, const Value& segment_offset,
                         const Value& length) {
     bool is_element = array_imm.array_type->element_type().is_reference();
+    // TODO(14616): Segments aren't available during streaming compilation.
     bool segment_is_shared =
-        is_element ? decoder->module_->elem_segments[segment_imm.index].shared
-                   : decoder->module_->data_segments[segment_imm.index].shared;
+        decoder->enabled_.has_shared() &&
+        (is_element
+             ? decoder->module_->elem_segments[segment_imm.index].shared
+             : decoder->module_->data_segments[segment_imm.index].shared);
     // TODO(14616): Is this too restrictive?
     DCHECK_EQ(segment_is_shared,
               decoder->module_->types[array_imm.index].is_shared);
