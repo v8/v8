@@ -44,6 +44,13 @@ presubmit_builder("Crossbench Presubmit", "crossbench.try", timeout = 900, conso
 crossbench_cbb_builder("Crossbench End2End Mac arm64 Try", "perf/crossbench", "Mac", "arm64")
 crossbench_cbb_builder("Crossbench End2End Linux x64 Try", "perf/crossbench", "Ubuntu-20", "x86-64")
 crossbench_cbb_builder(
+    "Crossbench End2End Android x64 Try",
+    "perf/crossbench_android",
+    "Ubuntu-20",
+    "x86-64",
+    properties = {"android_sdk": 33},
+)
+crossbench_cbb_builder(
     "Crossbench Pytype Try",
     "perf/pytype",
     "Ubuntu-20",
