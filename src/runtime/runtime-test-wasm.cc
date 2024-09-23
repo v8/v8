@@ -15,6 +15,7 @@
 #include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/fuzzing/random-module-generation.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/module-compiler.h"
@@ -671,9 +672,29 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   auto func_data = exp_fun->shared()->wasm_exported_function_data();
   Tagged<WasmTrustedInstanceData> trusted_data = func_data->instance_data();
   int func_index = func_data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      trusted_data->module()->num_imported_functions) {
+  const wasm::WasmModule* module = trusted_data->module();
+  if (static_cast<uint32_t>(func_index) < module->num_imported_functions) {
     return CrashUnlessFuzzing(isolate);
+  }
+  if (!module->function_was_validated(func_index)) {
+    DCHECK(v8_flags.wasm_lazy_validation);
+    Zone validation_zone(isolate->allocator(), ZONE_NAME);
+    wasm::WasmDetectedFeatures unused_detected_features;
+    const wasm::WasmFunction* func = &module->functions[func_index];
+    bool is_shared = module->types[func->sig_index].is_shared;
+    base::Vector<const uint8_t> wire_bytes =
+        trusted_data->native_module()->wire_bytes();
+    wasm::FunctionBody body{func->sig, func->code.offset(),
+                            wire_bytes.begin() + func->code.offset(),
+                            wire_bytes.begin() + func->code.end_offset(),
+                            is_shared};
+    if (ValidateFunctionBody(&validation_zone,
+                             trusted_data->native_module()->enabled_features(),
+                             module, &unused_detected_features, body)
+            .failed()) {
+      return CrashUnlessFuzzing(isolate);
+    }
+    module->set_function_validated(func_index);
   }
   wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
   return ReadOnlyRoots(isolate).undefined_value();
