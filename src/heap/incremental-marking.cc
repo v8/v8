@@ -910,8 +910,14 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   // marker doesn't rely on correct synchronization but e.g. on black allocation
   // and the on_hold worklist.
 #ifndef V8_ATOMIC_OBJECT_FIELD_WRITES
-  DCHECK(!v8_flags.concurrent_marking);
-  safepoint_scope.emplace(isolate(), SafepointKind::kIsolate);
+  {
+    DCHECK(!v8_flags.concurrent_marking);
+    // Ensure that the isolate has no shared heap. Otherwise a shared GC might
+    // happen when trying to enter the safepoint.
+    DCHECK(!isolate()->has_shared_space());
+    AllowGarbageCollection allow_gc;
+    safepoint_scope.emplace(isolate(), SafepointKind::kIsolate);
+  }
 #endif
 
   size_t v8_bytes_processed = 0;
