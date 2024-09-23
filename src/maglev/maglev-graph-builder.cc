@@ -1392,7 +1392,14 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
         current_source_position_, GetParentDeoptFrame());
     ret.frame_state()->ForEachValue(
         *compilation_unit_, [this](ValueNode* node, interpreter::Register reg) {
-          AddDeoptUse(node);
+          // Receiver and closure values have to be materialized, even if
+          // they don't otherwise escape.
+          if (reg == interpreter::Register::receiver() ||
+              reg == interpreter::Register::function_closure()) {
+            node->add_use();
+          } else {
+            AddDeoptUse(node);
+          }
         });
     AddDeoptUse(ret.closure());
     return ret;
