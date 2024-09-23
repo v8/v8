@@ -1,7 +1,6 @@
 #
 # V8 correctness failure
-# V8 correctness configs: x64,ignition:x64,ignition_turbo
-# V8 correctness sources: f60
+# V8 correctness sources: f6
 # V8 correctness suppression: 
 #
 # CHECK

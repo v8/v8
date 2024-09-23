@@ -110,13 +110,6 @@ SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
 
 FAILURE_HEADER_TEMPLATE = """#
 # V8 correctness failure
-# V8 correctness configs: %(configs)s
-# V8 correctness sources: %(source_key)s
-# V8 correctness suppression: %(suppression)s
-"""
-
-COMPACT_FAILURE_HEADER_TEMPLATE = """#
-# V8 correctness failure
 # V8 correctness sources: %(source_key)s
 # V8 correctness suppression: %(suppression)s
 """
@@ -145,7 +138,6 @@ DETAILS_TEMPLATE = """#
 """
 
 FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + DETAILS_TEMPLATE
-COMPACT_FAILURE_TEMPLATE = COMPACT_FAILURE_HEADER_TEMPLATE + DETAILS_TEMPLATE
 
 SOURCE_FILE_TEMPLATE = """
 #
@@ -158,8 +150,7 @@ SOURCE_RE = re.compile(r'print\("v8-foozzie source: (.*)"\);')
 
 # The number of hex digits used from the hash of the original source file path.
 # Keep the number small to avoid duplicate explosion.
-SOURCE_HASH_LENGTH = 3
-COMPACT_SOURCE_HASH_LENGTH = 2
+SOURCE_HASH_LENGTH = 2
 
 # Placeholder string if no original source file could be determined.
 ORIGINAL_SOURCE_DEFAULT = 'none'
@@ -336,7 +327,7 @@ def parse_args():
       help='skip suppressions to reproduce known issues')
   parser.add_argument(
       '--compact', default=False, action='store_true',
-      help='use more compact error reporting with fewer duplicates')
+      help='deprecated: compact error reporting is the default')
 
   # Add arguments for each run configuration.
   first_config_arguments.add_arguments(parser, BASELINE_CONFIG)
@@ -355,7 +346,7 @@ def parse_args():
   options.default = second_config_arguments.make_options(
       options, default_config=DEFAULT_CONFIG)
 
-  # Use fallback configurations only on diffrent architectures. In this
+  # Use fallback configurations only on different architectures. In this
   # case we are going to re-test against the first architecture.
   if options.first.arch != options.second.arch:
     options.second_fallback = second_config_arguments.make_options(
@@ -386,7 +377,7 @@ def content_bailout(content, ignore_fun):
   bug = (ignore_fun(content) or '').strip()
   if bug:
     raise FailException(FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression=bug))
+        source_key='', suppression=bug))
 
 
 def fail_bailout(output, ignore_by_output_fun):
@@ -394,16 +385,16 @@ def fail_bailout(output, ignore_by_output_fun):
   bug = (ignore_by_output_fun(output.stdout) or '').strip()
   if bug:
     raise FailException(FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression=bug))
+        source_key='', suppression=bug))
 
 
 def format_difference(
     first_config, second_config,
     first_config_output, second_config_output,
-    difference, source_key=None, source=None, compact=False):
+    difference, source_key=None, source=None):
   # The first three entries will be parsed by clusterfuzz. Format changes
   # will require changes on the clusterfuzz side.
-  source_key = source_key or cluster_failures(source, compact)
+  source_key = source_key or cluster_failures(source)
   first_config_label = '%s,%s' % (first_config.arch, first_config.config)
   second_config_label = '%s,%s' % (second_config.arch, second_config.config)
   source_file_text = SOURCE_FILE_TEMPLATE % source if source else ''
@@ -416,9 +407,7 @@ def format_difference(
     second_stdout = second_config_output.stdout.decode('utf-8', 'replace')
     difference = difference.decode('utf-8', 'replace')
 
-  template = COMPACT_FAILURE_TEMPLATE if compact else FAILURE_TEMPLATE
-  text = (template % dict(
-      configs='%s:%s' % (first_config_label, second_config_label),
+  text = (FAILURE_TEMPLATE % dict(
       source_file_text=source_file_text,
       source_key=source_key,
       suppression='', # We can't tie bugs to differences.
@@ -437,12 +426,11 @@ def format_difference(
     return text.encode('utf-8', 'replace')
 
 
-def cluster_failures(source, compact, known_failures=None):
+def cluster_failures(source, known_failures=None):
   """Returns a string key for clustering duplicate failures.
 
   Args:
     source: The original source path where the failure happened.
-    compact: Whether to use compact source hashes.
     known_failures: Mapping from original source path to failure key.
   """
   known_failures = known_failures or KNOWN_FAILURES
@@ -460,8 +448,7 @@ def cluster_failures(source, compact, known_failures=None):
 
   # We map all remaining failures to a short hash of the original source.
   long_key = hashlib.sha1(source.encode('utf-8')).hexdigest()
-  hash_length = COMPACT_SOURCE_HASH_LENGTH if compact else SOURCE_HASH_LENGTH
-  return long_key[:hash_length]
+  return long_key[:SOURCE_HASH_LENGTH]
 
 
 class RepeatedRuns(object):
@@ -488,8 +475,7 @@ class RepeatedRuns(object):
 
 
 def run_comparisons(suppress, execution_configs, test_case, timeout,
-                    verbose=True, ignore_crashes=True, source_key=None,
-                    compact=False):
+                    verbose=True, ignore_crashes=True, source_key=None):
   """Runs different configurations and bails out on output difference.
 
   Args:
@@ -504,7 +490,6 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
         and immediately flag crashes as a failure.
     source_key: A fixed source key. If not given, it will be inferred from the
         output.
-    compact: Whether to use compact failure output.
   """
   runner = RepeatedRuns(test_case, timeout, verbose)
 
@@ -539,7 +524,7 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
 
       raise FailException(format_difference(
           baseline_config, comparison_config, baseline_output,
-          comparison_output, difference, source_key, source, compact))
+          comparison_output, difference, source_key, source))
 
   if runner.has_crashed:
     if ignore_crashes:
@@ -550,7 +535,7 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
       # Subsume simulated and unexpected crashes (e.g. during smoke tests)
       # with one failure state.
       raise FailException(FAILURE_HEADER_TEMPLATE % dict(
-          configs='', source_key='', suppression=runner.crash_state))
+          source_key='', suppression=runner.crash_state))
 
 
 def main():
@@ -589,7 +574,6 @@ def main():
         # Special source key for smoke tests so that clusterfuzz dedupes all
         # cases on this in case it's hit.
         source_key = 'smoke test failed',
-        compact = options.compact,
     )
 
   # Second, run all configs against the fuzz test case.
@@ -597,7 +581,6 @@ def main():
       suppress, execution_configs,
       test_case=options.testcase,
       timeout=TEST_TIMEOUT_SEC,
-      compact = options.compact,
   )
 
   # TODO(machenbach): Figure out if we could also return a bug in case
@@ -620,7 +603,7 @@ if __name__ == "__main__":
     # Make sure clusterfuzz reports internal errors and wrong usage.
     # Use one label for all internal and usage errors.
     print(FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression='wrong_usage'))
+        source_key='', suppression='wrong_usage'))
     result = RETURN_FAIL
   except MemoryError:
     # Running out of memory happens occasionally but is not actionable.
@@ -628,7 +611,7 @@ if __name__ == "__main__":
     result = RETURN_PASS
   except Exception as e:
     print(FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression='internal_error'))
+        source_key='', suppression='internal_error'))
     print('# Internal error: %s' % e)
     traceback.print_exc(file=sys.stdout)
     result = RETURN_FAIL

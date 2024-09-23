@@ -103,22 +103,18 @@ class UnitTest(unittest.TestCase):
     crash_test_example_path = 'CrashTests/path/to/file.js'
     self.assertEqual(
         v8_foozzie.ORIGINAL_SOURCE_DEFAULT,
-        v8_foozzie.cluster_failures('', compact=False))
+        v8_foozzie.cluster_failures(''))
     self.assertEqual(
         v8_foozzie.ORIGINAL_SOURCE_CRASHTESTS,
-        v8_foozzie.cluster_failures(crash_test_example_path, compact=False))
+        v8_foozzie.cluster_failures(crash_test_example_path))
     self.assertEqual(
         '_o_O_',
         v8_foozzie.cluster_failures(
             crash_test_example_path,
-            compact=False,
             known_failures={crash_test_example_path: '_o_O_'}))
     self.assertEqual(
-        '980',
-        v8_foozzie.cluster_failures('v8/test/mjsunit/apply.js', compact=False))
-    self.assertEqual(
         '98',
-        v8_foozzie.cluster_failures('v8/test/mjsunit/apply.js', compact=True))
+        v8_foozzie.cluster_failures('v8/test/mjsunit/apply.js'))
 
   def testDiff(self):
     def diff_fun(one, two, skip=False):
@@ -322,15 +318,6 @@ class SystemTest(unittest.TestCase):
 
   def testDifferentOutputFail(self):
     self._testDifferentOutputFail(expected_output('failure_output.txt'))
-
-  def testFailCompact(self):
-    # Compact output drops the config line and uses a shorter hash.
-    compact_output = expected_output('failure_output.txt')
-    compact_output = re.sub(
-        r'# V8 correctness configs: .*\n', '', compact_output)
-    compact_output = re.sub(
-        r'sources: f60', 'sources: f6', compact_output)
-    self._testDifferentOutputFail(compact_output, '--compact')
 
   def testSmokeTest(self):
     with self.assertRaises(subprocess.CalledProcessError) as ctx:

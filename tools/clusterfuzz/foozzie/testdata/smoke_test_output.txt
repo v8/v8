@@ -1,6 +1,5 @@
 #
 # V8 correctness failure
-# V8 correctness configs: x64,ignition:x64,ignition_turbo
 # V8 correctness sources: smoke test failed
 # V8 correctness suppression: 
 #
