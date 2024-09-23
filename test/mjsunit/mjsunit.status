@@ -1370,6 +1370,7 @@
   'wasm/enter-and-leave-debug-state': [SKIP],
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/wasm-to-js-tierup': [SKIP],
+  'wasm/deopt/deopt-debugging': [SKIP],
 
   # The test relies on precise switching of code kinds of wasm functions. With
   # multiple isolates that share the wasm functions, the precise switching is
