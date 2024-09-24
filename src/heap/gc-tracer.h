@@ -104,8 +104,6 @@ using CollectionEpoch = uint32_t;
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 class V8_EXPORT_PRIVATE GCTracer {
-  using Priority = v8::Isolate::Priority;
-
  public:
   struct IncrementalInfos final {
     constexpr V8_INLINE IncrementalInfos& operator+=(base::TimeDelta delta);
@@ -176,7 +174,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     enum class State { NOT_RUNNING, MARKING, ATOMIC, SWEEPING };
 
     Event(Type type, State state, GarbageCollectionReason gc_reason,
-          const char* collector_reason, Priority priority);
+          const char* collector_reason);
 
     // Type of the event.
     Type type;
@@ -186,11 +184,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
     GarbageCollectionReason gc_reason;
     const char* collector_reason;
-
-    // The Isolate's priority during the current GC cycle. The priority is set
-    // when the cycle starts. If the priority changes before the cycle is
-    // finished, the priority will be reset to denote a mixed priority.
-    std::optional<Priority> priority;
 
     // Timestamp set in the constructor.
     base::TimeTicks start_time;
@@ -466,8 +459,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   GarbageCollector GetCurrentCollector() const;
 
-  void UpdateCurrentEventPriority(Priority priority);
-
  private:
   using BytesAndDurationBuffer = ::heap::base::BytesAndDurationBuffer;
 
@@ -611,7 +602,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
   FRIEND_TEST(GCTracerTest, BackgroundMinorMSScope);
   FRIEND_TEST(GCTracerTest, BackgroundMajorMCScope);
-  FRIEND_TEST(GCTracerTest, CyclePriorities);
   FRIEND_TEST(GCTracerTest, EmbedderAllocationThroughput);
   FRIEND_TEST(GCTracerTest, MultithreadedBackgroundScope);
   FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughput);
