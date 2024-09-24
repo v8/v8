@@ -2501,7 +2501,7 @@ DEFINE_BOOL_READONLY(fast_map_update, false,
 DEFINE_INT(max_valid_polymorphic_map_count, 4,
            "maximum number of valid maps to track in POLYMORPHIC state")
 DEFINE_BOOL(
-    clone_object_sidestep_transitions, true,
+    clone_object_sidestep_transitions, false,
     "support sidestep transitions for dependency tracking object clone maps")
 DEFINE_WEAK_IMPLICATION(future, clone_object_sidestep_transitions)
 
