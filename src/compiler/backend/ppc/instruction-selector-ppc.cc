@@ -268,7 +268,6 @@ ArchOpcode SelectLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
       if (*mode != kInt34Imm) *mode = kInt16Imm_4ByteAligned;
       return kPPC_LoadWord64;
-      break;
 #endif
     case MemoryRepresentation::AnyUncompressedTagged():
     case MemoryRepresentation::UncompressedTaggedPointer():
@@ -697,10 +696,10 @@ void VisitStoreCommon(InstructionSelectorT<TurbofanAdapter>* selector,
 #ifdef V8_COMPRESS_POINTERS
         if (mode != kInt34Imm) mode = kInt16Imm;
         opcode = kPPC_StoreCompressTagged;
+        break;
 #else
         UNREACHABLE();
 #endif
-        break;
       case MachineRepresentation::kIndirectPointer:
         if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
         opcode = kPPC_StoreIndirectPointer;
