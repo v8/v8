@@ -191,8 +191,16 @@ bool RelocInfo::IsInConstantPool() { return false; }
 
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
-  return static_cast<uint32_t>(
-      Assembler::target_address_at(pc_, constant_pool_));
+  Instr instr = Assembler::instr_at(pc_);
+  Instr instr1 = Assembler::instr_at(pc_ + 1 * kInstrSize);
+  if (Assembler::IsAuipc(instr) && Assembler::IsJalr(instr1)) {
+    DCHECK(reinterpret_cast<Instruction*>(pc_)->RdValue() ==
+           reinterpret_cast<Instruction*>(pc_ + 4)->Rs1Value());
+    return Assembler::BrachlongOffset(instr, instr1);
+  } else {
+    return static_cast<uint32_t>(
+        Assembler::target_address_at(pc_, constant_pool_));
+  }
 }
 
 // -----------------------------------------------------------------------------

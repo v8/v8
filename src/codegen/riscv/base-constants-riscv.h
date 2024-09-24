@@ -1246,6 +1246,10 @@ class InstructionGetters : public T {
 
   // Say if the instruction is a break or a trap.
   bool IsTrap() const;
+
+  bool IsAUIPC() const {
+    return (this->InstructionBits() & kBaseOpcodeMask) == AUIPC;
+  }
 };
 
 class Instruction : public InstructionGetters<InstructionBase> {

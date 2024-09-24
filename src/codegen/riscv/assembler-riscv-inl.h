@@ -68,7 +68,8 @@ void WritableRelocInfo::apply(intptr_t delta) {
 
 Address RelocInfo::target_address() {
   DCHECK(IsCodeTargetMode(rmode_) || IsWasmCall(rmode_) ||
-         IsNearBuiltinEntry(rmode_) || IsWasmStubCall(rmode_));
+         IsNearBuiltinEntry(rmode_) || IsWasmStubCall(rmode_) ||
+         IsExternalReference(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 

@@ -156,6 +156,19 @@ void SetWasmCalleeTag(WritableRelocInfo* rinfo, uint32_t tag) {
     instr->SetBranchImmTarget<UncondBranchType>(
         reinterpret_cast<Instruction*>(rinfo->pc() + tag * kInstrSize));
   }
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+  Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
+  if (instr->IsAUIPC()) {
+    Instr auipc = instr->InstructionBits();
+    Instr jalr = reinterpret_cast<Instruction*>(rinfo->pc() + 1 * kInstrSize)
+                     ->InstructionBits();
+    DCHECK(is_int32(tag + 0x800));
+    Assembler::PatchBranchlongOffset(rinfo->pc(), auipc, jalr, (int32_t)tag);
+  } else {
+    Assembler::set_target_address_at(rinfo->pc(), rinfo->constant_pool(),
+                                     static_cast<Address>(tag),
+                                     SKIP_ICACHE_FLUSH);
+  }
 #else
   Address addr = static_cast<Address>(tag);
   if (rinfo->rmode() == RelocInfo::EXTERNAL_REFERENCE) {
@@ -179,6 +192,16 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     return static_cast<uint32_t>(instr->ImmPCOffset() / kInstrSize);
+  }
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+  Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
+  if (instr->IsAUIPC()) {
+    Instr auipc = instr->InstructionBits();
+    Instr jalr = reinterpret_cast<Instruction*>(rinfo->pc() + 1 * kInstrSize)
+                     ->InstructionBits();
+    return Assembler::BrachlongOffset(auipc, jalr);
+  } else {
+    return static_cast<uint32_t>(rinfo->target_address());
   }
 #else
   Address addr;

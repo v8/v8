@@ -4942,10 +4942,36 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
   }
 }
 
+// The calculated offset is either:
+// * the 'target' input unmodified if this is a Wasm call, or
+// * the offset of the target from the current PC, in instructions, for any
+//   other type of call.
+int64_t MacroAssembler::CalculateTargetOffset(Address target,
+                                              RelocInfo::Mode rmode,
+                                              uint8_t* pc) {
+  int64_t offset = static_cast<int64_t>(target);
+  if (rmode == RelocInfo::WASM_CALL || rmode == RelocInfo::WASM_STUB_CALL) {
+    // The target of WebAssembly calls is still an index instead of an actual
+    // address at this point, and needs to be encoded as-is.
+    return offset;
+  }
+  offset -= reinterpret_cast<int64_t>(pc);
+  DCHECK_EQ(offset % kInstrSize, 0);
+  offset = offset / static_cast<int>(kInstrSize);
+  return offset;
+}
+
 void MacroAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
                           Register rs, const Operand& rt) {
-  li(t6, Operand(static_cast<intptr_t>(target), rmode), ADDRESS_LOAD);
-  Call(t6, cond, rs, rt);
+  ASM_CODE_COMMENT(this);
+  if (CanUseNearCallOrJump(rmode)) {
+    int64_t offset = CalculateTargetOffset(target, rmode, pc_);
+    DCHECK(is_int32(offset));
+    near_call(static_cast<int>(offset), rmode);
+  } else {
+    li(t6, Operand(static_cast<intptr_t>(target), rmode), ADDRESS_LOAD);
+    Call(t6, cond, rs, rt);
+  }
 }
 
 void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,

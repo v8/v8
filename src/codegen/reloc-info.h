@@ -263,6 +263,7 @@ class RelocInfo {
   // Accessors
   Address pc() const { return pc_; }
   Mode rmode() const { return rmode_; }
+  Address constant_pool() const { return constant_pool_; }
   intptr_t data() const { return data_; }
 
   // Is the pointer this relocation info refers to coded like a plain pointer
