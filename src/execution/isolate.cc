@@ -6984,6 +6984,7 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
 
 void Isolate::SetPriority(v8::Isolate::Priority priority) {
   priority_ = priority;
+  heap()->tracer()->UpdateCurrentEventPriority(priority_);
   if (priority_ == v8::Isolate::Priority::kBestEffort) {
     heap()->ActivateMemoryReducerIfNeeded();
   }

@@ -605,4 +605,28 @@ TEST_F(GCTracerTest, RecordScavengerHistograms) {
   GcHistogram::CleanUp();
 }
 
+TEST_F(GCTracerTest, CyclePriorities) {
+  using Priority = v8::Isolate::Priority;
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  CHECK_EQ(i_isolate()->priority(), Priority::kUserBlocking);
+  tracer->ResetForTesting();
+  EXPECT_TRUE(tracer->current_.priority.has_value());
+  EXPECT_EQ(tracer->current_.priority, Priority::kUserBlocking);
+  // Setting the same priority again doesn't change the cycle priority.
+  i_isolate()->SetPriority(Priority::kUserBlocking);
+  EXPECT_TRUE(tracer->current_.priority.has_value());
+  EXPECT_EQ(tracer->current_.priority, Priority::kUserBlocking);
+  // Setting a different priority resets the cycle priority.
+  i_isolate()->SetPriority(Priority::kUserVisible);
+  EXPECT_FALSE(tracer->current_.priority.has_value());
+  tracer->ResetForTesting();
+  // Initial cycle priority is the same as the isolate priority.
+  EXPECT_TRUE(tracer->current_.priority.has_value());
+  EXPECT_EQ(tracer->current_.priority, Priority::kUserVisible);
+  // Undoing a priority change doesn't restore a cycle priority.
+  i_isolate()->SetPriority(Priority::kUserBlocking);
+  i_isolate()->SetPriority(Priority::kUserVisible);
+  EXPECT_FALSE(tracer->current_.priority.has_value());
+}
+
 }  // namespace v8::internal
