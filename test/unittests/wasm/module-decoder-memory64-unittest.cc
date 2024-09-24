@@ -22,12 +22,9 @@ class Memory64DecodingTest : public TestWithIsolateAndZone {
     static constexpr WasmEnabledFeatures kEnabledFeatures{
         WasmEnabledFeature::memory64};
     bool kValidateFunctions = true;
-    WasmDetectedFeatures detected_features;
     ModuleResult result =
         DecodeWasmModule(kEnabledFeatures, base::VectorOf(module_bytes),
-                         kValidateFunctions, kWasmOrigin, &detected_features);
-    CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::memory64}},
-             detected_features);
+                         kValidateFunctions, kWasmOrigin);
     EXPECT_TRUE(result.ok()) << result.error().message();
     return result.ok() ? std::move(result).value() : nullptr;
   }

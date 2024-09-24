@@ -836,7 +836,6 @@ class ModuleDecoderImpl : public Decoder {
           break;
       }
     }
-    if (module_->memories.size() > 1) detected_features_.add_multi_memory();
     UpdateComputedMemoryInformation();
     module_->type_feedback.well_known_imports.Initialize(
         module_->num_imported_functions);
@@ -956,7 +955,6 @@ class ModuleDecoderImpl : public Decoder {
           memory->has_maximum_pages, max_pages, &memory->maximum_pages,
           memory->is_memory64() ? k64BitLimits : k32BitLimits);
     }
-    if (module_->memories.size() > 1) detected_features_.add_multi_memory();
     UpdateComputedMemoryInformation();
   }
 
@@ -1697,10 +1695,9 @@ class ModuleDecoderImpl : public Decoder {
 
     ModuleResult result = FinishDecoding();
     if (!result.failed() && validate_functions) {
-      std::function<bool(int)> kNoFilter;
-      if (WasmError validation_error =
-              ValidateFunctions(module_.get(), enabled_features_, wire_bytes,
-                                kNoFilter, &detected_features_)) {
+      // Pass nullptr for an "empty" filter function.
+      if (WasmError validation_error = ValidateFunctions(
+              module_.get(), enabled_features_, wire_bytes, nullptr)) {
         result = ModuleResult{validation_error};
       }
     }
@@ -1761,8 +1758,6 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
-
-  WasmDetectedFeatures detected_features() const { return detected_features_; }
 
  private:
   bool has_seen_unordered_section(SectionCode section_code) {
@@ -1962,8 +1957,6 @@ class ModuleDecoderImpl : public Decoder {
     table->has_maximum_size = limits.has_maximum();
     table->shared = limits.is_shared();
     table->index_type = limits.index_type();
-
-    if (table->is_table64()) detected_features_.add_memory64();
   }
 
   void consume_memory_flags(WasmMemory* memory) {
@@ -1971,9 +1964,6 @@ class ModuleDecoderImpl : public Decoder {
     memory->has_maximum_pages = limits.has_maximum();
     memory->is_shared = limits.is_shared();
     memory->index_type = limits.index_type();
-
-    if (memory->is_shared) detected_features_.add_shared_memory();
-    if (memory->is_memory64()) detected_features_.add_memory64();
   }
 
   std::pair<bool, bool> consume_global_flags() {
@@ -2543,7 +2533,6 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   const WasmEnabledFeatures enabled_features_;
-  WasmDetectedFeatures detected_features_;
   const std::shared_ptr<WasmModule> module_;
   const uint8_t* module_start_ = nullptr;
   const uint8_t* module_end_ = nullptr;

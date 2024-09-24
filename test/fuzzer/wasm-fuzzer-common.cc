@@ -85,20 +85,18 @@ Handle<WasmModuleObject> CompileReferenceModule(
   std::shared_ptr<NativeModule> native_module;
   constexpr bool kNoVerifyFunctions = false;
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
-  WasmDetectedFeatures detected_features;
   ModuleResult module_res =
       DecodeWasmModule(enabled_features, wire_bytes, kNoVerifyFunctions,
-                       ModuleOrigin::kWasmOrigin, &detected_features);
+                       ModuleOrigin::kWasmOrigin);
   CHECK(module_res.ok());
-  std::shared_ptr<WasmModule> module = std::move(module_res).value();
+  std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
   CompileTimeImports compile_imports = CompileTimeImportsForFuzzing();
-  WasmError imports_error = ValidateAndSetBuiltinImports(
-      module.get(), wire_bytes, compile_imports, &detected_features);
+  WasmError imports_error =
+      ValidateAndSetBuiltinImports(module.get(), wire_bytes, compile_imports);
   CHECK(!imports_error.has_error());  // The module was compiled before.
   native_module = GetWasmEngine()->NewNativeModule(
-      isolate, enabled_features, detected_features,
-      CompileTimeImportsForFuzzing(), module, 0);
+      isolate, enabled_features, CompileTimeImportsForFuzzing(), module, 0);
   native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
   // The module is known to be valid as this point (it was compiled by the
   // caller before).
@@ -263,10 +261,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   constexpr bool kVerifyFunctions = false;
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
-  WasmDetectedFeatures unused_detected_features;
-  ModuleResult module_res = DecodeWasmModule(
-      enabled_features, wire_bytes.module_bytes(), kVerifyFunctions,
-      ModuleOrigin::kWasmOrigin, &unused_detected_features);
+  ModuleResult module_res =
+      DecodeWasmModule(enabled_features, wire_bytes.module_bytes(),
+                       kVerifyFunctions, ModuleOrigin::kWasmOrigin);
   CHECK_WITH_MSG(module_res.ok(), module_res.error().message().c_str());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);

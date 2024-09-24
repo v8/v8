@@ -142,12 +142,6 @@ class V8_EXPORT_PRIVATE CompilationState {
  public:
   ~CompilationState();
 
-  // Override {operator delete} to avoid implicit instantiation of {operator
-  // delete} with {size_t} argument. The {size_t} argument would be incorrect.
-  void operator delete(void* ptr) { ::operator delete(ptr); }
-
-  CompilationState() = delete;
-
   void InitCompileJob();
 
   void CancelCompilation();
@@ -183,17 +177,16 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   DynamicTiering dynamic_tiering() const;
 
+  // Override {operator delete} to avoid implicit instantiation of {operator
+  // delete} with {size_t} argument. The {size_t} argument would be incorrect.
+  void operator delete(void* ptr) { ::operator delete(ptr); }
+
+  CompilationState() = delete;
+
   size_t EstimateCurrentMemoryConsumption() const;
 
   std::vector<WasmCode*> PublishCode(
       base::Vector<std::unique_ptr<WasmCode>> unpublished_code);
-
-  WasmDetectedFeatures detected_features() const;
-
-  // Update the set of detected features. Returns any features that were not
-  // detected previously.
-  V8_WARN_UNUSED_RESULT WasmDetectedFeatures
-      UpdateDetectedFeatures(WasmDetectedFeatures);
 
  private:
   // NativeModule is allowed to call the static {New} method.
@@ -204,7 +197,7 @@ class V8_EXPORT_PRIVATE CompilationState {
   // certain scopes.
   static std::unique_ptr<CompilationState> New(
       const std::shared_ptr<NativeModule>&, std::shared_ptr<Counters>,
-      DynamicTiering dynamic_tiering, WasmDetectedFeatures detected_features);
+      DynamicTiering dynamic_tiering);
 };
 
 }  // namespace wasm

@@ -1632,8 +1632,8 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   auto native_module = wasm::GetWasmEngine()->NewNativeModule(
-      isolate, wasm::WasmEnabledFeatures::All(), wasm::WasmDetectedFeatures{},
-      wasm::CompileTimeImports{}, std::move(module), code_size);
+      isolate, wasm::WasmEnabledFeatures::All(), wasm::CompileTimeImports{},
+      std::move(module), code_size);
   native_module->SetWireBytes({});
   return native_module;
 }

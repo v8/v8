@@ -1062,12 +1062,11 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   // decoding, lookup in the native module cache, and insertion into the cache.
   auto owned_wire_bytes = base::OwnedVector<uint8_t>::Of(wire_bytes_vec);
 
-  WasmDetectedFeatures detected_features;
   ModuleResult decode_result = DecodeWasmModule(
       enabled_features, owned_wire_bytes.as_vector(), false,
       i::wasm::kWasmOrigin, isolate->counters(), isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kDeserialize, &detected_features);
+      DecodingMethod::kDeserialize);
   if (decode_result.failed()) return {};
   std::shared_ptr<WasmModule> module = std::move(decode_result).value();
   CHECK_NOT_NULL(module);
@@ -1081,9 +1080,9 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
             module.get(), include_liftoff, DynamicTiering{dynamic_tiering});
-    shared_native_module = wasm_engine->NewNativeModule(
-        isolate, enabled_features, detected_features, compile_imports,
-        std::move(module), code_size_estimate);
+    shared_native_module =
+        wasm_engine->NewNativeModule(isolate, enabled_features, compile_imports,
+                                     std::move(module), code_size_estimate);
     // We have to assign a compilation ID here, as it is required for a
     // potential re-compilation, e.g. triggered by
     // {EnterDebuggingForIsolate}. The value is -2 so that it is different
@@ -1103,7 +1102,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     shared_native_module->compilation_state()->InitializeAfterDeserialization(
         deserializer.lazy_functions(), deserializer.eager_functions());
     wasm_engine->UpdateNativeModuleCache(error, shared_native_module, isolate);
-    PublishDetectedFeatures(detected_features, isolate, true);
   }
 
   DirectHandle<Script> script =

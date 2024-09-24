@@ -429,8 +429,8 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
           kMaxFunctions, 0, estimated_code_section_length, kUsesLiftoff,
           DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
   auto native_module = GetWasmEngine()->NewNativeModule(
-      isolate_, enabled_features_, WasmDetectedFeatures{}, CompileTimeImports{},
-      test_module_, code_size_estimate);
+      isolate_, enabled_features_, CompileTimeImports{}, test_module_,
+      code_size_estimate);
   native_module->SetWireBytes(base::OwnedVector<const uint8_t>());
   native_module->compilation_state()->set_compilation_id(0);
   constexpr base::Vector<const char> kNoSourceUrl{"", 0};

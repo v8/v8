@@ -944,8 +944,7 @@ size_t WasmCodeAllocator::GetNumCodeSpaces() const {
   return owned_code_space_.size();
 }
 
-NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
-                           WasmDetectedFeatures detected_features,
+NativeModule::NativeModule(WasmEnabledFeatures enabled,
                            CompileTimeImports compile_imports,
                            DynamicTiering dynamic_tiering,
                            VirtualMemory code_space,
@@ -955,7 +954,7 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
     : engine_scope_(
           GetWasmEngine()->GetBarrierForBackgroundCompile()->TryLock()),
       code_allocator_(async_counters),
-      enabled_features_(enabled_features),
+      enabled_features_(enabled),
       compile_imports_(std::move(compile_imports)),
       module_(std::move(module)),
       fast_api_targets_(
@@ -969,9 +968,8 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
   DCHECK_NOT_NULL(shared_this);
   DCHECK_NULL(*shared_this);
   shared_this->reset(this);
-  compilation_state_ =
-      CompilationState::New(*shared_this, std::move(async_counters),
-                            dynamic_tiering, detected_features);
+  compilation_state_ = CompilationState::New(
+      *shared_this, std::move(async_counters), dynamic_tiering);
   compilation_state_->InitCompileJob();
   DCHECK_NOT_NULL(module_);
   if (module_->num_declared_functions > 0) {
@@ -2396,14 +2394,14 @@ bool WasmCodeManager::MemoryProtectionKeyWritable() {
 }
 
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    Isolate* isolate, WasmEnabledFeatures enabled_features,
-    WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
-    size_t code_size_estimate, std::shared_ptr<const WasmModule> module) {
+    Isolate* isolate, WasmEnabledFeatures enabled,
+    CompileTimeImports compile_imports, size_t code_size_estimate,
+    std::shared_ptr<const WasmModule> module) {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     VirtualMemory code_space;
     std::shared_ptr<NativeModule> ret;
-    new NativeModule(enabled_features, detected_features, compile_imports,
+    new NativeModule(enabled, compile_imports,
                      DynamicTiering{v8_flags.wasm_dynamic_tiering.value()},
                      std::move(code_space), std::move(module),
                      isolate->async_counters(), &ret);
@@ -2471,8 +2469,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  new NativeModule(enabled_features, detected_features,
-                   std::move(compile_imports),
+  new NativeModule(enabled, std::move(compile_imports),
                    DynamicTiering{v8_flags.wasm_dynamic_tiering.value()},
                    std::move(code_space), std::move(module),
                    isolate->async_counters(), &ret);

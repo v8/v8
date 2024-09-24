@@ -91,14 +91,14 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     base::Vector<const uint8_t> wire_bytes, bool validate_functions,
     ModuleOrigin origin, Counters* counters,
     std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
-    WasmDetectedFeatures* detected_features);
+    v8::metrics::Recorder::ContextId context_id,
+    DecodingMethod decoding_method);
 // Decodes the bytes of a wasm module in {wire_bytes} without recording events
 // or updating counters.
-V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
-    WasmEnabledFeatures enabled_features,
-    base::Vector<const uint8_t> wire_bytes, bool validate_functions,
-    ModuleOrigin origin, WasmDetectedFeatures* detected_features);
+V8_EXPORT_PRIVATE ModuleResult
+DecodeWasmModule(WasmEnabledFeatures enabled_features,
+                 base::Vector<const uint8_t> wire_bytes,
+                 bool validate_functions, ModuleOrigin origin);
 // Stripped down version for disassembler needs.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
     base::Vector<const uint8_t> wire_bytes, ITracer* tracer);
@@ -145,8 +145,7 @@ void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
 // function for "all functions". The {filter} callback needs to be thread-safe.
 V8_EXPORT_PRIVATE WasmError ValidateFunctions(
     const WasmModule*, WasmEnabledFeatures enabled_features,
-    base::Vector<const uint8_t> wire_bytes, std::function<bool(int)> filter,
-    WasmDetectedFeatures* detected_features);
+    base::Vector<const uint8_t> wire_bytes, std::function<bool(int)> filter);
 
 WasmError GetWasmErrorWithName(base::Vector<const uint8_t> wire_bytes,
                                int func_index, const WasmModule* module,
