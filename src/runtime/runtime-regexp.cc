@@ -2078,9 +2078,9 @@ namespace {
 template <typename SChar, typename PChar>
 inline void RegExpMatchGlobalAtom_OneCharPattern(
     Isolate* isolate, base::Vector<const SChar> subject, const PChar pattern,
-    int* number_of_matches, int* last_match_index,
+    int start_index, int* number_of_matches, int* last_match_index,
     const DisallowGarbageCollection& no_gc) {
-  for (int i = 0; i < subject.length(); i++) {
+  for (int i = start_index; i < subject.length(); i++) {
     // Subtle: the valid variants are {SChar,PChar} in:
     // {uint8_t,uint8_t}, {uc16,uc16}, {uc16,uint8_t}. In the latter case,
     // we cast the uint8_t pattern to uc16 for the comparison.
@@ -2094,8 +2094,8 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
 template <>
 inline void RegExpMatchGlobalAtom_OneCharPattern(
     Isolate* isolate, base::Vector<const uint8_t> subject,
-    const base::uc16 pattern, int* number_of_matches, int* last_match_index,
-    const DisallowGarbageCollection& no_gc) = delete;
+    const base::uc16 pattern, int start_index, int* number_of_matches,
+    int* last_match_index, const DisallowGarbageCollection& no_gc) = delete;
 
 template <typename Char>
 inline int AdvanceStringIndex(base::Vector<const Char> subject, int index,
@@ -2120,11 +2120,11 @@ inline int AdvanceStringIndex(base::Vector<const Char> subject, int index,
 template <typename SChar, typename PChar>
 inline void RegExpMatchGlobalAtom_Generic(
     Isolate* isolate, base::Vector<const SChar> subject,
-    base::Vector<const PChar> pattern, bool is_unicode, int* number_of_matches,
-    int* last_match_index, const DisallowGarbageCollection& no_gc) {
+    base::Vector<const PChar> pattern, bool is_unicode, int start_index,
+    int* number_of_matches, int* last_match_index,
+    const DisallowGarbageCollection& no_gc) {
   const int pattern_length = pattern.length();
   StringSearch<PChar, SChar> search(isolate, pattern);
-  int start_index = 0;
   int found_at_index;
 
   while (true) {
@@ -2141,14 +2141,16 @@ inline void RegExpMatchGlobalAtom_Generic(
 
 inline void RegExpMatchGlobalAtom_Dispatch(
     Isolate* isolate, const String::FlatContent& subject,
-    const String::FlatContent& pattern, bool is_unicode, int* number_of_matches,
-    int* last_match_index, const DisallowGarbageCollection& no_gc) {
-#define CALL_Generic()                                       \
-  RegExpMatchGlobalAtom_Generic(isolate, sv, pv, is_unicode, \
+    const String::FlatContent& pattern, bool is_unicode, int start_index,
+    int* number_of_matches, int* last_match_index,
+    const DisallowGarbageCollection& no_gc) {
+#define CALL_Generic()                                                    \
+  RegExpMatchGlobalAtom_Generic(isolate, sv, pv, is_unicode, start_index, \
                                 number_of_matches, last_match_index, no_gc);
-#define CALL_OneCharPattern()                                                 \
-  RegExpMatchGlobalAtom_OneCharPattern(isolate, sv, pv[0], number_of_matches, \
-                                       last_match_index, no_gc);
+#define CALL_OneCharPattern()                                               \
+  RegExpMatchGlobalAtom_OneCharPattern(isolate, sv, pv[0], start_index,     \
+                                       number_of_matches, last_match_index, \
+                                       no_gc);
   DCHECK_NOT_NULL(number_of_matches);
   DCHECK_NOT_NULL(last_match_index);
   if (pattern.IsOneByte()) {
@@ -2192,9 +2194,6 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  // TODO(jgruber): Cache results for the same seq string subject. Also
-  // for overlapping slices of the same sliced.parent string.
-
   Handle<JSRegExp> regexp_handle = args.at<JSRegExp>(0);
   Handle<String> subject_handle = String::Flatten(isolate, args.at<String>(1));
   Handle<AtomRegExpData> data_handle = args.at<AtomRegExpData>(2);
@@ -2205,6 +2204,7 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
 
   // Initialized below.
   Handle<String> pattern_handle;
+  int pattern_length;
 
   int number_of_matches = 0;
   int last_match_index = -1;
@@ -2218,30 +2218,44 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
 
     DCHECK(pattern->IsFlat());
     pattern_handle = handle(pattern, isolate);
+    pattern_length = pattern->length();
 
     // Reset lastIndex (the final state after this call is always 0).
     regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
+
+    // Caching.
+    int start_index = 0;  // Start matching at the beginning.
+    if (RegExpResultsCache_MatchGlobalAtom::TryGet(
+            isolate, subject, pattern, &number_of_matches, &last_match_index)) {
+      DCHECK_GT(number_of_matches, 0);
+      DCHECK_NE(last_match_index, -1);
+      start_index = last_match_index + pattern_length;
+    }
 
     const bool is_unicode = (regexp->flags() & JSRegExp::kUnicode) != 0;
     String::FlatContent subject_content = subject->GetFlatContent(no_gc);
     String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
     RegExpMatchGlobalAtom_Dispatch(isolate, subject_content, pattern_content,
-                                   is_unicode, &number_of_matches,
+                                   is_unicode, start_index, &number_of_matches,
                                    &last_match_index, no_gc);
-  }
 
-  if (last_match_index == -1) {
-    // Not matched.
-    return ReadOnlyRoots(isolate).null_value();
-  }
+    if (last_match_index == -1) {
+      // Not matched.
+      return ReadOnlyRoots(isolate).null_value();
+    }
 
-  // Successfully matched at least once:
-  DCHECK_GE(last_match_index, 0);
+    // Successfully matched at least once:
+    DCHECK_GE(last_match_index, 0);
+
+    // Caching.
+    RegExpResultsCache_MatchGlobalAtom::TryInsert(
+        isolate, subject, pattern, number_of_matches, last_match_index);
+  }
 
   // Update the LastMatchInfo.
   static constexpr int kNumberOfCaptures = 0;  // ATOM.
   int32_t match_indices[] = {last_match_index,
-                             last_match_index + pattern_handle->length()};
+                             last_match_index + pattern_length};
   Handle<RegExpMatchInfo> last_match_info = isolate->regexp_last_match_info();
   RegExp::SetLastMatchInfo(isolate, last_match_info, subject_handle,
                            kNumberOfCaptures, match_indices);

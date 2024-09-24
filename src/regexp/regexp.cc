@@ -1305,6 +1305,56 @@ void RegExpResultsCache::Clear(Tagged<FixedArray> cache) {
   }
 }
 
+// static
+void RegExpResultsCache_MatchGlobalAtom::TryInsert(Isolate* isolate,
+                                                   Tagged<String> subject,
+                                                   Tagged<String> pattern,
+                                                   int number_of_matches,
+                                                   int last_match_index) {
+  DisallowGarbageCollection no_gc;
+  DCHECK(Smi::IsValid(number_of_matches));
+  DCHECK(Smi::IsValid(last_match_index));
+  if (!IsSlicedString(subject)) return;
+  Tagged<FixedArray> cache = isolate->heap()->regexp_match_global_atom_cache();
+  DCHECK_EQ(cache->length(), kSize);
+  cache->set(kSubjectIndex, subject);
+  cache->set(kPatternIndex, pattern);
+  cache->set(kNumberOfMatchesIndex, Smi::FromInt(number_of_matches));
+  cache->set(kLastMatchIndexIndex, Smi::FromInt(last_match_index));
+}
+
+// static
+bool RegExpResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
+                                                Tagged<String> subject,
+                                                Tagged<String> pattern,
+                                                int* number_of_matches_out,
+                                                int* last_match_index_out) {
+  DisallowGarbageCollection no_gc;
+  Tagged<FixedArray> cache = isolate->heap()->regexp_match_global_atom_cache();
+  DCHECK_EQ(cache->length(), kSize);
+
+  if (!IsSlicedString(subject)) return false;
+  if (pattern != Cast<String>(cache->get(kPatternIndex))) return false;
+
+  // Here we are looking for a subject slice that 1. starts at the same point
+  // and 2. is of equal length or longer than the cached subject slice.
+  Tagged<SlicedString> sliced_subject = Cast<SlicedString>(subject);
+  Tagged<SlicedString> cached_subject =
+      Cast<SlicedString>(cache->get(kSubjectIndex));
+  if (cached_subject->parent() != sliced_subject->parent()) return false;
+  if (cached_subject->offset() != sliced_subject->offset()) return false;
+  if (cached_subject->length() > sliced_subject->length()) return false;
+
+  *number_of_matches_out = Smi::ToInt(cache->get(kNumberOfMatchesIndex));
+  *last_match_index_out = Smi::ToInt(cache->get(kLastMatchIndexIndex));
+  return true;
+}
+
+void RegExpResultsCache_MatchGlobalAtom::Clear(Heap* heap) {
+  MemsetTagged(heap->regexp_match_global_atom_cache()->RawFieldOfFirstElement(),
+               Smi::zero(), kSize);
+}
+
 std::ostream& operator<<(std::ostream& os, RegExpFlags flags) {
 #define V(Lower, Camel, LowerCamel, Char, Bit) \
   if (flags & RegExpFlag::k##Camel) os << Char;

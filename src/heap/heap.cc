@@ -2720,6 +2720,7 @@ void Heap::MarkCompactPrologue() {
   isolate_->descriptor_lookup_cache()->Clear();
   RegExpResultsCache::Clear(string_split_cache());
   RegExpResultsCache::Clear(regexp_multiple_cache());
+  RegExpResultsCache_MatchGlobalAtom::Clear(this);
 
   FlushNumberStringCache();
 }

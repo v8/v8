@@ -241,6 +241,43 @@ class RegExpResultsCache final : public AllStatic {
   static constexpr int kArrayEntriesPerCacheEntry = 4;
 };
 
+// Caches results of RegExpPrototypeMatch when:
+// - the subject is a SlicedString
+// - the pattern is an ATOM type regexp.
+//
+// This is intended for usage patterns where we search ever-growing slices of
+// some large string. After a cache hit, RegExpMatchGlobalAtom only needs to
+// process the trailing part of the subject string that was *not* part of the
+// cached SlicedString.
+//
+// For example:
+//
+// long_string.substring(0, 100).match(pattern);
+// long_string.substring(0, 200).match(pattern);
+//
+// The second call hits the cache for the slice [0, 100[ and only has to search
+// the slice [100, 200].
+class RegExpResultsCache_MatchGlobalAtom final : public AllStatic {
+ public:
+  static void TryInsert(Isolate* isolate, Tagged<String> subject,
+                        Tagged<String> pattern, int number_of_matches,
+                        int last_match_index);
+  static bool TryGet(Isolate* isolate, Tagged<String> subject,
+                     Tagged<String> pattern, int* number_of_matches_out,
+                     int* last_match_index_out);
+  static void Clear(Heap* heap);
+
+ private:
+  static constexpr int kSubjectIndex = 0;          // SlicedString.
+  static constexpr int kPatternIndex = 1;          // String.
+  static constexpr int kNumberOfMatchesIndex = 2;  // Smi.
+  static constexpr int kLastMatchIndexIndex = 3;   // Smi.
+  static constexpr int kEntrySize = 4;
+
+ public:
+  static constexpr int kSize = kEntrySize;  // Single-entry cache.
+};
+
 }  // namespace internal
 }  // namespace v8
 
