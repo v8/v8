@@ -1732,6 +1732,14 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
   if (use_counter_features.empty()) return;
 
   isolate->CountUsage(base::VectorOf(use_counter_features));
+
+  // Help differential fuzzers avoid detecting known/intentional platform-
+  // specific differences.
+  if (v8_flags.correctness_fuzzer_suppressions) {
+    if (detected_features.has_relaxed_simd()) {
+      PrintF("Warning: This run cannot be compared across architectures.\n");
+    }
+  }
 }
 
 namespace {
