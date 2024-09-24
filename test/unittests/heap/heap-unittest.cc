@@ -683,6 +683,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   SimulateFullSpace(heap->old_space());
 
   // Allocate an object on a new page.
+  HandleScope scope(iso);
   DirectHandle<FixedArray> arr =
       iso->factory()->NewFixedArray(1, AllocationType::kOld);
   Address next = arr->address() + arr->Size();
