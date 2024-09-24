@@ -421,7 +421,10 @@ RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
 RUNTIME_FUNCTION(Runtime_GetWasmExceptionTagId) {
   HandleScope scope(isolate);
   if (args.length() != 2 || !IsWasmExceptionPackage(args[0]) ||
-      !IsWasmInstanceObject(args[1])) {
+      !IsWasmInstanceObject(args[1]) ||
+      !args.at<WasmInstanceObject>(1)
+           ->trusted_data(isolate)
+           ->has_tags_table()) {
     return CrashUnlessFuzzing(isolate);
   }
   Handle<WasmExceptionPackage> exception = args.at<WasmExceptionPackage>(0);
