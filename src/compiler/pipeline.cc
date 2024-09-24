@@ -3368,7 +3368,8 @@ void Pipeline::GenerateCodeForWasmFunction(
 #undef DETECTED_IMPLIES_ENABLED
 
   if (detected->has_gc() || detected->has_stringref() ||
-      detected->has_imported_strings()) {
+      detected->has_imported_strings() ||
+      detected->has_imported_strings_utf8()) {
     pipeline.Run<WasmTypingPhase>(compilation_data.func_index);
     pipeline.RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
     if (v8_flags.wasm_opt) {
@@ -3380,7 +3381,8 @@ void Pipeline::GenerateCodeForWasmFunction(
   // These proposals use gc nodes.
   if (detected->has_gc() || detected->has_typed_funcref() ||
       detected->has_stringref() || detected->has_reftypes() ||
-      detected->has_imported_strings()) {
+      detected->has_imported_strings() ||
+      detected->has_imported_strings_utf8()) {
     pipeline.Run<WasmGCLoweringPhase>(module);
     pipeline.RunPrintAndVerify(WasmGCLoweringPhase::phase_name(), true);
   }
@@ -3596,9 +3598,9 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     }
   }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
-  const bool uses_wasm_gc_features = detected->has_gc() ||
-                                     detected->has_stringref() ||
-                                     detected->has_imported_strings();
+  const bool uses_wasm_gc_features =
+      detected->has_gc() || detected->has_stringref() ||
+      detected->has_imported_strings() || detected->has_imported_strings_utf8();
   if (v8_flags.wasm_loop_peeling && uses_wasm_gc_features) {
     turboshaft_pipeline.Run<turboshaft::LoopPeelingPhase>();
   }
