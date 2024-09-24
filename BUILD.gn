@@ -6590,7 +6590,7 @@ v8_component("v8_libbase") {
     "src/base/strings.h",
     "src/base/sys-info.cc",
     "src/base/sys-info.h",
-    "src/base/template-meta-programming/algorithm.h",
+    "src/base/template-meta-programming/common.h",
     "src/base/template-meta-programming/functional.h",
     "src/base/template-meta-programming/list.h",
     "src/base/template-meta-programming/string-literal.h",
