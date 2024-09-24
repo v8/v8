@@ -4,14 +4,13 @@
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --no-liftoff --wasm-fast-api
 // Flags: --turboshaft-wasm --wasm-lazy-compilation
-// Flags: --fast-api-allow-float-in-sim
+// Flags: --fast-api-allow-float-in-sim --allow-natives-syntax
 
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestFastApiCallFromWasm() {
   const fast_c_api = new d8.test.FastCAPI();
-  const boundImport = fast_c_api.add_all_no_options.bind(0);
 
   const builder = new WasmModuleBuilder();
   const sig = makeSig(
@@ -34,7 +33,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       ])
       .exportFunc();
 
-  const instance = builder.instantiate({'mod': {'foo': boundImport}});
-
-  instance.exports.main(1, 2, 3n, 4n, 5, 6);
+  {
+    const boundImport = fast_c_api.add_all_no_options.bind(0);
+    const instance = builder.instantiate({ 'mod': { 'foo': boundImport } });
+    instance.exports.main(1, 2, 3n, 4n, 5, 6);
+  }
+  {
+    const boundImport = fast_c_api.add_all_no_options.bind(%GetUndetectable());
+    const instance = builder.instantiate({ 'mod': { 'foo': boundImport } });
+    instance.exports.main(1, 2, 3n, 4n, 5, 6);
+  }
 })();

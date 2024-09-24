@@ -1384,6 +1384,9 @@ class FastCApiObject {
     if (!IsValidApiObject(object)) {
       return nullptr;
     }
+    if (object->InternalFieldCount() <= kV8WrapperObjectIndex) {
+      return nullptr;
+    }
     FastCApiObject* wrapped = reinterpret_cast<FastCApiObject*>(
         object->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
     CHECK_NOT_NULL(wrapped);
