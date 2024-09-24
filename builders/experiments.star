@@ -183,7 +183,6 @@ in_category(
         triggered_by = ["v8-trigger"],
         dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
-        notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - jammy - gcc",
@@ -191,7 +190,6 @@ in_category(
         dimensions = {"host_class": "default", "os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         execution_timeout = 10800,
-        notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder(
         name = "V8 Linux64 gcc - debug builder",
@@ -199,7 +197,6 @@ in_category(
         dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         execution_timeout = 10800,
-        notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder(
         name = "V8 Linux64 - jammy - gcc - debug builder",
@@ -207,7 +204,6 @@ in_category(
         dimensions = {"host_class": "default", "os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         execution_timeout = 10800,
-        notifies = ["sheriffs on new failure"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - predictable",
@@ -217,6 +213,13 @@ in_category(
         properties = {"builder_group": "client.v8"},
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
+    ),
+    experiment_builder_pair(
+        name = "V8 Win64 - msvc",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.NO,
+        execution_timeout = 10800,
     ),
 )
 

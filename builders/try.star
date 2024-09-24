@@ -146,8 +146,7 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_gcc_light_compile_dbg",
-    cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.OPTIONAL,
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["v8_gcc_light"]},
@@ -299,7 +298,6 @@ try_builder(
 try_builder(
     name = "v8_win_msvc_light_compile_dbg",
     cq_properties = CQ.OPTIONAL,
-    cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "strong", "os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["d8"]},
@@ -307,8 +305,7 @@ try_builder(
 
 try_builder(
     name = "v8_win64_msvc_light_compile_rel",
-    cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.OPTIONAL,
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "strong", "os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["d8"]},

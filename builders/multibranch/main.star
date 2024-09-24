@@ -148,13 +148,6 @@ in_category(
         first_branch_version = "12.9",
     ),
     main_multibranch_builder(
-        name = "V8 Linux64 gcc light - debug builder",
-        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
-        properties = {"default_targets": ["v8_gcc_light"]},
-        use_remoteexec = RECLIENT.NO,
-        barrier = BARRIER.TREE_CLOSER,
-    ),
-    main_multibranch_builder(
         name = "V8 Linux64 - bazel - builder",
         dimensions = {"host_class": "strong", "os": "Ubuntu-22.04", "cpu": "x86-64"},
         executable = "recipe:v8/bazel",
@@ -244,14 +237,6 @@ in_category(
         parent_builder = "V8 Win32 - debug builder",
         barrier = BARRIER.LKGR_ONLY,
     ),
-    main_multibranch_builder(
-        name = "V8 Win32 - msvc - debug builder",
-        dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.NO,
-        barrier = BARRIER.NONE,
-        # TODO(crbug.com/v8/8811): Enable again when it is green.
-        work_in_progress = True,
-    ),
     main_multibranch_builder_pair(
         name = "V8 Win64",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
@@ -264,14 +249,6 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         barrier = BARRIER.LKGR_TREE_CLOSER,
-    ),
-    main_multibranch_builder_pair(
-        name = "V8 Win64 - msvc",
-        dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.NO,
-        barrier = BARRIER.TREE_CLOSER,
-        execution_timeout = 10800,
-        disable_resultdb_exports = True,
     ),
     main_multibranch_builder(
         name = "V8 Win - arm64 - debug builder",
