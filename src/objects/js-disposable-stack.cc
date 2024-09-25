@@ -177,15 +177,18 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
   return isolate->factory()->true_value();
 }
 
-Handle<JSReceiver> JSDisposableStackBase::ResolveAPromiseWithValueAndReturnIt(
+MaybeHandle<JSReceiver>
+JSDisposableStackBase::ResolveAPromiseWithValueAndReturnIt(
     Isolate* isolate, Handle<Object> value) {
   Handle<JSFunction> promise_function = isolate->promise_function();
   Handle<Object> argv[] = {value};
-  Handle<Object> resolve_result =
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
       Execution::CallBuiltin(isolate, isolate->promise_resolve(),
-                             promise_function, arraysize(argv), argv)
-          .ToHandleChecked();
-  return Cast<JSReceiver>(resolve_result);
+                             promise_function, arraysize(argv), argv),
+      MaybeHandle<JSReceiver>());
+  return Cast<JSReceiver>(result);
 }
 
 Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
@@ -240,17 +243,20 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
               .Build();
 
       Handle<Object> argv[] = {on_fulfilled, on_rejected};
-
-      Execution::CallBuiltin(isolate, isolate->perform_promise_then(),
-                             Cast<JSPromise>(result_handle), arraysize(argv),
-                             argv)
-          .ToHandleChecked();
+      RETURN_ON_EXCEPTION_VALUE(
+          isolate,
+          Execution::CallBuiltin(isolate, isolate->perform_promise_then(),
+                                 Cast<JSPromise>(result_handle),
+                                 arraysize(argv), argv),
+          Nothing<bool>());
     } else {
       // 8. Perform ! Call(promiseCapability.[[Resolve]], undefined, « result
       // »).
-      JSPromise::Resolve(outer_promise,
-                         ReadOnlyRoots(isolate).undefined_value_handle())
-          .ToHandleChecked();
+      RETURN_ON_EXCEPTION_VALUE(
+          isolate,
+          JSPromise::Resolve(outer_promise,
+                             ReadOnlyRoots(isolate).undefined_value_handle()),
+          Nothing<bool>());
     }
   } else {
     // 7. IfAbruptRejectPromise(result, promiseCapability).
