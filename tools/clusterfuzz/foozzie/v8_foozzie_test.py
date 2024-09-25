@@ -8,6 +8,7 @@ import random
 import re
 import subprocess
 import sys
+import textwrap
 import unittest
 import unittest.mock
 
@@ -256,14 +257,14 @@ other weird stuff
     with open(os.path.join(TEST_DATA, filename)) as f:
       return f.read()
 
-  def _create_execution_configs(self, *extra_flags):
+  def _create_execution_configs(self, *extra_flags, **kwargs):
     """Create three execution configs as in production with a fake config
     called `special`.
-
-    The build is cross-arch (build3 is x86) so that the configs have fallbacks
-    on the same architecture.
     """
-    argv = create_test_cmd_line('build3', 'special', 'fuzz-123.js',
+    # If we need the configs to be cross-arch with same-arch fallbacks,
+    # we use build3 (x86) otherwise we compare with build1 (x64).
+    build = 'build3' if kwargs.pop('cross_arch', True) else 'build1'
+    argv = create_test_cmd_line(build, 'special', 'fuzz-123.js',
                                 *extra_flags)
     options = v8_foozzie.parse_args(argv[2:])
     return v8_foozzie.create_execution_configs(options)
@@ -276,11 +277,11 @@ other weird stuff
           'default': ['--bar', '--baz'],
           'special': ['--bat'],
       })
-  def testAdjustConfigs_Matches1(self):
+  def testAdjustConfigsByContent_Matches1(self):
     suppress = v8_suppressions.get_suppression()
     content = self._test_content('fuzz-123.js')
     configs = self._create_execution_configs()
-    logs = suppress.adjust_configs(configs, content)
+    logs = suppress.adjust_configs_by_content(configs, content)
     self.assertEqual(
         ['Dropped second config using --bat based on content rule.'], logs)
     self.assertEqual(2, len(configs))
@@ -288,7 +289,7 @@ other weird stuff
     self.assertEqual(['--bar', '--baz'], configs[1].config_flags)
 
     configs = self._create_execution_configs('--first-config-extra-flags=--bat')
-    logs = suppress.adjust_configs(configs, content)
+    logs = suppress.adjust_configs_by_content(configs, content)
     expected_logs = [
         'Dropped --bat from first config based on content rule.',
         'Dropped second config using --bat based on content rule.',
@@ -306,11 +307,11 @@ other weird stuff
           'default': ['--bar', '--baz'],
           'special': ['--bat'],
       })
-  def testAdjustConfigs_Matches2(self):
+  def testAdjustConfigsByContent_Matches2(self):
     suppress = v8_suppressions.get_suppression()
     content = self._test_content('fuzz-123.js')
     configs = self._create_execution_configs()
-    logs = suppress.adjust_configs(configs, content)
+    logs = suppress.adjust_configs_by_content(configs, content)
     expected_logs = [
         'Dropped --baz from first config based on content rule.',
         'Dropped --baz from default config based on content rule.',
@@ -325,7 +326,7 @@ other weird stuff
 
     configs = self._create_execution_configs(
         '--second-config-extra-flags=--baz')
-    logs = suppress.adjust_configs(configs, content)
+    logs = suppress.adjust_configs_by_content(configs, content)
     expected_logs = [
         'Dropped --baz from first config based on content rule.',
         'Dropped --baz from default config based on content rule.',
@@ -344,12 +345,12 @@ other weird stuff
       'default': ['--bar'],
       'special': ['--bat'],
   })
-  def testAdjustConfigs_DoesntMatch(self):
+  def testAdjustConfigsByContent_DoesntMatch(self):
     suppress = v8_suppressions.get_suppression()
     content = self._test_content('fuzz-123.js')
     configs = self._create_execution_configs(
         '--second-config-extra-flags=--baz')
-    logs = suppress.adjust_configs(configs, content)
+    logs = suppress.adjust_configs_by_content(configs, content)
     self.assertEqual([], logs)
     self.assertEqual(3, len(configs))
     self.assertEqual(['--foo', '--baz'], configs[0].config_flags)
@@ -357,6 +358,80 @@ other weird stuff
     self.assertEqual(['--bar', '--baz'], configs[1].fallback.config_flags)
     self.assertEqual(['--bat', '--baz'], configs[2].config_flags)
     self.assertEqual(['--bat', '--baz'], configs[2].fallback.config_flags)
+
+  @unittest.mock.patch(
+      'v8_foozzie.CONFIGS', {
+          'ignition': ['--foo'],
+          'default': [],
+          'special': ['--bar'],
+      })
+  def testAdjustConfigsByOutput_Matches(self):
+    """Test scenarios where the directive to avoid cross-arch comparison is in
+    the output.
+    """
+    suppress = v8_suppressions.get_suppression()
+    matching_output = textwrap.dedent("""\
+      Some lines...
+      Indentation doesn't matter.
+      Warning: This run cannot be compared across architectures.
+      That's it.""")
+
+    # Scenario 1: We have a match, but the comparisons are in the same
+    # architecture. So there's nothing to do.
+    configs = self._create_execution_configs(cross_arch=False)
+    baseline_config = configs[0]
+    remaining_configs = configs[1:]
+    logs = suppress.adjust_configs_by_output(
+        remaining_configs, matching_output)
+    self.assertEqual([], logs)
+    self.assertEqual(2, len(remaining_configs))
+    for config in remaining_configs:
+      self.assertEqual(baseline_config.arch, config.arch)
+      self.assertIsNone(config.fallback)
+
+    # Scenario 2: We have a match and compare cross-arch. Ensure the
+    # adjustments turns this into a same-arch comparison.
+    configs = self._create_execution_configs()
+    baseline_config = configs[0]
+    remaining_configs = configs[1:]
+    logs = suppress.adjust_configs_by_output(
+        remaining_configs, matching_output)
+    expected_logs = [
+        'Running the default config on the same architecture.',
+        'Running the second config on the same architecture.'
+    ]
+    self.assertEqual(expected_logs, logs)
+    self.assertEqual(2, len(remaining_configs))
+    for config in remaining_configs:
+      self.assertEqual(baseline_config.arch, config.arch)
+      self.assertIsNone(config.fallback)
+
+  @unittest.mock.patch(
+      'v8_foozzie.CONFIGS', {
+          'ignition': ['--foo'],
+          'default': [],
+          'special': ['--bar'],
+      })
+  def testAdjustConfigsByOutput_DoesntMatch(self):
+    """Test that cross-arch comparisons stay untouched if the directive
+    from above is not in the output.
+    """
+    suppress = v8_suppressions.get_suppression()
+    non_matching_output = textwrap.dedent("""\
+      Some lines...
+      Indentation doesn't matter.
+      That's it.""")
+
+    configs = self._create_execution_configs(cross_arch=True)
+    baseline_config = configs[0]
+    remaining_configs = configs[1:]
+    logs = suppress.adjust_configs_by_output(
+        remaining_configs, non_matching_output)
+    self.assertEqual([], logs)
+    self.assertEqual(2, len(remaining_configs))
+    for config in remaining_configs:
+      self.assertNotEqual(baseline_config.arch, config.arch)
+      self.assertEqual(baseline_config.arch, config.fallback.arch)
 
 
 def cut_verbose_output(stdout, n_comp):
@@ -513,6 +588,23 @@ class SystemTest(unittest.TestCase):
                   stdout)
     self.assertIn(
         'Dropped second config using --jitless based on content rule.', stdout)
+
+  def testAvoidCrossArchComparison(self):
+    """We turn a cross-arch into a same-arch comparison if a directive is in
+    the baseline output.
+    """
+    stdout = run_foozzie(
+        'build3',
+        '--skip-smoke-tests',
+        '--first-config-extra-flags=--avoid-cross-arch',
+        second_config='ignition_turbo_opt',
+        filename='fuzz-123.js')
+
+    self.assertIn('# Adjusted experiments based on baseline output', stdout)
+    self.assertIn(
+        'Running the default config on the same architecture.', stdout)
+    self.assertIn(
+        'Running the second config on the same architecture.', stdout)
 
   def testSkipSuppressions(self):
     """Test that the suppressions file is not passed when skipping

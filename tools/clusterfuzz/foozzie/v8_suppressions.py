@@ -71,11 +71,18 @@ ALLOWED_LINE_DIFFS = [
   r'^\s*\^\s*$',
 ]
 
+# Avoid cross-arch comparisons if we find this string in the output.
+# We also need to ignore this output in the diffs as this string might
+# only be printed in the baseline run.
+AVOID_CROSS_ARCH_COMPARISON_RE = (
+    r'^Warning: This run cannot be compared across architectures\.$')
+
 # Lines matching any of the following regular expressions will be ignored.
 # Use uncompiled regular expressions - they'll be compiled later.
 IGNORE_LINES = [
   r'^Warning: .+ is deprecated.*$',
   r'^Try --help for options$',
+  AVOID_CROSS_ARCH_COMPARISON_RE,
 
   # crbug.com/705962
   r'^\s\[0x[0-9a-f]+\]$',
@@ -298,7 +305,7 @@ class V8Suppression(object):
       ]
     return []
 
-  def adjust_configs(self, execution_configs, testcase):
+  def adjust_configs_by_content(self, execution_configs, testcase):
     """Modifies the execution configs if the testcase content matches a
     regular expression defined in DROP_FLAGS_ON_CONTENT above.
 
@@ -323,4 +330,27 @@ class V8Suppression(object):
           execution_configs.remove(config)
           logs.append(f'Dropped {config.label} config using '
                       f'{flag} based on content rule.')
+    return logs
+
+  def adjust_configs_by_output(self, execution_configs, output):
+    """Modifies the execution configs if the baseline output contains a
+    certain directive.
+
+    Currently this only searches for one particular directive, after which
+    we ensure to compare on the same architecture.
+
+    Returns: A changelog as a list of strings.
+    """
+    # Cross-arch configs have a same-arch fallback. Check first if there
+    # are any, as this check is very cheap.
+    logs = []
+    if not any(config.fallback for config in execution_configs):
+      return []
+    if not re.search(AVOID_CROSS_ARCH_COMPARISON_RE, output, re.M):
+      return []
+    for i, config in enumerate(execution_configs):
+      if config.fallback:
+        logs.append(
+            f'Running the {config.label} config on the same architecture.')
+        execution_configs[i] = config.fallback
     return logs

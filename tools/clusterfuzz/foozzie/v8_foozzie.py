@@ -529,8 +529,17 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
   baseline_config = execution_configs[0]
   baseline_output = runner.run(baseline_config)
 
+  # The output of the baseline run might change the shape of the remaining
+  # configurations.
+  remaining_configs = execution_configs[1:]
+  changes = suppress.adjust_configs_by_output(
+      remaining_configs, baseline_output.stdout)
+  if changes:
+    print('# Adjusted experiments based on baseline output:')
+    print('\n'.join(changes))
+
   # Iterate over the remaining configurations, run and compare.
-  for comparison_config in execution_configs[1:]:
+  for comparison_config in remaining_configs:
     comparison_output = runner.run(comparison_config)
     difference, source = suppress.diff(baseline_output, comparison_output)
 
@@ -586,7 +595,7 @@ def main():
   execution_configs = create_execution_configs(options)
 
   # Some configs will be dropped or altered based on the testcase content.
-  changes = suppress.adjust_configs(execution_configs, content)
+  changes = suppress.adjust_configs_by_content(execution_configs, content)
   if changes:
     print('# Adjusted flags and experiments based on the test case:')
     print('\n'.join(changes))

@@ -20,3 +20,5 @@ unknown
 
 if '--bad-flag' in sys.argv:
   print('bad behavior')
+if '--avoid-cross-arch' in sys.argv:
+  print('Warning: This run cannot be compared across architectures.')
