@@ -977,6 +977,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
 
 RUNTIME_FUNCTION(Runtime_GetFunctionForCurrentFrame) {
   HandleScope scope(isolate);
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
   DCHECK_EQ(args.length(), 0);
 
   JavaScriptStackFrameIterator it(isolate);

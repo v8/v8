@@ -266,6 +266,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kBenchTurbofan:
     case Runtime::kDebugPrint:
     case Runtime::kDisassembleFunction:
+    case Runtime::kGetFunctionForCurrentFrame:
     case Runtime::kGetCallable:
     case Runtime::kGetAbstractModuleSource:
     case Runtime::kTurbofanStaticAssert:
