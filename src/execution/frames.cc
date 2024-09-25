@@ -4069,7 +4069,6 @@ void CommonFrame::IterateExpressions(RootVisitor* v) const {
   FullObjectSlot limit(&Memory<Address>(fp() + last_object_offset) + 1);
   CHECK(StackFrame::IsTypeMarker(marker));
   v->VisitRootPointers(Root::kStackRoots, nullptr, base, limit);
-  IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 
 void JavaScriptFrame::Iterate(RootVisitor* v) const {
