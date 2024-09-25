@@ -2214,7 +2214,7 @@
 
 ##############################################################################
 # TODO(mliedtke): Support deopts on all platforms.
-['arch != x64 and arch != arm64 and arch != ia32 and arch != arm', {
+['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != loong64 and arch != mips64el', {
   # --wasm-deopt implementation experimental and not ported to most
   # architectures, yet.
   'wasm/deopt/*': [SKIP],

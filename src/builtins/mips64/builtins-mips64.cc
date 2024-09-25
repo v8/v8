@@ -3769,24 +3769,29 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ Ld(a4, MemOperand(a0, Deoptimizer::output_offset()));  // a4 is output_.
   __ Dlsa(a1, a4, a1, kSystemPointerSizeLog2);
   __ BranchShort(&outer_loop_header);
+
   __ bind(&outer_push_loop);
-  // Inner loop state: a2 = current FrameDescription*, a3 = loop index.
-  __ Ld(a2, MemOperand(a4, 0));  // output_[ix]
-  __ Ld(a3, MemOperand(a2, FrameDescription::frame_size_offset()));
+  Register current_frame = a2;
+  Register frame_size = a3;
+  __ Ld(current_frame, MemOperand(a4, 0));
+  __ Ld(frame_size,
+        MemOperand(current_frame, FrameDescription::frame_size_offset()));
   __ BranchShort(&inner_loop_header);
+
   __ bind(&inner_push_loop);
-  __ Dsubu(a3, a3, Operand(sizeof(uint64_t)));
-  __ Daddu(a6, a2, Operand(a3));
+  __ Dsubu(frame_size, frame_size, Operand(sizeof(uint64_t)));
+  __ Daddu(a6, current_frame, Operand(frame_size));
   __ Ld(a7, MemOperand(a6, FrameDescription::frame_content_offset()));
   __ push(a7);
+
   __ bind(&inner_loop_header);
-  __ BranchShort(&inner_push_loop, ne, a3, Operand(zero_reg));
+  __ BranchShort(&inner_push_loop, ne, frame_size, Operand(zero_reg));
 
   __ Daddu(a4, a4, Operand(kSystemPointerSize));
+
   __ bind(&outer_loop_header);
   __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
 
-  __ Ld(a1, MemOperand(a0, Deoptimizer::input_offset()));
   {
     // Check if machine has simd support, if so restore vector registers.
     // If not then restore double registers.
@@ -3805,7 +3810,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
       int code = config->GetAllocatableSimd128Code(i);
       int src_offset = code * kSimd128Size + simd128_regs_offset;
       const MSARegister fpu_reg = MSARegister::from_code(code);
-      __ ld_d(fpu_reg, MemOperand(a1, src_offset));
+      __ ld_d(fpu_reg, MemOperand(current_frame, src_offset));
     }
     __ Branch(&done);
 
@@ -3814,23 +3819,23 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
       int code = config->GetAllocatableSimd128Code(i);
       int src_offset = code * kSimd128Size + simd128_regs_offset;
       const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
-      __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
+      __ Ldc1(fpu_reg, MemOperand(current_frame, src_offset));
     }
 
     __ bind(&done);
   }
 
   // Push pc and continuation from the last output frame.
-  __ Ld(a6, MemOperand(a2, FrameDescription::pc_offset()));
+  __ Ld(a6, MemOperand(current_frame, FrameDescription::pc_offset()));
   __ push(a6);
-  __ Ld(a6, MemOperand(a2, FrameDescription::continuation_offset()));
+  __ Ld(a6, MemOperand(current_frame, FrameDescription::continuation_offset()));
   __ push(a6);
 
   // Technically restoring 'at' should work unless zero_reg is also restored
   // but it's safer to check for this.
   DCHECK(!(restored_regs.has(at)));
   // Restore the registers from the last output frame.
-  __ mov(at, a2);
+  __ mov(at, current_frame);
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset =
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
@@ -3839,10 +3844,17 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     }
   }
 
+  // If the continuation is non-zero (JavaScript), branch to the continuation.
+  // For Wasm just return to the pc from the last output frame in the lr
+  // register.
+  Label end;
   __ pop(at);  // Get continuation, leave pc on stack.
   __ pop(ra);
+  __ Branch(&end, eq, at, Operand(zero_reg));
   __ Jump(at);
-  __ stop();
+
+  __ bind(&end);
+  __ Jump(ra);
 }
 
 }  // namespace
