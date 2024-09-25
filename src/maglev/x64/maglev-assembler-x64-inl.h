@@ -877,10 +877,11 @@ inline void MaglevAssembler::CompareInstanceType(Register map,
   CmpInstanceType(map, instance_type);
 }
 
-inline void MaglevAssembler::CompareInstanceTypeRange(
+inline Condition MaglevAssembler::CompareInstanceTypeRange(
     Register map, Register instance_type_out, InstanceType lower_limit,
     InstanceType higher_limit) {
   CmpInstanceTypeRange(map, instance_type_out, lower_limit, higher_limit);
+  return kUnsignedLessThanEqual;
 }
 
 inline void MaglevAssembler::CompareFloat64AndJumpIf(

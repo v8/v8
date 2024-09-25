@@ -1484,8 +1484,8 @@ void CheckUint32IsSmi::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
   Register reg = ToRegister(input());
   // Perform an unsigned comparison against Smi::kMaxValue.
-  __ Cmp(reg, Smi::kMaxValue);
-  __ EmitEagerDeoptIf(kUnsignedGreaterThan, DeoptimizeReason::kNotASmi, this);
+  __ CompareUInt32AndEmitEagerDeoptIf(reg, Smi::kMaxValue, kUnsignedGreaterThan,
+                                      DeoptimizeReason::kNotASmi, this);
 }
 
 void CheckedSmiUntag::SetValueLocationConstraints() {
@@ -3383,8 +3383,9 @@ void CheckNotHole::SetValueLocationConstraints() {
 }
 void CheckNotHole::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-  __ CompareRoot(ToRegister(object_input()), RootIndex::kTheHoleValue);
-  __ EmitEagerDeoptIf(kEqual, DeoptimizeReason::kHole, this);
+  __ CompareRootAndEmitEagerDeoptIf(ToRegister(object_input()),
+                                    RootIndex::kTheHoleValue, kEqual,
+                                    DeoptimizeReason::kHole, this);
 }
 
 void ConvertHoleToUndefined::SetValueLocationConstraints() {
@@ -3764,10 +3765,10 @@ void HasInPrototypeChain::GenerateCode(MaglevAssembler* masm,
     // Check if we can determine the prototype directly from the {object_map}.
     ZoneLabelRef if_objectisdirect(masm);
     Register instance_type = scratch;
-    __ CompareInstanceTypeRange(map, instance_type, FIRST_TYPE,
-                                LAST_SPECIAL_RECEIVER_TYPE);
+    Condition jump_cond = __ CompareInstanceTypeRange(
+        map, instance_type, FIRST_TYPE, LAST_SPECIAL_RECEIVER_TYPE);
     __ JumpToDeferredIf(
-        kUnsignedLessThanEqual,
+        jump_cond,
         [](MaglevAssembler* masm, RegisterSnapshot snapshot,
            Register object_reg, Register map, Register instance_type,
            Register result_reg, HasInPrototypeChain* node,
@@ -5250,11 +5251,14 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
         kEqual, &done,
         v8_flags.debug_code ? Label::Distance::kFar : Label::Distance::kNear);
     // Check if it is a BigInt.
-    __ CompareTaggedRoot(scratch, RootIndex::kBigIntMap);
+    __ CompareTaggedRootAndEmitEagerDeoptIf(
+        scratch, RootIndex::kBigIntMap, kNotEqual,
+        DeoptimizeReason::kNotANumber, this);
   } else {
-    __ CompareMapWithRoot(value, RootIndex::kHeapNumberMap, scratch);
+    __ CompareMapWithRootAndEmitEagerDeoptIf(
+        value, RootIndex::kHeapNumberMap, scratch, kNotEqual,
+        DeoptimizeReason::kNotANumber, this);
   }
-  __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kNotANumber, this);
   __ bind(&done);
 }
 
@@ -5335,8 +5339,9 @@ void CheckedNumberToUint8Clamped::GenerateCode(MaglevAssembler* masm,
   __ Jump(&done);
   __ bind(&is_not_smi);
   // Check if HeapNumber, deopt otherwise.
-  __ CompareMapWithRoot(value, RootIndex::kHeapNumberMap, scratch);
-  __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kNotANumber, this);
+  __ CompareMapWithRootAndEmitEagerDeoptIf(value, RootIndex::kHeapNumberMap,
+                                           scratch, kNotEqual,
+                                           DeoptimizeReason::kNotANumber, this);
   // If heap number, get double value.
   __ LoadHeapNumberValue(double_value, value);
   // Clamp.
@@ -6464,8 +6469,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
     // A `0` return value means there is no OSR code available yet. Continue
     // execution in Maglev, OSR code will be picked up once it exists and is
     // cached on the feedback vector.
-    __ Cmp(maybe_target_code, 0);
-    __ JumpIf(kEqual, *no_code_for_osr);
+    __ CompareInt32AndJumpIf(maybe_target_code, 0, kEqual, *no_code_for_osr);
   }
 
   __ bind(&deopt);

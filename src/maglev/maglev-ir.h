@@ -550,6 +550,16 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
          repr == ValueRepresentation::kHoleyFloat64;
 }
 
+inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
+#if defined(V8_TARGET_ARCH_RISCV64)
+  // on RISC-V int32 are always sign-extended
+  return (repr == ValueRepresentation::kUint32);
+#else
+  return (repr == ValueRepresentation::kUint32 ||
+          repr == ValueRepresentation::kInt32);
+#endif
+}
+
 /*
  * The intersection (using `&`) of any two NodeTypes must be a valid NodeType
  * (possibly "kUnknown", modulo heap object bit).
@@ -3058,9 +3068,10 @@ DEF_FLOAT64_BINARY_NODE(Add)
 DEF_FLOAT64_BINARY_NODE(Subtract)
 DEF_FLOAT64_BINARY_NODE(Multiply)
 DEF_FLOAT64_BINARY_NODE(Divide)
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM)
-// On Arm/Arm64, floating point modulus is implemented with a call to a C++
-// function, while on x64, it's implemented natively without call.
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM) || \
+    defined(V8_TARGET_ARCH_RISCV64)
+// On Arm/Arm64/Riscv64, floating point modulus is implemented with a call to a
+// C++ function, while on x64, it's implemented natively without call.
 DEF_FLOAT64_BINARY_NODE_WITH_CALL(Modulus)
 #else
 DEF_FLOAT64_BINARY_NODE(Modulus)

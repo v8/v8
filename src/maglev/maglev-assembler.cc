@@ -446,8 +446,8 @@ void MaglevAssembler::TestTypeOf(
       JumpIfRoot(object, RootIndex::kNullValue, is_true, true_distance);
       // Check if the object is a receiver type,
       LoadMap(scratch, object);
-      CompareInstanceType(scratch, FIRST_JS_RECEIVER_TYPE);
-      JumpIf(kLessThan, is_false, false_distance);
+      CompareInstanceTypeAndJumpIf(scratch, FIRST_JS_RECEIVER_TYPE, kLessThan,
+                                   is_false, false_distance);
       // ... and is not undefined (undetectable) nor callable.
       Branch(IsNotCallableNorUndetactable(scratch, scratch), is_true,
              true_distance, fallthrough_when_true, is_false, false_distance,

@@ -821,8 +821,7 @@ class MaglevCodeGeneratingNodeProcessor {
       for (Input& input : *node) {
         ValueRepresentation rep =
             input.node()->properties().value_representation();
-        if (rep == ValueRepresentation::kInt32 ||
-            rep == ValueRepresentation::kUint32) {
+        if (IsZeroExtendedRepresentation(rep)) {
           // TODO(leszeks): Ideally we'd check non-register inputs too, but
           // AssertZeroExtended needs the scratch register, so we'd have to do
           // some manual push/pop here to free up another register.
@@ -1752,7 +1751,7 @@ bool MaglevCodeGenerator::EmitCode() {
 
   if (graph_->is_osr()) {
     masm_.Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
-    masm_.RecordComment("-- OSR entrpoint --");
+    masm_.RecordComment("-- OSR entrypoint --");
     masm_.BindJumpTarget(code_gen_state_.osr_entry());
   }
 

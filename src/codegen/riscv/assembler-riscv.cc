@@ -277,7 +277,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   GetCode(isolate->main_thread_local_isolate(), desc);
 }
 void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
-                        SafepointTableBuilder* safepoint_table_builder,
+                        SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
   // raw workflow to create InstructionStream objects (mostly in tests), add

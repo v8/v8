@@ -209,6 +209,24 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   Jump(a2);
 }
 
+Condition MacroAssembler::LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
+    Register flags, Register feedback_vector, Register result,
+    CodeKind current_code_kind) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(flags, feedback_vector));
+  DCHECK(CodeKindCanTierUp(current_code_kind));
+
+  Lhu(flags, FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  uint32_t kFlagsMask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
+                        FeedbackVector::kFlagsMaybeHasTurbofanCode |
+                        FeedbackVector::kFlagsLogNextExecution;
+  if (current_code_kind != CodeKind::MAGLEV) {
+    kFlagsMask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
+  }
+  And(result, flags, Operand(kFlagsMask));
+  return ne;
+}
+
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
 void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
@@ -4608,6 +4626,14 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
           bleu(rs, scratch, offset);
         }
         break;
+      case Condition::overflow:
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        bnez(rs, offset);
+        break;
+      case Condition::no_overflow:
+        if (!CalculateOffset(L, &offset, OffsetSize::kOffset13)) return false;
+        beqz(rs, offset);
+        break;
       default:
         UNREACHABLE();
     }
@@ -4894,7 +4920,7 @@ void MacroAssembler::CompareTaggedRootAndBranch(const Register& obj,
                                                 RootIndex index, Condition cc,
                                                 Label* target) {
   ASM_CODE_COMMENT(this);
-  // AssertSmiOrHeapObjectInMainCompressionCage(obj);
+  AssertSmiOrHeapObjectInMainCompressionCage(obj);
   UseScratchRegisterScope temps(this);
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
     CompareTaggedAndBranch(target, cc, obj, Operand(ReadOnlyRootPtr(index)));
@@ -4926,6 +4952,44 @@ void MacroAssembler::CompareRootAndBranch(const Register& obj, RootIndex index,
   }
   CompareTaggedRootAndBranch(obj, index, cc, target);
 }
+#if V8_TARGET_ARCH_RISCV64
+// Compare the tagged object in a register to a value from the root list
+// and put 0 into result if equal or 1 otherwise.
+void MacroAssembler::CompareTaggedRoot(const Register& with, RootIndex index,
+                                       const Register& result) {
+  ASM_CODE_COMMENT(this);
+  AssertSmiOrHeapObjectInMainCompressionCage(with);
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    Li(result, ReadOnlyRootPtr(index));
+    MacroAssembler::CmpTagged(result, with, result);
+    return;
+  }
+  // Some smi roots contain system pointer size values like stack limits.
+  DCHECK(base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+                         RootIndex::kLastStrongOrReadOnlyRoot));
+  LoadRoot(result, index);
+  MacroAssembler::CmpTagged(result, with, result);
+}
+
+void MacroAssembler::CompareRoot(const Register& obj, RootIndex index,
+                                 const Register& result, ComparisonMode mode) {
+  ASM_CODE_COMMENT(this);
+  if (mode == ComparisonMode::kFullPointer ||
+      !base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+                       RootIndex::kLastStrongOrReadOnlyRoot)) {
+    // Some smi roots contain system pointer size values like stack limits.
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    DCHECK(!AreAliased(obj, temp));
+    LoadRoot(temp, index);
+    CompareI(result, obj, Operand(temp),
+             Condition::ne);  // result is 0 if equal or 1 otherwise
+    return;
+  }
+  // FIXME: check that 0/1 in result is expected for all CompareRoot callers
+  CompareTaggedRoot(obj, index, result);
+}
+#endif
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      unsigned higher_limit,
@@ -5276,10 +5340,50 @@ void MacroAssembler::LoadAddress(Register dst, Label* target,
   }
 }
 
+void MacroAssembler::Switch(Register scratch, Register value,
+                            int case_value_base, Label** labels,
+                            int num_labels) {
+  Register table = scratch;
+  Label fallthrough, jump_table;
+  if (case_value_base != 0) {
+    SubWord(value, value, Operand(case_value_base));
+  }
+  Branch(&fallthrough, Condition::Ugreater_equal, value, Operand(num_labels));
+  LoadAddress(table, &jump_table);
+  CalcScaledAddress(table, table, value, kSystemPointerSizeLog2);
+  LoadWord(table, MemOperand(table, 0));
+  Jump(table);
+  // Calculate label area size and let MASM know that it will be impossible to
+  // create the trampoline within the range. That forces MASM to create the
+  // trampoline right here if necessary, i.e. if label area is too large and
+  // all unbound forward branches cannot be bound over it. Use nop() because the
+  // trampoline cannot be emitted right after Jump().
+  nop();
+  static constexpr int mask = kInstrSize - 1;
+  int aligned_label_area_size = num_labels * kUIntptrSize + kSystemPointerSize;
+  int instructions_per_label_area =
+      ((aligned_label_area_size + mask) & ~mask) >> kInstrSizeLog2;
+  BlockTrampolinePoolFor(instructions_per_label_area);
+  // Emit the jump table inline, under the assumption that it's not too big.
+  Align(kSystemPointerSize);
+  bind(&jump_table);
+  for (int i = 0; i < num_labels; ++i) {
+    dd(labels[i]);
+  }
+  bind(&fallthrough);
+}
+
 void MacroAssembler::Push(Tagged<Smi> smi) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   li(scratch, Operand(smi));
+  push(scratch);
+}
+
+void MacroAssembler::Push(Tagged<TaggedIndex> index) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, Operand(static_cast<uint32_t>(index.ptr())));
   push(scratch);
 }
 
@@ -6121,6 +6225,17 @@ void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
   bind(&ok);
 }
 
+#ifdef V8_ENABLE_DEBUG_CODE
+
+void MacroAssembler::AssertZeroExtended(Register int32_register) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  Assert(Condition::ule, AbortReason::k32BitValueInRegisterIsNotZeroExtended,
+         int32_register, Operand(kMaxUInt32));
+}
+
+#endif  // V8_ENABLE_DEBUG_CODE
+
 void MacroAssembler::Check(Condition cc, AbortReason reason, Register rs,
                            Operand rt) {
   Label L;
@@ -6190,6 +6305,31 @@ void MacroAssembler::Abort(AbortReason reason) {
   }
 }
 
+// Sets condition flags based on comparison, and returns type in type_reg.
+void MacroAssembler::CompareObjectTypeAndJump(Register object, Register map,
+                                              Register type_reg,
+                                              InstanceType type, Condition cond,
+                                              Label* target,
+                                              Label::Distance distance) {
+  ASM_CODE_COMMENT(this);
+  LoadMap(map, object);
+  // Borrowed from BaselineAssembler
+  if (v8_flags.debug_code) {
+    AssertNotSmi(map);
+    Register temp_type_reg = type_reg;
+    UseScratchRegisterScope temps(this);
+    if (map == temp_type_reg) {
+      // GetObjectType() clobbers 2nd and 3rd args, can't be same registers as
+      // first one
+      temp_type_reg = temps.Acquire();
+    }
+    GetObjectType(map, temp_type_reg, temp_type_reg);
+    Assert(eq, AbortReason::kUnexpectedValue, temp_type_reg, Operand(MAP_TYPE));
+  }
+  Lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Branch(target, cond, type_reg, Operand(type), distance);
+}
+
 void MacroAssembler::LoadMap(Register destination, Register object) {
   ASM_CODE_COMMENT(this);
   LoadTaggedField(destination, FieldMemOperand(object, HeapObject::kMapOffset));
@@ -6207,6 +6347,60 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
       dst, FieldMemOperand(
                dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
   LoadTaggedField(dst, MemOperand(dst, Context::SlotOffset(index)));
+}
+
+void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                             CodeKind min_opt_level,
+                                             Register feedback_vector,
+                                             FeedbackSlot slot,
+                                             Label* on_result,
+                                             Label::Distance distance) {
+  ASM_CODE_COMMENT(this);
+  Label fallthrough, clear_slot;
+  LoadTaggedField(
+      scratch_and_result,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::OffsetOfElementAt(slot.ToInt())));
+  LoadWeakValue(scratch_and_result, scratch_and_result, &fallthrough);
+
+  // Is it marked_for_deoptimization? If yes, clear the slot.
+  {
+    // The entry references a CodeWrapper object. Unwrap it now.
+    LoadCodePointerField(
+        scratch_and_result,
+        FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset));
+
+    // marked for deoptimization?
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    Load32U(scratch, FieldMemOperand(scratch_and_result, Code::kFlagsOffset));
+    And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+
+    if (min_opt_level == CodeKind::TURBOFAN) {
+      Branch(&clear_slot, not_equal, scratch, Operand(zero_reg),
+             Label::Distance::kNear);
+
+      // is code "turbofanned"?
+      Load32U(scratch, FieldMemOperand(scratch_and_result, Code::kFlagsOffset));
+      And(scratch, scratch, Operand(1 << Code::kIsTurbofannedBit));
+      Branch(on_result, not_equal, scratch, Operand(zero_reg), distance);
+
+      Branch(&fallthrough);
+    } else {
+      DCHECK_EQ(min_opt_level, CodeKind::MAGLEV);
+      Branch(on_result, equal, scratch, Operand(zero_reg), distance);
+    }
+
+    bind(&clear_slot);
+    li(scratch_and_result, ClearedValue());
+    StoreTaggedField(
+        scratch_and_result,
+        FieldMemOperand(feedback_vector,
+                        FeedbackVector::OffsetOfElementAt(slot.ToInt())));
+  }
+
+  bind(&fallthrough);
+  Move(scratch_and_result, zero_reg);
 }
 
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
@@ -6398,6 +6592,13 @@ void MacroAssembler::SmiToInt32(Register smi) {
   SmiUntag(smi);
 }
 
+void MacroAssembler::SmiToInt32(Register dst, Register src) {
+  if (dst != src) {
+    Move(dst, src);
+  }
+  SmiToInt32(dst);
+}
+
 void MacroAssembler::JumpIfSmi(Register value, Label* smi_label,
                                Label::Distance distance) {
   ASM_CODE_COMMENT(this);
@@ -6581,6 +6782,32 @@ void MacroAssembler::AssertBoundFunction(Register object) {
           Operand(JS_BOUND_FUNCTION_TYPE));
   }
 }
+
+#ifdef V8_ENABLE_DEBUG_CODE
+void MacroAssembler::AssertSmiOrHeapObjectInMainCompressionCage(
+    Register object) {
+  if (!PointerCompressionIsEnabled()) return;
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  // We may not have any scratch registers so we preserve our input register.
+  Push(object, zero_reg);
+  Label ok;
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  SmiTst(object, scratch);
+  BranchShort(&ok, kEqual, scratch, Operand(zero_reg));
+  // Clear the lower 32 bits.
+  Srl64(object, object, Operand(32));
+  Sll64(object, object, Operand(32));
+  // Either the value is now equal to the right-shifted pointer compression
+  // cage base or it's zero if we got a compressed pointer register as input.
+  BranchShort(&ok, kEqual, object, Operand(zero_reg));
+  Check(kEqual, AbortReason::kObjectNotTagged, object,
+        Operand(kPtrComprCageBaseRegister));
+  bind(&ok);
+  Pop(zero_reg, object);
+}
+#endif  // V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!v8_flags.debug_code) return;
@@ -6896,6 +7123,24 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   }
 }
 
+// Check if the code object is marked for deoptimization. If it is, then it
+// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
+// to:
+//    1. read from memory the word that contains that bit, which can be found in
+//       the flags in the referenced {Code} object;
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
+void MacroAssembler::BailoutIfDeoptimized() {
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
+  LoadProtectedPointerField(
+      kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  Lw(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
+  And(kScratchReg, kScratchReg,
+      Operand(1 << Code::kMarkedForDeoptimizationBit));
+  TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, ne, kScratchReg,
+                  Operand(zero_reg));
+}
+
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            DeoptimizeKind kind, Label* ret,
                                            Label*) {
@@ -7026,6 +7271,15 @@ void MacroAssembler::LoadTaggedField(const Register& destination,
                                      const MemOperand& field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
     DecompressTagged(destination, field_operand);
+  } else {
+    Ld(destination, field_operand);
+  }
+}
+
+void MacroAssembler::LoadTaggedFieldWithoutDecompressing(
+    const Register& destination, const MemOperand& field_operand) {
+  if (COMPRESS_POINTERS_BOOL) {
+    Lw(destination, field_operand);
   } else {
     Ld(destination, field_operand);
   }
