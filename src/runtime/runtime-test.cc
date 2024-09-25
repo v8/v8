@@ -1607,7 +1607,7 @@ RUNTIME_FUNCTION(Runtime_InLargeObjectSpace) {
 
 RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
   SealHandleScope shs(isolate);
-  if (args.length() != 1) {
+  if (args.length() != 1 || !IsJSArray(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
   auto array = Cast<JSArray>(args[0]);
@@ -1619,7 +1619,7 @@ RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
 
 RUNTIME_FUNCTION(Runtime_HasCowElements) {
   SealHandleScope shs(isolate);
-  if (args.length() != 1) {
+  if (args.length() != 1 || !IsJSArray(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
   auto array = Cast<JSArray>(args[0]);
