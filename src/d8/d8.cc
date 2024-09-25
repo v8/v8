@@ -1601,6 +1601,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   // Setup callbacks, and then chain them to the result promise.
   Local<Array> module_resolution_data = v8::Array::New(isolate);
+  module_resolution_data->SetPrototypeV2(realm, v8::Null(isolate)).ToChecked();
   module_resolution_data
       ->Set(realm, ModuleResolutionDataIndex::kResolver, resolver)
       .ToChecked();
