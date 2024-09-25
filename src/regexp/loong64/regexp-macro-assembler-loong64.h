@@ -166,7 +166,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerLOONG64
 
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch,
-                                Operand extra_space = Operand(0));
+                                Operand extra_space_for_variables = Operand(0));
   void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // The ebp-relative location of a regexp register.
