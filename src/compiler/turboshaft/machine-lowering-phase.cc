@@ -24,7 +24,7 @@ void MachineLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
   // JSGenericLoweringReducer without requiring a whole phase just for that.
   CopyingPhase<JSGenericLoweringReducer, DataViewLoweringReducer,
                MachineLoweringReducer, FastApiCallLoweringReducer,
-               VariableReducer, SelectLoweringReducer,
+               SelectLoweringReducer,
                MachineOptimizationReducer>::Run(data, temp_zone);
 }
 

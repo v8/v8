@@ -24,11 +24,10 @@ class FastApiCallLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(FastApiCallLowering)
 
-  OpIndex REDUCE(FastApiCall)(
-      V<FrameState> frame_state, V<Object> data_argument, V<Context> context,
-      base::Vector<const OpIndex> arguments,
-      const FastApiCallParameters* parameters,
-      base::Vector<const RegisterRepresentation> out_reps) {
+  OpIndex REDUCE(FastApiCall)(V<FrameState> frame_state,
+                              V<Object> data_argument, V<Context> context,
+                              base::Vector<const OpIndex> arguments,
+                              const FastApiCallParameters* parameters) {
     const auto& c_functions = parameters->c_functions;
     const auto& c_signature = parameters->c_signature();
     const int c_arg_count = c_signature->ArgumentCount();
@@ -36,25 +35,7 @@ class FastApiCallLoweringReducer : public Next {
     const auto& resolution_result = parameters->resolution_result;
 
     Label<> handle_error(this);
-    Label<Word32> done(this);
-    MachineType result_type =
-        MachineType::TypeForCType(c_signature->ReturnInfo());
-    if (result_type == MachineType::Pointer()) {
-      result_type = MachineType::TaggedPointer();
-    } else if (result_type.representation() == MachineRepresentation::kWord64) {
-      if (c_signature->GetInt64Representation() ==
-          CFunctionInfo::Int64Representation::kBigInt) {
-        // In the end we are only interested in the register representation, and
-        // that is the same for both Int64 and Uint64.
-        result_type = MachineType::Int64();
-      } else {
-        DCHECK_EQ(c_signature->GetInt64Representation(),
-                  CFunctionInfo::Int64Representation::kNumber);
-        result_type = MachineType::Float64();
-      }
-    }
-    Variable result =
-        __ NewVariable(RegisterRepresentation::FromMachineType(result_type));
+    Label<Word32, Object> done(this);
 
     OpIndex callee;
     base::SmallVector<OpIndex, 16> args;
@@ -89,9 +70,7 @@ class FastApiCallLoweringReducer : public Next {
       MachineSignature::Builder builder(
           __ graph_zone(), 1,
           c_arg_count + (c_signature->HasOptions() ? 1 : 0));
-
       builder.AddReturn(MachineType::TypeForCType(c_signature->ReturnInfo()));
-
       for (int i = 0; i < c_arg_count; ++i) {
         CTypeInfo type = c_signature->ArgumentInfo(i);
         MachineType machine_type =
@@ -146,28 +125,27 @@ class FastApiCallLoweringReducer : public Next {
                       __ HeapConstant(isolate_->factory()->the_hole_value()))),
                   trigger_exception);
 
-      V<Any> fast_call_result = ConvertReturnValue(c_signature, c_call_result);
-      __ SetVariable(result, fast_call_result);
+      V<Object> fast_call_result =
+          ConvertReturnValue(c_signature, c_call_result);
 
-      GOTO(done, FastApiCallOp::kSuccessValue);
+      GOTO(done, FastApiCallOp::kSuccessValue, fast_call_result);
       BIND(trigger_exception);
       __ template CallRuntime<
           typename RuntimeCallDescriptor::PropagateException>(
           isolate_, frame_state, __ NoContextConstant(), LazyDeoptOnThrow::kNo,
           {});
 
-      __ Unreachable();
+      GOTO(done, FastApiCallOp::kFailureValue, __ TagSmi(0));
     }
 
     if (BIND(handle_error)) {
-      __ SetVariable(result, DefaultReturnValue(c_signature));
       // We pass Tagged<Smi>(0) as the value here, although this should never be
       // visible when calling code reacts to `kFailureValue` properly.
-      GOTO(done, FastApiCallOp::kFailureValue);
+      GOTO(done, FastApiCallOp::kFailureValue, __ TagSmi(0));
     }
 
-    BIND(done, state);
-    return __ Tuple(state, __ GetVariable(result));
+    BIND(done, state, value);
+    return __ Tuple(state, value);
   }
 
  private:
@@ -506,71 +484,75 @@ class FastApiCallLoweringReducer : public Next {
     return stack_slot;
   }
 
-  V<Any> DefaultReturnValue(const CFunctionInfo* c_signature) {
-    switch (c_signature->ReturnInfo().GetType()) {
-      case CTypeInfo::Type::kVoid:
-        return __ HeapConstant(factory_->undefined_value());
-      case CTypeInfo::Type::kBool:
-      case CTypeInfo::Type::kInt32:
-      case CTypeInfo::Type::kUint32:
-        return __ Word32Constant(0);
-      case CTypeInfo::Type::kInt64:
-      case CTypeInfo::Type::kUint64:
-        return __ Word64Constant(int64_t{0});
-      case CTypeInfo::Type::kFloat32:
-        return __ Float32Constant(0);
-      case CTypeInfo::Type::kFloat64:
-        return __ Float64Constant(0);
-      case CTypeInfo::Type::kPointer:
-        return __ HeapConstant(factory_->undefined_value());
-      case CTypeInfo::Type::kAny:
-      case CTypeInfo::Type::kSeqOneByteString:
-      case CTypeInfo::Type::kV8Value:
-      case CTypeInfo::Type::kApiObject:
-      case CTypeInfo::Type::kUint8:
-        UNREACHABLE();
-    }
-  }
-
-  V<Any> ConvertReturnValue(const CFunctionInfo* c_signature, OpIndex result) {
+  V<Object> ConvertReturnValue(const CFunctionInfo* c_signature,
+                               OpIndex result) {
     switch (c_signature->ReturnInfo().GetType()) {
       case CTypeInfo::Type::kVoid:
         return __ HeapConstant(factory_->undefined_value());
       case CTypeInfo::Type::kBool:
         static_assert(sizeof(bool) == 1, "unsupported bool size");
-        return __ Word32BitwiseAnd(result, __ Word32Constant(0xFF));
+        return __ ConvertWord32ToBoolean(
+            __ Word32BitwiseAnd(result, __ Word32Constant(0xFF)));
       case CTypeInfo::Type::kInt32:
+        return __ ConvertInt32ToNumber(result);
       case CTypeInfo::Type::kUint32:
-      case CTypeInfo::Type::kFloat32:
-      case CTypeInfo::Type::kFloat64:
-        return result;
+        return __ ConvertUint32ToNumber(result);
       case CTypeInfo::Type::kInt64: {
         CFunctionInfo::Int64Representation repr =
             c_signature->GetInt64Representation();
         if (repr == CFunctionInfo::Int64Representation::kBigInt) {
-          return result;
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBigInt,
+              RegisterRepresentation::Word64(),
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
+              RegisterRepresentation::Word64(),
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else {
+          UNREACHABLE();
         }
-        DCHECK_EQ(repr, CFunctionInfo::Int64Representation::kNumber);
-        return __ ChangeInt64ToFloat64(result);
       }
       case CTypeInfo::Type::kUint64: {
         CFunctionInfo::Int64Representation repr =
             c_signature->GetInt64Representation();
         if (repr == CFunctionInfo::Int64Representation::kBigInt) {
-          return result;
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBigInt,
+              RegisterRepresentation::Word64(),
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kUnsigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
+              RegisterRepresentation::Word64(),
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kUnsigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else {
+          UNREACHABLE();
         }
-        DCHECK_EQ(repr, CFunctionInfo::Int64Representation::kNumber);
-        return __ ChangeUint64ToFloat64(result);
       }
-
+      case CTypeInfo::Type::kFloat32:
+        return __ ConvertFloat64ToNumber(
+            __ ChangeFloat32ToFloat64(result),
+            CheckForMinusZeroMode::kCheckForMinusZero);
+      case CTypeInfo::Type::kFloat64:
+        return __ ConvertFloat64ToNumber(
+            result, CheckForMinusZeroMode::kCheckForMinusZero);
       case CTypeInfo::Type::kPointer:
         return BuildAllocateJSExternalObject(result);
-      case CTypeInfo::Type::kAny:
       case CTypeInfo::Type::kSeqOneByteString:
       case CTypeInfo::Type::kV8Value:
       case CTypeInfo::Type::kApiObject:
       case CTypeInfo::Type::kUint8:
         UNREACHABLE();
+      case CTypeInfo::Type::kAny:
+        return __ ConvertFloat64ToNumber(
+            __ ChangeInt64ToFloat64(result),
+            CheckForMinusZeroMode::kCheckForMinusZero);
     }
   }
 
