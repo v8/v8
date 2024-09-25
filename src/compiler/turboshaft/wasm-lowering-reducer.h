@@ -552,6 +552,7 @@ class WasmLoweringReducer : public Next {
       case wasm::kRefNull:
         return MemoryRepresentation::AnyTagged();
       case wasm::kVoid:
+      case wasm::kTop:
       case wasm::kBottom:
         UNREACHABLE();
     }

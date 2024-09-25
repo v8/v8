@@ -925,6 +925,7 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
     case kS128:
     case kRtt:
     case kVoid:
+    case kTop:
     case kBottom:
       UNREACHABLE();
   }

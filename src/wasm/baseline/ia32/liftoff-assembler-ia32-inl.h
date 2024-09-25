@@ -73,7 +73,11 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case kS128:
       assm->movdqu(dst.fp(), src);
       break;
-    default:
+    case kVoid:
+    case kTop:
+    case kBottom:
+    case kI8:
+    case kF16:
       UNREACHABLE();
   }
 }
@@ -105,6 +109,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
       assm->movdqu(dst, src.fp());
       break;
     case kVoid:
+    case kTop:
     case kBottom:
     case kI8:
     case kF16:
@@ -140,6 +145,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
       assm->movdqu(Operand(esp, 0), reg.fp());
       break;
     case kVoid:
+    case kTop:
     case kBottom:
     case kI8:
     case kI16:

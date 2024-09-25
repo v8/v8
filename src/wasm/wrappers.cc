@@ -217,6 +217,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           case HeapType::kNoExn:
             return ret;
           case HeapType::kBottom:
+          case HeapType::kTop:
           case HeapType::kStringViewWtf8:
           case HeapType::kStringViewWtf16:
           case HeapType::kStringViewIter:
@@ -315,6 +316,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case kF16:
       case kS128:
       case kVoid:
+      case kTop:
       case kBottom:
         // If this is reached, then IsJSCompatibleSignature() is too permissive.
         UNREACHABLE();
@@ -814,6 +816,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case kI8:
       case kI16:
       case kF16:
+      case kTop:
       case kBottom:
       case kVoid:
         UNREACHABLE();
@@ -991,6 +994,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case kI8:
       case kI16:
       case kF16:
+      case kTop:
       case kBottom:
       case kVoid:
         // If this is reached, then IsJSCompatibleSignature() is too permissive.
@@ -1011,6 +1015,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         case kI8:
         case kI16:
         case kF16:
+        case kTop:
         case kBottom:
         case kVoid:
           return false;
@@ -1072,6 +1077,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case kI8:
       case kI16:
       case kF16:
+      case kTop:
       case kBottom:
       case kVoid:
         UNREACHABLE();

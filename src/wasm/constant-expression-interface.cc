@@ -213,6 +213,7 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
     case kVoid:
     case kRtt:
     case kRef:
+    case kTop:
     case kBottom:
       UNREACHABLE();
   }

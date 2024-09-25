@@ -5383,6 +5383,7 @@ class LiftoffCompiler {
       case wasm::kI16:
       case wasm::kF16:
       case wasm::kVoid:
+      case wasm::kTop:
       case wasm::kBottom:
         UNREACHABLE();
     }
@@ -5440,6 +5441,7 @@ class LiftoffCompiler {
       case wasm::kI16:
       case wasm::kF16:
       case wasm::kVoid:
+      case wasm::kTop:
       case wasm::kBottom:
         UNREACHABLE();
     }
@@ -9047,6 +9049,7 @@ class LiftoffCompiler {
         return LoadNullValue(reg.gp(), type);
       case kRtt:
       case kVoid:
+      case kTop:
       case kBottom:
       case kRef:
         UNREACHABLE();

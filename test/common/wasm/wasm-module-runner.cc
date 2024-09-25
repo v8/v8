@@ -70,6 +70,7 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
       case kI16:
       case kF16:
       case kVoid:
+      case kTop:
       case kBottom:
         UNREACHABLE();
     }

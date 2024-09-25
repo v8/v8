@@ -587,6 +587,7 @@ Handle<Object> WasmObject::ReadValueAt(Isolate* isolate,
       UNREACHABLE();
 
     case wasm::kVoid:
+    case wasm::kTop:
     case wasm::kBottom:
       UNREACHABLE();
   }

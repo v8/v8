@@ -71,6 +71,7 @@ V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
 }
 
 // Checks if {subtype} is a subtype of {supertype} (both defined in {module}).
+// TODO(369369573): Make sure this overload is not misused.
 V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
                            const WasmModule* module) {
   // If the types are trivially identical, exit early.
@@ -148,7 +149,8 @@ inline std::ostream& operator<<(std::ostream& oss, TypeInModule type) {
              << reinterpret_cast<intptr_t>(type.module);
 }
 
-// Returns {kWasmBottom} if the union of {type1} and {type2} is not defined.
+// Returns the common ancestor of {type1} and {type2}. Returns kTop if they
+// don't have a common ancestor.
 V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
                                      const WasmModule* module1,
                                      const WasmModule* module2);

@@ -158,6 +158,7 @@ class WasmValue {
       case kRtt:
         return "Handle [" + std::to_string(to_ref().address()) + "]";
       case kVoid:
+      case kTop:
       case kBottom:
         UNREACHABLE();
     }

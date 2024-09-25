@@ -291,6 +291,7 @@ class MjsunitNamesProvider {
       ABSTRACT_NN_TYPE_LIST(CASE)
 #undef CASE
       case HeapType::kBottom:
+      case HeapType::kTop:
         UNREACHABLE();
       default:
         PrintTypeIndex(out, type.ref_index(), mode);
@@ -316,6 +317,7 @@ class MjsunitNamesProvider {
 #undef CASE
           return PrintHeapType(out, type.heap_type(), mode);
           case HeapType::kBottom:
+          case HeapType::kTop:
             UNREACHABLE();
           default:
             out << (mode == kEmitObjects ? "wasmRefNullType("
@@ -339,6 +341,7 @@ class MjsunitNamesProvider {
       case kBottom:
         out << "/*<bot>*/";
         return;
+      case kTop:
       case kRtt:
       case kVoid:
         UNREACHABLE();

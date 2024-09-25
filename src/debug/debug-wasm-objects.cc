@@ -1128,6 +1128,7 @@ Handle<WasmValueObject> WasmValueObject::New(
     }
     case wasm::kRtt:
     case wasm::kVoid:
+    case wasm::kTop:
     case wasm::kBottom:
       UNREACHABLE();
   }

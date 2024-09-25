@@ -1122,6 +1122,7 @@ class WasmInJsInliningInterface {
       case wasm::kRtt:
       case wasm::kRef:
       case wasm::kBottom:
+      case wasm::kTop:
         UNREACHABLE();
     }
   }

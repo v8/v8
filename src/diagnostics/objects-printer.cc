@@ -2540,6 +2540,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
         }
         os << std::dec << std::setfill(' ');
         break;
+      case wasm::kTop:
       case wasm::kBottom:
       case wasm::kVoid:
         UNREACHABLE();
@@ -2620,6 +2621,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
       break;
     }
     case wasm::kRtt:
+    case wasm::kTop:
     case wasm::kBottom:
     case wasm::kVoid:
       UNREACHABLE();

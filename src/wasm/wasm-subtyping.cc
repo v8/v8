@@ -255,6 +255,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     const WasmModule* super_module) {
   DCHECK(subtype != supertype || sub_module != super_module);
 
+  // The top type is the super type of all other types.
+  if (supertype.kind() == kTop) return true;
+
   switch (subtype.kind()) {
     case kI32:
     case kI64:
@@ -265,8 +268,11 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case kI8:
     case kI16:
     case kVoid:
-    case kBottom:
+    case kTop:
       return subtype == supertype;
+    case kBottom:
+      // The bottom type is a subtype of all types.
+      return true;
     case kRtt:
       return supertype.kind() == kRtt &&
              EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
@@ -326,6 +332,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
              super_repr_non_shared == HeapType::kEq ||
              super_repr_non_shared == HeapType::kAny;
     case HeapType::kBottom:
+    case HeapType::kTop:
       UNREACHABLE();
     case HeapType::kNone:
       // none is a subtype of every non-func, non-extern and non-exn reference
@@ -389,6 +396,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
     case HeapType::kNoExn:
       return false;
     case HeapType::kBottom:
+    case HeapType::kTop:
       UNREACHABLE();
     default:
       break;
@@ -430,7 +438,7 @@ HeapType::Representation CommonAncestor(uint32_t type_index1,
   TypeDefinition::Kind kind2 = module2->types[type_index2].kind;
   if (module1->types[type_index1].is_shared !=
       module2->types[type_index2].is_shared) {
-    return HeapType::kBottom;
+    return HeapType::kTop;
   }
   bool both_shared = module1->types[type_index1].is_shared;
   {
@@ -464,12 +472,12 @@ HeapType::Representation CommonAncestor(uint32_t type_index1,
           return MaybeShared(HeapType::kFunc, both_shared);
         case TypeDefinition::kStruct:
         case TypeDefinition::kArray:
-          return HeapType::kBottom;
+          return HeapType::kTop;
       }
     case TypeDefinition::kStruct:
       switch (kind2) {
         case TypeDefinition::kFunction:
-          return HeapType::kBottom;
+          return HeapType::kTop;
         case TypeDefinition::kStruct:
           return MaybeShared(HeapType::kStruct, both_shared);
         case TypeDefinition::kArray:
@@ -478,7 +486,7 @@ HeapType::Representation CommonAncestor(uint32_t type_index1,
     case TypeDefinition::kArray:
       switch (kind2) {
         case TypeDefinition::kFunction:
-          return HeapType::kBottom;
+          return HeapType::kTop;
         case TypeDefinition::kStruct:
           return MaybeShared(HeapType::kEq, both_shared);
         case TypeDefinition::kArray:
@@ -496,8 +504,16 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
   // Passing {module2} with {heap1} below is fine since {heap1} is abstract.
   bool is_shared = IsShared(heap1, module2);
   if (is_shared != IsShared(heap2, module2)) {
-    return HeapType::kBottom;
+    return HeapType::kTop;
   }
+
+  // TODO(mliedtke): These types should be normalized to the value type kTop and
+  // kBottom and therefore should never appear here. Can we convert these into
+  // assertions?
+  if (heap1 == HeapType::kTop || heap2 == HeapType::kTop) return HeapType::kTop;
+  if (heap1 == HeapType::kBottom) return heap2.representation();
+  if (heap2 == HeapType::kBottom) return heap1.representation();
+
   HeapType::Representation repr_non_shared2 = heap2.representation_non_shared();
   switch (heap1.representation_non_shared()) {
     case HeapType::kFunc: {
@@ -506,7 +522,7 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
           (heap2.is_index() && module2->has_signature(heap2.ref_index()))) {
         return MaybeShared(HeapType::kFunc, is_shared);
       } else {
-        return HeapType::kBottom;
+        return HeapType::kTop;
       }
     }
     case HeapType::kAny: {
@@ -529,11 +545,10 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
         case HeapType::kStringViewWtf16:
         case HeapType::kExn:
         case HeapType::kNoExn:
-        case HeapType::kBottom:
-          return HeapType::kBottom;
+          return HeapType::kTop;
         default:
           return module2->has_signature(heap2.ref_index())
-                     ? HeapType::kBottom
+                     ? HeapType::kTop
                      : MaybeShared(HeapType::kAny, is_shared);
       }
     }
@@ -558,11 +573,10 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
         case HeapType::kStringViewWtf16:
         case HeapType::kExn:
         case HeapType::kNoExn:
-        case HeapType::kBottom:
-          return HeapType::kBottom;
+          return HeapType::kTop;
         default:
           return module2->has_signature(heap2.ref_index())
-                     ? HeapType::kBottom
+                     ? HeapType::kTop
                      : MaybeShared(HeapType::kEq, is_shared);
       }
     }
@@ -588,11 +602,10 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
         case HeapType::kStringViewWtf16:
         case HeapType::kExn:
         case HeapType::kNoExn:
-        case HeapType::kBottom:
-          return HeapType::kBottom;
+          return HeapType::kTop;
         default:
           return module2->has_signature(heap2.ref_index())
-                     ? HeapType::kBottom
+                     ? HeapType::kTop
                      : MaybeShared(HeapType::kEq, is_shared);
       }
     case HeapType::kStruct:
@@ -617,14 +630,13 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
         case HeapType::kStringViewWtf16:
         case HeapType::kExn:
         case HeapType::kNoExn:
-        case HeapType::kBottom:
-          return HeapType::kBottom;
+          return HeapType::kTop;
         default:
           return module2->has_struct(heap2.ref_index())
                      ? MaybeShared(HeapType::kStruct, is_shared)
                  : module2->has_array(heap2.ref_index())
                      ? MaybeShared(HeapType::kEq, is_shared)
-                     : HeapType::kBottom;
+                     : HeapType::kTop;
       }
     case HeapType::kArray:
       switch (repr_non_shared2) {
@@ -648,17 +660,14 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
         case HeapType::kStringViewWtf16:
         case HeapType::kExn:
         case HeapType::kNoExn:
-        case HeapType::kBottom:
-          return HeapType::kBottom;
+          return HeapType::kTop;
         default:
           return module2->has_array(heap2.ref_index())
                      ? MaybeShared(HeapType::kArray, is_shared)
                  : module2->has_struct(heap2.ref_index())
                      ? MaybeShared(HeapType::kEq, is_shared)
-                     : HeapType::kBottom;
+                     : HeapType::kTop;
       }
-    case HeapType::kBottom:
-      return HeapType::kBottom;
     case HeapType::kNone:
       switch (repr_non_shared2) {
         case HeapType::kArray:
@@ -679,11 +688,10 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
         case HeapType::kStringViewWtf16:
         case HeapType::kExn:
         case HeapType::kNoExn:
-        case HeapType::kBottom:
-          return HeapType::kBottom;
+          return HeapType::kTop;
         default:
           return module2->has_signature(heap2.ref_index())
-                     ? HeapType::kBottom
+                     ? HeapType::kTop
                      : heap2.representation();
       }
     case HeapType::kNoFunc:
@@ -691,36 +699,36 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
               repr_non_shared2 == HeapType::kFunc ||
               (heap2.is_index() && module2->has_signature(heap2.ref_index())))
                  ? heap2.representation()
-                 : HeapType::kBottom;
+                 : HeapType::kTop;
     case HeapType::kNoExtern:
       return repr_non_shared2 == HeapType::kExtern ||
                      repr_non_shared2 == HeapType::kNoExtern ||
                      repr_non_shared2 == HeapType::kExternString
                  ? heap2.representation()
-                 : HeapType::kBottom;
+                 : HeapType::kTop;
     case HeapType::kExtern:
       return repr_non_shared2 == HeapType::kExtern ||
                      repr_non_shared2 == HeapType::kNoExtern ||
                      repr_non_shared2 == HeapType::kExternString
                  ? MaybeShared(HeapType::kExtern, is_shared)
-                 : HeapType::kBottom;
+                 : HeapType::kTop;
     case HeapType::kExternString:
       return repr_non_shared2 == HeapType::kExtern
                  ? MaybeShared(HeapType::kExtern, is_shared)
              : (repr_non_shared2 == HeapType::kNoExtern ||
                 repr_non_shared2 == HeapType::kExternString)
                  ? MaybeShared(HeapType::kExternString, is_shared)
-                 : HeapType::kBottom;
+                 : HeapType::kTop;
     case HeapType::kNoExn:
       return repr_non_shared2 == HeapType::kExn ||
                      repr_non_shared2 == HeapType::kNoExn
-                 ? heap1.representation()
-                 : HeapType::kBottom;
+                 ? heap2.representation()
+                 : HeapType::kTop;
     case HeapType::kExn:
       return repr_non_shared2 == HeapType::kExn ||
                      repr_non_shared2 == HeapType::kNoExn
                  ? MaybeShared(HeapType::kExn, is_shared)
-                 : HeapType::kBottom;
+                 : HeapType::kTop;
     case HeapType::kString: {
       switch (repr_non_shared2) {
         case HeapType::kI31:
@@ -741,18 +749,18 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
         case HeapType::kExn:
-        case HeapType::kBottom:
-          return HeapType::kBottom;
+        case HeapType::kNoExn:
+          return HeapType::kTop;
         default:
           return module2->has_signature(heap2.ref_index())
-                     ? HeapType::kBottom
+                     ? HeapType::kTop
                      : MaybeShared(HeapType::kAny, is_shared);
       }
     }
     case HeapType::kStringViewIter:
     case HeapType::kStringViewWtf16:
     case HeapType::kStringViewWtf8:
-      return heap1 == heap2 ? heap1.representation() : HeapType::kBottom;
+      return heap1 == heap2 ? heap1.representation() : HeapType::kTop;
     default:
       UNREACHABLE();
   }
@@ -762,10 +770,12 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
 V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
                                      const WasmModule* module1,
                                      const WasmModule* module2) {
+  if (type1 == kWasmTop || type2 == kWasmTop) return {kWasmTop, module1};
+  if (type1 == kWasmBottom) return {type2, module2};
+  if (type2 == kWasmBottom) return {type1, module1};
   if (!type1.is_object_reference() || !type2.is_object_reference()) {
-    return {
-        EquivalentTypes(type1, type2, module1, module2) ? type1 : kWasmBottom,
-        module1};
+    return {EquivalentTypes(type1, type2, module1, module2) ? type1 : kWasmTop,
+            module1};
   }
   Nullability nullability =
       type1.is_nullable() || type2.is_nullable() ? kNullable : kNonNullable;
@@ -787,8 +797,11 @@ V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
         CommonAncestor(heap1.ref_index(), heap2.ref_index(), module1, module2);
     result_module = module1;
   }
-  return {result_repr == HeapType::kBottom
-              ? kWasmBottom
+  // The type could only be kBottom if the input was kBottom but any kBottom
+  // HeapType should be "normalized" to kWasmBottom ValueType.
+  DCHECK_NE(result_repr, HeapType::kBottom);
+  return {result_repr == HeapType::kTop
+              ? kWasmTop
               : ValueType::RefMaybeNull(result_repr, nullability),
           result_module};
 }
@@ -796,6 +809,8 @@ V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
 TypeInModule Intersection(ValueType type1, ValueType type2,
                           const WasmModule* module1,
                           const WasmModule* module2) {
+  if (type1 == kWasmTop) return {type2, module2};
+  if (type2 == kWasmTop) return {type1, module1};
   if (!type1.is_object_reference() || !type2.is_object_reference()) {
     return {
         EquivalentTypes(type1, type2, module1, module2) ? type1 : kWasmBottom,

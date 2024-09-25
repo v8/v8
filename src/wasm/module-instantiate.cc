@@ -2257,6 +2257,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       value = WasmValue(global_object->GetRef(), global_object->type());
       break;
     case kVoid:
+    case kTop:
     case kBottom:
     case kRtt:
     case kI8:

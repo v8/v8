@@ -236,6 +236,7 @@ class WasmInitExpr : public ZoneObject {
         return WasmInitExpr(value);
       }
       case kVoid:
+      case kTop:
       case kBottom:
       case kRef:
       case kRtt:

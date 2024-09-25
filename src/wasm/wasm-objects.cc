@@ -376,6 +376,7 @@ void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
       SetFunctionTableEntry(isolate, table, entry_index, entry);
       return;
     case wasm::HeapType::kBottom:
+    case wasm::HeapType::kTop:
       UNREACHABLE();
     default:
       DCHECK(table->has_trusted_data());
@@ -425,6 +426,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
       // Placeholder; handled below.
       break;
     case wasm::HeapType::kBottom:
+    case wasm::HeapType::kTop:
       UNREACHABLE();
     default:
       DCHECK(table->has_trusted_data());
@@ -2025,6 +2027,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
     }
     case wasm::kRtt:
     case wasm::kVoid:
+    case wasm::kTop:
     case wasm::kBottom:
       UNREACHABLE();
   }
@@ -2054,6 +2057,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     }
     case wasm::kRtt:
     case wasm::kVoid:
+    case wasm::kTop:
     case wasm::kBottom:
       UNREACHABLE();
   }
@@ -2492,6 +2496,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTagSig* sig) {
         break;
       case wasm::kRtt:
       case wasm::kVoid:
+      case wasm::kTop:
       case wasm::kBottom:
       case wasm::kI8:
       case wasm::kI16:

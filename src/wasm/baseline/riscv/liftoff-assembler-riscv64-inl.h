@@ -871,6 +871,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
     case kVoid:
     case kI8:
     case kI16:
+    case kTop:
     case kBottom:
     case kF16:
       UNREACHABLE();
