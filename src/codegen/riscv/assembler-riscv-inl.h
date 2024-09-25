@@ -118,6 +118,17 @@ Tagged_t Assembler::target_compressed_address_at(Address pc,
   return static_cast<Tagged_t>(target_address_at(pc, constant_pool));
 }
 
+Address RelocInfo::wasm_indirect_call_target() const {
+  DCHECK(rmode_ == WASM_INDIRECT_CALL_TARGET);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+void WritableRelocInfo::set_wasm_indirect_call_target(
+    Address target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::WASM_INDIRECT_CALL_TARGET);
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
+                                   icache_flush_mode);
+}
+
 Handle<Object> Assembler::code_target_object_handle_at(Address pc,
                                                        Address constant_pool) {
   int index =
