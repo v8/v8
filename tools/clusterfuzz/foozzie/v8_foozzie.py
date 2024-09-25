@@ -92,7 +92,7 @@ CONFIGS = dict(
 )
 
 BASELINE_CONFIG = 'ignition'
-DEFAULT_CONFIG = 'ignition_turbo'
+DEFAULT_CONFIG = 'default'
 DEFAULT_D8 = 'd8'
 
 # Return codes.
@@ -315,12 +315,21 @@ class ExecutionConfig(object):
   def flags(self):
     return self.command.flags
 
+  def has_config_flag(self, flag):
+    return (flag in self.config_flags or
+            self.fallback and self.fallback.has_config_flag(flag))
+
+  def remove_config_flag(self, flag):
+    self.command.remove_config_flag(flag)
+    if self.fallback:
+      self.fallback.remove_config_flag(flag)
+
   @property
   def is_error_simulation(self):
     return '--simulate-errors' in self.flags
 
 
-def parse_args():
+def parse_args(args):
   first_config_arguments = ExecutionArgumentsConfig('first')
   second_config_arguments = ExecutionArgumentsConfig('second')
 
@@ -343,7 +352,7 @@ def parse_args():
   second_config_arguments.add_arguments(parser, DEFAULT_CONFIG)
 
   parser.add_argument('testcase', help='path to test case')
-  options = parser.parse_args()
+  options = parser.parse_args(args)
 
   # Ensure we have a test case.
   assert (os.path.exists(options.testcase) and
@@ -369,6 +378,19 @@ def parse_args():
     parser.error('Need either executable or flag difference.')
 
   return options
+
+
+def create_execution_configs(options):
+  """Prepare the baseline, default and secondary configuration to compare to.
+
+  The default (turbofan) takes precedence as many of the secondary configs
+  are based on the turbofan config with additional parameters.
+  """
+  return [
+      ExecutionConfig(options, 'first'),
+      ExecutionConfig(options, 'default'),
+      ExecutionConfig(options, 'second'),
+  ]
 
 
 def get_meta_data(content):
@@ -549,7 +571,7 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
 
 
 def main():
-  options = parse_args()
+  options = parse_args(sys.argv[1:])
   suppress = v8_suppressions.get_suppression(options.skip_suppressions)
 
   # Static bailout based on test case content or metadata.
@@ -561,14 +583,13 @@ def main():
   content_bailout(get_meta_data(content), suppress.ignore_by_metadata)
   content_bailout(content, suppress.ignore_by_content)
 
-  # Prepare the baseline, default and a secondary configuration to compare to.
-  # The default (turbofan) takes precedence as many of the secondary configs
-  # are based on the turbofan config with additional parameters.
-  execution_configs = [
-    ExecutionConfig(options, 'first'),
-    ExecutionConfig(options, 'default'),
-    ExecutionConfig(options, 'second'),
-  ]
+  execution_configs = create_execution_configs(options)
+
+  # Some configs will be dropped or altered based on the testcase content.
+  changes = suppress.adjust_configs(execution_configs, content)
+  if changes:
+    print('# Adjusted flags and experiments based on the test case:')
+    print('\n'.join(changes))
 
   # First, run some fixed smoke tests in all configs to ensure nothing
   # is fundamentally wrong, in order to prevent bug flooding.

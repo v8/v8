@@ -81,6 +81,13 @@ IGNORE_LINES = [
   r'^\s\[0x[0-9a-f]+\]$',
 ]
 
+# List of pairs (<flag string>, <regexp string>). If the regexp matches the
+# test content, the flag is dropped from the command line of any run.
+# If the flag is part of the third run, the entire run is dropped, as it
+# in many cases would just be redundant to the second default run.
+DROP_FLAGS_ON_CONTENT = [
+    ('--jitless', r'\%WasmStruct\(|\%WasmArray\('),
+]
 
 ###############################################################################
 # Implementation - you should not need to change anything below this point.
@@ -228,10 +235,12 @@ class V8Suppression(object):
       self.allowed_line_diffs = []
       self.ignore_output = {}
       self.ignore_sources = {}
+      self.drop_flags_on_content = []
     else:
       self.allowed_line_diffs = ALLOWED_LINE_DIFFS
       self.ignore_output = IGNORE_OUTPUT
       self.ignore_sources = IGNORE_SOURCES
+      self.drop_flags_on_content = DROP_FLAGS_ON_CONTENT
 
   def diff(self, output1, output2):
     # Diff capped lines in the presence of crashes.
@@ -280,3 +289,38 @@ class V8Suppression(object):
     if bug:
       return bug
     return None
+
+  def _remove_config_flag(self, config, flag):
+    if config.has_config_flag(flag):
+      config.remove_config_flag(flag)
+      return [
+          f'Dropped {flag} from {config.label} config based on content rule.'
+      ]
+    return []
+
+  def adjust_configs(self, execution_configs, testcase):
+    """Modifies the execution configs if the testcase content matches a
+    regular expression defined in DROP_FLAGS_ON_CONTENT above.
+
+    The specified flag is dropped from the first two configs. Further
+    configs are dropped entirely if the specified flag is used.
+
+    Returns: A changelog as a list of strings.
+    """
+    logs = []
+    assert len(execution_configs) > 1
+    for flag, regexp in self.drop_flags_on_content:
+      # Check first if the flag we need to drop appears anywhere. This is
+      # faster than processing the content.
+      if not any(config.has_config_flag(flag) for config in execution_configs):
+        continue
+      if not re.search(regexp, testcase):
+        continue
+      logs += self._remove_config_flag(execution_configs[0], flag)
+      logs += self._remove_config_flag(execution_configs[1], flag)
+      for config in execution_configs[2:]:
+        if config.has_config_flag(flag):
+          execution_configs.remove(config)
+          logs.append(f'Dropped {config.label} config using '
+                      f'{flag} based on content rule.')
+    return logs

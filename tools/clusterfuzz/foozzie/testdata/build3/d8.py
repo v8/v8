@@ -22,3 +22,5 @@ if '--bad-flag' in sys.argv:
   print('bad behavior')
 if '--very-bad-flag' in sys.argv:
   print('very bad behavior')
+if '--jitless' in sys.argv:
+  print('jitless flag passed')
