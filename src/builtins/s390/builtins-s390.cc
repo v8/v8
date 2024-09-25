@@ -4216,14 +4216,23 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     UseScratchRegisterScope temps(masm);
     Register is_iterable = temps.Acquire();
     Register one = r6;
+    __ push(one);  // Save the value from the output FrameDescription.
     __ LoadIsolateField(is_iterable, IsolateFieldId::kStackIsIterable);
     __ lhi(one, Operand(1));
     __ StoreU8(one, MemOperand(is_iterable));
+    __ pop(one);  // Restore the value from the output FrameDescription.
   }
 
-  __ pop(ip);  // get continuation, leave pc on stack
-  __ pop(r14);
-  __ Jump(ip);
+  {
+    __ pop(ip);  // get continuation, leave pc on stack
+    __ pop(r14);
+    Label end;
+    __ CmpU64(ip, Operand::Zero());
+    __ beq(&end);
+    __ Jump(ip);
+    __ bind(&end);
+    __ Ret();
+  }
 
   __ stop();
 }
