@@ -76,7 +76,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:20806f79c6b4ba295274e3a589d85db41a02fdaa',
+  'gn_version': 'git_revision:e30a1fe26e5e72cb7cb9f27d9abe2330e4115ae5',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4fcf81fd5cf614a80ccb9d4ee6cc86867a3cee69',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a35a64253a0e294222802773ef0521e580069182',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '233c5798f9cb0d13ac0a552d57b912fa45c48f4b',
   'buildtools/linux64': {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '83824d298cf2272a265c44336a493c76d843b93a',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '5a94aff9aebcf9738c7bc464bc95fa4ac3a46ed7',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '88d34aee8edb9d09e4f6a7987a6813090c19ed50',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '4e0ee7600498ca28fd633a58d081180d92f13d00',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,13 +253,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ec715a4dacaaeb2e95946cfbbc9d1eddb0307108',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '97e4c6ab6393cd5019abecb36ae2a003beb7982c',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
     Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + '3e57d8dcfb0a04b5a8a26b486b54490a2e9b310f',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '8bfd4f8e189438166f756be9606dadbc2dc2dee4',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'aa788879ce5f9642a5379322ee20786741a20ee3',
     'condition': 'checkout_fuchsia',
   },
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
