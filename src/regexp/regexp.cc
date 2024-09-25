@@ -1334,7 +1334,7 @@ bool RegExpResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
   DCHECK_EQ(cache->length(), kSize);
 
   if (!IsSlicedString(subject)) return false;
-  if (pattern != Cast<String>(cache->get(kPatternIndex))) return false;
+  if (pattern != cache->get(kPatternIndex)) return false;
 
   // Here we are looking for a subject slice that 1. starts at the same point
   // and 2. is of equal length or longer than the cached subject slice.
