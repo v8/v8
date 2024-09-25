@@ -4179,6 +4179,36 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             *map_with_wordlike);
       }
     }
+
+    {  // -- D u r a t i o n F o r m a t
+      Handle<JSFunction> duration_format_fun = InstallFunction(
+          isolate(), intl, "DurationFormat", JS_DURATION_FORMAT_TYPE,
+          JSDurationFormat::kHeaderSize, 0, factory->the_hole_value(),
+          Builtin::kDurationFormatConstructor, 0, kDontAdapt);
+      InstallWithIntrinsicDefaultProto(
+          isolate(), duration_format_fun,
+          Context::INTL_DURATION_FORMAT_FUNCTION_INDEX);
+
+      SimpleInstallFunction(
+          isolate(), duration_format_fun, "supportedLocalesOf",
+          Builtin::kDurationFormatSupportedLocalesOf, 1, kDontAdapt);
+
+      Handle<JSObject> prototype(
+          Cast<JSObject>(duration_format_fun->instance_prototype()), isolate());
+
+      InstallToStringTag(isolate(), prototype, "Intl.DurationFormat");
+
+      SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
+                            Builtin::kDurationFormatPrototypeResolvedOptions, 0,
+                            kDontAdapt);
+
+      SimpleInstallFunction(isolate(), prototype, "format",
+                            Builtin::kDurationFormatPrototypeFormat, 1,
+                            kDontAdapt);
+      SimpleInstallFunction(isolate(), prototype, "formatToParts",
+                            Builtin::kDurationFormatPrototypeFormatToParts, 1,
+                            kDontAdapt);
+    }
   }
 #endif  // V8_INTL_SUPPORT
 
@@ -6006,43 +6036,6 @@ void Genesis::InitializeGlobal_harmony_intl_locale_info_func() {
                         Builtin::kLocalePrototypeGetTextInfo, 0, kDontAdapt);
   SimpleInstallFunction(isolate(), prototype, "getWeekInfo",
                         Builtin::kLocalePrototypeGetWeekInfo, 0, kDontAdapt);
-}
-
-void Genesis::InitializeGlobal_harmony_intl_duration_format() {
-  if (!v8_flags.harmony_intl_duration_format) return;
-  Handle<JSObject> intl = Cast<JSObject>(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
-  Handle<JSFunction> duration_format_fun = InstallFunction(
-      isolate(), intl, "DurationFormat", JS_DURATION_FORMAT_TYPE,
-      JSDurationFormat::kHeaderSize, 0, factory()->the_hole_value(),
-      Builtin::kDurationFormatConstructor, 0, kDontAdapt);
-  InstallWithIntrinsicDefaultProto(
-      isolate(), duration_format_fun,
-      Context::INTL_DURATION_FORMAT_FUNCTION_INDEX);
-
-  SimpleInstallFunction(isolate(), duration_format_fun, "supportedLocalesOf",
-                        Builtin::kDurationFormatSupportedLocalesOf, 1,
-                        kDontAdapt);
-
-  Handle<JSObject> prototype(
-      Cast<JSObject>(duration_format_fun->instance_prototype()), isolate());
-
-  InstallToStringTag(isolate(), prototype, "Intl.DurationFormat");
-
-  SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
-                        Builtin::kDurationFormatPrototypeResolvedOptions, 0,
-                        false);
-
-  SimpleInstallFunction(isolate(), prototype, "format",
-                        Builtin::kDurationFormatPrototypeFormat, 1, kDontAdapt);
-  SimpleInstallFunction(isolate(), prototype, "formatToParts",
-                        Builtin::kDurationFormatPrototypeFormatToParts, 1,
-                        false);
 }
 #endif  // V8_INTL_SUPPORT
 
