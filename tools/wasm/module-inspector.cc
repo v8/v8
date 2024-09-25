@@ -74,9 +74,7 @@ int PrintHelp(char** argv) {
   return 1;
 }
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 enum class OutputMode { kWat, kHexDump };
 
@@ -362,12 +360,15 @@ class DumpingModuleDecoder : public ModuleDecoderImpl {
   DumpingModuleDecoder(ModuleWireBytes wire_bytes,
                        HexDumpModuleDis* module_dis);
 
+ private:
   void onFirstError() override {
     // Pretend we've reached the end of the section, but contrary to the
     // superclass implementation do so without moving {pc_}, so whatever
     // bytes caused the failure can still be dumped correctly.
     end_ = pc_;
   }
+
+  WasmDetectedFeatures unused_detected_features_;
 };
 
 class HexDumpModuleDis : public ITracer {
@@ -1204,11 +1205,9 @@ class FormatConverter {
 DumpingModuleDecoder::DumpingModuleDecoder(ModuleWireBytes wire_bytes,
                                            HexDumpModuleDis* module_dis)
     : ModuleDecoderImpl(WasmEnabledFeatures::All(), wire_bytes.module_bytes(),
-                        kWasmOrigin, module_dis) {}
+                        kWasmOrigin, &unused_detected_features_, module_dis) {}
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 using FormatConverter = v8::internal::wasm::FormatConverter;
 using OutputMode = v8::internal::wasm::OutputMode;

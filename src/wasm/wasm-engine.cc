@@ -573,14 +573,16 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
   if (bytes.length() == 0) return false;
 
+  WasmDetectedFeatures unused_detected_features;
   auto result = DecodeWasmModule(
       enabled, bytes.module_bytes(), true, kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kSync);
+      DecodingMethod::kSync, &unused_detected_features);
   if (result.failed()) return false;
-  WasmError error = ValidateAndSetBuiltinImports(
-      result.value().get(), bytes.module_bytes(), compile_imports);
+  WasmError error =
+      ValidateAndSetBuiltinImports(result.value().get(), bytes.module_bytes(),
+                                   compile_imports, &unused_detected_features);
   return !error.has_error();
 }
 
@@ -599,10 +601,11 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // the context id in here.
   v8::metrics::Recorder::ContextId context_id =
       v8::metrics::Recorder::ContextId::Empty();
+  WasmDetectedFeatures detected_features;
   ModuleResult result = DecodeWasmModule(
       WasmEnabledFeatures::ForAsmjs(), bytes.module_bytes(), false, origin,
       isolate->counters(), isolate->metrics_recorder(), context_id,
-      DecodingMethod::kSync);
+      DecodingMethod::kSync, &detected_features);
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -617,9 +620,9 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // in {CompileToNativeModule}.
   constexpr ProfileInformation* kNoProfileInformation = nullptr;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
-      isolate, WasmEnabledFeatures::ForAsmjs(), CompileTimeImports{}, thrower,
-      std::move(result).value(), bytes, compilation_id, context_id,
-      kNoProfileInformation);
+      isolate, WasmEnabledFeatures::ForAsmjs(), detected_features,
+      CompileTimeImports{}, thrower, std::move(result).value(), bytes,
+      compilation_id, context_id, kNoProfileInformation);
   if (!native_module) return {};
 
   native_module->LogWasmCodes(isolate, *script);
@@ -650,7 +653,7 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 }
 
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
-    Isolate* isolate, WasmEnabledFeatures enabled,
+    Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
     ModuleWireBytes bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -658,21 +661,23 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   v8::metrics::Recorder::ContextId context_id =
       isolate->GetOrRegisterRecorderContextId(isolate->native_context());
   std::shared_ptr<WasmModule> module;
+  WasmDetectedFeatures detected_features;
   {
     // Normally modules are validated in {CompileToNativeModule} but in jitless
     // mode the only opportunity of validatiom is during decoding.
     bool validate_module = v8_flags.wasm_jitless;
     ModuleResult result = DecodeWasmModule(
-        enabled, bytes.module_bytes(), validate_module, kWasmOrigin,
+        enabled_features, bytes.module_bytes(), validate_module, kWasmOrigin,
         isolate->counters(), isolate->metrics_recorder(), context_id,
-        DecodingMethod::kSync);
+        DecodingMethod::kSync, &detected_features);
     if (result.failed()) {
       thrower->CompileFailed(result.error());
       return {};
     }
     module = std::move(result).value();
-    if (WasmError error = ValidateAndSetBuiltinImports(
-            module.get(), bytes.module_bytes(), compile_imports)) {
+    if (WasmError error =
+            ValidateAndSetBuiltinImports(module.get(), bytes.module_bytes(),
+                                         compile_imports, &detected_features)) {
       thrower->CompileError("%s @+%u", error.message().c_str(), error.offset());
       return {};
     }
@@ -687,8 +692,9 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
-      isolate, enabled, std::move(compile_imports), thrower, std::move(module),
-      bytes, compilation_id, context_id, pgo_info.get());
+      isolate, enabled_features, detected_features, std::move(compile_imports),
+      thrower, std::move(module), bytes, compilation_id, context_id,
+      pgo_info.get());
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -1482,8 +1488,8 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
 }
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
-    Isolate* isolate, WasmEnabledFeatures enabled,
-    CompileTimeImports compile_imports,
+    Isolate* isolate, WasmEnabledFeatures enabled_features,
+    WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.NewNativeModule");
@@ -1499,8 +1505,8 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 
   std::shared_ptr<NativeModule> native_module =
       GetWasmCodeManager()->NewNativeModule(
-          isolate, enabled, std::move(compile_imports), code_size_estimate,
-          std::move(module));
+          isolate, enabled_features, detected_features,
+          std::move(compile_imports), code_size_estimate, std::move(module));
   base::MutexGuard lock(&mutex_);
   if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
     if (!native_modules_kept_alive_for_pgo) {

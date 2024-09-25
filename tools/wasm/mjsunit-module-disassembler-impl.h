@@ -1533,9 +1533,10 @@ class MjsunitModuleDis {
         out_ << " = builder.addDeclarativeElementSegment(";
       }
       out_ << "[";
-      ModuleDecoderImpl decoder(WasmEnabledFeatures::All(),
-                                wire_bytes_.module_bytes(),
-                                ModuleOrigin::kWasmOrigin);
+      WasmDetectedFeatures unused_detected_features;
+      ModuleDecoderImpl decoder(
+          WasmEnabledFeatures::All(), wire_bytes_.module_bytes(),
+          ModuleOrigin::kWasmOrigin, &unused_detected_features);
       // This implementation detail is load-bearing: if we simply let the
       // {decoder} start at this offset, it could produce WireBytesRefs that
       // start at offset 0, which violates DCHECK-guarded assumptions.

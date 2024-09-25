@@ -27,17 +27,21 @@ namespace module_decoder_unittest {
 
 class Table64DecodingTest : public TestWithIsolateAndZone {
  public:
-  WasmEnabledFeatures enabled_features_ = WasmEnabledFeatures::None();
+  // Table64 is part of the Memory64 proposal, enabled via WASM_FEATURE_SCOPE
+  // for individual tests.
+  WasmEnabledFeatures enabled_features_;
 
   ModuleResult DecodeModule(std::initializer_list<uint8_t> module_body_bytes) {
     // Add the wasm magic and version number automatically.
     std::vector<uint8_t> module_bytes{WASM_MODULE_HEADER};
     module_bytes.insert(module_bytes.end(), module_body_bytes);
-    // Table64 is part of the Memory64 proposal.
     bool kValidateFunctions = true;
+    WasmDetectedFeatures detected_features;
     ModuleResult result =
         DecodeWasmModule(enabled_features_, base::VectorOf(module_bytes),
-                         kValidateFunctions, kWasmOrigin);
+                         kValidateFunctions, kWasmOrigin, &detected_features);
+    CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::memory64}},
+             detected_features);
     return result;
   }
 };

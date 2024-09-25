@@ -211,13 +211,17 @@ class WasmModuleVerifyTest : public TestWithIsolateAndZone {
     if (size > 0) {
       memcpy(temp + sizeof(header), module_bytes.begin(), size);
     }
-    ModuleResult result = DecodeWasmModule(
-        enabled_features_, base::VectorOf(temp, total), false, kWasmOrigin);
+    WasmDetectedFeatures unused_detected_features;
+    ModuleResult result =
+        DecodeWasmModule(enabled_features_, base::VectorOf(temp, total), false,
+                         kWasmOrigin, &unused_detected_features);
     delete[] temp;
     return result;
   }
   ModuleResult DecodeModuleNoHeader(base::Vector<const uint8_t> bytes) {
-    return DecodeWasmModule(enabled_features_, bytes, false, kWasmOrigin);
+    WasmDetectedFeatures unused_detected_features;
+    return DecodeWasmModule(enabled_features_, bytes, false, kWasmOrigin,
+                            &unused_detected_features);
   }
 };
 
