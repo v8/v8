@@ -196,6 +196,16 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
            info.op_count < kMaxLoopSizeForPartialUnrolling;
   }
 
+  size_t GetPartialUnrollCount(const Block* loop_header) const {
+    auto info = loop_finder_.GetLoopInfo(loop_header);
+    if (is_wasm_) {
+      return std::min(
+          LoopUnrollingAnalyzer::kMaxPartialUnrollingCount,
+          LoopUnrollingAnalyzer::kWasmMaxUnrolledLoopSize / info.op_count);
+    }
+    return LoopUnrollingAnalyzer::kMaxPartialUnrollingCount;
+  }
+
   bool ShouldRemoveLoop(const Block* loop_header) const {
     auto iter_count = GetIterationCount(loop_header);
     return iter_count.IsExact() && iter_count.exact_count() == 0;
@@ -225,8 +235,9 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
   static constexpr size_t kMaxLoopSizeForFullUnrolling = 150;
   static constexpr size_t kJSMaxLoopSizeForPartialUnrolling = 50;
   static constexpr size_t kWasmMaxLoopSizeForPartialUnrolling = 80;
+  static constexpr size_t kWasmMaxUnrolledLoopSize = 240;
   static constexpr size_t kMaxLoopIterationsForFullUnrolling = 4;
-  static constexpr size_t kPartialUnrollingCount = 4;
+  static constexpr size_t kMaxPartialUnrollingCount = 4;
   static constexpr size_t kMaxIterForStackCheckRemoval = 5000;
 
  private:
@@ -502,7 +513,7 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
   auto loop_body = analyzer_.GetLoopBody(header);
   current_loop_header_ = header;
 
-  int unroll_count = LoopUnrollingAnalyzer::kPartialUnrollingCount;
+  size_t unroll_count = analyzer_.GetPartialUnrollCount(header);
 
   ScopedModification<bool> set_true(__ turn_loop_without_backedge_into_merge(),
                                     false);
@@ -518,7 +529,7 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
   // Emitting the subsequent folded iterations. We set `unrolling_` to
   // kUnrolling so that stack checks are skipped.
   unrolling_ = UnrollingStatus::kUnrolling;
-  for (int i = 0; i < unroll_count - 1; i++) {
+  for (size_t i = 0; i < unroll_count - 1; i++) {
     // We remove the stack check of all iterations but the last one.
     bool is_last_iteration = i == unroll_count - 2;
     ScopedModification<bool> skip_stack_checks(&skip_next_stack_check_,
