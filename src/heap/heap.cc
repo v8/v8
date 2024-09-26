@@ -2841,7 +2841,7 @@ void Heap::ExternalStringTable::VerifyYoung() {
     MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    mc->Chunk()->InYoungGeneration());
-    DCHECK(heap_->InYoungGeneration(obj));
+    DCHECK(HeapLayout::InYoungGeneration(obj));
     DCHECK(!IsTheHole(obj, heap_->isolate()));
     DCHECK(IsExternalString(obj));
     // Note: we can have repeated elements in the table.
@@ -2866,7 +2866,7 @@ void Heap::ExternalStringTable::Verify() {
     MutablePageMetadata* mc = MutablePageMetadata::FromHeapObject(obj);
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    !mc->Chunk()->InYoungGeneration());
-    DCHECK(!heap_->InYoungGeneration(obj));
+    DCHECK(!HeapLayout::InYoungGeneration(obj));
     DCHECK(!IsTheHole(obj, heap_->isolate()));
     DCHECK(IsExternalString(obj));
     // Note: we can have repeated elements in the table.
@@ -2895,7 +2895,7 @@ void Heap::ExternalStringTable::UpdateYoungReferences(
 
     DCHECK(IsExternalString(target));
 
-    if (InYoungGeneration(target)) {
+    if (HeapLayout::InYoungGeneration(target)) {
       // String is still in new space. Update the table entry.
       last.store(target);
       ++last;
@@ -3409,7 +3409,7 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
 namespace {
 bool MayContainRecordedSlots(Tagged<HeapObject> object) {
   // New space object do not have recorded slots.
-  if (Heap::InYoungGeneration(object)) {
+  if (HeapLayout::InYoungGeneration(object)) {
     return false;
   }
   // Allowlist objects that definitely do not have pointers.
@@ -4081,7 +4081,7 @@ void Heap::NotifyObjectLayoutChange(
     // evacuate external pointer table entries when promoting objects.  Here we
     // would need to invalidate that set too; until we do, assert that
     // NotifyObjectLayoutChange is never called on young objects.
-    CHECK(!InYoungGeneration(object));
+    CHECK(!HeapLayout::InYoungGeneration(object));
 #endif
   }
 
@@ -4417,7 +4417,7 @@ bool Heap::SharedHeapContains(Tagged<HeapObject> value) const {
 bool Heap::MustBeInSharedOldSpace(Tagged<HeapObject> value) {
   if (isolate()->OwnsStringTables()) return false;
   if (ReadOnlyHeap::Contains(value)) return false;
-  if (Heap::InYoungGeneration(value)) return false;
+  if (HeapLayout::InYoungGeneration(value)) return false;
   if (IsExternalString(value)) return false;
   if (IsInternalizedString(value)) return true;
   return false;
@@ -6733,7 +6733,7 @@ void Heap::ExternalStringTable::CleanUpYoung() {
     // will be processed. Re-processing it will add a duplicate to the vector.
     if (IsThinString(o)) continue;
     DCHECK(IsExternalString(o));
-    if (InYoungGeneration(o)) {
+    if (HeapLayout::InYoungGeneration(o)) {
       young_strings_[last++] = o;
     } else {
       old_strings_.push_back(o);
@@ -6755,7 +6755,7 @@ void Heap::ExternalStringTable::CleanUpAll() {
     // will be processed. Re-processing it will add a duplicate to the vector.
     if (IsThinString(o)) continue;
     DCHECK(IsExternalString(o));
-    DCHECK(!InYoungGeneration(o));
+    DCHECK(!HeapLayout::InYoungGeneration(o));
     old_strings_[last++] = o;
   }
   old_strings_.resize(last);

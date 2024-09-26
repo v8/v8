@@ -65,7 +65,7 @@ void JSDispatchTable::SetCode(JSDispatchHandle handle, Tagged<Code> new_code) {
         new_code->parameter_count() == GetParameterCount(handle));
 
   // The object should be in old space to avoid creating old-to-new references.
-  DCHECK(!Heap::InYoungGeneration(new_code));
+  DCHECK(!HeapLayout::InYoungGeneration(new_code));
 
   uint32_t index = HandleToIndex(handle);
   Address new_entrypoint = new_code->instruction_start();

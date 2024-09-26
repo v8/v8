@@ -277,7 +277,7 @@ TEST_F(WeakMapsTest, Regress2060a) {
     for (int i = 0; i < 32; i++) {
       DirectHandle<JSObject> object =
           factory->NewJSObject(function, AllocationType::kOld);
-      CHECK(!Heap::InYoungGeneration(*object));
+      CHECK(!HeapLayout::InYoungGeneration(*object));
       CHECK(!first_page->Contains(object->address()));
       int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
       JSWeakCollection::Set(weakmap, key, object, hash);
@@ -315,7 +315,7 @@ TEST_F(WeakMapsTest, Regress2060b) {
   Handle<JSObject> keys[32];
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, AllocationType::kOld);
-    CHECK(!Heap::InYoungGeneration(*keys[i]));
+    CHECK(!HeapLayout::InYoungGeneration(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }
   DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();

@@ -383,8 +383,8 @@ void ForceEvacuationCandidate(PageMetadata* page) {
 }
 
 bool InCorrectGeneration(Tagged<HeapObject> object) {
-  return v8_flags.single_generation ? !i::Heap::InYoungGeneration(object)
-                                    : i::Heap::InYoungGeneration(object);
+  return v8_flags.single_generation ? !i::HeapLayout::InYoungGeneration(object)
+                                    : i::HeapLayout::InYoungGeneration(object);
 }
 
 void GrowNewSpace(Heap* heap) {

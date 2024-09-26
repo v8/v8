@@ -5310,7 +5310,7 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
 
   bool should_pretenure = allocation == AllocationType::kOld ||
                           ((capacity > kMinCapacityForPretenure) &&
-                           !Heap::InYoungGeneration(*table));
+                           !HeapLayout::InYoungGeneration(*table));
   Handle<Derived> new_table = HashTable::New(
       isolate, new_nof,
       should_pretenure ? AllocationType::kOld : AllocationType::kYoung);
@@ -5370,7 +5370,7 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
   DCHECK_GE(new_capacity, Derived::kMinShrinkCapacity);
 
   bool pretenure = (new_capacity > kMinCapacityForPretenure) &&
-                   !Heap::InYoungGeneration(*table);
+                   !HeapLayout::InYoungGeneration(*table);
   Handle<Derived> new_table =
       HashTable::New(isolate, new_capacity,
                      pretenure ? AllocationType::kOld : AllocationType::kYoung,

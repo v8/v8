@@ -349,7 +349,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       root_array->set(0, *compaction_page_handles.back());
       DirectHandle<FixedArray> new_space_array =
           isolate->factory()->NewFixedArray(1, AllocationType::kYoung);
-      CHECK(Heap::InYoungGeneration(*new_space_array));
+      CHECK(HeapLayout::InYoungGeneration(*new_space_array));
       compaction_page_handles.front()->set(1, *new_space_array);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
     }
@@ -384,7 +384,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       while (current->get(0) != ReadOnlyRoots(heap).undefined_value()) {
         current = IndirectHandle<FixedArray>(Cast<FixedArray>(current->get(0)),
                                              isolate);
-        CHECK(!Heap::InYoungGeneration(*current));
+        CHECK(!HeapLayout::InYoungGeneration(*current));
         CHECK(IsFixedArray(*current));
         if (PageMetadata::FromHeapObject(*current) != to_be_aborted_page) {
           in_place = false;

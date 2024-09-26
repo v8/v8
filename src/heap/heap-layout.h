@@ -25,6 +25,7 @@ class HeapLayout final : public AllStatic {
 
   static V8_INLINE bool InYoungGeneration(Tagged<Object> object);
   static V8_INLINE bool InYoungGeneration(Tagged<HeapObject> object);
+  static V8_INLINE bool InYoungGeneration(Tagged<MaybeObject> object);
   static V8_INLINE bool InYoungGeneration(const HeapObjectLayout* object);
   static V8_INLINE bool InYoungGeneration(const MemoryChunk* chunk,
                                           Tagged<HeapObject> object);
@@ -54,8 +55,11 @@ class HeapLayout final : public AllStatic {
   static V8_INLINE bool IsOwnedByAnyHeap(Tagged<HeapObject> object);
 
  private:
-  static bool InYoungGenerationForStickyMarkbits(const MemoryChunk* chunk,
-                                                 Tagged<HeapObject> object);
+  V8_EXPORT static bool InYoungGenerationForStickyMarkbits(
+      const MemoryChunk* chunk, Tagged<HeapObject> object);
+
+  V8_EXPORT static void CheckYoungGenerationConsistency(
+      const MemoryChunk* chunk);
 };
 
 }  // namespace v8::internal

@@ -496,8 +496,8 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
-      EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*to_object)));
+      EXPECT_FALSE(i::HeapLayout::InYoungGeneration(
+          *v8::Utils::OpenDirectHandle(*to_object)));
     }
     cpp_heap_obj->heap_handle.Reset(v8_isolate, to_object);
   }
@@ -545,8 +545,8 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
-      EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*to_object)));
+      EXPECT_FALSE(i::HeapLayout::InYoungGeneration(
+          *v8::Utils::OpenDirectHandle(*to_object)));
     }
     stack_handle.Reset(v8_isolate, to_object);
   }
@@ -591,8 +591,8 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
-      EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*to_object)));
+      EXPECT_FALSE(i::HeapLayout::InYoungGeneration(
+          *v8::Utils::OpenDirectHandle(*to_object)));
     }
     stack_handle2.Reset(v8_isolate, to_object);
   }

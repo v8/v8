@@ -6,6 +6,7 @@
 #define V8_HEAP_YOUNG_GENERATION_MARKING_VISITOR_INL_H_
 
 #include "src/common/globals.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-metadata.h"
@@ -100,7 +101,8 @@ template <YoungGenerationMarkingVisitationMode marking_mode>
 void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
   // With sticky mark-bits the host object was already marked (old).
-  DCHECK_IMPLIES(!v8_flags.sticky_mark_bits, Heap::InYoungGeneration(host));
+  DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
+                 HeapLayout::InYoungGeneration(host));
   DCHECK_NE(slot.tag(), kExternalPointerNullTag);
   DCHECK(!IsSharedExternalPointerType(slot.tag()));
 
@@ -183,7 +185,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   MemoryChunk::FromHeapObject(heap_object)->SynchronizedLoad();
 #endif  // THREAD_SANITIZER
 
-  if (!Heap::InYoungGeneration(heap_object)) {
+  if (!HeapLayout::InYoungGeneration(heap_object)) {
     return false;
   }
 

@@ -339,7 +339,9 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     // The object may be in the old generation as global handles over
     // approximates the list of young nodes. This checks also bails out for
     // Smis.
-    if (!Heap::InYoungGeneration(object)) return;
+    if (!HeapLayout::InYoungGeneration(object)) {
+      return;
+    }
 
     Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
     // TODO(chromium:1336158): Turn the following CHECKs into DCHECKs after
@@ -349,7 +351,7 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     CHECK(first_word.IsForwardingAddress());
     Tagged<HeapObject> dest = first_word.ToForwardingAddress(heap_object);
     UpdateHeapObjectReferenceSlot(FullHeapObjectSlot(p), dest);
-    CHECK_IMPLIES(Heap::InYoungGeneration(dest),
+    CHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
                   Heap::InToPage(dest) || Heap::IsLargeObject(dest));
   }
 };
@@ -915,7 +917,7 @@ void ScavengerCollector::ClearOldEphemerons() {
       } else {
         Tagged<HeapObject> forwarded = ForwardingAddress(key);
         key_slot.StoreHeapObject(forwarded);
-        if (!Heap::InYoungGeneration(forwarded)) {
+        if (!HeapLayout::InYoungGeneration(forwarded)) {
           iti = indices.erase(iti);
         } else {
           ++iti;
@@ -936,7 +938,7 @@ void Scavenger::Finalize() {
       local_pretenuring_feedback_);
   for (const auto& it : local_ephemeron_remembered_set_) {
     DCHECK_IMPLIES(!MemoryChunk::FromHeapObject(it.first)->IsLargePage(),
-                   !Heap::InYoungGeneration(it.first));
+                   !HeapLayout::InYoungGeneration(it.first));
     heap()->ephemeron_remembered_set()->RecordEphemeronKeyWrites(
         it.first, std::move(it.second));
   }
@@ -1007,7 +1009,7 @@ void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
   Tagged<Object> object = *p;
   DCHECK(!HasWeakHeapObjectTag(object));
   DCHECK(!MapWord::IsPacked(object.ptr()));
-  if (Heap::InYoungGeneration(object)) {
+  if (HeapLayout::InYoungGeneration(object)) {
     scavenger_.ScavengeObject(FullHeapObjectSlot(p), Cast<HeapObject>(object));
   }
 }

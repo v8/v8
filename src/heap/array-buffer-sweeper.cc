@@ -13,6 +13,7 @@
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects/js-array-buffer.h"
 
@@ -356,7 +357,7 @@ void ArrayBufferSweeper::Append(Tagged<JSArrayBuffer> object,
   // `Heap::InYoungGeneration` during full GC with sticky markbits is generally
   // inaccurate. However, a full GC will sweep both lists and promote all to
   // old, so it doesn't matter which list initially holds the extension.
-  if (Heap::InYoungGeneration(object)) {
+  if (HeapLayout::InYoungGeneration(object)) {
     young_.Append(extension);
   } else {
     old_.Append(extension);

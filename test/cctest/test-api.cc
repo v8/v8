@@ -947,7 +947,7 @@ TEST(ScavengeExternalString) {
             .ToLocalChecked();
     i::DirectHandle<i::String> istring = v8::Utils::OpenDirectHandle(*string);
     i::heap::InvokeMinorGC(CcTest::heap());
-    in_young_generation = i::Heap::InYoungGeneration(*istring);
+    in_young_generation = i::HeapLayout::InYoungGeneration(*istring);
     CHECK_IMPLIES(!in_young_generation,
                   CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);
@@ -980,7 +980,7 @@ TEST(ScavengeExternalOneByteString) {
             .ToLocalChecked();
     i::DirectHandle<i::String> istring = v8::Utils::OpenDirectHandle(*string);
     i::heap::InvokeMinorGC(CcTest::heap());
-    in_young_generation = i::Heap::InYoungGeneration(*istring);
+    in_young_generation = i::HeapLayout::InYoungGeneration(*istring);
     CHECK_IMPLIES(!in_young_generation,
                   CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);

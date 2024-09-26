@@ -6,6 +6,7 @@
 
 #include "src/common/globals.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/live-object-range-inl.h"
 #include "src/heap/marking-worklist.h"
@@ -109,7 +110,7 @@ void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state, heap_object))
       continue;
     if ((mode == ExternalStringTableCleaningMode::kYoungOnly) &&
-        !Heap::InYoungGeneration(heap_object))
+        !HeapLayout::InYoungGeneration(heap_object))
       continue;
     if (IsExternalString(o)) {
       heap_->FinalizeExternalString(Cast<String>(o));

@@ -603,7 +603,7 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
   }
 
   // Only strings in old space can be externalized.
-  if (Heap::InYoungGeneration(Tagged(this))) {
+  if (HeapLayout::InYoungGeneration(Tagged(this))) {
     return false;
   }
 

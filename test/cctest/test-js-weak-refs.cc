@@ -916,8 +916,8 @@ TEST(JSWeakRefScavengedInWorklist) {
           isolate->factory()->NewJSObject(isolate->object_function());
       IndirectHandle<JSWeakRef> inner_weak_ref =
           ConstructJSWeakRef(js_object, isolate);
-      CHECK(Heap::InYoungGeneration(*js_object));
-      CHECK(Heap::InYoungGeneration(*inner_weak_ref));
+      CHECK(HeapLayout::InYoungGeneration(*js_object));
+      CHECK(HeapLayout::InYoungGeneration(*inner_weak_ref));
 
       weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
     }
@@ -968,8 +968,8 @@ TEST(JSWeakRefTenuredInWorklist) {
         isolate->factory()->NewJSObject(isolate->object_function());
     IndirectHandle<JSWeakRef> inner_weak_ref =
         ConstructJSWeakRef(js_object, isolate);
-    CHECK(Heap::InYoungGeneration(*js_object));
-    CHECK(Heap::InYoungGeneration(*inner_weak_ref));
+    CHECK(HeapLayout::InYoungGeneration(*js_object));
+    CHECK(HeapLayout::InYoungGeneration(*inner_weak_ref));
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }

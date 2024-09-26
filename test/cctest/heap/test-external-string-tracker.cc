@@ -6,6 +6,7 @@
 #include "src/api/api.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -213,7 +214,7 @@ TEST(ExternalString_PromotedThinString) {
     i::Handle<i::String> isymbol1 = factory->InternalizeString(string1);
     CHECK(IsInternalizedString(*isymbol1));
     CHECK(IsExternalString(*string1));
-    CHECK(!heap->InYoungGeneration(*isymbol1));
+    CHECK(!HeapLayout::InYoungGeneration(*isymbol1));
 
     // Collect thin string. References to the thin string will be updated to
     // point to the actual external string in the old space.

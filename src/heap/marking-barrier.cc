@@ -63,7 +63,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
 
   if (HeapLayout::InReadOnlySpace(value)) return;
 
-  DCHECK(!Heap::InYoungGeneration(value));
+  DCHECK(!HeapLayout::InYoungGeneration(value));
 
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
     if (HeapLayout::InWritableSharedSpace(value)) {
@@ -133,7 +133,7 @@ void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   if (is_minor()) {
-    if (Heap::InYoungGeneration(host)) {
+    if (HeapLayout::InYoungGeneration(host)) {
       extension->YoungMark();
     }
   } else {

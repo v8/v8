@@ -15,6 +15,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-metadata.h"
@@ -404,7 +405,7 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
   i::DirectHandle<JSReceiver> o =
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res));
 
-  CHECK(Heap::InYoungGeneration(*o));
+  CHECK(HeapLayout::InYoungGeneration(*o));
 }
 
 namespace {
@@ -446,7 +447,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     CHECK(new_space->EnsureCurrentCapacity());
   }
   InvokeMinorGC();
-  CHECK(Heap::InYoungGeneration(*arr));
+  CHECK(HeapLayout::InYoungGeneration(*arr));
 
   // Add into 'arr' a reference to an object one generation younger.
   {
@@ -461,7 +462,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   CHECK(heap->InOldSpace(*arr));
-  CHECK(heap->InYoungGeneration(arr->get(0)));
+  CHECK(HeapLayout::InYoungGeneration(arr->get(0)));
   if (v8_flags.minor_ms) {
     CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW_BACKGROUND>(*arr));
   } else {
@@ -630,9 +631,9 @@ TEST_F(HeapTest, Regress341769455) {
     heap->AppendArrayBufferExtension(*ab, ab->extension());
   }
   // Trigger a 2nd minor GC to promote the JSArrayBuffer to old space.
-  CHECK(Heap::InYoungGeneration(*ab));
+  CHECK(HeapLayout::InYoungGeneration(*ab));
   InvokeAtomicMinorGC();
-  CHECK(!Heap::InYoungGeneration(*ab));
+  CHECK(!HeapLayout::InYoungGeneration(*ab));
   // If the EPT entry for the JSArrayBuffer wasn't promoted to the old table, a
   // 3rd minor GC will observe it as unmarked (since the owning object is old)
   // and free it. The major GC after it will then crash when trying to access

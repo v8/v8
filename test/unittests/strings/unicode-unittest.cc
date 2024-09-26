@@ -513,10 +513,10 @@ class UnicodeWithGCTest : public TestWithHeapInternals {};
                 reinterpret_cast<const uint8_t*>(buf), len))                  \
             .ToHandleChecked();                                               \
     if (v8_flags.single_generation) {                                         \
-      CHECK(!Heap::InYoungGeneration(*main_string));                          \
+      CHECK(!HeapLayout::InYoungGeneration(*main_string));                    \
       SimulateFullSpace(heap()->old_space());                                 \
     } else {                                                                  \
-      CHECK(Heap::InYoungGeneration(*main_string));                           \
+      CHECK(HeapLayout::InYoungGeneration(*main_string));                     \
       SimulateFullSpace(heap()->new_space());                                 \
     }                                                                         \
     /* Offset by two to check substring-ing. */                               \

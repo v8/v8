@@ -17,6 +17,7 @@
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-allocator-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
@@ -231,39 +232,6 @@ Address Heap::NewSpaceLimit() {
              : kNullAddress;
 }
 
-bool Heap::InYoungGeneration(Tagged<Object> object) {
-  DCHECK(!HasWeakHeapObjectTag(object));
-  return IsHeapObject(object) && InYoungGeneration(Cast<HeapObject>(object));
-}
-
-// static
-bool Heap::InYoungGeneration(Tagged<MaybeObject> object) {
-  Tagged<HeapObject> heap_object;
-  return object.GetHeapObject(&heap_object) && InYoungGeneration(heap_object);
-}
-
-// static
-bool Heap::InYoungGeneration(Tagged<HeapObject> heap_object) {
-  if (v8_flags.sticky_mark_bits) {
-    return !MemoryChunk::FromHeapObject(heap_object)
-                ->IsOnlyOldOrMajorMarkingOn() &&
-           !MarkBit::From(heap_object.address())
-                .template Get<AccessMode::ATOMIC>();
-  }
-  bool result = MemoryChunk::FromHeapObject(heap_object)->InYoungGeneration();
-#ifdef DEBUG
-  // If in the young generation, then check we're either not in the middle of
-  // GC or the object is in to-space.
-  if (result) {
-    // If the object is in the young generation, then it's not in RO_SPACE so
-    // this is safe.
-    Heap* heap = Heap::FromWritableHeapObject(heap_object);
-    DCHECK_IMPLIES(heap->gc_state() == NOT_IN_GC, InToPage(heap_object));
-  }
-#endif
-  return result;
-}
-
 // static
 bool Heap::InFromPage(Tagged<Object> object) {
   DCHECK(!HasWeakHeapObjectTag(object));
@@ -300,7 +268,7 @@ bool Heap::InToPage(Tagged<HeapObject> heap_object) {
 
 bool Heap::InOldSpace(Tagged<Object> object) {
   return old_space_->Contains(object) &&
-         (!v8_flags.sticky_mark_bits || !Heap::InYoungGeneration(object));
+         (!v8_flags.sticky_mark_bits || !HeapLayout::InYoungGeneration(object));
 }
 
 // static
@@ -398,7 +366,7 @@ void Heap::ExternalStringTable::AddString(Tagged<String> string) {
   DCHECK(IsExternalString(string));
   DCHECK(!Contains(string));
 
-  if (InYoungGeneration(string)) {
+  if (HeapLayout::InYoungGeneration(string)) {
     young_strings_.push_back(string);
   } else {
     old_strings_.push_back(string);

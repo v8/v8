@@ -289,7 +289,7 @@ bool WriteBarrier::PageFlagsAreConsistent(Tagged<HeapObject> object) {
 void WriteBarrier::GenerationalBarrierForCodeSlow(
     Tagged<InstructionStream> host, RelocInfo* rinfo,
     Tagged<HeapObject> value) {
-  DCHECK(Heap::InYoungGeneration(value));
+  DCHECK(HeapLayout::InYoungGeneration(value));
   const MarkCompactCollector::RecordRelocSlotInfo info =
       MarkCompactCollector::ProcessRelocInfo(host, rinfo, value);
 
@@ -396,7 +396,7 @@ void ForRangeImpl(Heap* heap, MemoryChunk* source_chunk,
         typename TSlot::TObject value = *slot;
         Tagged<HeapObject> value_heap_object;
         if (value.GetHeapObject(&value_heap_object)) {
-          CHECK(!Heap::InYoungGeneration(value_heap_object));
+          CHECK(!HeapLayout::InYoungGeneration(value_heap_object));
           CHECK(!HeapLayout::InWritableSharedSpace(value_heap_object));
         }
 #endif  // DEBUG
@@ -410,7 +410,7 @@ void ForRangeImpl(Heap* heap, MemoryChunk* source_chunk,
     if (!value.GetHeapObject(&value_heap_object)) continue;
 
     if (kModeMask & kDoGenerationalOrShared) {
-      if (Heap::InYoungGeneration(value_heap_object)) {
+      if (HeapLayout::InYoungGeneration(value_heap_object)) {
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
             source_page_metadata, source_chunk->Offset(slot.address()));
       } else if (HeapLayout::InWritableSharedSpace(value_heap_object)) {

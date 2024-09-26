@@ -10,6 +10,7 @@
 #include "src/heap/memory-chunk-inl.h"
 #include "src/objects/casting.h"
 #include "src/objects/objects.h"
+#include "src/objects/tagged-impl-inl.h"
 
 namespace v8::internal {
 
@@ -27,7 +28,13 @@ bool HeapLayout::InYoungGeneration(const MemoryChunk* chunk,
   if constexpr (v8_flags.sticky_mark_bits.value()) {
     return InYoungGenerationForStickyMarkbits(chunk, object);
   }
-  return chunk->InYoungGeneration();
+  const bool in_young_generation = chunk->InYoungGeneration();
+#ifdef DEBUG
+  if (in_young_generation) {
+    CheckYoungGenerationConsistency(chunk);
+  }
+#endif  // DEBUG
+  return in_young_generation;
 }
 
 // static
@@ -36,6 +43,12 @@ bool HeapLayout::InYoungGeneration(Tagged<Object> object) {
     return false;
   }
   return InYoungGeneration(Cast<HeapObject>(object));
+}
+
+// static
+bool HeapLayout::InYoungGeneration(Tagged<MaybeObject> object) {
+  Tagged<HeapObject> heap_object;
+  return object.GetHeapObject(&heap_object) && InYoungGeneration(heap_object);
 }
 
 // static

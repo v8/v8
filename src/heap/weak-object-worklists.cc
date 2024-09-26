@@ -5,6 +5,7 @@
 #include "src/heap/weak-object-worklists.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-object.h"
@@ -227,7 +228,7 @@ bool WeakObjects::ContainsYoungObjects(
     WeakObjectWorklist<Tagged<Type>>& worklist) {
   bool result = false;
   worklist.Iterate([&result](Tagged<Type> candidate) {
-    if (Heap::InYoungGeneration(candidate)) {
+    if (HeapLayout::InYoungGeneration(candidate)) {
       result = true;
     }
   });

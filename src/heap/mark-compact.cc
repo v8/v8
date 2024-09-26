@@ -1086,7 +1086,7 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
     MutablePageMetadata* host_page_metadata =
         MutablePageMetadata::cast(host_chunk->Metadata());
-    DCHECK(Heap::InYoungGeneration(host));
+    DCHECK(HeapLayout::InYoungGeneration(host));
     // Temporarily record new-to-shared slots in the old-to-shared remembered
     // set so we don't need to iterate the page again later for updating the
     // references.
@@ -1120,7 +1120,7 @@ class InternalizedStringTableCleaner final : public RootVisitor {
       Tagged<Object> o = p.load(isolate);
       if (IsHeapObject(o)) {
         Tagged<HeapObject> heap_object = Cast<HeapObject>(o);
-        DCHECK(!Heap::InYoungGeneration(heap_object));
+        DCHECK(!HeapLayout::InYoungGeneration(heap_object));
         if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
                 heap_, heap_->marking_state(), heap_object)) {
           pointers_removed_++;
@@ -1290,7 +1290,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   inline void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key,
                              ObjectSlot value) override {
     DCHECK(IsEphemeronHashTable(host));
-    DCHECK(!Heap::InYoungGeneration(host));
+    DCHECK(!HeapLayout::InYoungGeneration(host));
 
     // Simply record ephemeron keys in OLD_TO_NEW if it points into the young
     // generation instead of recording it in ephemeron_remembered_set here for
@@ -1308,7 +1308,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
         InstructionStream::FromTargetAddress(rinfo->target_address());
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
-    DCHECK(!Heap::InYoungGeneration(target));
+    DCHECK(!HeapLayout::InYoungGeneration(target));
     DCHECK(!HeapLayout::InWritableSharedSpace(target));
     heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, target);
   }
@@ -1348,7 +1348,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     if (value.IsStrongOrWeak()) {
       MemoryChunk* value_chunk = MemoryChunk::FromAddress(value.ptr());
       MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-      if (Heap::InYoungGeneration(value)) {
+      if (HeapLayout::InYoungGeneration(value)) {
         MutablePageMetadata* host_metadata =
             MutablePageMetadata::cast(host_chunk->Metadata());
         DCHECK_IMPLIES(value_chunk->IsToPage(),
@@ -5149,7 +5149,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
     Tagged<HeapObject> heap_object;
     if (!(*slot).GetHeapObject(&heap_object)) return;
-    if (!Heap::InYoungGeneration(heap_object)) return;
+    if (!HeapLayout::InYoungGeneration(heap_object)) return;
 
     if (!v8_flags.sticky_mark_bits) {
       DCHECK_IMPLIES(v8_flags.minor_ms && !Heap::IsLargeObject(heap_object),

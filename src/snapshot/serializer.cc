@@ -288,7 +288,7 @@ void Serializer::PutRoot(RootIndex root) {
 
   // TODO(ulan): Check that it works with young large objects.
   if (root_index < kRootArrayConstantsCount &&
-      !Heap::InYoungGeneration(object)) {
+      !HeapLayout::InYoungGeneration(object)) {
     sink_.Put(RootArrayConstant::Encode(root), "RootConstant");
   } else {
     sink_.Put(kRootArray, "RootSerialization");
@@ -1014,7 +1014,7 @@ void Serializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
           static_cast<uint32_t>(root_index) <= UINT8_MAX &&
           current.load(cage_base) == repeat_end.load(cage_base) &&
           reference_type == HeapObjectReferenceType::STRONG) {
-        DCHECK(!Heap::InYoungGeneration(*obj));
+        DCHECK(!HeapLayout::InYoungGeneration(*obj));
         while (repeat_end < end &&
                repeat_end.load(cage_base) == current.load(cage_base)) {
           repeat_end++;

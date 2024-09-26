@@ -750,8 +750,8 @@ UNINITIALIZED_TEST(StringShare) {
     Handle<String> young_two_byte_seq =
         factory->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
             .ToHandleChecked();
-    CHECK(Heap::InYoungGeneration(*young_one_byte_seq));
-    CHECK(Heap::InYoungGeneration(*young_two_byte_seq));
+    CHECK(HeapLayout::InYoungGeneration(*young_one_byte_seq));
+    CHECK(HeapLayout::InYoungGeneration(*young_two_byte_seq));
     CHECK(!young_one_byte_seq->IsShared());
     CHECK(!young_two_byte_seq->IsShared());
     DirectHandle<String> shared_one_byte =
@@ -1091,7 +1091,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
 
     DirectHandle<FixedArray> young_object =
         factory->NewFixedArray(1, AllocationType::kYoung);
-    CHECK(Heap::InYoungGeneration(*young_object));
+    CHECK(HeapLayout::InYoungGeneration(*young_object));
     Address young_object_address = young_object->address();
 
     std::vector<Handle<FixedArray>> handles;
@@ -1110,7 +1110,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
 
     // Object should get promoted using page promotion, so address should remain
     // the same.
-    CHECK(!Heap::InYoungGeneration(*shared_string));
+    CHECK(!HeapLayout::InYoungGeneration(*shared_string));
     CHECK_EQ(young_object_address, young_object->address());
 
     // Since the GC promoted that string into shared heap, it also needs to
@@ -2114,7 +2114,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
 
       DirectHandle<FixedArray> young_object =
           factory->NewFixedArray(1, AllocationType::kYoung);
-      CHECK(Heap::InYoungGeneration(*young_object));
+      CHECK(HeapLayout::InYoungGeneration(*young_object));
       Address young_object_address = young_object->address();
 
       std::vector<Handle<FixedArray>> handles;
@@ -2132,7 +2132,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
 
       // Object should get promoted using page promotion, so address should
       // remain the same.
-      CHECK(!Heap::InYoungGeneration(*young_object));
+      CHECK(!HeapLayout::InYoungGeneration(*young_object));
       CHECK(heap->Contains(*young_object));
       CHECK_EQ(young_object_address, young_object->address());
 
@@ -2272,7 +2272,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
 
       IndirectHandle<FixedArray> young_object =
           factory->NewFixedArray(1, AllocationType::kYoung);
-      CHECK(Heap::InYoungGeneration(*young_object));
+      CHECK(HeapLayout::InYoungGeneration(*young_object));
       Address young_object_address = young_object->address();
 
       std::vector<IndirectHandle<FixedArray>> handles;
@@ -2294,7 +2294,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
 
       // Object should get promoted using page promotion, so address should
       // remain the same.
-      CHECK(!Heap::InYoungGeneration(*young_object));
+      CHECK(!HeapLayout::InYoungGeneration(*young_object));
       CHECK(heap->Contains(*young_object));
       CHECK_EQ(young_object_address, young_object->address());
 

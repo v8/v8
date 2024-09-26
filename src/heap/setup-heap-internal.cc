@@ -537,7 +537,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   }
   set_empty_weak_array_list(Cast<WeakArrayList>(obj));
 
-  DCHECK(!InYoungGeneration(roots.undefined_value()));
+  DCHECK(!HeapLayout::InYoungGeneration(roots.undefined_value()));
   {
     AllocationResult allocation =
         Allocate(roots.hole_map_handle(), AllocationType::kReadOnly);
@@ -1041,7 +1041,7 @@ bool Heap::CreateReadOnlyObjects() {
     set_empty_closure_feedback_cell_array(Cast<ClosureFeedbackCellArray>(obj));
   }
 
-  DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
+  DCHECK(!HeapLayout::InYoungGeneration(roots.empty_fixed_array()));
 
   // Allocate the empty SwissNameDictionary
   DirectHandle<SwissNameDictionary> empty_swiss_property_dictionary =

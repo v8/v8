@@ -501,7 +501,8 @@ class PromotedPageRecordMigratedSlotVisitor final
 #endif  // THREAD_SANITIZER
       // With sticky mark-bits we don't need to update the remembered set for
       // just promoted objects, since everything is promoted.
-      if (!v8_flags.sticky_mark_bits && Heap::InYoungGeneration(key_object)) {
+      if (!v8_flags.sticky_mark_bits &&
+          HeapLayout::InYoungGeneration(key_object)) {
         indices.insert(i.as_int());
       }
     }
@@ -529,7 +530,7 @@ class PromotedPageRecordMigratedSlotVisitor final
  private:
   V8_INLINE void VerifyHost(Tagged<HeapObject> host) {
     DCHECK(!HeapLayout::InWritableSharedSpace(host));
-    DCHECK(!Heap::InYoungGeneration(host));
+    DCHECK(!HeapLayout::InYoungGeneration(host));
     DCHECK(!MutablePageMetadata::FromHeapObject(host)->SweepingDone());
     DCHECK_EQ(MutablePageMetadata::FromHeapObject(host), host_page_);
   }

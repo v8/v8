@@ -223,7 +223,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
       table = external_pointer_table_;
       if (v8_flags.sticky_mark_bits) {
         // Everything is considered old during major GC.
-        DCHECK(!Heap::InYoungGeneration(host));
+        DCHECK(!HeapLayout::InYoungGeneration(host));
         if (handle == kNullExternalPointerHandle) return;
         // The object may either be in young or old EPT.
         if (table->Contains(heap_->young_external_pointer_space(), handle)) {
@@ -233,7 +233,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
           space = heap_->old_external_pointer_space();
         }
       } else {
-        space = Heap::InYoungGeneration(host)
+        space = HeapLayout::InYoungGeneration(host)
                     ? heap_->young_external_pointer_space()
                     : heap_->old_external_pointer_space();
       }

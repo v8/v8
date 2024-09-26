@@ -1153,9 +1153,6 @@ class Heap final {
   // ===========================================================================
 
   // Returns whether the object resides in new space.
-  static inline bool InYoungGeneration(Tagged<Object> object);
-  static inline bool InYoungGeneration(Tagged<MaybeObject> object);
-  static inline bool InYoungGeneration(Tagged<HeapObject> heap_object);
   static inline bool InFromPage(Tagged<Object> object);
   static inline bool InFromPage(Tagged<MaybeObject> object);
   static inline bool InFromPage(Tagged<HeapObject> heap_object);

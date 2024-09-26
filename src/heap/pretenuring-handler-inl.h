@@ -6,6 +6,7 @@
 #define V8_HEAP_PRETENURING_HANDLER_INL_H_
 
 #include "src/base/sanitizer/msan.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/pretenuring-handler.h"
@@ -27,7 +28,7 @@ void PretenuringHandler::UpdateAllocationSite(
   // MemoryChunk::IsToPage() is not available with sticky mark-bits.
   DCHECK_IMPLIES(v8_flags.sticky_mark_bits || chunk->IsToPage(),
                  v8_flags.minor_ms);
-  DCHECK_IMPLIES(!v8_flags.minor_ms && !Heap::InYoungGeneration(object),
+  DCHECK_IMPLIES(!v8_flags.minor_ms && !HeapLayout::InYoungGeneration(object),
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
 #endif
   if (V8_UNLIKELY(!v8_flags.allocation_site_pretenuring) ||

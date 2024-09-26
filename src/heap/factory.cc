@@ -927,7 +927,7 @@ StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
   }
   // Do not internalize young strings in-place: This allows us to ignore both
   // string table and stub cache on scavenges.
-  if (Heap::InYoungGeneration(*string)) {
+  if (HeapLayout::InYoungGeneration(*string)) {
     return StringTransitionStrategy::kCopy;
   }
   // If the string table is shared, we need to copy if the string is not already
@@ -1374,10 +1374,10 @@ Handle<Context> Factory::NewFunctionContext(
 #elif V8_ENABLE_STICKY_MARK_BITS_BOOL
 #define DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate, object)             \
   DCHECK_IMPLIES(!isolate->heap()->incremental_marking()->IsMajorMarking(), \
-                 Heap::InYoungGeneration(object))
+                 HeapLayout::InYoungGeneration(object))
 #else
 #define DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate, object) \
-  DCHECK(Heap::InYoungGeneration(object))
+  DCHECK(HeapLayout::InYoungGeneration(object))
 #endif
 
 Handle<Context> Factory::NewCatchContext(DirectHandle<Context> previous,

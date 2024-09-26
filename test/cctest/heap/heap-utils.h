@@ -64,7 +64,7 @@ template <typename GlobalOrPersistent>
 bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
-  return i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*tmp));
+  return i::HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*tmp));
 }
 
 bool InCorrectGeneration(Tagged<HeapObject> object);

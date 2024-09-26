@@ -1354,14 +1354,14 @@ TEST(InternalizeExternal) {
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
     CHECK(IsExternalString(*string));
     CHECK(!IsInternalizedString(*string));
-    CHECK(!i::Heap::InYoungGeneration(*string));
+    CHECK(!i::HeapLayout::InYoungGeneration(*string));
     CHECK_EQ(isolate->string_table()->TryStringToIndexOrLookupExisting(
                  isolate, string->ptr()),
              Smi::FromInt(ResultSentinel::kNotFound).ptr());
     factory->InternalizeName(string);
     CHECK(IsExternalString(*string));
     CHECK(IsInternalizedString(*string));
-    CHECK(!i::Heap::InYoungGeneration(*string));
+    CHECK(!i::HeapLayout::InYoungGeneration(*string));
   }
   i::heap::InvokeMajorGC(CcTest::heap());
   i::heap::InvokeMajorGC(CcTest::heap());

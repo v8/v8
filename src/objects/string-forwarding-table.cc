@@ -111,7 +111,7 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
     Tagged<Object> forward =
         record(index)->ForwardStringObjectOrHash(cage_base);
     if (IsHeapObject(forward)) {
-      DCHECK(!Heap::InYoungGeneration(Cast<HeapObject>(forward)));
+      DCHECK(!HeapLayout::InYoungGeneration(Cast<HeapObject>(forward)));
     }
 #endif
   }

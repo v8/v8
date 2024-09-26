@@ -144,7 +144,7 @@ void VerifyPointersVisitor::VerifyHeapObjectImpl(
   CHECK(IsMap(heap_object->map(cage_base())));
   // Heap::InToPage() is not available with sticky mark-bits.
   CHECK_IMPLIES(
-      !v8_flags.sticky_mark_bits && Heap::InYoungGeneration(heap_object),
+      !v8_flags.sticky_mark_bits && HeapLayout::InYoungGeneration(heap_object),
       Heap::InToPage(heap_object));
 }
 
@@ -485,7 +485,7 @@ void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
   CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
         (shared_space() && shared_space()->Contains(map)));
 
-  if (Heap::InYoungGeneration(object)) {
+  if (HeapLayout::InYoungGeneration(object)) {
     // The object should not be code or a map.
     CHECK(!IsMap(object, cage_base_));
     CHECK(!IsAbstractCode(object, cage_base_));
@@ -602,10 +602,10 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
                               Tagged<MaybeObject> target) override {
     // Heap::InToPage() is not available with sticky mark-bits.
     CHECK_IMPLIES(!v8_flags.sticky_mark_bits && target.IsStrongOrWeak() &&
-                      Heap::InYoungGeneration(target),
+                      HeapLayout::InYoungGeneration(target),
                   Heap::InToPage(target));
-    return target.IsStrongOrWeak() && Heap::InYoungGeneration(target) &&
-           !Heap::InYoungGeneration(host);
+    return target.IsStrongOrWeak() && HeapLayout::InYoungGeneration(target) &&
+           !HeapLayout::InYoungGeneration(host);
   }
 
   void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key,
@@ -645,7 +645,7 @@ class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
            HeapLayout::InWritableSharedSpace(target_heap_object) &&
            !(v8_flags.black_allocated_pages &&
              HeapLayout::InBlackAllocatedPage(target_heap_object)) &&
-           !Heap::InYoungGeneration(host) &&
+           !HeapLayout::InYoungGeneration(host) &&
            !HeapLayout::InWritableSharedSpace(host);
   }
 };
@@ -775,7 +775,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
   }
 
-  if (!v8_flags.sticky_mark_bits && Heap::InYoungGeneration(object)) {
+  if (!v8_flags.sticky_mark_bits && HeapLayout::InYoungGeneration(object)) {
     CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
     CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());
 

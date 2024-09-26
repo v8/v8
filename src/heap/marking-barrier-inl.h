@@ -92,7 +92,7 @@ void MarkingBarrier::MarkValueLocal(Tagged<HeapObject> value) {
     // TODO(v8:13012): Consider updating C++ barriers to respect
     // POINTERS_TO_HERE_ARE_INTERESTING and POINTERS_FROM_HERE_ARE_INTERESTING
     // page flags and make the following branch a DCHECK.
-    if (Heap::InYoungGeneration(value)) {
+    if (HeapLayout::InYoungGeneration(value)) {
       MarkingHelper::TryMarkAndPush(
           heap_, current_worklists_.get(), &marking_state_,
           MarkingHelper::WorklistTarget::kRegular, value);

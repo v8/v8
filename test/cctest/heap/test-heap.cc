@@ -571,7 +571,8 @@ TEST(WeakGlobalHandlesMark) {
 
   // Make sure the objects are promoted.
   heap::EmptyNewSpaceUsingGC(heap);
-  CHECK(!Heap::InYoungGeneration(*h1) && !Heap::InYoungGeneration(*h2));
+  CHECK(!HeapLayout::InYoungGeneration(*h1) &&
+        !HeapLayout::InYoungGeneration(*h2));
 
   std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
   GlobalHandles::MakeWeak(
@@ -2329,7 +2330,7 @@ TEST(HeapNumberAlignment) {
           required_alignment, offset);
       DirectHandle<Object> number_new = factory->NewNumber(1.000123);
       CHECK(IsHeapNumber(*number_new));
-      CHECK(Heap::InYoungGeneration(*number_new));
+      CHECK(HeapLayout::InYoungGeneration(*number_new));
       CHECK_EQ(0, Heap::GetFillToAlign(Cast<HeapObject>(*number_new).address(),
                                        required_alignment));
     }
@@ -2752,7 +2753,7 @@ HEAP_TEST(Regress845060) {
 
   // Preparation: create a string in new space.
   Local<Value> str = CompileRun("var str = (new Array(10000)).join('x'); str");
-  CHECK(Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
+  CHECK(HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
 
   // Use kReduceMemoryFootprintMask to unmap from space after scavenging.
   heap->StartIncrementalMarking(i::GCFlag::kReduceMemoryFootprint,
@@ -2762,7 +2763,7 @@ HEAP_TEST(Regress845060) {
   // promoted to old space. Unmapping of from_space causes accesses to any
   // stale raw pointers to crash.
   CompileRun("while (%InYoungGeneration(str)) { str.split(''); }");
-  CHECK(!Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
+  CHECK(!HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*str)));
 }
 
 TEST(OptimizedPretenuringAllocationFolding) {
@@ -2897,7 +2898,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
 
   // Nested literal sites are only pretenured if the top level
   // literal is pretenured
-  CHECK(Heap::InYoungGeneration(*o));
+  CHECK(HeapLayout::InYoungGeneration(*o));
 }
 
 TEST(OptimizedPretenuringMixedInObjectProperties) {
@@ -4132,7 +4133,7 @@ static void TestFillersFromPersistentHandles(bool promote) {
     // Age the array so it's ready for promotion on next GC.
     heap::InvokeMinorGC(heap);
   }
-  CHECK(Heap::InYoungGeneration(*array));
+  CHECK(HeapLayout::InYoungGeneration(*array));
 
   PersistentHandlesScope persistent_scope(isolate);
 
@@ -4155,7 +4156,7 @@ static void TestFillersFromPersistentHandles(bool promote) {
     if (promote) {
       CHECK(heap->InOldSpace(*tail));
     } else {
-      CHECK(Heap::InYoungGeneration(*tail));
+      CHECK(HeapLayout::InYoungGeneration(*tail));
     }
   }
   CHECK_EQ(n - 6, tail->length());
@@ -4566,9 +4567,9 @@ TEST(NewSpaceObjectsInOptimizedCode) {
                                            ->Get(context.local(), v8_str("foo"))
                                            .ToLocalChecked())));
 
-    CHECK(Heap::InYoungGeneration(*foo));
+    CHECK(HeapLayout::InYoungGeneration(*foo));
     heap::InvokeMajorGC(heap);
-    CHECK(!Heap::InYoungGeneration(*foo));
+    CHECK(!HeapLayout::InYoungGeneration(*foo));
 #ifdef VERIFY_HEAP
     HeapVerifier::VerifyHeap(CcTest::heap());
 #endif
@@ -5471,7 +5472,7 @@ void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
   DirectHandle<FixedArray> array = factory->NewFixedArray(
       elements,
       space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
-  CHECK((space == NEW_SPACE) == Heap::InYoungGeneration(*array));
+  CHECK((space == NEW_SPACE) == HeapLayout::InYoungGeneration(*array));
   CHECK_EQ(bytes, static_cast<size_t>(array->Size()));
 }
 
@@ -5704,7 +5705,7 @@ HEAP_TEST(Regress587004) {
       factory->NewFixedArray(N, AllocationType::kOld);
   CHECK(heap->old_space()->Contains(*array));
   DirectHandle<Object> number = factory->NewHeapNumber(1.0);
-  CHECK(Heap::InYoungGeneration(*number));
+  CHECK(HeapLayout::InYoungGeneration(*number));
   for (int i = 0; i < N; i++) {
     array->set(i, *number);
   }
@@ -6849,7 +6850,7 @@ HEAP_TEST(Regress779503) {
     // from the slot again and interpret it as heap value. Doing so will crash.
     DirectHandle<ByteArray> byte_array =
         isolate->factory()->NewByteArray(kArraySize);
-    CHECK(Heap::InYoungGeneration(*byte_array));
+    CHECK(HeapLayout::InYoungGeneration(*byte_array));
     for (int i = 0; i < kArraySize; i++) {
       byte_array->set(i, kHeapObjectTag);
     }
@@ -6859,7 +6860,7 @@ HEAP_TEST(Regress779503) {
       // The FixedArray in old space serves as space for slots.
       DirectHandle<FixedArray> fixed_array =
           isolate->factory()->NewFixedArray(kArraySize, AllocationType::kOld);
-      CHECK(!Heap::InYoungGeneration(*fixed_array));
+      CHECK(!HeapLayout::InYoungGeneration(*fixed_array));
       for (int i = 0; i < kArraySize; i++) {
         fixed_array->set(i, *byte_array);
       }
@@ -6868,7 +6869,7 @@ HEAP_TEST(Regress779503) {
     // currently scavenging.
     heap->delay_sweeper_tasks_for_testing_ = true;
     heap::InvokeMajorGC(heap);
-    CHECK(!Heap::InYoungGeneration(*byte_array));
+    CHECK(!HeapLayout::InYoungGeneration(*byte_array));
   }
   // Scavenging and sweeping the same page will crash as slots will be
   // overridden.
@@ -7089,7 +7090,7 @@ TEST(Regress8617) {
   DirectHandle<Object> foo =
       v8::Utils::OpenDirectHandle(*CompileRun("function foo() { return 42; };"
                                               "foo;"));
-  if (heap->InYoungGeneration(*foo)) {
+  if (HeapLayout::InYoungGeneration(*foo)) {
     heap::EmptyNewSpaceUsingGC(heap);
   }
   // Step 2. Create an object with a reference to foo in the descriptor array.

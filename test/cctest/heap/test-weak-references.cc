@@ -38,12 +38,12 @@ TEST(WeakReferencesBasic) {
 
   IndirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
 
-  if (!v8_flags.single_generation) CHECK(Heap::InYoungGeneration(*lh));
+  if (!v8_flags.single_generation) CHECK(HeapLayout::InYoungGeneration(*lh));
 
   Tagged<MaybeObject> code_object = lh->data1();
   CHECK(IsSmi(code_object));
   heap::InvokeMajorGC(CcTest::heap());
-  CHECK(!Heap::InYoungGeneration(*lh));
+  CHECK(!HeapLayout::InYoungGeneration(*lh));
   CHECK_EQ(code_object, lh->data1());
 
   {
@@ -125,7 +125,7 @@ TEST(WeakReferencesOldToNew) {
 
   // Create a new FixedArray which the LoadHandler will point to.
   DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
-  CHECK(Heap::InYoungGeneration(*fixed_array));
+  CHECK(HeapLayout::InYoungGeneration(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
   heap::InvokeMajorGC(heap);
@@ -152,7 +152,7 @@ TEST(WeakReferencesOldToNewScavenged) {
 
   // Create a new FixedArray which the LoadHandler will point to.
   DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
-  CHECK(Heap::InYoungGeneration(*fixed_array));
+  CHECK(HeapLayout::InYoungGeneration(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
   heap::InvokeMinorGC(heap);
@@ -203,7 +203,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
     HandleScope inner_scope(isolate);
     // Create a new FixedArray which the LoadHandler will point to.
     IndirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
-    CHECK(Heap::InYoungGeneration(*fixed_array));
+    CHECK(HeapLayout::InYoungGeneration(*fixed_array));
     lh->set_data1(MakeWeak(*fixed_array));
     // inner_scope will go out of scope, so when marking the next time,
     // *fixed_array will stay white.
@@ -269,11 +269,11 @@ TEST(ObjectWithWeakReferencePromoted) {
 
   HandleScope outer_scope(isolate);
   DirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
-  CHECK(Heap::InYoungGeneration(*lh));
+  CHECK(HeapLayout::InYoungGeneration(*lh));
 
   // Create a new FixedArray which the LoadHandler will point to.
   DirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
-  CHECK(Heap::InYoungGeneration(*fixed_array));
+  CHECK(HeapLayout::InYoungGeneration(*fixed_array));
   lh->set_data1(MakeWeak(*fixed_array));
 
   heap::EmptyNewSpaceUsingGC(heap);
@@ -295,7 +295,7 @@ TEST(ObjectWithClearedWeakReferencePromoted) {
 
   HandleScope outer_scope(isolate);
   DirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
-  CHECK(Heap::InYoungGeneration(*lh));
+  CHECK(HeapLayout::InYoungGeneration(*lh));
 
   lh->set_data1(ClearedValue(isolate));
 
@@ -375,7 +375,7 @@ TEST(WeakArraysBasic) {
   CHECK(!IsFixedArray(*array));
   CHECK_EQ(array->length(), length);
 
-  CHECK(Heap::InYoungGeneration(*array));
+  CHECK(HeapLayout::InYoungGeneration(*array));
 
   for (int i = 0; i < length; ++i) {
     Tagged<HeapObject> heap_object;
