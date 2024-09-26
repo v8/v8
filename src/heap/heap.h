@@ -613,6 +613,10 @@ class Heap final {
 
   void SetBasicBlockProfilingData(DirectHandle<ArrayList> list);
 
+  void SetRegExpMultipleCache(Tagged<HeapObject> object);
+  void SetStringSplitCache(Tagged<HeapObject> object);
+  void SetRegExpMatchGlobalAtomCache(Tagged<HeapObject> object);
+
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
 

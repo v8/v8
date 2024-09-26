@@ -346,10 +346,6 @@ class RootVisitor;
     StringWrapperToPrimitiveProtector)                                         \
   V(PropertyCell, number_string_not_regexp_like_protector,                     \
     NumberStringNotRegexpLikeProtector)                                        \
-  /* Caches */                                                                 \
-  V(FixedArray, string_split_cache, StringSplitCache)                          \
-  V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
-  V(FixedArray, regexp_match_global_atom_cache, RegExpMatchGlobalAtomCache)    \
   /* Indirection lists for isolate-independent builtins */                     \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
   /* Internal SharedFunctionInfos */                                           \
@@ -399,6 +395,10 @@ class RootVisitor;
   V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                \
   /* EphemeronHashTable for debug scopes (local debug evaluate) */          \
   V(HeapObject, locals_block_list_cache, DebugLocalsBlockListCache)         \
+  /* Caches */                                                              \
+  V(HeapObject, string_split_cache, StringSplitCache)                       \
+  V(HeapObject, regexp_multiple_cache, RegExpMultipleCache)                 \
+  V(HeapObject, regexp_match_global_atom_cache, RegExpMatchGlobalAtomCache) \
   IF_WASM(V, HeapObject, active_continuation, ActiveContinuation)           \
   IF_WASM(V, HeapObject, active_suspender, ActiveSuspender)                 \
   IF_WASM(V, WeakFixedArray, js_to_wasm_wrappers, JSToWasmWrappers)         \

@@ -229,16 +229,22 @@ class RegExpResultsCache final : public AllStatic {
                     DirectHandle<FixedArray> value_array,
                     DirectHandle<FixedArray> last_match_cache,
                     ResultsCacheType type);
-  static void Clear(Tagged<FixedArray> cache);
+  static void ClearAll(Heap* heap);
 
-  static constexpr int kRegExpResultsCacheSize = 0x100;
+  static constexpr int kSize = 64;
+  static_assert(base::bits::IsPowerOfTwo(kSize));
 
  private:
   static constexpr int kStringOffset = 0;
   static constexpr int kPatternOffset = 1;
   static constexpr int kArrayOffset = 2;
   static constexpr int kLastMatchOffset = 3;
-  static constexpr int kArrayEntriesPerCacheEntry = 4;
+  static constexpr int kEntrySize = 4;
+  static_assert(base::bits::IsPowerOfTwo(kEntrySize));
+
+  static bool TryGetCache(Heap* heap, ResultsCacheType type,
+                          Tagged<FixedArray>* cache_out);
+  static Handle<FixedArray> EnsureCache(Heap* heap, ResultsCacheType type);
 };
 
 // Caches results of RegExpPrototypeMatch when:
@@ -259,8 +265,8 @@ class RegExpResultsCache final : public AllStatic {
 // the slice [100, 200].
 class RegExpResultsCache_MatchGlobalAtom final : public AllStatic {
  public:
-  static void TryInsert(Isolate* isolate, Tagged<String> subject,
-                        Tagged<String> pattern, int number_of_matches,
+  static void TryInsert(Isolate* isolate, Handle<String> subject,
+                        Handle<String> pattern, int number_of_matches,
                         int last_match_index);
   static bool TryGet(Isolate* isolate, Tagged<String> subject,
                      Tagged<String> pattern, int* number_of_matches_out,
