@@ -27,6 +27,22 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   }
   assertThrows(() => WebAssembly.promising(asmModule()), TypeError,
       /Argument 0 must be a WebAssembly exported function/);
+
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("forty2", kSig_i_v)
+      .addBody([
+          kExprI32Const, 42]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertThrows(()=> new WebAssembly.Suspending(instance.exports.forty2), TypeError,
+      /Argument 0 must not be a WebAssembly function/);
+
+  let funcref = new WebAssembly.Function(
+    {parameters: [], results: ['i32']},
+      (() => 42));
+
+  assertThrows(() => new WebAssembly.Suspending(funcref ), TypeError,
+      /Argument 0 must not be a WebAssembly function/);
 })();
 
 (function TestStackSwitchNoSuspend() {

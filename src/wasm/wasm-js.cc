@@ -2323,6 +2323,12 @@ void WebAssemblySuspendingImpl(
   i::DirectHandle<i::JSReceiver> callable =
       Utils::OpenDirectHandle(*info[0].As<Function>());
 
+  if (i::WasmExportedFunction::IsWasmExportedFunction(*callable) ||
+      i::WasmJSFunction::IsWasmJSFunction(*callable)) {
+    thrower.TypeError("Argument 0 must not be a WebAssembly function");
+    return;
+  }
+
   i::Handle<i::WasmSuspendingObject> result =
       i::WasmSuspendingObject::New(i_isolate, callable);
   info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
