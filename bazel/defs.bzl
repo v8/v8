@@ -588,6 +588,7 @@ def build_config_content(cpu, icu):
         ("verify_csa", "false"),
         ("verify_heap", "false"),
         ("verify_predictable", "false"),
+        ("wasm_random_fuzzers", "false"),
         ("write_barriers", "false"),
     ])
 
