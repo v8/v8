@@ -1497,14 +1497,13 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
 
 Handle<ErrorStackData> Factory::NewErrorStackData(
     DirectHandle<UnionOf<JSAny, FixedArray>> call_site_infos_or_formatted_stack,
-    DirectHandle<UnionOf<Smi, FixedArray>> limit_or_stack_frame_infos) {
+    DirectHandle<StackTraceInfo> stack_trace) {
   Tagged<ErrorStackData> error_stack_data = NewStructInternal<ErrorStackData>(
       ERROR_STACK_DATA_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   error_stack_data->set_call_site_infos_or_formatted_stack(
       *call_site_infos_or_formatted_stack, SKIP_WRITE_BARRIER);
-  error_stack_data->set_limit_or_stack_frame_infos(*limit_or_stack_frame_infos,
-                                                   SKIP_WRITE_BARRIER);
+  error_stack_data->set_stack_trace(*stack_trace, SKIP_WRITE_BARRIER);
   return handle(error_stack_data, isolate());
 }
 
@@ -3785,7 +3784,7 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
     MessageTemplate message, DirectHandle<Object> argument, int start_position,
     int end_position, DirectHandle<SharedFunctionInfo> shared_info,
     int bytecode_offset, DirectHandle<Script> script,
-    DirectHandle<Object> stack_frames) {
+    DirectHandle<StackTraceInfo> stack_trace) {
   DirectHandle<Map> map = message_object_map();
   Tagged<JSMessageObject> message_obj =
       Cast<JSMessageObject>(New(map, AllocationType::kYoung));
@@ -3816,7 +3815,11 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
     }
   }
 
-  message_obj->set_stack_frames(*stack_frames, SKIP_WRITE_BARRIER);
+  if (stack_trace.is_null()) {
+    message_obj->set_stack_trace(*the_hole_value(), SKIP_WRITE_BARRIER);
+  } else {
+    message_obj->set_stack_trace(*stack_trace, SKIP_WRITE_BARRIER);
+  }
   message_obj->set_error_level(v8::Isolate::kMessageError);
   return handle(message_obj, isolate());
 }

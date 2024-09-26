@@ -1809,7 +1809,7 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {
   os << "\n - type: " << static_cast<int>(type());
   os << "\n - arguments: " << Brief(argument());
   os << "\n - script: " << Brief(script());
-  os << "\n - stack_frames: " << Brief(stack_frames());
+  os << "\n - stack_trace: " << Brief(stack_trace());
   os << "\n - shared_info: " << Brief(shared_info());
   if (shared_info() == Smi::zero()) {
     os << " (cleared after calculating line ends)";

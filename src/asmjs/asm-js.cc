@@ -130,8 +130,7 @@ void Report(Handle<Script> script, int position, base::Vector<const char> text,
   DirectHandle<String> text_object =
       isolate->factory()->InternalizeUtf8String(text);
   DirectHandle<JSMessageObject> message = MessageHandler::MakeMessageObject(
-      isolate, message_template, &location, text_object,
-      Handle<FixedArray>::null());
+      isolate, message_template, &location, text_object);
   message->set_error_level(level);
   MessageHandler::ReportMessage(isolate, &location, message);
 }

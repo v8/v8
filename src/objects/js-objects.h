@@ -32,6 +32,7 @@ class PropertyDescriptor;
 class PropertyKey;
 class NativeContext;
 class IsCompiledScope;
+class StackTraceInfo;
 class SwissNameDictionary;
 class ElementsAccessor;
 class Undefined;

@@ -1364,6 +1364,33 @@ Handle<FixedArray> CaptureSimpleStackTrace(Isolate* isolate, int limit,
   return stack_trace;
 }
 
+Handle<StackTraceInfo> GetDetailedStackTraceFromCallSiteInfos(
+    Isolate* isolate, DirectHandle<FixedArray> call_site_infos, int limit) {
+  auto frames = isolate->factory()->NewFixedArray(
+      std::min(limit, call_site_infos->length()));
+  int index = 0;
+  for (int i = 0; i < call_site_infos->length() && index < limit; ++i) {
+    DirectHandle<CallSiteInfo> call_site_info(
+        Cast<CallSiteInfo>(call_site_infos->get(i)), isolate);
+    if (call_site_info->IsAsync()) {
+      break;
+    }
+    Handle<Script> script;
+    if (!CallSiteInfo::GetScript(isolate, call_site_info).ToHandle(&script) ||
+        !script->IsSubjectToDebugging()) {
+      continue;
+    }
+    DirectHandle<StackFrameInfo> stack_frame_info =
+        isolate->factory()->NewStackFrameInfo(
+            script, CallSiteInfo::GetSourcePosition(call_site_info),
+            CallSiteInfo::GetFunctionDebugName(call_site_info),
+            IsConstructor(*call_site_info));
+    frames->set(index++, *stack_frame_info);
+  }
+  frames = FixedArray::RightTrimOrEmpty(isolate, frames, index);
+  return isolate->factory()->NewStackTraceInfo(frames);
+}
+
 }  // namespace
 
 MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
@@ -1406,22 +1433,28 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
   // the API, or a negative limit to indicate the opposite), or we
   // collect a "detailed stack trace" eagerly and stash that away.
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    DirectHandle<UnionOf<Smi, FixedArray>> limit_or_stack_frame_infos;
-    if (IsUndefined(*error_stack, this) ||
+    Handle<StackTraceInfo> stack_trace;
+    if (IsUndefined(*call_site_infos_or_formatted_stack, this) ||
         (stack_trace_for_uncaught_exceptions_options_ &
          StackTrace::kExposeFramesAcrossSecurityOrigins)) {
-      limit_or_stack_frame_infos = CaptureDetailedStackTrace(
+      stack_trace = CaptureDetailedStackTrace(
           stack_trace_for_uncaught_exceptions_frame_limit_,
           stack_trace_for_uncaught_exceptions_options_);
     } else {
-      int limit =
-          stack_trace_limit > stack_trace_for_uncaught_exceptions_frame_limit_
-              ? -stack_trace_for_uncaught_exceptions_frame_limit_
-              : stack_trace_limit;
-      limit_or_stack_frame_infos = handle(Smi::FromInt(limit), this);
+      auto call_site_infos =
+          Cast<FixedArray>(call_site_infos_or_formatted_stack);
+      stack_trace = GetDetailedStackTraceFromCallSiteInfos(
+          this, call_site_infos,
+          stack_trace_for_uncaught_exceptions_frame_limit_);
+      if (stack_trace_limit < call_site_infos->length()) {
+        call_site_infos_or_formatted_stack = FixedArray::RightTrimOrEmpty(
+            this, call_site_infos, stack_trace_limit);
+      }
+      // Notify the debugger.
+      OnStackTraceCaptured(stack_trace);
     }
     error_stack = factory()->NewErrorStackData(
-        call_site_infos_or_formatted_stack, limit_or_stack_frame_infos);
+        call_site_infos_or_formatted_stack, stack_trace);
   }
 
   RETURN_ON_EXCEPTION(
@@ -1432,19 +1465,12 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
   return error_object;
 }
 
-Handle<FixedArray> Isolate::GetDetailedStackTrace(
+Handle<StackTraceInfo> Isolate::GetDetailedStackTrace(
     Handle<JSReceiver> maybe_error_object) {
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(this, maybe_error_object);
-
   if (!IsErrorStackData(*lookup.error_stack)) return {};
-  auto error_stack_data = Cast<ErrorStackData>(lookup.error_stack);
-
-  ErrorStackData::EnsureStackFrameInfos(this, error_stack_data);
-
-  if (!IsFixedArray(error_stack_data->limit_or_stack_frame_infos())) return {};
-  return handle(
-      Cast<FixedArray>(error_stack_data->limit_or_stack_frame_infos()), this);
+  return handle(Cast<ErrorStackData>(lookup.error_stack)->stack_trace(), this);
 }
 
 Handle<FixedArray> Isolate::GetSimpleStackTrace(
@@ -1535,15 +1561,17 @@ class StackFrameBuilder {
 
 }  // namespace
 
-Handle<FixedArray> Isolate::CaptureDetailedStackTrace(
+Handle<StackTraceInfo> Isolate::CaptureDetailedStackTrace(
     int limit, StackTrace::StackTraceOptions options) {
   TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
                      "maxFrameCount", limit);
   StackFrameBuilder builder(this, limit);
   VisitStack(this, &builder, options);
-  Handle<FixedArray> stack_trace = builder.Build();
+  auto frames = builder.Build();
   TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
-                   "frameCount", stack_trace->length());
+                   "frameCount", frames->length());
+  auto stack_trace = factory()->NewStackTraceInfo(frames);
+  OnStackTraceCaptured(stack_trace);
   return stack_trace;
 }
 
@@ -2763,9 +2791,9 @@ void Isolate::PrintCurrentStackTrace(std::ostream& out) {
 bool Isolate::ComputeLocation(MessageLocation* target) {
   DebuggableStackFrameIterator it(this);
   if (it.done()) return false;
-  // Compute the location from the function and the relocation info of the
-  // baseline code. For optimized code this will use the deoptimization
-  // information to get canonical location information.
+    // Compute the location from the function and the relocation info of the
+    // baseline code. For optimized code this will use the deoptimization
+    // information to get canonical location information.
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope code_ref_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2837,14 +2865,13 @@ bool Isolate::ComputeLocationFromDetailedStackTrace(MessageLocation* target,
                                                     Handle<Object> exception) {
   if (!IsJSReceiver(*exception)) return false;
 
-  Handle<FixedArray> stack_frame_infos =
+  Handle<StackTraceInfo> stack_trace =
       GetDetailedStackTrace(Cast<JSReceiver>(exception));
-  if (stack_frame_infos.is_null() || stack_frame_infos->length() == 0) {
+  if (stack_trace.is_null() || stack_trace->length() == 0) {
     return false;
   }
 
-  DirectHandle<StackFrameInfo> info(
-      Cast<StackFrameInfo>(stack_frame_infos->get(0)), this);
+  DirectHandle<StackFrameInfo> info(stack_trace->get(0), this);
   const int pos = StackFrameInfo::GetSourcePosition(info);
   *target = MessageLocation(handle(info->script(), this), pos, pos + 1);
   return true;
@@ -2852,7 +2879,7 @@ bool Isolate::ComputeLocationFromDetailedStackTrace(MessageLocation* target,
 
 Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
-  Handle<FixedArray> stack_trace_object;
+  Handle<StackTraceInfo> stack_trace;
   if (capture_stack_trace_for_uncaught_exceptions_) {
     if (IsJSObject(*exception)) {
       // First, check whether a stack trace is already present on this object.
@@ -2860,11 +2887,11 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
       // Exception::CaptureStackTrace().
       // If the lookup fails, we fall through and capture the stack trace
       // at this throw site.
-      stack_trace_object = GetDetailedStackTrace(Cast<JSObject>(exception));
+      stack_trace = GetDetailedStackTrace(Cast<JSObject>(exception));
     }
-    if (stack_trace_object.is_null()) {
+    if (stack_trace.is_null()) {
       // Not an error object, we capture stack and location at throw site.
-      stack_trace_object = CaptureDetailedStackTrace(
+      stack_trace = CaptureDetailedStackTrace(
           stack_trace_for_uncaught_exceptions_frame_limit_,
           stack_trace_for_uncaught_exceptions_options_);
     }
@@ -2877,16 +2904,16 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
     location = &computed_location;
   }
 
-  return MessageHandler::MakeMessageObject(
-      this, MessageTemplate::kUncaughtException, location, exception,
-      stack_trace_object);
+  return MessageHandler::MakeMessageObject(this,
+                                           MessageTemplate::kUncaughtException,
+                                           location, exception, stack_trace);
 }
 
 Handle<JSMessageObject> Isolate::CreateMessageFromException(
     Handle<Object> exception) {
-  DirectHandle<FixedArray> stack_trace_object;
+  DirectHandle<StackTraceInfo> stack_trace;
   if (IsJSError(*exception)) {
-    stack_trace_object = GetDetailedStackTrace(Cast<JSObject>(exception));
+    stack_trace = GetDetailedStackTrace(Cast<JSObject>(exception));
   }
 
   MessageLocation* location = nullptr;
@@ -2896,9 +2923,9 @@ Handle<JSMessageObject> Isolate::CreateMessageFromException(
     location = &computed_location;
   }
 
-  return MessageHandler::MakeMessageObject(
-      this, MessageTemplate::kPlaceholderOnly, location, exception,
-      stack_trace_object);
+  return MessageHandler::MakeMessageObject(this,
+                                           MessageTemplate::kPlaceholderOnly,
+                                           location, exception, stack_trace);
 }
 
 Isolate::ExceptionHandlerType Isolate::TopExceptionHandlerType(
@@ -3887,9 +3914,8 @@ class TracingAccountingAllocator : public AccountingAllocator {
     // Note: Neither isolate nor zones are locked, so be careful with accesses
     // as the allocator is potentially used on a concurrent thread.
     double time = isolate_->time_millis_since_init();
-    out << "{"
-        << "\"isolate\": \"" << reinterpret_cast<void*>(isolate_) << "\", "
-        << "\"time\": " << time << ", ";
+    out << "{" << "\"isolate\": \"" << reinterpret_cast<void*>(isolate_)
+        << "\", " << "\"time\": " << time << ", ";
     size_t total_segment_bytes_allocated = 0;
     size_t total_zone_allocation_size = 0;
     size_t total_zone_freed_size = 0;
@@ -3907,8 +3933,7 @@ class TracingAccountingAllocator : public AccountingAllocator {
         } else {
           out << ", ";
         }
-        out << "{"
-            << "\"name\": \"" << zone->name() << "\", "
+        out << "{" << "\"name\": \"" << zone->name() << "\", "
             << "\"allocated\": " << zone_segment_bytes_allocated << ", "
             << "\"used\": " << zone_allocation_size << ", "
             << "\"freed\": " << freed_size << "}";
@@ -6321,10 +6346,10 @@ void Isolate::UpdatePromiseHookProtector() {
 
 void Isolate::PromiseHookStateUpdated() {
   promise_hook_flags_ =
-    (promise_hook_flags_ & PromiseHookFields::HasContextPromiseHook::kMask) |
-    PromiseHookFields::HasIsolatePromiseHook::encode(promise_hook_) |
-    PromiseHookFields::HasAsyncEventDelegate::encode(async_event_delegate_) |
-    PromiseHookFields::IsDebugActive::encode(debug()->is_active());
+      (promise_hook_flags_ & PromiseHookFields::HasContextPromiseHook::kMask) |
+      PromiseHookFields::HasIsolatePromiseHook::encode(promise_hook_) |
+      PromiseHookFields::HasAsyncEventDelegate::encode(async_event_delegate_) |
+      PromiseHookFields::IsDebugActive::encode(debug()->is_active());
 
   if (promise_hook_flags_ != 0) {
     UpdatePromiseHookProtector();
@@ -6462,8 +6487,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
       }
       DirectHandle<JSMessageObject> message = MessageHandler::MakeMessageObject(
           this, MessageTemplate::kImportAssertDeprecated, location,
-          factory()->NewStringFromAsciiChecked("V8 v12.6 and Chrome 126"),
-          Handle<FixedArray>::null());
+          factory()->NewStringFromAsciiChecked("V8 v12.6 and Chrome 126"));
       message->set_error_level(v8::Isolate::kMessageWarning);
       MessageHandler::ReportMessage(this, location, message);
     }
@@ -6792,6 +6816,13 @@ void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
       async_event_delegate_->AsyncEventOccurred(
           debug::kDebugDidHandle, promise->async_task_id(), false);
     }
+  }
+}
+
+void Isolate::OnStackTraceCaptured(Handle<StackTraceInfo> stack_trace) {
+  if (HasAsyncEventDelegate()) {
+    async_event_delegate_->AsyncEventOccurred(debug::kDebugStackTraceCaptured,
+                                              stack_trace->id(), false);
   }
 }
 

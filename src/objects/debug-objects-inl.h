@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_DEBUG_OBJECTS_INL_H_
 #define V8_OBJECTS_DEBUG_OBJECTS_INL_H_
 
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/bytecode-array-inl.h"
 #include "src/objects/code-inl.h"
@@ -86,15 +87,16 @@ bool ErrorStackData::HasFormattedStack() const {
   return !IsFixedArray(call_site_infos_or_formatted_stack());
 }
 
-ACCESSORS_RELAXED_CHECKED(ErrorStackData, formatted_stack, Tagged<Object>,
-                          kCallSiteInfosOrFormattedStackOffset,
-                          !IsSmi(limit_or_stack_frame_infos()))
+ACCESSORS_RELAXED_CHECKED2(ErrorStackData, formatted_stack, Tagged<Object>,
+                           kCallSiteInfosOrFormattedStackOffset,
+                           HasFormattedStack(), true)
 
 bool ErrorStackData::HasCallSiteInfos() const { return !HasFormattedStack(); }
 
-ACCESSORS_RELAXED_CHECKED(ErrorStackData, call_site_infos, Tagged<FixedArray>,
-                          kCallSiteInfosOrFormattedStackOffset,
-                          !HasFormattedStack())
+DEF_GETTER(ErrorStackData, call_site_infos, Tagged<FixedArray>) {
+  DCHECK(HasCallSiteInfos());
+  return Cast<FixedArray>(call_site_infos_or_formatted_stack());
+}
 
 }  // namespace internal
 }  // namespace v8

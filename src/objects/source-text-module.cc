@@ -1391,7 +1391,7 @@ SourceTextModule::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
         MessageLocation(Cast<Script>(script), shared, code->code_offset());
     Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
         isolate, MessageTemplate::kTopLevelAwaitStalled, &location,
-        isolate->factory()->null_value(), Handle<FixedArray>());
+        isolate->factory()->null_value());
     result.push_back(std::make_tuple(found, message));
   }
   return result;

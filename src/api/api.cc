@@ -3108,11 +3108,10 @@ v8::Local<v8::StackTrace> Message::GetStackTrace() const {
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   InternalEscapableScope scope(i_isolate);
-  i::Handle<i::Object> stack_frames(self->stack_frames(), i_isolate);
-  if (!IsFixedArray(*stack_frames)) return {};
-  auto stack_trace = i_isolate->factory()->NewStackTraceInfo(
-      i::Cast<i::FixedArray>(stack_frames));
-  return scope.Escape(Utils::StackTraceToLocal(stack_trace));
+  i::Handle<i::Object> stack_trace(self->stack_trace(), i_isolate);
+  if (!IsStackTraceInfo(*stack_trace)) return {};
+  return scope.Escape(
+      Utils::StackTraceToLocal(i::Cast<i::StackTraceInfo>(stack_trace)));
 }
 
 Maybe<int> Message::GetLineNumber(Local<Context> context) const {
@@ -3251,13 +3250,13 @@ Local<StackFrame> StackTrace::GetFrame(Isolate* v8_isolate,
                                        uint32_t index) const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  return Utils::StackFrameToLocal(i::direct_handle(
-      i::Cast<i::StackFrameInfo>(self->frames()->get(index)), i_isolate));
+  return Utils::StackFrameToLocal(
+      i::direct_handle(self->get(index), i_isolate));
 }
 
 int StackTrace::GetFrameCount() const {
   auto self = Utils::OpenHandle(this);
-  return self->frames()->length();
+  return self->length();
 }
 
 Local<StackTrace> StackTrace::CurrentStackTrace(Isolate* v8_isolate,
@@ -3265,10 +3264,8 @@ Local<StackTrace> StackTrace::CurrentStackTrace(Isolate* v8_isolate,
                                                 StackTraceOptions options) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::FixedArray> frames =
-      i_isolate->CaptureDetailedStackTrace(frame_limit, options);
   i::Handle<i::StackTraceInfo> stack_trace =
-      i_isolate->factory()->NewStackTraceInfo(frames);
+      i_isolate->CaptureDetailedStackTrace(frame_limit, options);
   return Utils::StackTraceToLocal(stack_trace);
 }
 
@@ -11015,9 +11012,7 @@ Local<StackTrace> Exception::GetStackTrace(Local<Value> exception) {
   auto js_obj = i::Cast<i::JSObject>(obj);
   i::Isolate* i_isolate = js_obj->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  auto stack_frames = i_isolate->GetDetailedStackTrace(js_obj);
-  if (stack_frames.is_null()) return {};
-  auto stack_trace = i_isolate->factory()->NewStackTraceInfo(stack_frames);
+  auto stack_trace = i_isolate->GetDetailedStackTrace(js_obj);
   return Utils::StackTraceToLocal(stack_trace);
 }
 
