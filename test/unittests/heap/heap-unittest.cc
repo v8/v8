@@ -674,7 +674,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
         [address, &found](FreeListCategory* category) {
           category->IterateNodesForTesting(
               [address, &found](Tagged<FreeSpace> node) {
-                found = node.address() == address;
+                if (!found) found = node.address() == address;
               });
         });
     return found;
