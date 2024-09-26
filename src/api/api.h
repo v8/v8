@@ -549,7 +549,7 @@ DECLARE_CONTEXTUAL_VARIABLE_WITH_DEFAULT(StackAllocatedCheck, const bool, true);
 // TODO(crbug.com/42203776): This should move to the API and be integrated into
 // `AdjustAmountOfExternalAllocatedMemory()` to make sure there are no
 // unbalanced bytes floating around.
-class ExternalMemoryAccounterBase {
+class V8_EXPORT_PRIVATE ExternalMemoryAccounterBase {
  public:
   ExternalMemoryAccounterBase() = default;
   ~ExternalMemoryAccounterBase();
