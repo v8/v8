@@ -74,7 +74,7 @@ luci.cq_group(
         acl.entry(
             [acl.CQ_COMMITTER],
             groups = [
-                "project-v8-committers",
+                "project-v8-submit-access",
             ],
         ),
     ],
