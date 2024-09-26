@@ -116,27 +116,38 @@ void StackMemory::Reset() {
 }
 
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {
+  while (size_ > kMaxSize) {
+    size_ -= freelist_.back()->allocated_size();
+    freelist_.pop_back();
+  }
   std::unique_ptr<StackMemory> stack;
   if (freelist_.empty()) {
     stack = StackMemory::New();
   } else {
     stack = std::move(freelist_.back());
     freelist_.pop_back();
-    size_ -= stack->size_;
+    size_ -= stack->allocated_size();
   }
+#if DEBUG
+  constexpr uint8_t kZapValue = 0xab;
+  stack->FillWith(kZapValue);
+#endif
   return stack;
 }
 
 void StackPool::Add(std::unique_ptr<StackMemory> stack) {
-  if (size_ + stack->size_ > kMaxSize) {
-    return;
-  }
+  // Add the stack to the pool regardless of kMaxSize, because the stack might
+  // still be in use by the unwinder.
+  // Shrink the freelist lazily when we get the next stack instead.
   size_ += stack->allocated_size();
   stack->Reset();
   freelist_.push_back(std::move(stack));
 }
 
-void StackPool::ReleaseFinishedStacks() { freelist_.clear(); }
+void StackPool::ReleaseFinishedStacks() {
+  size_ = 0;
+  freelist_.clear();
+}
 
 size_t StackPool::Size() const {
   return freelist_.size() * sizeof(decltype(freelist_)::value_type) + size_;

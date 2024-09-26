@@ -653,3 +653,54 @@ function TestNestedSuspenders(suspend) {
   let combined_promise = wrapped_export();
   assertPromiseResult(combined_promise, v => assertEquals(2, v));
 })();
+
+// Send a termination request to a worker with a full stack pool, to check that
+// retiring the stack does not invalidate the stack memory that the unwinder is
+// currently using.
+(function TestTerminationWithFullStackPool() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  let js_async = builder.addImport('m', 'js_async', kSig_v_v);
+  let fill_stack_pool = builder.addImport('m', 'fill_stack_pool', kSig_v_v);
+  builder.addFunction('wasm_async', kSig_v_v).addBody([
+      kExprCallFunction, js_async,
+  ]).exportFunc();
+  builder.addFunction('main', kSig_v_v).addBody([
+    kExprCallFunction, fill_stack_pool,
+    kExprLoop, kWasmVoid, kExprBr, 0, kExprEnd
+  ]).exportFunc();
+  const module = builder.toModule();
+
+  function workerCode() {
+    d8.test.enableJSPI();
+    onmessage = async function({data:module}) {
+      let wasm_async;
+      let instance = new WebAssembly.Instance(module, {m: {
+        js_async: new WebAssembly.Suspending(() => {
+          return Promise.resolve();
+        }),
+        fill_stack_pool: new WebAssembly.Suspending(async () => {
+          let promises = [];
+          // Suspend multiple concurrent calls to create multiple stacks.
+          for (let i = 0; i < 50; ++i) {
+            promises.push(wasm_async());
+          }
+          // Await them now, which returns the finished stacks to the stack pool.
+          for (let i = 0; i < 50; ++i) {
+            await promises[i];
+          }
+          // Terminate the worker. This unwinds the main stack and attempts to
+          // return it to the stack pool, which is already full.
+          postMessage('terminate');
+        })
+      }});
+      wasm_async = WebAssembly.promising(instance.exports.wasm_async);
+      WebAssembly.promising(instance.exports.main)();
+    };
+  }
+
+  const worker = new Worker(workerCode, {type: 'function'});
+  worker.postMessage(module);
+  assertEquals('terminate', worker.getMessage());
+  worker.terminateAndWait();
+})();
