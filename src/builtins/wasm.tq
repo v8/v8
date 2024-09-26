@@ -720,7 +720,7 @@ macro UpdateCallRefOrIndirectIC(
 // This is the return type of "CallRefIC" and "CallIndirectIC". The type is not
 // used anywhere else; Liftoff uses the two returned values directly.
 struct TargetAndImplicitArg {
-  target: RawPtr;
+  target: WasmCodePointer;
   implicit_arg: WasmTrustedInstanceData|WasmImportData;
 }
 
@@ -746,9 +746,10 @@ builtin CallRefIC(
 }
 
 builtin CallIndirectIC(
-    vector: FixedArray, vectorIndex: int32, target: RawPtr,
+    vector: FixedArray, vectorIndex: int32, target: WasmCodePointer,
     implicitArg: WasmTrustedInstanceData|WasmImportData): TargetAndImplicitArg {
-  const truncatedTarget = SmiTag(Signed(Unsigned(target) & kSmiMaxValue));
+  const truncatedTarget =
+      SmiTag(Signed(Convert<uintptr>(target) & kSmiMaxValue));
   UpdateCallRefOrIndirectIC(
       vector, Convert<intptr>(vectorIndex), truncatedTarget);
 
