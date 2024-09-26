@@ -2057,7 +2057,7 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     int function_index;
     MaybeDirectHandle<WasmJSFunction> maybe_js_function;
     WasmTableObject::GetFunctionTableEntry(
-        isolate_, module_, table_object, i, &is_valid, &is_null,
+        isolate_, table_object, i, &is_valid, &is_null,
         &maybe_target_instance_data, &function_index, &maybe_js_function);
     if (!is_valid) {
       thrower_->LinkError("table import %d[%d] is not a wasm function",

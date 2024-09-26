@@ -718,11 +718,16 @@ void WasmTableObject::SetFunctionTablePlaceholder(
 
 // static
 void WasmTableObject::GetFunctionTableEntry(
-    Isolate* isolate, const WasmModule* module,
-    DirectHandle<WasmTableObject> table, int entry_index, bool* is_valid,
-    bool* is_null, MaybeHandle<WasmTrustedInstanceData>* instance_data,
-    int* function_index, MaybeDirectHandle<WasmJSFunction>* maybe_js_function) {
-  DCHECK(wasm::IsSubtypeOf(table->type(), wasm::kWasmFuncRef, module));
+    Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
+    bool* is_valid, bool* is_null,
+    MaybeHandle<WasmTrustedInstanceData>* instance_data, int* function_index,
+    MaybeDirectHandle<WasmJSFunction>* maybe_js_function) {
+  // A function table defined outside a module may only have type exactly
+  // {funcref}.
+  DCHECK(table->has_trusted_data()
+             ? wasm::IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
+                                 table->trusted_data(isolate)->module())
+             : (table->type() == wasm::kWasmFuncRef));
   DCHECK_LT(entry_index, table->current_length());
   // We initialize {is_valid} with {true}. We may change it later.
   *is_valid = true;

@@ -289,10 +289,9 @@ class WasmTableObject
   // This function reads the content of a function table entry and returns it
   // through the output parameters.
   static void GetFunctionTableEntry(
-      Isolate* isolate, const wasm::WasmModule* module,
-      DirectHandle<WasmTableObject> table, int entry_index, bool* is_valid,
-      bool* is_null, MaybeHandle<WasmTrustedInstanceData>* instance_data,
-      int* function_index,
+      Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
+      bool* is_valid, bool* is_null,
+      MaybeHandle<WasmTrustedInstanceData>* instance_data, int* function_index,
       MaybeDirectHandle<WasmJSFunction>* maybe_js_function);
 
  private:
