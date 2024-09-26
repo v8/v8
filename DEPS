@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:e8827a58e51f92cc53a44fb40db89dbde507f800',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:8629e7bbc0066a11c551ace6af85881527a2084c',
+  'luci_go': 'git_revision:cb4b10bea51ea74dbdfeb6d377481c884ab23db8',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -131,7 +131,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '87926d0c650cec6c058613a9386ba3998af8015f',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c50ea35e09f8ef663bd98218be7f632f1830d6e3',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd57511c7e09e057eb4d81919eb21912ff8f42142',
   'buildtools/linux64': {
     'packages': [
       {
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4e35d3324f918ed7d9e318db826c7174ec132c71',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '950ee67c1275e4f1f7ebf1a03908fe853bbed1ed',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -305,7 +305,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '06d85ffb29ce1b39d7ad0f5b1863c45551919e20',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '423aee3f0cc39d08aa879d6124e7a913d7760704',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'd0c57cb48fb5709f02096f411d65a11cbc722944',
   'third_party/libunwind/src':
