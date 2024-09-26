@@ -2175,7 +2175,7 @@
 }], # conservative_stack_scanning
 
 ##############################################################################
-['(arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64) or (simulator_run and conservative_stack_scanning)', {
+['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64', {
   # Stack switching is only supported on x64/arm64/ia32/arm/riscv64/loong64.
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-conditional': [SKIP],
@@ -2192,7 +2192,7 @@
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64)
 
 ##############################################################################
-['(arch != arm64 and arch != x64 and arch != arm and arch != ia32) or conservative_stack_scanning', {
+['arch != arm64 and arch != x64 and arch != arm and arch != ia32', {
   # Growable stacks are only supported on arm64, x64 and ia32.
   'wasm/growable-stacks': [SKIP]
 }],  # (arch != arm64 and arch != x64 and arch != arm and arch != ia32)
