@@ -6119,7 +6119,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   PrepareCEntryArgs(num_arguments);
   PrepareCEntryFunction(ExternalReference::Create(f));
 #if V8_TARGET_ARCH_RISCV64
-  CallBuiltin(Builtins::RuntimeCEntry(f->result_size));
+  bool switch_to_central = options().is_wasm;
+  CallBuiltin(Builtins::RuntimeCEntry(f->result_size, switch_to_central));
 #else
   CallBuiltin(Builtins::RuntimeCEntry(1));
 #endif

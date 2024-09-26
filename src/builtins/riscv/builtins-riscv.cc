@@ -4806,7 +4806,11 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   __ pop(t6);  // Get continuation, leave pc on stack.
   __ pop(ra);
+  Label end;
+  __ Branch(&end, eq, t6, Operand(zero_reg));
   __ Jump(t6);
+  __ bind(&end);
+  __ Ret();
   __ stop();
 }
 
