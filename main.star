@@ -134,18 +134,18 @@ luci.project(
 
 LED_GROUPS = ["project-v8-led-users", "mdb/v8-infra"]
 
-# Allow indviduals (via groups) to use LED and "Debug" button on try and ci
-# builders without additional approval.
-def led_users(*, pool_realm, bucket_realms, groups):
+# Configure pool and bucket access for individuals and other projects.
+def pool(*, name, users = None, groups = None, projects = None, bucket_realms = None):
     luci.realm(
-        name = pool_realm,
+        name = name,
         bindings = [luci.binding(
             roles = "role/swarming.poolUser",
             groups = groups,
-            users = V8_SERVICE_ACCOUNTS,
+            users = users,
+            projects = projects,
         )],
     )
-    for br in bucket_realms:
+    for br in (bucket_realms or []):
         luci.binding(
             realm = br,
             roles = [
@@ -153,55 +153,49 @@ def led_users(*, pool_realm, bucket_realms, groups):
                 "role/swarming.taskTriggerer",
             ],
             groups = groups,
-            users = V8_SERVICE_ACCOUNTS,
+            users = users,
         )
 
-led_users(
-    pool_realm = "pools/ci",
+# Allow this AoD group to use all pools and trigger all builders
+pool(
+    name = "@root",
+    bucket_realms = ["@root"],
+    users = V8_SERVICE_ACCOUNTS,
+    groups = "google/v8-infra-users-highly-privileged@twosync.google.com",
+)
+
+pool(
+    name = "pools/ci",
     bucket_realms = [
         "ci",
         "ci.br.beta",
         "ci.br.stable",
         "ci.br.extended",
     ],
+    users = V8_SERVICE_ACCOUNTS,
     groups = LED_GROUPS,
+    projects = "emscripten-releases",
 )
 
-led_users(
-    pool_realm = "pools/try",
+pool(
+    name = "pools/try",
     bucket_realms = ["try", "try.triggered", "crossbench.try"],
+    users = V8_SERVICE_ACCOUNTS,
     groups = LED_GROUPS + ["project-v8-tryjob-access"],
 )
 
-# Allow this AoD group to use all pools and trigger all builders
-led_users(
-    pool_realm = "@root",
-    bucket_realms = ["@root"],
-    groups = "google/v8-infra-users-highly-privileged@twosync.google.com",
-)
-
-# Allow the devtools-frontend project to use V8's highly-privileged pool.
-luci.realm(
+pool(
     name = "pools/highly-privileged",
-    bindings = [
-        luci.binding(
-            roles = "role/swarming.poolUser",
-            projects = "devtools-frontend",
-            users = V8_HP_SERVICE_ACCOUNTS,
-        ),
-    ],
+    # Allow the devtools-frontend project to use V8's highly-privileged pool.
+    projects = "devtools-frontend",
+    users = V8_HP_SERVICE_ACCOUNTS,
 )
 
-# Allow ci/try runs and infra team to spawn test tasks in the testing pool.
-luci.realm(
+pool(
     name = "pools/tests",
-    bindings = [
-        luci.binding(
-            roles = "role/swarming.poolUser",
-            groups = ["mdb/v8-infra"],
-            users = V8_SERVICE_ACCOUNTS,
-        ),
-    ],
+    users = V8_SERVICE_ACCOUNTS,
+    # Allow ci/try runs and infra team to spawn test tasks in the testing pool.
+    groups = "mdb/v8-infra",
 )
 
 def grantInvocationCreator(realms, users):
