@@ -4279,6 +4279,12 @@ void Heap::AppendArrayBufferExtension(Tagged<JSArrayBuffer> object,
   array_buffer_sweeper_->Append(object, extension);
 }
 
+void Heap::ResizeArrayBufferExtension(ArrayBufferExtension* extension,
+                                      int64_t delta) {
+  // ArrayBufferSweeper is managing all counters and updating Heap counters.
+  array_buffer_sweeper_->Resize(extension, delta);
+}
+
 void Heap::DetachArrayBufferExtension(ArrayBufferExtension* extension) {
   // ArrayBufferSweeper is managing all counters and updating Heap counters.
   return array_buffer_sweeper_->Detach(extension);

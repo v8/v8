@@ -442,6 +442,10 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
       }
     }
 
+    isolate->heap()->ResizeArrayBufferExtension(
+        array_buffer->extension(),
+        static_cast<int64_t>(new_byte_length) - array_buffer->byte_length());
+
     // [RAB] Set O.[[ArrayBufferByteLength]] to newLength.
     array_buffer->set_byte_length(new_byte_length);
   } else {

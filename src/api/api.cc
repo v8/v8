@@ -12199,6 +12199,70 @@ bool V8_EXPORT ValidateCallbackInfo(const PropertyCallbackInfo<void>& info) {
   return ValidatePropertyCallbackInfo(info);
 }
 
+ExternalMemoryAccounterBase::~ExternalMemoryAccounterBase() {
+#ifdef DEBUG
+  DCHECK_EQ(amount_of_external_memory_, 0U);
+#endif
+}
+
+ExternalMemoryAccounterBase::ExternalMemoryAccounterBase(
+    ExternalMemoryAccounterBase&& other) V8_NOEXCEPT {
+#if DEBUG
+  amount_of_external_memory_ =
+      std::exchange(other.amount_of_external_memory_, 0U);
+  isolate_ = std::exchange(other.isolate_, nullptr);
+#endif
+}
+
+ExternalMemoryAccounterBase& ExternalMemoryAccounterBase::operator=(
+    ExternalMemoryAccounterBase&& other) V8_NOEXCEPT {
+#if DEBUG
+  if (this == &other) {
+    return *this;
+  }
+  DCHECK_EQ(amount_of_external_memory_, 0U);
+  amount_of_external_memory_ =
+      std::exchange(other.amount_of_external_memory_, 0U);
+  isolate_ = std::exchange(other.isolate_, nullptr);
+#endif
+  return *this;
+}
+
+void ExternalMemoryAccounterBase::Increase(Isolate* isolate, size_t size) {
+#ifdef DEBUG
+  DCHECK(isolate == isolate_ || isolate_ == nullptr);
+  isolate_ = isolate;
+  amount_of_external_memory_ += size;
+#endif
+  reinterpret_cast<v8::Isolate*>(isolate)
+      ->AdjustAmountOfExternalAllocatedMemory(static_cast<int64_t>(size));
+}
+
+void ExternalMemoryAccounterBase::Update(Isolate* isolate, int64_t delta) {
+#ifdef DEBUG
+  DCHECK(isolate == isolate_ || isolate_ == nullptr);
+  DCHECK_GE(static_cast<int64_t>(amount_of_external_memory_), -delta);
+  isolate_ = isolate;
+  amount_of_external_memory_ += delta;
+#endif
+  reinterpret_cast<v8::Isolate*>(isolate)
+      ->AdjustAmountOfExternalAllocatedMemory(delta);
+}
+
+void ExternalMemoryAccounterBase::Decrease(Isolate* isolate, size_t size) {
+  DisallowGarbageCollection no_gc;
+  if (size == 0) {
+    return;
+  }
+#ifdef DEBUG
+  DCHECK_EQ(isolate, isolate_);
+  DCHECK_GE(amount_of_external_memory_, size);
+  amount_of_external_memory_ -= size;
+#endif
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->heap()->UpdateExternalMemory(-static_cast<int64_t>(size));
+}
+
 }  // namespace internal
 
 template <>
