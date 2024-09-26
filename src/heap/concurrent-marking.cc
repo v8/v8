@@ -20,6 +20,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-utils-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -28,6 +29,7 @@
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/minor-mark-sweep-inl.h"
@@ -317,7 +319,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           break;
         }
         DCHECK(!HeapLayout::InReadOnlySpace(object));
-        DCHECK_EQ(GetIsolateFromWritableObject(object), isolate);
+        DCHECK_EQ(HeapUtils::GetOwnerHeap(object), heap_);
         objects_processed++;
 
         Address new_space_top = kNullAddress;

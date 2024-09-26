@@ -37,6 +37,7 @@
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-utils-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/index-generator.h"
@@ -2258,7 +2259,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     CHECK(!IsFreeSpaceOrFiller(object, cage_base));
     DCHECK(IsHeapObject(object));
     DCHECK(!HeapLayout::InReadOnlySpace(object));
-    DCHECK_EQ(GetIsolateFromWritableObject(object), isolate);
+    DCHECK_EQ(HeapUtils::GetOwnerHeap(object), heap_);
     DCHECK(heap_->Contains(object));
     DCHECK(!(marking_state_->IsUnmarked(object)));
     if (mode == MarkCompactCollector::MarkingWorklistProcessingMode::

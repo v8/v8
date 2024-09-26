@@ -61,7 +61,11 @@ bool HandleBase::IsDereferenceAllowed() const {
   if (IsSmi(object)) return true;
   Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
   if (HeapLayout::InReadOnlySpace(heap_object)) return true;
-  Isolate* isolate = GetIsolateFromWritableObject(heap_object);
+  // Isolate::Current() only works on the main thread, so find the current
+  // isolate through LocalHeap.
+  LocalHeap* local_heap = LocalHeap::Current();
+  Isolate* isolate =
+      local_heap ? local_heap->heap()->isolate() : Isolate::Current();
   RootIndex root_index;
   if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
       RootsTable::IsImmortalImmovable(root_index)) {
@@ -77,7 +81,7 @@ bool HandleBase::IsDereferenceAllowed() const {
   // epilogue callbacks in the safepoint after a GC.
   if (AllowHandleDereferenceAllThreads::IsAllowed()) return true;
 
-  LocalHeap* local_heap = isolate->CurrentLocalHeap();
+  local_heap = isolate->CurrentLocalHeap();
 
   // Local heap can't access handles when parked
   if (!local_heap->IsHandleDereferenceAllowed()) {

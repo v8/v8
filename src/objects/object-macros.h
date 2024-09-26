@@ -709,7 +709,7 @@
 #else
 #define WRITE_BARRIER(object, offset, value)                                \
   do {                                                                      \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                           \
     static_assert(kTaggedCanConvertToRawObjects);                           \
     WriteBarrier::ForValue(object, Tagged(object)->RawField(offset), value, \
                            UPDATE_WRITE_BARRIER);                           \
@@ -721,7 +721,7 @@
 #else
 #define WEAK_WRITE_BARRIER(object, offset, value)                             \
   do {                                                                        \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                             \
     static_assert(kTaggedCanConvertToRawObjects);                             \
     WriteBarrier::ForValue(object, Tagged(object)->RawMaybeWeakField(offset), \
                            value, UPDATE_WRITE_BARRIER);                      \
@@ -736,7 +736,7 @@
 #else
 #define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)                 \
   do {                                                                     \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                          \
     WriteBarrier::ForEphemeronHashTable(Cast<EphemeronHashTable>(object),  \
                                         (object)->RawField(offset), value, \
                                         UPDATE_WRITE_BARRIER);             \
@@ -748,7 +748,7 @@
 #else
 #define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
   do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                            \
     WriteBarrier::ForIndirectPointer(                                        \
         object, Tagged(object)->RawIndirectPointerField(offset, tag), value, \
         UPDATE_WRITE_BARRIER);                                               \
@@ -760,7 +760,7 @@
 #else
 #define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)                     \
   do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                            \
     WriteBarrier::ForJSDispatchHandle(object, handle, UPDATE_WRITE_BARRIER); \
   } while (false)
 #endif
@@ -773,7 +773,7 @@
 #else
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)               \
   do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                            \
     WriteBarrier::ForValue(object, (object)->RawField(offset), value, mode); \
   } while (false)
 #endif
@@ -786,7 +786,7 @@
 #else
 #define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)            \
   do {                                                                         \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                        \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                              \
     WriteBarrier::ForValue(object, (object)->RawMaybeWeakField(offset), value, \
                            mode);                                              \
   } while (false)
@@ -797,7 +797,7 @@
 #else
 #define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode) \
   do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                            \
     WriteBarrier::ForEphemeronHashTable(Cast<EphemeronHashTable>(object),    \
                                         (object)->RawField(offset), value,   \
                                         mode);                               \
@@ -811,7 +811,7 @@
 #define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                    mode)                       \
   do {                                                                         \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                        \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                              \
     WriteBarrier::ForIndirectPointer(                                          \
         object, (object).RawIndirectPointerField(offset, tag), value, mode);   \
   } while (false)
@@ -833,7 +833,7 @@
 #define CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(object, offset, value, \
                                                     mode)                  \
   do {                                                                     \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                          \
     WriteBarrier::ForProtectedPointer(                                     \
         object, (object).RawProtectedPointerField(offset), value, mode);   \
   } while (false)
@@ -843,7 +843,7 @@
 #else
 #define CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle, mode) \
   do {                                                                     \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                          \
     WriteBarrier::ForJSDispatchHandle(object, handle, mode);               \
   } while (false)
 #endif

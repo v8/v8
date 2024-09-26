@@ -303,6 +303,7 @@ class ConcurrentStringThreadBase : public ParkingThread {
     sema_execute_start_->ParkedWait(i_isolate->main_thread_local_isolate());
 
     {
+      v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate);
       HandleScope scope(i_isolate);
       for (int i = 0; i < shared_strings_->length(); i++) {
         Handle<String> input_string(Cast<String>(shared_strings_->get(i)),
@@ -2041,6 +2042,7 @@ class WorkerIsolateThread : public v8::base::Thread {
     v8::Global<v8::String> gh_shared_string;
 
     {
+      v8::Isolate::Scope isolate_scope(client);
       HandleScope handle_scope(i_client);
       Handle<String> shared_string = factory->NewStringFromAsciiChecked(
           "foobar", AllocationType::kSharedOld);
@@ -2441,6 +2443,7 @@ class Regress1424955ClientIsolateThread : public v8::base::Thread {
       // Allocate an object so that there is work for the sweeper. Otherwise,
       // starting a minor GC after a full GC may finalize sweeping since it is
       // out of work.
+      v8::Isolate::Scope isolate_scope(client_isolate_);
       HandleScope handle_scope(i_client);
       Handle<FixedArray> array =
           factory->NewFixedArray(64, AllocationType::kOld);

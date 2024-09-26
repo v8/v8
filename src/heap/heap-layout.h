@@ -48,6 +48,11 @@ class HeapLayout final : public AllStatic {
   // incremental/concurrent marking).
   static V8_INLINE bool InBlackAllocatedPage(Tagged<HeapObject> object);
 
+  // Returns whether `object` is allocated on a page which is owned by some Heap
+  // instance. This is equivalent to !InReadOnlySpace except during
+  // serialization.
+  static V8_INLINE bool IsOwnedByAnyHeap(Tagged<HeapObject> object);
+
  private:
   static bool InYoungGenerationForStickyMarkbits(const MemoryChunk* chunk,
                                                  Tagged<HeapObject> object);

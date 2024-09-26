@@ -537,6 +537,8 @@ class ConcurrentThread final : public ParkingThread {
     IsolateWrapper isolate_wrapper(kNoCounters);
     i_client_isolate_ = isolate_wrapper.i_isolate();
 
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate());
+
     // Allocate the state on the stack, so that handles, direct handles or raw
     // pointers are stack-allocated.
     State state;

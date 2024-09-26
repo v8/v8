@@ -7,7 +7,7 @@
 
 #include "src/flags/flags.h"
 #include "src/heap/heap-layout.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/memory-chunk-inl.h"
 #include "src/objects/casting.h"
 #include "src/objects/objects.h"
 
@@ -77,6 +77,11 @@ bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
   DCHECK(v8_flags.black_allocated_pages);
   return MemoryChunk::FromHeapObject(object)->GetFlags() &
          MemoryChunk::BLACK_ALLOCATED;
+}
+
+// static
+bool HeapLayout::IsOwnedByAnyHeap(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->GetHeap();
 }
 
 }  // namespace v8::internal

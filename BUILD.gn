@@ -3786,6 +3786,8 @@ v8_header_set("v8_internal_headers") {
     "src/heap/heap-layout-inl.h",
     "src/heap/heap-layout-tracer.h",
     "src/heap/heap-layout.h",
+    "src/heap/heap-utils-inl.h",
+    "src/heap/heap-utils.h",
     "src/heap/heap-write-barrier-inl.h",
     "src/heap/heap-write-barrier.h",
     "src/heap/heap.h",
