@@ -633,7 +633,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     DCHECK(call.valid());
 
     if (suspend == kSuspend) {
-      call = BuildSuspend(call, LOAD_ROOT(ActiveSuspender), ref, &old_sp);
+      call = BuildSuspend(call, ref, &old_sp);
     }
 
     // Convert the return value(s) back.
@@ -1174,25 +1174,21 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
   }
 
-  OpIndex BuildSuspend(OpIndex value, V<Object> suspender,
-                       V<Object> import_data, OpIndex* old_sp) {
-    V<Context> native_context = __ Load(import_data, LoadOp::Kind::TaggedBase(),
-                                        MemoryRepresentation::TaggedPointer(),
-                                        WasmImportData::kNativeContextOffset);
-    OpIndex active_suspender = LOAD_ROOT(ActiveSuspender);
-
+  OpIndex BuildSuspend(OpIndex value, V<Object> import_data, OpIndex* old_sp) {
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
     ScopedVar<Object> result(this, value);
     ScopedVar<WordPtr> old_sp_var(this, *old_sp);
     IF_NOT (__ IsSmi(value)) {
       IF (__ HasInstanceType(value, JS_PROMISE_TYPE)) {
-        IF (__ TaggedEqual(active_suspender, LOAD_ROOT(UndefinedValue))) {
-          CallRuntime(__ phase_zone(), Runtime::kThrowBadSuspenderError, {},
-                      native_context);
-          __ Unreachable();
-        }
-        IF_NOT (__ TaggedEqual(suspender, active_suspender)) {
+        V<Context> native_context =
+            __ Load(import_data, LoadOp::Kind::TaggedBase(),
+                    MemoryRepresentation::TaggedPointer(),
+                    WasmImportData::kNativeContextOffset);
+        OpIndex suspender = LOAD_ROOT(ActiveSuspender);
+        // Trap if the suspender is undefined, which occurs when the export was
+        // not wrapped with WebAssembly.promising.
+        IF (__ TaggedEqual(suspender, LOAD_ROOT(UndefinedValue))) {
           CallRuntime(__ phase_zone(), Runtime::kThrowBadSuspenderError, {},
                       native_context);
           __ Unreachable();

@@ -7846,14 +7846,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         global_proxy);
   }
 
-  Node* BuildSuspend(Node* value, Node* suspender, Node* import_data,
-                     Node** old_sp) {
+  Node* BuildSuspend(Node* value, Node* import_data, Node** old_sp) {
     Node* native_context = gasm_->Load(
         MachineType::TaggedPointer(), import_data,
         wasm::ObjectAccess::ToTagged(WasmImportData::kNativeContextOffset));
-    Node* active_suspender =
-        LOAD_MUTABLE_ROOT(ActiveSuspender, active_suspender);
-
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
     auto resume = gasm_->MakeLabel(MachineRepresentation::kTagged,
@@ -7862,13 +7858,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
                      BranchHint::kTrue, value, *old_sp);
 
-    // Trap if the suspender argument is not the active suspender or if there is
-    // no active suspender.
+    // Trap if the suspender is undefined, which occurs when the export was
+    // not wrapped with WebAssembly.promising.
+    Node* suspender = LOAD_MUTABLE_ROOT(ActiveSuspender, active_suspender);
     auto bad_suspender = gasm_->MakeDeferredLabel();
-    gasm_->GotoIf(gasm_->TaggedEqual(active_suspender, UndefinedValue()),
+    gasm_->GotoIf(gasm_->TaggedEqual(suspender, UndefinedValue()),
                   &bad_suspender, BranchHint::kFalse);
-    gasm_->GotoIfNot(gasm_->TaggedEqual(suspender, active_suspender),
-                     &bad_suspender, BranchHint::kFalse);
 
     auto* call_descriptor = GetBuiltinCallDescriptor(
         Builtin::kWasmSuspend, zone_, StubCallMode::kCallBuiltinPointer);
@@ -8104,9 +8099,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 #endif  // V8_ENABLE_DRUMBRAKE
 
     if (suspend == wasm::kSuspend) {
-      Node* active_suspender =
-          LOAD_MUTABLE_ROOT(ActiveSuspender, active_suspender);
-      call = BuildSuspend(call, active_suspender, Param(0), &old_sp);
+      call = BuildSuspend(call, Param(0), &old_sp);
     }
 
     // Convert the return value(s) back.

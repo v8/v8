@@ -704,3 +704,17 @@ function TestNestedSuspenders(suspend) {
   assertEquals('terminate', worker.getMessage());
   worker.terminateAndWait();
 })();
+
+(function TestUnwrappedExportError() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  import_index = builder.addImport('m', 'import', kSig_v_v);
+  builder.addFunction("test", kSig_v_v)
+      .addBody([
+          kExprCallFunction, import_index,
+      ]).exportFunc();
+  let js_import = new WebAssembly.Suspending(() => Promise.resolve());
+  let instance = builder.instantiate({m: {import: js_import}});
+  assertThrows(instance.exports.test, WebAssembly.RuntimeError,
+      /attempting to suspend without a WebAssembly.promising export/);
+})();
