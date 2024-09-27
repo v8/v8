@@ -6806,7 +6806,7 @@ void MacroAssembler::AssertSmiOrHeapObjectInMainCompressionCage(
   Check(kEqual, AbortReason::kObjectNotTagged, object,
         Operand(kPtrComprCageBaseRegister));
   bind(&ok);
-  Pop(zero_reg, object);
+  Pop(object, zero_reg);
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 

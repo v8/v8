@@ -379,39 +379,25 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Push(Tagged<Smi> smi);
   void Push(Tagged<TaggedIndex> index);
 
-  // Push two registers. Pushes leftmost register first (to highest address).
-  void Push(Register src1, Register src2) {
-    SubWord(sp, sp, Operand(2 * kSystemPointerSize));
-    StoreWord(src1, MemOperand(sp, 1 * kSystemPointerSize));
-    StoreWord(src2, MemOperand(sp, 0 * kSystemPointerSize));
+ private:
+  template <typename... Rs>
+  void push_helper(Register r, Rs... rs) {
+    StoreWord(r, MemOperand(sp, sizeof...(rs) * kSystemPointerSize));
+    push_helper(rs...);
   }
 
-  // Push three registers. Pushes leftmost register first (to highest address).
-  void Push(Register src1, Register src2, Register src3) {
-    SubWord(sp, sp, Operand(3 * kSystemPointerSize));
-    StoreWord(src1, MemOperand(sp, 2 * kSystemPointerSize));
-    StoreWord(src2, MemOperand(sp, 1 * kSystemPointerSize));
-    StoreWord(src3, MemOperand(sp, 0 * kSystemPointerSize));
+  template <>
+  void push_helper(Register r) {
+    StoreWord(r, MemOperand(sp, 0));
   }
 
-  // Push four registers. Pushes leftmost register first (to highest address).
-  void Push(Register src1, Register src2, Register src3, Register src4) {
-    SubWord(sp, sp, Operand(4 * kSystemPointerSize));
-    StoreWord(src1, MemOperand(sp, 3 * kSystemPointerSize));
-    StoreWord(src2, MemOperand(sp, 2 * kSystemPointerSize));
-    StoreWord(src3, MemOperand(sp, 1 * kSystemPointerSize));
-    StoreWord(src4, MemOperand(sp, 0 * kSystemPointerSize));
-  }
-
-  // Push five registers. Pushes leftmost register first (to highest address).
-  void Push(Register src1, Register src2, Register src3, Register src4,
-            Register src5) {
-    SubWord(sp, sp, Operand(5 * kSystemPointerSize));
-    StoreWord(src1, MemOperand(sp, 4 * kSystemPointerSize));
-    StoreWord(src2, MemOperand(sp, 3 * kSystemPointerSize));
-    StoreWord(src3, MemOperand(sp, 2 * kSystemPointerSize));
-    StoreWord(src4, MemOperand(sp, 1 * kSystemPointerSize));
-    StoreWord(src5, MemOperand(sp, 0 * kSystemPointerSize));
+ public:
+  // Push a number of registers. The leftmost register first (to the highest
+  // address).
+  template <typename... Rs>
+  void Push(Register r, Rs... rs) {
+    SubWord(sp, sp, (sizeof...(rs) + 1) * kSystemPointerSize);
+    push_helper(r, rs...);
   }
 
   void Push(Register src, Condition cond, Register tst1, Register tst2) {
@@ -541,20 +527,25 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   void Pop(Register dst) { pop(dst); }
 
-  // Pop two registers. Pops rightmost register first (from lower address).
-  void Pop(Register src1, Register src2) {
-    DCHECK(src1 != src2);
-    LoadWord(src2, MemOperand(sp, 0 * kSystemPointerSize));
-    LoadWord(src1, MemOperand(sp, 1 * kSystemPointerSize));
-    AddWord(sp, sp, 2 * kSystemPointerSize);
+ private:
+  template <typename... Rs>
+  void pop_helper(Register r, Rs... rs) {
+    pop_helper(rs...);
+    LoadWord(r, MemOperand(sp, sizeof...(rs) * kSystemPointerSize));
   }
 
-  // Pop three registers. Pops rightmost register first (from lower address).
-  void Pop(Register src1, Register src2, Register src3) {
-    LoadWord(src3, MemOperand(sp, 0 * kSystemPointerSize));
-    LoadWord(src2, MemOperand(sp, 1 * kSystemPointerSize));
-    LoadWord(src1, MemOperand(sp, 2 * kSystemPointerSize));
-    AddWord(sp, sp, 3 * kSystemPointerSize);
+  template <>
+  void pop_helper(Register r) {
+    LoadWord(r, MemOperand(sp, 0));
+  }
+
+ public:
+  // Pop a number of registers. The leftmost register last (from the highest
+  // address).
+  template <typename... Rs>
+  void Pop(Register r, Rs... rs) {
+    pop_helper(r, rs...);
+    AddWord(sp, sp, (sizeof...(rs) + 1) * kSystemPointerSize);
   }
 
   void Pop(uint32_t count = 1) {
