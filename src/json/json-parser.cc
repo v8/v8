@@ -253,19 +253,19 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     }
   }
 
-    Handle<JSObject> context =
-        isolate_->factory()->NewJSObject(isolate_->object_function());
-    if (pass_source_to_reviver && IsString(*val_node)) {
-      JSReceiver::CreateDataProperty(isolate_, context,
-                                     isolate_->factory()->source_string(),
-                                     val_node, Just(kThrowOnError))
-          .Check();
-    }
-    Handle<Object> argv[] = {name, value, context};
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv));
-    return outer_scope.CloseAndEscape(result);
+  Handle<JSObject> context =
+      isolate_->factory()->NewJSObject(isolate_->object_function());
+  if (pass_source_to_reviver && IsString(*val_node)) {
+    JSReceiver::CreateDataProperty(isolate_, context,
+                                   isolate_->factory()->source_string(),
+                                   val_node, Just(kThrowOnError))
+        .Check();
+  }
+  Handle<Object> argv[] = {name, value, context};
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv));
+  return outer_scope.CloseAndEscape(result);
 }
 
 template <JsonParseInternalizer::WithOrWithoutSource with_source>
@@ -953,7 +953,7 @@ class JSDataObjectBuilder {
         PropertyDetails details = descriptors->GetDetails(descriptor_index);
         if (details.representation().IsDouble()) {
           value = hn_allocator.AllocateNext(
-              roots, Float64(static_cast<double>(Cast<Smi>(value).value())));
+              roots, Float64(Object::NumberValue(value)));
         }
       }
 
@@ -1282,6 +1282,7 @@ class JsonParser<Char>::NamedPropertyIterator {
 };
 
 template <typename Char>
+template <bool should_track_json_source>
 Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
                                                    Handle<Map> feedback) {
   if (!feedback.is_null() && feedback->is_deprecated()) {
@@ -1333,9 +1334,15 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
     elements = factory()->empty_fixed_array();
   }
 
+  // When tracking JSON source with a reviver, do not use mutable HeapNumbers.
+  // In this mode, values are snapshotted at the beginning because the source is
+  // only passed to the reviver if the reviver does not muck with the original
+  // value. Mutable HeapNumbers would make the snapshot incorrect.
   JSDataObjectBuilder js_data_object_builder(
       isolate_, elements_kind, named_length, feedback,
-      JSDataObjectBuilder::kHeapNumbersGuaranteedUniquelyOwned);
+      should_track_json_source
+          ? JSDataObjectBuilder::kNormalHeapNumbers
+          : JSDataObjectBuilder::kHeapNumbersGuaranteedUniquelyOwned);
 
   NamedPropertyIterator it(*this, property_stack_.begin() + start,
                            property_stack_.end());
@@ -1498,7 +1505,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonObject(Handle<Map> feedback) {
   } while (Check(JsonToken::COMMA));
 
   Expect(JsonToken::RBRACE, MessageTemplate::kJsonParseExpectedCommaOrRBrace);
-  Handle<Object> result = BuildJsonObject(cont, feedback);
+  Handle<Object> result = BuildJsonObject<false>(cont, feedback);
   property_stack_.resize_no_init(cont.index);
   return cont.scope.CloseAndEscape(result);
 }
@@ -1781,7 +1788,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               feedback = handle(maybe_feedback, isolate_);
             }
           }
-          value = BuildJsonObject(cont, feedback);
+          value = BuildJsonObject<should_track_json_source>(cont, feedback);
           Expect(JsonToken::RBRACE,
                  MessageTemplate::kJsonParseExpectedCommaOrRBrace);
           // Return the object.
