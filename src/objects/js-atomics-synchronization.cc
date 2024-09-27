@@ -1123,8 +1123,7 @@ void JSAtomicsCondition::CleanupMatchingAsyncWaiters(Isolate* isolate,
 
   WaiterQueueLockGuard waiter_queue_lock_guard(state, current_state);
 
-  WaiterQueueNode* waiter_head =
-      cv->DestructivelyGetWaiterQueueHead(cv->GetIsolate());
+  WaiterQueueNode* waiter_head = cv->DestructivelyGetWaiterQueueHead(isolate);
   if (waiter_head) {
     WaiterQueueNode::DequeueAllMatchingForAsyncCleanup(&waiter_head, matcher);
   }
