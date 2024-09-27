@@ -7,23 +7,18 @@
 V8 correctness fuzzer launcher script.
 """
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import argparse
 import hashlib
 import json
-import os
 import re
 import sys
 import traceback
 
 from collections import namedtuple
+from pathlib import Path
 
 from v8_commands import Command, FailException, PassException
 import v8_suppressions
-
-PYTHON3 = sys.version_info >= (3, 0)
 
 CONFIGS = dict(
     default=[],
@@ -99,8 +94,8 @@ DEFAULT_D8 = 'd8'
 RETURN_PASS = 0
 RETURN_FAIL = 2
 
-BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-SMOKE_TESTS = os.path.join(BASE_PATH, 'v8_smoke_tests.js')
+BASE_PATH = Path(__file__).parent.resolve()
+SMOKE_TESTS = BASE_PATH / 'v8_smoke_tests.js'
 
 # Timeout for one d8 run.
 SMOKE_TEST_TIMEOUT_SEC = 1
@@ -236,7 +231,7 @@ def infer_arch(d8):
   """Infer the V8 architecture from the build configuration next to the
   executable.
   """
-  with open(os.path.join(os.path.dirname(d8), 'v8_build_config.json')) as f:
+  with (d8.parent / 'v8_build_config.json').open() as f:
     arch = json.load(f)['v8_current_cpu']
   arch = 'ia32' if arch == 'x86' else arch
   assert arch in SUPPORTED_ARCHS
@@ -271,15 +266,15 @@ class ExecutionArgumentsConfig(object):
 
   def make_options(self, options, default_config=None, default_d8=None):
     def get(name):
-      return getattr(options, '%s_%s' % (self.label, name))
+      return getattr(options, f'{self.label}_{name}')
 
     config = default_config or get('config')
     assert config in CONFIGS
 
-    d8 = default_d8 or get('d8')
-    if not os.path.isabs(d8):
-      d8 = os.path.join(BASE_PATH, d8)
-    assert os.path.exists(d8)
+    d8 = Path(default_d8 or get('d8'))
+    if not d8.is_absolute():
+      d8 = BASE_PATH / d8
+    assert d8.exists()
 
     flags = filter_flags(CONFIGS[config] + get('config_extra_flags'))
 
@@ -355,9 +350,9 @@ def parse_args(args):
   options = parser.parse_args(args)
 
   # Ensure we have a test case.
-  assert (os.path.exists(options.testcase) and
-          os.path.isfile(options.testcase)), (
-      'Test case %s doesn\'t exist' % options.testcase)
+  options.testcase = Path(options.testcase)
+  assert options.testcase.is_file(), (
+      f"Test case {options.testcase} doesn't exist")
 
   options.first = first_config_arguments.make_options(options)
   options.second = second_config_arguments.make_options(options)
@@ -428,34 +423,22 @@ def format_difference(
   source_key = source_key or cluster_failures(source)
   source_file_text = SOURCE_FILE_TEMPLATE % source if source else ''
 
-  if PYTHON3:
-    first_stdout = first_config_output.stdout
-    second_stdout = second_config_output.stdout
-  else:
-    first_stdout = first_config_output.stdout.decode('utf-8', 'replace')
-    second_stdout = second_config_output.stdout.decode('utf-8', 'replace')
-    difference = difference.decode('utf-8', 'replace')
-
   assert first_config.common_flags == second_config.common_flags
 
-  text = (FAILURE_TEMPLATE % dict(
+  return FAILURE_TEMPLATE % dict(
       source_file_text=source_file_text,
       source_key=source_key,
-      suppression='', # We can't tie bugs to differences.
+      suppression='',  # We can't tie bugs to differences.
       first_config_arch=first_config.arch,
       second_config_arch=second_config.arch,
       common_flags=' '.join(first_config.common_flags),
       first_config_flags=' '.join(first_config.config_flags),
       second_config_flags=' '.join(second_config.config_flags),
-      first_config_output=first_stdout,
-      second_config_output=second_stdout,
+      first_config_output=first_config_output.stdout,
+      second_config_output=second_config_output.stdout,
       source=source,
       difference=difference,
-  ))
-  if PYTHON3:
-    return text
-  else:
-    return text.encode('utf-8', 'replace')
+  )
 
 
 def cluster_failures(source, known_failures=None):
@@ -584,10 +567,7 @@ def main():
   suppress = v8_suppressions.get_suppression(options.skip_suppressions)
 
   # Static bailout based on test case content or metadata.
-  kwargs = {}
-  if PYTHON3:
-    kwargs['encoding'] = 'utf-8'
-  with open(options.testcase, 'r', **kwargs) as f:
+  with options.testcase.open(encoding='utf-8') as f:
     content = f.read()
   content_bailout(get_meta_data(content), suppress.ignore_by_metadata)
   content_bailout(content, suppress.ignore_by_content)
@@ -652,7 +632,7 @@ if __name__ == "__main__":
   except Exception as e:
     print(FAILURE_HEADER_TEMPLATE % dict(
         source_key='', suppression='internal_error'))
-    print('# Internal error: %s' % e)
+    print(f'# Internal error: {e}')
     traceback.print_exc(file=sys.stdout)
     result = RETURN_FAIL
 

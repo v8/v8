@@ -27,14 +27,7 @@ to silence a particular class of problems.
 import itertools
 import re
 
-try:
-  # Python 3
-  from itertools import zip_longest
-  PYTHON3 = True
-except ImportError:
-  # Python 2
-  from itertools import izip_longest as zip_longest
-  PYTHON3 = False
+from itertools import zip_longest
 
 # Max line length for regular experessions checking for lines to ignore.
 MAX_LINE_LENGTH = 512
@@ -194,9 +187,9 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 
     # One iterator ends earlier.
     if line1 is None:
-      return '+ %s' % short_line_output(line2), source
+      return f'+ {short_line_output(line2)}', source
     if line2 is None:
-      return '- %s' % short_line_output(line1), source
+      return f'- {short_line_output(line1)}', source
 
     # If lines are equal, no further checks are necessary.
     if line1 == line2:
@@ -216,10 +209,9 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
       continue
 
     # Lines are different.
-    return (
-        '- %s\n+ %s' % (short_line_output(line1), short_line_output(line2)),
-        source,
-    )
+    short_line1 = short_line_output(line1)
+    short_line2 = short_line_output(line2)
+    return f'- {short_line1}\n+ {short_line2}', source
 
   # No difference found.
   return None, source
@@ -228,13 +220,13 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 def get_suppression(skip=False):
   return V8Suppression(skip)
 
+
 def decode(output):
-  if PYTHON3:
-    try:
-      return output.decode('utf-8')
-    except UnicodeDecodeError:
-      return output.decode('latin-1')
-  return output
+  try:
+    return output.decode('utf-8')
+  except UnicodeDecodeError:
+    return output.decode('latin-1')
+
 
 class V8Suppression(object):
   def __init__(self, skip):

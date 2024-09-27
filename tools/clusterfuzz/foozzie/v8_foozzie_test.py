@@ -12,19 +12,16 @@ import textwrap
 import unittest
 import unittest.mock
 
+from pathlib import Path
+
 import v8_commands
 import v8_foozzie
 import v8_fuzz_config
 import v8_suppressions
 
-try:
-  basestring
-except NameError:
-  basestring = str
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FOOZZIE = os.path.join(BASE_DIR, 'v8_foozzie.py')
-TEST_DATA = os.path.join(BASE_DIR, 'testdata')
+BASE_DIR = Path(__file__).parent.resolve()
+FOOZZIE = BASE_DIR / 'v8_foozzie.py'
+TEST_DATA = BASE_DIR / 'testdata'
 
 KNOWN_BUILDS = [
   'd8',
@@ -56,7 +53,7 @@ class ConfigTest(unittest.TestCase):
     first_between_0_and_1 = lambda x: x[0] > 0 and x[0] < 1
     assert all(map(first_between_0_and_1, FLAGS))
     # Test consistent flags.
-    second_is_string = lambda x: isinstance(x[1], basestring)
+    second_is_string = lambda x: isinstance(x[1], str)
     assert all(map(second_is_string, FLAGS))
     # We allow spaces to separate more flags. We don't allow spaces in the flag
     # value.
@@ -254,7 +251,7 @@ other weird stuff
     check(['E', 'C', 'A', 'F', 'B', 'G', 'D'], ['E', 'C', 'F', 'G', 'D'])
 
   def _test_content(self, filename):
-    with open(os.path.join(TEST_DATA, filename)) as f:
+    with (TEST_DATA / filename).open() as f:
       return f.read()
 
   def _create_execution_configs(self, *extra_flags, **kwargs):
@@ -441,21 +438,22 @@ def cut_verbose_output(stdout, n_comp):
 
 
 def create_test_cmd_line(second_d8_dir, second_config, filename, *extra_flags):
-  return [
-      sys.executable,
-      FOOZZIE,
-      '--random-seed',
-      '12345',
-      '--first-d8',
-      os.path.join(TEST_DATA, 'baseline', 'd8.py'),
-      '--second-d8',
-      os.path.join(TEST_DATA, second_d8_dir, 'd8.py'),
-      '--first-config',
-      'ignition',
-      '--second-config',
-      second_config,
-      os.path.join(TEST_DATA, filename),
-  ] + list(extra_flags)
+  return list(
+      map(str, [
+          sys.executable,
+          FOOZZIE,
+          '--random-seed',
+          '12345',
+          '--first-d8',
+          TEST_DATA / 'baseline' / 'd8.py',
+          '--second-d8',
+          TEST_DATA / second_d8_dir / 'd8.py',
+          '--first-config',
+          'ignition',
+          '--second-config',
+          second_config,
+          TEST_DATA / filename,
+      ] + list(extra_flags)))
 
 
 def run_foozzie(second_d8_dir, *extra_flags, **kwargs):
@@ -481,9 +479,9 @@ class SystemTest(unittest.TestCase):
 
   def assert_expected(self, file_name, expected):
     if os.environ.get('GENERATE'):
-      with open(os.path.join(TEST_DATA, file_name), 'w') as f:
+      with (TEST_DATA / file_name).open('w') as f:
         f.write(expected)
-    with open(os.path.join(TEST_DATA, file_name)) as f:
+    with (TEST_DATA / file_name).open() as f:
       self.assertEqual(f.read(), expected)
 
   def testSyntaxErrorDiffPass(self):
