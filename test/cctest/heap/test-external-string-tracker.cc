@@ -170,8 +170,8 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
     // Trigger full GC so that the newly allocated string moves to old gen.
     heap::InvokeAtomicMajorGC(heap);
 
-    bool success =
-        str->MakeExternal(new TestOneByteResource(i::StrDup(TEST_STR)));
+    bool success = str->MakeExternal(
+        isolate, new TestOneByteResource(i::StrDup(TEST_STR)));
     CHECK(success);
 
     CHECK_EQ(str->Length(), heap->old_space()->ExternalBackingStoreBytes(type) -

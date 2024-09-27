@@ -431,9 +431,9 @@ V8_OBJECT class String : public Name {
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   void MakeExternalDuringGC(Isolate* isolate, T* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
-      v8::String::ExternalStringResource* resource);
+      Isolate* isolate, v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
-      v8::String::ExternalOneByteStringResource* resource);
+      Isolate* isolate, v8::String::ExternalOneByteStringResource* resource);
   bool SupportsExternalization(v8::String::Encoding);
 
   // Conversion.

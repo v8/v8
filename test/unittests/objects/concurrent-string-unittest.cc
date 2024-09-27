@@ -135,7 +135,7 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing) {
   // We need to use StrDup in this case since the TestOneByteResource will get
   // ownership of raw_string otherwise.
   EXPECT_TRUE(one_byte_string->MakeExternal(
-      new TestOneByteResource(i::StrDup(raw_string))));
+      i_isolate(), new TestOneByteResource(i::StrDup(raw_string))));
   EXPECT_TRUE(IsExternalOneByteString(*one_byte_string));
   EXPECT_TRUE(IsInternalizedString(*one_byte_string));
 
@@ -183,7 +183,7 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
 
   // Externalize it to a two-bytes external string.
   EXPECT_TRUE(two_bytes_string->MakeExternal(
-      new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
+      i_isolate(), new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
   EXPECT_TRUE(IsExternalTwoByteString(*two_bytes_string));
   EXPECT_TRUE(IsInternalizedString(*two_bytes_string));
 
@@ -239,7 +239,7 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
   // We need to use StrDup in this case since the TestOneByteResource will get
   // ownership of raw_string otherwise.
   EXPECT_TRUE(internalized_string->MakeExternal(
-      new TestOneByteResource(i::StrDup(raw_string))));
+      i_isolate(), new TestOneByteResource(i::StrDup(raw_string))));
   EXPECT_TRUE(IsExternalOneByteString(*internalized_string));
   EXPECT_TRUE(IsInternalizedString(*internalized_string));
 
@@ -299,7 +299,7 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
 
   // Externalize it to a two-bytes external string.
   EXPECT_TRUE(internalized_string->MakeExternal(
-      new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
+      i_isolate(), new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
   EXPECT_TRUE(IsExternalTwoByteString(*internalized_string));
   EXPECT_TRUE(IsInternalizedString(*internalized_string));
 

@@ -2700,7 +2700,7 @@ TEST(CodeSerializerExternalString) {
   Handle<String> one_byte_string =
       isolate->factory()->NewStringFromAsciiChecked("one_byte");
   one_byte_string = isolate->factory()->InternalizeString(one_byte_string);
-  one_byte_string->MakeExternal(&one_byte_resource);
+  one_byte_string->MakeExternal(isolate, &one_byte_resource);
   CHECK(IsExternalOneByteString(*one_byte_string));
   CHECK(IsInternalizedString(*one_byte_string));
 
@@ -2713,7 +2713,7 @@ TEST(CodeSerializerExternalString) {
           ->NewStringFromTwoByte(base::VectorOf(two_byte, two_byte_length))
           .ToHandleChecked();
   two_byte_string = isolate->factory()->InternalizeString(two_byte_string);
-  two_byte_string->MakeExternal(&two_byte_resource);
+  two_byte_string->MakeExternal(isolate, &two_byte_resource);
   CHECK(IsExternalTwoByteString(*two_byte_string));
   CHECK(IsInternalizedString(*two_byte_string));
 
@@ -2779,7 +2779,7 @@ TEST(CodeSerializerLargeExternalString) {
   SerializerOneByteResource one_byte_resource(
       reinterpret_cast<const char*>(string.begin()), string.length());
   name = f->InternalizeString(name);
-  name->MakeExternal(&one_byte_resource);
+  name->MakeExternal(isolate, &one_byte_resource);
   CHECK(IsExternalOneByteString(*name));
   CHECK(IsInternalizedString(*name));
   CHECK(isolate->heap()->InSpace(*name, LO_SPACE));

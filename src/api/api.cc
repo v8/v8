@@ -7745,6 +7745,12 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
 }
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(i::Isolate::Current());
+  return MakeExternal(isolate, resource);
+}
+
+bool v8::String::MakeExternal(Isolate* isolate,
+                              v8::String::ExternalStringResource* resource) {
   i::DisallowGarbageCollection no_gc;
 
   i::Tagged<i::String> obj = *Utils::OpenDirectHandle(this);
@@ -7757,27 +7763,24 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     return false;
   }
 
-  // TODO(v8:12007): Consider adding
-  // MakeExternal(Isolate*, ExternalStringResource*).
-  i::Isolate* i_isolate;
-  if (i::HeapLayout::InWritableSharedSpace(obj)) {
-    i_isolate = i::Isolate::Current();
-  } else {
-    // It is safe to call GetIsolateFromWritableHeapObject because
-    // SupportsExternalization already checked that the object is writable.
-    i_isolate = i::GetIsolateFromWritableObject(obj);
-  }
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
 
   CHECK(resource && resource->data());
 
-  bool result = obj->MakeExternal(resource);
+  bool result = obj->MakeExternal(i_isolate, resource);
   DCHECK_IMPLIES(result, HasExternalStringResource(obj));
   return result;
 }
 
 bool v8::String::MakeExternal(
     v8::String::ExternalOneByteStringResource* resource) {
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(i::Isolate::Current());
+  return MakeExternal(isolate, resource);
+}
+
+bool v8::String::MakeExternal(
+    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
   i::DisallowGarbageCollection no_gc;
 
   i::Tagged<i::String> obj = *Utils::OpenDirectHandle(this);
@@ -7790,21 +7793,12 @@ bool v8::String::MakeExternal(
     return false;
   }
 
-  // TODO(v8:12007): Consider adding
-  // MakeExternal(Isolate*, ExternalOneByteStringResource*).
-  i::Isolate* i_isolate;
-  if (i::HeapLayout::InWritableSharedSpace(obj)) {
-    i_isolate = i::Isolate::Current();
-  } else {
-    // It is safe to call GetIsolateFromWritableHeapObject because
-    // SupportsExternalization already checked that the object is writable.
-    i_isolate = i::GetIsolateFromWritableObject(obj);
-  }
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
 
   CHECK(resource && resource->data());
 
-  bool result = obj->MakeExternal(resource);
+  bool result = obj->MakeExternal(i_isolate, resource);
   DCHECK_IMPLIES(result, HasExternalStringResource(obj));
   return result;
 }

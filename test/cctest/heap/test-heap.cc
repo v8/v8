@@ -6090,7 +6090,7 @@ TEST(Regress631969) {
 
   {
     StaticOneByteResource external_string("12345678901234");
-    s3->MakeExternal(&external_string);
+    s3->MakeExternal(isolate, &external_string);
     heap::InvokeMajorGC(heap);
     // This avoids the GC from trying to free stack allocated resources.
     i::Cast<i::ExternalOneByteString>(s3)->SetResource(isolate, nullptr);

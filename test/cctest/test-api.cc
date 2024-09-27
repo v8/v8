@@ -689,8 +689,8 @@ TEST(ScriptMakingExternalString) {
     String::Encoding encoding = String::UNKNOWN_ENCODING;
     CHECK(!source->GetExternalStringResourceBase(&encoding));
     CHECK_EQ(String::TWO_BYTE_ENCODING, encoding);
-    bool success = source->MakeExternal(new TestResource(two_byte_source,
-                                                         &dispose_count));
+    bool success = source->MakeExternal(
+        env->GetIsolate(), new TestResource(two_byte_source, &dispose_count));
     CHECK(success);
     Local<Script> script = v8_compile(source);
     Local<Value> value = script->Run(env.local()).ToLocalChecked();
@@ -720,6 +720,7 @@ TEST(ScriptMakingExternalOneByteString) {
     // Trigger GCs so that the newly allocated string moves to old gen.
     i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
     bool success = source->MakeExternal(
+        env->GetIsolate(),
         new TestOneByteResource(i::StrDup(c_source), &dispose_count));
     CHECK(success);
     Local<Script> script = v8_compile(source);
@@ -829,10 +830,12 @@ TEST(MakingExternalUnalignedOneByteString) {
   // Turn into external string with unaligned resource data.
   const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
   bool success = cons->MakeExternal(
+      env->GetIsolate(),
       new TestOneByteResource(i::StrDup(c_cons), nullptr, 1));
   CHECK(success);
   const char* c_slice = "_bcdefghijklmnopqrstuvwxyz";
   success = slice->MakeExternal(
+      env->GetIsolate(),
       new TestOneByteResource(i::StrDup(c_slice), nullptr, 1));
   CHECK(success);
 
@@ -17233,7 +17236,7 @@ TEST(ExternalizeOldSpaceTwoByteCons) {
 
   TestResource* resource = new TestResource(
       AsciiToTwoByteString(u"Romeo Montague Juliet Capulet ❤️"));
-  cons->MakeExternal(resource);
+  cons->MakeExternal(isolate, resource);
 
   CHECK(cons->IsExternalTwoByte());
   CHECK(cons->IsExternal());
@@ -17260,7 +17263,7 @@ TEST(ExternalizeOldSpaceOneByteCons) {
 
   TestOneByteResource* resource =
       new TestOneByteResource(i::StrDup("Romeo Montague Juliet Capulet"));
-  cons->MakeExternal(resource);
+  cons->MakeExternal(isolate, resource);
 
   CHECK(cons->IsExternalOneByte());
   CHECK_EQ(resource, cons->GetExternalOneByteStringResource());
@@ -17307,7 +17310,7 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
     v8::Local<v8::String> ring =
         CompileRun("ring")->ToString(env.local()).ToLocalChecked();
     CHECK(IsInternalizedString(*v8::Utils::OpenDirectHandle(*ring)));
-    ring->MakeExternal(inscription);
+    ring->MakeExternal(isolate, inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
     USE(ring);
@@ -17329,7 +17332,7 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
         new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = CompileRun("ring").As<v8::String>();
     CHECK(IsInternalizedString(*v8::Utils::OpenDirectHandle(*ring)));
-    ring->MakeExternal(inscription);
+    ring->MakeExternal(env->GetIsolate(), inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
     USE(ring);

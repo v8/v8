@@ -721,8 +721,8 @@ UNINITIALIZED_TEST(StringShare) {
     OneByteResource* one_byte_res =
         resource_factory.CreateOneByte(raw_one_byte);
     TwoByteResource* two_byte_res = resource_factory.CreateTwoByte(two_byte);
-    CHECK(one_byte_ext->MakeExternal(one_byte_res));
-    CHECK(two_byte_ext->MakeExternal(two_byte_res));
+    CHECK(one_byte_ext->MakeExternal(i_isolate, one_byte_res));
+    CHECK(two_byte_ext->MakeExternal(i_isolate, two_byte_res));
     if (v8_flags.always_use_string_forwarding_table) {
       i_isolate->heap()->CollectGarbageShared(
           i_isolate->main_thread_local_heap(),
@@ -1194,7 +1194,7 @@ UNINITIALIZED_TEST(ShareExternalString) {
   CHECK(!one_byte->IsShared());
 
   OneByteResource* resource = resource_factory.CreateOneByte(raw_one_byte);
-  one_byte->MakeExternal(resource);
+  one_byte->MakeExternal(i_isolate1, resource);
   if (v8_flags.always_use_string_forwarding_table) {
     i_isolate1->heap()->CollectGarbageShared(
         i_isolate1->main_thread_local_heap(),
@@ -1259,8 +1259,8 @@ UNINITIALIZED_TEST(ExternalizeSharedString) {
 
   OneByteResource* one_byte_res = resource_factory.CreateOneByte(raw_one_byte);
   TwoByteResource* two_byte_res = resource_factory.CreateTwoByte(two_byte_vec);
-  shared_one_byte->MakeExternal(one_byte_res);
-  shared_two_byte->MakeExternal(two_byte_res);
+  shared_one_byte->MakeExternal(i_isolate1, one_byte_res);
+  shared_two_byte->MakeExternal(i_isolate1, two_byte_res);
   CHECK(!IsExternalString(*shared_one_byte));
   CHECK(!IsExternalString(*shared_two_byte));
   CHECK(shared_one_byte->HasExternalForwardingIndex(kAcquireLoad));
@@ -1301,7 +1301,7 @@ UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
                           length);
       OneByteResource* resource =
           resource_factory.CreateOneByte(buffer, length, false);
-      CHECK(input_string->MakeExternal(resource));
+      CHECK(input_string->MakeExternal(i_isolate, resource));
       CHECK(input_string->IsShared());
       CHECK(!IsExternalString(*input_string));
       CHECK(input_string->HasExternalForwardingIndex(kAcquireLoad));
@@ -1368,8 +1368,8 @@ UNINITIALIZED_TEST(ExternalizeInternalizedString) {
 
   OneByteResource* one_byte_res = resource_factory.CreateOneByte(raw_one_byte);
   TwoByteResource* two_byte_res = resource_factory.CreateTwoByte(two_byte_vec);
-  CHECK(one_byte_intern->MakeExternal(one_byte_res));
-  CHECK(two_byte_intern->MakeExternal(two_byte_res));
+  CHECK(one_byte_intern->MakeExternal(i_isolate1, one_byte_res));
+  CHECK(two_byte_intern->MakeExternal(i_isolate1, two_byte_res));
   CHECK(!IsExternalString(*one_byte_intern));
   CHECK(!IsExternalString(*two_byte_intern));
   CHECK(one_byte_intern->HasExternalForwardingIndex(kAcquireLoad));
@@ -1410,8 +1410,8 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
 
   OneByteResource* one_byte_res = resource_factory.CreateOneByte(raw_one_byte);
   TwoByteResource* two_byte_res = resource_factory.CreateTwoByte(two_byte_vec);
-  CHECK(shared_one_byte->MakeExternal(one_byte_res));
-  CHECK(shared_two_byte->MakeExternal(two_byte_res));
+  CHECK(shared_one_byte->MakeExternal(i_isolate1, one_byte_res));
+  CHECK(shared_two_byte->MakeExternal(i_isolate1, two_byte_res));
   CHECK(shared_one_byte->HasExternalForwardingIndex(kAcquireLoad));
   CHECK(shared_two_byte->HasExternalForwardingIndex(kAcquireLoad));
 
@@ -1490,7 +1490,7 @@ UNINITIALIZED_TEST(ExternalizeAndInternalizeMissSharedString) {
 
   OneByteResource* one_byte_res = resource_factory.CreateOneByte(raw_one_byte);
 
-  CHECK(shared_one_byte->MakeExternal(one_byte_res));
+  CHECK(shared_one_byte->MakeExternal(i_isolate1, one_byte_res));
   CHECK(shared_one_byte->HasExternalForwardingIndex(kAcquireLoad));
 
   DirectHandle<String> one_byte_intern =
@@ -1545,8 +1545,8 @@ UNINITIALIZED_TEST(InternalizeHitAndExternalizeSharedString) {
 
   OneByteResource* one_byte_res = resource_factory.CreateOneByte(raw_one_byte);
   TwoByteResource* two_byte_res = resource_factory.CreateTwoByte(two_byte_vec);
-  CHECK(shared_one_byte->MakeExternal(one_byte_res));
-  CHECK(shared_two_byte->MakeExternal(two_byte_res));
+  CHECK(shared_one_byte->MakeExternal(i_isolate1, one_byte_res));
+  CHECK(shared_two_byte->MakeExternal(i_isolate1, two_byte_res));
   CHECK(shared_one_byte->HasExternalForwardingIndex(kAcquireLoad));
   CHECK(shared_two_byte->HasExternalForwardingIndex(kAcquireLoad));
   CHECK(shared_one_byte->HasInternalizedForwardingIndex(kAcquireLoad));
@@ -1591,8 +1591,8 @@ UNINITIALIZED_TEST(InternalizeMissAndExternalizeSharedString) {
 
   OneByteResource* one_byte_res = resource_factory.CreateOneByte(raw_one_byte);
   TwoByteResource* two_byte_res = resource_factory.CreateTwoByte(two_byte_vec);
-  CHECK(shared_one_byte->MakeExternal(one_byte_res));
-  CHECK(shared_two_byte->MakeExternal(two_byte_res));
+  CHECK(shared_one_byte->MakeExternal(i_isolate1, one_byte_res));
+  CHECK(shared_two_byte->MakeExternal(i_isolate1, two_byte_res));
   CHECK(shared_one_byte->HasExternalForwardingIndex(kAcquireLoad));
   CHECK(shared_two_byte->HasExternalForwardingIndex(kAcquireLoad));
   CHECK(one_byte_intern->HasExternalForwardingIndex(kAcquireLoad));
@@ -1622,7 +1622,7 @@ class ConcurrentExternalizationThread final
   void RunForString(Handle<String> input_string, int counter) override {
     CHECK(input_string->IsShared());
     OneByteResource* resource = Resource(counter);
-    if (!input_string->MakeExternal(resource)) {
+    if (!input_string->MakeExternal(i_isolate, resource)) {
       if (!share_resources_) resource->Dispose();
     }
     CHECK(input_string->HasForwardingIndex(kAcquireLoad));
@@ -2563,7 +2563,8 @@ class ProtectExternalStringTableAddStringClientIsolateThread
                 text, AllocationType::kOld);
         CHECK(HeapLayout::InWritableSharedSpace(*string));
         CHECK(!string->IsShared());
-        CHECK(string->MakeExternal(new StaticOneByteResource(text)));
+        CHECK(
+            string->MakeExternal(i_isolate_, new StaticOneByteResource(text)));
         CHECK(IsExternalOneByteString(*string));
       }
     }

@@ -120,14 +120,14 @@ void ExternalizeStringExtension::Externalize(
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleOneByteStringResource* resource = new SimpleOneByteStringResource(
         reinterpret_cast<char*>(data), string->length());
-    result = Utils::ToLocal(string)->MakeExternal(resource);
+    result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   } else {
     base::uc16* data = new base::uc16[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
         data, string->length());
-    result = Utils::ToLocal(string)->MakeExternal(resource);
+    result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   }
   // If the string is shared, testing with the combination of

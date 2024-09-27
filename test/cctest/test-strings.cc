@@ -1390,7 +1390,7 @@ TEST(Regress1402187) {
     v8::Local<v8::String> ext_string =
         Utils::ToLocal(factory->NewStringFromAsciiChecked(
             ext_string_content, AllocationType::kOld));
-    CHECK(ext_string->MakeExternal(resource));
+    CHECK(ext_string->MakeExternal(CcTest::isolate(), resource));
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
     string->set_raw_hash_field(fake_hash);
     CHECK(IsExternalString(*string));
@@ -1441,7 +1441,7 @@ static void ExternalizeDuringJsonStringifyCallback(
   OneByteVectorResource* resource =
       new OneByteVectorResource(v8::base::Vector<const char>(
           ext_string_content, strlen(ext_string_content)));
-  CHECK(v8::String::Cast(*key)->MakeExternal(resource));
+  CHECK(v8::String::Cast(*key)->MakeExternal(CcTest::isolate(), resource));
 }
 
 TEST(ExternalizeDuringJsonStringify) {
@@ -2085,7 +2085,7 @@ TEST(CheckCachedDataInternalExternalUncachedString) {
       new OneByteResource(i::StrDup(raw_small), strlen(raw_small));
 
   // Check it is external, internalized, and uncached with a cacheable resource.
-  string->MakeExternal(resource);
+  string->MakeExternal(CcTest::i_isolate(), resource);
   CHECK(string->IsOneByteRepresentation());
   CHECK(IsExternalString(*string));
   CHECK(IsInternalizedString(*string));
@@ -2130,7 +2130,7 @@ TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
   Resource* resource = new Resource(two_byte, len);
 
   // Check it is external, internalized, and uncached with a cacheable resource.
-  string->MakeExternal(resource);
+  string->MakeExternal(CcTest::i_isolate(), resource);
   CHECK(string->IsTwoByteRepresentation());
   CHECK(IsExternalString(*string));
   CHECK(IsInternalizedString(*string));

@@ -398,7 +398,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::
     MakeExternalDuringGC(Isolate* isolate, v8::String::ExternalStringResource*);
 
-bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
+bool String::MakeExternal(Isolate* isolate,
+                          v8::String::ExternalStringResource* resource) {
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
 
@@ -423,13 +424,14 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Read-only strings cannot be made external, since that would mutate the
   // string.
   if (HeapLayout::InReadOnlySpace(this)) return false;
-  Isolate* isolate = GetIsolateFromWritableObject(this);
   if (IsShared()) {
-    DCHECK(isolate->is_shared_space_isolate());
     return MarkForExternalizationDuringGC(isolate, resource);
   }
-  DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(this),
-                 isolate->is_shared_space_isolate());
+  // For strings in the shared space we need the shared space isolate instead of
+  // the current isolate.
+  if (HeapLayout::InWritableSharedSpace(this)) {
+    isolate = isolate->shared_space_isolate();
+  }
   bool is_internalized = IsInternalizedString(this);
   bool has_pointers = StringShape(this).IsIndirect();
 
@@ -484,7 +486,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   return true;
 }
 
-bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
+bool String::MakeExternal(Isolate* isolate,
+                          v8::String::ExternalOneByteStringResource* resource) {
   // Disallow garbage collection to avoid possible GC vs string access deadlock.
   DisallowGarbageCollection no_gc;
 
@@ -514,13 +517,14 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   // Read-only strings cannot be made external, since that would mutate the
   // string.
   if (HeapLayout::InReadOnlySpace(this)) return false;
-  Isolate* isolate = GetIsolateFromWritableObject(this);
   if (IsShared()) {
-    DCHECK(isolate->is_shared_space_isolate());
     return MarkForExternalizationDuringGC(isolate, resource);
   }
-  DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(this),
-                 isolate->is_shared_space_isolate());
+  // For strings in the shared space we need the shared space isolate instead of
+  // the current isolate.
+  if (HeapLayout::InWritableSharedSpace(this)) {
+    isolate = isolate->shared_space_isolate();
+  }
   bool is_internalized = IsInternalizedString(this);
   bool has_pointers = StringShape(this).IsIndirect();
 
