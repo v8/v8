@@ -49,6 +49,7 @@ namespace DebuggerAgentState {
 static const char pauseOnExceptionsState[] = "pauseOnExceptionsState";
 static const char asyncCallStackDepth[] = "asyncCallStackDepth";
 static const char blackboxPattern[] = "blackboxPattern";
+static const char skipAnonymousScripts[] = "skipAnonymousScripts";
 static const char debuggerEnabled[] = "debuggerEnabled";
 static const char breakpointsActiveWhenEnabled[] = "breakpointsActive";
 static const char skipAllPauses[] = "skipAllPauses";
@@ -553,6 +554,8 @@ void V8DebuggerAgentImpl::restore() {
                          &blackboxPattern)) {
     setBlackboxPattern(blackboxPattern);
   }
+  m_skipAnonymousScripts =
+      m_state->booleanProperty(DebuggerAgentState::skipAnonymousScripts, false);
 }
 
 Response V8DebuggerAgentImpl::setBreakpointsActive(bool active) {
@@ -986,11 +989,21 @@ bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
     // Unknown scripts are blackboxed.
     return true;
   }
-  if (m_blackboxPattern) {
-    const String16& scriptSourceURL = it->second->sourceURL();
-    if (!scriptSourceURL.isEmpty() &&
-        m_blackboxPattern->match(scriptSourceURL) != -1)
+  const String16& scriptSourceURL = it->second->sourceURL();
+  if (m_blackboxPattern && !scriptSourceURL.isEmpty()
+      && m_blackboxPattern->match(scriptSourceURL) != -1) {
+    return true;
+  }
+  if (m_skipAnonymousScripts && scriptSourceURL.isEmpty()) {
+    return true;
+  }
+  if (!m_blackboxedExecutionContexts.empty()) {
+    int contextId = it->second->executionContextId();
+    InspectedContext* inspected = m_inspector->getContext(contextId);
+    if (inspected && m_blackboxedExecutionContexts.count(
+                         inspected->uniqueId().toString()) > 0) {
       return true;
+    }
   }
   auto itBlackboxedPositions = m_blackboxedPositions.find(scriptId);
   if (itBlackboxedPositions == m_blackboxedPositions.end()) return false;
@@ -1665,7 +1678,11 @@ Response V8DebuggerAgentImpl::setAsyncCallStackDepth(int depth) {
 }
 
 Response V8DebuggerAgentImpl::setBlackboxPatterns(
-    std::unique_ptr<protocol::Array<String16>> patterns) {
+    std::unique_ptr<protocol::Array<String16>> patterns,
+    Maybe<bool> skipAnonymous) {
+  m_skipAnonymousScripts = skipAnonymous.value_or(false);
+  m_state->setBoolean(DebuggerAgentState::skipAnonymousScripts,
+                      m_skipAnonymousScripts);
   if (patterns->empty()) {
     m_blackboxPattern = nullptr;
     resetBlackboxedStateCache();
@@ -1686,6 +1703,15 @@ Response V8DebuggerAgentImpl::setBlackboxPatterns(
   if (!response.IsSuccess()) return response;
   resetBlackboxedStateCache();
   m_state->setString(DebuggerAgentState::blackboxPattern, pattern);
+  return Response::Success();
+}
+
+Response V8DebuggerAgentImpl::setBlackboxExecutionContexts(
+    std::unique_ptr<protocol::Array<String16>> uniqueIds) {
+  m_blackboxedExecutionContexts.clear();
+  for (const String16& uniqueId : *uniqueIds) {
+    m_blackboxedExecutionContexts.insert(uniqueId);
+  }
   return Response::Success();
 }
 
@@ -2275,6 +2301,7 @@ void V8DebuggerAgentImpl::reset() {
   m_cachedScripts.clear();
   m_cachedScriptSize = 0;
   m_debugger->allAsyncTasksCanceled();
+  m_blackboxedExecutionContexts.clear();
 }
 
 void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
