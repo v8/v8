@@ -1365,6 +1365,7 @@ filegroup(
         "src/builtins/constants-table-builder.cc",
         "src/builtins/constants-table-builder.h",
         "src/builtins/data-view-ops.h",
+        "src/builtins/profile-data-reader.cc",
         "src/builtins/profile-data-reader.h",
         "src/codegen/aligned-slot-allocator.cc",
         "src/codegen/aligned-slot-allocator.h",
@@ -1545,7 +1546,6 @@ filegroup(
         "src/execution/futex-emulation.h",
         "src/execution/interrupts-scope.cc",
         "src/execution/interrupts-scope.h",
-        "src/execution/isolate.cc",
         "src/execution/isolate.h",
         "src/execution/isolate-data.h",
         "src/execution/isolate-inl.h",
@@ -3066,7 +3066,6 @@ filegroup(
 filegroup(
     name = "v8_compiler_files",
     srcs = [
-        "src/builtins/profile-data-reader.h",
         "src/compiler/access-builder.cc",
         "src/compiler/access-builder.h",
         "src/compiler/access-info.cc",
@@ -3639,8 +3638,6 @@ filegroup(
         "src/builtins/growable-fixed-array-gen.cc",
         "src/builtins/growable-fixed-array-gen.h",
         "src/builtins/number-builtins-reducer-inl.h",
-        "src/builtins/profile-data-reader.cc",
-        "src/builtins/profile-data-reader.h",
         "src/builtins/setup-builtins-internal.cc",
         "src/builtins/torque-csa-header-includes.h",
         "src/codegen/turboshaft-builtins-assembler-inl.h",
@@ -3891,6 +3888,7 @@ filegroup(
 filegroup(
     name = "mksnapshot_files",
     srcs = [
+        "src/execution/isolate.cc",
         "src/init/setup-isolate-full.cc",
         "src/snapshot/embedded/embedded-empty.cc",
         "src/snapshot/embedded/embedded-file-writer.cc",
@@ -4022,6 +4020,10 @@ filegroup(
 filegroup(
     name = "noicu/snapshot_files",
     srcs = [
+        # Not a snapshot file per se, but depends on symbols only present in the snapshot (or
+        # through a placeholder when building the snapshot itself); having it here makes using
+        # shared linkage for the main v8 target possible.
+        "src/execution/isolate.cc",
         "src/init/setup-isolate-deserialize.cc",
     ] + select({
         "@v8//bazel/config:v8_target_arm": [
@@ -4039,6 +4041,7 @@ filegroup(
 filegroup(
     name = "icu/snapshot_files",
     srcs = [
+        "src/execution/isolate.cc",
         "src/init/setup-isolate-deserialize.cc",
     ] + select({
         "@v8//bazel/config:v8_target_arm": [
