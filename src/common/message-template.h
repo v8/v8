@@ -167,12 +167,12 @@ namespace internal {
   T(NonObjectInInstanceOfCheck,                                                \
     "Right-hand side of 'instanceof' is not an object")                        \
   T(NonObjectPrivateNameAccess, "Cannot access private name % from %")         \
-  T(NonObjectPropertyLoad, "Cannot read properties of %")                      \
+  T(NonObjectPropertyLoad, "% does not have any readable properties")                      \
   T(NonObjectPropertyLoadWithProperty,                                         \
-    "Cannot read properties of % (reading '%')")                               \
-  T(NonObjectPropertyStore, "Cannot set properties of %")                      \
+    "% does not have any readable properties ( attempting to read '%')")                               \
+  T(NonObjectPropertyStore, "% does not have any settable properties")                      \
   T(NonObjectPropertyStoreWithProperty,                                        \
-    "Cannot set properties of % (setting '%')")                                \
+    "% does not have any settable properties ( attempting to set '%')")                                \
   T(NonObjectImportArgument,                                                   \
     "The second argument to import() must be an object")                       \
   T(NonStringImportAssertionValue, "Import assertion value must be a string")  \
