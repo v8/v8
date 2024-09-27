@@ -14,9 +14,11 @@ namespace v8 {
 namespace internal {
 
 #ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
-#define IF_TSA(TSA_MACRO, CSA_MACRO) TSA_MACRO
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(TSA_MACRO(__VA_ARGS__))
 #else
-#define IF_TSA(TSA_MACRO, CSA_MACRO) CSA_MACRO
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(CSA_MACRO(__VA_ARGS__))
 #endif
 
 // CPP: Builtin in C++. Entered via BUILTIN_EXIT frame.
@@ -61,120 +63,120 @@ namespace internal {
   /* Adaptor for CPP builtins. */                             \
   TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor)
 
-#define BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)       \
-  /* GC write barriers */                                                     \
-  TFC(IndirectPointerBarrierSaveFP, IndirectPointerWriteBarrier)              \
-  TFC(IndirectPointerBarrierIgnoreFP, IndirectPointerWriteBarrier)            \
-                                                                              \
-  /* TSAN support for stores in generated code. */                            \
-  IF_TSAN(TFC, TSANRelaxedStore8IgnoreFP, TSANStore)                          \
-  IF_TSAN(TFC, TSANRelaxedStore8SaveFP, TSANStore)                            \
-  IF_TSAN(TFC, TSANRelaxedStore16IgnoreFP, TSANStore)                         \
-  IF_TSAN(TFC, TSANRelaxedStore16SaveFP, TSANStore)                           \
-  IF_TSAN(TFC, TSANRelaxedStore32IgnoreFP, TSANStore)                         \
-  IF_TSAN(TFC, TSANRelaxedStore32SaveFP, TSANStore)                           \
-  IF_TSAN(TFC, TSANRelaxedStore64IgnoreFP, TSANStore)                         \
-  IF_TSAN(TFC, TSANRelaxedStore64SaveFP, TSANStore)                           \
-  IF_TSAN(TFC, TSANSeqCstStore8IgnoreFP, TSANStore)                           \
-  IF_TSAN(TFC, TSANSeqCstStore8SaveFP, TSANStore)                             \
-  IF_TSAN(TFC, TSANSeqCstStore16IgnoreFP, TSANStore)                          \
-  IF_TSAN(TFC, TSANSeqCstStore16SaveFP, TSANStore)                            \
-  IF_TSAN(TFC, TSANSeqCstStore32IgnoreFP, TSANStore)                          \
-  IF_TSAN(TFC, TSANSeqCstStore32SaveFP, TSANStore)                            \
-  IF_TSAN(TFC, TSANSeqCstStore64IgnoreFP, TSANStore)                          \
-  IF_TSAN(TFC, TSANSeqCstStore64SaveFP, TSANStore)                            \
-                                                                              \
-  /* TSAN support for loads in generated code. */                             \
-  IF_TSAN(TFC, TSANRelaxedLoad32IgnoreFP, TSANLoad)                           \
-  IF_TSAN(TFC, TSANRelaxedLoad32SaveFP, TSANLoad)                             \
-  IF_TSAN(TFC, TSANRelaxedLoad64IgnoreFP, TSANLoad)                           \
-  IF_TSAN(TFC, TSANRelaxedLoad64SaveFP, TSANLoad)                             \
-                                                                              \
-  /* Calls */                                                                 \
-  /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */             \
-  ASM(CallFunction_ReceiverIsNullOrUndefined, CallTrampoline)                 \
-  ASM(CallFunction_ReceiverIsNotNullOrUndefined, CallTrampoline)              \
-  ASM(CallFunction_ReceiverIsAny, CallTrampoline)                             \
-  /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */           \
-  ASM(CallBoundFunction, CallTrampoline)                                      \
-  /* #sec-wrapped-function-exotic-objects-call-thisargument-argumentslist */  \
-  TFC(CallWrappedFunction, CallTrampoline)                                    \
-  /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                        \
-  ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                         \
-  ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                      \
-  ASM(Call_ReceiverIsAny, CallTrampoline)                                     \
-  TFC(Call_ReceiverIsNullOrUndefined_Baseline_Compact,                        \
-      CallTrampoline_Baseline_Compact)                                        \
-  TFC(Call_ReceiverIsNullOrUndefined_Baseline, CallTrampoline_Baseline)       \
-  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline_Compact,                     \
-      CallTrampoline_Baseline_Compact)                                        \
-  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline, CallTrampoline_Baseline)    \
-  TFC(Call_ReceiverIsAny_Baseline_Compact, CallTrampoline_Baseline_Compact)   \
-  TFC(Call_ReceiverIsAny_Baseline, CallTrampoline_Baseline)                   \
-  TFC(Call_ReceiverIsNullOrUndefined_WithFeedback,                            \
-      CallTrampoline_WithFeedback)                                            \
-  TFC(Call_ReceiverIsNotNullOrUndefined_WithFeedback,                         \
-      CallTrampoline_WithFeedback)                                            \
-  TFC(Call_ReceiverIsAny_WithFeedback, CallTrampoline_WithFeedback)           \
-                                                                              \
-  /* ES6 section 9.5.12[[Call]] ( thisArgument, argumentsList ) */            \
-  TFC(CallProxy, CallTrampoline)                                              \
-  ASM(CallVarargs, CallVarargs)                                               \
-  TFC(CallWithSpread, CallWithSpread)                                         \
-  TFC(CallWithSpread_Baseline, CallWithSpread_Baseline)                       \
-  TFC(CallWithSpread_WithFeedback, CallWithSpread_WithFeedback)               \
-  TFC(CallWithArrayLike, CallWithArrayLike)                                   \
-  TFC(CallWithArrayLike_WithFeedback, CallWithArrayLike_WithFeedback)         \
-  ASM(CallForwardVarargs, CallForwardVarargs)                                 \
-  ASM(CallFunctionForwardVarargs, CallForwardVarargs)                         \
-  /* Call an API callback via a {FunctionTemplateInfo}, doing appropriate */  \
-  /* access and compatible receiver checks. */                                \
-  TFC(CallFunctionTemplate_Generic, CallFunctionTemplateGeneric)              \
-  TFC(CallFunctionTemplate_CheckAccess, CallFunctionTemplate)                 \
-  TFC(CallFunctionTemplate_CheckCompatibleReceiver, CallFunctionTemplate)     \
-  TFC(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,                  \
-      CallFunctionTemplate)                                                   \
-                                                                              \
-  /* Construct */                                                             \
-  /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */           \
-  ASM(ConstructFunction, JSTrampoline)                                        \
-  /* ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget) */          \
-  ASM(ConstructBoundFunction, JSTrampoline)                                   \
-  ASM(ConstructedNonConstructable, JSTrampoline)                              \
-  /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */        \
-  ASM(Construct, JSTrampoline)                                                \
-  ASM(ConstructVarargs, ConstructVarargs)                                     \
-  TFC(ConstructWithSpread, ConstructWithSpread)                               \
-  TFC(ConstructWithSpread_Baseline, ConstructWithSpread_Baseline)             \
-  TFC(ConstructWithSpread_WithFeedback, ConstructWithSpread_WithFeedback)     \
-  TFC(ConstructWithArrayLike, ConstructWithArrayLike)                         \
-  ASM(ConstructForwardVarargs, ConstructForwardVarargs)                       \
-  ASM(ConstructForwardAllArgs, ConstructForwardAllArgs)                       \
-  TFC(ConstructForwardAllArgs_Baseline, ConstructForwardAllArgs_Baseline)     \
-  TFC(ConstructForwardAllArgs_WithFeedback,                                   \
-      ConstructForwardAllArgs_WithFeedback)                                   \
-  ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)               \
-  TFC(Construct_Baseline, Construct_Baseline)                                 \
-  TFC(Construct_WithFeedback, Construct_WithFeedback)                         \
-  ASM(JSConstructStubGeneric, ConstructStub)                                  \
-  ASM(JSBuiltinsConstructStub, ConstructStub)                                 \
-  TFC(FastNewObject, FastNewObject)                                           \
-  TFS(FastNewClosure, NeedsContext::kYes, kSharedFunctionInfo, kFeedbackCell) \
-  /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */          \
-  TFC(ConstructProxy, JSTrampoline)                                           \
-                                                                              \
-  /* Apply and entries */                                                     \
-  ASM(JSEntry, JSEntry)                                                       \
-  ASM(JSConstructEntry, JSEntry)                                              \
-  ASM(JSRunMicrotasksEntry, RunMicrotasksEntry)                               \
-  /* Call a JSValue. */                                                       \
-  ASM(JSEntryTrampoline, JSEntry)                                             \
-  /* Construct a JSValue. */                                                  \
-  ASM(JSConstructEntryTrampoline, JSEntry)                                    \
-  ASM(ResumeGeneratorTrampoline, ResumeGenerator)                             \
-                                                                              \
-  /* String helpers */                                                        \
-  IF_TSA(TSC, TFC)(StringFromCodePointAt, StringAtAsString)                    \
+#define BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)        \
+  /* GC write barriers */                                                      \
+  TFC(IndirectPointerBarrierSaveFP, IndirectPointerWriteBarrier)               \
+  TFC(IndirectPointerBarrierIgnoreFP, IndirectPointerWriteBarrier)             \
+                                                                               \
+  /* TSAN support for stores in generated code. */                             \
+  IF_TSAN(TFC, TSANRelaxedStore8IgnoreFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANRelaxedStore8SaveFP, TSANStore)                             \
+  IF_TSAN(TFC, TSANRelaxedStore16IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANRelaxedStore16SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANRelaxedStore32IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANRelaxedStore32SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANRelaxedStore64IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANRelaxedStore64SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANSeqCstStore8IgnoreFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANSeqCstStore8SaveFP, TSANStore)                              \
+  IF_TSAN(TFC, TSANSeqCstStore16IgnoreFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANSeqCstStore16SaveFP, TSANStore)                             \
+  IF_TSAN(TFC, TSANSeqCstStore32IgnoreFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANSeqCstStore32SaveFP, TSANStore)                             \
+  IF_TSAN(TFC, TSANSeqCstStore64IgnoreFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANSeqCstStore64SaveFP, TSANStore)                             \
+                                                                               \
+  /* TSAN support for loads in generated code. */                              \
+  IF_TSAN(TFC, TSANRelaxedLoad32IgnoreFP, TSANLoad)                            \
+  IF_TSAN(TFC, TSANRelaxedLoad32SaveFP, TSANLoad)                              \
+  IF_TSAN(TFC, TSANRelaxedLoad64IgnoreFP, TSANLoad)                            \
+  IF_TSAN(TFC, TSANRelaxedLoad64SaveFP, TSANLoad)                              \
+                                                                               \
+  /* Calls */                                                                  \
+  /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */              \
+  ASM(CallFunction_ReceiverIsNullOrUndefined, CallTrampoline)                  \
+  ASM(CallFunction_ReceiverIsNotNullOrUndefined, CallTrampoline)               \
+  ASM(CallFunction_ReceiverIsAny, CallTrampoline)                              \
+  /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */            \
+  ASM(CallBoundFunction, CallTrampoline)                                       \
+  /* #sec-wrapped-function-exotic-objects-call-thisargument-argumentslist */   \
+  TFC(CallWrappedFunction, CallTrampoline)                                     \
+  /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                         \
+  ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
+  ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                       \
+  ASM(Call_ReceiverIsAny, CallTrampoline)                                      \
+  TFC(Call_ReceiverIsNullOrUndefined_Baseline_Compact,                         \
+      CallTrampoline_Baseline_Compact)                                         \
+  TFC(Call_ReceiverIsNullOrUndefined_Baseline, CallTrampoline_Baseline)        \
+  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline_Compact,                      \
+      CallTrampoline_Baseline_Compact)                                         \
+  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline, CallTrampoline_Baseline)     \
+  TFC(Call_ReceiverIsAny_Baseline_Compact, CallTrampoline_Baseline_Compact)    \
+  TFC(Call_ReceiverIsAny_Baseline, CallTrampoline_Baseline)                    \
+  TFC(Call_ReceiverIsNullOrUndefined_WithFeedback,                             \
+      CallTrampoline_WithFeedback)                                             \
+  TFC(Call_ReceiverIsNotNullOrUndefined_WithFeedback,                          \
+      CallTrampoline_WithFeedback)                                             \
+  TFC(Call_ReceiverIsAny_WithFeedback, CallTrampoline_WithFeedback)            \
+                                                                               \
+  /* ES6 section 9.5.12[[Call]] ( thisArgument, argumentsList ) */             \
+  TFC(CallProxy, CallTrampoline)                                               \
+  ASM(CallVarargs, CallVarargs)                                                \
+  TFC(CallWithSpread, CallWithSpread)                                          \
+  TFC(CallWithSpread_Baseline, CallWithSpread_Baseline)                        \
+  TFC(CallWithSpread_WithFeedback, CallWithSpread_WithFeedback)                \
+  TFC(CallWithArrayLike, CallWithArrayLike)                                    \
+  TFC(CallWithArrayLike_WithFeedback, CallWithArrayLike_WithFeedback)          \
+  ASM(CallForwardVarargs, CallForwardVarargs)                                  \
+  ASM(CallFunctionForwardVarargs, CallForwardVarargs)                          \
+  /* Call an API callback via a {FunctionTemplateInfo}, doing appropriate */   \
+  /* access and compatible receiver checks. */                                 \
+  TFC(CallFunctionTemplate_Generic, CallFunctionTemplateGeneric)               \
+  TFC(CallFunctionTemplate_CheckAccess, CallFunctionTemplate)                  \
+  TFC(CallFunctionTemplate_CheckCompatibleReceiver, CallFunctionTemplate)      \
+  TFC(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,                   \
+      CallFunctionTemplate)                                                    \
+                                                                               \
+  /* Construct */                                                              \
+  /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */            \
+  ASM(ConstructFunction, JSTrampoline)                                         \
+  /* ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget) */           \
+  ASM(ConstructBoundFunction, JSTrampoline)                                    \
+  ASM(ConstructedNonConstructable, JSTrampoline)                               \
+  /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
+  ASM(Construct, JSTrampoline)                                                 \
+  ASM(ConstructVarargs, ConstructVarargs)                                      \
+  TFC(ConstructWithSpread, ConstructWithSpread)                                \
+  TFC(ConstructWithSpread_Baseline, ConstructWithSpread_Baseline)              \
+  TFC(ConstructWithSpread_WithFeedback, ConstructWithSpread_WithFeedback)      \
+  TFC(ConstructWithArrayLike, ConstructWithArrayLike)                          \
+  ASM(ConstructForwardVarargs, ConstructForwardVarargs)                        \
+  ASM(ConstructForwardAllArgs, ConstructForwardAllArgs)                        \
+  TFC(ConstructForwardAllArgs_Baseline, ConstructForwardAllArgs_Baseline)      \
+  TFC(ConstructForwardAllArgs_WithFeedback,                                    \
+      ConstructForwardAllArgs_WithFeedback)                                    \
+  ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)                \
+  TFC(Construct_Baseline, Construct_Baseline)                                  \
+  TFC(Construct_WithFeedback, Construct_WithFeedback)                          \
+  ASM(JSConstructStubGeneric, ConstructStub)                                   \
+  ASM(JSBuiltinsConstructStub, ConstructStub)                                  \
+  TFC(FastNewObject, FastNewObject)                                            \
+  TFS(FastNewClosure, NeedsContext::kYes, kSharedFunctionInfo, kFeedbackCell)  \
+  /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
+  TFC(ConstructProxy, JSTrampoline)                                            \
+                                                                               \
+  /* Apply and entries */                                                      \
+  ASM(JSEntry, JSEntry)                                                        \
+  ASM(JSConstructEntry, JSEntry)                                               \
+  ASM(JSRunMicrotasksEntry, RunMicrotasksEntry)                                \
+  /* Call a JSValue. */                                                        \
+  ASM(JSEntryTrampoline, JSEntry)                                              \
+  /* Construct a JSValue. */                                                   \
+  ASM(JSConstructEntryTrampoline, JSEntry)                                     \
+  ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
+                                                                               \
+  /* String helpers */                                                         \
+  IF_TSA(TSC, TFC, StringFromCodePointAt, StringAtAsString)                    \
   TFC(StringEqual, StringEqual)                                                \
   TFC(StringGreaterThan, CompareNoContext)                                     \
   TFC(StringGreaterThanOrEqual, CompareNoContext)                              \
@@ -845,7 +847,7 @@ namespace internal {
   TFC(Decrement_Baseline, UnaryOp_Baseline)                                    \
   TFC(Increment_Baseline, UnaryOp_Baseline)                                    \
   TFC(Negate_Baseline, UnaryOp_Baseline)                                       \
-  IF_TSA(TSC, TFC)(BitwiseNot_WithFeedback, UnaryOp_WithFeedback)              \
+  IF_TSA(TSC, TFC, BitwiseNot_WithFeedback, UnaryOp_WithFeedback)              \
   TFC(Decrement_WithFeedback, UnaryOp_WithFeedback)                            \
   TFC(Increment_WithFeedback, UnaryOp_WithFeedback)                            \
   TFC(Negate_WithFeedback, UnaryOp_WithFeedback)                               \
@@ -994,7 +996,7 @@ namespace internal {
   /* ES #sec-string.fromcodepoint */                                           \
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
-  IF_TSA(TSJ, TFJ)(StringFromCharCode, kDontAdaptArgumentsSentinel)            \
+  IF_TSA(TSJ, TFJ, StringFromCharCode, kDontAdaptArgumentsSentinel)            \
   /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf)                                              \
   /* ES #sec-string.prototype.matchAll */                                      \
