@@ -5118,6 +5118,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kStringPrototypeEndsWith:
       return ReduceStringPrototypeEndsWith(node);
 #ifdef V8_INTL_SUPPORT
+    case Builtin::kStringPrototypeLocaleCompareIntl:
+      return ReduceStringPrototypeLocaleCompareIntl(node);
     case Builtin::kStringPrototypeToLowerCaseIntl:
       return ReduceStringPrototypeToLowerCaseIntl(node);
     case Builtin::kStringPrototypeToUpperCaseIntl:
@@ -5129,8 +5131,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceStringFromCodePoint(node);
     case Builtin::kStringPrototypeIterator:
       return ReduceStringPrototypeIterator(node);
-    case Builtin::kStringPrototypeLocaleCompare:
-      return ReduceStringPrototypeLocaleCompare(node);
     case Builtin::kStringIteratorPrototypeNext:
       return ReduceStringIteratorPrototypeNext(node);
     case Builtin::kStringPrototypeConcat:
@@ -7048,8 +7048,9 @@ Reduction JSCallReducer::ReduceStringPrototypeIterator(Node* node) {
   return Replace(iterator);
 }
 
-Reduction JSCallReducer::ReduceStringPrototypeLocaleCompare(Node* node) {
 #ifdef V8_INTL_SUPPORT
+
+Reduction JSCallReducer::ReduceStringPrototypeLocaleCompareIntl(Node* node) {
   JSCallNode n(node);
   // Signature: receiver.localeCompare(compareString, locales, options)
   if (n.ArgumentCount() < 1 || n.ArgumentCount() > 3) {
@@ -7110,10 +7111,8 @@ Reduction JSCallReducer::ReduceStringPrototypeLocaleCompare(Node* node) {
                     jsgraph()->HeapConstantNoHole(callable.code()));
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
-#else
-  return NoChange();
-#endif
 }
+#endif  // V8_INTL_SUPPORT
 
 Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
   JSCallNode n(node);

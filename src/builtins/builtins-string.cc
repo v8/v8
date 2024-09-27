@@ -135,30 +135,18 @@ BUILTIN(StringPrototypeLastIndexOf) {
                              args.atOrUndefined(isolate, 2));
 }
 
+#ifndef V8_INTL_SUPPORT
 // ES6 section 21.1.3.10 String.prototype.localeCompare ( that )
 //
-// This function is implementation specific.  For now, we do not
-// do anything locale specific.
+// For now, we do not do anything locale specific.
+// If internationalization is enabled, then intl.js will override this function
+// and provide the proper functionality, so this is just a fallback.
 BUILTIN(StringPrototypeLocaleCompare) {
   HandleScope handle_scope(isolate);
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringLocaleCompare);
   static const char* const kMethod = "String.prototype.localeCompare";
 
-#ifdef V8_INTL_SUPPORT
-  TO_THIS_STRING(str1, kMethod);
-  Handle<String> str2;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, str2, Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
-  std::optional<int> result = Intl::StringLocaleCompare(
-      isolate, str1, str2, args.atOrUndefined(isolate, 2),
-      args.atOrUndefined(isolate, 3), kMethod);
-  if (!result.has_value()) {
-    DCHECK(isolate->has_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  return Smi::FromInt(result.value());
-#else
   DCHECK_LE(2, args.length());
 
   TO_THIS_STRING(str1, kMethod);
@@ -200,10 +188,8 @@ BUILTIN(StringPrototypeLocaleCompare) {
   }
 
   return Smi::FromInt(str1_length - str2_length);
-#endif  // !V8_INTL_SUPPORT
 }
 
-#ifndef V8_INTL_SUPPORT
 // ES6 section 21.1.3.12 String.prototype.normalize ( [form] )
 //
 // Simply checks the argument is valid and returns the string itself.

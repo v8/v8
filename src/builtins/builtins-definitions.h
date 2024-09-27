@@ -1001,8 +1001,6 @@ namespace internal {
   CPP(StringPrototypeLastIndexOf)                                              \
   /* ES #sec-string.prototype.matchAll */                                      \
   TFJ(StringPrototypeMatchAll, kJSArgcReceiverSlots + 1, kReceiver, kRegexp)   \
-  /* ES6 #sec-string.prototype.localecompare */                                \
-  CPP(StringPrototypeLocaleCompare)                                            \
   /* ES6 #sec-string.prototype.replace */                                      \
   TFJ(StringPrototypeReplace, kJSArgcReceiverSlots + 2, kReceiver, kSearch,    \
       kReplace)                                                                \
@@ -2083,6 +2081,8 @@ namespace internal {
   CPP(SegmentsPrototypeContaining)                                     \
   /* ecma402 #sec-%segmentsprototype%-@@iterator */                    \
   CPP(SegmentsPrototypeIterator)                                       \
+  /* ecma402 #sup-properties-of-the-string-prototype-object */         \
+  CPP(StringPrototypeLocaleCompareIntl)                                \
   /* ES #sec-string.prototype.normalize */                             \
   CPP(StringPrototypeNormalizeIntl)                                    \
   /* ecma402 #sup-string.prototype.tolocalelowercase */                \
@@ -2131,16 +2131,19 @@ namespace internal {
   CPP(V8BreakIteratorPrototypeResolvedOptions)                         \
   CPP(V8BreakIteratorSupportedLocalesOf)
 #else
-#define BUILTIN_LIST_INTL(CPP, TFJ, TFS)      \
-  /* no-op fallback version */                \
-  CPP(StringPrototypeNormalize)               \
-  /* same as toLowercase; fallback version */ \
-  CPP(StringPrototypeToLocaleLowerCase)       \
-  /* same as toUppercase; fallback version */ \
-  CPP(StringPrototypeToLocaleUpperCase)       \
-  /* (obsolete) Unibrow version */            \
-  CPP(StringPrototypeToLowerCase)             \
-  /* (obsolete) Unibrow version */            \
+#define BUILTIN_LIST_INTL(CPP, TFJ, TFS)        \
+  /* ES6 #sec-string.prototype.localecompare */ \
+  /* non-locale specific fallback version */    \
+  CPP(StringPrototypeLocaleCompare)             \
+  /* no-op fallback version */                  \
+  CPP(StringPrototypeNormalize)                 \
+  /* same as toLowercase; fallback version */   \
+  CPP(StringPrototypeToLocaleLowerCase)         \
+  /* same as toUppercase; fallback version */   \
+  CPP(StringPrototypeToLocaleUpperCase)         \
+  /* (obsolete) Unibrow version */              \
+  CPP(StringPrototypeToLowerCase)               \
+  /* (obsolete) Unibrow version */              \
   CPP(StringPrototypeToUpperCase)
 #endif  // V8_INTL_SUPPORT
 

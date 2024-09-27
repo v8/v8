@@ -167,6 +167,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringPrototypeEndsWith(Node* node);
 
 #ifdef V8_INTL_SUPPORT
+  Reduction ReduceStringPrototypeLocaleCompareIntl(Node* node);
   Reduction ReduceStringPrototypeToLowerCaseIntl(Node* node);
   Reduction ReduceStringPrototypeToUpperCaseIntl(Node* node);
 #endif  // V8_INTL_SUPPORT
@@ -174,7 +175,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringFromCharCode(Node* node);
   Reduction ReduceStringFromCodePoint(Node* node);
   Reduction ReduceStringPrototypeIterator(Node* node);
-  Reduction ReduceStringPrototypeLocaleCompare(Node* node);
   Reduction ReduceStringIteratorPrototypeNext(Node* node);
   Reduction ReduceStringPrototypeConcat(Node* node);
 

@@ -2901,7 +2901,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kStringPrototypeLink, 1, kDontAdapt);
 #ifdef V8_INTL_SUPPORT
     SimpleInstallFunction(isolate_, prototype, "localeCompare",
-                          Builtin::kStringPrototypeLocaleCompare, 1,
+                          Builtin::kStringPrototypeLocaleCompareIntl, 1,
                           kDontAdapt);
 #else
     SimpleInstallFunction(isolate_, prototype, "localeCompare",

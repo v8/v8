@@ -801,7 +801,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeIsWellFormed:
     case Builtin::kStringPrototypeItalics:
     case Builtin::kStringPrototypeLastIndexOf:
-    case Builtin::kStringPrototypeLocaleCompare:
     case Builtin::kStringPrototypeLink:
     case Builtin::kStringPrototypeMatch:
     case Builtin::kStringPrototypeMatchAll:
@@ -827,10 +826,12 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeToLocaleUpperCase:
 #ifdef V8_INTL_SUPPORT
     case Builtin::kStringToLowerCaseIntl:
+    case Builtin::kStringPrototypeLocaleCompareIntl:
     case Builtin::kStringPrototypeToLowerCaseIntl:
     case Builtin::kStringPrototypeToUpperCaseIntl:
     case Builtin::kStringPrototypeNormalizeIntl:
 #else
+    case Builtin::kStringPrototypeLocaleCompare:
     case Builtin::kStringPrototypeToLowerCase:
     case Builtin::kStringPrototypeToUpperCase:
     case Builtin::kStringPrototypeNormalize:

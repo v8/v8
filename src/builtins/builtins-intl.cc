@@ -57,6 +57,30 @@ BUILTIN(StringPrototypeNormalizeIntl) {
                            Intl::Normalize(isolate, string, form_input));
 }
 
+// ecma402 #sup-properties-of-the-string-prototype-object
+// ecma402 section 19.1.1.
+//   String.prototype.localeCompare ( that [ , locales [ , options ] ] )
+// This implementation supersedes the definition provided in ES6.
+BUILTIN(StringPrototypeLocaleCompareIntl) {
+  HandleScope handle_scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringLocaleCompare);
+  static const char* const kMethod = "String.prototype.localeCompare";
+
+  TO_THIS_STRING(str1, kMethod);
+  Handle<String> str2;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, str2, Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+  std::optional<int> result = Intl::StringLocaleCompare(
+      isolate, str1, str2, args.atOrUndefined(isolate, 2),
+      args.atOrUndefined(isolate, 3), kMethod);
+  if (!result.has_value()) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return Smi::FromInt(result.value());
+}
+
 BUILTIN(V8BreakIteratorSupportedLocalesOf) {
   HandleScope scope(isolate);
   Handle<Object> locales = args.atOrUndefined(isolate, 1);

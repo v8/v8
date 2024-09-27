@@ -8020,9 +8020,10 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
   return allocation;
 }
 
-ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompare(
-    compiler::JSFunctionRef target, CallArguments& args) {
 #ifdef V8_INTL_SUPPORT
+
+ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompareIntl(
+    compiler::JSFunctionRef target, CallArguments& args) {
   if (args.count() < 1 || args.count() > 3) return ReduceResult::Fail();
 
   LocalFactory* factory = local_isolate()->factory();
@@ -8070,10 +8071,9 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompare(
       {GetConstant(target),
        GetTaggedValue(GetValueOrUndefined(args.receiver())),
        GetTaggedValue(args[0]), GetTaggedValue(locales_node)});
-#else
-  return ReduceResult::Fail();
-#endif
 }
+
+#endif  // V8_INTL_SUPPORT
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 ReduceResult MaglevGraphBuilder::TryReduceGetContinuationPreservedEmbedderData(
