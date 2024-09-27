@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '87926d0c650cec6c058613a9386ba3998af8015f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1ed609c5aa9ab1a6aaa9ee7b90bbe0efb19403be',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd57511c7e09e057eb4d81919eb21912ff8f42142',
   'buildtools/linux64': {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'dec0800988062ab0b1d5ea5f3c9575f3392bcd37',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '40dd94116ba03678226443ba20c5887459c9bf16',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c35a3f7fb52256a27503a9f076fb7d247105f2e1',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b952ef48c38e2a78bdc8761b6ecab0e6bfaf0e8b',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '950ee67c1275e4f1f7ebf1a03908fe853bbed1ed',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '014909c881f7786eb7d9f8cdaa5dd3820fec8f5c',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'fa9f14143c7938e6a1d18443900efee7a1e5e669',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2acd1a18712637243a9a137f0071ef411304bf99',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd29ec9d823fcf24f06ee6fdc2cf9bc82e8883cf5',
   'tools/luci-go': {
       'packages': [
         {
