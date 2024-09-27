@@ -6050,6 +6050,12 @@ void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
         index_operand = g.TempRegister();
         Emit(kArm64Sub32, index_operand, value_operand,
              g.TempImmediate(sw.min_value()));
+      } else {
+        // Smis top bits are undefined, so zero-extend if not already done so.
+        if (!ZeroExtendsWord32ToWord64(this->input_at(node, 0))) {
+          index_operand = g.TempRegister();
+          Emit(kArm64Mov32, index_operand, value_operand);
+        }
       }
       // Generate a table lookup.
       return EmitTableSwitch(sw, index_operand);
