@@ -270,9 +270,9 @@ class Simulator : public SimulatorBase {
   // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
 
-  // Return current stack view, without additional safety margins.
+  // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
-  base::Vector<uint8_t> GetCurrentStackView() const;
+  base::Vector<uint8_t> GetCentralStackView() const;
 
   // Executes LOONG64 instructions until the PC reaches end_sim_pc.
   void Execute();

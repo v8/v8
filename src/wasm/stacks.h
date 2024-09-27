@@ -43,9 +43,9 @@ class StackMemory {
     return std::unique_ptr<StackMemory>(new StackMemory());
   }
 
-  // Returns a non-owning view of the current (main) stack. This may be
+  // Returns a non-owning view of the central stack. This may be
   // the simulator's stack when running on the simulator.
-  static StackMemory* GetCurrentStackView(Isolate* isolate);
+  static StackMemory* GetCentralStackView(Isolate* isolate);
 
   ~StackMemory();
   void* jslimit() const {

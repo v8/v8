@@ -11,8 +11,8 @@
 namespace v8::internal::wasm {
 
 // static
-StackMemory* StackMemory::GetCurrentStackView(Isolate* isolate) {
-  base::Vector<uint8_t> view = SimulatorStack::GetCurrentStackView(isolate);
+StackMemory* StackMemory::GetCentralStackView(Isolate* isolate) {
+  base::Vector<uint8_t> view = SimulatorStack::GetCentralStackView(isolate);
   return new StackMemory(view.begin(), view.size());
 }
 

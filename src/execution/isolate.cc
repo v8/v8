@@ -3697,17 +3697,10 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
 
 #if V8_ENABLE_WEBASSEMBLY
 bool Isolate::IsOnCentralStack(Address addr) {
-#ifdef USE_SIMULATOR
-  auto simulator_stack = Simulator::current(this)->GetCurrentStackView();
-  uint8_t* addr_ptr = reinterpret_cast<uint8_t*>(addr);
-  return simulator_stack.begin() < addr_ptr &&
-         addr_ptr <= simulator_stack.end();
-#else
-  uintptr_t upper_bound = base::Stack::GetStackStart();
-  uintptr_t lower_bound = upper_bound - v8_flags.stack_size * KB -
-                          wasm::StackMemory::kJSLimitOffsetKB * KB;
-  return lower_bound < addr && addr <= upper_bound;
-#endif
+  auto stack = SimulatorStack::GetCentralStackView(this);
+  Address stack_top = reinterpret_cast<Address>(stack.begin());
+  Address stack_base = reinterpret_cast<Address>(stack.end());
+  return stack_top < addr && addr <= stack_base;
 }
 
 bool Isolate::IsOnCentralStack() {
@@ -6319,7 +6312,7 @@ void Isolate::FireCallCompletedCallbackInternal(
 #ifdef V8_ENABLE_WEBASSEMBLY
 void Isolate::WasmInitJSPIFeature() {
   if (IsUndefined(root(RootIndex::kActiveContinuation))) {
-    wasm::StackMemory* stack(wasm::StackMemory::GetCurrentStackView(this));
+    wasm::StackMemory* stack(wasm::StackMemory::GetCentralStackView(this));
     this->wasm_stacks().emplace_back(stack);
     stack->set_index(0);
     if (v8_flags.trace_wasm_stack_switching) {
