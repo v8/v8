@@ -1775,6 +1775,7 @@ inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
+  temps.Include(RegList{kScratchReg});
   Register scratch = temps.AcquireScratch();
   // TODO(Yuri Gaevsky): is zero extension really needed here?
   if (mask < 0) {                      // high-bits are all 1s due to
@@ -1790,6 +1791,7 @@ inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     MemOperand operand, int32_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
+  temps.Include(RegList{kScratchReg});
   Register scratch = temps.AcquireScratch();
   Lwu(scratch, operand);
   And(scratch, scratch, Operand(mask));
@@ -1800,6 +1802,7 @@ inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
 inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
+  temps.Include(RegList{kScratchReg});
   Register scratch = temps.AcquireScratch();
   // TODO(Yuri Gaevsky): is zero extension really needed here?
   if (mask < 0) {                      // high-bits are all 1s due to
@@ -1814,6 +1817,7 @@ inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
 inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
     MemOperand operand, int32_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
+  temps.Include(RegList{kScratchReg});
   Register scratch = temps.AcquireScratch();
   Lwu(scratch, operand);
   And(scratch, scratch, Operand(mask));
@@ -1823,6 +1827,7 @@ inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
 inline void MaglevAssembler::TestUint8AndJumpIfAnySet(
     MemOperand operand, uint8_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
+  temps.Include(RegList{kScratchReg});
   Register scratch = temps.AcquireScratch();
   Lbu(scratch, operand);
   And(scratch, scratch, Operand(mask));
@@ -1833,6 +1838,7 @@ inline void MaglevAssembler::TestUint8AndJumpIfAnySet(
 inline void MaglevAssembler::TestUint8AndJumpIfAllClear(
     MemOperand operand, uint8_t mask, Label* target, Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
+  temps.Include(RegList{kScratchReg});
   Register scratch = temps.AcquireScratch();
   Lbu(scratch, operand);
   And(scratch, scratch, Operand(mask));
