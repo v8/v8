@@ -309,7 +309,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'd0c57cb48fb5709f02096f411d65a11cbc722944',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'f93a8716a6ca5e77c1bb3724cbfe19b0e609152b',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9846aba7d4b6d13b28b870bf70d1951ab3b6ce78',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
