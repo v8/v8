@@ -2738,7 +2738,7 @@ class FullStringForwardingTableCleaner final
                       StringForwardingTable::Record* record) {
     // If the string is already external, dispose the resource.
     if (IsExternalString(original_string)) {
-      record->DisposeUnusedExternalResource(original_string);
+      record->DisposeUnusedExternalResource(isolate_, original_string);
       return;
     }
 
