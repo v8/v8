@@ -789,7 +789,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Makes the object prototype immutable
   // Never called from JavaScript
-  static void SetImmutableProto(DirectHandle<JSObject> object);
+  static void SetImmutableProto(Isolate* isolate,
+                                DirectHandle<JSObject> object);
 
   // Initializes the body starting at |start_offset|. It is responsibility of
   // the caller to initialize object header. Fill the pre-allocated fields with

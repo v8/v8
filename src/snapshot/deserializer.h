@@ -374,7 +374,8 @@ class StringTableInsertionKey final : public StringTableKey {
                DeserializingUserCodeOption::kIsDeserializingUserCode);
   }
   void PrepareForInsertion(LocalIsolate* isolate) {}
-  V8_WARN_UNUSED_RESULT DirectHandle<String> GetHandleForInsertion() {
+  V8_WARN_UNUSED_RESULT DirectHandle<String> GetHandleForInsertion(
+      Isolate* isolate) {
     return string_;
   }
 

@@ -927,7 +927,7 @@ void Genesis::CreateObjectFunction(DirectHandle<JSFunction> empty_function) {
     map->set_is_prototype_map(true);
     // Ban re-setting Object.prototype.__proto__ to prevent Proxy security bug
     map->set_is_immutable_proto(true);
-    object_function_prototype->set_map(*map);
+    object_function_prototype->set_map(isolate(), *map);
   }
 
   // Complete setting up empty function.
@@ -1452,7 +1452,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   // Set up the pointer back from the global object to the global proxy.
   global_object->set_global_proxy(*global_proxy);
   // Set the native context of the global proxy.
-  global_proxy->map()->set_map(native_context()->meta_map());
+  global_proxy->map()->set_map(isolate(), native_context()->meta_map());
   // Set the global proxy of the native context. If the native context has been
   // deserialized, the global proxy is already correctly set up by the
   // deserializer. Otherwise it's undefined.
@@ -1473,7 +1473,7 @@ void Genesis::HookUpGlobalProxy(DirectHandle<JSGlobalProxy> global_proxy) {
   Handle<JSObject> global_object(
       Cast<JSObject>(native_context()->global_object()), isolate());
   JSObject::ForceSetPrototype(isolate(), global_proxy, global_object);
-  global_proxy->map()->set_map(native_context()->meta_map());
+  global_proxy->map()->set_map(isolate(), native_context()->meta_map());
   DCHECK(native_context()->global_proxy() == *global_proxy);
 }
 
@@ -7137,7 +7137,7 @@ Genesis::Genesis(Isolate* isolate,
 
   Handle<JSGlobalProxy> global_proxy;
   if (maybe_global_proxy.ToHandle(&global_proxy)) {
-    global_proxy->map()->set_map(ReadOnlyRoots(isolate).meta_map());
+    global_proxy->map()->set_map(isolate, ReadOnlyRoots(isolate).meta_map());
   } else {
     global_proxy = factory()->NewUninitializedJSGlobalProxy(proxy_size);
   }

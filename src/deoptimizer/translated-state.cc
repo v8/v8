@@ -2490,7 +2490,7 @@ void TranslatedState::InitializeJSObjectAt(
       WRITE_BARRIER(*object_storage, offset, *field_value);
     }
   }
-  object_storage->set_map(*map, kReleaseStore);
+  object_storage->set_map(isolate(), *map, kReleaseStore);
 }
 
 void TranslatedState::InitializeObjectWithTaggedFieldsAt(
@@ -2543,7 +2543,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     WRITE_BARRIER(*object_storage, offset, *field_value);
   }
 
-  object_storage->set_map(*map, kReleaseStore);
+  object_storage->set_map(isolate(), *map, kReleaseStore);
 }
 
 TranslatedValue* TranslatedState::ResolveCapturedObject(TranslatedValue* slot) {

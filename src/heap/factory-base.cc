@@ -222,7 +222,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
   DisallowGarbageCollection no_gc;
   DCHECK(ReadOnlyHeap::Contains(*map));
   DCHECK(ReadOnlyHeap::Contains(*filler));
-  result->set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), *map, SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), *filler, length);
@@ -239,8 +239,8 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
   }
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
-  result->set_map_after_allocation(read_only_roots().fixed_array_map(),
-                                   SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(
+      isolate(), read_only_roots().fixed_array_map(), SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), Smi::zero(), length);
@@ -262,7 +262,7 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
 
   Tagged<HeapObject> result =
       AllocateRawArray(WeakFixedArray::SizeFor(length), allocation);
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), map, SKIP_WRITE_BARRIER);
   DisallowGarbageCollection no_gc;
   Tagged<WeakFixedArray> array = Cast<WeakFixedArray>(result);
   array->set_length(length);
@@ -1149,9 +1149,10 @@ Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
   auto raw_gc_state = DescriptorArrayMarkingState::kInitialGCState;
   if (allocation != AllocationType::kYoung &&
       allocation != AllocationType::kReadOnly) {
-    auto* heap = allocation == AllocationType::kSharedOld
-                     ? isolate()->AsIsolate()->shared_space_isolate()->heap()
-                     : isolate()->heap()->AsHeap();
+    auto* local_heap = allocation == AllocationType::kSharedOld
+                           ? isolate()->shared_space_isolate()->heap()
+                           : isolate()->heap();
+    Heap* heap = local_heap->AsHeap();
     if (heap->incremental_marking()->IsMajorMarking()) {
       // Black allocation: We must create a full marked state.
       raw_gc_state = DescriptorArrayMarkingState::GetFullyMarkedState(
@@ -1270,7 +1271,7 @@ Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWithImmortalMap(
   DCHECK(ReadOnlyHeap::Contains(map));
   Tagged<HeapObject> result = AllocateRaw(size, allocation, alignment);
   DisallowGarbageCollection no_gc;
-  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), map, SKIP_WRITE_BARRIER);
   return result;
 }
 

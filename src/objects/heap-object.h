@@ -37,26 +37,30 @@ V8_OBJECT class HeapObjectLayout {
   inline Tagged<Map> map() const;
   inline Tagged<Map> map(AcquireLoadTag) const;
 
-  inline void set_map(Tagged<Map> value);
-  inline void set_map(Tagged<Map> value, ReleaseStoreTag);
+  inline void set_map(Isolate* isolate, Tagged<Map> value);
+  template <typename IsolateT>
+  inline void set_map(IsolateT* isolate, Tagged<Map> value, ReleaseStoreTag);
 
   // This method behaves the same as `set_map` but marks the map transition as
   // safe for the concurrent marker (object layout doesn't change) during
   // verification.
-  inline void set_map_safe_transition(Tagged<Map> value, ReleaseStoreTag);
+  template <typename IsolateT>
+  inline void set_map_safe_transition(IsolateT* isolate, Tagged<Map> value,
+                                      ReleaseStoreTag);
 
   inline void set_map_safe_transition_no_write_barrier(
-      Tagged<Map> value, RelaxedStoreTag = kRelaxedStore);
+      Isolate* isolate, Tagged<Map> value, RelaxedStoreTag = kRelaxedStore);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
   inline void set_map_after_allocation(
-      Tagged<Map> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Isolate* isolate, Tagged<Map> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
   // of primitive (non-JS) objects like strings, heap numbers etc.
-  inline void set_map_no_write_barrier(Tagged<Map> value,
+  inline void set_map_no_write_barrier(Isolate* isolate, Tagged<Map> value,
                                        RelaxedStoreTag = kRelaxedStore);
 
   // Access the map word using acquire load and release store.
@@ -132,30 +136,36 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // [map]: Contains a map which contains the object's reflective
   // information.
   DECL_GETTER(map, Tagged<Map>)
-  inline void set_map(Tagged<Map> value);
+  inline void set_map(Isolate* isolate, Tagged<Map> value);
 
   // This method behaves the same as `set_map` but marks the map transition as
   // safe for the concurrent marker (object layout doesn't change) during
   // verification.
-  inline void set_map_safe_transition(Tagged<Map> value);
+  template <typename IsolateT>
+  inline void set_map_safe_transition(IsolateT* isolate, Tagged<Map> value);
 
   inline ObjectSlot map_slot() const;
 
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
   // of primitive (non-JS) objects like strings, heap numbers etc.
-  inline void set_map_no_write_barrier(Tagged<Map> value,
+  inline void set_map_no_write_barrier(Isolate* isolate, Tagged<Map> value,
                                        RelaxedStoreTag = kRelaxedStore);
-  inline void set_map_no_write_barrier(Tagged<Map> value, ReleaseStoreTag);
+  inline void set_map_no_write_barrier(Isolate* isolate, Tagged<Map> value,
+                                       ReleaseStoreTag);
   inline void set_map_safe_transition_no_write_barrier(
-      Tagged<Map> value, RelaxedStoreTag = kRelaxedStore);
-  inline void set_map_safe_transition_no_write_barrier(Tagged<Map> value,
+      Isolate* isolate, Tagged<Map> value, RelaxedStoreTag = kRelaxedStore);
+  inline void set_map_safe_transition_no_write_barrier(Isolate* isolate,
+                                                       Tagged<Map> value,
                                                        ReleaseStoreTag);
 
   // Access the map using acquire load and release store.
   DECL_ACQUIRE_GETTER(map, Tagged<Map>)
-  inline void set_map(Tagged<Map> value, ReleaseStoreTag);
-  inline void set_map_safe_transition(Tagged<Map> value, ReleaseStoreTag);
+  template <typename IsolateT>
+  inline void set_map(IsolateT* isolate, Tagged<Map> value, ReleaseStoreTag);
+  template <typename IsolateT>
+  inline void set_map_safe_transition(IsolateT* isolate, Tagged<Map> value,
+                                      ReleaseStoreTag);
 
   // Compare-and-swaps map word using release store, returns true if the map
   // word was actually swapped.
@@ -164,8 +174,10 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
+  template <typename IsolateT>
   inline void set_map_after_allocation(
-      Tagged<Map> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      IsolateT* isolate, Tagged<Map> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   static inline void SetFillerMap(const WritableFreeSpace& writable_page,
                                   Tagged<Map> value);
@@ -510,9 +522,10 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     kNo,
   };
 
-  template <EmitWriteBarrier emit_write_barrier, typename MemoryOrder>
-  V8_INLINE void set_map(Tagged<Map> value, MemoryOrder order,
-                         VerificationMode mode);
+  template <EmitWriteBarrier emit_write_barrier, typename MemoryOrder,
+            typename IsolateT>
+  V8_INLINE void set_map(IsolateT* isolate, Tagged<Map> value,
+                         MemoryOrder order, VerificationMode mode);
 };
 
 inline HeapObject::HeapObject(Address ptr) : TaggedImpl(ptr) {

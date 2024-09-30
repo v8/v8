@@ -267,7 +267,8 @@ AllocationResult Heap::AllocateMap(AllocationType allocation_type,
   if (!allocation.To(&result)) return allocation;
 
   ReadOnlyRoots roots(this);
-  result->set_map_after_allocation(roots.meta_map(), SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), roots.meta_map(),
+                                   SKIP_WRITE_BARRIER);
   Tagged<Map> map = isolate()->factory()->InitializeMap(
       Cast<Map>(result), instance_type, instance_size, elements_kind,
       inobject_properties, roots);
@@ -276,9 +277,10 @@ AllocationResult Heap::AllocateMap(AllocationType allocation_type,
 }
 
 namespace {
-void InitializePartialMap(Tagged<Map> map, Tagged<Map> meta_map,
-                          InstanceType instance_type, int instance_size) {
-  map->set_map_after_allocation(meta_map, SKIP_WRITE_BARRIER);
+void InitializePartialMap(Isolate* isolate, Tagged<Map> map,
+                          Tagged<Map> meta_map, InstanceType instance_type,
+                          int instance_size) {
+  map->set_map_after_allocation(isolate, meta_map, SKIP_WRITE_BARRIER);
   map->set_instance_type(instance_type);
   map->set_instance_size(instance_size);
   map->set_visitor_id(Map::GetVisitorId(map));
@@ -308,7 +310,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   if (!allocation.To(&result)) return allocation;
   // Cast<Map> cannot be used due to uninitialized map field.
   Tagged<Map> map = UncheckedCast<Map>(result);
-  InitializePartialMap(map,
+  InitializePartialMap(isolate(), map,
                        UncheckedCast<Map>(isolate()->root(RootIndex::kMetaMap)),
                        instance_type, instance_size);
   return AllocationResult::FromObject(map);
@@ -334,7 +336,7 @@ AllocationResult Heap::Allocate(DirectHandle<Map> map,
   WriteBarrierMode write_barrier_mode =
       allocation_type == AllocationType::kYoung ? SKIP_WRITE_BARRIER
                                                 : UPDATE_WRITE_BARRIER;
-  result->set_map_after_allocation(*map, write_barrier_mode);
+  result->set_map_after_allocation(isolate(), *map, write_barrier_mode);
   return AllocationResult::FromObject(result);
 }
 
@@ -417,40 +419,46 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 #undef ALLOCATE_AND_SET_ROOT
 
     // Then, initialise the initial maps.
-    InitializePartialMap(meta_map, meta_map, MAP_TYPE, Map::kSize);
-    InitializePartialMap(undefined_map, meta_map, ODDBALL_TYPE,
+    InitializePartialMap(isolate(), meta_map, meta_map, MAP_TYPE, Map::kSize);
+    InitializePartialMap(isolate(), undefined_map, meta_map, ODDBALL_TYPE,
                          sizeof(Undefined));
-    InitializePartialMap(null_map, meta_map, ODDBALL_TYPE, sizeof(Null));
-    InitializePartialMap(boolean_map, meta_map, ODDBALL_TYPE, sizeof(Boolean));
+    InitializePartialMap(isolate(), null_map, meta_map, ODDBALL_TYPE,
+                         sizeof(Null));
+    InitializePartialMap(isolate(), boolean_map, meta_map, ODDBALL_TYPE,
+                         sizeof(Boolean));
     boolean_map->SetConstructorFunctionIndex(Context::BOOLEAN_FUNCTION_INDEX);
-    InitializePartialMap(heap_number_map, meta_map, HEAP_NUMBER_TYPE,
+    InitializePartialMap(isolate(), heap_number_map, meta_map, HEAP_NUMBER_TYPE,
                          sizeof(HeapNumber));
     heap_number_map->SetConstructorFunctionIndex(
         Context::NUMBER_FUNCTION_INDEX);
-    InitializePartialMap(bigint_map, meta_map, BIGINT_TYPE,
+    InitializePartialMap(isolate(), bigint_map, meta_map, BIGINT_TYPE,
                          kVariableSizeSentinel);
 
     for (const StringTypeInit& entry : kStringTypeTable) {
       Tagged<Map> map = UncheckedCast<Map>(roots.object_at(entry.index));
-      InitializePartialMap(map, meta_map, entry.type, entry.size);
+      InitializePartialMap(isolate(), map, meta_map, entry.type, entry.size);
       map->SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
       if (StringShape(entry.type).IsCons()) map->mark_unstable();
     }
-    InitializePartialMap(symbol_map, meta_map, SYMBOL_TYPE, sizeof(Symbol));
+    InitializePartialMap(isolate(), symbol_map, meta_map, SYMBOL_TYPE,
+                         sizeof(Symbol));
     symbol_map->SetConstructorFunctionIndex(Context::SYMBOL_FUNCTION_INDEX);
 
     // Finally, initialise the non-map objects using those maps.
-    undefined_value->set_map_after_allocation(undefined_map,
+    undefined_value->set_map_after_allocation(isolate(), undefined_map,
                                               SKIP_WRITE_BARRIER);
     undefined_value->set_kind(Oddball::kUndefined);
 
-    null_value->set_map_after_allocation(null_map, SKIP_WRITE_BARRIER);
+    null_value->set_map_after_allocation(isolate(), null_map,
+                                         SKIP_WRITE_BARRIER);
     null_value->set_kind(Oddball::kNull);
 
-    true_value->set_map_after_allocation(boolean_map, SKIP_WRITE_BARRIER);
+    true_value->set_map_after_allocation(isolate(), boolean_map,
+                                         SKIP_WRITE_BARRIER);
     true_value->set_kind(Oddball::kTrue);
 
-    false_value->set_map_after_allocation(boolean_map, SKIP_WRITE_BARRIER);
+    false_value->set_map_after_allocation(isolate(), boolean_map,
+                                          SKIP_WRITE_BARRIER);
     false_value->set_kind(Oddball::kFalse);
 
     // The empty string is initialised with an empty hash despite being
@@ -458,7 +466,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     // TODO(leszeks): Unify this initialisation with normal string
     // initialisation.
     empty_string->set_map_after_allocation(
-        roots.unchecked_internalized_one_byte_string_map(), SKIP_WRITE_BARRIER);
+        isolate(), roots.unchecked_internalized_one_byte_string_map(),
+        SKIP_WRITE_BARRIER);
     empty_string->clear_padding_destructively(0);
     empty_string->set_length(0);
     empty_string->set_raw_hash_field(String::kEmptyHashField);
@@ -509,7 +518,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     AllocationResult alloc =
         AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(roots.fixed_array_map(), SKIP_WRITE_BARRIER);
+    obj->set_map_after_allocation(isolate(), roots.fixed_array_map(),
+                                  SKIP_WRITE_BARRIER);
     Cast<FixedArray>(obj)->set_length(0);
   }
   set_empty_fixed_array(Cast<FixedArray>(obj));
@@ -518,7 +528,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     AllocationResult alloc =
         AllocateRaw(WeakFixedArray::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(roots.weak_fixed_array_map(),
+    obj->set_map_after_allocation(isolate(), roots.weak_fixed_array_map(),
                                   SKIP_WRITE_BARRIER);
     Cast<WeakFixedArray>(obj)->set_length(0);
   }
@@ -528,7 +538,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     AllocationResult allocation = AllocateRaw(WeakArrayList::SizeForCapacity(0),
                                               AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
-    obj->set_map_after_allocation(roots.weak_array_list_map(),
+    obj->set_map_after_allocation(isolate(), roots.weak_array_list_map(),
                                   SKIP_WRITE_BARRIER);
     Cast<WeakArrayList>(obj)->set_capacity(0);
     Cast<WeakArrayList>(obj)->set_length(0);
@@ -560,7 +570,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   {
     int size = DescriptorArray::SizeFor(0);
     if (!AllocateRaw(size, AllocationType::kReadOnly).To(&obj)) return false;
-    obj->set_map_after_allocation(roots.descriptor_array_map(),
+    obj->set_map_after_allocation(isolate(), roots.descriptor_array_map(),
                                   SKIP_WRITE_BARRIER);
     Tagged<DescriptorArray> array = Cast<DescriptorArray>(obj);
     array->Initialize(roots.empty_enum_cache(), roots.undefined_value(), 0, 0,
@@ -649,7 +659,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       AllocationResult alloc =
           AllocateRaw(Cell::kSize, AllocationType::kReadOnly);
       if (!alloc.To(&obj)) return false;
-      obj->set_map_after_allocation(roots.cell_map(), SKIP_WRITE_BARRIER);
+      obj->set_map_after_allocation(isolate(), roots.cell_map(),
+                                    SKIP_WRITE_BARRIER);
       Cast<Cell>(obj)->set_value(value);
       set_invalid_prototype_validity_cell(Cast<Cell>(obj));
     }
@@ -918,7 +929,8 @@ bool Heap::CreateImportantReadOnlyObjects() {
              .To(&obj)) {
       return false;
     }
-    obj->set_map_after_allocation(roots.byte_array_map(), SKIP_WRITE_BARRIER);
+    obj->set_map_after_allocation(isolate(), roots.byte_array_map(),
+                                  SKIP_WRITE_BARRIER);
     Cast<ByteArray>(obj)->set_length(0);
     set_empty_byte_array(Cast<ByteArray>(obj));
   }
@@ -928,7 +940,8 @@ bool Heap::CreateImportantReadOnlyObjects() {
         AllocateRaw(ScopeInfo::SizeFor(ScopeInfo::kVariablePartIndex),
                     AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(roots.scope_info_map(), SKIP_WRITE_BARRIER);
+    obj->set_map_after_allocation(isolate(), roots.scope_info_map(),
+                                  SKIP_WRITE_BARRIER);
     int flags = ScopeInfo::IsEmptyBit::encode(true);
     DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
     DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),
@@ -948,7 +961,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
              .To(&obj)) {
       return false;
     }
-    obj->set_map_after_allocation(roots.property_array_map(),
+    obj->set_map_after_allocation(isolate(), roots.property_array_map(),
                                   SKIP_WRITE_BARRIER);
     Cast<PropertyArray>(obj)->initialize_length(0);
     set_empty_property_array(Cast<PropertyArray>(obj));
@@ -990,7 +1003,8 @@ bool Heap::CreateReadOnlyObjects() {
     AllocationResult alloc =
         AllocateRaw(ArrayList::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(roots.array_list_map(), SKIP_WRITE_BARRIER);
+    obj->set_map_after_allocation(isolate(), roots.array_list_map(),
+                                  SKIP_WRITE_BARRIER);
     // Unchecked to skip failing checks since required roots are uninitialized.
     UncheckedCast<ArrayList>(obj)->set_capacity(0);
     UncheckedCast<ArrayList>(obj)->set_length(0);
@@ -1001,7 +1015,8 @@ bool Heap::CreateReadOnlyObjects() {
     AllocationResult alloc = AllocateRaw(
         ObjectBoilerplateDescription::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(roots.object_boilerplate_description_map(),
+    obj->set_map_after_allocation(isolate(),
+                                  roots.object_boilerplate_description_map(),
                                   SKIP_WRITE_BARRIER);
 
     Cast<ObjectBoilerplateDescription>(obj)->set_capacity(0);
@@ -1033,8 +1048,8 @@ bool Heap::CreateReadOnlyObjects() {
              .To(&obj)) {
       return false;
     }
-    obj->set_map_after_allocation(roots.closure_feedback_cell_array_map(),
-                                  SKIP_WRITE_BARRIER);
+    obj->set_map_after_allocation(
+        isolate(), roots.closure_feedback_cell_array_map(), SKIP_WRITE_BARRIER);
     Cast<ClosureFeedbackCellArray>(obj)->set_length(0);
     set_empty_closure_feedback_cell_array(Cast<ClosureFeedbackCellArray>(obj));
   }
@@ -1274,7 +1289,8 @@ bool Heap::CreateReadOnlyObjects() {
     // No need to initialize the payload since it's either empty or unmapped.
     CHECK_IMPLIES(!(V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL),
                   WasmNull::kSize == sizeof(Tagged_t));
-    obj->set_map_after_allocation(roots.wasm_null_map(), SKIP_WRITE_BARRIER);
+    obj->set_map_after_allocation(isolate(), roots.wasm_null_map(),
+                                  SKIP_WRITE_BARRIER);
     set_wasm_null(Cast<WasmNull>(obj));
     if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
       CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);

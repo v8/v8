@@ -5087,6 +5087,7 @@ Handle<Object> JSPromise::TriggerPromiseReactions(
             PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks));
     if (type == PromiseReaction::kFulfill) {
       task->set_map(
+          isolate,
           ReadOnlyRoots(isolate).promise_fulfill_reaction_job_task_map(),
           kReleaseStore);
       Cast<PromiseFulfillReactionJobTask>(task)->set_argument(*argument);
@@ -5108,6 +5109,7 @@ Handle<Object> JSPromise::TriggerPromiseReactions(
     } else {
       DisallowGarbageCollection no_gc;
       task->set_map(
+          isolate,
           ReadOnlyRoots(isolate).promise_reject_reaction_job_task_map(),
           kReleaseStore);
       Cast<PromiseRejectReactionJobTask>(task)->set_argument(*argument);

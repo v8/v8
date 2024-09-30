@@ -306,7 +306,7 @@ Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
   WriteBarrierMode write_barrier_mode = allocation == AllocationType::kYoung
                                             ? SKIP_WRITE_BARRIER
                                             : UPDATE_WRITE_BARRIER;
-  result->set_map_after_allocation(*map, write_barrier_mode);
+  result->set_map_after_allocation(isolate(), *map, write_barrier_mode);
   if (!allocation_site.is_null()) {
     int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(map->instance_size());
     Tagged<AllocationMemento> alloc_memento = UncheckedCast<AllocationMemento>(
@@ -319,7 +319,7 @@ Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
 void Factory::InitializeAllocationMemento(
     Tagged<AllocationMemento> memento, Tagged<AllocationSite> allocation_site) {
   DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-  memento->set_map_after_allocation(*allocation_memento_map(),
+  memento->set_map_after_allocation(isolate(), *allocation_memento_map(),
                                     SKIP_WRITE_BARRIER);
   memento->set_allocation_site(allocation_site, SKIP_WRITE_BARRIER);
   if (v8_flags.allocation_site_pretenuring) {
@@ -338,7 +338,7 @@ Tagged<HeapObject> Factory::New(DirectHandle<Map> map,
   WriteBarrierMode write_barrier_mode = allocation == AllocationType::kYoung
                                             ? SKIP_WRITE_BARRIER
                                             : UPDATE_WRITE_BARRIER;
-  result->set_map_after_allocation(*map, write_barrier_mode);
+  result->set_map_after_allocation(isolate(), *map, write_barrier_mode);
   return result;
 }
 
@@ -408,7 +408,8 @@ Handle<PropertyArray> Factory::NewPropertyArray(int length,
   if (length == 0) return empty_property_array();
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
-  result->set_map_after_allocation(*property_array_map(), SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), *property_array_map(),
+                                   SKIP_WRITE_BARRIER);
   Tagged<PropertyArray> array = Cast<PropertyArray>(result);
   array->initialize_length(length);
   MemsetTagged(array->data_start(), read_only_roots().undefined_value(),
@@ -431,7 +432,8 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
     LargePageMetadata::FromHeapObject(result)->ProgressBar().Enable();
   }
   DisallowGarbageCollection no_gc;
-  result->set_map_after_allocation(*fixed_array_map(), SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(isolate(), *fixed_array_map(),
+                                   SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), *undefined_value(), length);
@@ -1233,7 +1235,7 @@ Tagged<Context> Factory::NewContextInternal(DirectHandle<Map> map, int size,
   Tagged<HeapObject> result =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(size,
                                                                 allocation);
-  result->set_map_after_allocation(*map);
+  result->set_map_after_allocation(isolate(), *map);
   DisallowGarbageCollection no_gc;
   Tagged<Context> context = Cast<Context>(result);
   context->set_length(variadic_part_length);
@@ -1268,7 +1270,7 @@ Handle<NativeContext> Factory::NewNativeContext() {
   // The native context does not exist yet, so create the map as contextless
   // for now.
   Handle<Map> contextful_meta_map = NewContextlessMap(MAP_TYPE, Map::kSize);
-  contextful_meta_map->set_map(*contextful_meta_map);
+  contextful_meta_map->set_map(isolate(), *contextful_meta_map);
 
   Handle<Map> context_map = NewMapWithMetaMap(
       contextful_meta_map, NATIVE_CONTEXT_TYPE, kVariableSizeSentinel);
@@ -1777,7 +1779,7 @@ Handle<WasmFuncRef> Factory::NewWasmFuncRef(
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(WASM_FUNC_REF_TYPE, rtt->instance_type());
   DCHECK_EQ(WasmFuncRef::kSize, rtt->instance_size());
-  raw->set_map_after_allocation(*rtt);
+  raw->set_map_after_allocation(isolate(), *rtt);
   Tagged<WasmFuncRef> func_ref = Cast<WasmFuncRef>(raw);
   func_ref->set_internal(*internal_function);
   return handle(func_ref, isolate());
@@ -1934,7 +1936,7 @@ Tagged<WasmArray> Factory::NewWasmArrayUninitialized(uint32_t length,
   Tagged<HeapObject> raw =
       AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
-  raw->set_map_after_allocation(*map);
+  raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmArray> result = Cast<WasmArray>(raw);
   result->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   result->set_length(length);
@@ -2059,7 +2061,7 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
                                           DirectHandle<Map> map) {
   Tagged<HeapObject> raw =
       AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
-  raw->set_map_after_allocation(*map);
+  raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmStruct> result = Cast<WasmStruct>(raw);
   result->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   for (uint32_t i = 0; i < type->field_count(); i++) {
@@ -2274,7 +2276,7 @@ Handle<Map> Factory::NewMapImpl(MetaMapProviderFunc&& meta_map_provider,
           Map::kSize, allocation_type);
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots(isolate());
-  result->set_map_after_allocation(meta_map_provider());
+  result->set_map_after_allocation(isolate(), meta_map_provider());
 
 #if V8_STATIC_ROOTS_BOOL
   CHECK_IMPLIES(InstanceTypeChecker::IsJSReceiver(type),
@@ -2561,7 +2563,7 @@ Handle<T> Factory::CopyArrayWithMap(DirectHandle<T> src, DirectHandle<Map> map,
   int len = src->length();
   Tagged<HeapObject> new_object = AllocateRawFixedArray(len, allocation);
   DisallowGarbageCollection no_gc;
-  new_object->set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
+  new_object->set_map_after_allocation(isolate(), *map, SKIP_WRITE_BARRIER);
   Tagged<T> result = Cast<T>(new_object);
   initialize_length(result, len);
   // Copy the content.
@@ -2580,7 +2582,8 @@ Handle<T> Factory::CopyArrayAndGrow(DirectHandle<T> src, int grow_by,
   // TODO(jgruber,v8:14345): Use T::Allocate instead.
   Tagged<HeapObject> new_object = AllocateRawFixedArray(new_len, allocation);
   DisallowGarbageCollection no_gc;
-  new_object->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
+  new_object->set_map_after_allocation(isolate(), src->map(),
+                                       SKIP_WRITE_BARRIER);
   Tagged<T> result = Cast<T>(new_object);
   initialize_length(result, new_len);
   // Copy the content.
@@ -2607,7 +2610,7 @@ Handle<WeakArrayList> Factory::NewUninitializedWeakArrayList(
   Tagged<HeapObject> heap_object =
       AllocateRawWeakArrayList(capacity, allocation);
   DisallowGarbageCollection no_gc;
-  heap_object->set_map_after_allocation(*weak_array_list_map(),
+  heap_object->set_map_after_allocation(isolate(), *weak_array_list_map(),
                                         SKIP_WRITE_BARRIER);
   Tagged<WeakArrayList> result = Cast<WeakArrayList>(heap_object);
   result->set_length(0);
@@ -2697,7 +2700,8 @@ Handle<FixedArray> Factory::CopyFixedArrayUpTo(DirectHandle<FixedArray> array,
   if (new_len == 0) return empty_fixed_array();
   Tagged<HeapObject> heap_object = AllocateRawFixedArray(new_len, allocation);
   DisallowGarbageCollection no_gc;
-  heap_object->set_map_after_allocation(*fixed_array_map(), SKIP_WRITE_BARRIER);
+  heap_object->set_map_after_allocation(isolate(), *fixed_array_map(),
+                                        SKIP_WRITE_BARRIER);
   Tagged<FixedArray> result = Cast<FixedArray>(heap_object);
   result->set_length(new_len);
   // Copy the content.
@@ -3012,7 +3016,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // Set up the global object as a normalized object.
   global->set_global_dictionary(*dictionary, kReleaseStore);
-  global->set_map(raw_map, kReleaseStore);
+  global->set_map(isolate(), raw_map, kReleaseStore);
 
   // Make sure result is a global object with properties in dictionary.
   DCHECK(IsJSGlobalObject(*global) && !global->HasFastProperties());
@@ -3780,7 +3784,7 @@ void Factory::ReinitializeJSGlobalProxy(DirectHandle<JSGlobalProxy> object,
 
   // Reset the map for the object.
   Tagged<JSGlobalProxy> raw = *object;
-  raw->set_map(*map, kReleaseStore);
+  raw->set_map(isolate(), *map, kReleaseStore);
 
   // Reinitialize the object from the constructor map.
   InitializeJSObjectFromMap(raw, *raw_properties_or_hash, *map,

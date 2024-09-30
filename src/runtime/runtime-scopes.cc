@@ -541,7 +541,8 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
           isolate->factory()->NewSloppyArgumentsElements(
               mapped_count, context, arguments, AllocationType::kYoung);
 
-      result->set_map(isolate->native_context()->fast_aliased_arguments_map());
+      result->set_map(isolate,
+                      isolate->native_context()->fast_aliased_arguments_map());
       result->set_elements(*parameter_map);
 
       // Loop over the actual parameters backwards.

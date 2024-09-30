@@ -345,7 +345,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                              ConfigureInstance(isolate, object, info));
   if (info->immutable_proto()) {
-    JSObject::SetImmutableProto(object);
+    JSObject::SetImmutableProto(isolate, object);
   }
   if (!is_prototype) {
     // Keep prototypes in slow-mode. Let them be lazily turned fast later on.
@@ -618,7 +618,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   DCHECK(result->has_prototype_slot());
 
   if (obj->read_only_prototype()) {
-    result->set_map(*isolate->sloppy_function_with_readonly_prototype_map());
+    result->set_map(isolate,
+                    *isolate->sloppy_function_with_readonly_prototype_map());
   }
 
   if (IsTheHole(*prototype, isolate)) {

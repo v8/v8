@@ -772,7 +772,7 @@ class ArrayConcatVisitor {
       Tagged<JSArray> raw = *array;
       raw->set_length(*length);
       raw->set_elements(*storage_fixed_array());
-      raw->set_map(*map, kReleaseStore);
+      raw->set_map(isolate_, *map, kReleaseStore);
     }
     return array;
   }

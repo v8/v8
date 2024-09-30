@@ -116,7 +116,7 @@ Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
       // A relaxed write is sufficient here, because at this point the string
       // has not yet escaped the current thread.
       DCHECK(HeapLayout::InAnySharedSpace(*flat));
-      flat->set_map_no_write_barrier(*new_map.ToHandleChecked());
+      flat->set_map_no_write_barrier(isolate, *new_map.ToHandleChecked());
       return flat;
     case StringTransitionStrategy::kAlreadyTransitioned:
       return flat;
@@ -250,9 +250,9 @@ void String::MakeThin(IsolateT* isolate, Tagged<String> internalized) {
   }
 
   if (initial_shape.IsExternal()) {
-    set_map(target_map, kReleaseStore);
+    set_map(isolate, target_map, kReleaseStore);
   } else {
-    set_map_safe_transition(target_map, kReleaseStore);
+    set_map_safe_transition(isolate, target_map, kReleaseStore);
   }
 }
 
@@ -380,7 +380,7 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
   // We are storing the new map using release store after creating a filler in
   // the NotifyObjectSizeChange call for the left-over space to avoid races with
   // the sweeper thread.
-  this->set_map(new_map, kReleaseStore);
+  this->set_map(isolate, new_map, kReleaseStore);
 
   if constexpr (is_one_byte) {
     Tagged<ExternalOneByteString> self = Cast<ExternalOneByteString>(this);
@@ -476,7 +476,7 @@ bool String::MakeExternal(Isolate* isolate,
   // We are storing the new map using release store after creating a filler in
   // the NotifyObjectSizeChange call for the left-over space to avoid races with
   // the sweeper thread.
-  this->set_map(new_map, kReleaseStore);
+  this->set_map(isolate, new_map, kReleaseStore);
 
   Tagged<ExternalTwoByteString> self = Cast<ExternalTwoByteString>(this);
   self->SetResource(isolate, resource);
@@ -569,7 +569,7 @@ bool String::MakeExternal(Isolate* isolate,
   // We are storing the new map using release store after creating a filler in
   // the NotifyObjectSizeChange call for the left-over space to avoid races with
   // the sweeper thread.
-  this->set_map(new_map, kReleaseStore);
+  this->set_map(isolate, new_map, kReleaseStore);
 
   Tagged<ExternalOneByteString> self = Cast<ExternalOneByteString>(this);
   self->SetResource(isolate, resource);

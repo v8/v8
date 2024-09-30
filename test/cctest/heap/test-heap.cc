@@ -5675,7 +5675,8 @@ AllocationResult HeapTester::AllocateByteArrayForTest(
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_after_allocation(ReadOnlyRoots(heap).byte_array_map(),
+  result->set_map_after_allocation(heap->isolate(),
+                                   ReadOnlyRoots(heap).byte_array_map(),
                                    SKIP_WRITE_BARRIER);
   Cast<ByteArray>(result)->set_length(length);
   return AllocationResult::FromObject(result);
@@ -7255,9 +7256,10 @@ TEST(GarbageCollectionWithLocalHeap) {
 TEST(Regress10698) {
   if (!v8_flags.incremental_marking) return;
   CcTest::InitializeVM();
-  Heap* heap = CcTest::i_isolate()->heap();
-  Factory* factory = CcTest::i_isolate()->factory();
-  HandleScope handle_scope(CcTest::i_isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
   // This is modeled after the manual allocation folding of heap numbers in
   // JSON parser (See commit ba7b25e).
   // Step 1. Allocate a byte array in the old space.
@@ -7272,7 +7274,7 @@ TEST(Regress10698) {
   // Step 4. Set the filler at the end of the first array.
   // It will have an impossible markbit pattern because the second markbit
   // will be taken from the second array.
-  filler->set_map_after_allocation(*factory->one_pointer_filler_map());
+  filler->set_map_after_allocation(isolate, *factory->one_pointer_filler_map());
 }
 
 class TestAllocationTracker : public HeapObjectAllocationTracker {

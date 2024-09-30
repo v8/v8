@@ -202,7 +202,8 @@ class InnerPointerResolutionTest
         DCHECK_LE(2 * kTaggedSize, object.size);
         ReadOnlyRoots roots(heap());
         Tagged<HeapObject> heap_object(HeapObject::FromAddress(object.address));
-        heap_object->set_map_after_allocation(roots.unchecked_fixed_array_map(),
+        heap_object->set_map_after_allocation(heap()->isolate(),
+                                              roots.unchecked_fixed_array_map(),
                                               SKIP_WRITE_BARRIER);
         Tagged<FixedArray> arr(Cast<FixedArray>(heap_object));
         arr->set_length((object.size - FixedArray::SizeFor(0)) / kTaggedSize);

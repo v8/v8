@@ -3616,7 +3616,7 @@ TEST(CloneFixedArrayCOW) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
+  source->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_EQ(*source, result);
@@ -3640,7 +3640,7 @@ TEST(ExtractFixedArrayCOWForceCopy) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
+  source->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
   DirectHandle<Object> result_raw = ft.Call(source).ToHandleChecked();
   Tagged<FixedArray> result(Cast<FixedArray>(*result_raw));
   CHECK_NE(*source, result);

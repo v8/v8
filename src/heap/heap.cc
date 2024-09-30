@@ -5990,7 +5990,8 @@ void Heap::WeakenDescriptorArrays(
        it != strong_descriptor_arrays.end(); ++it) {
     Tagged<DescriptorArray> array = it.raw();
     DCHECK(IsStrongDescriptorArray(array));
-    array->set_map_safe_transition_no_write_barrier(descriptor_array_map);
+    array->set_map_safe_transition_no_write_barrier(isolate(),
+                                                    descriptor_array_map);
     DCHECK_EQ(array->raw_gc_state(kRelaxedLoad), 0);
   }
 }

@@ -6987,7 +6987,7 @@ void Isolate::DetachGlobal(Handle<Context> env) {
   JSObject::ForceSetPrototype(this, global_proxy, factory()->null_value());
   // Detach the global object from the native context by making its map
   // contextless (use the global metamap instead of the contextful one).
-  global_proxy->map()->set_map(roots.meta_map());
+  global_proxy->map()->set_map(this, roots.meta_map());
   global_proxy->map()->set_constructor_or_back_pointer(roots.null_value(),
                                                        kRelaxedStore);
   if (v8_flags.track_detached_contexts) AddDetachedContext(env);

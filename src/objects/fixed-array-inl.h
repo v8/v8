@@ -378,7 +378,7 @@ Handle<D> TaggedArrayBase<D, S, P>::Allocate(
   Tagged<Map> map = Cast<Map>(roots.object_at(S::kMapRootIndex));
   DCHECK(ReadOnlyHeap::Contains(map));
 
-  xs->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  xs->set_map_after_allocation(isolate, map, SKIP_WRITE_BARRIER);
   xs->set_capacity(capacity);
 
   return handle(xs, isolate);
@@ -734,7 +734,7 @@ Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
   Tagged<Map> map = Cast<Map>(roots.object_at(S::kMapRootIndex));
   DCHECK(ReadOnlyHeap::Contains(map));
 
-  xs->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  xs->set_map_after_allocation(isolate, map, SKIP_WRITE_BARRIER);
   xs->set_length(length);
 
   return handle(xs, isolate);

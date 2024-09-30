@@ -783,7 +783,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   //       previously allocated object has a valid size (see `Allocate`).
   Tagged<HeapObject> raw_obj =
       Allocate(allocation, size_in_bytes, HeapObject::RequiredAlignment(*map));
-  raw_obj->set_map_after_allocation(*map);
+  raw_obj->set_map_after_allocation(isolate_, *map);
   MemsetTagged(raw_obj->RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
   DCHECK(raw_obj->CheckRequiredAlignment(isolate()));
@@ -860,7 +860,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
 
   Tagged<HeapObject> raw_obj =
       Allocate(SpaceToAllocation(space), size_in_bytes, kTaggedAligned);
-  raw_obj->set_map_after_allocation(UncheckedCast<Map>(raw_obj));
+  raw_obj->set_map_after_allocation(isolate_, UncheckedCast<Map>(raw_obj));
   MemsetTagged(raw_obj->RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
   DCHECK(raw_obj->CheckRequiredAlignment(isolate()));

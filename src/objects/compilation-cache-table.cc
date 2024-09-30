@@ -182,7 +182,7 @@ class EvalCacheKey : public HashTableKey {
     array->set(1, *source_);
     array->set(2, Smi::FromEnum(language_mode_));
     array->set(3, Smi::FromInt(position_));
-    array->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
+    array->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
     return array;
   }
 

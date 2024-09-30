@@ -1262,85 +1262,97 @@ Tagged<Map> HeapObjectLayout::map(AcquireLoadTag) const {
   return Tagged<HeapObject>(this)->map(kAcquireLoad);
 }
 
-void HeapObjectLayout::set_map(Tagged<Map> value) {
+void HeapObjectLayout::set_map(Isolate* isolate, Tagged<Map> value) {
   // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->set_map(value);
+  return Tagged<HeapObject>(this)->set_map(isolate, value);
 }
 
-void HeapObjectLayout::set_map(Tagged<Map> value, ReleaseStoreTag) {
+template <typename IsolateT>
+void HeapObjectLayout::set_map(IsolateT* isolate, Tagged<Map> value,
+                               ReleaseStoreTag) {
   // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->set_map(value, kReleaseStore);
+  return Tagged<HeapObject>(this)->set_map(isolate, value, kReleaseStore);
 }
 
-void HeapObjectLayout::set_map_safe_transition(Tagged<Map> value,
+template <typename IsolateT>
+void HeapObjectLayout::set_map_safe_transition(IsolateT* isolate,
+                                               Tagged<Map> value,
                                                ReleaseStoreTag) {
   // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->set_map_safe_transition(value,
+  return Tagged<HeapObject>(this)->set_map_safe_transition(isolate, value,
                                                            kReleaseStore);
 }
 
-void HeapObject::set_map(Tagged<Map> value) {
-  set_map<EmitWriteBarrier::kYes>(value, kRelaxedStore,
+void HeapObject::set_map(Isolate* isolate, Tagged<Map> value) {
+  set_map<EmitWriteBarrier::kYes>(isolate, value, kRelaxedStore,
                                   VerificationMode::kPotentialLayoutChange);
 }
 
-void HeapObject::set_map(Tagged<Map> value, ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kYes>(value, kReleaseStore,
+template <typename IsolateT>
+void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
+                         ReleaseStoreTag tag) {
+  set_map<EmitWriteBarrier::kYes>(isolate, value, kReleaseStore,
                                   VerificationMode::kPotentialLayoutChange);
 }
 
-void HeapObject::set_map_safe_transition(Tagged<Map> value) {
-  set_map<EmitWriteBarrier::kYes>(value, kRelaxedStore,
+template <typename IsolateT>
+void HeapObject::set_map_safe_transition(IsolateT* isolate, Tagged<Map> value) {
+  set_map<EmitWriteBarrier::kYes>(isolate, value, kRelaxedStore,
                                   VerificationMode::kSafeMapTransition);
 }
 
-void HeapObject::set_map_safe_transition(Tagged<Map> value,
+template <typename IsolateT>
+void HeapObject::set_map_safe_transition(IsolateT* isolate, Tagged<Map> value,
                                          ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kYes>(value, kReleaseStore,
+  set_map<EmitWriteBarrier::kYes>(isolate, value, kReleaseStore,
                                   VerificationMode::kSafeMapTransition);
 }
 
 void HeapObjectLayout::set_map_safe_transition_no_write_barrier(
-    Tagged<Map> value, RelaxedStoreTag tag) {
+    Isolate* isolate, Tagged<Map> value, RelaxedStoreTag tag) {
   // TODO(leszeks): Support MapWord members and access via that instead.
   return Tagged<HeapObject>(this)->set_map_safe_transition_no_write_barrier(
-      value, tag);
+      isolate, value, tag);
 }
 
-void HeapObject::set_map_safe_transition_no_write_barrier(Tagged<Map> value,
+void HeapObject::set_map_safe_transition_no_write_barrier(Isolate* isolate,
+                                                          Tagged<Map> value,
                                                           RelaxedStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
+  set_map<EmitWriteBarrier::kNo>(isolate, value, kRelaxedStore,
                                  VerificationMode::kSafeMapTransition);
 }
 
-void HeapObject::set_map_safe_transition_no_write_barrier(Tagged<Map> value,
+void HeapObject::set_map_safe_transition_no_write_barrier(Isolate* isolate,
+                                                          Tagged<Map> value,
                                                           ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(value, kReleaseStore,
+  set_map<EmitWriteBarrier::kNo>(isolate, value, kReleaseStore,
                                  VerificationMode::kSafeMapTransition);
 }
 
-void HeapObjectLayout::set_map_no_write_barrier(Tagged<Map> value,
+void HeapObjectLayout::set_map_no_write_barrier(Isolate* isolate,
+                                                Tagged<Map> value,
                                                 RelaxedStoreTag tag) {
   // TODO(leszeks): Support MapWord members and access via that instead.
-  Tagged<HeapObject>(this)->set_map_no_write_barrier(value, tag);
+  Tagged<HeapObject>(this)->set_map_no_write_barrier(isolate, value, tag);
 }
 
 // Unsafe accessor omitting write barrier.
-void HeapObject::set_map_no_write_barrier(Tagged<Map> value,
+void HeapObject::set_map_no_write_barrier(Isolate* isolate, Tagged<Map> value,
                                           RelaxedStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
+  set_map<EmitWriteBarrier::kNo>(isolate, value, kRelaxedStore,
                                  VerificationMode::kPotentialLayoutChange);
 }
 
-void HeapObject::set_map_no_write_barrier(Tagged<Map> value,
+void HeapObject::set_map_no_write_barrier(Isolate* isolate, Tagged<Map> value,
                                           ReleaseStoreTag tag) {
-  set_map<EmitWriteBarrier::kNo>(value, kReleaseStore,
+  set_map<EmitWriteBarrier::kNo>(isolate, value, kReleaseStore,
                                  VerificationMode::kPotentialLayoutChange);
 }
 
-template <HeapObject::EmitWriteBarrier emit_write_barrier, typename MemoryOrder>
-void HeapObject::set_map(Tagged<Map> value, MemoryOrder order,
-                         VerificationMode mode) {
+template <HeapObject::EmitWriteBarrier emit_write_barrier, typename MemoryOrder,
+          typename IsolateT>
+void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
+                         MemoryOrder order, VerificationMode mode) {
 #if V8_ENABLE_WEBASSEMBLY
   // In {WasmGraphBuilder::SetMap} and {WasmGraphBuilder::LoadMap}, we treat
   // maps as immutable. Therefore we are not allowed to mutate them here.
@@ -1352,12 +1364,13 @@ void HeapObject::set_map(Tagged<Map> value, MemoryOrder order,
   DCHECK_IMPLIES(mode != VerificationMode::kSafeMapTransition,
                  !LocalHeap::Current());
   if (v8_flags.verify_heap && !value.is_null()) {
-    Heap* heap = GetHeapFromWritableObject(*this);
     if (mode == VerificationMode::kSafeMapTransition) {
-      HeapVerifier::VerifySafeMapTransition(heap, *this, value);
+      HeapVerifier::VerifySafeMapTransition(isolate->heap()->AsHeap(), *this,
+                                            value);
     } else {
       DCHECK_EQ(mode, VerificationMode::kPotentialLayoutChange);
-      HeapVerifier::VerifyObjectLayoutChange(heap, *this, value);
+      HeapVerifier::VerifyObjectLayoutChange(isolate->heap()->AsHeap(), *this,
+                                             value);
     }
   }
   set_map_word(value, order);
@@ -1374,13 +1387,15 @@ void HeapObject::set_map(Tagged<Map> value, MemoryOrder order,
 #endif
 }
 
-void HeapObjectLayout::set_map_after_allocation(Tagged<Map> value,
+void HeapObjectLayout::set_map_after_allocation(Isolate* isolate,
+                                                Tagged<Map> value,
                                                 WriteBarrierMode mode) {
   // TODO(leszeks): Support MapWord members and access via that instead.
-  Tagged<HeapObject>(this)->set_map_after_allocation(value, mode);
+  Tagged<HeapObject>(this)->set_map_after_allocation(isolate, value, mode);
 }
 
-void HeapObject::set_map_after_allocation(Tagged<Map> value,
+template <typename IsolateT>
+void HeapObject::set_map_after_allocation(IsolateT* isolate, Tagged<Map> value,
                                           WriteBarrierMode mode) {
   set_map_word(value, kRelaxedStore);
 #ifndef V8_DISABLE_WRITE_BARRIERS
@@ -1390,9 +1405,7 @@ void HeapObject::set_map_after_allocation(Tagged<Map> value,
   } else {
     SLOW_DCHECK(
         // We allow writes of a null map before root initialisation.
-        value.is_null() ? !GetIsolateFromWritableObject(*this)
-                               ->read_only_heap()
-                               ->roots_init_complete()
+        value.is_null() ? !isolate->read_only_heap()->roots_init_complete()
                         : !WriteBarrier::IsRequired(*this, value));
   }
 #endif

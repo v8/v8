@@ -3325,6 +3325,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Swap the map, using set_map_after_allocation to avoid verify heap checks
   // which are not necessary since we are doing this during the GC atomic pause.
   compiled_data->set_map_after_allocation(
+      heap_->isolate(),
       ReadOnlyRoots(heap_).uncompiled_data_without_preparse_data_map(),
       SKIP_WRITE_BARRIER);
 
@@ -3744,7 +3745,8 @@ void MarkCompactCollector::WeakenStrongDescriptorArrays() {
     for (auto it = vec.begin(); it != vec.end(); ++it) {
       Tagged<DescriptorArray> raw = it.raw();
       DCHECK(IsStrongDescriptorArray(raw));
-      raw->set_map_safe_transition_no_write_barrier(descriptor_array_map);
+      raw->set_map_safe_transition_no_write_barrier(heap_->isolate(),
+                                                    descriptor_array_map);
       DCHECK_EQ(raw->raw_gc_state(kRelaxedLoad), 0);
     }
   }
