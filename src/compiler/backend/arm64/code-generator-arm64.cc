@@ -1883,6 +1883,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64ToFloat32:
       __ Fcvt(i.OutputDoubleRegister().S(), i.InputDoubleRegister(0));
       break;
+    case kArm64Float64ToFloat16:
+      __ Fcvt(i.OutputDoubleRegister().H(), i.InputDoubleRegister(0));
+      break;
     case kArm64Float32ToInt32: {
       __ Fcvtzs(i.OutputRegister32(), i.InputFloat32Register(0));
       bool set_overflow_to_min_i32 = MiscField::decode(instr->opcode());

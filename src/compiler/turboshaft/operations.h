@@ -1319,7 +1319,7 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(sat_conversion_is_safe, SatConversionIsSafe)   \
   V(word32_select, Word32Select)                   \
   V(word64_select, Word64Select)                   \
-  V(float64_to_float16, Float64ToFloat16)          \
+  V(float64_to_float16, TruncateFloat64ToFloat16)  \
   V(float16, Float16)
 
 class V8_EXPORT_PRIVATE SupportedOperations {

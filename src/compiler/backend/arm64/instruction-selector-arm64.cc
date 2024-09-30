@@ -3609,6 +3609,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   V(BitcastInt32ToFloat32, kArm64Float64MoveU64)              \
   V(BitcastInt64ToFloat64, kArm64Float64MoveU64)              \
   V(TruncateFloat64ToFloat32, kArm64Float64ToFloat32)         \
+  V(TruncateFloat64ToFloat16, kArm64Float64ToFloat16)         \
   V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)          \
   V(TruncateFloat64ToUint32, kArm64Float64ToUint32)           \
   V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32)   \
@@ -8517,7 +8518,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
                MachineOperatorBuilder::kLoadStorePairs;
   if (CpuFeatures::IsSupported(FP16)) {
     flags |= MachineOperatorBuilder::kFloat16 |
-             MachineOperatorBuilder::kFloat64ToFloat16;
+             MachineOperatorBuilder::kTruncateFloat64ToFloat16;
   }
   return flags;
 }

@@ -1902,6 +1902,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kRoundUint64ToFloat64:
     case IrOpcode::kRoundUint64ToFloat32:
     case IrOpcode::kTruncateFloat64ToFloat32:
+    case IrOpcode::kTruncateFloat64ToFloat16:
     case IrOpcode::kTruncateFloat64ToWord32:
     case IrOpcode::kBitcastFloat32ToInt32:
     case IrOpcode::kBitcastFloat64ToInt64:

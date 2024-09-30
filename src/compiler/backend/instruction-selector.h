@@ -896,6 +896,7 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(RoundFloat64ToInt32)
   DECLARE_GENERATOR_T(TruncateFloat64ToWord32)
   DECLARE_GENERATOR_T(TruncateFloat64ToFloat32)
+  DECLARE_GENERATOR_T(TruncateFloat64ToFloat16)
   DECLARE_GENERATOR_T(TruncateFloat32ToInt32)
   DECLARE_GENERATOR_T(TruncateFloat32ToUint32)
   DECLARE_GENERATOR_T(ChangeFloat64ToInt32)

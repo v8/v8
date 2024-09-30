@@ -2368,6 +2368,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
+    case kSSEFloat64ToFloat16: {
+      __ Cvtpd2ph(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                  i.TempRegister(0));
+      break;
+    }
     case kSSEFloat64ToFloat32:
       ASSEMBLE_SSE_UNOP(Cvtsd2ss);
       break;

@@ -899,7 +899,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Word32Select, Operator::kNoProperties, 3, 0, 1)         \
   V(Word64Select, Operator::kNoProperties, 3, 0, 1)         \
   V(Float32Select, Operator::kNoProperties, 3, 0, 1)        \
-  V(Float64Select, Operator::kNoProperties, 3, 0, 1)
+  V(Float64Select, Operator::kNoProperties, 3, 0, 1)        \
+  V(TruncateFloat64ToFloat16, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
