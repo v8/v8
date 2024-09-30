@@ -2091,24 +2091,26 @@ Handle<WasmContinuationObject> Factory::NewWasmContinuationObject(
 
 Handle<SharedFunctionInfo>
 Factory::NewSharedFunctionInfoForWasmExportedFunction(
-    DirectHandle<String> name, DirectHandle<WasmExportedFunctionData> data) {
-  return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId);
+    DirectHandle<String> name, DirectHandle<WasmExportedFunctionData> data,
+    int len, AdaptArguments adapt) {
+  return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId, len, adapt);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmJSFunction(
     DirectHandle<String> name, DirectHandle<WasmJSFunctionData> data) {
-  return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId);
+  return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId, 0,
+                               kDontAdapt);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmResume(
     DirectHandle<WasmResumeData> data) {
-  return NewSharedFunctionInfo({}, data, Builtin::kNoBuiltinId);
+  return NewSharedFunctionInfo({}, data, Builtin::kNoBuiltinId, 0, kDontAdapt);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmCapiFunction(
     DirectHandle<WasmCapiFunctionData> data) {
   return NewSharedFunctionInfo(MaybeHandle<String>(), data,
-                               Builtin::kNoBuiltinId,
+                               Builtin::kNoBuiltinId, 0, kDontAdapt,
                                FunctionKind::kConciseMethod);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3835,14 +3837,16 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
     MaybeDirectHandle<String> maybe_name,
     DirectHandle<FunctionTemplateInfo> function_template_info,
     FunctionKind kind) {
-  return NewSharedFunctionInfo(maybe_name, function_template_info,
-                               Builtin::kNoBuiltinId, kind);
+  return NewSharedFunctionInfo(
+      maybe_name, function_template_info, Builtin::kNoBuiltinId,
+      function_template_info->length(), kDontAdapt, kind);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
-    MaybeDirectHandle<String> maybe_name, Builtin builtin, FunctionKind kind) {
+    MaybeDirectHandle<String> maybe_name, Builtin builtin, int len,
+    AdaptArguments adapt, FunctionKind kind) {
   return NewSharedFunctionInfo(maybe_name, MaybeHandle<HeapObject>(), builtin,
-                               kind);
+                               len, adapt, kind);
 }
 
 Handle<InterpreterData> Factory::NewInterpreterData(
@@ -4481,7 +4485,7 @@ AllocationType Factory::AllocationTypeForInPlaceInternalizableString() {
 
 Handle<JSFunction> Factory::NewFunctionForTesting(DirectHandle<String> name) {
   Handle<SharedFunctionInfo> info =
-      NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal);
+      NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal, 0, kDontAdapt);
   info->set_language_mode(LanguageMode::kSloppy);
   return JSFunctionBuilder{isolate(), info, isolate()->native_context()}
       .Build();

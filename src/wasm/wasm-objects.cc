@@ -2656,10 +2656,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
 
   Handle<NativeContext> context(isolate->native_context());
   Handle<SharedFunctionInfo> shared =
-      factory->NewSharedFunctionInfoForWasmExportedFunction(name,
-                                                            function_data);
-  shared->set_length(arity);
-  shared->set_internal_formal_parameter_count(JSParameterCount(arity));
+      factory->NewSharedFunctionInfoForWasmExportedFunction(name, function_data,
+                                                            arity, kAdapt);
 
   Handle<JSFunction> js_function =
       Factory::JSFunctionBuilder{isolate, shared, context}

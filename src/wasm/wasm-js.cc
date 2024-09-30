@@ -3184,7 +3184,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     Handle<String> WebAssembly_string = v8_str(isolate, "WebAssembly");
     // Not supposed to be called, hence using the kIllegal builtin as code.
     Handle<SharedFunctionInfo> sfi = f->NewSharedFunctionInfoForBuiltin(
-        WebAssembly_string, Builtin::kIllegal);
+        WebAssembly_string, Builtin::kIllegal, 0, kDontAdapt);
     sfi->set_language_mode(LanguageMode::kStrict);
 
     Handle<JSFunction> ctor =
@@ -3608,7 +3608,8 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
 
   InstallFunc(isolate, function_proto, type_string, WebAssemblyFunctionType, 0);
   SimpleInstallFunction(isolate, function_proto, "bind",
-                        Builtin::kWebAssemblyFunctionPrototypeBind, 1, false);
+                        Builtin::kWebAssemblyFunctionPrototypeBind, 1,
+                        kDontAdapt);
   // Make all exported functions an instance of {WebAssembly.Function}.
   context->set_wasm_exported_function_map(*function_map);
   return true;

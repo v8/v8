@@ -70,9 +70,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
     FunctionKind kind = FunctionKind::kNormalFunction) {
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), builtin, kind);
-  shared->set_internal_formal_parameter_count(JSParameterCount(len));
-  shared->set_length(len);
+          isolate->factory()->empty_string(), builtin, len, kAdapt, kind);
   return shared;
 }
 

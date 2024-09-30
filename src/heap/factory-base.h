@@ -410,6 +410,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeDirectHandle<String> maybe_name,
       MaybeDirectHandle<HeapObject> maybe_function_data, Builtin builtin,
+      int len, AdaptArguments adapt,
       FunctionKind kind = FunctionKind::kNormalFunction);
 
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);

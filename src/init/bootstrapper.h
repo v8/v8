@@ -132,7 +132,7 @@ class BootstrapperActive final {
 
 V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
     Isolate* isolate, Handle<JSObject> base, const char* name, Builtin call,
-    int len, bool adapt, PropertyAttributes attrs = DONT_ENUM);
+    int len, AdaptArguments adapt, PropertyAttributes attrs = DONT_ENUM);
 
 }  // namespace internal
 }  // namespace v8

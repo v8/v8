@@ -441,8 +441,9 @@ template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, DirectHandle<Script> script, bool is_toplevel) {
   FunctionKind kind = literal->kind();
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      literal->GetName(isolate()), {}, Builtin::kCompileLazy, kind);
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(literal->GetName(isolate()), {},
+                            Builtin::kCompileLazy, 0, kDontAdapt, kind);
   shared->set_function_literal_id(literal->function_literal_id());
   literal->set_shared_function_info(shared);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), literal, is_toplevel);
@@ -537,8 +538,8 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     MaybeDirectHandle<String> maybe_name,
-    MaybeDirectHandle<HeapObject> maybe_function_data, Builtin builtin,
-    FunctionKind kind) {
+    MaybeDirectHandle<HeapObject> maybe_function_data, Builtin builtin, int len,
+    AdaptArguments adapt, FunctionKind kind) {
   Handle<SharedFunctionInfo> shared =
       NewSharedFunctionInfo(AllocationType::kOld);
   DisallowGarbageCollection no_gc;
@@ -575,6 +576,16 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
 
   raw->CalculateConstructAsBuiltin();
   raw->set_kind(kind);
+
+  switch (adapt) {
+    case AdaptArguments::kYes:
+      raw->set_formal_parameter_count(JSParameterCount(len));
+      break;
+    case AdaptArguments::kNo:
+      raw->DontAdaptArguments();
+      break;
+  }
+  raw->set_length(len);
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) raw->SharedFunctionInfoVerify(isolate());

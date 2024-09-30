@@ -1780,10 +1780,8 @@ Handle<JSFunction> CreateFunctionForCompileTimeImport(Isolate* isolate,
   Handle<NativeContext> context(isolate->native_context());
   Handle<Map> map = isolate->strict_function_without_prototype_map();
   Handle<String> name_str = factory->InternalizeUtf8String(name);
-  Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name_str, builtin);
-  info->set_internal_formal_parameter_count(JSParameterCount(length));
-  info->set_length(length);
+  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
+      name_str, builtin, length, kAdapt);
   info->set_native(true);
   info->set_language_mode(LanguageMode::kStrict);
   Handle<JSFunction> fun =

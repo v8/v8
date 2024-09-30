@@ -222,10 +222,7 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
 
   Handle<SharedFunctionInfo> info =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), builtin,
-          FunctionKind::kNormalFunction);
-  info->set_internal_formal_parameter_count(JSParameterCount(len));
-  info->set_length(len);
+          isolate->factory()->empty_string(), builtin, len, kAdapt);
 
   return Factory::JSFunctionBuilder{isolate, info, context}
       .set_map(isolate->strict_function_without_prototype_map())

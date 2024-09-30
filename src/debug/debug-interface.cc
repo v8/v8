@@ -1087,15 +1087,13 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
   i::Handle<i::String> name = isolate->factory()->empty_string();
   i::Handle<i::NativeContext> context(isolate->native_context());
   i::Handle<i::SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, builtin);
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin, 0, i::kAdapt);
   info->set_language_mode(i::LanguageMode::kStrict);
   i::Handle<i::JSFunction> fun =
       i::Factory::JSFunctionBuilder{isolate, info, context}
           .set_map(isolate->strict_function_without_prototype_map())
           .Build();
 
-  fun->shared()->set_internal_formal_parameter_count(i::JSParameterCount(0));
-  fun->shared()->set_length(0);
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
 }
 
