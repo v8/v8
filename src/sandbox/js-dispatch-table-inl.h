@@ -68,6 +68,7 @@ void JSDispatchTable::SetCode(JSDispatchHandle handle, Tagged<Code> new_code) {
   DCHECK(!HeapLayout::InYoungGeneration(new_code));
 
   uint32_t index = HandleToIndex(handle);
+  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
   Address new_entrypoint = new_code->instruction_start();
   CFIMetadataWriteScope write_scope("JSDispatchTable update");
   at(index).SetCodeAndEntrypointPointer(new_code.ptr(), new_entrypoint);
