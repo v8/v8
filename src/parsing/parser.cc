@@ -307,52 +307,19 @@ bool Parser::ShortcutLiteralBinaryExpression(Expression** x, Expression* y,
     // Only consider string concatenation of two strings.
     // TODO(leszeks): We could also eagerly convert other literals to string if
     // one side of the addition is a string.
-    if ((*x)->IsStringLiteral() && y->IsStringLiteral()) {
-      const AstRawString* x_val = (*x)->AsLiteral()->AsRawString();
-      const AstRawString* y_val = y->AsLiteral()->AsRawString();
-
-      int new_length = x_val->length() + y_val->length();
-      // Copy the strings into a new AstRawString.
-      // TODO(leszeks): We could avoid the string copy here by using an
-      // AstConsString, but then we'd need to make StringLiteral be able to hold
-      // different kinds of AstString, and we'd need to figure out if we want to
-      // later internalize the concatenated string (right now AstRawStrings are
-      // internalized but AstConsString is not).
-      const AstRawString* new_val;
-      if (x_val->is_one_byte() && y_val->is_one_byte()) {
-        // TODO(leszeks): The data will be copied again by the AstValueFactory.
-        // We could avoid the multiple copies by using a stack vector here, or
-        // by making GetOneByteString do the string concatenation as part of its
-        // string table lookup.
-        base::Vector<uint8_t> new_data =
-            zone()->AllocateVector<uint8_t>(new_length);
-        CopyChars(new_data.data(), x_val->raw_data(), x_val->length());
-        CopyChars(new_data.data() + x_val->length(), y_val->raw_data(),
-                  y_val->length());
-        new_val = ast_value_factory()->GetOneByteString(new_data);
-      } else {
-        base::Vector<uint16_t> new_data =
-            zone()->AllocateVector<uint16_t>(new_length);
-        if (x_val->is_one_byte()) {
-          CopyChars(new_data.data(), x_val->raw_data(), x_val->length());
-        } else {
-          CopyChars(new_data.data(),
-                    reinterpret_cast<const uint16_t*>(x_val->raw_data()),
-                    x_val->length());
-        }
-        if (y_val->is_one_byte()) {
-          CopyChars(new_data.data() + x_val->length(), y_val->raw_data(),
-                    y_val->length());
-        } else {
-          CopyChars(new_data.data() + x_val->length(),
-                    reinterpret_cast<const uint16_t*>(y_val->raw_data()),
-                    y_val->length());
-        }
-        new_val = ast_value_factory()->GetTwoByteString(new_data);
+    if (y->IsStringLiteral()) {
+      if ((*x)->IsStringLiteral()) {
+        const AstRawString* x_val = (*x)->AsLiteral()->AsRawString();
+        const AstRawString* y_val = y->AsLiteral()->AsRawString();
+        AstConsString* cons = ast_value_factory()->NewConsString(x_val, y_val);
+        *x = factory()->NewConsStringLiteral(cons, (*x)->position());
+        return true;
       }
-
-      *x = factory()->NewStringLiteral(new_val, (*x)->position());
-      return true;
+      if ((*x)->IsConsStringLiteral()) {
+        const AstRawString* y_val = y->AsLiteral()->AsRawString();
+        (*x)->AsLiteral()->AsConsString()->AddString(zone(), y_val);
+        return true;
+      }
     }
   }
   return false;

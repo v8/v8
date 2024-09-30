@@ -3872,6 +3872,9 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
       builder()->LoadLiteral(expr->AsRawString());
       execution_result()->SetResultIsInternalizedString();
       break;
+    case Literal::kConsString:
+      builder()->LoadLiteral(expr->AsConsString());
+      break;
     case Literal::kBigInt:
       builder()->LoadLiteral(expr->AsBigInt());
       break;

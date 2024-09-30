@@ -90,6 +90,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadLiteral(Tagged<Smi> value);
   BytecodeArrayBuilder& LoadLiteral(double value);
   BytecodeArrayBuilder& LoadLiteral(const AstRawString* raw_string);
+  BytecodeArrayBuilder& LoadLiteral(const AstConsString* cons_string);
   BytecodeArrayBuilder& LoadLiteral(const Scope* scope);
   BytecodeArrayBuilder& LoadLiteral(AstBigInt bigint);
   BytecodeArrayBuilder& LoadUndefined();
@@ -512,6 +513,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Gets a constant pool entry.
   size_t GetConstantPoolEntry(const AstRawString* raw_string);
+  size_t GetConstantPoolEntry(const AstConsString* cons_string);
   size_t GetConstantPoolEntry(AstBigInt bigint);
   size_t GetConstantPoolEntry(const Scope* scope);
   size_t GetConstantPoolEntry(double number);

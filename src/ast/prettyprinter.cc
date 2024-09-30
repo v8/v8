@@ -696,6 +696,9 @@ void AstPrinter::PrintLiteral(Literal* literal, bool quote) {
     case Literal::kString:
       PrintLiteral(literal->AsRawString(), quote);
       break;
+    case Literal::kConsString:
+      PrintLiteral(literal->AsConsString(), quote);
+      break;
     case Literal::kSmi:
       Print("%d", Smi::ToInt(literal->AsSmiLiteral()));
       break;

@@ -181,6 +181,8 @@ class AstConsString final : public ZoneObject {
 
   std::forward_list<const AstRawString*> ToRawStrings() const;
 
+  const AstRawString* last() const { return segment_.string; }
+
  private:
   friend class AstValueFactory;
   friend Zone;

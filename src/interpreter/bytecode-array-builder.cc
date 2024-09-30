@@ -659,6 +659,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
+    const AstConsString* cons_string) {
+  size_t entry = GetConstantPoolEntry(cons_string);
+  OutputLdaConstant(entry);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(const Scope* scope) {
   size_t entry = GetConstantPoolEntry(scope);
   OutputLdaConstant(entry);
@@ -1598,6 +1605,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(
     const AstRawString* raw_string) {
   return constant_array_builder()->Insert(raw_string);
+}
+
+size_t BytecodeArrayBuilder::GetConstantPoolEntry(
+    const AstConsString* cons_string) {
+  return constant_array_builder()->Insert(cons_string);
 }
 
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(AstBigInt bigint) {

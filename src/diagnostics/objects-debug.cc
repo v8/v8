@@ -411,16 +411,12 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
     CHECK(o == Smi::zero() || IsTrustedByteArray(o));
   }
 
-  for (int i = 0; i < constant_pool()->length(); ++i) {
-    // No ThinStrings in the constant pool.
-    CHECK(!IsThinString(constant_pool()->get(i), isolate));
-  }
-
   // TODO(oth): Walk bytecodes and immediate values to validate sanity.
   // - All bytecodes are known and well formed.
   // - Jumps must go to new instructions starts.
   // - No Illegal bytecodes.
   // - No consecutive sequences of prefix Wide / ExtraWide.
+  // - String constants for loads should be internalized strings.
 }
 
 void BytecodeWrapper::BytecodeWrapperVerify(Isolate* isolate) {

@@ -239,6 +239,9 @@ class Expression : public AstNode {
   // True iff the expression is a string literal.
   bool IsStringLiteral() const;
 
+  // True iff the expression is a cons string literal.
+  bool IsConsStringLiteral() const;
+
   // True iff the expression is the null literal.
   bool IsNullLiteral() const;
 
@@ -943,6 +946,7 @@ class Literal final : public Expression {
     kHeapNumber,
     kBigInt,
     kString,
+    kConsString,
     kBoolean,
     kUndefined,
     kNull,
@@ -996,10 +1000,16 @@ class Literal final : public Expression {
     return bigint_;
   }
 
-  bool IsString() const { return type() == kString; }
+  bool IsRawString() const { return type() == kString; }
   const AstRawString* AsRawString() {
     DCHECK_EQ(type(), kString);
     return string_;
+  }
+
+  bool IsConsString() const { return type() == kConsString; }
+  AstConsString* AsConsString() {
+    DCHECK_EQ(type(), kConsString);
+    return cons_string_;
   }
 
   V8_EXPORT_PRIVATE bool ToBooleanIsTrue() const;
@@ -1021,7 +1031,7 @@ class Literal final : public Expression {
   friend class AstNodeFactory;
   friend Zone;
 
-  using TypeField = Expression::NextBitField<Type, 3>;
+  using TypeField = Expression::NextBitField<Type, 4>;
 
   Literal(int smi, int position) : Expression(position, kLiteral), smi_(smi) {
     bit_field_ = TypeField::update(bit_field_, kSmi);
@@ -1042,6 +1052,11 @@ class Literal final : public Expression {
     bit_field_ = TypeField::update(bit_field_, kString);
   }
 
+  Literal(AstConsString* string, int position)
+      : Expression(position, kLiteral), cons_string_(string) {
+    bit_field_ = TypeField::update(bit_field_, kConsString);
+  }
+
   Literal(bool boolean, int position)
       : Expression(position, kLiteral), boolean_(boolean) {
     bit_field_ = TypeField::update(bit_field_, kBoolean);
@@ -1054,6 +1069,7 @@ class Literal final : public Expression {
 
   union {
     const AstRawString* string_;
+    AstConsString* cons_string_;
     int smi_;
     double number_;
     AstBigInt bigint_;
@@ -3197,6 +3213,11 @@ class AstNodeFactory final {
   }
 
   Literal* NewStringLiteral(const AstRawString* string, int pos) {
+    DCHECK_NOT_NULL(string);
+    return zone_->New<Literal>(string, pos);
+  }
+
+  Literal* NewConsStringLiteral(AstConsString* string, int pos) {
     DCHECK_NOT_NULL(string);
     return zone_->New<Literal>(string, pos);
   }
