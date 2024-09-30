@@ -3496,9 +3496,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/graph-assembler.h",
     "src/compiler/graph-reducer.h",
     "src/compiler/graph-trimmer.h",
-    "src/compiler/graph-visualizer.h",
     "src/compiler/graph-zone-traits.h",
-    "src/compiler/graph.h",
     "src/compiler/heap-refs.h",
     "src/compiler/js-call-reducer.h",
     "src/compiler/js-context-specialization.h",
@@ -3563,6 +3561,10 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/simplified-operator.h",
     "src/compiler/state-values-utils.h",
     "src/compiler/string-builder-optimizer.h",
+    "src/compiler/turbofan-graph-visualizer.h",
+    "src/compiler/turbofan-graph.h",
+    "src/compiler/turbofan-typer.h",
+    "src/compiler/turbofan-types.h",
     "src/compiler/turbofan.h",
     "src/compiler/turboshaft/access-builder.h",
     "src/compiler/turboshaft/analyzer-iterator.h",
@@ -3655,8 +3657,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/type-cache.h",
     "src/compiler/type-narrowing-reducer.h",
     "src/compiler/typed-optimization.h",
-    "src/compiler/typer.h",
-    "src/compiler/types.h",
     "src/compiler/use-info.h",
     "src/compiler/value-numbering-reducer.h",
     "src/compiler/verifier.h",
@@ -5014,8 +5014,6 @@ v8_compiler_sources = [
   "src/compiler/graph-assembler.cc",
   "src/compiler/graph-reducer.cc",
   "src/compiler/graph-trimmer.cc",
-  "src/compiler/graph-visualizer.cc",
-  "src/compiler/graph.cc",
   "src/compiler/heap-refs.cc",
   "src/compiler/js-call-reducer.cc",
   "src/compiler/js-context-specialization.cc",
@@ -5073,15 +5071,72 @@ v8_compiler_sources = [
   "src/compiler/state-values-utils.cc",
   "src/compiler/string-builder-optimizer.cc",
   "src/compiler/turbofan-enabled.cc",
+  "src/compiler/turbofan-graph-visualizer.cc",
+  "src/compiler/turbofan-graph.cc",
+  "src/compiler/turbofan-typer.cc",
+  "src/compiler/turbofan-types.cc",
+  "src/compiler/turboshaft/analyzer-iterator.cc",
+  "src/compiler/turboshaft/assembler.cc",
+  "src/compiler/turboshaft/block-instrumentation-phase.cc",
+  "src/compiler/turboshaft/block-instrumentation-reducer.cc",
+  "src/compiler/turboshaft/build-graph-phase.cc",
+  "src/compiler/turboshaft/code-elimination-and-simplification-phase.cc",
+  "src/compiler/turboshaft/copying-phase.cc",
+  "src/compiler/turboshaft/csa-optimize-phase.cc",
+  "src/compiler/turboshaft/debug-feature-lowering-phase.cc",
+  "src/compiler/turboshaft/decompression-optimization-phase.cc",
+  "src/compiler/turboshaft/decompression-optimization.cc",
+  "src/compiler/turboshaft/graph-builder.cc",
+  "src/compiler/turboshaft/graph-visualizer.cc",
+  "src/compiler/turboshaft/graph.cc",
+  "src/compiler/turboshaft/instruction-selection-phase.cc",
+  "src/compiler/turboshaft/late-escape-analysis-reducer.cc",
+  "src/compiler/turboshaft/late-load-elimination-reducer.cc",
+  "src/compiler/turboshaft/loop-finder.cc",
+  "src/compiler/turboshaft/loop-peeling-phase.cc",
+  "src/compiler/turboshaft/loop-unrolling-phase.cc",
+  "src/compiler/turboshaft/loop-unrolling-reducer.cc",
+  "src/compiler/turboshaft/machine-lowering-phase.cc",
+  "src/compiler/turboshaft/maglev-graph-building-phase.cc",
+  "src/compiler/turboshaft/memory-optimization-reducer.cc",
+  "src/compiler/turboshaft/operations.cc",
+  "src/compiler/turboshaft/optimize-phase.cc",
+  "src/compiler/turboshaft/phase.cc",
+  "src/compiler/turboshaft/pipelines.cc",
+  "src/compiler/turboshaft/pretenuring-propagation-reducer.cc",
+  "src/compiler/turboshaft/recreate-schedule-phase.cc",
+  "src/compiler/turboshaft/recreate-schedule.cc",
+  "src/compiler/turboshaft/representations.cc",
+  "src/compiler/turboshaft/sidetable.cc",
+  "src/compiler/turboshaft/simplify-tf-loops.cc",
+  "src/compiler/turboshaft/store-store-elimination-phase.cc",
+  "src/compiler/turboshaft/type-assertions-phase.cc",
+  "src/compiler/turboshaft/type-parser.cc",
+  "src/compiler/turboshaft/typed-optimizations-phase.cc",
+  "src/compiler/turboshaft/typer.cc",
+  "src/compiler/turboshaft/types.cc",
+  "src/compiler/turboshaft/use-map.cc",
+  "src/compiler/turboshaft/utils.cc",
   "src/compiler/type-cache.cc",
   "src/compiler/type-narrowing-reducer.cc",
   "src/compiler/typed-optimization.cc",
-  "src/compiler/typer.cc",
-  "src/compiler/types.cc",
   "src/compiler/value-numbering-reducer.cc",
   "src/compiler/verifier.cc",
   "src/compiler/zone-stats.cc",
 ]
+
+if (!v8_enable_maglev) {
+  # When Maglev is not enabled, Turboshaft still needs Maglev's graph builder.
+  v8_compiler_sources += [
+    "src/maglev/maglev-compilation-info.cc",
+    "src/maglev/maglev-compilation-unit.cc",
+    "src/maglev/maglev-graph-builder.cc",
+    "src/maglev/maglev-graph-printer.cc",
+    "src/maglev/maglev-interpreter-frame-state.cc",
+    "src/maglev/maglev-ir.cc",
+    "src/maglev/maglev-phi-representation-selector.cc",
+  ]
+}
 
 if (v8_current_cpu == "x86") {
   v8_compiler_sources += [
@@ -5248,85 +5303,6 @@ v8_source_set("v8_compiler") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_abseil",
-    ":v8_internal_headers",
-    ":v8_maybe_icu",
-    ":v8_tracing",
-  ]
-
-  deps = [
-    ":v8_base_without_compiler",
-    ":v8_libbase",
-    ":v8_shared_internal_headers",
-  ]
-
-  configs = [ ":internal_config" ]
-}
-
-# The src/compiler files with default optimization behavior.
-v8_source_set("v8_turboshaft") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  sources = [
-    "src/compiler/turboshaft/analyzer-iterator.cc",
-    "src/compiler/turboshaft/assembler.cc",
-    "src/compiler/turboshaft/block-instrumentation-phase.cc",
-    "src/compiler/turboshaft/block-instrumentation-reducer.cc",
-    "src/compiler/turboshaft/build-graph-phase.cc",
-    "src/compiler/turboshaft/code-elimination-and-simplification-phase.cc",
-    "src/compiler/turboshaft/copying-phase.cc",
-    "src/compiler/turboshaft/csa-optimize-phase.cc",
-    "src/compiler/turboshaft/debug-feature-lowering-phase.cc",
-    "src/compiler/turboshaft/decompression-optimization-phase.cc",
-    "src/compiler/turboshaft/decompression-optimization.cc",
-    "src/compiler/turboshaft/graph-builder.cc",
-    "src/compiler/turboshaft/graph-visualizer.cc",
-    "src/compiler/turboshaft/graph.cc",
-    "src/compiler/turboshaft/instruction-selection-phase.cc",
-    "src/compiler/turboshaft/late-escape-analysis-reducer.cc",
-    "src/compiler/turboshaft/late-load-elimination-reducer.cc",
-    "src/compiler/turboshaft/loop-finder.cc",
-    "src/compiler/turboshaft/loop-peeling-phase.cc",
-    "src/compiler/turboshaft/loop-unrolling-phase.cc",
-    "src/compiler/turboshaft/loop-unrolling-reducer.cc",
-    "src/compiler/turboshaft/machine-lowering-phase.cc",
-    "src/compiler/turboshaft/maglev-graph-building-phase.cc",
-    "src/compiler/turboshaft/memory-optimization-reducer.cc",
-    "src/compiler/turboshaft/operations.cc",
-    "src/compiler/turboshaft/optimize-phase.cc",
-    "src/compiler/turboshaft/phase.cc",
-    "src/compiler/turboshaft/pipelines.cc",
-    "src/compiler/turboshaft/pretenuring-propagation-reducer.cc",
-    "src/compiler/turboshaft/recreate-schedule-phase.cc",
-    "src/compiler/turboshaft/recreate-schedule.cc",
-    "src/compiler/turboshaft/representations.cc",
-    "src/compiler/turboshaft/sidetable.cc",
-    "src/compiler/turboshaft/simplify-tf-loops.cc",
-    "src/compiler/turboshaft/store-store-elimination-phase.cc",
-    "src/compiler/turboshaft/type-assertions-phase.cc",
-    "src/compiler/turboshaft/type-parser.cc",
-    "src/compiler/turboshaft/typed-optimizations-phase.cc",
-    "src/compiler/turboshaft/typer.cc",
-    "src/compiler/turboshaft/types.cc",
-    "src/compiler/turboshaft/use-map.cc",
-    "src/compiler/turboshaft/utils.cc",
-  ]
-
-  if (!v8_enable_maglev) {
-    # When Maglev is not enabled, Turboshaft still needs Maglev's graph builder.
-    sources += [
-      "src/maglev/maglev-compilation-info.cc",
-      "src/maglev/maglev-compilation-unit.cc",
-      "src/maglev/maglev-graph-builder.cc",
-      "src/maglev/maglev-graph-printer.cc",
-      "src/maglev/maglev-interpreter-frame-state.cc",
-      "src/maglev/maglev-ir.cc",
-      "src/maglev/maglev-phi-representation-selector.cc",
-    ]
-  }
-
-  public_deps = [
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
     ":v8_internal_headers",
     ":v8_maybe_icu",
     ":v8_tracing",
@@ -6374,10 +6350,6 @@ group("v8_base") {
     ":v8_base_without_compiler",
     ":v8_compiler",
   ]
-
-  if (v8_enable_turbofan) {
-    public_deps += [ ":v8_turboshaft" ]
-  }
 }
 
 v8_source_set("torque_base") {
@@ -7364,7 +7336,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_maybe_icu",
       ":v8_shared_internal_headers",
       ":v8_tracing",
-      ":v8_turboshaft",
       "//build/win:default_exe_manifest",
     ]
   }

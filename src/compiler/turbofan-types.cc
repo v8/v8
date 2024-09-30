@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/types.h"
+#include "src/compiler/turbofan-types.h"
 
 #include <iomanip>
 
@@ -697,8 +697,8 @@ bool UnionType::Wellformed() const {
   // 5. No element (except the bitset) is a subtype of any other.
   // 6. If there is a range, then the bitset type does not contain
   //    plain number bits.
-  DCHECK_LE(2, this->Length());      // (1)
-  DCHECK(this->Get(0).IsBitset());   // (2a)
+  DCHECK_LE(2, this->Length());     // (1)
+  DCHECK(this->Get(0).IsBitset());  // (2a)
 
   for (int i = 0; i < this->Length(); ++i) {
     if (i != 0) DCHECK(!this->Get(i).IsBitset());  // (2b)

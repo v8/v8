@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_GRAPH_H_
-#define V8_COMPILER_GRAPH_H_
+#ifndef V8_COMPILER_TURBOFAN_GRAPH_H_
+#define V8_COMPILER_TURBOFAN_GRAPH_H_
 
 #include <array>
 
@@ -19,7 +19,6 @@ namespace compiler {
 class GraphDecorator;
 class Node;
 class Operator;
-
 
 // Marks are used during traversal of the graph to distinguish states of nodes.
 // Each node has a mark which is a monotonically increasing integer, and a
@@ -116,7 +115,6 @@ class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
   ZoneVector<Node*> simd_stores_;
 };
 
-
 // A graph decorator can be used to add behavior to the creation of nodes
 // in a graph.
 class GraphDecorator : public ZoneObject {
@@ -129,4 +127,4 @@ class GraphDecorator : public ZoneObject {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_GRAPH_H_
+#endif  // V8_COMPILER_TURBOFAN_GRAPH_H_

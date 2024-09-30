@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/types.h"
-
 #include <vector>
 
 #include "src/base/strings.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/objects.h"

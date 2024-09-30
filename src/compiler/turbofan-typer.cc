@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/typer.h"
+#include "src/compiler/turbofan-typer.h"
 
 #include <iomanip>
 
@@ -51,10 +51,7 @@ Typer::Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
   graph_->AddDecorator(decorator_);
 }
 
-Typer::~Typer() {
-  graph_->RemoveDecorator(decorator_);
-}
-
+Typer::~Typer() { graph_->RemoveDecorator(decorator_); }
 
 class Typer::Visitor : public Reducer {
  public:
@@ -509,7 +506,6 @@ void Typer::Decorator::Decorate(Node* node) {
   }
 }
 
-
 // -----------------------------------------------------------------------------
 
 // Helper functions that lift a function f on types to a function on bounds,
@@ -635,7 +631,6 @@ Type Typer::Visitor::ToBoolean(Type type, Typer* t) {
   return t->operation_typer()->ToBoolean(type);
 }
 
-
 // static
 Type Typer::Visitor::ToInteger(Type type, Typer* t) {
   // ES6 section 7.1.4 ToInteger ( argument )
@@ -647,7 +642,6 @@ Type Typer::Visitor::ToInteger(Type type, Typer* t) {
   }
   return t->cache_->kInteger;
 }
-
 
 // static
 Type Typer::Visitor::ToLength(Type type, Typer* t) {
@@ -667,7 +661,6 @@ Type Typer::Visitor::ToLength(Type type, Typer* t) {
   return Type::Range(min, max, t->zone());
 }
 
-
 // static
 Type Typer::Visitor::ToName(Type type, Typer* t) {
   // ES6 section 7.1.14 ToPropertyKey ( argument )
@@ -676,7 +669,6 @@ Type Typer::Visitor::ToName(Type type, Typer* t) {
   if (type.Maybe(Type::Symbol())) return Type::Name();
   return ToString(type, t);
 }
-
 
 // static
 Type Typer::Visitor::ToNumber(Type type, Typer* t) {
@@ -713,7 +705,6 @@ Type Typer::Visitor::ToObject(Type type, Typer* t) {
   }
   return Type::Receiver();
 }
-
 
 // static
 Type Typer::Visitor::ToString(Type type, Typer* t) {
@@ -839,9 +830,7 @@ Type Typer::Visitor::ObjectIsUndetectable(Type type, Typer* t) {
   return Type::Boolean();
 }
 
-
 // -----------------------------------------------------------------------------
-
 
 // Control operators.
 
@@ -1363,7 +1352,6 @@ Type Typer::Visitor::JSShiftRightLogicalTyper(Type lhs, Type rhs, Typer* t) {
   return NumberShiftRightLogical(ToNumber(lhs, t), ToNumber(rhs, t), t);
 }
 
-
 // JS arithmetic operators.
 
 Type Typer::Visitor::JSAddTyper(Type lhs, Type rhs, Typer* t) {
@@ -1572,20 +1560,48 @@ Type Typer::Visitor::TypeJSRegExpTest(Node* node) { return Type::Boolean(); }
 // in the graph. In the current implementation, we are
 // increasing the limits to the closest power of two.
 Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
-  static const double kWeakenMinLimits[] = {
-      0.0, -1073741824.0, -2147483648.0, -4294967296.0, -8589934592.0,
-      -17179869184.0, -34359738368.0, -68719476736.0, -137438953472.0,
-      -274877906944.0, -549755813888.0, -1099511627776.0, -2199023255552.0,
-      -4398046511104.0, -8796093022208.0, -17592186044416.0, -35184372088832.0,
-      -70368744177664.0, -140737488355328.0, -281474976710656.0,
-      -562949953421312.0};
-  static const double kWeakenMaxLimits[] = {
-      0.0, 1073741823.0, 2147483647.0, 4294967295.0, 8589934591.0,
-      17179869183.0, 34359738367.0, 68719476735.0, 137438953471.0,
-      274877906943.0, 549755813887.0, 1099511627775.0, 2199023255551.0,
-      4398046511103.0, 8796093022207.0, 17592186044415.0, 35184372088831.0,
-      70368744177663.0, 140737488355327.0, 281474976710655.0,
-      562949953421311.0};
+  static const double kWeakenMinLimits[] = {0.0,
+                                            -1073741824.0,
+                                            -2147483648.0,
+                                            -4294967296.0,
+                                            -8589934592.0,
+                                            -17179869184.0,
+                                            -34359738368.0,
+                                            -68719476736.0,
+                                            -137438953472.0,
+                                            -274877906944.0,
+                                            -549755813888.0,
+                                            -1099511627776.0,
+                                            -2199023255552.0,
+                                            -4398046511104.0,
+                                            -8796093022208.0,
+                                            -17592186044416.0,
+                                            -35184372088832.0,
+                                            -70368744177664.0,
+                                            -140737488355328.0,
+                                            -281474976710656.0,
+                                            -562949953421312.0};
+  static const double kWeakenMaxLimits[] = {0.0,
+                                            1073741823.0,
+                                            2147483647.0,
+                                            4294967295.0,
+                                            8589934591.0,
+                                            17179869183.0,
+                                            34359738367.0,
+                                            68719476735.0,
+                                            137438953471.0,
+                                            274877906943.0,
+                                            549755813887.0,
+                                            1099511627775.0,
+                                            2199023255551.0,
+                                            4398046511103.0,
+                                            8796093022207.0,
+                                            17592186044415.0,
+                                            35184372088831.0,
+                                            70368744177663.0,
+                                            140737488355327.0,
+                                            281474976710655.0,
+                                            562949953421311.0};
   static_assert(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
 
   // If the types have nothing to do with integers, return the types.

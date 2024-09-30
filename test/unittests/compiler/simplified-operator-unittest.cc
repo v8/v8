@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/compiler/simplified-operator.h"
+
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/types.h"
+#include "src/compiler/turbofan-types.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

@@ -8,9 +8,9 @@
 
 #include "src/base/functional.h"
 #include "src/codegen/callable.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 

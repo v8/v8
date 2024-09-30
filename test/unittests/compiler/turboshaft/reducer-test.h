@@ -5,7 +5,7 @@
 #include <map>
 
 #include "src/compiler/backend/instruction.h"
-#include "src/compiler/graph-visualizer.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/variable-reducer.h"

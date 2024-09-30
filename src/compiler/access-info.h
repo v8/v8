@@ -8,7 +8,7 @@
 #include <optional>
 
 #include "src/compiler/heap-refs.h"
-#include "src/compiler/types.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

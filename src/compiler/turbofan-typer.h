@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TYPER_H_
-#define V8_COMPILER_TYPER_H_
+#ifndef V8_COMPILER_TURBOFAN_TYPER_H_
+#define V8_COMPILER_TURBOFAN_TYPER_H_
 
-#include "src/compiler/graph.h"
 #include "src/compiler/operation-typer.h"
+#include "src/compiler/turbofan-graph.h"
 
 namespace v8 {
 namespace internal {
@@ -66,4 +66,4 @@ DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags)
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_TYPER_H_
+#endif  // V8_COMPILER_TURBOFAN_TYPER_H_

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/graph-visualizer.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 
 #include <memory>
 #include <optional>
@@ -16,7 +16,6 @@
 #include "src/compiler/backend/register-allocation.h"
 #include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/compiler-source-position-table.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -24,6 +23,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/ostreams.h"
@@ -301,9 +301,9 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
     SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.get(),
              optimization_id);
   } else if (info->has_shared_info()) {
-    SNPrintF(filename,  "%s-%p-%i", file_prefix,
-            reinterpret_cast<void*>(info->shared_info()->address()),
-            optimization_id);
+    SNPrintF(filename, "%s-%p-%i", file_prefix,
+             reinterpret_cast<void*>(info->shared_info()->address()),
+             optimization_id);
   } else {
     SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
   }
@@ -357,7 +357,6 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   return std::unique_ptr<char[]>(buffer);
 }
 
-
 static int SafeId(Node* node) { return node == nullptr ? -1 : node->id(); }
 static const char* SafeMnemonic(Node* node) {
   return node == nullptr ? "null" : node->op()->mnemonic();
@@ -409,8 +408,7 @@ void JSONGraphWriter::PrintNode(Node* node, bool is_live) {
   node->op()->PrintTo(title, Operator::PrintVerbosity::kVerbose);
   node->op()->PrintPropsTo(properties);
   os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << JSONEscaped(label)
-      << "\""
-      << ",\"title\":\"" << JSONEscaped(title) << "\""
+      << "\"" << ",\"title\":\"" << JSONEscaped(title) << "\""
       << ",\"live\": " << (is_live ? "true" : "false") << ",\"properties\":\""
       << JSONEscaped(properties) << "\"";
   IrOpcode::Value opcode = node->opcode();
@@ -499,7 +497,6 @@ std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
   return os;
 }
 
-
 class GraphC1Visualizer {
  public:
   GraphC1Visualizer(std::ostream& os, Zone* zone);
@@ -556,17 +553,14 @@ class GraphC1Visualizer {
   Zone* zone_;
 };
 
-
 void GraphC1Visualizer::PrintIndent() {
   for (int i = 0; i < indent_; i++) {
     os_ << "  ";
   }
 }
 
-
 GraphC1Visualizer::GraphC1Visualizer(std::ostream& os, Zone* zone)
     : os_(os), indent_(0), zone_(zone) {}
-
 
 void GraphC1Visualizer::PrintStringProperty(const char* name,
                                             const char* value) {
@@ -574,18 +568,15 @@ void GraphC1Visualizer::PrintStringProperty(const char* name,
   os_ << name << " \"" << value << "\"\n";
 }
 
-
 void GraphC1Visualizer::PrintLongProperty(const char* name, int64_t value) {
   PrintIndent();
   os_ << name << " " << static_cast<int>(value / 1000) << "\n";
 }
 
-
 void GraphC1Visualizer::PrintBlockProperty(const char* name, int rpo_number) {
   PrintIndent();
   os_ << name << " \"B" << rpo_number << "\"\n";
 }
-
 
 void GraphC1Visualizer::PrintIntProperty(const char* name, int value) {
   PrintIndent();
@@ -608,16 +599,13 @@ void GraphC1Visualizer::PrintCompilation(const OptimizedCompilationInfo* info) {
                     V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds());
 }
 
-
 void GraphC1Visualizer::PrintNodeId(Node* n) { os_ << "n" << SafeId(n); }
-
 
 void GraphC1Visualizer::PrintNode(Node* n) {
   PrintNodeId(n);
   os_ << " " << *n->op() << " ";
   PrintInputs(n);
 }
-
 
 template <typename InputIterator>
 void GraphC1Visualizer::PrintInputs(InputIterator* i, int count,
@@ -633,7 +621,6 @@ void GraphC1Visualizer::PrintInputs(InputIterator* i, int count,
   }
 }
 
-
 void GraphC1Visualizer::PrintInputs(Node* node) {
   auto i = node->inputs().begin();
   PrintInputs(&i, node->op()->ValueInputCount(), " ");
@@ -645,14 +632,12 @@ void GraphC1Visualizer::PrintInputs(Node* node) {
   PrintInputs(&i, node->op()->ControlInputCount(), " Ctrl:");
 }
 
-
 void GraphC1Visualizer::PrintType(Node* node) {
   if (NodeProperties::IsTyped(node)) {
     Type type = NodeProperties::GetType(node);
     os_ << " type:" << type;
   }
 }
-
 
 void GraphC1Visualizer::PrintSchedule(const char* phase,
                                       const Schedule* schedule,
@@ -703,9 +688,10 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       PrintIntProperty(
           "first_lir_id",
           LifetimePosition::GapFromInstructionIndex(first_index).value());
-      PrintIntProperty("last_lir_id",
-                       LifetimePosition::InstructionFromInstructionIndex(
-                           last_index).value());
+      PrintIntProperty(
+          "last_lir_id",
+          LifetimePosition::InstructionFromInstructionIndex(last_index)
+              .value());
     }
 
     {
@@ -884,14 +870,12 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
   }
 }
 
-
 std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac) {
   AccountingAllocator allocator;
   Zone tmp_zone(&allocator, ZONE_NAME);
   GraphC1Visualizer(os, &tmp_zone).PrintCompilation(ac.info_);
   return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
   AccountingAllocator allocator;
@@ -900,7 +884,6 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
       .PrintSchedule(ac.phase_, ac.schedule_, ac.positions_, ac.instructions_);
   return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os,
                          const AsC1VRegisterAllocationData& ac) {

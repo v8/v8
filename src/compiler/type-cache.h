@@ -6,7 +6,7 @@
 #define V8_COMPILER_TYPE_CACHE_H_
 
 #include "src/compiler/globals.h"
-#include "src/compiler/types.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/date/date.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/string.h"

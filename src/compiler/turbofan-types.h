@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TYPES_H_
-#define V8_COMPILER_TYPES_H_
+#ifndef V8_COMPILER_TURBOFAN_TYPES_H_
+#define V8_COMPILER_TURBOFAN_TYPES_H_
 
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
@@ -733,4 +733,4 @@ class UnionType : public StructuralType {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_TYPES_H_
+#endif  // V8_COMPILER_TURBOFAN_TYPES_H_
