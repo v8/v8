@@ -76,12 +76,6 @@ in_category(
         notifies = ["blamelist"],
     ),
     experiment_builder(
-        name = "V8 Linux64 - sandbox testing",
-        parent_builder = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
-        notify_owners = ["saelo@google.com"],
-        notifies = ["blamelist"],
-    ),
-    experiment_builder(
         name = "V8 Linux64 - sticky mark bits - debug",
         parent_builder = "V8 Linux64 - sticky mark bits - debug builder",
         notify_owners = ["bikineev@chromium.org", "omerkatz@chromium.org"],

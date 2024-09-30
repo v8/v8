@@ -159,7 +159,13 @@ in_category(
 )
 
 in_category(
-    "Fuzzers",
+    "Tests",
+    v8_builder(
+        name = "V8 Linux64 - sandbox testing",
+        parent_builder = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
+        bucket = "ci",
+        barrier = BARRIER.TREE_CLOSER,
+    ),
     v8_builder(
         name = "V8 NumFuzz",
         parent_builder = "V8 Clusterfuzz Linux64 - release builder",
