@@ -149,3 +149,18 @@ v8_builder(
     in_list = "tools",
     notifies = ["infra"],
 )
+
+v8_builder(
+    name = "Release Branch Updater",
+    bucket = "ci-hp",
+    executable = "recipe:v8/release_branch_updater",
+    build_numbers = True,
+    service_account = V8_AUTOROLL_ACCOUNT,
+    properties = {
+        "channels": ["stable"],
+    },
+    schedule = "0 * * * *",
+    execution_timeout = 1800,
+    in_list = "tools",
+    notifies = ["infra"],
+)

@@ -47,6 +47,7 @@ def define_all_recipes():
         "v8/orchestrator",
         "v8/pgo_builder",
         "v8/presubmit",
+        "v8/release_branch_updater",
         "v8/verify_flakes",
         "v8/spike",
         "v8/test_tools",
