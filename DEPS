@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:e8827a58e51f92cc53a44fb40db89dbde507f800',
+  'siso_version': 'git_revision:dc7a06223e4ccbde049613ed802448b0c8baf5af',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:cb4b10bea51ea74dbdfeb6d377481c884ab23db8',
@@ -307,7 +307,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e2d898ca22f1d5863d8f6a7a0df849109483e05f',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'd0c57cb48fb5709f02096f411d65a11cbc722944',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '3c26edd0c36a294c74800ac48c17b18d0045e3b6',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9846aba7d4b6d13b28b870bf70d1951ab3b6ce78',
   'third_party/llvm-build/Release+Asserts': {
