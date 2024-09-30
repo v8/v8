@@ -56,7 +56,7 @@ void TaggedMember<T, CompressionScheme>::store(HeapObjectLayout* host,
 #if V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
     mode = UPDATE_WRITE_BARRIER;
 #endif
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(Tagged(host)));
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(Tagged(host)));
     WriteBarrier::ForValue(host, this, value, mode);
   }
 #endif
