@@ -552,7 +552,7 @@ if (v8_enable_maglev == "") {
   v8_enable_maglev =
       v8_enable_turbofan &&
       (v8_current_cpu == "arm" || v8_current_cpu == "x64" ||
-       v8_current_cpu == "arm64" ||
+       v8_current_cpu == "arm64" || v8_current_cpu == "s390x" ||
        (v8_current_cpu == "riscv64" && !v8_enable_pointer_compression))
 }
 assert(v8_enable_turbofan || !v8_enable_maglev,
