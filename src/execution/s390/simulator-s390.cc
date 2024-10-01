@@ -1879,7 +1879,7 @@ base::Vector<uint8_t> Simulator::GetCentralStackView() const {
   // We do not add an additional safety margin as above in
   // Simulator::StackLimit, as this is currently only used in wasm::StackMemory,
   // which adds its own margin.
-  return base::VectorOf(stack_ + kStackProtectionSize, UsableStackSize());
+  return base::VectorOf(stack_, UsableStackSize());
 }
 
 // Unsupported instructions use Format to print an error and stop execution.
