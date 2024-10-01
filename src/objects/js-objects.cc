@@ -4213,7 +4213,7 @@ bool TestPropertiesIntegrityLevel(Tagged<JSObject> object,
   }
 }
 
-bool TestElementsIntegrityLevel(Tagged<JSObject> object,
+bool TestElementsIntegrityLevel(Isolate* isolate, Tagged<JSObject> object,
                                 PropertyAttributes level) {
   DCHECK(!object->HasSloppyArgumentsElements());
 
@@ -4237,14 +4237,15 @@ bool TestElementsIntegrityLevel(Tagged<JSObject> object,
   ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
   // Only DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS have
   // PropertyAttributes so just test if empty
-  return accessor->NumberOfElements(object) == 0;
+  return accessor->NumberOfElements(isolate, object) == 0;
 }
 
-bool FastTestIntegrityLevel(Tagged<JSObject> object, PropertyAttributes level) {
+bool FastTestIntegrityLevel(Isolate* isolate, Tagged<JSObject> object,
+                            PropertyAttributes level) {
   DCHECK(!IsCustomElementsReceiverMap(object->map()));
 
   return !object->map()->is_extensible() &&
-         TestElementsIntegrityLevel(object, level) &&
+         TestElementsIntegrityLevel(isolate, object, level) &&
          TestPropertiesIntegrityLevel(object, level);
 }
 
@@ -4255,7 +4256,7 @@ Maybe<bool> JSObject::TestIntegrityLevel(Isolate* isolate,
                                          IntegrityLevel level) {
   if (!IsCustomElementsReceiverMap(object->map()) &&
       !object->HasSloppyArgumentsElements()) {
-    return Just(FastTestIntegrityLevel(*object, level));
+    return Just(FastTestIntegrityLevel(isolate, *object, level));
   }
   return GenericTestIntegrityLevel(isolate, Cast<JSReceiver>(object), level);
 }
@@ -4421,7 +4422,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   // ordinary ECMAScript objects allow sealed to be upgraded to frozen. This
   // upgrade violates the fixed layout invariant and is disallowed.
   if (IsAlwaysSharedSpaceJSObject(*object)) {
-    DCHECK(FastTestIntegrityLevel(*object, SEALED));
+    DCHECK(FastTestIntegrityLevel(isolate, *object, SEALED));
     if (attrs != FROZEN) return Just(true);
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kCannotFreeze));

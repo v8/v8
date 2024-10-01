@@ -865,11 +865,13 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     return Just(true);
   }
 
-  size_t NumberOfElements(Tagged<JSObject> receiver) final {
-    return Subclass::NumberOfElementsImpl(receiver, receiver->elements());
+  size_t NumberOfElements(Isolate* isolate, Tagged<JSObject> receiver) final {
+    return Subclass::NumberOfElementsImpl(isolate, receiver,
+                                          receiver->elements());
   }
 
-  static uint32_t NumberOfElementsImpl(Tagged<JSObject> receiver,
+  static uint32_t NumberOfElementsImpl(Isolate* isolate,
+                                       Tagged<JSObject> receiver,
                                        Tagged<FixedArrayBase> backing_store) {
     UNREACHABLE();
   }
@@ -884,7 +886,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     return Subclass::GetCapacityImpl(receiver, elements);
   }
 
-  static size_t GetMaxNumberOfEntries(Tagged<JSObject> receiver,
+  static size_t GetMaxNumberOfEntries(Isolate* isolate,
+                                      Tagged<JSObject> receiver,
                                       Tagged<FixedArrayBase> elements) {
     return Subclass::GetMaxIndex(receiver, elements);
   }
@@ -1290,7 +1293,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       GetKeysConversion convert, PropertyFilter filter) {
     uint32_t nof_property_keys = keys->length();
     size_t initial_list_length =
-        Subclass::GetMaxNumberOfEntries(*object, *backing_store);
+        Subclass::GetMaxNumberOfEntries(isolate, *object, *backing_store);
 
     if (initial_list_length > FixedArray::kMaxLength - nof_property_keys) {
       THROW_NEW_ERROR(isolate,
@@ -1314,7 +1317,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         // Hence we try to estimate the final size for holey backing stores more
         // precisely here.
         initial_list_length =
-            Subclass::NumberOfElementsImpl(*object, *backing_store);
+            Subclass::NumberOfElementsImpl(isolate, *object, *backing_store);
         initial_list_length += nof_property_keys;
       }
       DCHECK_LE(initial_list_length, std::numeric_limits<int>::max());
@@ -1503,12 +1506,14 @@ class DictionaryElementsAccessor
     UNREACHABLE();
   }
 
-  static uint32_t GetMaxNumberOfEntries(Tagged<JSObject> receiver,
+  static uint32_t GetMaxNumberOfEntries(Isolate* isolate,
+                                        Tagged<JSObject> receiver,
                                         Tagged<FixedArrayBase> backing_store) {
-    return NumberOfElementsImpl(receiver, backing_store);
+    return NumberOfElementsImpl(isolate, receiver, backing_store);
   }
 
-  static uint32_t NumberOfElementsImpl(Tagged<JSObject> receiver,
+  static uint32_t NumberOfElementsImpl(Isolate* isolate,
+                                       Tagged<JSObject> receiver,
                                        Tagged<FixedArrayBase> backing_store) {
     Tagged<NumberDictionary> dict = Cast<NumberDictionary>(backing_store);
     return dict->NumberOfElements();
@@ -1753,7 +1758,7 @@ class DictionaryElementsAccessor
     Isolate* isolate = keys->isolate();
     auto dictionary = Cast<NumberDictionary>(backing_store);
     DirectHandle<FixedArray> elements = isolate->factory()->NewFixedArray(
-        GetMaxNumberOfEntries(*object, *backing_store));
+        GetMaxNumberOfEntries(isolate, *object, *backing_store));
     int insertion_index = 0;
     PropertyFilter filter = keys->filter();
     ReadOnlyRoots roots(isolate);
@@ -2227,14 +2232,14 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                 ->is_the_hole(isolate, entry.as_int());
   }
 
-  static uint32_t NumberOfElementsImpl(Tagged<JSObject> receiver,
+  static uint32_t NumberOfElementsImpl(Isolate* isolate,
+                                       Tagged<JSObject> receiver,
                                        Tagged<FixedArrayBase> backing_store) {
     size_t max_index = Subclass::GetMaxIndex(receiver, backing_store);
     DCHECK_LE(max_index, std::numeric_limits<uint32_t>::max());
     if (IsFastPackedElementsKind(Subclass::kind())) {
       return static_cast<uint32_t>(max_index);
     }
-    Isolate* isolate = receiver->GetIsolate();
     uint32_t count = 0;
     for (size_t i = 0; i < max_index; i++) {
       if (Subclass::HasEntryImpl(isolate, backing_store, InternalIndex(i))) {
@@ -2249,7 +2254,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       AddKeyConversion convert) {
     Isolate* isolate = accumulator->isolate();
     DirectHandle<FixedArrayBase> elements(receiver->elements(), isolate);
-    size_t length = Subclass::GetMaxNumberOfEntries(*receiver, *elements);
+    size_t length =
+        Subclass::GetMaxNumberOfEntries(isolate, *receiver, *elements);
     for (size_t i = 0; i < length; i++) {
       if (IsFastPackedElementsKind(KindTraits::Kind) ||
           HasEntryImpl(isolate, *elements, InternalIndex(i))) {
@@ -3460,7 +3466,8 @@ class TypedElementsAccessor
     return typed_array->GetLength();
   }
 
-  static size_t NumberOfElementsImpl(Tagged<JSObject> receiver,
+  static size_t NumberOfElementsImpl(Isolate* isolate,
+                                     Tagged<JSObject> receiver,
                                      Tagged<FixedArrayBase> backing_store) {
     return AccessorClass::GetCapacityImpl(receiver, backing_store);
   }
@@ -4805,20 +4812,21 @@ class SloppyArgumentsElementsAccessor
            ArgumentsAccessor::GetCapacityImpl(holder, arguments);
   }
 
-  static uint32_t GetMaxNumberOfEntries(Tagged<JSObject> holder,
+  static uint32_t GetMaxNumberOfEntries(Isolate* isolate,
+                                        Tagged<JSObject> holder,
                                         Tagged<FixedArrayBase> backing_store) {
     Tagged<SloppyArgumentsElements> elements =
         Cast<SloppyArgumentsElements>(backing_store);
     Tagged<FixedArrayBase> arguments = elements->arguments();
     size_t max_entries =
-        ArgumentsAccessor::GetMaxNumberOfEntries(holder, arguments);
+        ArgumentsAccessor::GetMaxNumberOfEntries(isolate, holder, arguments);
     DCHECK_LE(max_entries, std::numeric_limits<uint32_t>::max());
     return elements->length() + static_cast<uint32_t>(max_entries);
   }
 
-  static uint32_t NumberOfElementsImpl(Tagged<JSObject> receiver,
+  static uint32_t NumberOfElementsImpl(Isolate* isolate,
+                                       Tagged<JSObject> receiver,
                                        Tagged<FixedArrayBase> backing_store) {
-    Isolate* isolate = receiver->GetIsolate();
     Tagged<SloppyArgumentsElements> elements =
         Cast<SloppyArgumentsElements>(backing_store);
     Tagged<FixedArrayBase> arguments = elements->arguments();
@@ -4827,8 +4835,8 @@ class SloppyArgumentsElementsAccessor
     for (uint32_t index = 0; index < length; index++) {
       if (HasParameterMapArg(isolate, elements, index)) nof_elements++;
     }
-    return nof_elements +
-           ArgumentsAccessor::NumberOfElementsImpl(receiver, arguments);
+    return nof_elements + ArgumentsAccessor::NumberOfElementsImpl(
+                              isolate, receiver, arguments);
   }
 
   V8_WARN_UNUSED_RESULT static ExceptionStatus AddElementsToKeyAccumulatorImpl(
@@ -5464,11 +5472,12 @@ class StringWrapperElementsAccessor
     }
   }
 
-  static uint32_t NumberOfElementsImpl(Tagged<JSObject> object,
+  static uint32_t NumberOfElementsImpl(Isolate* isolate,
+                                       Tagged<JSObject> object,
                                        Tagged<FixedArrayBase> backing_store) {
     uint32_t length = GetString(object)->length();
-    return length +
-           BackingStoreAccessor::NumberOfElementsImpl(object, backing_store);
+    return length + BackingStoreAccessor::NumberOfElementsImpl(isolate, object,
+                                                               backing_store);
   }
 
  private:

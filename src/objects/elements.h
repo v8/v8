@@ -66,7 +66,8 @@ class ElementsAccessor {
                                    SeqCstAccessTag tag) = 0;
 
   virtual bool HasAccessors(Tagged<JSObject> holder) = 0;
-  virtual size_t NumberOfElements(Tagged<JSObject> holder) = 0;
+  virtual size_t NumberOfElements(Isolate* isolate,
+                                  Tagged<JSObject> holder) = 0;
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
