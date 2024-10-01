@@ -190,12 +190,10 @@ Handle<WasmTableObject> WasmTableObject::New(
   table_obj->set_maximum_length(*max);
   table_obj->set_raw_type(static_cast<int>(type.raw_bit_field()));
   table_obj->set_index_type(index_type);
-#if V8_TARGET_BIG_ENDIAN
   table_obj->set_padding_for_index_type_0(0);
   table_obj->set_padding_for_index_type_1(0);
 #if TAGGED_SIZE_8_BYTES
   table_obj->set_padding_for_index_type_2(0);
-#endif
 #endif
 
   table_obj->set_uses(ReadOnlyRoots(isolate).empty_fixed_array());
@@ -841,12 +839,10 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   memory_object->set_array_buffer(*buffer);
   memory_object->set_maximum_pages(maximum);
   memory_object->set_index_type(index_type);
-#if V8_TARGET_BIG_ENDIAN
   memory_object->set_padding_for_index_type_0(0);
   memory_object->set_padding_for_index_type_1(0);
 #if TAGGED_SIZE_8_BYTES
   memory_object->set_padding_for_index_type_2(0);
-#endif
 #endif
   memory_object->set_instances(ReadOnlyRoots{isolate}.empty_weak_array_list());
 

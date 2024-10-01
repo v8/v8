@@ -96,6 +96,7 @@ namespace internal {
   V(JSWeakRef)                              \
   IF_WASM(V, WasmGlobalObject)              \
   IF_WASM(V, WasmInstanceObject)            \
+  IF_WASM(V, WasmMemoryObject)              \
   IF_WASM(V, WasmSuspendingObject)          \
   IF_WASM(V, WasmTableObject)               \
   IF_WASM(V, WasmTagObject)

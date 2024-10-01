@@ -101,6 +101,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmFuncRef)            \
   IF_WASM(V, WasmGlobalObject)       \
   IF_WASM(V, WasmInstanceObject)     \
+  IF_WASM(V, WasmMemoryObject)       \
   IF_WASM(V, WasmResumeData)         \
   IF_WASM(V, WasmStruct)             \
   IF_WASM(V, WasmSuspenderObject)    \
