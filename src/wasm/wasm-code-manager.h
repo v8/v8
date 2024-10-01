@@ -93,6 +93,15 @@ constexpr WasmCodePointer kInvalidWasmCodePointer = kNullAddress;
 // Resolve the entry address of a WasmCodePointer
 Address WasmCodePointerAddress(WasmCodePointer pointer);
 
+template <Builtin builtin>
+WasmCodePointer GetBuiltinCodePointer(Isolate* isolate) {
+#if V8_ENABLE_WASM_CODE_POINTER_TABLE
+  return Builtins::WasmBuiltinHandleOf<builtin>(isolate);
+#else
+  return Builtins::EntryOf(builtin, isolate);
+#endif
+}
+
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
   enum Kind {

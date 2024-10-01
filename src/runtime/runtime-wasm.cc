@@ -670,7 +670,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
         Cast<WasmFuncRef>(*origin)->internal(isolate), isolate};
     import_data->set_code(*wasm_to_js_wrapper_code);
     internal_function->set_call_target(
-        Builtins::EntryOf(Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
+        wasm::GetBuiltinCodePointer<Builtin::kWasmToOnHeapWasmToJsTrampoline>(
+            isolate));
     return ReadOnlyRoots(isolate).undefined_value();
   }
 

@@ -27,6 +27,7 @@
 #include "src/wasm/stacks.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -1180,10 +1181,12 @@ void ImportedFunctionEntry::SetGenericWasmToJs(
   if (wasm::IsJSCompatibleSignature(sig)) {
     DCHECK(
         UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend));
-    wrapper_entry = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+    wrapper_entry =
+        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
   } else {
     wrapper_entry =
-        Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate);
+        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperInvalidSig>(
+            isolate);
   }
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
@@ -1746,10 +1749,12 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
       DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
                                        wasm::Suspend::kNoSuspend));
       WasmImportData::SetFuncRefAsCallOrigin(import_data, func_ref);
-      wrapper_entry = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+      wrapper_entry =
+          wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
     } else {
       wrapper_entry =
-          Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate);
+          wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperInvalidSig>(
+              isolate);
     }
     // Wrapper code does not move, so we store the call target directly in the
     // internal function.
@@ -1935,7 +1940,8 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   if (wasm_code) {
     call_target = wasm_code->code_pointer();
   } else if (UseGenericWasmToJSWrapper(kind, sig, resolved.suspend())) {
-    call_target = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+    call_target =
+        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
   } else {
     wasm_code = cache->CompileWasmImportCallWrapper(
         isolate, native_module, kind, sig, canonical_sig_id, false,
@@ -1958,9 +1964,10 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
       trusted_instance_data->dispatch_table(table_index);
   // Decrement the refcount of any overwritten entry.
   table->offheap_data()->Remove(table->target(entry_index));
-  DCHECK(wasm_code ||
-         call_target ==
-             Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+  DCHECK(
+      wasm_code ||
+      call_target ==
+          wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
   table->offheap_data()->Add(call_target, wasm_code,
                              wasm_code ? IsAWrapper::kYes : IsAWrapper::kNo);
   table->Set(entry_index, *import_data, call_target, canonical_sig_id);
@@ -2766,11 +2773,12 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 
   if (!wasm::IsJSCompatibleSignature(sig)) {
     internal_function->set_call_target(
-        Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate));
+        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperInvalidSig>(
+            isolate));
   } else if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
                                        suspend)) {
     internal_function->set_call_target(
-        Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
   } else {
     int expected_arity = parameter_count;
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
@@ -2787,13 +2795,13 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
 #if V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless) {
       function_data->func_ref()->internal(isolate)->set_call_target(
-          Builtins::EntryOf(Builtin::kGenericWasmToJSInterpreterWrapper,
-                            isolate));
+          wasm::GetBuiltinCodePointer<
+              Builtin::kGenericWasmToJSInterpreterWrapper>(isolate));
     } else {
 #endif  // V8_ENABLE_DRUMBRAKE
       if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
         internal_function->set_call_target(
-            Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+            wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
       } else {
         // The Code object can be moved during compaction, so do not store a
         // call_target directly but load the target from the code object at
@@ -2805,8 +2813,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
         DirectHandle<WasmImportData> import_data{
             Cast<WasmImportData>(internal_function->implicit_arg()), isolate};
         import_data->set_code(*wrapper_code);
-        internal_function->set_call_target(Builtins::EntryOf(
-            Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
+        internal_function->set_call_target(
+            wasm::GetBuiltinCodePointer<
+                Builtin::kWasmToOnHeapWasmToJsTrampoline>(isolate));
       }
 #if V8_ENABLE_DRUMBRAKE
     }
