@@ -232,64 +232,65 @@ class Heap final {
    public:
     static constexpr size_t kExternalAllocationLimitForInterrupt = 128 * KB;
 
-    int64_t total() const { return total_.load(std::memory_order_relaxed); }
-    int64_t limit_for_interrupt() const {
+    uint64_t total() const { return total_.load(std::memory_order_relaxed); }
+    uint64_t limit_for_interrupt() const {
       return limit_for_interrupt_.load(std::memory_order_relaxed);
     }
-    int64_t soft_limit() const {
+    uint64_t soft_limit() const {
       return low_since_mark_compact() + kExternalAllocationSoftLimit;
     }
-    int64_t low_since_mark_compact() const {
+    uint64_t low_since_mark_compact() const {
       return low_since_mark_compact_.load(std::memory_order_relaxed);
     }
 
-    int64_t UpdateAmount(int64_t delta) {
-      const int64_t amount =
-          total_.fetch_add(delta, std::memory_order_relaxed) + delta;
-      return amount;
+    uint64_t UpdateAmount(int64_t delta) {
+      const uint64_t amount_before =
+          total_.fetch_add(delta, std::memory_order_relaxed);
+      CHECK_GE(static_cast<int64_t>(amount_before), -delta);
+      return amount_before + delta;
     }
 
-    void UpdateLimitForInterrupt(int64_t amount) {
+    void UpdateLimitForInterrupt(uint64_t amount) {
       set_limit_for_interrupt(amount + kExternalAllocationLimitForInterrupt);
     }
 
-    void UpdateLowSinceMarkCompact(int64_t amount) {
+    void UpdateLowSinceMarkCompact(uint64_t amount) {
       set_low_since_mark_compact(amount);
       UpdateLimitForInterrupt(amount);
     }
 
     uint64_t AllocatedSinceMarkCompact() const {
-      int64_t total_bytes = total();
-      int64_t low_since_mark_compact_bytes = low_since_mark_compact();
+      uint64_t total_bytes = total();
+      uint64_t low_since_mark_compact_bytes = low_since_mark_compact();
 
       if (total_bytes <= low_since_mark_compact_bytes) {
         return 0;
       }
-      return static_cast<uint64_t>(total_bytes - low_since_mark_compact_bytes);
+      return total_bytes - low_since_mark_compact_bytes;
     }
 
    private:
-    void set_total(int64_t value) {
+    void set_total(uint64_t value) {
       total_.store(value, std::memory_order_relaxed);
     }
 
-    void set_limit_for_interrupt(int64_t value) {
+    void set_limit_for_interrupt(uint64_t value) {
       limit_for_interrupt_.store(value, std::memory_order_relaxed);
     }
 
-    void set_low_since_mark_compact(int64_t value) {
+    void set_low_since_mark_compact(uint64_t value) {
       low_since_mark_compact_.store(value, std::memory_order_relaxed);
     }
 
     // The amount of external memory registered through the API.
-    std::atomic<int64_t> total_{0};
+    std::atomic<uint64_t> total_{0};
 
     // The limit when to trigger memory pressure from the API.
-    std::atomic<int64_t> limit_for_interrupt_{
+    std::atomic<uint64_t> limit_for_interrupt_{
         kExternalAllocationLimitForInterrupt};
 
     // Caches the amount of external memory registered at the last MC.
-    std::atomic<int64_t> low_since_mark_compact_{0};
+    std::atomic<uint64_t> low_since_mark_compact_{0};
   };
 
   // Taking this mutex prevents the GC from entering a phase that relocates
@@ -615,15 +616,15 @@ class Heap final {
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
 
-  int64_t external_memory_hard_limit() {
+  uint64_t external_memory_hard_limit() {
     return external_memory_.low_since_mark_compact() +
            max_old_generation_size() / 2;
   }
 
-  V8_INLINE int64_t external_memory() const;
-  V8_EXPORT_PRIVATE int64_t external_memory_limit_for_interrupt();
-  V8_EXPORT_PRIVATE int64_t external_memory_soft_limit();
-  int64_t UpdateExternalMemory(int64_t delta);
+  V8_INLINE uint64_t external_memory() const;
+  V8_EXPORT_PRIVATE uint64_t external_memory_limit_for_interrupt();
+  V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
+  uint64_t UpdateExternalMemory(int64_t delta);
 
   V8_EXPORT_PRIVATE size_t YoungArrayBufferBytes();
   V8_EXPORT_PRIVATE size_t OldArrayBufferBytes();

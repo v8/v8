@@ -10297,9 +10297,12 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
         change_in_bytes < kMaxReasonableBytes);
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  int64_t amount = i_isolate->heap()->UpdateExternalMemory(change_in_bytes);
+  const uint64_t amount =
+      i_isolate->heap()->UpdateExternalMemory(change_in_bytes);
 
-  if (change_in_bytes <= 0) return amount;
+  if (change_in_bytes <= 0) {
+    return amount;
+  }
 
   if (amount > i_isolate->heap()->external_memory_limit_for_interrupt()) {
     HandleExternalMemoryInterrupt();

@@ -1504,7 +1504,7 @@ void Heap::HandleExternalMemoryInterrupt() {
       static_cast<GCCallbackFlags>(
           kGCCallbackFlagSynchronousPhantomCallbackProcessing |
           kGCCallbackFlagCollectAllExternalMemory);
-  int64_t current = external_memory();
+  uint64_t current = external_memory();
   if (current > external_memory_hard_limit()) {
     TRACE_EVENT2("devtools.timeline,v8", "V8.ExternalMemoryPressure",
                  "external_memory_mb", static_cast<int>((current) / MB),
@@ -1526,7 +1526,7 @@ void Heap::HandleExternalMemoryInterrupt() {
         kGCCallbackFlagsForExternalMemory);
     return;
   }
-  int64_t soft_limit = external_memory_.soft_limit();
+  uint64_t soft_limit = external_memory_.soft_limit();
   if (current <= soft_limit) {
     return;
   }
@@ -1552,11 +1552,11 @@ void Heap::HandleExternalMemoryInterrupt() {
   }
 }
 
-int64_t Heap::external_memory_limit_for_interrupt() {
+uint64_t Heap::external_memory_limit_for_interrupt() {
   return external_memory_.limit_for_interrupt();
 }
 
-int64_t Heap::external_memory_soft_limit() {
+uint64_t Heap::external_memory_soft_limit() {
   return external_memory_.soft_limit();
 }
 
@@ -6798,9 +6798,9 @@ size_t Heap::YoungArrayBufferBytes() {
   return array_buffer_sweeper()->YoungBytes();
 }
 
-int64_t Heap::UpdateExternalMemory(int64_t delta) {
-  int64_t amount = external_memory_.UpdateAmount(delta);
-  int64_t low_since_mark_compact = external_memory_.low_since_mark_compact();
+uint64_t Heap::UpdateExternalMemory(int64_t delta) {
+  uint64_t amount = external_memory_.UpdateAmount(delta);
+  uint64_t low_since_mark_compact = external_memory_.low_since_mark_compact();
   if (amount < low_since_mark_compact) {
     external_memory_.UpdateLowSinceMarkCompact(amount);
   }
