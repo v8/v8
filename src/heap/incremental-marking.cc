@@ -536,9 +536,12 @@ void IncrementalMarking::UpdateExternalPointerTableAfterScavenge() {
 #ifdef V8_COMPRESS_POINTERS
   if (!IsMajorMarking()) return;
   DCHECK(!v8_flags.separate_gc_phases);
-
   heap_->isolate()->external_pointer_table().UpdateAllEvacuationEntries(
       heap_->young_external_pointer_space(), [](Address old_handle_location) {
+        if (old_handle_location == kNullAddress) {
+          // Handle was clobbered by a previous Scavenger cycle.
+          return kNullAddress;
+        }
         // 1) Resolve object start from the marking bitmap. Note that it's safe
         //    since there is no black allocation for the young space (and hence
         //    no range or page marking).
@@ -555,6 +558,7 @@ void IncrementalMarking::UpdateExternalPointerTableAfterScavenge() {
         // mark-bits).
         const MemoryChunk* chunk =
             MemoryChunk::FromAddress(old_handle_location);
+        DCHECK_NOT_NULL(chunk);
         if (!chunk->InYoungGeneration()) {
           return old_handle_location;
         }
