@@ -482,6 +482,7 @@ class AsyncInstantiateCompileResultResolver
 constexpr char AsyncInstantiateCompileResultResolver::kGlobalPromiseHandle[];
 constexpr char AsyncInstantiateCompileResultResolver::kGlobalImportsHandle[];
 
+// TODO(clemensb): Make this less inefficient.
 std::string ToString(const char* name) { return std::string(name); }
 
 std::string ToString(const i::DirectHandle<i::String> name) {
@@ -489,10 +490,9 @@ std::string ToString(const i::DirectHandle<i::String> name) {
 }
 
 // Web IDL: '[EnforceRange] unsigned long'
-// Previously called ToNonWrappingUint32 in the draft WebAssembly JS spec.
 // https://heycam.github.io/webidl/#EnforceRange
-template <typename T>
-std::optional<uint32_t> EnforceUint32(T argument_name, Local<v8::Value> v,
+template <typename Name>
+std::optional<uint32_t> EnforceUint32(Name argument_name, Local<v8::Value> v,
                                       Local<Context> context,
                                       ErrorThrower* thrower) {
   double double_number;
@@ -518,6 +518,27 @@ std::optional<uint32_t> EnforceUint32(T argument_name, Local<v8::Value> v,
   }
 
   return static_cast<uint32_t>(double_number);
+}
+
+// First step of IndexValueToU64, for indextype == "i64".
+template <typename Name>
+std::optional<uint64_t> BigIntToU64(Name argument_name, Local<Value> v,
+                                    ErrorThrower* thrower) {
+  if (!v->IsBigInt()) {
+    thrower->TypeError("%s must be a BigInt", ToString(argument_name).c_str());
+    return std::nullopt;
+  }
+  Local<BigInt> bigint = v.As<BigInt>();
+
+  bool lossless;
+  uint64_t result = bigint->Uint64Value(&lossless);
+  if (!lossless) {
+    thrower->TypeError("%s must be in u64 range",
+                       ToString(argument_name).c_str());
+    return std::nullopt;
+  }
+
+  return result;
 }
 
 // The enum values need to match "WasmCompilationMethod" in
@@ -1222,40 +1243,57 @@ void WebAssemblyInstantiateImpl(
       std::move(compilation_resolver), bytes, is_shared, kAPIMethodName);
 }
 
+// {IndexValueToU64} as defined in the memory64 js-api spec.
 // Returns std::nullopt on error (exception or error set in the thrower), and
 // the index value otherwise.
-std::optional<uint32_t> GetIndexValue(ErrorThrower* thrower,
-                                      Local<Context> context,
-                                      v8::Local<v8::Value> value,
-                                      i::Handle<i::String> property_name,
-                                      int64_t lower_bound,
-                                      uint64_t upper_bound) {
-  std::optional<uint32_t> maybe_result =
-      EnforceUint32(property_name, value, context, thrower);
-  if (!maybe_result) return std::nullopt;
-  uint32_t result = *maybe_result;
-  if (result < lower_bound) {
-    thrower->RangeError("Property '%s': value %" PRIu32
-                        " is below the lower bound %" PRIx64,
-                        property_name->ToCString().get(), result, lower_bound);
-    return std::nullopt;
+template <typename Name>
+std::optional<uint64_t> IndexValueToU64(ErrorThrower* thrower,
+                                        Local<Context> context,
+                                        v8::Local<v8::Value> value,
+                                        Name property_name,
+                                        IndexType index_type) {
+  switch (index_type) {
+    case IndexType::kI32:
+      return EnforceUint32(property_name, value, context, thrower);
+    case IndexType::kI64:
+      return BigIntToU64(property_name, value, thrower);
   }
-  if (result > upper_bound) {
-    thrower->RangeError("Property '%s': value %" PRIu32
-                        " is above the upper bound %" PRIu64,
-                        property_name->ToCString().get(), result, upper_bound);
+}
+
+// {IndexValueToU64} plus additional bounds checks.
+std::optional<uint64_t> IndexValueToBoundedU64(
+    ErrorThrower* thrower, Local<Context> context, v8::Local<v8::Value> value,
+    i::Handle<i::String> property_name, IndexType index_type,
+    uint64_t lower_bound, uint64_t upper_bound) {
+  std::optional<uint64_t> maybe_index_value =
+      IndexValueToU64(thrower, context, value, property_name, index_type);
+  if (!maybe_index_value) return std::nullopt;
+  uint64_t index_value = *maybe_index_value;
+
+  if (index_value < lower_bound) {
+    thrower->RangeError(
+        "Property '%s': value %" PRIu64 " is below the lower bound %" PRIx64,
+        property_name->ToCString().get(), index_value, lower_bound);
     return std::nullopt;
   }
 
-  return result;
+  if (index_value > upper_bound) {
+    thrower->RangeError(
+        "Property '%s': value %" PRIu64 " is above the upper bound %" PRIu64,
+        property_name->ToCString().get(), index_value, upper_bound);
+    return std::nullopt;
+  }
+
+  return index_value;
 }
 
 // Returns std::nullopt on error (exception or error set in the thrower).
 // The inner optional is std::nullopt if the property did not exist, and the
 // index value otherwise.
-std::optional<std::optional<uint32_t>> GetOptionalIndexValue(
+std::optional<std::optional<uint64_t>> GetOptionalIndexValue(
     ErrorThrower* thrower, Local<Context> context, Local<v8::Object> descriptor,
-    Local<String> property, int64_t lower_bound, uint64_t upper_bound) {
+    Local<String> property, IndexType index_type, int64_t lower_bound,
+    uint64_t upper_bound) {
   v8::Local<v8::Value> value;
   if (!descriptor->Get(context, property).ToLocal(&value)) {
     return std::nullopt;
@@ -1263,12 +1301,16 @@ std::optional<std::optional<uint32_t>> GetOptionalIndexValue(
 
   // Web IDL: dictionary presence
   // https://heycam.github.io/webidl/#dfn-present
-  if (value->IsUndefined()) return std::optional<uint32_t>{};
+  if (value->IsUndefined()) {
+    // No exception, but no value either.
+    return std::optional<uint64_t>{};
+  }
 
   i::Handle<i::String> property_name = v8::Utils::OpenHandle(*property);
 
-  std::optional<uint32_t> maybe_index_value = GetIndexValue(
-      thrower, context, value, property_name, lower_bound, upper_bound);
+  std::optional<uint64_t> maybe_index_value =
+      IndexValueToBoundedU64(thrower, context, value, property_name, index_type,
+                             lower_bound, upper_bound);
   if (!maybe_index_value) return std::nullopt;
   return *maybe_index_value;
 }
@@ -1278,22 +1320,23 @@ std::optional<std::optional<uint32_t>> GetOptionalIndexValue(
 // Returns std::nullopt on error (exception or error set in the thrower).
 // TODO(aseemgarg): change behavior when the following bug is resolved:
 // https://github.com/WebAssembly/js-types/issues/6
-std::optional<uint32_t> GetInitialOrMinimumProperty(
+std::optional<uint64_t> GetInitialOrMinimumProperty(
     v8::Isolate* isolate, ErrorThrower* thrower, Local<Context> context,
-    Local<v8::Object> descriptor, uint64_t upper_bound) {
-  auto maybe_maybe_initial = GetOptionalIndexValue(
-      thrower, context, descriptor, v8_str(isolate, "initial"), 0, upper_bound);
+    Local<v8::Object> descriptor, IndexType index_type, uint64_t upper_bound) {
+  auto maybe_maybe_initial = GetOptionalIndexValue(thrower, context, descriptor,
+                                                   v8_str(isolate, "initial"),
+                                                   index_type, 0, upper_bound);
   if (!maybe_maybe_initial) return std::nullopt;
-  std::optional<uint32_t> maybe_initial = *maybe_maybe_initial;
+  std::optional<uint64_t> maybe_initial = *maybe_maybe_initial;
 
   auto enabled_features =
       WasmEnabledFeatures::FromIsolate(reinterpret_cast<i::Isolate*>(isolate));
   if (enabled_features.has_type_reflection()) {
-    auto maybe_maybe_minimum =
-        GetOptionalIndexValue(thrower, context, descriptor,
-                              v8_str(isolate, "minimum"), 0, upper_bound);
+    auto maybe_maybe_minimum = GetOptionalIndexValue(
+        thrower, context, descriptor, v8_str(isolate, "minimum"), index_type, 0,
+        upper_bound);
     if (!maybe_maybe_minimum) return std::nullopt;
-    std::optional<uint32_t> maybe_minimum = *maybe_maybe_minimum;
+    std::optional<uint64_t> maybe_minimum = *maybe_maybe_minimum;
 
     if (maybe_initial && maybe_minimum) {
       thrower->TypeError(
@@ -1408,26 +1451,6 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     // TODO(14616): Support shared types.
   }
 
-  // Parse the 'initial' or 'minimum' property of the `descriptor`.
-  std::optional<uint32_t> maybe_initial =
-      GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
-                                  i::wasm::max_table_init_entries());
-  if (!maybe_initial) {
-    DCHECK(i_isolate->has_exception() || thrower.error());
-    return;
-  }
-  uint32_t initial = *maybe_initial;
-
-  // Parse the 'maximum' property of the `descriptor`.
-  auto maybe_maybe_maximum = GetOptionalIndexValue(
-      &thrower, context, descriptor, v8_str(isolate, "maximum"), initial,
-      std::numeric_limits<uint32_t>::max());
-  if (!maybe_maybe_maximum) {
-    DCHECK(i_isolate->has_exception() || thrower.error());
-    return;
-  }
-  std::optional<uint32_t> maybe_maximum = *maybe_maybe_maximum;
-
   // Parse the 'index' property of the `descriptor`.
   std::optional<IndexType> maybe_index_type =
       GetIndexType(isolate, context, descriptor, &thrower);
@@ -1436,6 +1459,27 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
   IndexType index_type = *maybe_index_type;
+
+  // Parse the 'initial' or 'minimum' property of the `descriptor`.
+  std::optional<uint64_t> maybe_initial = GetInitialOrMinimumProperty(
+      isolate, &thrower, context, descriptor, index_type,
+      i::wasm::max_table_init_entries());
+  if (!maybe_initial) {
+    DCHECK(i_isolate->has_exception() || thrower.error());
+    return;
+  }
+  static_assert(i::wasm::kV8MaxWasmTableInitEntries <= i::kMaxUInt32);
+  uint32_t initial = static_cast<uint32_t>(*maybe_initial);
+
+  // Parse the 'maximum' property of the `descriptor`.
+  auto maybe_maybe_maximum = GetOptionalIndexValue(
+      &thrower, context, descriptor, v8_str(isolate, "maximum"), index_type,
+      initial, std::numeric_limits<uint32_t>::max());
+  if (!maybe_maybe_maximum) {
+    DCHECK(i_isolate->has_exception() || thrower.error());
+    return;
+  }
+  std::optional<uint64_t> maybe_maximum = *maybe_maybe_maximum;
 
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
       i_isolate, i::Handle<i::WasmTrustedInstanceData>(), type, initial,
@@ -1520,28 +1564,32 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
   IndexType index_type = *maybe_index_type;
-  size_t max_supported_pages = index_type == IndexType::kI64
-                                   ? i::wasm::kSpecMaxMemory64Pages
-                                   : i::wasm::kSpecMaxMemory32Pages;
+  uint64_t max_supported_pages = index_type == IndexType::kI64
+                                     ? i::wasm::kSpecMaxMemory64Pages
+                                     : i::wasm::kSpecMaxMemory32Pages;
+  // {max_supported_pages} will actually be in integer range. That's the type
+  // {WasmMemoryObject::New} uses.
+  static_assert(i::wasm::kSpecMaxMemory32Pages < i::kMaxInt);
+  static_assert(i::wasm::kSpecMaxMemory64Pages < i::kMaxInt);
 
   // Parse the 'initial' or 'minimum' property of the `descriptor`.
-  std::optional<uint32_t> maybe_initial = GetInitialOrMinimumProperty(
-      isolate, &thrower, context, descriptor, max_supported_pages);
+  std::optional<uint64_t> maybe_initial = GetInitialOrMinimumProperty(
+      isolate, &thrower, context, descriptor, index_type, max_supported_pages);
   if (!maybe_initial) {
     DCHECK(i_isolate->has_exception() || thrower.error());
     return;
   }
-  uint32_t initial = *maybe_initial;
+  uint64_t initial = *maybe_initial;
 
   // Parse the 'maximum' property of the `descriptor`.
   auto maybe_maybe_maximum = GetOptionalIndexValue(
-      &thrower, context, descriptor, v8_str(isolate, "maximum"), initial,
-      max_supported_pages);
+      &thrower, context, descriptor, v8_str(isolate, "maximum"), index_type,
+      initial, max_supported_pages);
   if (!maybe_maybe_maximum) {
     DCHECK(i_isolate->has_exception() || thrower.error());
     return;
   }
-  std::optional<uint32_t> maybe_maximum = *maybe_maybe_maximum;
+  std::optional<uint64_t> maybe_maximum = *maybe_maybe_maximum;
 
   // Parse the 'shared' property of the `descriptor`.
   v8::Local<v8::Value> value;
@@ -1560,8 +1608,6 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   i::Handle<i::JSObject> memory_obj;
-  static_assert(i::wasm::kSpecMaxMemory32Pages < i::kMaxInt);
-  static_assert(i::wasm::kSpecMaxMemory64Pages < i::kMaxInt);
   if (!i::WasmMemoryObject::New(i_isolate, static_cast<int>(initial),
                                 maybe_maximum ? static_cast<int>(*maybe_maximum)
                                               : i::WasmMemoryObject::kNoMaximum,
@@ -2440,10 +2486,10 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
 
-  std::optional<uint32_t> maybe_grow_by =
-      EnforceUint32("Argument 0", info[0], context, &thrower);
+  std::optional<uint64_t> maybe_grow_by = IndexValueToU64(
+      &thrower, context, info[0], "Argument 0", receiver->index_type());
   if (!maybe_grow_by) return;
-  uint32_t grow_by = *maybe_grow_by;
+  uint64_t grow_by = *maybe_grow_by;
 
   i::Handle<i::Object> init_value;
 
@@ -2464,14 +2510,21 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     init_value = DefaultReferenceValue(i_isolate, receiver->type());
   }
 
-  int old_size =
-      i::WasmTableObject::Grow(i_isolate, receiver, grow_by, init_value);
+  static_assert(i::wasm::kV8MaxWasmTableSize <= i::kMaxUInt32);
+  int old_size = grow_by > i::wasm::kV8MaxWasmTableSize
+                     ? -1
+                     : i::WasmTableObject::Grow(i_isolate, receiver,
+                                                static_cast<uint32_t>(grow_by),
+                                                init_value);
   if (old_size < 0) {
-    thrower.RangeError("failed to grow table by %u", grow_by);
+    thrower.RangeError("failed to grow table by %" PRIu64, grow_by);
     return;
   }
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(old_size);
+  return_value.Set(
+      receiver->is_table64()
+          ? BigInt::NewFromUnsigned(isolate, old_size).As<Value>()
+          : Integer::NewFromUnsigned(isolate, old_size).As<Value>());
 }
 
 namespace {
@@ -2511,20 +2564,21 @@ void WebAssemblyTableGetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
 
-  std::optional<uint32_t> maybe_index =
-      EnforceUint32("Argument 0", info[0], context, &thrower);
+  std::optional<uint64_t> maybe_index = IndexValueToU64(
+      &thrower, context, info[0], "Argument 0", receiver->index_type());
   if (!maybe_index) return;
-  uint32_t index = *maybe_index;
+  uint64_t index = *maybe_index;
 
-  if (!receiver->is_in_bounds(index)) {
-    thrower.RangeError("invalid index %u into %s table of size %d", index,
-                       receiver->type().name().c_str(),
+  if (index > i::kMaxUInt32 ||
+      !receiver->is_in_bounds(static_cast<uint32_t>(index))) {
+    thrower.RangeError("invalid index %" PRIu64 " into %s table of size %d",
+                       index, receiver->type().name().c_str(),
                        receiver->current_length());
     return;
   }
 
-  i::Handle<i::Object> result =
-      i::WasmTableObject::Get(i_isolate, receiver, index);
+  i::Handle<i::Object> result = i::WasmTableObject::Get(
+      i_isolate, receiver, static_cast<uint32_t>(index));
 
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
   WasmObjectToJSReturnValue(return_value, result, receiver->type(), i_isolate,
@@ -2541,15 +2595,15 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(table_object, WasmTableObject);
 
-  // Parameter 0.
-  std::optional<uint32_t> maybe_index =
-      EnforceUint32("Argument 0", info[0], context, &thrower);
+  std::optional<uint64_t> maybe_index = IndexValueToU64(
+      &thrower, context, info[0], "Argument 0", table_object->index_type());
   if (!maybe_index) return;
-  uint32_t index = *maybe_index;
+  uint64_t index = *maybe_index;
 
-  if (!table_object->is_in_bounds(index)) {
-    thrower.RangeError("invalid index %u into %s table of size %d", index,
-                       table_object->type().name().c_str(),
+  if (index > i::kMaxUInt32 ||
+      !table_object->is_in_bounds(static_cast<uint32_t>(index))) {
+    thrower.RangeError("invalid index %" PRIu64 " into %s table of size %d",
+                       index, table_object->type().name().c_str(),
                        table_object->current_length());
     return;
   }
@@ -2572,7 +2626,8 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  i::WasmTableObject::Set(i_isolate, table_object, index, element);
+  i::WasmTableObject::Set(i_isolate, table_object, static_cast<uint32_t>(index),
+                          element);
 }
 
 // WebAssembly.Table.type() -> TableType
@@ -2584,15 +2639,10 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   ErrorThrower thrower(i_isolate, "WebAssembly.Table.type()");
 
   EXTRACT_THIS(table, WasmTableObject);
-  std::optional<uint32_t> max_size;
-  if (!IsUndefined(table->maximum_length())) {
-    uint64_t max_size64 = i::Object::NumberValue(table->maximum_length());
-    DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
-    max_size.emplace(static_cast<uint32_t>(max_size64));
-  }
+  std::optional<uint64_t> max_size = table->maximum_length_u64();
   auto type = i::wasm::GetTypeForTable(i_isolate, table->type(),
                                        table->current_length(), max_size,
-                                       table->is_table64());
+                                       table->index_type());
   info.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
@@ -2607,29 +2657,33 @@ void WebAssemblyMemoryGrowImpl(
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
-  std::optional<uint32_t> maybe_delta_pages =
-      EnforceUint32("Argument 0", info[0], context, &thrower);
+  std::optional<uint64_t> maybe_delta_pages = IndexValueToU64(
+      &thrower, context, info[0], "Argument 0", receiver->index_type());
   if (!maybe_delta_pages) return;
-  uint32_t delta_pages = *maybe_delta_pages;
+  uint64_t delta_pages = *maybe_delta_pages;
 
   i::DirectHandle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(),
                                                i_isolate);
 
-  uint64_t old_pages64 = old_buffer->byte_length() / i::wasm::kWasmPageSize;
-  uint64_t new_pages64 = old_pages64 + static_cast<uint64_t>(delta_pages);
+  uint64_t old_pages = old_buffer->byte_length() / i::wasm::kWasmPageSize;
+  uint64_t max_pages = receiver->maximum_pages();
 
-  if (new_pages64 > static_cast<uint64_t>(receiver->maximum_pages())) {
+  if (delta_pages > max_pages - old_pages) {
     thrower.RangeError("Maximum memory size exceeded");
     return;
   }
 
-  int32_t ret = i::WasmMemoryObject::Grow(i_isolate, receiver, delta_pages);
+  static_assert(i::wasm::kV8MaxWasmMemory64Pages <= i::kMaxUInt32);
+  int32_t ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
+                                          static_cast<uint32_t>(delta_pages));
   if (ret == -1) {
     thrower.RangeError("Unable to grow instance memory");
     return;
   }
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(ret);
+  return_value.Set(receiver->is_memory64()
+                       ? BigInt::New(isolate, ret).As<Value>()
+                       : Integer::New(isolate, ret).As<Value>());
 }
 
 // WebAssembly.Memory.buffer -> ArrayBuffer
@@ -2682,7 +2736,7 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
   bool shared = buffer->is_shared();
   auto type = i::wasm::GetTypeForMemory(i_isolate, min_size, max_size, shared,
-                                        memory->is_memory64());
+                                        memory->index_type());
   info.GetReturnValue().Set(Utils::ToLocal(type));
 }
 

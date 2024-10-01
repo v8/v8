@@ -71,6 +71,10 @@
   # (https://github.com/WebAssembly/memory64/pull/83)
   'proposals/memory64/module/exports': [FAIL],
 
+  # TODO(clemensb): Tests need to be updated for BigInt
+  # (https://github.com/WebAssembly/memory64/pull/75).
+  'proposals/memory64/memory/constructor': [FAIL],
+
   # Already fixed upstream in WPT, waiting on merge to spec repo:
   # https://github.com/WebAssembly/js-string-builtins/pull/43
   'wpt/js-string/basic.tentative': [FAIL],

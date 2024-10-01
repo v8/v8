@@ -528,8 +528,33 @@ wasm::ValueType WasmTableObject::type() {
   return type;
 }
 
+bool WasmTableObject::is_in_bounds(uint32_t entry_index) {
+  return entry_index < static_cast<uint32_t>(current_length());
+}
+
 bool WasmTableObject::is_table64() const {
   return index_type() == wasm::IndexType::kI64;
+}
+
+std::optional<uint64_t> WasmTableObject::maximum_length_u64() const {
+  Tagged<Object> max = maximum_length();
+  if (IsUndefined(max)) return std::nullopt;
+  if (is_table64()) {
+    DCHECK(IsBigInt(max));
+#if DEBUG
+    bool lossless;
+    double value = Cast<BigInt>(maximum_length())->AsUint64(&lossless);
+    DCHECK(lossless);
+    return value;
+#else
+    return Cast<BigInt>(maximum_length())->AsUint64();
+#endif
+  }
+  DCHECK(IsNumber(max));
+  double value = Object::NumberValue(max);
+  DCHECK_LE(0, value);
+  DCHECK_GE(std::numeric_limits<uint64_t>::max(), value);
+  return value;
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }

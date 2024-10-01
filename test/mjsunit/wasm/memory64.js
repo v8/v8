@@ -435,10 +435,65 @@ function allowOOM(fn) {
   assertEquals(0, instance.exports.load(0n));
 })();
 
+(function TestMemory64Constructor() {
+  print(arguments.callee.name);
+  let is_bigint = n => typeof n == "bigint";
+  let is_number = n => typeof n == "number";
+  // Printing support.
+  let PotentialBigint = n => is_bigint(n) ? `${n}n` : `${n}`;
+
+  for (let initial of [undefined, 1, 1n]) {
+    for (let maximum of [undefined, 1, 1n]) {
+      for (let shared of [undefined, true, false]) {
+        for (let index of [undefined, 'i32', 'i64']) {
+          let valid = (!shared || maximum) &&  // shared implies maximum
+              (index == 'i64' ? is_bigint(initial) && !is_number(maximum) :
+                                is_number(initial) && !is_bigint(maximum));
+          let desc = `${PotentialBigint(initial)} / ${
+              PotentialBigint(maximum)} / ${shared} / ${index} -> ${valid}`;
+          let code = () => new WebAssembly.Memory({
+            initial: initial,
+            maximum: maximum,
+            shared: shared,
+            index: index
+          });
+          try {
+            code();
+            if (!valid) {
+              assertUnreachable(`Should have failed with TypeError: ${desc}`);
+            }
+          } catch (e) {
+            if (e instanceof TypeError && !valid) continue;
+            print(desc);
+            throw e;
+          }
+        }
+      }
+    }
+  }
+})();
+
+(function TestMemory64GrowViaJSApi() {
+  print(arguments.callee.name);
+  let memory = new WebAssembly.Memory({initial: 1n, maximum: 5n, index: 'i64'});
+  assertEquals(1n, memory.grow(2n));
+  assertThrows(
+      () => memory.grow(3n), RangeError,
+      'WebAssembly.Memory.grow(): Maximum memory size exceeded');
+  assertEquals(3n, memory.grow(2n));
+  assertThrows(
+      () => memory.grow(1n), RangeError,
+      'WebAssembly.Memory.grow(): Maximum memory size exceeded');
+  assertEquals(5n, memory.grow(0n));
+  assertThrows(
+      () => memory.grow(0), TypeError,
+      'WebAssembly.Memory.grow(): Argument 0 must be a BigInt');
+})();
+
 (function TestMemory64SharedBetweenWorkers() {
   print(arguments.callee.name);
   let shared_mem64 = new WebAssembly.Memory(
-      {initial: 1, maximum: 10, shared: true, index: 'i64'});
+      {initial: 1n, maximum: 10n, shared: true, index: 'i64'});
 
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory('imp', 'mem', 1, 10, true, true);
@@ -491,7 +546,7 @@ function allowOOM(fn) {
       const kValue = 21;
       workerAssert(mem instanceof WebAssembly.Memory, 'Wasm memory');
       workerAssert(mem.buffer instanceof SharedArrayBuffer);
-      workerAssertEquals(4, mem.grow(1), 'grow');
+      workerAssertEquals(4, mem.grow(1n), 'grow');
       let instance = new WebAssembly.Instance(module, {imp: {mem: mem}});
       let exports = instance.exports;
       workerAssertEquals(kValue, exports.load(kOffset1), 'load 1');

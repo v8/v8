@@ -28,7 +28,7 @@ function makeWasmMemory(length) {
   const kWasmPageSize = 64 * 1024;
   assertTrue(kHasWasm);
   assertEquals(0, length % kWasmPageSize);
-  let num_pages = length / kWasmPageSize;
+  let num_pages = BigInt(length / kWasmPageSize);
   let wasm_mem = new WebAssembly.Memory(
       {initial: num_pages, maximum: num_pages, index: 'i64'});
   return wasm_mem.buffer;

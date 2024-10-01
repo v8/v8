@@ -646,6 +646,7 @@ struct TypeFeedbackStorage {
 struct WasmTable {
   ValueType type = kWasmVoid;
   uint32_t initial_size = 0;
+  // TODO(369904698): Allow true 64-bit declared maximum sizes (for memory64).
   uint32_t maximum_size = 0;
   bool has_maximum_size = false;
   IndexType index_type = IndexType::kI32;
@@ -983,12 +984,12 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
-                                  std::optional<uint32_t> max_size, bool shared,
-                                  bool is_memory64);
+                                  std::optional<uint64_t> max_size, bool shared,
+                                  IndexType index_type);
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
-                                 std::optional<uint32_t> max_size,
-                                 bool is_table64);
+                                 std::optional<uint64_t> max_size,
+                                 IndexType index_type);
 Handle<JSArray> GetImports(Isolate* isolate,
                            DirectHandle<WasmModuleObject> module);
 Handle<JSArray> GetExports(Isolate* isolate,

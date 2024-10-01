@@ -2128,23 +2128,16 @@ bool InstanceBuilder::ProcessImportedTable(
   }
 
   if (table.has_maximum_size) {
-    if (IsUndefined(table_object->maximum_length(), isolate_)) {
-      thrower_->LinkError("table import %d has no maximum length, expected %u",
+    std::optional<uint64_t> max_size = table_object->maximum_length_u64();
+    if (!max_size) {
+      thrower_->LinkError("table import %d has no maximum length; required: %u",
                           import_index, table.maximum_size);
       return false;
     }
-    int64_t imported_maximum_size =
-        Object::NumberValue(table_object->maximum_length());
-    if (imported_maximum_size < 0) {
-      thrower_->LinkError("table import %d has no maximum length, expected %u",
-                          import_index, table.maximum_size);
-      return false;
-    }
-    if (imported_maximum_size > table.maximum_size) {
+    if (*max_size > table.maximum_size) {
       thrower_->LinkError("table import %d has a larger maximum size %" PRIx64
                           " than the module's declared maximum %u",
-                          import_index, imported_maximum_size,
-                          table.maximum_size);
+                          import_index, *max_size, table.maximum_size);
       return false;
     }
   }

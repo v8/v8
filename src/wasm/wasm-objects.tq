@@ -197,7 +197,11 @@ extern class WasmTableObject extends JSObject {
   //     WasmInstanceObject and Smi for the function index.
   entries: FixedArray;
   current_length: Smi;
-  maximum_length: Smi|HeapNumber|Undefined;
+  // The declared maximum. Undefined if no maximum was declared.
+  // If {index_type == kI32} this stores a Smi or HeapNumber, otherwise a
+  // BigInt. Note that the value can in any case be bigger than
+  // {wasm::kV8MaxWasmTableSize}.
+  maximum_length: Smi|HeapNumber|BigInt|Undefined;
   // The uses field stores an array of <WasmInstanceObject, index> pairs so we
   // can update the instance's dispatch table when the table grows.
   uses: FixedArray;

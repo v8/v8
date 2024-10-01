@@ -153,7 +153,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 
 Handle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
-    wasm::ValueType type, uint32_t initial, bool has_maximum, uint32_t maximum,
+    wasm::ValueType type, uint32_t initial, bool has_maximum, uint64_t maximum,
     DirectHandle<Object> initial_value, wasm::IndexType index_type) {
   CHECK(type.is_object_reference());
 
@@ -163,11 +163,15 @@ Handle<WasmTableObject> WasmTableObject::New(
     entries->set(i, *initial_value);
   }
 
-  DirectHandle<UnionOf<Number, Undefined>> max;
+  DirectHandle<UnionOf<Undefined, Number, BigInt>> max =
+      isolate->factory()->undefined_value();
   if (has_maximum) {
-    max = isolate->factory()->NewNumberFromUint(maximum);
-  } else {
-    max = isolate->factory()->undefined_value();
+    if (index_type == wasm::IndexType::kI32) {
+      DCHECK_GE(kMaxUInt32, maximum);
+      max = isolate->factory()->NewNumber(maximum);
+    } else {
+      max = BigInt::FromUint64(isolate, maximum);
+    }
   }
 
   Handle<JSFunction> table_ctor(
@@ -226,13 +230,12 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
   if (count == 0) return old_size;  // Degenerate case: nothing to do.
 
   // Check if growing by {count} is valid.
-  uint32_t max_size;
-  if (!Object::ToUint32(table->maximum_length(), &max_size)) {
-    max_size = v8_flags.wasm_max_table_size;
-  }
-  max_size = std::min(max_size, v8_flags.wasm_max_table_size.value());
+  static_assert(wasm::kV8MaxWasmTableSize <= kMaxUInt32);
+  uint64_t static_max_size = v8_flags.wasm_max_table_size;
+  uint32_t max_size = static_cast<uint32_t>(std::min(
+      static_max_size, table->maximum_length_u64().value_or(static_max_size)));
   DCHECK_LE(old_size, max_size);
-  if (max_size - old_size < count) return -1;
+  if (count > max_size - old_size) return -1;
 
   uint32_t new_size = old_size + count;
   // Even with 2x over-allocation, there should not be an integer overflow.
@@ -294,10 +297,6 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
     WasmTableObject::Set(isolate, table, entry, init_value);
   }
   return old_size;
-}
-
-bool WasmTableObject::is_in_bounds(uint32_t entry_index) {
-  return entry_index < static_cast<uint32_t>(current_length());
 }
 
 MaybeHandle<Object> WasmTableObject::JSToWasmElement(

@@ -22,7 +22,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals("i32", type.index);
   assertEquals(4, Object.getOwnPropertyNames(type).length);
 
-  mem = new WebAssembly.Memory({initial: 2, maximum: 15, index: "i64"});
+  mem = new WebAssembly.Memory({initial: 2n, maximum: 15n, index: "i64"});
   type = mem.type();
   assertEquals("i64", type.index);
 })();

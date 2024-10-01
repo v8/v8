@@ -228,7 +228,7 @@ class WasmTableObject
   V8_EXPORT_PRIVATE static Handle<WasmTableObject> New(
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
       wasm::ValueType type, uint32_t initial, bool has_maximum,
-      uint32_t maximum, DirectHandle<Object> initial_value,
+      uint64_t maximum, DirectHandle<Object> initial_value,
       wasm::IndexType index_type);
 
   // Store that a specific instance uses this table, in order to update the
@@ -238,9 +238,12 @@ class WasmTableObject
       Isolate* isolate, DirectHandle<WasmTableObject> table,
       Handle<WasmInstanceObject> instance_object, int table_index);
 
-  bool is_in_bounds(uint32_t entry_index);
+  inline bool is_in_bounds(uint32_t entry_index);
 
   inline bool is_table64() const;
+
+  // Get the declared maximum as uint64_t or nullopt if no maximum was declared.
+  inline std::optional<uint64_t> maximum_length_u64() const;
 
   // Thin wrapper around {JsToWasmObject}.
   static MaybeHandle<Object> JSToWasmElement(

@@ -767,6 +767,7 @@ class ModuleDecoderImpl : public Decoder {
           if (table->shared) module_->has_shared_part = true;
           // Note that we should not throw an error if the declared maximum size
           // is oob. We will instead fail when growing at runtime.
+          // TODO(369904698): Allow true 64-bit maximum values.
           consume_resizable_limits(
               "table", "elements", v8_flags.wasm_max_table_size,
               &table->initial_size, table->has_maximum_size,

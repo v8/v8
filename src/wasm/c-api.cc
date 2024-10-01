@@ -2119,8 +2119,10 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
 auto Table::type() const -> own<TableType> {
   i::DirectHandle<i::WasmTableObject> table = impl(this)->v8_object();
   uint32_t min = table->current_length();
-  uint32_t max;
-  if (!i::Object::ToUint32(table->maximum_length(), &max)) max = 0xFFFFFFFFu;
+  // Note: The C-API is not updated for memory64 yet; limits use uint32_t. Thus
+  // truncate the actual declared maximum to kMaxUint32.
+  uint32_t max = static_cast<uint32_t>(std::min<uint64_t>(
+      i::kMaxUInt32, table->maximum_length_u64().value_or(i::kMaxUInt32)));
   ValKind kind;
   switch (table->type().heap_representation()) {
     case i::wasm::HeapType::kFunc:
