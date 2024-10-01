@@ -657,7 +657,7 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
 
   // TODO(Yuri Gaevsky): can we be better here?
   if (kind_ == Kind::kNearest) {
-    Register tmp = MaglevAssembler::GetFlagsRegister();
+    Register tmp = temps.AcquireScratch();
     DoubleRegister half_one = temps.AcquireDouble();  // available in this mode
     __ Round_d_d(out, in, fscratch1);
     // RISC-V Rounding Mode RNE means "Round to Nearest, ties to Even", while JS

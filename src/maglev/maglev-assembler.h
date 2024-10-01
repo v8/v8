@@ -102,17 +102,18 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
         code_gen_state_(code_gen_state) {}
 
   static constexpr RegList GetAllocatableRegisters() {
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_RISCV64)
+#if defined(V8_TARGET_ARCH_ARM)
     return kAllocatableGeneralRegisters - kMaglevExtraScratchRegister;
+#elif defined(V8_TARGET_ARCH_RISCV64)
+    return kAllocatableGeneralRegisters - kMaglevExtraScratchRegister -
+           kMaglevFlagsRegister;
 #else
     return kAllocatableGeneralRegisters;
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
+#endif
   }
 
 #if defined(V8_TARGET_ARCH_RISCV64)
-  static constexpr Register GetFlagsRegister() {
-    return kMaglevExtraScratchRegister;
-  }
+  static constexpr Register GetFlagsRegister() { return kMaglevFlagsRegister; }
 #endif  // V8_TARGET_ARCH_RISCV64
 
   static constexpr DoubleRegList GetAllocatableDoubleRegisters() {

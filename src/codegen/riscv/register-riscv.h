@@ -311,7 +311,8 @@ constexpr Register kWasmTrapHandlerFaultAddressRegister = t6;
 
 constexpr DoubleRegister kFPReturnRegister0 = fa0;
 
-constexpr Register kMaglevExtraScratchRegister = t6;
+constexpr Register kMaglevFlagsRegister = t6;
+constexpr Register kMaglevExtraScratchRegister = t2;
 
 constexpr VRegister kSimd128ScratchReg = v24;
 constexpr VRegister kSimd128ScratchReg2 = v23;

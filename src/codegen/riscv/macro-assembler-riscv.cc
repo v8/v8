@@ -6261,12 +6261,6 @@ void MacroAssembler::Abort(AbortReason reason) {
     return;
   }
 
-  // We need some scratch registers for the MacroAssembler, so make sure we have
-  // some. This is safe here because Abort never returns.
-  UseScratchRegisterScope temps(this);
-  auto old_tmp_list = temps.Available();
-  temps.SetAvailable(MacroAssembler::DefaultTmpList());
-
   if (should_abort_hard()) {
     // We don't care if we constructed a frame. Just pretend we did.
     FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
@@ -6310,7 +6304,6 @@ void MacroAssembler::Abort(AbortReason reason) {
       nop();
     }
   }
-  temps.SetAvailable(old_tmp_list);
 }
 
 // Sets condition flags based on comparison, and returns type in type_reg.
@@ -6325,10 +6318,14 @@ void MacroAssembler::CompareObjectTypeAndJump(Register object, Register map,
   if (v8_flags.debug_code) {
     AssertNotSmi(map);
     Register temp_type_reg = type_reg;
-    push(map);
+    UseScratchRegisterScope temps(this);
+    if (map == temp_type_reg) {
+      // GetObjectType clobbers 2nd and 3rd args, can't be same registers as
+      // first one
+      temp_type_reg = temps.Acquire();
+    }
     GetObjectType(map, temp_type_reg, temp_type_reg);
     Assert(eq, AbortReason::kUnexpectedValue, temp_type_reg, Operand(MAP_TYPE));
-    pop(map);
   }
   Lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   Branch(target, cond, type_reg, Operand(type), distance);
