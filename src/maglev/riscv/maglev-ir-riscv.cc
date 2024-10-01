@@ -532,16 +532,17 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, Xor)
     Register lhs = ToRegister(left_input());                     \
     if (Int32Constant* constant =                                \
             right_input().node()->TryCast<Int32Constant>()) {    \
-      int right = constant->value() & 31;                        \
-      if (right == 0) {                                          \
+      uint32_t shift = constant->value() & 31;                   \
+      if (shift == 0) {                                          \
         __ ZeroExtendWord(out, lhs);                             \
-      } else {                                                   \
-        __ opcode(out, lhs, Operand(right));                     \
+        return;                                                  \
       }                                                          \
+      __ opcode(out, lhs, Operand(shift));                       \
     } else {                                                     \
       Register rhs = ToRegister(right_input());                  \
       __ opcode(out, lhs, Operand(rhs));                         \
     }                                                            \
+    __ ZeroExtendWord(out, out);                                 \
   }
 DEF_SHIFT_BINOP(Int32ShiftLeft, Sll32)
 DEF_SHIFT_BINOP(Int32ShiftRight, Sra32)
