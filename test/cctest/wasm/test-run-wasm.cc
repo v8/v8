@@ -2753,7 +2753,6 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
 static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
   const int kExpected = 6333;
   const int kElemSize = 8;
-  TestSignatures sigs;
 
   // 64-bit cases handled in test-run-wasm-64.cc.
   static MachineType mixed[] = {
