@@ -33,6 +33,7 @@ BASE_PATH = Path(__file__).parent.resolve()
 
 # List of files passed to each d8 run before the testcase.
 DEFAULT_MOCK = BASE_PATH / 'v8_mock.js'
+SMOKE_TESTS = BASE_PATH / 'v8_smoke_tests.js'
 
 # Suppressions on JavaScript level for known issues.
 JS_SUPPRESSIONS = BASE_PATH / 'v8_suppressions.js'
@@ -40,6 +41,9 @@ JS_SUPPRESSIONS = BASE_PATH / 'v8_suppressions.js'
 # Config-specific mock files.
 ARCH_MOCKS = BASE_PATH / 'v8_mock_archs.js'
 WEBASSEMBLY_MOCKS = BASE_PATH / 'v8_mock_webassembly.js'
+
+# Non-standard exit code only used to simulate crashes in tests.
+CRASH_CODE_FOR_TESTING = 73
 
 
 def _startup_files(options):
@@ -52,7 +56,8 @@ def _startup_files(options):
   # Mock out WebAssembly when comparing with jitless mode.
   if '--jitless' in options.first.flags + options.second.flags:
     files.append(WEBASSEMBLY_MOCKS)
-  return files
+  # Keep the smoke tests last, right before the actual test case.
+  return files + [SMOKE_TESTS]
 
 
 class BaseException(Exception):
@@ -84,13 +89,12 @@ class Command(object):
 
     self.files = _startup_files(options)
 
-  def run(self, testcase, timeout, verbose=False):
+  def run(self, testcase, timeout):
     """Run the executable with a specific testcase."""
     raw_args = [self.executable] + self.flags + self.files + [testcase]
     args = list(map(str, raw_args))
-    if verbose:
-      print(f'# Command line for {self.label} comparison:')
-      print(' '.join(args))
+    print(f'# Command line for {self.label} comparison:')
+    print(' '.join(args))
     if self.executable.suffix == '.py':
       # Wrap with python in tests.
       args = [sys.executable] + args
@@ -125,7 +129,7 @@ class Output(object):
       return self.stdout_bytes.decode('latin-1')
 
   def HasCrashed(self):
-    return self.exit_code < 0
+    return self.exit_code < 0 or self.exit_code == CRASH_CODE_FOR_TESTING
 
 
 def Execute(args, cwd, timeout=None):

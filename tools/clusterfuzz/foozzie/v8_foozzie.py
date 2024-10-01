@@ -95,10 +95,8 @@ RETURN_PASS = 0
 RETURN_FAIL = 2
 
 BASE_PATH = Path(__file__).parent.resolve()
-SMOKE_TESTS = BASE_PATH / 'v8_smoke_tests.js'
 
 # Timeout for one d8 run.
-SMOKE_TEST_TIMEOUT_SEC = 1
 TEST_TIMEOUT_SEC = 3
 
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
@@ -333,9 +331,6 @@ def parse_args(args):
     '--random-seed', type=int, required=True,
     help='random seed passed to both runs')
   parser.add_argument(
-      '--skip-smoke-tests', default=False, action='store_true',
-      help='skip smoke tests for testing purposes')
-  parser.add_argument(
       '--skip-suppressions', default=False, action='store_true',
       help='skip suppressions to reproduce known issues')
   parser.add_argument(
@@ -417,25 +412,24 @@ def fail_bailout(output, ignore_by_output_fun):
 def format_difference(
     first_config, second_config,
     first_config_output, second_config_output,
-    difference, source_key=None, source=None):
+    difference, source=None):
   # The first three entries will be parsed by clusterfuzz. Format changes
   # will require changes on the clusterfuzz side.
-  source_key = source_key or cluster_failures(source)
   source_file_text = SOURCE_FILE_TEMPLATE % source if source else ''
 
   assert first_config.common_flags == second_config.common_flags
 
   return FAILURE_TEMPLATE % dict(
       source_file_text=source_file_text,
-      source_key=source_key,
+      source_key=cluster_failures(source),
       suppression='',  # We can't tie bugs to differences.
       first_config_arch=first_config.arch,
       second_config_arch=second_config.arch,
       common_flags=' '.join(first_config.common_flags),
       first_config_flags=' '.join(first_config.config_flags),
       second_config_flags=' '.join(second_config.config_flags),
-      first_config_output=first_config_output.stdout,
-      second_config_output=second_config_output.stdout,
+      first_config_output=first_config_output,
+      second_config_output=second_config_output,
       source=source,
       difference=difference,
   )
@@ -460,6 +454,9 @@ def cluster_failures(source, known_failures=None):
   # failures lead to new crash tests which in turn lead to new failures.
   if source.startswith('CrashTests'):
     return ORIGINAL_SOURCE_CRASHTESTS
+  # Report all deviations from the smoke test as one to avoid a bug flood.
+  if source == v8_suppressions.SMOKE_TEST_SOURCE:
+    return 'smoke test failed'
 
   # We map all remaining failures to a short hash of the original source.
   long_key = hashlib.sha1(source.encode('utf-8')).hexdigest()
@@ -468,10 +465,9 @@ def cluster_failures(source, known_failures=None):
 
 class RepeatedRuns(object):
   """Helper class for storing statistical data from repeated runs."""
-  def __init__(self, test_case, timeout, verbose):
+  def __init__(self, test_case, timeout):
     self.test_case = test_case
     self.timeout = timeout
-    self.verbose = verbose
 
     # Stores if any run has crashed or was simulated.
     self.has_crashed = False
@@ -479,7 +475,7 @@ class RepeatedRuns(object):
 
   def run(self, config):
     comparison_output = config.command.run(
-        self.test_case, timeout=self.timeout, verbose=self.verbose)
+        self.test_case, timeout=self.timeout)
     self.has_crashed = self.has_crashed or comparison_output.HasCrashed()
     self.simulated = self.simulated or config.is_error_simulation
     return comparison_output
@@ -489,8 +485,7 @@ class RepeatedRuns(object):
     return '_simulated_crash_' if self.simulated else '_unexpected_crash_'
 
 
-def run_comparisons(suppress, execution_configs, test_case, timeout,
-                    verbose=True, ignore_crashes=True, source_key=None):
+def run_comparisons(suppress, execution_configs, test_case, timeout):
   """Runs different configurations and bails out on output difference.
 
   Args:
@@ -499,14 +494,8 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
         used as baseline to compare all others to.
     test_case: The test case to run.
     timeout: Timeout in seconds for one run.
-    verbose: Prints the executed commands.
-    ignore_crashes: Typically we ignore crashes during fuzzing as they are
-        frequent. However, when running smoke tests we should not crash
-        and immediately flag crashes as a failure.
-    source_key: A fixed source key. If not given, it will be inferred from the
-        output.
   """
-  runner = RepeatedRuns(test_case, timeout, verbose)
+  runner = RepeatedRuns(test_case, timeout)
 
   # Run the baseline configuration.
   baseline_config = execution_configs[0]
@@ -539,27 +528,38 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
         fallback_output = runner.run(comparison_config.fallback)
         fallback_difference, fallback_source = suppress.diff(
             baseline_output, fallback_output)
-        if fallback_difference:
+        # Ensure also that the source doesn't differ, e.g. in case we have
+        # a real failure in the cross-arch comparison, but find the smoke
+        # tests failing in the fallback.
+        if fallback_difference and source == fallback_source:
           fail_bailout(fallback_output, suppress.ignore_by_output)
-          source = fallback_source
           comparison_config = comparison_config.fallback
           comparison_output = fallback_output
           difference = fallback_difference
 
-      raise FailException(format_difference(
-          baseline_config, comparison_config, baseline_output,
-          comparison_output, difference, source_key, source))
+      # We print only output relevant to the source of the failure. E.g.
+      # only print smoke-test output or real failure output.
+      reduced_baseline_output = suppress.reduced_output(
+          baseline_output.stdout, source)
+      reduced_comparison_output = suppress.reduced_output(
+          comparison_output.stdout, source)
 
-  if runner.has_crashed:
-    if ignore_crashes:
-      # Show if a crash has happened in one of the runs and no difference was
-      # detected. This is only for the statistics during experiments.
-      raise PassException('# V8 correctness - C-R-A-S-H')
-    else:
-      # Subsume simulated and unexpected crashes (e.g. during smoke tests)
-      # with one failure state.
+      raise FailException(format_difference(
+          baseline_config, comparison_config, reduced_baseline_output,
+          reduced_comparison_output, difference, source))
+
+    # Bail out if we crash during smoke tests already or if the crash is
+    # expected based on a simulation flag.
+    if (runner.has_crashed and (
+        source == v8_suppressions.SMOKE_TEST_SOURCE or runner.simulated)):
+      # Subsume such crashes with one failure state.
       raise FailException(FAILURE_HEADER_TEMPLATE % dict(
           source_key='', suppression=runner.crash_state))
+
+  if runner.has_crashed:
+    # Show if a crash has happened in one of the runs, but no difference was
+    # detected. This is only for the statistics during experiments.
+    raise PassException('# V8 correctness - C-R-A-S-H')
 
 
 def main():
@@ -580,23 +580,7 @@ def main():
     print('# Adjusted flags and experiments based on the test case:')
     print('\n'.join(changes))
 
-  # First, run some fixed smoke tests in all configs to ensure nothing
-  # is fundamentally wrong, in order to prevent bug flooding.
-  if not options.skip_smoke_tests:
-    run_comparisons(
-        suppress, execution_configs,
-        test_case=SMOKE_TESTS,
-        timeout=SMOKE_TEST_TIMEOUT_SEC,
-        verbose=False,
-        # Don't accept crashes during smoke tests. A crash would hint at
-        # a flag that might be incompatible or a broken test file.
-        ignore_crashes=False,
-        # Special source key for smoke tests so that clusterfuzz dedupes all
-        # cases on this in case it's hit.
-        source_key = 'smoke test failed',
-    )
-
-  # Second, run all configs against the fuzz test case.
+  # Run all configs against the fuzz test case.
   run_comparisons(
       suppress, execution_configs,
       test_case=options.testcase,

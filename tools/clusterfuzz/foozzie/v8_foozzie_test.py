@@ -117,14 +117,16 @@ class UnitTest(unittest.TestCase):
       suppress = v8_suppressions.get_suppression(skip)
       return suppress.diff_lines(one.splitlines(), two.splitlines())
 
+    smoke = v8_suppressions.SMOKE_TEST_SOURCE
+
     one = ''
     two = ''
-    diff = None, None
+    diff = None, smoke
     self.assertEqual(diff, diff_fun(one, two))
 
     one = 'a \n  b\nc();'
     two = 'a \n  b\nc();'
-    diff = None, None
+    diff = None, smoke
     self.assertEqual(diff, diff_fun(one, two))
 
     # Ignore line before caret and caret position.
@@ -142,7 +144,7 @@ other weird stuff
 somefile.js: TypeError: suppressed message
   undefined
 """
-    diff = None, None
+    diff = None, smoke
     self.assertEqual(diff, diff_fun(one, two))
 
     one = """
@@ -152,7 +154,7 @@ Extra line
     two = """
 Still equal
 """
-    diff = '- Extra line', None
+    diff = '- Extra line', smoke
     self.assertEqual(diff, diff_fun(one, two))
 
     one = """
@@ -162,7 +164,7 @@ Still equal
 Still equal
 Extra line
 """
-    diff = '+ Extra line', None
+    diff = '+ Extra line', smoke
     self.assertEqual(diff, diff_fun(one, two))
 
     one = """
@@ -174,7 +176,7 @@ undefined
 otherfile.js: TypeError: undefined is not a constructor
 """
     diff = """- somefile.js: TypeError: undefined is not a constructor
-+ otherfile.js: TypeError: undefined is not a constructor""", None
++ otherfile.js: TypeError: undefined is not a constructor""", smoke
     self.assertEqual(diff, diff_fun(one, two))
 
     # Test that skipping suppressions works.
@@ -231,6 +233,35 @@ other weird stuff
     check('1\n2\n3', '4\n5', True, True, '1\n2', '4\n5')
     check('12', '345', True, True, '12', '34')
     check('123', '45', True, True, '12', '45')
+
+  def testReduceOutput(self):
+    suppress = v8_suppressions.get_suppression()
+    proper_test_output = textwrap.dedent(f"""\
+      Smoke-test output.
+      {v8_suppressions.SMOKE_TEST_END_TOKEN}
+      Real-test output.
+      Some more.""")
+
+    # The source is some test. Don't show smoke-test output.
+    result = suppress.reduced_output(proper_test_output, 'some/file')
+    expected = textwrap.dedent(f"""\
+      Real-test output.
+      Some more.""")
+    self.assertEqual(expected, result)
+
+    # The source is the smoke test. Only show smoke-test output.
+    result = suppress.reduced_output(
+        proper_test_output, v8_suppressions.SMOKE_TEST_SOURCE)
+    self.assertEqual('Smoke-test output.\n', result)
+
+    # Smoke-test output is not properly wrapped. Check that we print
+    # everything.
+    invalid_test_output = textwrap.dedent(f"""\
+      Smoke-test output.
+      Real-test output.
+      Some more.""")
+    result = suppress.reduced_output(invalid_test_output, 'some/file')
+    self.assertEqual(invalid_test_output, result)
 
   @unittest.mock.patch('v8_foozzie.DISALLOWED_FLAGS', ['A'])
   @unittest.mock.patch('v8_foozzie.CONTRADICTORY_FLAGS',
@@ -485,7 +516,7 @@ class SystemTest(unittest.TestCase):
       self.assertEqual(f.read(), expected)
 
   def testSyntaxErrorDiffPass(self):
-    stdout = run_foozzie('build1', '--skip-smoke-tests')
+    stdout = run_foozzie('build1')
     self.assertEqual('# V8 correctness - pass\n',
                      cut_verbose_output(stdout, 3))
     # Default comparison includes suppressions.
@@ -496,7 +527,7 @@ class SystemTest(unittest.TestCase):
 
   def _testDifferentOutputFail(self, expected_path, *args):
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('build2', '--skip-smoke-tests',
+      run_foozzie('build2',
                   '--first-config-extra-flags=--flag1',
                   '--first-config-extra-flags=--flag2=0',
                   '--second-config-extra-flags=--flag3', *args)
@@ -507,19 +538,37 @@ class SystemTest(unittest.TestCase):
   def testDifferentOutputFail(self):
     self._testDifferentOutputFail('failure_output.txt')
 
-  def testSmokeTest(self):
+  def testSmokeTest_Fails(self):
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('build2')
+      run_foozzie('build4')
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assert_expected('smoke_test_output.txt', e.output)
+    self.assert_expected(
+        'smoke_test_output.txt', cut_verbose_output(e.output, 2))
+
+  def testSmokeTest_Crashes(self):
+    with self.assertRaises(subprocess.CalledProcessError) as ctx:
+      run_foozzie('build4',
+                  '--second-config-extra-flags=--crash-the-smoke-test')
+    e = ctx.exception
+    self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
+    self.assert_expected(
+        'smoke_test_crash_output.txt', cut_verbose_output(e.output, 2))
+
+  def testSimulatedCrash(self):
+    with self.assertRaises(subprocess.CalledProcessError) as ctx:
+      run_foozzie('build5', '--second-config-extra-flags=--simulate-errors')
+    e = ctx.exception
+    self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
+    self.assert_expected(
+        'simulated_crash_output.txt', cut_verbose_output(e.output, 2))
 
   def testDifferentArch(self):
     """Test that the architecture-specific mocks are passed to both runs when
     we use executables with different architectures.
     """
     # Build 3 simulates x86, while the baseline is x64.
-    stdout = run_foozzie('build3', '--skip-smoke-tests')
+    stdout = run_foozzie('build3')
     lines = stdout.split('\n')
     # TODO(machenbach): Don't depend on the command-lines being printed in
     # particular lines.
@@ -533,8 +582,7 @@ class SystemTest(unittest.TestCase):
     # Build 3 simulates x86 and produces a difference on --bad-flag, but
     # the baseline build shows the same difference when --bad-flag is passed.
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('build3', '--skip-smoke-tests',
-                  '--second-config-extra-flags=--bad-flag')
+      run_foozzie('build3', '--second-config-extra-flags=--bad-flag')
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assert_expected(
@@ -547,8 +595,7 @@ class SystemTest(unittest.TestCase):
     # Build 3 simulates x86 and produces a difference on --very-bad-flag,
     # which the baseline build doesn't.
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('build3', '--skip-smoke-tests',
-                  '--second-config-extra-flags=--very-bad-flag')
+      run_foozzie('build3', '--second-config-extra-flags=--very-bad-flag')
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assert_expected(
@@ -557,7 +604,7 @@ class SystemTest(unittest.TestCase):
   def testJitless(self):
     """Test that webassembly is mocked out when comparing with jitless."""
     stdout = run_foozzie(
-        'build1', '--skip-smoke-tests', second_config='jitless')
+        'build1', second_config='jitless')
     lines = stdout.split('\n')
     # TODO(machenbach): Don't depend on the command-lines being printed in
     # particular lines.
@@ -570,7 +617,7 @@ class SystemTest(unittest.TestCase):
     The flag passed to one run of build3 causes an output difference.
     """
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('build3', '--skip-smoke-tests', second_config='jitless')
+      run_foozzie('build3', second_config='jitless')
     self.assertIn('jitless flag passed', ctx.exception.stdout)
     self.assertNotIn('Adjusted flags and experiments based on the test case',
                      ctx.exception.stdout)
@@ -579,7 +626,6 @@ class SystemTest(unittest.TestCase):
     """We drop the --jitless flag when the content rule matches."""
     stdout = run_foozzie(
         'build3',
-        '--skip-smoke-tests',
         second_config='jitless',
         filename='fuzz-wasm-struct-123.js')
     self.assertIn('Adjusted flags and experiments based on the test case',
@@ -593,7 +639,6 @@ class SystemTest(unittest.TestCase):
     """
     stdout = run_foozzie(
         'build3',
-        '--skip-smoke-tests',
         '--first-config-extra-flags=--avoid-cross-arch',
         second_config='ignition_turbo_opt',
         filename='fuzz-123.js')
@@ -609,15 +654,13 @@ class SystemTest(unittest.TestCase):
     suppressions.
     """
     # Compare baseline with baseline. This passes as there is no difference.
-    stdout = run_foozzie(
-        'baseline', '--skip-smoke-tests', '--skip-suppressions')
+    stdout = run_foozzie('baseline', '--skip-suppressions')
     self.assertNotIn('v8_suppressions.js', stdout)
 
     # Compare with a build that usually suppresses a difference. Now we fail
     # since we skip suppressions.
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie(
-          'build1', '--skip-smoke-tests', '--skip-suppressions')
+      run_foozzie('build1', '--skip-suppressions')
     e = ctx.exception
     self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assertNotIn('v8_suppressions.js', e.output)

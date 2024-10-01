@@ -98,6 +98,14 @@ IGNORE_LINES = [re.compile(exp) for exp in IGNORE_LINES]
 
 ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
 
+SMOKE_TEST_SOURCE = 'foozzie smoke test'
+
+SMOKE_TEST_END_TOKEN = '___foozzie___smoke_test_end___'
+
+SMOKE_TEST_OUTPUT_RE = f'(.*?){SMOKE_TEST_END_TOKEN}'
+
+SMOKE_TEST_INVERSE_OUTPUT_RE = f'.*?{SMOKE_TEST_END_TOKEN}\\s(.*)'
+
 
 def get_output_capped(output1, output2):
   """Returns a pair of stdout byte arrays.
@@ -176,8 +184,8 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
   lines2 = list(filter(useful_line(ignore2), output2))
 
   # This keeps track where we are in the original source file of the fuzz
-  # test case.
-  source = None
+  # test case. We always start with the smoke-test part.
+  source = SMOKE_TEST_SOURCE
 
   for ((line1, lookahead1), (line2, lookahead2)) in zip_longest(
       line_pairs(lines1), line_pairs(lines2), fillvalue=(None, None)):
@@ -196,7 +204,9 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
       # Instrumented original-source-file output must be equal in both
       # versions. It only makes sense to update it here when both lines
       # are equal.
-      if line1.startswith(ORIGINAL_SOURCE_PREFIX):
+      if source == SMOKE_TEST_SOURCE and line1 == SMOKE_TEST_END_TOKEN:
+        source = None
+      elif line1.startswith(ORIGINAL_SOURCE_PREFIX):
         source = line1[len(ORIGINAL_SOURCE_PREFIX):]
       continue
 
@@ -254,6 +264,19 @@ class V8Suppression(object):
         IGNORE_LINES,
         IGNORE_LINES,
     )
+
+  def reduced_output(self, output, source):
+    """Return output reduced by the source's origin, either only smoke-test
+    output or only non-smoke-test output.
+    """
+    if source == SMOKE_TEST_SOURCE:
+      exp = SMOKE_TEST_OUTPUT_RE
+    else:
+      exp = SMOKE_TEST_INVERSE_OUTPUT_RE
+    match = re.search(exp, output, re.S)
+    if match:
+      return match.group(1)
+    return output
 
   def ignore_by_content(self, testcase):
     # Strip off test case preamble.

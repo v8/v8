@@ -15,37 +15,21 @@
 
 #
 # Difference:
-- unknown
-+ not unknown
+- Some smoke-test output.
++ Different smoke-test output.
 #
 # Source file:
-name/to/file.js
+foozzie smoke test
 #
 ### Start of baseline output:
 
-1
-v8-foozzie source: name/to/a/file.js
-2
-v8-foozzie source: name/to/file.js
-  weird error
-        ^
-3
-unknown
-
+Some smoke-test output.
 
 ### End of baseline output
 #
 ### Start of comparison output:
 
-1
-v8-foozzie source: name/to/a/file.js
-2
-v8-foozzie source: name/to/file.js
-  weird other error
-^
-3
-not unknown
-
+Different smoke-test output.
 
 ### End of comparison output
 

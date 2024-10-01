@@ -5,6 +5,9 @@
 import sys
 
 print("""
+Some smoke-test output.
+___foozzie___smoke_test_end___
+
 1
 v8-foozzie source: name/to/a/file.js
 2
