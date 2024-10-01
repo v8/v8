@@ -620,7 +620,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
 #if V8_ENABLE_WEBASSEMBLY
     case StubCallMode::kCallWasmRuntimeStub:
       kind = CallDescriptor::kCallWasmFunction;
-      target_type = MachineType::Pointer();
+      target_type = MachineType::WasmCodePointer();
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case StubCallMode::kCallBuiltinPointer:
