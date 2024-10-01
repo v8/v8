@@ -1424,7 +1424,8 @@ void CreateFastCAPIObject(const FunctionCallbackInfo<Value>& info) {
   api_object->SetAccessorProperty(
       String::NewFromUtf8Literal(info.GetIsolate(), "supports_fp_params"),
       FunctionTemplate::New(info.GetIsolate(), FastCApiObject::SupportsFPParams)
-          ->GetFunction(api_object->GetCreationContext().ToLocalChecked())
+          ->GetFunction(api_object->GetCreationContext(info.GetIsolate())
+                            .ToLocalChecked())
           .ToLocalChecked());
 }
 
