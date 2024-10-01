@@ -2342,6 +2342,7 @@ class MachineOptimizationReducer : public Next {
     }
     int64_t diff = constant.signed_integral();
     int32_t new_offset;
+    if (element_scale > 31) return false;
     if (diff <= (std::numeric_limits<int32_t>::max() >> element_scale) &&
         diff >= (std::numeric_limits<int32_t>::min() >> element_scale) &&
         !base::bits::SignedAddOverflow32(
