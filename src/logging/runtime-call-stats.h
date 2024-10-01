@@ -601,7 +601,7 @@ enum RuntimeCallCounterId {
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) kRuntime_##name,
           FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) kBuiltin_##name,
+#define CALL_BUILTIN_COUNTER(name, Argc) kBuiltin_##name,
               BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) kAPI_##name,

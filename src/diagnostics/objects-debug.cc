@@ -1315,6 +1315,11 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
     CHECK(!it.IsFound() || it.state() != LookupIterator::ACCESSOR ||
           !IsAccessorInfo(*it.GetAccessors()));
   }
+
+  CHECK_IMPLIES(shared()->HasBuiltinId(),
+                Builtins::CheckFormalParameterCount(
+                    shared()->builtin_id(), shared()->length(),
+                    shared()->internal_formal_parameter_count_with_receiver()));
 }
 
 void JSWrappedFunction::JSWrappedFunctionVerify(Isolate* isolate) {
@@ -1404,6 +1409,10 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
       CHECK(!construct_as_builtin());
     }
   }
+  CHECK_IMPLIES(HasBuiltinId(),
+                Builtins::CheckFormalParameterCount(
+                    builtin_id(), length(),
+                    internal_formal_parameter_count_with_receiver()));
 }
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {

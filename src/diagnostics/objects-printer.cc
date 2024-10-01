@@ -2156,8 +2156,14 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
     os << "\n - builtin: " << isolate->builtins()->name(builtin);
   }
 
-  os << "\n - formal_parameter_count: "
-     << shared()->internal_formal_parameter_count_without_receiver();
+  os << "\n - formal_parameter_count: ";
+  int formal_parameter_count =
+      shared()->internal_formal_parameter_count_with_receiver();
+  if (formal_parameter_count == kDontAdaptArgumentsSentinel) {
+    os << "kDontAdaptArgumentsSentinel";
+  } else {
+    os << formal_parameter_count;
+  }
   os << "\n - kind: " << shared()->kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code(isolate));
@@ -2236,8 +2242,13 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
   os << "\n - function_map_index: " << function_map_index();
-  os << "\n - formal_parameter_count: "
-     << internal_formal_parameter_count_without_receiver();
+  os << "\n - formal_parameter_count: ";
+  int formal_parameter_count = internal_formal_parameter_count_with_receiver();
+  if (formal_parameter_count == kDontAdaptArgumentsSentinel) {
+    os << "kDontAdaptArgumentsSentinel";
+  } else {
+    os << formal_parameter_count;
+  }
   os << "\n - expected_nof_properties: "
      << static_cast<int>(expected_nof_properties());
   os << "\n - language_mode: " << language_mode();

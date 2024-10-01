@@ -201,7 +201,23 @@ class Builtins {
                                                 Builtin builtin);
   static bool HasJSLinkage(Builtin builtin);
 
+  // Returns the number builtin's parameters passed on the stack.
   V8_EXPORT_PRIVATE static int GetStackParameterCount(Builtin builtin);
+
+  // Formal parameter count is the minimum number of JS arguments that's
+  // expected to be present on the stack when a builtin is called. When
+  // a JavaScript function is called with less arguments than expected by
+  // a builtin the stack is "adapted" - i.e. the required number of undefined
+  // values is pushed to the stack to match the target builtin expectations.
+  // In case the builtin does not require arguments adaptation it returns
+  // kDontAdaptArgumentsSentinel.
+  static constexpr inline int GetFormalParameterCount(Builtin builtin);
+
+  // Checks that the formal parameter count specified in CPP macro matches
+  // the value set in SharedFunctionInfo.
+  static bool CheckFormalParameterCount(
+      Builtin builtin, int function_length,
+      int formal_parameter_count_with_receiver);
 
   V8_EXPORT_PRIVATE static const char* name(Builtin builtin);
   V8_EXPORT_PRIVATE static const char* NameForStackTrace(Isolate* isolate,

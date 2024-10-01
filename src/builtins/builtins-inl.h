@@ -217,6 +217,20 @@ constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
   UNREACHABLE();
 }
 
+// static
+constexpr int Builtins::GetFormalParameterCount(Builtin builtin) {
+#define CPP_BUILTIN(Name, Argc) \
+  case Builtin::k##Name:        \
+    return Argc;
+
+  switch (builtin) {
+    BUILTIN_LIST_C(CPP_BUILTIN)
+    default:
+      UNREACHABLE();
+  }
+#undef CPP_BUILTIN
+}
+
 #ifdef V8_ENABLE_WEBASSEMBLY
 
 // static

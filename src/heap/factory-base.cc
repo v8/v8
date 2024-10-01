@@ -587,6 +587,10 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   }
   raw->set_length(len);
 
+  DCHECK_IMPLIES(raw->HasBuiltinId(),
+                 Builtins::CheckFormalParameterCount(
+                     raw->builtin_id(), raw->length(),
+                     raw->internal_formal_parameter_count_with_receiver()));
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) raw->SharedFunctionInfoVerify(isolate());
 #endif  // VERIFY_HEAP
@@ -1128,10 +1132,6 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
 
   DisallowGarbageCollection no_gc;
   shared->Init(read_only_roots(), isolate()->GetAndIncNextUniqueSfiId());
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) shared->SharedFunctionInfoVerify(isolate());
-#endif  // VERIFY_HEAP
-
   return handle(shared, isolate());
 }
 

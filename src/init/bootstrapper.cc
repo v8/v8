@@ -1399,7 +1399,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
         factory()->NewFunctionPrototype(isolate()->object_function());
     js_global_object_function = CreateFunctionForBuiltinWithPrototype(
         isolate(), name, Builtin::kIllegal, prototype, JS_GLOBAL_OBJECT_TYPE,
-        JSGlobalObject::kHeaderSize, 0, MUTABLE, 0, kAdapt);
+        JSGlobalObject::kHeaderSize, 0, MUTABLE, 0, kDontAdapt);
 #ifdef DEBUG
     LookupIterator it(isolate(), prototype, factory()->constructor_string(),
                       LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -1430,7 +1430,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     global_proxy_function = CreateFunctionForBuiltinWithPrototype(
         isolate(), name, Builtin::kIllegal, factory()->the_hole_value(),
         JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::SizeWithEmbedderFields(0), 0,
-        MUTABLE, 0, kAdapt);
+        MUTABLE, 0, kDontAdapt);
   } else {
     DirectHandle<ObjectTemplateInfo> data =
         v8::Utils::OpenDirectHandle(*global_proxy_template);
@@ -2683,10 +2683,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                  Builtin::kArrayIteratorPrototypeNext, 0,
                                  kAdapt);
 
-    DirectHandle<JSFunction> array_iterator_function =
-        CreateFunction(isolate_, factory->ArrayIterator_string(),
-                       JS_ARRAY_ITERATOR_TYPE, JSArrayIterator::kHeaderSize, 0,
-                       array_iterator_prototype, Builtin::kIllegal, 0, kAdapt);
+    DirectHandle<JSFunction> array_iterator_function = CreateFunction(
+        isolate_, factory->ArrayIterator_string(), JS_ARRAY_ITERATOR_TYPE,
+        JSArrayIterator::kHeaderSize, 0, array_iterator_prototype,
+        Builtin::kIllegal, 0, kDontAdapt);
     array_iterator_function->shared()->set_native(false);
 
     native_context()->set_initial_array_iterator_map(
@@ -3010,7 +3010,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     DirectHandle<JSFunction> string_iterator_function = CreateFunction(
         isolate_, factory->InternalizeUtf8String("StringIterator"),
         JS_STRING_ITERATOR_TYPE, JSStringIterator::kHeaderSize, 0,
-        string_iterator_prototype, Builtin::kIllegal, 0, kAdapt);
+        string_iterator_prototype, Builtin::kIllegal, 0, kDontAdapt);
     string_iterator_function->shared()->set_native(false);
     native_context()->set_initial_string_iterator_map(
         string_iterator_function->initial_map());
@@ -3421,36 +3421,36 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       SimpleInstallGetterSetter(isolate_, regexp_fun, "lastMatch",
                                 Builtin::kRegExpLastMatchGetter,
-                                Builtin::kEmptyFunction);
+                                Builtin::kEmptyFunction1);
       SimpleInstallGetterSetter(isolate_, regexp_fun, "$&",
                                 Builtin::kRegExpLastMatchGetter,
-                                Builtin::kEmptyFunction);
+                                Builtin::kEmptyFunction1);
 
       SimpleInstallGetterSetter(isolate_, regexp_fun, "lastParen",
                                 Builtin::kRegExpLastParenGetter,
-                                Builtin::kEmptyFunction);
+                                Builtin::kEmptyFunction1);
       SimpleInstallGetterSetter(isolate_, regexp_fun, "$+",
                                 Builtin::kRegExpLastParenGetter,
-                                Builtin::kEmptyFunction);
+                                Builtin::kEmptyFunction1);
 
       SimpleInstallGetterSetter(isolate_, regexp_fun, "leftContext",
                                 Builtin::kRegExpLeftContextGetter,
-                                Builtin::kEmptyFunction);
+                                Builtin::kEmptyFunction1);
       SimpleInstallGetterSetter(isolate_, regexp_fun, "$`",
                                 Builtin::kRegExpLeftContextGetter,
-                                Builtin::kEmptyFunction);
+                                Builtin::kEmptyFunction1);
 
       SimpleInstallGetterSetter(isolate_, regexp_fun, "rightContext",
                                 Builtin::kRegExpRightContextGetter,
-                                Builtin::kEmptyFunction);
+                                Builtin::kEmptyFunction1);
       SimpleInstallGetterSetter(isolate_, regexp_fun, "$'",
                                 Builtin::kRegExpRightContextGetter,
-                                Builtin::kEmptyFunction);
+                                Builtin::kEmptyFunction1);
 
 #define INSTALL_CAPTURE_GETTER(i)                               \
   SimpleInstallGetterSetter(isolate_, regexp_fun, "$" #i,       \
                             Builtin::kRegExpCapture##i##Getter, \
-                            Builtin::kEmptyFunction)
+                            Builtin::kEmptyFunction1)
       INSTALL_CAPTURE_GETTER(1);
       INSTALL_CAPTURE_GETTER(2);
       INSTALL_CAPTURE_GETTER(3);
@@ -3511,7 +3511,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     DirectHandle<JSFunction> regexp_string_iterator_function = CreateFunction(
         isolate(), "RegExpStringIterator", JS_REG_EXP_STRING_ITERATOR_TYPE,
         JSRegExpStringIterator::kHeaderSize, 0,
-        regexp_string_iterator_prototype, Builtin::kIllegal, 0, kAdapt);
+        regexp_string_iterator_prototype, Builtin::kIllegal, 0, kDontAdapt);
     regexp_string_iterator_function->shared()->set_native(false);
     native_context()->set_initial_regexp_string_iterator_prototype_map(
         regexp_string_iterator_function->initial_map());
@@ -4109,7 +4109,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         DirectHandle<JSFunction> segment_iterator_fun =
             CreateFunction(isolate(), name_string, JS_SEGMENT_ITERATOR_TYPE,
                            JSSegmentIterator::kHeaderSize, 0, prototype,
-                           Builtin::kIllegal, 0, kAdapt);
+                           Builtin::kIllegal, 0, kDontAdapt);
         segment_iterator_fun->shared()->set_native(false);
         DirectHandle<Map> segment_iterator_map(
             segment_iterator_fun->initial_map(), isolate());
@@ -4914,7 +4914,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     DirectHandle<JSFunction> function = CreateFunctionForBuiltinWithPrototype(
         isolate(), arguments_string, Builtin::kIllegal,
         isolate()->initial_object_prototype(), JS_ARGUMENTS_OBJECT_TYPE,
-        JSSloppyArgumentsObject::kSize, 2, MUTABLE, 0, kAdapt);
+        JSSloppyArgumentsObject::kSize, 2, MUTABLE, 0, kDontAdapt);
     DirectHandle<Map> map(function->initial_map(), isolate());
 
     // Create the descriptor array for the arguments object.
@@ -5008,7 +5008,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     DirectHandle<JSFunction> context_extension_fun = CreateFunction(
         isolate_, factory->empty_string(), JS_CONTEXT_EXTENSION_OBJECT_TYPE,
         JSObject::kHeaderSize, 0, factory->the_hole_value(), Builtin::kIllegal,
-        0, kAdapt);
+        0, kDontAdapt);
     native_context()->set_context_extension_function(*context_extension_fun);
   }
 
@@ -5252,9 +5252,10 @@ void Genesis::InitializeIteratorFunctions() {
     prototype->map()->set_instance_type(JS_SET_ITERATOR_PROTOTYPE_TYPE);
 
     // Setup SetIterator constructor.
-    DirectHandle<JSFunction> set_iterator_function = CreateFunction(
-        isolate, "SetIterator", JS_SET_VALUE_ITERATOR_TYPE,
-        JSSetIterator::kHeaderSize, 0, prototype, Builtin::kIllegal, 0, kAdapt);
+    DirectHandle<JSFunction> set_iterator_function =
+        CreateFunction(isolate, "SetIterator", JS_SET_VALUE_ITERATOR_TYPE,
+                       JSSetIterator::kHeaderSize, 0, prototype,
+                       Builtin::kIllegal, 0, kDontAdapt);
     set_iterator_function->shared()->set_native(false);
 
     Handle<Map> set_value_iterator_map(set_iterator_function->initial_map(),
@@ -5285,9 +5286,10 @@ void Genesis::InitializeIteratorFunctions() {
     prototype->map()->set_instance_type(JS_MAP_ITERATOR_PROTOTYPE_TYPE);
 
     // Setup MapIterator constructor.
-    DirectHandle<JSFunction> map_iterator_function = CreateFunction(
-        isolate, "MapIterator", JS_MAP_KEY_ITERATOR_TYPE,
-        JSMapIterator::kHeaderSize, 0, prototype, Builtin::kIllegal, 0, kAdapt);
+    DirectHandle<JSFunction> map_iterator_function =
+        CreateFunction(isolate, "MapIterator", JS_MAP_KEY_ITERATOR_TYPE,
+                       JSMapIterator::kHeaderSize, 0, prototype,
+                       Builtin::kIllegal, 0, kDontAdapt);
     map_iterator_function->shared()->set_native(false);
 
     Handle<Map> map_key_iterator_map(map_iterator_function->initial_map(),
