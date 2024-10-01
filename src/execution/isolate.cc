@@ -514,6 +514,17 @@ thread_local Isolate::PerIsolateThreadData* g_current_per_isolate_thread_data_
     V8_CONSTINIT = nullptr;
 thread_local Isolate* g_current_isolate_ V8_CONSTINIT = nullptr;
 
+// static
+Isolate* Isolate::CurrentMaybeBackground() {
+  Isolate* isolate = TryGetCurrent();
+  if (V8_LIKELY(isolate)) {
+    return isolate;
+  }
+  LocalHeap* local_heap = LocalHeap::Current();
+  DCHECK_NOT_NULL(local_heap);
+  return local_heap->heap()->isolate();
+}
+
 namespace {
 // A global counter for all generated Isolates, might overflow.
 std::atomic<int> isolate_counter{0};

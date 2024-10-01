@@ -662,6 +662,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns the isolate inside which the current thread is running.
   V8_INLINE static Isolate* Current();
 
+  // Returns the isolate inside which the current thread is running.
+  static Isolate* CurrentMaybeBackground();
+
   inline bool IsCurrent() const;
 
   // Usually called by Init(), but can be called early e.g. to allow
