@@ -401,8 +401,8 @@ void VirtualObject::List::Print(std::ostream& os, const char* prefix,
 size_t DeoptFrame::GetInputLocationsArraySize() const {
   size_t size = 0;
   const DeoptFrame* frame = this;
+  VirtualObject::List virtual_objects = GetVirtualObjects(*frame);
   do {
-    VirtualObject::List virtual_objects = GetVirtualObjects(*frame);
     switch (frame->type()) {
       case DeoptFrame::FrameType::kInterpretedFrame:
         size += GetInputLocationSizeForValueNode(
