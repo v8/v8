@@ -505,7 +505,7 @@ struct KnownNodeAspects {
   // Copy constructor for CloneForLoopHeader
   friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&,
                                      bool&, LoopEffects*&, Zone*&>(
-      const KnownNodeAspects&, bool&, LoopEffects*&, Zone*&);
+      const KnownNodeAspects&, bool&, maglev::LoopEffects*&, Zone*&);
   KnownNodeAspects(const KnownNodeAspects& other, bool optimistic_initial_state,
                    LoopEffects* loop_effects, Zone* zone);
 };
