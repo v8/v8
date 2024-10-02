@@ -640,3 +640,16 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
   assertEquals([1, 2], instance.exports.catch_ref_two_params());
 })();
+
+(function TestThrowNoExn() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("throw_noexn", kSig_v_v)
+      .addBody([
+          kExprRefNull, kNullExnRefCode,
+          kExprThrowRef
+  ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertTraps(kTrapRethrowNull, () => instance.exports.throw_noexn());
+})();

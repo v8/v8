@@ -2955,11 +2955,14 @@ TEST_F(FunctionBodyDecoderTest, ThrowRef) {
   ExpectValidates(sigs.v_v(), {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP,
                                U32V_1(1), CatchKind::kCatchAllRef, 0, kExprEnd,
                                kExprBr, 1, kExprEnd, kExprThrowRef});
-  ExpectFailure(sigs.v_v(),
-                {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(HeapType::kExtern))),
-                 kExprThrowRef},
-                kAppendEnd,
-                "invalid type for throw_ref: expected exnref, found externref");
+  ExpectValidates(sigs.v_v(), {kExprBlock, kVoidCode, kExprUnreachable,
+                               kExprThrowRef, kExprEnd});
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(HeapType::kExtern))),
+       kExprThrowRef},
+      kAppendEnd,
+      "throw_ref[0] expected type exnref, found ref.null of type externref");
 }
 
 TEST_F(FunctionBodyDecoderTest, TryTable) {
