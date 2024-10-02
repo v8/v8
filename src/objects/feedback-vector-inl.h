@@ -479,6 +479,15 @@ int FeedbackMetadataIterator::entry_size() const {
   return FeedbackMetadata::GetSlotSize(kind());
 }
 
+template <typename T>
+Handle<T> NexusConfig::NewHandle(Tagged<T> object) const {
+  if (mode() == Mode::MainThread) {
+    return handle(object, isolate_);
+  }
+  DCHECK_EQ(mode(), Mode::BackgroundThread);
+  return handle(object, local_heap_);
+}
+
 Tagged<MaybeObject> NexusConfig::GetFeedback(Tagged<FeedbackVector> vector,
                                              FeedbackSlot slot) const {
   return vector->SynchronizedGet(slot);
@@ -554,6 +563,22 @@ void FeedbackNexus::SetFeedback(Tagged<FeedbackType> feedback,
                                 WriteBarrierMode mode_extra) {
   config()->SetFeedbackPair(vector(), slot(), feedback, mode, feedback_extra,
                             mode_extra);
+}
+
+template <typename F>
+void FeedbackNexus::IterateMapsWithUnclearedHandler(F function) const {
+  // We don't need DisallowGarbageCollection here: accessing it.map() and
+  // it.handle() is safe between it.Advance() and a potential GC call in
+  // function(). The it itself is not invalidated, since it holds the
+  // polymorphic array by handle.
+  // TODO(370727490): Make the FeedbackIterator GC safe (e.g. look up
+  // map/handler in the feedback array on-demand).
+  for (FeedbackIterator it(this); !it.done(); it.Advance()) {
+    Handle<Map> map = config()->NewHandle(it.map());
+    if (!it.handler().IsCleared()) {
+      function(map);
+    }
+  }
 }
 
 }  // namespace v8::internal

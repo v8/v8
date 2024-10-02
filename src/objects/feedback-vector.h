@@ -82,7 +82,6 @@ static constexpr int kFeedbackSlotKindCount =
     static_cast<int>(FeedbackSlotKind::kLast) + 1;
 
 using MapAndHandler = std::pair<Handle<Map>, MaybeObjectHandle>;
-using MapAndFeedback = std::pair<Handle<Map>, MaybeObjectHandle>;
 
 inline bool IsCallICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kCall;
@@ -876,12 +875,10 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
       std::vector<MapAndHandler>* maps_and_handlers,
       TryUpdateHandler map_handler = TryUpdateHandler()) const;
   MaybeObjectHandle FindHandlerForMap(DirectHandle<Map> map) const;
-  // Used to obtain maps and the associated feedback stored in the feedback
-  // vector. The returned feedback need not be always a handler. It could be a
-  // name in the case of StoreDataInPropertyLiteral. This is used by TurboFan to
-  // get all the feedback stored in the vector.
-  int ExtractMapsAndFeedback(
-      std::vector<MapAndFeedback>* maps_and_feedback) const;
+  // Used to obtain maps. This is used by compilers to get all the feedback
+  // stored in the vector.
+  template <typename F>
+  void IterateMapsWithUnclearedHandler(F) const;
 
   bool IsCleared() const {
     InlineCacheState state = ic_state();

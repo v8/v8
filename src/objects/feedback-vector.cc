@@ -538,15 +538,6 @@ MaybeObjectHandle NexusConfig::NewHandle(Tagged<MaybeObject> object) const {
   return handle(object, local_heap_);
 }
 
-template <typename T>
-Handle<T> NexusConfig::NewHandle(Tagged<T> object) const {
-  if (mode() == Mode::MainThread) {
-    return handle(object, isolate_);
-  }
-  DCHECK_EQ(mode(), Mode::BackgroundThread);
-  return handle(object, local_heap_);
-}
-
 void NexusConfig::SetFeedbackPair(Tagged<FeedbackVector> vector,
                                   FeedbackSlot start_slot,
                                   Tagged<MaybeObject> feedback,
@@ -1149,26 +1140,6 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   for (FeedbackIterator it(this); !it.done(); it.Advance()) {
     maps->push_back(config()->NewHandle(it.map()));
     found++;
-  }
-
-  return found;
-}
-
-int FeedbackNexus::ExtractMapsAndFeedback(
-    std::vector<MapAndFeedback>* maps_and_feedback) const {
-  DisallowGarbageCollection no_gc;
-  int found = 0;
-
-  for (FeedbackIterator it(this); !it.done(); it.Advance()) {
-    Handle<Map> map = config()->NewHandle(it.map());
-    Tagged<MaybeObject> maybe_handler = it.handler();
-    if (!maybe_handler.IsCleared()) {
-      DCHECK(IC::IsHandler(maybe_handler) ||
-             IsDefineKeyedOwnPropertyInLiteralKind(kind()));
-      MaybeObjectHandle handler = config()->NewHandle(maybe_handler);
-      maps_and_feedback->push_back(MapAndHandler(map, handler));
-      found++;
-    }
   }
 
   return found;
