@@ -1392,6 +1392,10 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   return true;
 }
 
+bool Scope::HasReceiverToDeserialize() const {
+  return !scope_info_.is_null() && scope_info_->HasAllocatedReceiver();
+}
+
 bool Scope::HasThisReference() const {
   if (is_declaration_scope() && AsDeclarationScope()->has_this_reference()) {
     return true;

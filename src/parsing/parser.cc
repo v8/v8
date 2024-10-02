@@ -630,11 +630,10 @@ void Parser::DeserializeScopeChain(
     original_scope_ = Scope::DeserializeScopeChain(
         isolate, zone(), *outer_scope_info, info->script_scope(),
         ast_value_factory(), mode, info);
-    if (flags().is_eval() || IsArrowFunction(flags().function_kind()) ||
-        flags().function_kind() ==
-            FunctionKind::kClassStaticInitializerFunction) {
-      original_scope_->GetReceiverScope()->DeserializeReceiver(
-          ast_value_factory());
+
+    DeclarationScope* receiver_scope = original_scope_->GetReceiverScope();
+    if (receiver_scope->HasReceiverToDeserialize()) {
+      receiver_scope->DeserializeReceiver(ast_value_factory());
     }
     if (info->has_module_in_scope_chain()) {
       set_has_module_in_scope_chain();

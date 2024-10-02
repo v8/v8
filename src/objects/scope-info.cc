@@ -726,9 +726,19 @@ bool ScopeInfo::HasReceiver() const {
 }
 
 bool ScopeInfo::HasAllocatedReceiver() const {
+  // The receiver is allocated and needs to be deserialized during reparsing
+  // when:
+  // 1. During the initial parsing, it's been observed that the inner
+  //    scopes are accessing this, so the receiver should be allocated
+  //    again. This can be inferred when the receiver variable is
+  //    recorded as being allocated on the stack or context.
+  // 2. The scope is created as a debug evaluate scope, so this is not
+  //    an actual reparse, we are not sure if the inner scope will access
+  //    this, but the receiver should be allocated just in case.
   VariableAllocationInfo allocation = ReceiverVariableBits::decode(Flags());
   return allocation == VariableAllocationInfo::STACK ||
-         allocation == VariableAllocationInfo::CONTEXT;
+         allocation == VariableAllocationInfo::CONTEXT ||
+         IsDebugEvaluateScope();
 }
 
 bool ScopeInfo::ClassScopeHasPrivateBrand() const {
