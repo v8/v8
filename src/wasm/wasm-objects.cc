@@ -1900,7 +1900,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   // signature may not be present in the importing module.
   uint32_t canonical_sig_id = function_data->canonical_sig_index();
   const wasm::FunctionSig* sig =
-      wasm::GetWasmEngine()->type_canonicalizer()->LookupSignature(
+      wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
           canonical_sig_id);
 
   Handle<JSReceiver> callable(function_data->GetCallable(), isolate);
@@ -2850,7 +2850,7 @@ wasm::Suspend WasmJSFunctionData::GetSuspend() const {
 }
 
 const wasm::FunctionSig* WasmJSFunctionData::GetSignature() const {
-  return wasm::GetWasmEngine()->type_canonicalizer()->LookupSignature(
+  return wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
       canonical_sig_index());
 }
 

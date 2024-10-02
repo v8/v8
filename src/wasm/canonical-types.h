@@ -16,6 +16,25 @@
 
 namespace v8::internal::wasm {
 
+// We use ValueType instances constructed from canonical type indices, so we
+// can't let them get bigger than what we have storage space for.
+// TODO(jkummerow): Raise this limit. Possible options:
+// - increase the size of ValueType::HeapTypeField, using currently-unused bits.
+// - change the encoding of ValueType: one bit says whether it's a ref type,
+//   the other bits then encode the index or the kind of non-ref type.
+// - refactor the TypeCanonicalizer's internals to no longer use ValueTypes
+//   and related infrastructure, and use a wider encoding of canonicalized
+//   type indices only here.
+// - wait for 32-bit platforms to no longer be relevant, and increase the
+//   size of ValueType to 64 bits.
+// None of this seems urgent, as we have no evidence of the current limit
+// being an actual limitation in practice.
+static constexpr size_t kMaxCanonicalTypes = kV8MaxWasmTypes;
+// We don't want any valid modules to fail canonicalization.
+static_assert(kMaxCanonicalTypes >= kV8MaxWasmTypes);
+// We want the invalid index to fail any range checks.
+static_assert(kInvalidCanonicalIndex > kMaxCanonicalTypes);
+
 // A singleton class, responsible for isorecursive canonicalization of wasm
 // types.
 // A recursive group is a subsequence of types explicitly marked in the type
@@ -62,9 +81,9 @@ class TypeCanonicalizer {
   // it if an identical is found. Returns the canonical index of the added
   // signature.
   V8_EXPORT_PRIVATE uint32_t AddRecursiveGroup(const FunctionSig* sig);
-  // Signatures that were added with the above can be retrieved by their
-  // canonical index later.
-  V8_EXPORT_PRIVATE const FunctionSig* LookupSignature(
+
+  // Retrieve back a function signature from a canonical index later.
+  V8_EXPORT_PRIVATE const FunctionSig* LookupFunctionSignature(
       uint32_t canonical_index) const;
 
   // Returns if {canonical_sub_index} is a canonical subtype of
@@ -95,6 +114,14 @@ class TypeCanonicalizer {
   // testing purposes (in production cases canonical type ids are never freed).
   V8_EXPORT_PRIVATE static void ClearWasmCanonicalTypesForTesting(
       Isolate* isolate);
+
+  bool IsFunctionSignature(uint32_t canonical_index) const;
+
+#if DEBUG
+  // Check whether a function signature is canonicalized by checking whether the
+  // pointer points into this class's storage.
+  V8_EXPORT_PRIVATE bool Contains(const FunctionSig* sig) const;
+#endif
 
  private:
   struct CanonicalType {
@@ -181,6 +208,8 @@ class TypeCanonicalizer {
   ValueType CanonicalizeValueType(const WasmModule* module, ValueType type,
                                   uint32_t recursive_group_start) const;
 
+  uint32_t AddRecursiveGroup(CanonicalType type);
+
   void CheckMaxCanonicalIndex() const;
 
   std::vector<uint32_t> canonical_supertypes_;
@@ -191,9 +220,8 @@ class TypeCanonicalizer {
   std::unordered_map<CanonicalSingletonGroup, uint32_t,
                      base::hash<CanonicalSingletonGroup>>
       canonical_singleton_groups_;
-  // Maps canonical indices of signatures in groups of size 1 back to the
-  // signature.
-  std::unordered_map<uint32_t, const FunctionSig*> canonical_sigs_;
+  // Maps canonical indices back to the function signature.
+  std::unordered_map<uint32_t, const FunctionSig*> canonical_function_sigs_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
   mutable base::Mutex mutex_;
