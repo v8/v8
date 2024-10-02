@@ -40,7 +40,7 @@ class OpIndex {
   // convertible to OpIndex. FromOffset should be used instead to create an
   // OpIndex from an offset.
   explicit constexpr OpIndex(uint32_t offset) : offset_(offset) {
-    DCHECK(CheckInvariants());
+    SLOW_DCHECK(CheckInvariants());
   }
   friend class OperationBuffer;
 
@@ -62,18 +62,18 @@ class OpIndex {
     // least `kSlotsPerId` many `OperationSlot`s. Therefore, we can assign id's
     // by dividing by `kSlotsPerId`. A compact id space is important, because it
     // makes side-tables smaller.
-    DCHECK(CheckInvariants());
+    SLOW_DCHECK(CheckInvariants());
     return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
   }
   uint32_t hash() const {
     // It can be useful to hash OpIndex::Invalid(), so we have this `hash`
     // function, which returns the id, but without DCHECKing that Invalid is
     // valid.
-    DCHECK_IMPLIES(valid(), CheckInvariants());
+    SLOW_DCHECK_IMPLIES(valid(), CheckInvariants());
     return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
   }
   uint32_t offset() const {
-    DCHECK(CheckInvariants());
+    SLOW_DCHECK(CheckInvariants());
 #ifdef DEBUG
     return offset_ & kUnmaskGenerationMask;
 #else
