@@ -264,16 +264,6 @@ struct KnownNodeAspects {
   // Permanently valid if checked in a dominator.
   using NodeInfos = ZoneMap<ValueNode*, NodeInfo>;
 
-  explicit KnownNodeAspects(Zone* zone)
-      : any_map_for_any_node_is_unstable(false),
-        loaded_constant_properties(zone),
-        loaded_properties(zone),
-        loaded_context_constants(zone),
-        loaded_context_slots(zone),
-        available_expressions(zone),
-        node_infos(zone),
-        effect_epoch_(0) {}
-
   // Copy constructor is defaulted but private so that we explicitly call the
   // Clone method.
   KnownNodeAspects& operator=(const KnownNodeAspects& other) = delete;
@@ -288,9 +278,9 @@ struct KnownNodeAspects {
   // invalidated in the loop body, and similarly stable maps will have
   // dependencies installed. Unstable maps however might be invalidated by
   // calls, and we don't know about these until it's too late.
-  KnownNodeAspects* CloneForLoopHeader(Zone* zone,
-                                       bool optimistic_initial_state,
-                                       LoopEffects* loop_effects) const;
+  KnownNodeAspects* CloneForLoopHeader(bool optimistic_initial_state,
+                                       LoopEffects* loop_effects,
+                                       Zone* zone) const;
 
   void ClearUnstableNodeAspects();
 
@@ -441,32 +431,35 @@ struct KnownNodeAspects {
   // Unconditionally valid across side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants;
   enum class ContextSlotLoadsAlias : uint8_t {
+    Invalid,
     None,
     OnlyLoadsRelativeToCurrentContext,
     OnlyLoadsRelativeToConstant,
     Yes,
   };
-  ContextSlotLoadsAlias may_have_aliasing_contexts =
-      ContextSlotLoadsAlias::None;
+  ContextSlotLoadsAlias may_have_aliasing_contexts() const {
+    DCHECK_NE(may_have_aliasing_contexts_, ContextSlotLoadsAlias::Invalid);
+    return may_have_aliasing_contexts_;
+  }
   void UpdateMayHaveAliasingContexts(ValueNode* context) {
     if (context->Is<InitialValue>()) {
-      if (may_have_aliasing_contexts == ContextSlotLoadsAlias::None) {
-        may_have_aliasing_contexts =
+      if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::None) {
+        may_have_aliasing_contexts_ =
             ContextSlotLoadsAlias::OnlyLoadsRelativeToCurrentContext;
-      } else if (may_have_aliasing_contexts !=
+      } else if (may_have_aliasing_contexts() !=
                  ContextSlotLoadsAlias::OnlyLoadsRelativeToCurrentContext) {
-        may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
       }
     } else if (context->Is<Constant>()) {
-      if (may_have_aliasing_contexts == ContextSlotLoadsAlias::None) {
-        may_have_aliasing_contexts =
+      if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::None) {
+        may_have_aliasing_contexts_ =
             ContextSlotLoadsAlias::OnlyLoadsRelativeToConstant;
-      } else if (may_have_aliasing_contexts !=
+      } else if (may_have_aliasing_contexts() !=
                  ContextSlotLoadsAlias::OnlyLoadsRelativeToConstant) {
-        may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
       }
     } else if (!context->Is<LoadTaggedField>()) {
-      may_have_aliasing_contexts = ContextSlotLoadsAlias::Yes;
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
     }
   }
   // Flushed after side-effecting calls.
@@ -488,13 +481,33 @@ struct KnownNodeAspects {
     if (effect_epoch_ < kEffectEpochOverflow) effect_epoch_++;
   }
 
+  explicit KnownNodeAspects(Zone* zone)
+      : any_map_for_any_node_is_unstable(false),
+        loaded_constant_properties(zone),
+        loaded_properties(zone),
+        loaded_context_constants(zone),
+        loaded_context_slots(zone),
+        available_expressions(zone),
+        may_have_aliasing_contexts_(ContextSlotLoadsAlias::None),
+        effect_epoch_(0),
+        node_infos(zone) {}
+
  private:
-  NodeInfos node_infos;
+  ContextSlotLoadsAlias may_have_aliasing_contexts_ =
+      ContextSlotLoadsAlias::Invalid;
   uint32_t effect_epoch_;
+
+  NodeInfos node_infos;
 
   friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&>(
       const KnownNodeAspects&);
   KnownNodeAspects(const KnownNodeAspects& other) V8_NOEXCEPT = default;
+  // Copy constructor for CloneForLoopHeader
+  friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&,
+                                     bool&, LoopEffects*&, Zone*&>(
+      const KnownNodeAspects&, bool&, LoopEffects*&, Zone*&);
+  KnownNodeAspects(const KnownNodeAspects& other, bool optimistic_initial_state,
+                   LoopEffects* loop_effects, Zone* zone);
 };
 
 class InterpreterFrameState {

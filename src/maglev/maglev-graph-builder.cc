@@ -2974,7 +2974,7 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
   known_node_aspects().UpdateMayHaveAliasingContexts(context);
   KnownNodeAspects::LoadedContextSlots& loaded_context_slots =
       known_node_aspects().loaded_context_slots;
-  if (known_node_aspects().may_have_aliasing_contexts ==
+  if (known_node_aspects().may_have_aliasing_contexts() ==
       KnownNodeAspects::ContextSlotLoadsAlias::Yes) {
     compiler::OptionalScopeInfoRef scope_info =
         graph()->TryGetScopeInfo(context, broker());
@@ -3014,7 +3014,7 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
         loop_effects_->context_slot_written.insert(key);
       }
     }
-    if (known_node_aspects().may_have_aliasing_contexts !=
+    if (known_node_aspects().may_have_aliasing_contexts() !=
         KnownNodeAspects::ContextSlotLoadsAlias::Yes) {
       auto last_store = unobserved_context_slot_stores_.find(key);
       if (last_store != unobserved_context_slot_stores_.end()) {
