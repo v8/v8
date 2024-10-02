@@ -2181,7 +2181,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
   Local<Context> creation_context;
-  if (!object->GetCreationContext(isolate).ToLocal(&creation_context)) {
+  if (!object->GetCreationContext().ToLocal(&creation_context)) {
     ThrowError(info.GetIsolate(), "object doesn't have creation context");
     return;
   }

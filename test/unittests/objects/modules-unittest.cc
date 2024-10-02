@@ -707,7 +707,7 @@ TEST_F(ModuleTest, ModuleNamespace) {
   Local<Value> ns = module->GetModuleNamespace();
   CHECK_EQ(Module::kInstantiated, module->GetStatus());
   Local<v8::Object> nsobj = ns->ToObject(context()).ToLocalChecked();
-  CHECK_EQ(nsobj->GetCreationContext(isolate()).ToLocalChecked(), context());
+  CHECK_EQ(nsobj->GetCreationContext().ToLocalChecked(), context());
 
   // a, b
   CHECK(nsobj->Get(context(), NewString("a")).ToLocalChecked()->IsUndefined());

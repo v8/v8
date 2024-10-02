@@ -359,9 +359,7 @@ MaybeLocal<Context> GetCreationContext(Local<Object> value) {
   if (IsJSGlobalProxy(*Utils::OpenDirectHandle(*value))) {
     return MaybeLocal<Context>();
   }
-  START_ALLOW_USE_DEPRECATED();
   return value->GetCreationContext();
-  END_ALLOW_USE_DEPRECATED();
 }
 
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
