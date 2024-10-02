@@ -58,8 +58,7 @@ class GlobalObjectNameResolver final
 
   const char* GetName(v8::Local<v8::Object> object) override {
     v8::Local<v8::Context> creationContext;
-    if (!object->GetCreationContext(m_session->inspector()->isolate())
-             .ToLocal(&creationContext)) {
+    if (!object->GetCreationContext().ToLocal(&creationContext)) {
       return "";
     }
     InspectedContext* context = m_session->inspector()->getContext(
@@ -429,7 +428,7 @@ Response V8HeapProfilerAgentImpl::getObjectByHeapObjectId(
     return Response::ServerError("Object is not available");
 
   v8::Local<v8::Context> creationContext;
-  if (!heapObject->GetCreationContext(m_isolate).ToLocal(&creationContext)) {
+  if (!heapObject->GetCreationContext().ToLocal(&creationContext)) {
     return Response::ServerError("Object is not available");
   }
   *result = m_session->wrapObject(creationContext, heapObject,

@@ -19247,45 +19247,33 @@ THREADED_TEST(CreationContext) {
   {
     Local<Context> other_context = Context::New(isolate);
     Context::Scope scope(other_context);
-    START_ALLOW_USE_DEPRECATED();
     CHECK(object1->GetCreationContext().ToLocalChecked() == context1);
     CHECK(object1->GetCreationContextChecked() == context1);
-    END_ALLOW_USE_DEPRECATED();
     CHECK(object1->GetCreationContext(isolate).ToLocalChecked() == context1);
     CHECK(object1->GetCreationContextChecked(isolate) == context1);
     CheckContextId(object1, 1);
-    START_ALLOW_USE_DEPRECATED();
     CHECK(func1->GetCreationContext().ToLocalChecked() == context1);
     CHECK(func1->GetCreationContextChecked() == context1);
-    END_ALLOW_USE_DEPRECATED();
     CHECK(func1->GetCreationContext(isolate).ToLocalChecked() == context1);
     CHECK(func1->GetCreationContextChecked(isolate) == context1);
     CheckContextId(func1, 1);
-    START_ALLOW_USE_DEPRECATED();
     CHECK(instance1->GetCreationContext().ToLocalChecked() == context1);
     CHECK(instance1->GetCreationContextChecked() == context1);
-    END_ALLOW_USE_DEPRECATED();
     CHECK(instance1->GetCreationContext(isolate).ToLocalChecked() == context1);
     CHECK(instance1->GetCreationContextChecked(isolate) == context1);
     CheckContextId(instance1, 1);
-    START_ALLOW_USE_DEPRECATED();
     CHECK(object2->GetCreationContext().ToLocalChecked() == context2);
     CHECK(object2->GetCreationContextChecked() == context2);
-    END_ALLOW_USE_DEPRECATED();
     CHECK(object2->GetCreationContext(isolate).ToLocalChecked() == context2);
     CHECK(object2->GetCreationContextChecked(isolate) == context2);
     CheckContextId(object2, 2);
-    START_ALLOW_USE_DEPRECATED();
     CHECK(func2->GetCreationContext().ToLocalChecked() == context2);
     CHECK(func2->GetCreationContextChecked() == context2);
-    END_ALLOW_USE_DEPRECATED();
     CHECK(func2->GetCreationContext(isolate).ToLocalChecked() == context2);
     CHECK(func2->GetCreationContextChecked(isolate) == context2);
     CheckContextId(func2, 2);
-    START_ALLOW_USE_DEPRECATED();
     CHECK(instance2->GetCreationContext().ToLocalChecked() == context2);
     CHECK(instance2->GetCreationContextChecked() == context2);
-    END_ALLOW_USE_DEPRECATED();
     CHECK(instance2->GetCreationContext(isolate).ToLocalChecked() == context2);
     CHECK(instance2->GetCreationContextChecked(isolate) == context2);
     CheckContextId(instance2, 2);
@@ -19293,7 +19281,6 @@ THREADED_TEST(CreationContext) {
 
   {
     Context::Scope scope(context1);
-    START_ALLOW_USE_DEPRECATED();
     CHECK(object1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(object1, 1);
     CHECK(func1->GetCreationContext().ToLocalChecked() == context1);
@@ -19306,12 +19293,10 @@ THREADED_TEST(CreationContext) {
     CheckContextId(func2, 2);
     CHECK(instance2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(instance2, 2);
-    END_ALLOW_USE_DEPRECATED();
   }
 
   {
     Context::Scope scope(context2);
-    START_ALLOW_USE_DEPRECATED();
     CHECK(object1->GetCreationContext().ToLocalChecked() == context1);
     CheckContextId(object1, 1);
     CHECK(func1->GetCreationContext().ToLocalChecked() == context1);
@@ -19324,7 +19309,6 @@ THREADED_TEST(CreationContext) {
     CheckContextId(func2, 2);
     CHECK(instance2->GetCreationContext().ToLocalChecked() == context2);
     CheckContextId(instance2, 2);
-    END_ALLOW_USE_DEPRECATED();
   }
 }
 
@@ -19342,9 +19326,7 @@ THREADED_TEST(CreationContextOfJsFunction) {
 
   Local<Context> other_context = Context::New(CcTest::isolate());
   Context::Scope scope(other_context);
-  START_ALLOW_USE_DEPRECATED();
   CHECK(function->GetCreationContext().ToLocalChecked() == context);
-  END_ALLOW_USE_DEPRECATED();
   CheckContextId(function, 1);
 }
 
@@ -19375,12 +19357,10 @@ THREADED_TEST(CreationContextOfJsBoundFunction) {
 
   Local<Context> other_context = Context::New(CcTest::isolate());
   Context::Scope scope(other_context);
-  START_ALLOW_USE_DEPRECATED();
   CHECK(bound_function1->GetCreationContext().ToLocalChecked() == context1);
   CheckContextId(bound_function1, 1);
   CHECK(bound_function2->GetCreationContext().ToLocalChecked() == context1);
   CheckContextId(bound_function2, 1);
-  END_ALLOW_USE_DEPRECATED();
 }
 
 v8::Intercepted HasOwnPropertyIndexedPropertyGetter(
@@ -24971,7 +24951,7 @@ TEST(ClassPrototypeCreationContext) {
 
   Local<Object> result = Local<Object>::Cast(
       CompileRun("'use strict'; class Example { }; Example.prototype"));
-  CHECK(env.local() == result->GetCreationContext(isolate).ToLocalChecked());
+  CHECK(env.local() == result->GetCreationContext().ToLocalChecked());
 }
 
 

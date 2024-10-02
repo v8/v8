@@ -704,7 +704,6 @@ class V8_EXPORT Object : public Value {
    * Prefer using version with Isolate parameter.
    */
   MaybeLocal<Context> GetCreationContext(v8::Isolate* isolate);
-  V8_DEPRECATE_SOON("Use the version with the isolate argument.")
   MaybeLocal<Context> GetCreationContext();
 
   /**
@@ -713,17 +712,13 @@ class V8_EXPORT Object : public Value {
    * Prefer using version with Isolate parameter.
    **/
   Local<Context> GetCreationContextChecked(v8::Isolate* isolate);
-  V8_DEPRECATE_SOON("Use the version with the isolate argument.")
   Local<Context> GetCreationContextChecked();
 
   /** Same as above, but works for Persistents */
   V8_INLINE static MaybeLocal<Context> GetCreationContext(
-      v8::Isolate* isolate, const PersistentBase<Object>& object) {
-    return object.template value<Object>()->GetCreationContext(isolate);
+      const PersistentBase<Object>& object) {
+    return object.template value<Object>()->GetCreationContext();
   }
-  V8_DEPRECATE_SOON("Use the version with the isolate argument.")
-  V8_INLINE static MaybeLocal<Context> GetCreationContext(
-      const PersistentBase<Object>& object);
 
   /**
    * Gets the context in which the object was created (see GetCreationContext())

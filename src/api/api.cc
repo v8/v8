@@ -5349,13 +5349,7 @@ MaybeLocal<v8::Context> v8::Object::GetCreationContext(v8::Isolate* isolate) {
 
 MaybeLocal<v8::Context> v8::Object::GetCreationContext() {
   auto self = Utils::OpenDirectHandle(this);
-  return GetCreationContextImpl(self, i::Isolate::Current());
-}
-
-MaybeLocal<v8::Context> v8::Object::GetCreationContext(
-    const PersistentBase<Object>& object) {
-  return object.template value<Object>()->GetCreationContext(
-      Isolate::GetCurrent());
+  return GetCreationContextImpl(self, self->GetIsolate());
 }
 
 namespace {
@@ -5377,7 +5371,7 @@ Local<v8::Context> v8::Object::GetCreationContextChecked(v8::Isolate* isolate) {
 
 Local<v8::Context> v8::Object::GetCreationContextChecked() {
   auto self = Utils::OpenDirectHandle(this);
-  return GetCreationContextCheckedImpl(self, i::Isolate::Current());
+  return GetCreationContextCheckedImpl(self, self->GetIsolate());
 }
 
 namespace {

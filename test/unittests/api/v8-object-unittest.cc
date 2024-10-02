@@ -81,10 +81,9 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
   Local<Object> object =
       interface_for_receiver->NewInstance(receiver_context).ToLocalChecked();
   object->SetPrototypeV2(caller_context, prototype).ToChecked();
-  EXPECT_EQ(receiver_context,
-            object->GetCreationContext(isolate()).ToLocalChecked());
+  EXPECT_EQ(receiver_context, object->GetCreationContext().ToLocalChecked());
   EXPECT_EQ(prototype_context,
-            prototype->GetCreationContext(isolate()).ToLocalChecked());
+            prototype->GetCreationContext().ToLocalChecked());
 
   EXPECT_EQ(0, call_count);
   object->Get(caller_context, property_key).ToLocalChecked();
