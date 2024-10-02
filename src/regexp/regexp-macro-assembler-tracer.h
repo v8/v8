@@ -53,6 +53,9 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
                                      Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
+  bool SkipUntilBitInTableUseSimd(int advance_by) override {
+    return assembler_->SkipUntilBitInTableUseSimd(advance_by);
+  }
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                            Handle<ByteArray> nibble_table,
                            int advance_by) override;
