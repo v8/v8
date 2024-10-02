@@ -10,8 +10,6 @@ ___foozzie___smoke_test_end___
 v8-foozzie source: name/to/a/file.js
 2
 v8-foozzie source: name/to/file.js
-  weird other error
-^
 3
 not unknown
 """)

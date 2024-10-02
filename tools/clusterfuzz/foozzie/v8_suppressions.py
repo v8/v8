@@ -24,7 +24,6 @@ Alternatively, think about adding a behavior change to v8_suppressions.js
 to silence a particular class of problems.
 """
 
-import itertools
 import re
 
 from itertools import zip_longest
@@ -32,37 +31,11 @@ from itertools import zip_longest
 # Max line length for regular experessions checking for lines to ignore.
 MAX_LINE_LENGTH = 512
 
-# For ignoring lines before carets and to ignore caret positions.
-CARET_RE = re.compile(r'^\s*\^\s*$')
-
-# Ignore by original source files. Map from bug->list of relative file paths,
-# e.g. 'v8/test/mjsunit/d8-performance-now.js'. A test will be suppressed if
-# one of the files below was used to mutate the test.
-IGNORE_SOURCES = {
-}
-
-# Ignore by test case pattern. Map from bug->regexp.
-# Bug is preferred to be a crbug.com/XYZ, but can be any short distinguishable
-# label.
-# Regular expressions are assumed to be compiled. We use regexp.search.
-IGNORE_TEST_CASES = {
-}
-
 # Ignore by output pattern. Map from bug->regexp like above.
 IGNORE_OUTPUT = {
-  'crbug.com/689877':
-      re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
   '_fake_difference_':
       re.compile(r'^.*___fake_difference___$', re.M),
 }
-
-# Lines matching any of the following regular expressions will be ignored
-# if appearing on both sides. The capturing groups need to match exactly.
-# Use uncompiled regular expressions - they'll be compiled later.
-ALLOWED_LINE_DIFFS = [
-  # Ignore caret position in stack traces.
-  r'^\s*\^\s*$',
-]
 
 # Avoid cross-arch comparisons if we find this string in the output.
 # We also need to ignore this output in the diffs as this string might
@@ -76,9 +49,6 @@ IGNORE_LINES = [
   r'^Warning: .+ is deprecated.*$',
   r'^Try --help for options$',
   AVOID_CROSS_ARCH_COMPARISON_RE,
-
-  # crbug.com/705962
-  r'^\s\[0x[0-9a-f]+\]$',
 ]
 
 # List of pairs (<flag string>, <regexp string>). If the regexp matches the
@@ -93,7 +63,6 @@ DROP_FLAGS_ON_CONTENT = [
 # Implementation - you should not need to change anything below this point.
 
 # Compile regular expressions.
-ALLOWED_LINE_DIFFS = [re.compile(exp) for exp in ALLOWED_LINE_DIFFS]
 IGNORE_LINES = [re.compile(exp) for exp in IGNORE_LINES]
 
 ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
@@ -131,20 +100,6 @@ def get_output_capped(output1, output2):
   return output1.stdout_bytes[0:cap], output2.stdout_bytes[0:cap]
 
 
-def line_pairs(lines):
-  return zip_longest(
-      lines, itertools.islice(lines, 1, None), fillvalue=None)
-
-
-def caret_match(line1, line2):
-  if (not line1 or
-      not line2 or
-      len(line1) > MAX_LINE_LENGTH or
-      len(line2) > MAX_LINE_LENGTH):
-    return False
-  return bool(CARET_RE.match(line1) and CARET_RE.match(line2))
-
-
 def short_line_output(line):
   if len(line) <= MAX_LINE_LENGTH:
     # Avoid copying.
@@ -152,21 +107,7 @@ def short_line_output(line):
   return line[0:MAX_LINE_LENGTH] + '...'
 
 
-def ignore_by_regexp(line1, line2, allowed):
-  if len(line1) > MAX_LINE_LENGTH or len(line2) > MAX_LINE_LENGTH:
-    return False
-  for exp in allowed:
-    match1 = exp.match(line1)
-    match2 = exp.match(line2)
-    if match1 and match2:
-      # If there are groups in the regexp, ensure the groups matched the same
-      # things.
-      if match1.groups() == match2.groups():  # tuple comparison
-        return True
-  return False
-
-
-def diff_output(output1, output2, allowed, ignore1, ignore2):
+def diff_output(output1, output2, ignore1, ignore2):
   """Returns a tuple (difference, source).
 
   The difference is None if there's no difference, otherwise a string
@@ -187,8 +128,7 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
   # test case. We always start with the smoke-test part.
   source = SMOKE_TEST_SOURCE
 
-  for ((line1, lookahead1), (line2, lookahead2)) in zip_longest(
-      line_pairs(lines1), line_pairs(lines2), fillvalue=(None, None)):
+  for line1, line2 in zip_longest(lines1, lines2, fillvalue=None):
 
     # Only one of the two iterators should run out.
     assert not (line1 is None and line2 is None)
@@ -199,7 +139,7 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
     if line2 is None:
       return f'- {short_line_output(line1)}', source
 
-    # If lines are equal, no further checks are necessary.
+    # Lines are equal.
     if line1 == line2:
       # Instrumented original-source-file output must be equal in both
       # versions. It only makes sense to update it here when both lines
@@ -208,14 +148,6 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
         source = None
       elif line1.startswith(ORIGINAL_SOURCE_PREFIX):
         source = line1[len(ORIGINAL_SOURCE_PREFIX):]
-      continue
-
-    # Look ahead. If next line is a caret, ignore this line.
-    if caret_match(lookahead1, lookahead2):
-      continue
-
-    # Check if a regexp allows these lines to be different.
-    if ignore_by_regexp(line1, line2, allowed):
       continue
 
     # Lines are different.
@@ -241,14 +173,10 @@ def decode(output):
 class V8Suppression(object):
   def __init__(self, skip):
     if skip:
-      self.allowed_line_diffs = []
       self.ignore_output = {}
-      self.ignore_sources = {}
       self.drop_flags_on_content = []
     else:
-      self.allowed_line_diffs = ALLOWED_LINE_DIFFS
       self.ignore_output = IGNORE_OUTPUT
-      self.ignore_sources = IGNORE_SOURCES
       self.drop_flags_on_content = DROP_FLAGS_ON_CONTENT
 
   def diff(self, output1, output2):
@@ -260,7 +188,6 @@ class V8Suppression(object):
     return diff_output(
         output1_lines,
         output2_lines,
-        self.allowed_line_diffs,
         IGNORE_LINES,
         IGNORE_LINES,
     )
@@ -277,29 +204,6 @@ class V8Suppression(object):
     if match:
       return match.group(1)
     return output
-
-  def ignore_by_content(self, testcase):
-    # Strip off test case preamble.
-    try:
-      lines = testcase.splitlines()
-      lines = lines[lines.index(
-          'print("js-mutation: start generated test case");'):]
-      content = '\n'.join(lines)
-    except ValueError:
-      # Search the whole test case if preamble can't be found. E.g. older
-      # already minimized test cases might have dropped the delimiter line.
-      content = testcase
-    for bug, exp in IGNORE_TEST_CASES.items():
-      if exp.search(content):
-        return bug
-    return None
-
-  def ignore_by_metadata(self, metadata):
-    for bug, sources in self.ignore_sources.items():
-      for source in sources:
-        if source in metadata['sources']:
-          return bug
-    return None
 
   def ignore_by_output(self, output):
     def check(mapping):

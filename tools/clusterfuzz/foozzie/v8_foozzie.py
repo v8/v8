@@ -393,14 +393,6 @@ def get_meta_data(content):
   return {'sources': sources}
 
 
-def content_bailout(content, ignore_fun):
-  """Print failure state and return if ignore_fun matches content."""
-  bug = (ignore_fun(content) or '').strip()
-  if bug:
-    raise FailException(FAILURE_HEADER_TEMPLATE % dict(
-        source_key='', suppression=bug))
-
-
 def fail_bailout(output, ignore_by_output_fun):
   """Print failure state and return if ignore_by_output_fun matches output."""
   bug = (ignore_by_output_fun(output.stdout) or '').strip()
@@ -569,8 +561,6 @@ def main():
   # Static bailout based on test case content or metadata.
   with options.testcase.open(encoding='utf-8') as f:
     content = f.read()
-  content_bailout(get_meta_data(content), suppress.ignore_by_metadata)
-  content_bailout(content, suppress.ignore_by_content)
 
   execution_configs = create_execution_configs(options)
 

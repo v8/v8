@@ -129,24 +129,6 @@ class UnitTest(unittest.TestCase):
     diff = None, smoke
     self.assertEqual(diff, diff_fun(one, two))
 
-    # Ignore line before caret and caret position.
-    one = """
-undefined
-weird stuff
-      ^
-somefile.js: TypeError: suppressed message
-  undefined
-"""
-    two = """
-undefined
-other weird stuff
-            ^
-somefile.js: TypeError: suppressed message
-  undefined
-"""
-    diff = None, smoke
-    self.assertEqual(diff, diff_fun(one, two))
-
     one = """
 Still equal
 Extra line
@@ -178,21 +160,6 @@ otherfile.js: TypeError: undefined is not a constructor
     diff = """- somefile.js: TypeError: undefined is not a constructor
 + otherfile.js: TypeError: undefined is not a constructor""", smoke
     self.assertEqual(diff, diff_fun(one, two))
-
-    # Test that skipping suppressions works.
-    one = """
-v8-foozzie source: foo
-weird stuff
-      ^
-"""
-    two = """
-v8-foozzie source: foo
-other weird stuff
-            ^
-"""
-    self.assertEqual((None, 'foo'), diff_fun(one, two))
-    diff = ('-       ^\n+             ^', 'foo')
-    self.assertEqual(diff, diff_fun(one, two, skip=True))
 
   def testOutputCapping(self):
     def output(stdout, is_crash):
@@ -500,11 +467,9 @@ class SystemTest(unittest.TestCase):
   artifacts.
 
   Overview of fakes:
-    baseline: Example foozzie output including a syntax error.
-    build1: Difference to baseline is a stack trace difference expected to
-            be suppressed.
-    build2: Difference to baseline is a non-suppressed output difference
-            causing the script to fail.
+    baseline: Example foozzie output.
+    build1: No difference to baseline but ignored lines.
+    build2: Output difference causing the script to fail.
     build3: As build1 but with an architecture difference as well.
   """
 
@@ -515,7 +480,7 @@ class SystemTest(unittest.TestCase):
     with (TEST_DATA / file_name).open() as f:
       self.assertEqual(f.read(), expected)
 
-  def testSyntaxErrorDiffPass(self):
+  def testPass(self):
     stdout = run_foozzie('build1')
     self.assertEqual('# V8 correctness - pass\n',
                      cut_verbose_output(stdout, 3))
@@ -656,14 +621,6 @@ class SystemTest(unittest.TestCase):
     # Compare baseline with baseline. This passes as there is no difference.
     stdout = run_foozzie('baseline', '--skip-suppressions')
     self.assertNotIn('v8_suppressions.js', stdout)
-
-    # Compare with a build that usually suppresses a difference. Now we fail
-    # since we skip suppressions.
-    with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('build1', '--skip-suppressions')
-    e = ctx.exception
-    self.assertEqual(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertNotIn('v8_suppressions.js', e.output)
 
 
 if __name__ == '__main__':
