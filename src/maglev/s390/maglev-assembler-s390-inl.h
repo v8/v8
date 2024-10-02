@@ -681,7 +681,7 @@ inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   LoadS32(dst, src);
 }
 inline void MaglevAssembler::NegateInt32(Register val) {
-  LoadU32(val, val);
+  LoadS32(val, val);
   lcgr(val, val);
 }
 
