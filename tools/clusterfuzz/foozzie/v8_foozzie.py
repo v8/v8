@@ -141,7 +141,6 @@ SOURCE_FILE_TEMPLATE = """
 
 
 FUZZ_TEST_RE = re.compile(r'.*fuzz(-\d+\.js)')
-SOURCE_RE = re.compile(r'print\("v8-foozzie source: (.*)"\);')
 
 # The number of hex digits used from the hash of the original source file path.
 # Keep the number small to avoid duplicate explosion.
@@ -381,16 +380,6 @@ def create_execution_configs(options):
       ExecutionConfig(options, 'default'),
       ExecutionConfig(options, 'second'),
   ]
-
-
-def get_meta_data(content):
-  """Extracts original-source-file paths from test case content."""
-  sources = []
-  for line in content.splitlines():
-    match = SOURCE_RE.match(line)
-    if match:
-      sources.append(match.group(1))
-  return {'sources': sources}
 
 
 def fail_bailout(output, ignore_by_output_fun):
