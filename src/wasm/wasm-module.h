@@ -929,9 +929,13 @@ V8_EXPORT_PRIVATE int GetSubtypingDepth(const WasmModule* module,
 struct V8_EXPORT_PRIVATE ModuleWireBytes {
   explicit ModuleWireBytes(base::Vector<const uint8_t> module_bytes)
       : module_bytes_(module_bytes) {}
-  ModuleWireBytes(const uint8_t* start, const uint8_t* end)
+  constexpr ModuleWireBytes(const uint8_t* start, const uint8_t* end)
       : module_bytes_(start, static_cast<int>(end - start)) {
     DCHECK_GE(kMaxInt, end - start);
+  }
+
+  bool operator==(ModuleWireBytes other) const {
+    return module_bytes_ == other.module_bytes_;
   }
 
   // Get a string stored in the module bytes representing a name.
