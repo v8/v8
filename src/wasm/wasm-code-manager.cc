@@ -549,7 +549,7 @@ bool WasmCode::ShouldAllocateCodePointerHandle(int index, Kind kind) {
 
 // static
 WasmCodePointerTable::Handle WasmCode::MaybeAllocateCodePointerHandle(
-    NativeModule* native_module, int index, Kind kind) {
+    NativeModule* native_module, int index, Kind kind, Address address) {
   if (index != kAnonymousFuncIndex) {
     DCHECK(!ShouldAllocateCodePointerHandle(index, kind));
     return native_module->GetCodePointerHandle(index);
@@ -559,7 +559,8 @@ WasmCodePointerTable::Handle WasmCode::MaybeAllocateCodePointerHandle(
     case kWasmToCapiWrapper:
     case kWasmToJsWrapper:
       DCHECK(ShouldAllocateCodePointerHandle(index, kind));
-      return GetProcessWideWasmCodePointerTable()->AllocateUninitializedEntry();
+      return GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+          address);
     case kJumpTable:
       DCHECK(!ShouldAllocateCodePointerHandle(index, kind));
       return WasmCodePointerTable::kInvalidHandle;
@@ -1722,12 +1723,14 @@ void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target) {
             code_space_data.jump_table->instructions_size_,
             code_space_data.far_jump_table->instruction_start(),
             code_space_data.far_jump_table->instructions_size_);
-    PatchJumpTableLocked(code_space_data, slot_index, target);
+    PatchJumpTableLocked(code_space_data, slot_index, target,
+                         writable_jump_tables.write_scope());
   }
 }
 
 void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
-                                        uint32_t slot_index, Address target) {
+                                        uint32_t slot_index, Address target,
+                                        RwxMemoryWriteScope& write_scope) {
   allocation_mutex_.AssertHeld();
 
   DCHECK_NOT_NULL(code_space_data.jump_table);
@@ -1751,6 +1754,9 @@ void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
                         : kNullAddress;
   JumpTableAssembler::PatchJumpTableSlot(jump_table_slot, far_jump_table_slot,
                                          target);
+  DCHECK_LT(slot_index, code_pointer_handles_size_);
+  GetProcessWideWasmCodePointerTable()->SetEntrypointWithRwxWriteScope(
+      code_pointer_handles_[slot_index], target, write_scope);
 }
 
 void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
@@ -1843,13 +1849,15 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
          ++slot_index) {
       if (code_table_[slot_index]) {
         PatchJumpTableLocked(new_code_space_data, slot_index,
-                             code_table_[slot_index]->instruction_start());
+                             code_table_[slot_index]->instruction_start(),
+                             writable_jump_tables.write_scope());
       } else if (lazy_compile_table_) {
         Address lazy_compile_target =
             lazy_compile_table_->instruction_start() +
             JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
         PatchJumpTableLocked(new_code_space_data, slot_index,
-                             lazy_compile_target);
+                             lazy_compile_target,
+                             writable_jump_tables.write_scope());
       }
     }
   }

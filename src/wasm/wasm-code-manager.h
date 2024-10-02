@@ -354,7 +354,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   static bool ShouldAllocateCodePointerHandle(int index, Kind kind);
   static WasmCodePointerTable::Handle MaybeAllocateCodePointerHandle(
-      NativeModule* native_module, int index, Kind kind);
+      NativeModule* native_module, int index, Kind kind, Address entry);
 
   WasmCode(NativeModule* native_module, int index,
            base::Vector<uint8_t> instructions, int stack_slots, int ool_spills,
@@ -370,8 +370,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
            bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
-        code_pointer_handle_(
-            MaybeAllocateCodePointerHandle(native_module, index, kind)),
+        code_pointer_handle_(MaybeAllocateCodePointerHandle(
+            native_module, index, kind,
+            reinterpret_cast<Address>(instructions.begin()))),
         meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
                                      source_position_table, inlining_positions,
                                      deopt_data})),
@@ -947,7 +948,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // minus the number of imported functions.
   void PatchJumpTablesLocked(uint32_t slot_index, Address target);
   void PatchJumpTableLocked(const CodeSpaceData&, uint32_t slot_index,
-                            Address target);
+                            Address target, RwxMemoryWriteScope& write_scope);
 
   // Called by the {WasmCodeAllocator} to register a new code space.
   void AddCodeSpaceLocked(base::AddressRegion);

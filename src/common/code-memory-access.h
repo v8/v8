@@ -517,6 +517,8 @@ class WritableJitPage {
 class WritableJumpTablePair {
  public:
   // TODO(sroettger): add functions to write to the jump tables.
+  RwxMemoryWriteScope& write_scope() { return write_scope_; }
+
  private:
   V8_INLINE WritableJumpTablePair(Address jump_table_address,
                                   size_t jump_table_size,

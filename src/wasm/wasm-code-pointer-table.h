@@ -85,6 +85,8 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   inline void SetEntrypoint(uint32_t index, Address value);
   inline void SetEntrypointWithWriteScope(uint32_t index, Address value,
                                           WriteScope& write_scope);
+  inline void SetEntrypointWithRwxWriteScope(uint32_t index, Address value,
+                                             RwxMemoryWriteScope& write_scope);
 
   // Allocates a new entry in the table and optionally initialize it.
   inline uint32_t AllocateAndInitializeEntry(Address entrypoint);
