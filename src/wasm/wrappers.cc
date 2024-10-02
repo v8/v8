@@ -335,7 +335,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   void BuildCallWasmFromWrapper(Zone* zone, const FunctionSig* sig,
-                                V<WordPtr> callee,
+                                V<WasmCodePtr> callee,
                                 V<HeapObject> implicit_first_arg,
                                 base::SmallVector<OpIndex, 16> args,
                                 base::SmallVector<OpIndex, 1>& returns) {

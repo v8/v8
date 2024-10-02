@@ -592,6 +592,13 @@ class MemoryRepresentation {
   static constexpr MemoryRepresentation IndirectPointer() {
     return MemoryRepresentation(Enum::kIndirectPointer);
   }
+  static constexpr MemoryRepresentation WasmCodePointer() {
+    if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
+      return Uint32();
+    } else {
+      return UintPtr();
+    }
+  }
   static constexpr MemoryRepresentation SandboxedPointer() {
     return MemoryRepresentation(Enum::kSandboxedPointer);
   }

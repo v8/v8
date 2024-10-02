@@ -531,7 +531,9 @@ using NumberOrUndefined = UnionOf<Number, Undefined>;
 
 using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
 using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
-using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction>;
+using WasmCodePtr =
+    std::conditional_t<V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL, Word32, WordPtr>;
+using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, WasmCodePtr>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 
 #ifdef HAS_CPP_CONCEPTS

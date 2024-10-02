@@ -1798,6 +1798,7 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_EQUAL_V(WordPtrEqual, WordPtr)
   DECL_SINGLE_REP_EQUAL_V(Float32Equal, Float32)
   DECL_SINGLE_REP_EQUAL_V(Float64Equal, Float64)
+  DECL_SINGLE_REP_EQUAL_V(WasmCodePtrEqual, WasmCodePtr)
 #undef DECL_SINGLE_REP_EQUAL_V
 
 #define DECL_SINGLE_REP_COMPARISON_V(name, kind, tag)                 \
@@ -2374,7 +2375,7 @@ class TurboshaftAssemblerOpInterface
         static_cast<uint64_t>(canonical_id));
   }
 
-  V<WordPtr> RelocatableWasmIndirectCallTarget(uint32_t function_index) {
+  V<WasmCodePtr> RelocatableWasmIndirectCallTarget(uint32_t function_index) {
     return ReduceIfReachableConstant(
         ConstantOp::Kind::kRelocatableWasmIndirectCallTarget, function_index);
   }
