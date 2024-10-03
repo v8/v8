@@ -279,6 +279,17 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     const KnownNodeAspects& loop_header) const {
   // Needs to be in sync with `CloneForLoopHeader(zone, true)`.
 
+  // Analysis state can change with loads.
+  if (loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::Yes &&
+      loop_header.may_have_aliasing_contexts() !=
+          may_have_aliasing_contexts()) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
+      std::cout << "KNA after loop has incompatible "
+                   "loop_header.may_have_aliasing_contexts\n";
+    }
+    return false;
+  }
+
   bool had_effects = effect_epoch() != loop_header.effect_epoch();
 
   if (!had_effects) {
@@ -314,16 +325,7 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     DCHECK(had_effects);
     return false;
   }
-  if (loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::Yes &&
-      loop_header.may_have_aliasing_contexts() !=
-          may_have_aliasing_contexts()) {
-    if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
-      std::cout << "KNA after loop has incompatible "
-                   "loop_header.may_have_aliasing_contexts\n";
-    }
-    DCHECK(had_effects);
-    return false;
-  }
+
   if (!AspectIncludes(loop_header.loaded_context_slots, loaded_context_slots,
                       SameValue)) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
