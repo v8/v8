@@ -1203,12 +1203,13 @@ class InstructionSelectorT final : public Adapter {
 
 #if V8_TARGET_ARCH_64_BIT
   bool ZeroExtendsWord32ToWord64(node_t node, int recursion_depth = 0);
+  void MarkNodeAsNotZeroExtended(node_t node);
   bool ZeroExtendsWord32ToWord64NoPhis(node_t node);
 
-  enum Upper32BitsState : uint8_t {
+  enum class Upper32BitsState : uint8_t {
     kNotYetChecked,
-    kUpperBitsGuaranteedZero,
-    kNoGuarantee,
+    kZero,
+    kMayBeNonZero,
   };
 #endif  // V8_TARGET_ARCH_64_BIT
 
@@ -1287,6 +1288,8 @@ class InstructionSelectorT final : public Adapter {
   std::optional<BitVector> additional_protected_instructions_;
 
 #if V8_TARGET_ARCH_64_BIT
+  size_t node_count_;
+
   // Holds lazily-computed results for whether phi nodes guarantee their upper
   // 32 bits to be zero. Indexed by node ID; nobody reads or writes the values
   // for non-phi nodes.

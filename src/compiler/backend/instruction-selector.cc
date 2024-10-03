@@ -105,7 +105,8 @@ InstructionSelectorT<Adapter>::InstructionSelectorT(
       max_pushed_argument_count_(max_pushed_argument_count)
 #if V8_TARGET_ARCH_64_BIT
       ,
-      phi_states_(node_count, Upper32BitsState::kNotYetChecked, zone)
+      node_count_(node_count),
+      phi_states_(zone)
 #endif
 {
   if constexpr (Adapter::IsTurboshaft) {
@@ -5886,17 +5887,18 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
   const int kMaxRecursionDepth = 100;
 
   if (this->IsPhi(node)) {
-    // Intermediate results from previous calls are not necessarily correct.
     if (recursion_depth == 0) {
-      static_assert(sizeof(Upper32BitsState) == 1);
-      memset(phi_states_.data(),
-             static_cast<int>(Upper32BitsState::kNotYetChecked),
-             phi_states_.size());
+      if (phi_states_.empty()) {
+        // This vector is lazily allocated because the majority of compilations
+        // never use it.
+        phi_states_ = ZoneVector<Upper32BitsState>(
+            node_count_, Upper32BitsState::kNotYetChecked, zone());
+      }
     }
 
     Upper32BitsState current = phi_states_[this->id(node)];
     if (current != Upper32BitsState::kNotYetChecked) {
-      return current == Upper32BitsState::kUpperBitsGuaranteedZero;
+      return current == Upper32BitsState::kZero;
     }
 
     // If further recursion is prevented, we can't make any assumptions about
@@ -5905,16 +5907,16 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
       return false;
     }
 
-    // Mark the current node so that we skip it if we recursively visit it
-    // again. Or, said differently, we compute a largest fixed-point so we can
-    // be optimistic when we hit cycles.
-    phi_states_[this->id(node)] = Upper32BitsState::kUpperBitsGuaranteedZero;
+    // Optimistically mark the current node as zero-extended so that we skip it
+    // if we recursively visit it again due to a cycle. If this optimistic guess
+    // is wrong, it will be corrected in MarkNodeAsNotZeroExtended.
+    phi_states_[this->id(node)] = Upper32BitsState::kZero;
 
     int input_count = this->value_input_count(node);
     for (int i = 0; i < input_count; ++i) {
       node_t input = this->input_at(node, i);
       if (!ZeroExtendsWord32ToWord64(input, recursion_depth + 1)) {
-        phi_states_[this->id(node)] = Upper32BitsState::kNoGuarantee;
+        MarkNodeAsNotZeroExtended(node);
         return false;
       }
     }
@@ -5922,6 +5924,36 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
     return true;
   }
   return ZeroExtendsWord32ToWord64NoPhis(node);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::MarkNodeAsNotZeroExtended(node_t node) {
+  if (phi_states_[this->id(node)] == Upper32BitsState::kMayBeNonZero) return;
+  phi_states_[this->id(node)] = Upper32BitsState::kMayBeNonZero;
+  ZoneVector<node_t> worklist(zone_);
+  worklist.push_back(node);
+  while (!worklist.empty()) {
+    node = worklist.back();
+    worklist.pop_back();
+    // We may have previously marked some uses of this node as zero-extended,
+    // but that optimistic guess was proven incorrect.
+    if constexpr (Adapter::IsTurboshaft) {
+      for (turboshaft::OpIndex use : turboshaft_uses(node)) {
+        if (phi_states_[this->id(use)] == Upper32BitsState::kZero) {
+          phi_states_[this->id(use)] = Upper32BitsState::kMayBeNonZero;
+          worklist.push_back(use);
+        }
+      }
+    } else {
+      for (Edge edge : node->use_edges()) {
+        Node* use = edge.from();
+        if (phi_states_[this->id(use)] == Upper32BitsState::kZero) {
+          phi_states_[this->id(use)] = Upper32BitsState::kMayBeNonZero;
+          worklist.push_back(use);
+        }
+      }
+    }
+  }
 }
 #endif  // V8_TARGET_ARCH_64_BIT
 
