@@ -69,12 +69,12 @@ constexpr uint32_t FeedbackVector::FlagMaskForNeedsProcessingCheckFrom(
                        FeedbackVector::kFlagsLogNextExecution;
   // When leaptiering is enabled, we don't load optimized code from the
   // FeedbackVector, so we don't check for these flags.
-  if (!V8_ENABLE_LEAPTIERING_BOOL) {
-    flag_mask |= FeedbackVector::kFlagsMaybeHasTurbofanCode;
-  }
-  if (code_kind != CodeKind::MAGLEV && !V8_ENABLE_LEAPTIERING_BOOL) {
+#ifndef V8_ENABLE_LEAPTIERING
+  flag_mask |= FeedbackVector::kFlagsMaybeHasTurbofanCode;
+  if (code_kind != CodeKind::MAGLEV) {
     flag_mask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
   }
+#endif  // !V8_ENABLE_LEAPTIERING
   return flag_mask;
 }
 
@@ -190,51 +190,8 @@ void FeedbackVector::set_maybe_has_optimized_osr_code(bool value,
   }
 }
 
-Tagged<Code> FeedbackVector::optimized_code(IsolateForSandbox isolate) const {
-  Tagged<MaybeObject> slot = maybe_optimized_code();
-  DCHECK(slot.IsWeakOrCleared());
-  Tagged<HeapObject> heap_object;
-  Tagged<Code> code;
-  if (slot.GetHeapObject(&heap_object)) {
-    code = Cast<CodeWrapper>(heap_object)->code(isolate);
-  }
-  // It is possible that the maybe_optimized_code slot is cleared but the flags
-  // haven't been updated yet. We update them when we execute the function next
-  // time / when we create new closure.
-  DCHECK_IMPLIES(!code.is_null(),
-                 maybe_has_maglev_code() || maybe_has_turbofan_code());
-  DCHECK_IMPLIES(!code.is_null() && code->is_maglevved(),
-                 maybe_has_maglev_code());
-  DCHECK_IMPLIES(!code.is_null() && code->is_turbofanned(),
-                 maybe_has_turbofan_code());
-  return code;
-}
-
 TieringState FeedbackVector::tiering_state() const {
   return TieringStateBits::decode(flags());
-}
-
-bool FeedbackVector::has_optimized_code() const {
-  bool is_cleared = maybe_optimized_code().IsCleared();
-  DCHECK_IMPLIES(!is_cleared,
-                 maybe_has_maglev_code() || maybe_has_turbofan_code());
-  return !is_cleared;
-}
-
-bool FeedbackVector::maybe_has_maglev_code() const {
-  return MaybeHasMaglevCodeBit::decode(flags());
-}
-
-void FeedbackVector::set_maybe_has_maglev_code(bool value) {
-  set_flags(MaybeHasMaglevCodeBit::update(flags(), value));
-}
-
-bool FeedbackVector::maybe_has_turbofan_code() const {
-  return MaybeHasTurbofanCodeBit::decode(flags());
-}
-
-void FeedbackVector::set_maybe_has_turbofan_code(bool value) {
-  set_flags(MaybeHasTurbofanCodeBit::update(flags(), value));
 }
 
 bool FeedbackVector::log_next_execution() const {
@@ -262,6 +219,53 @@ void FeedbackVector::set_was_once_deoptimized() {
   set_invocation_count_before_stable(kInvocationCountBeforeStableDeoptSentinel,
                                      kRelaxedStore);
 }
+
+#ifndef V8_ENABLE_LEAPTIERING
+
+Tagged<Code> FeedbackVector::optimized_code(IsolateForSandbox isolate) const {
+  Tagged<MaybeObject> slot = maybe_optimized_code();
+  DCHECK(slot.IsWeakOrCleared());
+  Tagged<HeapObject> heap_object;
+  Tagged<Code> code;
+  if (slot.GetHeapObject(&heap_object)) {
+    code = Cast<CodeWrapper>(heap_object)->code(isolate);
+  }
+  // It is possible that the maybe_optimized_code slot is cleared but the flags
+  // haven't been updated yet. We update them when we execute the function next
+  // time / when we create new closure.
+  DCHECK_IMPLIES(!code.is_null(),
+                 maybe_has_maglev_code() || maybe_has_turbofan_code());
+  DCHECK_IMPLIES(!code.is_null() && code->is_maglevved(),
+                 maybe_has_maglev_code());
+  DCHECK_IMPLIES(!code.is_null() && code->is_turbofanned(),
+                 maybe_has_turbofan_code());
+  return code;
+}
+
+bool FeedbackVector::has_optimized_code() const {
+  bool is_cleared = maybe_optimized_code().IsCleared();
+  DCHECK_IMPLIES(!is_cleared,
+                 maybe_has_maglev_code() || maybe_has_turbofan_code());
+  return !is_cleared;
+}
+
+bool FeedbackVector::maybe_has_maglev_code() const {
+  return MaybeHasMaglevCodeBit::decode(flags());
+}
+
+void FeedbackVector::set_maybe_has_maglev_code(bool value) {
+  set_flags(MaybeHasMaglevCodeBit::update(flags(), value));
+}
+
+bool FeedbackVector::maybe_has_turbofan_code() const {
+  return MaybeHasTurbofanCodeBit::decode(flags());
+}
+
+void FeedbackVector::set_maybe_has_turbofan_code(bool value) {
+  set_flags(MaybeHasTurbofanCodeBit::update(flags(), value));
+}
+
+#endif  // !V8_ENABLE_LEAPTIERING
 
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, FeedbackSlot slot) {

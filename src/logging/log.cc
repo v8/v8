@@ -1546,8 +1546,10 @@ void V8FileLogger::FeedbackVectorEvent(Tagged<FeedbackVector> vector,
       << vector->length();
   msg << kNext << reinterpret_cast<void*>(code->InstructionStart(cage_base));
   msg << kNext << vector->tiering_state();
+#ifndef V8_ENABLE_LEAPTIERING
   msg << kNext << vector->maybe_has_maglev_code();
   msg << kNext << vector->maybe_has_turbofan_code();
+#endif  // !V8_ENABLE_LEAPTIERING
   msg << kNext << vector->invocation_count();
 
 #ifdef OBJECT_PRINT

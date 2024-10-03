@@ -453,7 +453,9 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
           size, AllocationType::kOld, *feedback_vector_map()));
   DisallowGarbageCollection no_gc;
   vector->set_shared_function_info(*shared);
+#ifndef V8_ENABLE_LEAPTIERING
   vector->set_maybe_optimized_code(ClearedValue(isolate()));
+#endif  // !V8_ENABLE_LEAPTIERING
   vector->set_length(length);
   vector->set_invocation_count(0);
   vector->set_invocation_count_before_stable(0);

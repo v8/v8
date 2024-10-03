@@ -185,6 +185,8 @@ RUNTIME_FUNCTION(Runtime_FunctionLogNextExecution) {
   return js_function->code(isolate);
 }
 
+#ifndef V8_ENABLE_LEAPTIERING
+
 RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   SealHandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -196,6 +198,8 @@ RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
       isolate, function->shared(), "Runtime_HealOptimizedCodeSlot");
   return function->code(isolate);
 }
+
+#endif  // !V8_ENABLE_LEAPTIERING
 
 // The enum values need to match "AsmJsInstantiateResult" in
 // tools/metrics/histograms/enums.xml.

@@ -263,10 +263,12 @@ Handle<FeedbackVector> FeedbackVector::New(
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
   DCHECK_EQ(vector->tiering_state(), TieringState::kNone);
+  DCHECK_EQ(vector->invocation_count(), 0);
+#ifndef V8_ENABLE_LEAPTIERING
   DCHECK(!vector->maybe_has_maglev_code());
   DCHECK(!vector->maybe_has_turbofan_code());
-  DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK(vector->maybe_optimized_code().IsCleared());
+#endif  // !V8_ENABLE_LEAPTIERING
 
   // Ensure we can skip the write barrier
   DirectHandle<Symbol> uninitialized_sentinel = UninitializedSentinel(isolate);
@@ -379,6 +381,8 @@ void FeedbackVector::AddToVectorsForProfilingTools(
   isolate->SetFeedbackVectorsForProfilingTools(*list);
 }
 
+#ifndef V8_ENABLE_LEAPTIERING
+
 void FeedbackVector::SetOptimizedCode(IsolateForSandbox isolate,
                                       Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
@@ -425,6 +429,24 @@ void FeedbackVector::ClearOptimizedCode() {
   set_maybe_has_turbofan_code(false);
 }
 
+void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
+    Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason) {
+  Tagged<MaybeObject> slot = maybe_optimized_code();
+  if (slot.IsCleared()) {
+    set_maybe_has_maglev_code(false);
+    set_maybe_has_turbofan_code(false);
+    return;
+  }
+
+  Tagged<Code> code = Cast<CodeWrapper>(slot.GetHeapObject())->code(isolate);
+  if (code->marked_for_deoptimization()) {
+    Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
+    ClearOptimizedCode();
+  }
+}
+
+#endif  // !V8_ENABLE_LEAPTIERING
+
 void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                                          Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
@@ -450,8 +472,10 @@ void FeedbackVector::set_tiering_state(TieringState state) {
 void FeedbackVector::reset_flags() {
   set_flags(TieringStateBits::encode(TieringState::kNone) |
             LogNextExecutionBit::encode(false) |
+#ifndef V8_ENABLE_LEAPTIERING
             MaybeHasMaglevCodeBit::encode(false) |
             MaybeHasTurbofanCodeBit::encode(false) |
+#endif  // !V8_ENABLE_LEAPTIERING
             OsrTieringInProgressBit::encode(false) |
             MaybeHasMaglevOsrCodeBit::encode(false) |
             MaybeHasTurbofanOsrCodeBit::encode(false));
@@ -463,22 +487,6 @@ bool FeedbackVector::osr_tiering_in_progress() {
 
 void FeedbackVector::set_osr_tiering_in_progress(bool osr_in_progress) {
   set_flags(OsrTieringInProgressBit::update(flags(), osr_in_progress));
-}
-
-void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason) {
-  Tagged<MaybeObject> slot = maybe_optimized_code();
-  if (slot.IsCleared()) {
-    set_maybe_has_maglev_code(false);
-    set_maybe_has_turbofan_code(false);
-    return;
-  }
-
-  Tagged<Code> code = Cast<CodeWrapper>(slot.GetHeapObject())->code(isolate);
-  if (code->marked_for_deoptimization()) {
-    Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
-    ClearOptimizedCode();
-  }
 }
 
 bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {

@@ -2005,12 +2005,14 @@ void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
     HeapEntry* entry, Tagged<FeedbackVector> feedback_vector) {
+#ifndef V8_ENABLE_LEAPTIERING
   Tagged<MaybeObject> code = feedback_vector->maybe_optimized_code();
   Tagged<HeapObject> code_heap_object;
   if (code.GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(entry, "optimized code", code_heap_object,
                      FeedbackVector::kMaybeOptimizedCodeOffset);
   }
+#endif  // !V8_ENABLE_LEAPTIERING
   for (int i = 0; i < feedback_vector->length(); ++i) {
     Tagged<MaybeObject> maybe_entry = *(feedback_vector->slots_start() + i);
     Tagged<HeapObject> entry;

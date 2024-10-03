@@ -169,9 +169,11 @@ bool FirstTimeTierUpToSparkplug(Isolate* isolate, Tagged<JSFunction> function) {
 }
 
 bool TieringOrTieredUpToOptimizedTier(Tagged<FeedbackVector> vector) {
-  return !IsNone(vector->tiering_state()) || vector->maybe_has_maglev_code() ||
+  return !IsNone(vector->tiering_state()) ||
+#ifndef V8_ENABLE_LEAPTIERING
+         vector->maybe_has_maglev_code() || vector->maybe_has_turbofan_code() ||
+#endif  // !V8_ENABLE_LEAPTIERING
          vector->maybe_has_maglev_osr_code() ||
-         vector->maybe_has_turbofan_code() ||
          vector->maybe_has_turbofan_osr_code();
 }
 
@@ -439,11 +441,16 @@ bool ShouldResetInterruptBudgetByICChange(
 }  // namespace
 
 void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
-  CodeKind code_kind = vector->has_optimized_code()
-                           ? vector->optimized_code(isolate_)->kind()
-                       : vector->shared_function_info()->HasBaselineCode()
+  CodeKind code_kind = vector->shared_function_info()->HasBaselineCode()
                            ? CodeKind::BASELINE
                            : CodeKind::INTERPRETED_FUNCTION;
+
+#ifndef V8_ENABLE_LEAPTIERING
+  if (vector->has_optimized_code()) {
+    code_kind = vector->optimized_code(isolate_)->kind();
+  }
+#endif  // !V8_ENABLE_LEAPTIERING
+
   if (code_kind == CodeKind::INTERPRETED_FUNCTION &&
       CanCompileWithBaseline(isolate_, vector->shared_function_info()) &&
       vector->shared_function_info()->cached_tiering_decision() ==

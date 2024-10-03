@@ -51,6 +51,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
     }
   }
 
+#ifndef V8_ENABLE_LEAPTIERING
   // Check the optimized code cache.
   if (has_feedback_vector() && feedback_vector()->has_optimized_code() &&
       !feedback_vector()
@@ -60,6 +61,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
     DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
     result |= CodeKindToCodeKindFlag(code->kind());
   }
+#endif  // !V8_ENABLE_LEAPTIERING
 
   DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
   return result;
