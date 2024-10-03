@@ -79,12 +79,6 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
   }
 }
 
-// TODO(dmercadier): use simply .contains once we have access to C++20.
-template <typename K, typename V>
-bool MapContains(ZoneUnorderedMap<K, V> map, K key) {
-  return map.find(key) != map.end();
-}
-
 int ElementsKindSize(ElementsKind element_kind) {
   switch (element_kind) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
