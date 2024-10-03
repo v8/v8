@@ -4005,6 +4005,8 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   CheckStackOverflow();
 
   if (peek() == Token::kImport && PeekAhead() == Token::kLeftParen) {
+    // TODO(42204365): Peek ahead to see if this is an import source call.
+    // It needs to peek ahead for tokens `import . source (`.
     impl()->ReportMessageAt(scanner()->peek_location(),
                             MessageTemplate::kImportCallNotNewExpression);
     return impl()->FailureExpression();

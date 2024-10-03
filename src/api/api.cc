@@ -9986,6 +9986,12 @@ void Isolate::SetHostImportModuleDynamicallyCallback(
   i_isolate->SetHostImportModuleDynamicallyCallback(callback);
 }
 
+void Isolate::SetHostImportModuleWithPhaseDynamicallyCallback(
+    HostImportModuleWithPhaseDynamicallyCallback callback) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->SetHostImportModuleWithPhaseDynamicallyCallback(callback);
+}
+
 void Isolate::SetHostInitializeImportMetaObjectCallback(
     HostInitializeImportMetaObjectCallback callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);

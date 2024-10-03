@@ -673,6 +673,18 @@ class V8_EXPORT Isolate {
       HostImportModuleDynamicallyCallback callback);
 
   /**
+   * This specifies the callback called by the upcoming dynamic
+   * import() and import.source() language feature to load modules.
+   *
+   * This API is experimental and is expected to be changed or removed in the
+   * future. The callback is currently only called when for source-phase
+   * imports. Evaluation-phase imports use the existing
+   * HostImportModuleDynamicallyCallback callback.
+   */
+  void SetHostImportModuleWithPhaseDynamicallyCallback(
+      HostImportModuleWithPhaseDynamicallyCallback callback);
+
+  /**
    * This specifies the callback called by the upcoming import.meta
    * language feature to retrieve host-defined meta data for a module.
    */

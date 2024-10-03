@@ -291,7 +291,7 @@ namespace internal {
   F(CreateRegExpLiteral, 4, 1)
 
 #define FOR_EACH_INTRINSIC_MODULE(F, I)    \
-  F(DynamicImportCall, -1 /* [2, 3] */, 1) \
+  F(DynamicImportCall, -1 /* [3, 4] */, 1) \
   I(GetImportMetaObject, 0, 1)             \
   F(GetModuleNamespace, 1, 1)              \
   F(GetModuleNamespaceExport, 2, 1)
