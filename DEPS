@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:dc7a06223e4ccbde049613ed802448b0c8baf5af',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:825ada410ecdfd314f075a609b46ceb61dfa6442',
+  'luci_go': 'git_revision:bf797b21e5dbcb1466cd527a1aa8e2ecf1910fbd',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '0eda639cb78a5cf0b479910d8c9a039e47ad36fe',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'f8cadd89744dffe7a566c458b80bf2846f213ff1',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ffa948a18ef8bd4c49b1edbe1274f2431bcf2b94',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '41f6453cccf3023db67440775e917f4fe6872675',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e1f9cd198136d743a1f004c9a5d94f280e9eb115',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1e4e7f1a9add5ff28e841e20b80e3f0159616710',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -309,7 +309,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '829f51051ce2b51be14f7853cca71be98083df6b',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '37c7d984b0b8520a0f99c6e6bbb0514e9996edc8',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '71735e82a6fda4af58f68b9028a7c5ac49898884',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
