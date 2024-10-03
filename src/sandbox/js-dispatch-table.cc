@@ -74,6 +74,14 @@ uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters) {
 std::atomic<bool> JSDispatchTable::initialized_ = false;
 #endif  // DEBUG
 
+void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
+  uint32_t index = HandleToIndex(handle);
+  i::PrintF("JSDispatchEntry @ %p\n", &at(index));
+  i::PrintF("* code 0x%lx\n", GetCode(handle).address());
+  i::PrintF("* params %d\n", at(HandleToIndex(handle)).GetParameterCount());
+  i::PrintF("* entrypoint 0x%lx\n", GetEntrypoint(handle));
+}
+
 // Static
 base::LeakyObject<JSDispatchTable> JSDispatchTable::instance_;
 

@@ -22,12 +22,15 @@
 #include "src/objects/all-objects-inl.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/regexp/regexp.h"
+#include "src/sandbox/js-dispatch-table.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 #include "third_party/fp16/src/include/fp16.h"
+#include "v8-internal.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects-inl.h"
@@ -2168,7 +2171,12 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code(isolate));
 #ifdef V8_ENABLE_LEAPTIERING
-  os << "\n - dispatch_handle: " << dispatch_handle();
+  os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
+  if (has_feedback_vector() &&
+      raw_feedback_cell()->dispatch_handle() != dispatch_handle()) {
+    os << "\n - canonical feedback cell dispatch_handle: 0x" << std::hex
+       << raw_feedback_cell()->dispatch_handle() << std::dec;
+  }
 #endif  // V8_ENABLE_LEAPTIERING
   if (code(isolate)->kind() == CodeKind::FOR_TESTING) {
     os << "\n - FOR_TESTING";
@@ -4103,6 +4111,14 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   i::Print(lookup_result.value());
 #endif
 }
+
+#ifdef V8_ENABLE_LEAPTIERING
+V8_DONT_STRIP_SYMBOL
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_Dispatch_Handle(
+    uint32_t handle) {
+  i::GetProcessWideJSDispatchTable()->PrintEntry(handle);
+}
+#endif  // V8_ENABLE_LEAPTIERING
 
 V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_OnlyCode(void* object,

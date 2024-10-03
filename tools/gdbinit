@@ -108,6 +108,16 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
+# Print JSDispatchEntry object in the JSDispatchTable with the given dispatch handle
+define jdh
+  call (void) _v8_internal_Print_Dispatch_Handle((uint32_t)($arg0))
+end
+document jdh
+Print JSDispatchEntry object in the JSDispatchTable with the given dispatch handle
+Usage: jdh dispatch_handle
+end
+
+
 # Print Code objects assembly code surrounding given PC.
 define jca
   if $argc == 0

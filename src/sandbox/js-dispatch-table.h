@@ -234,6 +234,8 @@ class V8_EXPORT_PRIVATE JSDispatchTable
                           Space* ro_space);
 #endif  // DEBUG
 
+  void PrintEntry(JSDispatchHandle handle);
+
  private:
 #ifdef DEBUG
   static std::atomic<bool> initialized_;
