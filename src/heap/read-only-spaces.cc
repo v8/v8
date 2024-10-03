@@ -229,9 +229,9 @@ void ReadOnlySpace::Unseal() {
 }
 
 bool ReadOnlySpace::ContainsSlow(Address addr) const {
-  MemoryChunkMetadata* c = MemoryChunkMetadata::FromAddress(addr);
-  for (MemoryChunkMetadata* chunk : pages_) {
-    if (chunk == c) return true;
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
+  for (MemoryChunkMetadata* metadata : pages_) {
+    if (metadata->Chunk() == chunk) return true;
   }
   return false;
 }

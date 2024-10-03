@@ -183,9 +183,9 @@ void PagedSpaceBase::VerifyCommittedPhysicalMemory() const {
 #endif  // DEBUG
 
 bool PagedSpaceBase::ContainsSlow(Address addr) const {
-  PageMetadata* p = PageMetadata::FromAddress(addr);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   for (const PageMetadata* page : *this) {
-    if (page == p) return true;
+    if (page->Chunk() == chunk) return true;
   }
   return false;
 }
