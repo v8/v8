@@ -1074,6 +1074,16 @@ class V8_EXPORT_PRIVATE Instruction final {
     }
   }
 
+  // For JS call instructions, computes the index of the argument count input.
+  size_t JSCallArgumentCountInputIndex() const {
+    // Keep in sync with instruction-selector.cc where the inputs are assembled.
+    if (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
+      return InputCount() - 2;
+    } else {
+      return InputCount() - 1;
+    }
+  }
+
   enum GapPosition {
     START,
     END,

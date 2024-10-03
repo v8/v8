@@ -1622,7 +1622,7 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
     DCHECK_EQ(1 + frame_state_entries, buffer->instruction_args.size());
   }
 
-  size_t input_count = static_cast<size_t>(buffer->input_count());
+  size_t input_count = buffer->input_count();
 
   // Split the arguments into pushed_nodes and instruction_args. Pushed
   // arguments require an explicit push instruction before the call and do
@@ -1630,7 +1630,6 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
   // as an InstructionOperand argument to the call.
   auto arguments = call.arguments();
   auto iter(arguments.begin());
-  // call->inputs().begin());
   size_t pushed_count = 0;
   for (size_t index = 1; index < input_count; ++iter, ++index) {
     DCHECK_NE(iter, arguments.end());
@@ -2606,8 +2605,15 @@ void InstructionSelectorT<Adapter>::VisitCall(node_t node, block_t handler) {
   UpdateMaxPushedArgumentCount(buffer.pushed_nodes.size());
 
   if (call_descriptor->RequiresEntrypointTagForCall()) {
+    DCHECK(!call_descriptor->IsJSFunctionCall());
     buffer.instruction_args.push_back(
         g.TempImmediate(call_descriptor->shifted_tag()));
+  } else if (call_descriptor->IsJSFunctionCall()) {
+    // For JSFunctions we need to know the number of pushed parameters during
+    // code generation.
+    uint32_t parameter_count =
+        static_cast<uint32_t>(buffer.pushed_nodes.size());
+    buffer.instruction_args.push_back(g.TempImmediate(parameter_count));
   }
 
   // Pass label of exception handler block.

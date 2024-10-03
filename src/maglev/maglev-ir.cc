@@ -5549,9 +5549,17 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
   if (shared_function_info().HasBuiltinId()) {
+    // TODO(42204201) Here we should statically validate the parameter count.
+    // However, for that, every builtin needs to know its expected parameter
+    // count. See also issue 343498932.
     __ CallBuiltin(shared_function_info().builtin_id());
   } else {
-    __ CallJSFunction(kJavaScriptCallTargetRegister);
+    // TODO(42204201): Instead of validating the parameter count, we should
+    // just hardcode the dispatch entry into the generated code. That way, it
+    // will be guaranteed that the parameter count is correct. However, this
+    // requires GC support to mark the dispatch entry as alive when embedded
+    // into generated code.
+    __ CallJSFunction(kJavaScriptCallTargetRegister, expected_parameter_count_);
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }

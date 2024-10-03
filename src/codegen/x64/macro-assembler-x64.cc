@@ -671,7 +671,7 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING
-void MacroAssembler::LoadCodeEntrypointFromJSDispatchTable(
+void MacroAssembler::LoadEntrypointFromJSDispatchTable(
     Register destination, Register dispatch_handle) {
   DCHECK(!AreAliased(destination, kScratchRegister));
   LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
@@ -683,6 +683,7 @@ void MacroAssembler::LoadCodeEntrypointFromJSDispatchTable(
   movq(destination, Operand(kScratchRegister, destination, times_1,
                             JSDispatchEntry::kEntrypointOffset));
 }
+
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
     Register destination, Register dispatch_handle) {
   DCHECK(!AreAliased(destination, kScratchRegister));
@@ -692,9 +693,26 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
   }
   shrl(destination, Immediate(kJSDispatchHandleShift));
   shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
-  movq(destination, Operand(kScratchRegister, destination, times_1,
-                            JSDispatchEntry::kCodeObjectOffset));
-  andl(destination, Immediate(JSDispatchEntry::kParameterCountMask));
+  static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
+  movzxwq(destination, Operand(kScratchRegister, destination, times_1,
+                               JSDispatchEntry::kCodeObjectOffset));
+}
+
+void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
+    Register entrypoint, Register parameter_count, Register dispatch_handle) {
+  DCHECK(!AreAliased(entrypoint, parameter_count, kScratchRegister));
+  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  Register offset = parameter_count;
+  if (offset != dispatch_handle) {
+    movq(offset, dispatch_handle);
+  }
+  shrl(offset, Immediate(kJSDispatchHandleShift));
+  shll(offset, Immediate(kJSDispatchTableEntrySizeLog2));
+  movq(entrypoint, Operand(kScratchRegister, offset, times_1,
+                           JSDispatchEntry::kEntrypointOffset));
+  static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
+  movzxwq(parameter_count, Operand(kScratchRegister, offset, times_1,
+                                   JSDispatchEntry::kCodeObjectOffset));
 }
 #endif
 
@@ -3185,6 +3203,9 @@ void MacroAssembler::CallCodeObject(Register code_object,
 
 void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
                                     JumpMode jump_mode) {
+  // TODO(saelo): can we avoid using this for JavaScript functions
+  // (kJSEntrypointTag) and instead use a variant that ensures that the caller
+  // and callee agree on the signature (i.e. parameter count)?
   LoadCodeInstructionStart(code_object, code_object, tag);
   switch (jump_mode) {
     case JumpMode::kJump:
@@ -3197,11 +3218,18 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
   }
 }
 
-void MacroAssembler::CallJSFunction(Register function_object) {
+void MacroAssembler::CallJSFunction(Register function_object,
+                                    uint16_t argument_count) {
+#if V8_ENABLE_LEAPTIERING
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-#ifdef V8_ENABLE_LEAPTIERING
-  movl(rcx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
-  LoadCodeEntrypointFromJSDispatchTable(rcx, rcx);
+  movl(r15, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
+  LoadEntrypointAndParameterCountFromJSDispatchTable(rcx, rbx, r15);
+  Label ok;
+  cmpl(rbx, Immediate(argument_count));
+  // If the parameter count doesn't match, we force a safe crash with an int3.
+  j(less_equal, &ok);
+  int3();
+  bind(&ok);
   call(rcx);
 #elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
@@ -3219,10 +3247,10 @@ void MacroAssembler::CallJSFunction(Register function_object) {
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
+#if V8_ENABLE_LEAPTIERING
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-#ifdef V8_ENABLE_LEAPTIERING
   movl(rcx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
-  LoadCodeEntrypointFromJSDispatchTable(rcx, rcx);
+  LoadEntrypointFromJSDispatchTable(rcx, rcx);
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   jmp(rcx);
 #elif V8_ENABLE_SANDBOX
@@ -3926,7 +3954,7 @@ void MacroAssembler::InvokeFunctionCode(
   // allow recompilation to take effect without changing any of the
   // call sites.
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  LoadCodeEntrypointFromJSDispatchTable(rcx, dispatch_handle);
+  LoadEntrypointFromJSDispatchTable(rcx, dispatch_handle);
   switch (type) {
     case InvokeType::kCall:
       call(rcx);
@@ -4004,9 +4032,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // allow recompilation to take effect without changing any of the
   // call sites.
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+  constexpr int unused_argument_count = 0;
   switch (type) {
     case InvokeType::kCall:
-      CallJSFunction(function);
+      CallJSFunction(function, unused_argument_count);
       break;
     case InvokeType::kJump:
       JumpJSFunction(function);
