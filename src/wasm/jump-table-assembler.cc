@@ -507,13 +507,19 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_RISCV64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  int start = pc_offset();
+  const int tile = pc_offset() + kLazyCompileTableSlotSize;
   li(kWasmCompileLazyFuncIndexRegister, func_index);  // max. 2 instr
   // Jump produces max. 8 instructions (include constant pool and j)
   Jump(lazy_compile_target, RelocInfo::NO_INFO);
-  int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
-  DCHECK_EQ(nop_bytes % kInstrSize, 0);
-  for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
+  while (pc_offset() + kInstrSize <= tile) {
+    nop();
+  }
+  // the earlier JIT code still may contain compressed instruction and thus
+  // cannot be adjusted with only a sequence of NOP's
+  if (v8_flags.riscv_c_extension && pc_offset() + kShortInstrSize <= tile) {
+    c_nop();
+  }
+  DCHECK_EQ(pc_offset(), tile);
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
@@ -538,10 +544,14 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
 
 void JumpTableAssembler::NopBytes(int bytes) {
   DCHECK_LE(0, bytes);
-  DCHECK_EQ(0, bytes % kInstrSize);
-  for (; bytes > 0; bytes -= kInstrSize) {
+  for (; bytes >= kInstrSize; bytes -= kInstrSize) {
     nop();
   }
+  if (v8_flags.riscv_c_extension && bytes >= kShortInstrSize) {
+    c_nop();
+    bytes -= kShortInstrSize;
+  }
+  DCHECK_EQ(0, bytes);
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {
@@ -553,13 +563,19 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_RISCV32
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  int start = pc_offset();
+  const int tile = pc_offset() + kLazyCompileTableSlotSize;
   li(kWasmCompileLazyFuncIndexRegister, func_index);  // max. 2 instr
   // Jump produces max. 8 instructions (include constant pool and j)
   Jump(lazy_compile_target, RelocInfo::NO_INFO);
-  int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
-  DCHECK_EQ(nop_bytes % kInstrSize, 0);
-  for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
+  while (pc_offset() + kInstrSize <= tile) {
+    nop();
+  }
+  // the earlier JIT code still may contain compressed instruction and thus
+  // cannot be adjusted with only a sequence of NOP's
+  if (v8_flags.riscv_c_extension && pc_offset() + kShortInstrSize <= tile) {
+    c_nop();
+  }
+  DCHECK_EQ(pc_offset(), tile);
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
@@ -584,10 +600,14 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
 
 void JumpTableAssembler::NopBytes(int bytes) {
   DCHECK_LE(0, bytes);
-  DCHECK_EQ(0, bytes % kInstrSize);
-  for (; bytes > 0; bytes -= kInstrSize) {
+  for (; bytes >= kInstrSize; bytes -= kInstrSize) {
     nop();
   }
+  if (v8_flags.riscv_c_extension && bytes >= kShortInstrSize) {
+    c_nop();
+    bytes -= kShortInstrSize;
+  }
+  DCHECK_EQ(0, bytes);
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {

@@ -1873,7 +1873,7 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
 #elif V8_TARGET_ARCH_RISCV32
   DCHECK(assm_->IsLw(instr_load));
 #endif
-  DCHECK_EQ(assm_->LoadOffset(instr_load), 0);
+  DCHECK_EQ(assm_->LoadOffset(instr_load), 1);
   DCHECK_EQ(assm_->AuipcOffset(instr_auipc), 0);
   int32_t distance = static_cast<int32_t>(
       reinterpret_cast<Address>(entry_offset) -

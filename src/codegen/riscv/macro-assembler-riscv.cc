@@ -2594,8 +2594,10 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       RecordEntry((uint64_t)j.immediate(), j.rmode());
 #endif
       auipc(rd, 0);
-      // Record a value into constant pool.
-      LoadWord(rd, MemOperand(rd, 0));
+      // Record a value into constant pool, passing 1 as the offset makes the
+      // promise that LoadWord() generates full 32-bit instruction to be
+      // patched with real value in the future
+      LoadWord(rd, MemOperand(rd, 1));
     } else {
       if ((count - reverse_count) > 1) {
         Li(rd, ~j.immediate());
