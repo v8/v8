@@ -1341,6 +1341,8 @@ class Heap final {
   void UpdateOldGenerationAllocationCounter() {
     old_generation_allocation_counter_at_last_gc_ =
         OldGenerationAllocationCounter();
+    old_generation_size_at_last_gc_ = 0;
+    old_generation_wasted_at_last_gc_ = 0;
   }
 
   size_t OldGenerationAllocationCounter() {
@@ -1926,12 +1928,14 @@ class Heap final {
     return global_allocation_limit_.load(std::memory_order_relaxed);
   }
 
-  bool using_initial_limit() const {
-    return using_initial_limit_.load(std::memory_order_relaxed);
+  bool old_generation_allocation_limit_configured() const {
+    return old_generation_allocation_limit_configured_.load(
+        std::memory_order_relaxed);
   }
 
-  void set_using_initial_limit(bool value) {
-    using_initial_limit_.store(value, std::memory_order_relaxed);
+  void set_old_generation_allocation_limit_configured(bool value) {
+    old_generation_allocation_limit_configured_.store(
+        value, std::memory_order_relaxed);
   }
 
   size_t max_old_generation_size() const {
@@ -2098,16 +2102,13 @@ class Heap final {
 
   // Before the first full GC the old generation allocation limit is considered
   // to be *not* configured (unless initial limits were provided by the
-  // embedder, see below). In this mode V8 starts with a very large old
-  // generation allocation limit initially. Minor GCs may then shrink this
-  // initial limit down until the first full GC computes a proper old generation
-  // allocation limit in Heap::RecomputeLimits. The old generation allocation
-  // limit is then considered to be configured for all subsequent GCs. After the
-  // first full GC this field is only ever reset for top context disposals.
-  std::atomic<bool> using_initial_limit_ = true;
-
-  // True if initial limits were provided by the embedder.
-  bool initial_limit_overwritten_ = false;
+  // embedder). In this mode V8 starts with a very large old generation
+  // allocation limit initially. Minor GCs may then shrink this initial limit
+  // down until the first full GC computes a proper old generation allocation
+  // limit in Heap::RecomputeLimits. The old generation allocation limit is then
+  // considered to be configured for all subsequent GCs. After the first full GC
+  // this field is only ever reset for top context disposals.
+  std::atomic<bool> old_generation_allocation_limit_configured_ = false;
 
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
