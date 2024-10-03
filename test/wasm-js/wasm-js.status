@@ -61,11 +61,9 @@
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [FAIL],
 
   # TODO(https://crbug.com/364913810): Investigate failing exception handling tests.
-  'proposals/exception-handling/exception/identity.tentative': [FAIL],
-  'proposals/exception-handling/exception/jsTag.tentative': [FAIL],
   'proposals/memory64/exception/identity.tentative': [FAIL],
   'proposals/memory64/exception/jsTag.tentative': [FAIL],
-  'proposals/exception-handling/exception/basic.tentative': [FAIL],
+  'proposals/exception-handling/module/exports': [FAIL],
 
   # TODO(clemensb): Fix upstream; use kWasmVoid instead of kWasmStmt.
   # (https://github.com/WebAssembly/memory64/pull/83)
