@@ -524,7 +524,7 @@ class V8_EXPORT Isolate {
     kDurationFormat = 117,
     kInvalidatedNumberStringNotRegexpLikeProtector = 118,
     kOBSOLETE_RegExpUnicodeSetIncompatibilitiesWithUnicodeMode = 119,
-    kImportAssertionDeprecatedSyntax = 120,
+    kOBSOLETE_ImportAssertionDeprecatedSyntax = 120,
     kLocaleInfoObsoletedGetters = 121,
     kLocaleInfoFunctions = 122,
     kCompileHintsMagicAll = 123,

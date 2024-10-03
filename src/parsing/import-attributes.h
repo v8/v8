@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PARSING_IMPORT_ASSERTIONS_H_
-#define V8_PARSING_IMPORT_ASSERTIONS_H_
+#ifndef V8_PARSING_IMPORT_ATTRIBUTES_H_
+#define V8_PARSING_IMPORT_ATTRIBUTES_H_
 
 #include "src/parsing/scanner.h"  // Only for Scanner::Location.
 #include "src/zone/zone-containers.h"
@@ -29,4 +29,4 @@ class ImportAttributes
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PARSING_IMPORT_ASSERTIONS_H_
+#endif  // V8_PARSING_IMPORT_ATTRIBUTES_H_

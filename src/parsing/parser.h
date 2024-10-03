@@ -16,7 +16,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
-#include "src/parsing/import-assertions.h"
+#include "src/parsing/import-attributes.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"

@@ -4,6 +4,6 @@
 //
 // MODULE
 //
-// Flags: --harmony-import-assertions
+// Flags: --harmony-import-attributes
 
-import "modules-skip-3-import-assertions-fail.json"
+import "modules-skip-3-import-attributes-fail.json"

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/parsing/import-assertions.h"
+#include "src/parsing/import-attributes.h"
 
 #include "src/ast/ast-value-factory.h"
 

@@ -271,8 +271,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
-  V(harmony_struct, "harmony structs, shared structs, and shared arrays")      \
-  V(harmony_import_assertions, "harmony import assertions (deprecated)")
+  V(harmony_struct, "harmony structs, shared structs, and shared arrays")
 
 #define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)                               \
   V(js_decorators, "decorators")                                             \

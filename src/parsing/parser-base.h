@@ -4158,17 +4158,15 @@ ParserBase<Impl>::ParseImportExpressions() {
                  v8_flags.js_source_phase_imports);
   // TODO(42204365): Enable import attributes with source phase import once
   // specified.
-  const bool check_import_attributes = (v8_flags.harmony_import_assertions ||
-                                        v8_flags.harmony_import_attributes) &&
-                                       phase == ModuleImportPhase::kEvaluation;
-  if (check_import_attributes && Check(Token::kComma)) {
+  if (v8_flags.harmony_import_attributes &&
+      phase == ModuleImportPhase::kEvaluation && Check(Token::kComma)) {
     if (Check(Token::kRightParen)) {
       // A trailing comma allowed after the specifier.
       return factory()->NewImportCallExpression(specifier, phase, pos);
     } else {
       ExpressionT import_options = ParseAssignmentExpressionCoverGrammar();
       Check(Token::kComma);  // A trailing comma is allowed after the import
-                             // assertions.
+                             // attributes.
       Expect(Token::kRightParen);
       return factory()->NewImportCallExpression(specifier, phase,
                                                 import_options, pos);

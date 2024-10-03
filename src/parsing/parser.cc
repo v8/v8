@@ -1444,26 +1444,10 @@ ImportAttributes* Parser::ParseImportWithOrAssertClause() {
   //    LiteralPropertyName
   //    LiteralPropertyName ':' StringLiteral , WithEntries
 
-  // (DEPRECATED)
-  // AssertClause :
-  //    assert '{' '}'
-  //    assert '{' WithEntries ','? '}'
-
   auto import_attributes = zone()->New<ImportAttributes>(zone());
 
   if (v8_flags.harmony_import_attributes && Check(Token::kWith)) {
     // 'with' keyword consumed
-  } else if (v8_flags.harmony_import_assertions &&
-             !scanner()->HasLineTerminatorBeforeNext() &&
-             CheckContextualKeyword(ast_value_factory()->assert_string())) {
-    // The 'assert' contextual keyword is deprecated in favor of 'with', and we
-    // need to investigate feasibility of unshipping.
-    //
-    // TODO(v8:13856): Remove once decision is made to unship 'assert' or keep.
-    ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
-    info_->pending_error_handler()->ReportWarningAt(
-        position(), end_position(), MessageTemplate::kImportAssertDeprecated,
-        "V8 v12.6 and Chrome 126");
   } else {
     return import_attributes;
   }
@@ -1489,7 +1473,7 @@ ImportAttributes* Parser::ParseImportWithOrAssertClause() {
         attribute_key, std::make_pair(attribute_value, location)));
     if (!result.second) {
       // It is a syntax error if two WithEntries have the same key.
-      ReportMessageAt(location, MessageTemplate::kImportAssertionDuplicateKey,
+      ReportMessageAt(location, MessageTemplate::kImportAttributesDuplicateKey,
                       attribute_key);
       break;
     }

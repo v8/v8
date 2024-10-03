@@ -26381,7 +26381,7 @@ TEST(DynamicImport) {
 }
 
 v8::MaybeLocal<v8::Promise>
-HostImportModuleDynamicallyWithAssertionsCallbackResolve(
+HostImportModuleDynamicallyWithAttributesCallbackResolve(
     Local<v8::Context> context, Local<v8::Data> host_defined_options,
     Local<v8::Value> resource_name, Local<v8::String> specifier,
     Local<v8::FixedArray> import_attributes) {
@@ -26430,14 +26430,14 @@ HostImportModuleDynamicallyWithAssertionsCallbackResolve(
   return resolver->GetPromise();
 }
 
-TEST(DynamicImportWithAssertions) {
-  FLAG_SCOPE(harmony_import_assertions);
+TEST(DynamicImportWithAttributes) {
+  FLAG_SCOPE(harmony_import_attributes);
 
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
   isolate->SetHostImportModuleDynamicallyCallback(
-      HostImportModuleDynamicallyWithAssertionsCallbackResolve);
+      HostImportModuleDynamicallyWithAttributesCallbackResolve);
 
   i::DirectHandle<i::String> url =
       v8::Utils::OpenDirectHandle(*v8_str("www.google.com"));
@@ -26447,7 +26447,7 @@ TEST(DynamicImportWithAssertions) {
   i::DirectHandle<i::String> source(v8::Utils::OpenHandle(*v8_str("foo")));
   v8::Local<v8::Object> import_options =
       CompileRun(
-          "var arg = { assert: { 'b': 'w', aa: 'x',  c: 'y', a: 'z'} };"
+          "var arg = { with: { 'b': 'w', aa: 'x',  c: 'y', a: 'z'} };"
           "arg;")
           ->ToObject(context.local())
           .ToLocalChecked();

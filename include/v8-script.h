@@ -155,7 +155,7 @@ class V8_EXPORT ModuleRequest : public Data {
    */
   Local<FixedArray> GetImportAttributes() const;
 
-  V8_DEPRECATE_SOON("Use GetImportAttributes instead")
+  V8_DEPRECATED("Use GetImportAttributes instead")
   Local<FixedArray> GetImportAssertions() const {
     return GetImportAttributes();
   }
