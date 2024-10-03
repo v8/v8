@@ -531,9 +531,38 @@ void EventHandler(const JitCodeEvent* event) {
   auto code = isolate->heap()->GcSafeTryFindCodeForInnerPointer(
       Address(event->code_start));
   if (code && code.value()->is_builtin()) {
-    // Skip logging functions with BuiltinIds as they are already present in
-    // the PDB.
-    return;
+    bool skip_emitting_builtin = true;
+    // Skip logging functions with code kind BUILTIN as they are already present
+    // in the PDB.
+
+    // We should still emit builtin addresses if they are an interpreter
+    // trampoline.
+    if (code.value()->has_instruction_stream()) {
+      skip_emitting_builtin = false;
+
+      // The only builtin that might have instruction stream is the
+      // InterpreterEntryTrampoline builtin and only when the
+      // v8_flags.interpreted_frames_native_stack flag is enabled.
+      DCHECK_IMPLIES(
+          code.value()->is_builtin(),
+          code.value()->builtin_id() == Builtin::kInterpreterEntryTrampoline &&
+              v8_flags.interpreted_frames_native_stack);
+    } else {
+      DCHECK(code.value()->is_builtin());
+    }
+
+    // If the builtin has been relocated, we still need to emit the address
+    if (skip_emitting_builtin && V8_SHORT_BUILTIN_CALLS_BOOL &&
+        v8_flags.short_builtin_calls) {
+      CodeRange* code_range = isolate->isolate_group()->GetCodeRange();
+      if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
+        skip_emitting_builtin = false;
+      }
+    }
+
+    if (skip_emitting_builtin) {
+      return;
+    }
   }
 
   constexpr static auto method_load_event_meta =
