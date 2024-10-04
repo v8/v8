@@ -76,7 +76,7 @@ extern runtime WasmStringViewWtf8Slice(Context, ByteArray, Number, Number):
 extern runtime WasmStringFromCodePoint(Context, Number): String;
 extern runtime WasmStringHash(NoContext, String): Smi;
 extern runtime WasmSubstring(Context, String, Smi, Smi): String;
-extern runtime WasmJSToWasmObject(Context, JSAny, Smi, Smi): JSAny;
+extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
 extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
     Undefined;
 
@@ -1525,7 +1525,7 @@ builtin WasmAnyConvertExtern(externObject: JSAny): JSAny {
   const context = LoadContextFromInstanceData(trustedData);
 
   tail runtime::WasmJSToWasmObject(
-      context, externObject, SmiConstant(kAnyType), SmiConstant(0));
+      context, externObject, SmiConstant(kAnyType));
 }
 
 extern macro CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(

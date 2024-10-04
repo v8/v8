@@ -2804,6 +2804,8 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
   os << "\n - suspend: " << suspend();
   os << "\n - wrapper_budget: " << wrapper_budget();
   os << "\n - call_origin: " << Brief(call_origin());
+  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
+     << sig()->return_count() << " returns)";
   os << "\n - code: " << Brief(code(isolate));
   os << "\n";
 }
@@ -2827,7 +2829,7 @@ void WasmCapiFunctionData::WasmCapiFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmCapiFunctionData");
   WasmFunctionDataPrint(os);
   os << "\n - embedder_data: " << Brief(embedder_data());
-  os << "\n - serialized_signature: " << Brief(serialized_signature());
+  os << "\n - sig: " << sig();
   os << "\n";
 }
 

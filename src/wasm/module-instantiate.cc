@@ -1869,9 +1869,10 @@ bool InstanceBuilder::ProcessImportedFunction(
         func_index, Cast<WasmExternalFunction>(*value)->func_ref());
   }
   auto js_receiver = Cast<JSReceiver>(value);
-  const FunctionSig* expected_sig = module_->functions[func_index].sig;
   uint32_t sig_index = module_->functions[func_index].sig_index;
   uint32_t canonical_sig_index = module_->canonical_sig_id(sig_index);
+  const FunctionSig* expected_sig =
+      GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_index);
   ResolvedWasmImport resolved(trusted_instance_data, func_index, js_receiver,
                               expected_sig, canonical_sig_index,
                               preknown_import);

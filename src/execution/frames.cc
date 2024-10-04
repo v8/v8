@@ -37,7 +37,6 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
-#include "src/wasm/serialized-signature-inl.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
@@ -1794,28 +1793,17 @@ void WasmFrame::Iterate(RootVisitor* v) const {
 }
 
 void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
-  Tagged<Object> maybe_signature = Tagged<Object>(
-      Memory<Address>(fp() + WasmToJSWrapperConstants::kSignatureOffset));
-  if (IsSmi(maybe_signature)) {
-    // The signature slot contains a Smi and not a signature. This means all
-    // incoming parameters have been processed, and we don't have to keep them
-    // alive anymore.
+  Address maybe_sig =
+      Memory<Address>(fp() + WasmToJSWrapperConstants::kSignatureOffset);
+  if (maybe_sig == 0 || maybe_sig == static_cast<Address>(-1)) {
+    // The signature slot was reset after processing all incoming parameters.
+    // We don't have to keep them alive anymore.
     return;
   }
 
-  FullObjectSlot sig_slot(fp() + WasmToJSWrapperConstants::kSignatureOffset);
-  VisitSpillSlot(isolate(), v, sig_slot);
-
-  // Load the signature, considering forward pointers.
-  PtrComprCageBase cage_base(isolate());
-  Tagged<HeapObject> raw = Cast<HeapObject>(maybe_signature);
-  MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
-  Tagged<HeapObject> forwarded =
-      map_word.IsForwardingAddress() ? map_word.ToForwardingAddress(raw) : raw;
-  Tagged<PodArray<wasm::ValueType>> sig =
-      Cast<PodArray<wasm::ValueType>>(forwarded);
-
-  size_t parameter_count = wasm::SerializedSignatureHelper::ParamCount(sig);
+  const wasm::FunctionSig* sig =
+      reinterpret_cast<wasm::FunctionSig*>(maybe_sig);
+  DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   wasm::LinkageLocationAllocator allocator(wasm::kGpParamRegisters,
                                            wasm::kFpParamRegisters, 0);
   // The first parameter is the instance data, which we don't have to scan. We
@@ -1827,8 +1815,7 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
   // first to process all untagged parameters, and afterwards we can scan the
   // tagged parameters.
   bool has_tagged_param = false;
-  for (size_t i = 0; i < parameter_count; i++) {
-    wasm::ValueType type = wasm::SerializedSignatureHelper::GetParam(sig, i);
+  for (wasm::ValueType type : sig->parameters()) {
     MachineRepresentation param = type.machine_representation();
     // Skip tagged parameters (e.g. any-ref).
     if (IsAnyTagged(param)) {
@@ -1855,8 +1842,7 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
   constexpr size_t size_of_sig = 1;
 #endif
 
-  for (size_t i = 0; i < parameter_count; i++) {
-    wasm::ValueType type = wasm::SerializedSignatureHelper::GetParam(sig, i);
+  for (wasm::ValueType type : sig->parameters()) {
     MachineRepresentation param = type.machine_representation();
     // Skip untagged parameters.
     if (!IsAnyTagged(param)) continue;
@@ -3487,16 +3473,15 @@ bool WasmFrame::at_to_number_conversion() const {
   }
 
   // The generic wasm-to-js wrapper maintains a slot on the stack to indicate
-  // its state. Initially this slot contains the signature, so that incoming
-  // parameters can be scanned. After all parameters have been processed, the
-  // number of parameters gets stored in the stack slot, so that outgoing
-  // parameters can be scanned. After returning from JavaScript, Smi(-1) is
-  // stored in the slot to indicate that any call from now on is a ToNumber
-  // conversion.
-  Tagged<Object> maybe_sig = Tagged<Object>(Memory<Address>(
-      callee_fp() + WasmToJSWrapperConstants::kSignatureOffset));
+  // its state. Initially this slot contains a pointer to the signature, so that
+  // incoming parameters can be scanned. After all parameters have been
+  // processed, this slot is reset to nullptr. After returning from JavaScript,
+  // -1 is stored in the slot to indicate that any call from now on is a
+  // ToNumber conversion.
+  Address maybe_sig =
+      Memory<Address>(callee_fp() + WasmToJSWrapperConstants::kSignatureOffset);
 
-  return IsSmi(maybe_sig) && Smi::ToInt(maybe_sig) < 0;
+  return static_cast<intptr_t>(maybe_sig) == -1;
 }
 
 int WasmFrame::LookupExceptionHandlerInTable() {

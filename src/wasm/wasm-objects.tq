@@ -46,7 +46,7 @@ extern class WasmImportData extends TrustedObject {
   wrapper_budget: Smi;
   call_origin: Smi|WasmFuncRef|Tuple2;
   // The signature is needed for the generic wasm-to-js wrapper.
-  sig: PodArrayOfWasmValueType;
+  sig: RawFunctionSigPtr;
   // This field is used by the WasmToOnHeapWasmToJSTrampoline.
   code: TrustedPointer<Code>;
 }
@@ -147,7 +147,7 @@ extern class WasmJSFunctionData extends WasmFunctionData {
 
 extern class WasmCapiFunctionData extends WasmFunctionData {
   embedder_data: Foreign;  // Managed<wasm::FuncData>
-  serialized_signature: PodArrayOfWasmValueType;
+  sig: RawFunctionSigPtr;
 }
 
 extern class WasmResumeData extends HeapObject {

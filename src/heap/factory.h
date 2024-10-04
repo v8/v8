@@ -730,8 +730,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<Foreign> embedder_data,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-      DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
-      uintptr_t signature_hash);
+      const wasm::FunctionSig* sig, uintptr_t signature_hash);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
       DirectHandle<Code> export_wrapper,
       DirectHandle<WasmTrustedInstanceData> instance_data,
@@ -742,7 +741,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmImportData> NewWasmImportData(
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
       MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
-      DirectHandle<PodArray<wasm::ValueType>> serialized_sig);
+      const wasm::FunctionSig* sig);
   Handle<WasmImportData> NewWasmImportData(DirectHandle<WasmImportData> ref);
 
   Handle<WasmFastApiCallData> NewWasmFastApiCallData(
@@ -752,7 +751,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
       uint32_t canonical_sig_index, DirectHandle<JSReceiver> callable,
-      DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
       wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash);
   Handle<WasmResumeData> NewWasmResumeData(

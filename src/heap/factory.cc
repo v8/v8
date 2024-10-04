@@ -1709,7 +1709,8 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
 Handle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<HeapObject> callable, wasm::Suspend suspend,
     MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
-    DirectHandle<PodArray<wasm::ValueType>> serialized_sig) {
+    const wasm::FunctionSig* sig) {
+  DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   Tagged<Map> map = *wasm_import_data_map();
   auto result = Cast<WasmImportData>(AllocateRawWithImmortalMap(
       map->instance_size(), AllocationType::kTrusted, map));
@@ -1724,7 +1725,7 @@ Handle<WasmImportData> Factory::NewWasmImportData(
   }
   result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
   result->set_call_origin(Smi::FromInt(WasmImportData::kInvalidCallOrigin));
-  result->set_sig(*serialized_sig);
+  result->set_sig(sig);
   result->set_code(*BUILTIN_CODE(isolate(), Abort));
   return handle(result, isolate());
 }
@@ -1734,7 +1735,7 @@ Handle<WasmImportData> Factory::NewWasmImportData(
   return NewWasmImportData(handle(import_data->callable(), isolate()),
                            static_cast<wasm::Suspend>(import_data->suspend()),
                            handle(import_data->instance_data(), isolate()),
-                           handle(import_data->sig(), isolate()));
+                           import_data->sig());
 }
 
 Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
@@ -1789,12 +1790,14 @@ Handle<WasmFuncRef> Factory::NewWasmFuncRef(
 
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     uint32_t canonical_sig_index, DirectHandle<JSReceiver> callable,
-    DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash) {
+  // TODO(clemensb): Should this be passed instead of looked up here?
+  const wasm::FunctionSig* sig =
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
+          canonical_sig_index);
   DirectHandle<WasmImportData> import_data = NewWasmImportData(
-      callable, suspend, DirectHandle<WasmTrustedInstanceData>(),
-      serialized_sig);
+      callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig);
 
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(import_data, -1, signature_hash);
@@ -1870,6 +1873,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<WasmInternalFunction> internal_function,
     const wasm::FunctionSig* sig, uint32_t canonical_type_index,
     int wrapper_budget, wasm::Promise promise) {
+  DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   int func_index = internal_function->function_index();
   DirectHandle<Cell> wrapper_budget_cell =
       NewCell(Smi::FromInt(wrapper_budget));
@@ -1900,11 +1904,10 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, DirectHandle<Foreign> embedder_data,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    DirectHandle<PodArray<wasm::ValueType>> serialized_sig,
-    uintptr_t signature_hash) {
-  DirectHandle<WasmImportData> import_data = NewWasmImportData(
-      undefined_value(), wasm::kNoSuspend,
-      DirectHandle<WasmTrustedInstanceData>(), serialized_sig);
+    const wasm::FunctionSig* sig, uintptr_t signature_hash) {
+  DirectHandle<WasmImportData> import_data =
+      NewWasmImportData(undefined_value(), wasm::kNoSuspend,
+                        DirectHandle<WasmTrustedInstanceData>(), sig);
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(import_data, -1, signature_hash);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
@@ -1926,7 +1929,7 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
   result->set_embedder_data(*embedder_data);
-  result->set_serialized_signature(*serialized_sig);
+  result->set_sig(sig);
   result->set_js_promise_flags(
       WasmFunctionData::SuspendField::encode(wasm::kNoSuspend) |
       WasmFunctionData::PromiseField::encode(wasm::kNoPromise));

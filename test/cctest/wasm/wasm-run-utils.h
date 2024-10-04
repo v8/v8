@@ -403,8 +403,14 @@ class WasmRunnerBase : public InitializedHandleScope {
   void SwitchToDebug() { builder_.SwitchToDebug(); }
 
   template <typename ReturnType, typename... ParamTypes>
-  FunctionSig* CreateSig() {
+  const FunctionSig* CreateSig() {
     return WasmRunnerBase::CreateSig<ReturnType, ParamTypes...>(&zone_);
+  }
+
+  static const FunctionSig* CanonicalizeSig(const FunctionSig* sig) {
+    // TODO(clemensb): Make this a single function call.
+    uint32_t canonical_sig_id = GetTypeCanonicalizer()->AddRecursiveGroup(sig);
+    return GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
   }
 
   template <typename ReturnType, typename... ParamTypes>

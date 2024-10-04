@@ -34,6 +34,8 @@ static constexpr size_t kMaxCanonicalTypes = kV8MaxWasmTypes;
 static_assert(kMaxCanonicalTypes >= kV8MaxWasmTypes);
 // We want the invalid index to fail any range checks.
 static_assert(kInvalidCanonicalIndex > kMaxCanonicalTypes);
+// Ensure that ValueType can hold all canonical type indexes.
+static_assert(kMaxCanonicalTypes <= (1 << ValueType::kHeapTypeBits));
 
 // A singleton class, responsible for isorecursive canonicalization of wasm
 // types.

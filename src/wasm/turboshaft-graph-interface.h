@@ -51,8 +51,7 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                       AccountingAllocator* allocator,
                       compiler::turboshaft::Graph& graph,
-                      const wasm::FunctionSig* sig, WrapperCompilationInfo,
-                      const WasmModule* module);
+                      const wasm::FunctionSig* sig, WrapperCompilationInfo);
 
 // Base class for the decoder graph builder interface and for the wrapper
 // builder.

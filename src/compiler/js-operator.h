@@ -18,6 +18,10 @@
 #include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
 
+#if DEBUG && V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/canonical-types.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -853,7 +857,7 @@ class JSWasmCallParameters {
         native_module_(native_module),
         feedback_(feedback) {
     DCHECK_NOT_NULL(module);
-    DCHECK_NOT_NULL(signature);
+    DCHECK(wasm::GetTypeCanonicalizer()->Contains(signature));
   }
 
   const wasm::WasmModule* module() const { return module_; }

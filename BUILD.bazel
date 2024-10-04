@@ -2922,7 +2922,6 @@ filegroup(
             "src/wasm/object-access.h",
             "src/wasm/pgo.cc",
             "src/wasm/pgo.h",
-            "src/wasm/serialized-signature-inl.h",
             "src/wasm/signature-hashing.h",
             "src/wasm/simd-shuffle.cc",
             "src/wasm/simd-shuffle.h",

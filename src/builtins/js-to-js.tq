@@ -79,17 +79,20 @@ transitioning javascript builtin JSToJSWrapper(
   const importData =
       UnsafeCast<WasmImportData>(functionData.internal.implicit_arg);
 
-  const signaturePod = &importData.sig.bytes;
-  const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(
-      signaturePod.object, signaturePod.offset,
-      signaturePod.length / torque_internal::SizeOf<int32>());
-  const returnCount =
-      Convert<intptr>(*torque_internal::unsafe::NewReference<int32>(
-          serializedSig.object, serializedSig.offset));
-  const paramCount: intptr = serializedSig.length - returnCount - 1;
-  const returnTypes = Subslice(serializedSig, Convert<intptr>(1), returnCount)
-      otherwise unreachable;
-  const paramTypes = Subslice(serializedSig, returnCount + 1, paramCount)
+  const returnCount = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<intptr>>(importData.sig + 0));
+  const paramCount = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<intptr>>(
+          importData.sig + torque_internal::SizeOf<intptr>()));
+  const valueTypesStorage = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<RawPtr<int32>>>(
+          importData.sig + 2 * torque_internal::SizeOf<intptr>()));
+  const signatureValueTypes =
+      torque_internal::unsafe::NewOffHeapConstSlice<int32>(
+          valueTypesStorage, paramCount + returnCount);
+  const returnTypes =
+      Subslice(signatureValueTypes, 0, returnCount) otherwise unreachable;
+  const paramTypes = Subslice(signatureValueTypes, returnCount, paramCount)
       otherwise unreachable;
 
   const numOutParams = paramCount + 1;

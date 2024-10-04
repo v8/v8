@@ -2416,7 +2416,7 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   AccountingAllocator allocator;
   turboshaft_data_.InitializeGraphComponent(nullptr);
   BuildWasmWrapper(&turboshaft_data_, &allocator, turboshaft_data_.graph(),
-                   sig_, wrapper_info_, module_);
+                   sig_, wrapper_info_);
   CodeTracer* code_tracer = nullptr;
   if (info_.trace_turbo_graph()) {
     // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
@@ -3174,7 +3174,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     AccountingAllocator allocator;
     turboshaft_data.InitializeGraphComponent(source_positions);
     BuildWasmWrapper(&turboshaft_data, &allocator, turboshaft_data.graph(), sig,
-                     wrapper_info, module);
+                     wrapper_info);
     CodeTracer* code_tracer = nullptr;
     if (info.trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,

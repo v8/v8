@@ -78,6 +78,7 @@ struct WasmFunction {
   const FunctionSig* sig = nullptr;  // signature of the function.
   uint32_t func_index = 0;           // index into the function table.
   uint32_t sig_index = 0;            // index into the signature table.
+  // TODO(clemensb): Should we add canonical_sig_id and canonical_sig?
   WireBytesRef code = {};            // code of this function.
   bool imported = false;
   bool exported = false;

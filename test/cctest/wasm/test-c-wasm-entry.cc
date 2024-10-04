@@ -36,12 +36,12 @@ class CWasmEntryArgTester {
       : runner_(TestExecutionTier::kTurbofan),
         isolate_(runner_.main_isolate()),
         expected_fn_(expected_fn),
-        sig_(runner_.template CreateSig<ReturnType, Args...>()) {
+        sig_(WasmRunnerBase::CanonicalizeSig(
+            runner_.template CreateSig<ReturnType, Args...>())) {
     std::vector<uint8_t> code{wasm_function_bytes};
     runner_.Build(code.data(), code.data() + code.size());
     wasm_code_ = runner_.builder().GetFunctionCode(0);
-    c_wasm_entry_ = compiler::CompileCWasmEntry(
-        isolate_, sig_, wasm_code_->native_module()->module());
+    c_wasm_entry_ = compiler::CompileCWasmEntry(isolate_, sig_);
   }
 
   template <typename... Rest>

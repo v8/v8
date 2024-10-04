@@ -954,17 +954,16 @@ class WasmCapiFunction : public JSFunction {
  public:
   static bool IsWasmCapiFunction(Tagged<Object> object);
 
-  static Handle<WasmCapiFunction> New(
-      Isolate* isolate, Address call_target,
-      DirectHandle<Foreign> embedder_data,
-      DirectHandle<PodArray<wasm::ValueType>> serialized_signature,
-      uintptr_t signature_hash);
+  static Handle<WasmCapiFunction> New(Isolate* isolate, Address call_target,
+                                      DirectHandle<Foreign> embedder_data,
+                                      const wasm::FunctionSig* sig,
+                                      uintptr_t signature_hash);
 
-  Tagged<PodArray<wasm::ValueType>> GetSerializedSignature() const;
+  const wasm::FunctionSig* sig() const;
+
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this C-API function object.
   bool MatchesSignature(uint32_t other_canonical_sig_index) const;
-  const wasm::FunctionSig* GetSignature(Zone* zone) const;
 
   OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);
 };
@@ -1448,7 +1447,7 @@ namespace wasm {
 // {expected}. If the typecheck succeeds, returns the wasm representation of the
 // object; otherwise, returns the empty handle.
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
-                                   ValueType expected, uint32_t canonical_index,
+                                   ValueType expected,
                                    const char** error_message);
 
 // Utility which canonicalizes {expected} in addition.

@@ -109,8 +109,8 @@ enum CWasmEntryParameters {
 
 // Compiles a stub with C++ linkage, to be called from Execution::CallWasm,
 // which knows how to feed it its parameters.
-V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(
-    Isolate*, const wasm::FunctionSig*, const wasm::WasmModule* module);
+V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(Isolate*,
+                                                 const wasm::FunctionSig*);
 
 // Values from the instance object are cached between Wasm-level function calls.
 // This struct allows the SSA environment handling this cache to be defined
@@ -893,9 +893,9 @@ class WasmGraphBuilder {
 
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
-    const wasm::WasmModule* module, Isolate* isolate,
-    compiler::SourcePositionTable* spt, wasm::WasmEnabledFeatures features,
-    Node* frame_state, bool set_in_wasm_flag);
+    Isolate* isolate, compiler::SourcePositionTable* spt,
+    wasm::WasmEnabledFeatures features, Node* frame_state,
+    bool set_in_wasm_flag);
 
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();

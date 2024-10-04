@@ -882,12 +882,8 @@ const wasm::WasmModule* SharedFunctionInfo::wasm_module() const {
 }
 
 const wasm::FunctionSig* SharedFunctionInfo::wasm_function_signature() const {
-  const wasm::WasmModule* module = wasm_module();
-  if (!module) return nullptr;
-  Tagged<WasmExportedFunctionData> function_data =
-      wasm_exported_function_data();
-  DCHECK_LT(function_data->function_index(), module->functions.size());
-  return module->functions[function_data->function_index()].sig;
+  if (!HasWasmExportedFunctionData()) return nullptr;
+  return wasm_exported_function_data()->sig();
 }
 
 int SharedFunctionInfo::wasm_function_index() const {
