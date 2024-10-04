@@ -44,9 +44,7 @@ class WasmSerializationTest {
     WasmFunctionBuilder* f;
     for (int i = 0; i < 3; ++i) {
       f = builder->AddFunction(sigs.i_i());
-      uint8_t code[] = {WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add,
-                        kExprEnd};
-      f->EmitCode(code, sizeof(code));
+      f->EmitCode({WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add, kExprEnd});
     }
     builder->AddExport(base::CStrVector(kFunctionName), f);
 
@@ -500,19 +498,17 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     // Add the "call_indirect" function which calls table0[0].
     uint32_t sig_id = builder.AddSignature(sigs.i_i(), true);
     WasmFunctionBuilder* f = builder.AddFunction(sig_id);
-    uint8_t code[] = {
-        // (i) => i != 0 ? f(i-1) : 42
-        WASM_IF_ELSE_I(
-            // cond:
-            WASM_LOCAL_GET(0),
-            // if_true:
-            WASM_CALL_INDIRECT(SIG_INDEX(sig_id),
-                               WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_ONE),
-                               WASM_ZERO),
-            // if_false:
-            WASM_I32V_1(42)),
-        WASM_END};
-    f->EmitCode(code, sizeof(code));
+    f->EmitCode({// (i) => i != 0 ? f(i-1) : 42
+                 WASM_IF_ELSE_I(
+                     // cond:
+                     WASM_LOCAL_GET(0),
+                     // if_true:
+                     WASM_CALL_INDIRECT(
+                         SIG_INDEX(sig_id),
+                         WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_ONE), WASM_ZERO),
+                     // if_false:
+                     WASM_I32V_1(42)),
+                 WASM_END});
     builder.AddExport(base::CStrVector("call_indirect"), f);
     // Add a function table.
     uint32_t table_id = builder.AddTable(kWasmFuncRef, 1);

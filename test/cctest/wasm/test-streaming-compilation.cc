@@ -308,8 +308,7 @@ ZoneBuffer GetValidModuleBytes(Zone* zone) {
   uint8_t i = 0;
   for (const char* export_name : kExportNames) {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprLocalGet, i, kExprEnd};
-    f->EmitCode(code, arraysize(code));
+    f->EmitCode({kExprLocalGet, i, kExprEnd});
     CHECK_GE(3, ++i);
     builder.AddExport(base::CStrVector(export_name), f);
   }
@@ -461,18 +460,15 @@ ZoneBuffer GetModuleWithInvalidSection(Zone* zone) {
   builder.AddGlobal(kWasmVoid, true, WasmInitExpr::GlobalGet(12));
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprLocalGet, 0, kExprEnd};
-    f->EmitCode(code, arraysize(code));
+    f->EmitCode({kExprLocalGet, 0, kExprEnd});
   }
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprLocalGet, 1, kExprEnd};
-    f->EmitCode(code, arraysize(code));
+    f->EmitCode({kExprLocalGet, 1, kExprEnd});
   }
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprLocalGet, 2, kExprEnd};
-    f->EmitCode(code, arraysize(code));
+    f->EmitCode({kExprLocalGet, 2, kExprEnd});
   }
   builder.WriteTo(&buffer);
   return buffer;
@@ -1212,8 +1208,7 @@ STREAM_TEST(TestModuleWithImportedFunction) {
   builder.AddImport(base::ArrayVector("Test"), sigs.i_iii());
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    uint8_t code[] = {kExprLocalGet, 0, kExprEnd};
-    f->EmitCode(code, arraysize(code));
+    f->EmitCode({kExprLocalGet, 0, kExprEnd});
   }
   builder.WriteTo(&buffer);
 
@@ -1786,8 +1781,7 @@ STREAM_TEST(TestProfilingMidStreaming) {
     TestSignatures sigs;
     WasmModuleBuilder builder(zone);
     WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
-    uint8_t code[] = {kExprEnd};
-    f->EmitCode(code, arraysize(code));
+    f->EmitCode({kExprEnd});
     builder.AddExport(base::VectorOf("foo", 3), f);
     builder.WriteTo(&buffer);
   }

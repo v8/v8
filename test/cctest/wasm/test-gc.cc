@@ -56,20 +56,20 @@ class WasmGCTester {
 
   uint8_t DefineFunction(FunctionSig* sig,
                          std::initializer_list<ValueType> locals,
-                         std::initializer_list<uint8_t> code) {
+                         std::initializer_list<const uint8_t> code) {
     return DefineFunctionImpl(builder_.AddFunction(sig), locals, code);
   }
 
   uint8_t DefineFunction(uint32_t sig_index,
                          std::initializer_list<ValueType> locals,
-                         std::initializer_list<uint8_t> code) {
+                         std::initializer_list<const uint8_t> code) {
     return DefineFunctionImpl(builder_.AddFunction(sig_index), locals, code);
   }
 
   void DefineExportedFunction(const char* name, FunctionSig* sig,
-                              std::initializer_list<uint8_t> code) {
+                              std::initializer_list<const uint8_t> code) {
     WasmFunctionBuilder* fun = builder_.AddFunction(sig);
-    fun->EmitCode(code.begin(), static_cast<uint32_t>(code.size()));
+    fun->EmitCode(code);
     builder_.AddExport(base::CStrVector(name), fun);
   }
 
@@ -215,11 +215,11 @@ class WasmGCTester {
 
   uint8_t DefineFunctionImpl(WasmFunctionBuilder* fun,
                              std::initializer_list<ValueType> locals,
-                             std::initializer_list<uint8_t> code) {
+                             std::initializer_list<const uint8_t> code) {
     for (ValueType local : locals) {
       fun->AddLocal(local);
     }
-    fun->EmitCode(code.begin(), static_cast<uint32_t>(code.size()));
+    fun->EmitCode(code);
     return fun->func_index();
   }
 

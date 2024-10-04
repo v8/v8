@@ -2304,6 +2304,60 @@ class BackgroundCompileJob final : public JobTask {
   const CompilationTier tier_;
 };
 
+std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
+    Isolate* isolate, WasmEnabledFeatures enabled_features,
+    WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
+    ErrorThrower* thrower, std::shared_ptr<const WasmModule> module,
+    ModuleWireBytes wire_bytes, int compilation_id,
+    v8::metrics::Recorder::ContextId context_id, ProfileInformation* pgo_info) {
+  base::OwnedVector<uint8_t> wire_bytes_copy =
+      base::OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
+  // Prefer {wire_bytes_copy} to {wire_bytes.module_bytes()} for the temporary
+  // cache key. When we eventually install the module in the cache, the wire
+  // bytes of the temporary key and the new key have the same base pointer and
+  // we can skip the full bytes comparison.
+  std::shared_ptr<NativeModule> native_module =
+      GetWasmEngine()->MaybeGetNativeModule(module->origin,
+                                            wire_bytes_copy.as_vector(),
+                                            compile_imports, isolate);
+  if (native_module) return native_module;
+
+  // Otherwise compile a new NativeModule.
+  std::optional<TimedHistogramScope> wasm_compile_module_time_scope;
+  if (base::TimeTicks::IsHighResolution()) {
+    wasm_compile_module_time_scope.emplace(SELECT_WASM_COUNTER(
+        isolate->counters(), module->origin, wasm_compile, module_time));
+  }
+
+  const bool include_liftoff =
+      module->origin == kWasmOrigin && v8_flags.liftoff;
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
+          module.get(), include_liftoff,
+          DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
+  native_module = GetWasmEngine()->NewNativeModule(
+      isolate, enabled_features, detected_features, std::move(compile_imports),
+      module, code_size_estimate);
+  native_module->SetWireBytes(std::move(wire_bytes_copy));
+  native_module->compilation_state()->set_compilation_id(compilation_id);
+
+  if (!v8_flags.wasm_jitless) {
+    // Compile / validate the new module.
+    CompileNativeModule(isolate, context_id, thrower, native_module, pgo_info);
+  }
+
+  if (thrower->error()) {
+    GetWasmEngine()->UpdateNativeModuleCache(true, std::move(native_module),
+                                             isolate);
+    return {};
+  }
+
+  // Finally, put the new module in the cache; this can return the passed
+  // NativeModule pointer, or another one (for a previously cached module).
+  return GetWasmEngine()->UpdateNativeModuleCache(false, native_module,
+                                                  isolate);
+}
+
 }  // namespace
 
 std::shared_ptr<NativeModule> CompileToNativeModule(
@@ -2312,66 +2366,13 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     ErrorThrower* thrower, std::shared_ptr<const WasmModule> module,
     ModuleWireBytes wire_bytes, int compilation_id,
     v8::metrics::Recorder::ContextId context_id, ProfileInformation* pgo_info) {
-  WasmEngine* engine = GetWasmEngine();
-  base::OwnedVector<uint8_t> wire_bytes_copy =
-      base::OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
-  // Prefer {wire_bytes_copy} to {wire_bytes.module_bytes()} for the temporary
-  // cache key. When we eventually install the module in the cache, the wire
-  // bytes of the temporary key and the new key have the same base pointer and
-  // we can skip the full bytes comparison.
-  std::shared_ptr<NativeModule> native_module = engine->MaybeGetNativeModule(
-      module->origin, wire_bytes_copy.as_vector(), compile_imports, isolate);
-  if (native_module) return native_module;
-
-  std::optional<TimedHistogramScope> wasm_compile_module_time_scope;
-  if (base::TimeTicks::IsHighResolution()) {
-    wasm_compile_module_time_scope.emplace(SELECT_WASM_COUNTER(
-        isolate->counters(), module->origin, wasm_compile, module_time));
-  }
-
-  // Create a new {NativeModule} first.
-  const bool include_liftoff =
-      module->origin == kWasmOrigin && v8_flags.liftoff;
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          module.get(), include_liftoff,
-          DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
-  native_module = engine->NewNativeModule(
+  std::shared_ptr<NativeModule> native_module = GetOrCompileNewNativeModule(
       isolate, enabled_features, detected_features, std::move(compile_imports),
-      module, code_size_estimate);
-  native_module->SetWireBytes(std::move(wire_bytes_copy));
-  native_module->compilation_state()->set_compilation_id(compilation_id);
-
-  if (!v8_flags.wasm_jitless) {
-    CompileNativeModule(isolate, context_id, thrower, native_module, pgo_info);
-  }
-
-  if (thrower->error()) {
-    engine->UpdateNativeModuleCache(true, std::move(native_module), isolate);
-    return {};
-  }
-
-  std::shared_ptr<NativeModule> cached_native_module =
-      engine->UpdateNativeModuleCache(false, native_module, isolate);
-
-  if (cached_native_module != native_module) {
-    // Do not use {module} or {native_module} any more; use
-    // {cached_native_module} instead.
-    module.reset();
-    native_module.reset();
-    // The cached module should already have all features set that we detected
-    // during decoding (and potentially validation).
-    DCHECK(cached_native_module->compilation_state()
-               ->UpdateDetectedFeatures(detected_features)
-               .empty());
-    PublishDetectedFeatures(
-        cached_native_module->compilation_state()->detected_features(), isolate,
-        true);
-    return cached_native_module;
-  }
+      thrower, module, wire_bytes, compilation_id, context_id, pgo_info);
+  if (!native_module) return {};
 
   // Ensure that the code objects are logged before returning.
-  engine->LogOutstandingCodesForIsolate(isolate);
+  GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
 
   // Now publish all detected features of this module in the current isolate.
   PublishDetectedFeatures(

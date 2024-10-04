@@ -239,6 +239,10 @@ void WasmFunctionBuilder::EmitCode(const uint8_t* code, uint32_t code_size) {
   body_.write(code, code_size);
 }
 
+void WasmFunctionBuilder::EmitCode(std::initializer_list<const uint8_t> code) {
+  body_.write(code.begin(), code.size());
+}
+
 void WasmFunctionBuilder::Emit(WasmOpcode opcode) {
   DCHECK_LE(opcode, 0xFF);
   body_.write_u8(opcode);
