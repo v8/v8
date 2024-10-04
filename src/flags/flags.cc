@@ -998,6 +998,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(stress_concurrent_inlining, turboshaft_assert_types),
       CONTRADICTION(stress_concurrent_inlining_attach_code,
                     turboshaft_assert_types),
+      CONTRADICTION(stress_lazy_compilation, correctness_fuzzer_suppressions),
   };
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;
