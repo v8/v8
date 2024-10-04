@@ -2092,6 +2092,7 @@
   'regress/wasm/regress-343748812': [SKIP],
   'regress/wasm/regress-353913485': [SKIP],
   'regress/wasm/regress-360052650': [SKIP],
+  'regress/wasm/regress-369652650': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
@@ -2391,6 +2392,7 @@
 ['wasm_random_fuzzers == False', {
   # Random Wasm module generation is not available on official builds.
   'wasm/generate-random-module': [FAIL],
+  'regress/wasm/regress-369652650': [SKIP],
 }],  # 'wasm_random_fuzzers == False'
 
 ##############################################################################

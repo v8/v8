@@ -1012,6 +1012,9 @@ RUNTIME_FUNCTION(Runtime_CheckIsOnCentralStack) {
 // official builds.
 #ifdef V8_WASM_RANDOM_FUZZERS
 RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
+  if (v8_flags.jitless) {
+    return CrashUnlessFuzzing(isolate);
+  }
   HandleScope scope{isolate};
   Zone temporary_zone{isolate->allocator(), "WasmGenerateRandomModule"};
   constexpr size_t kMaxInputBytes = 512;
