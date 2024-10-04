@@ -39,6 +39,7 @@ struct JSDispatchEntry {
 
   inline Address GetEntrypoint() const;
   inline Address GetCodePointer() const;
+  inline Tagged<Code> GetCode() const;
   inline uint16_t GetParameterCount() const;
 
   inline void SetCodeAndEntrypointPointer(Address new_object,
@@ -204,7 +205,8 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // not safe to allocate table entries while a space is being swept.
   //
   // Returns the number of live entries after sweeping.
-  uint32_t Sweep(Space* space, Counters* counters);
+  template <typename Callback>
+  uint32_t Sweep(Space* space, Counters* counters, Callback callback);
 
   // Iterate over all active entries in the given space.
   //

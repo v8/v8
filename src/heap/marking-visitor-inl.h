@@ -323,7 +323,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     Tagged<Map> map, Tagged<JSFunction> js_function) {
   if (ShouldFlushBaselineCode(js_function)) {
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
+#ifndef V8_ENABLE_LEAPTIERING
     local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
+#endif  // !V8_ENABLE_LEAPTIERING
     return Base::VisitJSFunction(map, js_function);
   }
 
@@ -344,6 +346,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     }
   }
 #else
+
 #ifdef V8_ENABLE_SANDBOX
   VisitIndirectPointer(js_function,
                        js_function->RawIndirectPointerField(
@@ -352,6 +355,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
 #else
   VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
 #endif  // V8_ENABLE_SANDBOX
+
 #endif  // V8_ENABLE_LEAPTIERING
 
   // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to

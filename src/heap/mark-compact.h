@@ -303,7 +303,9 @@ class MarkCompactCollector final {
   void FlushSFI(Tagged<SharedFunctionInfo> sfi,
                 bool bytecode_already_decompiled);
 
+#ifndef V8_ENABLE_LEAPTIERING
   void ProcessFlushedBaselineCandidates();
+#endif  // !V8_ENABLE_LEAPTIERING
 
   // Resets any JSFunctions which have had their bytecode flushed.
   void ClearFlushedJsFunctions();

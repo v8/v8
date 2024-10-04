@@ -63,12 +63,6 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
                                 parameter_count, space->allocate_black());
 }
 
-uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters) {
-  uint32_t num_live_entries = GenericSweep(space);
-  counters->js_dispatch_table_entries_count()->AddSample(num_live_entries);
-  return num_live_entries;
-}
-
 #ifdef DEBUG
 // Static
 std::atomic<bool> JSDispatchTable::initialized_ = false;

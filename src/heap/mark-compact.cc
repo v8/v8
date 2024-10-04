@@ -3004,9 +3004,47 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // `ProcessOldCodeCandidates()` so that we correctly set the code object on
     // the JSFunction after flushing.
     ProcessOldCodeCandidates();
+#ifndef V8_ENABLE_LEAPTIERING
+    // With leaptiering this is done during sweeping.
     ProcessFlushedBaselineCandidates();
+#endif  // !V8_ENABLE_LEAPTIERING
   }
 
+#ifdef V8_ENABLE_LEAPTIERING
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE);
+    JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+    Tagged<Code> compile_lazy = *BUILTIN_CODE(heap_->isolate(), CompileLazy);
+    jdt->Sweep(heap_->js_dispatch_table_space(), isolate->counters(),
+               [&](JSDispatchEntry& entry) {
+                 Tagged<Code> code = entry.GetCode();
+                 if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
+                         heap_, marking_state_, code)) {
+                   // Baseline flushing: if the Code object is no longer alive,
+                   // it must have been flushed and so we replace it with the
+                   // CompileLazy builtin. Once we use leaptiering on all
+                   // platforms, we can probably simplify the other code related
+                   // to baseline flushing.
+
+                   // Currently, we can also see optimized code here. This
+                   // happens when a FeedbackCell for which no JSFunctions
+                   // remain references optimized code. However, in that case we
+                   // probably do want to delete the optimized code, so that is
+                   // working as intended. It does mean, however, that we cannot
+                   // DCHECK here that we only see baseline code.
+                   DCHECK(code->kind() == CodeKind::FOR_TESTING ||
+                          code->kind() == CodeKind::BASELINE ||
+                          code->kind() == CodeKind::MAGLEV ||
+                          code->kind() == CodeKind::TURBOFAN);
+                   entry.SetCodeAndEntrypointPointer(
+                       compile_lazy.ptr(), compile_lazy->instruction_start());
+                 }
+               });
+  }
+#endif  // V8_ENABLE_LEAPTIERING
+
+  // TODO(olivf, 42204201): If we make the bytecode accessible from the dispatch
+  // table this could also be implemented during JSDispatchTable::Sweep.
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_FLUSHED_JS_FUNCTIONS);
     ClearFlushedJsFunctions();
@@ -3122,14 +3160,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#ifdef V8_ENABLE_LEAPTIERING
-  {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE);
-    GetProcessWideJSDispatchTable()->Sweep(heap_->js_dispatch_table_space(),
-                                           isolate->counters());
-  }
-#endif  // V8_ENABLE_LEAPTIERING
-
   {
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_JOIN_FILTER_JOB);
@@ -3176,8 +3206,10 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   DCHECK(weak_objects_.js_weak_refs.IsEmpty());
   DCHECK(weak_objects_.weak_cells.IsEmpty());
   DCHECK(weak_objects_.code_flushing_candidates.IsEmpty());
-  DCHECK(weak_objects_.baseline_flushing_candidates.IsEmpty());
   DCHECK(weak_objects_.flushed_js_functions.IsEmpty());
+#ifndef V8_ENABLE_LEAPTIERING
+  DCHECK(weak_objects_.baseline_flushing_candidates.IsEmpty());
+#endif  // !V8_ENABLE_LEAPTIERING
 }
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
@@ -3510,33 +3542,9 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
     flushed_js_function->ResetIfCodeFlushed(heap_->isolate(),
                                             gc_notify_updated_slot);
   }
-
-#ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* const jdt = GetProcessWideJSDispatchTable();
-  jdt->IterateMarkedEntriesIn(
-      heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
-        Tagged<Code> code = jdt->GetCode(handle);
-        if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(heap_, marking_state_,
-                                                      code)) {
-          // Baseline flushing: if the Code object is no longer alive, it must
-          // have been flushed and so we replace it with the CompileLazy
-          // builtin. Once we use leaptiering on all platforms, we can probably
-          // simplify the other code related to baseline flushing.
-
-          // Currently, we can also see optimized code here. This happens when a
-          // FeedbackCell for which no JSFunctions remain references optimized
-          // code. However, in that case we probably do want to delete the
-          // optimized code, so that is working as intended. It does mean,
-          // however, that we cannot DCHECK here that we only see baseline code.
-          DCHECK(code->kind() == CodeKind::FOR_TESTING ||
-                 code->kind() == CodeKind::BASELINE ||
-                 code->kind() == CodeKind::MAGLEV ||
-                 code->kind() == CodeKind::TURBOFAN);
-          jdt->SetCode(handle, *BUILTIN_CODE(heap_->isolate(), CompileLazy));
-        }
-      });
-#endif  // V8_ENABLE_LEAPTIERING
 }
+
+#ifndef V8_ENABLE_LEAPTIERING
 
 void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
   DCHECK(v8_flags.flush_baseline_code ||
@@ -3563,6 +3571,8 @@ void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
 #endif
   }
 }
+
+#endif  // !V8_ENABLE_LEAPTIERING
 
 void MarkCompactCollector::ClearFullMapTransitions() {
   Tagged<TransitionArray> array;

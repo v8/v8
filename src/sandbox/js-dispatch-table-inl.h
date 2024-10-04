@@ -41,6 +41,10 @@ Address JSDispatchEntry::GetCodePointer() const {
   return (payload >> kObjectPointerShift) | kHeapObjectTag;
 }
 
+Tagged<Code> JSDispatchEntry::GetCode() const {
+  return Cast<Code>(Tagged<Object>(GetCodePointer()));
+}
+
 uint16_t JSDispatchEntry::GetParameterCount() const {
   // Loading a pointer out of a freed entry will always result in an invalid
   // pointer (e.g. upper bits set or nullptr). However, here we're just loading
@@ -52,8 +56,8 @@ uint16_t JSDispatchEntry::GetParameterCount() const {
 }
 
 Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
-  Address ptr = GetCodeAddress(handle);
-  return Cast<Code>(Tagged<Object>(ptr));
+  uint32_t index = HandleToIndex(handle);
+  return at(index).GetCode();
 }
 
 void JSDispatchTable::SetCode(JSDispatchHandle handle, Tagged<Code> new_code) {
@@ -219,6 +223,14 @@ void JSDispatchTable::IterateMarkedEntriesIn(Space* space, Callback callback) {
       callback(IndexToHandle(index));
     }
   });
+}
+
+template <typename Callback>
+uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters,
+                                Callback callback) {
+  uint32_t num_live_entries = GenericSweep(space, callback);
+  counters->js_dispatch_table_entries_count()->AddSample(num_live_entries);
+  return num_live_entries;
 }
 
 }  // namespace internal

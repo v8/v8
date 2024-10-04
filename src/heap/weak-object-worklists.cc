@@ -205,6 +205,8 @@ void WeakObjects::UpdateFlushedJSFunctions(
       });
 }
 
+#ifndef V8_ENABLE_LEAPTIERING
+
 // static
 void WeakObjects::UpdateBaselineFlushingCandidates(
     WeakObjectWorklist<Tagged<JSFunction>>& baseline_flush_candidates) {
@@ -220,6 +222,8 @@ void WeakObjects::UpdateBaselineFlushingCandidates(
         return false;
       });
 }
+
+#endif  // !V8_ENABLE_LEAPTIERING
 
 #ifdef DEBUG
 // static
