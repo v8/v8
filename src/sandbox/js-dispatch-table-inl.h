@@ -60,7 +60,8 @@ Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
   return at(index).GetCode();
 }
 
-void JSDispatchTable::SetCode(JSDispatchHandle handle, Tagged<Code> new_code) {
+void JSDispatchTable::SetCodeNoWriteBarrier(JSDispatchHandle handle,
+                                            Tagged<Code> new_code) {
   // The new code must use JS linkage and its parameter count must match that
   // of the entry, unless the code does not assume a particular parameter count
   // (so uses the kDontAdaptArgumentsSentinel).
@@ -105,22 +106,14 @@ JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
 
 void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
                                                   Address new_entrypoint) {
-  // We currently need a CAS loop here since this can race with ::Mark() and so
-  // could otherwise lead to us dropping the marking bit of an entry.
-  // TODO(saelo): see if there's a better way to solve this than two CAS loops.
-  bool success;
-  do {
-    Address old_payload = encoded_word_.load(std::memory_order_relaxed);
-    Address marking_bit = old_payload & kMarkingBit;
-    Address parameter_count = old_payload & kParameterCountMask;
-    // We want to preserve the marking bit of the entry. Since that happens to
-    // be the tag bit of the pointer, we need to explicitly clear it here.
-    Address object = (new_object << kObjectPointerShift) & ~kMarkingBit;
-    Address new_payload = object | marking_bit | parameter_count;
-    success = encoded_word_.compare_exchange_strong(old_payload, new_payload,
-                                                    std::memory_order_relaxed);
-  } while (!success);
-
+  Address old_payload = encoded_word_.load(std::memory_order_relaxed);
+  Address marking_bit = old_payload & kMarkingBit;
+  Address parameter_count = old_payload & kParameterCountMask;
+  // We want to preserve the marking bit of the entry. Since that happens to
+  // be the tag bit of the pointer, we need to explicitly clear it here.
+  Address object = (new_object << kObjectPointerShift) & ~kMarkingBit;
+  Address new_payload = object | marking_bit | parameter_count;
+  encoded_word_.store(new_payload, std::memory_order_relaxed);
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
 }
 
@@ -140,16 +133,14 @@ uint32_t JSDispatchEntry::GetNextFreelistEntryIndex() const {
 }
 
 void JSDispatchEntry::Mark() {
-  // TODO(saelo): we probably don't need this loop: if another thread does a
-  // SetCode in between, then that should trigger a write barrier which will
-  // mark the entry as alive.
-  bool success;
-  do {
-    Address old_value = encoded_word_.load(std::memory_order_relaxed);
-    Address new_value = old_value | kMarkingBit;
-    success = encoded_word_.compare_exchange_strong(old_value, new_value,
-                                                    std::memory_order_relaxed);
-  } while (!success);
+  Address old_value = encoded_word_.load(std::memory_order_relaxed);
+  Address new_value = old_value | kMarkingBit;
+  // We don't need this cas to succeed. If marking races with
+  // `SetCodeAndEntrypointPointer`, then we are bound to re-set the mark bit in
+  // the write barrier.
+  static_assert(JSDispatchTable::kWriteBarrierSetsEntryMarkBit);
+  encoded_word_.compare_exchange_strong(old_value, new_value,
+                                        std::memory_order_relaxed);
 }
 
 void JSDispatchEntry::Unmark() {

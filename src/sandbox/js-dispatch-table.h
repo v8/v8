@@ -164,7 +164,9 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // Updates the entry referenced by the given handle to the given Code and its
   // entrypoint. The code must be compatible with the specified entry. In
   // particular, the two must use the same parameter count.
-  inline void SetCode(JSDispatchHandle handle, Tagged<Code> new_code);
+  // NB: Callee must emit JS_DISPATCH_HANDLE_WRITE_BARRIER if needed!
+  inline void SetCodeNoWriteBarrier(JSDispatchHandle handle,
+                                    Tagged<Code> new_code);
 
   // Allocates a new entry in the table and initialize it.
   //
@@ -237,6 +239,8 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 #endif  // DEBUG
 
   void PrintEntry(JSDispatchHandle handle);
+
+  static constexpr bool kWriteBarrierSetsEntryMarkBit = true;
 
  private:
 #ifdef DEBUG

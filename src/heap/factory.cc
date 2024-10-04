@@ -4748,7 +4748,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // and maybe find some alternative to initialize it correctly from the
     // beginning.
     if (jdt->GetCode(handle)->is_builtin()) {
-      jdt->SetCode(handle, *code);
+      jdt->SetCodeNoWriteBarrier(handle, *code);
     }
     function->set_dispatch_handle(handle, mode);
   }

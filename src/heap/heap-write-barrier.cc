@@ -144,6 +144,7 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 
   // Mark both the table entry and its content.
   JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  static_assert(JSDispatchTable::kWriteBarrierSetsEntryMarkBit);
   jdt->Mark(handle);
   marking_barrier->MarkValue(host, jdt->GetCode(handle));
 
