@@ -56,7 +56,7 @@ IGNORE_LINES = [
 # If the flag is part of the third run, the entire run is dropped, as it
 # in many cases would just be redundant to the second default run.
 DROP_FLAGS_ON_CONTENT = [
-    ('--jitless', r'\%Wasm(Struct|Array|GenerateRandomModule)\('),
+    ('--jitless', r'\%WasmStruct\(|\%WasmArray\('),
 ]
 
 ###############################################################################
