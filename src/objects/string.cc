@@ -272,6 +272,7 @@ bool String::MarkForExternalizationDuringGC(Isolate* isolate, T* resource) {
       // The external resource was concurrently updated by another thread.
       return false;
     }
+    resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
     raw_hash = Name::IsExternalForwardingIndexBit::update(raw_hash, true);
     set_raw_hash_field(raw_hash, kReleaseStore);
     return true;
@@ -285,6 +286,7 @@ bool String::MarkForExternalizationDuringGC(Isolate* isolate, T* resource) {
     raw_hash = EnsureRawHash();
   }
   DCHECK(IsHashFieldComputed(raw_hash));
+  resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
   int forwarding_index =
       isolate->string_forwarding_table()->AddExternalResourceAndHash(
           this, resource, raw_hash);
@@ -430,6 +432,7 @@ bool String::MakeExternal(Isolate* isolate,
   // For strings in the shared space we need the shared space isolate instead of
   // the current isolate.
   if (HeapLayout::InWritableSharedSpace(this)) {
+    resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
     isolate = isolate->shared_space_isolate();
   }
   bool is_internalized = IsInternalizedString(this);
@@ -523,6 +526,7 @@ bool String::MakeExternal(Isolate* isolate,
   // For strings in the shared space we need the shared space isolate instead of
   // the current isolate.
   if (HeapLayout::InWritableSharedSpace(this)) {
+    resource->Unaccount(reinterpret_cast<v8::Isolate*>(isolate));
     isolate = isolate->shared_space_isolate();
   }
   bool is_internalized = IsInternalizedString(this);

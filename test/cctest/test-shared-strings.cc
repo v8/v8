@@ -1623,7 +1623,10 @@ class ConcurrentExternalizationThread final
     CHECK(input_string->IsShared());
     OneByteResource* resource = Resource(counter);
     if (!input_string->MakeExternal(i_isolate, resource)) {
-      if (!share_resources_) resource->Dispose();
+      if (!share_resources_) {
+        resource->Unaccount(reinterpret_cast<v8::Isolate*>(i_isolate));
+        resource->Dispose();
+      }
     }
     CHECK(input_string->HasForwardingIndex(kAcquireLoad));
   }

@@ -7725,6 +7725,7 @@ MaybeLocal<String> v8::String::NewExternalTwoByte(
     return Utils::ToLocal(string);
   } else {
     // The resource isn't going to be used, free it immediately.
+    resource->Unaccount(v8_isolate);
     resource->Dispose();
     return Utils::ToLocal(i_isolate->factory()->empty_string());
   }
@@ -7742,6 +7743,7 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
   API_RCS_SCOPE(i_isolate, String, NewExternalOneByte);
   if (resource->length() == 0) {
     // The resource isn't going to be used, free it immediately.
+    resource->Unaccount(v8_isolate);
     resource->Dispose();
     return Utils::ToLocal(i_isolate->factory()->empty_string());
   }

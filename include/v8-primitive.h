@@ -240,6 +240,13 @@ class V8_EXPORT String : public Name {
      */
     virtual bool IsCacheable() const { return true; }
 
+    /**
+     * Internally V8 will call this Unaccount method when the external string
+     * resource should be unaccounted for. This method can be overridden in
+     * subclasses to control how allocated external bytes are accounted.
+     */
+    virtual void Unaccount(Isolate* isolate) {}
+
     // Disallow copying and assigning.
     ExternalStringResourceBase(const ExternalStringResourceBase&) = delete;
     void operator=(const ExternalStringResourceBase&) = delete;
