@@ -151,8 +151,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 
 #ifdef V8_ENABLE_LEAPTIERING
-  // TODO(olivf): This ShouldBeCamelCase.
-  inline void allocate_dispatch_handle(
+  inline void AllocateDispatchHandle(
       IsolateForSandbox isolate, uint16_t parameter_count, Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void clear_dispatch_handle();
@@ -162,7 +161,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
       JSDispatchHandle handle,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   // Updates the Code in this function's dispatch table entry.
-  inline void set_code(
+  inline void UpdateDispatchEntry(
       Tagged<Code> new_code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 #endif  // V8_ENABLE_LEAPTIERING
