@@ -2283,26 +2283,38 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         // perform the possibly effectful ToNumber (or ToBigInt) operation
         // anyways.
         DirectHandle<JSTypedArray> holder = it->GetHolder<JSTypedArray>();
-        Handle<Object> throwaway_value;
+        Handle<Object> converted_value;
         if (holder->type() == kExternalBigInt64Array ||
             holder->type() == kExternalBigUint64Array) {
           ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-              it->isolate(), throwaway_value,
+              it->isolate(), converted_value,
               BigInt::FromObject(it->isolate(), value), Nothing<bool>());
         } else {
           ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-              it->isolate(), throwaway_value,
+              it->isolate(), converted_value,
               Object::ToNumber(it->isolate(), value), Nothing<bool>());
         }
 
-        // FIXME: Throw a TypeError if the holder is detached here
-        // (IntegerIndexedElementSpec step 5).
+        // For RAB/GSABs, the above conversion might grow the buffer so that the
+        // index is no longer out of bounds. Redo the bounds check and try
+        // again.
+        it->Restart();
+        if (it->state() != LookupIterator::DATA) {
+          // Still out of bounds.
+          DCHECK_EQ(it->state(), LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND);
 
-        // TODO(verwaest): Per spec, we should return false here (steps 6-9
-        // in IntegerIndexedElementSpec), resulting in an exception being thrown
-        // on OOB accesses in strict code. Historically, v8 has not done made
-        // this change due to uncertainty about web compat. (v8:4901)
-        return Just(true);
+          // FIXME: Throw a TypeError if the holder is detached here
+          // (IntegerIndexedElementSet step 5).
+
+          // TODO(verwaest): Per spec, we should return false here (steps 6-9
+          // in IntegerIndexedElementSet), resulting in an exception being
+          // thrown on OOB accesses in strict code. Historically, v8 has not
+          // done made this change due to uncertainty about web compat.
+          // (v8:4901)
+          return Just(true);
+        }
+        value = converted_value;
+        [[fallthrough]];
       }
 
       case LookupIterator::DATA:

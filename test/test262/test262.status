@@ -1718,7 +1718,6 @@
   'built-ins/TypedArray/prototype/values/make-in-bounds-after-exhausted': [FAIL],
   'built-ins/TypedArray/prototype/values/make-out-of-bounds-after-exhausted': [FAIL],
   'built-ins/TypedArray/prototype/with/index-validated-against-current-length': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/resized-out-of-bounds-to-in-bounds-index': [FAIL],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
   'staging/Temporal/ZonedDateTime/old/round': [SKIP],
