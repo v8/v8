@@ -100,6 +100,12 @@ Tagged<WeakFixedArray> TransitionArray::GetSideStepTransitions() {
   return Cast<WeakFixedArray>(transitions);
 }
 
+void TransitionArray::SetSideStepTransitions(
+    Tagged<WeakFixedArray> transitions) {
+  DCHECK(IsWeakFixedArray(transitions));
+  WeakFixedArray::set(kSideStepTransitionsIndex, transitions);
+}
+
 HeapObjectSlot TransitionArray::GetKeySlot(int transition_number) {
   DCHECK(transition_number < number_of_transitions());
   return HeapObjectSlot(RawFieldOfElementAt(ToKeyIndex(transition_number)));
