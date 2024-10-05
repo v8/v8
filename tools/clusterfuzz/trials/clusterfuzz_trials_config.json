@@ -38,7 +38,6 @@
     {"app_args": "--stress-concurrent-inlining", "app_name": "d8", "probability": 0.25, "contradicts": ["--assert-types", "--jitless"]},
     {"app_args": "--stress-concurrent-inlining-attach-code", "app_name": "d8", "probability": 0.05, "contradicts": ["--assert-types", "--jitless"]},
     {"app_args": "--stress-flush-code", "app_name": "d8", "probability": 0.25},
-    {"app_args": "--stress-lazy-compilation=100", "app_name": "d8", "probability": 0.05},
     {"app_args": "--stress-maglev", "app_name": "d8", "probability": 0.05, "contradicts": ["--jitless"]},
     {"app_args": "--stress-marking=100", "app_name": "d8", "probability": 0.05},
     {"app_args": "--stress-scavenge=100", "app_name": "d8", "probability": 0.05},

@@ -48,7 +48,6 @@ EXTRA_FLAGS = [
     (0.1, '--shared-string-table'),
     (0.1, '--stress-background-compile'),
     (0.1, '--stress-flush-code'),
-    (0.1, '--stress-lazy-compilation=100'),
     (0.1, '--stress-lazy-source-positions'),
     (0.1, '--stress-maglev'),
     (0.1, '--stress-wasm-code-gc'),
