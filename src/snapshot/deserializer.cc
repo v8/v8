@@ -1492,7 +1492,7 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
             host->address());
     handle = jdt->AllocateAndInitializeEntry(space, parameter_count);
     js_dispatch_entries_map_[entry_id] = handle;
-    jdt->SetCodeNoWriteBarrier(handle, *code);
+    jdt->SetCode(handle, *code);
   }
 
   host->Relaxed_WriteField<JSDispatchHandle>(slot_accessor.offset(), handle);

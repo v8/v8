@@ -221,7 +221,7 @@ void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
 void JSFunction::UpdateDispatchEntry(Tagged<Code> new_code,
                                      WriteBarrierMode mode) {
   JSDispatchHandle handle = dispatch_handle();
-  GetProcessWideJSDispatchTable()->SetCodeNoWriteBarrier(handle, new_code);
+  GetProcessWideJSDispatchTable()->SetCode(handle, new_code);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
 JSDispatchHandle JSFunction::dispatch_handle() const {

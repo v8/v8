@@ -355,8 +355,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
                                   CHECK(IsCode(new_code));
                                   // TODO(saelo): is it worth logging something
                                   // in this case?
-                                  jdt->SetCodeNoWriteBarrier(
-                                      handle, Cast<Code>(new_code));
+                                  jdt->SetCode(handle, Cast<Code>(new_code));
                                 });
 #endif  // V8_ENABLE_LEAPTIERING
   }
