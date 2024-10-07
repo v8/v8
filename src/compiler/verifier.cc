@@ -134,6 +134,17 @@ void Verifier::Visitor::CheckSwitch(Node* node, const AllNodes& all) {
   CheckNotTyped(node);
 }
 
+#ifdef DEBUG
+namespace {
+// Print more debug information just before a DCHECK failure.
+bool FailSoon(Node* node) {
+  v8::base::OS::PrintError("#\n# Verification failure for node:\n#\n");
+  node->Print(std::cerr);
+  return false;
+}
+}  // namespace
+#endif  // DEBUG
+
 void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   int value_count = node->op()->ValueInputCount();
   int context_count = OperatorProperties::GetContextInputCount(node->op());
@@ -158,6 +169,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       if (all.IsLive(edge.from()) && NodeProperties::IsEffectEdge(edge)) {
         effect_edges++;
       }
+    }
+    if (effect_edges == 0) {
+      FailSoon(node);
     }
     DCHECK_GT(effect_edges, 0);
 #endif
@@ -2260,15 +2274,6 @@ void ScheduleVerifier::Run(Schedule* schedule) {
 
 
 #ifdef DEBUG
-
-namespace {
-// Print more debug information just before a DCHECK failure.
-bool FailSoon(Node* node) {
-  v8::base::OS::PrintError("#\n# Verification failure for node:\n#\n");
-  node->Print(std::cerr);
-  return false;
-}
-}  // namespace
 
 // static
 void Verifier::VerifyNode(Node* node) {
