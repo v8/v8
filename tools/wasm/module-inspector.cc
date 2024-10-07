@@ -43,7 +43,7 @@ int PrintHelp(char** argv) {
 
       << " --function-stats [bucket_size] [bucket_count]\n"
       << "    Show distribution of function sizes in the given module.\n"
-      << "    An optional bucket size and bucket count can be passed."
+      << "    An optional bucket size and bucket count can be passed.\n"
 
       << " --single-wat FUNC_INDEX\n"
       << "     Print function FUNC_INDEX in .wat format\n"
