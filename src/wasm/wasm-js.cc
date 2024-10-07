@@ -524,16 +524,19 @@ std::optional<uint32_t> EnforceUint32(Name argument_name, Local<v8::Value> v,
 
 // First step of IndexValueToU64, for indextype == "i64".
 template <typename Name>
-std::optional<uint64_t> BigIntToU64(Name argument_name, Local<Value> v,
-                                    ErrorThrower* thrower) {
-  if (!v->IsBigInt()) {
-    thrower->TypeError("%s must be a BigInt", ToString(argument_name).c_str());
+std::optional<uint64_t> EnforceBigIntUint64(Name argument_name, Local<Value> v,
+                                            Local<Context> context,
+                                            ErrorThrower* thrower) {
+  // Use the internal API, as v8::Value::ToBigInt clears exceptions.
+  i::Handle<i::BigInt> bigint;
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  if (!i::BigInt::FromObject(i_isolate, Utils::OpenHandle(*v))
+           .ToHandle(&bigint)) {
     return std::nullopt;
   }
-  Local<BigInt> bigint = v.As<BigInt>();
 
   bool lossless;
-  uint64_t result = bigint->Uint64Value(&lossless);
+  uint64_t result = bigint->AsUint64(&lossless);
   if (!lossless) {
     thrower->TypeError("%s must be in u64 range",
                        ToString(argument_name).c_str());
@@ -1275,7 +1278,7 @@ std::optional<uint64_t> IndexValueToU64(ErrorThrower* thrower,
     case IndexType::kI32:
       return EnforceUint32(property_name, value, context, thrower);
     case IndexType::kI64:
-      return BigIntToU64(property_name, value, thrower);
+      return EnforceBigIntUint64(property_name, value, context, thrower);
   }
 }
 
@@ -1411,7 +1414,8 @@ std::optional<IndexType> GetIndexType(Isolate* isolate, Local<Context> context,
   if (index->IsEqualTo(base::CStrVector("i64"))) return IndexType::kI64;
   if (index->IsEqualTo(base::CStrVector("i32"))) return IndexType::kI32;
 
-  thrower->TypeError("Unknown index type; pass 'i32' or 'i64'");
+  thrower->TypeError("Unknown index type '%s'; pass 'i32' or 'i64'",
+                     index->ToCString().get());
   return std::nullopt;
 }
 }  // namespace

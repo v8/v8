@@ -439,18 +439,25 @@ function allowOOM(fn) {
   print(arguments.callee.name);
   let is_bigint = n => typeof n == "bigint";
   let is_number = n => typeof n == "number";
+  let is_undefined = n => typeof n == "undefined";
+  let is_string = n => typeof n == "string";
   // Printing support.
-  let PotentialBigint = n => is_bigint(n) ? `${n}n` : `${n}`;
+  let Print = n => is_bigint(n) ? `${n}n` : is_string(n) ? `"${n}"` : `${n}`;
 
-  for (let initial of [undefined, 1, 1n]) {
-    for (let maximum of [undefined, 1, 1n]) {
-      for (let shared of [undefined, true, false]) {
-        for (let index of [undefined, 'i32', 'i64']) {
-          let valid = (!shared || maximum) &&  // shared implies maximum
-              (index == 'i64' ? is_bigint(initial) && !is_number(maximum) :
-                                is_number(initial) && !is_bigint(maximum));
-          let desc = `${PotentialBigint(initial)} / ${
-              PotentialBigint(maximum)} / ${shared} / ${index} -> ${valid}`;
+  for (let initial of [undefined, 1, 1n, "1", true]) {
+    for (let maximum of [undefined, 1, 1n, "1", true]) {
+      for (let shared of [undefined, true, false, 1, "1"]) {
+        for (let index of [undefined, 'i32', 'i64', "1", true]) {
+          let is_i32 = is_undefined(index) || index === 'i32';
+          let valid_index = is_i32 || index === 'i64';
+          let valid_initial = !is_undefined(initial) &&
+              (is_i32 ? !is_bigint(initial) : !is_number(initial));
+          let valid_maximum =
+              is_i32 ? !is_bigint(maximum) : !is_number(maximum);
+          let valid = valid_index && valid_initial && valid_maximum &&
+              (!shared || maximum);  // shared implies maximum
+          let desc = `${Print(initial)} / ${Print(maximum)} / ${
+              Print(shared)} / ${Print(index)} -> ${valid}`;
           let code = () => new WebAssembly.Memory({
             initial: initial,
             maximum: maximum,
@@ -485,9 +492,7 @@ function allowOOM(fn) {
       () => memory.grow(1n), RangeError,
       'WebAssembly.Memory.grow(): Maximum memory size exceeded');
   assertEquals(5n, memory.grow(0n));
-  assertThrows(
-      () => memory.grow(0), TypeError,
-      'WebAssembly.Memory.grow(): Argument 0 must be a BigInt');
+  assertThrows(() => memory.grow(0), TypeError, 'Cannot convert 0 to a BigInt');
 })();
 
 (function TestMemory64SharedBetweenWorkers() {
