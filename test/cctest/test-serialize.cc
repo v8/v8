@@ -4527,7 +4527,7 @@ UNINITIALIZED_TEST(SerializeApiWrapperData) {
           context->Global()->Get(context, v8_str("obj1")).ToLocalChecked();
       CHECK(obj1->IsObject());
       v8::Local<v8::Value> obj2 =
-          context->Global()->Get(context, v8_str("obj1")).ToLocalChecked();
+          context->Global()->Get(context, v8_str("obj2")).ToLocalChecked();
       CHECK(obj2->IsObject());
       CHECK_EQ(nullptr, v8::Object::Unwrap<CppHeapPointerTag::kDefaultTag>(
                             isolate, obj1.As<v8::Object>()));
