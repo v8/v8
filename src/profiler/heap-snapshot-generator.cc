@@ -3247,13 +3247,20 @@ bool HeapSnapshotGenerator::FillReferences() {
 }
 
 // type, name, id, self_size, edge_count, trace_node_id, detachedness.
-const int HeapSnapshotJSONSerializer::kNodeFieldsCount = 7;
+const int HeapSnapshotJSONSerializer::kNodeFieldsCountWithTraceNodeId = 7;
+const int HeapSnapshotJSONSerializer::kNodeFieldsCountWithoutTraceNodeId = 6;
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   v8::base::ElapsedTimer timer;
   timer.Start();
   DCHECK_NULL(writer_);
   writer_ = new OutputStreamWriter(stream);
+  trace_function_count_ = 0;
+  if (AllocationTracker* tracker =
+          snapshot_->profiler()->allocation_tracker()) {
+    trace_function_count_ =
+        static_cast<uint32_t>(tracker->function_info_list().size());
+  }
   SerializeImpl();
   delete writer_;
   writer_ = nullptr;
@@ -3421,8 +3428,12 @@ void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
   buffer[buffer_pos++] = ',';
   buffer_pos = utoa(entry->children_count(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(entry->trace_node_id(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
+  if (trace_function_count_) {
+    buffer_pos = utoa(entry->trace_node_id(), buffer, buffer_pos);
+    buffer[buffer_pos++] = ',';
+  } else {
+    CHECK_EQ(0, entry->trace_node_id());
+  }
   buffer_pos = utoa(entry->detachedness(), buffer, buffer_pos);
   buffer[buffer_pos++] = '\n';
   buffer[buffer_pos++] = '\0';
@@ -3444,17 +3455,18 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
 
   // clang-format off
 #define JSON_A(s) "[" s "]"
-#define JSON_O(s) "{" s "}"
 #define JSON_S(s) "\"" s "\""
-  writer_->AddString(JSON_O(
-    JSON_S("node_fields") ":" JSON_A(
+  writer_->AddString("{"
+    JSON_S("node_fields") ":["
         JSON_S("type") ","
         JSON_S("name") ","
         JSON_S("id") ","
         JSON_S("self_size") ","
-        JSON_S("edge_count") ","
-        JSON_S("trace_node_id") ","
-        JSON_S("detachedness")) ","
+        JSON_S("edge_count") ",");
+  if (trace_function_count_) writer_->AddString(JSON_S("trace_node_id") ",");
+  writer_->AddString(
+        JSON_S("detachedness")
+    "],"
     JSON_S("node_types") ":" JSON_A(
         JSON_A(
             JSON_S("hidden") ","
@@ -3513,22 +3525,17 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
         JSON_S("object_index") ","
         JSON_S("script_id") ","
         JSON_S("line") ","
-        JSON_S("column"))));
+        JSON_S("column"))
+  "}");
 // clang-format on
 #undef JSON_S
-#undef JSON_O
 #undef JSON_A
   writer_->AddString(",\"node_count\":");
   writer_->AddNumber(static_cast<unsigned>(snapshot_->entries().size()));
   writer_->AddString(",\"edge_count\":");
   writer_->AddNumber(static_cast<double>(snapshot_->edges().size()));
   writer_->AddString(",\"trace_function_count\":");
-  uint32_t count = 0;
-  AllocationTracker* tracker = snapshot_->profiler()->allocation_tracker();
-  if (tracker) {
-    count = static_cast<uint32_t>(tracker->function_info_list().size());
-  }
-  writer_->AddNumber(count);
+  writer_->AddNumber(trace_function_count_);
 }
 
 static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
