@@ -1500,12 +1500,11 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // x0: number of arguments + 1 (receiver)
   // x1: target (JSFunction|JSBoundFunction|...)
 
-  // We are calling Call_ReceiverIsAny which can call
-  // AdaptorWithBuiltinExitFrame, which adds
-  // BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver additional tagged
-  // arguments to the stack. We must also scan these additional args in case of
-  // GC. We store the current stack pointer to be able to detect when this
-  // happens.
+  // The process of calling a JS function might increase the number of tagged
+  // values on the stack (arguments adaptation, BuiltinExitFrame arguments,
+  // v8::FunctionCallbackInfo implicit arguments, etc.). In any case these
+  // additional values must be visited by GC too.
+  // We store the current stack pointer to be able to detect when this happens.
   __ Mov(scratch, sp);
   __ Str(scratch,
          MemOperand(fp, WasmToJSInterpreterFrameConstants::kGCSPOffset));

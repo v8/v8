@@ -6312,13 +6312,18 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
             graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
             Builtins::name(builtin), node->op()->properties(),
             CallDescriptor::kNeedsFrameState);
-        Node* stub_code =
-            jsgraph()->CEntryStubConstant(1, ArgvMode::kStack, true);
+        const bool has_builtin_exit_frame = true;
+        Node* stub_code = jsgraph()->CEntryStubConstant(1, ArgvMode::kStack,
+                                                        has_builtin_exit_frame);
         Address builtin_entry = Builtins::CppEntryOf(builtin);
         Node* entry = jsgraph()->ExternalConstant(
             ExternalReference::Create(builtin_entry));
         Node* argc = jsgraph()->ConstantNoHole(
             BuiltinArguments::kNumExtraArgsWithReceiver);
+        static_assert(BuiltinArguments::kNewTargetIndex == 0);
+        static_assert(BuiltinArguments::kTargetIndex == 1);
+        static_assert(BuiltinArguments::kArgcIndex == 2);
+        static_assert(BuiltinArguments::kPaddingIndex == 3);
         if_false1 = efalse1 = vfalse1 =
             graph()->NewNode(common()->Call(call_descriptor), stub_code,
                              receiver, jsgraph()->PaddingConstant(), argc,

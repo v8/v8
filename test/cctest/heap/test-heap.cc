@@ -32,6 +32,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -3939,20 +3940,84 @@ TEST(DetailedErrorStackTraceInline) {
 }
 
 // * Test builtin exit error
-TEST(DetailedErrorStackTraceBuiltinExit) {
+TEST(DetailedErrorStackTraceBuiltinExitNoAdaptation) {
+  // The test needs to call CPP builtin that doesn't adapt arguments and might
+  // throw an exception under certain conditions.
+  CHECK(Builtins::IsCpp(Builtin::kNumberPrototypeToFixed));
+  CHECK_EQ(Builtins::GetFormalParameterCount(Builtin::kNumberPrototypeToFixed),
+           kDontAdaptArgumentsSentinel);
+
   static const char* source =
-      "function test(arg1) {           "
-      "  (new Number()).toFixed(arg1); "
-      "}                               "
-      "test(9999);                     ";
+      "function test(arg1) {                     "
+      "  (new Number()).toFixed(arg1, 42, -153); "
+      "}                                         "
+      "test(9999);                               ";
 
   DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
     Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
 
-    CHECK_EQ(parameters->length(), 2);
-    CHECK(IsSmi(parameters->get(1)));
-    CHECK_EQ(Smi::ToInt(parameters->get(1)), 9999);
+    CHECK_EQ(parameters->length(), 3);
+    CHECK_EQ(Smi::ToInt(parameters->get(0)), 9999);
+    CHECK_EQ(Smi::ToInt(parameters->get(1)), 42);
+    CHECK_EQ(Smi::ToInt(parameters->get(2)), -153);
   });
+}
+
+TEST(DetailedErrorStackTraceBuiltinExitWithAdaptation) {
+  // The test needs to call CPP builtin that adapts arguments and might
+  // throw an exception under certain conditions.
+  CHECK(Builtins::IsCpp(Builtin::kObjectDefineProperty));
+  CHECK_EQ(Builtins::GetFormalParameterCount(Builtin::kObjectDefineProperty),
+           JSParameterCount(3));
+
+  static const char* source =
+      "function test() {                  "
+      "  Object.defineProperty(153, -42); "
+      "}                                  "
+      "test();                            ";
+
+  DetailedErrorStackTraceTest(source, [](DirectHandle<FixedArray> stack_trace) {
+    Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
+
+    CHECK_EQ(parameters->length(), 3);
+    CHECK_EQ(Smi::ToInt(parameters->get(0)), 153);
+    CHECK_EQ(Smi::ToInt(parameters->get(1)), -42);
+    CHECK(IsUndefined(parameters->get(2)));
+  });
+}
+
+// Ensure that inlined call of CPP builtin works corrrectly with stack traces.
+// See https://crbug.com/v8/14409.
+TEST(DetailedErrorStackTraceBuiltinExitArrayShift) {
+  v8_flags.allow_natives_syntax = true;
+  CHECK(Builtins::IsCpp(Builtin::kArrayShift));
+  CHECK_EQ(Builtins::GetFormalParameterCount(Builtin::kArrayShift),
+           kDontAdaptArgumentsSentinel);
+
+  constexpr int slow_path_length = JSArray::kMaxCopyElements + 20;
+  base::ScopedVector<char> source(1024);
+  base::SNPrintF(source,
+                 "var length = %d;"
+                 "var array = new Array(length);"
+                 "var ro_array = Object.freeze(new Array(length));"
+                 "function test(a) {"
+                 "  return a.shift(55, 77, 99);"
+                 "};"
+                 "%%PrepareFunctionForOptimization(test);"
+                 "test(array);"
+                 "%%OptimizeFunctionOnNextCall(test);"
+                 "test(ro_array);",
+                 slow_path_length);
+
+  DetailedErrorStackTraceTest(
+      source.begin(), [](DirectHandle<FixedArray> stack_trace) {
+        Tagged<FixedArray> parameters = ParametersOf(stack_trace, 0);
+
+        CHECK_EQ(parameters->length(), 3);
+        CHECK_EQ(Smi::ToInt(parameters->get(0)), 55);
+        CHECK_EQ(Smi::ToInt(parameters->get(1)), 77);
+        CHECK_EQ(Smi::ToInt(parameters->get(2)), 99);
+      });
 }
 
 TEST(Regress169928) {

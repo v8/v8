@@ -248,7 +248,7 @@ class Builtins {
   // The tag for the builtins entrypoint.
   V8_EXPORT_PRIVATE static CodeEntrypointTag EntrypointTagFor(Builtin builtin);
 
-  static bool IsCpp(Builtin builtin);
+  V8_EXPORT_PRIVATE static bool IsCpp(Builtin builtin);
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is InstructionStream::BUILTIN.

@@ -1193,9 +1193,11 @@ Tagged<Object> BuiltinExitFrame::GetParameter(int i) const {
 int BuiltinExitFrame::ComputeParametersCount() const {
   Tagged<Object> argc_slot = argc_slot_object();
   DCHECK(IsSmi(argc_slot));
-  // Argc also counts the receiver, target, new target, and argc itself as args,
-  // therefore the real argument count is argc - 4.
-  int argc = Smi::ToInt(argc_slot) - 4;
+  // Argc also counts the receiver and extra arguments for BuiltinExitFrame
+  // (target, new target and argc itself), therefore the real argument count
+  // has to be adjusted.
+  int argc = Smi::ToInt(argc_slot) -
+             BuiltinExitFrameConstants::kNumExtraArgsWithReceiver;
   DCHECK_GE(argc, 0);
   return argc;
 }
@@ -3680,7 +3682,7 @@ void WasmToJsFrame::Iterate(RootVisitor* v) const {
       // The actual frame sp can be different from the sp we had at the moment
       // of the call to Call_ReceiverIsAny for two reasons:
       // 1. Call_ReceiverIsAny might call AdaptorWithBuiltinExitFrame, which
-      // adds BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver additional
+      // adds BuiltinExitFrameConstants::kNumExtraArgs additional
       // tagged arguments to the stack.
       // 2. If there is arity mismatch and the imported Wasm function declares
       // fewer arguments then the arguments expected by the JS function,

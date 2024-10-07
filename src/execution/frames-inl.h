@@ -137,17 +137,8 @@ inline BuiltinExitFrame::BuiltinExitFrame(StackFrameIteratorBase* iterator)
     : ExitFrame(iterator) {}
 
 inline Tagged<Object> BuiltinExitFrame::receiver_slot_object() const {
-  // The receiver is the first argument on the frame.
-  // fp[1]: return address.
-  // ------- fixed extra builtin arguments -------
-  // fp[2]: new target.
-  // fp[3]: target.
-  // fp[4]: argc.
-  // fp[5]: hole.
-  // ------- JS stack arguments ------
-  // fp[6]: receiver
-  const int receiverOffset = BuiltinExitFrameConstants::kFirstArgumentOffset;
-  return Tagged<Object>(base::Memory<Address>(fp() + receiverOffset));
+  return Tagged<Object>(
+      base::Memory<Address>(fp() + BuiltinExitFrameConstants::kReceiverOffset));
 }
 
 inline Tagged<Object> BuiltinExitFrame::argc_slot_object() const {

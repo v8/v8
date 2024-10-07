@@ -1562,7 +1562,7 @@ BUILTIN(ArrayConcat) {
       isolate, receiver,
       Object::ToObject(isolate, args.receiver(), "Array.prototype.concat"));
   BuiltinArguments::ChangeValueScope set_receiver_value_scope(
-      isolate, &args, BuiltinArguments::kReceiverOffset, *receiver);
+      isolate, &args, BuiltinArguments::kReceiverIndex, *receiver);
 
   Handle<JSArray> result_array;
 

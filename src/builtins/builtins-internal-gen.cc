@@ -1268,9 +1268,9 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
 
   // Update arguments count for CEntry to contain the number of arguments
   // including the receiver and the extra arguments.
-  TNode<Int32T> argc = Int32Add(
-      pushed_argc.value(),
-      Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver));
+  TNode<Int32T> argc =
+      Int32Add(pushed_argc.value(),
+               Int32Constant(BuiltinExitFrameConstants::kNumExtraArgs));
 
   const bool builtin_exit_frame = true;
   const bool switch_to_central_stack = false;
