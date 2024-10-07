@@ -524,7 +524,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   std::weak_ptr<NativeModule> weak_native_module;
   v8::OwnedBuffer serialized_module;
-  uint32_t canonical_sig_id_before_serialization;
+  CanonicalTypeIndex canonical_sig_id_before_serialization;
   {
     ErrorThrower thrower(i_isolate, "");
 
@@ -544,7 +544,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
       weak_native_module = module_object->shared_native_module();
 
       // Retrieve the canonicalized signature ID.
-      const std::vector<uint32_t>& canonical_type_ids =
+      const std::vector<CanonicalTypeIndex>& canonical_type_ids =
           module_object->native_module()
               ->module()
               ->isorecursive_canonical_type_ids;
@@ -604,8 +604,8 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
   }
 
   // Now deserialize the previous module.
-  uint32_t canonical_sig_id_after_deserialization =
-      canonical_sig_id_before_serialization + 1;
+  CanonicalTypeIndex canonical_sig_id_after_deserialization{
+      canonical_sig_id_before_serialization.index + 1};
   {
     v8::Local<v8::Context> deserialization_context =
         v8::Context::New(CcTest::isolate());
@@ -621,7 +621,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
             .ToHandleChecked();
 
     // Check that the signature ID got canonicalized to index 1.
-    const std::vector<uint32_t>& canonical_type_ids =
+    const std::vector<CanonicalTypeIndex>& canonical_type_ids =
         module_object->native_module()
             ->module()
             ->isorecursive_canonical_type_ids;

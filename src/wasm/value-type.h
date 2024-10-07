@@ -54,6 +54,44 @@ namespace wasm {
 
 constexpr int kMaxValueTypeSize = 16;  // bytes
 
+struct TypeIndex {
+  uint32_t index;
+
+  // TODO(366180605): Drop this after completing the incremental transition.
+  operator uint32_t() const { return index; }  // NOLINT(runtime/explicit)
+
+  // We intentionally don't define comparison operators here, because
+  // different subclasses must not be compared to each other.
+
+  static constexpr uint32_t kInvalid = ~0u;
+  constexpr bool valid() const { return index != kInvalid; }
+};
+
+struct ModuleTypeIndex : public TypeIndex {
+  // Can't use "=default" because the base class doesn't have operator<=>.
+  bool operator==(const ModuleTypeIndex& other) const {
+    return index == other.index;
+  }
+  auto operator<=>(const ModuleTypeIndex& other) const {
+    return index <=> other.index;
+  }
+};
+
+struct CanonicalTypeIndex : public TypeIndex {
+  inline static CanonicalTypeIndex Invalid();
+
+  bool operator==(const CanonicalTypeIndex& other) const {
+    return index == other.index;
+  }
+  auto operator<=>(const CanonicalTypeIndex& other) const {
+    return index <=> other.index;
+  }
+};
+
+CanonicalTypeIndex CanonicalTypeIndex::Invalid() {
+  return CanonicalTypeIndex{CanonicalTypeIndex::kInvalid};
+}
+
 // Represents a WebAssembly heap type, as per the typed-funcref and gc
 // proposals.
 // The underlying Representation enumeration encodes heap types as follows:
@@ -174,6 +212,9 @@ class HeapType {
   }
 
   constexpr Representation representation() const { return representation_; }
+
+  // TODO(366180605): Only subclasses ModuleHeapType and CanonicalHeapType
+  // should expose this accessor.
   constexpr uint32_t ref_index() const {
     DCHECK(is_index());
     return representation_;
@@ -436,6 +477,32 @@ class HeapType {
   static constexpr Representation kLastSentinel =
       static_cast<Representation>(kBottom - 1);
   Representation representation_;
+};
+
+// Module-specific type indices.
+class ModuleHeapType : public HeapType {
+ public:
+  explicit constexpr ModuleHeapType(HeapType base)
+      : HeapType(base.representation()) {}
+
+  explicit constexpr ModuleHeapType(HeapType::Representation representation)
+      : HeapType(representation) {}
+
+  explicit constexpr ModuleHeapType(ModuleTypeIndex index)
+      : HeapType(index.index) {}
+
+  static constexpr ModuleHeapType from_code(uint8_t code, bool is_shared) {
+    return ModuleHeapType{HeapType::from_code(code, is_shared)};
+  }
+
+  constexpr ModuleTypeIndex ref_index() const {
+    return ModuleTypeIndex{HeapType::ref_index()};
+  }
+};
+
+// Canonicalized type indices.
+class CanonicalHeapType : public HeapType {
+  // TODO(366180605): add implementation as needed.
 };
 
 enum Nullability : bool { kNonNullable, kNullable };
@@ -901,6 +968,7 @@ class ValueType {
  private:
   // {hash_value} directly reads {bit_field_}.
   friend size_t hash_value(ValueType type);
+  friend class CanonicalValueType;
 
   using KindField = base::BitField<ValueKind, 0, kKindBits>;
   using HeapTypeField = KindField::Next<uint32_t, kHeapTypeBits>;
@@ -924,6 +992,117 @@ class ValueType {
   uint32_t bit_field_;
 };
 ASSERT_TRIVIALLY_COPYABLE(ValueType);
+
+// Module-specific type indices.
+class ModuleValueType : public ValueType {
+ public:
+  static constexpr ModuleValueType Primitive(ValueKind kind) {
+    return ModuleValueType{ValueType::Primitive(kind)};
+  }
+
+  static constexpr ModuleValueType Ref(uint32_t heap_type) {
+    return ModuleValueType{ValueType::Ref(heap_type)};
+  }
+
+  // TODO(366180605): This should take a {ModuleHeapType}.
+  static constexpr ModuleValueType Ref(HeapType heap_type) {
+    return ModuleValueType{ValueType::Ref(heap_type)};
+  }
+
+  static constexpr ModuleValueType Ref(ModuleTypeIndex type) {
+    return ModuleValueType{ValueType::Ref(type.index)};
+  }
+
+  static constexpr ModuleValueType RefNull(uint32_t heap_type) {
+    return ModuleValueType{ValueType::RefNull(heap_type)};
+  }
+
+  // TODO(366180605): This should take a {ModuleHeapType}.
+  static constexpr ModuleValueType RefNull(HeapType heap_type) {
+    return ModuleValueType{ValueType::RefNull(heap_type)};
+  }
+
+  static constexpr ModuleValueType RefNull(ModuleTypeIndex type) {
+    return ModuleValueType{ValueType::RefNull(type.index)};
+  }
+
+  static constexpr ModuleValueType RefMaybeNull(uint32_t heap_type,
+                                                Nullability nullability) {
+    return ModuleValueType{ValueType::RefMaybeNull(heap_type, nullability)};
+  }
+
+  static constexpr ModuleValueType RefMaybeNull(ModuleTypeIndex type,
+                                                Nullability nullability) {
+    return ModuleValueType::RefMaybeNull(type.index, nullability);
+  }
+
+  static constexpr ModuleValueType RefMaybeNull(HeapType heap_type,
+                                                Nullability nullability) {
+    return ModuleValueType{ValueType::RefMaybeNull(heap_type, nullability)};
+  }
+
+  static constexpr ModuleValueType Rtt(ModuleTypeIndex type) {
+    return ModuleValueType{ValueType::Rtt(type.index)};
+  }
+
+  static constexpr ModuleValueType FromRawBitField(uint32_t bit_field) {
+    return ModuleValueType{ValueType::FromRawBitField(bit_field)};
+  }
+
+  constexpr ModuleValueType Unpacked() const {
+    return ModuleValueType{ValueType::Unpacked()};
+  }
+
+  constexpr ModuleValueType AsNonNull() const {
+    return ModuleValueType{ValueType::AsNonNull()};
+  }
+
+  constexpr ModuleValueType AsNullable() const {
+    return ModuleValueType{ValueType::AsNullable()};
+  }
+
+  constexpr ModuleHeapType heap_type() const {
+    return ModuleHeapType{ValueType::heap_type()};
+  }
+
+  constexpr ModuleTypeIndex ref_index() const {
+    return ModuleTypeIndex{ValueType::ref_index()};
+  }
+};
+ASSERT_TRIVIALLY_COPYABLE(ModuleValueType);
+
+// Canonicalized type indices.
+class CanonicalValueType : public ValueType {
+ public:
+  static constexpr CanonicalValueType Primitive(ValueKind kind) {
+    return CanonicalValueType{ValueType::Primitive(kind)};
+  }
+
+  static constexpr CanonicalValueType RefNull(uint32_t heap_type) {
+    return CanonicalValueType{ValueType::RefNull(heap_type)};
+  }
+
+  static constexpr CanonicalValueType FromIndex(ValueKind kind,
+                                                CanonicalTypeIndex index) {
+    return CanonicalValueType{ValueType::FromIndex(kind, index.index)};
+  }
+
+  static constexpr CanonicalValueType WithRelativeIndex(ValueKind kind,
+                                                        uint32_t index) {
+    return CanonicalValueType{ValueType(KindField::encode(kind) |
+                                        HeapTypeField::encode(index) |
+                                        CanonicalRelativeField::encode(true))};
+  }
+
+  constexpr CanonicalTypeIndex ref_index() const {
+    return CanonicalTypeIndex{ValueType::ref_index()};
+  }
+
+  constexpr bool is_canonical_relative() const {
+    return has_index() && CanonicalRelativeField::decode(bit_field_);
+  }
+};
+ASSERT_TRIVIALLY_COPYABLE(CanonicalValueType);
 
 inline constexpr intptr_t ValueType::kBitFieldOffset =
     offsetof(ValueType, bit_field_);
@@ -994,7 +1173,11 @@ constexpr int kWasmHeapTypeBitsMask = (1u << ValueType::kHeapTypeBits) - 1;
   V(kF64, double)                   \
   V(kS128, Simd128)
 
+// TODO(366180605): This should disappear; all code should know whether it
+// processes module-specific or canonicalized types.
 using FunctionSig = Signature<ValueType>;
+using ModuleFunctionSig = Signature<ModuleValueType>;
+using CanonicalSig = Signature<CanonicalValueType>;
 
 #define FOREACH_LOAD_TYPE(V) \
   V(I32, , Int32)            \

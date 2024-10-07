@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 #include "src/base/functional.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8::internal::wasm {
@@ -50,8 +51,8 @@ static_assert(kMaxCanonicalTypes <= (1 << ValueType::kHeapTypeBits));
 //   rec. group.
 class TypeCanonicalizer {
  public:
-  static constexpr uint32_t kPredefinedArrayI8Index = 0;
-  static constexpr uint32_t kPredefinedArrayI16Index = 1;
+  static constexpr CanonicalTypeIndex kPredefinedArrayI8Index{0};
+  static constexpr CanonicalTypeIndex kPredefinedArrayI16Index{1};
   static constexpr uint32_t kNumberOfPredefinedTypes = 2;
 
   TypeCanonicalizer();
@@ -82,7 +83,8 @@ class TypeCanonicalizer {
   // Adds a module-independent signature as a recursive group, and canonicalizes
   // it if an identical is found. Returns the canonical index of the added
   // signature.
-  V8_EXPORT_PRIVATE uint32_t AddRecursiveGroup(const FunctionSig* sig);
+  V8_EXPORT_PRIVATE CanonicalTypeIndex
+  AddRecursiveGroup(const FunctionSig* sig);
 
   // Retrieve back a function signature from a canonical index later.
   V8_EXPORT_PRIVATE const FunctionSig* LookupFunctionSignature(
@@ -194,9 +196,10 @@ class TypeCanonicalizer {
 
   void AddPredefinedArrayTypes();
 
-  int FindCanonicalGroup(const CanonicalGroup&) const;
-  int FindCanonicalGroup(const CanonicalSingletonGroup&,
-                         const FunctionSig** out_sig = nullptr) const;
+  CanonicalTypeIndex FindCanonicalGroup(const CanonicalGroup&) const;
+  CanonicalTypeIndex FindCanonicalGroup(
+      const CanonicalSingletonGroup&,
+      const FunctionSig** out_sig = nullptr) const;
 
   // Canonicalize all types present in {type} (including supertype) according to
   // {CanonicalizeValueType}.
@@ -207,22 +210,25 @@ class TypeCanonicalizer {
   // An indexed type gets mapped to a {ValueType::CanonicalWithRelativeIndex}
   // if its index points inside the new canonical group; otherwise, the index
   // gets mapped to its canonical representative.
-  ValueType CanonicalizeValueType(const WasmModule* module, ValueType type,
-                                  uint32_t recursive_group_start) const;
+  CanonicalValueType CanonicalizeValueType(
+      const WasmModule* module, ValueType type,
+      uint32_t recursive_group_start) const;
 
-  uint32_t AddRecursiveGroup(CanonicalType type);
+  CanonicalTypeIndex AddRecursiveGroup(CanonicalType type);
 
   void CheckMaxCanonicalIndex() const;
 
-  std::vector<uint32_t> canonical_supertypes_;
+  std::vector<CanonicalTypeIndex> canonical_supertypes_;
   // Maps groups of size >=2 to the canonical id of the first type.
-  std::unordered_map<CanonicalGroup, uint32_t, base::hash<CanonicalGroup>>
+  std::unordered_map<CanonicalGroup, CanonicalTypeIndex,
+                     base::hash<CanonicalGroup>>
       canonical_groups_;
   // Maps group of size 1 to the canonical id of the type.
-  std::unordered_map<CanonicalSingletonGroup, uint32_t,
+  std::unordered_map<CanonicalSingletonGroup, CanonicalTypeIndex,
                      base::hash<CanonicalSingletonGroup>>
       canonical_singleton_groups_;
   // Maps canonical indices back to the function signature.
+  // TODO(366180605): use {CanonicalTypeIndex}.
   std::unordered_map<uint32_t, const FunctionSig*> canonical_function_sigs_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};

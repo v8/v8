@@ -445,6 +445,8 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
 
 // Used as the supertype for a type at the top of the type hierarchy.
 constexpr uint32_t kNoSuperType = std::numeric_limits<uint32_t>::max();
+// For convenience, we currently rely on these being interchangeable:
+static_assert(kNoSuperType == TypeIndex::kInvalid);
 
 struct TypeDefinition {
   enum Kind : int8_t { kFunction, kStruct, kArray };
@@ -703,7 +705,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<TypeDefinition> types;  // by type index
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
-  std::vector<uint32_t> isorecursive_canonical_type_ids;
+  std::vector<CanonicalTypeIndex> isorecursive_canonical_type_ids;
   std::vector<WasmFunction> functions;
   std::vector<WasmGlobal> globals;
   std::vector<WasmDataSegment> data_segments;
@@ -756,7 +758,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
       types.back().subtyping_depth = types[type.supertype].subtyping_depth + 1;
     }
     // Isorecursive canonical type will be computed later.
-    isorecursive_canonical_type_ids.push_back(kNoSuperType);
+    isorecursive_canonical_type_ids.push_back(CanonicalTypeIndex{kNoSuperType});
   }
 
   void AddSignatureForTesting(const FunctionSig* sig, uint32_t supertype,
