@@ -104,6 +104,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
   if (cpu.has_rvv()) supported_ |= 1u << RISCV_SIMD;
+  if (cpu.has_zba()) supported_ |= 1u << ZBA;
+  if (cpu.has_zbb()) supported_ |= 1u << ZBB;
+  if (cpu.has_zbs()) supported_ |= 1u << ZBS;
+  if (v8_flags.riscv_b_extension) {
+    supported_ |= (1u << ZBA) | (1u << ZBB) | (1u << ZBS);
+  }
 #ifdef V8_COMPRESS_POINTERS
   if (cpu.riscv_mmu() == base::CPU::RV_MMU_MODE::kRiscvSV57) {
     FATAL("SV57 is not supported");
