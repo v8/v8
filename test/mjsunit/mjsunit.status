@@ -419,6 +419,9 @@
 
   # Bug(362522337)
   'wasm/growable-stacks': [SKIP],
+
+  # Too slow: https://crbug.com/371893264
+  'harmony/regress/regress-369010108': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
