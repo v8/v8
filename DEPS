@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:dc7a06223e4ccbde049613ed802448b0c8baf5af',
+  'siso_version': 'git_revision:6b2665e870db2df4da1c184a2aec2f98dcb75000',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:a1a693f7ec8f9b8d29843f5a68693c43d692d941',
