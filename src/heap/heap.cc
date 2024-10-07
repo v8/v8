@@ -59,6 +59,7 @@
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-layout-tracer.h"
+#include "src/heap/heap-utils-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -6282,6 +6283,17 @@ void Heap::TearDown() {
   strong_roots_head_ = nullptr;
 
   memory_allocator_.reset();
+}
+
+// static
+bool Heap::IsFreeSpaceValid(FreeSpace object) {
+  Heap* heap = HeapUtils::GetOwnerHeap(object);
+  Tagged<Object> free_space_map =
+      heap->isolate()->root(RootIndex::kFreeSpaceMap);
+  CHECK(!heap->deserialization_complete() ||
+        object.map_slot().contains_map_value(free_space_map.ptr()));
+  CHECK_LE(FreeSpace::kNextOffset + kTaggedSize, object.size(kRelaxedLoad));
+  return true;
 }
 
 void Heap::AddGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,

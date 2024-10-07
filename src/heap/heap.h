@@ -364,6 +364,8 @@ class Heap final {
            collector == GarbageCollector::MINOR_MARK_SWEEPER;
   }
 
+  V8_EXPORT_PRIVATE static bool IsFreeSpaceValid(FreeSpace object);
+
   static inline GarbageCollector YoungGenerationCollector() {
     return (v8_flags.minor_ms) ? GarbageCollector::MINOR_MARK_SWEEPER
                                : GarbageCollector::SCAVENGER;
