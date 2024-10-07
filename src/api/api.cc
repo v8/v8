@@ -6118,9 +6118,11 @@ v8::String::ExternalStringResourceBase* GetExternalResourceFromForwardingTable(
     i::Tagged<i::String> string, uint32_t raw_hash, bool* is_one_byte) {
   DCHECK(i::String::IsExternalForwardingIndex(raw_hash));
   const int index = i::String::ForwardingIndexValueBits::decode(raw_hash);
-  i::Isolate* isolate = i::GetIsolateFromWritableObject(string);
-  auto resource = isolate->string_forwarding_table()->GetExternalResource(
-      index, is_one_byte);
+  // Note that with a shared heap the main and worker isolates all share the
+  // same forwarding table.
+  auto resource =
+      i::Isolate::Current()->string_forwarding_table()->GetExternalResource(
+          index, is_one_byte);
   DCHECK_NOT_NULL(resource);
   return resource;
 }
