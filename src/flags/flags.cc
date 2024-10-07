@@ -958,6 +958,8 @@ class ImplicationProcessor {
                         FindFlagByPointer(&v8_flags.flag2)) \
       : std::make_tuple(nullptr, nullptr)
 
+#define RESET_WHEN_FUZZING(flag) CONTRADICTION(flag, fuzzing)
+
 // static
 void FlagList::ResolveContradictionsWhenFuzzing() {
   if (!i::v8_flags.fuzzing) return;
@@ -999,6 +1001,10 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(stress_concurrent_inlining_attach_code,
                     turboshaft_assert_types),
       CONTRADICTION(stress_lazy_compilation, correctness_fuzzer_suppressions),
+
+      // Separate list of flags that shouldn't be used when --fuzzing is
+      // passed. These flags will be reset to their defaults.
+      RESET_WHEN_FUZZING(parallel_compile_tasks_for_lazy),
   };
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;
@@ -1013,6 +1019,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
     if (flag->IsDefault()) {
       FATAL("Multiple flags with contradictory default values");
     }
+
+    // Ensure we never reset the fuzzing flag.
+    CHECK(!flag->PointsTo(&v8_flags.fuzzing));
 
     std::cerr << "Warning: resetting flag --" << flag->name()
               << " due to conflicting flags" << std::endl;
