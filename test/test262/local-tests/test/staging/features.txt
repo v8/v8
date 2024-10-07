@@ -15,10 +15,6 @@
 # https://github.com/tc39/proposal-intl-locale-info
 Intl.Locale-info
 
-# FinalizationRegistry#cleanupSome
-# https://github.com/tc39/proposal-cleanup-some
-FinalizationRegistry.prototype.cleanupSome
-
 # Intl.NumberFormat V3
 # https://github.com/tc39/proposal-intl-numberformat-v3
 Intl.NumberFormat-v3

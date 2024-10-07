@@ -2350,4 +2350,86 @@
 # End roll-watcher patch
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/AsyncDisposableStack/prototype/Symbol.asyncDispose': [SKIP],
+  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/is-function': [SKIP],
+  'built-ins/DisposableStack/prototype/Symbol.dispose': [SKIP],
+  'built-ins/Iterator/prototype/Symbol.dispose/is-function': [SKIP],
+  'built-ins/RegExp/prototype/exec/regexp-builtin-exec-v-u-flag': [SKIP],
+  'built-ins/String/prototype/match/regexp-prototype-match-v-u-flag': [SKIP],
+  'built-ins/String/prototype/matchAll/regexp-prototype-matchAll-v-u-flag': [SKIP],
+  'built-ins/String/prototype/replace/regexp-prototype-replace-v-u-flag': [SKIP],
+  'built-ins/String/prototype/search/regexp-prototype-search-v-flag': [SKIP],
+  'built-ins/String/prototype/search/regexp-prototype-search-v-u-flag': [SKIP],
+  'built-ins/Temporal/Duration/compare/relativeto-string-limits': [SKIP],
+  'built-ins/Temporal/Duration/prototype/round/next-day-out-of-range': [SKIP],
+  'built-ins/Temporal/Duration/prototype/round/relativeto-string-limits': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/relativeto-string-limits': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/compare/argument-string-limits': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/from/argument-string-limits': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/equals/argument-string-limits': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/argument-string-limits': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/argument-string-limits': [SKIP],
+  'intl402/Temporal/PlainDate/from/canonicalize-era-codes': [SKIP],
+  'intl402/Temporal/PlainDateTime/from/canonicalize-era-codes': [SKIP],
+  'intl402/Temporal/PlainYearMonth/from/canonicalize-era-codes': [SKIP],
+  'intl402/Temporal/ZonedDateTime/from/canonicalize-era-codes': [SKIP],
+  'language/destructuring/binding/keyed-destructuring-property-reference-target-evaluation-order-with-bindings': [SKIP],
+  'language/expressions/delete/super-property-uninitialized-this': [SKIP],
+  'language/expressions/super/prop-expr-getsuperbase-before-topropertykey-getvalue': [SKIP],
+  'language/expressions/super/prop-expr-getsuperbase-before-topropertykey-putvalue': [SKIP],
+  'language/expressions/super/prop-expr-getsuperbase-before-topropertykey-putvalue-compound-assign': [SKIP],
+  'language/expressions/super/prop-expr-getsuperbase-before-topropertykey-putvalue-increment': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# import test262@6c967a8bbb90a5ee5bc856335928afbbd546d012
+[ALWAYS, {
+  'built-ins/Temporal/Duration/compare/relativeto-sub-minute-offset': [FAIL],
+'built-ins/Temporal/Duration/prototype/round/relativeto-sub-minute-offset': [FAIL],
+'built-ins/Temporal/Duration/prototype/total/relativeto-sub-minute-offset': [FAIL],
+'built-ins/Temporal/Instant/prototype/toString/timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/Now/plainDateISO/timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/Now/plainDateTimeISO/timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/Now/plainTimeISO/timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/Now/zonedDateTimeISO/timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/PlainDate/from/monthcode-invalid': [FAIL],
+'built-ins/Temporal/PlainDate/prototype/toZonedDateTime/timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/PlainDateTime/from/monthcode-invalid': [FAIL],
+'built-ins/Temporal/PlainMonthDay/from/monthcode-invalid': [FAIL],
+'built-ins/Temporal/PlainYearMonth/from/monthcode-invalid': [FAIL],
+'built-ins/Temporal/ZonedDateTime/compare/argument-propertybag-timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/compare/argument-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/from/argument-propertybag-timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/from/argument-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/from/monthcode-invalid': [FAIL],
+'built-ins/Temporal/ZonedDateTime/from/offset-string-invalid': [FAIL],
+'built-ins/Temporal/ZonedDateTime/prototype/equals/argument-propertybag-timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/prototype/equals/argument-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/prototype/since/argument-propertybag-timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/prototype/since/argument-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/prototype/until/argument-propertybag-timezone-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/prototype/until/argument-string-sub-minute-offset': [FAIL],
+'built-ins/Temporal/ZonedDateTime/prototype/withTimeZone/timezone-string-sub-minute-offset': [FAIL],
+'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-not-overlapping-options': [FAIL],
+'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-not-overlapping-options': [FAIL],
+'intl402/DateTimeFormat/prototype/format/temporal-objects-not-overlapping-options': [FAIL],
+'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-not-overlapping-options': [FAIL],
+'intl402/Temporal/Instant/prototype/toLocaleString/lone-options-accepted': [FAIL],
+'intl402/Temporal/PlainDate/prototype/toLocaleString/lone-options-accepted': [FAIL],
+'intl402/Temporal/PlainDateTime/prototype/toLocaleString/lone-options-accepted': [FAIL],
+'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/lone-options-accepted': [FAIL],
+'intl402/Temporal/PlainTime/prototype/toLocaleString/lone-options-accepted': [FAIL],
+'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/lone-options-accepted': [FAIL],
+'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/lone-options-accepted': [FAIL],
+'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/default-includes-time-and-time-zone-name': [FAIL],
+}],
+# end import test262@6c967a8bbb90a5ee5bc856335928afbbd546d012
+####
+
 ]
