@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:6b2665e870db2df4da1c184a2aec2f98dcb75000',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:a1a693f7ec8f9b8d29843f5a68693c43d692d941',
+  'luci_go': 'git_revision:78b3b3ca47e64b3280a5dd5b83c23ce89f04d328',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '884faaff738bf0695dc65a99e94cdcad59687140',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '89fc9dc75ad41f8a51c88ebccd226282b580d393',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3ce4779d0ecfe0a0ae58f6d868496e2a450ab226',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '42e3e21a6d89f9e8f0b91abbef72143447d03bc2',
   'buildtools/linux64': {
     'packages': [
       {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '76968bb3d53982560bcf08bcd0ba3e1865fe15cd',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'fa0214602cc5502c2d1e12cc4692d1045a993aba',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '3a61fbe304cba26e4de7a097dd6059f17786ec56',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'af5dc104cd6b7e0081d4f7f185aebace7430b8f8',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5304f2bbb31bad413e029a660097d1da1552e6f4',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c109945e729cb3d8c17f306c9cae9d3f98d7d323',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
