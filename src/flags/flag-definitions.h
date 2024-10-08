@@ -2424,18 +2424,20 @@ DEFINE_BOOL(compilation_cache, true, "enable compilation cache")
 DEFINE_BOOL(cache_prototype_transitions, true, "cache prototype transitions")
 
 // lazy-compile-dispatcher.cc
-DEFINE_BOOL(lazy_compile_dispatcher, false, "enable compiler dispatcher")
+DEFINE_EXPERIMENTAL_FEATURE(lazy_compile_dispatcher,
+                            "enable compiler dispatcher")
 DEFINE_UINT(lazy_compile_dispatcher_max_threads, 0,
             "max threads for compiler dispatcher (0 for unbounded)")
 DEFINE_BOOL(trace_compiler_dispatcher, false,
             "trace compiler dispatcher activity")
-DEFINE_BOOL(
-    parallel_compile_tasks_for_eager_toplevel, false,
+DEFINE_EXPERIMENTAL_FEATURE(
+    parallel_compile_tasks_for_eager_toplevel,
     "spawn parallel compile tasks for eagerly compiled, top-level functions")
 DEFINE_IMPLICATION(parallel_compile_tasks_for_eager_toplevel,
                    lazy_compile_dispatcher)
-DEFINE_BOOL(parallel_compile_tasks_for_lazy, false,
-            "spawn parallel compile tasks for all lazily compiled functions")
+DEFINE_EXPERIMENTAL_FEATURE(
+    parallel_compile_tasks_for_lazy,
+    "spawn parallel compile tasks for all lazily compiled functions")
 DEFINE_IMPLICATION(parallel_compile_tasks_for_lazy, lazy_compile_dispatcher)
 
 // cpu-profiler.cc
