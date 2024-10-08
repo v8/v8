@@ -2395,6 +2395,27 @@ void JavaScriptFrame::GetFunctions(
   }
 }
 
+std::tuple<Tagged<AbstractCode>, int> JavaScriptFrame::GetActiveCodeAndOffset()
+    const {
+  int code_offset = 0;
+  Tagged<AbstractCode> abstract_code;
+  if (is_interpreted()) {
+    const InterpretedFrame* iframe = InterpretedFrame::cast(this);
+    code_offset = iframe->GetBytecodeOffset();
+    abstract_code = Cast<AbstractCode>(iframe->GetBytecodeArray());
+  } else if (is_baseline()) {
+    // TODO(pthier): AbstractCode should fully support Baseline code.
+    const BaselineFrame* baseline_frame = BaselineFrame::cast(this);
+    code_offset = baseline_frame->GetBytecodeOffset();
+    abstract_code = Cast<AbstractCode>(baseline_frame->GetBytecodeArray());
+  } else {
+    Tagged<Code> code = LookupCode();
+    code_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
+    abstract_code = Cast<AbstractCode>(code);
+  }
+  return {abstract_code, code_offset};
+}
+
 bool CommonFrameWithJSLinkage::IsConstructor() const {
   return IsConstructFrame(caller_fp());
 }
@@ -2495,21 +2516,10 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
       if (frame->IsConstructor()) PrintF(file, "new ");
       Tagged<JSFunction> function = frame->function();
       int code_offset = 0;
-      Tagged<AbstractCode> abstract_code = function->abstract_code(isolate);
-      if (frame->is_interpreted()) {
-        InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
-        code_offset = iframe->GetBytecodeOffset();
-      } else if (frame->is_baseline()) {
-        // TODO(pthier): AbstractCode should fully support Baseline code.
-        BaselineFrame* baseline_frame = BaselineFrame::cast(frame);
-        code_offset = baseline_frame->GetBytecodeOffset();
-        abstract_code = Cast<AbstractCode>(baseline_frame->GetBytecodeArray());
-      } else {
-        code_offset = frame->LookupCode()->GetOffsetFromInstructionStart(
-            isolate, frame->pc());
-      }
-      PrintFunctionAndOffset(isolate, function, abstract_code, code_offset,
-                             file, print_line_number);
+      Tagged<AbstractCode> code;
+      std::tie(code, code_offset) = frame->GetActiveCodeAndOffset();
+      PrintFunctionAndOffset(isolate, function, code, code_offset, file,
+                             print_line_number);
       if (print_args) {
         // function arguments
         // (we are intentionally only printing the actually
@@ -3255,19 +3265,6 @@ int InterpretedFrame::GetBytecodeOffset() const {
             InterpreterFrameConstants::kExpressionsOffset -
                 index * kSystemPointerSize);
   int raw_offset = Smi::ToInt(GetExpression(index));
-  return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
-}
-
-// static
-int InterpretedFrame::GetBytecodeOffset(Address fp) {
-  const int offset = InterpreterFrameConstants::kExpressionsOffset;
-  const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
-  DCHECK_EQ(InterpreterFrameConstants::kBytecodeOffsetFromFp,
-            InterpreterFrameConstants::kExpressionsOffset -
-                index * kSystemPointerSize);
-  Address expression_offset = fp + offset - index * kSystemPointerSize;
-  int raw_offset =
-      Smi::ToInt(Tagged<Object>(Memory<Address>(expression_offset)));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 

@@ -163,18 +163,8 @@ void IC::TraceIC(const char* type, DirectHandle<Object> name, State old_state,
   ic_info.type += type;
 
   int code_offset = 0;
-  Tagged<AbstractCode> code = function->abstract_code(isolate_);
-  if (function->ActiveTierIsIgnition(isolate())) {
-    code_offset = InterpretedFrame::GetBytecodeOffset(frame->fp());
-  } else if (function->ActiveTierIsBaseline(isolate())) {
-    // TODO(pthier): AbstractCode should fully support Baseline code.
-    BaselineFrame* baseline_frame = BaselineFrame::cast(frame);
-    code_offset = baseline_frame->GetBytecodeOffset();
-    code = Cast<AbstractCode>(baseline_frame->GetBytecodeArray());
-  } else {
-    code_offset =
-        static_cast<int>(frame->pc() - function->instruction_start(isolate()));
-  }
+  Tagged<AbstractCode> code;
+  std::tie(code, code_offset) = frame->GetActiveCodeAndOffset();
   JavaScriptFrame::CollectFunctionAndOffsetForICStats(isolate(), function, code,
                                                       code_offset);
 

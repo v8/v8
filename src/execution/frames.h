@@ -767,6 +767,9 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
 
   void GetFunctions(std::vector<Handle<SharedFunctionInfo>>* functions) const;
 
+  // Returns {AbstractCode, code offset} pair for this frame's PC value.
+  std::tuple<Tagged<AbstractCode>, int> GetActiveCodeAndOffset() const;
+
   // Architecture-specific register description.
   static Register fp_register();
   static Register context_register();
@@ -1128,8 +1131,6 @@ class InterpretedFrame : public UnoptimizedFrame {
     return static_cast<const InterpretedFrame*>(frame);
   }
 
-  static int GetBytecodeOffset(Address fp);
-
  protected:
   inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
 
@@ -1151,6 +1152,10 @@ class BaselineFrame : public UnoptimizedFrame {
   static BaselineFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_baseline());
     return static_cast<BaselineFrame*>(frame);
+  }
+  static const BaselineFrame* cast(const StackFrame* frame) {
+    DCHECK(frame->is_baseline());
+    return static_cast<const BaselineFrame*>(frame);
   }
 
  protected:
