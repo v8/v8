@@ -541,7 +541,9 @@ class Pipeline {
     // Functions with many inline candidates are sensitive to correct call
     // frequency feedback and should therefore not be tiered up early.
     if (v8_flags.profile_guided_optimization &&
-        info()->could_not_inline_all_candidates()) {
+        info()->could_not_inline_all_candidates() &&
+        info()->shared_info()->cached_tiering_decision() !=
+            CachedTieringDecision::kDelayMaglev) {
       info()->shared_info()->set_cached_tiering_decision(
           CachedTieringDecision::kNormal);
     }
