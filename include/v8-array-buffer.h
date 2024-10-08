@@ -218,6 +218,18 @@ class V8_EXPORT ArrayBuffer : public Object {
   size_t MaxByteLength() const;
 
   /**
+   * Attempt to create a new ArrayBuffer. Allocate |byte_length| bytes.
+   * Allocated memory will be owned by a created ArrayBuffer and
+   * will be deallocated when it is garbage-collected,
+   * unless the object is externalized. If allocation fails, the Maybe
+   * returned will be empty.
+   */
+  static MaybeLocal<ArrayBuffer> MaybeNew(
+      Isolate* isolate, size_t byte_length,
+      BackingStoreInitializationMode initialization_mode =
+          BackingStoreInitializationMode::kZeroInitialized);
+
+  /**
    * Create a new ArrayBuffer. Allocate |byte_length| bytes, which are either
    * zero-initialized or uninitialized. Allocated memory will be owned by a
    * created ArrayBuffer and will be deallocated when it is garbage-collected,

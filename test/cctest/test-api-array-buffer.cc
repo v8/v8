@@ -15,6 +15,7 @@
 using ::v8::Array;
 using ::v8::Context;
 using ::v8::Local;
+using ::v8::Maybe;
 using ::v8::Value;
 
 namespace {
@@ -95,6 +96,42 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   data[1] = 0x11;
   result = CompileRun("u8[0] + u8[1]");
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
+}
+
+THREADED_TEST(ArrayBuffer_ApiMaybeNew) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  // Reasonable-sized ArrayBuffer.
+  v8::MaybeLocal<v8::ArrayBuffer> maybe_ab =
+      v8::ArrayBuffer::MaybeNew(isolate, 1024);
+  CHECK(!maybe_ab.IsEmpty());
+  auto ab = v8::Local<v8::ArrayBuffer>::Cast(maybe_ab.ToLocalChecked());
+  CheckInternalFieldsAreZero(ab);
+  CHECK_EQ(1024, ab->ByteLength());
+  i::heap::InvokeMajorGC(CcTest::heap());
+
+  std::shared_ptr<v8::BackingStore> backing_store = Externalize(ab);
+  CHECK_EQ(1024, backing_store->ByteLength());
+
+  uint8_t* data = static_cast<uint8_t*>(backing_store->Data());
+  CHECK_NOT_NULL(data);
+  CHECK(env->Global()->Set(env.local(), v8_str("ab"), ab).FromJust());
+
+  v8::Local<v8::Value> result = CompileRun("ab.byteLength");
+  CHECK_EQ(1024, result->Int32Value(env.local()).FromJust());
+
+  // Too large ArrayBuffer.
+  size_t unreasonable_size = 1;
+#if V8_TARGET_ARCH_64_BIT
+  unreasonable_size <<= 53;
+#else
+  unreasonable_size <<= 31;
+#endif
+  v8::MaybeLocal<v8::ArrayBuffer> maybe_ab_2 =
+      v8::ArrayBuffer::MaybeNew(isolate, unreasonable_size);
+  CHECK(maybe_ab_2.IsEmpty());
 }
 
 THREADED_TEST(ArrayBuffer_JSInternalToExternal) {

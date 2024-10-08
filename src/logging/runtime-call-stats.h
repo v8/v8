@@ -134,6 +134,7 @@ class RuntimeCallTimer final {
   V(AccessorPair_New)                                      \
   V(ArrayBuffer_Cast)                                      \
   V(ArrayBuffer_Detach)                                    \
+  V(ArrayBuffer_MaybeNew)                                  \
   V(ArrayBuffer_New)                                       \
   V(ArrayBuffer_NewBackingStore)                           \
   V(ArrayBuffer_BackingStore_Reallocate)                   \
