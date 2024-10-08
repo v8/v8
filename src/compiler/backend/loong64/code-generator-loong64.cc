@@ -4,6 +4,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/loong64/constants-loong64.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
@@ -2499,14 +2500,32 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Branch(&done, uge, sp, Operand(stack_limit));
       }
 
-      __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-              RelocInfo::WASM_STUB_CALL);
-      // The call does not return, hence we can ignore any references and just
-      // define an empty safepoint.
-      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-      RecordSafepoint(reference_map);
-      if (v8_flags.debug_code) {
-        __ stop();
+      if (v8_flags.experimental_wasm_growable_stacks) {
+        RegList regs_to_save;
+        regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
+        regs_to_save.set(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+
+        for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
+        __ MultiPush(regs_to_save);
+        __ li(WasmHandleStackOverflowDescriptor::GapRegister(),
+              required_slots * kSystemPointerSize);
+        __ Add_d(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+            Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
+                    CommonFrameConstants::kFixedFrameSizeAboveFp));
+        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ MultiPop(regs_to_save);
+      } else {
+        __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+                RelocInfo::WASM_STUB_CALL);
+        // The call does not return, hence we can ignore any references and just
+        // define an empty safepoint.
+        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
+        RecordSafepoint(reference_map);
+        if (v8_flags.debug_code) {
+          __ stop();
+        }
       }
 
       __ bind(&done);
@@ -2583,6 +2602,34 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
                 Operand(static_cast<int64_t>(0)));
     }
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsWasmFunctionCall() &&
+      v8_flags.experimental_wasm_growable_stacks) {
+    Label done;
+    {
+      UseScratchRegisterScope temps{masm()};
+      Register scratch = temps.Acquire();
+      __ Ld_d(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+      __ BranchShort(
+          &done, ne, scratch,
+          Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+    }
+    RegList regs_to_save;
+    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
+    __ MultiPush(regs_to_save);
+    __ li(kCArgRegs[0], ExternalReference::isolate_address());
+    {
+      UseScratchRegisterScope temps{masm()};
+      Register scratch = temps.Acquire();
+      __ PrepareCallCFunction(1, scratch);
+    }
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+    __ mov(fp, kReturnRegister0);
+    __ MultiPop(regs_to_save);
+    __ bind(&done);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Functions with JS linkage have at least one parameter (the receiver).
   // If {parameter_slots} == 0, it means it is a builtin with
