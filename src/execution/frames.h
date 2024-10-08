@@ -9,8 +9,8 @@
 #include "src/base/bounds.h"
 #include "src/codegen/handler-table.h"
 #include "src/codegen/safepoint-table.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
-#include "src/handles/handles.h"
 #include "src/objects/code.h"
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/objects.h"
@@ -1652,8 +1652,16 @@ class StackFrameIteratorBase {
   StackFrame* frame_;
   StackHandler* handler_;
 #if V8_ENABLE_WEBASSEMBLY
-  // Current wasm stack being iterated.
+  // Stop at the end of the topmost (wasm) stack.
+  bool first_stack_only_ = false;
+  // // Current wasm stack being iterated.
   wasm::StackMemory* wasm_stack_ = nullptr;
+  // See {StackFrameIterator::NoHandles}.
+  std::optional<DisallowGarbageCollection> no_gc_;
+  union {
+    Handle<WasmContinuationObject> handle_;
+    Tagged<WasmContinuationObject> obj_;
+  } continuation_{Handle<WasmContinuationObject>::null()};
 #endif
 
   StackHandler* handler() const {
@@ -1676,7 +1684,22 @@ class StackFrameIterator : public StackFrameIteratorBase {
   V8_EXPORT_PRIVATE explicit StackFrameIterator(Isolate* isolate);
   // An iterator that iterates over a given thread's stack.
   V8_EXPORT_PRIVATE StackFrameIterator(Isolate* isolate, ThreadLocalTop* t);
+  // Use this constructor to use the stack frame iterator without a handle
+  // scope. This sets the {no_gc_} scope, and if the {continuation_} object is
+  // used, it is unhandlified.
+  struct NoHandles {};
+  V8_EXPORT_PRIVATE StackFrameIterator(Isolate* isolate, ThreadLocalTop* top,
+                                       NoHandles);
 #if V8_ENABLE_WEBASSEMBLY
+  // Depending on the use case, users of the StackFrameIterator should either:
+  // - Use the default constructor, which iterates the active stack and its
+  // ancestors, but not the suspended stacks.
+  // - Or use the constructor below to iterate the topmost stack only, and
+  // iterate the {Isolate::wasm_stacks()} list on the side to visit all
+  // inactive stacks.
+  struct FirstStackOnly {};
+  V8_EXPORT_PRIVATE StackFrameIterator(Isolate* isolate, ThreadLocalTop* t,
+                                       FirstStackOnly);
   // An iterator that iterates over a given wasm stack segment.
   V8_EXPORT_PRIVATE StackFrameIterator(Isolate* isolate,
                                        wasm::StackMemory* stack);
@@ -1695,6 +1718,8 @@ class StackFrameIterator : public StackFrameIteratorBase {
 #if V8_ENABLE_WEBASSEMBLY
   // Go to the first frame of this stack.
   void Reset(ThreadLocalTop* top, wasm::StackMemory* stack);
+  Tagged<WasmContinuationObject> continuation();
+  void set_continuation(Tagged<WasmContinuationObject> continuation);
 #endif
 
 #ifdef DEBUG

@@ -2717,7 +2717,9 @@ bool Debug::ShouldBeSkipped() {
 bool Debug::AllFramesOnStackAreBlackboxed() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
 
-  for (StackFrameIterator it(isolate_); !it.done(); it.Advance()) {
+  HandleScope scope(isolate_);
+  for (StackFrameIterator it(isolate_, isolate_->thread_local_top());
+       !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
     if (frame->is_java_script() &&
         !IsFrameBlackboxed(JavaScriptFrame::cast(frame))) {

@@ -636,8 +636,11 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
       it.frame()->Iterate(v);
     }
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  for (StackFrameIterator it(this, thread); !it.done(); it.Advance()) {
+  StackFrameIterator it(this, thread, StackFrameIterator::FirstStackOnly{});
+#else
+  StackFrameIterator it(this, thread);
+#endif
+  for (; !it.done(); it.Advance()) {
     it.frame()->Iterate(v);
   }
 }
@@ -2233,12 +2236,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       }
     }
   };
-
-  Tagged<Object> maybe_continuation = root(RootIndex::kActiveContinuation);
-  Tagged<WasmContinuationObject> continuation;
-  if (!IsUndefined(maybe_continuation)) {
-    continuation = Cast<WasmContinuationObject>(maybe_continuation);
-  }
 #endif
 
   // Special handling of termination exceptions, uncatchable by JavaScript and
@@ -2256,7 +2253,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
   int visited_frames = 0;
-  for (StackFrameIterator iter(this);; iter.Advance(), visited_frames++) {
+  for (StackFrameIterator iter(this, thread_local_top(),
+                               StackFrameIterator::NoHandles{});
+       ; iter.Advance(), visited_frames++) {
 #if V8_ENABLE_WEBASSEMBLY
     if (iter.frame()->type() == StackFrame::STACK_SWITCH) {
       if (catchable_by_js) {
@@ -2272,17 +2271,18 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       } else {
         // We reached the base of the wasm stack. Follow the chain of
         // continuations to find the parent stack and reset the iterator.
-        DCHECK(!continuation.is_null());
         wasm::StackMemory* stack =
-            reinterpret_cast<wasm::StackMemory*>(continuation->stack());
+            reinterpret_cast<wasm::StackMemory*>(iter.continuation()->stack());
         RetireWasmStack(stack);
-        continuation = Cast<WasmContinuationObject>(continuation->parent());
+        iter.Advance();
         wasm::StackMemory* parent =
-            reinterpret_cast<wasm::StackMemory*>(continuation->stack());
+            reinterpret_cast<wasm::StackMemory*>(iter.continuation()->stack());
         parent->jmpbuf()->state = wasm::JumpBuffer::Active;
-        roots_table().slot(RootIndex::kActiveContinuation).store(continuation);
+        roots_table()
+            .slot(RootIndex::kActiveContinuation)
+            .store(iter.continuation());
         SyncStackLimit();
-        iter.Reset(thread_local_top(), parent);
+        continue;
       }
     }
 #endif

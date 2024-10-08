@@ -718,3 +718,30 @@ function TestNestedSuspenders(suspend) {
   assertThrows(instance.exports.test, WebAssembly.RuntimeError,
       /attempting to suspend without a WebAssembly.promising export/);
 })();
+
+// A promising export splits the logical stack into multiple segments in memory.
+// Check that the stack frame iterator still iterates the full logical stack
+// where we expect it to, e.g. in error stack traces.
+(function TestStackTrace() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  import_index = builder.addImport('m', 'check_stack', kSig_v_v);
+  builder.addFunction("test", kSig_v_v)
+      .addBody([
+          kExprCallFunction, import_index
+      ]).exportFunc();
+  stacks = [];
+  function check_stack() {
+    let e = new Error();
+    stacks.push(e.stack);
+  }
+  let instance = builder.instantiate({m: {check_stack}});
+  let wrapper_sync = instance.exports.test;
+  let wrapper_async = WebAssembly.promising(instance.exports.test);
+  // Perform the calls in a loop so that the source location of the call is
+  // the same, which makes it easy to compare their call stack below.
+  for (let exp of [wrapper_sync, wrapper_async]) {
+    exp();
+  }
+  assertEquals(stacks[0], stacks[1]);
+})();

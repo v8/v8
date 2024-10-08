@@ -138,11 +138,33 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t)
     : StackFrameIteratorBase(isolate) {
   Reset(t);
 }
+
 #if V8_ENABLE_WEBASSEMBLY
+StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t,
+                                       NoHandles)
+    : StackFrameIteratorBase(isolate) {
+  no_gc_.emplace();
+  Reset(t);
+}
+
+StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t,
+                                       FirstStackOnly)
+    : StackFrameIteratorBase(isolate) {
+  first_stack_only_ = true;
+  Reset(t);
+}
+
 StackFrameIterator::StackFrameIterator(Isolate* isolate,
                                        wasm::StackMemory* stack)
     : StackFrameIteratorBase(isolate) {
+  first_stack_only_ = true;
   Reset(isolate->thread_local_top(), stack);
+}
+#else
+StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t,
+                                       NoHandles)
+    : StackFrameIteratorBase(isolate) {
+  Reset(t);
 }
 #endif
 
@@ -153,21 +175,52 @@ void StackFrameIterator::Advance() {
   // frame code that computes the caller state to access the top
   // handler and the value of any callee-saved register if needed.
   StackFrame::State state;
-  StackFrame::Type type = frame_->GetCallerState(&state);
+  StackFrame::Type type;
+#if V8_ENABLE_WEBASSEMBLY
+  if (frame_->type() == StackFrame::STACK_SWITCH &&
+      Memory<Address>(frame_->fp() +
+                      StackSwitchFrameConstants::kCallerFPOffset) ==
+          kNullAddress &&
+      !first_stack_only_) {
+    // Handle stack switches here.
+    // Note: both the "callee" frame (outermost frame of the child stack) and
+    // the "caller" frame (top frame of the parent stack) have frame type
+    // STACK_SWITCH. We use the caller FP to distinguish them: the callee frame
+    // does not have a caller fp.
+    auto parent = continuation()->parent();
+    CHECK(!IsUndefined(parent));
+    set_continuation(Cast<WasmContinuationObject>(parent));
+    wasm_stack_ = reinterpret_cast<wasm::StackMemory*>(continuation()->stack());
+    CHECK_EQ(wasm_stack_->jmpbuf()->state, wasm::JumpBuffer::Inactive);
+    StackSwitchFrame::GetStateForJumpBuffer(wasm_stack_->jmpbuf(), &state);
+    SetNewFrame(StackFrame::STACK_SWITCH, &state);
+    return;
+  }
+#endif
+  type = frame_->GetCallerState(&state);
 
-  // Unwind handlers corresponding to the current frame.
-  StackHandlerIterator it(frame_, handler_);
-  while (!it.done()) it.Advance();
-  handler_ = it.handler();
+  // {StackHandlerIterator} assumes that frame pointers strictly go from lower
+  // to higher addresses as we iterate the stack. This breaks with
+  // stack-switching, so only unwind the stack handlers for frames that are
+  // known to use them.
+  if (frame_->type() == StackFrame::ENTRY ||
+      frame_->type() == StackFrame::CONSTRUCT_ENTRY
+#if V8_ENABLE_WEBASSEMBLY
+      || frame_->type() == StackFrame::C_WASM_ENTRY
+#endif
+  ) {
+    StackHandlerIterator it(frame_, handler_);
+    while (!it.done()) it.Advance();
+    handler_ = it.handler();
+  }
 
   // Advance to the calling frame.
   SetNewFrame(type, &state);
   // When we're done iterating over the stack frames, the handler
-  // chain must have been completely unwound. Except for wasm stack-switching:
-  // we stop at the end of the current segment.
+  // chain must have been completely unwound. Except if we are only iterating
+  // the first stack of the chain for wasm stack-switching.
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK_IMPLIES(done() && isolate()->wasm_stacks().empty(),
-                 handler_ == nullptr);
+  DCHECK_IMPLIES(done() && !first_stack_only_, handler_ == nullptr);
 #else
   DCHECK_IMPLIES(done(), handler_ == nullptr);
 #endif
@@ -226,14 +279,17 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
   } else {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
   }
-  handler_ = StackHandler::FromAddress(Isolate::handler(top));
 #if V8_ENABLE_WEBASSEMBLY
   auto active_continuation = isolate_->root(RootIndex::kActiveContinuation);
   if (!IsUndefined(active_continuation, isolate_)) {
-    wasm_stack_ = reinterpret_cast<wasm::StackMemory*>(
-        Cast<WasmContinuationObject>(active_continuation)->stack());
+    auto continuation = Cast<WasmContinuationObject>(active_continuation);
+    if (!first_stack_only_) {
+      set_continuation(continuation);
+    }
+    wasm_stack_ = reinterpret_cast<wasm::StackMemory*>(continuation->stack());
   }
 #endif
+  handler_ = StackHandler::FromAddress(Isolate::handler(top));
   SetNewFrame(type, &state);
 }
 
@@ -276,6 +332,21 @@ void StackFrameIteratorBase::SetNewFrame(StackFrame::Type type) {
   }
   frame_ = nullptr;
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+Tagged<WasmContinuationObject> StackFrameIterator::continuation() {
+  return no_gc_.has_value() ? continuation_.obj_ : *continuation_.handle_;
+}
+
+void StackFrameIterator::set_continuation(
+    Tagged<WasmContinuationObject> continuation) {
+  if (no_gc_.has_value()) {
+    continuation_.obj_ = continuation;
+  } else {
+    continuation_.handle_ = handle(continuation, isolate_);
+  }
+}
+#endif
 
 // -------------------------------------------------------------------------
 
@@ -860,7 +931,7 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
 StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     StackFrame::State* state) const {
 #if V8_ENABLE_WEBASSEMBLY
-  if (state->fp == kNullAddress) {
+  if (state->fp == kNullAddress && first_stack_only_) {
     DCHECK(!isolate_->wasm_stacks().empty());  // I.e., JSPI active
     return StackFrame::NO_FRAME_TYPE;
   }
@@ -1328,6 +1399,8 @@ const char* StringForStackFrameType(StackFrame::Type type) {
     return #name;
     STACK_FRAME_TYPE_LIST(CASE)
 #undef CASE
+    case StackFrame::NO_FRAME_TYPE:
+      return "NoFrameType";
     default:
       UNREACHABLE();
   }

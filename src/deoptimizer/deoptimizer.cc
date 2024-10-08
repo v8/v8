@@ -341,22 +341,8 @@ class ActivationsFinder : public ThreadVisitor {
   // for the trampoline to the deoptimizer call respective to each code, and use
   // it to replace the current pc on the stack.
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
-#if V8_ENABLE_WEBASSEMBLY
-    // Also visit the ancestors of the active stack for wasm stack switching.
-    // We don't need to visit suspended stacks at the moment, because 1) they
-    // only contain wasm frames and 2) wasm does not do lazy deopt. Revisit this
-    // if one of these assumptions changes.
-    Tagged<WasmContinuationObject> continuation;
-    if (top == isolate->thread_local_top()) {
-      Tagged<Object> maybe_continuation =
-          isolate->root(RootIndex::kActiveContinuation);
-      if (!IsUndefined(maybe_continuation)) {
-        continuation = Cast<WasmContinuationObject>(maybe_continuation);
-      }
-    }
-#endif
-
-    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+    for (StackFrameIterator it(isolate, top, StackFrameIterator::NoHandles{});
+         !it.done(); it.Advance()) {
       if (it.frame()->is_optimized()) {
         Tagged<GcSafeCode> code = it.frame()->GcSafeLookupCode();
         if (CodeKindCanDeoptimize(code->kind()) &&
@@ -394,19 +380,6 @@ class ActivationsFinder : public ThreadVisitor {
           }
         }
       }
-
-#if V8_ENABLE_WEBASSEMBLY
-      // We reached the base of the wasm stack. Follow the chain of
-      // continuations to find the parent stack and reset the iterator.
-      if (it.frame()->type() == StackFrame::STACK_SWITCH) {
-        CHECK_EQ(top, isolate->thread_local_top());
-        DCHECK(!continuation.is_null());
-        continuation = Cast<WasmContinuationObject>(continuation->parent());
-        wasm::StackMemory* parent =
-            reinterpret_cast<wasm::StackMemory*>(continuation->stack());
-        it.Reset(top, parent);
-      }
-#endif
     }
   }
 
@@ -429,8 +402,9 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   // Make sure all activations of optimized code can deopt at their current PC.
   // The topmost optimized code has special handling because it cannot be
   // deoptimized due to weak object dependency.
-  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
-       it.Advance()) {
+  for (StackFrameIterator it(isolate, isolate->thread_local_top(),
+                             StackFrameIterator::NoHandles{});
+       !it.done(); it.Advance()) {
     if (it.frame()->is_optimized()) {
       Tagged<GcSafeCode> code = it.frame()->GcSafeLookupCode();
       Tagged<JSFunction> function =
