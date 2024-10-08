@@ -315,6 +315,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 // shared.
 class TransitionArray : public WeakFixedArray {
  public:
+  inline int number_of_transitions() const;
+
   inline Tagged<WeakFixedArray> GetPrototypeTransitions();
   inline bool HasPrototypeTransitions();
 
@@ -330,13 +332,8 @@ class TransitionArray : public WeakFixedArray {
   inline bool GetTargetIfExists(int transition_number, Isolate* isolate,
                                 Tagged<Map>* target);
 
-  // Required for templatized Search interface.
-  inline Tagged<Name> GetKey(InternalIndex index);
   static constexpr int kNotFound = -1;
 
-  inline Tagged<Name> GetSortedKey(int transition_number);
-  int GetSortedKeyIndex(int transition_number) { return transition_number; }
-  inline int number_of_entries() const;
 #ifdef DEBUG
   V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
 #endif
@@ -432,11 +429,12 @@ class TransitionArray : public WeakFixedArray {
   Tagged<Map> SearchDetailsAndGetTarget(int transition, PropertyKind kind,
                                         PropertyAttributes attributes);
 
+  inline int LinearSearchName(Tagged<Name> name, int* out_insertion_index);
+  inline int BinarySearchName(Tagged<Name> name, int* out_insertion_index);
+
   // Find all transitions with given name and calls the callback.
   void ForEachTransitionTo(Tagged<Name> name,
                            const ForEachTransitionCallback& callback);
-
-  inline int number_of_transitions() const;
 
   static bool CompactPrototypeTransitionArray(Isolate* isolate,
                                               Tagged<WeakFixedArray> array);

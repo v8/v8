@@ -3579,7 +3579,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
   Isolate* const isolate = heap_->isolate();
   ReadOnlyRoots roots(isolate);
   while (local_weak_objects()->transition_arrays_local.Pop(&array)) {
-    int num_transitions = array->number_of_entries();
+    int num_transitions = array->number_of_transitions();
     if (num_transitions > 0) {
         Tagged<Map> map;
         // The array might contain "undefined" elements because it's not yet
@@ -3649,7 +3649,7 @@ bool MarkCompactCollector::CompactTransitionArray(
     Tagged<Map> map, Tagged<TransitionArray> transitions,
     Tagged<DescriptorArray> descriptors) {
   DCHECK(!map->is_prototype_map());
-  int num_transitions = transitions->number_of_entries();
+  int num_transitions = transitions->number_of_transitions();
   if (!TransitionArrayNeedsCompaction(transitions, num_transitions)) {
     return false;
   }

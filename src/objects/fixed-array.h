@@ -760,13 +760,6 @@ class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
       AllocationType allocation = AllocationType::kYoung);
 };
 
-enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
-
-template <SearchMode search_mode, typename T>
-inline int Search(T* array, Tagged<Name> name, int valid_entries = 0,
-                  int* out_insertion_index = nullptr,
-                  bool concurrent_search = false);
-
 class ByteArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kUInt8Size;

@@ -2024,7 +2024,7 @@ bool HeapObject::NeedsRehashing(InstanceType instance_type) const {
     case STRONG_DESCRIPTOR_ARRAY_TYPE:
       return Cast<DescriptorArray>(*this)->number_of_descriptors() > 1;
     case TRANSITION_ARRAY_TYPE:
-      return Cast<TransitionArray>(*this)->number_of_entries() > 1;
+      return Cast<TransitionArray>(*this)->number_of_transitions() > 1;
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
       return false;  // We'll rehash from the JSMap or JSSet referencing them.
