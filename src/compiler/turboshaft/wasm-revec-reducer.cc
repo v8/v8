@@ -1004,14 +1004,23 @@ bool WasmRevecAnalyzer::DecideVectorize() {
   ForEach(
       [&](PackNode const* pnode) {
         const NodeGroup& nodes = pnode->nodes();
-        // Splat nodes will not cause a saving as it simply extends itself.
-        if (!IsSplat(nodes)) {
-          save++;
+        // An additional store is emitted in case of OOB trap at the higher
+        // 128-bit address. Thus no save if the store at lower address is
+        // executed first. Return directly as we dont need to check external use
+        // for stores.
+        if (graph_.Get(nodes[0]).opcode == Opcode::kStore) {
+          if (nodes[0] > nodes[1]) save++;
+          return;
         }
 
         if (pnode->is_force_pack()) {
-          cost += 2;
+          cost++;
           return;
+        }
+
+        // Splat nodes will not cause a saving as it simply extends itself.
+        if (!IsSplat(nodes)) {
+          save++;
         }
 
 #ifdef V8_TARGET_ARCH_X64

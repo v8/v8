@@ -501,9 +501,18 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     }
 
     for (auto use : analyzer_.uses(ig_index)) {
-      if (!analyzer_.GetPackNode(use)) {
-        return __ Simd256Extract128Lane(og_index, lane);
+      // Extract128 is needed for the additional Simd128 store before
+      // Simd256 store in case of OOB trap at the higher 128-bit
+      // address.
+      if (auto use_pnode = analyzer_.GetPackNode(use)) {
+        DCHECK_GE(use_pnode->nodes().size(), 2);
+        if (__ input_graph().Get(use).opcode != Opcode::kStore ||
+            use_pnode->nodes()[0] != use ||
+            use_pnode->nodes()[0] > use_pnode->nodes()[1])
+          continue;
       }
+
+      return __ Simd256Extract128Lane(og_index, lane);
     }
 
     return OpIndex::Invalid();
@@ -602,6 +611,14 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
             (analyzer_.GetStartOperation(pnode, ig_index, store))
                 .TryCast<StoreOp>();
         DCHECK_EQ(start->base(), store.base());
+
+        // It's possible that an OOB is trapped at the higher 128-bit address
+        // after the lower 128-bit store is executed. To ensure a consistent
+        // memory state before and after revectorization, emit the first 128-bit
+        // store before the 256-bit revectorized store.
+        if (ig_index == pnode->nodes()[0]) {
+          Adapter::ReduceInputGraphStore(ig_index, store);
+        }
 
         auto base = __ MapToNewGraph(store.base());
         // We need to use store's index here due to there would be different
