@@ -7,7 +7,10 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/objects/heap-object.h"
+#include "src/sandbox/external-pointer-table-inl.h"
 #include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -64,6 +67,12 @@ TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpaceFor(
   return IsSharedTrustedPointerType(tag)
              ? isolate_->shared_trusted_pointer_space()
              : isolate_->heap()->trusted_pointer_space();
+}
+
+inline ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(
+    Tagged<HeapObject> witness, ExternalPointerHandle handle) {
+  DCHECK(!HeapLayout::InWritableSharedSpace(witness));
+  return isolate_->external_pointer_table().GetTag(handle);
 }
 
 #endif  // V8_ENABLE_SANDBOX

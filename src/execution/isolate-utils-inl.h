@@ -9,6 +9,7 @@
 #include "src/execution/isolate-utils.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/sandbox/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -44,12 +45,13 @@ V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
 
 // Use this function instead of Internals::GetIsolateForSandbox for internal
 // code, as this function is fully inlinable.
-V8_INLINE static Isolate* GetIsolateForSandbox(Tagged<HeapObject> object) {
+V8_INLINE static IsolateForSandbox GetIsolateForSandbox(
+    Tagged<HeapObject> object) {
 #ifdef V8_ENABLE_SANDBOX
   return GetIsolateFromWritableObject(object);
 #else
   // Not used in non-sandbox mode.
-  return nullptr;
+  return {};
 #endif
 }
 

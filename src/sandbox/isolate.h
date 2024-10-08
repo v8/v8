@@ -26,6 +26,10 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   template <typename IsolateT>
   IsolateForSandbox(IsolateT* isolate);  // NOLINT(runtime/explicit)
 
+#ifndef V8_ENABLE_SANDBOX
+  IsolateForSandbox() {}
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
   inline ExternalPointerTable& GetExternalPointerTableFor(
       ExternalPointerTag tag);
@@ -46,6 +50,10 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline TrustedPointerTable::Space* GetTrustedPointerTableSpaceFor(
       IndirectPointerTag tag);
 
+  // Object is needed as a witness that this handle does not come from the
+  // shared space.
+  inline ExternalPointerTag GetExternalPointerTableTagFor(
+      Tagged<HeapObject> witness, ExternalPointerHandle handle);
 #endif  // V8_ENABLE_SANDBOX
 
  private:

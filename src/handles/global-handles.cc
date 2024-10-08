@@ -28,6 +28,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
+#include "src/sandbox/isolate.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
 #include "src/utils/utils.h"
@@ -409,7 +410,7 @@ namespace {
 void ExtractInternalFields(Tagged<JSObject> jsobject, void** embedder_fields,
                            int len) {
   int field_count = jsobject->GetEmbedderFieldCount();
-  Isolate* isolate = GetIsolateForSandbox(jsobject);
+  IsolateForSandbox isolate = GetIsolateForSandbox(jsobject);
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;

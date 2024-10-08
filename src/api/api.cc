@@ -126,6 +126,7 @@
 #include "src/roots/static-roots.h"
 #include "src/runtime/runtime.h"
 #include "src/sandbox/external-pointer.h"
+#include "src/sandbox/isolate.h"
 #include "src/sandbox/sandbox.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -5382,8 +5383,8 @@ Local<v8::Context> v8::Object::GetCreationContextChecked() {
 
 namespace {
 V8_INLINE void* GetAlignedPointerFromEmbedderDataInCreationContextImpl(
-    i::DirectHandle<i::JSReceiver> object, i::Isolate* i_isolate_for_sandbox,
-    int index) {
+    i::DirectHandle<i::JSReceiver> object,
+    i::IsolateForSandbox i_isolate_for_sandbox, int index) {
   const char* location =
       "v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext()";
   auto maybe_context = object->GetCreationContext();
@@ -5428,10 +5429,9 @@ void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
 void* v8::Object::GetAlignedPointerFromEmbedderDataInCreationContext(
     int index) {
   auto self = Utils::OpenDirectHandle(this);
-  auto i_isolate_for_sandbox =
-      reinterpret_cast<i::Isolate*>(GetIsolateForSandbox(*self));
-  return GetAlignedPointerFromEmbedderDataInCreationContextImpl(
-      self, i_isolate_for_sandbox, index);
+  i::IsolateForSandbox isolate = GetIsolateForSandbox(*self);
+  return GetAlignedPointerFromEmbedderDataInCreationContextImpl(self, isolate,
+                                                                index);
 }
 
 int v8::Object::GetIdentityHash() {
