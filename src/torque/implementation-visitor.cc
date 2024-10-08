@@ -509,8 +509,9 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
                           ExternalLabelParameterName(label_info.name->value, j),
                           &label_parameter_variables);
     }
-    assembler().Emit(GotoExternalInstruction{
-        ExternalLabelName(label_info.name->value), label_parameter_variables});
+    assembler().Emit(
+        GotoExternalInstruction{ExternalLabelName(label_info.name->value),
+                                std::move(label_parameter_variables)});
   }
 
   if (return_type != TypeOracle::GetNeverType()) {
@@ -1361,9 +1362,9 @@ VisitResult ImplementationVisitor::Visit(TryLabelExpression* expr) {
     label_block = assembler().NewBlock(label_input_stack,
                                        IsDeferred(expr->label_block->body));
 
-    Binding<LocalLabel> label_binding{&LabelBindingsManager::Get(),
-                                      expr->label_block->label,
-                                      LocalLabel{label_block, parameter_types}};
+    Binding<LocalLabel> label_binding{
+        &LabelBindingsManager::Get(), expr->label_block->label,
+        LocalLabel{label_block, std::move(parameter_types)}};
 
     // Visit try
     StackScope stack_scope(this);
@@ -2940,12 +2941,12 @@ VisitResult ImplementationVisitor::GenerateCall(
         label_blocks.push_back(label->block);
       }
       return InlineMacro(macro, this_reference, converted_arguments,
-                         label_blocks);
+                         std::move(label_blocks));
     } else if (arguments.labels.empty() &&
                return_type != TypeOracle::GetNeverType()) {
       std::optional<Block*> catch_block = GetCatchBlock();
-      assembler().Emit(
-          CallCsaMacroInstruction{macro, constexpr_arguments, catch_block});
+      assembler().Emit(CallCsaMacroInstruction{
+          macro, std::move(constexpr_arguments), catch_block});
       GenerateCatchBlock(catch_block);
       size_t return_slot_count = LoweredSlotCount(return_type);
       return VisitResult(return_type, assembler().TopRange(return_slot_count));
@@ -3159,8 +3160,8 @@ VisitResult ImplementationVisitor::GenerateCall(
 
       // Now that the arguments are prepared, emit the instruction that consumes
       // them.
-      assembler().Emit(MakeLazyNodeInstruction{getter, return_type,
-                                               constexpr_arguments_for_getter});
+      assembler().Emit(MakeLazyNodeInstruction{
+          getter, return_type, std::move(constexpr_arguments_for_getter)});
       return VisitResult(return_type, assembler().TopRange(1));
     } else if (intrinsic->ExternalName() == "%FieldSlice") {
       const Type* type = specialization_types[0];
