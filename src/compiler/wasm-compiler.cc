@@ -214,7 +214,7 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
   }
   base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
       inlinee.code.offset(), inlinee.code.end_offset()));
-  bool is_shared = module->types[inlinee.sig_index].is_shared;
+  bool is_shared = module->type(inlinee.sig_index).is_shared;
   const wasm::FunctionBody inlinee_body(inlinee.sig, inlinee.code.offset(),
                                         bytes.begin(), bytes.end(), is_shared);
   // If the inlinee was not validated before, do that now.
@@ -2993,9 +2993,10 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   // Skip check if table type matches declared signature.
   if (needs_type_check) {
     // Embed the expected signature ID as a relocatable constant.
-    uint32_t canonical_sig_id = env_->module->canonical_sig_id(sig_index);
+    wasm::CanonicalTypeIndex canonical_sig_id =
+        env_->module->canonical_sig_id(sig_index);
     Node* expected_sig_id = mcgraph()->RelocatableInt32Constant(
-        canonical_sig_id, RelocInfo::WASM_CANONICAL_SIG_ID);
+        canonical_sig_id.index, RelocInfo::WASM_CANONICAL_SIG_ID);
 
     Node* loaded_sig = gasm_->LoadFromObject(
         MachineType::Int32(), dispatch_table,

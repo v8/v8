@@ -8581,7 +8581,7 @@ class LiftoffCompiler {
       // Compare against expected signature.
       // Since Liftoff code is never serialized (hence not reused across
       // isolates / processes) the canonical signature ID is a static integer.
-      uint32_t canonical_sig_id =
+      CanonicalTypeIndex canonical_sig_id =
           decoder->module_->canonical_sig_id(imm.sig_imm.index);
       Label* sig_mismatch_label =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
@@ -8597,7 +8597,7 @@ class LiftoffCompiler {
         Label success_label;
         FREEZE_STATE(frozen);
         __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id.gp_reg(),
-                               canonical_sig_id, frozen);
+                               canonical_sig_id.index, frozen);
         if (needs_null_check) {
           __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label,
                                  real_sig_id.gp_reg(), -1, frozen);
@@ -9411,8 +9411,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   base::Vector<const uint8_t> function_bytes =
       wire_bytes.GetFunctionBytes(function);
   CompilationEnv env = CompilationEnv::ForModule(native_module);
-  bool is_shared =
-      native_module->module()->types[function->sig_index].is_shared;
+  bool is_shared = native_module->module()->type(function->sig_index).is_shared;
   FunctionBody func_body{function->sig, 0, function_bytes.begin(),
                          function_bytes.end(), is_shared};
 

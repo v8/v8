@@ -46,7 +46,7 @@ ValueOrError EvaluateConstantExpression(
       uint32_t index = expr.index();
       const WasmModule* module = trusted_instance_data->module();
       bool function_is_shared =
-          module->types[module->functions[index].sig_index].is_shared;
+          module->type(module->functions[index].sig_index).is_shared;
       Handle<WasmFuncRef> value = WasmTrustedInstanceData::GetOrCreateFuncRef(
           isolate,
           function_is_shared ? shared_trusted_instance_data

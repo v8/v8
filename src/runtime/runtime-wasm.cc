@@ -553,13 +553,13 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   const wasm::WasmModule* module = trusted_data->module();
   const int function_index = function_data->function_index();
   const wasm::WasmFunction& function = module->functions[function_index];
-  const uint32_t canonical_sig_id =
+  const wasm::CanonicalTypeIndex canonical_sig_id =
       module->canonical_sig_id(function.sig_index);
   const wasm::FunctionSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
 
   Tagged<MaybeObject> maybe_cached_wrapper =
-      isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_id);
+      isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_id.index);
   Tagged<Code> wrapper_code;
   DCHECK(maybe_cached_wrapper.IsWeakOrCleared());
   if (!maybe_cached_wrapper.IsCleared()) {
@@ -578,8 +578,9 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
             isolate, sig, canonical_sig_id, module);
 
     // Compilation must have installed the wrapper into the cache.
-    DCHECK_EQ(MakeWeak(new_wrapper_code->wrapper()),
-              isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_id));
+    DCHECK_EQ(
+        MakeWeak(new_wrapper_code->wrapper()),
+        isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_id.index));
 
     // Reset raw pointers still needed outside the slow path.
     wrapper_code = *new_wrapper_code;
@@ -675,7 +676,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   const wasm::WasmModule* module = trusted_data->module();
 
   // Get the function's canonical signature index.
-  uint32_t canonical_sig_index = std::numeric_limits<uint32_t>::max();
+  wasm::CanonicalTypeIndex canonical_sig_index =
+      wasm::CanonicalTypeIndex::Invalid();
   if (WasmImportData::CallOriginIsImportIndex(origin)) {
     int func_index = WasmImportData::CallOriginAsIndex(origin);
     canonical_sig_index =

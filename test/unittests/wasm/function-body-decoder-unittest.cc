@@ -84,20 +84,20 @@ class TestModuleBuilder {
     CHECK_LE(mod.globals.size(), kMaxByteSizedLeb128);
     return static_cast<uint8_t>(mod.globals.size() - 1);
   }
-  uint8_t AddSignature(const FunctionSig* sig,
-                       uint32_t supertype = kNoSuperType) {
+  ModuleTypeIndex AddSignature(const FunctionSig* sig,
+                               uint32_t supertype = kNoSuperType) {
     const bool is_final = true;
     const bool is_shared = false;
     mod.AddSignatureForTesting(sig, supertype, is_final, is_shared);
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
-    return static_cast<uint8_t>(mod.types.size() - 1);
+    return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
   }
   uint8_t AddFunction(const FunctionSig* sig, bool declared = true) {
-    uint8_t sig_index = AddSignature(sig);
+    ModuleTypeIndex sig_index = AddSignature(sig);
     return AddFunctionImpl(sig, sig_index, declared);
   }
-  uint8_t AddFunction(uint32_t sig_index, bool declared = true) {
+  uint8_t AddFunction(ModuleTypeIndex sig_index, bool declared = true) {
     DCHECK(mod.has_signature(sig_index));
     return AddFunctionImpl(mod.types[sig_index].function_sig, sig_index,
                            declared);
@@ -127,8 +127,8 @@ class TestModuleBuilder {
     return static_cast<uint8_t>(mod.tables.size() - 1);
   }
 
-  uint8_t AddStruct(std::initializer_list<F> fields,
-                    uint32_t supertype = kNoSuperType) {
+  ModuleTypeIndex AddStruct(std::initializer_list<F> fields,
+                            uint32_t supertype = kNoSuperType) {
     StructType::Builder type_builder(&mod.signature_zone,
                                      static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
@@ -139,16 +139,16 @@ class TestModuleBuilder {
     mod.AddStructTypeForTesting(type_builder.Build(), supertype, is_final,
                                 is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
-    return static_cast<uint8_t>(mod.types.size() - 1);
+    return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
   }
 
-  uint8_t AddArray(ValueType type, bool mutability) {
+  ModuleTypeIndex AddArray(ValueType type, bool mutability) {
     ArrayType* array = mod.signature_zone.New<ArrayType>(type, mutability);
     const bool is_final = true;
     const bool is_shared = false;
     mod.AddArrayTypeForTesting(array, kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
-    return static_cast<uint8_t>(mod.types.size() - 1);
+    return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
   }
 
   uint8_t AddMemory(IndexType index_type = IndexType::kI32) {
@@ -191,7 +191,7 @@ class TestModuleBuilder {
   WasmModule* module() { return &mod; }
 
  private:
-  uint8_t AddFunctionImpl(const FunctionSig* sig, uint32_t sig_index,
+  uint8_t AddFunctionImpl(const FunctionSig* sig, ModuleTypeIndex sig_index,
                           bool declared) {
     mod.functions.push_back(
         {sig,                                          // sig
@@ -1121,7 +1121,7 @@ TEST_F(FunctionBodyDecoderTest, Unreachable_select2) {
 }
 
 TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
-  uint8_t sig_index = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_ii());
   uint8_t function_index = builder.AddFunction(sig_index);
   uint8_t struct_index =
       builder.AddStruct({F(kWasmI32, true), F(kWasmI64, true)});
@@ -1137,11 +1137,13 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprRefIsNull});
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprRefAsNonNull, kExprDrop});
 
-  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprCallRef, sig_index});
-  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, WASM_REF_FUNC(function_index),
-                               kExprCallRef, sig_index});
+  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprCallRef,
+                               static_cast<uint8_t>(sig_index.index)});
   ExpectValidates(sigs.i_v(),
-                  {WASM_UNREACHABLE, kExprReturnCallRef, sig_index});
+                  {WASM_UNREACHABLE, WASM_REF_FUNC(function_index),
+                   kExprCallRef, static_cast<uint8_t>(sig_index.index)});
+  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprReturnCallRef,
+                               static_cast<uint8_t>(sig_index.index)});
 
   ExpectValidates(sigs.v_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprStructNew), struct_index,
@@ -1950,7 +1952,8 @@ TEST_F(FunctionBodyDecoderTest, TablesWithFunctionSubtyping) {
   auto function_sig =
       FunctionSig::Build(zone(), {ValueType::RefNull(sub_struct)},
                          {ValueType::RefNull(super_struct)});
-  uint8_t function_type = builder.AddSignature(function_sig, table_type);
+  ModuleTypeIndex function_type =
+      builder.AddSignature(function_sig, table_type);
 
   uint8_t function = builder.AddFunction(function_type);
 
@@ -4256,46 +4259,37 @@ TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
 TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   WASM_FEATURE_SCOPE(exnref);
 
-  HeapType::Representation array_heap =
-      static_cast<HeapType::Representation>(builder.AddArray(kWasmI8, true));
-  HeapType::Representation super_struct_heap =
-      static_cast<HeapType::Representation>(
-          builder.AddStruct({F(kWasmI16, true)}));
+  HeapType array_heap = HeapType(builder.AddArray(kWasmI8, true));
+  HeapType super_struct_heap = HeapType(builder.AddStruct({F(kWasmI16, true)}));
 
-  HeapType::Representation sub_struct_heap =
-      static_cast<HeapType::Representation>(
-          builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}));
+  HeapType sub_struct_heap =
+      HeapType(builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}));
 
-  HeapType::Representation func_heap_1 =
-      static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_i()));
+  HeapType func_heap_1 = HeapType(builder.AddSignature(sigs.i_i()));
+  HeapType func_heap_2 = HeapType(builder.AddSignature(sigs.i_v()));
 
-  HeapType::Representation func_heap_2 =
-      static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_v()));
+  std::tuple<HeapType, HeapType, bool> tests[] = {
+      std::make_tuple(HeapType(HeapType::kArray), array_heap, true),
+      std::make_tuple(HeapType(HeapType::kStruct), super_struct_heap, true),
+      std::make_tuple(HeapType(HeapType::kFunc), func_heap_1, true),
+      std::make_tuple(func_heap_1, func_heap_1, true),
+      std::make_tuple(func_heap_1, func_heap_2, true),
+      std::make_tuple(super_struct_heap, sub_struct_heap, true),
+      std::make_tuple(array_heap, sub_struct_heap, true),
+      std::make_tuple(super_struct_heap, func_heap_1, false),
+      std::make_tuple(HeapType(HeapType::kEq), super_struct_heap, true),
+      std::make_tuple(HeapType(HeapType::kExtern), func_heap_1, false),
+      std::make_tuple(HeapType(HeapType::kAny), array_heap, true),
+      std::make_tuple(HeapType(HeapType::kI31), array_heap, true),
+      std::make_tuple(HeapType(HeapType::kNone), array_heap, true),
+      std::make_tuple(HeapType(HeapType::kNone), func_heap_1, false),
+      std::make_tuple(HeapType(HeapType::kExn), HeapType(HeapType::kExtern),
+                      false),
+      std::make_tuple(HeapType(HeapType::kExn), HeapType(HeapType::kAny),
+                      false),
+  };
 
-  std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
-      {
-          std::make_tuple(HeapType::kArray, array_heap, true),
-          std::make_tuple(HeapType::kStruct, super_struct_heap, true),
-          std::make_tuple(HeapType::kFunc, func_heap_1, true),
-          std::make_tuple(func_heap_1, func_heap_1, true),
-          std::make_tuple(func_heap_1, func_heap_2, true),
-          std::make_tuple(super_struct_heap, sub_struct_heap, true),
-          std::make_tuple(array_heap, sub_struct_heap, true),
-          std::make_tuple(super_struct_heap, func_heap_1, false),
-          std::make_tuple(HeapType::kEq, super_struct_heap, true),
-          std::make_tuple(HeapType::kExtern, func_heap_1, false),
-          std::make_tuple(HeapType::kAny, array_heap, true),
-          std::make_tuple(HeapType::kI31, array_heap, true),
-          std::make_tuple(HeapType::kNone, array_heap, true),
-          std::make_tuple(HeapType::kNone, func_heap_1, false),
-          std::make_tuple(HeapType::kExn, HeapType::kExtern, false),
-          std::make_tuple(HeapType::kExn, HeapType::kAny, false),
-      };
-
-  for (auto test : tests) {
-    HeapType from_heap = HeapType(std::get<0>(test));
-    HeapType to_heap = HeapType(std::get<1>(test));
-    bool should_pass = std::get<2>(test);
+  for (auto [from_heap, to_heap, should_pass] : tests) {
     SCOPED_TRACE("from_heap = " + from_heap.name() +
                  ", to_heap = " + to_heap.name());
 
@@ -4342,16 +4336,18 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   }
 
   // Trivial type error.
-  ExpectFailure(sigs.v_v(),
-                {WASM_REF_TEST(WASM_I32V(1), array_heap), kExprDrop},
-                kAppendEnd,
-                "Invalid types for ref.test: i32.const of type i32 has to be "
-                "in the same reference type hierarchy as (ref 0)");
-  ExpectFailure(sigs.v_v(),
-                {WASM_REF_CAST(WASM_I32V(1), array_heap), kExprDrop},
-                kAppendEnd,
-                "Invalid types for ref.cast: i32.const of type i32 has to be "
-                "in the same reference type hierarchy as (ref 0)");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_TEST(WASM_I32V(1), array_heap.representation()), kExprDrop},
+      kAppendEnd,
+      "Invalid types for ref.test: i32.const of type i32 has to be "
+      "in the same reference type hierarchy as (ref 0)");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_CAST(WASM_I32V(1), array_heap.representation()), kExprDrop},
+      kAppendEnd,
+      "Invalid types for ref.cast: i32.const of type i32 has to be "
+      "in the same reference type hierarchy as (ref 0)");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {

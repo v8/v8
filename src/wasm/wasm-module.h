@@ -77,7 +77,7 @@ class WireBytesRef {
 struct WasmFunction {
   const FunctionSig* sig = nullptr;  // signature of the function.
   uint32_t func_index = 0;           // index into the function table.
-  uint32_t sig_index = 0;            // index into the signature table.
+  ModuleTypeIndex sig_index{0};      // index into the signature table.
   // TODO(clemensb): Should we add canonical_sig_id and canonical_sig?
   WireBytesRef code = {};            // code of this function.
   bool imported = false;
@@ -108,12 +108,12 @@ using WasmTagSig = FunctionSig;
 
 // Static representation of a wasm tag type.
 struct WasmTag {
-  explicit WasmTag(const WasmTagSig* sig, uint32_t sig_index)
+  explicit WasmTag(const WasmTagSig* sig, ModuleTypeIndex sig_index)
       : sig(sig), sig_index(sig_index) {}
   const FunctionSig* ToFunctionSig() const { return sig; }
 
   const WasmTagSig* sig;  // type signature of the tag.
-  uint32_t sig_index;
+  ModuleTypeIndex sig_index;
 };
 
 enum ModuleOrigin : uint8_t {
@@ -454,21 +454,21 @@ struct TypeDefinition {
   constexpr TypeDefinition(const FunctionSig* sig, uint32_t supertype,
                            bool is_final, bool is_shared)
       : function_sig(sig),
-        supertype(supertype),
+        supertype{supertype},
         kind(kFunction),
         is_final(is_final),
         is_shared(is_shared) {}
   constexpr TypeDefinition(const StructType* type, uint32_t supertype,
                            bool is_final, bool is_shared)
       : struct_type(type),
-        supertype(supertype),
+        supertype{supertype},
         kind(kStruct),
         is_final(is_final),
         is_shared(is_shared) {}
   constexpr TypeDefinition(const ArrayType* type, uint32_t supertype,
                            bool is_final, bool is_shared)
       : array_type(type),
-        supertype(supertype),
+        supertype{supertype},
         kind(kArray),
         is_final(is_final),
         is_shared(is_shared) {}
@@ -494,7 +494,7 @@ struct TypeDefinition {
     const StructType* struct_type;
     const ArrayType* array_type;
   };
-  uint32_t supertype = kNoSuperType;
+  ModuleTypeIndex supertype{kNoSuperType};
   Kind kind = kFunction;
   bool is_final = false;
   bool is_shared = false;
@@ -782,6 +782,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ================ Accessors ================================================
   bool has_type(uint32_t index) const { return index < types.size(); }
 
+  TypeDefinition type(ModuleTypeIndex index) const {
+    size_t num_types = types.size();
+    V8_ASSUME(index.index < num_types);
+    return types[index.index];
+  }
+
   bool has_signature(uint32_t index) const {
     return index < types.size() &&
            types[index].kind == TypeDefinition::kFunction;
@@ -793,7 +799,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return types[index].function_sig;
   }
 
-  uint32_t canonical_sig_id(uint32_t index) const {
+  CanonicalTypeIndex canonical_sig_id(uint32_t index) const {
     DCHECK(has_signature(index));
     size_t num_types = isorecursive_canonical_type_ids.size();
     V8_ASSUME(index < num_types);
@@ -821,14 +827,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return types[index].array_type;
   }
 
-  uint32_t supertype(uint32_t index) const {
+  ModuleTypeIndex supertype(uint32_t index) const {
     size_t num_types = types.size();
     V8_ASSUME(index < num_types);
     return types[index].supertype;
   }
-  bool has_supertype(uint32_t index) const {
-    return supertype(index) != kNoSuperType;
-  }
+  bool has_supertype(uint32_t index) const { return supertype(index).valid(); }
 
   // Linear search. Returns -1 if types are empty.
   int MaxCanonicalTypeIndex() const {
@@ -838,7 +842,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   }
 
   bool function_is_shared(int func_index) const {
-    return types[functions[func_index].sig_index].is_shared;
+    return type(functions[func_index].sig_index).is_shared;
   }
 
   bool function_was_validated(int func_index) const {

@@ -133,15 +133,16 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   // If the type with {type_index} has an explicit supertype, make sure the
   // map for that supertype is created first, so that the supertypes list
   // that's cached on every RTT can be set up correctly.
-  uint32_t supertype = module->supertype(type_index);
-  if (supertype != kNoSuperType) {
+  ModuleTypeIndex supertype = module->supertype(type_index);
+  if (supertype.valid()) {
     // This recursion is safe, because kV8MaxRttSubtypingDepth limits the
     // number of recursive steps, so we won't overflow the stack.
     CreateMapForType(isolate, module, supertype, trusted_data, instance,
                      maybe_shared_maps);
     // We look up the supertype in {maybe_shared_maps} as a shared type can only
     // inherit from a shared type and vice verca.
-    rtt_parent = handle(Cast<Map>(maybe_shared_maps->get(supertype)), isolate);
+    rtt_parent =
+        handle(Cast<Map>(maybe_shared_maps->get(supertype.index)), isolate);
   }
   DirectHandle<Map> map;
   switch (module->types[type_index].kind) {
@@ -1492,7 +1493,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     if (start_function_.is_null()) {
       // TODO(clemensb): Don't generate an exported function for the start
       // function. Use CWasmEntry instead.
-      bool function_is_shared = module_->types[function.sig_index].is_shared;
+      bool function_is_shared = module_->type(function.sig_index).is_shared;
       DirectHandle<WasmFuncRef> func_ref =
           WasmTrustedInstanceData::GetOrCreateFuncRef(
               isolate_, function_is_shared ? shared_trusted_data : trusted_data,
@@ -1869,8 +1870,8 @@ bool InstanceBuilder::ProcessImportedFunction(
         func_index, Cast<WasmExternalFunction>(*value)->func_ref());
   }
   auto js_receiver = Cast<JSReceiver>(value);
-  uint32_t sig_index = module_->functions[func_index].sig_index;
-  uint32_t canonical_sig_index = module_->canonical_sig_id(sig_index);
+  ModuleTypeIndex sig_index = module_->functions[func_index].sig_index;
+  CanonicalTypeIndex canonical_sig_index = module_->canonical_sig_id(sig_index);
   const FunctionSig* expected_sig =
       GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_index);
   ResolvedWasmImport resolved(trusted_instance_data, func_index, js_receiver,
@@ -1918,7 +1919,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       NativeModule* native_module = trusted_instance_data->native_module();
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-      uint32_t canonical_sig_id =
+      CanonicalTypeIndex canonical_sig_id =
           module_->canonical_sig_id(module_->functions[func_index].sig_index);
       WasmCodeRefScope code_ref_scope;
       WasmCode* wasm_code =
@@ -2000,7 +2001,7 @@ bool InstanceBuilder::ProcessImportedFunction(
             shared->internal_formal_parameter_count_without_receiver();
       }
 
-      uint32_t canonical_sig_id =
+      CanonicalTypeIndex canonical_sig_id =
           module_->canonical_sig_id(module_->functions[func_index].sig_index);
       WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
       WasmCodeRefScope code_ref_scope;
@@ -2091,7 +2092,7 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
       implicit_arg = new_import_data;
     }
 
-    uint32_t canonical_sig_index =
+    CanonicalTypeIndex canonical_sig_index =
         target_module->canonical_sig_id(function.sig_index);
 #if !V8_ENABLE_DRUMBRAKE
     SBXCHECK(FunctionSigMatchesTable(
@@ -2381,8 +2382,8 @@ int InstanceBuilder::ProcessImports(
       case kExternalFunction: {
         uint32_t func_index = import.index;
         DCHECK_EQ(num_imported_functions, func_index);
-        uint32_t sig_index = module_->functions[func_index].sig_index;
-        bool function_is_shared = module_->types[sig_index].is_shared;
+        ModuleTypeIndex sig_index = module_->functions[func_index].sig_index;
+        bool function_is_shared = module_->type(sig_index).is_shared;
         if (!ProcessImportedFunction(
                 function_is_shared ? shared_trusted_instance_data
                                    : trusted_instance_data,
@@ -2757,7 +2758,7 @@ void InstanceBuilder::ProcessExports(
               Cast<HeapObject>(
                   trusted_instance_data->tags_table()->get(exp.index)),
               isolate_);
-          uint32_t canonical_sig_index =
+          CanonicalTypeIndex canonical_sig_index =
               module_->canonical_sig_id(tag.sig_index);
           // TODO(42204563): Support shared tags.
           wrapper = WasmTagObject::New(isolate_, tag.sig, canonical_sig_index,

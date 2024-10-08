@@ -1391,7 +1391,7 @@ class MjsunitModuleDis {
         out_ << "undefined";
       }
       out_ << ", ";
-      out_ << "$sig" << func.sig_index;
+      out_ << "$sig" << func.sig_index.index;
       out_ << ")";
       if (func.exported && !export_functions_late) {
         for (const WasmExport& ex : module_->export_table) {
@@ -1598,7 +1598,7 @@ class MjsunitModuleDis {
           wire_bytes_.GetFunctionBytes(&func);
 
       // Locals and body.
-      bool shared = module_->types[func.sig_index].is_shared;
+      bool shared = module_->type(func.sig_index).is_shared;
       WasmDetectedFeatures detected;
       MjsunitFunctionDis d(&zone_, module_, index, shared, &detected, func.sig,
                            func_code.begin(), func_code.end(),

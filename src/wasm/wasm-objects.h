@@ -828,13 +828,14 @@ class WasmDispatchTable : public TrustedObject {
   // Smi::zero() (if the entry was cleared).
   inline Tagged<Object> implicit_arg(int index) const;
   inline WasmCodePointer target(int index) const;
-  inline int sig(int index) const;
+  inline wasm::CanonicalTypeIndex sig(int index) const;
 
   // Set an entry for indirect calls.
   // {implicit_arg} has to be a WasmImportData, a WasmTrustedInstanceData, or
   // Smi::zero().
   void V8_EXPORT_PRIVATE Set(int index, Tagged<Object> implicit_arg,
-                             WasmCodePointer call_target, int sig_id
+                             WasmCodePointer call_target,
+                             wasm::CanonicalTypeIndex sig_id
 #if V8_ENABLE_DRUMBRAKE
                              ,
                              uint32_t function_index

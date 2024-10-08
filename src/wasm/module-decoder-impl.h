@@ -614,7 +614,7 @@ class ModuleDecoderImpl : public Decoder {
         }
       }
       TypeDefinition type = consume_base_type_definition();
-      type.supertype = supertype;
+      type.supertype = ModuleTypeIndex{supertype};
       type.is_final = is_final;
       return type;
     } else {
@@ -681,17 +681,17 @@ class ModuleDecoderImpl : public Decoder {
     // depth.
     const WasmModule* module = module_.get();
     for (uint32_t i = 0; ok() && i < module_->types.size(); ++i) {
-      uint32_t explicit_super = module_->supertype(i);
-      if (explicit_super == kNoSuperType) continue;
-      if (explicit_super >= module_->types.size()) {
+      ModuleTypeIndex explicit_super = module_->supertype(i);
+      if (!explicit_super.valid()) continue;
+      if (explicit_super.index >= module_->types.size()) {
         errorf("type %u: supertype %u out of bounds", i, explicit_super);
         continue;
       }
-      if (explicit_super >= i) {
+      if (explicit_super.index >= i) {
         errorf("type %u: forward-declared supertype %u", i, explicit_super);
         continue;
       }
-      uint32_t depth = module->types[explicit_super].subtyping_depth + 1;
+      uint32_t depth = module->type(explicit_super).subtyping_depth + 1;
       module_->types[i].subtyping_depth = depth;
       DCHECK_GE(depth, 0);
       if (depth > kV8MaxRttSubtypingDepth) {
@@ -700,12 +700,13 @@ class ModuleDecoderImpl : public Decoder {
       }
       // This check is technically redundant; we include for the improved error
       // message.
-      if (module->types[explicit_super].is_final) {
-        errorf("type %u extends final type %u", i, explicit_super);
+      if (module->type(explicit_super).is_final) {
+        errorf("type %u extends final type %u", i, explicit_super.index);
         continue;
       }
       if (!ValidSubtypeDefinition(i, explicit_super, module, module)) {
-        errorf("type %u has invalid explicit supertype %u", i, explicit_super);
+        errorf("type %u has invalid explicit supertype %u", i,
+               explicit_super.index);
         continue;
       }
     }
@@ -830,7 +831,8 @@ class ModuleDecoderImpl : public Decoder {
           module_->num_imported_tags++;
           const WasmTagSig* tag_sig = nullptr;
           consume_exception_attribute();  // Attribute ignored for now.
-          uint32_t sig_index = consume_tag_sig_index(module_.get(), &tag_sig);
+          ModuleTypeIndex sig_index =
+              consume_tag_sig_index(module_.get(), &tag_sig);
           module_->tags.emplace_back(tag_sig, sig_index);
           break;
         }
@@ -1600,7 +1602,8 @@ class ModuleDecoderImpl : public Decoder {
       if (tracer_) tracer_->TagOffset(pc_offset());
       const WasmTagSig* tag_sig = nullptr;
       consume_exception_attribute();  // Attribute ignored for now.
-      uint32_t sig_index = consume_tag_sig_index(module_.get(), &tag_sig);
+      ModuleTypeIndex sig_index =
+          consume_tag_sig_index(module_.get(), &tag_sig);
       module_->tags.emplace_back(tag_sig, sig_index);
     }
   }
@@ -1812,15 +1815,16 @@ class ModuleDecoderImpl : public Decoder {
     module->tagged_globals_buffer_size = tagged_offset;
   }
 
-  uint32_t consume_sig_index(WasmModule* module, const FunctionSig** sig) {
+  ModuleTypeIndex consume_sig_index(WasmModule* module,
+                                    const FunctionSig** sig) {
     const uint8_t* pos = pc_;
-    uint32_t sig_index = consume_u32v("signature index");
+    ModuleTypeIndex sig_index{consume_u32v("signature index")};
     if (tracer_) tracer_->Bytes(pos, static_cast<uint32_t>(pc_ - pos));
     if (!module->has_signature(sig_index)) {
       errorf(pos, "no signature at index %u (%d types)", sig_index,
              static_cast<int>(module->types.size()));
       *sig = nullptr;
-      return 0;
+      return {};
     }
     *sig = module->signature(sig_index);
     if (tracer_) {
@@ -1830,13 +1834,14 @@ class ModuleDecoderImpl : public Decoder {
     return sig_index;
   }
 
-  uint32_t consume_tag_sig_index(WasmModule* module, const FunctionSig** sig) {
+  ModuleTypeIndex consume_tag_sig_index(WasmModule* module,
+                                        const FunctionSig** sig) {
     const uint8_t* pos = pc_;
-    uint32_t sig_index = consume_sig_index(module, sig);
+    ModuleTypeIndex sig_index = consume_sig_index(module, sig);
     if (*sig && (*sig)->return_count() != 0) {
       errorf(pos, "tag signature %u has non-void return", sig_index);
       *sig = nullptr;
-      return 0;
+      return {};
     }
     return sig_index;
   }

@@ -2632,7 +2632,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   TestSignatures sigs;
 
   WasmFunctionCompiler& f_ind_fn = r.NewFunction(sigs.i_iii(), "f_ind");
-  uint32_t sig_index = r.builder().AddSignature(sigs.i_iii());
+  ModuleTypeIndex sig_index = r.builder().AddSignature(sigs.i_iii());
   f_ind_fn.SetSigIndex(sig_index);
 
   // Function table.
@@ -3050,11 +3050,11 @@ WASM_EXEC_TEST(SimpleCallIndirect) {
 
   WasmFunctionCompiler& t1 = r.NewFunction(sigs.i_ii());
   t1.Build({WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t1.SetSigIndex(1);
+  t1.SetSigIndex(ModuleTypeIndex{1});
 
   WasmFunctionCompiler& t2 = r.NewFunction(sigs.i_ii());
   t2.Build({WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t2.SetSigIndex(1);
+  t2.SetSigIndex(ModuleTypeIndex{1});
 
   // Signature table.
   r.builder().AddSignature(sigs.f_ff());
@@ -3083,11 +3083,11 @@ WASM_EXEC_TEST(MultipleCallIndirect) {
 
   WasmFunctionCompiler& t1 = r.NewFunction(sigs.i_ii());
   t1.Build({WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t1.SetSigIndex(1);
+  t1.SetSigIndex(ModuleTypeIndex{1});
 
   WasmFunctionCompiler& t2 = r.NewFunction(sigs.i_ii());
   t2.Build({WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t2.SetSigIndex(1);
+  t2.SetSigIndex(ModuleTypeIndex{1});
 
   // Signature table.
   r.builder().AddSignature(sigs.f_ff());
@@ -3126,7 +3126,7 @@ WASM_EXEC_TEST(CallIndirect_EmptyTable) {
   // One function.
   WasmFunctionCompiler& t1 = r.NewFunction(sigs.i_ii());
   t1.Build({WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
-  t1.SetSigIndex(1);
+  t1.SetSigIndex(ModuleTypeIndex{1});
 
   // Signature table.
   r.builder().AddSignature(sigs.f_ff());
@@ -3652,7 +3652,7 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
 WASM_EXEC_TEST(IndirectNull) {
   WasmRunner<int32_t> r(execution_tier);
   FunctionSig sig(1, 0, &kWasmI32);
-  uint8_t sig_index = r.builder().AddSignature(&sig);
+  ModuleTypeIndex sig_index = r.builder().AddSignature(&sig);
   r.builder().AddIndirectFunctionTable(nullptr, 1);
 
   r.Build({WASM_CALL_INDIRECT(sig_index, WASM_I32V(0))});
@@ -3663,9 +3663,9 @@ WASM_EXEC_TEST(IndirectNull) {
 WASM_EXEC_TEST(IndirectNullTyped) {
   WasmRunner<int32_t> r(execution_tier);
   FunctionSig sig(1, 0, &kWasmI32);
-  uint8_t sig_index = r.builder().AddSignature(&sig);
+  ModuleTypeIndex sig_index = r.builder().AddSignature(&sig);
   r.builder().AddIndirectFunctionTable(nullptr, 1,
-                                       ValueType::RefNull(sig_index));
+                                       ModuleValueType::RefNull(sig_index));
 
   r.Build({WASM_CALL_INDIRECT(sig_index, WASM_I32V(0))});
 

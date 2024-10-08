@@ -215,7 +215,7 @@ void WasmInliner::Finalize() {
     base::Vector<const uint8_t> function_bytes =
         data_.wire_bytes_storage->GetCode(inlinee->code);
 
-    bool is_shared = module()->types[inlinee->sig_index].is_shared;
+    bool is_shared = module()->type(inlinee->sig_index).is_shared;
 
     const wasm::FunctionBody inlinee_body{inlinee->sig, inlinee->code.offset(),
                                           function_bytes.begin(),

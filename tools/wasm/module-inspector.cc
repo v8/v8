@@ -592,7 +592,7 @@ class HexDumpModuleDis : public ITracer {
     uint32_t offset = pc_offset();
     const WasmModule* module = module_;
     if (!module) module = decoder_->shared_module().get();
-    bool shared = module->types[func->sig_index].is_shared;
+    bool shared = module->type(func->sig_index).is_shared;
     ExtendedFunctionDis d(&zone_, module, func->func_index, shared, &detected,
                           func->sig, start, end, offset, wire_bytes_, names_);
     d.HexDump(out_, FunctionBodyDisassembler::kSkipHeader);
@@ -862,9 +862,9 @@ class FormatConverter {
 
     for (uint32_t i = 0; i < num_functions; i++) {
       const WasmFunction& f = m->functions[i];
-      sig_uses[f.sig_index]++;
+      sig_uses[f.sig_index.index]++;
       if (f.exported) {
-        export_sig_uses[f.sig_index]++;
+        export_sig_uses[f.sig_index.index]++;
       }
     }
 
@@ -923,7 +923,7 @@ class FormatConverter {
     for (uint32_t i = module()->num_imported_functions;
          i < module()->functions.size(); i++) {
       const WasmFunction* func = &module()->functions[i];
-      bool shared = module()->types[func->sig_index].is_shared;
+      bool shared = module()->type(func->sig_index).is_shared;
       WasmDetectedFeatures detected;
       base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
       ExtendedFunctionDis d(&zone, module(), i, shared, &detected, func->sig,
@@ -959,7 +959,7 @@ class FormatConverter {
     }
     const WasmFunction* func = &module()->functions[func_index];
     Zone zone(&allocator_, "disassembler");
-    bool shared = module()->types[func->sig_index].is_shared;
+    bool shared = module()->type(func->sig_index).is_shared;
     WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
 

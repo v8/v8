@@ -249,7 +249,8 @@ void WasmGCTypeAnalyzer::ProcessGlobalGet(const GlobalGetOp& global_get) {
 }
 
 void WasmGCTypeAnalyzer::ProcessRefFunc(const WasmRefFuncOp& ref_func) {
-  uint32_t sig_index = module_->functions[ref_func.function_index].sig_index;
+  wasm::ModuleTypeIndex sig_index =
+      module_->functions[ref_func.function_index].sig_index;
   RefineTypeKnowledge(graph_.Index(ref_func), wasm::ValueType::Ref(sig_index));
 }
 

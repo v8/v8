@@ -1162,7 +1162,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
 
   // TODO(42204563): Support shared-everything proposal (at some point, or
   // possibly never).
-  bool is_shared = module->types[func.sig_index].is_shared;
+  bool is_shared = module->type(func.sig_index).is_shared;
   if (is_shared) {
     TRACE("- not inlining: shared everything is not supported");
     return OpIndex::Invalid();

@@ -211,7 +211,7 @@ class WasmGCTester {
 
   const FunctionSig* LookupCanonicalSigFor(uint32_t function_index) const {
     auto* module = instance_object_->module();
-    uint32_t canonical_sig_id =
+    CanonicalTypeIndex canonical_sig_id =
         module->canonical_sig_id(module->functions[function_index].sig_index);
     return GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
   }

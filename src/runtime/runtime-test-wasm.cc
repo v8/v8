@@ -684,7 +684,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
     Zone validation_zone(isolate->allocator(), ZONE_NAME);
     wasm::WasmDetectedFeatures unused_detected_features;
     const wasm::WasmFunction* func = &module->functions[func_index];
-    bool is_shared = module->types[func->sig_index].is_shared;
+    bool is_shared = module->type(func->sig_index).is_shared;
     base::Vector<const uint8_t> wire_bytes =
         trusted_data->native_module()->wire_bytes();
     wasm::FunctionBody body{func->sig, func->code.offset(),

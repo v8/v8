@@ -192,13 +192,13 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     test_module_->type_feedback.well_known_imports.Initialize(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
-  test_module_->functions.push_back({sig,      // sig
-                                     index,    // func_index
-                                     0,        // sig_index
-                                     {0, 0},   // code
-                                     false,    // imported
-                                     false,    // exported
-                                     false});  // declared
+  test_module_->functions.push_back({sig,                 // sig
+                                     index,               // func_index
+                                     ModuleTypeIndex{0},  // sig_index
+                                     {0, 0},              // code
+                                     false,               // imported
+                                     false,               // exported
+                                     false});             // declared
   if (type == kImport) {
     DCHECK_EQ(0, test_module_->num_declared_functions);
     ++test_module_->num_imported_functions;
@@ -297,7 +297,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   if (function_indexes) {
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
-      int sig_id = test_module_->canonical_sig_id(function.sig_index);
+      CanonicalTypeIndex sig_id =
+          test_module_->canonical_sig_id(function.sig_index);
       FunctionTargetAndImplicitArg entry(isolate_, trusted_instance_data_,
                                          function.func_index);
 #if !V8_ENABLE_DRUMBRAKE

@@ -2168,7 +2168,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
       data->instance_data(), i_isolate};
   int func_index = data->function_index();
   const i::wasm::WasmModule* module = trusted_instance_data->module();
-  int sig_index = module->functions[func_index].sig_index;
+  i::wasm::ModuleTypeIndex sig_index = module->functions[func_index].sig_index;
   const i::wasm::FunctionSig* sig = module->signature(sig_index);
   i::DirectHandle<i::Code> wrapper;
   if (!internal::wasm::IsJSCompatibleSignature(sig)) {

@@ -565,7 +565,7 @@ uint32_t NativeModuleSerializer::CanonicalSigIdToModuleLocalTypeId(
     for (uint32_t local_id = 0; local_id < num_types; ++local_id) {
       // Only add function signatures.
       if (!module->has_signature(local_id)) continue;
-      uint32_t canonical_id = module->canonical_sig_id(local_id);
+      CanonicalTypeIndex canonical_id = module->canonical_sig_id(local_id);
       // Try to emplace, skip if an entry exists already. It does not matter
       // which local type ID we use if multiple types got canonicalized to the
       // same ID.
@@ -977,7 +977,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
       }
       case RelocInfo::WASM_CANONICAL_SIG_ID: {
         uint32_t module_local_sig_id = iter.rinfo()->wasm_canonical_sig_id();
-        uint32_t canonical_sig_id =
+        CanonicalTypeIndex canonical_sig_id =
             native_module_->module()->canonical_sig_id(module_local_sig_id);
         iter.rinfo()->set_wasm_canonical_sig_id(canonical_sig_id);
       } break;

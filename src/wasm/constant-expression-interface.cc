@@ -120,8 +120,8 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
     return;
   }
   if (!generate_value()) return;
-  uint32_t sig_index = module_->functions[function_index].sig_index;
-  bool function_is_shared = module_->types[sig_index].is_shared;
+  ModuleTypeIndex sig_index = module_->functions[function_index].sig_index;
+  bool function_is_shared = module_->type(sig_index).is_shared;
   ValueType type = ValueType::Ref(module_->functions[function_index].sig_index);
   Handle<WasmFuncRef> func_ref = WasmTrustedInstanceData::GetOrCreateFuncRef(
       isolate_,

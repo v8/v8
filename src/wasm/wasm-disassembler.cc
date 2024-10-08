@@ -74,7 +74,7 @@ void DisassembleFunctionImpl(const WasmModule* module, int func_index,
   const wasm::WasmFunction& func = module->functions[func_index];
   AccountingAllocator allocator;
   Zone zone(&allocator, "Wasm disassembler");
-  bool shared = module->types[func.sig_index].is_shared;
+  bool shared = module->type(func.sig_index).is_shared;
   WasmDetectedFeatures detected;
   FunctionBodyDisassembler d(&zone, module, func_index, shared, &detected,
                              func.sig, function_body.begin(),
@@ -1051,7 +1051,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     if (func->exported) PrintExportName(kExternalFunction, i);
     PrintSignatureOneLine(out_, func->sig, i, names_, true, kIndicesAsComments);
     out_.NextLine(func->code.offset());
-    bool shared = module_->types[func->sig_index].is_shared;
+    bool shared = module_->type(func->sig_index).is_shared;
     WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
     FunctionBodyDisassembler d(&zone_, module_, i, shared, &detected, func->sig,

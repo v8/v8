@@ -1094,8 +1094,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    uint32_t sig_index = decoder->module_->functions[function_index].sig_index;
-    bool shared = decoder->module_->types[sig_index].is_shared;
+    ModuleTypeIndex sig_index =
+        decoder->module_->functions[function_index].sig_index;
+    bool shared = decoder->module_->type(sig_index).is_shared;
     result->op = __ WasmRefFunc(trusted_instance_data(shared), function_index);
   }
 
@@ -3019,9 +3020,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           continue;
         }
         uint32_t inlined_index = tree->function_index();
-        uint32_t sig_index =
+        ModuleTypeIndex sig_index =
             decoder->module_->functions[inlined_index].sig_index;
-        bool shared = decoder->module_->types[sig_index].is_shared;
+        bool shared = decoder->module_->type(sig_index).is_shared;
         V<Object> inlined_func_ref = __ LoadFixedArrayElement(
             shared ? shared_func_refs : maybe_shared_func_refs, inlined_index);
 
@@ -3150,9 +3151,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           continue;
         }
         uint32_t inlined_index = tree->function_index();
-        uint32_t sig_index =
+        ModuleTypeIndex sig_index =
             decoder->module_->functions[inlined_index].sig_index;
-        bool shared = decoder->module_->types[sig_index].is_shared;
+        bool shared = decoder->module_->type(sig_index).is_shared;
         V<Object> inlined_func_ref = __ LoadFixedArrayElement(
             shared ? shared_func_refs : maybe_shared_func_refs, inlined_index);
 
@@ -7182,8 +7183,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   std::pair<V<WordPtr>, V<HeapObject>>
   BuildImportedFunctionTargetAndImplicitArg(FullDecoder* decoder,
                                             uint32_t function_index) {
-    uint32_t sig_index = decoder->module_->functions[function_index].sig_index;
-    bool shared = decoder->module_->types[sig_index].is_shared;
+    ModuleTypeIndex sig_index =
+        decoder->module_->functions[function_index].sig_index;
+    bool shared = decoder->module_->type(sig_index).is_shared;
     return WasmGraphBuilderBase::BuildImportedFunctionTargetAndImplicitArg(
         function_index, trusted_instance_data(shared));
   }
@@ -7230,7 +7232,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     /* Step 3: Check the canonical real signature against the canonical declared
      * signature. */
-    uint32_t sig_index = imm.sig_imm.index;
+    // TODO(366180605): Consider introducing a {SigIndexImmediate} so we don't
+    // need the type conversion here.
+    ModuleTypeIndex sig_index{imm.sig_imm.index};
     bool needs_type_check =
         needs_type_or_null_check &&
         !EquivalentTypes(table->type.AsNonNull(), ValueType::Ref(sig_index),
@@ -7243,7 +7247,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         WasmDispatchTable::kEntriesOffset);
 
     if (needs_type_check) {
-      uint32_t canonical_sig_id = env_->module->canonical_sig_id(sig_index);
+      CanonicalTypeIndex canonical_sig_id =
+          env_->module->canonical_sig_id(sig_index);
       V<Word32> expected_canonical_sig =
           __ RelocatableWasmCanonicalSignatureId(canonical_sig_id);
 
@@ -7252,7 +7257,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                   LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
                   WasmDispatchTable::kSigBias);
       V<Word32> sigs_match = __ Word32Equal(expected_canonical_sig, loaded_sig);
-      if (!decoder->module_->types[sig_index].is_final) {
+      if (!decoder->module_->type(sig_index).is_final) {
         // In this case, a full type check is needed.
         Label<> end(&asm_);
 
@@ -7264,7 +7269,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           __ TrapIf(__ Word32Equal(loaded_sig, -1),
                     TrapId::kTrapFuncSigMismatch);
         }
-        bool shared = decoder->module_->types[sig_index].is_shared;
+        bool shared = decoder->module_->type(sig_index).is_shared;
         V<Map> formal_rtt = __ RttCanon(managed_object_maps(shared), sig_index);
         int rtt_depth = GetSubtypingDepth(decoder->module_, sig_index);
         DCHECK_GE(rtt_depth, 0);
