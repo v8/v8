@@ -1076,8 +1076,7 @@ TEST_F(WasmModuleVerifyTest, NoSupertypeSupertype) {
               0xff, 0xff, 0xff, 0xff, 0x0f,  // supertype = "kNoSuperType"
               kWasmArrayTypeCode, kI32Code, 0)};
 
-  EXPECT_FAILURE_WITH_MSG(
-      no_supertype, "is greater than the maximum number of type definitions");
+  EXPECT_FAILURE_WITH_MSG(no_supertype, "type 0: invalid supertype 4294967295");
 }
 
 TEST_F(WasmModuleVerifyTest, NonSpecifiedFinalType) {
@@ -3419,7 +3418,7 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsSupertype) {
               kWasmSubtypeCode, ENTRY_COUNT(1), 1,
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
-  EXPECT_NOT_OK(result, "type 0: supertype 1 out of bounds");
+  EXPECT_NOT_OK(result, "type 0: invalid supertype 1");
 }
 
 TEST_F(WasmModuleVerifyTest, ForwardSupertypeSameType) {
@@ -3428,7 +3427,7 @@ TEST_F(WasmModuleVerifyTest, ForwardSupertypeSameType) {
               kWasmSubtypeCode, ENTRY_COUNT(1), 0,
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
-  EXPECT_NOT_OK(result, "type 0: forward-declared supertype 0");
+  EXPECT_NOT_OK(result, "type 0: invalid supertype 0");
 }
 
 TEST_F(WasmModuleVerifyTest, ForwardSupertypeSameRecGroup) {
@@ -3438,7 +3437,7 @@ TEST_F(WasmModuleVerifyTest, ForwardSupertypeSameRecGroup) {
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
-  EXPECT_NOT_OK(result, "type 0: forward-declared supertype 0");
+  EXPECT_NOT_OK(result, "type 0: invalid supertype 0");
 }
 
 TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {

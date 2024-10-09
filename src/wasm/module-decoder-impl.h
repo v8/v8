@@ -588,7 +588,9 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  TypeDefinition consume_subtype_definition() {
+  // {current_type_index} is the index of the type that's being decoded.
+  // Any supertype must have a lower index.
+  TypeDefinition consume_subtype_definition(size_t current_type_index) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmSubtypeCode || kind == kWasmSubtypeFinalCode) {
       module_->is_wasm_gc = true;
@@ -601,11 +603,9 @@ class ModuleDecoderImpl : public Decoder {
       uint32_t supertype = kNoSuperType;
       if (supertype_count == 1) {
         supertype = consume_u32v("supertype", tracer_);
-        if (supertype >= kV8MaxWasmTypes) {
-          errorf(
-              "supertype %u is greater than the maximum number of type "
-              "definitions %zu supported by V8",
-              supertype, kV8MaxWasmTypes);
+        if (supertype >= current_type_index) {
+          errorf("type %u: invalid supertype %u", current_type_index,
+                 supertype);
           return {};
         }
         if (tracer_) {
@@ -650,7 +650,7 @@ class ModuleDecoderImpl : public Decoder {
                                                         group_size);
         for (uint32_t j = 0; j < group_size; j++) {
           if (tracer_) tracer_->TypeOffset(pc_offset());
-          TypeDefinition type = consume_subtype_definition();
+          TypeDefinition type = consume_subtype_definition(initial_size + j);
           module_->types[initial_size + j] = type;
         }
         if (failed()) return;
@@ -669,7 +669,7 @@ class ModuleDecoderImpl : public Decoder {
         // Similarly to above, we need to resize types for a group of size 1.
         module_->types.resize(initial_size + 1);
         module_->isorecursive_canonical_type_ids.resize(initial_size + 1);
-        TypeDefinition type = consume_subtype_definition();
+        TypeDefinition type = consume_subtype_definition(initial_size);
         if (ok()) {
           module_->types[initial_size] = type;
           type_canon->AddRecursiveSingletonGroup(module_.get());
@@ -683,14 +683,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < module_->types.size(); ++i) {
       ModuleTypeIndex explicit_super = module_->supertype(i);
       if (!explicit_super.valid()) continue;
-      if (explicit_super.index >= module_->types.size()) {
-        errorf("type %u: supertype %u out of bounds", i, explicit_super);
-        continue;
-      }
-      if (explicit_super.index >= i) {
-        errorf("type %u: forward-declared supertype %u", i, explicit_super);
-        continue;
-      }
+      DCHECK_LT(explicit_super.index, i);  // Checked during decoding.
       uint32_t depth = module->type(explicit_super).subtyping_depth + 1;
       module_->types[i].subtyping_depth = depth;
       DCHECK_GE(depth, 0);

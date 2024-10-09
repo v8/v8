@@ -402,7 +402,7 @@ class HexDumpModuleDis : public ITracer {
     out_.NextLine(0);
     constexpr bool kNoVerifyFunctions = false;
     decoder.DecodeModule(kNoVerifyFunctions);
-    if (out_.length() > 0) out_.NextLine(static_cast<uint32_t>(total_bytes_));
+    NextLine();
     out_ << "]";
 
     if (total_bytes_ != wire_bytes_.length()) {
