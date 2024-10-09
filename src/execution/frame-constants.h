@@ -503,9 +503,13 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
   static constexpr int kNewTargetIndex = 0;
   static constexpr int kTargetIndex = 1;
   static constexpr int kArgcIndex = 2;
-  // TODO(ishell): this padding is required only on Arm64.
+#if V8_TARGET_ARCH_ARM64
+  // This padding is required only on arm64 to keep the SP 16-byte aligned.
   static constexpr int kPaddingIndex = 3;
   static constexpr int kNumExtraArgs = 4;
+#else
+  static constexpr int kNumExtraArgs = 3;
+#endif  // V8_TARGET_ARCH_ARM64
   static constexpr int kNumExtraArgsWithReceiver = kNumExtraArgs + 1;
 
   // BuiltinArguments' arguments_ array.

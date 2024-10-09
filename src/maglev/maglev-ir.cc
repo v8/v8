@@ -5907,22 +5907,27 @@ void CallCPPBuiltin::GenerateCode(MaglevAssembler* masm,
   constexpr Register kCFunctionReg = D::GetRegisterParameter(D::kCFunction);
 
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ LoadRoot(scratch, RootIndex::kTheHoleValue);
 
   // Push all arguments to the builtin (including the receiver).
-  static_assert(BuiltinArguments::kReceiverIndex == 4);
   __ PushReverse(args());
 
-  static_assert(BuiltinArguments::kNumExtraArgs == 4);
-  static_assert(BuiltinArguments::kNewTargetIndex == 0);
-  static_assert(BuiltinArguments::kTargetIndex == 1);
-  static_assert(BuiltinArguments::kArgcIndex == 2);
-  static_assert(BuiltinArguments::kPaddingIndex == 3);
   // Push stack arguments for CEntry.
   Tagged<Smi> tagged_argc = Smi::FromInt(BuiltinArguments::kNumExtraArgs +
                                          num_args());  // Includes receiver.
-  __ Push(scratch /* padding */, tagged_argc, target(), new_target());
+
+  static_assert(BuiltinArguments::kNewTargetIndex == 0);
+  static_assert(BuiltinArguments::kTargetIndex == 1);
+  static_assert(BuiltinArguments::kArgcIndex == 2);
+#if V8_TARGET_ARCH_ARM64
+  static_assert(BuiltinArguments::kPaddingIndex == 3);
+  // Just pass an existing value as padding in order to avoid generation
+  // of unnecessary instructions.
+  static_assert(BuiltinArguments::kNumExtraArgs == 4);
+  __ Push(tagged_argc /* padding */, tagged_argc, target(), new_target());
+#else
+  static_assert(BuiltinArguments::kNumExtraArgs == 3);
+  __ Push(tagged_argc, target(), new_target());
+#endif  // V8_TARGET_ARCH_ARM64
 
   // Move values to fixed registers after all arguments are pushed. Registers
   // for arguments and CEntry registers might overlap.

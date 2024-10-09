@@ -54,11 +54,14 @@ class BuiltinArguments : public JavaScriptArguments {
   static constexpr int kNewTargetIndex = 0;
   static constexpr int kTargetIndex = 1;
   static constexpr int kArgcIndex = 2;
-  // TODO(ishell): this padding is required only on arm64.
+#if V8_TARGET_ARCH_ARM64
+  // This padding is required only on arm64 to keep the SP 16-byte aligned.
   static constexpr int kPaddingIndex = 3;
-
   static constexpr int kNumExtraArgs = 4;
-  static constexpr int kNumExtraArgsWithReceiver = 5;
+#else
+  static constexpr int kNumExtraArgs = 3;
+#endif  // V8_TARGET_ARCH_ARM64
+  static constexpr int kNumExtraArgsWithReceiver = kNumExtraArgs + 1;
 
   static constexpr int kArgsIndex = kNumExtraArgs;
   static constexpr int kReceiverIndex = kArgsIndex;
@@ -84,8 +87,10 @@ static_assert(BuiltinArguments::kTargetIndex ==
               BuiltinExitFrameConstants::kTargetIndex);
 static_assert(BuiltinArguments::kArgcIndex ==
               BuiltinExitFrameConstants::kArgcIndex);
+#if V8_TARGET_ARCH_ARM64
 static_assert(BuiltinArguments::kPaddingIndex ==
               BuiltinExitFrameConstants::kPaddingIndex);
+#endif
 
 static_assert(BuiltinArguments::kNumExtraArgs ==
               BuiltinExitFrameConstants::kNumExtraArgs);
