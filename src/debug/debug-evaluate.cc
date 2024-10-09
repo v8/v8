@@ -1139,7 +1139,12 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
       // Transitively called Builtins:
     case Builtin::kAbort:
     case Builtin::kAbortCSADcheck:
-    case Builtin::kAdaptorWithBuiltinExitFrame:
+    case Builtin::kAdaptorWithBuiltinExitFrame0:
+    case Builtin::kAdaptorWithBuiltinExitFrame1:
+    case Builtin::kAdaptorWithBuiltinExitFrame2:
+    case Builtin::kAdaptorWithBuiltinExitFrame3:
+    case Builtin::kAdaptorWithBuiltinExitFrame4:
+    case Builtin::kAdaptorWithBuiltinExitFrame5:
     case Builtin::kArrayConstructorImpl:
     case Builtin::kArrayEveryLoopContinuation:
     case Builtin::kArrayFilterLoopContinuation:

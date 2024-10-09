@@ -160,6 +160,9 @@ class Builtins {
       SaveFPRegsMode fp_mode);
   static inline constexpr Builtin EphemeronKeyBarrier(SaveFPRegsMode fp_mode);
 
+  static inline constexpr Builtin AdaptorWithBuiltinExitFrame(
+      int formal_parameter_count);
+
   static inline constexpr Builtin CallFunction(
       ConvertReceiverMode = ConvertReceiverMode::kAny);
   static inline constexpr Builtin Call(
@@ -290,7 +293,8 @@ class Builtins {
       Handle<FunctionTemplateInfo> function, Handle<Object> receiver, int argc,
       Handle<Object> args[], Handle<HeapObject> new_target);
 
-  static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address);
+  static void Generate_Adaptor(MacroAssembler* masm, int formal_parameter_count,
+                               Address builtin_address);
 
   static void Generate_CEntry(MacroAssembler* masm, int result_size,
                               ArgvMode argv_mode, bool builtin_exit_frame,

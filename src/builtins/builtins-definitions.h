@@ -52,24 +52,37 @@ namespace internal {
 // Note, this mechanism works only if the set of T0 builtins is kept as small
 // as possible. Please, resist the temptation to add your builtin here unless
 // there's a very good reason.
-#define BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM) \
-  /* Deoptimization entries. */                               \
-  ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)         \
-  ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)          \
-                                                              \
-  /* GC write barrier. */                                     \
-  TFC(RecordWriteSaveFP, WriteBarrier)                        \
-  TFC(RecordWriteIgnoreFP, WriteBarrier)                      \
-  TFC(EphemeronKeyBarrierSaveFP, WriteBarrier)                \
-  TFC(EphemeronKeyBarrierIgnoreFP, WriteBarrier)              \
-                                                              \
-  /* Adaptor for CPP builtins. */                             \
-  TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor)
+#define BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)               \
+  /* Deoptimization entries. */                                             \
+  ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)                       \
+  ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)                        \
+                                                                            \
+  /* GC write barrier. */                                                   \
+  TFC(RecordWriteSaveFP, WriteBarrier)                                      \
+  TFC(RecordWriteIgnoreFP, WriteBarrier)                                    \
+  TFC(EphemeronKeyBarrierSaveFP, WriteBarrier)                              \
+  TFC(EphemeronKeyBarrierIgnoreFP, WriteBarrier)                            \
+                                                                            \
+  /* TODO(ishell): dummy builtin added here just to keep the Tier0 table */ \
+  /* size unmodified to avoid unexpected performance implications. */       \
+  /* It should be removed. */                                               \
+  CPP(DummyBuiltin, kDontAdaptArgumentsSentinel)
 
 #define BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)        \
   /* GC write barriers */                                                      \
   TFC(IndirectPointerBarrierSaveFP, IndirectPointerWriteBarrier)               \
   TFC(IndirectPointerBarrierIgnoreFP, IndirectPointerWriteBarrier)             \
+                                                                               \
+  /* Adaptors for CPP builtins with various formal parameter counts. */        \
+  /* We split these versions for simplicity (not all architectures have */     \
+  /* enough registers for extra CEntry arguments) and speculatively for */     \
+  /* performance reasons. */                                                   \
+  TFC(AdaptorWithBuiltinExitFrame0, CppBuiltinAdaptor)                         \
+  TFC(AdaptorWithBuiltinExitFrame1, CppBuiltinAdaptor)                         \
+  TFC(AdaptorWithBuiltinExitFrame2, CppBuiltinAdaptor)                         \
+  TFC(AdaptorWithBuiltinExitFrame3, CppBuiltinAdaptor)                         \
+  TFC(AdaptorWithBuiltinExitFrame4, CppBuiltinAdaptor)                         \
+  TFC(AdaptorWithBuiltinExitFrame5, CppBuiltinAdaptor)                         \
                                                                                \
   /* TSAN support for stores in generated code. */                             \
   IF_TSAN(TFC, TSANRelaxedStore8IgnoreFP, TSANStore)                           \

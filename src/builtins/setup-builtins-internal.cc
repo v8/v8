@@ -183,13 +183,15 @@ Tagged<Code> BuildAdaptor(Isolate* isolate, Builtin builtin,
                       ExternalAssemblerBuffer(buffer, kBufferSize));
   masm.set_builtin(builtin);
   DCHECK(!masm.has_frame());
-  Builtins::Generate_Adaptor(&masm, builtin_address);
+  int formal_parameter_count = Builtins::GetFormalParameterCount(builtin);
+  Builtins::Generate_Adaptor(&masm, formal_parameter_count, builtin_address);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   DirectHandle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
           .set_self_reference(masm.CodeObject())
           .set_builtin(builtin)
+          .set_parameter_count(formal_parameter_count)
           .Build();
   return *code;
 }

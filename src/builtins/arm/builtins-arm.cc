@@ -38,7 +38,8 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
+void Builtins::Generate_Adaptor(MacroAssembler* masm,
+                                int formal_parameter_count, Address address) {
 #if defined(__thumb__)
   // Thumb mode builtin.
   DCHECK_EQ(1, reinterpret_cast<uintptr_t>(
@@ -46,7 +47,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
                    1);
 #endif
   __ Move(kJavaScriptCallExtraArg1Register, ExternalReference::Create(address));
-  __ TailCallBuiltin(Builtin::kAdaptorWithBuiltinExitFrame);
+  __ TailCallBuiltin(
+      Builtins::AdaptorWithBuiltinExitFrame(formal_parameter_count));
 }
 
 namespace {

@@ -1225,46 +1225,52 @@ TF_BUILTIN(SameValueNumbersOnly, CodeStubAssembler) {
   Return(FalseConstant());
 }
 
-TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
+class CppBuiltinsAdaptorAssembler : public CodeStubAssembler {
+ public:
+  using Descriptor = CppBuiltinAdaptorDescriptor;
+
+  explicit CppBuiltinsAdaptorAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  void GenerateAdaptor(int formal_parameter_count);
+};
+
+void CppBuiltinsAdaptorAssembler::GenerateAdaptor(int formal_parameter_count) {
+  auto context = Parameter<Context>(Descriptor::kContext);
   auto target = Parameter<JSFunction>(Descriptor::kTarget);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto c_function = UncheckedParameter<WordT>(Descriptor::kCFunction);
+  auto actual_argc =
+      UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
 
   // The logic contained here is mirrored for TurboFan inlining in
   // JSTypedLowering::ReduceJSCall{Function,Construct}. Keep these in sync.
 
-  // Make sure we operate in the context of the called function (for example
-  // ConstructStubs implemented in C++ will be run in the context of the caller
-  // instead of the callee, due to the way that [[Construct]] is defined for
-  // ordinary functions).
-  TNode<Context> context = LoadJSFunctionContext(target);
+  // Make sure we operate in the context of the called function.
+  CSA_DCHECK(this, TaggedEqual(context, LoadJSFunctionContext(target)));
 
-  auto actual_argc =
-      UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-  CodeStubArguments args(this, actual_argc);
+  static_assert(kDontAdaptArgumentsSentinel == 0);
+  // The code below relies on |actual_argc| to include receiver.
+  static_assert(i::JSParameterCount(0) == 1);
+  TVARIABLE(Int32T, pushed_argc, actual_argc);
 
-  TVARIABLE(Int32T, pushed_argc,
-            TruncateIntPtrToInt32(args.GetLengthWithReceiver()));
+  // It's guaranteed that the receiver is pushed to the stack, thus both
+  // kDontAdaptArgumentsSentinel and JSParameterCount(0) cases don't require
+  // arguments adaptation. Just use the latter version for consistency.
+  DCHECK_NE(kDontAdaptArgumentsSentinel, formal_parameter_count);
+  if (formal_parameter_count > i::JSParameterCount(0)) {
+    TNode<Int32T> formal_count = Int32Constant(formal_parameter_count);
 
-  TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(target);
-
-  TNode<Int32T> formal_count = UncheckedCast<Int32T>(
-      LoadSharedFunctionInfoFormalParameterCountWithReceiver(shared));
-
-  // The number of arguments pushed is the maximum of actual arguments count
-  // and formal parameters count. Except when the formal parameters count is
-  // the sentinel.
-  Label check_argc(this), update_argc(this), done_argc(this);
-
-  Branch(IsSharedFunctionInfoDontAdaptArguments(shared), &done_argc,
-         &check_argc);
-  BIND(&check_argc);
-  Branch(Int32GreaterThan(formal_count, pushed_argc.value()), &update_argc,
-         &done_argc);
-  BIND(&update_argc);
-  pushed_argc = formal_count;
-  Goto(&done_argc);
-  BIND(&done_argc);
+    // The number of arguments pushed is the maximum of actual arguments count
+    // and formal parameters count.
+    Label done_argc(this);
+    GotoIf(Int32GreaterThanOrEqual(pushed_argc.value(), formal_count),
+           &done_argc);
+    // Update pushed args.
+    pushed_argc = formal_count;
+    Goto(&done_argc);
+    BIND(&done_argc);
+  }
 
   // Update arguments count for CEntry to contain the number of arguments
   // including the receiver and the extra arguments.
@@ -1277,6 +1283,11 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
   Builtin centry = Builtins::CEntry(1, ArgvMode::kStack, builtin_exit_frame,
                                     switch_to_central_stack);
 
+  static_assert(BuiltinArguments::kNewTargetIndex == 0);
+  static_assert(BuiltinArguments::kTargetIndex == 1);
+  static_assert(BuiltinArguments::kArgcIndex == 2);
+  static_assert(BuiltinArguments::kPaddingIndex == 3);
+
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
   TailCallBuiltin(centry, context,     // standard arguments for TailCallBuiltin
@@ -1285,6 +1296,30 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
                   SmiFromInt32(argc),  // additional stack argument 2
                   target,              // additional stack argument 3
                   new_target);         // additional stack argument 4
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame0, CppBuiltinsAdaptorAssembler) {
+  GenerateAdaptor(i::JSParameterCount(0));
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame1, CppBuiltinsAdaptorAssembler) {
+  GenerateAdaptor(i::JSParameterCount(1));
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame2, CppBuiltinsAdaptorAssembler) {
+  GenerateAdaptor(i::JSParameterCount(2));
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame3, CppBuiltinsAdaptorAssembler) {
+  GenerateAdaptor(i::JSParameterCount(3));
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame4, CppBuiltinsAdaptorAssembler) {
+  GenerateAdaptor(i::JSParameterCount(4));
+}
+
+TF_BUILTIN(AdaptorWithBuiltinExitFrame5, CppBuiltinsAdaptorAssembler) {
+  GenerateAdaptor(i::JSParameterCount(5));
 }
 
 TF_BUILTIN(NewHeapNumber, CodeStubAssembler) {
