@@ -60,7 +60,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.164.0.76480e37-gomaip',
+  'reclient_version': 're_client_version:0.168.0.c46e68bc-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ba9b42d40c98b2d45594931473c52d6485514764',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9061d30e63a0358a1588209479220d9a7883be70',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0a905dcb6d88dbfe4b9b169bf367da9371f72ae3',
   'buildtools/linux64': {
@@ -307,7 +307,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'f1144730714608f01d6904037977dce8c15a49b7',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '829f51051ce2b51be14f7853cca71be98083df6b',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '975ef56df0f09388b3012b51e8c57bb1fd4a57c0',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '71735e82a6fda4af58f68b9028a7c5ac49898884',
   'third_party/llvm-build/Release+Asserts': {
@@ -511,7 +511,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'd2ea9f0eb1a31f0e5a0ab11837ed19333700ab4c',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '0058663ab17abb536ca5e16c6006a79329141329',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
