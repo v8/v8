@@ -11,22 +11,22 @@
   'proposals/js-types/globals': [FAIL],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'simd_f32x4*': [PASS, HEAVY],
-  'simd_f64x2*': [PASS, HEAVY],
+  'simd/simd_f32x4*': [PASS, HEAVY],
+  'simd/simd_f64x2*': [PASS, HEAVY],
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
 
   # TODO(https://crbug.com/364917766): Failing tests after spec test update,
   # probably from rebasing on the wasm-3.0 branch.
-  'proposals/memory64/i16x8_relaxed_q15mulr_s': [FAIL],
-  'proposals/memory64/i32x4_relaxed_trunc': [FAIL],
-  'proposals/memory64/i8x16_relaxed_swizzle': [FAIL],
+  'proposals/memory64/relaxed-simd/i16x8_relaxed_q15mulr_s': [FAIL],
+  'proposals/memory64/relaxed-simd/i32x4_relaxed_trunc': [FAIL],
+  'proposals/memory64/relaxed-simd/i8x16_relaxed_swizzle': [FAIL],
   'proposals/memory64/instance': [FAIL],
   'proposals/memory64/ref_null': [FAIL],
-  'proposals/memory64/relaxed_dot_product': [FAIL],
-  'proposals/memory64/relaxed_laneselect': [FAIL],
-  'proposals/memory64/relaxed_madd_nmadd': [FAIL],
-  'proposals/memory64/relaxed_min_max': [FAIL],
+  'proposals/memory64/relaxed-simd/relaxed_dot_product': [FAIL],
+  'proposals/memory64/relaxed-simd/relaxed_laneselect': [FAIL],
+  'proposals/memory64/relaxed-simd/relaxed_madd_nmadd': [FAIL],
+  'proposals/memory64/relaxed-simd/relaxed_min_max': [FAIL],
   'proposals/memory64/table_fill': [FAIL],
   'proposals/memory64/table_get': [FAIL],
   'proposals/memory64/table_grow': [FAIL],
@@ -34,16 +34,16 @@
   'proposals/memory64/throw': [FAIL],
   'proposals/memory64/throw_ref': [FAIL],
   'proposals/memory64/try_table': [FAIL],
-  'proposals/js-promise-integration/i16x8_relaxed_q15mulr_s': [FAIL],
-  'proposals/js-promise-integration/i8x16_relaxed_swizzle': [FAIL],
-  'proposals/js-promise-integration/i32x4_relaxed_trunc': [FAIL],
+  'proposals/js-promise-integration/relaxed-simd/i16x8_relaxed_q15mulr_s': [FAIL],
+  'proposals/js-promise-integration/relaxed-simd/i8x16_relaxed_swizzle': [FAIL],
+  'proposals/js-promise-integration/relaxed-simd/i32x4_relaxed_trunc': [FAIL],
   'proposals/js-promise-integration/instance': [FAIL],
   'proposals/js-promise-integration/ref_null': [FAIL],
-  'proposals/js-promise-integration/relaxed_laneselect': [FAIL],
-  'proposals/js-promise-integration/relaxed_madd_nmadd': [FAIL],
-  'proposals/js-promise-integration/relaxed_dot_product': [FAIL],
+  'proposals/js-promise-integration/relaxed-simd/relaxed_laneselect': [FAIL],
+  'proposals/js-promise-integration/relaxed-simd/relaxed_madd_nmadd': [FAIL],
+  'proposals/js-promise-integration/relaxed-simd/relaxed_dot_product': [FAIL],
   'proposals/js-promise-integration/throw': [FAIL],
-  'proposals/js-promise-integration/relaxed_min_max': [FAIL],
+  'proposals/js-promise-integration/relaxed-simd/relaxed_min_max': [FAIL],
   'proposals/js-promise-integration/throw_ref': [FAIL],
   'proposals/js-promise-integration/try_table': [FAIL],
 
@@ -107,13 +107,13 @@
 
 ['arch == arm and not simulator_run', {
   # See https://crbug.com/v8/10938 denormals not handled correctly on ARM.
-  'simd_f32x4': [PASS, FAIL],
-  'simd_f32x4_arith': [PASS, FAIL],
-  'simd_f32x4_cmp': [PASS, FAIL],
+  'simd/simd_f32x4': [PASS, FAIL],
+  'simd/simd_f32x4_arith': [PASS, FAIL],
+  'simd/simd_f32x4_cmp': [PASS, FAIL],
   # This test only has 1 problematic use of f32x4.min and f32x4.div, consider
   # removing it from upstream, then we can run this test.
-  'simd_splat' : [PASS, FAIL],
-  'simd_f32x4_pmin_pmax' : [PASS, FAIL],
+  'simd/simd_splat' : [PASS, FAIL],
+  'simd/simd_f32x4_pmin_pmax' : [PASS, FAIL],
 }],  # arch == arm and not simulator_run
 
 ['arch == mips64el or arch == mips64', {
