@@ -6239,6 +6239,10 @@ v8_source_set("v8_base_without_compiler") {
   if (is_win) {
     if (v8_enable_etw_stack_walking) {
       sources += [
+        "src/diagnostics/etw-debug-win.cc",
+        "src/diagnostics/etw-debug-win.h",
+        "src/diagnostics/etw-isolate-capture-state-monitor-win.cc",
+        "src/diagnostics/etw-isolate-capture-state-monitor-win.h",
         "src/diagnostics/etw-jit-win.cc",
         "src/diagnostics/etw-jit-win.h",
       ]

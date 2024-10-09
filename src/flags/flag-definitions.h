@@ -3171,9 +3171,13 @@ DEFINE_BOOL(interpreted_frames_native_stack, false,
 DEFINE_BOOL(enable_etw_stack_walking, false,
             "Enable etw stack walking for windows")
 DEFINE_WEAK_IMPLICATION(future, enable_etw_stack_walking)
+DEFINE_BOOL(etw_trace_debug, false,
+            "Enable etw debug logging (only on debug builds)")
 #else
 DEFINE_BOOL_READONLY(enable_etw_stack_walking, false,
                      "Enable etw stack walking for windows")
+DEFINE_BOOL_READONLY(etw_trace_debug, false,
+                     "Enable etw debug logging (only on debug builds)")
 #endif
 
 //
