@@ -2840,7 +2840,13 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address) {
   // Drop the return address on the stack and jump to the OSR entry
   // point of the function.
   __ Drop(1);
+#ifdef V8_ENABLE_CET_IBT
+  // TODO(sroettger): Use the notrack prefix since not all OSR entries emit an
+  // endbr instruction yet.
+  __ jmp(entry_address, /*notrack=*/true);
+#else
   __ jmp(entry_address);
+#endif
 }
 
 enum class OsrSourceTier {
