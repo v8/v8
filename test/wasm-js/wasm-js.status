@@ -18,8 +18,6 @@
 
   # Failing spec tests after test update
   'proposals/js-types/function/constructor.tentative': [FAIL],
-
-  'proposals/memory64/table/constructor': [FAIL],
   'wpt/module/moduleSource': [FAIL],
 
   # This is a spec test of the https://github.com/WebAssembly/esm-integration
@@ -63,19 +61,9 @@
   # TODO(https://crbug.com/364913810): Investigate failing exception handling tests.
   'proposals/memory64/exception/identity.tentative': [FAIL],
   'proposals/memory64/exception/jsTag.tentative': [FAIL],
-  'proposals/exception-handling/module/exports': [FAIL],
-
-  # TODO(clemensb): Fix upstream; use kWasmVoid instead of kWasmStmt.
-  # (https://github.com/WebAssembly/memory64/pull/83)
-  'proposals/memory64/module/exports': [FAIL],
-
-  # TODO(clemensb): Tests need to be updated for BigInt
-  # (https://github.com/WebAssembly/memory64/pull/75).
-  'proposals/memory64/memory/constructor': [FAIL],
-
-  # Already fixed upstream in WPT, waiting on merge to spec repo:
-  # https://github.com/WebAssembly/js-string-builtins/pull/43
-  'wpt/js-string/basic.tentative': [FAIL],
+  'proposals/js-promise-integration/exception/basic.tentative': [FAIL],
+  'proposals/js-promise-integration/exception/identity.tentative': [FAIL],
+  'proposals/js-promise-integration/exception/jsTag.tentative': [FAIL],
 }], # ALWAYS
 
 ['system == android', {

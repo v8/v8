@@ -53,7 +53,7 @@ log_and_run mkdir ${JS_API_TEST_DIR}/tests/proposals
 
 echo Process spec
 log_and_run cd ${TMP_DIR}
-log_and_run git clone https://github.com/WebAssembly/spec
+log_and_run git clone --depth 1 https://github.com/WebAssembly/spec
 log_and_run cd spec/interpreter
 
 # The next step requires that ocaml is installed. See the README.md in
@@ -77,7 +77,7 @@ log_and_run cp -r ${TMP_DIR}/spec/test/js-api/* ${JS_API_TEST_DIR}/tests
 
 echo Process wpt
 log_and_run cd ${TMP_DIR}
-log_and_run git clone https://github.com/web-platform-tests/wpt
+log_and_run git clone --depth 1 https://github.com/web-platform-tests/wpt
 log_and_run cp -r wpt/wasm/jsapi/* ${JS_API_TEST_DIR}/tests/wpt
 
 log_and_run cd ${JS_API_TEST_DIR}/tests
@@ -100,7 +100,7 @@ for repo in ${repos}; do
   echo "Process ${repo}"
   echo ">> Process core tests"
   log_and_run cd ${TMP_DIR}
-  log_and_run git clone https://github.com/WebAssembly/${repo}
+  log_and_run git clone --depth 1 https://github.com/WebAssembly/${repo}
   # Compile the spec interpreter to generate the .js test cases later.
   log_and_run cd ${repo}/interpreter
   log_and_run make clean wasm

@@ -16,9 +16,17 @@
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
 
-  # TODO(https://crbug.com/364917766): Failing test after spec test update.
+  # TODO(https://crbug.com/364917766): Failing tests after spec test update,
+  # probably from rebasing on the wasm-3.0 branch.
+  'proposals/memory64/i16x8_relaxed_q15mulr_s': [FAIL],
+  'proposals/memory64/i32x4_relaxed_trunc': [FAIL],
+  'proposals/memory64/i8x16_relaxed_swizzle': [FAIL],
+  'proposals/memory64/instance': [FAIL],
   'proposals/memory64/ref_null': [FAIL],
-  'proposals/memory64/table': [FAIL],
+  'proposals/memory64/relaxed_dot_product': [FAIL],
+  'proposals/memory64/relaxed_laneselect': [FAIL],
+  'proposals/memory64/relaxed_madd_nmadd': [FAIL],
+  'proposals/memory64/relaxed_min_max': [FAIL],
   'proposals/memory64/table_fill': [FAIL],
   'proposals/memory64/table_get': [FAIL],
   'proposals/memory64/table_grow': [FAIL],
@@ -26,6 +34,18 @@
   'proposals/memory64/throw': [FAIL],
   'proposals/memory64/throw_ref': [FAIL],
   'proposals/memory64/try_table': [FAIL],
+  'proposals/js-promise-integration/i16x8_relaxed_q15mulr_s': [FAIL],
+  'proposals/js-promise-integration/i8x16_relaxed_swizzle': [FAIL],
+  'proposals/js-promise-integration/i32x4_relaxed_trunc': [FAIL],
+  'proposals/js-promise-integration/instance': [FAIL],
+  'proposals/js-promise-integration/ref_null': [FAIL],
+  'proposals/js-promise-integration/relaxed_laneselect': [FAIL],
+  'proposals/js-promise-integration/relaxed_madd_nmadd': [FAIL],
+  'proposals/js-promise-integration/relaxed_dot_product': [FAIL],
+  'proposals/js-promise-integration/throw': [FAIL],
+  'proposals/js-promise-integration/relaxed_min_max': [FAIL],
+  'proposals/js-promise-integration/throw_ref': [FAIL],
+  'proposals/js-promise-integration/try_table': [FAIL],
 
   # The function-references spec tests haven't been updated to the final
   # binary encoding. We don't care, because the GC tests are up to date and
@@ -51,7 +71,6 @@
   'proposals/multi-memory/elem': [FAIL],
   'proposals/tail-call/elem': [FAIL],
   'proposals/exception-handling/elem': [FAIL],
-  'proposals/js-promise-integration/elem': [FAIL],
 
   'global': [FAIL],
   'proposals/extended-const/global': [FAIL],
@@ -63,7 +82,6 @@
   'proposals/exception-handling/memory': [FAIL],
   'proposals/extended-const/memory': [FAIL],
   'proposals/gc/memory': [FAIL],
-  'proposals/js-promise-integration/memory': [FAIL],
   'proposals/js-types/memory': [FAIL],
   'proposals/tail-call/memory': [FAIL],
   # "imports" tests that not more than one memory can be imported.
@@ -71,7 +89,6 @@
   'proposals/exception-handling/imports': [FAIL],
   'proposals/extended-const/imports': [FAIL],
   'proposals/gc/imports': [FAIL],
-  'proposals/js-promise-integration/imports': [FAIL],
   'proposals/js-types/imports': [FAIL],
   'proposals/tail-call/imports': [FAIL],
   # "binary" tests that the byte for encoding the memory index is a single
@@ -80,13 +97,12 @@
   'proposals/exception-handling/binary': [FAIL],
   'proposals/extended-const/binary': [FAIL],
   'proposals/gc/binary': [FAIL],
-  'proposals/js-promise-integration/binary': [FAIL],
   'proposals/js-types/binary': [FAIL],
   'proposals/tail-call/binary': [FAIL],
 
   # The test is incorrect as it exports a function with an exnref in the
   # signature, which is a runtime type error.
-  'proposals/exception-handling/ref_null': [FAIL]
+  'proposals/exception-handling/ref_null': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
