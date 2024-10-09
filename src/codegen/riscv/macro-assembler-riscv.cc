@@ -7204,9 +7204,20 @@ void MacroAssembler::CallJSFunction(Register function_object,
   ASM_CODE_COMMENT(this);
   Register code = kJavaScriptCallCodeStartRegister;
 #ifdef V8_ENABLE_LEAPTIERING
-  LoadCodeEntrypointFromJSDispatchTable(
-      code,
-      FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+  UseScratchRegisterScope temps(this);
+  Register dispatch_handle = t0;
+  Register parameter_count = t1;
+  Register scratch = temps.Acquire();
+  Lw(dispatch_handle,
+     FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+  LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
+                                                     dispatch_handle, scratch);
+  Label match;
+  Branch(&match, le, parameter_count, Immediate(argument_count));
+  // If the parameter count doesn't match, we force a safe crash by setting the
+  // code entrypoint to zero, causing a nullptr dereference during the call.
+  mv(code, zero_reg);
+  bind(&match);
   Call(code);
 #elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
@@ -7257,19 +7268,45 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 }
 
 #ifdef V8_ENABLE_LEAPTIERING
-void MacroAssembler::LoadCodeEntrypointFromJSDispatchTable(
-    Register destination, MemOperand field_operand) {
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
+                                                       Register dispatch_handle,
+                                                       Register scratch) {
   DCHECK(!AreAliased(destination, scratch));
-  DCHECK_EQ(JSDispatchEntry::kEntrypointOffset, 0);
+  ASM_CODE_COMMENT(this);
   li(scratch, ExternalReference::js_dispatch_table_address());
-  Lwu(destination, field_operand);
-  srli(destination, destination, kJSDispatchHandleShift);
-  slli(destination, destination, kJSDispatchTableEntrySizeLog2);
-  AddWord(scratch, scratch, destination);
-  Ld(destination, MemOperand(scratch, 0));
+  srli(index, dispatch_handle, kJSDispatchHandleShift);
+  slli(index, index, kJSDispatchTableEntrySizeLog2);
+  AddWord(scratch, scratch, index);
+  Ld(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
+}
+
+void MacroAssembler::LoadParameterCountFromJSDispatchTable(
+    Register destination, Register dispatch_handle, Register scratch) {
+  DCHECK(!AreAliased(destination, scratch));
+  ASM_CODE_COMMENT(this);
+  Register index = destination;
+  li(scratch, ExternalReference::js_dispatch_table_address());
+  srli(index, dispatch_handle, kJSDispatchHandleShift);
+  slli(index, index, kJSDispatchTableEntrySizeLog2);
+  AddWord(scratch, scratch, index);
+  static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
+  Lh(destination, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
+}
+
+void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
+    Register entrypoint, Register parameter_count, Register dispatch_handle,
+    Register scratch) {
+  DCHECK(!AreAliased(entrypoint, parameter_count, scratch));
+  ASM_CODE_COMMENT(this);
+  Register index = parameter_count;
+  li(scratch, ExternalReference::js_dispatch_table_address());
+  srli(index, dispatch_handle, kJSDispatchHandleShift);
+  slli(index, index, kJSDispatchTableEntrySizeLog2);
+  AddWord(scratch, scratch, index);
+
+  Ld(entrypoint, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
+  static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
+  Lh(parameter_count, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
 }
 #endif
 

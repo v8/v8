@@ -1756,8 +1756,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
 #ifdef V8_ENABLE_LEAPTIERING
   // Load the entrypoint pointer of a JSDispatchTable entry.
-  void LoadCodeEntrypointFromJSDispatchTable(Register destination,
-                                             MemOperand field_operand);
+  void LoadEntrypointFromJSDispatchTable(Register destination,
+                                         Register dispatch_handle,
+                                         Register scratch);
+  void LoadParameterCountFromJSDispatchTable(Register destination,
+                                             Register dispatch_handle,
+                                             Register scratch);
+  void LoadEntrypointAndParameterCountFromJSDispatchTable(
+      Register entrypoint, Register parameter_count, Register dispatch_handle,
+      Register scratch);
 #endif  // V8_ENABLE_LEAPTIERING
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,
