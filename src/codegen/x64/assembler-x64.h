@@ -1121,13 +1121,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void jmp(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
-#ifdef V8_ENABLE_CET_IBT
+  // With notrack, add an optional prefix to disable CET IBT enforcement for
+  // this jump.
   void jmp(Register adr, bool notrack = false);
   void jmp(Operand src, bool notrack = false);
-#else
-  void jmp(Register adr);
-  void jmp(Operand src);
-#endif
 
   // Unconditional jump relative to the current address. Low-level routine,
   // use with caution!

@@ -55,9 +55,7 @@ Operand StackArgumentsAccessor::GetArgumentOperand(int index) const {
 }
 
 void MacroAssembler::CodeEntry() {
-#ifdef V8_ENABLE_CET_IBT
   endbr64();
-#endif
 }
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {

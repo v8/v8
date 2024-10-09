@@ -2840,13 +2840,9 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address) {
   // Drop the return address on the stack and jump to the OSR entry
   // point of the function.
   __ Drop(1);
-#ifdef V8_ENABLE_CET_IBT
   // TODO(sroettger): Use the notrack prefix since not all OSR entries emit an
   // endbr instruction yet.
   __ jmp(entry_address, /*notrack=*/true);
-#else
-  __ jmp(entry_address);
-#endif
 }
 
 enum class OsrSourceTier {
@@ -3445,9 +3441,7 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
                                          Label* return_promise) {
   int catch_handler = __ pc_offset();
 
-#ifdef V8_ENABLE_CET_IBT
   __ endbr64();
-#endif
 
   // Restore rsp to free the reserved stack slots for the sections.
   __ leaq(rsp, MemOperand(rbp, StackSwitchFrameConstants::kLastSpillOffset));
@@ -3658,9 +3652,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     SwitchBackAndReturnPromise(masm, r8, rdi, &return_promise);
   }
   __ bind(&suspend);
-#ifdef V8_ENABLE_CET_IBT
   __ endbr64();
-#endif
 
   __ LeaveFrame(stack_switch ? StackFrame::STACK_SWITCH
                              : StackFrame::JS_TO_WASM);
@@ -3795,9 +3787,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   LoadJumpBuffer(masm, jmpbuf, true);
   __ Trap();
   __ bind(&resume);
-#ifdef V8_ENABLE_CET_IBT
   __ endbr64();
-#endif
   __ LeaveFrame(StackFrame::STACK_SWITCH);
   __ ret(0);
 }
@@ -3931,9 +3921,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   }
   __ Trap();
   __ bind(&suspend);
-#ifdef V8_ENABLE_CET_IBT
   __ endbr64();
-#endif
   __ LeaveFrame(StackFrame::STACK_SWITCH);
   // Pop receiver + parameter.
   __ ret(2 * kSystemPointerSize);

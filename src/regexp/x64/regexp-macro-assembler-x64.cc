@@ -171,13 +171,10 @@ void RegExpMacroAssemblerX64::Backtrack() {
   // and jump to location.
   Pop(rbx);
   __ addq(rbx, code_object_pointer());
-#ifdef V8_ENABLE_CET_IBT
+
   // TODO(sroettger): This jump needs an endbr64 instruction but the code is
   // performance sensitive. Needs more thought how to do this in a fast way.
   __ jmp(rbx, /*notrack=*/true);
-#else
-  __ jmp(rbx);
-#endif
 }
 
 
