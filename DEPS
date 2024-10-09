@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f2790bfa3238410fbb4bb74b6282f6edb3c1e089',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ba9b42d40c98b2d45594931473c52d6485514764',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0a905dcb6d88dbfe4b9b169bf367da9371f72ae3',
   'buildtools/linux64': {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'fa0214602cc5502c2d1e12cc4692d1045a993aba',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'd0a175601b9e180ce58cb1e33649057f5c484146',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'af5dc104cd6b7e0081d4f7f185aebace7430b8f8',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '44791916611acec1cd74c492c7453e46d9b0dbd2',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c109945e729cb3d8c17f306c9cae9d3f98d7d323',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cd2f5c45b2f6cc06fa22fa9a572e018e4c240e06',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
