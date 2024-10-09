@@ -110,7 +110,7 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
   if (IsSmi(object)) return true;
   Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
   if (HeapLayout::InReadOnlySpace(heap_object)) return true;
-  Isolate* isolate = GetIsolateFromWritableObject(heap_object);
+  Isolate* isolate = Isolate::CurrentMaybeBackground();
   if (!AllowHandleDereference::IsAllowed()) return false;
 
   // Allocations in the shared heap may be dereferenced by multiple threads.
