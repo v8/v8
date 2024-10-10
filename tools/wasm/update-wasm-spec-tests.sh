@@ -13,8 +13,12 @@ set -u
 # non-zero status, or zero if no command exited with a non-zero status
 set -o pipefail
 
-log_and_run() {
+log() {
   echo ">>" $*
+}
+
+log_and_run() {
+  log $*
   if ! $*; then
     echo "sub-command failed: $*"
     exit 1
@@ -85,8 +89,10 @@ log_and_run mkdir -v ${TMP_BUILD_DIR}
 
 new_section "Process spec"
 log_and_run cd ${TMP_DIR}
-log_and_run git clone --depth 1 https://github.com/WebAssembly/spec
+log_and_run git clone https://github.com/WebAssembly/spec
 log_and_run cd spec
+log git rev-parse HEAD
+SPEC_HASH=$(git rev-parse HEAD)
 
 # The next step requires that ocaml is installed. See the README.md in
 # https://github.com/WebAssembly/spec/tree/master/interpreter/.
@@ -138,10 +144,23 @@ repos='js-promise-integration exception-handling js-types tail-call memory64 ext
 
 for repo in ${repos}; do
   new_section "Process ${repo}: core tests"
+  # Add the proposal repo to the existing spec repo to reduce download size, then copy it over.
+  log_and_run cd ${TMP_DIR}/spec
+  log_and_run git fetch https://github.com/WebAssembly/${repo} main
   log_and_run cd ${TMP_DIR}
-  log_and_run git clone --depth 1 https://github.com/WebAssembly/${repo}
+  log_and_run cp -r spec ${repo}
   log_and_run cd ${repo}
+  log_and_run git checkout FETCH_HEAD
+  # Determine the merge base, i.e. the first common commit in the history.
+  log git merge-base HEAD ${SPEC_HASH}
+  MERGE_BASE=$(git merge-base HEAD ${SPEC_HASH})
+  echo "Using merge base ${MERGE_BASE}"
+  CHANGED_FILES=${TMP_DIR}/${repo}/changed-files-since-merge-base
+  log git diff --name-only ${MERGE_BASE} -- test/core test/js-api
+  git diff --name-only ${MERGE_BASE} -- test/core test/js-api >$CHANGED_FILES
   # Compile the spec interpreter to generate the .js test cases later.
+  # TODO: Switch to distclean and remove this manual "rm" once all proposals are rebased.
+  log_and_run rm -f interpreter/wasm
   log_and_run make -C interpreter clean wasm
 
   DST_DIR=${SPEC_TEST_DIR}/tests/proposals/${repo}
@@ -150,6 +169,8 @@ for repo in ${repos}; do
   for filename in $(find test/core -name '*.wast'); do
     if [ -f ${TMP_DIR}/spec/$filename ] && cmp -s $filename ${TMP_DIR}/spec/$filename; then
       echo "Test identical to the spec repo: ${filename}"
+    elif ! grep -E "^${filename}$" $CHANGED_FILES >/dev/null; then
+      echo "Test unchanged since merge base: ${filename}"
     else
       echo "Changed test: ${filename}"
       copy_file_relative ${filename} test/core ${DST_DIR}
@@ -163,6 +184,8 @@ for repo in ${repos}; do
   for filename in $(find test/js-api -name '*.any.js'); do
     if [ -f ${TMP_DIR}/spec/$filename ] && cmp -s $filename ${TMP_DIR}/spec/$filename; then
       echo "Test identical to the spec repo: ${filename}"
+    elif ! grep -E "^${filename}$" $CHANGED_FILES >/dev/null; then
+      echo "Test unchanged since merge base: ${filename}"
     else
       echo "Changed test: ${filename}"
       copy_file_relative ${filename} test/js-api ${JS_API_TEST_DIR}/tests/proposals/${repo}

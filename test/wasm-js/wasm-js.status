@@ -8,7 +8,6 @@
   # This test can only be executed in the browser
   'wpt/idlharness': [SKIP],
   # Failing WPT tests
-  'wpt/exception/type.tentative': [FAIL],
   'wpt/function/constructor.tentative': [FAIL],
 
   # TODO(v8): Should work after
@@ -18,27 +17,10 @@
 
   # Failing spec tests after test update
   'proposals/js-types/function/constructor.tentative': [FAIL],
-  'wpt/module/moduleSource': [FAIL],
 
   # This is a spec test of the https://github.com/WebAssembly/esm-integration
   # proposal which V8 does not implement yet.
   'wpt/module/moduleSource.tentative': [FAIL],
-
-  # Outdated proposal tests.
-  'proposals/js-types/table/get-set': [FAIL],
-  'proposals/memory64/table/get-set': [FAIL],
-  'proposals/tail-call/table/get-set': [FAIL],
-  'proposals/js-types/memory/constructor': [FAIL],
-  'proposals/tail-call/memory/constructor': [FAIL],
-  'proposals/js-types/interface': [FAIL],
-  'proposals/memory64/interface': [FAIL],
-  'proposals/simd/interface': [FAIL],
-  'proposals/tail-call/interface': [FAIL],
-
-  # TODO(v8:10556): Remove sub-typing in the reference-types implementation
-  'proposals/js-types/constructor/instantiate': [FAIL],
-  'proposals/js-types/global/value-get-set': [FAIL],
-  'proposals/js-types/instance/constructor': [FAIL],
 
   # Limits tests are slow, and not useful to run for the proposals:
   'proposals/extended-const/limits': [SKIP],

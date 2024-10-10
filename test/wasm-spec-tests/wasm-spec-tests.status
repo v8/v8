@@ -6,10 +6,6 @@
 [ALWAYS, {
   'skip-stack-guard-page': [PASS, ['((arch == ppc64 or arch == s390x) and simulator_run)', SKIP]],
 
-  # Missing rebase in the proposal repository.
-  'proposals/js-types/table': [FAIL],
-  'proposals/js-types/globals': [FAIL],
-
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'simd/simd_f32x4*': [PASS, HEAVY],
   'simd/simd_f64x2*': [PASS, HEAVY],
@@ -67,10 +63,6 @@
   # imported globals are allowed.
   'elem': [FAIL],
   'proposals/extended-const/elem': [FAIL],
-  'proposals/js-types/elem': [FAIL],
-  'proposals/multi-memory/elem': [FAIL],
-  'proposals/tail-call/elem': [FAIL],
-  'proposals/exception-handling/elem': [FAIL],
 
   'global': [FAIL],
   'proposals/extended-const/global': [FAIL],
@@ -79,26 +71,14 @@
   # merged into the main repository.
   # "memory" tests that not more than one memory can be declared.
   'memory': [FAIL],
-  'proposals/exception-handling/memory': [FAIL],
-  'proposals/extended-const/memory': [FAIL],
-  'proposals/gc/memory': [FAIL],
-  'proposals/js-types/memory': [FAIL],
-  'proposals/tail-call/memory': [FAIL],
   # "imports" tests that not more than one memory can be imported.
   'imports': [FAIL],
   'proposals/exception-handling/imports': [FAIL],
-  'proposals/extended-const/imports': [FAIL],
-  'proposals/gc/imports': [FAIL],
-  'proposals/js-types/imports': [FAIL],
-  'proposals/tail-call/imports': [FAIL],
   # "binary" tests that the byte for encoding the memory index is a single
   # byte (and no LEB).
   'binary': [FAIL],
   'proposals/exception-handling/binary': [FAIL],
-  'proposals/extended-const/binary': [FAIL],
   'proposals/gc/binary': [FAIL],
-  'proposals/js-types/binary': [FAIL],
-  'proposals/tail-call/binary': [FAIL],
 
   # The test is incorrect as it exports a function with an exnref in the
   # signature, which is a runtime type error.
