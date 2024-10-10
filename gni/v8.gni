@@ -218,7 +218,8 @@ assert(!(v8_enable_webassembly && v8_enable_lite_mode),
 
 if (v8_enable_pointer_compression == "") {
   v8_enable_pointer_compression =
-      v8_current_cpu == "arm64" || v8_current_cpu == "x64"
+      v8_current_cpu == "arm64" || v8_current_cpu == "x64" ||
+      v8_current_cpu == "loong64"
 }
 
 # The Wasm interpreter is currently supported only on arm64 and x64, on
