@@ -13,6 +13,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/signature.h"  // TODO(366180605): Drop this again.
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-limits.h"
 
@@ -1112,6 +1113,10 @@ static_assert(sizeof(ValueType) <= kUInt32Size,
 static_assert(ValueType::kLastUsedBit < 8 * sizeof(ValueType) - kSmiTagSize,
               "ValueType has space to be encoded in a Smi");
 
+inline size_t hash_value(TypeIndex type) {
+  return static_cast<size_t>(type.index);
+}
+
 inline size_t hash_value(ValueType type) {
   // Just use the whole encoded bit field, similar to {operator==}.
   return static_cast<size_t>(type.bit_field_);
@@ -1176,7 +1181,19 @@ constexpr int kWasmHeapTypeBitsMask = (1u << ValueType::kHeapTypeBits) - 1;
 // TODO(366180605): This should disappear; all code should know whether it
 // processes module-specific or canonicalized types.
 using FunctionSig = Signature<ValueType>;
-using ModuleFunctionSig = Signature<ModuleValueType>;
+// TODO(366180605): This should be a direct instantiation of Signature<...>,
+// once the incremental transition is done and we don't need to rely on
+// upcasts any more.
+// using ModuleFunctionSig = Signature<ModuleValueType>;
+class ModuleFunctionSig : public FunctionSig {
+ public:
+  ModuleValueType GetParam(size_t index) const {
+    return ModuleValueType(FunctionSig::GetParam(index));
+  }
+  ModuleValueType GetReturn(size_t index = 0) const {
+    return ModuleValueType(FunctionSig::GetReturn(index));
+  }
+};
 using CanonicalSig = Signature<CanonicalValueType>;
 
 #define FOREACH_LOAD_TYPE(V) \

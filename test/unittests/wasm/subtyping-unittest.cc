@@ -24,8 +24,8 @@ FieldInit immut(ValueType type) { return FieldInit(type, false); }
 void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
                   uint32_t supertype = kNoSuperType, bool is_final = false,
                   bool is_shared = false, bool in_singleton_rec_group = true) {
-  StructType::Builder builder(&module->signature_zone,
-                              static_cast<uint32_t>(fields.size()));
+  ModuleStructType::Builder builder(&module->signature_zone,
+                                    static_cast<uint32_t>(fields.size()));
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
   }

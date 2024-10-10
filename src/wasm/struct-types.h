@@ -123,24 +123,26 @@ class StructType : public ZoneObject {
   }
 
   // For incrementally building StructTypes.
-  class Builder {
+  template <class Subclass, class ValueTypeSubclass>
+  class BuilderImpl {
    public:
     enum ComputeOffsets : bool {
       kComputeOffsets = true,
       kUseProvidedOffsets = false
     };
 
-    Builder(Zone* zone, uint32_t field_count)
+    BuilderImpl(Zone* zone, uint32_t field_count)
         : zone_(zone),
           field_count_(field_count),
           cursor_(0),
           field_offsets_(zone_->AllocateArray<uint32_t>(field_count_)),
-          buffer_(
-              zone->AllocateArray<ValueType>(static_cast<int>(field_count))),
+          buffer_(zone->AllocateArray<ValueTypeSubclass>(
+              static_cast<int>(field_count))),
           mutabilities_(
               zone->AllocateArray<bool>(static_cast<int>(field_count))) {}
 
-    void AddField(ValueType type, bool mutability, uint32_t offset = 0) {
+    void AddField(ValueTypeSubclass type, bool mutability,
+                  uint32_t offset = 0) {
       DCHECK_LT(cursor_, field_count_);
       if (cursor_ > 0) {
         field_offsets_[cursor_ - 1] = offset;
@@ -159,10 +161,10 @@ class StructType : public ZoneObject {
       field_offsets_[field_count_ - 1] = size;
     }
 
-    StructType* Build(ComputeOffsets compute_offsets = kComputeOffsets) {
+    Subclass* Build(ComputeOffsets compute_offsets = kComputeOffsets) {
       DCHECK_EQ(cursor_, field_count_);
-      StructType* result = zone_->New<StructType>(field_count_, field_offsets_,
-                                                  buffer_, mutabilities_);
+      Subclass* result = zone_->New<Subclass>(field_count_, field_offsets_,
+                                              buffer_, mutabilities_);
       if (compute_offsets == kComputeOffsets) {
         result->InitializeOffsets();
       } else {
@@ -185,7 +187,7 @@ class StructType : public ZoneObject {
     const uint32_t field_count_;
     uint32_t cursor_;
     uint32_t* field_offsets_;
-    ValueType* const buffer_;
+    ValueTypeSubclass* const buffer_;
     bool* const mutabilities_;
   };
 
@@ -200,6 +202,28 @@ class StructType : public ZoneObject {
   uint32_t* const field_offsets_;
   const ValueType* const reps_;
   const bool* const mutabilities_;
+};
+
+// Module-relative type indices.
+class ModuleStructType : public StructType {
+ public:
+  // TODO(366180605): The second template arg should be {ModuleValueType}.
+  using Builder = StructType::BuilderImpl<StructType, ValueType>;
+
+  ModuleValueType field(uint32_t index) const {
+    return ModuleValueType{StructType::field(index)};
+  }
+};
+
+// Canonicalized type indices.
+class CanonicalStructType : public StructType {
+ public:
+  using Builder =
+      StructType::BuilderImpl<CanonicalStructType, CanonicalValueType>;
+
+  CanonicalStructType(uint32_t field_count, uint32_t* field_offsets,
+                      const CanonicalValueType* reps, const bool* mutabilities)
+      : StructType(field_count, field_offsets, reps, mutabilities) {}
 };
 
 inline std::ostream& operator<<(std::ostream& out, StructType type) {
@@ -240,6 +264,23 @@ class ArrayType : public ZoneObject {
  private:
   const ValueType rep_;
   const bool mutability_;
+};
+
+class ModuleArrayType : public ArrayType {
+ public:
+  ModuleValueType element_type() const {
+    return ModuleValueType{ArrayType::element_type()};
+  }
+};
+
+class CanonicalArrayType : public ArrayType {
+ public:
+  CanonicalArrayType(CanonicalValueType rep, bool mutability)
+      : ArrayType(rep, mutability) {}
+
+  CanonicalValueType element_type() const {
+    return CanonicalValueType{ArrayType::element_type()};
+  }
 };
 
 inline constexpr intptr_t ArrayType::kRepOffset = offsetof(ArrayType, rep_);

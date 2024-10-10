@@ -1475,7 +1475,7 @@ class SignatureHelper : public i::AllStatic {
 
     i::wasm::FunctionSig non_canonical_sig{type->results().size(),
                                            type->params().size(), types.data()};
-    uint32_t canonical_id =
+    i::wasm::CanonicalTypeIndex canonical_id =
         i::wasm::GetTypeCanonicalizer()->AddRecursiveGroup(&non_canonical_sig);
     return i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
         canonical_id);

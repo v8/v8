@@ -63,7 +63,7 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 
 constexpr size_t kMaxByteSizedLeb128 = 127;
 
-using F = std::pair<ValueType, bool>;
+using F = std::pair<ModuleValueType, bool>;
 
 // Used to construct fixed-size signatures: MakeSig::Returns(...).Params(...);
 using MakeSig = FixedSizeSignature<ValueType>;
@@ -129,8 +129,8 @@ class TestModuleBuilder {
 
   ModuleTypeIndex AddStruct(std::initializer_list<F> fields,
                             uint32_t supertype = kNoSuperType) {
-    StructType::Builder type_builder(&mod.signature_zone,
-                                     static_cast<uint32_t>(fields.size()));
+    ModuleStructType::Builder type_builder(
+        &mod.signature_zone, static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }

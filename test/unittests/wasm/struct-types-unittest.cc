@@ -13,13 +13,13 @@ namespace struct_types_unittest {
 class StructTypesTest : public TestWithZone {};
 
 TEST_F(StructTypesTest, Empty) {
-  StructType::Builder builder(this->zone(), 0);
+  ModuleStructType::Builder builder(this->zone(), 0);
   StructType* type = builder.Build();
   EXPECT_EQ(0u, type->total_fields_size());
 }
 
 TEST_F(StructTypesTest, OneField) {
-  StructType::Builder builder(this->zone(), 1);
+  ModuleStructType::Builder builder(this->zone(), 1);
   builder.AddField(kWasmI32, true);
   StructType* type = builder.Build();
   uint32_t expected = std::max(kUInt32Size, kTaggedSize);
@@ -28,7 +28,7 @@ TEST_F(StructTypesTest, OneField) {
 }
 
 TEST_F(StructTypesTest, Packing) {
-  StructType::Builder builder(this->zone(), 5);
+  ModuleStructType::Builder builder(this->zone(), 5);
   builder.AddField(kWasmI64, true);
   builder.AddField(kWasmI8, true);
   builder.AddField(kWasmI32, true);
@@ -44,7 +44,7 @@ TEST_F(StructTypesTest, Packing) {
 }
 
 TEST_F(StructTypesTest, CopyingOffsets) {
-  StructType::Builder builder(this->zone(), 5);
+  ModuleStructType::Builder builder(this->zone(), 5);
   builder.AddField(kWasmI64, true);
   builder.AddField(kWasmI8, true);
   builder.AddField(kWasmI32, true);
@@ -52,7 +52,7 @@ TEST_F(StructTypesTest, CopyingOffsets) {
   builder.AddField(kWasmI8, true);
   StructType* type = builder.Build();
 
-  StructType::Builder copy_builder(this->zone(), type->field_count());
+  ModuleStructType::Builder copy_builder(this->zone(), type->field_count());
   for (uint32_t i = 0; i < type->field_count(); i++) {
     copy_builder.AddField(type->field(i), type->mutability(i),
                           type->field_offset(i));

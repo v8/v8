@@ -129,12 +129,62 @@ class TypeCanonicalizer {
 
  private:
   struct CanonicalType {
-    TypeDefinition type_def;
+    enum Kind : int8_t { kFunction, kStruct, kArray };
+
+    union {
+      const CanonicalSig* function_sig = nullptr;
+      const CanonicalStructType* struct_type;
+      const CanonicalArrayType* array_type;
+    };
+    CanonicalTypeIndex supertype{kNoSuperType};
+    Kind kind = kFunction;
+    bool is_final = false;
+    bool is_shared = false;
+    uint8_t subtyping_depth = 0;
     bool is_relative_supertype;
 
+    constexpr CanonicalType(const CanonicalSig* sig,
+                            CanonicalTypeIndex supertype, bool is_final,
+                            bool is_shared, bool is_relative_supertype)
+        : function_sig(sig),
+          supertype(supertype),
+          kind(kFunction),
+          is_final(is_final),
+          is_shared(is_shared),
+          is_relative_supertype(is_relative_supertype) {}
+
+    constexpr CanonicalType(const CanonicalStructType* type,
+                            CanonicalTypeIndex supertype, bool is_final,
+                            bool is_shared, bool is_relative_supertype)
+        : struct_type(type),
+          supertype(supertype),
+          kind(kStruct),
+          is_final(is_final),
+          is_shared(is_shared),
+          is_relative_supertype(is_relative_supertype) {}
+
+    constexpr CanonicalType(const CanonicalArrayType* type,
+                            CanonicalTypeIndex supertype, bool is_final,
+                            bool is_shared, bool is_relative_supertype)
+        : array_type(type),
+          supertype(supertype),
+          kind(kArray),
+          is_final(is_final),
+          is_shared(is_shared),
+          is_relative_supertype(is_relative_supertype) {}
+
+    constexpr CanonicalType() = default;
+
     bool operator==(const CanonicalType& other) const {
-      return type_def == other.type_def &&
-             is_relative_supertype == other.is_relative_supertype;
+      if (supertype != other.supertype) return false;
+      if (kind != other.kind) return false;
+      if (is_final != other.is_final) return false;
+      if (is_shared != other.is_shared) return false;
+      if (is_relative_supertype != other.is_relative_supertype) return false;
+      if (kind == kFunction) return *function_sig == *other.function_sig;
+      if (kind == kStruct) return *struct_type == *other.struct_type;
+      DCHECK_EQ(kArray, kind);
+      return *array_type == *other.array_type;
     }
 
     bool operator!=(const CanonicalType& other) const {
@@ -142,18 +192,17 @@ class TypeCanonicalizer {
     }
 
     size_t hash_value() const {
-      uint32_t metadata = (type_def.supertype << 2) |
-                          (type_def.is_final ? 2 : 0) |
+      uint32_t metadata = (supertype.index << 2) | (is_final ? 2 : 0) |
                           (is_relative_supertype ? 1 : 0);
       base::Hasher hasher;
       hasher.Add(metadata);
-      if (type_def.kind == TypeDefinition::kFunction) {
-        hasher.Add(*type_def.function_sig);
-      } else if (type_def.kind == TypeDefinition::kStruct) {
-        hasher.Add(*type_def.struct_type);
+      if (kind == kFunction) {
+        hasher.Add(*function_sig);
+      } else if (kind == kStruct) {
+        hasher.Add(*struct_type);
       } else {
-        DCHECK_EQ(TypeDefinition::kArray, type_def.kind);
-        hasher.Add(*type_def.array_type);
+        DCHECK_EQ(kArray, kind);
+        hasher.Add(*array_type);
       }
       return hasher.hash();
     }
@@ -197,9 +246,7 @@ class TypeCanonicalizer {
   void AddPredefinedArrayTypes();
 
   CanonicalTypeIndex FindCanonicalGroup(const CanonicalGroup&) const;
-  CanonicalTypeIndex FindCanonicalGroup(
-      const CanonicalSingletonGroup&,
-      const FunctionSig** out_sig = nullptr) const;
+  CanonicalTypeIndex FindCanonicalGroup(const CanonicalSingletonGroup&) const;
 
   // Canonicalize all types present in {type} (including supertype) according to
   // {CanonicalizeValueType}.
@@ -228,8 +275,9 @@ class TypeCanonicalizer {
                      base::hash<CanonicalSingletonGroup>>
       canonical_singleton_groups_;
   // Maps canonical indices back to the function signature.
-  // TODO(366180605): use {CanonicalTypeIndex}.
-  std::unordered_map<uint32_t, const FunctionSig*> canonical_function_sigs_;
+  std::unordered_map<CanonicalTypeIndex, const CanonicalSig*,
+                     base::hash<CanonicalTypeIndex>>
+      canonical_function_sigs_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
   mutable base::Mutex mutex_;
