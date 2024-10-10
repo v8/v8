@@ -150,7 +150,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function,
-                                CodeKind::TURBOFAN);
+                                CodeKind::TURBOFAN_JS);
 
   auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
   DirectHandle<Code> code =
@@ -172,7 +172,7 @@ Handle<JSFunction> FunctionTester::Optimize(Handle<JSFunction> function,
   CHECK_NOT_NULL(zone);
 
   OptimizedCompilationInfo info(zone, isolate, shared, function,
-                                CodeKind::TURBOFAN);
+                                CodeKind::TURBOFAN_JS);
 
   if (flags & ~OptimizedCompilationInfo::kInlining) UNIMPLEMENTED();
   if (flags & OptimizedCompilationInfo::kInlining) {

@@ -300,7 +300,7 @@ class TranslatedFrame {
   friend class Deoptimizer;
 
   // Constructor static methods.
-  static TranslatedFrame UnoptimizedFrame(
+  static TranslatedFrame UnoptimizedJSFrame(
       BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
       int height, int return_value_offset, int return_value_count);
   static TranslatedFrame AccessorFrame(Kind kind,

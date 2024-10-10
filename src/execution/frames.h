@@ -25,12 +25,12 @@
 // - CommonFrame
 //   - CommonFrameWithJSLinkage
 //     - JavaScriptFrame (aka StandardFrame)
-//       - UnoptimizedFrame
+//       - UnoptimizedJSFrame
 //         - InterpretedFrame
 //         - BaselineFrame
-//       - OptimizedFrame
+//       - OptimizedJSFrame
 //         - MaglevFrame
-//         - TurboFanFrame
+//         - TurbofanJSFrame
 //     - TypedFrameWithJSLinkage
 //       - BuiltinFrame
 //       - JavaScriptBuiltinContinuationFrame
@@ -130,12 +130,12 @@ class StackHandler {
   V(INTERPRETED, InterpretedFrame)                                        \
   V(BASELINE, BaselineFrame)                                              \
   V(MAGLEV, MaglevFrame)                                                  \
-  V(TURBOFAN, TurbofanFrame)                                              \
+  V(TURBOFAN_JS, TurbofanJSFrame)                                         \
   V(STUB, StubFrame)                                                      \
   V(TURBOFAN_STUB_WITH_CONTEXT, TurbofanStubWithContextFrame)             \
   V(BUILTIN_CONTINUATION, BuiltinContinuationFrame)                       \
-  V(JAVA_SCRIPT_BUILTIN_CONTINUATION, JavaScriptBuiltinContinuationFrame) \
-  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH,                          \
+  V(JAVASCRIPT_BUILTIN_CONTINUATION, JavaScriptBuiltinContinuationFrame)  \
+  V(JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH,                           \
     JavaScriptBuiltinContinuationWithCatchFrame)                          \
   V(INTERNAL, InternalFrame)                                              \
   V(CONSTRUCT, ConstructFrame)                                            \
@@ -229,18 +229,18 @@ class StackFrame {
   bool is_entry() const { return type() == ENTRY; }
   bool is_construct_entry() const { return type() == CONSTRUCT_ENTRY; }
   bool is_exit() const { return type() == EXIT; }
-  bool is_optimized() const {
-    static_assert(TURBOFAN == MAGLEV + 1);
-    return base::IsInRange(type(), MAGLEV, TURBOFAN);
+  bool is_optimized_js() const {
+    static_assert(TURBOFAN_JS == MAGLEV + 1);
+    return base::IsInRange(type(), MAGLEV, TURBOFAN_JS);
   }
-  bool is_unoptimized() const {
+  bool is_unoptimized_js() const {
     static_assert(BASELINE == INTERPRETED + 1);
     return base::IsInRange(type(), INTERPRETED, BASELINE);
   }
   bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_baseline() const { return type() == BASELINE; }
   bool is_maglev() const { return type() == MAGLEV; }
-  bool is_turbofan() const { return type() == TURBOFAN; }
+  bool is_turbofan_js() const { return type() == TURBOFAN_JS; }
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm() const {
     return this->type() == WASM || this->type() == WASM_SEGMENT_START
@@ -267,11 +267,11 @@ class StackFrame {
   bool is_builtin_continuation() const {
     return type() == BUILTIN_CONTINUATION;
   }
-  bool is_java_script_builtin_continuation() const {
-    return type() == JAVA_SCRIPT_BUILTIN_CONTINUATION;
+  bool is_javascript_builtin_continuation() const {
+    return type() == JAVASCRIPT_BUILTIN_CONTINUATION;
   }
-  bool is_java_script_builtin_with_catch_continuation() const {
-    return type() == JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
+  bool is_javascript_builtin_with_catch_continuation() const {
+    return type() == JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
   }
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_fast_construct() const { return type() == FAST_CONSTRUCT; }
@@ -283,10 +283,10 @@ class StackFrame {
   static bool IsJavaScript(Type t) {
     static_assert(INTERPRETED + 1 == BASELINE);
     static_assert(BASELINE + 1 == MAGLEV);
-    static_assert(MAGLEV + 1 == TURBOFAN);
-    return t >= INTERPRETED && t <= TURBOFAN;
+    static_assert(MAGLEV + 1 == TURBOFAN_JS);
+    return t >= INTERPRETED && t <= TURBOFAN_JS;
   }
-  bool is_java_script() const { return IsJavaScript(type()); }
+  bool is_javascript() const { return IsJavaScript(type()); }
 
   // Accessors.
   Address sp() const {
@@ -406,7 +406,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
  public:
 // Subclasses for the different summary kinds:
 #define FRAME_SUMMARY_VARIANTS(F)                                          \
-  F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript) \
+  F(JAVASCRIPT, JavaScriptFrameSummary, javascript_summary_, JavaScript)   \
   IF_WASM(F, BUILTIN, BuiltinFrameSummary, builtin_summary_, Builtin)      \
   IF_WASM(F, WASM, WasmFrameSummary, wasm_summary_, Wasm)                  \
   IF_WASM_DRUMBRAKE(F, WASM_INTERPRETED, WasmInterpretedFrameSummary,      \
@@ -656,7 +656,7 @@ class CommonFrame : public StackFrame {
   // and parts of the fixed part including context and code fields.
   void IterateExpressions(RootVisitor* v) const;
 
-  void IterateTurbofanOptimizedFrame(RootVisitor* v) const;
+  void IterateTurbofanJSOptimizedFrame(RootVisitor* v) const;
 
   // Returns the address of the n'th expression stack element.
   virtual Address GetExpressionAddress(int n) const;
@@ -707,8 +707,8 @@ class CommonFrameWithJSLinkage : public CommonFrame {
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
-  //  - OptimizedFrame  : Data is not used and will not return a value.
-  //  - UnoptimizedFrame: Data is the register index holding the context.
+  //  - OptimizedJSFrame  : Data is not used and will not return a value.
+  //  - UnoptimizedJSFrame: Data is the register index holding the context.
   virtual int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction);
 
@@ -775,8 +775,12 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   static Register context_register();
   static Register constant_pool_pointer_register();
 
+  bool is_unoptimized() const { return is_unoptimized_js(); }
+  bool is_optimized() const { return is_optimized_js(); }
+  bool is_turbofan() const { return is_turbofan_js(); }
+
   static JavaScriptFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_java_script());
+    DCHECK(frame->is_javascript());
     return static_cast<JavaScriptFrame*>(frame);
   }
 
@@ -1041,7 +1045,7 @@ class StubFrame : public TypedFrame {
   friend class StackFrameIteratorBase;
 };
 
-class OptimizedFrame : public JavaScriptFrame {
+class OptimizedJSFrame : public JavaScriptFrame {
  public:
   // Return a list with {SharedFunctionInfo} objects of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
@@ -1064,13 +1068,13 @@ class OptimizedFrame : public JavaScriptFrame {
                                         int trampoline_pc) const = 0;
 
  protected:
-  inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
+  inline explicit OptimizedJSFrame(StackFrameIteratorBase* iterator);
 };
 
 // An unoptimized frame is a JavaScript frame that is executing bytecode. It
 // may be executing it using the interpreter, or via baseline code compiled from
 // the bytecode.
-class UnoptimizedFrame : public JavaScriptFrame {
+class UnoptimizedJSFrame : public JavaScriptFrame {
  public:
   // Accessors.
   int position() const override;
@@ -1093,13 +1097,13 @@ class UnoptimizedFrame : public JavaScriptFrame {
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
-  static UnoptimizedFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_unoptimized());
-    return static_cast<UnoptimizedFrame*>(frame);
+  static UnoptimizedJSFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_unoptimized_js());
+    return static_cast<UnoptimizedJSFrame*>(frame);
   }
 
  protected:
-  inline explicit UnoptimizedFrame(StackFrameIteratorBase* iterator);
+  inline explicit UnoptimizedJSFrame(StackFrameIteratorBase* iterator);
 
   Address GetExpressionAddress(int n) const override;
 
@@ -1107,7 +1111,7 @@ class UnoptimizedFrame : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class InterpretedFrame : public UnoptimizedFrame {
+class InterpretedFrame : public UnoptimizedJSFrame {
  public:
   Type type() const override { return INTERPRETED; }
 
@@ -1138,7 +1142,7 @@ class InterpretedFrame : public UnoptimizedFrame {
   friend class StackFrameIteratorBase;
 };
 
-class BaselineFrame : public UnoptimizedFrame {
+class BaselineFrame : public UnoptimizedJSFrame {
  public:
   Type type() const override { return BASELINE; }
 
@@ -1165,7 +1169,7 @@ class BaselineFrame : public UnoptimizedFrame {
   friend class StackFrameIteratorBase;
 };
 
-class MaglevFrame : public OptimizedFrame {
+class MaglevFrame : public OptimizedJSFrame {
  public:
   Type type() const override { return MAGLEV; }
 
@@ -1191,9 +1195,9 @@ class MaglevFrame : public OptimizedFrame {
   friend class StackFrameIteratorBase;
 };
 
-class TurbofanFrame : public OptimizedFrame {
+class TurbofanJSFrame : public OptimizedJSFrame {
  public:
-  Type type() const override { return TURBOFAN; }
+  Type type() const override { return TURBOFAN_JS; }
 
   int ComputeParametersCount() const override;
 
@@ -1203,7 +1207,7 @@ class TurbofanFrame : public OptimizedFrame {
                                 int trampoline_pc) const override;
 
  protected:
-  inline explicit TurbofanFrame(StackFrameIteratorBase* iterator);
+  inline explicit TurbofanJSFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;
@@ -1549,10 +1553,10 @@ class BuiltinContinuationFrame : public InternalFrame {
 
 class JavaScriptBuiltinContinuationFrame : public TypedFrameWithJSLinkage {
  public:
-  Type type() const override { return JAVA_SCRIPT_BUILTIN_CONTINUATION; }
+  Type type() const override { return JAVASCRIPT_BUILTIN_CONTINUATION; }
 
   static JavaScriptBuiltinContinuationFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_java_script_builtin_continuation());
+    DCHECK(frame->is_javascript_builtin_continuation());
     return static_cast<JavaScriptBuiltinContinuationFrame*>(frame);
   }
 
@@ -1574,11 +1578,11 @@ class JavaScriptBuiltinContinuationWithCatchFrame
     : public JavaScriptBuiltinContinuationFrame {
  public:
   Type type() const override {
-    return JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
+    return JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
   }
 
   static JavaScriptBuiltinContinuationWithCatchFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_java_script_builtin_with_catch_continuation());
+    DCHECK(frame->is_javascript_builtin_with_catch_continuation());
     return static_cast<JavaScriptBuiltinContinuationWithCatchFrame*>(frame);
   }
 

@@ -815,7 +815,7 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   CodeKind kind = code->kind();
   CHECK(kind == CodeKind::FOR_TESTING || kind == CodeKind::BUILTIN ||
         kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BASELINE ||
-        kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN);
+        kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN_JS);
 #endif
 }
 

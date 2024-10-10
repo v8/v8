@@ -66,13 +66,13 @@ class OptimizationDecision {
             ConcurrencyMode::kConcurrent};
   }
   static constexpr OptimizationDecision TurbofanHotAndStable() {
-    return {OptimizationReason::kHotAndStable, CodeKind::TURBOFAN,
+    return {OptimizationReason::kHotAndStable, CodeKind::TURBOFAN_JS,
             ConcurrencyMode::kConcurrent};
   }
   static constexpr OptimizationDecision DoNotOptimize() {
     return {OptimizationReason::kDoNotOptimize,
             // These values don't matter but we have to pass something.
-            CodeKind::TURBOFAN, ConcurrencyMode::kConcurrent};
+            CodeKind::TURBOFAN_JS, ConcurrencyMode::kConcurrent};
   }
 
   constexpr bool should_optimize() const {
@@ -191,7 +191,7 @@ int InterruptBudgetFor(std::optional<CodeKind> code_kind,
                        CachedTieringDecision cached_tiering_decision,
                        int bytecode_length) {
   if (IsRequestTurbofan(tiering_state) ||
-      (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN)) {
+      (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN_JS)) {
     return v8_flags.invocation_count_for_osr * bytecode_length;
   }
   // TODO(olivf) In case we are currently executing below Maglev and have
@@ -307,7 +307,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
       // TODO(olivf): In the case of Maglev we tried a queue with two
       // priorities, but it seems not actually beneficial. More
       // investigation is needed.
-      isolate_->IncreaseConcurrentOptimizationPriority(CodeKind::TURBOFAN,
+      isolate_->IncreaseConcurrentOptimizationPriority(CodeKind::TURBOFAN_JS,
                                                        function->shared());
     }
     // Note: This effectively disables further tiering actions (e.g. OSR, or
@@ -336,8 +336,8 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   // therefore we limit to kOptimizedJSFunctionCodeKindsMask.
   if (IsRequestTurbofan(tiering_state) ||
       (maglev_osr && IsRequestMaglev(tiering_state)) ||
-      (current_code_kind < CodeKind::TURBOFAN &&
-       function->HasAvailableCodeKind(isolate_, CodeKind::TURBOFAN)) ||
+      (current_code_kind < CodeKind::TURBOFAN_JS &&
+       function->HasAvailableCodeKind(isolate_, CodeKind::TURBOFAN_JS)) ||
       (maglev_osr && current_code_kind < CodeKind::MAGLEV &&
        function->HasAvailableCodeKind(isolate_, CodeKind::MAGLEV))) {
     if (V8_UNLIKELY(maglev_osr && current_code_kind == CodeKind::MAGLEV &&
@@ -357,7 +357,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   }
 
   DCHECK(!IsRequestTurbofan(tiering_state));
-  DCHECK(!function->HasAvailableCodeKind(isolate_, CodeKind::TURBOFAN));
+  DCHECK(!function->HasAvailableCodeKind(isolate_, CodeKind::TURBOFAN_JS));
   OptimizationDecision d =
       ShouldOptimize(function->feedback_vector(), current_code_kind);
   // We might be stuck in a baseline frame that wants to tier up to Maglev, but
@@ -374,7 +374,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   }
 
   if (isolate_->EfficiencyModeEnabledForTiering() &&
-      d.code_kind != CodeKind::TURBOFAN) {
+      d.code_kind != CodeKind::TURBOFAN_JS) {
     d.concurrency_mode = ConcurrencyMode::kSynchronous;
   }
 
@@ -384,7 +384,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
 OptimizationDecision TieringManager::ShouldOptimize(
     Tagged<FeedbackVector> feedback_vector, CodeKind current_code_kind) {
   Tagged<SharedFunctionInfo> shared = feedback_vector->shared_function_info();
-  if (current_code_kind == CodeKind::TURBOFAN) {
+  if (current_code_kind == CodeKind::TURBOFAN_JS) {
     return OptimizationDecision::DoNotOptimize();
   }
 

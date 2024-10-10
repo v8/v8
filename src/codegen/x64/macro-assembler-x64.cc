@@ -4368,7 +4368,7 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
 
     TestCodeIsMarkedForDeoptimization(scratch_and_result);
 
-    if (min_opt_level == CodeKind::TURBOFAN) {
+    if (min_opt_level == CodeKind::TURBOFAN_JS) {
       j(not_zero, &on_mark_deopt, Label::Distance::kNear);
 
       TestCodeIsTurbofanned(scratch_and_result);

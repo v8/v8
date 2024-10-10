@@ -66,7 +66,7 @@ class OutputFrameStateCombine {
 
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
-  kUnoptimizedFunction,    // Represents an UnoptimizedFrame.
+  kUnoptimizedFunction,    // Represents an UnoptimizedJSFrame.
   kInlinedExtraArguments,  // Represents inlined extra arguments.
   kConstructCreateStub,    // Represents a frame created before creating a new
                            // object in the construct stub.

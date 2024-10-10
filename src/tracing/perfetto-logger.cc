@@ -185,7 +185,7 @@ void WriteJsCode(const CodeTraceContext& ctx,
     case CodeKind::MAGLEV:
       tier = V8JsCode::TIER_MAGLEV;
       break;
-    case CodeKind::TURBOFAN:
+    case CodeKind::TURBOFAN_JS:
       tier = V8JsCode::TIER_TURBOFAN;
       break;
 
@@ -289,7 +289,7 @@ void PerfettoLogger::CodeCreateEvent(CodeTag tag,
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::BASELINE:
     case CodeKind::MAGLEV:
-    case CodeKind::TURBOFAN:
+    case CodeKind::TURBOFAN_JS:
       UNREACHABLE();
   }
 

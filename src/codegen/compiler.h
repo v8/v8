@@ -46,7 +46,7 @@ class TimedHistogram;
 class TurbofanCompilationJob;
 class UnoptimizedCompilationInfo;
 class UnoptimizedCompilationJob;
-class UnoptimizedFrame;
+class UnoptimizedJSFrame;
 class WorkerThreadRuntimeCallStats;
 struct ScriptDetails;
 struct ScriptStreamingData;

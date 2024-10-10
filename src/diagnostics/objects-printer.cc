@@ -4184,9 +4184,9 @@ _v8_internal_Expand_StackTrace(i::Isolate* isolate) {
     _v8_internal_debugonly::StackTraceDebugDetails details;
     details.type = frame->type();
 
-    if (frame->is_java_script()) {
+    if (frame->is_javascript()) {
       i::JavaScriptFrame::cast(frame)->GetFunctions(&details.functions);
-      if (!frame->is_optimized()) {
+      if (!frame->is_optimized_js()) {
         int exprcount = frame->ComputeExpressionsCount();
         for (int i = 0; i < exprcount; i++) {
           details.expressions.push_back(frame->GetExpression(i));

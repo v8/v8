@@ -114,7 +114,7 @@ V8_WARN_UNUSED_RESULT bool HighestTierOf(CodeKinds kinds,
                                          CodeKind* highest_tier) {
   DCHECK_EQ((kinds & ~kJSFunctionCodeKindsMask), 0);
   // Higher tiers > lower tiers.
-  static_assert(CodeKind::TURBOFAN > CodeKind::INTERPRETED_FUNCTION);
+  static_assert(CodeKind::TURBOFAN_JS > CodeKind::INTERPRETED_FUNCTION);
   if (kinds == 0) return false;
   const int highest_tier_log2 =
       31 - base::bits::CountLeadingZeros(static_cast<uint32_t>(kinds));
@@ -141,7 +141,7 @@ std::optional<CodeKind> JSFunction::GetActiveTier(
   if (!HighestTierOf(GetAvailableCodeKinds(isolate), &highest_tier)) return {};
 
 #ifdef DEBUG
-  CHECK(highest_tier == CodeKind::TURBOFAN ||
+  CHECK(highest_tier == CodeKind::TURBOFAN_JS ||
         highest_tier == CodeKind::BASELINE ||
         highest_tier == CodeKind::MAGLEV ||
         highest_tier == CodeKind::INTERPRETED_FUNCTION);
@@ -171,7 +171,7 @@ bool JSFunction::ActiveTierIsMaglev(IsolateForSandbox isolate) const {
 }
 
 bool JSFunction::ActiveTierIsTurbofan(IsolateForSandbox isolate) const {
-  return GetActiveTier(isolate) == CodeKind::TURBOFAN;
+  return GetActiveTier(isolate) == CodeKind::TURBOFAN_JS;
 }
 
 bool JSFunction::CanDiscardCompiled(IsolateForSandbox isolate) const {
@@ -193,7 +193,8 @@ namespace {
 
 constexpr TieringState TieringStateFor(CodeKind target_kind,
                                        ConcurrencyMode mode) {
-  DCHECK(target_kind == CodeKind::MAGLEV || target_kind == CodeKind::TURBOFAN);
+  DCHECK(target_kind == CodeKind::MAGLEV ||
+         target_kind == CodeKind::TURBOFAN_JS);
   return target_kind == CodeKind::MAGLEV
              ? (IsConcurrent(mode) ? TieringState::kRequestMaglev_Concurrent
                                    : TieringState::kRequestMaglev_Synchronous)
@@ -632,7 +633,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
                                     ConcurrencyMode::kConcurrent);
     } else if (function->shared()->cached_tiering_decision() ==
                CachedTieringDecision::kEarlyTurbofan) {
-      function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
+      function->MarkForOptimization(isolate, CodeKind::TURBOFAN_JS,
                                     ConcurrencyMode::kConcurrent);
     }
   }

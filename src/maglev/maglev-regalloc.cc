@@ -507,7 +507,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           } else if (phi->owner().is_parameter() &&
                      phi->owner().is_receiver()) {
             // The receiver is a special case for a fairly silly reason:
-            // OptimizedFrame::Summarize requires the receiver (and the
+            // OptimizedJSFrame::Summarize requires the receiver (and the
             // function) to be in a stack slot, since its value must be
             // available even though we're not deoptimizing (and thus register
             // states are not available).

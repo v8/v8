@@ -6380,7 +6380,7 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     Load32U(scratch, FieldMemOperand(scratch_and_result, Code::kFlagsOffset));
     And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
 
-    if (min_opt_level == CodeKind::TURBOFAN) {
+    if (min_opt_level == CodeKind::TURBOFAN_JS) {
       Branch(&clear_slot, not_equal, scratch, Operand(zero_reg),
              Label::Distance::kNear);
 

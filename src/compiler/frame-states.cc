@@ -76,10 +76,10 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation:
-      os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME";
+      os << "JAVASCRIPT_BUILTIN_CONTINUATION_FRAME";
       break;
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:
-      os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME";
+      os << "JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME";
       break;
   }
   return os;

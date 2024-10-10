@@ -145,7 +145,7 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw) {
   for (StackFrameIterator it(isolate, isolate->thread_local_top(),
                              StackFrameIterator::NoHandles{});
        !it.done(); it.Advance()) {
-    if (!it.frame()->is_java_script()) continue;
+    if (!it.frame()->is_javascript()) continue;
 
     // Get the language mode from closure.
     JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(it.frame());

@@ -1313,9 +1313,9 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
     switch (frame->type()) {
       case StackFrame::API_CALLBACK_EXIT:
       case StackFrame::BUILTIN_EXIT:
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
-      case StackFrame::TURBOFAN:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
+      case StackFrame::TURBOFAN_JS:
       case StackFrame::MAGLEV:
       case StackFrame::INTERPRETED:
       case StackFrame::BASELINE:
@@ -1533,7 +1533,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   }
 
   if (frame->is_unoptimized()) {
-    UnoptimizedFrame* iframe = static_cast<UnoptimizedFrame*>(frame);
+    UnoptimizedJSFrame* iframe = static_cast<UnoptimizedJSFrame*>(frame);
     Address bytecode_start =
         iframe->GetBytecodeArray()->GetFirstBytecodeAddress();
     return bytecode_start + iframe->GetBytecodeOffset();
@@ -2300,9 +2300,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     if (debug()->ShouldRestartFrame(frame->id())) {
       CancelTerminateExecution();
       CHECK(!catchable_by_js);
-      CHECK(frame->is_java_script());
+      CHECK(frame->is_javascript());
 
-      if (frame->is_optimized()) {
+      if (frame->is_optimized_js()) {
         Tagged<Code> code = frame->LookupCode();
         // The debugger triggers lazy deopt for the "to-be-restarted" frame
         // immediately when the CDP event arrives while paused.
@@ -2454,10 +2454,10 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
       case StackFrame::MAGLEV:
-      case StackFrame::TURBOFAN: {
+      case StackFrame::TURBOFAN_JS: {
         // For optimized frames we perform a lookup in the handler table.
         if (!catchable_by_js) break;
-        OptimizedFrame* opt_frame = static_cast<OptimizedFrame*>(frame);
+        OptimizedJSFrame* opt_frame = static_cast<OptimizedJSFrame*>(frame);
         int offset = opt_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
         if (offset < 0) break;
         // The code might be an optimized code or a turbofanned builtin.
@@ -2468,8 +2468,8 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             code->stack_slots() * kSystemPointerSize;
 
-        // TODO(bmeurer): Turbofanned BUILTIN frames appear as TURBOFAN,
-        // but do not have a code kind of TURBOFAN.
+        // TODO(bmeurer): Turbofanned BUILTIN frames appear as TURBOFAN_JS,
+        // but do not have a code kind of TURBOFAN_JS.
         if (CodeKindCanDeoptimize(code->kind()) &&
             code->marked_for_deoptimization()) {
           // If the target code is lazy deoptimized, we jump to the original
@@ -2520,7 +2520,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       case StackFrame::BASELINE: {
         // For interpreted frame we perform a range lookup in the handler table.
         if (!catchable_by_js) break;
-        UnoptimizedFrame* js_frame = UnoptimizedFrame::cast(frame);
+        UnoptimizedJSFrame* js_frame = UnoptimizedJSFrame::cast(frame);
         int register_slots = UnoptimizedFrameConstants::RegisterStackSlotCount(
             js_frame->GetBytecodeArray()->register_count());
         int context_reg = 0;  // Will contain register index holding context.
@@ -2581,7 +2581,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         }
         break;
 
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
         // Builtin continuation frames with catch can handle exceptions.
         if (!catchable_by_js) break;
         JavaScriptBuiltinContinuationWithCatchFrame* js_frame =
@@ -2601,7 +2601,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         break;
     }
 
-    if (frame->is_optimized()) {
+    if (frame->is_optimized_js()) {
       // Remove per-frame stored materialized objects.
       bool removed = materialized_object_store_->Remove(frame->fp());
       USE(removed);
@@ -2642,7 +2642,7 @@ class StackFrameSummaryIterator {
 
  private:
   void InitSummaries() {
-    if (!done() && frame()->is_java_script()) {
+    if (!done() && frame()->is_javascript()) {
       JavaScriptFrame::cast(frame())->Summarize(&summaries_);
       DCHECK_GT(summaries_.size(), 0);
       index_ = summaries_.size() - 1;
@@ -2739,7 +2739,7 @@ Isolate::CatchType PredictExceptionCatchAtFrame(
     // For JavaScript frames we perform a lookup in the handler table.
     case StackFrame::INTERPRETED:
     case StackFrame::BASELINE:
-    case StackFrame::TURBOFAN:
+    case StackFrame::TURBOFAN_JS:
     case StackFrame::MAGLEV:
     case StackFrame::BUILTIN: {
       DCHECK(iterator.has_frame_summary());
@@ -2757,7 +2757,7 @@ Isolate::CatchType PredictExceptionCatchAtFrame(
       return ToCatchType(CatchPredictionFor(code->builtin_id()));
     }
 
-    case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
+    case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
       Tagged<Code> code = *frame->LookupCode();
       return ToCatchType(CatchPredictionFor(code->builtin_id()));
     }
@@ -3373,7 +3373,7 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
 }
 
 bool CallsCatchMethod(const StackFrameSummaryIterator& iterator) {
-  if (!iterator.frame()->is_java_script()) {
+  if (!iterator.frame()->is_javascript()) {
     return false;
   }
   if (iterator.frame_summary().IsJavaScript()) {
@@ -3479,7 +3479,7 @@ bool Isolate::WalkCallStackAndPromiseTree(
       caught = false;
     }
 
-    if (iter.frame()->is_java_script()) {
+    if (iter.frame()->is_javascript()) {
       bool debuggable = false;
       DCHECK(iter.has_frame_summary());
       const FrameSummary& summary = iter.frame_summary();
@@ -4840,7 +4840,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
                                       v8::ExceptionContext::kAttributeGet);
       return;
     }
-    case StackFrame::TURBOFAN:
+    case StackFrame::TURBOFAN_JS:
       // This must be a fast Api call.
       CHECK(it.frame()->InFastCCall());
       // TODO(ishell): support fast Api calls.
@@ -5980,7 +5980,7 @@ void Isolate::DumpAndResetBuiltinsProfileData() {
 
 void Isolate::IncreaseConcurrentOptimizationPriority(
     CodeKind kind, Tagged<SharedFunctionInfo> function) {
-  DCHECK(kind == CodeKind::TURBOFAN);
+  DCHECK_EQ(kind, CodeKind::TURBOFAN_JS);
   optimizing_compile_dispatcher()->Prioritize(function);
 }
 

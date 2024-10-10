@@ -258,7 +258,7 @@ Tagged<JSGeneratorObject> BreakLocation::GetGeneratorObjectForSuspendedFrame(
   DCHECK_GE(generator_obj_reg_index_, 0);
 
   Tagged<Object> generator_obj =
-      UnoptimizedFrame::cast(frame)->ReadInterpreterRegister(
+      UnoptimizedJSFrame::cast(frame)->ReadInterpreterRegister(
           generator_obj_reg_index_);
 
   return Cast<JSGeneratorObject>(generator_obj);
@@ -1443,7 +1443,7 @@ void Debug::PrepareStep(StepAction step_action) {
   Handle<SharedFunctionInfo> shared;
   int current_frame_count = CurrentFrameCount();
 
-  if (frame->is_java_script()) {
+  if (frame->is_javascript()) {
     JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
     DCHECK(IsJSFunction(js_frame->function()));
 
@@ -2547,7 +2547,7 @@ void Debug::OnException(Handle<Object> exception,
   {
     StackFrameIterator it(isolate_);
     for (; !it.done(); it.Advance()) {
-      if (it.frame()->is_java_script()) {
+      if (it.frame()->is_javascript()) {
         JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
         FrameSummary summary = FrameSummary::GetTop(frame);
         DirectHandle<SharedFunctionInfo> shared{
@@ -2721,7 +2721,7 @@ bool Debug::AllFramesOnStackAreBlackboxed() {
   for (StackFrameIterator it(isolate_, isolate_->thread_local_top());
        !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
-    if (frame->is_java_script() &&
+    if (frame->is_javascript() &&
         !IsFrameBlackboxed(JavaScriptFrame::cast(frame))) {
       return false;
     }
@@ -2849,7 +2849,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
   {
     DebuggableStackFrameIterator it(isolate_);
     DCHECK(!it.done());
-    JavaScriptFrame* frame = it.frame()->is_java_script()
+    JavaScriptFrame* frame = it.frame()->is_javascript()
                                  ? JavaScriptFrame::cast(it.frame())
                                  : nullptr;
     if (frame && IsJSFunction(frame->function())) {

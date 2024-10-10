@@ -260,7 +260,7 @@ StackFrame::Type GetStateForFastCCallCallerFP(Isolate* isolate, Address fp,
     return StackFrame::WASM;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  return StackFrame::TURBOFAN;
+  return StackFrame::TURBOFAN_JS;
 }
 }  // namespace
 
@@ -375,7 +375,7 @@ void ConstructFrame::Iterate(RootVisitor* v) const {
 void JavaScriptStackFrameIterator::Advance() {
   do {
     iterator_.Advance();
-  } while (!iterator_.done() && !iterator_.frame()->is_java_script());
+  } while (!iterator_.done() && !iterator_.frame()->is_javascript());
 }
 
 // -------------------------------------------------------------------------
@@ -399,9 +399,9 @@ void DebuggableStackFrameIterator::Advance() {
 
 int DebuggableStackFrameIterator::FrameFunctionCount() const {
   DCHECK(!done());
-  if (!iterator_.frame()->is_optimized()) return 1;
+  if (!iterator_.frame()->is_optimized_js()) return 1;
   std::vector<Tagged<SharedFunctionInfo>> infos;
-  TurbofanFrame::cast(iterator_.frame())->GetFunctions(&infos);
+  TurbofanJSFrame::cast(iterator_.frame())->GetFunctions(&infos);
   return static_cast<int>(infos.size());
 }
 
@@ -428,7 +428,7 @@ FrameSummary DebuggableStackFrameIterator::GetTopValidFrame() const {
 
 // static
 bool DebuggableStackFrameIterator::IsValidFrame(StackFrame* frame) {
-  if (frame->is_java_script()) {
+  if (frame->is_javascript()) {
     Tagged<JSFunction> function =
         static_cast<JavaScriptFrame*>(frame)->function();
     return function->shared()->IsSubjectToDebugging();
@@ -530,7 +530,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
   // For Advance below, we need frame_ to be set; and that only happens if the
   // type is not NO_FRAME_TYPE.
   // TODO(jgruber): Clean this up.
-  static constexpr StackFrame::Type kTypeForAdvance = StackFrame::TURBOFAN;
+  static constexpr StackFrame::Type kTypeForAdvance = StackFrame::TURBOFAN_JS;
 
   StackFrame::State state;
   state.is_profiler_entry_frame = true;
@@ -736,7 +736,7 @@ void StackFrameIteratorForProfiler::Advance() {
       last_callback_scope = external_callback_scope_;
       external_callback_scope_ = external_callback_scope_->previous();
     }
-    if (frame_->is_java_script()) break;
+    if (frame_->is_javascript()) break;
 #if V8_ENABLE_WEBASSEMBLY
     if (frame_->is_wasm() || frame_->is_wasm_to_js() ||
         frame_->is_js_to_wasm()) {
@@ -856,9 +856,9 @@ StackFrame::Type ComputeBuiltinFrameType(Tagged<GcSafeCode> code) {
     return StackFrame::BASELINE;
   } else if (code->is_turbofanned()) {
     // TODO(bmeurer): We treat frames for BUILTIN Code objects as
-    // OptimizedFrame for now (all the builtins with JavaScript linkage are
+    // OptimizedJSFrame for now (all the builtins with JavaScript linkage are
     // actually generated with TurboFan currently, so this is sound).
-    return StackFrame::TURBOFAN;
+    return StackFrame::TURBOFAN_JS;
   }
   return StackFrame::BUILTIN;
 }
@@ -877,8 +877,8 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::EXIT:
     case StackFrame::INTERNAL:
     case StackFrame::IRREGEXP:
-    case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
-    case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
+    case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION:
+    case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
     case StackFrame::STUB:
       return candidate;
 
@@ -913,7 +913,7 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::NATIVE:
     case StackFrame::NO_FRAME_TYPE:
     case StackFrame::NUMBER_OF_TYPES:
-    case StackFrame::TURBOFAN:
+    case StackFrame::TURBOFAN_JS:
     case StackFrame::TURBOFAN_STUB_WITH_CONTEXT:
 #if V8_ENABLE_WEBASSEMBLY
 #if !V8_ENABLE_DRUMBRAKE
@@ -988,8 +988,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
         return StackFrame::INTERNAL;
       }
       return StackFrame::MAGLEV;
-    case CodeKind::TURBOFAN:
-      return StackFrame::TURBOFAN;
+    case CodeKind::TURBOFAN_JS:
+      return StackFrame::TURBOFAN_JS;
 #if V8_ENABLE_WEBASSEMBLY
     case CodeKind::JS_TO_WASM_FUNCTION:
       if (lookup_result.value()->builtin_id() == Builtin::kJSToWasmWrapperAsm) {
@@ -1079,7 +1079,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
     return StackFrame::INTERPRETED;
   }
 
-  return StackFrame::TURBOFAN;
+  return StackFrame::TURBOFAN_JS;
 }
 
 StackFrame::Type StackFrame::GetCallerState(State* state) const {
@@ -1479,7 +1479,7 @@ Address CommonFrame::GetExpressionAddress(int n) const {
   return fp() + offset - n * kSystemPointerSize;
 }
 
-Address UnoptimizedFrame::GetExpressionAddress(int n) const {
+Address UnoptimizedJSFrame::GetExpressionAddress(int n) const {
   const int offset = UnoptimizedFrameConstants::kExpressionsOffset;
   return fp() + offset - n * kSystemPointerSize;
 }
@@ -2234,7 +2234,8 @@ BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
       GetDeoptimizationData(code, &deopt_index);
   if (deopt_index == SafepointEntry::kNoDeoptIndex) {
     CHECK(data.is_null());
-    FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
+    FATAL(
+        "Missing deoptimization information for OptimizedJSFrame::Summarize.");
   }
 
   DeoptimizationFrameTranslation::Iterator it(
@@ -2261,7 +2262,7 @@ BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
 bool CommonFrame::HasTaggedOutgoingParams(
     Tagged<GcSafeCode> code_lookup) const {
 #if V8_ENABLE_WEBASSEMBLY
-  // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and
+  // With inlined JS-to-Wasm calls, we can be in an OptimizedJSFrame and
   // directly call a Wasm function from JavaScript. In this case the Wasm frame
   // is responsible for visiting incoming potentially tagged parameters.
   // (This is required for tail-call support: If the direct callee tail-called
@@ -2290,10 +2291,10 @@ Tagged<HeapObject> TurbofanStubWithContextFrame::unchecked_code() const {
   return code_lookup.value();
 }
 
-void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
+void CommonFrame::IterateTurbofanJSOptimizedFrame(RootVisitor* v) const {
   DCHECK(!iterator_->IsStackFrameIteratorForProfiler());
 
-  //  ===  TurbofanFrame ===
+  //  ===  TurbofanJSFrame ===
   //  +-----------------+-----------------------------------------
   //  |   out_param n   |  <-- parameters_base / sp
   //  |       ...       |
@@ -2375,11 +2376,11 @@ void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
 }
 
 void TurbofanStubWithContextFrame::Iterate(RootVisitor* v) const {
-  return IterateTurbofanOptimizedFrame(v);
+  return IterateTurbofanJSOptimizedFrame(v);
 }
 
-void TurbofanFrame::Iterate(RootVisitor* v) const {
-  return IterateTurbofanOptimizedFrame(v);
+void TurbofanJSFrame::Iterate(RootVisitor* v) const {
+  return IterateTurbofanJSOptimizedFrame(v);
 }
 
 Tagged<HeapObject> StubFrame::unchecked_code() const {
@@ -2437,7 +2438,7 @@ Tagged<HeapObject> CommonFrameWithJSLinkage::unchecked_code() const {
   return function()->code(isolate());
 }
 
-int TurbofanFrame::ComputeParametersCount() const {
+int TurbofanJSFrame::ComputeParametersCount() const {
   if (GcSafeLookupCode()->kind() == CodeKind::BUILTIN) {
     return static_cast<int>(
                Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
@@ -2584,7 +2585,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
   DisallowGarbageCollection no_gc;
   JavaScriptStackFrameIterator it(isolate);
   while (!it.done()) {
-    if (it.frame()->is_java_script()) {
+    if (it.frame()->is_javascript()) {
       JavaScriptFrame* frame = it.frame();
       if (frame->IsConstructor()) PrintF(file, "new ");
       Tagged<JSFunction> function = frame->function();
@@ -2712,7 +2713,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
     Isolate* isolate, Tagged<Object> receiver, Tagged<JSFunction> function,
     Tagged<AbstractCode> abstract_code, int code_offset, bool is_constructor,
     Tagged<FixedArray> parameters)
-    : FrameSummaryBase(isolate, FrameSummary::JAVA_SCRIPT),
+    : FrameSummaryBase(isolate, FrameSummary::JAVASCRIPT),
       receiver_(receiver, isolate),
       function_(function, isolate),
       abstract_code_(abstract_code, isolate),
@@ -2729,13 +2730,13 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
 
 void FrameSummary::EnsureSourcePositionsAvailable() {
   if (IsJavaScript()) {
-    java_script_summary_.EnsureSourcePositionsAvailable();
+    javascript_summary_.EnsureSourcePositionsAvailable();
   }
 }
 
 bool FrameSummary::AreSourcePositionsAvailable() const {
   if (IsJavaScript()) {
-    return java_script_summary_.AreSourcePositionsAvailable();
+    return javascript_summary_.AreSourcePositionsAvailable();
   }
   return true;
 }
@@ -3013,8 +3014,8 @@ FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
 #define FRAME_SUMMARY_DISPATCH(ret, name)    \
   ret FrameSummary::name() const {           \
     switch (base_.kind()) {                  \
-      case JAVA_SCRIPT:                      \
-        return java_script_summary_.name();  \
+      case JAVASCRIPT:                       \
+        return javascript_summary_.name();   \
       case WASM:                             \
         return wasm_summary_.name();         \
       case WASM_INLINED:                     \
@@ -3029,8 +3030,8 @@ FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
 #else
 #define FRAME_SUMMARY_DISPATCH(ret, name) \
   ret FrameSummary::name() const {        \
-    DCHECK_EQ(JAVA_SCRIPT, base_.kind()); \
-    return java_script_summary_.name();   \
+    DCHECK_EQ(JAVASCRIPT, base_.kind());  \
+    return javascript_summary_.name();    \
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -3047,7 +3048,7 @@ FRAME_SUMMARY_DISPATCH(Handle<StackFrameInfo>, CreateStackFrameInfo)
 #undef CASE_WASM_INTERPRETED
 #undef FRAME_SUMMARY_DISPATCH
 
-void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
+void OptimizedJSFrame::Summarize(std::vector<FrameSummary>* frames) const {
   DCHECK(frames->empty());
   DCHECK(is_optimized());
 
@@ -3083,7 +3084,8 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
     }
 
     CHECK(data.is_null());
-    FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
+    FATAL(
+        "Missing deoptimization information for OptimizedJSFrame::Summarize.");
   }
 
   // Prepare iteration over translation. We must not materialize values here
@@ -3163,7 +3165,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   }
 }
 
-int OptimizedFrame::LookupExceptionHandlerInTable(
+int OptimizedJSFrame::LookupExceptionHandlerInTable(
     int* data, HandlerTable::CatchPrediction* prediction) {
   // We cannot perform exception prediction on optimized code. Instead, we need
   // to use FrameSummary to find the corresponding code offset in unoptimized
@@ -3205,15 +3207,15 @@ int MaglevFrame::FindReturnPCForTrampoline(Tagged<Code> code,
   return safepoints.find_return_pc(trampoline_pc);
 }
 
-int TurbofanFrame::FindReturnPCForTrampoline(Tagged<Code> code,
-                                             int trampoline_pc) const {
-  DCHECK_EQ(code->kind(), CodeKind::TURBOFAN);
+int TurbofanJSFrame::FindReturnPCForTrampoline(Tagged<Code> code,
+                                               int trampoline_pc) const {
+  DCHECK_EQ(code->kind(), CodeKind::TURBOFAN_JS);
   DCHECK(code->marked_for_deoptimization());
   SafepointTable safepoints(isolate(), pc(), code);
   return safepoints.find_return_pc(trampoline_pc);
 }
 
-Tagged<DeoptimizationData> OptimizedFrame::GetDeoptimizationData(
+Tagged<DeoptimizationData> OptimizedJSFrame::GetDeoptimizationData(
     Tagged<Code> code, int* deopt_index) const {
   DCHECK(is_optimized());
 
@@ -3240,7 +3242,7 @@ Tagged<DeoptimizationData> OptimizedFrame::GetDeoptimizationData(
   return {};
 }
 
-void OptimizedFrame::GetFunctions(
+void OptimizedJSFrame::GetFunctions(
     std::vector<Tagged<SharedFunctionInfo>>* functions) const {
   DCHECK(functions->empty());
   DCHECK(is_optimized());
@@ -3280,18 +3282,18 @@ void OptimizedFrame::GetFunctions(
   }
 }
 
-int OptimizedFrame::StackSlotOffsetRelativeToFp(int slot_index) {
+int OptimizedJSFrame::StackSlotOffsetRelativeToFp(int slot_index) {
   return StandardFrameConstants::kCallerSPOffset -
          ((slot_index + 1) * kSystemPointerSize);
 }
 
-int UnoptimizedFrame::position() const {
+int UnoptimizedJSFrame::position() const {
   Tagged<BytecodeArray> code = GetBytecodeArray();
   int code_offset = GetBytecodeOffset();
   return code->SourcePosition(code_offset);
 }
 
-int UnoptimizedFrame::LookupExceptionHandlerInTable(
+int UnoptimizedJSFrame::LookupExceptionHandlerInTable(
     int* context_register, HandlerTable::CatchPrediction* prediction) {
   HandlerTable table(GetBytecodeArray());
   int handler_index = table.LookupHandlerIndexForRange(GetBytecodeOffset());
@@ -3304,7 +3306,7 @@ int UnoptimizedFrame::LookupExceptionHandlerInTable(
   return handler_index;
 }
 
-Tagged<BytecodeArray> UnoptimizedFrame::GetBytecodeArray() const {
+Tagged<BytecodeArray> UnoptimizedJSFrame::GetBytecodeArray() const {
   const int index = UnoptimizedFrameConstants::kBytecodeArrayExpressionIndex;
   DCHECK_EQ(UnoptimizedFrameConstants::kBytecodeArrayFromFp,
             UnoptimizedFrameConstants::kExpressionsOffset -
@@ -3312,7 +3314,7 @@ Tagged<BytecodeArray> UnoptimizedFrame::GetBytecodeArray() const {
   return Cast<BytecodeArray>(GetExpression(index));
 }
 
-Tagged<Object> UnoptimizedFrame::ReadInterpreterRegister(
+Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
     int register_index) const {
   const int index = UnoptimizedFrameConstants::kRegisterFileExpressionIndex;
   DCHECK_EQ(UnoptimizedFrameConstants::kRegisterFileFromFp,
@@ -3321,7 +3323,7 @@ Tagged<Object> UnoptimizedFrame::ReadInterpreterRegister(
   return GetExpression(index + register_index);
 }
 
-void UnoptimizedFrame::Summarize(std::vector<FrameSummary>* functions) const {
+void UnoptimizedJSFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   DirectHandle<AbstractCode> abstract_code(
       Cast<AbstractCode>(GetBytecodeArray()), isolate());

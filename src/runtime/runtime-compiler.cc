@@ -143,11 +143,11 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
       mode = ConcurrencyMode::kConcurrent;
       break;
     case TieringState::kRequestTurbofan_Synchronous:
-      target_kind = CodeKind::TURBOFAN;
+      target_kind = CodeKind::TURBOFAN_JS;
       mode = ConcurrencyMode::kSynchronous;
       break;
     case TieringState::kRequestTurbofan_Concurrent:
-      target_kind = CodeKind::TURBOFAN;
+      target_kind = CodeKind::TURBOFAN_JS;
       mode = ConcurrencyMode::kConcurrent;
       break;
     case TieringState::kNone:
@@ -473,7 +473,7 @@ void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
 
   // Determine the frame that triggered the OSR request.
   JavaScriptStackFrameIterator it(isolate);
-  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+  UnoptimizedJSFrame* frame = UnoptimizedJSFrame::cast(it.frame());
   DCHECK_IMPLIES(frame->is_interpreted(),
                  frame->LookupCode()->is_interpreter_trampoline_builtin());
   DCHECK_IMPLIES(frame->is_baseline(),
@@ -506,7 +506,7 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
            isolate, function, osr_offset, mode,
            (maglev::IsMaglevOsrEnabled() && min_opt_level == CodeKind::MAGLEV)
                ? CodeKind::MAGLEV
-               : CodeKind::TURBOFAN)
+               : CodeKind::TURBOFAN_JS)
            .ToHandle(&result) ||
       result->marked_for_deoptimization()) {
     // An empty result can mean one of two things:
@@ -591,7 +591,8 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
     return Smi::zero();
   }
 
-  return CompileOptimizedOSR(isolate, function, CodeKind::TURBOFAN, osr_offset);
+  return CompileOptimizedOSR(isolate, function, CodeKind::TURBOFAN_JS,
+                             osr_offset);
 }
 
 }  // namespace

@@ -79,7 +79,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
   }
 
   switch (code_kind_) {
-    case CodeKind::TURBOFAN:
+    case CodeKind::TURBOFAN_JS:
       set_called_with_code_start_register();
       set_switch_jump_table();
       if (v8_flags.analyze_environment_liveness) {

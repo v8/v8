@@ -1125,7 +1125,7 @@ void CheckExcludedPropertiesAreOnCallerStack(Isolate* isolate, Address base,
   // ... and for the first JS frame, make sure the _first_ property address is
   // after that stack frame's start.
   for (; !it.done(); it.Advance()) {
-    if (it.frame()->is_java_script()) {
+    if (it.frame()->is_javascript()) {
       DCHECK_LT(base, it.frame()->fp());
       return;
     }
