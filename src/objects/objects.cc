@@ -2300,7 +2300,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         // For RAB/GSABs, the above conversion might grow the buffer so that the
         // index is no longer out of bounds. Redo the bounds check and try
         // again.
-        it->Restart();
+        it->RecheckTypedArrayBounds();
         if (it->state() != LookupIterator::DATA) {
           // Still out of bounds.
           DCHECK_EQ(it->state(), LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND);

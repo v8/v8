@@ -138,6 +138,10 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     IsElement() ? RestartInternal<true>(state) : RestartInternal<false>(state);
   }
 
+  // Checks index validity in a TypedArray again, but doesn't do the whole
+  // lookup anew (holder doesn't change).
+  void RecheckTypedArrayBounds();
+
   Isolate* isolate() const { return isolate_; }
   State state() const { return state_; }
 

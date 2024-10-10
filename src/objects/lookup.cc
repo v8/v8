@@ -131,6 +131,36 @@ void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
 template void LookupIterator::RestartInternal<true>(InterceptorState);
 template void LookupIterator::RestartInternal<false>(InterceptorState);
 
+void LookupIterator::RecheckTypedArrayBounds() {
+  DCHECK(IsJSTypedArray(*holder_, isolate_));
+  DCHECK_EQ(state_, TYPED_ARRAY_INDEX_NOT_FOUND);
+
+  if (!IsElement(*holder_)) {
+    // This happens when the index is not an allowed index.
+    return;
+  }
+
+  Tagged<JSObject> js_object = Cast<JSObject>(*holder_);
+  ElementsAccessor* accessor = js_object->GetElementsAccessor(isolate_);
+  Tagged<FixedArrayBase> backing_store = js_object->elements(isolate_);
+  number_ =
+      accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
+
+  if (number_.is_not_found()) {
+    // The state is already TYPED_ARRAY_INDEX_NOT_FOUND.
+    return;
+  }
+  property_details_ = accessor->GetDetails(js_object, number_);
+#ifdef DEBUG
+  Tagged<Map> map = holder_->map(isolate_);
+  DCHECK(!map->has_frozen_elements());
+  DCHECK(!map->has_sealed_elements());
+#endif  // DEBUG
+  has_property_ = true;
+  DCHECK_EQ(property_details_.kind(), v8::internal::PropertyKind::kData);
+  state_ = DATA;
+}
+
 // static
 MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
     Isolate* isolate, DirectHandle<JSPrimitive> lookup_start_object,
