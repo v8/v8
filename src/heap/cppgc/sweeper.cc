@@ -39,7 +39,8 @@ class DeadlineChecker final {
   explicit DeadlineChecker(v8::base::TimeTicks end) : end_(end) {}
 
   bool Check() {
-    return (++count_ % kInterval == 0) && (end_ < v8::base::TimeTicks::Now());
+    return V8_UNLIKELY(++count_ % kInterval == 0) &&
+           (end_ < v8::base::TimeTicks::Now());
   }
 
  private:
@@ -421,15 +422,18 @@ class SweepFinalizer final {
   using FreeMemoryHandling = SweepingConfig::FreeMemoryHandling;
 
  public:
-  SweepFinalizer(cppgc::Platform* platform, BaseSpace* space,
-                 size_t* unused_destroyed_pages,
+  SweepFinalizer(cppgc::Platform* platform, StatsCollector* stats_collector,
+                 BaseSpace* space, size_t* unused_destroyed_pages,
                  FreeMemoryHandling free_memory_handling,
                  EmptyPageHandling empty_page_handling_type)
       : platform_(platform),
+        stats_collector_(stats_collector),
         space_(space),
         unused_destroyed_pages_(unused_destroyed_pages),
         free_memory_handling_(free_memory_handling),
-        empty_page_handling_(empty_page_handling_type) {}
+        empty_page_handling_(empty_page_handling_type) {
+    DCHECK_NOT_NULL(platform_);
+  }
 
   // Finalizes all space states, irrespective of deadlines and sizes.
   void Finalize(SpaceStates& states) {
@@ -447,8 +451,13 @@ class SweepFinalizer final {
   // Finalizes a given SweepingState with a deadline and size. Only returns
   // true if a single memory block of at least `size` bytes was returned to the
   // free list and false otherwise.
-  bool FinalizeWithDeadlineAndSize(SweepingState& state,
+  bool FinalizeWithDeadlineAndSize(StatsCollector::ScopeId scope_id,
+                                   SweepingState& state,
                                    v8::base::TimeTicks deadline, size_t size) {
+    if (state.swept_unfinalized_pages.IsEmpty()) {
+      return false;
+    }
+    StatsCollector::DisabledScope finalize_scope(stats_collector_, scope_id);
     DeadlineChecker deadline_check(deadline);
     while (auto page_state = state.swept_unfinalized_pages.Pop()) {
       FinalizePage(&*page_state);
@@ -464,18 +473,20 @@ class SweepFinalizer final {
 
   // Finalizes a given SweepingState with a deadline. Returns false if the
   // deadline exceeded and true if all pages are finalized.
-  bool FinalizeWithDeadline(SweepingState& state,
+  bool FinalizeWithDeadline(StatsCollector::ScopeId scope_id,
+                            SweepingState& state,
                             v8::base::TimeTicks deadline) {
-    DCHECK(platform_);
+    if (state.swept_unfinalized_pages.IsEmpty()) {
+      return true;
+    }
+    StatsCollector::DisabledScope finalize_scope(stats_collector_, scope_id);
     DeadlineChecker deadline_check(deadline);
     while (auto page_state = state.swept_unfinalized_pages.Pop()) {
       FinalizePage(&*page_state);
-
       if (deadline_check.Check()) {
         return false;
       }
     }
-
     return true;
   }
 
@@ -575,6 +586,7 @@ class SweepFinalizer final {
   }
 
   cppgc::Platform* platform_;
+  StatsCollector* stats_collector_;
   BaseSpace* space_;
   size_t* unused_destroyed_pages_;
   size_t largest_new_free_list_entry_ = 0;
@@ -589,10 +601,12 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
 
  public:
   MutatorThreadSweeper(HeapBase* heap, cppgc::Platform* platform,
-                       BaseSpace* space, size_t* unused_destroyed_pages,
+                       StatsCollector* stats_collector, BaseSpace* space,
+                       size_t* unused_destroyed_pages,
                        FreeMemoryHandling free_memory_handling,
                        EmptyPageHandling empty_page_handling)
       : platform_(platform),
+        stats_collector_(stats_collector),
         space_(space),
         unused_destroyed_pages_(unused_destroyed_pages),
         free_memory_handling_(free_memory_handling),
@@ -615,15 +629,15 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
 
   // Returns true if out of work. This implies that sweeping is done only if
   // `sweeping_mode` is kAll.
-  bool FinalizeAndSweepWithDeadline(SweepingState& state,
+  bool FinalizeAndSweepWithDeadline(StatsCollector::ScopeId scope_id,
+                                    SweepingState& state,
                                     v8::base::TimeTicks deadline,
                                     MutatorThreadSweepingMode sweeping_mode) {
-    DCHECK(platform_);
     // First, prioritize finalization of pages that were swept concurrently.
-    SweepFinalizer finalizer(platform_, space_, unused_destroyed_pages_,
-                             free_memory_handling_,
+    SweepFinalizer finalizer(platform_, stats_collector_, space_,
+                             unused_destroyed_pages_, free_memory_handling_,
                              EmptyPageHandling::kDestroy);
-    if (!finalizer.FinalizeWithDeadline(state, deadline)) {
+    if (!finalizer.FinalizeWithDeadline(scope_id, state, deadline)) {
       return false;
     }
 
@@ -640,8 +654,13 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     return largest_new_free_list_entry_;
   }
 
-  bool SweepWithDeadlineAndSize(SweepingState& state,
+  bool SweepWithDeadlineAndSize(StatsCollector::ScopeId scope_id,
+                                SweepingState& state,
                                 v8::base::TimeTicks deadline, size_t size) {
+    if (state.unswept_pages.IsEmpty()) {
+      return false;
+    }
+    StatsCollector::DisabledScope sweep_scope(stats_collector_, scope_id);
     DeadlineChecker deadline_check(deadline);
     while (auto page = state.unswept_pages.Pop()) {
       SweepPage(**page);
@@ -724,6 +743,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   }
 
   cppgc::Platform* platform_;
+  StatsCollector* stats_collector_;
   size_t largest_new_free_list_entry_ = 0;
   BaseSpace* space_;
   size_t* unused_destroyed_pages_;
@@ -1034,38 +1054,45 @@ class Sweeper::SweeperImpl final {
       return false;
     }
 
-    StatsCollector::EnabledScope stats_scope(stats_collector_,
-                                             StatsCollector::kIncrementalSweep);
-    StatsCollector::EnabledScope inner_scope(
+    StatsCollector::EnabledScope incremental_sweep_scope(
+        stats_collector_, StatsCollector::kIncrementalSweep);
+    StatsCollector::DisabledScope sweep_on_allocation_scope(
         stats_collector_, StatsCollector::kSweepOnAllocation);
     MutatorThreadSweepingScope sweeping_in_progress(*this);
 
     const auto deadline = v8::base::TimeTicks::Now() + max_duration;
 
-    SweepFinalizer finalizer(platform_, space, &unused_destroyed_pages_,
-                             config_.free_memory_handling,
-                             EmptyPageHandling::kReturn);
+    SweepFinalizer finalizer(
+        platform_, stats_collector_, space, &unused_destroyed_pages_,
+        config_.free_memory_handling, EmptyPageHandling::kReturn);
     // Check empty pages first. Try to just finalize a page without sweeping.
     // If there's a single page in there we will use it.
-    if (finalizer.FinalizeWithDeadlineAndSize(empty_pages_, deadline, size)) {
+    if (finalizer.FinalizeWithDeadlineAndSize(
+            StatsCollector::kSweepFinalizeEmptyPages, empty_pages_, deadline,
+            size)) {
       return true;
     }
-    MutatorThreadSweeper sweeper(
-        heap_.heap(), platform_, space, &unused_destroyed_pages_,
-        config_.free_memory_handling, EmptyPageHandling::kReturn);
+    MutatorThreadSweeper sweeper(heap_.heap(), platform_, stats_collector_,
+                                 space, &unused_destroyed_pages_,
+                                 config_.free_memory_handling,
+                                 EmptyPageHandling::kReturn);
     // Sweeping an empty page in case there's nothing with finalizers. If
     // there's a single page in there we will use it.
-    if (sweeper.SweepWithDeadlineAndSize(empty_pages_, deadline, size)) {
+    if (sweeper.SweepWithDeadlineAndSize(StatsCollector::kSweepEmptyPages,
+                                         empty_pages_, deadline, size)) {
       return true;
     }
     // Process unfinalized non-empty pages as finalizing a page is generally
     // faster than sweeping.
-    if (finalizer.FinalizeWithDeadlineAndSize(space_state, deadline, size)) {
+    if (finalizer.FinalizeWithDeadlineAndSize(
+            StatsCollector::kSweepFinalizeSweptPages, space_state, deadline,
+            size)) {
       return true;
     }
     // Then, if no matching slot is found in the unfinalized pages, search the
     // unswept page. This also helps out the concurrent sweeper.
-    if (sweeper.SweepWithDeadlineAndSize(space_state, deadline, size)) {
+    if (sweeper.SweepWithDeadlineAndSize(StatsCollector::kSweepPages,
+                                         space_state, deadline, size)) {
       return true;
     }
     return false;
@@ -1085,7 +1112,7 @@ class Sweeper::SweeperImpl final {
                             StatsCollector::kIncrementalSweep);
       }
       StatsCollector::EnabledScope inner_scope(stats_collector_,
-                                               StatsCollector::kSweepFinalize);
+                                               StatsCollector::kSweepFinish);
       if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
           concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
         concurrent_sweeper_handle_->UpdatePriority(
@@ -1147,14 +1174,15 @@ class Sweeper::SweeperImpl final {
     // optimization as we need to call finalizers after sweeping as well. It
     // allows to spend the time in the concurrent sweeper for actual sweeping.
     SweepFinalizer finalizer(
-        platform_, kSweepWithoutSpaceAssignment, &unused_destroyed_pages_,
-        config_.free_memory_handling, EmptyPageHandling::kDestroy);
+        platform_, stats_collector_, kSweepWithoutSpaceAssignment,
+        &unused_destroyed_pages_, config_.free_memory_handling,
+        EmptyPageHandling::kDestroy);
     finalizer.Finalize(space_states_);
     finalizer.Finalize(empty_pages_);
 
     // Then, help out the concurrent thread.
     MutatorThreadSweeper sweeper(
-        heap_.heap(), platform_, kSweepWithoutSpaceAssignment,
+        heap_.heap(), platform_, stats_collector_, kSweepWithoutSpaceAssignment,
         &unused_destroyed_pages_, config_.free_memory_handling,
         EmptyPageHandling::kDestroy);
     sweeper.Sweep(space_states_);
@@ -1213,22 +1241,24 @@ class Sweeper::SweeperImpl final {
           stats_collector_, StatsCollector::kIncrementalSweep);
 
       MutatorThreadSweeper sweeper(
-          heap_.heap(), platform_, kSweepWithoutSpaceAssignment,
-          &unused_destroyed_pages_, config_.free_memory_handling,
-          EmptyPageHandling::kDestroy);
+          heap_.heap(), platform_, stats_collector_,
+          kSweepWithoutSpaceAssignment, &unused_destroyed_pages_,
+          config_.free_memory_handling, EmptyPageHandling::kDestroy);
       {
         StatsCollector::EnabledScope inner_stats_scope(
             stats_collector_, internal_scope_id, "max_duration_ms",
             max_duration.InMillisecondsF(), "sweeping_mode",
             ToString(sweeping_mode));
         const auto deadline = v8::base::TimeTicks::Now() + max_duration;
-        if (!sweeper.FinalizeAndSweepWithDeadline(empty_pages_, deadline,
-                                                  sweeping_mode)) {
+        if (!sweeper.FinalizeAndSweepWithDeadline(
+                StatsCollector::kSweepFinalizeEmptyPages, empty_pages_,
+                deadline, sweeping_mode)) {
           return false;
         }
         for (auto& state : space_states_) {
-          if (!sweeper.FinalizeAndSweepWithDeadline(state, deadline,
-                                                    sweeping_mode)) {
+          if (!sweeper.FinalizeAndSweepWithDeadline(
+                  StatsCollector::kSweepFinalizeSweptPages, state, deadline,
+                  sweeping_mode)) {
             return false;
           }
         }
@@ -1470,8 +1500,9 @@ class Sweeper::SweeperImpl final {
     DCHECK(empty_pages_.unswept_pages.IsEmpty());
 
     SweepFinalizer finalizer(
-        platform_, kSweepWithoutSpaceAssignment, &unused_destroyed_pages_,
-        config_.free_memory_handling, EmptyPageHandling::kDestroy);
+        platform_, stats_collector_, kSweepWithoutSpaceAssignment,
+        &unused_destroyed_pages_, config_.free_memory_handling,
+        EmptyPageHandling::kDestroy);
     finalizer.Finalize(space_states_);
     finalizer.Finalize(empty_pages_);
   }
