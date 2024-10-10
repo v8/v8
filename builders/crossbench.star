@@ -46,7 +46,7 @@ crossbench_cbb_builder("Crossbench End2End Linux x64 Try", "perf/crossbench", "U
 crossbench_cbb_builder(
     "Crossbench End2End Android x64 Try",
     "perf/crossbench_android",
-    "Ubuntu-20",
+    "Ubuntu-22.04",
     "x86-64",
     properties = {"android_sdk": 33},
 )
