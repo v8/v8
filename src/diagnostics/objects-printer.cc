@@ -165,7 +165,7 @@ void PrintHeapObjectHeaderWithoutMap(Tagged<HeapObject> object,
   os << "]";
   if (ReadOnlyHeap::Contains(object)) {
     os << " in ReadOnlySpace";
-  } else if (GetHeapFromWritableObject(object)->InOldSpace(object)) {
+  } else if (Isolate::CurrentMaybeBackground()->heap()->InOldSpace(object)) {
     os << " in OldSpace";
   }
 }
