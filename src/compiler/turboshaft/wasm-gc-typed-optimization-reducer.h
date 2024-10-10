@@ -43,7 +43,11 @@ namespace v8::internal::compiler::turboshaft {
 class WasmGCTypeAnalyzer {
  public:
   WasmGCTypeAnalyzer(PipelineData* data, Graph& graph, Zone* zone)
-      : data_(data), graph_(graph), phase_zone_(zone) {}
+      : data_(data), graph_(graph), phase_zone_(zone) {
+    // If we ever want to run this analyzer for Wasm wrappers, we'll need
+    // to make it handle their {CanonicalSig} signatures.
+    DCHECK_NOT_NULL(signature_);
+  }
 
   void Run();
 
@@ -100,7 +104,7 @@ class WasmGCTypeAnalyzer {
   Graph& graph_;
   Zone* phase_zone_;
   const wasm::WasmModule* module_ = data_->wasm_module();
-  const wasm::FunctionSig* signature_ = data_->wasm_sig();
+  const wasm::ModuleFunctionSig* signature_ = data_->wasm_module_sig();
   // Contains the snapshots for all blocks in the CFG.
   TypeSnapshotTable types_table_{phase_zone_};
   // Maps the block id to a snapshot in the table defining the type knowledge

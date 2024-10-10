@@ -473,7 +473,6 @@ class WasmRevecAnalyzer {
   ZoneVector<std::pair<OpIndex, OpIndex>> store_seeds_;
   ZoneVector<std::pair<OpIndex, OpIndex>> reduce_seeds_;
   const wasm::WasmModule* module_ = data_->wasm_module();
-  const wasm::FunctionSig* signature_ = data_->wasm_sig();
   SLPTree* slp_tree_;
   ZoneUnorderedMap<OpIndex, PackNode*> revectorizable_node_;
   bool should_reduce_;

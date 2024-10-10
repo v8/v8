@@ -1314,7 +1314,7 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     OutputFrameStateCombine state_combine, uint16_t parameters_count,
     size_t locals_count, size_t stack_count,
     MaybeHandle<SharedFunctionInfo> shared_info,
-    FrameStateDescriptor* outer_state, const wasm::FunctionSig* wasm_signature)
+    FrameStateDescriptor* outer_state, const wasm::CanonicalSig* wasm_signature)
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
                            parameters_count, 0, locals_count, stack_count,
                            shared_info, outer_state),

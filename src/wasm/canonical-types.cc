@@ -424,6 +424,10 @@ bool TypeCanonicalizer::Contains(const FunctionSig* sig) const {
   base::MutexGuard mutex_guard(&mutex_);
   return zone_.Contains(sig);
 }
+bool TypeCanonicalizer::Contains(const CanonicalSig* sig) const {
+  base::MutexGuard mutex_guard(&mutex_);
+  return zone_.Contains(sig);
+}
 #endif
 
 }  // namespace v8::internal::wasm

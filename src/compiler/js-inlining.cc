@@ -435,7 +435,10 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
     return {};
   }
 
-  const wasm::FunctionSig* sig = wasm_call_params.signature();
+  // TODO(366180605): Drop the cast!
+  const wasm::ModuleFunctionSig* sig =
+      static_cast<const wasm::ModuleFunctionSig*>(
+          wasm_module_->functions[fct_index].sig);
   Graph::SubgraphScope graph_scope(graph());
   WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
                            WasmGraphBuilder::kJSFunctionAbiMode, isolate(),
@@ -460,7 +463,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   const JSWasmCallParameters& wasm_call_params = call_node.Parameters();
   int fct_index = wasm_call_params.function_index();
   wasm::NativeModule* native_module = wasm_call_params.native_module();
-  const wasm::FunctionSig* sig = wasm_call_params.signature();
+  const wasm::CanonicalSig* sig = wasm_call_params.signature();
 
   // Try "full" inlining of very simple wasm functions (mainly getters / setters
   // for wasm gc objects).

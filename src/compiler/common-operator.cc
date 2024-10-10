@@ -1702,7 +1702,7 @@ const FrameStateFunctionInfo*
 CommonOperatorBuilder::CreateJSToWasmFrameStateFunctionInfo(
     FrameStateType type, uint16_t parameter_count, int local_count,
     Handle<SharedFunctionInfo> shared_info,
-    const wasm::FunctionSig* signature) {
+    const wasm::CanonicalSig* signature) {
   DCHECK_EQ(type, FrameStateType::kJSToWasmBuiltinContinuation);
   DCHECK_NOT_NULL(signature);
   return zone()->New<JSToWasmFrameStateFunctionInfo>(

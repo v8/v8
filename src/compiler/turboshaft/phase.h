@@ -408,23 +408,39 @@ class V8_EXPORT_PRIVATE PipelineData {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  const wasm::FunctionSig* wasm_sig() const {
-    DCHECK(wasm_sig_ != nullptr);
-    return wasm_sig_;
+  // Module-specific signature: type indices are only valid in the WasmModule*
+  // they belong to.
+  const wasm::ModuleFunctionSig* wasm_module_sig() const {
+    return wasm_module_sig_;
+  }
+
+  // Canonicalized (module-independent) signature.
+  const wasm::CanonicalSig* wasm_canonical_sig() const {
+    return wasm_canonical_sig_;
   }
 
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
 
   bool wasm_shared() const { return wasm_shared_; }
 
-  void SetIsWasm(const wasm::WasmModule* module, const wasm::FunctionSig* sig,
-                 bool shared) {
+  void SetIsWasmFunction(const wasm::WasmModule* module,
+                         const wasm::ModuleFunctionSig* sig, bool shared) {
     wasm_module_ = module;
-    wasm_sig_ = sig;
+    wasm_module_sig_ = sig;
     wasm_shared_ = shared;
     DCHECK(pipeline_kind() == TurboshaftPipelineKind::kWasm ||
            pipeline_kind() == TurboshaftPipelineKind::kJSToWasm);
   }
+
+  void SetIsWasmWrapper(const wasm::WasmModule* module,
+                        const wasm::CanonicalSig* sig) {
+    wasm_module_ = module;
+    wasm_canonical_sig_ = sig;
+    wasm_shared_ = false;
+    DCHECK(pipeline_kind() == TurboshaftPipelineKind::kWasm ||
+           pipeline_kind() == TurboshaftPipelineKind::kJSToWasm);
+  }
+
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
   WasmRevecAnalyzer* wasm_revec_analyzer() const {
     DCHECK_NOT_NULL(wasm_revec_analyzer_);
@@ -504,7 +520,8 @@ class V8_EXPORT_PRIVATE PipelineData {
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(14108): Consider splitting wasm members into its own WasmPipelineData
   // if we need many of them.
-  const wasm::FunctionSig* wasm_sig_ = nullptr;
+  const wasm::ModuleFunctionSig* wasm_module_sig_ = nullptr;
+  const wasm::CanonicalSig* wasm_canonical_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
   bool wasm_shared_ = false;
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC

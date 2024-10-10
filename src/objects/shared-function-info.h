@@ -45,9 +45,11 @@ class WasmResumeData;
 
 #if V8_ENABLE_WEBASSEMBLY
 namespace wasm {
+class CanonicalValueType;
 struct WasmModule;
 class ValueType;
 using FunctionSig = Signature<ValueType>;
+using CanonicalSig = Signature<CanonicalValueType>;
 }  // namespace wasm
 #endif
 
@@ -432,7 +434,7 @@ class SharedFunctionInfo
   DECL_GETTER(wasm_resume_data, Tagged<WasmResumeData>)
 
   inline const wasm::WasmModule* wasm_module() const;
-  inline const wasm::FunctionSig* wasm_function_signature() const;
+  inline const wasm::CanonicalSig* wasm_function_signature() const;
   inline int wasm_function_index() const;
   inline bool is_promising_wasm_export() const;
 #endif  // V8_ENABLE_WEBASSEMBLY

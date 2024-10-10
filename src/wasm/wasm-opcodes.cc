@@ -28,11 +28,12 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   return os;
 }
 
-bool IsJSCompatibleSignature(const FunctionSig* sig) {
+template <typename T>
+bool IsJSCompatibleSignature(const Signature<T>* sig) {
   for (auto type : sig->all()) {
     // Rtts are internal-only. They should never be part of a signature.
     DCHECK(!type.is_rtt());
-    if (type == kWasmS128) return false;
+    if (type == T::Primitive(kS128)) return false;
     if (type.is_object_reference()) {
       switch (type.heap_representation_non_shared()) {
         case HeapType::kStringViewWtf8:
@@ -48,6 +49,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig) {
   }
   return true;
 }
+
+template bool IsJSCompatibleSignature(const Signature<ValueType>* sig);
+template bool IsJSCompatibleSignature(const Signature<CanonicalValueType>* sig);
 
 // Define constexpr arrays.
 constexpr uint8_t LoadType::kLoadSizeLog2[];

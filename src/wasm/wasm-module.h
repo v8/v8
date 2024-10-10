@@ -1070,7 +1070,7 @@ class TruncatedUserString {
 // between parameter types and return types. If {buffer} is non-empty, it will
 // be null-terminated, even if the signature is cut off. Returns the number of
 // characters written, excluding the terminating null-byte.
-size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig*,
+size_t PrintSignature(base::Vector<char> buffer, const CanonicalSig* sig,
                       char delimiter = ':');
 
 V8_EXPORT_PRIVATE size_t

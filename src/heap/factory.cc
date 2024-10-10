@@ -1888,7 +1888,8 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result->set_wrapper_code(*export_wrapper);
   result->set_instance_data(*instance_data);
   result->set_function_index(func_index);
-  result->set_sig(sig);
+  // TODO(366180605): Drop the cast!
+  result->set_sig(reinterpret_cast<const wasm::CanonicalSig*>(sig));
   result->set_canonical_type_index(canonical_type_index);
   result->set_wrapper_budget(*wrapper_budget_cell);
   // We can't skip the write barrier because Code objects are not immovable.

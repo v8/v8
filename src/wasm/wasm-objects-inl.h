@@ -449,7 +449,7 @@ PROTECTED_POINTER_ACCESSORS(WasmExportedFunctionData, instance_data,
 CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
                        kCWrapperCodeOffset)
 
-PRIMITIVE_ACCESSORS(WasmExportedFunctionData, sig, const wasm::FunctionSig*,
+PRIMITIVE_ACCESSORS(WasmExportedFunctionData, sig, const wasm::CanonicalSig*,
                     kSigOffset)
 
 // WasmJSFunction

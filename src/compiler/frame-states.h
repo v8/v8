@@ -15,8 +15,8 @@ namespace v8 {
 namespace internal {
 
 namespace wasm {
-class ValueType;
-using FunctionSig = Signature<ValueType>;
+class CanonicalValueType;
+using CanonicalSig = Signature<CanonicalValueType>;
 }  // namespace wasm
 
 namespace compiler {
@@ -145,17 +145,17 @@ class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
   JSToWasmFrameStateFunctionInfo(FrameStateType type, uint16_t parameter_count,
                                  int local_count,
                                  Handle<SharedFunctionInfo> shared_info,
-                                 const wasm::FunctionSig* signature)
+                                 const wasm::CanonicalSig* signature)
       : FrameStateFunctionInfo(type, parameter_count, 0, local_count,
                                shared_info),
         signature_(signature) {
     DCHECK_NOT_NULL(signature);
   }
 
-  const wasm::FunctionSig* signature() const { return signature_; }
+  const wasm::CanonicalSig* signature() const { return signature_; }
 
  private:
-  const wasm::FunctionSig* const signature_;
+  const wasm::CanonicalSig* const signature_;
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -213,12 +213,12 @@ FrameState CreateStubBuiltinContinuationFrameState(
     JSGraph* graph, Builtin name, Node* context, Node* const* parameters,
     int parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode,
-    const wasm::FunctionSig* signature = nullptr);
+    const wasm::CanonicalSig* signature = nullptr);
 
 #if V8_ENABLE_WEBASSEMBLY
 FrameState CreateJSWasmCallBuiltinContinuationFrameState(
     JSGraph* jsgraph, Node* context, Node* outer_frame_state,
-    const wasm::FunctionSig* signature);
+    const wasm::CanonicalSig* signature);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(

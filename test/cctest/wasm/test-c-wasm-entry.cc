@@ -56,7 +56,9 @@ class CWasmEntryArgTester {
   }
 
   void CheckCall(Args... args) {
-    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig_));
+    // TODO(366180605): Drop the cast!
+    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(
+        reinterpret_cast<const FunctionSig*>(sig_)));
     WriteToBuffer(&packer, args...);
     WasmCodePointer wasm_call_target = wasm_code_->code_pointer();
     DirectHandle<Object> object_ref = runner_.builder().instance_object();
@@ -79,7 +81,7 @@ class CWasmEntryArgTester {
   WasmRunner<ReturnType, Args...> runner_;
   Isolate* isolate_;
   std::function<ReturnType(Args...)> expected_fn_;
-  const FunctionSig* sig_;
+  const CanonicalSig* sig_;
   Handle<Code> c_wasm_entry_;
   WasmCode* wasm_code_;
 };

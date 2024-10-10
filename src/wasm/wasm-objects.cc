@@ -638,8 +638,9 @@ void WasmTableObject::UpdateDispatchTables(
     wasm::WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
                                                 param_count, wasm::kNoSuspend);
     if (wasm_code == nullptr) {
-      wasm::WasmCompilationResult result =
-          compiler::CompileWasmCapiCallWrapper(native_module, sig);
+      // TODO(366180605): Drop the cast!
+      wasm::WasmCompilationResult result = compiler::CompileWasmCapiCallWrapper(
+          native_module, reinterpret_cast<const wasm::CanonicalSig*>(sig));
       {
         wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
         wasm::WasmImportWrapperCache::CacheKey key(
@@ -2692,7 +2693,7 @@ bool WasmExportedFunctionData::MatchesSignature(
 
 // static
 std::unique_ptr<char[]> WasmExportedFunction::GetDebugName(
-    const wasm::FunctionSig* sig) {
+    const wasm::CanonicalSig* sig) {
   constexpr const char kPrefix[] = "js-to-wasm:";
   // prefix + parameters + delimiter + returns + zero byte
   size_t len = strlen(kPrefix) + sig->all().size() + 2;
@@ -2812,9 +2813,12 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
         // The Code object can be moved during compaction, so do not store a
         // call_target directly but load the target from the code object at
         // runtime.
+        // TODO(366180605): Drop the cast!
         DirectHandle<Code> wrapper_code =
-            compiler::CompileWasmToJSWrapper(isolate, nullptr, sig, kind,
-                                             expected_arity, suspend)
+            compiler::CompileWasmToJSWrapper(
+                isolate, nullptr,
+                reinterpret_cast<const wasm::CanonicalSig*>(sig), kind,
+                expected_arity, suspend)
                 .ToHandleChecked();
         DirectHandle<WasmImportData> import_data{
             Cast<WasmImportData>(internal_function->implicit_arg()), isolate};

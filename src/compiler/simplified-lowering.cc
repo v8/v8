@@ -2212,7 +2212,7 @@ class RepresentationSelector {
     JSWasmCallNode n(node);
 
     JSWasmCallParameters const& params = n.Parameters();
-    const wasm::FunctionSig* wasm_signature = params.signature();
+    const wasm::CanonicalSig* wasm_signature = params.signature();
     int wasm_arg_count = static_cast<int>(wasm_signature->parameter_count());
     DCHECK_EQ(wasm_arg_count, n.ArgumentCount());
 

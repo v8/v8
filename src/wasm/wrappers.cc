@@ -61,7 +61,7 @@ const TSCallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone) {
 class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
  public:
   WasmWrapperTSGraphBuilder(Zone* zone, Assembler& assembler,
-                            const FunctionSig* sig, StubCallMode stub_mode)
+                            const CanonicalSig* sig, StubCallMode stub_mode)
       : WasmGraphBuilderBase(zone, assembler), sig_(sig) {}
 
   void AbortIfNot(V<Word32> condition, AbortReason abort_reason) {
@@ -190,7 +190,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         Builtin::kWasmFloat64ToNumber, Operator::kNoProperties, value);
   }
 
-  V<Object> ToJS(OpIndex ret, ValueType type, V<Context> context) {
+  V<Object> ToJS(OpIndex ret, CanonicalValueType type, V<Context> context) {
     switch (type.kind()) {
       case kI32:
         return BuildChangeInt32ToNumber(ret);
@@ -334,7 +334,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         context);
   }
 
-  void BuildCallWasmFromWrapper(Zone* zone, const FunctionSig* sig,
+  void BuildCallWasmFromWrapper(Zone* zone, const CanonicalSig* sig,
                                 V<WasmCodePtr> callee,
                                 V<HeapObject> implicit_first_arg,
                                 base::SmallVector<OpIndex, 16> args,
@@ -1076,7 +1076,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   // Must be called in the first block to emit the Parameter ops.
   int AddArgumentNodes(base::Vector<OpIndex> args, int pos,
                        base::SmallVector<OpIndex, 16> wasm_params,
-                       const FunctionSig* sig, V<Context> context) {
+                       const CanonicalSig* sig, V<Context> context) {
     // Convert wasm numbers to JS values.
     for (size_t i = 0; i < wasm_params.size(); ++i) {
       args[pos++] = ToJS(wasm_params[i], sig->GetParam(i), context);
@@ -1286,13 +1286,13 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
  private:
-  const FunctionSig* const sig_;
+  const CanonicalSig* const sig_;
 };
 
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                       AccountingAllocator* allocator,
                       compiler::turboshaft::Graph& graph,
-                      const FunctionSig* sig,
+                      const CanonicalSig* sig,
                       WrapperCompilationInfo wrapper_info) {
   Zone zone(allocator, ZONE_NAME);
   WasmGraphBuilderBase::Assembler assembler(data, graph, graph, &zone);

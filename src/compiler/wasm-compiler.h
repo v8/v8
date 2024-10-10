@@ -73,27 +73,28 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
-    wasm::CompilationEnv* env, wasm::ImportCallKind, const wasm::FunctionSig*,
+    wasm::CompilationEnv* env, wasm::ImportCallKind, const wasm::CanonicalSig*,
     bool source_positions, int expected_arity, wasm::Suspend);
 
 // Compiles a host call wrapper, which allows Wasm to call host functions.
 wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
-    wasm::NativeModule*, const wasm::FunctionSig*);
+    wasm::NativeModule*, const wasm::CanonicalSig*);
 
 bool IsFastCallSupportedSignature(const v8::CFunctionInfo*);
 // Compiles a wrapper to call a Fast API function from Wasm.
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
-    wasm::NativeModule*, const wasm::FunctionSig*, Handle<JSReceiver> callable);
+    wasm::NativeModule*, const wasm::CanonicalSig*,
+    Handle<JSReceiver> callable);
 
 // Returns an TurbofanCompilationJob or TurboshaftCompilationJob object
 // (depending on the --turboshaft-wasm-wrappers flag) for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, const wasm::FunctionSig* sig,
+    Isolate* isolate, const wasm::CanonicalSig* sig,
     const wasm::WasmModule* module, wasm::WasmEnabledFeatures enabled_features);
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          const wasm::WasmModule* module,
-                                         const wasm::FunctionSig* sig,
+                                         const wasm::CanonicalSig* sig,
                                          wasm::ImportCallKind kind,
                                          int expected_arity,
                                          wasm::Suspend suspend);
@@ -110,7 +111,7 @@ enum CWasmEntryParameters {
 // Compiles a stub with C++ linkage, to be called from Execution::CallWasm,
 // which knows how to feed it its parameters.
 V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(Isolate*,
-                                                 const wasm::FunctionSig*);
+                                                 const wasm::CanonicalSig*);
 
 // Values from the instance object are cached between Wasm-level function calls.
 // This struct allows the SSA environment handling this cache to be defined
@@ -180,9 +181,10 @@ class WasmGraphBuilder {
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
-      const wasm::FunctionSig* sig, compiler::SourcePositionTable* spt,
+      const wasm::ModuleFunctionSig* sig, compiler::SourcePositionTable* spt,
       ParameterMode parameter_mode, Isolate* isolate,
-      wasm::WasmEnabledFeatures enabled_features);
+      wasm::WasmEnabledFeatures enabled_features,
+      const wasm::CanonicalSig* wrapper_sig = nullptr);
 
   V8_EXPORT_PRIVATE ~WasmGraphBuilder();
 
@@ -374,8 +376,6 @@ class WasmGraphBuilder {
   void set_instance_cache(WasmInstanceCacheNodes* instance_cache) {
     this->instance_cache_ = instance_cache;
   }
-
-  const wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
   // Overload for when we want to provide a specific signature, rather than
   // build one using sig_, for example after scalar lowering.
@@ -662,7 +662,7 @@ class WasmGraphBuilder {
 
   template <typename... Args>
   Node* BuildCCall(MachineSignature* sig, Node* function, Args... args);
-  Node* BuildCallNode(const wasm::FunctionSig* sig, base::Vector<Node*> args,
+  Node* BuildCallNode(size_t param_count, base::Vector<Node*> args,
                       wasm::WasmCodePosition position, Node* instance_node,
                       const Operator* op, Node* frame_state = nullptr);
   // Helper function for {BuildIndirectCall}.
@@ -673,7 +673,8 @@ class WasmGraphBuilder {
                           base::Vector<Node*> args, base::Vector<Node*> rets,
                           wasm::WasmCodePosition position,
                           IsReturnCall continuation);
-  Node* BuildWasmCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
+  template <typename T>
+  Node* BuildWasmCall(const Signature<T>* sig, base::Vector<Node*> args,
                       base::Vector<Node*> rets, wasm::WasmCodePosition position,
                       Node* implicit_first_arg, Node* frame_state = nullptr);
   Node* BuildWasmReturnCall(const wasm::FunctionSig* sig,
@@ -877,7 +878,8 @@ class WasmGraphBuilder {
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
 
-  const wasm::FunctionSig* const sig_;
+  const wasm::ModuleFunctionSig* const function_sig_;
+  const wasm::CanonicalSig* const wrapper_sig_{nullptr};
 
   compiler::WasmDecorator* decorator_ = nullptr;
 
@@ -892,7 +894,7 @@ class WasmGraphBuilder {
 };
 
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
-    Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
+    Zone* zone, MachineGraph* mcgraph, const wasm::CanonicalSig* signature,
     Isolate* isolate, compiler::SourcePositionTable* spt,
     wasm::WasmEnabledFeatures features, Node* frame_state,
     bool set_in_wasm_flag);
@@ -900,8 +902,9 @@ V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();
 
+template <typename T>
 Signature<MachineRepresentation>* CreateMachineSignature(
-    Zone* zone, const wasm::FunctionSig* sig, wasm::CallOrigin origin);
+    Zone* zone, const Signature<T>* sig, wasm::CallOrigin origin);
 
 }  // namespace compiler
 }  // namespace internal

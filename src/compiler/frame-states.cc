@@ -120,7 +120,7 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
     Node* context, Node** parameters, int parameter_count,
     Node* outer_frame_state,
     Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>(),
-    const wasm::FunctionSig* signature = nullptr) {
+    const wasm::CanonicalSig* signature = nullptr) {
   Graph* const graph = jsgraph->graph();
   CommonOperatorBuilder* const common = jsgraph->common();
 
@@ -154,7 +154,7 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
 FrameState CreateStubBuiltinContinuationFrameState(
     JSGraph* jsgraph, Builtin name, Node* context, Node* const* parameters,
     int parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode, const wasm::FunctionSig* signature) {
+    ContinuationFrameStateMode mode, const wasm::CanonicalSig* signature) {
   Callable callable = Builtins::CallableFor(jsgraph->isolate(), name);
   CallInterfaceDescriptor descriptor = callable.descriptor();
 
@@ -199,7 +199,7 @@ FrameState CreateStubBuiltinContinuationFrameState(
 #if V8_ENABLE_WEBASSEMBLY
 FrameState CreateJSWasmCallBuiltinContinuationFrameState(
     JSGraph* jsgraph, Node* context, Node* outer_frame_state,
-    const wasm::FunctionSig* signature) {
+    const wasm::CanonicalSig* signature) {
   std::optional<wasm::ValueKind> wasm_return_kind =
       wasm::WasmReturnTypeFromSignature(signature);
   Node* node_return_type =

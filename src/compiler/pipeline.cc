@@ -2162,7 +2162,7 @@ class WasmTurboshaftWrapperCompilationJob final
     : public turboshaft::TurboshaftCompilationJob {
  public:
   WasmTurboshaftWrapperCompilationJob(Isolate* isolate,
-                                      const wasm::FunctionSig* sig,
+                                      const wasm::CanonicalSig* sig,
                                       wasm::WrapperCompilationInfo wrapper_info,
                                       const wasm::WasmModule* module,
                                       std::unique_ptr<char[]> debug_name,
@@ -2219,7 +2219,7 @@ class WasmTurboshaftWrapperCompilationJob final
   Zone zone_;
   std::unique_ptr<char[]> debug_name_;
   OptimizedCompilationInfo info_;
-  const wasm::FunctionSig* sig_;
+  const wasm::CanonicalSig* sig_;
   wasm::WrapperCompilationInfo wrapper_info_;
   const wasm::WasmModule* module_;
   CallDescriptor* call_descriptor_;  // Incoming call descriptor.
@@ -2242,7 +2242,7 @@ std::unique_ptr<TurbofanCompilationJob> Pipeline::NewWasmHeapStubCompilationJob(
 // static
 std::unique_ptr<turboshaft::TurboshaftCompilationJob>
 Pipeline::NewWasmTurboshaftWrapperCompilationJob(
-    Isolate* isolate, const wasm::FunctionSig* sig,
+    Isolate* isolate, const wasm::CanonicalSig* sig,
     wasm::WrapperCompilationInfo wrapper_info, const wasm::WasmModule* module,
     std::unique_ptr<char[]> debug_name, const AssemblerOptions& options) {
   return std::make_unique<WasmTurboshaftWrapperCompilationJob>(
@@ -2411,7 +2411,7 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   Linkage linkage(call_descriptor_);
 
   turboshaft_data_.set_pipeline_statistics(pipeline_statistics.get());
-  turboshaft_data_.SetIsWasm(module_, sig_, false);
+  turboshaft_data_.SetIsWasmWrapper(module_, sig_);
 
   AccountingAllocator allocator;
   turboshaft_data_.InitializeGraphComponent(nullptr);
@@ -3135,7 +3135,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 // static
 wasm::WasmCompilationResult
 Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
-    const wasm::WasmModule* module, const wasm::FunctionSig* sig,
+    const wasm::WasmModule* module, const wasm::CanonicalSig* sig,
     wasm::WrapperCompilationInfo wrapper_info, const char* debug_name,
     const AssemblerOptions& options, SourcePositionTable* source_positions) {
   wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
@@ -3170,7 +3170,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     turboshaft::PipelineData turboshaft_data(
         &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, &info,
         options);
-    turboshaft_data.SetIsWasm(module, sig, false);
+    turboshaft_data.SetIsWasmWrapper(module, sig);
     AccountingAllocator allocator;
     turboshaft_data.InitializeGraphComponent(source_positions);
     BuildWasmWrapper(&turboshaft_data, &allocator, turboshaft_data.graph(), sig,
@@ -3547,8 +3547,12 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, info,
       options);
   turboshaft_data.set_pipeline_statistics(pipeline_statistics.get());
-  turboshaft_data.SetIsWasm(env->module, compilation_data.func_body.sig,
-                            compilation_data.func_body.is_shared);
+  // TODO(366180605): Drop the cast!
+  const wasm::ModuleFunctionSig* sig =
+      static_cast<const wasm::ModuleFunctionSig*>(
+          compilation_data.func_body.sig);
+  turboshaft_data.SetIsWasmFunction(env->module, sig,
+                                    compilation_data.func_body.is_shared);
   DCHECK_NOT_NULL(turboshaft_data.wasm_module());
 
   // TODO(nicohartmann): This only works here because source positions are not

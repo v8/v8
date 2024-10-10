@@ -1199,7 +1199,7 @@ Type Typer::Visitor::TypeSetContinuationPreservedEmbedderData(Node* node) {
 #if V8_ENABLE_WEBASSEMBLY
 Type Typer::Visitor::TypeJSWasmCall(Node* node) {
   const JSWasmCallParameters& op_params = JSWasmCallParametersOf(node->op());
-  const wasm::FunctionSig* wasm_signature = op_params.signature();
+  const wasm::CanonicalSig* wasm_signature = op_params.signature();
   if (wasm_signature->return_count() > 0) {
     return JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn());
   }

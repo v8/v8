@@ -1588,7 +1588,7 @@ class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
                                size_t stack_count,
                                MaybeHandle<SharedFunctionInfo> shared_info,
                                FrameStateDescriptor* outer_state,
-                               const wasm::FunctionSig* wasm_signature);
+                               const wasm::CanonicalSig* wasm_signature);
 
   std::optional<wasm::ValueKind> return_kind() const { return return_kind_; }
 

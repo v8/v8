@@ -1927,8 +1927,10 @@ bool InstanceBuilder::ProcessImportedFunction(
       if (wasm_code == nullptr) {
         {
           WasmImportWrapperCache::ModificationScope cache_scope(cache);
-          WasmCompilationResult result =
-              compiler::CompileWasmCapiCallWrapper(native_module, expected_sig);
+          // TODO(366180605): Drop the cast!
+          WasmCompilationResult result = compiler::CompileWasmCapiCallWrapper(
+              native_module,
+              reinterpret_cast<const CanonicalSig*>(expected_sig));
           WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
                                                expected_arity, kNoSuspend);
           wasm_code = cache_scope.AddWrapper(
@@ -1961,8 +1963,10 @@ bool InstanceBuilder::ProcessImportedFunction(
       // So the {CacheKey} is a dummy, and we don't look for an existing
       // wrapper. Key collisions are not a concern because lifetimes are
       // determined by refcounting.
+      // TODO(366180605): Drop the cast!
       WasmCompilationResult result = compiler::CompileWasmJSFastCallWrapper(
-          native_module, expected_sig, js_receiver);
+          native_module, reinterpret_cast<const CanonicalSig*>(expected_sig),
+          js_receiver);
       WasmCode* wasm_code;
       {
         WasmImportWrapperCache::ModificationScope cache_scope(

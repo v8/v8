@@ -10,7 +10,7 @@
 namespace v8::internal::wasm {
 
 std::optional<wasm::ValueKind> WasmReturnTypeFromSignature(
-    const FunctionSig* wasm_signature) {
+    const CanonicalSig* wasm_signature) {
   if (wasm_signature->return_count() == 0) return {};
 
   DCHECK_EQ(wasm_signature->return_count(), 1);

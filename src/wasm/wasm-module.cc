@@ -773,7 +773,7 @@ size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   return result;
 }
 
-size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig* sig,
+size_t PrintSignature(base::Vector<char> buffer, const CanonicalSig* sig,
                       char delimiter) {
   if (buffer.empty()) return 0;
   size_t old_size = buffer.size();
@@ -782,11 +782,11 @@ size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig* sig,
     buffer[0] = c;
     buffer += 1;
   };
-  for (wasm::ValueType t : sig->parameters()) {
+  for (CanonicalValueType t : sig->parameters()) {
     append_char(t.short_name());
   }
   append_char(delimiter);
-  for (wasm::ValueType t : sig->returns()) {
+  for (CanonicalValueType t : sig->returns()) {
     append_char(t.short_name());
   }
   buffer[0] = '\0';

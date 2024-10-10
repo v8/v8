@@ -931,7 +931,7 @@ class WasmExportedFunction : public JSFunction {
 
   // Return a null-terminated string with the debug name in the form
   // 'js-to-wasm:<sig>'.
-  static std::unique_ptr<char[]> GetDebugName(const wasm::FunctionSig* sig);
+  static std::unique_ptr<char[]> GetDebugName(const wasm::CanonicalSig* sig);
 
   OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction);
 };
@@ -1014,7 +1014,7 @@ class WasmExportedFunctionData
   DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
 
-  DECL_PRIMITIVE_ACCESSORS(sig, const wasm::FunctionSig*)
+  DECL_PRIMITIVE_ACCESSORS(sig, const wasm::CanonicalSig*)
 
   bool MatchesSignature(uint32_t other_canonical_sig_index);
 

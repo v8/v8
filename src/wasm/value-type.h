@@ -1167,6 +1167,17 @@ constexpr ValueType kWasmNullExternRef =
 constexpr ValueType kWasmNullExnRef = ValueType::RefNull(HeapType::kNoExn);
 constexpr ValueType kWasmNullFuncRef = ValueType::RefNull(HeapType::kNoFunc);
 
+constexpr CanonicalValueType kCanonicalI32 =
+    CanonicalValueType::Primitive(kI32);
+constexpr CanonicalValueType kCanonicalI64 =
+    CanonicalValueType::Primitive(kI64);
+constexpr CanonicalValueType kCanonicalF32 =
+    CanonicalValueType::Primitive(kF32);
+constexpr CanonicalValueType kCanonicalF64 =
+    CanonicalValueType::Primitive(kF64);
+constexpr CanonicalValueType kCanonicalExternRef =
+    CanonicalValueType::RefNull(HeapType::kExtern);
+
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;
 constexpr int kWasmHeapTypeBitsMask = (1u << ValueType::kHeapTypeBits) - 1;
@@ -1368,7 +1379,7 @@ class StoreType {
 };
 
 std::optional<wasm::ValueKind> WasmReturnTypeFromSignature(
-    const FunctionSig* wasm_signature);
+    const CanonicalSig* wasm_signature);
 
 // Lowers a signature for 32 bit platforms by replacing i64 parameters and
 // returns with two i32s each.

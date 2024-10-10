@@ -881,7 +881,7 @@ const wasm::WasmModule* SharedFunctionInfo::wasm_module() const {
   return function_data->instance_data()->module();
 }
 
-const wasm::FunctionSig* SharedFunctionInfo::wasm_function_signature() const {
+const wasm::CanonicalSig* SharedFunctionInfo::wasm_function_signature() const {
   if (!HasWasmExportedFunctionData()) return nullptr;
   return wasm_exported_function_data()->sig();
 }

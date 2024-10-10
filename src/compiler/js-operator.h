@@ -845,7 +845,7 @@ const ForInParameters& ForInParametersOf(const Operator* op);
 class JSWasmCallParameters {
  public:
   explicit JSWasmCallParameters(const wasm::WasmModule* module,
-                                const wasm::FunctionSig* signature,
+                                const wasm::CanonicalSig* signature,
                                 int function_index,
                                 SharedFunctionInfoRef shared_fct_info,
                                 wasm::NativeModule* native_module,
@@ -861,7 +861,7 @@ class JSWasmCallParameters {
   }
 
   const wasm::WasmModule* module() const { return module_; }
-  const wasm::FunctionSig* signature() const { return signature_; }
+  const wasm::CanonicalSig* signature() const { return signature_; }
   int function_index() const { return function_index_; }
   SharedFunctionInfoRef shared_fct_info() const { return shared_fct_info_; }
   wasm::NativeModule* native_module() const { return native_module_; }
@@ -871,7 +871,7 @@ class JSWasmCallParameters {
 
  private:
   const wasm::WasmModule* const module_;
-  const wasm::FunctionSig* const signature_;
+  const wasm::CanonicalSig* const signature_;
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   wasm::NativeModule* native_module_;
@@ -1010,7 +1010,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* CallWasm(const wasm::WasmModule* wasm_module,
-                           const wasm::FunctionSig* wasm_signature,
+                           const wasm::CanonicalSig* wasm_signature,
                            int wasm_function_index,
                            SharedFunctionInfoRef shared_fct_info,
                            wasm::NativeModule* native_module,

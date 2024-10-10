@@ -125,6 +125,9 @@ class TypeCanonicalizer {
   // Check whether a function signature is canonicalized by checking whether the
   // pointer points into this class's storage.
   V8_EXPORT_PRIVATE bool Contains(const FunctionSig* sig) const;
+  // TODO(366180605): We probably won't need this, because static typing
+  // provides more reliable guarantees than DCHECKs.
+  V8_EXPORT_PRIVATE bool Contains(const CanonicalSig* sig) const;
 #endif
 
  private:

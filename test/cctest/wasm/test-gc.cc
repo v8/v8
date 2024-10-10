@@ -260,8 +260,9 @@ class WasmGCTester {
     WasmCodePointer wasm_call_target =
         trusted_instance_data_->GetCallTarget(function_index);
     DirectHandle<Object> object_ref = instance_object_;
-    DirectHandle<Code> c_wasm_entry =
-        compiler::CompileCWasmEntry(isolate_, sig);
+    // TODO(366180605): Drop the cast!
+    DirectHandle<Code> c_wasm_entry = compiler::CompileCWasmEntry(
+        isolate_, reinterpret_cast<const CanonicalSig*>(sig));
     Execution::CallWasm(isolate_, c_wasm_entry, wasm_call_target, object_ref,
                         packer->argv());
   }

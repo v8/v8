@@ -648,9 +648,11 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
             ? import_data->instance_data()->module()
             : nullptr;
 
+    // TODO(366180605): Drop the cast!
     DirectHandle<Code> wasm_to_js_wrapper_code =
         compiler::CompileWasmToJSWrapper(
-            isolate, module, sig, kind, static_cast<int>(expected_arity),
+            isolate, module, reinterpret_cast<const wasm::CanonicalSig*>(sig),
+            kind, static_cast<int>(expected_arity),
             static_cast<wasm::Suspend>(import_data->suspend()))
             .ToHandleChecked();
 

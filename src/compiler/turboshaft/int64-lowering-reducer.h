@@ -32,7 +32,16 @@ class Int64LoweringReducer : public Next {
     wasm::CallOrigin origin = __ data() -> is_js_to_wasm()
                                   ? wasm::kCalledFromJS
                                   : wasm::kCalledFromWasm;
-    sig_ = CreateMachineSignature(zone_, __ data()->wasm_sig(), origin);
+    // To compute the machine signature, it doesn't matter whether types
+    // are canonicalized, just use whichever signature is present (functions
+    // will have one and wrappers the other).
+    if (__ data()->wasm_module_sig()) {
+      sig_ =
+          CreateMachineSignature(zone_, __ data()->wasm_module_sig(), origin);
+    } else {
+      sig_ = CreateMachineSignature(zone_, __ data()->wasm_canonical_sig(),
+                                    origin);
+    }
 
     InitializeIndexMaps();
   }

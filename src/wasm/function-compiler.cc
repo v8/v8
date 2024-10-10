@@ -54,8 +54,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
   // instantiation time.
   auto kind = kDefaultImportCallKind;
   bool source_positions = is_asmjs_module(env->module);
+  // TODO(366180605): Drop the cast!
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      env, kind, sig, source_positions,
+      env, kind, reinterpret_cast<const CanonicalSig*>(sig), source_positions,
       static_cast<int>(sig->parameter_count()), wasm::kNoSuspend);
   return result;
 }
@@ -226,8 +227,10 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
       canonical_sig_index_(canonical_sig_index),
       job_(v8_flags.wasm_jitless
                ? nullptr
-               : compiler::NewJSToWasmCompilationJob(isolate, sig, module,
-                                                     enabled_features)) {
+               // TODO(366180605): Drop the cast!
+               : compiler::NewJSToWasmCompilationJob(
+                     isolate, reinterpret_cast<const CanonicalSig*>(sig),
+                     module, enabled_features)) {
   if (!v8_flags.wasm_jitless) {
     OptimizedCompilationInfo* info =
         v8_flags.turboshaft_wasm_wrappers

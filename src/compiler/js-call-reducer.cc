@@ -3787,18 +3787,18 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
 namespace {
 
-bool CanInlineJSToWasmCall(const wasm::FunctionSig* wasm_signature) {
+bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature) {
   if (wasm_signature->return_count() > 1) {
     return false;
   }
 
   for (auto type : wasm_signature->all()) {
 #if defined(V8_TARGET_ARCH_32_BIT)
-    if (type == wasm::kWasmI64) return false;
+    if (type == wasm::kCanonicalI64) return false;
 #endif
-    if (type != wasm::kWasmI32 && type != wasm::kWasmI64 &&
-        type != wasm::kWasmF32 && type != wasm::kWasmF64 &&
-        type != wasm::kWasmExternRef) {
+    if (type != wasm::kCanonicalI32 && type != wasm::kCanonicalI64 &&
+        type != wasm::kCanonicalF32 && type != wasm::kCanonicalF64 &&
+        type != wasm::kCanonicalExternRef) {
       return false;
     }
   }
@@ -3820,35 +3820,34 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
     return NoChange();
   }
 
-  const wasm::FunctionSig* wasm_signature = shared.wasm_function_signature();
+  // Read the trusted object only once to ensure a consistent view on it.
+  Tagged<Object> trusted_data = shared.object()->GetTrustedData();
+  if (!IsWasmExportedFunctionData(trusted_data)) return NoChange();
+
+  Tagged<WasmExportedFunctionData> function_data =
+      Cast<WasmExportedFunctionData>(trusted_data);
+  Tagged<WasmTrustedInstanceData> instance_data =
+      function_data->instance_data();
+  const wasm::CanonicalSig* wasm_signature = function_data->sig();
   if (!CanInlineJSToWasmCall(wasm_signature)) {
     return NoChange();
   }
 
-  const wasm::WasmModule* wasm_module = shared.wasm_module();
+  wasm::NativeModule* native_module = instance_data->native_module();
+  const wasm::WasmModule* wasm_module = native_module->module();
+  int wasm_function_index = function_data->function_index();
+
   if (wasm_module_for_inlining_ == nullptr) {
     wasm_module_for_inlining_ = wasm_module;
   }
 
-  wasm::NativeModule* native_module = nullptr;
-  if (shared.object()->HasWasmExportedFunctionData()) {
-    // TODO(jkummerow): Introduce a pointer from WasmExportedFunctionData
-    // to WasmTrustedInstanceData.
-    Tagged<TrustedObject> implicit_arg = shared.object()
-                                             ->wasm_exported_function_data()
-                                             ->internal()
-                                             ->implicit_arg();
-    if (!IsWasmTrustedInstanceData(implicit_arg)) return NoChange();
-    native_module =
-        Cast<WasmTrustedInstanceData>(implicit_arg)->native_module();
-  }
   // TODO(mliedtke): We should be able to remove module, signature, native
   // module and function index from the SharedFunctionInfoRef. However, for some
   // reason I may dereference the SharedFunctionInfoRef here but not in
   // JSInliningHeuristic later on.
-  const Operator* op = javascript()->CallWasm(
-      wasm_module, wasm_signature, shared.wasm_function_index(), shared,
-      native_module, p.feedback());
+  const Operator* op =
+      javascript()->CallWasm(wasm_module, wasm_signature, wasm_function_index,
+                             shared, native_module, p.feedback());
 
   // Remove additional inputs
   size_t actual_arity = n.ArgumentCount();
