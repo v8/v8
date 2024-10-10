@@ -39,7 +39,6 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
-#include "src/common/thread-local-storage.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/date/date.h"
@@ -514,8 +513,6 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
 thread_local Isolate::PerIsolateThreadData* g_current_per_isolate_thread_data_
     V8_CONSTINIT = nullptr;
 thread_local Isolate* g_current_isolate_ V8_CONSTINIT = nullptr;
-
-V8_TLS_DEFINE_GETTER(Isolate::TryGetCurrent, Isolate*, g_current_isolate_)
 
 // static
 Isolate* Isolate::CurrentMaybeBackground() {

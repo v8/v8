@@ -473,7 +473,6 @@ v8_config(
         "V8_ENABLE_SPARKPLUG",
         "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
         "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
-        "V8_TLS_USED_IN_LIBRARY",
     ] + select({
         "@v8//bazel/config:is_debug": [
             "DEBUG",
@@ -1460,7 +1459,6 @@ filegroup(
         "src/common/ptr-compr.cc",
         "src/common/ptr-compr.h",
         "src/common/ptr-compr-inl.h",
-        "src/common/thread-local-storage.h",
         "src/common/segmented-table.h",
         "src/common/segmented-table-inl.h",
         "src/common/simd128.h",

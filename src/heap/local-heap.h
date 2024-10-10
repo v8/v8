@@ -14,7 +14,6 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/assert-scope.h"
 #include "src/common/ptr-compr.h"
-#include "src/common/thread-local-storage.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
@@ -29,11 +28,6 @@ class LocalHandles;
 class MarkingBarrier;
 class MutablePageMetadata;
 class Safepoint;
-
-// Do not use this variable directly, use LocalHeap::Current() instead.
-// Defined outside of LocalHeap because LocalHeap uses V8_EXPORT_PRIVATE.
-__attribute__((tls_model(V8_TLS_MODEL))) extern thread_local LocalHeap*
-    g_current_local_heap_ V8_CONSTINIT;
 
 // LocalHeap is used by the GC to track all threads with heap access in order to
 // stop them before performing a collection. LocalHeaps can be either Parked or
@@ -151,9 +145,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // difficult to get a pointer to the current instance of local heap otherwise.
   // The result may be a nullptr if there is no local heap instance associated
   // with the current thread.
-  V8_TLS_DECLARE_GETTER(Current, LocalHeap*, g_current_local_heap_)
-
-  static void SetCurrent(LocalHeap* local_heap);
+  static LocalHeap* Current();
 
 #ifdef DEBUG
   void VerifyCurrent() const;
