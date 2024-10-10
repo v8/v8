@@ -629,8 +629,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   DirectHandle<Object> origin(import_data->call_origin(), isolate);
 
   if (IsWasmFuncRef(*origin)) {
-    // The tierup for `WasmInternalFunction is special, as there may not be an
-    // instance.
+    // The tierup for `WasmFuncRef` is special, as there may not be an instance.
     // TODO(jkummerow): Use the WasmImportWrapperCache here.
     size_t expected_arity = sig->parameter_count();
     wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
@@ -667,17 +666,24 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  Handle<WasmTrustedInstanceData> trusted_data(import_data->instance_data(),
-                                               isolate);
+  // The trusted data of the instance which originally imported the non-wasm
+  // target.
+  Handle<WasmTrustedInstanceData> defining_instance_data(
+      import_data->instance_data(), isolate);
+  Handle<WasmTrustedInstanceData> call_origin_instance_data =
+      defining_instance_data;
   if (IsTuple2(*origin)) {
     auto tuple = Cast<Tuple2>(origin);
-    Handle<WasmTrustedInstanceData> call_origin_trusted_data(
-        Cast<WasmInstanceObject>(tuple->value1())->trusted_data(isolate),
-        isolate);
+    // Note: This link is unsafe (via the untrusted WasmInstanceObject). We only
+    // use it to find places to patch after tier-up, after additional checks.
+    call_origin_instance_data =
+        handle(Cast<WasmInstanceObject>(tuple->value1())->trusted_data(isolate),
+               isolate);
     // TODO(371565065): We do not tier up the wrapper if the JS function wasn't
     // imported in the current instance but the signature is specific to the
     // importing instance. Remove this bailout again.
-    if (trusted_data->module() != call_origin_trusted_data->module()) {
+    if (defining_instance_data->module() !=
+        call_origin_instance_data->module()) {
       for (wasm::ValueType type : sig->all()) {
         if (type.has_index()) {
           // Reset the tiering budget, so that we don't have to deal with the
@@ -687,28 +693,34 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
         }
       }
     }
-    trusted_data = call_origin_trusted_data;
+    defining_instance_data = call_origin_instance_data;
     origin = direct_handle(tuple->value2(), isolate);
   }
-  const wasm::WasmModule* module = trusted_data->module();
+  CHECK(IsSmi(*origin));
+  Tagged<Smi> call_origin_index = Cast<Smi>(*origin);
+
+  const wasm::WasmModule* defining_module = defining_instance_data->module();
 
   // Get the function's canonical signature index.
   wasm::CanonicalTypeIndex canonical_sig_index =
       wasm::CanonicalTypeIndex::Invalid();
-  if (WasmImportData::CallOriginIsImportIndex(origin)) {
-    int func_index = WasmImportData::CallOriginAsIndex(origin);
-    canonical_sig_index =
-        module->canonical_sig_id(module->functions[func_index].sig_index);
+  if (WasmImportData::CallOriginIsImportIndex(call_origin_index)) {
+    int func_index = WasmImportData::CallOriginAsIndex(call_origin_index);
+    canonical_sig_index = defining_module->canonical_sig_id(
+        defining_module->functions[func_index].sig_index);
   } else {
     // Indirect function table index.
-    int entry_index = WasmImportData::CallOriginAsIndex(origin);
-    int table_count = trusted_data->dispatch_tables()->length();
+    int entry_index = WasmImportData::CallOriginAsIndex(call_origin_index);
+    int table_count = call_origin_instance_data->dispatch_tables()->length();
+    const wasm::WasmModule* call_origin_module =
+        call_origin_instance_data->module();
     // We have to find the table which contains the correct entry.
     for (int table_index = 0; table_index < table_count; ++table_index) {
-      bool table_is_shared = module->tables[table_index].shared;
+      bool table_is_shared = call_origin_module->tables[table_index].shared;
       DirectHandle<WasmTrustedInstanceData> maybe_shared_data =
-          table_is_shared ? direct_handle(trusted_data->shared_part(), isolate)
-                          : trusted_data;
+          table_is_shared
+              ? direct_handle(call_origin_instance_data->shared_part(), isolate)
+              : call_origin_instance_data;
       if (!maybe_shared_data->has_dispatch_table(table_index)) continue;
       Tagged<WasmDispatchTable> table =
           maybe_shared_data->dispatch_table(table_index);
@@ -726,8 +738,6 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
                               isolate);
   wasm::Suspend suspend = static_cast<wasm::Suspend>(import_data->suspend());
   wasm::WasmCodeRefScope code_ref_scope;
-
-  wasm::NativeModule* native_module = trusted_data->native_module();
 
   wasm::ResolvedWasmImport resolved({}, -1, callable, sig, canonical_sig_index,
                                     wasm::WellKnownImport::kUninstantiated);
@@ -747,26 +757,26 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
   if (!wasm_code) {
     wasm_code = cache->CompileWasmImportCallWrapper(
-        isolate, native_module, kind, sig, canonical_sig_index, false,
-        expected_arity, suspend);
+        isolate, call_origin_instance_data->native_module(), kind, sig,
+        canonical_sig_index, false, expected_arity, suspend);
   }
   // Note: we don't need to decrement any refcounts here, because tier-up
   // doesn't overwrite an existing compiled wrapper, and the generic wrapper
   // isn't refcounted.
 
-  if (WasmImportData::CallOriginIsImportIndex(origin)) {
-    int func_index = WasmImportData::CallOriginAsIndex(origin);
-    ImportedFunctionEntry entry(trusted_data, func_index);
+  if (WasmImportData::CallOriginIsImportIndex(call_origin_index)) {
+    int func_index = WasmImportData::CallOriginAsIndex(call_origin_index);
+    ImportedFunctionEntry entry(call_origin_instance_data, func_index);
     entry.set_target(wasm_code->code_pointer(), wasm_code, IsAWrapper::kYes);
   } else {
     // Indirect function table index.
-    int entry_index = WasmImportData::CallOriginAsIndex(origin);
-    int table_count = trusted_data->dispatch_tables()->length();
+    int entry_index = WasmImportData::CallOriginAsIndex(call_origin_index);
+    int table_count = call_origin_instance_data->dispatch_tables()->length();
     // We have to find the table which contains the correct entry.
     for (int table_index = 0; table_index < table_count; ++table_index) {
-      if (!trusted_data->has_dispatch_table(table_index)) continue;
+      if (!call_origin_instance_data->has_dispatch_table(table_index)) continue;
       Tagged<WasmDispatchTable> table =
-          trusted_data->dispatch_table(table_index);
+          call_origin_instance_data->dispatch_table(table_index);
       if (entry_index < table->length() &&
           table->implicit_arg(entry_index) == *import_data) {
         table->offheap_data()->Add(wasm_code->code_pointer(), wasm_code,

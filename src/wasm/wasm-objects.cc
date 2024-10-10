@@ -1870,19 +1870,18 @@ void WasmImportData::SetIndexInTableAsCallOrigin(
 }
 
 // static
-bool WasmImportData::CallOriginIsImportIndex(DirectHandle<Object> call_origin) {
-  return Cast<Smi>(*call_origin).value() < 0;
+bool WasmImportData::CallOriginIsImportIndex(Tagged<Smi> call_origin) {
+  return call_origin.value() < 0;
 }
 
 // static
-bool WasmImportData::CallOriginIsIndexInTable(
-    DirectHandle<Object> call_origin) {
-  return Cast<Smi>(*call_origin).value() > 0;
+bool WasmImportData::CallOriginIsIndexInTable(Tagged<Smi> call_origin) {
+  return call_origin.value() > 0;
 }
 
 // static
-int WasmImportData::CallOriginAsIndex(DirectHandle<Object> call_origin) {
-  int raw_index = Cast<Smi>(*call_origin).value();
+int WasmImportData::CallOriginAsIndex(Tagged<Smi> call_origin) {
+  int raw_index = call_origin.value();
   CHECK_NE(raw_index, kInvalidCallOrigin);
   if (raw_index < 0) {
     raw_index = -raw_index;

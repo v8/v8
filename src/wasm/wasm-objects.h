@@ -1046,11 +1046,11 @@ class WasmImportData
   static void SetImportIndexAsCallOrigin(
       DirectHandle<WasmImportData> import_data, int entry_index);
 
-  static bool CallOriginIsImportIndex(DirectHandle<Object> call_origin);
+  static bool CallOriginIsImportIndex(Tagged<Smi> call_origin);
 
-  static bool CallOriginIsIndexInTable(DirectHandle<Object> call_origin);
+  static bool CallOriginIsIndexInTable(Tagged<Smi> call_origin);
 
-  static int CallOriginAsIndex(DirectHandle<Object> call_origin);
+  static int CallOriginAsIndex(Tagged<Smi> call_origin);
 
   static void SetIndexInTableAsCallOrigin(
       DirectHandle<WasmImportData> import_data, int entry_index);

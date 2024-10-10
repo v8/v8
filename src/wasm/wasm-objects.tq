@@ -34,7 +34,9 @@ extern class WasmInstanceObject extends JSObject {
 }
 
 // The WasmImportData is passed to non-wasm imports in place of the
-// WasmTrustedInstanceData.
+// WasmTrustedInstanceData. It is used in import wrappers (wasm-to-*) to load
+// needed information, and is used during wrapper tiering to know which
+// call site to patch (see the `call_origin` field).
 extern class WasmImportData extends TrustedObject {
   // The instance data is used to load memory start/size for fast API calls, and
   // for tier-up of wasm-to-js wrappers.
@@ -44,6 +46,12 @@ extern class WasmImportData extends TrustedObject {
   callable: JSReceiver|Undefined;
   suspend: Smi;  // Boolean.
   wrapper_budget: Smi;
+  // `call_origin` is being used to identify which place to patch on wrapper
+  // tier-up.
+  // - negative Smi: import index (-index - 1)
+  // - positive Smi: table index in same instance (index + 1)
+  // - tuple<WasmInstanceObject, Smi>: table index in other instance (index + 1)
+  // - WasmFuncRef: a func ref
   call_origin: Smi|WasmFuncRef|Tuple2;
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: RawFunctionSigPtr;
