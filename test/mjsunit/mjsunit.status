@@ -41,8 +41,6 @@
   'compiler/fast-api-helpers': [SKIP],
   'typedarray-helpers': [SKIP],
 
-  # TODO(ahaas): Fix generic wasm-to-js wrapper tierup test.
-  'wasm/wasm-to-js-tierup': [SKIP],
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 
