@@ -166,21 +166,6 @@ void Heap::SetBasicBlockProfilingData(DirectHandle<ArrayList> list) {
   set_basic_block_profiling_data(*list);
 }
 
-void Heap::SetRegExpMultipleCache(Tagged<HeapObject> object) {
-  DCHECK(IsUndefined(object) || IsFixedArray(object));
-  set_regexp_multiple_cache(object);
-}
-
-void Heap::SetStringSplitCache(Tagged<HeapObject> object) {
-  DCHECK(IsUndefined(object) || IsFixedArray(object));
-  set_string_split_cache(object);
-}
-
-void Heap::SetRegExpMatchGlobalAtomCache(Tagged<HeapObject> object) {
-  DCHECK(IsUndefined(object) || IsFixedArray(object));
-  set_regexp_match_global_atom_cache(object);
-}
-
 class ScheduleMinorGCTaskObserver final : public AllocationObserver {
  public:
   explicit ScheduleMinorGCTaskObserver(Heap* heap)
@@ -2741,8 +2726,10 @@ void Heap::MarkCompactEpilogue() {
 void Heap::MarkCompactPrologue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_PROLOGUE);
   isolate_->descriptor_lookup_cache()->Clear();
-  RegExpResultsCache::ClearAll(this);
+  RegExpResultsCache::Clear(string_split_cache());
+  RegExpResultsCache::Clear(regexp_multiple_cache());
   RegExpResultsCache_MatchGlobalAtom::Clear(this);
+
   FlushNumberStringCache();
 }
 
@@ -3233,9 +3220,12 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
 }
 
 void Heap::FlushNumberStringCache() {
-  Tagged<FixedArray> cache = number_string_cache();
-  MemsetTagged(cache->RawFieldOfFirstElement(),
-               ReadOnlyRoots{isolate()}.undefined_value(), cache->length());
+  // Flush the number to string cache.
+  int len = number_string_cache()->length();
+  ReadOnlyRoots roots{isolate()};
+  for (int i = 0; i < len; i++) {
+    number_string_cache()->set(i, roots.undefined_value(), SKIP_WRITE_BARRIER);
+  }
 }
 
 namespace {

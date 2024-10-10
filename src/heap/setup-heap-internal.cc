@@ -1334,10 +1334,13 @@ void Heap::CreateInitialMutableObjects() {
   // Unchecked to skip failing checks since required roots are uninitialized.
   set_basic_block_profiling_data(roots.unchecked_empty_array_list());
 
-  // Initialize regexp caches.
-  set_string_split_cache(roots.undefined_value());
-  set_regexp_multiple_cache(roots.undefined_value());
-  set_regexp_match_global_atom_cache(roots.undefined_value());
+  // Allocate regexp caches.
+  set_string_split_cache(*factory->NewFixedArray(
+      RegExpResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
+  set_regexp_multiple_cache(*factory->NewFixedArray(
+      RegExpResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
+  set_regexp_match_global_atom_cache(*factory->NewFixedArray(
+      RegExpResultsCache_MatchGlobalAtom::kSize, AllocationType::kOld));
 
   // Allocate FeedbackCell for builtins.
   DirectHandle<FeedbackCell> many_closures_cell =

@@ -2246,12 +2246,11 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
 
     // Successfully matched at least once:
     DCHECK_GE(last_match_index, 0);
-  }
 
-  // Caching.
-  RegExpResultsCache_MatchGlobalAtom::TryInsert(
-      isolate, subject_handle, pattern_handle, number_of_matches,
-      last_match_index);
+    // Caching.
+    RegExpResultsCache_MatchGlobalAtom::TryInsert(
+        isolate, subject, pattern, number_of_matches, last_match_index);
+  }
 
   // Update the LastMatchInfo.
   static constexpr int kNumberOfCaptures = 0;  // ATOM.
