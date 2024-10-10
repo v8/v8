@@ -736,6 +736,17 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   Opcode needed_conversion = GetOpcodeForConversion(
       from_repr, to_repr, conversion_is_truncating_float64);
 
+  if (CheckedNumberOrOddballToFloat64* number_untagging =
+          old_untagging->TryCast<CheckedNumberOrOddballToFloat64>()) {
+    if (from_repr == ValueRepresentation::kHoleyFloat64 &&
+        number_untagging->conversion_type() !=
+            TaggedToFloat64ConversionType::kNumberOrOddball) {
+      // {phi} is a HoleyFloat64 (and thus, it could be a hole), but the
+      // original untagging did not allow holes.
+      needed_conversion = Opcode::kCheckedHoleyFloat64ToFloat64;
+    }
+  }
+
   if (needed_conversion != old_untagging->opcode()) {
     old_untagging->OverwriteWith(needed_conversion);
   }
