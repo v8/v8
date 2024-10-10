@@ -213,7 +213,7 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
   // Test GcSafeFindCodeForInnerPointer
 #define __ assm.
 
-  Assembler assm(AssemblerOptions{});
+  Assembler assm(isolate->allocator(), AssemblerOptions{});
 
   __ nop();  // supported on all architectures
 

@@ -42,6 +42,7 @@
 #include <ostream>
 #include <type_traits>
 #include <unordered_map>
+#include <variant>
 
 #include "src/base/macros.h"
 #include "src/base/memory.h"
@@ -255,6 +256,14 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
 
   static AssemblerOptions Default(Isolate* isolate);
 };
+
+// Wrapper around an optional Zone*. If the zone isn't present, the
+// AccountingAllocator* may be used to create a fresh one.
+//
+// This is useful for assemblers that want to Zone-allocate temporay data,
+// without forcing all users to have to create a Zone before using the
+// assembler.
+using MaybeAssemblerZone = std::variant<Zone*, AccountingAllocator*>;
 
 class AssemblerBuffer {
  public:

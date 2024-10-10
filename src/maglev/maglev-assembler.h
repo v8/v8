@@ -97,8 +97,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
  public:
   class TemporaryRegisterScope;
 
-  explicit MaglevAssembler(Isolate* isolate, MaglevCodeGenState* code_gen_state)
-      : MacroAssembler(isolate, CodeObjectRequired::kNo),
+  MaglevAssembler(Isolate* isolate, Zone* zone,
+                  MaglevCodeGenState* code_gen_state)
+      : MacroAssembler(isolate, zone, CodeObjectRequired::kNo),
         code_gen_state_(code_gen_state) {}
 
   static constexpr RegList GetAllocatableRegisters() {

@@ -213,10 +213,10 @@ bool Instruction::IsTargetInImmPCOffsetRange(Instruction* target) {
   return IsValidImmPCOffset(BranchType(), DistanceTo(target));
 }
 
-void Instruction::SetImmPCOffsetTarget(const AssemblerOptions& options,
+void Instruction::SetImmPCOffsetTarget(Zone* zone, AssemblerOptions options,
                                        Instruction* target) {
   if (IsPCRelAddressing()) {
-    SetPCRelImmTarget(options, target);
+    SetPCRelImmTarget(zone, options, target);
   } else if (IsCondBranchImm()) {
     SetBranchImmTarget<CondBranchType>(target);
   } else if (IsUncondBranchImm()) {
@@ -226,14 +226,14 @@ void Instruction::SetImmPCOffsetTarget(const AssemblerOptions& options,
   } else if (IsTestBranch()) {
     SetBranchImmTarget<TestBranchType>(target);
   } else if (IsUnresolvedInternalReference()) {
-    SetUnresolvedInternalReferenceImmTarget(options, target);
+    SetUnresolvedInternalReferenceImmTarget(zone, options, target);
   } else {
     // Load literal (offset from PC).
     SetImmLLiteral(target);
   }
 }
 
-void Instruction::SetPCRelImmTarget(const AssemblerOptions& options,
+void Instruction::SetPCRelImmTarget(Zone* zone, AssemblerOptions options,
                                     Instruction* target) {
   // ADRP is not supported, so 'this' must point to an ADR instruction.
   DCHECK(IsAdr());
@@ -244,14 +244,14 @@ void Instruction::SetPCRelImmTarget(const AssemblerOptions& options,
     imm = Assembler::ImmPCRelAddress(static_cast<int>(target_offset));
     SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
   } else {
-    PatchingAssembler patcher(options, reinterpret_cast<uint8_t*>(this),
+    PatchingAssembler patcher(zone, options, reinterpret_cast<uint8_t*>(this),
                               PatchingAssembler::kAdrFarPatchableNInstrs);
     patcher.PatchAdrFar(target_offset);
   }
 }
 
 void Instruction::SetUnresolvedInternalReferenceImmTarget(
-    const AssemblerOptions& options, Instruction* target) {
+    Zone* zone, AssemblerOptions options, Instruction* target) {
   DCHECK(IsUnresolvedInternalReference());
   DCHECK(IsAligned(DistanceTo(target), kInstrSize));
   DCHECK(is_int32(DistanceTo(target) >> kInstrSizeLog2));
@@ -260,7 +260,7 @@ void Instruction::SetUnresolvedInternalReferenceImmTarget(
   uint32_t high16 = unsigned_bitextract_32(31, 16, target_offset);
   uint32_t low16 = unsigned_bitextract_32(15, 0, target_offset);
 
-  PatchingAssembler patcher(options, reinterpret_cast<uint8_t*>(this), 2);
+  PatchingAssembler patcher(zone, options, reinterpret_cast<uint8_t*>(this), 2);
   patcher.brk(high16);
   patcher.brk(low16);
 }

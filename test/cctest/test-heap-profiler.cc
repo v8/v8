@@ -4221,7 +4221,7 @@ TEST(WeakReference) {
       handle(i::Cast<i::JSFunction>(*obj)->raw_feedback_cell(), i_isolate));
 
   // Create a Code object.
-  i::Assembler assm(i::AssemblerOptions{});
+  i::Assembler assm(i_isolate->allocator(), i::AssemblerOptions{});
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);

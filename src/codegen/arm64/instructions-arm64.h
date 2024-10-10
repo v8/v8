@@ -16,6 +16,7 @@ namespace v8 {
 namespace internal {
 
 struct AssemblerOptions;
+class Zone;
 
 // ISA constants. --------------------------------------------------------------
 
@@ -425,9 +426,10 @@ class Instruction {
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
-  void SetImmPCOffsetTarget(const AssemblerOptions& options,
+  void SetImmPCOffsetTarget(Zone* zone, AssemblerOptions options,
                             Instruction* target);
-  void SetUnresolvedInternalReferenceImmTarget(const AssemblerOptions& options,
+  void SetUnresolvedInternalReferenceImmTarget(Zone* zone,
+                                               AssemblerOptions options,
                                                Instruction* target);
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
@@ -464,7 +466,8 @@ class Instruction {
 
   static const int ImmPCRelRangeBitwidth = 21;
   static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
-  void SetPCRelImmTarget(const AssemblerOptions& options, Instruction* target);
+  void SetPCRelImmTarget(Zone* zone, AssemblerOptions options,
+                         Instruction* target);
 
   template <ImmBranchType branch_type>
   void SetBranchImmTarget(Instruction* target) {

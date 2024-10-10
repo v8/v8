@@ -349,7 +349,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // Misalignment will cause a stack alignment fault.
   DCHECK_EQ(frame_size, RoundUp(frame_size, kQuadWordSizeInBytes));
 
-  PatchingAssembler patching_assembler(AssemblerOptions{},
+  PatchingAssembler patching_assembler(zone(), AssemblerOptions{},
                                        buffer_start_ + offset, 1);
 
   if (V8_LIKELY(frame_size < 4 * KB)) {

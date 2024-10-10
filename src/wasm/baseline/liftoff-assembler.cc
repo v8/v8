@@ -362,7 +362,7 @@ AssemblerOptions DefaultLiftoffOptions() {
 
 LiftoffAssembler::LiftoffAssembler(Zone* zone,
                                    std::unique_ptr<AssemblerBuffer> buffer)
-    : MacroAssembler(nullptr, DefaultLiftoffOptions(), CodeObjectRequired::kNo,
+    : MacroAssembler(zone, DefaultLiftoffOptions(), CodeObjectRequired::kNo,
                      std::move(buffer)),
       cache_state_(zone) {
   set_abort_hard(true);  // Avoid calls to Abort.
