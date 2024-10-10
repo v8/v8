@@ -564,6 +564,35 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
   return result;
 }
 
+void CodeSerializer::NotifySourceTextAvailable(
+    Isolate* isolate, OffThreadDeserializeData& data,
+    AlignedCachedData* cached_data, Handle<String> source,
+    const ScriptDetails& script_details,
+    BackgroundMergeTask* background_merge_task) {
+  // Do a source sanity check now that we have the source. It's important for
+  // FromPartiallySanityCheckedCachedData call that the sanity_check_result
+  // holds the result of the off-thread sanity check.
+  SerializedCodeSanityCheckResult sanity_check_result =
+      data.sanity_check_result;
+  const SerializedCodeData scd =
+      SerializedCodeData::FromPartiallySanityCheckedCachedData(
+          cached_data,
+          SerializedCodeData::SourceHash(source, script_details.origin_options),
+          &sanity_check_result);
+
+  // Don't do anything further if the sanity check fails -- in particular, don't
+  // prepare the background merge, because it will merge the wrong thing.
+  if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
+    return;
+  }
+
+  if (background_merge_task) {
+    LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
+    background_merge_task->SetUpOnMainThread(isolate, source, script_details,
+                                             language_mode);
+  }
+}
+
 MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     Isolate* isolate, OffThreadDeserializeData&& data,
     AlignedCachedData* cached_data, DirectHandle<String> source,

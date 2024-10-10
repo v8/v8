@@ -2716,9 +2716,9 @@ void BackgroundDeserializeTask::SourceTextAvailable(
     Isolate* isolate, Handle<String> source_text,
     const ScriptDetails& script_details) {
   DCHECK_EQ(isolate, isolate_for_local_isolate_);
-  LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
-  background_merge_task_.SetUpOnMainThread(isolate, source_text, script_details,
-                                           language_mode);
+  CodeSerializer::NotifySourceTextAvailable(
+      isolate, off_thread_data_, &cached_data_, source_text, script_details,
+      &background_merge_task_);
 }
 
 bool BackgroundDeserializeTask::ShouldMergeWithExistingScript() const {
@@ -2734,6 +2734,9 @@ void BackgroundDeserializeTask::MergeWithExistingScript() {
   UnparkedScope unparked_scope(&isolate);
   LocalHandleScope handle_scope(isolate.heap());
 
+  // TODO(leszeks): The merge is started here, but initialized and processed in
+  // the CodeSerializer static methods. Make the background merge control
+  // uniform in one or the other class.
   background_merge_task_.BeginMergeInBackground(
       &isolate, off_thread_data_.GetOnlyScript(isolate.heap()));
 }
