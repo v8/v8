@@ -303,6 +303,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
                               YMMRegister src2, YMMRegister src3,
                               YMMRegister scratch, YMMRegister splat_reg);
 
+  void I32x8TruncF32x8U(YMMRegister dst, YMMRegister src, YMMRegister scratch1,
+                        YMMRegister scratch2);
+
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 

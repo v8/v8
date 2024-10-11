@@ -204,6 +204,7 @@ namespace compiler {
   V(X64Cvttpd2dq)                                    \
   V(X64I32x4TruncF64x2UZero)                         \
   V(X64I32x4TruncF32x4U)                             \
+  V(X64I32x8TruncF32x8U)                             \
   V(X64FSplat)                                       \
   V(X64FExtractLane)                                 \
   V(X64FReplaceLane)                                 \

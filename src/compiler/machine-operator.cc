@@ -616,6 +616,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_WASM(V, F64x4Max, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
           1)                                                                   \
   IF_WASM(V, F64x4Add, Operator::kCommutative, 2, 0, 1)                        \
+  IF_WASM(V, F64x4Abs, Operator::kNoProperties, 1, 0, 1)                       \
+  IF_WASM(V, F64x4Neg, Operator::kNoProperties, 1, 0, 1)                       \
   IF_WASM(V, F64x4Sqrt, Operator::kNoProperties, 1, 0, 1)                      \
   IF_WASM(V, F32x8Abs, Operator::kNoProperties, 1, 0, 1)                       \
   IF_WASM(V, F32x8Neg, Operator::kNoProperties, 1, 0, 1)                       \
@@ -757,7 +759,9 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   IF_WASM(V, I16x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)        \
   IF_WASM(V, I8x32RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
   IF_WASM(V, I32x8DotI8x32I7x32AddS, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, I16x16DotI8x32I7x32S, Operator::kNoProperties, 2, 0, 1)
+  IF_WASM(V, I16x16DotI8x32I7x32S, Operator::kNoProperties, 2, 0, 1)           \
+  IF_WASM(V, I32x8RelaxedTruncF32x8S, Operator::kNoProperties, 1, 0, 1)        \
+  IF_WASM(V, I32x8RelaxedTruncF32x8U, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)

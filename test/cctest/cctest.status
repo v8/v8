@@ -768,12 +768,16 @@
   'test-run-wasm-simd/RunWasmTurbofan_I32x8ExtMulI16x8U': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_I64x4ExtMulI32x4S': [SKIP],
   'test-run-wasm-simd/RunWasmTurbofan_I64x4ExtMulI32x4U': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_F64x4Abs': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_F64x4Neg': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I8x32RelaxedLaneSelect': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I16x16RelaxedLaneSelect': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I32x8RelaxedLaneSelect': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I64x4RelaxedLaneSelect': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I32x8DotI8x32I7x32AddS': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I16x16DotI8x32I7x32S': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x8RelaxedTruncF32x8S': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x8RelaxedTruncF32x8U': [SKIP],
 }],  # variant != turboshaft and variant != future
 
 ##############################################################################

@@ -2382,6 +2382,37 @@ void MacroAssembler::I32x8DotI8x32I7x32AddS(YMMRegister dst, YMMRegister src1,
   vpaddd(dst, src3, scratch);
 }
 
+void MacroAssembler::I32x8TruncF32x8U(YMMRegister dst, YMMRegister src,
+                                      YMMRegister scratch1,
+                                      YMMRegister scratch2) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
+
+  // NAN->0, negative->0.
+  vpxor(scratch1, scratch1, scratch1);
+  vmaxps(dst, src, scratch1);
+  // scratch1: float representation of max_signed.
+  vpcmpeqd(scratch1, scratch1, scratch1);
+  vpsrld(scratch1, scratch1, uint8_t{1});  // 0x7fffffff
+  vcvtdq2ps(scratch1, scratch1);           // 0x4f000000
+  // scratch2: convert (src-max_signed).
+  // Set positive overflow lanes to 0x7FFFFFFF.
+  // Set negative lanes to 0.
+  vsubps(scratch2, dst, scratch1);
+
+  vcmpleps(scratch1, scratch1, scratch2);
+  vcvttps2dq(scratch2, scratch2);
+  vpxor(scratch2, scratch2, scratch1);
+  vpxor(scratch1, scratch1, scratch1);
+  vpmaxsd(scratch2, scratch2, scratch1);
+  // Convert to int. Overflow lanes above max_signed will be 0x80000000.
+  vcvttps2dq(dst, dst);
+  // Add (src-max_signed) for overflow lanes.
+  vpaddd(dst, dst, scratch2);
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());

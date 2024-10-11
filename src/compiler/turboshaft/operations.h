@@ -8418,11 +8418,15 @@ struct Simd256LoadTransformOp
   V(F32x8Abs)                            \
   V(F32x8Neg)                            \
   V(F32x8Sqrt)                           \
+  V(F64x4Abs)                            \
+  V(F64x4Neg)                            \
   V(F64x4Sqrt)                           \
   V(I32x8UConvertF32x8)                  \
   V(I32x8SConvertF32x8)                  \
   V(F32x8UConvertI32x8)                  \
   V(F32x8SConvertI32x8)                  \
+  V(I32x8RelaxedTruncF32x8S)             \
+  V(I32x8RelaxedTruncF32x8U)             \
   FOREACH_SIMD_256_UNARY_SIGN_EXTENSION_OPCODE(V)
 
 struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {

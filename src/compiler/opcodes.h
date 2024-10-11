@@ -1145,6 +1145,8 @@
   V(F64x4Min)                      \
   V(F64x4Max)                      \
   V(F64x4Add)                      \
+  V(F64x4Abs)                      \
+  V(F64x4Neg)                      \
   V(F64x4Sqrt)                     \
   V(F32x8Add)                      \
   V(I64x4Add)                      \
@@ -1295,7 +1297,9 @@
   V(F32x8RelaxedMin)               \
   V(F32x8RelaxedMax)               \
   V(F64x4RelaxedMin)               \
-  V(F64x4RelaxedMax)
+  V(F64x4RelaxedMax)               \
+  V(I32x8RelaxedTruncF32x8S)       \
+  V(I32x8RelaxedTruncF32x8U)
 
 #define VALUE_OP_LIST(V)              \
   COMMON_OP_LIST(V)                   \

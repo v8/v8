@@ -4521,8 +4521,12 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI8x32UConvertI16x16(node);
     case IrOpcode::kF32x8Abs:
       return MarkAsSimd256(node), VisitF32x8Abs(node);
+    case IrOpcode::kF64x4Abs:
+      return MarkAsSimd256(node), VisitF64x4Abs(node);
     case IrOpcode::kF32x8Neg:
       return MarkAsSimd256(node), VisitF32x8Neg(node);
+    case IrOpcode::kF64x4Neg:
+      return MarkAsSimd256(node), VisitF64x4Neg(node);
     case IrOpcode::kF32x8Sqrt:
       return MarkAsSimd256(node), VisitF32x8Sqrt(node);
     case IrOpcode::kF64x4Sqrt:
@@ -4705,6 +4709,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitF64x4RelaxedMin(node);
     case IrOpcode::kF64x4RelaxedMax:
       return MarkAsSimd256(node), VisitF64x4RelaxedMax(node);
+    case IrOpcode::kI32x8RelaxedTruncF32x8S:
+      return MarkAsSimd256(node), VisitI32x8RelaxedTruncF32x8S(node);
+    case IrOpcode::kI32x8RelaxedTruncF32x8U:
+      return MarkAsSimd256(node), VisitI32x8RelaxedTruncF32x8U(node);
 #endif  // V8_TARGET_ARCH_X64 && V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:

@@ -4265,6 +4265,14 @@ TEST(RunWasmTurbofan_I64x4GeS) {
                          compiler::IrOpcode::kI64x4GeS);
 }
 
+TEST(RunWasmTurbofan_F64x4Abs) {
+  RunF64x4UnOpRevecTest(kExprF64x2Abs, std::abs, compiler::IrOpcode::kF64x4Abs);
+}
+
+TEST(RunWasmTurbofan_F64x4Neg) {
+  RunF64x4UnOpRevecTest(kExprF64x2Neg, Negate, compiler::IrOpcode::kF64x4Neg);
+}
+
 TEST(RunWasmTurbofan_F64x4Sqrt) {
   RunF64x4UnOpRevecTest(kExprF64x2Sqrt, std::sqrt,
                         compiler::IrOpcode::kF64x4Sqrt);

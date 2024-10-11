@@ -1065,6 +1065,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F64x4Min();
   const Operator* F64x4Max();
   const Operator* F64x4Add();
+  const Operator* F64x4Abs();
+  const Operator* F64x4Neg();
   const Operator* F64x4Sqrt();
   const Operator* F32x8Abs();
   const Operator* F32x8Neg();
@@ -1218,6 +1220,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x8RelaxedMax();
   const Operator* F64x4RelaxedMin();
   const Operator* F64x4RelaxedMax();
+  const Operator* I32x8RelaxedTruncF32x8S();
+  const Operator* I32x8RelaxedTruncF32x8U();
 
   const Operator* LoadTransform(MemoryAccessKind kind,
                                 LoadTransformation transform);

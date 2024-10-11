@@ -6042,10 +6042,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8AllTrue, IAllTrue, kL16, kV128)          \
   V(I8x16AllTrue, IAllTrue, kL8, kV128)           \
   V(S128Not, SNot, kL8, kV128)                    \
+  V(F64x4Abs, FAbs, kL64, kV256)                  \
   V(F32x8Abs, FAbs, kL32, kV256)                  \
   V(I32x8Abs, IAbs, kL32, kV256)                  \
   V(I16x16Abs, IAbs, kL16, kV256)                 \
   V(I8x32Abs, IAbs, kL8, kV256)                   \
+  V(F64x4Neg, FNeg, kL64, kV256)                  \
   V(F32x8Neg, FNeg, kL32, kV256)                  \
   V(I32x8Neg, INeg, kL32, kV256)                  \
   V(I16x16Neg, INeg, kL16, kV256)                 \
@@ -7502,6 +7504,24 @@ void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4U(node_t node) {
     Emit(kX64I32x4TruncF32x4U, g.DefineSameAsFirst(node), g.UseRegister(input),
          arraysize(temps), temps);
   }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8RelaxedTruncF32x8S(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0),
+                 kX64Cvttps2dq | VectorLengthField::encode(kV256));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8RelaxedTruncF32x8U(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  X64OperandGeneratorT<Adapter> g(this);
+  node_t input = this->input_at(node, 0);
+  InstructionOperand temps[] = {g.TempSimd256Register()};
+  Emit(kX64I32x8TruncF32x8U, g.DefineAsRegister(node), g.UseRegister(input),
+       arraysize(temps), temps);
 }
 
 template <typename Adapter>
