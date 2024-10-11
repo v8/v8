@@ -1196,7 +1196,7 @@ class GraphBuildingNodeProcessor {
       OpIndex first_phi_input;
       if (state.block()->predecessor_count() > 2 ||
           generator_analyzer_.HeaderIsBypassed(state.block())) {
-        // This loop has multiple forward edge in Maglev, so we should have
+        // This loop has multiple forward edges in Maglev, so we should have
         // created an intermediate block in Turboshaft, which will be the only
         // predecessor of the Turboshaft loop, and from which we'll find the
         // first input for this loop phi.
@@ -3073,8 +3073,8 @@ class GraphBuildingNodeProcessor {
     Block* destination = Map(target);
     if (target->is_loop() && (target->predecessor_count() > 2 ||
                               generator_analyzer_.HeaderIsBypassed(target))) {
-      // This loop has multiple forward edge in Maglev, so we'll create an extra
-      // block in Turboshaft that will be the only predecessor.
+      // This loop has multiple forward edges in Maglev, so we'll create an
+      // extra block in Turboshaft that will be the only predecessor.
       auto it = loop_single_edge_predecessors_.find(target);
       if (it != loop_single_edge_predecessors_.end()) {
         destination = it->second;
@@ -5429,7 +5429,7 @@ class GraphBuildingNodeProcessor {
   V<Object> catch_block_begin_ = V<Object>::Invalid();
 
   // Maglev loops can have multiple forward edges, while Turboshaft should only
-  // have a single one. When a Maglev loop has multiple forward edge, we create
+  // have a single one. When a Maglev loop has multiple forward edges, we create
   // an additional Turboshaft block before (which we record in
   // {loop_single_edge_predecessors_}), and jumps to the loop will instead go to
   // this additional block, which will become the only forward predecessor of
