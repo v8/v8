@@ -232,9 +232,11 @@ class MaybeObjectDirectHandle {
       : reference_type_(HeapObjectReferenceType::STRONG) {}
   inline MaybeObjectDirectHandle(Tagged<MaybeObject> object, Isolate* isolate);
   inline MaybeObjectDirectHandle(Tagged<Object> object, Isolate* isolate);
+  inline MaybeObjectDirectHandle(Tagged<Smi> object, Isolate* isolate);
   inline MaybeObjectDirectHandle(Tagged<MaybeObject> object,
                                  LocalHeap* local_heap);
   inline MaybeObjectDirectHandle(Tagged<Object> object, LocalHeap* local_heap);
+  inline MaybeObjectDirectHandle(Tagged<Smi> object, LocalHeap* local_heap);
   inline explicit MaybeObjectDirectHandle(DirectHandle<Object> object);
 
   static inline MaybeObjectDirectHandle Weak(Tagged<Object> object,

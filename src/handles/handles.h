@@ -76,10 +76,37 @@ class HandleBase {
     return location_;
   }
 
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  V8_INLINE ValueHelper::InternalRepresentationType repr() const {
+    return location_ ? *location_ : ValueHelper::kEmpty;
+  }
+#else
+  V8_INLINE ValueHelper::InternalRepresentationType repr() const {
+    return location_;
+  }
+#endif  // V8_ENABLE_DIRECT_HANDLE
+
  protected:
 #ifdef V8_ENABLE_DIRECT_HANDLE
   friend class DirectHandleBase;
-#endif
+
+  static Address* indirect_handle(Address object);
+  static Address* indirect_handle(Address object, Isolate* isolate);
+  static Address* indirect_handle(Address object, LocalIsolate* isolate);
+  static Address* indirect_handle(Address object, LocalHeap* local_heap);
+
+  template <typename T>
+  friend IndirectHandle<T> indirect_handle(DirectHandle<T> handle);
+  template <typename T>
+  friend IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                           Isolate* isolate);
+  template <typename T>
+  friend IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                           LocalIsolate* isolate);
+  template <typename T>
+  friend IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                           LocalHeap* local_heap);
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
   V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
   V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
@@ -359,6 +386,10 @@ class V8_TRIVIAL_ABI DirectHandleBase :
 
   V8_INLINE Address address() const { return obj_; }
 
+  V8_INLINE ValueHelper::InternalRepresentationType repr() const {
+    return obj_;
+  }
+
 #ifdef DEBUG
   // Counts the number of allocated handles for the current thread that are
   // below the stack marker. The number is only accurate if
@@ -552,6 +583,31 @@ class DirectHandle : public DirectHandleBase {
 template <typename T>
 std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);
 
+template <typename T>
+IndirectHandle<T> indirect_handle(DirectHandle<T> handle) {
+  return IndirectHandle<T>(HandleBase::indirect_handle(handle.address()));
+}
+
+template <typename T>
+IndirectHandle<T> indirect_handle(DirectHandle<T> handle, Isolate* isolate) {
+  return IndirectHandle<T>(
+      HandleBase::indirect_handle(handle.address(), isolate));
+}
+
+template <typename T>
+IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                  LocalIsolate* isolate) {
+  return IndirectHandle<T>(
+      HandleBase::indirect_handle(handle.address(), isolate));
+}
+
+template <typename T>
+IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                  LocalHeap* local_heap) {
+  return IndirectHandle<T>(
+      HandleBase::indirect_handle(handle.address(), local_heap));
+}
+
 // A variant of DirectHandle that is suitable for off-stack allocation.
 // Used internally by DirectHandleVector<T>. Not to be used directly!
 template <typename T>
@@ -688,7 +744,11 @@ class DirectHandleVector {
 
   void push_back(const DirectHandle<T>& x) { backing_.push_back(x); }
   void pop_back() { backing_.pop_back(); }
-  void emplace_back(const DirectHandle<T>& x) { backing_.emplace_back(x); }
+
+  template <typename... Args>
+  void emplace_back(Args&&... args) {
+    backing_.push_back(value_type{std::forward<Args>(args)...});
+  }
 
   void clear() noexcept { backing_.clear(); }
   void resize(size_t n) { backing_.resize(n); }
@@ -723,6 +783,28 @@ class DirectHandleVector {
   vector_type backing_;
 };
 #else   // !V8_ENABLE_DIRECT_HANDLE
+template <typename T>
+IndirectHandle<T> indirect_handle(DirectHandle<T> handle) {
+  return handle;
+}
+
+template <typename T>
+IndirectHandle<T> indirect_handle(DirectHandle<T> handle, Isolate* isolate) {
+  return handle;
+}
+
+template <typename T>
+IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                  LocalIsolate* isolate) {
+  return handle;
+}
+
+template <typename T>
+IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                  LocalHeap* local_heap) {
+  return handle;
+}
+
 template <typename T>
 class DirectHandleVector : public std::vector<DirectHandle<T>> {
  public:

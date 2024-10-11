@@ -28,6 +28,11 @@
 #include "src/execution/isolate-utils-inl.h"
 #endif
 
+#ifdef V8_ENABLE_DIRECT_HANDLE
+// For Isolate::Current() in indirect_handle.
+#include "src/execution/isolate-inl.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -50,6 +55,26 @@ ASSERT_TRIVIALLY_COPYABLE(MaybeHandle<Object>);
 ASSERT_TRIVIALLY_COPYABLE(DirectHandle<Object>);
 ASSERT_TRIVIALLY_COPYABLE(MaybeDirectHandle<Object>);
 #endif
+
+// static
+Address* HandleBase::indirect_handle(Address object) {
+  return HandleScope::CreateHandle(Isolate::Current(), object);
+}
+
+// static
+Address* HandleBase::indirect_handle(Address object, Isolate* isolate) {
+  return HandleScope::CreateHandle(isolate, object);
+}
+
+// static
+Address* HandleBase::indirect_handle(Address object, LocalIsolate* isolate) {
+  return LocalHandleScope::GetHandle(isolate->heap(), object);
+}
+
+// static
+Address* HandleBase::indirect_handle(Address object, LocalHeap* local_heap) {
+  return LocalHandleScope::GetHandle(local_heap, object);
+}
 
 #endif  // V8_ENABLE_DIRECT_HANDLE
 

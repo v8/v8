@@ -1621,16 +1621,25 @@ class WrappedIterator : public MaybeDefineIteratorConcept<Iterator> {
 // whether direct local support is enabled.
 class ValueHelper final {
  public:
+  // ValueHelper::InternalRepresentationType is an abstract type that
+  // corresponds to the internal representation of v8::Local and essentially
+  // to what T* really is (these two are always in sync). This type is used in
+  // methods like GetDataFromSnapshotOnce that need access to a handle's
+  // internal representation. In particular, if `x` is a `v8::Local<T>`, then
+  // `v8::Local<T>::FromRepr(x.repr())` gives exactly the same handle as `x`.
 #ifdef V8_ENABLE_DIRECT_HANDLE
   static constexpr Address kTaggedNullAddress = 1;
-  static constexpr Address kEmpty = kTaggedNullAddress;
+
+  using InternalRepresentationType = internal::Address;
+  static constexpr InternalRepresentationType kEmpty = kTaggedNullAddress;
 #else
-  static constexpr Address kEmpty = kNullAddress;
+  using InternalRepresentationType = internal::Address*;
+  static constexpr InternalRepresentationType kEmpty = nullptr;
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
   template <typename T>
   V8_INLINE static bool IsEmpty(T* value) {
-    return reinterpret_cast<Address>(value) == kEmpty;
+    return ValueAsRepr(value) == kEmpty;
   }
 
   // Returns a handle's "value" for all kinds of abstract handles. For Local,
@@ -1657,6 +1666,16 @@ class ValueHelper final {
     return *reinterpret_cast<T**>(slot);
   }
 
+  template <typename T>
+  V8_INLINE static InternalRepresentationType ValueAsRepr(const T* value) {
+    return reinterpret_cast<InternalRepresentationType>(value);
+  }
+
+  template <typename T>
+  V8_INLINE static T* ReprAsValue(InternalRepresentationType repr) {
+    return reinterpret_cast<T*>(repr);
+  }
+
 #else  // !V8_ENABLE_DIRECT_HANDLE
 
   template <typename T>
@@ -1667,6 +1686,17 @@ class ValueHelper final {
   template <typename T, bool check_null = true, typename S>
   V8_INLINE static T* SlotAsValue(S* slot) {
     return reinterpret_cast<T*>(slot);
+  }
+
+  template <typename T>
+  V8_INLINE static InternalRepresentationType ValueAsRepr(const T* value) {
+    return const_cast<InternalRepresentationType>(
+        reinterpret_cast<const Address*>(value));
+  }
+
+  template <typename T>
+  V8_INLINE static T* ReprAsValue(InternalRepresentationType repr) {
+    return reinterpret_cast<T*>(repr);
   }
 
 #endif  // V8_ENABLE_DIRECT_HANDLE

@@ -7436,9 +7436,8 @@ metrics::LongTaskStats metrics::LongTaskStats::Get(v8::Isolate* v8_isolate) {
 }
 
 namespace {
-i::Address* GetSerializedDataFromFixedArray(i::Isolate* i_isolate,
-                                            i::Tagged<i::FixedArray> list,
-                                            size_t index) {
+i::ValueHelper::InternalRepresentationType GetSerializedDataFromFixedArray(
+    i::Isolate* i_isolate, i::Tagged<i::FixedArray> list, size_t index) {
   if (index < static_cast<size_t>(list->length())) {
     int int_index = static_cast<int>(index);
     i::Tagged<i::Object> object = list->get(int_index);
@@ -7450,14 +7449,15 @@ i::Address* GetSerializedDataFromFixedArray(i::Isolate* i_isolate,
       int last = list->length() - 1;
       while (last >= 0 && list->is_the_hole(i_isolate, last)) last--;
       if (last != -1) list->RightTrim(i_isolate, last + 1);
-      return i::Handle<i::Object>(object, i_isolate).location();
+      return i::Handle<i::Object>(object, i_isolate).repr();
     }
   }
-  return nullptr;
+  return i::ValueHelper::kEmpty;
 }
 }  // anonymous namespace
 
-i::Address* Context::GetDataFromSnapshotOnce(size_t index) {
+i::ValueHelper::InternalRepresentationType Context::GetDataFromSnapshotOnce(
+    size_t index) {
   auto context = Utils::OpenHandle(this);
   i::Isolate* i_isolate = context->GetIsolate();
   auto list = i::Cast<i::FixedArray>(context->serialized_objects());
@@ -10112,7 +10112,8 @@ Isolate::SuppressMicrotaskExecutionScope::~SuppressMicrotaskExecutionScope() {
   i_isolate_->thread_local_top()->DecrementCallDepth(this);
 }
 
-i::Address* Isolate::GetDataFromSnapshotOnce(size_t index) {
+i::ValueHelper::InternalRepresentationType Isolate::GetDataFromSnapshotOnce(
+    size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   auto list = i::Cast<i::FixedArray>(i_isolate->heap()->serialized_objects());
   return GetSerializedDataFromFixedArray(i_isolate, list, index);

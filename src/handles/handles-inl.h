@@ -337,25 +337,6 @@ bool DirectHandleBase::is_identical_to(const DirectHandleBase& that) const {
 }
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
-template <typename T>
-V8_INLINE Handle<T> indirect_handle(DirectHandle<T> handle, Isolate* isolate) {
-#ifdef V8_ENABLE_DIRECT_HANDLE
-  return Handle<T>(*handle, isolate);
-#else
-  return handle;
-#endif
-}
-
-template <typename T>
-V8_INLINE Handle<T> indirect_handle(DirectHandle<T> handle,
-                                    LocalIsolate* isolate) {
-#ifdef V8_ENABLE_DIRECT_HANDLE
-  return Handle<T>(*handle, isolate);
-#else
-  return handle;
-#endif
-}
-
 }  // namespace internal
 }  // namespace v8
 

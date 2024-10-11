@@ -225,10 +225,10 @@ class Utils {
   // this ambiguous.
   // TODO(42203211): Use C++20 concepts instead of the enable_if trait, when
   // they are fully supported in V8.
-#define DECLARE_TO_LOCAL(Name)                                     \
-  template <template <typename T> typename HandleType, typename T, \
-            typename = std::enable_if_t<std::is_convertible_v<     \
-                HandleType<T>, v8::internal::DirectHandle<T>>>>    \
+#define DECLARE_TO_LOCAL(Name)                                   \
+  template <template <typename> typename HandleType, typename T, \
+            typename = std::enable_if_t<std::is_convertible_v<   \
+                HandleType<T>, v8::internal::DirectHandle<T>>>>  \
   static inline auto Name(HandleType<T> obj);
 
   TO_LOCAL_NAME_LIST(DECLARE_TO_LOCAL)
