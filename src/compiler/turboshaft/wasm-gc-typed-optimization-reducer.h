@@ -90,10 +90,12 @@ class WasmGCTypeAnalyzer {
 
   // Updates the knowledge in the side table about the type of {object},
   // returning the previous known type.
-  wasm::ValueType RefineTypeKnowledge(OpIndex object, wasm::ValueType new_type);
+  wasm::ValueType RefineTypeKnowledge(OpIndex object, wasm::ValueType new_type,
+                                      const Operation& op);
   // Updates the knowledge in the side table to be a non-nullable type for
   // {object}, returning the previous known type.
-  wasm::ValueType RefineTypeKnowledgeNotNull(OpIndex object);
+  wasm::ValueType RefineTypeKnowledgeNotNull(OpIndex object,
+                                             const Operation& op);
 
   OpIndex ResolveAliases(OpIndex object) const;
   wasm::ValueType GetResolvedType(OpIndex object) const;
