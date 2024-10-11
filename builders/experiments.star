@@ -173,22 +173,9 @@ in_category(
         notifies = ["blamelist"],
     ),
     experiment_builder_pair(
-        name = "V8 Linux64 gcc",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.NO,
-    ),
-    experiment_builder_pair(
         name = "V8 Linux64 - jammy - gcc",
         triggered_by = ["v8-trigger"],
         dimensions = {"host_class": "default", "os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.NO,
-        execution_timeout = 10800,
-    ),
-    experiment_builder(
-        name = "V8 Linux64 gcc - debug builder",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         execution_timeout = 10800,
     ),

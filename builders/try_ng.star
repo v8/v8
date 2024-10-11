@@ -232,14 +232,6 @@ trybot_pair(
 )
 
 trybot_pair(
-    name = "v8_linux64_gcc_rel",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
-    build_timeout = 5400,
-    total_timeout = 6300,
-)
-
-trybot_pair(
     name = "v8_linux64_jammy_gcc_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "default", "os": "Ubuntu-22.04", "cpu": "x86-64"},
@@ -652,8 +644,8 @@ trybot_pair(
 trybot_pair(
     name = "v8_win64_msvc_rel",
     cq_properties = CQ.OPTIONAL,
-    dimensions = {"host_class": "strong", "os": "Windows-10", "cpu": "x86-64"},
-    build_timeout = 7200,
+    dimensions = {"host_class": "default", "os": "Windows-10", "cpu": "x86-64"},
+    build_timeout = 10800,
 )
 
 trybot_pair(
