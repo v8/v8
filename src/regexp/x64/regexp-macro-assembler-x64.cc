@@ -728,8 +728,14 @@ bool RegExpMacroAssemblerX64::SkipUntilBitInTableUseSimd(int advance_by) {
   // In addition we only use SIMD instead of the scalar version if we advance by
   // 1 byte in each iteration. For higher values the scalar version performs
   // better.
+#ifdef V8_TARGET_OS_WIN
+  // TODO(crbug.com/369880653): The SIMD variant clobbers XMM6 and XMM7, which
+  // are callee-saved registers on Windows.
+  return false;
+#else
   return v8_flags.regexp_simd && advance_by * char_size() == 1 &&
          CpuFeatures::IsSupported(SSSE3);
+#endif
 }
 
 bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
