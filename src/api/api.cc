@@ -9688,6 +9688,16 @@ v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   return v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
 }
 
+bool Isolate::HasPendingException() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  if (i_isolate->has_exception()) {
+    return true;
+  }
+  v8::TryCatch* try_catch_handler =
+      i_isolate->thread_local_top()->try_catch_handler_;
+  return try_catch_handler && try_catch_handler->HasCaught();
+}
+
 void Isolate::AddGCPrologueCallback(GCCallbackWithData callback, void* data,
                                     GCType gc_type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);

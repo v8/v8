@@ -975,6 +975,14 @@ class V8_EXPORT Isolate {
    */
   Local<Value> ThrowException(Local<Value> exception);
 
+  /**
+   * Returns true if an exception was thrown but not processed yet by an
+   * exception handler on JavaScript side or by v8::TryCatch handler.
+   *
+   * This is an experimental feature and may still change significantly.
+   */
+  bool HasPendingException();
+
   using GCCallback = void (*)(Isolate* isolate, GCType type,
                               GCCallbackFlags flags);
   using GCCallbackWithData = void (*)(Isolate* isolate, GCType type,
