@@ -5221,7 +5221,11 @@ class Assembler : public AssemblerData,
   Block* NewLoopHeader() { return this->output_graph().NewLoopHeader(); }
   Block* NewBlock() { return this->output_graph().NewBlock(); }
 
+#if V8_CC_GNU
+  bool Bind(Block* block) {
+#else
   V8_INLINE bool Bind(Block* block) {
+#endif
 #ifdef DEBUG
     set_conceptually_in_a_block(true);
 #endif
