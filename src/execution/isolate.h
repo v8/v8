@@ -25,6 +25,7 @@
 #include "src/base/platform/platform-posix.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
+#include "src/common/thread-local-storage.h"
 #include "src/debug/interface-types.h"
 #include "src/execution/execution.h"
 #include "src/execution/futex-emulation.h"
@@ -562,6 +563,11 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
 #define THREAD_LOCAL_TOP_ADDRESS(type, name) \
   inline type* name##_address() { return &thread_local_top()->name##_; }
 
+// Do not use this variable directly, use Isolate::Current() instead.
+// Defined outside of Isolate because Isolate uses V8_EXPORT_PRIVATE.
+__attribute__((tls_model(V8_TLS_MODEL))) extern thread_local Isolate*
+    g_current_isolate_ V8_CONSTINIT;
+
 // HiddenFactory exists so Isolate can privately inherit from it without making
 // Factory's members available to Isolate directly.
 class V8_EXPORT_PRIVATE HiddenFactory : private Factory {};
@@ -657,7 +663,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   V8_INLINE static PerIsolateThreadData* CurrentPerIsolateThreadData();
 
   // Returns the isolate inside which the current thread is running or nullptr.
-  V8_INLINE static Isolate* TryGetCurrent();
+  V8_TLS_DECLARE_GETTER(TryGetCurrent, Isolate*, g_current_isolate_)
 
   // Returns the isolate inside which the current thread is running.
   V8_INLINE static Isolate* Current();
@@ -2816,14 +2822,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 };
 
 // The current entered Isolate and its thread data. Do not access these
-// directly! Use Isolate::Current and Isolate::CurrentPerIsolateThreadData.
+// directly! Use Isolate::CurrentPerIsolateThreadData instead.
 //
-// These are outside the Isolate class with extern storage because in clang-cl,
+// This is outside the Isolate class with extern storage because in clang-cl,
 // thread_local is incompatible with dllexport linkage caused by
 // V8_EXPORT_PRIVATE being applied to Isolate.
 extern thread_local Isolate::PerIsolateThreadData*
     g_current_per_isolate_thread_data_ V8_CONSTINIT;
-extern thread_local Isolate* g_current_isolate_ V8_CONSTINIT;
 
 #undef FIELD_ACCESSOR
 #undef THREAD_LOCAL_TOP_ACCESSOR
