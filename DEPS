@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '4bc2b6654271ec95863d77c27685f3f78f3c13e7',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'be88fd4a09943317889c11e639b04c53bfc99ce7',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
@@ -309,7 +309,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '406418bc7b12e557007950b60eba07bc37f9e801',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '87f19104b59199bfdd1e30440ec3ca7a843578eb',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'efc3baa2d1ece3630fcfa72bef93ed831bcaec4c',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -511,7 +511,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'db7cdfad03aec85bc52e19be3c469e91c1b31ce3',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'dc257ad54f38739767a6cb26eb57fd51c37bfe3c',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
