@@ -3691,7 +3691,7 @@ void CreateFunctionContext::GenerateCode(MaglevAssembler* masm,
         slot_count()            // slots
     );
   }
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  masm->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
 int CreateRegExpLiteral::MaxCallStackArgs() const {

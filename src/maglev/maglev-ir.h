@@ -5589,7 +5589,8 @@ class CreateFunctionContext
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties =
-      OpProperties::GenericRuntimeOrBuiltinCall();
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::LazyDeopt() | OpProperties::NotIdempotent();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
