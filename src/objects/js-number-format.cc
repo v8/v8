@@ -1323,9 +1323,23 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
                    .scale(icu::number::Scale::powerOfTen(2));
   }
 
-  // 16. If style is "currency", then
+  Notation notation = Notation::STANDARD;
+  // xx. Let notation be ? GetOption(options, "notation", "string", «
+  // "standard", "scientific",  "engineering", "compact" », "standard").
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, notation,
+      GetStringOption<Notation>(
+          isolate, options, "notation", service,
+          {"standard", "scientific", "engineering", "compact"},
+          {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
+           Notation::COMPACT},
+          Notation::STANDARD),
+      Handle<JSNumberFormat>());
+  // xx. Set numberFormat.[[Notation]] to notation.
+
+  // xx. If style is *"currency"* and *"notation"* is *"standard"*, then
   int mnfd_default, mxfd_default;
-  if (style == Style::CURRENCY) {
+  if (style == Style::CURRENCY && notation == Notation::STANDARD) {
     // b. Let cDigits be CurrencyDigits(currency).
     int c_digits = CurrencyDigits(currency_ustr);
     // c. Let mnfdDefault be cDigits.
@@ -1346,20 +1360,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       mxfd_default = 3;
     }
   }
-
-  Notation notation = Notation::STANDARD;
-  // 21. Let notation be ? GetOption(options, "notation", "string", «
-  // "standard", "scientific",  "engineering", "compact" », "standard").
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, notation,
-      GetStringOption<Notation>(
-          isolate, options, "notation", service,
-          {"standard", "scientific", "engineering", "compact"},
-          {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
-           Notation::COMPACT},
-          Notation::STANDARD),
-      Handle<JSNumberFormat>());
-  // 22. Set numberFormat.[[Notation]] to notation.
 
   // 23. Perform ? SetNumberFormatDigitOptions(numberFormat, options,
   // mnfdDefault, mxfdDefault).
