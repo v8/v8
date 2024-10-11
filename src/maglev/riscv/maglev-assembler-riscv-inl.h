@@ -483,8 +483,7 @@ inline void MaglevAssembler::Cmp(const Register& rn, int imm) {
 
 inline void MaglevAssembler::Assert(Condition cond, AbortReason reason) {
   constexpr Register aflag = MaglevAssembler::GetFlagsRegister();
-  // whatever cond option came in, we just check the flag to be zero
-  MacroAssembler::Assert(Condition::kEqual, reason, aflag, Operand(zero_reg));
+  MacroAssembler::Assert(cond, reason, aflag, Operand(zero_reg));
 }
 
 inline Condition MaglevAssembler::IsRootConstant(Input input,
