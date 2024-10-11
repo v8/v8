@@ -1235,7 +1235,8 @@ class GraphBuildingNodeProcessor {
     inputs.resize_and_init(__ current_block()->PredecessorCount());
     for (int i = 0; i < maglev_input_count; ++i) {
       if (predecessor_permutation_[i] != Block::kInvalidPredecessorIndex) {
-        inputs[predecessor_permutation_[i]] = Map(maglev_node->input(i));
+        inputs[predecessor_permutation_[i]] =
+            MapPhiInput(maglev_node->input(i), predecessor_permutation_[i]);
       }
     }
 
@@ -5353,6 +5354,26 @@ class GraphBuildingNodeProcessor {
 
       callback(owner, var);
     }
+  }
+
+  OpIndex MapPhiInput(const maglev::Input input, int input_index) {
+    return MapPhiInput(input.node(), input_index);
+  }
+  OpIndex MapPhiInput(const maglev::NodeBase* node, int input_index) {
+    if (V8_UNLIKELY(node == maglev_generator_context_node_)) {
+      OpIndex generator_context = __ GetVariable(generator_context_);
+      if (__ current_block()->Contains(generator_context)) {
+        DCHECK(!__ current_block()->IsLoop());
+        DCHECK(__ output_graph().Get(generator_context).Is<PhiOp>());
+        // If {generator_context} is a Phi defined in the current block and it's
+        // used as input for another Phi, then we need to use it's value from
+        // the correct predecessor, since a Phi can't be an input to another Phi
+        // in the same block.
+        return __ GetPredecessorValue(generator_context_, input_index);
+      }
+      return generator_context;
+    }
+    return Map(node);
   }
 
   template <typename T>
