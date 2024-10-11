@@ -570,7 +570,7 @@ uint32_t NativeModuleSerializer::CanonicalSigIdToModuleLocalTypeId(
       // which local type ID we use if multiple types got canonicalized to the
       // same ID.
       canonical_sig_ids_to_module_local_ids_.emplace(
-          std::make_pair(canonical_id, local_id));
+          std::make_pair(canonical_id.index, local_id));
     }
   }
   auto it = canonical_sig_ids_to_module_local_ids_.find(canonical_sig_id);

@@ -91,7 +91,8 @@ class ResolvedWasmImport {
   V8_EXPORT_PRIVATE ResolvedWasmImport(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int func_index, Handle<JSReceiver> callable,
-      const wasm::CanonicalSig* sig, uint32_t expected_canonical_type_index,
+      const wasm::CanonicalSig* sig,
+      CanonicalTypeIndex expected_canonical_type_index,
       WellKnownImport preknown_import);
 
   ImportCallKind kind() const { return kind_; }
@@ -112,7 +113,8 @@ class ResolvedWasmImport {
   ImportCallKind ComputeKind(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int func_index, const wasm::CanonicalSig* expected_sig,
-      uint32_t expected_canonical_type_index, WellKnownImport preknown_import);
+      CanonicalTypeIndex expected_canonical_type_index,
+      WellKnownImport preknown_import);
 
   ImportCallKind kind_;
   WellKnownImport well_known_status_{WellKnownImport::kGeneric};

@@ -26,21 +26,20 @@ using FunctionSig = Signature<ValueType>;
 class WasmImportWrapperCache {
  public:
   struct CacheKey {
-    CacheKey(ImportCallKind kind, uint32_t canonical_type_index,
+    CacheKey(ImportCallKind kind, CanonicalTypeIndex type_index,
              int expected_arity, Suspend suspend)
         : kind(kind),
-          canonical_type_index(canonical_type_index),
+          type_index(type_index),
           expected_arity(expected_arity),
           suspend(suspend) {}
 
     bool operator==(const CacheKey& rhs) const {
-      return kind == rhs.kind &&
-             canonical_type_index == rhs.canonical_type_index &&
+      return kind == rhs.kind && type_index == rhs.type_index &&
              expected_arity == rhs.expected_arity && suspend == rhs.suspend;
     }
 
     ImportCallKind kind;
-    uint32_t canonical_type_index;
+    CanonicalTypeIndex type_index;
     int expected_arity;
     Suspend suspend;
   };
@@ -49,7 +48,7 @@ class WasmImportWrapperCache {
    public:
     size_t operator()(const CacheKey& key) const {
       return base::hash_combine(static_cast<uint8_t>(key.kind),
-                                key.canonical_type_index, key.expected_arity);
+                                key.type_index.index, key.expected_arity);
     }
   };
 
@@ -79,7 +78,7 @@ class WasmImportWrapperCache {
   // Thread-safe. Returns nullptr if the key doesn't exist in the map.
   // Adds the returned code to the surrounding WasmCodeRefScope.
   V8_EXPORT_PRIVATE WasmCode* MaybeGet(ImportCallKind kind,
-                                       uint32_t canonical_type_index,
+                                       CanonicalTypeIndex type_index,
                                        int expected_arity,
                                        Suspend suspend) const;
 
@@ -100,7 +99,7 @@ class WasmImportWrapperCache {
 
   WasmCode* CompileWasmImportCallWrapper(
       Isolate* isolate, NativeModule* native_module, ImportCallKind kind,
-      const CanonicalSig* sig, uint32_t canonical_sig_index,
+      const CanonicalSig* sig, CanonicalTypeIndex sig_index,
       bool source_positions, int expected_arity, Suspend suspend);
 
  private:

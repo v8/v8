@@ -414,8 +414,8 @@ class WasmRunnerBase : public InitializedHandleScope {
 
   static const CanonicalSig* CanonicalizeSig(const FunctionSig* sig) {
     // TODO(clemensb): Make this a single function call.
-    uint32_t canonical_sig_id = GetTypeCanonicalizer()->AddRecursiveGroup(sig);
-    return GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
+    CanonicalTypeIndex sig_id = GetTypeCanonicalizer()->AddRecursiveGroup(sig);
+    return GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
   }
 
   template <typename ReturnType, typename... ParamTypes>

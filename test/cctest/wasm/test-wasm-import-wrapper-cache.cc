@@ -37,22 +37,22 @@ TEST(CacheHit) {
 
   auto kind = ImportCallKind::kJSFunctionArityMatch;
   auto sig = sigs.i_i();
-  uint32_t canonical_type_index =
+  CanonicalTypeIndex type_index =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig);
   int expected_arity = static_cast<int>(sig->parameter_count());
   auto* canonical_sig =
-      GetTypeCanonicalizer()->LookupFunctionSignature(canonical_type_index);
+      GetTypeCanonicalizer()->LookupFunctionSignature(type_index);
   {
     WasmCodeRefScope wasm_code_ref_scope;
-    WasmCode* c1 = CompileImportWrapperForTest(
-        isolate, module.get(), kind, canonical_sig, canonical_type_index,
-        expected_arity, kNoSuspend);
+    WasmCode* c1 =
+        CompileImportWrapperForTest(isolate, module.get(), kind, canonical_sig,
+                                    type_index, expected_arity, kNoSuspend);
 
     CHECK_NOT_NULL(c1);
     CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
     WasmCode* c2 = GetWasmImportWrapperCache()->MaybeGet(
-        kind, canonical_type_index, expected_arity, kNoSuspend);
+        kind, type_index, expected_arity, kNoSuspend);
 
     CHECK_NOT_NULL(c2);
     CHECK_EQ(c1, c2);
@@ -61,7 +61,7 @@ TEST(CacheHit) {
   // of the wrapper to zero, causing its cleanup at the next Wasm Code GC
   // (requested via interrupt).
   isolate->stack_guard()->HandleInterrupts();
-  CHECK_NULL(GetWasmImportWrapperCache()->MaybeGet(kind, canonical_type_index,
+  CHECK_NULL(GetWasmImportWrapperCache()->MaybeGet(kind, type_index,
                                                    expected_arity, kNoSuspend));
 }
 
@@ -74,24 +74,24 @@ TEST(CacheMissSig) {
   auto kind = ImportCallKind::kJSFunctionArityMatch;
   auto* sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
-  uint32_t canonical_type_index1 =
+  CanonicalTypeIndex type_index1 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig1);
   auto* canonical_sig1 =
-      GetTypeCanonicalizer()->LookupFunctionSignature(canonical_type_index1);
+      GetTypeCanonicalizer()->LookupFunctionSignature(type_index1);
   auto sig2 = sigs.i_ii();
   int expected_arity2 = static_cast<int>(sig2->parameter_count());
-  uint32_t canonical_type_index2 =
+  CanonicalTypeIndex type_index2 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig2);
 
-  WasmCode* c1 = CompileImportWrapperForTest(
-      isolate, module.get(), kind, canonical_sig1, canonical_type_index1,
-      expected_arity1, kNoSuspend);
+  WasmCode* c1 =
+      CompileImportWrapperForTest(isolate, module.get(), kind, canonical_sig1,
+                                  type_index1, expected_arity1, kNoSuspend);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
   WasmCode* c2 = GetWasmImportWrapperCache()->MaybeGet(
-      kind, canonical_type_index2, expected_arity2, kNoSuspend);
+      kind, type_index2, expected_arity2, kNoSuspend);
 
   CHECK_NULL(c2);
 }
@@ -106,7 +106,7 @@ TEST(CacheMissKind) {
   auto kind2 = ImportCallKind::kJSFunctionArityMismatch;
   auto sig = sigs.i_i();
   int expected_arity = static_cast<int>(sig->parameter_count());
-  uint32_t canonical_type_index =
+  CanonicalTypeIndex canonical_type_index =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig);
   auto* canonical_sig =
       GetTypeCanonicalizer()->LookupFunctionSignature(canonical_type_index);
@@ -133,13 +133,13 @@ TEST(CacheHitMissSig) {
   auto kind = ImportCallKind::kJSFunctionArityMatch;
   auto sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
-  uint32_t canonical_type_index1 =
+  CanonicalTypeIndex canonical_type_index1 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig1);
   auto* canonical_sig1 =
       GetTypeCanonicalizer()->LookupFunctionSignature(canonical_type_index1);
   auto sig2 = sigs.i_ii();
   int expected_arity2 = static_cast<int>(sig2->parameter_count());
-  uint32_t canonical_type_index2 =
+  CanonicalTypeIndex canonical_type_index2 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig2);
   auto* canonical_sig2 =
       GetTypeCanonicalizer()->LookupFunctionSignature(canonical_type_index2);

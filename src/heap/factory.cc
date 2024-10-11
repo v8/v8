@@ -1789,13 +1789,12 @@ Handle<WasmFuncRef> Factory::NewWasmFuncRef(
 }
 
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
-    uint32_t canonical_sig_index, DirectHandle<JSReceiver> callable,
+    wasm::CanonicalTypeIndex sig_index, DirectHandle<JSReceiver> callable,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash) {
   // TODO(clemensb): Should this be passed instead of looked up here?
   const wasm::CanonicalSig* sig =
-      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
-          canonical_sig_index);
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
   DirectHandle<WasmImportData> import_data = NewWasmImportData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig);
 
@@ -1812,7 +1811,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
-  result->set_canonical_sig_index(static_cast<int>(canonical_sig_index));
+  result->set_canonical_sig_index(static_cast<int>(sig_index));
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
                                WasmFunctionData::PromiseField::encode(promise));
   return handle(result, isolate());
@@ -1871,7 +1870,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function,
-    const wasm::CanonicalSig* sig, uint32_t canonical_type_index,
+    const wasm::CanonicalSig* sig, wasm::CanonicalTypeIndex type_index,
     int wrapper_budget, wasm::Promise promise) {
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   int func_index = internal_function->function_index();
@@ -1889,7 +1888,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result->set_instance_data(*instance_data);
   result->set_function_index(func_index);
   result->set_sig(sig);
-  result->set_canonical_type_index(canonical_type_index);
+  result->set_canonical_type_index(type_index);
   result->set_wrapper_budget(*wrapper_budget_cell);
   // We can't skip the write barrier because Code objects are not immovable.
   result->set_c_wrapper_code(*BUILTIN_CODE(isolate(), Illegal),
@@ -1904,7 +1903,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, DirectHandle<Foreign> embedder_data,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    wasm::CanonicalTypeIndex canonical_sig_index, const wasm::CanonicalSig* sig,
+    wasm::CanonicalTypeIndex sig_index, const wasm::CanonicalSig* sig,
     uintptr_t signature_hash) {
   DirectHandle<WasmImportData> import_data =
       NewWasmImportData(undefined_value(), wasm::kNoSuspend,
@@ -1928,7 +1927,7 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
-  result->set_canonical_sig_index(canonical_sig_index.index);
+  result->set_canonical_sig_index(sig_index.index);
   result->set_wrapper_code(*wrapper_code);
   result->set_embedder_data(*embedder_data);
   result->set_sig(sig);

@@ -452,6 +452,16 @@ CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
 PRIMITIVE_ACCESSORS(WasmExportedFunctionData, sig, const wasm::CanonicalSig*,
                     kSigOffset)
 
+wasm::CanonicalTypeIndex WasmExportedFunctionData::sig_index() const {
+  return wasm::CanonicalTypeIndex{
+      static_cast<uint32_t>(canonical_type_index())};
+}
+
+// WasmJSFunctionData
+wasm::CanonicalTypeIndex WasmJSFunctionData::sig_index() const {
+  return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};
+}
+
 // WasmJSFunction
 WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmJSFunction(*this));
@@ -466,6 +476,11 @@ struct CastTraits<WasmJSFunction> {
     return WasmJSFunction::IsWasmJSFunction(value);
   }
 };
+
+// WasmCapiFunctionData
+wasm::CanonicalTypeIndex WasmCapiFunctionData::sig_index() const {
+  return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};
+}
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {

@@ -86,21 +86,19 @@ TestingModuleBuilder::TestingModuleBuilder(
   if (maybe_import) {
     WasmCodeRefScope code_ref_scope;
     // Manually compile an import wrapper and insert it into the instance.
-    uint32_t canonical_type_index =
+    CanonicalTypeIndex sig_index =
         GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
     const wasm::CanonicalSig* sig =
-        GetTypeCanonicalizer()->LookupFunctionSignature(canonical_type_index);
+        GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
     ResolvedWasmImport resolved({}, -1, maybe_import->js_function, sig,
-                                canonical_type_index,
-                                WellKnownImport::kUninstantiated);
+                                sig_index, WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
     WasmCode* import_wrapper = GetWasmImportWrapperCache()->MaybeGet(
-        kind, canonical_type_index, static_cast<int>(sig->parameter_count()),
-        kNoSuspend);
+        kind, sig_index, static_cast<int>(sig->parameter_count()), kNoSuspend);
     if (import_wrapper == nullptr) {
       import_wrapper = CompileImportWrapperForTest(
-          isolate_, native_module_, kind, sig, canonical_type_index,
+          isolate_, native_module_, kind, sig, sig_index,
           static_cast<int>(sig->parameter_count()), kNoSuspend);
     }
 

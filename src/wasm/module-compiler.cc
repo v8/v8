@@ -4343,20 +4343,20 @@ WasmCode* CompileImportWrapperForTest(Isolate* isolate,
                                       NativeModule* native_module,
                                       ImportCallKind kind,
                                       const CanonicalSig* sig,
-                                      uint32_t canonical_type_index,
+                                      CanonicalTypeIndex type_index,
                                       int expected_arity, Suspend suspend) {
   bool source_positions = is_asmjs_module(native_module->module());
   if (v8_flags.wasm_jitless) {
     WasmImportWrapperCache::ModificationScope cache_scope(
         GetWasmImportWrapperCache());
-    WasmImportWrapperCache::CacheKey key(kind, canonical_type_index,
-                                         expected_arity, suspend);
+    WasmImportWrapperCache::CacheKey key(kind, type_index, expected_arity,
+                                         suspend);
     DCHECK_NULL(cache_scope[key]);
     return nullptr;
   }
 
   return GetWasmImportWrapperCache()->CompileWasmImportCallWrapper(
-      isolate, native_module, kind, sig, canonical_type_index, source_positions,
+      isolate, native_module, kind, sig, type_index, source_positions,
       expected_arity, suspend);
 }
 

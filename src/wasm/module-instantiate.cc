@@ -113,16 +113,16 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   // Recursive calls for supertypes may already have created this map.
   if (IsMap(maybe_shared_maps->get(type_index))) return;
 
-  uint32_t canonical_type_index =
+  CanonicalTypeIndex canonical_type_index =
       module->isorecursive_canonical_type_ids[type_index];
 
   // Try to find the canonical map for this type in the isolate store.
   DirectHandle<WeakFixedArray> canonical_rtts =
       direct_handle(isolate->heap()->wasm_canonical_rtts(), isolate);
   DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
-            canonical_type_index);
+            canonical_type_index.index);
   Tagged<MaybeObject> maybe_canonical_map =
-      canonical_rtts->get(canonical_type_index);
+      canonical_rtts->get(canonical_type_index.index);
   if (!maybe_canonical_map.IsCleared()) {
     maybe_shared_maps->set(type_index,
                            maybe_canonical_map.GetHeapObjectAssumeWeak());
@@ -682,7 +682,8 @@ WellKnownImport CheckForWellKnownImport(
 ResolvedWasmImport::ResolvedWasmImport(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     Handle<JSReceiver> callable, const wasm::CanonicalSig* expected_sig,
-    uint32_t expected_canonical_type_index, WellKnownImport preknown_import) {
+    CanonicalTypeIndex expected_canonical_type_index,
+    WellKnownImport preknown_import) {
   SetCallable(callable->GetIsolate(), callable);
   kind_ = ComputeKind(trusted_instance_data, func_index, expected_sig,
                       expected_canonical_type_index, preknown_import);
@@ -706,7 +707,8 @@ void ResolvedWasmImport::SetCallable(Isolate* isolate,
 ImportCallKind ResolvedWasmImport::ComputeKind(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     const wasm::CanonicalSig* expected_sig,
-    uint32_t expected_canonical_type_index, WellKnownImport preknown_import) {
+    CanonicalTypeIndex expected_canonical_type_index,
+    WellKnownImport preknown_import) {
   // If we already have a compile-time import, simply pass that through.
   if (IsCompileTimeImport(preknown_import)) {
     well_known_status_ = preknown_import;
@@ -1874,13 +1876,12 @@ bool InstanceBuilder::ProcessImportedFunction(
         func_index, Cast<WasmExternalFunction>(*value)->func_ref());
   }
   auto js_receiver = Cast<JSReceiver>(value);
-  ModuleTypeIndex sig_index = module_->functions[func_index].sig_index;
-  CanonicalTypeIndex canonical_sig_index = module_->canonical_sig_id(sig_index);
+  CanonicalTypeIndex sig_index =
+      module_->canonical_sig_id(module_->functions[func_index].sig_index);
   const CanonicalSig* expected_sig =
-      GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_index);
+      GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
   ResolvedWasmImport resolved(trusted_instance_data, func_index, js_receiver,
-                              expected_sig, canonical_sig_index,
-                              preknown_import);
+                              expected_sig, sig_index, preknown_import);
   if (resolved.well_known_status() != WellKnownImport::kGeneric &&
       v8_flags.trace_wasm_inlining) {
     PrintF("[import %d is well-known built-in %s]\n", import_index,
@@ -1923,18 +1924,16 @@ bool InstanceBuilder::ProcessImportedFunction(
       NativeModule* native_module = trusted_instance_data->native_module();
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-      CanonicalTypeIndex canonical_sig_id =
-          module_->canonical_sig_id(module_->functions[func_index].sig_index);
       WasmCodeRefScope code_ref_scope;
       WasmCode* wasm_code =
-          cache->MaybeGet(kind, canonical_sig_id, expected_arity, kNoSuspend);
+          cache->MaybeGet(kind, sig_index, expected_arity, kNoSuspend);
       if (wasm_code == nullptr) {
         {
           WasmImportWrapperCache::ModificationScope cache_scope(cache);
           WasmCompilationResult result =
               compiler::CompileWasmCapiCallWrapper(native_module, expected_sig);
-          WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
-                                               expected_arity, kNoSuspend);
+          WasmImportWrapperCache::CacheKey key(kind, sig_index, expected_arity,
+                                               kNoSuspend);
           wasm_code = cache_scope.AddWrapper(
               key, std::move(result), WasmCode::Kind::kWasmToCapiWrapper);
         }
@@ -1971,7 +1970,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       {
         WasmImportWrapperCache::ModificationScope cache_scope(
             GetWasmImportWrapperCache());
-        WasmImportWrapperCache::CacheKey dummy_key(kind, 0, 0, kNoSuspend);
+        WasmImportWrapperCache::CacheKey dummy_key(kind, CanonicalTypeIndex{0},
+                                                   0, kNoSuspend);
         wasm_code = cache_scope.AddWrapper(dummy_key, std::move(result),
                                            WasmCode::Kind::kWasmToJsWrapper);
       }
@@ -2005,19 +2005,17 @@ bool InstanceBuilder::ProcessImportedFunction(
             shared->internal_formal_parameter_count_without_receiver();
       }
 
-      CanonicalTypeIndex canonical_sig_id =
-          module_->canonical_sig_id(module_->functions[func_index].sig_index);
       WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
       WasmCodeRefScope code_ref_scope;
-      WasmCode* wasm_code = cache->MaybeGet(kind, canonical_sig_id,
-                                            expected_arity, resolved.suspend());
+      WasmCode* wasm_code =
+          cache->MaybeGet(kind, sig_index, expected_arity, resolved.suspend());
       if (!wasm_code) {
         // This should be a very rare fallback case. We expect that the
         // generic wrapper will be used (see above).
         NativeModule* native_module = trusted_instance_data->native_module();
         bool source_positions = is_asmjs_module(native_module->module());
         wasm_code = cache->CompileWasmImportCallWrapper(
-            isolate_, native_module, kind, expected_sig, canonical_sig_id,
+            isolate_, native_module, kind, expected_sig, sig_index,
             source_positions, expected_arity, resolved.suspend());
       }
 
@@ -2096,14 +2094,14 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
       implicit_arg = new_import_data;
     }
 
-    CanonicalTypeIndex canonical_sig_index =
+    CanonicalTypeIndex sig_index =
         target_module->canonical_sig_id(function.sig_index);
 #if !V8_ENABLE_DRUMBRAKE
-    SBXCHECK(FunctionSigMatchesTable(
-        canonical_sig_index, trusted_instance_data->module(), table_index));
+    SBXCHECK(FunctionSigMatchesTable(sig_index, trusted_instance_data->module(),
+                                     table_index));
 
     trusted_instance_data->dispatch_table(table_index)
-        ->Set(i, *implicit_arg, entry.call_target(), canonical_sig_index);
+        ->Set(i, *implicit_arg, entry.call_target(), sig_index);
 #else   // !V8_ENABLE_DRUMBRAKE
     trusted_instance_data->dispatch_table(table_index)
         ->Set(i, *implicit_arg, entry.call_target(), canonical_sig_index,
@@ -2762,11 +2760,11 @@ void InstanceBuilder::ProcessExports(
               Cast<HeapObject>(
                   trusted_instance_data->tags_table()->get(exp.index)),
               isolate_);
-          CanonicalTypeIndex canonical_sig_index =
+          CanonicalTypeIndex sig_index =
               module_->canonical_sig_id(tag.sig_index);
           // TODO(42204563): Support shared tags.
-          wrapper = WasmTagObject::New(isolate_, tag.sig, canonical_sig_index,
-                                       tag_object, trusted_instance_data);
+          wrapper = WasmTagObject::New(isolate_, tag.sig, sig_index, tag_object,
+                                       trusted_instance_data);
           tags_wrappers_[exp.index] = wrapper;
         }
         value = wrapper;

@@ -185,11 +185,12 @@ RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Handle<Object> value(args[1], isolate);
-  // Make sure ValueType fits properly in a Smi.
-  static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+  // Make sure CanonicalValueType fits properly in a Smi.
+  static_assert(wasm::CanonicalValueType::kLastUsedBit + 1 <= kSmiValueSize);
   int raw_type = args.smi_value_at(2);
 
-  wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
+  wasm::CanonicalValueType type =
+      wasm::CanonicalValueType::FromRawBitField(raw_type);
   const char* error_message;
   Handle<Object> result;
   if (!JSToWasmObject(isolate, value, type, &error_message).ToHandle(&result)) {
@@ -212,10 +213,11 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
   DCHECK_EQ(2, args.length());
   Handle<Object> value(args[0], isolate);
   // Make sure ValueType fits properly in a Smi.
-  static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+  static_assert(wasm::CanonicalValueType::kLastUsedBit + 1 <= kSmiValueSize);
   int raw_type = args.smi_value_at(1);
 
-  wasm::ValueType expected = wasm::ValueType::FromRawBitField(raw_type);
+  wasm::CanonicalValueType expected =
+      wasm::CanonicalValueType::FromRawBitField(raw_type);
   const char* error_message;
   Handle<Object> result;
   bool success = JSToWasmObject(isolate, value, expected, &error_message)
@@ -554,13 +556,13 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   const wasm::WasmModule* module = trusted_data->module();
   const int function_index = function_data->function_index();
   const wasm::WasmFunction& function = module->functions[function_index];
-  const wasm::CanonicalTypeIndex canonical_sig_id =
+  const wasm::CanonicalTypeIndex sig_id =
       module->canonical_sig_id(function.sig_index);
   const wasm::CanonicalSig* sig =
-      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
 
   Tagged<MaybeObject> maybe_cached_wrapper =
-      isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_id.index);
+      isolate->heap()->js_to_wasm_wrappers()->get(sig_id.index);
   Tagged<Code> wrapper_code;
   DCHECK(maybe_cached_wrapper.IsWeakOrCleared());
   if (!maybe_cached_wrapper.IsCleared()) {
@@ -576,12 +578,11 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
     Handle<WasmTrustedInstanceData> trusted_data_handle{trusted_data, isolate};
     DirectHandle<Code> new_wrapper_code =
         wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate, sig, canonical_sig_id, module);
+            isolate, sig, sig_id, module);
 
     // Compilation must have installed the wrapper into the cache.
-    DCHECK_EQ(
-        MakeWeak(new_wrapper_code->wrapper()),
-        isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_id.index));
+    DCHECK_EQ(MakeWeak(new_wrapper_code->wrapper()),
+              isolate->heap()->js_to_wasm_wrappers()->get(sig_id.index));
 
     // Reset raw pointers still needed outside the slow path.
     wrapper_code = *new_wrapper_code;
@@ -601,7 +602,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
     int index = static_cast<int>(exp.index);
     if (index == function_index) continue;  // Already replaced.
     const wasm::WasmFunction& exp_function = module->functions[index];
-    if (module->canonical_sig_id(exp_function.sig_index) != canonical_sig_id) {
+    if (module->canonical_sig_id(exp_function.sig_index) != sig_id) {
       continue;  // Different signature.
     }
     ReplaceJSToWasmWrapper(isolate, trusted_data, index, wrapper_code);
@@ -700,11 +701,10 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   const wasm::WasmModule* defining_module = defining_instance_data->module();
 
   // Get the function's canonical signature index.
-  wasm::CanonicalTypeIndex canonical_sig_index =
-      wasm::CanonicalTypeIndex::Invalid();
+  wasm::CanonicalTypeIndex sig_index = wasm::CanonicalTypeIndex::Invalid();
   if (WasmImportData::CallOriginIsImportIndex(call_origin_index)) {
     int func_index = WasmImportData::CallOriginAsIndex(call_origin_index);
-    canonical_sig_index = defining_module->canonical_sig_id(
+    sig_index = defining_module->canonical_sig_id(
         defining_module->functions[func_index].sig_index);
   } else {
     // Indirect function table index.
@@ -724,12 +724,12 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
           maybe_shared_data->dispatch_table(table_index);
       if (entry_index < table->length() &&
           table->implicit_arg(entry_index) == *import_data) {
-        canonical_sig_index = table->sig(entry_index);
+        sig_index = table->sig(entry_index);
         break;
       }
     }
   }
-  DCHECK_NE(canonical_sig_index, std::numeric_limits<uint32_t>::max());
+  DCHECK_NE(sig_index, std::numeric_limits<uint32_t>::max());
 
   // Compile a wrapper for the target callable.
   Handle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
@@ -737,7 +737,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   wasm::Suspend suspend = static_cast<wasm::Suspend>(import_data->suspend());
   wasm::WasmCodeRefScope code_ref_scope;
 
-  wasm::ResolvedWasmImport resolved({}, -1, callable, sig, canonical_sig_index,
+  wasm::ResolvedWasmImport resolved({}, -1, callable, sig, sig_index,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
@@ -752,11 +752,11 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   wasm::WasmCode* wasm_code =
-      cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
+      cache->MaybeGet(kind, sig_index, expected_arity, suspend);
   if (!wasm_code) {
     wasm_code = cache->CompileWasmImportCallWrapper(
         isolate, call_origin_instance_data->native_module(), kind, sig,
-        canonical_sig_index, false, expected_arity, suspend);
+        sig_index, false, expected_arity, suspend);
   }
   // Note: we don't need to decrement any refcounts here, because tier-up
   // doesn't overwrite an existing compiled wrapper, and the generic wrapper

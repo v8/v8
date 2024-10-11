@@ -71,7 +71,7 @@ WasmCode* CompileImportWrapperForTest(Isolate* isolate,
                                       NativeModule* native_module,
                                       ImportCallKind kind,
                                       const CanonicalSig* sig,
-                                      uint32_t canonical_type_index,
+                                      CanonicalTypeIndex type_index,
                                       int expected_arity, Suspend suspend);
 
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether

@@ -88,12 +88,12 @@ class TypeCanonicalizer {
 
   // Retrieve back a function signature from a canonical index later.
   V8_EXPORT_PRIVATE const CanonicalSig* LookupFunctionSignature(
-      uint32_t canonical_index) const;
+      CanonicalTypeIndex index) const;
 
   // Returns if {canonical_sub_index} is a canonical subtype of
   // {canonical_super_index}.
-  V8_EXPORT_PRIVATE bool IsCanonicalSubtype(uint32_t canonical_sub_index,
-                                            uint32_t canonical_super_index);
+  V8_EXPORT_PRIVATE bool IsCanonicalSubtype(CanonicalTypeIndex sub_index,
+                                            CanonicalTypeIndex super_index);
 
   // Returns if the type at {sub_index} in {sub_module} is a subtype of the
   // type at {super_index} in {super_module} after canonicalization.
@@ -119,7 +119,7 @@ class TypeCanonicalizer {
   V8_EXPORT_PRIVATE static void ClearWasmCanonicalTypesForTesting(
       Isolate* isolate);
 
-  bool IsFunctionSignature(uint32_t canonical_index) const;
+  bool IsFunctionSignature(CanonicalTypeIndex index) const;
 
 #if DEBUG
   // Check whether a function signature is canonicalized by checking whether the

@@ -130,9 +130,9 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
   base::MutexGuard guard(&mutex_);
   // Fast path lookup before canonicalizing (== copying into the
   // TypeCanonicalizer's zone) the function signature.
-  CanonicalTypeIndex canonical_index =
+  CanonicalTypeIndex index =
       FindCanonicalGroup(CanonicalSingletonGroup{canonical});
-  if (canonical_index.valid()) return canonical_index;
+  if (index.valid()) return index;
   // Copy into this class's zone, then call the generic {AddRecursiveGroup}.
   CanonicalSig::Builder builder(&zone_, sig->return_count(),
                                 sig->parameter_count());
@@ -149,44 +149,40 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
 CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(CanonicalType type) {
   DCHECK(!mutex_.TryLock());  // The caller must hold the mutex.
   CanonicalSingletonGroup group{type};
-  if (CanonicalTypeIndex canonical_index = FindCanonicalGroup(group);
-      canonical_index.valid()) {
+  if (CanonicalTypeIndex index = FindCanonicalGroup(group); index.valid()) {
     //  Make sure this signature can be looked up later.
     DCHECK_IMPLIES(type.kind == CanonicalType::kFunction,
-                   canonical_function_sigs_.count(canonical_index));
-    return canonical_index;
+                   canonical_function_sigs_.count(index));
+    return index;
   }
   static_assert(kMaxCanonicalTypes <= kMaxUInt32);
-  CanonicalTypeIndex canonical_index{
-      static_cast<uint32_t>(canonical_supertypes_.size())};
+  CanonicalTypeIndex index{static_cast<uint32_t>(canonical_supertypes_.size())};
   // Check that this canonical ID is not used yet.
-  DCHECK(std::none_of(
-      canonical_singleton_groups_.begin(), canonical_singleton_groups_.end(),
-      [=](auto& entry) { return entry.second == canonical_index; }));
-  DCHECK(std::none_of(
-      canonical_groups_.begin(), canonical_groups_.end(),
-      [=](auto& entry) { return entry.second == canonical_index; }));
-  canonical_singleton_groups_.emplace(group, canonical_index);
+  DCHECK(std::none_of(canonical_singleton_groups_.begin(),
+                      canonical_singleton_groups_.end(),
+                      [=](auto& entry) { return entry.second == index; }));
+  DCHECK(std::none_of(canonical_groups_.begin(), canonical_groups_.end(),
+                      [=](auto& entry) { return entry.second == index; }));
+  canonical_singleton_groups_.emplace(group, index);
   // Compute the canonical index of the supertype: If it is relative, we
   // need to add {canonical_index}.
   canonical_supertypes_.push_back(
       type.is_relative_supertype
-          ? CanonicalTypeIndex{type.supertype.index + canonical_index}
+          ? CanonicalTypeIndex{type.supertype.index + index.index}
           : type.supertype);
   if (type.kind == CanonicalType::kFunction) {
     const CanonicalSig* sig = type.function_sig;
     DCHECK(zone_.Contains(sig));  // TODO(366180605): Drop.
-    CHECK(canonical_function_sigs_.emplace(canonical_index, sig).second);
+    CHECK(canonical_function_sigs_.emplace(index, sig).second);
   }
   CheckMaxCanonicalIndex();
-  return canonical_index;
+  return index;
 }
 
 const CanonicalSig* TypeCanonicalizer::LookupFunctionSignature(
-    uint32_t canonical_index) const {
+    CanonicalTypeIndex index) const {
   base::MutexGuard mutex_guard(&mutex_);
-  // TODO(366180605): Drop explicit conversion.
-  auto it = canonical_function_sigs_.find({canonical_index});
+  auto it = canonical_function_sigs_.find(index);
   CHECK(it != canonical_function_sigs_.end());
   return it->second;
 }
@@ -226,15 +222,15 @@ CanonicalValueType TypeCanonicalizer::CanonicalizeValueType(
                    module->isorecursive_canonical_type_ids[type.ref_index()]);
 }
 
-bool TypeCanonicalizer::IsCanonicalSubtype(uint32_t canonical_sub_index,
-                                           uint32_t canonical_super_index) {
+bool TypeCanonicalizer::IsCanonicalSubtype(CanonicalTypeIndex sub_index,
+                                           CanonicalTypeIndex super_index) {
   // Multiple threads could try to register and access recursive groups
   // concurrently.
   // TODO(manoskouk): Investigate if we can improve this synchronization.
   base::MutexGuard mutex_guard(&mutex_);
-  while (canonical_sub_index != kNoSuperType) {
-    if (canonical_sub_index == canonical_super_index) return true;
-    canonical_sub_index = canonical_supertypes_[canonical_sub_index];
+  while (sub_index != kNoSuperType) {
+    if (sub_index == super_index) return true;
+    sub_index = canonical_supertypes_[sub_index];
   }
   return false;
 }
@@ -243,9 +239,9 @@ bool TypeCanonicalizer::IsCanonicalSubtype(uint32_t sub_index,
                                            uint32_t super_index,
                                            const WasmModule* sub_module,
                                            const WasmModule* super_module) {
-  uint32_t canonical_super =
+  CanonicalTypeIndex canonical_super =
       super_module->isorecursive_canonical_type_ids[super_index];
-  uint32_t canonical_sub =
+  CanonicalTypeIndex canonical_sub =
       sub_module->isorecursive_canonical_type_ids[sub_index];
   return IsCanonicalSubtype(canonical_sub, canonical_super);
 }
@@ -264,13 +260,12 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
     const WasmModule* module, TypeDefinition type,
     uint32_t recursive_group_start) {
   DCHECK(!mutex_.TryLock());  // The caller must hold the mutex.
-  CanonicalTypeIndex canonical_supertype{kNoSuperType};
+  CanonicalTypeIndex supertype{kNoSuperType};
   bool is_relative_supertype = false;
   if (type.supertype < recursive_group_start) {
-    canonical_supertype =
-        module->isorecursive_canonical_type_ids[type.supertype];
+    supertype = module->isorecursive_canonical_type_ids[type.supertype];
   } else if (type.supertype.valid()) {
-    canonical_supertype =
+    supertype =
         CanonicalTypeIndex{type.supertype.index - recursive_group_start};
     is_relative_supertype = true;
   }
@@ -287,7 +282,7 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
         builder.AddParam(
             CanonicalizeValueType(module, param, recursive_group_start));
       }
-      return CanonicalType(builder.Get(), canonical_supertype, type.is_final,
+      return CanonicalType(builder.Get(), supertype, type.is_final,
                            type.is_shared, is_relative_supertype);
     }
     case TypeDefinition::kStruct: {
@@ -303,16 +298,15 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
       builder.set_total_fields_size(original_type->total_fields_size());
       return CanonicalType(
           builder.Build(CanonicalStructType::Builder::kUseProvidedOffsets),
-          canonical_supertype, type.is_final, type.is_shared,
-          is_relative_supertype);
+          supertype, type.is_final, type.is_shared, is_relative_supertype);
     }
     case TypeDefinition::kArray: {
       CanonicalValueType element_type = CanonicalizeValueType(
           module, type.array_type->element_type(), recursive_group_start);
       CanonicalArrayType* array_type = zone_.New<CanonicalArrayType>(
           element_type, type.array_type->mutability());
-      return CanonicalType(array_type, canonical_supertype, type.is_final,
-                           type.is_shared, is_relative_supertype);
+      return CanonicalType(array_type, supertype, type.is_final, type.is_shared,
+                           is_relative_supertype);
     }
   }
 }
@@ -411,10 +405,9 @@ void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
       roots.empty_weak_fixed_array(), roots.empty_weak_fixed_array());
 }
 
-bool TypeCanonicalizer::IsFunctionSignature(uint32_t canonical_index) const {
+bool TypeCanonicalizer::IsFunctionSignature(CanonicalTypeIndex index) const {
   base::MutexGuard mutex_guard(&mutex_);
-  // TODO(366180605): Drop explicit conversion.
-  auto it = canonical_function_sigs_.find({canonical_index});
+  auto it = canonical_function_sigs_.find(index);
   return it != canonical_function_sigs_.end();
 }
 

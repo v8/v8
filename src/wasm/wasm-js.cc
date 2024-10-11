@@ -1879,7 +1879,8 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
         // no way to specify such types in `new WebAssembly.Global(...)`.
         // TODO(14034): Fix this if that changes.
         DCHECK(!type.has_index());
-        if (!i::wasm::JSToWasmObject(i_isolate, value_handle, type,
+        i::wasm::CanonicalValueType canonical_type{type};
+        if (!i::wasm::JSToWasmObject(i_isolate, value_handle, canonical_type,
                                      &error_message)
                  .ToHandle(&value_handle)) {
           thrower.TypeError("%s", error_message);
@@ -1983,11 +1984,11 @@ void WebAssemblyTagImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // meaningful value when declared outside of a wasm module.
   auto tag = i::WasmExceptionTag::New(i_isolate, 0);
 
-  uint32_t canonical_type_index =
+  i::wasm::CanonicalTypeIndex type_index =
       i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(&sig);
 
   i::Handle<i::JSObject> tag_object =
-      i::WasmTagObject::New(i_isolate, &sig, canonical_type_index, tag,
+      i::WasmTagObject::New(i_isolate, &sig, type_index, tag,
                             i::Handle<i::WasmTrustedInstanceData>());
   info.GetReturnValue().Set(Utils::ToLocal(tag_object));
 }
@@ -2060,6 +2061,7 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
       case i::wasm::kRefNull: {
         const char* error_message;
         i::Handle<i::Object> value_handle = Utils::OpenHandle(*value);
+        i::wasm::CanonicalValueType canonical_type;
         if (type.has_index()) {
           // Canonicalize the type using the tag's original module.
           // Indexed types are guaranteed to come from an instance.
@@ -2067,11 +2069,14 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
           i::Tagged<i::WasmTrustedInstanceData> wtid =
               tag_object->trusted_data(i_isolate);
           const i::wasm::WasmModule* module = wtid->module();
-          uint32_t canonical_index =
+          i::wasm::CanonicalTypeIndex index =
               module->isorecursive_canonical_type_ids[type.ref_index()];
-          type = i::wasm::ValueType::FromIndex(type.kind(), canonical_index);
+          canonical_type =
+              i::wasm::CanonicalValueType::FromIndex(type.kind(), index);
+        } else {
+          canonical_type = i::wasm::CanonicalValueType{type};
         }
-        if (!i::wasm::JSToWasmObject(i_isolate, value_handle, type,
+        if (!i::wasm::JSToWasmObject(i_isolate, value_handle, canonical_type,
                                      &error_message)
                  .ToHandle(&value_handle)) {
           thrower->TypeError("%s", error_message);
@@ -3299,7 +3304,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     auto js_tag = WasmExceptionTag::New(isolate, 0);
     // Note the canonical_type_index is reset in WasmJs::Install s.t.
     // type_canonicalizer bookkeeping remains valid.
-    static constexpr uint32_t kInitialCanonicalTypeIndex = 0;
+    static constexpr wasm::CanonicalTypeIndex kInitialCanonicalTypeIndex{0};
     DirectHandle<JSObject> js_tag_object = WasmTagObject::New(
         isolate, &kWasmExceptionTagSignature, kInitialCanonicalTypeIndex,
         js_tag, Handle<WasmTrustedInstanceData>());

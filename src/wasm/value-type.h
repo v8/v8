@@ -1095,6 +1095,10 @@ class CanonicalValueType : public ValueType {
                                         CanonicalRelativeField::encode(true))};
   }
 
+  static constexpr CanonicalValueType FromRawBitField(uint32_t bit_field) {
+    return CanonicalValueType{ValueType::FromRawBitField(bit_field)};
+  }
+
   constexpr CanonicalTypeIndex ref_index() const {
     return CanonicalTypeIndex{ValueType::ref_index()};
   }
@@ -1177,6 +1181,8 @@ constexpr CanonicalValueType kCanonicalF64 =
     CanonicalValueType::Primitive(kF64);
 constexpr CanonicalValueType kCanonicalExternRef =
     CanonicalValueType::RefNull(HeapType::kExtern);
+constexpr CanonicalValueType kCanonicalAnyRef =
+    CanonicalValueType::RefNull(HeapType::kAny);
 
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;

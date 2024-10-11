@@ -220,11 +220,11 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
 }
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
-    Isolate* isolate, const CanonicalSig* sig, uint32_t canonical_sig_index,
+    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index,
     const WasmModule* module, WasmEnabledFeatures enabled_features)
     : isolate_(isolate),
       sig_(sig),
-      canonical_sig_index_(canonical_sig_index),
+      sig_index_(sig_index),
       job_(v8_flags.wasm_jitless
                ? nullptr
                : compiler::NewJSToWasmCompilationJob(isolate, sig, module,
@@ -280,7 +280,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                       Cast<AbstractCode>(code), name));
   }
-  isolate_->heap()->js_to_wasm_wrappers()->set(canonical_sig_index_,
+  isolate_->heap()->js_to_wasm_wrappers()->set(sig_index_.index,
                                                MakeWeak(code->wrapper()));
   Counters* counters = isolate_->counters();
   counters->wasm_generated_code_size()->Increment(code->body_size());
@@ -291,12 +291,12 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 
 // static
 Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-    Isolate* isolate, const CanonicalSig* sig, uint32_t canonical_sig_index,
+    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index,
     const WasmModule* module) {
   // Run the compilation unit synchronously.
   WasmEnabledFeatures enabled_features =
       WasmEnabledFeatures::FromIsolate(isolate);
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, canonical_sig_index, module,
+  JSToWasmWrapperCompilationUnit unit(isolate, sig, sig_index, module,
                                       enabled_features);
   unit.Execute();
   return unit.Finalize();

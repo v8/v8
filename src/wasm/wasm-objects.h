@@ -206,7 +206,7 @@ class WasmModuleObject
 #if V8_ENABLE_SANDBOX || DEBUG
 // This should be checked before writing an untrusted function reference
 // into a dispatch table (e.g. via WasmTableObject::Set).
-bool FunctionSigMatchesTable(uint32_t canonical_sig_id,
+bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
                              const wasm::WasmModule* module, int table_index);
 #endif
 
@@ -700,7 +700,7 @@ class WasmTagObject
 
   static Handle<WasmTagObject> New(
       Isolate* isolate, const wasm::FunctionSig* sig,
-      uint32_t canonical_type_index, DirectHandle<HeapObject> tag,
+      wasm::CanonicalTypeIndex type_index, DirectHandle<HeapObject> tag,
       DirectHandle<WasmTrustedInstanceData> instance);
 
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
@@ -965,7 +965,8 @@ class WasmCapiFunction : public JSFunction {
 
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this C-API function object.
-  bool MatchesSignature(uint32_t other_canonical_sig_index) const;
+  bool MatchesSignature(
+      wasm::CanonicalTypeIndex other_canonical_sig_index) const;
 
   OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);
 };
@@ -1016,8 +1017,11 @@ class WasmExportedFunctionData
   DECL_CODE_POINTER_ACCESSORS(c_wrapper_code)
 
   DECL_PRIMITIVE_ACCESSORS(sig, const wasm::CanonicalSig*)
+  // Prefer to use this convenience wrapper of the Torque-generated
+  // {canonical_type_index()}.
+  inline wasm::CanonicalTypeIndex sig_index() const;
 
-  bool MatchesSignature(uint32_t other_canonical_sig_index);
+  bool MatchesSignature(wasm::CanonicalTypeIndex other_canonical_sig_index);
 
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)
@@ -1119,7 +1123,11 @@ class WasmJSFunctionData
   Tagged<JSReceiver> GetCallable() const;
   wasm::Suspend GetSuspend() const;
   const wasm::CanonicalSig* GetSignature() const;
-  bool MatchesSignature(uint32_t other_canonical_sig_index) const;
+  // Prefer to use this convenience wrapper of the Torque-generated
+  // {canonical_sig_index()}.
+  inline wasm::CanonicalTypeIndex sig_index() const;
+  bool MatchesSignature(
+      wasm::CanonicalTypeIndex other_canonical_sig_index) const;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)
@@ -1136,6 +1144,10 @@ class WasmCapiFunctionData
     : public TorqueGeneratedWasmCapiFunctionData<WasmCapiFunctionData,
                                                  WasmFunctionData> {
  public:
+  // Prefer to use this convenience wrapper of the Torque-generated
+  // {canonical_sig_index()}.
+  inline wasm::CanonicalTypeIndex sig_index() const;
+
   DECL_PRINTER(WasmCapiFunctionData)
 
   using BodyDescriptor =
@@ -1449,7 +1461,7 @@ namespace wasm {
 // {expected}. If the typecheck succeeds, returns the wasm representation of the
 // object; otherwise, returns the empty handle.
 MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
-                                   ValueType expected,
+                                   CanonicalValueType expected,
                                    const char** error_message);
 
 // Utility which canonicalizes {expected} in addition.
