@@ -160,9 +160,10 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(JSObjectRef object) const {
 
 bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
   if (mode() == kDisabled) {
-    return isolate()->IsInCreationContext(
-               *object, Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
-           object->map(isolate_)->instance_type() == JS_OBJECT_PROTOTYPE_TYPE;
+    return isolate()->IsInAnyContext(*object,
+                                     Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
+           isolate()->IsInAnyContext(*object,
+                                     Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
   }
   CHECK(!array_and_object_prototypes_.empty());
   return array_and_object_prototypes_.find(object) !=

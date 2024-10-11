@@ -1265,14 +1265,13 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
       // the {receiver}s prototype is either the initial Object.prototype
       // or the initial Array.prototype, which are both guarded by the
       // "no elements" protector checked above.
-      DirectHandle<HeapObject> receiver_prototype(receiver_map->prototype(),
-                                                  isolate);
-      InstanceType prototype_type = receiver_prototype->map()->instance_type();
-      if (prototype_type == JS_OBJECT_PROTOTYPE_TYPE ||
-          (prototype_type == JS_ARRAY_TYPE &&
-           isolate->IsInCreationContext(
-               Cast<JSObject>(*receiver_prototype),
-               Context::INITIAL_ARRAY_PROTOTYPE_INDEX))) {
+      DirectHandle<Object> receiver_prototype(receiver_map->prototype(),
+                                              isolate);
+
+      if (isolate->IsInAnyContext(*receiver_prototype,
+                                  Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
+          isolate->IsInAnyContext(*receiver_prototype,
+                                  Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
         return true;
       }
     }

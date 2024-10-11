@@ -4977,8 +4977,8 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
   // %ObjectPrototype%, meaning that such lookups are guaranteed to yield
   // undefined without triggering any side-effects.
   if (IsJSPromise(*receiver) &&
-      receiver->map()->prototype()->map()->instance_type() ==
-          JS_PROMISE_PROTOTYPE_TYPE &&
+      isolate->IsInAnyContext(receiver->map()->prototype(),
+                              Context::PROMISE_PROTOTYPE_INDEX) &&
       Protectors::IsPromiseThenLookupChainIntact(isolate)) {
     // We can skip the "then" lookup on {resolution} if its [[Prototype]]
     // is the (initial) Promise.prototype and the Promise#then protector

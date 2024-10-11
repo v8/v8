@@ -219,8 +219,8 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
                                              Handle<Object> receiver_generic,
                                              DirectHandle<Name> name) {
   if (isolate->bootstrapper()->IsActive()) return;
-  if (!IsJSObject(*receiver_generic)) return;
-  auto receiver = Cast<JSObject>(receiver_generic);
+  if (!IsHeapObject(*receiver_generic)) return;
+  auto receiver = Cast<HeapObject>(receiver_generic);
 
   ReadOnlyRoots roots(isolate);
   if (*name == roots.constructor_string()) {
@@ -248,9 +248,8 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       DisallowGarbageCollection no_gc;
       // Setting the constructor of any prototype with the @@species protector
       // (of any realm) also needs to invalidate the protector.
-      if (isolate->IsInCreationContext(
-              Cast<JSObject>(*receiver),
-              Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
+      if (isolate->IsInAnyContext(*receiver,
+                                  Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
         if (!Protectors::IsArraySpeciesLookupChainIntact(isolate)) return;
         isolate->CountUsage(
             v8::Isolate::UseCounterFeature::kArrayPrototypeConstructorModified);
@@ -330,7 +329,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       if (Protectors::IsSetIteratorLookupChainIntact(isolate)) {
         Protectors::InvalidateSetIteratorLookupChain(isolate);
       }
-    } else if (isolate->IsInCreationContext(
+    } else if (isolate->IsInAnyContext(
                    *receiver, Context::INITIAL_STRING_PROTOTYPE_INDEX)) {
       // Setting the Symbol.iterator property of String.prototype invalidates
       // the string iterator protector. Symbol.iterator can also be set on a
@@ -374,17 +373,17 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
     }
   } else if (*name == roots.to_primitive_symbol()) {
     if (!Protectors::IsStringWrapperToPrimitiveIntact(isolate)) return;
-    if (isolate->IsInCreationContext(*receiver,
-                                     Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
-        isolate->IsInCreationContext(*receiver,
-                                     Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
+    if (isolate->IsInAnyContext(*receiver,
+                                Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
+        isolate->IsInAnyContext(*receiver,
+                                Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
         IsStringWrapper(*receiver)) {
       Protectors::InvalidateStringWrapperToPrimitive(isolate);
     }
   } else if (*name == roots.valueOf_string()) {
     if (!Protectors::IsStringWrapperToPrimitiveIntact(isolate)) return;
-    if (isolate->IsInCreationContext(*receiver,
-                                     Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
+    if (isolate->IsInAnyContext(*receiver,
+                                Context::INITIAL_STRING_PROTOTYPE_INDEX) ||
         IsStringWrapper(*receiver)) {
       Protectors::InvalidateStringWrapperToPrimitive(isolate);
     }
