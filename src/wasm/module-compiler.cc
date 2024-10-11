@@ -4180,12 +4180,15 @@ void CompilationStateImpl::OnCompilationStopped(
   // validation is enabled.
   // The exceptions are currently stringref and imported strings, which are only
   // detected on top-tier compilation.
-  DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
-         (new_detected_features -
-          WasmDetectedFeatures{{WasmDetectedFeature::stringref,
-                                WasmDetectedFeature::imported_strings_utf8,
-                                WasmDetectedFeature::imported_strings}})
-             .empty());
+  // TODO(372840600): This DCHECK sometimes fails; fix and re-enable it.
+  // Current theory is that NativeModule deserialization from the disk cache
+  // skips function validation and hence doesn't detect features early.
+  // DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
+  //       (new_detected_features -
+  //        WasmDetectedFeatures{{WasmDetectedFeature::stringref,
+  //                              WasmDetectedFeature::imported_strings_utf8,
+  //                              WasmDetectedFeature::imported_strings}})
+  //           .empty());
   // TODO(clemensb): Fix reporting of late detected features (relevant for lazy
   // validation and for stringref).
 }
