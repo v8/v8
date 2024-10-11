@@ -2544,10 +2544,9 @@ void MacroAssembler::CallJSFunction(Register function_object,
       FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
+  // Force a safe crash if the parameter count doesn't match.
   Cmp(parameter_count, Immediate(argument_count));
-  // If the parameter count doesn't match, we force a safe crash by setting the
-  // code entrypoint to zero, causing a nullptr dereference during the call.
-  Csel(code, code, xzr, le);
+  SbxCheck(le, AbortReason::kJSSignatureMismatch);
   Call(code);
 #elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
@@ -4247,6 +4246,10 @@ void MacroAssembler::Check(Condition cond, AbortReason reason) {
   Abort(reason);
   // Will not return here.
   Bind(&ok);
+}
+
+void MacroAssembler::SbxCheck(Condition cc, AbortReason reason) {
+  Check(cc, reason);
 }
 
 void MacroAssembler::Trap() { Brk(0); }

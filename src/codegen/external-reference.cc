@@ -656,6 +656,8 @@ FUNCTION_REFERENCE(wasm_atomic_notify, futex_emulation_wake)
 void WasmSignatureCheckFail(Address raw_internal_function,
                             uintptr_t expected_hash) {
   // WasmInternalFunction::signature_hash doesn't exist in non-sandbox builds.
+  // TODO(saelo): Consider using Abort instead, as we do for JavaScript
+  // signature mismatches (See AbortReason::kJSSignatureMismatch).
 #if V8_ENABLE_SANDBOX
   Tagged<WasmInternalFunction> internal_function =
       Cast<WasmInternalFunction>(Tagged<Object>(raw_internal_function));

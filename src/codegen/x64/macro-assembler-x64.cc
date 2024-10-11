@@ -990,6 +990,10 @@ void MacroAssembler::Check(Condition cc, AbortReason reason) {
   bind(&L);
 }
 
+void MacroAssembler::SbxCheck(Condition cc, AbortReason reason) {
+  Check(cc, reason);
+}
+
 void MacroAssembler::CheckStackAlignment() {
   int frame_alignment = base::OS::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
@@ -3220,12 +3224,9 @@ void MacroAssembler::CallJSFunction(Register function_object,
   static_assert(kJavaScriptCallDispatchHandleRegister == r15, "ABI mismatch");
   movl(r15, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
   LoadEntrypointAndParameterCountFromJSDispatchTable(rcx, rbx, r15);
-  Label ok;
+  // Force a safe crash if the parameter count doesn't match.
   cmpl(rbx, Immediate(argument_count));
-  // If the parameter count doesn't match, we force a safe crash with an int3.
-  j(less_equal, &ok);
-  int3();
-  bind(&ok);
+  SbxCheck(less_equal, AbortReason::kJSSignatureMismatch);
   call(rcx);
 #elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer

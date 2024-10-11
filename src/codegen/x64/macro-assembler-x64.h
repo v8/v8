@@ -584,6 +584,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason);
 
+  // Same as Check() but expresses that the check is needed for the sandbox.
+  void SbxCheck(Condition cc, AbortReason reason);
+
   // Compare instance type for map.
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);

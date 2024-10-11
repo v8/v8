@@ -105,8 +105,8 @@ namespace internal {
   V(kTurboshaftTypeAssertionFailed,                                            \
     "A type assertion failed in Turboshaft-generated code")                    \
   V(kMetadataAreaStartDoesNotMatch,                                            \
-    "The metadata doesn't belong to the "                                      \
-    "chunk")
+    "The metadata doesn't belong to the chunk")                                \
+  V(kJSSignatureMismatch, "Signature mismatch during JS function call")
 
 #define BAILOUT_MESSAGES_LIST(V)                                             \
   V(kNoReason, "no reason")                                                  \
