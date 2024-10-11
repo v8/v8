@@ -278,6 +278,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // These Operations are the lowest level handled by Turboshaft, and are
 // supported by the InstructionSelector.
 #define TURBOSHAFT_MACHINE_OPERATION_LIST(V) \
+  V(Identity)                                \
   V(WordBinop)                               \
   V(FloatBinop)                              \
   V(Word32PairBinop)                         \
@@ -1530,6 +1531,30 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
 
   void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
+};
+
+// Note that IdentityOp is always automatically removed by CopyingPhase, so that
+// they don't block optimizations down the line.
+struct IdentityOp : FixedArityOperationT<1, IdentityOp> {
+  RegisterRepresentation rep;
+
+  static constexpr OpEffects effects = OpEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&rep, 1);
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InputsRepFactory::SingleRep(rep);
+  }
+
+  V<Any> input() const { return Base::input<Any>(0); }
+
+  IdentityOp(V<Any> input, RegisterRepresentation rep)
+      : Base(input), rep(rep) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{rep}; }
 };
 
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {

@@ -1518,6 +1518,15 @@ class TurboshaftAssemblerOpInterface
   // Methods to be used by the reducers to reducer operations with the whole
   // reducer stack.
 
+  V<Any> Identity(V<Any> input, RegisterRepresentation rep) {
+    return ReduceIfReachableIdentity(input, rep);
+  }
+
+  template <typename Rep = Any>
+  V<Rep> Identity(V<Rep> input) {
+    return V<Rep>::Cast(Identity(input, V<Rep>::rep));
+  }
+
   V<Object> GenericBinop(V<Object> left, V<Object> right,
                          V<turboshaft::FrameState> frame_state,
                          V<Context> context, GenericBinopOp::Kind kind,

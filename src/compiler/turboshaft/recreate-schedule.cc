@@ -191,6 +191,10 @@ TURBOSHAFT_WASM_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
 SHOULD_HAVE_BEEN_LOWERED(Dead)
 #undef SHOULD_HAVE_BEEN_LOWERED
 
+Node* ScheduleBuilder::ProcessOperation(const IdentityOp& op) {
+  return GetNode(op.input());
+}
+
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
   using Kind = WordBinopOp::Kind;
   const Operator* o;

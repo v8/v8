@@ -3590,8 +3590,40 @@ class GraphBuildingNodeProcessor {
   }
   PROCESS_INT32_SHIFT(ShiftLeft, ShiftLeft)
   PROCESS_INT32_SHIFT(ShiftRight, ShiftRightArithmetic)
-  PROCESS_INT32_SHIFT(ShiftRightLogical, ShiftRightLogical)
 #undef PROCESS_INT32_SHIFT
+
+  maglev::ProcessResult Process(maglev::Int32ShiftRightLogical* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> right = Map(node->right_input());
+    if (!SupportedOperations::word32_shift_is_safe()) {
+      // JavaScript spec says that the right-hand side of a shift should be
+      // taken modulo 32. Some architectures do this automatically, some
+      // don't. For those that don't, which do this modulo 32 with a `& 0x1f`.
+      right = __ Word32BitwiseAnd(right, 0x1f);
+    }
+    V<Word32> left = Map(node->left_input());
+    V<Word32> ts_op = __ Word32ShiftRightLogical(left, right);
+    if (ts_op == left) {
+      DCHECK(__ matcher().MatchZero(right));
+      // Turboshaft removed a logical right-shift by 0, because "x >>> 0 == x".
+      // However, there is still a difference in how the result should be
+      // interpreted: `x >>> 0` is always unsigned. Turboshaft doesn't care
+      // about signedness, but Maglev does, and in particular when retagging phi
+      // inputs (and in particular exception phis). We thus insert an identity
+      // node, so that we still have one and only one representation per
+      // OpIndex: the input can still have Int32 representation, and the
+      // Identity node will have Uint32 representation (defined in
+      // RecordRepresentation).
+      // Note that this is a bit of a hack: a cleaner solution would be to
+      // change RecordRepresentation to record one representation for each node
+      // in each block or at a given instruction, but that would introduce yet
+      // another layer of complexity to the tracking of representation, so we
+      // prefer to have this small Identity hack.
+      ts_op = __ Identity(ts_op);
+    }
+    SetMap(node, ts_op);
+    return maglev::ProcessResult::kContinue;
+  }
 
   maglev::ProcessResult Process(maglev::Int32BitwiseNot* node,
                                 const maglev::ProcessingState& state) {

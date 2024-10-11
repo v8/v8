@@ -4732,6 +4732,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       // Those are already handled in VisitControl.
       DCHECK(op.IsBlockTerminator());
       break;
+    case Opcode::kIdentity:
+      EmitIdentity(node);
+      break;
     case Opcode::kParameter: {
       // Parameters should always be scheduled to the first block.
       DCHECK_EQ(this->rpo_number(this->block(schedule(), node)).ToInt(), 0);

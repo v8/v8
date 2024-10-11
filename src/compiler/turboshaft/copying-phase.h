@@ -811,6 +811,10 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   // These functions take an operation from the old graph and use the assembler
   // to emit a corresponding operation in the new graph, translating inputs and
   // blocks accordingly.
+  V8_INLINE V<Any> AssembleOutputGraphIdentity(const IdentityOp& op) {
+    // Removing the Identity operation by returning the input.
+    return MapToNewGraph(op.input());
+  }
   V8_INLINE OpIndex AssembleOutputGraphGoto(const GotoOp& op) {
     Block* destination = MapToNewGraph(op.destination);
     if (op.is_backedge) {
