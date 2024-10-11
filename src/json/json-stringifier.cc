@@ -779,7 +779,10 @@ class CircularStructureMessageBuilder {
   }
 
   void AppendSmi(Tagged<Smi> smi) {
-    static const int kBufferSize = 100;
+    static_assert(Smi::kMaxValue <= 2147483647);
+    static_assert(Smi::kMinValue >= -2147483648);
+    // sizeof(string) includes \0.
+    static const int kBufferSize = sizeof("-2147483648");
     char chars[kBufferSize];
     base::Vector<char> buffer(chars, kBufferSize);
     builder_.AppendCString(IntToCString(smi.value(), buffer));
@@ -1008,7 +1011,10 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
 }
 
 JsonStringifier::Result JsonStringifier::SerializeSmi(Tagged<Smi> object) {
-  static const int kBufferSize = 100;
+  static_assert(Smi::kMaxValue <= 2147483647);
+  static_assert(Smi::kMinValue >= -2147483648);
+  // sizeof(string) includes \0.
+  static const int kBufferSize = sizeof("-2147483648");
   char chars[kBufferSize];
   base::Vector<char> buffer(chars, kBufferSize);
   AppendCString(IntToCString(object.value(), buffer));
