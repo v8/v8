@@ -100,7 +100,7 @@ class WasmImportWrapperCache {
 
   WasmCode* CompileWasmImportCallWrapper(
       Isolate* isolate, NativeModule* native_module, ImportCallKind kind,
-      const FunctionSig* sig, uint32_t canonical_sig_index,
+      const CanonicalSig* sig, uint32_t canonical_sig_index,
       bool source_positions, int expected_arity, Suspend suspend);
 
  private:

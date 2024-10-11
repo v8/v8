@@ -993,7 +993,8 @@ V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
 V8_EXPORT_PRIVATE DirectHandle<String> ErrorStringForCodegen(
     Isolate* isolate, DirectHandle<Context> context);
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
+template <typename T>
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, const Signature<T>* sig,
                                     bool for_exception = false);
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);

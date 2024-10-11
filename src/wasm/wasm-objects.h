@@ -119,12 +119,12 @@ class ImportedFunctionEntry {
   // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
   // parameter since it allocates a WasmImportData.
   void SetGenericWasmToJs(Isolate*, DirectHandle<JSReceiver> callable,
-                          wasm::Suspend suspend, const wasm::FunctionSig* sig);
+                          wasm::Suspend suspend, const wasm::CanonicalSig* sig);
   V8_EXPORT_PRIVATE void SetCompiledWasmToJs(Isolate*,
                                              DirectHandle<JSReceiver> callable,
                                              wasm::WasmCode* wasm_to_js_wrapper,
                                              wasm::Suspend suspend,
-                                             const wasm::FunctionSig* sig);
+                                             const wasm::CanonicalSig* sig);
 
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_object,
@@ -914,7 +914,7 @@ DecodeI64ExceptionValue(DirectHandle<FixedArray> encoded_values,
                         uint32_t* encoded_index, uint64_t* value);
 
 bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
-                               const wasm::FunctionSig* sig,
+                               const wasm::CanonicalSig* sig,
                                wasm::Suspend suspend);
 
 // A Wasm function that is wrapped and exported to JavaScript.
@@ -957,10 +957,11 @@ class WasmCapiFunction : public JSFunction {
 
   static Handle<WasmCapiFunction> New(Isolate* isolate, Address call_target,
                                       DirectHandle<Foreign> embedder_data,
-                                      const wasm::FunctionSig* sig,
+                                      wasm::CanonicalTypeIndex sig_index,
+                                      const wasm::CanonicalSig* sig,
                                       uintptr_t signature_hash);
 
-  const wasm::FunctionSig* sig() const;
+  const wasm::CanonicalSig* sig() const;
 
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this C-API function object.
@@ -1117,7 +1118,7 @@ class WasmJSFunctionData
  public:
   Tagged<JSReceiver> GetCallable() const;
   wasm::Suspend GetSuspend() const;
-  const wasm::FunctionSig* GetSignature() const;
+  const wasm::CanonicalSig* GetSignature() const;
   bool MatchesSignature(uint32_t other_canonical_sig_index) const;
 
   // Dispatched behavior.

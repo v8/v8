@@ -132,7 +132,7 @@ static_assert(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
-  JSToWasmWrapperCompilationUnit(Isolate* isolate, const FunctionSig* sig,
+  JSToWasmWrapperCompilationUnit(Isolate* isolate, const CanonicalSig* sig,
                                  uint32_t canonical_sig_index,
                                  const wasm::WasmModule* module,
                                  WasmEnabledFeatures enabled_features);
@@ -149,12 +149,12 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   void Execute();
   Handle<Code> Finalize();
 
-  const FunctionSig* sig() const { return sig_; }
+  const CanonicalSig* sig() const { return sig_; }
   uint32_t canonical_sig_index() const { return canonical_sig_index_; }
 
   // Run a compilation unit synchronously.
   static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
-                                             const FunctionSig* sig,
+                                             const CanonicalSig* sig,
                                              uint32_t canonical_sig_index,
                                              const WasmModule* module);
 
@@ -164,13 +164,13 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   // should only access immutable information (like the root table). The isolate
   // is guaranteed to be alive when this unit executes.
   Isolate* isolate_;
-  const FunctionSig* sig_;
+  const CanonicalSig* sig_;
   uint32_t canonical_sig_index_;
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 
 inline bool CanUseGenericJsToWasmWrapper(const WasmModule* module,
-                                         const FunctionSig* sig) {
+                                         const CanonicalSig* sig) {
 #if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 ||  \
      V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64 || \
      V8_TARGET_ARCH_LOONG64)

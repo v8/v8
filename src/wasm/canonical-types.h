@@ -87,7 +87,7 @@ class TypeCanonicalizer {
   AddRecursiveGroup(const FunctionSig* sig);
 
   // Retrieve back a function signature from a canonical index later.
-  V8_EXPORT_PRIVATE const FunctionSig* LookupFunctionSignature(
+  V8_EXPORT_PRIVATE const CanonicalSig* LookupFunctionSignature(
       uint32_t canonical_index) const;
 
   // Returns if {canonical_sub_index} is a canonical subtype of

@@ -4339,7 +4339,7 @@ void CompilationStateImpl::TierUpAllFunctions() {
 WasmCode* CompileImportWrapperForTest(Isolate* isolate,
                                       NativeModule* native_module,
                                       ImportCallKind kind,
-                                      const FunctionSig* sig,
+                                      const CanonicalSig* sig,
                                       uint32_t canonical_type_index,
                                       int expected_arity, Suspend suspend) {
   bool source_positions = is_asmjs_module(native_module->module());

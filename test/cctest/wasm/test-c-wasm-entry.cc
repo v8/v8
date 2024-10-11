@@ -56,9 +56,7 @@ class CWasmEntryArgTester {
   }
 
   void CheckCall(Args... args) {
-    // TODO(366180605): Drop the cast!
-    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(
-        reinterpret_cast<const FunctionSig*>(sig_)));
+    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig_));
     WriteToBuffer(&packer, args...);
     WasmCodePointer wasm_call_target = wasm_code_->code_pointer();
     DirectHandle<Object> object_ref = runner_.builder().instance_object();

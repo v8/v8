@@ -614,13 +614,12 @@ void WasmTableObject::UpdateDispatchTables(
   DirectHandle<FixedArray> uses(table->uses(), isolate);
   DCHECK_EQ(0, uses->length() % TableUses::kNumElements);
 
-  const wasm::FunctionSig* sig = capi_function->sig();
+  DirectHandle<WasmCapiFunctionData> func_data(
+      capi_function->shared()->wasm_capi_function_data(), isolate);
+  const wasm::CanonicalSig* sig = func_data->sig();
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
-  // TODO(clemensb): Introduce a better API for this.
-  wasm::CanonicalTypeIndex canonical_type_index =
-      wasm::GetTypeCanonicalizer()->AddRecursiveGroup(sig);
-  DCHECK_EQ(sig, wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
-                     canonical_type_index));
+  wasm::CanonicalTypeIndex canonical_type_index{
+      static_cast<uint32_t>(func_data->canonical_sig_index())};
 
   wasm::WasmCodeRefScope code_ref_scope;
 
@@ -638,9 +637,8 @@ void WasmTableObject::UpdateDispatchTables(
     wasm::WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
                                                 param_count, wasm::kNoSuspend);
     if (wasm_code == nullptr) {
-      // TODO(366180605): Drop the cast!
-      wasm::WasmCompilationResult result = compiler::CompileWasmCapiCallWrapper(
-          native_module, reinterpret_cast<const wasm::CanonicalSig*>(sig));
+      wasm::WasmCompilationResult result =
+          compiler::CompileWasmCapiCallWrapper(native_module, sig);
       {
         wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
         wasm::WasmImportWrapperCache::CacheKey key(
@@ -656,10 +654,7 @@ void WasmTableObject::UpdateDispatchTables(
       isolate->counters()->wasm_reloc_size()->Increment(
           wasm_code->reloc_info().length());
     }
-    Tagged<HeapObject> implicit_arg = capi_function->shared()
-                                          ->wasm_capi_function_data()
-                                          ->internal()
-                                          ->implicit_arg();
+    Tagged<HeapObject> implicit_arg = func_data->internal()->implicit_arg();
     WasmCodePointer call_target = wasm_code->code_pointer();
     Tagged<WasmDispatchTable> table =
         trusted_instance_data->dispatch_table(table_index);
@@ -1190,7 +1185,7 @@ Address WasmCodePointerAddress(WasmCodePointer pointer) {
 
 void ImportedFunctionEntry::SetGenericWasmToJs(
     Isolate* isolate, DirectHandle<JSReceiver> callable, wasm::Suspend suspend,
-    const wasm::FunctionSig* sig) {
+    const wasm::CanonicalSig* sig) {
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   WasmCodePointer wrapper_entry;
   if (wasm::IsJSCompatibleSignature(sig)) {
@@ -1223,7 +1218,7 @@ void ImportedFunctionEntry::SetGenericWasmToJs(
 void ImportedFunctionEntry::SetCompiledWasmToJs(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
     wasm::WasmCode* wasm_to_js_wrapper, wasm::Suspend suspend,
-    const wasm::FunctionSig* sig) {
+    const wasm::CanonicalSig* sig) {
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=%p}\n",
@@ -1706,7 +1701,10 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
   bool is_import =
       function_index < static_cast<int>(module->num_imported_functions);
   wasm::ModuleTypeIndex sig_index = module->functions[function_index].sig_index;
-  const wasm::FunctionSig* sig = module->signature(sig_index);
+  wasm::CanonicalTypeIndex canonical_sig_id =
+      module->canonical_sig_id(sig_index);
+  const wasm::CanonicalSig* sig =
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
   DirectHandle<TrustedObject> implicit_arg =
       is_import ? direct_handle(
                       Cast<TrustedObject>(
@@ -1722,8 +1720,6 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
     auto import_data = Cast<WasmImportData>(implicit_arg);
     const wasm::WellKnownImportsList& preknown_imports =
         module->type_feedback.well_known_imports;
-    wasm::CanonicalTypeIndex canonical_sig_id =
-        module->canonical_sig_id(sig_index);
     auto callable =
         handle<JSReceiver>(Cast<JSReceiver>(import_data->callable()), isolate);
     wasm::ResolvedWasmImport resolved(trusted_instance_data, function_index,
@@ -1759,7 +1755,6 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
 
   if (setup_new_ref_with_generic_wrapper) {
     auto import_data = Cast<WasmImportData>(implicit_arg);
-    const wasm::FunctionSig* sig = module->signature(sig_index);
     WasmCodePointer wrapper_entry;
     if (wasm::IsJSCompatibleSignature(sig)) {
       DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
@@ -1815,7 +1810,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   const WasmFunction& function = module->functions[internal->function_index()];
   wasm::CanonicalTypeIndex canonical_sig_id =
       module->canonical_sig_id(function.sig_index);
-  const wasm::FunctionSig* sig =
+  const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
   wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(isolate, canonical_sig_id);
   int wrapper_index = canonical_sig_id.index;
@@ -1920,7 +1915,7 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   //                  CanonicalTypeIndex?
   wasm::CanonicalTypeIndex canonical_sig_id{
       static_cast<uint32_t>(function_data->canonical_sig_index())};
-  const wasm::FunctionSig* sig =
+  const wasm::CanonicalSig* sig =
       wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
           canonical_sig_id);
 
@@ -2138,7 +2133,7 @@ bool WasmTagObject::MatchesSignature(uint32_t expected_canonical_type_index) {
          expected_canonical_type_index;
 }
 
-const wasm::FunctionSig* WasmCapiFunction::sig() const {
+const wasm::CanonicalSig* WasmCapiFunction::sig() const {
   return shared()->wasm_capi_function_data()->sig();
 }
 
@@ -2347,7 +2342,7 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
 
 bool WasmCapiFunction::MatchesSignature(
     uint32_t other_canonical_sig_index) const {
-  const wasm::FunctionSig* sig = this->sig();
+  const wasm::CanonicalSig* sig = this->sig();
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
 #if DEBUG
   // TODO(14034): Change this if indexed types are allowed.
@@ -2355,8 +2350,8 @@ bool WasmCapiFunction::MatchesSignature(
 #endif
   // TODO(14034): Check for subtyping instead if C API functions can define
   // signature supertype.
-  return wasm::GetTypeCanonicalizer()->AddRecursiveGroup(sig) ==
-         other_canonical_sig_index;
+  return *sig == *wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
+                     other_canonical_sig_index);
 }
 
 // static
@@ -2449,7 +2444,7 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
 }
 
 bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
-                               const wasm::FunctionSig* sig,
+                               const wasm::CanonicalSig* sig,
                                wasm::Suspend suspend) {
   if (kind != wasm::ImportCallKind::kJSFunctionArityMatch &&
       kind != wasm::ImportCallKind::kJSFunctionArityMismatch) {
@@ -2564,7 +2559,8 @@ bool WasmCapiFunction::IsWasmCapiFunction(Tagged<Object> object) {
 
 Handle<WasmCapiFunction> WasmCapiFunction::New(
     Isolate* isolate, Address call_target, DirectHandle<Foreign> embedder_data,
-    const wasm::FunctionSig* sig, uintptr_t signature_hash) {
+    wasm::CanonicalTypeIndex sig_index, const wasm::CanonicalSig* sig,
+    uintptr_t signature_hash) {
   // TODO(jkummerow): Install a JavaScript wrapper. For now, calling
   // these functions directly is unsupported; they can only be called
   // from Wasm code.
@@ -2576,8 +2572,8 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
   DirectHandle<Map> rtt = isolate->factory()->wasm_func_ref_map();
   DirectHandle<WasmCapiFunctionData> fun_data =
       isolate->factory()->NewWasmCapiFunctionData(
-          call_target, embedder_data, BUILTIN_CODE(isolate, Illegal), rtt, sig,
-          signature_hash);
+          call_target, embedder_data, BUILTIN_CODE(isolate, Illegal), rtt,
+          sig_index, sig, signature_hash);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   Handle<JSFunction> result =
@@ -2611,7 +2607,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   wasm::ModuleTypeIndex sig_index = module->functions[func_index].sig_index;
   wasm::CanonicalTypeIndex canonical_sig_id =
       module->canonical_sig_id(sig_index);
-  const wasm::FunctionSig* sig =
+  const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
   DirectHandle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
@@ -2741,7 +2737,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   static_assert(wasm::kMaxCanonicalTypes <= kMaxInt);
   // TODO(clemensb): Merge the next two lines into a single call.
   int canonical_sig_id = wasm::GetTypeCanonicalizer()->AddRecursiveGroup(sig);
-  sig = wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
+  const wasm::CanonicalSig* canonical_sig =
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
 
   wasm::TypeCanonicalizer::PrepareForCanonicalTypeId(isolate, canonical_sig_id);
 
@@ -2781,8 +2778,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     internal_function->set_call_target(
         wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperInvalidSig>(
             isolate));
-  } else if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
-                                       suspend)) {
+  } else if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind,
+                                       canonical_sig, suspend)) {
     internal_function->set_call_target(
         wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
   } else {
@@ -2805,19 +2802,16 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
               Builtin::kGenericWasmToJSInterpreterWrapper>(isolate));
     } else {
 #endif  // V8_ENABLE_DRUMBRAKE
-      if (UseGenericWasmToJSWrapper(kind, sig, suspend)) {
+      if (UseGenericWasmToJSWrapper(kind, canonical_sig, suspend)) {
         internal_function->set_call_target(
             wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
       } else {
         // The Code object can be moved during compaction, so do not store a
         // call_target directly but load the target from the code object at
         // runtime.
-        // TODO(366180605): Drop the cast!
         DirectHandle<Code> wrapper_code =
-            compiler::CompileWasmToJSWrapper(
-                isolate, nullptr,
-                reinterpret_cast<const wasm::CanonicalSig*>(sig), kind,
-                expected_arity, suspend)
+            compiler::CompileWasmToJSWrapper(isolate, nullptr, canonical_sig,
+                                             kind, expected_arity, suspend)
                 .ToHandleChecked();
         DirectHandle<WasmImportData> import_data{
             Cast<WasmImportData>(internal_function->implicit_arg()), isolate};
@@ -2858,7 +2852,7 @@ wasm::Suspend WasmJSFunctionData::GetSuspend() const {
       Cast<WasmImportData>(internal()->implicit_arg())->suspend());
 }
 
-const wasm::FunctionSig* WasmJSFunctionData::GetSignature() const {
+const wasm::CanonicalSig* WasmJSFunctionData::GetSignature() const {
   return wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
       canonical_sig_index());
 }
@@ -2867,8 +2861,8 @@ bool WasmJSFunctionData::MatchesSignature(
     uint32_t other_canonical_sig_index) const {
 #if DEBUG
   // TODO(14034): Change this if indexed types are allowed.
-  const wasm::FunctionSig* sig = GetSignature();
-  for (wasm::ValueType type : sig->all()) CHECK(!type.has_index());
+  const wasm::CanonicalSig* sig = GetSignature();
+  for (wasm::CanonicalValueType type : sig->all()) CHECK(!type.has_index());
 #endif
   // TODO(14034): Check for subtyping instead if WebAssembly.Function can define
   // signature supertype.

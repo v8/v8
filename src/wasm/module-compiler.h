@@ -70,7 +70,7 @@ V8_EXPORT_PRIVATE
 WasmCode* CompileImportWrapperForTest(Isolate* isolate,
                                       NativeModule* native_module,
                                       ImportCallKind kind,
-                                      const FunctionSig* sig,
+                                      const CanonicalSig* sig,
                                       uint32_t canonical_type_index,
                                       int expected_arity, Suspend suspend);
 

@@ -88,7 +88,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     // Manually compile an import wrapper and insert it into the instance.
     uint32_t canonical_type_index =
         GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
-    const wasm::FunctionSig* sig =
+    const wasm::CanonicalSig* sig =
         GetTypeCanonicalizer()->LookupFunctionSignature(canonical_type_index);
     ResolvedWasmImport resolved({}, -1, maybe_import->js_function, sig,
                                 canonical_type_index,

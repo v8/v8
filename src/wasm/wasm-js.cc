@@ -2401,15 +2401,21 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.Function.type()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
 
-  const i::wasm::FunctionSig* sig;
-  i::Zone zone(i_isolate->allocator(), ZONE_NAME);
+  i::Handle<i::JSObject> type;
 
   i::Handle<i::Object> fun = Utils::OpenHandle(*info.This());
   if (i::WasmExportedFunction::IsWasmExportedFunction(*fun)) {
     auto wasm_exported_function = i::Cast<i::WasmExportedFunction>(fun);
     i::Tagged<i::WasmExportedFunctionData> data =
         wasm_exported_function->shared()->wasm_exported_function_data();
-    sig =
+    // Note: while {zone} is only referenced directly in the if-block below,
+    // its lifetime must exceed that of {sig}.
+    // TODO(42210967): Creating a Zone just to create a modified copy of a
+    // single signature is rather expensive. It would be good to find a more
+    // efficient approach, if this function is ever considered performance
+    // relevant.
+    i::Zone zone(i_isolate->allocator(), ZONE_NAME);
+    const i::wasm::FunctionSig* sig =
         data->instance_data()->module()->functions[data->function_index()].sig;
     i::wasm::Promise promise_flags =
         i::WasmFunctionData::PromiseField::decode(data->js_promise_flags());
@@ -2424,17 +2430,18 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
       builder.AddReturn(i::wasm::kWasmExternRef);
       sig = builder.Get();
     }
+    type = i::wasm::GetTypeForFunction(i_isolate, sig);
   } else if (i::WasmJSFunction::IsWasmJSFunction(*fun)) {
-    sig = i::Cast<i::WasmJSFunction>(fun)
-              ->shared()
-              ->wasm_js_function_data()
-              ->GetSignature();
+    const i::wasm::CanonicalSig* sig = i::Cast<i::WasmJSFunction>(fun)
+                                           ->shared()
+                                           ->wasm_js_function_data()
+                                           ->GetSignature();
+    type = i::wasm::GetTypeForFunction(i_isolate, sig);
   } else {
     thrower.TypeError("Receiver must be a WebAssembly.Function");
     return;
   }
 
-  auto type = i::wasm::GetTypeForFunction(i_isolate, sig);
   info.GetReturnValue().Set(Utils::ToLocal(type));
 }
 

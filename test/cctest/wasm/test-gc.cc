@@ -122,22 +122,22 @@ class WasmGCTester {
   }
 
   void CheckResult(uint32_t function_index, int32_t expected) {
-    const FunctionSig* sig = LookupCanonicalSigFor(function_index);
-    DCHECK_EQ(*sig, *sigs.i_v());
+    const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
+    DCHECK(EquivalentNumericSig(sig, sigs.i_v()));
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CheckResultImpl(function_index, sig, &packer, expected);
   }
 
   void CheckResult(uint32_t function_index, int32_t expected, int32_t arg) {
-    const FunctionSig* sig = LookupCanonicalSigFor(function_index);
-    DCHECK_EQ(*sig, *sigs.i_i());
+    const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
+    DCHECK(EquivalentNumericSig(sig, sigs.i_i()));
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CheckResultImpl(function_index, sig, &packer, expected);
   }
 
   MaybeHandle<Object> GetResultObject(uint32_t function_index) {
-    const FunctionSig* sig = LookupCanonicalSigFor(function_index);
+    const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 0);
     DCHECK_EQ(sig->return_count(), 1);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
@@ -148,7 +148,7 @@ class WasmGCTester {
   }
 
   MaybeHandle<Object> GetResultObject(uint32_t function_index, int32_t arg) {
-    const FunctionSig* sig = LookupCanonicalSigFor(function_index);
+    const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 1);
     DCHECK_EQ(sig->return_count(), 1);
     DCHECK(sig->parameters()[0] == kWasmI32);
@@ -161,7 +161,7 @@ class WasmGCTester {
   }
 
   void CheckHasThrown(uint32_t function_index, const char* expected = "") {
-    const FunctionSig* sig = LookupCanonicalSigFor(function_index);
+    const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 0);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CheckHasThrownImpl(function_index, sig, &packer, expected);
@@ -169,7 +169,7 @@ class WasmGCTester {
 
   void CheckHasThrown(uint32_t function_index, int32_t arg,
                       const char* expected = "") {
-    const FunctionSig* sig = LookupCanonicalSigFor(function_index);
+    const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 1);
     DCHECK(sig->parameters()[0] == kWasmI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
@@ -209,7 +209,7 @@ class WasmGCTester {
   const FlagScope<bool> flag_tierup;
   const FlagScope<bool> flag_wasm_deopt;
 
-  const FunctionSig* LookupCanonicalSigFor(uint32_t function_index) const {
+  const CanonicalSig* LookupCanonicalSigFor(uint32_t function_index) const {
     auto* module = instance_object_->module();
     CanonicalTypeIndex canonical_sig_id =
         module->canonical_sig_id(module->functions[function_index].sig_index);
@@ -226,7 +226,7 @@ class WasmGCTester {
     return fun->func_index();
   }
 
-  void CheckResultImpl(uint32_t function_index, const FunctionSig* sig,
+  void CheckResultImpl(uint32_t function_index, const CanonicalSig* sig,
                        CWasmArgumentsPacker* packer, int32_t expected) {
     CallFunctionImpl(function_index, sig, packer);
     if (isolate_->has_exception()) {
@@ -240,7 +240,7 @@ class WasmGCTester {
     CHECK_EQ(expected, packer->Pop<int32_t>());
   }
 
-  void CheckHasThrownImpl(uint32_t function_index, const FunctionSig* sig,
+  void CheckHasThrownImpl(uint32_t function_index, const CanonicalSig* sig,
                           CWasmArgumentsPacker* packer, const char* expected) {
     CallFunctionImpl(function_index, sig, packer);
     CHECK(isolate_->has_exception());
@@ -252,7 +252,7 @@ class WasmGCTester {
     isolate_->clear_exception();
   }
 
-  void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
+  void CallFunctionImpl(uint32_t function_index, const CanonicalSig* sig,
                         CWasmArgumentsPacker* packer) {
     // The signature must be canonicalized.
     DCHECK(GetTypeCanonicalizer()->Contains(sig));
@@ -260,9 +260,8 @@ class WasmGCTester {
     WasmCodePointer wasm_call_target =
         trusted_instance_data_->GetCallTarget(function_index);
     DirectHandle<Object> object_ref = instance_object_;
-    // TODO(366180605): Drop the cast!
-    DirectHandle<Code> c_wasm_entry = compiler::CompileCWasmEntry(
-        isolate_, reinterpret_cast<const CanonicalSig*>(sig));
+    DirectHandle<Code> c_wasm_entry =
+        compiler::CompileCWasmEntry(isolate_, sig);
     Execution::CallWasm(isolate_, c_wasm_entry, wasm_call_target, object_ref,
                         packer->argv());
   }

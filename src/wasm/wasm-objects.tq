@@ -14,7 +14,7 @@ type PodArrayOfWasmValueType extends ByteArray
 type ManagedWasmNativeModule extends Foreign
     constexpr 'Managed<wasm::NativeModule>';
 
-type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::FunctionSig*';
+type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::CanonicalSig*';
 
 extern enum IndexType extends uint8 constexpr 'wasm::IndexType' {
   kI32,
@@ -154,6 +154,8 @@ extern class WasmJSFunctionData extends WasmFunctionData {
 }
 
 extern class WasmCapiFunctionData extends WasmFunctionData {
+  // TODO(jkummerow): Move {canonical_sig_index} into {WasmFunctionData}.
+  canonical_sig_index: Smi;
   embedder_data: Foreign;  // Managed<wasm::FuncData>
   sig: RawFunctionSigPtr;
 }

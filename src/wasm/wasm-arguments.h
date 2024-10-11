@@ -49,7 +49,7 @@ class CWasmArgumentsPacker {
     return base::ReadUnalignedValue<T>(address);
   }
 
-  static int TotalSize(const FunctionSig* sig) {
+  static int TotalSize(const CanonicalSig* sig) {
     int return_size = 0;
     for (ValueType t : sig->returns()) {
       return_size += t.value_kind_full_size();

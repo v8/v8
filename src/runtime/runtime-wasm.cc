@@ -556,7 +556,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   const wasm::WasmFunction& function = module->functions[function_index];
   const wasm::CanonicalTypeIndex canonical_sig_id =
       module->canonical_sig_id(function.sig_index);
-  const wasm::FunctionSig* sig =
+  const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
 
   Tagged<MaybeObject> maybe_cached_wrapper =
@@ -625,7 +625,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   DCHECK(isolate->context().is_null());
   isolate->set_context(import_data->native_context());
 
-  const wasm::FunctionSig* sig = import_data->sig();
+  const wasm::CanonicalSig* sig = import_data->sig();
   DirectHandle<Object> origin(import_data->call_origin(), isolate);
 
   if (IsWasmFuncRef(*origin)) {
@@ -647,11 +647,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
             ? import_data->instance_data()->module()
             : nullptr;
 
-    // TODO(366180605): Drop the cast!
     DirectHandle<Code> wasm_to_js_wrapper_code =
         compiler::CompileWasmToJSWrapper(
-            isolate, module, reinterpret_cast<const wasm::CanonicalSig*>(sig),
-            kind, static_cast<int>(expected_arity),
+            isolate, module, sig, kind, static_cast<int>(expected_arity),
             static_cast<wasm::Suspend>(import_data->suspend()))
             .ToHandleChecked();
 
@@ -684,7 +682,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     // importing instance. Remove this bailout again.
     if (defining_instance_data->module() !=
         call_origin_instance_data->module()) {
-      for (wasm::ValueType type : sig->all()) {
+      for (wasm::CanonicalValueType type : sig->all()) {
         if (type.has_index()) {
           // Reset the tiering budget, so that we don't have to deal with the
           // underflow.

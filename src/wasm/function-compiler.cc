@@ -220,17 +220,15 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
 }
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
-    Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
+    Isolate* isolate, const CanonicalSig* sig, uint32_t canonical_sig_index,
     const WasmModule* module, WasmEnabledFeatures enabled_features)
     : isolate_(isolate),
       sig_(sig),
       canonical_sig_index_(canonical_sig_index),
       job_(v8_flags.wasm_jitless
                ? nullptr
-               // TODO(366180605): Drop the cast!
-               : compiler::NewJSToWasmCompilationJob(
-                     isolate, reinterpret_cast<const CanonicalSig*>(sig),
-                     module, enabled_features)) {
+               : compiler::NewJSToWasmCompilationJob(isolate, sig, module,
+                                                     enabled_features)) {
   if (!v8_flags.wasm_jitless) {
     OptimizedCompilationInfo* info =
         v8_flags.turboshaft_wasm_wrappers
@@ -293,7 +291,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 
 // static
 Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-    Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
+    Isolate* isolate, const CanonicalSig* sig, uint32_t canonical_sig_index,
     const WasmModule* module) {
   // Run the compilation unit synchronously.
   WasmEnabledFeatures enabled_features =
