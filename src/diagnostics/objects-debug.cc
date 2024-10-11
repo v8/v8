@@ -1118,15 +1118,14 @@ void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
     SloppyArgumentsElementsVerify(
         isolate, Cast<SloppyArgumentsElements>(elements()), *this);
   }
-  if (isolate->IsInAnyContext(map(), Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
-      isolate->IsInAnyContext(map(),
-                              Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
-      isolate->IsInAnyContext(map(),
-                              Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
+  Tagged<NativeContext> native_context = map()->map()->native_context();
+  if (map() == native_context->get(Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
+      map() == native_context->get(Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
+      map() == native_context->get(Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
     VerifyObjectField(isolate, JSSloppyArgumentsObject::kLengthOffset);
     VerifyObjectField(isolate, JSSloppyArgumentsObject::kCalleeOffset);
-  } else if (isolate->IsInAnyContext(map(),
-                                     Context::STRICT_ARGUMENTS_MAP_INDEX)) {
+  } else if (map() ==
+             native_context->get(Context::STRICT_ARGUMENTS_MAP_INDEX)) {
     VerifyObjectField(isolate, JSStrictArgumentsObject::kLengthOffset);
   }
 }

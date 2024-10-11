@@ -1597,7 +1597,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   enum class KnownPrototype { kNone, kObject, kArray, kString };
 
-  KnownPrototype IsArrayOrObjectOrStringPrototype(Tagged<Object> object);
+  KnownPrototype IsArrayOrObjectOrStringPrototype(Tagged<JSObject> object);
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -1625,8 +1625,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
       DirectHandle<JSObject> object, DirectHandle<Object> new_prototype);
 
-  // Returns true if array is the initial array prototype in any native context.
-  inline bool IsAnyInitialArrayPrototype(Tagged<JSArray> array);
+  // Returns true if array is the initial array prototype of its own creation
+  // context.
+  inline bool IsInitialArrayPrototype(Tagged<JSArray> array);
 
   std::unique_ptr<PersistentHandles> NewPersistentHandles();
 
@@ -1920,7 +1921,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return lazy_compile_dispatcher_.get();
   }
 
-  bool IsInAnyContext(Tagged<Object> object, uint32_t index);
+  bool IsInCreationContext(Tagged<JSObject> object, uint32_t index);
 
   void ClearKeptObjects();
 

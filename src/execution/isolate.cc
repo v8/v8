@@ -6106,33 +6106,24 @@ void Isolate::set_date_cache(DateCache* date_cache) {
 }
 
 Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
-    Tagged<Object> object) {
-  Tagged<Object> context = heap()->native_contexts_list();
-  while (!IsUndefined(context, this)) {
-    Tagged<Context> current_context = Cast<Context>(context);
-    if (current_context->initial_object_prototype() == object) {
-      return KnownPrototype::kObject;
-    } else if (current_context->initial_array_prototype() == object) {
-      return KnownPrototype::kArray;
-    } else if (current_context->initial_string_prototype() == object) {
-      return KnownPrototype::kString;
-    }
-    context = current_context->next_context_link();
+    Tagged<JSObject> object) {
+  Tagged<Map> metamap = object->map(this)->map(this);
+  Tagged<NativeContext> native_context = metamap->native_context();
+  if (native_context->initial_object_prototype() == object) {
+    return KnownPrototype::kObject;
+  } else if (native_context->initial_array_prototype() == object) {
+    return KnownPrototype::kArray;
+  } else if (native_context->initial_string_prototype() == object) {
+    return KnownPrototype::kString;
   }
   return KnownPrototype::kNone;
 }
 
-bool Isolate::IsInAnyContext(Tagged<Object> object, uint32_t index) {
+bool Isolate::IsInCreationContext(Tagged<JSObject> object, uint32_t index) {
   DisallowGarbageCollection no_gc;
-  Tagged<Object> context = heap()->native_contexts_list();
-  while (!IsUndefined(context, this)) {
-    Tagged<Context> current_context = Cast<Context>(context);
-    if (current_context->get(index) == object) {
-      return true;
-    }
-    context = current_context->next_context_link();
-  }
-  return false;
+  Tagged<Map> metamap = object->map(this)->map(this);
+  Tagged<NativeContext> native_context = metamap->native_context();
+  return native_context->get(index) == object;
 }
 
 void Isolate::UpdateNoElementsProtectorOnSetElement(
