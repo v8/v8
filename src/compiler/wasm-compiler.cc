@@ -4206,6 +4206,11 @@ Signature<MachineRepresentation>* CreateMachineSignature(
   return builder.Get();
 }
 
+template Signature<MachineRepresentation>* CreateMachineSignature(
+    Zone*, const Signature<wasm::ValueType>*, wasm::CallOrigin);
+template Signature<MachineRepresentation>* CreateMachineSignature(
+    Zone*, const Signature<wasm::CanonicalValueType>*, wasm::CallOrigin);
+
 void WasmGraphBuilder::LowerInt64(Signature<MachineRepresentation>* sig) {
   if (mcgraph()->machine()->Is64()) return;
   Int64Lowering r(mcgraph()->graph(), mcgraph()->machine(), mcgraph()->common(),
