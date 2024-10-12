@@ -6648,8 +6648,36 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4UConvertI32x4(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
   DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
+  node_t value = this->input_at(node, 0);
+
+  // F32x4SConvertI32x4 is more efficient than F32x4UConvertI32x4 on x64,
+  // if the u32x4 input can fit into i32x4, we can use F32x4SConvertI32x4
+  // instead. Input node with I32x4UConvertI16x8Low/I32x4UConvertI16x8High
+  // opcode is one of this kinds.
+  bool can_use_sign_convert = false;
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    if (const Simd128UnaryOp* unop =
+            this->Get(value).template TryCast<Simd128UnaryOp>()) {
+      if (unop->kind == Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low ||
+          unop->kind == Simd128UnaryOp::Kind::kI32x4UConvertI16x8High) {
+        can_use_sign_convert = true;
+      }
+    }
+  } else {
+    if (value->opcode() == IrOpcode::kI32x4UConvertI16x8Low ||
+        value->opcode() == IrOpcode::kI32x4UConvertI16x8High) {
+      can_use_sign_convert = true;
+    }
+  }
+
+  if (can_use_sign_convert) {
+    Emit(kX64F32x4SConvertI32x4, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
+  } else {
+    Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),
+         g.UseRegister(this->input_at(node, 0)));
+  }
 }
 
 template <typename Adapter>
