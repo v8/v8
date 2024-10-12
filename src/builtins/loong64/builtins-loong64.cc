@@ -434,6 +434,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Resume (Ignition/TurboFan) generator object.
   {
+    // TODO(40931165): use parameter count from JSDispatchTable and validate
+    // that it matches the number of values in the JSGeneratorObject.
     __ LoadTaggedField(
         a0, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
     __ Ld_hu(a0, FieldMemOperand(
@@ -2498,9 +2500,13 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- cp : the function context.
   // -----------------------------------
 
+#ifdef V8_ENABLE_LEAPTIERING
+  __ InvokeFunctionCode(a1, no_reg, a0, InvokeType::kJump);
+#else
   __ Ld_hu(
       a2, FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(a1, no_reg, a2, a0, InvokeType::kJump);
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 // static
@@ -5111,8 +5117,13 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
 
   // The arguments are already in the stack (including any necessary padding),
   // we should not try to massage the arguments again.
+#ifdef V8_ENABLE_LEAPTIERING
+  __ InvokeFunction(a1, a0, InvokeType::kJump,
+                    ArgumentAdaptionMode::kDontAdapt);
+#else
   __ li(a2, Operand(kDontAdaptArgumentsSentinel));
   __ InvokeFunction(a1, a2, a0, InvokeType::kJump);
+#endif
 }
 
 #undef __
