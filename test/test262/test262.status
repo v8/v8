@@ -2402,4 +2402,37 @@
 # end import test262@6c967a8bbb90a5ee5bc856335928afbbd546d012
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Date/prototype/setDate/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setDate/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setHours/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setHours/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setMilliseconds/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setMilliseconds/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setMinutes/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setMinutes/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setMonth/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setMonth/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setSeconds/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setSeconds/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setUTCDate/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setUTCDate/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setUTCHours/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setUTCHours/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setUTCMilliseconds/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setUTCMilliseconds/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setUTCMinutes/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setUTCMinutes/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setUTCMonth/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setUTCMonth/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'built-ins/Date/prototype/setUTCSeconds/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
+  'built-ins/Date/prototype/setUTCSeconds/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
+  'intl402/DurationFormat/prototype/format/duration-out-of-range-3': [SKIP],
+  'intl402/DurationFormat/prototype/format/duration-out-of-range-4': [SKIP],
+}],
+# End roll-watcher patch
+####
+
 ]
