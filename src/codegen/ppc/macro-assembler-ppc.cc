@@ -293,7 +293,7 @@ void MacroAssembler::CallBuiltin(Builtin builtin, Condition cond) {
       UNREACHABLE();
     case BuiltinCallJumpMode::kIndirect: {
       Label skip;
-      LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+      LoadU64(ip, EntryFromBuiltinAsOperand(builtin), r0);
       if (cond != al) b(NegateCondition(cond), &skip);
       Call(ip);
       bind(&skip);
