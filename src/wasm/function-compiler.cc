@@ -26,13 +26,9 @@ namespace v8::internal::wasm {
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
     Counters* counters, WasmDetectedFeatures* detected) {
-  WasmCompilationResult result;
-  if (func_index_ < static_cast<int>(env->module->num_imported_functions)) {
-    result = ExecuteImportWrapperCompilation(env);
-  } else {
-    result =
-        ExecuteFunctionCompilation(env, wire_bytes_storage, counters, detected);
-  }
+  DCHECK_GE(func_index_, static_cast<int>(env->module->num_imported_functions));
+  WasmCompilationResult result =
+      ExecuteFunctionCompilation(env, wire_bytes_storage, counters, detected);
 
   if (result.succeeded() && counters) {
     counters->wasm_generated_code_size()->Increment(
@@ -44,20 +40,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
 
   result.func_index = func_index_;
 
-  return result;
-}
-
-WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
-    CompilationEnv* env) {
-  const FunctionSig* sig = env->module->functions[func_index_].sig;
-  // Assume the wrapper is going to be a JS function with matching arity at
-  // instantiation time.
-  auto kind = kDefaultImportCallKind;
-  bool source_positions = is_asmjs_module(env->module);
-  // TODO(366180605): Drop the cast!
-  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      env, kind, reinterpret_cast<const CanonicalSig*>(sig), source_positions,
-      static_cast<int>(sig->parameter_count()), wasm::kNoSuspend);
   return result;
 }
 

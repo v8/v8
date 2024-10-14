@@ -118,8 +118,6 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
       CompilationEnv*, const WireBytesStorage*, Counters*,
       WasmDetectedFeatures* detected);
 
-  WasmCompilationResult ExecuteImportWrapperCompilation(CompilationEnv*);
-
   int func_index_;
   ExecutionTier tier_;
   ForDebugging for_debugging_;
