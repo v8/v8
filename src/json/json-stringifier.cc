@@ -1036,17 +1036,13 @@ JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
 namespace {
 
 bool CanTreatHoleAsUndefined(Isolate* isolate, Tagged<JSArray> object) {
-  // We can treat holes as undefined if the {object}s prototype is either the
-  // initial Object.prototype  or the initial Array.prototype, which are both
-  // guarded by the "no elements" protector.
+  // If the no elements protector is intact, Array.prototype and
+  // Object.prototype are guaranteed to not have elements in any native context.
   if (!Protectors::IsNoElementsIntact(isolate)) return false;
-  Tagged<HeapObject> proto = object->map(isolate)->prototype();
-  if (!isolate->IsInAnyContext(proto, Context::INITIAL_ARRAY_PROTOTYPE_INDEX) &&
-      !isolate->IsInAnyContext(proto,
-                               Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
-    return false;
-  }
-  return true;
+  Tagged<Map> map = object->map(isolate);
+  Tagged<NativeContext> native_context = map->map(isolate)->native_context();
+  Tagged<HeapObject> proto = map->prototype();
+  return native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) == proto;
 }
 
 }  // namespace
