@@ -1299,6 +1299,9 @@
   # https://github.com/tc39/test262/pull/3987
   'language/module-code/import-attributes/allow-nlt-before-with': [FAIL],
 
+  # https://issues.chromium.org/u/1/issues/373151161
+  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-timezone': [SKIP],
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.
