@@ -1672,8 +1672,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Enable direct calls from wasm to fast API functions with bound "
     "call function to pass the the receiver as first parameter")
 
-DEFINE_EXPERIMENTAL_FEATURE(wasm_deopt,
-                            "enable deopts in optimized wasm functions")
+DEFINE_BOOL(wasm_deopt, false, "enable deopts in optimized wasm functions")
+DEFINE_WEAK_IMPLICATION(future, wasm_deopt)
 // Deopt only works in combination with feedback.
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_deopt)
 // Deopt support for wasm is not implemented for Turbofan.
