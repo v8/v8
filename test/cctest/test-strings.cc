@@ -1730,9 +1730,7 @@ TEST(InvalidExternalString) {
     HandleScope scope(isolate);                                          \
     v8::base::Vector<TYPE> dummy = v8::base::Vector<TYPE>::New(invalid); \
     memset(dummy.begin(), 0x0, dummy.length() * sizeof(TYPE));           \
-    CHECK(isolate->factory()                                             \
-              ->FUN(v8::base::Vector<const TYPE>::cast(dummy))           \
-              .is_null());                                               \
+    CHECK(isolate->factory()->FUN(dummy).is_null());                     \
     memset(dummy.begin(), 0x20, dummy.length() * sizeof(TYPE));          \
     CHECK(isolate->has_exception());                                     \
     isolate->clear_exception();                                          \

@@ -51,7 +51,7 @@ static constexpr int kMinTwoByteCachedLength =
 
 // static
 const char* ExternalizeStringExtension::BuildSource(char* buf, size_t size) {
-  base::SNPrintF(base::Vector<char>(buf, static_cast<int>(size)),
+  base::SNPrintF(base::VectorOf(buf, size),
                  "native function externalizeString();"
                  "native function createExternalizableString();"
                  "native function isOneByteString();"

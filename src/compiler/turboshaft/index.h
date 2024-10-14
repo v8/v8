@@ -800,8 +800,7 @@ class ShadowyOpIndexVectorWrapper {
   }
   template <typename U>
   operator base::Vector<const V<U>>() const {  // NOLINT(runtime/explicit)
-    return base::Vector<const V<U>>{static_cast<const V<U>*>(indices_.data()),
-                                    indices_.size()};
+    return {static_cast<const V<U>*>(indices_.data()), indices_.size()};
   }
 
   size_t size() const noexcept { return indices_.size(); }

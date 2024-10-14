@@ -29,7 +29,7 @@ void DecodeNormally(const std::vector<uint8_t>& bytes,
 
 void DecodeUtf16(const std::vector<uint8_t>& bytes,
                  std::vector<unibrow::uchar>* output) {
-  auto utf8_data = base::Vector<const uint8_t>::cast(base::VectorOf(bytes));
+  auto utf8_data = base::VectorOf(bytes);
   Utf8Decoder decoder(utf8_data);
 
   std::vector<uint16_t> utf16(decoder.utf16_length());

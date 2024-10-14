@@ -156,7 +156,7 @@ base::Vector<const uint8_t> WritePayload(
   int length = payload.length();
   uint8_t* blob = NewArray<uint8_t>(length);
   memcpy(blob, payload.begin(), length);
-  return base::Vector<const uint8_t>(const_cast<const uint8_t*>(blob), length);
+  return base::VectorOf(blob, length);
 }
 
 // Convenience wrapper around the convenience wrapper.
