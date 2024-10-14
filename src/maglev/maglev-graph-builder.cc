@@ -2636,16 +2636,59 @@ compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
 
 template <Operation kOperation>
 bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
-  // First handle strict equal comparison with constant.
-  if (kOperation != Operation::kStrictEqual) return false;
+  if (kOperation != Operation::kStrictEqual && kOperation != Operation::kEqual)
+    return false;
+
   ValueNode* left = LoadRegister(0);
   ValueNode* right = GetAccumulator();
 
+  ValueNode* other = right;
   compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(left);
-  if (!maybe_constant) maybe_constant = TryGetConstant(right);
+  if (!maybe_constant) {
+    maybe_constant = TryGetConstant(right);
+    other = left;
+  }
   if (!maybe_constant) return false;
-  InstanceType type = maybe_constant.value().map(broker()).instance_type();
 
+  if (CheckType(other, NodeType::kBoolean)) {
+    if (maybe_constant.value().map(broker_).is_undetectable() ||
+        (maybe_constant.value().IsHeapNumber() &&
+         isnan(maybe_constant.value().AsHeapNumber().value()))) {
+      // NaNs and undetectable objects are equal to nothing.
+      SetAccumulator(GetBooleanConstant(false));
+      return true;
+    }
+    // For `==` we only care about the ToBoolean value of the constant. For
+    // `===` we can skip the check if the constant is true/false.
+    std::optional<bool> compare_bool = {};
+    if (kOperation == Operation::kEqual) {
+      compare_bool = maybe_constant->TryGetBooleanValue(broker_);
+    } else if (maybe_constant.equals(broker_->true_value())) {
+      compare_bool = {true};
+    } else if (maybe_constant.equals(broker_->false_value())) {
+      compare_bool = {false};
+    }
+    if (compare_bool) {
+      if (*compare_bool) {
+        SetAccumulator(other);
+      } else {
+        compiler::OptionalHeapObjectRef both_constant = TryGetConstant(other);
+        if (both_constant) {
+          DCHECK(both_constant.equals(broker_->true_value()) ||
+                 both_constant.equals(broker_->false_value()));
+          SetAccumulator(GetBooleanConstant(
+              *compare_bool == both_constant.equals(broker_->true_value())));
+        } else {
+          SetAccumulator(AddNewNode<LogicalNot>({other}));
+        }
+      }
+      return true;
+    }
+  }
+
+  if (kOperation != Operation::kStrictEqual) return false;
+
+  InstanceType type = maybe_constant.value().map(broker()).instance_type();
   if (!InstanceTypeChecker::IsReferenceComparable(type)) return false;
 
   // If the constant is the undefined value, we can compare it
