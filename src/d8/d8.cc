@@ -5185,6 +5185,11 @@ void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
     MaybeLocal<Value> result = onmessage_fun->Call(context, global, 1, argv);
     USE(result);
   }
+  if (isolate_->IsExecutionTerminating()) {
+    // Re-schedule an interrupt in case the worker is going to run more code
+    // and never return to the event queue.
+    isolate_->TerminateExecution();
+  }
 }
 
 void Worker::ProcessMessages() {
