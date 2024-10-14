@@ -1140,9 +1140,23 @@ class ParserBase {
   bool is_await_allowed() const {
     return is_async_function() || IsModule(function_state_->kind());
   }
-  bool is_await_as_identifier_disallowed() {
+  bool is_await_as_identifier_disallowed() const {
     return flags().is_module() ||
            IsAwaitAsIdentifierDisallowed(function_state_->kind());
+  }
+  bool IsAwaitAsIdentifierDisallowed(FunctionKind kind) const {
+    // 'await' is always disallowed as an identifier in module contexts. Callers
+    // should short-circuit the module case instead of calling this.
+    //
+    // There is one special case: direct eval inside a module. In that case,
+    // even though the eval script itself is parsed as a Script (not a Module,
+    // i.e. flags().is_module() is false), thus allowing await as an identifier
+    // by default, the immediate outer scope is a module scope.
+    DCHECK(!IsModule(kind) ||
+           (flags().is_eval() && function_state_->scope() == original_scope_ &&
+            IsModule(function_state_->kind())));
+    return IsAsyncFunction(kind) ||
+           kind == FunctionKind::kClassStaticInitializerFunction;
   }
   bool is_using_allowed() const {
     // UsingDeclaration and AwaitUsingDeclaration are Syntax Errors if the goal
