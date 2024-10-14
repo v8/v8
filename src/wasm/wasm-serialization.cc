@@ -494,6 +494,10 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), kMask);
+
+  absl::flat_hash_map<WasmCodePointer, uint32_t> function_index_map =
+      native_module_->CreateIndirectCallTargetToFunctionIndexMap();
+
   WritableJitAllocation jit_allocation =
       WritableJitAllocation::ForNonExecutableMemory(
           reinterpret_cast<Address>(code_start), code->instructions().size(),
@@ -526,8 +530,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
       } break;
       case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
         WasmCodePointer target = orig_iter.rinfo()->wasm_indirect_call_target();
-        uint32_t function_index =
-            native_module_->GetFunctionIndexFromIndirectCallTarget(target);
+        uint32_t function_index = function_index_map.at(target);
         iter.rinfo()->set_wasm_indirect_call_target(function_index,
                                                     SKIP_ICACHE_FLUSH);
       } break;

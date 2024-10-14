@@ -1582,10 +1582,12 @@ WasmCodePointer WasmTrustedInstanceData::GetCallTarget(uint32_t func_index) {
   if (func_index < native_module->num_imported_functions()) {
     return dispatch_table_for_imports()->target(func_index);
   }
-  return v8_flags.wasm_jitless
-             ? 0
-             : jump_table_start() +
-                   JumpTableOffset(native_module->module(), func_index);
+
+  if (v8_flags.wasm_jitless) {
+    return 0;
+  }
+
+  return native_module->GetIndirectCallTarget(func_index);
 }
 
 // static
