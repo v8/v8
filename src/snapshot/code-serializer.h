@@ -89,12 +89,6 @@ class CodeSerializer : public Serializer {
   StartDeserializeOffThread(LocalIsolate* isolate,
                             AlignedCachedData* cached_data);
 
-  static void NotifySourceTextAvailable(
-      Isolate* isolate, OffThreadDeserializeData& data,
-      AlignedCachedData* cached_data, Handle<String> source,
-      const ScriptDetails& script_details,
-      BackgroundMergeTask* background_merge_task = nullptr);
-
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   FinishOffThreadDeserialize(
       Isolate* isolate, OffThreadDeserializeData&& data,
