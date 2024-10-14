@@ -2397,7 +2397,7 @@
 'intl402/Temporal/PlainTime/prototype/toLocaleString/lone-options-accepted': [FAIL],
 'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/lone-options-accepted': [FAIL],
 'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/lone-options-accepted': [FAIL],
-'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/default-includes-time-and-time-zone-name': [FAIL],
+'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/default-includes-time-and-time-zone-name': [SKIP],
 }],
 # end import test262@6c967a8bbb90a5ee5bc856335928afbbd546d012
 ####
