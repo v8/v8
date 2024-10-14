@@ -97,8 +97,8 @@ void MacroAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
 
-  const uint32_t offset =
-      FixedArray::kHeaderSize + constant_index * kPointerSize - kHeapObjectTag;
+  const uint32_t offset = OFFSET_OF_DATA_START(FixedArray) +
+                          constant_index * kPointerSize - kHeapObjectTag;
 
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   ldr(destination, MemOperand(destination, offset));

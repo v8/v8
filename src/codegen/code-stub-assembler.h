@@ -1314,8 +1314,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the length of a fixed array base instance.
   TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
   template <typename Array>
-  TNode<Smi> LoadArrayCapacity(TNode<Array> array) {
-    return LoadObjectField<Smi>(array, Array::Shape::kCapacityOffset);
+  TNode<Smi> LoadSmiArrayLength(TNode<Array> array) {
+    return LoadObjectField<Smi>(array, offsetof(Array, length_));
   }
   // Load the length of a fixed array base instance.
   TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(TNode<FixedArrayBase> array);
@@ -1488,7 +1488,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<typename Array::Shape::ElementT> LoadArrayElement(
       TNode<Array> array, TNode<TIndex> index, int additional_offset = 0) {
     return LoadArrayElement<Array, TIndex, typename Array::Shape::ElementT>(
-        array, Array::Shape::kHeaderSize, index, additional_offset);
+        array, OFFSET_OF_DATA_START(Array), index, additional_offset);
   }
 
   template <typename TIndex>
@@ -1840,7 +1840,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     // StoreFixedArrayOrPropertyArrayElement. We can make it more robust and
     // generic if needed.
     TNode<IntPtrT> offset = ElementOffsetFromIndex(index, PACKED_ELEMENTS,
-                                                   Array::Shape::kHeaderSize);
+                                                   OFFSET_OF_DATA_START(Array));
     if (barrier_mode == SKIP_WRITE_BARRIER) {
       StoreObjectFieldNoWriteBarrier(object, offset, value);
     } else if (barrier_mode == UPDATE_WRITE_BARRIER) {
@@ -3823,7 +3823,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename TIndex>
   TNode<IntPtrT> GetFixedArrayAllocationSize(TNode<TIndex> element_count,
                                              ElementsKind kind) {
-    return GetArrayAllocationSize(element_count, kind, FixedArray::kHeaderSize);
+    return GetArrayAllocationSize(element_count, kind,
+                                  OFFSET_OF_DATA_START(FixedArray));
   }
 
   TNode<IntPtrT> GetPropertyArrayAllocationSize(TNode<IntPtrT> element_count) {
@@ -4063,9 +4064,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         int base_size = 0);
   template <typename Array, typename TIndex>
   TNode<IntPtrT> OffsetOfElementAt(TNode<TIndex> index) {
-    static_assert(Array::Shape::kElementSize == kTaggedSize);
+    static_assert(Array::kElementSize == kTaggedSize);
     return ElementOffsetFromIndex(index, PACKED_ELEMENTS,
-                                  Array::kHeaderSize - kHeapObjectTag);
+                                  OFFSET_OF_DATA_START(Array) - kHeapObjectTag);
   }
 
   // Check that a field offset is within the bounds of the an object.

@@ -63,7 +63,7 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
   Register table = result;
   LoadRoot(table, RootIndex::kSingleCharacterStringTable);
   LoadTaggedField(result, table,
-                  FixedArray::kHeaderSize + char_code * kTaggedSize);
+                  OFFSET_OF_DATA_START(FixedArray) + char_code * kTaggedSize);
 }
 
 void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,

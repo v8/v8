@@ -698,8 +698,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ blt(&done_loop);
     __ ShiftLeftU64(r1, r5, Operand(kTaggedSizeLog2));
     __ la(scratch, MemOperand(r4, r1));
-    __ LoadTaggedField(scratch,
-                       FieldMemOperand(scratch, FixedArray::kHeaderSize));
+    __ LoadTaggedField(
+        scratch, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
     __ Push(scratch);
     __ b(&loop);
     __ bind(&done_loop);
@@ -2519,7 +2519,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ CmpS64(r6, Operand::Zero());
     __ beq(&no_args);
     __ AddS64(r4, r4,
-              Operand(FixedArray::kHeaderSize - kHeapObjectTag - kTaggedSize));
+              Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag -
+                      kTaggedSize));
     __ mov(r1, r6);
     __ bind(&loop);
     __ LoadTaggedField(scratch, MemOperand(r4, kTaggedSize), r0);
@@ -2732,7 +2733,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedField(
       r4, FieldMemOperand(r3, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntagField(r6, FieldMemOperand(r4, FixedArray::kLengthOffset));
+  __ SmiUntagField(r6, FieldMemOperand(r4, offsetof(FixedArray, length_)));
   __ LoadAndTestP(r6, r6);
   __ beq(&no_bound_arguments);
   {
@@ -2771,7 +2772,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop, done;
       __ AddS64(r2, r2, r6);  // Adjust effective number of arguments.
-      __ AddS64(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ AddS64(r4, r4,
+                Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
 
       __ bind(&loop);
       __ SubS64(r1, r6, Operand(1));
@@ -3069,7 +3071,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
                               WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ ShiftLeftU64(scratch, func_index, Operand(kTaggedSizeLog2));
   __ AddS64(vector, vector, scratch);
-  __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
+  __ LoadTaggedField(vector,
+                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
   __ push(kWasmImplicitArgRegister);

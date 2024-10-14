@@ -1387,7 +1387,8 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
 #endif
 }
 
-void HeapObjectLayout::set_map_after_allocation(Isolate* isolate,
+template <typename IsolateT>
+void HeapObjectLayout::set_map_after_allocation(IsolateT* isolate,
                                                 Tagged<Map> value,
                                                 WriteBarrierMode mode) {
   // TODO(leszeks): Support MapWord members and access via that instead.

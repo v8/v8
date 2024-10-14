@@ -2145,8 +2145,8 @@ class MaglevGraphBuilder {
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
   template <typename Instruction = LoadTaggedField, typename... Args>
-  ValueNode* BuildLoadTaggedField(ValueNode* object, Args&&... args) {
-    auto offset = std::get<0>(std::make_tuple(args...));
+  ValueNode* BuildLoadTaggedField(ValueNode* object, uint32_t offset,
+                                  Args&&... args) {
     if (offset != HeapObject::kMapOffset &&
         CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
       VirtualObject* vobject =
@@ -2169,7 +2169,8 @@ class MaglevGraphBuilder {
       }
       return value;
     }
-    return AddNewNode<Instruction>({object}, std::forward<Args>(args)...);
+    return AddNewNode<Instruction>({object}, offset,
+                                   std::forward<Args>(args)...);
   }
 
   Node* BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset,

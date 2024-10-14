@@ -1306,14 +1306,14 @@ void AllocateElementsArray::GenerateCode(MaglevAssembler* masm,
     Register size_in_bytes = scratch;
     __ Move(size_in_bytes, length);
     __ ShiftLeft(size_in_bytes, kTaggedSizeLog2);
-    __ AddInt32(size_in_bytes, FixedArray::kHeaderSize);
+    __ AddInt32(size_in_bytes, OFFSET_OF_DATA_START(FixedArray));
     __ Allocate(snapshot, elements, size_in_bytes, allocation_type_);
     __ SetMapAsRoot(elements, RootIndex::kFixedArrayMap);
   }
   {
     Register smi_length = scratch;
     __ UncheckedSmiTagInt32(smi_length, length);
-    __ StoreTaggedFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
+    __ StoreTaggedFieldNoWriteBarrier(elements, offsetof(FixedArray, length_),
                                       smi_length);
   }
 
@@ -2405,20 +2405,20 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
   //
   // The value we want is in the property array at offset:
   //
-  //      (array_index << kTaggedSizeLog2) + FixedArray::kHeaderSize
+  //      (array_index << kTaggedSizeLog2) + OFFSET_OF_DATA_START(FixedArray)
   //
   //    [Split shift to match array_index component of field_index]
   //    = (array_index << (1+kSmiTagBits)) << (kTaggedSizeLog2-1-kSmiTagBits)
-  //        + FixedArray::kHeaderSize
+  //        + OFFSET_OF_DATA_START(FixedArray)
   //
   //    [Substitute in field_index]
   //    = (-field_index - (is_double_bit - 2) << kSmiTagBits)
   //        << (kTaggedSizeLog2-1-kSmiTagBits)
-  //        + FixedArray::kHeaderSize
+  //        + OFFSET_OF_DATA_START(FixedArray)
   //
   //    [Fold together the constants]
   //    = -field_index << (kTaggedSizeLog2-1-kSmiTagBits)
-  //        + FixedArray::kHeaderSize
+  //        + OFFSET_OF_DATA_START(FixedArray)
   //        - (is_double_bit - 2) << (kTaggedSizeLog2-1))
   //
   // This allows us to simply negate the field_index register and do a load with
@@ -2478,7 +2478,7 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
               __ NegateInt32(field_index);
               __ LoadTaggedFieldByIndex(
                   result_reg, property_array, field_index, scale,
-                  FixedArray::kHeaderSize -
+                  OFFSET_OF_DATA_START(FixedArray) -
                       ((2 - kIsDoubleBit) << (kTaggedSizeLog2 - 1)));
               __ Jump(&loaded_field);
             }
@@ -2544,7 +2544,7 @@ void LoadTaggedFieldByFieldIndex::GenerateCode(MaglevAssembler* masm,
       __ NegateInt32(field_index);
       __ LoadTaggedFieldByIndex(
           result_reg, property_array, field_index, scale,
-          FixedArray::kHeaderSize -
+          OFFSET_OF_DATA_START(FixedArray) -
               ((2 - kIsDoubleBit) << (kTaggedSizeLog2 - 1)));
       // Fallthrough to `done`.
     }

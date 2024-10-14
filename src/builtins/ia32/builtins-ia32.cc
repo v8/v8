@@ -660,8 +660,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       __ bind(&loop);
       __ dec(ecx);
       __ j(less, &done_loop);
-      __ Push(
-          FieldOperand(ebx, ecx, times_tagged_size, FixedArray::kHeaderSize));
+      __ Push(FieldOperand(ebx, ecx, times_tagged_size,
+                           OFFSET_OF_DATA_START(FixedArray)));
       __ jmp(&loop);
       __ bind(&done_loop);
     }
@@ -2423,7 +2423,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ j(equal, &done, Label::kNear);
     // Turn the hole into undefined as we go.
     __ mov(edi, FieldOperand(kArgumentsList, eax, times_tagged_size,
-                             FixedArray::kHeaderSize));
+                             OFFSET_OF_DATA_START(FixedArray)));
     __ CompareRoot(edi, RootIndex::kTheHoleValue);
     __ j(not_equal, &push, Label::kNear);
     __ LoadRoot(edi, RootIndex::kUndefinedValue);
@@ -2658,7 +2658,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   // Load [[BoundArguments]] into ecx and length of that into edx.
   Label no_bound_arguments;
   __ mov(ecx, FieldOperand(edi, JSBoundFunction::kBoundArgumentsOffset));
-  __ mov(edx, FieldOperand(ecx, FixedArray::kLengthOffset));
+  __ mov(edx, FieldOperand(ecx, offsetof(FixedArray, length_)));
   __ SmiUntag(edx);
   __ test(edx, edx);
   __ j(zero, &no_bound_arguments);
@@ -2699,7 +2699,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop;
       __ mov(ecx, FieldOperand(edi, JSBoundFunction::kBoundArgumentsOffset));
-      __ mov(edx, FieldOperand(ecx, FixedArray::kLengthOffset));
+      __ mov(edx, FieldOperand(ecx, offsetof(FixedArray, length_)));
       __ SmiUntag(edx);
       // Adjust effective number of arguments (eax contains the number of
       // arguments from the call not including receiver plus the number of
@@ -2708,7 +2708,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ bind(&loop);
       __ dec(edx);
       __ mov(esi, FieldOperand(ecx, edx, times_tagged_size,
-                               FixedArray::kHeaderSize));
+                               OFFSET_OF_DATA_START(FixedArray)));
       __ push(esi);
       __ j(greater, &loop);
     }
@@ -3130,7 +3130,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ mov(tmp, FieldOperand(kWasmImplicitArgRegister,
                            WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ mov(tmp, FieldOperand(tmp, func_index, times_tagged_size,
-                           FixedArray::kHeaderSize));
+                           OFFSET_OF_DATA_START(FixedArray)));
   Label allocate_vector;
   __ JumpIfSmi(tmp, &allocate_vector);
 

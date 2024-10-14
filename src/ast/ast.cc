@@ -733,7 +733,7 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
   if (is_simple() && depth() == kShallow && array_index > 0 &&
       IsSmiOrObjectElementsKind(kind)) {
     elements->set_map_safe_transition(
-        isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
+        isolate, ReadOnlyRoots(isolate).fixed_cow_array_map(), kReleaseStore);
   }
 
   boilerplate_description_ =

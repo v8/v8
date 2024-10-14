@@ -1034,7 +1034,6 @@ int Map::InstanceSizeFromSlack(int slack) const {
   return instance_size() - slack * kTaggedSize;
 }
 
-OBJECT_CONSTRUCTORS_IMPL(NormalizedMapCache, WeakFixedArray)
 NEVER_READ_ONLY_SPACE_IMPL(NormalizedMapCache)
 
 int NormalizedMapCache::GetIndex(Tagged<Map> map,

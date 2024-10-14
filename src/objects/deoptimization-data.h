@@ -33,8 +33,6 @@ class DeoptimizationLiteralArray : public TrustedWeakFixedArray {
   // Setter for literals. This will set the object as strong or weak depending
   // on InstructionStream::IsWeakObjectInOptimizedCode.
   inline void set(int index, Tagged<Object> value);
-
-  OBJECT_CONSTRUCTORS(DeoptimizationLiteralArray, TrustedWeakFixedArray);
 };
 
 enum class DeoptimizationLiteralKind {
@@ -368,8 +366,6 @@ class DeoptimizationData : public ProtectedFixedArray {
   }
 
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
-
-  OBJECT_CONSTRUCTORS(DeoptimizationData, ProtectedFixedArray);
 };
 
 }  // namespace internal

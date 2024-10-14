@@ -175,19 +175,11 @@ class FeedbackMetadata;
 
 class ClosureFeedbackCellArrayShape final : public AllStatic {
  public:
-  static constexpr int kElementSize = kTaggedSize;
   using ElementT = FeedbackCell;
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kClosureFeedbackCellArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
-
-#define FIELD_LIST(V)                                                   \
-  V(kCapacityOffset, kTaggedSize)                                       \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
 };
 
 // ClosureFeedbackCellArray contains feedback cells used when creating closures
@@ -199,7 +191,6 @@ class ClosureFeedbackCellArray
                              ClosureFeedbackCellArrayShape> {
   using Super =
       TaggedArrayBase<ClosureFeedbackCellArray, ClosureFeedbackCellArrayShape>;
-  OBJECT_CONSTRUCTORS(ClosureFeedbackCellArray, Super);
 
  public:
   NEVER_READ_ONLY_SPACE

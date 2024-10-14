@@ -335,7 +335,7 @@ void MacroAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
 
-  const uint32_t offset = FixedArray::kHeaderSize +
+  const uint32_t offset = OFFSET_OF_DATA_START(FixedArray) +
                           constant_index * kSystemPointerSize - kHeapObjectTag;
 
   CHECK(is_uint19(offset));

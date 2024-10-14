@@ -850,7 +850,7 @@ bool ObjectStatsCollectorImpl::CanRecordFixedArray(
 }
 
 bool ObjectStatsCollectorImpl::IsCowArray(Tagged<FixedArrayBase> array) {
-  return array->map(cage_base()) == ReadOnlyRoots(heap_).fixed_cow_array_map();
+  return array->map() == ReadOnlyRoots(heap_).fixed_cow_array_map();
 }
 
 bool ObjectStatsCollectorImpl::SameLiveness(Tagged<HeapObject> obj1,

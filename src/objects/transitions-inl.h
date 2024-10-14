@@ -40,8 +40,6 @@ Tagged<TransitionArray> TransitionsAccessor::transitions() {
   return GetTransitionArray(isolate_, raw_transitions_);
 }
 
-OBJECT_CONSTRUCTORS_IMPL(TransitionArray, WeakFixedArray)
-
 bool TransitionArray::HasPrototypeTransitions() {
   return get(kPrototypeTransitionsIndex) != Smi::zero();
 }

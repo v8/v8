@@ -121,8 +121,7 @@ void SourceCodeCache::Add(Isolate* isolate, base::Vector<const char> name,
   int length = cache_->length();
   DirectHandle<FixedArray> new_array =
       factory->NewFixedArray(length + 2, AllocationType::kOld);
-  FixedArray::CopyElements(isolate, *new_array, 0, *cache_, 0,
-                           cache_->length());
+  FixedArray::CopyElements(isolate, *new_array, 0, cache_, 0, cache_->length());
   cache_ = *new_array;
   Handle<String> str =
       factory

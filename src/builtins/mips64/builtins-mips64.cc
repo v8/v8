@@ -389,7 +389,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Dsubu(a3, a3, Operand(1));
     __ Branch(&done_loop, lt, a3, Operand(zero_reg));
     __ Dlsa(kScratchReg, t1, a3, kSystemPointerSizeLog2);
-    __ Ld(kScratchReg, FieldMemOperand(kScratchReg, FixedArray::kHeaderSize));
+    __ Ld(kScratchReg,
+          FieldMemOperand(kScratchReg, OFFSET_OF_DATA_START(FixedArray)));
     __ Push(kScratchReg);
     __ Branch(&loop);
     __ bind(&done_loop);
@@ -2257,7 +2258,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Register src = a6;
     Register scratch = len;
 
-    __ daddiu(src, args, FixedArray::kHeaderSize - kHeapObjectTag);
+    __ daddiu(src, args, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
     __ Branch(&done, eq, len, Operand(zero_reg), i::USE_DELAY_SLOT);
     __ dsll(scratch, len, kSystemPointerSizeLog2);
     __ Dsubu(scratch, sp, Operand(scratch));
@@ -2462,7 +2463,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
   // Load [[BoundArguments]] into a2 and length of that into a4.
   __ Ld(a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
+  __ SmiUntag(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
 
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments
@@ -2495,9 +2496,10 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // Push [[BoundArguments]].
   {
     Label loop, done_loop;
-    __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
+    __ SmiUntag(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
     __ Daddu(a0, a0, Operand(a4));
-    __ Daddu(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    __ Daddu(a2, a2,
+             Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
     __ bind(&loop);
     __ Dsubu(a4, a4, Operand(1));
     __ Branch(&done_loop, lt, a4, Operand(zero_reg));
@@ -2626,7 +2628,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
   // Load [[BoundArguments]] into a2 and length of that into a4.
   __ Ld(a2, FieldMemOperand(a1, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
+  __ SmiUntag(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
 
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments
@@ -2660,9 +2662,10 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   // Push [[BoundArguments]].
   {
     Label loop, done_loop;
-    __ SmiUntag(a4, FieldMemOperand(a2, FixedArray::kLengthOffset));
+    __ SmiUntag(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
     __ Daddu(a0, a0, Operand(a4));
-    __ Daddu(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    __ Daddu(a2, a2,
+             Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
     __ bind(&loop);
     __ Dsubu(a4, a4, Operand(1));
     __ Branch(&done_loop, lt, a4, Operand(zero_reg));
@@ -2802,7 +2805,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
         FieldMemOperand(kWasmImplicitArgRegister,
                         WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ Dlsa(vector, vector, func_index, kTaggedSizeLog2);
-  __ Ld(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
+  __ Ld(vector, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
   __ Push(vector);

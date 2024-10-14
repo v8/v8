@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_CASTING_H_
 #define V8_OBJECTS_CASTING_H_
 
+#include <type_traits>
+
 #include "include/v8-source-location.h"
 #include "src/base/logging.h"
 #include "src/objects/tagged.h"
@@ -61,9 +63,17 @@ inline Tagged<To> Cast(Tagged<From> value, const v8::SourceLocation& loc =
                           V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   return UncheckedCast<To>(value);
 }
-template <typename To, typename From>
+template <typename To, typename From,
+          typename = std::enable_if_t<std::is_base_of_v<HeapObject, From>>>
 inline Tagged<To> Cast(const From& value, const v8::SourceLocation& loc =
                                               INIT_SOURCE_LOCATION_IN_DEBUG) {
+  return Cast<To>(Tagged(value), loc);
+}
+template <
+    typename To, typename From,
+    typename = std::enable_if_t<std::is_base_of_v<HeapObjectLayout, From>>>
+inline Tagged<To> Cast(From* value, const v8::SourceLocation& loc =
+                                        INIT_SOURCE_LOCATION_IN_DEBUG) {
   return Cast<To>(Tagged(value), loc);
 }
 template <typename To, typename From>

@@ -170,9 +170,6 @@ class CompilationCacheTable
  private:
   static Handle<CompilationCacheTable> EnsureScriptTableCapacity(
       Isolate* isolate, Handle<CompilationCacheTable> cache);
-
-  OBJECT_CONSTRUCTORS(CompilationCacheTable,
-                      HashTable<CompilationCacheTable, CompilationCacheShape>);
 };
 
 }  // namespace internal

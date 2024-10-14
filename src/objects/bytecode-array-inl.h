@@ -159,7 +159,7 @@ DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
   Tagged<Object> maybe_constant_pool = raw_constant_pool(cage_base);
   if (IsTrustedFixedArray(maybe_constant_pool)) {
-    size += Cast<TrustedFixedArray>(maybe_constant_pool)->Size(cage_base);
+    size += Cast<TrustedFixedArray>(maybe_constant_pool)->Size();
   } else {
     DCHECK_EQ(maybe_constant_pool, Smi::zero());
   }

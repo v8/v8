@@ -28,8 +28,6 @@ namespace v8::internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackVector)
 OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(ClosureFeedbackCellArray,
-                         ClosureFeedbackCellArray::Super)
 
 NEVER_READ_ONLY_SPACE_IMPL(FeedbackVector)
 NEVER_READ_ONLY_SPACE_IMPL(ClosureFeedbackCellArray)

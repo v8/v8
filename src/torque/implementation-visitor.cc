@@ -4025,7 +4025,7 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
       // TODO(leszeks): Hacked in support for some classes (e.g.
       // HeapObject) being mirrored by a *Layout class. Remove once
       // everything is ported to layout classes.
-      if (parent_name == "HeapObject") {
+      if (parent_name == "HeapObject" || parent_name == "TrustedObject") {
         parent_name += "Layout";
       }
 

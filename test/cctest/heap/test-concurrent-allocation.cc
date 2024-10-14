@@ -39,7 +39,7 @@ void CreateFixedArray(Heap* heap, Address start, int size) {
                                    ReadOnlyRoots(heap).fixed_array_map(),
                                    SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = Cast<FixedArray>(object);
-  int length = (size - FixedArray::kHeaderSize) / kTaggedSize;
+  int length = (size - OFFSET_OF_DATA_START(FixedArray)) / kTaggedSize;
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(),
                ReadOnlyRoots(heap).undefined_value(), length);

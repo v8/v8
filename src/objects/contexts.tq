@@ -14,7 +14,7 @@ extern class Context extends HeapObject {
   elements[length]: Object;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class ScriptContextTable extends HeapObject {
   const capacity: Smi;
   length: Smi;

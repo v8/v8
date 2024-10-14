@@ -811,9 +811,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&loop);
     __ decq(rcx);
     __ j(less, &done_loop, Label::kNear);
-    __ PushTaggedField(
-        FieldOperand(rbx, rcx, times_tagged_size, FixedArray::kHeaderSize),
-        decompr_scratch1);
+    __ PushTaggedField(FieldOperand(rbx, rcx, times_tagged_size,
+                                    OFFSET_OF_DATA_START(FixedArray)),
+                       decompr_scratch1);
     __ jmp(&loop);
     __ bind(&done_loop);
 
@@ -2345,7 +2345,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ j(equal, &done, Label::kNear);
     // Turn the hole into undefined as we go.
     __ LoadTaggedField(value, FieldOperand(src, current, times_tagged_size,
-                                           FixedArray::kHeaderSize));
+                                           OFFSET_OF_DATA_START(FixedArray)));
     __ CompareRoot(value, RootIndex::kTheHoleValue);
     __ j(not_equal, &push, Label::kNear);
     __ LoadRoot(value, RootIndex::kUndefinedValue);
@@ -2563,7 +2563,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedField(rcx,
                      FieldOperand(rdi, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntagFieldUnsigned(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ SmiUntagFieldUnsigned(rbx,
+                           FieldOperand(rcx, offsetof(FixedArray, length_)));
   __ testl(rbx, rbx);
   __ j(zero, &no_bound_arguments);
   {
@@ -2605,17 +2606,17 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       Label loop;
       __ LoadTaggedField(
           rcx, FieldOperand(rdi, JSBoundFunction::kBoundArgumentsOffset));
-      __ SmiUntagFieldUnsigned(rbx,
-                               FieldOperand(rcx, FixedArray::kLengthOffset));
+      __ SmiUntagFieldUnsigned(
+          rbx, FieldOperand(rcx, offsetof(FixedArray, length_)));
       __ addq(rax, rbx);  // Adjust effective number of arguments.
       __ bind(&loop);
       // Instead of doing decl(rbx) here subtract kTaggedSize from the header
       // offset in order to be able to move decl(rbx) right before the loop
       // condition. This is necessary in order to avoid flags corruption by
       // pointer decompression code.
-      __ LoadTaggedField(r12,
-                         FieldOperand(rcx, rbx, times_tagged_size,
-                                      FixedArray::kHeaderSize - kTaggedSize));
+      __ LoadTaggedField(
+          r12, FieldOperand(rcx, rbx, times_tagged_size,
+                            OFFSET_OF_DATA_START(FixedArray) - kTaggedSize));
       __ Push(r12);
       __ decl(rbx);
       __ j(greater, &loop);
@@ -3045,7 +3046,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
       vector, FieldOperand(kWasmImplicitArgRegister,
                            WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ LoadTaggedField(vector, FieldOperand(vector, func_index, times_tagged_size,
-                                          FixedArray::kHeaderSize));
+                                          OFFSET_OF_DATA_START(FixedArray)));
   Label allocate_vector, done;
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);

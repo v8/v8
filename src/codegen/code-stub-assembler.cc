@@ -2224,19 +2224,19 @@ TNode<IntPtrT> CodeStubAssembler::LoadFeedbackVectorLength(
 
 TNode<Smi> CodeStubAssembler::LoadWeakFixedArrayLength(
     TNode<WeakFixedArray> array) {
-  return LoadObjectField<Smi>(array, WeakFixedArray::kLengthOffset);
+  return LoadObjectField<Smi>(array, offsetof(WeakFixedArray, length_));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagWeakFixedArrayLength(
     TNode<WeakFixedArray> array) {
   return LoadAndUntagPositiveSmiObjectField(array,
-                                            WeakFixedArray::kLengthOffset);
+                                            offsetof(WeakFixedArray, length_));
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadAndUntagWeakFixedArrayLengthAsUint32(
     TNode<WeakFixedArray> array) {
   TNode<Int32T> length =
-      LoadAndUntagToWord32ObjectField(array, WeakFixedArray::kLengthOffset);
+      LoadAndUntagToWord32ObjectField(array, offsetof(WeakFixedArray, length_));
   CSA_DCHECK(this, Int32GreaterThanOrEqual(length, Int32Constant(0)));
   return Unsigned(length);
 }
@@ -2667,19 +2667,19 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<FixedArray> array) {
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
     TNode<ClosureFeedbackCellArray> array) {
-  return SmiUntag(LoadArrayCapacity(array));
+  return SmiUntag(LoadSmiArrayLength(array));
 }
 
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
     TNode<ScriptContextTable> array) {
-  return SmiUntag(LoadArrayCapacity(array));
+  return SmiUntag(LoadSmiArrayLength(array));
 }
 
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
     TNode<RegExpMatchInfo> array) {
-  return SmiUntag(LoadArrayCapacity(array));
+  return SmiUntag(LoadSmiArrayLength(array));
 }
 
 template <>
@@ -2708,7 +2708,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
     TNode<TrustedFixedArray> array) {
-  return SmiUntag(LoadArrayCapacity(array));
+  return SmiUntag(LoadSmiArrayLength(array));
 }
 
 template <typename Array, typename TIndex, typename TValue>
@@ -2767,8 +2767,8 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
   if (NeedsBoundsCheck(check_bounds)) {
     FixedArrayBoundsCheck(object, index, additional_offset);
   }
-  TNode<MaybeObject> element = LoadArrayElement(object, FixedArray::kHeaderSize,
-                                                index, additional_offset);
+  TNode<MaybeObject> element = LoadArrayElement(
+      object, OFFSET_OF_DATA_START(FixedArray), index, additional_offset);
   return CAST(element);
 }
 
@@ -3187,13 +3187,13 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
     TNode<FixedArray> object, TNode<IntPtrT> index, int additional_offset) {
   CSA_SLOW_DCHECK(this, IsFixedArraySubclass(object));
-  return LoadAndUntagToWord32ArrayElement(object, FixedArray::kHeaderSize,
-                                          index, additional_offset);
+  return LoadAndUntagToWord32ArrayElement(
+      object, OFFSET_OF_DATA_START(FixedArray), index, additional_offset);
 }
 
 TNode<MaybeObject> CodeStubAssembler::LoadWeakFixedArrayElement(
     TNode<WeakFixedArray> object, TNode<IntPtrT> index, int additional_offset) {
-  return LoadArrayElement(object, WeakFixedArray::kHeaderSize, index,
+  return LoadArrayElement(object, OFFSET_OF_DATA_START(WeakFixedArray), index,
                           additional_offset);
 }
 
@@ -3787,15 +3787,17 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
          barrier_mode == UPDATE_WRITE_BARRIER ||
          barrier_mode == UPDATE_EPHEMERON_KEY_WRITE_BARRIER);
   DCHECK(IsAligned(additional_offset, kTaggedSize));
-  static_assert(static_cast<int>(FixedArray::kHeaderSize) ==
+  static_assert(static_cast<int>(OFFSET_OF_DATA_START(FixedArray)) ==
                 static_cast<int>(PropertyArray::kHeaderSize));
   int header_size =
-      FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
+      OFFSET_OF_DATA_START(FixedArray) + additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS, header_size);
-  static_assert(static_cast<int>(FixedArrayBase::kLengthOffset) ==
-                static_cast<int>(WeakFixedArray::kLengthOffset));
-  static_assert(static_cast<int>(FixedArrayBase::kLengthOffset) ==
+  static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
+                static_cast<int>(FixedDoubleArray::kLengthOffset));
+  static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
+                static_cast<int>(offsetof(WeakFixedArray, length_)));
+  static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
                 static_cast<int>(PropertyArray::kLengthAndHashOffset));
   // Check that index_node + additional_offset <= object.length.
   // TODO(cbruni): Use proper LoadXXLength helpers
@@ -3815,7 +3817,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
                 return LoadAndUntagPositiveSmiObjectField(
                     object, FixedArrayBase::kLengthOffset);
               }),
-          FixedArray::kHeaderSize));
+          OFFSET_OF_DATA_START(FixedArray)));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
     StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset, value);
   } else if (barrier_mode == UNSAFE_SKIP_WRITE_BARRIER) {
@@ -3855,8 +3857,9 @@ void CodeStubAssembler::StoreFixedDoubleArrayElement(
   if (NeedsBoundsCheck(check_bounds)) {
     FixedArrayBoundsCheck(object, index, 0);
   }
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(
-      index, PACKED_DOUBLE_ELEMENTS, FixedArray::kHeaderSize - kHeapObjectTag);
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS,
+                             OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
   MachineRepresentation rep = MachineRepresentation::kFloat64;
   // Make sure we do not store signalling NaNs into double arrays.
   TNode<Float64T> value_silenced = Float64SilenceNaN(value);
@@ -4335,8 +4338,9 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
   CSA_DCHECK(this, WordIsPowerOfTwo(capacity));
   CSA_DCHECK(this, IntPtrGreaterThan(capacity, IntPtrConstant(0)));
   TNode<IntPtrT> length = EntryToIndex<NameDictionary>(capacity);
-  TNode<IntPtrT> store_size = IntPtrAdd(
-      TimesTaggedSize(length), IntPtrConstant(NameDictionary::kHeaderSize));
+  TNode<IntPtrT> store_size =
+      IntPtrAdd(TimesTaggedSize(length),
+                IntPtrConstant(OFFSET_OF_DATA_START(NameDictionary)));
 
   TNode<NameDictionary> result =
       UncheckedCast<NameDictionary>(Allocate(store_size, flags));
@@ -4345,7 +4349,7 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
   {
     DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kNameDictionaryMap));
     StoreMapNoWriteBarrier(result, RootIndex::kNameDictionaryMap);
-    StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
+    StoreObjectFieldNoWriteBarrier(result, offsetof(NameDictionary, length_),
                                    SmiFromIntPtr(length));
   }
 
@@ -4535,8 +4539,9 @@ TNode<CollectionType> CodeStubAssembler::AllocateOrderedHashTableWithCapacity(
     TNode<IntPtrT> data_start_address = buckets_end_address;
     TNode<IntPtrT> data_end_address = IntPtrAdd(
         object_address,
-        IntPtrAdd(IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
-                  TimesTaggedSize(fixed_array_length)));
+        IntPtrAdd(
+            IntPtrConstant(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag),
+            TimesTaggedSize(fixed_array_length)));
 
     StoreFieldsNoWriteBarrier(data_start_address, data_end_address,
                               UndefinedConstant());
@@ -4858,7 +4863,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     const int elements_offset = base_size;
 
     // Compute space for elements
-    base_size += FixedArray::kHeaderSize;
+    base_size += OFFSET_OF_DATA_START(FixedArray);
     TNode<IntPtrT> size = AlignToAllocationAlignment(
         ElementOffsetFromIndex(capacity, kind, base_size));
 
@@ -4910,8 +4915,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
     CSA_DCHECK(this, WordNotEqual(capacity, IntPtrConstant(0)));
     TNode<Smi> capacity_smi = SmiTag(capacity);
-    StoreObjectFieldNoWriteBarrier(elements.value(), FixedArray::kLengthOffset,
-                                   capacity_smi);
+    StoreObjectFieldNoWriteBarrier(elements.value(),
+                                   offsetof(FixedArray, length_), capacity_smi);
     Goto(&out);
   }
 
@@ -5266,7 +5271,8 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
   // The construction of the loop and the offsets for double elements is
   // extracted from CopyFixedArrayElements.
   CSA_SLOW_DCHECK(this, IsFixedArrayWithKindOrEmpty(from_array, kind));
-  static_assert(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  static_assert(OFFSET_OF_DATA_START(FixedArray) ==
+                FixedDoubleArray::kHeaderSize);
 
   Comment("[ ExtractFixedDoubleArrayFillingHoles");
 
@@ -5274,7 +5280,8 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
   FillFixedArrayWithValue(kind, to_elements, IntPtrOrSmiConstant<TIndex>(0),
                           capacity, RootIndex::kTheHoleValue);
 
-  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  const int first_element_offset =
+      OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag;
   TNode<IntPtrT> first_from_element_offset =
       ElementOffsetFromIndex(first, kind, 0);
   TNode<IntPtrT> limit_offset = IntPtrAdd(first_from_element_offset,
@@ -5542,8 +5549,9 @@ void CodeStubAssembler::StoreDoubleHole(TNode<HeapObject> object,
 
 void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                                                   TNode<IntPtrT> index) {
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(
-      index, PACKED_DOUBLE_ELEMENTS, FixedArray::kHeaderSize - kHeapObjectTag);
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS,
+                             OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
   CSA_DCHECK(this, IsOffsetInBounds(
                        offset, LoadAndUntagFixedArrayBaseLength(array),
                        FixedDoubleArray::kHeaderSize, PACKED_DOUBLE_ELEMENTS));
@@ -5563,7 +5571,7 @@ void CodeStubAssembler::FillFixedArrayWithSmiZero(ElementsKind kind,
   CSA_DCHECK(this, UintPtrLessThan(length, byte_length));
 
   static const int32_t fa_base_data_offset =
-      FixedArray::kHeaderSize - kHeapObjectTag;
+      OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag;
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(start, kind, fa_base_data_offset);
   TNode<IntPtrT> backing_store = IntPtrAdd(BitcastTaggedToWord(array), offset);
@@ -5827,12 +5835,14 @@ void CodeStubAssembler::CopyFixedArrayElements(
                  convert_holes == HoleConversionMode::kConvertToUndefined);
   CSA_SLOW_DCHECK(this, IsFixedArrayWithKindOrEmpty(from_array, from_kind));
   CSA_SLOW_DCHECK(this, IsFixedArrayWithKindOrEmpty(to_array, to_kind));
-  static_assert(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  static_assert(OFFSET_OF_DATA_START(FixedArray) ==
+                FixedDoubleArray::kHeaderSize);
   static_assert(
       std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
       "Only Smi or IntPtrT indices are allowed");
 
-  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  const int first_element_offset =
+      OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag;
   Comment("[ CopyFixedArrayElements");
 
   // Typed array elements are not supported.
@@ -10408,6 +10418,21 @@ void CodeStubAssembler::SetNameDictionaryFlags(
   Unreachable();
 }
 
+namespace {
+// TODO(leszeks): Remove once both TransitionArray and DescriptorArray are
+// HeapObjectLayout.
+template <typename Array>
+struct OffsetOfArrayDataStart;
+template <>
+struct OffsetOfArrayDataStart<TransitionArray> {
+  static constexpr int value = OFFSET_OF_DATA_START(TransitionArray);
+};
+template <>
+struct OffsetOfArrayDataStart<DescriptorArray> {
+  static constexpr int value = DescriptorArray::kHeaderSize;
+};
+}  // namespace
+
 template <typename Array>
 void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
                                      TNode<Array> array,
@@ -10430,8 +10455,8 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
   BuildFastLoop<IntPtrT>(
       last_exclusive, first_inclusive,
       [=, this](TNode<IntPtrT> name_index) {
-        TNode<MaybeObject> element =
-            LoadArrayElement(array, Array::kHeaderSize, name_index);
+        TNode<MaybeObject> element = LoadArrayElement(
+            array, OffsetOfArrayDataStart<Array>::value, name_index);
         TNode<Name> candidate_name = CAST(element);
         *var_name_index = name_index;
         GotoIf(TaggedEqual(candidate_name, unique_name), if_found);
@@ -10465,7 +10490,7 @@ TNode<Uint32T> CodeStubAssembler::NumberOfEntries<TransitionArray>(
       [=, this] { return Unsigned(Int32Constant(0)); },
       [=, this] {
         return Unsigned(LoadAndUntagToWord32ArrayElement(
-            transitions, WeakFixedArray::kHeaderSize,
+            transitions, OFFSET_OF_DATA_START(WeakFixedArray),
             IntPtrConstant(TransitionArray::kTransitionLengthIndex)));
       });
 }
@@ -10511,7 +10536,7 @@ TNode<Name> CodeStubAssembler::GetKey(TNode<Array> array,
                 "T must be a descendant of DescriptorArray or TransitionArray");
   const int key_offset = Array::ToKeyIndex(0) * kTaggedSize;
   TNode<MaybeObject> element =
-      LoadArrayElement(array, Array::kHeaderSize,
+      LoadArrayElement(array, OffsetOfArrayDataStart<Array>::value,
                        EntryIndexToIndex<Array>(entry_index), key_offset);
   return CAST(element);
 }
@@ -13783,7 +13808,8 @@ void CodeStubAssembler::BuildFastArrayForEach(
     ElementsKind kind, TNode<TIndex> first_element_inclusive,
     TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
     LoopUnrollingMode loop_unrolling_mode, ForEachDirection direction) {
-  static_assert(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  static_assert(OFFSET_OF_DATA_START(FixedArray) ==
+                FixedDoubleArray::kHeaderSize);
   CSA_SLOW_DCHECK(this, Word32Or(IsFixedArrayWithKind(array, kind),
                                  IsPropertyArray(array)));
 
@@ -13800,14 +13826,14 @@ void CodeStubAssembler::BuildFastArrayForEach(
         for (intptr_t i = first_val; i < last_val; ++i) {
           TNode<IntPtrT> index = IntPtrConstant(i);
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
-              index, kind, FixedArray::kHeaderSize - kHeapObjectTag);
+              index, kind, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
           body(array, offset);
         }
       } else {
         for (intptr_t i = last_val - 1; i >= first_val; --i) {
           TNode<IntPtrT> index = IntPtrConstant(i);
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
-              index, kind, FixedArray::kHeaderSize - kHeapObjectTag);
+              index, kind, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
           body(array, offset);
         }
       }
@@ -13815,10 +13841,12 @@ void CodeStubAssembler::BuildFastArrayForEach(
     }
   }
 
-  TNode<IntPtrT> start = ElementOffsetFromIndex(
-      first_element_inclusive, kind, FixedArray::kHeaderSize - kHeapObjectTag);
-  TNode<IntPtrT> limit = ElementOffsetFromIndex(
-      last_element_exclusive, kind, FixedArray::kHeaderSize - kHeapObjectTag);
+  TNode<IntPtrT> start =
+      ElementOffsetFromIndex(first_element_inclusive, kind,
+                             OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
+  TNode<IntPtrT> limit =
+      ElementOffsetFromIndex(last_element_exclusive, kind,
+                             OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
   if (direction == ForEachDirection::kReverse) std::swap(start, limit);
 
   int increment = IsDoubleElementsKind(kind) ? kDoubleSize : kTaggedSize;
@@ -16258,9 +16286,10 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   int const elements_size = FixedArray::SizeFor(2);
   TNode<FixedArray> elements =
       UncheckedCast<FixedArray>(Allocate(elements_size));
-  StoreObjectFieldRoot(elements, FixedArray::kMapOffset,
+  StoreObjectFieldRoot(elements, offsetof(FixedArray, map_),
                        RootIndex::kFixedArrayMap);
-  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
+  StoreObjectFieldNoWriteBarrier(elements, offsetof(FixedArray, length_),
+                                 length);
   StoreFixedArrayElement(elements, 0, key);
   StoreFixedArrayElement(elements, 1, value);
   TNode<Map> array_map = CAST(LoadContextElement(
@@ -18495,14 +18524,14 @@ TNode<ArrayList> CodeStubAssembler::AllocateArrayList(TNode<Smi> capacity) {
     }
 
     TNode<IntPtrT> total_size = GetArrayAllocationSize(
-        capacity, PACKED_ELEMENTS, ArrayList::Shape::kHeaderSize);
+        capacity, PACKED_ELEMENTS, OFFSET_OF_DATA_START(ArrayList));
     TNode<HeapObject> array = Allocate(total_size);
     RootIndex map_index = RootIndex::kArrayListMap;
     DCHECK(RootsTable::IsImmortalImmovable(map_index));
     StoreMapNoWriteBarrier(array, map_index);
-    StoreObjectFieldNoWriteBarrier(array, ArrayList::Shape::kCapacityOffset,
+    StoreObjectFieldNoWriteBarrier(array, offsetof(ArrayList, capacity_),
                                    capacity);
-    StoreObjectFieldNoWriteBarrier(array, ArrayList::Shape::kLengthOffset,
+    StoreObjectFieldNoWriteBarrier(array, offsetof(ArrayList, length_),
                                    SmiConstant(0));
 
     TNode<IntPtrT> offset_of_first_element =
@@ -18553,7 +18582,7 @@ TNode<ArrayList> CodeStubAssembler::ArrayListEnsureSpace(TNode<ArrayList> array,
   TNode<Smi> array_length = ArrayListGetLength(array);
   result_array = new_array;
   GotoIf(SmiEqual(array_length, SmiConstant(0)), &done);
-  StoreObjectFieldNoWriteBarrier(new_array, ArrayList::Shape::kLengthOffset,
+  StoreObjectFieldNoWriteBarrier(new_array, offsetof(ArrayList, length_),
                                  array_length);
   CopyRange(new_array, ArrayList::OffsetOfElementAt(0), array,
             ArrayList::OffsetOfElementAt(0), SmiUntag(array_length));
@@ -18587,12 +18616,12 @@ void CodeStubAssembler::ArrayListSet(TNode<ArrayList> array, TNode<Smi> index,
 }
 
 TNode<Smi> CodeStubAssembler::ArrayListGetLength(TNode<ArrayList> array) {
-  return CAST(LoadObjectField(array, ArrayList::Shape::kLengthOffset));
+  return CAST(LoadObjectField(array, offsetof(ArrayList, length_)));
 }
 
 void CodeStubAssembler::ArrayListSetLength(TNode<ArrayList> array,
                                            TNode<Smi> length) {
-  StoreObjectField(array, ArrayList::Shape::kLengthOffset, length);
+  StoreObjectField(array, offsetof(ArrayList, length_), length);
 }
 
 TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {

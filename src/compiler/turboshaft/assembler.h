@@ -3014,7 +3014,7 @@ class TurboshaftAssemblerOpInterface
                               compiler::WriteBarrierKind write_barrier) {
     Store(array, value, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::AnyTagged(), write_barrier,
-          FixedArray::kHeaderSize + index * kTaggedSize);
+          FixedArray::OffsetOfElementAt(index));
   }
 
   void StoreFixedArrayElement(V<FixedArray> array, V<WordPtr> index,
@@ -3022,7 +3022,7 @@ class TurboshaftAssemblerOpInterface
                               compiler::WriteBarrierKind write_barrier) {
     Store(array, index, value, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::AnyTagged(), write_barrier,
-          FixedArray::kHeaderSize, kTaggedSizeLog2);
+          OFFSET_OF_DATA_START(FixedArray), kTaggedSizeLog2);
   }
   void StoreFixedDoubleArrayElement(V<FixedDoubleArray> array, V<WordPtr> index,
                                     V<Float64> value) {

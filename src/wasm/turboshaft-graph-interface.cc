@@ -7285,7 +7285,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<Object> weak_rtt = __ Load(
             rtts, __ ChangeInt32ToIntPtr(loaded_sig),
             LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
-            WeakFixedArray::kHeaderSize, kTaggedSizeLog2);
+            OFFSET_OF_DATA_START(WeakFixedArray), kTaggedSizeLog2);
         V<Map> real_rtt =
             V<Map>::Cast(__ BitcastWordPtrToTagged(__ WordPtrBitwiseAnd(
                 __ BitcastHeapObjectToWordPtr(V<HeapObject>::Cast(weak_rtt)),

@@ -2595,9 +2595,9 @@ Handle<T> Factory::CopyArrayAndGrow(DirectHandle<T> src, int grow_by,
   initialize_length(result, new_len);
   // Copy the content.
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  T::CopyElements(isolate(), *result, 0, *src, 0, old_len, mode);
+  T::CopyElements(isolate(), result, 0, *src, 0, old_len, mode);
   // TODO(jgruber,v8:14345): Enable the static assert once all T's support it:
-  // static_assert(T::Shape::kElementSize == kTaggedSize);
+  // static_assert(T::kElementSize == kTaggedSize);
   MemsetTagged(ObjectSlot(result->RawFieldOfElementAt(old_len)),
                read_only_roots().undefined_value(), grow_by);
   return handle(result, isolate());

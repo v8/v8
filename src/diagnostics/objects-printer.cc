@@ -966,11 +966,10 @@ void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
 
 namespace {
 template <typename T>
-void PrintFixedArrayWithHeader(std::ostream& os, Tagged<T> array,
-                               const char* type) {
+void PrintFixedArrayWithHeader(std::ostream& os, T* array, const char* type) {
   array->PrintHeader(os, type);
   os << "\n - length: " << array->length();
-  PrintFixedArrayElements(os, array);
+  PrintFixedArrayElements(os, Tagged(array));
   os << "\n";
 }
 
@@ -1009,8 +1008,7 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
   os << "\n - flags: " << flags();
   os << "\n - elements:";
   PrintFixedArrayElements<ObjectBoilerplateDescription>(
-      os, *this, capacity(),
-      [](Tagged<ObjectBoilerplateDescription> xs, int i) {
+      os, this, capacity(), [](Tagged<ObjectBoilerplateDescription> xs, int i) {
         return xs->get(i);
       });
   os << "\n";
@@ -1052,15 +1050,15 @@ void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
 }
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, Tagged{*this}, "FixedArray");
+  PrintFixedArrayWithHeader(os, this, "FixedArray");
 }
 
 void TrustedFixedArray::TrustedFixedArrayPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, Tagged{*this}, "TrustedFixedArray");
+  PrintFixedArrayWithHeader(os, this, "TrustedFixedArray");
 }
 
 void ProtectedFixedArray::ProtectedFixedArrayPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, Tagged{*this}, "ProtectedFixedArray");
+  PrintFixedArrayWithHeader(os, this, "ProtectedFixedArray");
 }
 
 void ArrayList::ArrayListPrint(std::ostream& os) {
@@ -1069,7 +1067,7 @@ void ArrayList::ArrayListPrint(std::ostream& os) {
   os << "\n - length: " << length();
   os << "\n - elements:";
   PrintFixedArrayElements<ArrayList>(
-      os, *this, length(),
+      os, this, length(),
       [](Tagged<ArrayList> xs, int i) { return xs->get(i); });
   os << "\n";
 }
@@ -1081,8 +1079,7 @@ void ScriptContextTable::ScriptContextTablePrint(std::ostream& os) {
   os << "\n - names_to_context_index: " << names_to_context_index();
   os << "\n - elements:";
   PrintFixedArrayElements<ScriptContextTable>(
-      os, *this, length(kAcquireLoad),
-      [](Tagged<ScriptContextTable> xs, int i) {
+      os, this, length(kAcquireLoad), [](Tagged<ScriptContextTable> xs, int i) {
         return Cast<Object>(xs->get(i));
       });
   os << "\n";
@@ -1096,7 +1093,7 @@ void RegExpMatchInfo::RegExpMatchInfoPrint(std::ostream& os) {
   os << "\n - last_input: " << last_input();
   os << "\n - captures:";
   PrintFixedArrayElements<RegExpMatchInfo>(
-      os, Tagged{*this}, capacity(), [](Tagged<RegExpMatchInfo> xs, int i) {
+      os, this, capacity(), [](Tagged<RegExpMatchInfo> xs, int i) {
         return Cast<Object>(xs->get(i));
       });
   os << "\n";
@@ -1109,9 +1106,8 @@ void SloppyArgumentsElements::SloppyArgumentsElementsPrint(std::ostream& os) {
   os << "\n - arguments: " << Brief(arguments());
   os << "\n - mapped_entries:";
   PrintFixedArrayElements<SloppyArgumentsElements>(
-      os, Tagged(*this), length(),
-      [](Tagged<SloppyArgumentsElements> xs, int i) {
-        return xs->mapped_entries(i, kRelaxedLoad);
+      os, this, length(), [](Tagged<SloppyArgumentsElements> xs, int i) {
+        return Cast<Object>(xs->mapped_entries(i, kRelaxedLoad));
       });
   os << '\n';
 }
@@ -1232,14 +1228,14 @@ using DataPrinter = std::function<void(InternalIndex)>;
 // std::function to indicate that there is no associcated data to be printed
 // (for example in case of a hash set).
 template <typename T>
-void PrintTableContentsGeneric(std::ostream& os, T dict,
+void PrintTableContentsGeneric(std::ostream& os, T* dict,
                                DataPrinter print_data_at) {
   DisallowGarbageCollection no_gc;
-  ReadOnlyRoots roots = dict.GetReadOnlyRoots();
+  ReadOnlyRoots roots = dict->GetReadOnlyRoots();
 
-  for (InternalIndex i : dict.IterateEntries()) {
+  for (InternalIndex i : dict->IterateEntries()) {
     Tagged<Object> k;
-    if (!dict.ToKey(roots, i, &k)) continue;
+    if (!dict->ToKey(roots, i, &k)) continue;
     os << "\n   " << std::setw(12) << i.as_int() << ": ";
     if (IsString(k)) {
       Cast<String>(k)->PrintUC16(os);
@@ -1261,11 +1257,11 @@ void PrintNameDictionaryFlags(std::ostream& os, Tagged<NameDictionary> dict) {
 
 // Used for ordered and unordered dictionaries.
 template <typename T>
-void PrintDictionaryContentsFull(std::ostream& os, T dict) {
+void PrintDictionaryContentsFull(std::ostream& os, T* dict) {
   os << "\n - elements: {";
   auto print_value_and_property_details = [&](InternalIndex i) {
-    os << Brief(dict.ValueAt(i)) << " ";
-    dict.DetailsAt(i).PrintAsSlowTo(os, !T::kIsOrderedDictionaryType);
+    os << Brief(dict->ValueAt(i)) << " ";
+    dict->DetailsAt(i).PrintAsSlowTo(os, !T::kIsOrderedDictionaryType);
   };
   PrintTableContentsGeneric(os, dict, print_value_and_property_details);
   os << "\n }\n";
@@ -1273,16 +1269,16 @@ void PrintDictionaryContentsFull(std::ostream& os, T dict) {
 
 // Used for ordered and unordered hash maps.
 template <typename T>
-void PrintHashMapContentsFull(std::ostream& os, T dict) {
+void PrintHashMapContentsFull(std::ostream& os, T* dict) {
   os << "\n - elements: {";
-  auto print_value = [&](InternalIndex i) { os << Brief(dict.ValueAt(i)); };
+  auto print_value = [&](InternalIndex i) { os << Brief(dict->ValueAt(i)); };
   PrintTableContentsGeneric(os, dict, print_value);
   os << "\n }\n";
 }
 
 // Used for ordered and unordered hash sets.
 template <typename T>
-void PrintHashSetContentsFull(std::ostream& os, T dict) {
+void PrintHashSetContentsFull(std::ostream& os, T* dict) {
   os << "\n - elements: {";
   // Passing non-callable std::function as there are no values to print.
   PrintTableContentsGeneric(os, dict, nullptr);
@@ -1291,20 +1287,20 @@ void PrintHashSetContentsFull(std::ostream& os, T dict) {
 
 // Used for subtypes of OrderedHashTable.
 template <typename T>
-void PrintOrderedHashTableHeaderAndBuckets(std::ostream& os, T table,
+void PrintOrderedHashTableHeaderAndBuckets(std::ostream& os, T* table,
                                            const char* type) {
   DisallowGarbageCollection no_gc;
 
   PrintHeapObjectHeaderWithoutMap(table, os, type);
-  os << "\n - FixedArray length: " << table.length();
-  os << "\n - elements: " << table.NumberOfElements();
-  os << "\n - deleted: " << table.NumberOfDeletedElements();
-  os << "\n - buckets: " << table.NumberOfBuckets();
-  os << "\n - capacity: " << table.Capacity();
+  os << "\n - FixedArray length: " << table->length();
+  os << "\n - elements: " << table->NumberOfElements();
+  os << "\n - deleted: " << table->NumberOfDeletedElements();
+  os << "\n - buckets: " << table->NumberOfBuckets();
+  os << "\n - capacity: " << table->Capacity();
 
   os << "\n - buckets: {";
-  for (int bucket = 0; bucket < table.NumberOfBuckets(); bucket++) {
-    Tagged<Object> entry = table.get(T::HashTableStartIndex() + bucket);
+  for (int bucket = 0; bucket < table->NumberOfBuckets(); bucket++) {
+    Tagged<Object> entry = table->get(T::HashTableStartIndex() + bucket);
     DCHECK(IsSmi(entry));
     os << "\n   " << std::setw(12) << bucket << ": " << Brief(entry);
   }
@@ -1313,49 +1309,49 @@ void PrintOrderedHashTableHeaderAndBuckets(std::ostream& os, T table,
 
 // Used for subtypes of HashTable.
 template <typename T>
-void PrintHashTableHeader(std::ostream& os, T table, const char* type) {
+void PrintHashTableHeader(std::ostream& os, T* table, const char* type) {
   PrintHeapObjectHeaderWithoutMap(table, os, type);
-  os << "\n - FixedArray length: " << table.length();
-  os << "\n - elements: " << table.NumberOfElements();
-  os << "\n - deleted: " << table.NumberOfDeletedElements();
-  os << "\n - capacity: " << table.Capacity();
+  os << "\n - FixedArray length: " << table->length();
+  os << "\n - elements: " << table->NumberOfElements();
+  os << "\n - deleted: " << table->NumberOfDeletedElements();
+  os << "\n - capacity: " << table->Capacity();
 }
 }  // namespace
 
 void ObjectHashTable::ObjectHashTablePrint(std::ostream& os) {
-  PrintHashTableHeader(os, *this, "ObjectHashTable");
-  PrintHashMapContentsFull(os, *this);
+  PrintHashTableHeader(os, this, "ObjectHashTable");
+  PrintHashMapContentsFull(os, this);
 }
 
 void NameToIndexHashTable::NameToIndexHashTablePrint(std::ostream& os) {
-  PrintHashTableHeader(os, *this, "NameToIndexHashTable");
-  PrintHashMapContentsFull(os, *this);
+  PrintHashTableHeader(os, this, "NameToIndexHashTable");
+  PrintHashMapContentsFull(os, this);
 }
 
 void RegisteredSymbolTable::RegisteredSymbolTablePrint(std::ostream& os) {
-  PrintHashTableHeader(os, *this, "RegisteredSymbolTable");
-  PrintHashMapContentsFull(os, *this);
+  PrintHashTableHeader(os, this, "RegisteredSymbolTable");
+  PrintHashMapContentsFull(os, this);
 }
 
 void NumberDictionary::NumberDictionaryPrint(std::ostream& os) {
-  PrintHashTableHeader(os, *this, "NumberDictionary");
-  PrintDictionaryContentsFull(os, *this);
+  PrintHashTableHeader(os, this, "NumberDictionary");
+  PrintDictionaryContentsFull(os, this);
 }
 
 void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
-  PrintHashTableHeader(os, *this, "EphemeronHashTable");
-  PrintHashMapContentsFull(os, *this);
+  PrintHashTableHeader(os, this, "EphemeronHashTable");
+  PrintHashMapContentsFull(os, this);
 }
 
 void NameDictionary::NameDictionaryPrint(std::ostream& os) {
-  PrintHashTableHeader(os, *this, "NameDictionary");
-  PrintNameDictionaryFlags(os, *this);
-  PrintDictionaryContentsFull(os, *this);
+  PrintHashTableHeader(os, this, "NameDictionary");
+  PrintNameDictionaryFlags(os, this);
+  PrintDictionaryContentsFull(os, this);
 }
 
 void GlobalDictionary::GlobalDictionaryPrint(std::ostream& os) {
-  PrintHashTableHeader(os, *this, "GlobalDictionary");
-  PrintDictionaryContentsFull(os, *this);
+  PrintHashTableHeader(os, this, "GlobalDictionary");
+  PrintDictionaryContentsFull(os, this);
 }
 
 void SmallOrderedHashSet::SmallOrderedHashSetPrint(std::ostream& os) {
@@ -1375,18 +1371,18 @@ void SmallOrderedNameDictionary::SmallOrderedNameDictionaryPrint(
 }
 
 void OrderedHashSet::OrderedHashSetPrint(std::ostream& os) {
-  PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedHashSet");
-  PrintHashSetContentsFull(os, *this);
+  PrintOrderedHashTableHeaderAndBuckets(os, this, "OrderedHashSet");
+  PrintHashSetContentsFull(os, this);
 }
 
 void OrderedHashMap::OrderedHashMapPrint(std::ostream& os) {
-  PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedHashMap");
-  PrintHashMapContentsFull(os, *this);
+  PrintOrderedHashTableHeaderAndBuckets(os, this, "OrderedHashMap");
+  PrintHashMapContentsFull(os, this);
 }
 
 void OrderedNameDictionary::OrderedNameDictionaryPrint(std::ostream& os) {
-  PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedNameDictionary");
-  PrintDictionaryContentsFull(os, *this);
+  PrintOrderedHashTableHeaderAndBuckets(os, this, "OrderedNameDictionary");
+  PrintDictionaryContentsFull(os, this);
 }
 
 void print_hex_byte(std::ostream& os, int value) {
@@ -1559,7 +1555,7 @@ void ClosureFeedbackCellArray::ClosureFeedbackCellArrayPrint(std::ostream& os) {
   PrintHeader(os, "ClosureFeedbackCellArray");
   os << "\n - length: " << length();
   os << "\n - elements:";
-  PrintFixedArrayElements<ClosureFeedbackCellArray>(os, *this);
+  PrintFixedArrayElements<ClosureFeedbackCellArray>(os, this);
   os << "\n";
 }
 

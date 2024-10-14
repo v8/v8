@@ -5446,11 +5446,13 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
     for (auto it = table_map->begin(); it != table_map->end(); it++) {
       Tagged<EphemeronHashTable> table = it->first;
       auto& indices = it->second;
-      if (table->map_word(cage_base, kRelaxedLoad).IsForwardingAddress()) {
+      if (Cast<HeapObject>(table)
+              ->map_word(kRelaxedLoad)
+              .IsForwardingAddress()) {
         // The object has moved, so ignore slots in dead memory here.
         continue;
       }
-      DCHECK(IsMap(table->map(cage_base), cage_base));
+      DCHECK(IsMap(table->map(), cage_base));
       DCHECK(IsEphemeronHashTable(table, cage_base));
       for (auto iti = indices.begin(); iti != indices.end(); ++iti) {
         // EphemeronHashTable keys must be heap objects.

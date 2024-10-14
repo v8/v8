@@ -39,6 +39,7 @@
 #include "src/objects/source-text-module.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module.h"
+#include "src/objects/tagged-field.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions.h"
@@ -1766,9 +1767,10 @@ class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    int entries_start = EphemeronHashTable::kHeaderSize +
-                        EphemeronHashTable::kElementsStartIndex * kTaggedSize;
-    IteratePointers(obj, EphemeronHashTable::kHeaderSize, entries_start, v);
+    int entries_start = EphemeronHashTable::OffsetOfElementAt(
+        EphemeronHashTable::kElementsStartIndex);
+    IteratePointers(obj, OFFSET_OF_DATA_START(EphemeronHashTable),
+                    entries_start, v);
     Tagged<EphemeronHashTable> table = UncheckedCast<EphemeronHashTable>(obj);
     for (InternalIndex i : table->IterateEntries()) {
       const int key_index = EphemeronHashTable::EntryToIndex(i);
@@ -1850,8 +1852,8 @@ class ProtectedFixedArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    for (int offset = kHeaderSize; offset < object_size;
-         offset += kTaggedSize) {
+    for (int offset = OFFSET_OF_DATA_START(ProtectedFixedArray);
+         offset < object_size; offset += kTaggedSize) {
       IterateProtectedPointer(obj, offset, v);
     }
   }

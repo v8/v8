@@ -282,7 +282,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     var_elements = CAST(CallRuntime(Runtime::kCreateListFromArrayLike, context,
                                     arguments_list));
     var_length = LoadAndUntagToWord32ObjectField(var_elements.value(),
-                                                 FixedArray::kLengthOffset);
+                                                 offsetof(FixedArray, length_));
     Goto(&if_done);
   }
 

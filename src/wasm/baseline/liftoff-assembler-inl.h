@@ -105,7 +105,7 @@ void LiftoffAssembler::PopToFixedRegister(LiftoffRegister reg) {
 void LiftoffAssembler::LoadFixedArrayLengthAsInt32(LiftoffRegister dst,
                                                    Register array,
                                                    LiftoffRegList pinned) {
-  int offset = FixedArray::kLengthOffset - kHeapObjectTag;
+  int offset = offsetof(FixedArray, length_) - kHeapObjectTag;
   LoadSmiAsInt32(dst, array, offset);
 }
 

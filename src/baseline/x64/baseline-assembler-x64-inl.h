@@ -377,13 +377,15 @@ void BaselineAssembler::LoadTaggedField(Register output, TaggedRegister source,
 void BaselineAssembler::LoadFixedArrayElement(Register output,
                                               TaggedRegister array,
                                               int32_t index) {
-  LoadTaggedField(output, array, FixedArray::kHeaderSize + index * kTaggedSize);
+  LoadTaggedField(output, array,
+                  OFFSET_OF_DATA_START(FixedArray) + index * kTaggedSize);
 }
 
 void BaselineAssembler::LoadFixedArrayElement(TaggedRegister output,
                                               TaggedRegister array,
                                               int32_t index) {
-  LoadTaggedField(output, array, FixedArray::kHeaderSize + index * kTaggedSize);
+  LoadTaggedField(output, array,
+                  OFFSET_OF_DATA_START(FixedArray) + index * kTaggedSize);
 }
 
 void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,

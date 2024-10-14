@@ -26,18 +26,24 @@
 // alignment, since we have int32 fields), and to add warnings which ensure that
 // there is no unwanted within-object padding.
 #if V8_CC_GNU
-
 #define V8_OBJECT_PUSH                                                    \
   _Pragma("pack(push)") _Pragma("pack(4)") _Pragma("GCC diagnostic push") \
       _Pragma("GCC diagnostic error \"-Wpadded\"")
 #define V8_OBJECT_POP _Pragma("pack(pop)") _Pragma("GCC diagnostic pop")
+#elif V8_CC_MSVC
+#define V8_OBJECT_PUSH                                           \
+  __pragma(pack(push)) __pragma(pack(4)) __pragma(warning(push)) \
+      __pragma(warning(default : 4820))
+#define V8_OBJECT_POP __pragma(pack(pop)) __pragma(warning(pop))
+#else
+#error Unsupported compiler
+#endif
 
 #define V8_OBJECT V8_OBJECT_PUSH
-
-// GCC wants this pragma to be a new statement, but we prefer to have
+// Compilers wants the pragmas to be a new statement, but we prefer to have
 // V8_OBJECT_END look like part of the definition. Insert a semicolon before the
-// pragma to make gcc happy, and use static_assert(true) to swallow the next
-// semicolon.
+// pragma to make the compilers happy, and use static_assert(true) to swallow
+// the next semicolon.
 #define V8_OBJECT_END \
   ;                   \
   V8_OBJECT_POP static_assert(true)
@@ -46,21 +52,6 @@
 #define V8_OBJECT_INNER_CLASS_END \
   ;                               \
   V8_OBJECT_PUSH static_assert(true)
-
-#elif V8_CC_MSVC
-#define V8_OBJECT_PUSH                                           \
-  __pragma(pack(push)) __pragma(pack(4)) __pragma(warning(push)) \
-      __pragma(warning(default : 4820))
-#define V8_OBJECT_POP __pragma(pack(pop)) __pragma(warning(pop))
-
-#define V8_OBJECT V8_OBJECT_PUSH
-#define V8_OBJECT_END V8_OBJECT_POP
-
-#define V8_OBJECT_INNER_CLASS V8_OBJECT_POP
-#define V8_OBJECT_INNER_CLASS_END V8_OBJECT_PUSH
-#else
-#error Unsupported compiler
-#endif
 
 // Since this changes visibility, it should always be last in a class
 // definition.
@@ -705,7 +696,6 @@
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
-#define WRITE_BARRIER_CPP(object, offset, value)
 #else
 #define WRITE_BARRIER(object, offset, value)                                \
   do {                                                                      \
@@ -725,21 +715,6 @@
     static_assert(kTaggedCanConvertToRawObjects);                             \
     WriteBarrier::ForValue(object, Tagged(object)->RawMaybeWeakField(offset), \
                            value, UPDATE_WRITE_BARRIER);                      \
-  } while (false)
-#endif
-
-#ifdef V8_DISABLE_WRITE_BARRIERS
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)
-#elif V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value) \
-  WRITE_BARRIER(object, offset, value)
-#else
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)                 \
-  do {                                                                     \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                          \
-    WriteBarrier::ForEphemeronHashTable(Cast<EphemeronHashTable>(object),  \
-                                        (object)->RawField(offset), value, \
-                                        UPDATE_WRITE_BARRIER);             \
   } while (false)
 #endif
 
@@ -789,18 +764,6 @@
     DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                              \
     WriteBarrier::ForValue(object, (object)->RawMaybeWeakField(offset), value, \
                            mode);                                              \
-  } while (false)
-#endif
-
-#ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode)
-#else
-#define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode) \
-  do {                                                                       \
-    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                            \
-    WriteBarrier::ForEphemeronHashTable(Cast<EphemeronHashTable>(object),    \
-                                        (object)->RawField(offset), value,   \
-                                        mode);                               \
   } while (false)
 #endif
 

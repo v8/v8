@@ -540,7 +540,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Cbz(x10, &done);
     __ SlotAddress(x12, x10);
     __ Add(x5, x5, Operand(x10, LSL, kTaggedSizeLog2));
-    __ Add(x5, x5, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    __ Add(x5, x5, Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
     __ Bind(&loop);
     __ Sub(x10, x10, 1);
     __ LoadTaggedField(x11, MemOperand(x5, -kTaggedSize, PreIndex));
@@ -2670,7 +2670,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Register src = x10;
     Register undefined_value = x12;
     Register scratch = x13;
-    __ Add(src, arguments_list, FixedArray::kHeaderSize - kHeapObjectTag);
+    __ Add(src, arguments_list,
+           OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
 #if !V8_STATIC_ROOTS_BOOL
     // We do not use the CompareRoot macro without static roots as it would do a
     // LoadRoot behind the scenes and we want to avoid that in a loop.
@@ -2876,7 +2877,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   __ LoadTaggedField(
       bound_argv, FieldMemOperand(x1, JSBoundFunction::kBoundArgumentsOffset));
   __ SmiUntagField(bound_argc,
-                   FieldMemOperand(bound_argv, FixedArray::kLengthOffset));
+                   FieldMemOperand(bound_argv, offsetof(FixedArray, length_)));
   __ Cbz(bound_argc, &no_bound_arguments);
   {
     // ----------- S t a t e -------------
@@ -2971,7 +2972,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       Label loop;
       Register counter = bound_argc;
       Register copy_to = x12;
-      __ Add(bound_argv, bound_argv, FixedArray::kHeaderSize - kHeapObjectTag);
+      __ Add(bound_argv, bound_argv,
+             OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
       __ SlotAddress(copy_to, 1);
       __ Bind(&loop);
       __ Sub(counter, counter, 1);
@@ -3259,7 +3261,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
       vector, FieldMemOperand(kWasmImplicitArgRegister,
                               WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ Add(vector, vector, Operand(func_index, LSL, kTaggedSizeLog2));
-  __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
+  __ LoadTaggedField(vector,
+                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
   __ Push(vector, xzr);

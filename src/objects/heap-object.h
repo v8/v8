@@ -53,8 +53,9 @@ V8_OBJECT class HeapObjectLayout {
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
+  template <typename IsolateT>
   inline void set_map_after_allocation(
-      Isolate* isolate, Tagged<Map> value,
+      IsolateT* isolate, Tagged<Map> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // The no-write-barrier version.  This is OK if the object is white and in
@@ -103,6 +104,16 @@ V8_OBJECT class HeapObjectLayout {
 
  private:
   friend class HeapObject;
+  friend class Heap;
+  friend class CodeStubAssembler;
+
+  // HeapObjects shouldn't be copied or moved by C++ code, only by the GC.
+  // TODO(leszeks): Consider making these non-deleted if the GC starts using
+  // HeapObjectLayout rather than manual per-byte access.
+  HeapObjectLayout(HeapObjectLayout&&) V8_NOEXCEPT = delete;
+  HeapObjectLayout(const HeapObjectLayout&) V8_NOEXCEPT = delete;
+  HeapObjectLayout& operator=(HeapObjectLayout&&) V8_NOEXCEPT = delete;
+  HeapObjectLayout& operator=(const HeapObjectLayout&) V8_NOEXCEPT = delete;
 
   TaggedMember<Map> map_;
 } V8_OBJECT_END;

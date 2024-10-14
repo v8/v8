@@ -124,7 +124,7 @@ INSTANTIATE_TEST_SUITE_P(SimplifiedOperatorTest, SimplifiedPureOperatorTest,
 // Element access operators.
 
 const ElementAccess kElementAccesses[] = {
-    {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
+    {kTaggedBase, OFFSET_OF_DATA_START(FixedArray), Type::Any(),
      MachineType::AnyTagged(), kFullWriteBarrier},
     {kUntaggedBase, 0, Type::Any(), MachineType::Int8(), kNoWriteBarrier},
     {kUntaggedBase, 0, Type::Any(), MachineType::Int16(), kNoWriteBarrier},

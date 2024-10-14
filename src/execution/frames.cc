@@ -3237,7 +3237,7 @@ Tagged<DeoptimizationData> OptimizedFrame::GetDeoptimizationData(
     }
   }
   *deopt_index = SafepointEntry::kNoDeoptIndex;
-  return DeoptimizationData();
+  return {};
 }
 
 void OptimizedFrame::GetFunctions(

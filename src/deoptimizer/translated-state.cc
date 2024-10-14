@@ -1239,7 +1239,8 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 
   object_positions_.push_back({frame_index, value_index});
   frame.Add(TranslatedValue::NewDeferredObject(
-      this, length + FixedArray::kHeaderSize / kTaggedSize, object_index));
+      this, length + OFFSET_OF_DATA_START(FixedArray) / kTaggedSize,
+      object_index));
 
   ReadOnlyRoots roots(isolate_);
   frame.Add(TranslatedValue::NewTagged(this, roots.fixed_array_map()));
@@ -2350,8 +2351,9 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
     Representation representation = descriptors->GetDetails(i).representation();
     if (index.is_inobject() &&
         (representation.IsDouble() || representation.IsHeapObject())) {
-      CHECK_GE(index.index(), FixedArray::kHeaderSize / kTaggedSize);
-      int array_index = index.index() * kTaggedSize - FixedArray::kHeaderSize;
+      CHECK_GE(index.index(), OFFSET_OF_DATA_START(FixedArray) / kTaggedSize);
+      int array_index =
+          index.index() * kTaggedSize - OFFSET_OF_DATA_START(FixedArray);
       raw_object_storage->set(array_index, kStoreHeapObject);
     }
   }

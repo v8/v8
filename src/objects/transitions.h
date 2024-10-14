@@ -468,8 +468,6 @@ class TransitionArray : public WeakFixedArray {
 
   inline Tagged<WeakFixedArray> GetSideStepTransitions();
   inline void SetSideStepTransitions(Tagged<WeakFixedArray> transitions);
-
-  OBJECT_CONSTRUCTORS(TransitionArray, WeakFixedArray);
 };
 
 }  // namespace v8::internal

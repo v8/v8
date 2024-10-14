@@ -547,7 +547,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
   }
   const int end = std::min(size, start + kProgressBarScanningChunk);
   if (start < end) {
-    VisitPointers(object, object->RawField(start), object->RawField(end));
+    VisitPointers(object, Cast<HeapObject>(object)->RawField(start),
+                  Cast<HeapObject>(object)->RawField(end));
     const bool success = progress_bar.TrySetNewValue(current_progress_bar, end);
     CHECK(success);
     if (end < size) {
@@ -598,7 +599,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
   for (InternalIndex i : table->IterateEntries()) {
     ObjectSlot key_slot =
         table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-    Tagged<HeapObject> key = Cast<HeapObject>(table->KeyAt(i));
+    Tagged<HeapObject> key = Cast<HeapObject>(table->KeyAt(i, kRelaxedLoad));
 
     SynchronizePageAccess(key);
     concrete_visitor()->RecordSlot(table, key_slot, key);

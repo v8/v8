@@ -722,7 +722,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   next = arr->address() + arr->Size();
 
   // Expect the page to be black.
-  page = PageMetadata::FromHeapObject(arr->GetHeapObject());
+  page = PageMetadata::FromHeapObject(*arr);
   EXPECT_TRUE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
 
   // Invoke GC.

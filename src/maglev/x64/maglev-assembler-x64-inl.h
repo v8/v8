@@ -395,7 +395,7 @@ void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
                           AbortReason::kUnexpectedNegativeValue);
   }
   LoadTaggedFieldByIndex(result, array, index, kTaggedSize,
-                         FixedArray::kHeaderSize);
+                         OFFSET_OF_DATA_START(FixedArray));
 }
 
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
@@ -406,8 +406,8 @@ void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
                           AbortReason::kUnexpectedNegativeValue);
   }
   MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-      result,
-      FieldOperand(array, index, times_tagged_size, FixedArray::kHeaderSize));
+      result, FieldOperand(array, index, times_tagged_size,
+                           OFFSET_OF_DATA_START(FixedArray)));
 }
 
 void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
@@ -460,8 +460,8 @@ inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
 }
 inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
     Register slot_reg, Register object, Register index) {
-  leaq(slot_reg,
-       FieldOperand(object, index, times_tagged_size, FixedArray::kHeaderSize));
+  leaq(slot_reg, FieldOperand(object, index, times_tagged_size,
+                              OFFSET_OF_DATA_START(FixedArray)));
 }
 
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
@@ -473,7 +473,8 @@ inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
 inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
     Register array, Register index, Register value) {
   MacroAssembler::StoreTaggedField(
-      FieldOperand(array, index, times_tagged_size, FixedArray::kHeaderSize),
+      FieldOperand(array, index, times_tagged_size,
+                   OFFSET_OF_DATA_START(FixedArray)),
       value);
 }
 

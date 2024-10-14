@@ -5527,13 +5527,13 @@ TEST(PreprocessStackTrace) {
 }
 
 void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
-  CHECK_LE(FixedArray::kHeaderSize, bytes);
+  CHECK_LE(OFFSET_OF_DATA_START(FixedArray), bytes);
   CHECK(IsAligned(bytes, kTaggedSize));
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   AlwaysAllocateScopeForTesting always_allocate(isolate->heap());
-  int elements =
-      static_cast<int>((bytes - FixedArray::kHeaderSize) / kTaggedSize);
+  int elements = static_cast<int>((bytes - OFFSET_OF_DATA_START(FixedArray)) /
+                                  kTaggedSize);
   DirectHandle<FixedArray> array = factory->NewFixedArray(
       elements,
       space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
@@ -5765,8 +5765,8 @@ HEAP_TEST(Regress587004) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  const int N =
-      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) / kTaggedSize;
+  const int N = (kMaxRegularHeapObjectSize - OFFSET_OF_DATA_START(FixedArray)) /
+                kTaggedSize;
   DirectHandle<FixedArray> array =
       factory->NewFixedArray(N, AllocationType::kOld);
   CHECK(heap->old_space()->Contains(*array));

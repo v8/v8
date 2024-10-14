@@ -128,17 +128,19 @@ void WriteBarrier::ForValue(Tagged<HeapObject> host, MaybeObjectSlot slot,
 }
 
 // static
+template <typename T>
 void WriteBarrier::ForValue(HeapObjectLayout* host, TaggedMemberBase* slot,
-                            Tagged<Object> value, WriteBarrierMode mode) {
+                            Tagged<T> value, WriteBarrierMode mode) {
   if (mode == SKIP_WRITE_BARRIER) {
     SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
     return;
   }
-  if (!value.IsHeapObject()) {
+  Tagged<HeapObject> value_object;
+  if (!value.GetHeapObject(&value_object)) {
     return;
   }
   CombinedWriteBarrierInternal(Tagged(host), HeapObjectSlot(ObjectSlot(slot)),
-                               Cast<HeapObject>(value), mode);
+                               value_object, mode);
 }
 
 //   static

@@ -185,7 +185,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   Label named_captures(this), maybe_build_indices(this), out(this);
 
   TNode<IntPtrT> num_indices = PositiveSmiUntag(CAST(LoadObjectField(
-      match_info, RegExpMatchInfo::kNumberOfCaptureRegistersOffset)));
+      match_info, offsetof(RegExpMatchInfo, number_of_capture_registers_))));
   TNode<Smi> num_results = SmiTag(WordShr(num_indices, 1));
   TNode<Smi> start = LoadArrayElement(match_info, IntPtrConstant(0));
   TNode<Smi> end = LoadArrayElement(match_info, IntPtrConstant(1));
@@ -644,7 +644,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     }
 
     // Check that the last match info has space for the capture registers.
-    TNode<Smi> available_slots = LoadArrayCapacity(match_info);
+    TNode<Smi> available_slots = LoadSmiArrayLength(match_info);
     TNode<Smi> capture_count =
         LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
     // Calculate number of register_count = (capture_count + 1) * 2.
@@ -654,10 +654,12 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Fill match_info.
     StoreObjectField(match_info,
-                     RegExpMatchInfo::kNumberOfCaptureRegistersOffset,
+                     offsetof(RegExpMatchInfo, number_of_capture_registers_),
                      register_count);
-    StoreObjectField(match_info, RegExpMatchInfo::kLastSubjectOffset, string);
-    StoreObjectField(match_info, RegExpMatchInfo::kLastInputOffset, string);
+    StoreObjectField(match_info, offsetof(RegExpMatchInfo, last_subject_),
+                     string);
+    StoreObjectField(match_info, offsetof(RegExpMatchInfo, last_input_),
+                     string);
 
     // Fill match and capture offsets in match_info.
     {
@@ -945,11 +947,11 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
         SmiAdd(match_from, LoadStringLengthAsSmi(needle_string));
 
     StoreObjectField(match_info,
-                     RegExpMatchInfo::kNumberOfCaptureRegistersOffset,
+                     offsetof(RegExpMatchInfo, number_of_capture_registers_),
                      SmiConstant(kNumRegisters));
-    StoreObjectField(match_info, RegExpMatchInfo::kLastSubjectOffset,
+    StoreObjectField(match_info, offsetof(RegExpMatchInfo, last_subject_),
                      subject_string);
-    StoreObjectField(match_info, RegExpMatchInfo::kLastInputOffset,
+    StoreObjectField(match_info, offsetof(RegExpMatchInfo, last_input_),
                      subject_string);
     UnsafeStoreArrayElement(match_info, 0, match_from,
                             UNSAFE_SKIP_WRITE_BARRIER);
@@ -1620,7 +1622,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
     // Add all captures to the array.
     {
       const TNode<Smi> num_registers = CAST(LoadObjectField(
-          match_info, RegExpMatchInfo::kNumberOfCaptureRegistersOffset));
+          match_info, offsetof(RegExpMatchInfo, number_of_capture_registers_)));
       const TNode<IntPtrT> int_num_registers = PositiveSmiUntag(num_registers);
 
       TVARIABLE(IntPtrT, var_reg, IntPtrConstant(2));

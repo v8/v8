@@ -1377,7 +1377,7 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
   } else if (IsTransitionArray(obj)) {
     ExtractTransitionArrayReferences(entry, Cast<TransitionArray>(obj));
   } else if (IsWeakFixedArray(obj)) {
-    ExtractWeakArrayReferences(WeakFixedArray::kHeaderSize, entry,
+    ExtractWeakArrayReferences(OFFSET_OF_DATA_START(WeakFixedArray), entry,
                                Cast<WeakFixedArray>(obj));
   } else if (IsWeakArrayList(obj)) {
     ExtractWeakArrayReferences(WeakArrayList::kHeaderSize, entry,

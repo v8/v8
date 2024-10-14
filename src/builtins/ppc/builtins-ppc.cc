@@ -748,8 +748,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ blt(&done_loop);
     __ ShiftLeftU64(r10, r6, Operand(kTaggedSizeLog2));
     __ add(scratch, r5, r10);
-    __ LoadTaggedField(scratch,
-                       FieldMemOperand(scratch, FixedArray::kHeaderSize), r0);
+    __ LoadTaggedField(
+        scratch, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)),
+        r0);
     __ Push(scratch);
     __ b(&loop);
     __ bind(&done_loop);
@@ -2520,7 +2521,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ cmpi(r7, Operand::Zero());
     __ beq(&no_args);
     __ addi(r5, r5,
-            Operand(FixedArray::kHeaderSize - kHeapObjectTag - kTaggedSize));
+            Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag -
+                    kTaggedSize));
     __ mtctr(r7);
     __ bind(&loop);
     __ LoadTaggedField(scratch, MemOperand(r5, kTaggedSize), r0);
@@ -2733,7 +2735,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedField(
       r5, FieldMemOperand(r4, JSBoundFunction::kBoundArgumentsOffset), r0);
-  __ SmiUntag(r7, FieldMemOperand(r5, FixedArray::kLengthOffset), SetRC, r0);
+  __ SmiUntag(r7, FieldMemOperand(r5, offsetof(FixedArray, length_)), SetRC,
+              r0);
   __ beq(&no_bound_arguments, cr0);
   {
     // ----------- S t a t e -------------
@@ -2773,7 +2776,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop, done;
       __ add(r3, r3, r7);  // Adjust effective number of arguments.
-      __ addi(r5, r5, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ addi(r5, r5,
+              Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
       __ mtctr(r7);
 
       __ bind(&loop);
@@ -3055,7 +3059,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
       scratch);
   __ ShiftLeftU64(scratch, func_index, Operand(kTaggedSizeLog2));
   __ AddS64(vector, vector, scratch);
-  __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize),
+  __ LoadTaggedField(vector,
+                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)),
                      scratch);
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);

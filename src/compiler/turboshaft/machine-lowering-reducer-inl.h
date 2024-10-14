@@ -1582,8 +1582,9 @@ class MachineLoweringReducer : public Next {
       case NewArrayOp::Kind::kObject: {
         size_log2 = kTaggedSizeLog2;
         array_map = factory_->fixed_array_map();
-        access = {kTaggedBase, FixedArray::kHeaderSize, compiler::Type::Any(),
-                  MachineType::AnyTagged(), kNoWriteBarrier};
+        access = {kTaggedBase, OFFSET_OF_DATA_START(FixedArray),
+                  compiler::Type::Any(), MachineType::AnyTagged(),
+                  kNoWriteBarrier};
         the_hole_value = __ HeapConstant(factory_->the_hole_value());
         break;
       }
@@ -1683,7 +1684,8 @@ class MachineLoweringReducer : public Next {
             __ Load(properties, out_of_object_index,
                     LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
                     MemoryRepresentation::AnyTagged(),
-                    FixedArray::kHeaderSize - kTaggedSize, kTaggedSizeLog2 - 1);
+                    OFFSET_OF_DATA_START(FixedArray) - kTaggedSize,
+                    kTaggedSizeLog2 - 1);
         GOTO(done, result);
       } ELSE {
         // This field is located in the {object} itself.
@@ -1707,11 +1709,11 @@ class MachineLoweringReducer : public Next {
             object, AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer());
 
         V<WordPtr> out_of_object_index = __ WordPtrSub(0, double_index);
-        V<Object> result =
-            __ Load(properties, out_of_object_index,
-                    LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
-                    MemoryRepresentation::AnyTagged(),
-                    FixedArray::kHeaderSize - kTaggedSize, kTaggedSizeLog2);
+        V<Object> result = __ Load(
+            properties, out_of_object_index,
+            LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase),
+            MemoryRepresentation::AnyTagged(),
+            OFFSET_OF_DATA_START(FixedArray) - kTaggedSize, kTaggedSizeLog2);
         GOTO(loaded_field, result);
       } ELSE {
         // The field is located in the {object} itself.

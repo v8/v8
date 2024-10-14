@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 
 @abstract
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class FixedArrayBase extends HeapObject {
   const length: Smi;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 @generateBodyDescriptor
 extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
@@ -16,13 +16,13 @@ extern class FixedArray extends FixedArrayBase {
 
 type EmptyFixedArray extends FixedArray;
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class TrustedFixedArray extends TrustedObject {
   const length: Smi;
   objects[length]: Object;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class ProtectedFixedArray extends TrustedObject {
   const length: Smi;
   objects[length]: TrustedObject|Smi;
@@ -33,13 +33,13 @@ extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
   objects[length]: MaybeObject;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class TrustedWeakFixedArray extends TrustedObject {
   const length: Smi;
   objects[length]: MaybeObject;
@@ -58,7 +58,7 @@ extern class TrustedByteArray extends TrustedObject {
 
 extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class ArrayList extends HeapObject {
   const capacity: Smi;
   length: Smi;

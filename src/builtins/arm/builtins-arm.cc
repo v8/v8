@@ -410,7 +410,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ sub(r3, r3, Operand(1), SetCC);
     __ b(lt, &done_loop);
     __ add(scratch, r2, Operand(r3, LSL, kTaggedSizeLog2));
-    __ ldr(scratch, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+    __ ldr(scratch, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
     __ Push(scratch);
     __ b(&loop);
     __ bind(&done_loop);
@@ -2292,7 +2292,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ cmp(r6, r4);
     __ b(eq, &done);
     __ add(scratch, r2, Operand(r6, LSL, kTaggedSizeLog2));
-    __ ldr(scratch, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+    __ ldr(scratch, FieldMemOperand(scratch, OFFSET_OF_DATA_START(FixedArray)));
     __ cmp(scratch, r5);
     // Turn the hole into undefined as we go.
     __ LoadRoot(scratch, RootIndex::kUndefinedValue, eq);
@@ -2493,7 +2493,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   // Load [[BoundArguments]] into r2 and length of that into r4.
   Label no_bound_arguments;
   __ ldr(r2, FieldMemOperand(r1, JSBoundFunction::kBoundArgumentsOffset));
-  __ ldr(r4, FieldMemOperand(r2, FixedArray::kLengthOffset));
+  __ ldr(r4, FieldMemOperand(r2, offsetof(FixedArray, length_)));
   __ SmiUntag(r4);
   __ cmp(r4, Operand(0));
   __ b(eq, &no_bound_arguments);
@@ -2544,7 +2544,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop;
       __ add(r0, r0, r4);  // Adjust effective number of arguments.
-      __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ add(r2, r2,
+             Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
       __ bind(&loop);
       __ sub(r4, r4, Operand(1), SetCC);
       __ ldr(scratch, MemOperand(r2, r4, LSL, kTaggedSizeLog2));
@@ -2819,7 +2820,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
          FieldMemOperand(kWasmImplicitArgRegister,
                          WasmTrustedInstanceData::kFeedbackVectorsOffset));
   __ add(vector, vector, Operand(func_index, LSL, kTaggedSizeLog2));
-  __ ldr(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
+  __ ldr(vector, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
   __ push(kWasmImplicitArgRegister);

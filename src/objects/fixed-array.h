@@ -26,18 +26,72 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
-// Derived: must have a Smi slot at kCapacityOffset.
-template <class Derived, class ShapeT, class Super = HeapObject>
-class TaggedArrayBase : public Super {
-  static_assert(std::is_base_of<HeapObject, Super>::value);
-  OBJECT_CONSTRUCTORS(TaggedArrayBase, Super);
+namespace detail {
+template <class Super, bool kLengthEqualsCapacity>
+class TaggedArrayHeaderBase;
 
+V8_OBJECT template <class Super>
+class TaggedArrayHeaderBase<Super, false> : public Super {
+ public:
+  inline int capacity() const;
+  inline int capacity(AcquireLoadTag tag) const;
+  inline void set_capacity(int value);
+  inline void set_capacity(int value, ReleaseStoreTag tag);
+
+  // TODO(leszeks): Make this private.
+ public:
+  TaggedMember<Smi> capacity_;
+} V8_OBJECT_END;
+
+V8_OBJECT template <class Super>
+class TaggedArrayHeaderBase<Super, true> : public Super {
+ public:
+  inline int length() const;
+  inline int length(AcquireLoadTag tag) const;
+  inline void set_length(int value);
+  inline void set_length(int value, ReleaseStoreTag tag);
+
+  inline int capacity() const;
+  inline int capacity(AcquireLoadTag tag) const;
+  inline void set_capacity(int value);
+  inline void set_capacity(int value, ReleaseStoreTag tag);
+
+  // TODO(leszeks): Make this private.
+ public:
+  TaggedMember<Smi> length_;
+} V8_OBJECT_END;
+
+template <class Shape, class Super, typename = void>
+struct TaggedArrayHeaderHelper {
+  using type = TaggedArrayHeaderBase<Super, Shape::kLengthEqualsCapacity>;
+};
+template <class Shape, class Super>
+struct TaggedArrayHeaderHelper<
+    Shape, Super, std::void_t<typename Shape::template ExtraFields<Super>>> {
+  using BaseHeader = TaggedArrayHeaderBase<Super, Shape::kLengthEqualsCapacity>;
+  using type = typename Shape::template ExtraFields<BaseHeader>;
+  static_assert(std::is_base_of<BaseHeader, type>::value);
+};
+template <class Shape, class Super>
+using TaggedArrayHeader = typename TaggedArrayHeaderHelper<Shape, Super>::type;
+}  // namespace detail
+
+#define V8_ARRAY_EXTRA_FIELDS(...)    \
+  V8_OBJECT template <typename Super> \
+  struct ExtraFields : public Super __VA_ARGS__ V8_OBJECT_END
+
+// Derived: must not have any fields - extra fields can be specified in the
+// Shap using V8_ARRAY_EXTRA_FIELDS.
+V8_OBJECT template <class Derived, class ShapeT, class Super = HeapObjectLayout>
+class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
+  static_assert(std::is_base_of<HeapObjectLayout, Super>::value);
   using ElementT = typename ShapeT::ElementT;
-  static_assert(ShapeT::kElementSize == kTaggedSize);
+
+  static_assert(sizeof(TaggedMember<ElementT>) == kTaggedSize);
   static_assert(is_subtype_v<ElementT, MaybeObject>);
 
-  using ElementFieldT =
-      TaggedField<ElementT, 0, typename ShapeT::CompressionScheme>;
+  using ElementMemberT =
+      TaggedMember<ElementT, typename ShapeT::CompressionScheme>;
 
   template <typename ElementT>
   static constexpr bool kSupportsSmiElements =
@@ -47,7 +101,9 @@ class TaggedArrayBase : public Super {
       std::is_same_v<ElementT, Smi> ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
 
  public:
+  using Header = detail::TaggedArrayHeader<ShapeT, Super>;
   static constexpr bool kElementsAreMaybeObject = is_maybe_weak_v<ElementT>;
+  static constexpr int kElementSize = kTaggedSize;
 
  private:
   using SlotType =
@@ -55,26 +111,6 @@ class TaggedArrayBase : public Super {
 
  public:
   using Shape = ShapeT;
-
-  inline int capacity() const;
-  inline int capacity(AcquireLoadTag) const;
-  inline void set_capacity(int value);
-  inline void set_capacity(int value, ReleaseStoreTag);
-
-  // For most arraylike objects, length equals capacity. Provide these
-  // convenience accessors:
-  template <typename T = Shape,
-            typename = std::enable_if<T::kLengthEqualsCapacity>>
-  inline int length() const;
-  template <typename T = Shape,
-            typename = std::enable_if<T::kLengthEqualsCapacity>>
-  inline int length(AcquireLoadTag tag) const;
-  template <typename T = Shape,
-            typename = std::enable_if<T::kLengthEqualsCapacity>>
-  inline void set_length(int value);
-  template <typename T = Shape,
-            typename = std::enable_if<T::kLengthEqualsCapacity>>
-  inline void set_length(int value, ReleaseStoreTag tag);
 
   inline Tagged<ElementT> get(int index) const;
   inline Tagged<ElementT> get(int index, RelaxedLoadTag) const;
@@ -126,7 +162,7 @@ class TaggedArrayBase : public Super {
 
   inline int AllocatedSize() const;
   static inline constexpr int SizeFor(int capacity) {
-    return Shape::kHeaderSize + capacity * Shape::kElementSize;
+    return sizeof(Header) + capacity * kElementSize;
   }
   static inline constexpr int OffsetOfElementAt(int index) {
     return SizeFor(index);
@@ -140,21 +176,15 @@ class TaggedArrayBase : public Super {
   // into a Smi which is necessary for being able to create a free space
   // filler.
   // TODO(jgruber): The kMaxCapacity could be larger (`(Smi::kMaxValue -
-  // Shape::kHeaderSize) / Shape::kElementSize`), but our tests rely on a
+  // Shape::kHeaderSize) / kElementSize`), but our tests rely on a
   // smaller maximum to avoid timeouts.
-  static constexpr int kMaxCapacity =
-      128 * MB - Super::kHeaderSize / Shape::kElementSize;
+  static constexpr int kMaxCapacity = 128 * MB - sizeof(Header) / kElementSize;
   static_assert(Smi::IsValid(SizeFor(kMaxCapacity)));
 
   // Maximally allowed length for regular (non large object space) object.
   static constexpr int kMaxRegularCapacity =
-      (kMaxRegularHeapObjectSize - Shape::kHeaderSize) / Shape::kElementSize;
+      (kMaxRegularHeapObjectSize - sizeof(Header)) / kElementSize;
   static_assert(kMaxRegularCapacity < kMaxCapacity);
-
-  // Object layout.
-  static constexpr int kCapacityOffset = Shape::kCapacityOffset;
-  static constexpr int kHeaderSize = Shape::kHeaderSize;
-  static constexpr int kObjectsOffset = kHeaderSize;
 
  protected:
   template <class IsolateT>
@@ -165,34 +195,24 @@ class TaggedArrayBase : public Super {
 
   static constexpr int NewCapacityForIndex(int index, int old_capacity);
 
-  inline void ConditionalWriteBarrier(Tagged<HeapObject> object, int offset,
-                                      Tagged<ElementT> value,
-                                      WriteBarrierMode mode);
-
   inline bool IsInBounds(int index) const;
   inline bool IsCowArray() const;
-};
+
+  FLEXIBLE_ARRAY_MEMBER(ElementMemberT, objects);
+} V8_OBJECT_END;
 
 class TaggedArrayShape final : public AllStatic {
  public:
-  static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
-
-#define FIELD_LIST(V)                                                   \
-  V(kCapacityOffset, kTaggedSize)                                       \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.
-class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
+V8_OBJECT class FixedArray
+    : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
   using Super = TaggedArrayBase<FixedArray, TaggedArrayShape>;
-  OBJECT_CONSTRUCTORS(FixedArray, Super);
 
  public:
   template <class IsolateT>
@@ -232,14 +252,11 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
   inline void set_the_hole(Isolate* isolate, int index);
   inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
 
-  static_assert(kHeaderSize == Internals::kFixedArrayHeaderSize);
-
   DECL_PRINTER(FixedArray)
   DECL_VERIFIER(FixedArray)
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset = Shape::kCapacityOffset;
   static constexpr int kMaxLength = FixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
@@ -248,22 +265,16 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
       Isolate* isolate, DirectHandle<FixedArray> xs, int new_capacity,
       AllocationType allocation = AllocationType::kYoung,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-};
+} V8_OBJECT_END;
+
+static_assert(sizeof(FixedArray) == Internals::kFixedArrayHeaderSize);
 
 class TrustedArrayShape final : public AllStatic {
  public:
-  static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kTrustedFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
-
-#define FIELD_LIST(V)                                                   \
-  V(kCapacityOffset, kTaggedSize)                                       \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
 };
 
 // A FixedArray in trusted space and with a unique instance type.
@@ -274,10 +285,9 @@ class TrustedArrayShape final : public AllStatic {
 // pointers), use ProtectedFixedArray.
 class TrustedFixedArray
     : public TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
-                             TrustedObject> {
-  using Super =
-      TaggedArrayBase<TrustedFixedArray, TrustedArrayShape, TrustedObject>;
-  OBJECT_CONSTRUCTORS(TrustedFixedArray, Super);
+                             TrustedObjectLayout> {
+  using Super = TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
+                                TrustedObjectLayout>;
 
  public:
   template <class IsolateT>
@@ -290,8 +300,6 @@ class TrustedFixedArray
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset =
-      TrustedFixedArray::Shape::kCapacityOffset;
   static constexpr int kMaxLength = TrustedFixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength =
       TrustedFixedArray::kMaxRegularCapacity;
@@ -299,7 +307,6 @@ class TrustedFixedArray
 
 class ProtectedArrayShape final : public AllStatic {
  public:
-  static constexpr int kElementSize = kTaggedSize;
   // Elements are of type TrustedObject or Smi, so we must declare it as Object
   // here.
   using ElementT = Object;
@@ -318,12 +325,11 @@ class ProtectedArrayShape final : public AllStatic {
 // A FixedArray in trusted space, holding protected pointers (to other trusted
 // objects). If you want to store JS-heap references, use TrustedFixedArray.
 // ProtectedFixedArray has a unique instance type.
-class ProtectedFixedArray
+V8_OBJECT class ProtectedFixedArray
     : public TaggedArrayBase<ProtectedFixedArray, ProtectedArrayShape,
-                             TrustedObject> {
-  using Super =
-      TaggedArrayBase<ProtectedFixedArray, ProtectedArrayShape, TrustedObject>;
-  OBJECT_CONSTRUCTORS(ProtectedFixedArray, Super);
+                             TrustedObjectLayout> {
+  using Super = TaggedArrayBase<ProtectedFixedArray, ProtectedArrayShape,
+                                TrustedObjectLayout>;
 
  public:
   // Allocate a new ProtectedFixedArray of the given capacity, initialized with
@@ -337,12 +343,10 @@ class ProtectedFixedArray
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset =
-      ProtectedFixedArray::Shape::kCapacityOffset;
-  static constexpr int kMaxLength = ProtectedFixedArray::kMaxCapacity;
+  static constexpr int kMaxLength = Super::kMaxCapacity;
   static constexpr int kMaxRegularLength =
       ProtectedFixedArray::kMaxRegularCapacity;
-};
+} V8_OBJECT_END;
 
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which
 // checks for the exact instance type FIXED_ARRAY_TYPE instead of a range
@@ -356,16 +360,9 @@ class FixedArrayExact final : public FixedArray {};
 // TODO(jgruber): This class is really specific to FixedArrays used as
 // elements backing stores and should not be part of the common FixedArray
 // hierarchy.
-class FixedArrayBase : public HeapObject {
-  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject);
-
+class FixedArrayBase
+    : public detail::TaggedArrayHeaderBase<HeapObjectLayout, true> {
  public:
-  // TODO(jgruber): Remove these `length` accessors once all subclasses have
-  // been ported to use TaggedArrayBase or similar.
-  inline int length() const;
-  inline int length(AcquireLoadTag tag) const;
-  inline void set_length(int value);
-  inline void set_length(int value, ReleaseStoreTag tag);
   static constexpr int kLengthOffset = HeapObject::kHeaderSize;
   static constexpr int kHeaderSize = kLengthOffset + kTaggedSize;
   static constexpr int kMaxLength = FixedArray::kMaxCapacity;
@@ -395,6 +392,7 @@ class PrimitiveArrayBase : public Super {
  public:
   using Shape = ShapeT;
   static constexpr bool kElementsAreMaybeObject = false;
+  static constexpr int kElementSize = Shape::kElementSize;
 
   inline int length() const;
   inline int length(AcquireLoadTag) const;
@@ -415,7 +413,7 @@ class PrimitiveArrayBase : public Super {
     return OBJECT_POINTER_ALIGN(OffsetOfElementAt(length));
   }
   static inline constexpr int OffsetOfElementAt(int index) {
-    return Shape::kHeaderSize + index * Shape::kElementSize;
+    return Shape::kHeaderSize + index * kElementSize;
   }
 
   // Gives access to raw memory which stores the array's data.
@@ -432,15 +430,15 @@ class PrimitiveArrayBase : public Super {
   // into a Smi which is necessary for being able to create a free space
   // filler.
   // TODO(jgruber): The kMaxLength could be larger (`(Smi::kMaxValue -
-  // Shape::kHeaderSize) / Shape::kElementSize`), but our tests rely on a
+  // Shape::kHeaderSize) / kElementSize`), but our tests rely on a
   // smaller maximum to avoid timeouts.
   static constexpr int kMaxLength =
-      (FixedArrayBase::kMaxSize - Super::kHeaderSize) / Shape::kElementSize;
+      (FixedArrayBase::kMaxSize - Shape::kHeaderSize) / kElementSize;
   static_assert(Smi::IsValid(SizeFor(kMaxLength)));
 
   // Maximally allowed length for regular (non large object space) object.
   static constexpr int kMaxRegularLength =
-      (kMaxRegularHeapObjectSize - Shape::kHeaderSize) / Shape::kElementSize;
+      (kMaxRegularHeapObjectSize - Shape::kHeaderSize) / kElementSize;
   static_assert(kMaxRegularLength < kMaxLength);
 
   // Object layout.
@@ -509,28 +507,21 @@ class FixedDoubleArray
   static constexpr int kFloatsOffset = Shape::kHeaderSize;
 };
 
+static_assert(FixedDoubleArray::kMaxLength <= FixedArray::kMaxLength);
+
 class WeakFixedArrayShape final : public AllStatic {
  public:
-  static constexpr int kElementSize = kTaggedSize;
   using ElementT = MaybeObject;
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kWeakFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
-
-#define FIELD_LIST(V)                                                   \
-  V(kCapacityOffset, kTaggedSize)                                       \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
 };
 
 // WeakFixedArray describes fixed-sized arrays with element type
 // Tagged<MaybeObject>.
-class WeakFixedArray
+V8_OBJECT class WeakFixedArray
     : public TaggedArrayBase<WeakFixedArray, WeakFixedArrayShape> {
   using Super = TaggedArrayBase<WeakFixedArray, WeakFixedArrayShape>;
-  OBJECT_CONSTRUCTORS(WeakFixedArray, Super);
 
  public:
   template <class IsolateT>
@@ -543,34 +534,23 @@ class WeakFixedArray
   DECL_VERIFIER(WeakFixedArray)
 
   class BodyDescriptor;
-
-  static constexpr int kLengthOffset = Shape::kCapacityOffset;
-};
+} V8_OBJECT_END;
 
 class TrustedWeakFixedArrayShape final : public AllStatic {
  public:
-  static constexpr int kElementSize = kTaggedSize;
   using ElementT = MaybeObject;
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kTrustedWeakFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
-
-#define FIELD_LIST(V)                                                   \
-  V(kCapacityOffset, kTaggedSize)                                       \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
 };
 
 // A WeakFixedArray in trusted space and with a unique instance type.
-class TrustedWeakFixedArray
+V8_OBJECT class TrustedWeakFixedArray
     : public TaggedArrayBase<TrustedWeakFixedArray,
                              TrustedWeakFixedArrayShape> {
   using Super =
       TaggedArrayBase<TrustedWeakFixedArray, TrustedWeakFixedArrayShape>;
-  OBJECT_CONSTRUCTORS(TrustedWeakFixedArray, Super);
 
  public:
   template <class IsolateT>
@@ -581,9 +561,7 @@ class TrustedWeakFixedArray
   DECL_VERIFIER(TrustedWeakFixedArray)
 
   class BodyDescriptor;
-
-  static constexpr int kLengthOffset = Shape::kCapacityOffset;
-};
+} V8_OBJECT_END;
 
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
 // adding more elements. length() returns the number of elements in the list and
@@ -697,25 +675,17 @@ class WeakArrayList::Iterator {
 
 class ArrayListShape final : public AllStatic {
  public:
-  static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
   using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kArrayListMap;
   static constexpr bool kLengthEqualsCapacity = false;
 
-#define FIELD_LIST(V)                                                   \
-  V(kCapacityOffset, kTaggedSize)                                       \
-  V(kLengthOffset, kTaggedSize)                                         \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
+  V8_ARRAY_EXTRA_FIELDS({ TaggedMember<Smi> length_; });
 };
 
 // A generic array that grows dynamically with O(1) amortized insertion.
-class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
+V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
   using Super = TaggedArrayBase<ArrayList, ArrayListShape>;
-  OBJECT_CONSTRUCTORS(ArrayList, Super);
 
  public:
   using Shape = ArrayListShape;
@@ -752,13 +722,11 @@ class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset = Shape::kLengthOffset;
-
  private:
   static Handle<ArrayList> EnsureSpace(
       Isolate* isolate, Handle<ArrayList> array, int length,
       AllocationType allocation = AllocationType::kYoung);
-};
+} V8_OBJECT_END;
 
 class ByteArrayShape final : public AllStatic {
  public:

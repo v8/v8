@@ -5153,12 +5153,12 @@ Handle<Object> JSPromise::TriggerPromiseReactions(
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::IteratePrefix(ObjectVisitor* v) {
-  BodyDescriptorBase::IteratePointers(*this, 0, kElementsStartOffset, v);
+  BodyDescriptorBase::IteratePointers(this, 0, kElementsStartOffset, v);
 }
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
-  BodyDescriptorBase::IteratePointers(*this, kElementsStartOffset,
+  BodyDescriptorBase::IteratePointers(this, kElementsStartOffset,
                                       SizeFor(length()), v);
 }
 
@@ -5211,7 +5211,7 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
   }
 
   // Rehash the elements.
-  ReadOnlyRoots roots = GetReadOnlyRoots(cage_base);
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   for (InternalIndex i : this->IterateEntries()) {
     uint32_t from_index = EntryToIndex(i);
     Tagged<Object> k = this->get(from_index);
@@ -5681,7 +5681,7 @@ void NumberDictionary::UpdateMaxNumberKey(uint32_t key,
   // elements.
   if (key > kRequiresSlowElementsLimit) {
     if (!dictionary_holder.is_null()) {
-      dictionary_holder->RequireSlowElements(*this);
+      dictionary_holder->RequireSlowElements(this);
     }
     set_requires_slow_elements();
     return;
@@ -5780,7 +5780,7 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
 template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::SlowReverseLookup(
     Tagged<Object> value) {
-  Tagged<Derived> dictionary = Cast<Derived>(*this);
+  Tagged<Derived> dictionary = Cast<Derived>(this);
   ReadOnlyRoots roots = dictionary->GetReadOnlyRoots();
   for (InternalIndex i : dictionary->IterateEntries()) {
     Tagged<Object> k;
@@ -5805,7 +5805,7 @@ template <typename Derived, typename Shape>
 Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
     PtrComprCageBase cage_base, Handle<Object> key, int32_t hash) {
   DisallowGarbageCollection no_gc;
-  ReadOnlyRoots roots = this->GetReadOnlyRoots(cage_base);
+  ReadOnlyRoots roots = this->GetReadOnlyRoots();
   DCHECK(this->IsKey(roots, *key));
 
   InternalIndex entry = this->FindEntry(cage_base, roots, key, hash);
@@ -5817,8 +5817,8 @@ Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
 // CodeStubAssembler::NameToIndexHashTableLookup.
 int NameToIndexHashTable::Lookup(Handle<Name> key) {
   DisallowGarbageCollection no_gc;
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  ReadOnlyRoots roots = this->GetReadOnlyRoots(cage_base);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(this);
+  ReadOnlyRoots roots = this->GetReadOnlyRoots();
 
   InternalIndex entry = this->FindEntry(cage_base, roots, key, key->hash());
   if (entry.is_not_found()) return -1;
@@ -5829,8 +5829,8 @@ template <typename Derived, typename Shape>
 Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
   DisallowGarbageCollection no_gc;
 
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  ReadOnlyRoots roots = this->GetReadOnlyRoots(cage_base);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(this);
+  ReadOnlyRoots roots = this->GetReadOnlyRoots();
   DCHECK(this->IsKey(roots, *key));
 
   // If the object does not have an identity hash, it was never used as a key.
@@ -5844,7 +5844,7 @@ Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
 template <typename Derived, typename Shape>
 Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key,
                                                            int32_t hash) {
-  return Lookup(GetPtrComprCageBase(*this), key, hash);
+  return Lookup(GetPtrComprCageBase(this), key, hash);
 }
 
 template <typename Derived, typename Shape>
@@ -5990,7 +5990,7 @@ void ObjectHashTableBase<Derived, Shape>::RemoveEntry(InternalIndex entry) {
 template <typename Derived, int N>
 std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
     Handle<Object> key) {
-  return Lookup(GetPtrComprCageBase(*this), key);
+  return Lookup(GetPtrComprCageBase(this), key);
 }
 
 template <typename Derived, int N>
@@ -5998,7 +5998,7 @@ std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
     PtrComprCageBase cage_base, Handle<Object> key) {
   DisallowGarbageCollection no_gc;
 
-  ReadOnlyRoots roots = this->GetReadOnlyRoots(cage_base);
+  ReadOnlyRoots roots = this->GetReadOnlyRoots();
   DCHECK(this->IsKey(roots, *key));
 
   Tagged<Object> hash_obj = Object::GetHash(*key);

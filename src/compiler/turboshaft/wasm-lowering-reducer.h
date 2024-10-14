@@ -110,7 +110,8 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Map> REDUCE(RttCanon)(V<FixedArray> rtts, uint32_t type_index) {
-    int map_offset = FixedArray::kHeaderSize + type_index * kTaggedSize;
+    int map_offset =
+        OFFSET_OF_DATA_START(FixedArray) + type_index * kTaggedSize;
     return __ Load(rtts, LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::AnyTagged(), map_offset);
   }
@@ -874,7 +875,7 @@ class WasmLoweringReducer : public Next {
             instance, ImportedMutableGlobalsBuffers,
             MemoryRepresentation::TaggedPointer());
         int offset_in_buffers =
-            FixedArray::kHeaderSize + global->offset * kTaggedSize;
+            OFFSET_OF_DATA_START(FixedArray) + global->offset * kTaggedSize;
         V<HeapObject> base =
             __ Load(buffers, LoadOp::Kind::TaggedBase(),
                     MemoryRepresentation::AnyTagged(), offset_in_buffers);
@@ -911,7 +912,8 @@ class WasmLoweringReducer : public Next {
     } else if (global->type.is_reference()) {
       V<HeapObject> base = LOAD_IMMUTABLE_INSTANCE_FIELD(
           instance, TaggedGlobalsBuffer, MemoryRepresentation::TaggedPointer());
-      int offset = FixedArray::kHeaderSize + global->offset * kTaggedSize;
+      int offset =
+          OFFSET_OF_DATA_START(FixedArray) + global->offset * kTaggedSize;
       if (mode == GlobalMode::kLoad) {
         LoadOp::Kind load_kind = is_mutable
                                      ? LoadOp::Kind::TaggedBase()

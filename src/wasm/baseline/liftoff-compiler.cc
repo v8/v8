@@ -8608,7 +8608,8 @@ class LiftoffCompiler {
             IsolateData::root_slot_offset(RootIndex::kWasmCanonicalRtts));
         __ LoadTaggedPointer(
             real_rtt.gp_reg(), real_rtt.gp_reg(), real_sig_id.gp_reg(),
-            ObjectAccess::ToTagged(WeakFixedArray::kHeaderSize), nullptr, true);
+            ObjectAccess::ToTagged(OFFSET_OF_DATA_START(WeakFixedArray)),
+            nullptr, true);
         // real_sig_id is not used any more.
         real_sig_id.Reset();
         // Remove the weak reference tag.

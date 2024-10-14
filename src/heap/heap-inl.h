@@ -44,7 +44,7 @@ namespace internal {
 
 template <typename T>
 Tagged<T> ForwardingAddress(Tagged<T> heap_obj) {
-  MapWord map_word = heap_obj->map_word(kRelaxedLoad);
+  MapWord map_word = Cast<HeapObject>(heap_obj)->map_word(kRelaxedLoad);
 
   if (map_word.IsForwardingAddress()) {
     return Cast<T>(map_word.ToForwardingAddress(heap_obj));

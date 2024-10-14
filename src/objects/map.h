@@ -1076,8 +1076,6 @@ class NormalizedMapCache : public WeakFixedArray {
   // The following declarations hide base class methods.
   Tagged<Object> get(int index);
   void set(int index, Tagged<Object> value);
-
-  OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray);
 };
 
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map(Tagged<Map> map);

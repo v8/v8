@@ -4545,7 +4545,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
         GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
     CHECK_EQ(vobject->type(), VirtualObject::kDefault);
     DCHECK(vobject->map().IsFixedArrayMap());
-    ValueNode* length_node = vobject->get(FixedArray::kLengthOffset);
+    ValueNode* length_node = vobject->get(offsetof(FixedArray, length_));
     if (auto length = TryGetInt32Constant(length_node)) {
       if (index >= 0 && index < length.value()) {
         return vobject->get(FixedArray::OffsetOfElementAt(index));
@@ -4831,7 +4831,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
 ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayLength(
     ValueNode* fixed_array) {
   ValueNode* length =
-      BuildLoadTaggedField(fixed_array, FixedArray::kLengthOffset);
+      BuildLoadTaggedField(fixed_array, offsetof(FixedArray, length_));
   EnsureType(length, NodeType::kSmi);
   return length;
 }
@@ -9669,9 +9669,10 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
   for (int i = 0; i < static_cast<int>(args.count()); i++) {
     arg_list.push_back(args[i]);
   }
-  DCHECK(elements->get(FixedArray::kLengthOffset)->Is<Int32Constant>());
-  int length =
-      elements->get(FixedArray::kLengthOffset)->Cast<Int32Constant>()->value();
+  DCHECK(elements->get(offsetof(FixedArray, length_))->Is<Int32Constant>());
+  int length = elements->get(offsetof(FixedArray, length_))
+                   ->Cast<Int32Constant>()
+                   ->value();
   for (int i = 0; i < length; i++) {
     arg_list.push_back(elements->get(FixedArray::OffsetOfElementAt(i)));
   }
@@ -11497,8 +11498,8 @@ VirtualObject* MaglevGraphBuilder::CreateFixedArray(compiler::MapRef map,
                                                     int length) {
   int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
   VirtualObject* array = CreateVirtualObject(map, slot_count);
-  array->set(FixedArray::kLengthOffset, GetInt32Constant(length));
-  array->ClearSlots(FixedArray::kLengthOffset,
+  array->set(offsetof(FixedArray, length_), GetInt32Constant(length));
+  array->ClearSlots(offsetof(FixedArray, length_),
                     GetRootConstant(RootIndex::kOnePointerFillerMap));
   return array;
 }
@@ -11551,10 +11552,11 @@ VirtualObject* MaglevGraphBuilder::CreateMappedArgumentsElements(
     ValueNode* unmapped_elements) {
   int slot_count = SloppyArgumentsElements::SizeFor(mapped_count) / kTaggedSize;
   VirtualObject* elements = CreateVirtualObject(map, slot_count);
-  elements->set(SloppyArgumentsElements::kLengthOffset,
+  elements->set(offsetof(SloppyArgumentsElements, length_),
                 GetInt32Constant(mapped_count));
-  elements->set(SloppyArgumentsElements::kContextOffset, context);
-  elements->set(SloppyArgumentsElements::kArgumentsOffset, unmapped_elements);
+  elements->set(offsetof(SloppyArgumentsElements, context_), context);
+  elements->set(offsetof(SloppyArgumentsElements, arguments_),
+                unmapped_elements);
   return elements;
 }
 
@@ -11848,9 +11850,8 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
               broker()->sloppy_arguments_elements_map(), mapped_count,
               GetContext(), unmapped_elements);
           for (int i = 0; i < mapped_count; i++, param_idx_in_ctxt--) {
-            elements->set(
-                SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize,
-                GetInt32Constant(param_idx_in_ctxt));
+            elements->set(SloppyArgumentsElements::OffsetOfElementAt(i),
+                          GetInt32Constant(param_idx_in_ctxt));
           }
           return CreateArgumentsObject(
               broker()->target_native_context().fast_aliased_arguments_map(
@@ -11874,9 +11875,7 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
                 },
                 [&] { return GetSmiConstant(param_idx_in_ctxt); },
                 [&] { return the_hole_value; });
-            elements->set(
-                SloppyArgumentsElements::kMappedEntriesOffset + i * kTaggedSize,
-                value);
+            elements->set(SloppyArgumentsElements::OffsetOfElementAt(i), value);
           }
           return CreateArgumentsObject(
               broker()->target_native_context().fast_aliased_arguments_map(

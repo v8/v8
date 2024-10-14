@@ -3329,7 +3329,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     element_type = Type::SignedSmall();
     element_machine_type = MachineType::TaggedSigned();
   }
-  ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
+  ElementAccess element_access = {kTaggedBase, OFFSET_OF_DATA_START(FixedArray),
                                   element_type, element_machine_type,
                                   kFullWriteBarrier};
 
