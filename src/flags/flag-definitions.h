@@ -1718,10 +1718,10 @@ DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_enforce_bounds_checks)
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
-// TODO(335082212,dlehmann): Imply from `--future`.
 DEFINE_BOOL(wasm_inlining_call_indirect, false,
             "enable speculative inlining of Wasm indirect calls, requires "
             "--turboshaft-wasm")
+DEFINE_WEAK_IMPLICATION(future, wasm_inlining_call_indirect)
 // This doesn't make sense without and requires  the basic inlining machinery,
 // e.g., for allocating feedback vectors, so we automatically enable it.
 DEFINE_IMPLICATION(wasm_inlining_call_indirect, wasm_inlining)
