@@ -110,7 +110,8 @@ template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
 TaggedArrayBase<D, S, P>::get(int index) const {
   DCHECK(IsInBounds(index));
-  return objects()[index].load();
+  // TODO(jgruber): This tag-less overload shouldn't be relaxed.
+  return objects()[index].Relaxed_Load();
 }
 
 template <class D, class S, class P>
@@ -139,7 +140,8 @@ void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
                                    WriteBarrierMode mode) {
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
-  objects()[index].store(this, value, mode);
+  // TODO(jgruber): This tag-less overload shouldn't be relaxed.
+  objects()[index].Relaxed_Store(this, value, mode);
 }
 
 template <class D, class S, class P>
