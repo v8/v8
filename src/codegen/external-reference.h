@@ -465,12 +465,13 @@ enum class IsolateFieldId : uint8_t;
 #endif  // V8_INTL_SUPPORT
 
 #ifdef V8_ENABLE_SANDBOX
-#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                          \
-  V(sandbox_base_address, "Sandbox::base()")                        \
-  V(sandbox_end_address, "Sandbox::end()")                          \
-  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")        \
-  V(code_pointer_table_address, "GetProcessWideCodePointerTable()") \
-  V(js_dispatch_table_address, "GetProcessWideJSDispatchTable()")   \
+#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                        \
+  V(sandbox_base_address, "Sandbox::base()")                      \
+  V(sandbox_end_address, "Sandbox::end()")                        \
+  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")      \
+  V(code_pointer_table_address,                                   \
+    "IsolateGroup::current()->code_pointer_table()")              \
+  V(js_dispatch_table_address, "GetProcessWideJSDispatchTable()") \
   V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()")
 #else
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)

@@ -541,7 +541,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       CodeEntrypointTag entrypoint_tag = code->entrypoint_tag();
 
       IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      CodePointerTable* cpt = GetProcessWideCodePointerTable();
+      CodePointerTable* cpt = IsolateGroup::current()->code_pointer_table();
 
       // To preserve the 1:1 relation between slots and code table entries,
       // allocate a new entry (in the code_pointer_space of the RO heap) now.

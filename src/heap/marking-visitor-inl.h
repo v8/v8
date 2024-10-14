@@ -848,7 +848,7 @@ void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
   DCHECK_NE(handle, kNullIndirectPointerHandle);
 
   if (tag == kCodeIndirectPointerTag) {
-    CodePointerTable* table = GetProcessWideCodePointerTable();
+    CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
     CodePointerTable::Space* space = this->heap_->code_pointer_space();
     table->Mark(space, handle);
   } else {

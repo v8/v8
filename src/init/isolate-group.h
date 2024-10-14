@@ -14,6 +14,7 @@
 #include "src/codegen/external-reference-table.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/sandbox/code-pointer-table.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -158,6 +159,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   ReadOnlyArtifacts* InitializeReadOnlyArtifacts();
   void ClearReadOnlyArtifacts();
 
+#ifdef V8_ENABLE_SANDBOX
+  CodePointerTable* code_pointer_table() { return &code_pointer_table_; }
+#endif  // V8_ENABLE_SANDBOX
+
  private:
   friend class base::LeakyObject<IsolateGroup>;
 #ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
@@ -215,6 +220,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   std::unique_ptr<ReadOnlyArtifacts> read_only_artifacts_;
   ReadOnlyHeap* shared_read_only_heap_ = nullptr;
   Isolate* shared_space_isolate_ = nullptr;
+
+#ifdef V8_ENABLE_SANDBOX
+  CodePointerTable code_pointer_table_;
+#endif  // V8_ENABLE_SANDBOX
 };
 
 }  // namespace internal

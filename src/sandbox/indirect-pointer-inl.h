@@ -28,8 +28,11 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
   if (tag == kCodeIndirectPointerTag) {
     CodePointerTable::Space* space =
         isolate.GetCodePointerTableSpaceFor(field_address);
-    handle = GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(
-        space, host.address(), kNullAddress, kDefaultCodeEntrypointTag);
+    handle =
+        IsolateGroup::current()
+            ->code_pointer_table()
+            ->AllocateAndInitializeEntry(space, host.address(), kNullAddress,
+                                         kDefaultCodeEntrypointTag);
   } else {
     TrustedPointerTable::Space* space =
         isolate.GetTrustedPointerTableSpaceFor(tag);
@@ -58,7 +61,7 @@ V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
 
 V8_INLINE Tagged<Object> ResolveCodePointerHandle(
     IndirectPointerHandle handle) {
-  CodePointerTable* table = GetProcessWideCodePointerTable();
+  CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
   return Tagged<Object>(table->GetCodeObject(handle));
 }
 #endif  // V8_ENABLE_SANDBOX

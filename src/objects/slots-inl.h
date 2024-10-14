@@ -434,7 +434,8 @@ Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
 Tagged<Object> IndirectPointerSlot::ResolveCodePointerHandle(
     IndirectPointerHandle handle) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
-  Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
+  Address addr =
+      IsolateGroup::current()->code_pointer_table()->GetCodeObject(handle);
   return Tagged<Object>(addr);
 }
 #endif  // V8_ENABLE_SANDBOX

@@ -30,7 +30,8 @@ ReadOnlyHeap* ReadOnlyHeap::shared_ro_heap_ = nullptr;
 
 ReadOnlyHeap::~ReadOnlyHeap() {
 #ifdef V8_ENABLE_SANDBOX
-  GetProcessWideCodePointerTable()->TearDownSpace(&code_pointer_space_);
+  IsolateGroup::current()->code_pointer_table()->TearDownSpace(
+      &code_pointer_space_);
 #endif
 #ifdef V8_ENABLE_LEAPTIERING
   GetProcessWideJSDispatchTable()->DetachSpaceFromReadOnlySegment(
@@ -210,7 +211,8 @@ void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
 ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
     : read_only_space_(ro_space) {
 #ifdef V8_ENABLE_SANDBOX
-  GetProcessWideCodePointerTable()->InitializeSpace(&code_pointer_space_);
+  IsolateGroup::current()->code_pointer_table()->InitializeSpace(
+      &code_pointer_space_);
 #endif  // V8_ENABLE_SANDBOX
 #ifdef V8_ENABLE_LEAPTIERING
   GetProcessWideJSDispatchTable()->InitializeSpace(&js_dispatch_table_space_);

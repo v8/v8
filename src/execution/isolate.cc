@@ -4526,7 +4526,8 @@ void Isolate::Deinit() {
     shared_trusted_pointer_space_ = nullptr;
   }
 
-  GetProcessWideCodePointerTable()->TearDownSpace(heap()->code_pointer_space());
+  IsolateGroup::current()->code_pointer_table()->TearDownSpace(
+      heap()->code_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
 #ifdef V8_ENABLE_LEAPTIERING
   GetProcessWideJSDispatchTable()->TearDownSpace(
@@ -5580,7 +5581,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-  GetProcessWideCodePointerTable()->InitializeSpace(
+  IsolateGroup::current()->code_pointer_table()->InitializeSpace(
       heap()->code_pointer_space());
   if (owns_shareable_data()) {
     isolate_data_.shared_trusted_pointer_table_ = new TrustedPointerTable();

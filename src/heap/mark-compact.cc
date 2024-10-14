@@ -3148,8 +3148,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_CODE_POINTER_TABLE);
-    GetProcessWideCodePointerTable()->Sweep(heap_->code_pointer_space(),
-                                            isolate->counters());
+    IsolateGroup::current()->code_pointer_table()->Sweep(
+        heap_->code_pointer_space(), isolate->counters());
   }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -5684,7 +5684,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         }
       });
 
-  CodePointerTable* const cpt = GetProcessWideCodePointerTable();
+  CodePointerTable* const cpt = IsolateGroup::current()->code_pointer_table();
   cpt->IterateActiveEntriesIn(
       heap_->code_pointer_space(),
       [&](CodePointerHandle handle, Address content) {
