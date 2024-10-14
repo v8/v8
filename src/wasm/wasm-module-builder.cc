@@ -704,7 +704,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       }
       switch (type.kind) {
         case TypeDefinition::kFunction: {
-          const ModuleFunctionSig* sig = type.function_sig;
+          const FunctionSig* sig = type.function_sig;
           buffer->write_u8(kWasmFunctionTypeCode);
           buffer->write_size(sig->parameter_count());
           for (auto param : sig->parameters()) {

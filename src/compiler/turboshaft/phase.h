@@ -410,9 +410,7 @@ class V8_EXPORT_PRIVATE PipelineData {
 #if V8_ENABLE_WEBASSEMBLY
   // Module-specific signature: type indices are only valid in the WasmModule*
   // they belong to.
-  const wasm::ModuleFunctionSig* wasm_module_sig() const {
-    return wasm_module_sig_;
-  }
+  const wasm::FunctionSig* wasm_module_sig() const { return wasm_module_sig_; }
 
   // Canonicalized (module-independent) signature.
   const wasm::CanonicalSig* wasm_canonical_sig() const {
@@ -424,7 +422,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   bool wasm_shared() const { return wasm_shared_; }
 
   void SetIsWasmFunction(const wasm::WasmModule* module,
-                         const wasm::ModuleFunctionSig* sig, bool shared) {
+                         const wasm::FunctionSig* sig, bool shared) {
     wasm_module_ = module;
     wasm_module_sig_ = sig;
     wasm_shared_ = shared;
@@ -520,7 +518,7 @@ class V8_EXPORT_PRIVATE PipelineData {
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(14108): Consider splitting wasm members into its own WasmPipelineData
   // if we need many of them.
-  const wasm::ModuleFunctionSig* wasm_module_sig_ = nullptr;
+  const wasm::FunctionSig* wasm_module_sig_ = nullptr;
   const wasm::CanonicalSig* wasm_canonical_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
   bool wasm_shared_ = false;

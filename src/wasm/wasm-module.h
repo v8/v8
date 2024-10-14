@@ -453,24 +453,23 @@ struct TypeDefinition {
 
   constexpr TypeDefinition(const FunctionSig* sig, uint32_t supertype,
                            bool is_final, bool is_shared)
-      // TODO(366180605): Adapt callers and drop the cast.
-      : function_sig(static_cast<const ModuleFunctionSig*>(sig)),
+      : function_sig(sig),
         supertype{supertype},
         kind(kFunction),
         is_final(is_final),
         is_shared(is_shared) {}
+
   constexpr TypeDefinition(const StructType* type, uint32_t supertype,
                            bool is_final, bool is_shared)
-      // TODO(366180605): Adapt callers and drop the cast.
-      : struct_type(static_cast<const ModuleStructType*>(type)),
+      : struct_type(type),
         supertype{supertype},
         kind(kStruct),
         is_final(is_final),
         is_shared(is_shared) {}
+
   constexpr TypeDefinition(const ArrayType* type, uint32_t supertype,
                            bool is_final, bool is_shared)
-      // TODO(366180605): Adapt callers and drop the cast.
-      : array_type(static_cast<const ModuleArrayType*>(type)),
+      : array_type(type),
         supertype{supertype},
         kind(kArray),
         is_final(is_final),
@@ -493,9 +492,9 @@ struct TypeDefinition {
   }
 
   union {
-    const ModuleFunctionSig* function_sig = nullptr;
-    const ModuleStructType* struct_type;
-    const ModuleArrayType* array_type;
+    const FunctionSig* function_sig = nullptr;
+    const StructType* struct_type;
+    const ArrayType* array_type;
   };
   ModuleTypeIndex supertype{kNoSuperType};
   Kind kind = kFunction;
@@ -795,7 +794,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return index < types.size() &&
            types[index].kind == TypeDefinition::kFunction;
   }
-  const ModuleFunctionSig* signature(uint32_t index) const {
+  const FunctionSig* signature(uint32_t index) const {
     DCHECK(has_signature(index));
     size_t num_types = types.size();
     V8_ASSUME(index < num_types);

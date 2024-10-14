@@ -212,7 +212,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   WasmModuleBuilder* builder() const { return builder_; }
   uint32_t func_index() const { return func_index_; }
   ModuleTypeIndex sig_index() const { return signature_index_; }
-  inline const ModuleFunctionSig* signature() const;
+  inline const FunctionSig* signature() const;
 
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
@@ -402,7 +402,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     return types_[index].kind == TypeDefinition::kFunction;
   }
 
-  const ModuleFunctionSig* GetSignature(uint32_t index) {
+  const FunctionSig* GetSignature(uint32_t index) {
     DCHECK(types_[index].kind == TypeDefinition::kFunction);
     return types_[index].function_sig;
   }
@@ -410,14 +410,14 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   bool IsStructType(uint32_t index) {
     return types_[index].kind == TypeDefinition::kStruct;
   }
-  const ModuleStructType* GetStructType(uint32_t index) {
+  const StructType* GetStructType(uint32_t index) {
     return types_[index].struct_type;
   }
 
   bool IsArrayType(uint32_t index) {
     return types_[index].kind == TypeDefinition::kArray;
   }
-  const ModuleArrayType* GetArrayType(uint32_t index) {
+  const ArrayType* GetArrayType(uint32_t index) {
     return types_[index].array_type;
   }
 
@@ -445,7 +445,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   bool IsMemory64(uint32_t index) { return memories_[index].is_memory64(); }
 
-  const ModuleFunctionSig* GetTagType(int index) {
+  const FunctionSig* GetTagType(int index) {
     return types_[tags_[index]].function_sig;
   }
 
@@ -534,7 +534,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 #endif
 };
 
-const ModuleFunctionSig* WasmFunctionBuilder::signature() const {
+const FunctionSig* WasmFunctionBuilder::signature() const {
   return builder_->types_[signature_index_].function_sig;
 }
 

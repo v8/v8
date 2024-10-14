@@ -114,7 +114,7 @@ class WasmGCTypeAnalyzer {
   Graph& graph_;
   Zone* phase_zone_;
   const wasm::WasmModule* module_ = data_->wasm_module();
-  const wasm::ModuleFunctionSig* signature_ = data_->wasm_module_sig();
+  const wasm::FunctionSig* signature_ = data_->wasm_module_sig();
   // Contains the snapshots for all blocks in the CFG.
   TypeSnapshotTable types_table_{phase_zone_};
   // Maps the block id to a snapshot in the table defining the type knowledge

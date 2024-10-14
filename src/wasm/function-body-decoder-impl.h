@@ -285,7 +285,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
           type_index, kV8MaxWasmTypes);
       return {HeapType(HeapType::kBottom), length};
     }
-    return {HeapType(type_index), length};
+    return {HeapType(ModuleTypeIndex{type_index}), length};
   }
 }
 
@@ -959,7 +959,7 @@ struct TableCopyImmediate {
 
 struct HeapTypeImmediate {
   uint32_t length;
-  HeapType type{kBottom};
+  HeapType type{HeapType::kBottom};
 
   template <typename ValidationTag>
   HeapTypeImmediate(WasmEnabledFeatures enabled, Decoder* decoder,

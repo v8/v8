@@ -435,10 +435,7 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
     return {};
   }
 
-  // TODO(366180605): Drop the cast!
-  const wasm::ModuleFunctionSig* sig =
-      static_cast<const wasm::ModuleFunctionSig*>(
-          wasm_module_->functions[fct_index].sig);
+  const wasm::FunctionSig* sig = wasm_module_->functions[fct_index].sig;
   Graph::SubgraphScope graph_scope(graph());
   WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
                            WasmGraphBuilder::kJSFunctionAbiMode, isolate(),

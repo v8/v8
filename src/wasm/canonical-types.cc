@@ -121,9 +121,9 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
   // TODO(366180605): It would be nice to not have to rely on a cast here.
   // Is there a way to avoid it? In the meantime, these asserts provide at
   // least partial assurances that the cast is safe:
-  static_assert(sizeof(CanonicalValueType) == sizeof(ModuleValueType));
+  static_assert(sizeof(CanonicalValueType) == sizeof(ValueType));
   static_assert(CanonicalValueType::Primitive(kI32).raw_bit_field() ==
-                ModuleValueType::Primitive(kI32).raw_bit_field());
+                ValueType::Primitive(kI32).raw_bit_field());
   CanonicalType canonical{reinterpret_cast<const CanonicalSig*>(sig),
                           CanonicalTypeIndex{kNoSuperType}, kFinal, kNotShared,
                           kNonRelativeSupertype};

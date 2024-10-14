@@ -257,7 +257,7 @@ class TypeCanonicalizer {
                                     TypeDefinition type,
                                     uint32_t recursive_group_start);
 
-  // An indexed type gets mapped to a {ValueType::CanonicalWithRelativeIndex}
+  // An indexed type gets mapped to a {CanonicalValueType::WithRelativeIndex}
   // if its index points inside the new canonical group; otherwise, the index
   // gets mapped to its canonical representative.
   CanonicalValueType CanonicalizeValueType(

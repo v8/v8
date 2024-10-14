@@ -3547,10 +3547,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
       &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, info,
       options);
   turboshaft_data.set_pipeline_statistics(pipeline_statistics.get());
-  // TODO(366180605): Drop the cast!
-  const wasm::ModuleFunctionSig* sig =
-      static_cast<const wasm::ModuleFunctionSig*>(
-          compilation_data.func_body.sig);
+  const wasm::FunctionSig* sig = compilation_data.func_body.sig;
   turboshaft_data.SetIsWasmFunction(env->module, sig,
                                     compilation_data.func_body.is_shared);
   DCHECK_NOT_NULL(turboshaft_data.wasm_module());

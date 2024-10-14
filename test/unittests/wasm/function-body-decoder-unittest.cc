@@ -63,7 +63,7 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 
 constexpr size_t kMaxByteSizedLeb128 = 127;
 
-using F = std::pair<ModuleValueType, bool>;
+using F = std::pair<ValueType, bool>;
 
 // Used to construct fixed-size signatures: MakeSig::Returns(...).Params(...);
 using MakeSig = FixedSizeSignature<ValueType>;
@@ -129,8 +129,8 @@ class TestModuleBuilder {
 
   ModuleTypeIndex AddStruct(std::initializer_list<F> fields,
                             uint32_t supertype = kNoSuperType) {
-    ModuleStructType::Builder type_builder(
-        &mod.signature_zone, static_cast<uint32_t>(fields.size()));
+    StructType::Builder type_builder(&mod.signature_zone,
+                                     static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
@@ -3826,14 +3826,16 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
 TEST_F(FunctionBodyDecoderTest, RefNull) {
   WASM_FEATURE_SCOPE(exnref);
 
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  uint8_t array_type_index = builder.AddArray(kWasmI32, true);
-  uint32_t type_reprs[] = {
+  HeapType::Representation struct_type_index =
+      HeapType(builder.AddStruct({F(kWasmI32, true)})).representation();
+  HeapType::Representation array_type_index =
+      HeapType(builder.AddArray(kWasmI32, true)).representation();
+  HeapType::Representation type_reprs[] = {
       struct_type_index, array_type_index, HeapType::kExn,
       HeapType::kFunc,   HeapType::kEq,    HeapType::kExtern,
       HeapType::kAny,    HeapType::kI31,   HeapType::kNone};
   // It works with heap types.
-  for (uint32_t type_repr : type_reprs) {
+  for (HeapType::Representation type_repr : type_reprs) {
     const ValueType type = ValueType::RefNull(type_repr);
     const FunctionSig sig(1, 0, &type);
     ExpectValidates(&sig, {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(type_repr)))});

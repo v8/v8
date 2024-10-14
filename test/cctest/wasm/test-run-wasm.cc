@@ -3665,7 +3665,7 @@ WASM_EXEC_TEST(IndirectNullTyped) {
   FunctionSig sig(1, 0, &kWasmI32);
   ModuleTypeIndex sig_index = r.builder().AddSignature(&sig);
   r.builder().AddIndirectFunctionTable(nullptr, 1,
-                                       ModuleValueType::RefNull(sig_index));
+                                       ValueType::RefNull(sig_index));
 
   r.Build({WASM_CALL_INDIRECT(sig_index, WASM_I32V(0))});
 

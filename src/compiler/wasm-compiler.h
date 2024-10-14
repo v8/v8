@@ -181,7 +181,7 @@ class WasmGraphBuilder {
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
-      const wasm::ModuleFunctionSig* sig, compiler::SourcePositionTable* spt,
+      const wasm::FunctionSig* sig, compiler::SourcePositionTable* spt,
       ParameterMode parameter_mode, Isolate* isolate,
       wasm::WasmEnabledFeatures enabled_features,
       const wasm::CanonicalSig* wrapper_sig = nullptr);
@@ -878,7 +878,7 @@ class WasmGraphBuilder {
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
 
-  const wasm::ModuleFunctionSig* const function_sig_;
+  const wasm::FunctionSig* const function_sig_;
   const wasm::CanonicalSig* const wrapper_sig_{nullptr};
 
   compiler::WasmDecorator* decorator_ = nullptr;

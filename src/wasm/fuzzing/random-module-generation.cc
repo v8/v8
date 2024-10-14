@@ -3543,12 +3543,12 @@ class ModuleGen {
                     kNumDefaultArrayTypes;
         num_fields += builder_->GetStructType(supertype)->field_count();
       }
-      ModuleStructType::Builder struct_builder(zone_, num_fields);
+      StructType::Builder struct_builder(zone_, num_fields);
 
       // Add all fields from super type.
       uint32_t field_index = 0;
       if (supertype != kNoSuperType) {
-        const ModuleStructType* parent = builder_->GetStructType(supertype);
+        const StructType* parent = builder_->GetStructType(supertype);
         for (; field_index < parent->field_count(); ++field_index) {
           // TODO(14034): This could also be any sub type of the supertype's
           // element type.
@@ -4281,7 +4281,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
       supertype = module_range.get<uint8_t>() % existing_struct_types;
       num_fields += builder.GetStructType(supertype)->field_count();
     }
-    ModuleStructType::Builder struct_builder(zone, num_fields);
+    StructType::Builder struct_builder(zone, num_fields);
 
     // Add all fields from super type.
     uint32_t field_index = 0;

@@ -150,7 +150,7 @@ bool ContainsInt64(const wasm::CanonicalSig* sig) {
 
 WasmGraphBuilder::WasmGraphBuilder(
     wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
-    const wasm::ModuleFunctionSig* sig,
+    const wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table,
     ParameterMode parameter_mode, Isolate* isolate,
     wasm::WasmEnabledFeatures enabled_features,
@@ -5644,7 +5644,8 @@ void WasmGraphBuilder::ArrayInitSegment(uint32_t segment_index, Node* array,
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
   Node* rtt = graph()->NewNode(gasm_->simplified()->RttCanon(type_index),
                                GetInstanceData());
-  return SetType(rtt, wasm::ValueType::Rtt(type_index));
+  // TODO(366180605): Drop the explicit conversion.
+  return SetType(rtt, wasm::ValueType::Rtt(wasm::ModuleTypeIndex{type_index}));
 }
 
 WasmGraphBuilder::Callbacks WasmGraphBuilder::TestCallbacks(
@@ -8944,9 +8945,7 @@ void BuildGraphForWasmFunction(wasm::CompilationEnv* env,
                                wasm::WasmDetectedFeatures* detected,
                                MachineGraph* mcgraph) {
   // Create a TF graph during decoding.
-  // TODO(366180605): Drop the explicit cast.
-  const wasm::ModuleFunctionSig* sig =
-      static_cast<const wasm::ModuleFunctionSig*>(data.func_body.sig);
+  const wasm::FunctionSig* sig = data.func_body.sig;
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, sig,
                            data.source_positions,
                            WasmGraphBuilder::kInstanceParameterMode,
