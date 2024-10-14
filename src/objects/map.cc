@@ -1268,7 +1268,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
 
   Handle<Map> new_map;
   if (use_cache && cache
-                       ->Get(fast_map, new_elements_kind,
+                       ->Get(isolate, fast_map, new_elements_kind,
                              new_prototype.is_null() ? fast_map->prototype()
                                                      : *new_prototype,
                              mode)
@@ -1330,7 +1330,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       DCHECK(new_map->is_dictionary_map() && !new_map->is_deprecated());
     }
     if (use_cache) {
-      cache->Set(fast_map, new_map);
+      cache->Set(isolate, fast_map, new_map);
     }
     if (v8_flags.log_maps) {
       LOG(isolate, MapEvent("Normalize", fast_map, new_map, reason));
@@ -2205,9 +2205,7 @@ Handle<Map> Map::CopyReplaceDescriptor(
                                 "CopyReplaceDescriptor", simple_flag);
 }
 
-int Map::Hash() { return Hash(prototype()); }
-
-int Map::Hash(Tagged<HeapObject> prototype) {
+int Map::Hash(Isolate* isolate, Tagged<HeapObject> prototype) {
   // For performance reasons we only hash the 2 most variable fields of a map:
   // prototype and bit_field2.
 
@@ -2217,7 +2215,6 @@ int Map::Hash(Tagged<HeapObject> prototype) {
     prototype_hash = 1;
   } else {
     Tagged<JSReceiver> receiver = Cast<JSReceiver>(prototype);
-    Isolate* isolate = GetIsolateFromWritableObject(receiver);
     prototype_hash = receiver->GetOrCreateIdentityHash(isolate).value();
   }
 
@@ -2490,13 +2487,14 @@ Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
   return Cast<NormalizedMapCache>(array);
 }
 
-MaybeHandle<Map> NormalizedMapCache::Get(DirectHandle<Map> fast_map,
+MaybeHandle<Map> NormalizedMapCache::Get(Isolate* isolate,
+                                         DirectHandle<Map> fast_map,
                                          ElementsKind elements_kind,
                                          Tagged<HeapObject> prototype,
                                          PropertyNormalizationMode mode) {
   DisallowGarbageCollection no_gc;
   Tagged<MaybeObject> value =
-      WeakFixedArray::get(GetIndex(*fast_map, *prototype));
+      WeakFixedArray::get(GetIndex(isolate, *fast_map, *prototype));
   Tagged<HeapObject> heap_object;
   if (!value.GetHeapObjectIfWeak(&heap_object)) {
     return MaybeHandle<Map>();
@@ -2508,14 +2506,14 @@ MaybeHandle<Map> NormalizedMapCache::Get(DirectHandle<Map> fast_map,
                                                     prototype, mode)) {
     return MaybeHandle<Map>();
   }
-  return handle(normalized_map, GetIsolate());
+  return handle(normalized_map, isolate);
 }
 
-void NormalizedMapCache::Set(DirectHandle<Map> fast_map,
+void NormalizedMapCache::Set(Isolate* isolate, DirectHandle<Map> fast_map,
                              DirectHandle<Map> normalized_map) {
   DisallowGarbageCollection no_gc;
   DCHECK(normalized_map->is_dictionary_map());
-  WeakFixedArray::set(GetIndex(*fast_map, normalized_map->prototype()),
+  WeakFixedArray::set(GetIndex(isolate, *fast_map, normalized_map->prototype()),
                       MakeWeak(*normalized_map));
 }
 

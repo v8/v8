@@ -854,10 +854,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> GetDerivedMap(Isolate* isolate, Handle<Map> from,
                                    Handle<JSReceiver> prototype);
 
-  // Computes a hash value for this map, to be used in HashTables and such.
-  int Hash();
-  // Compute the hash assuming another prototype.
-  int Hash(Tagged<HeapObject> prototype);
+  // Computes a hash value for this map, to be used e.g. in HashTables. The
+  // prototype value should be either the Map's prototype or another prototype
+  // in case the hash is supposed to be computed for a copy of this map with a
+  // changed prototype value.
+  int Hash(Isolate* isolate, Tagged<HeapObject> prototype);
 
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or |nullptr| if no match is
@@ -1057,11 +1058,13 @@ class NormalizedMapCache : public WeakFixedArray {
   NEVER_READ_ONLY_SPACE
   static Handle<NormalizedMapCache> New(Isolate* isolate);
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(DirectHandle<Map> fast_map,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Isolate* isolate,
+                                             DirectHandle<Map> fast_map,
                                              ElementsKind elements_kind,
                                              Tagged<HeapObject> prototype,
                                              PropertyNormalizationMode mode);
-  void Set(DirectHandle<Map> fast_map, DirectHandle<Map> normalized_map);
+  void Set(Isolate* isolate, DirectHandle<Map> fast_map,
+           DirectHandle<Map> normalized_map);
 
   DECL_VERIFIER(NormalizedMapCache)
 
@@ -1071,7 +1074,8 @@ class NormalizedMapCache : public WeakFixedArray {
 
   static const int kEntries = 64;
 
-  static inline int GetIndex(Tagged<Map> map, Tagged<HeapObject> prototype);
+  static inline int GetIndex(Isolate* isolate, Tagged<Map> map,
+                             Tagged<HeapObject> prototype);
 
   // The following declarations hide base class methods.
   Tagged<Object> get(int index);
