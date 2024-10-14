@@ -758,7 +758,7 @@ TEST_F(HeapTest, ContainsSlow) {
   CHECK(!heap->lo_space()->ContainsSlow(0));
 }
 
-#ifdef V8_COMPRESS_POINTERS
+#if defined(V8_COMPRESS_POINTERS) && defined(V8_ENABLE_SANDBOX)
 TEST_F(HeapTest, Regress364396306) {
   if (v8_flags.single_generation) return;
   if (v8_flags.separate_gc_phases) return;
@@ -829,7 +829,7 @@ TEST_F(HeapTest, Regress364396306) {
 
   delete external_int;
 }
-#endif  // V8_COMPRESS_POINTERS
+#endif  // defined(V8_COMPRESS_POINTERS) && defined(V8_ENABLE_SANDBOX)
 
 }  // namespace internal
 }  // namespace v8
