@@ -1245,6 +1245,23 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
                             effects);
   }
 
+  OpIndex REDUCE(FastApiCall)(
+      V<FrameState> frame_state, V<Object> data_argument, V<Context> context,
+      base::Vector<const OpIndex> arguments,
+      const FastApiCallParameters* parameters,
+      base::Vector<const RegisterRepresentation> out_reps) {
+    OpIndex raw_call = Base::ReduceFastApiCall(
+        frame_state, data_argument, context, arguments, parameters, out_reps);
+    bool has_catch_block = CatchIfInCatchScope(raw_call);
+    return ReduceDidntThrow(raw_call, has_catch_block,
+                            &Asm()
+                                 .output_graph()
+                                 .Get(raw_call)
+                                 .template Cast<FastApiCallOp>()
+                                 .out_reps,
+                            OpEffects().CanCallAnything());
+  }
+
 #define REDUCE_THROWING_OP(Name)                                             \
   template <typename... Args>                                                \
   V<Any> Reduce##Name(Args... args) {                                        \
@@ -4639,9 +4656,10 @@ class TurboshaftAssemblerOpInterface
   OpIndex FastApiCall(V<turboshaft::FrameState> frame_state,
                       V<Object> data_argument, V<Context> context,
                       base::Vector<const OpIndex> arguments,
-                      const FastApiCallParameters* parameters) {
+                      const FastApiCallParameters* parameters,
+                      base::Vector<const RegisterRepresentation> out_reps) {
     return ReduceIfReachableFastApiCall(frame_state, data_argument, context,
-                                        arguments, parameters);
+                                        arguments, parameters, out_reps);
   }
 
   void RuntimeAbort(AbortReason reason) {

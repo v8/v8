@@ -413,14 +413,14 @@ inline constexpr bool IsBlockTerminator(Opcode opcode) {
 
 // Operations that can throw and that have static output representations.
 #define TURBOSHAFT_THROWING_STATIC_OUTPUTS_OPERATIONS_LIST(V) \
-  TURBOSHAFT_JS_THROWING_OPERATION_LIST(V)                    \
-  V(FastApiCall)
+  TURBOSHAFT_JS_THROWING_OPERATION_LIST(V)
 
 // This list repeats the operations that may throw and need to be followed by
 // `DidntThrow`.
 #define TURBOSHAFT_THROWING_OPERATIONS_LIST(V)          \
   TURBOSHAFT_THROWING_STATIC_OUTPUTS_OPERATIONS_LIST(V) \
-  V(Call)
+  V(Call)                                               \
+  V(FastApiCall)
 
 // Operations that need to be followed by `DidntThrowOp`.
 inline constexpr bool MayThrow(Opcode opcode) {
@@ -6325,20 +6325,17 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
   static constexpr uint32_t kFailureValue = 0;
 
   const FastApiCallParameters* parameters;
-
-  // FastApiCallOp has two outputs so far:
-  // (1) a `should_fallback` flag, indicating that a slow call should be done;
-  // (2) the actual return value, which is always tagged.
-  // TODO(ahaas) Remove the `should_fallback` flag once fast api functions don't
-  // use it anymore.
-  THROWING_OP_BOILERPLATE(RegisterRepresentation::Word32(),
-                          RegisterRepresentation::Tagged())
+  base::Vector<const RegisterRepresentation> out_reps;
+  LazyDeoptOnThrow lazy_deopt_on_throw;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
 
   // There are three inputs that are not parameters, the frame state, the data
   // argument, and the context.
   static constexpr int kNumNonParamInputs = 3;
+
+  // The outputs are produced by the `DidntThrow` operation.
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
@@ -6409,9 +6406,11 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
 
   FastApiCallOp(V<FrameState> frame_state, V<Object> data_argument,
                 V<Context> context, base::Vector<const OpIndex> arguments,
-                const FastApiCallParameters* parameters)
+                const FastApiCallParameters* parameters,
+                base::Vector<const RegisterRepresentation> out_reps)
       : Base(kNumNonParamInputs + arguments.size()),
         parameters(parameters),
+        out_reps(out_reps),
         lazy_deopt_on_throw(LazyDeoptOnThrow::kNo) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = frame_state;
@@ -6428,21 +6427,26 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     V<Context> mapped_context = mapper.Map(context());
     auto mapped_arguments = mapper.template Map<8>(arguments());
     return fn(mapped_frame_state, mapped_data_argument, mapped_context,
-              base::VectorOf(mapped_arguments), parameters);
+              base::VectorOf(mapped_arguments), parameters, out_reps);
   }
 
   void Validate(const Graph& graph) const {
   }
 
-  static FastApiCallOp& New(Graph* graph, V<FrameState> frame_state,
-                            V<Object> data_argument, V<Context> context,
-                            base::Vector<const OpIndex> arguments,
-                            const FastApiCallParameters* parameters) {
+  static FastApiCallOp& New(
+      Graph* graph, V<FrameState> frame_state, V<Object> data_argument,
+      V<Context> context, base::Vector<const OpIndex> arguments,
+      const FastApiCallParameters* parameters,
+      base::Vector<const RegisterRepresentation> out_reps) {
     return Base::New(graph, kNumNonParamInputs + arguments.size(), frame_state,
-                     data_argument, context, arguments, parameters);
+                     data_argument, context, arguments, parameters, out_reps);
   }
 
-  auto options() const { return std::tuple{parameters, lazy_deopt_on_throw}; }
+  // out_reps[0] is always word32.
+  auto options() const {
+    DCHECK_EQ(out_reps[0], RegisterRepresentation::Word32());
+    return std::tuple{parameters, out_reps[1], lazy_deopt_on_throw};
+  }
 };
 
 struct RuntimeAbortOp : FixedArityOperationT<0, RuntimeAbortOp> {
@@ -9129,6 +9133,9 @@ inline size_t input_count(const FeedbackSource) { return 0; }
 inline size_t input_count(const ZoneRefSet<Map>) { return 0; }
 inline size_t input_count(ConstantOp::Storage) { return 0; }
 inline size_t input_count(Type) { return 0; }
+inline size_t input_count(base::Vector<const RegisterRepresentation>) {
+  return 0;
+}
 #ifdef V8_ENABLE_WEBASSEMBLY
 constexpr size_t input_count(const wasm::WasmGlobal*) { return 0; }
 constexpr size_t input_count(const wasm::StructType*) { return 0; }
@@ -9210,6 +9217,8 @@ struct ThrowingOpHasLazyDeoptOption<CallOp, void> : std::true_type {};
 template <>
 struct ThrowingOpHasProperMembers<CallOp, void> : std::true_type {};
 
+template <>
+struct ThrowingOpHasProperMembers<FastApiCallOp, void> : std::true_type {};
 }  // namespace details
 
 #define THROWING_OP_LOOKS_VALID(Name)                             \
