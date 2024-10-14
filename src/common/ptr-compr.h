@@ -78,8 +78,10 @@ using V8HeapCompressionScheme = V8HeapCompressionSchemeImpl<MainCage>;
 class TrustedCage : public AllStatic {
   friend class V8HeapCompressionSchemeImpl<TrustedCage>;
 
-  // The TrustedCage is only used in the shared cage build configuration, so
-  // there is no need for a thread_local version.
+  // Just to unify code with other cages in the multi-cage mode.
+  static V8_EXPORT_PRIVATE Address base_non_inlined();
+  static V8_EXPORT_PRIVATE void set_base_non_inlined(Address base);
+
   static V8_EXPORT_PRIVATE uintptr_t base_ V8_CONSTINIT;
 };
 using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
