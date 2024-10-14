@@ -51,7 +51,9 @@ class WasmGCTypeAnalyzer {
 
   void Run();
 
-  wasm::ValueType GetInputType(OpIndex op) const {
+  // Returns the input type for the operation or bottom if the operation shall
+  // always trap.
+  wasm::ValueType GetInputTypeOrSentinelType(OpIndex op) const {
     auto iter = input_type_map_.find(op);
     DCHECK_NE(iter, input_type_map_.end());
     return iter->second;
@@ -89,17 +91,23 @@ class WasmGCTypeAnalyzer {
                            base::Vector<const bool> reachable);
 
   // Updates the knowledge in the side table about the type of {object},
-  // returning the previous known type.
+  // returning the previous known type. Returns bottom if the refined type is
+  // uninhabited. In this case the operation shall always trap.
   wasm::ValueType RefineTypeKnowledge(OpIndex object, wasm::ValueType new_type,
                                       const Operation& op);
   // Updates the knowledge in the side table to be a non-nullable type for
-  // {object}, returning the previous known type.
+  // {object}, returning the previous known type. Returns bottom if the refined
+  // type is uninhabited. In this case the operation shall always trap.
   wasm::ValueType RefineTypeKnowledgeNotNull(OpIndex object,
                                              const Operation& op);
 
   OpIndex ResolveAliases(OpIndex object) const;
   wasm::ValueType GetResolvedType(OpIndex object) const;
 
+  // Returns the reachability status of a block. For any predecessor, this marks
+  // whether the *end* of the block is reachable, for the current block it marks
+  // whether the current instruction is reachable. (For successors the
+  // reachability is unknown.)
   bool IsReachable(const Block& block) const;
 
   PipelineData* data_;
@@ -113,8 +121,15 @@ class WasmGCTypeAnalyzer {
   // at the end of the block.
   FixedBlockSidetable<MaybeSnapshot> block_to_snapshot_{graph_.block_count(),
                                                         phase_zone_};
+
+  // Tracks reachability of blocks throughout the analysis. Marking a block as
+  // unreachable means that the block in question is unreachable from the
+  // current "point of view" of the analysis, e.g. marking the current block as
+  // "unreachable" means that from "now on" all succeeding statements can treat
+  // it as unreachable, not that the beginning of the block was unreachable.
   BitVector block_is_unreachable_{static_cast<int>(graph_.block_count()),
                                   phase_zone_};
+
   const Block* current_block_ = nullptr;
   // For any operation that could potentially refined, this map stores an entry
   // to the inferred input type based on the analysis.
@@ -144,10 +159,21 @@ class WasmGCTypedOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    wasm::ValueType type = analyzer_.GetInputType(op_idx);
-    if (type != wasm::ValueType() && !type.is_uninhabited()) {
-      DCHECK(wasm::IsSameTypeHierarchy(type.heap_type(),
-                                       cast_op.config.to.heap_type(), module_));
+    wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    if (type == wasm::kWasmBottom) {
+      // We are either already in unreachable code (then this instruction isn't
+      // even emitted) or the type analyzer inferred that this instruction will
+      // always trap. In either case emitting an unconditional trap to increase
+      // the chances of logic errors just leading to wrong behaviors but not
+      // resulting in security issues.
+      __ TrapIf(1, TrapId::kTrapIllegalCast);
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
+    if (type != wasm::ValueType()) {
+      CHECK(!type.is_uninhabited());
+      CHECK(wasm::IsSameTypeHierarchy(type.heap_type(),
+                                      cast_op.config.to.heap_type(), module_));
       bool to_nullable = cast_op.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(), cast_op.config.to.heap_type(),
                                 module_, module_)) {
@@ -198,9 +224,14 @@ class WasmGCTypedOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    wasm::ValueType type = analyzer_.GetInputType(op_idx);
-    if (type != wasm::ValueType() && !type.is_uninhabited()) {
-      DCHECK(wasm::IsSameTypeHierarchy(
+    wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    if (type == wasm::kWasmBottom) {
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
+    if (type != wasm::ValueType()) {
+      CHECK(!type.is_uninhabited());
+      CHECK(wasm::IsSameTypeHierarchy(
           type.heap_type(), type_check.config.to.heap_type(), module_));
       bool to_nullable = type_check.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(),
@@ -246,7 +277,17 @@ class WasmGCTypedOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    if (type == wasm::kWasmBottom) {
+      // We are either already in unreachable code (then this instruction isn't
+      // even emitted) or the type analyzer inferred that this instruction will
+      // always trap. In either case emitting an unconditional trap to increase
+      // the chances of logic errors just leading to wrong behaviors but not
+      // resulting in security issues.
+      __ TrapIf(1, assert_not_null.trap_id);
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
     if (type.is_non_nullable()) {
       return __ MapToNewGraph(assert_not_null.object());
     }
@@ -260,11 +301,15 @@ class WasmGCTypedOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    const wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    if (type == wasm::kWasmBottom) {
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
     if (type.is_non_nullable()) {
       return __ Word32Constant(0);
     }
-    if (type != wasm::ValueType() && type != wasm::kWasmBottom &&
+    if (type != wasm::ValueType() &&
         wasm::ToNullSentinel({type, module_}) == type) {
       return __ Word32Constant(1);
     }
@@ -284,7 +329,17 @@ class WasmGCTypedOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    const wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    if (type == wasm::kWasmBottom) {
+      // We are either already in unreachable code (then this instruction isn't
+      // even emitted) or the type analyzer inferred that this instruction will
+      // always trap. In either case emitting an unconditional trap to increase
+      // the chances of logic errors just leading to wrong behaviors but not
+      // resulting in security issues.
+      __ TrapIf(1, TrapId::kTrapNullDereference);
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
     // Remove the null check if it is known to be not null.
     if (struct_get.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ StructGet(__ MapToNewGraph(struct_get.object()),
@@ -302,7 +357,17 @@ class WasmGCTypedOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    const wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    if (type == wasm::kWasmBottom) {
+      // We are either already in unreachable code (then this instruction isn't
+      // even emitted) or the type analyzer inferred that this instruction will
+      // always trap. In either case emitting an unconditional trap to increase
+      // the chances of logic errors just leading to wrong behaviors but not
+      // resulting in security issues.
+      __ TrapIf(1, TrapId::kTrapNullDereference);
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
     // Remove the null check if it is known to be not null.
     if (struct_set.null_check == kWithNullCheck && type.is_non_nullable()) {
       __ StructSet(__ MapToNewGraph(struct_set.object()),
@@ -321,7 +386,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    const wasm::ValueType type = analyzer_.GetInputType(op_idx);
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
     // Remove the null check if it is known to be not null.
     if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ ArrayLength(__ MapToNewGraph(array_length.array()),
