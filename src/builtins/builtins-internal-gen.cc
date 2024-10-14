@@ -1278,8 +1278,6 @@ void CppBuiltinsAdaptorAssembler::GenerateAdaptor(int formal_parameter_count) {
       Int32Add(pushed_argc.value(),
                Int32Constant(BuiltinExitFrameConstants::kNumExtraArgs));
 
-  TNode<Smi> tagged_argc = SmiFromInt32(argc);
-
   const bool builtin_exit_frame = true;
   const bool switch_to_central_stack = false;
   Builtin centry = Builtins::CEntry(1, ArgvMode::kStack, builtin_exit_frame,
@@ -1288,23 +1286,16 @@ void CppBuiltinsAdaptorAssembler::GenerateAdaptor(int formal_parameter_count) {
   static_assert(BuiltinArguments::kNewTargetIndex == 0);
   static_assert(BuiltinArguments::kTargetIndex == 1);
   static_assert(BuiltinArguments::kArgcIndex == 2);
-#if V8_TARGET_ARCH_ARM64
   static_assert(BuiltinArguments::kPaddingIndex == 3);
-  // Just pass an existing value as padding in order to avoid generation
-  // of unnecessary instructions.
-  TNode<Object> padding_value = tagged_argc;
-#endif
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
-  TailCallBuiltin(centry, context,   // standard arguments for TailCallBuiltin
-                  argc, c_function,  // register arguments
-#if V8_TARGET_ARCH_ARM64
-                  padding_value,  // additional stack argument 4 (padding)
-#endif
-                  tagged_argc,  // additional stack argument 3
-                  target,       // additional stack argument 2
-                  new_target);  // additional stack argument 1
+  TailCallBuiltin(centry, context,     // standard arguments for TailCallBuiltin
+                  argc, c_function,    // register arguments
+                  TheHoleConstant(),   // additional stack argument 1 (padding)
+                  SmiFromInt32(argc),  // additional stack argument 2
+                  target,              // additional stack argument 3
+                  new_target);         // additional stack argument 4
 }
 
 TF_BUILTIN(AdaptorWithBuiltinExitFrame0, CppBuiltinsAdaptorAssembler) {

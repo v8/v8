@@ -524,7 +524,7 @@ constexpr auto AllocateDescriptor::registers() {
 }
 
 // static
-constexpr auto CEntry1WithBuiltinExitDescriptor::registers() {
+constexpr auto CEntry1ArgvOnStackDescriptor::registers() {
   return RegisterArray(kRuntimeCallArgCountRegister,
                        kRuntimeCallFunctionRegister);
 }

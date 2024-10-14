@@ -55,7 +55,7 @@ namespace internal {
   V(CallWithSpread_WithFeedback)                     \
   V(CCall)                                           \
   V(CEntryDummy)                                     \
-  V(CEntry1WithBuiltinExit)                          \
+  V(CEntry1ArgvOnStack)                              \
   V(CloneObjectBaseline)                             \
   V(CloneObjectWithVector)                           \
   V(Compare)                                         \
@@ -2087,30 +2087,23 @@ class CreateFromSlowBoilerplateHelperDescriptor
   DECLARE_DESCRIPTOR(CreateFromSlowBoilerplateHelperDescriptor)
 };
 
-class CEntry1WithBuiltinExitDescriptor
-    : public StaticCallInterfaceDescriptor<CEntry1WithBuiltinExitDescriptor> {
+class CEntry1ArgvOnStackDescriptor
+    : public StaticCallInterfaceDescriptor<CEntry1ArgvOnStackDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
-  DEFINE_RESULT_AND_PARAMETERS(1,
-                               kArity,      // register argument
-                               kCFunction,  // register argument
-#if V8_TARGET_ARCH_ARM64
-                               // This padding is required only on arm64 to keep
-                               // the SP 16-byte aligned.
-                               kPadding,  // stack argument 4 (just padding)
-#endif
-                               kArgcSmi,          // stack argument 3
-                               kTargetCopy,       // stack argument 2
-                               kNewTargetCopy)    // stack argument 1
-  DEFINE_PARAMETER_TYPES(MachineType::Int32(),    // kArity
-                         MachineType::Pointer(),  // kCFunction
-#if V8_TARGET_ARCH_ARM64
+  DEFINE_PARAMETERS(kArity,          // register argument
+                    kCFunction,      // register argument
+                    kPadding,        // stack argument 1 (just padding)
+                    kArgcSmi,        // stack argument 2
+                    kTargetCopy,     // stack argument 3
+                    kNewTargetCopy)  // stack argument 4
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kArity
+                         MachineType::Pointer(),    // kCFunction
                          MachineType::AnyTagged(),  // kPadding
-#endif
                          MachineType::AnyTagged(),  // kArgcSmi
                          MachineType::AnyTagged(),  // kTargetCopy
                          MachineType::AnyTagged())  // kNewTargetCopy
-  DECLARE_DESCRIPTOR(CEntry1WithBuiltinExitDescriptor)
+  DECLARE_DESCRIPTOR(CEntry1ArgvOnStackDescriptor)
 
   static constexpr auto registers();
 };

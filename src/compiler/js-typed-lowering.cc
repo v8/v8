@@ -1730,19 +1730,12 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   static_assert(BuiltinArguments::kNewTargetIndex == 0);
   static_assert(BuiltinArguments::kTargetIndex == 1);
   static_assert(BuiltinArguments::kArgcIndex == 2);
-#if V8_TARGET_ARCH_ARM64
   static_assert(BuiltinArguments::kPaddingIndex == 3);
-  // Just pass an existing value as padding in order to avoid generation
-  // of unnecessary instructions.
-  Node* padding_value = argc_node;
-#endif
   node->InsertInput(zone, 1, new_target);
   node->InsertInput(zone, 2, target);
   node->InsertInput(zone, 3, argc_node);
-#if V8_TARGET_ARCH_ARM64
-  node->InsertInput(zone, 4, padding_value);
-#endif
-  int cursor = kStub + argc;
+  node->InsertInput(zone, 4, jsgraph->PaddingConstant());
+  int cursor = arity + kStub + BuiltinArguments::kNumExtraArgsWithReceiver;
 
   Address entry = Builtins::CppEntryOf(builtin);
   ExternalReference entry_ref = ExternalReference::Create(entry);
