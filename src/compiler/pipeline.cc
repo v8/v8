@@ -3603,8 +3603,9 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
   const bool uses_wasm_gc_features =
-      detected->has_gc() || detected->has_stringref() ||
-      detected->has_imported_strings() || detected->has_imported_strings_utf8();
+      detected->has_gc() || detected->has_typed_funcref() ||
+      detected->has_stringref() || detected->has_imported_strings() ||
+      detected->has_imported_strings_utf8();
   if (v8_flags.wasm_loop_peeling && uses_wasm_gc_features) {
     turboshaft_pipeline.Run<turboshaft::LoopPeelingPhase>();
   }
