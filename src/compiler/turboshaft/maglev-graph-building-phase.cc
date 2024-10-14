@@ -3602,23 +3602,22 @@ class GraphBuildingNodeProcessor {
       right = __ Word32BitwiseAnd(right, 0x1f);
     }
     V<Word32> left = Map(node->left_input());
+    OpIndex next_op = __ output_graph().next_operation_index();
     V<Word32> ts_op = __ Word32ShiftRightLogical(left, right);
-    if (ts_op == left) {
-      DCHECK(__ matcher().MatchZero(right));
-      // Turboshaft removed a logical right-shift by 0, because "x >>> 0 == x".
-      // However, there is still a difference in how the result should be
-      // interpreted: `x >>> 0` is always unsigned. Turboshaft doesn't care
-      // about signedness, but Maglev does, and in particular when retagging phi
-      // inputs (and in particular exception phis). We thus insert an identity
-      // node, so that we still have one and only one representation per
-      // OpIndex: the input can still have Int32 representation, and the
-      // Identity node will have Uint32 representation (defined in
-      // RecordRepresentation).
-      // Note that this is a bit of a hack: a cleaner solution would be to
-      // change RecordRepresentation to record one representation for each node
-      // in each block or at a given instruction, but that would introduce yet
-      // another layer of complexity to the tracking of representation, so we
-      // prefer to have this small Identity hack.
+    if (ts_op < next_op) {
+      // Turboshaft constant-folded a logical right-shift. However, there is
+      // still a difference in how the result should be interpreted: `x >>> 0`
+      // is always unsigned. Turboshaft doesn't care about signedness, but
+      // Maglev does, and in particular when retagging phi inputs (and in
+      // particular exception phis). We thus insert an identity node, so that we
+      // still have one and only one representation per OpIndex: the input can
+      // still have Int32 representation, and the Identity node will have Uint32
+      // representation (defined in RecordRepresentation). Note that this is a
+      // bit of a hack: a cleaner solution would be to change
+      // RecordRepresentation to record one representation for each node in each
+      // block or at a given instruction, but that would introduce yet another
+      // layer of complexity to the tracking of representation, so we prefer to
+      // have this small Identity hack.
       ts_op = __ Identity(ts_op);
     }
     SetMap(node, ts_op);
