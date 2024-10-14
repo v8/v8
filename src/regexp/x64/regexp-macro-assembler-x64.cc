@@ -45,6 +45,9 @@ namespace internal {
  * during execution of RegExp code (it doesn't hold the value assumed when
  * creating JS code), so Root related macro operations can be used.
  *
+ * xmm0 - xmm5 are free to use. On Windows, xmm6 - xmm15 are callee-saved and
+ * therefore need to be saved/restored.
+ *
  * Each call to a C++ method should retain these registers.
  *
  * The stack will have the following content, in some order, indexable from the
@@ -654,16 +657,18 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
 
     // Get rows of nibbles table based on low nibbles.
     // row = nibble_table[lo_nibbles]
-    XMMRegister row = xmm6;
+    XMMRegister row = lo_nibbles;
     __ Pshufb(row, nibble_table, lo_nibbles);
+    lo_nibbles = XMMRegister::no_reg();
 
     // Check if high nibble is set in row.
     // bitmask = 1 << (hi_nibbles & 0x7)
     //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
     // Note: The hi_nibbles & 0x7 part is implicitly executed, as pshufb sets
     // the result byte to zero if bit 7 is set in the source byte.
-    XMMRegister bitmask = xmm7;
+    XMMRegister bitmask = hi_nibbles;
     __ Pshufb(bitmask, hi_nibble_lookup_mask, hi_nibbles);
+    hi_nibbles = XMMRegister::no_reg();
 
     // result = row & bitmask == bitmask
     XMMRegister result = ReassignRegister(row);
@@ -725,14 +730,8 @@ bool RegExpMacroAssemblerX64::SkipUntilBitInTableUseSimd(int advance_by) {
   // In addition we only use SIMD instead of the scalar version if we advance by
   // 1 byte in each iteration. For higher values the scalar version performs
   // better.
-#ifdef V8_TARGET_OS_WIN
-  // TODO(crbug.com/369880653): The SIMD variant clobbers XMM6 and XMM7, which
-  // are callee-saved registers on Windows.
-  return false;
-#else
   return v8_flags.regexp_simd && advance_by * char_size() == 1 &&
          CpuFeatures::IsSupported(SSSE3);
-#endif
 }
 
 bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
