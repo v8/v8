@@ -125,7 +125,7 @@ class NativeModuleCache {
       std::shared_ptr<NativeModule> native_module, bool error);
   void Erase(NativeModule* native_module);
 
-  bool empty() { return map_.empty(); }
+  bool empty() const { return map_.empty(); }
 
   // Hash the wire bytes up to the code section header. Used as a heuristic to
   // avoid streaming compilation of modules that are likely already in the

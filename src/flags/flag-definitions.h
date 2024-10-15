@@ -1548,8 +1548,7 @@ DEFINE_BOOL(wasm_async_compilation, true,
 DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
 DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
-DEFINE_BOOL(wasm_native_module_cache_enabled, true,
-            "enable the native module cache")
+DEFINE_BOOL(wasm_native_module_cache, true, "enable the native module cache")
 DEFINE_BOOL(turboshaft_wasm_wrappers, false,
             "compile the wasm wrappers with Turboshaft (instead of TurboFan)")
 DEFINE_IMPLICATION(turboshaft_wasm, turboshaft_wasm_wrappers)

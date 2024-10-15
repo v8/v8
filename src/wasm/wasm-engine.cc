@@ -285,7 +285,7 @@ std::vector<std::shared_ptr<NativeModule>>* native_modules_kept_alive_for_pgo;
 std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
     const CompileTimeImports& compile_imports) {
-  if (!v8_flags.wasm_native_module_cache_enabled) return nullptr;
+  if (!v8_flags.wasm_native_module_cache) return nullptr;
   if (origin != kWasmOrigin) return nullptr;
   base::MutexGuard lock(&mutex_);
   size_t prefix_hash = PrefixHash(wire_bytes);
@@ -324,7 +324,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
 
 bool NativeModuleCache::GetStreamingCompilationOwnership(
     size_t prefix_hash, const CompileTimeImports& compile_imports) {
-  if (!v8_flags.wasm_native_module_cache_enabled) return true;
+  if (!v8_flags.wasm_native_module_cache) return true;
   base::MutexGuard lock(&mutex_);
   auto it = map_.lower_bound(Key{prefix_hash, compile_imports, {}});
   if (it != map_.end() && it->first.prefix_hash == prefix_hash) {
@@ -340,7 +340,7 @@ bool NativeModuleCache::GetStreamingCompilationOwnership(
 
 void NativeModuleCache::StreamingCompilationFailed(
     size_t prefix_hash, const CompileTimeImports& compile_imports) {
-  if (!v8_flags.wasm_native_module_cache_enabled) return;
+  if (!v8_flags.wasm_native_module_cache) return;
   base::MutexGuard lock(&mutex_);
   Key key{prefix_hash, compile_imports, {}};
   map_.erase(key);
@@ -350,7 +350,7 @@ void NativeModuleCache::StreamingCompilationFailed(
 std::shared_ptr<NativeModule> NativeModuleCache::Update(
     std::shared_ptr<NativeModule> native_module, bool error) {
   DCHECK_NOT_NULL(native_module);
-  if (!v8_flags.wasm_native_module_cache_enabled) return native_module;
+  if (!v8_flags.wasm_native_module_cache) return native_module;
   if (native_module->module()->origin != kWasmOrigin) return native_module;
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   DCHECK(!wire_bytes.empty());
@@ -387,7 +387,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
 }
 
 void NativeModuleCache::Erase(NativeModule* native_module) {
-  if (!v8_flags.wasm_native_module_cache_enabled) return;
+  if (!v8_flags.wasm_native_module_cache) return;
   if (native_module->module()->origin != kWasmOrigin) return;
   // Happens in some tests where bytes are set directly.
   if (native_module->wire_bytes().empty()) return;
