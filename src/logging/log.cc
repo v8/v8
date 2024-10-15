@@ -1234,7 +1234,7 @@ template <StateTag tag>
 class VMStateIfMainThread {
  public:
   explicit VMStateIfMainThread(Isolate* isolate) {
-    if (isolate->IsCurrent()) {
+    if (ThreadId::Current() == isolate->thread_id()) {
       vm_state_.emplace(isolate);
     }
   }

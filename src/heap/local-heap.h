@@ -368,6 +368,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool allocation_failed_;
   int nested_parked_scopes_;
 
+  Isolate* saved_current_isolate_ = nullptr;
+
   LocalHeap* prev_;
   LocalHeap* next_;
 

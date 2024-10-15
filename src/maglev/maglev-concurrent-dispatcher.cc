@@ -178,7 +178,7 @@ void MaglevCompilationJob::DisposeOnMainThread(Isolate* isolate) {
   // Drop canonical handles on the main thread, to avoid (in the case of
   // background job destruction) needing to unpark the local isolate on the
   // background thread for unregistering the identity map's strong roots.
-  DCHECK(isolate->IsCurrent());
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   info()->DetachCanonicalHandles()->Clear();
 }
 

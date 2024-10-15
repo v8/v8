@@ -32,6 +32,7 @@ thread_local LocalHeap* g_current_local_heap_ V8_CONSTINIT = nullptr;
 
 V8_TLS_DEFINE_GETTER(LocalHeap::Current, LocalHeap*, g_current_local_heap_)
 
+// static
 void LocalHeap::SetCurrent(LocalHeap* local_heap) {
   g_current_local_heap_ = local_heap;
 }
@@ -84,7 +85,11 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
     persistent_handles_->Attach(this);
   }
   DCHECK_NULL(LocalHeap::Current());
-  if (!is_main_thread()) LocalHeap::SetCurrent(this);
+  if (!is_main_thread()) {
+    saved_current_isolate_ = Isolate::TryGetCurrent();
+    Isolate::SetCurrent(heap_->isolate());
+    LocalHeap::SetCurrent(this);
+  }
 }
 
 LocalHeap::~LocalHeap() {
@@ -105,6 +110,8 @@ LocalHeap::~LocalHeap() {
   });
 
   if (!is_main_thread()) {
+    DCHECK_EQ(Isolate::Current(), heap_->isolate());
+    Isolate::SetCurrent(saved_current_isolate_);
     DCHECK_EQ(LocalHeap::Current(), this);
     LocalHeap::SetCurrent(nullptr);
   }

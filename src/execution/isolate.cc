@@ -518,15 +518,7 @@ thread_local Isolate* g_current_isolate_ V8_CONSTINIT = nullptr;
 V8_TLS_DEFINE_GETTER(Isolate::TryGetCurrent, Isolate*, g_current_isolate_)
 
 // static
-Isolate* Isolate::CurrentMaybeBackground() {
-  Isolate* isolate = TryGetCurrent();
-  if (V8_LIKELY(isolate)) {
-    return isolate;
-  }
-  LocalHeap* local_heap = LocalHeap::Current();
-  DCHECK_NOT_NULL(local_heap);
-  return local_heap->heap()->isolate();
-}
+void Isolate::SetCurrent(Isolate* isolate) { g_current_isolate_ = isolate; }
 
 namespace {
 // A global counter for all generated Isolates, might overflow.
@@ -4542,7 +4534,7 @@ void Isolate::Deinit() {
 
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
-  g_current_isolate_ = isolate;
+  Isolate::SetCurrent(isolate);
   g_current_per_isolate_thread_data_ = data;
 
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
