@@ -621,14 +621,13 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
                                 size_t new_space_counter_bytes,
                                 size_t old_generation_counter_bytes,
                                 size_t embedder_counter_bytes) {
-  // This assumes that counters are unsigned integers so that the subtraction
-  // below works even if the new counter is less than the old counter.
-  size_t new_space_allocated_bytes =
-      new_space_counter_bytes - new_space_allocation_counter_bytes_;
-  size_t old_generation_allocated_bytes =
-      old_generation_counter_bytes - old_generation_allocation_counter_bytes_;
-  size_t embedder_allocated_bytes =
-      embedder_counter_bytes - embedder_allocation_counter_bytes_;
+  int64_t new_space_allocated_bytes = std::max<int64_t>(
+      new_space_counter_bytes - new_space_allocation_counter_bytes_, 0);
+  int64_t old_generation_allocated_bytes = std::max<int64_t>(
+      old_generation_counter_bytes - old_generation_allocation_counter_bytes_,
+      0);
+  int64_t embedder_allocated_bytes = std::max<int64_t>(
+      embedder_counter_bytes - embedder_allocation_counter_bytes_, 0);
   const base::TimeDelta allocation_duration = current - allocation_time_;
   allocation_time_ = current;
 
