@@ -76,14 +76,14 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:95b0f8fe31a992a33c040bbe3867901335c12762',
+  'gn_version': 'git_revision:feafd1012a32c05ec6095f69ddc3850afb621f3a',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:6b2665e870db2df4da1c184a2aec2f98dcb75000',
+  'siso_version': 'git_revision:f10ec3c74e86f2de9b9e5ad4e2d8d3b0192ea4d2',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:7dd39503276dfa4a920102ca77a2f409f2f67655',
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '30a4f7ae10a163bd9be6f8c85ab3654932df60c4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f45016d6b358da0f8f0fff77dc9d477231b448db',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5c576735131cd501c8e45073a3e1aee068eedbae',
   'buildtools/linux64': {
@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'c8fafe8f1a3d9712adc573458766ddfde87e743e',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '0fa9014d861f024e28fb491ed7b1cfd44103dee7',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
@@ -285,7 +285,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '0021f30508bc7f73fa5270962d022acb480d242f',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '71815bbf7de6e10c11821d654a2fae2cf42de0f7',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '62df7bdbc10887e094661e07ec2595b7920376fd',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '8295336dd70f1201d42c22ab5b0861de38cf8fbf',
   'third_party/icu':
