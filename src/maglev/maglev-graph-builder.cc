@@ -2651,22 +2651,32 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   if (!maybe_constant) return false;
 
   if (CheckType(other, NodeType::kBoolean)) {
-    if (maybe_constant.value().map(broker_).is_undetectable() ||
-        (maybe_constant.value().IsHeapNumber() &&
-         isnan(maybe_constant.value().AsHeapNumber().value()))) {
-      // NaNs and undetectable objects are equal to nothing.
-      SetAccumulator(GetBooleanConstant(false));
-      return true;
-    }
-    // For `==` we only care about the ToBoolean value of the constant. For
-    // `===` we can skip the check if the constant is true/false.
     std::optional<bool> compare_bool = {};
-    if (kOperation == Operation::kEqual) {
-      compare_bool = maybe_constant->TryGetBooleanValue(broker_);
-    } else if (maybe_constant.equals(broker_->true_value())) {
+    if (maybe_constant.equals(broker_->true_value())) {
       compare_bool = {true};
     } else if (maybe_constant.equals(broker_->false_value())) {
       compare_bool = {false};
+    } else if (kOperation == Operation::kEqual) {
+      // For `bool == num` we can convert the actual comparison `ToNumber(bool)
+      // == num` into `(num == 1) ? bool : ((num == 0) ? !bool : false)`,
+      std::optional<double> val = {};
+      if (maybe_constant.value().IsSmi()) {
+        val = maybe_constant.value().AsSmi();
+      } else if (maybe_constant.value().IsHeapNumber()) {
+        val = maybe_constant.value().AsHeapNumber().value();
+      }
+      if (val) {
+        if (*val == 0) {
+          compare_bool = {false};
+        } else if (*val == 1) {
+          compare_bool = {true};
+        } else {
+          // The constant number is neither equal to `ToNumber(true)` nor
+          // `ToNumber(false)`.
+          SetAccumulator(GetBooleanConstant(false));
+          return true;
+        }
+      }
     }
     if (compare_bool) {
       if (*compare_bool) {
