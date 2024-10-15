@@ -3522,7 +3522,7 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
   MAYBE_RETURN(
       JSReceiver::SetOrCopyDataProperties(
           isolate, new_object, source,
-          PropertiesEnumerationMode::kPropertyAdditionOrder, nullptr, false),
+          PropertiesEnumerationMode::kPropertyAdditionOrder, {}, false),
       MaybeHandle<JSObject>());
   return new_object;
 }

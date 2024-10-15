@@ -1097,7 +1097,7 @@ RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
   MAYBE_RETURN(
       JSReceiver::SetOrCopyDataProperties(
           isolate, target, source,
-          PropertiesEnumerationMode::kPropertyAdditionOrder, nullptr, false),
+          PropertiesEnumerationMode::kPropertyAdditionOrder, {}, false),
       ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1158,8 +1158,8 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
                                                     MaybeHandle<Object>());
   }
 
-  base::ScopedVector<Handle<Object>> excluded_properties(
-      excluded_property_count);
+  DirectHandleVector<Object> excluded_properties(isolate,
+                                                 excluded_property_count);
   for (int i = 0; i < excluded_property_count; i++) {
     // Because the excluded properties on stack is from high address
     // to low address, so we need to use sub
@@ -1179,11 +1179,12 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
 
   Handle<JSObject> target =
       isolate->factory()->NewJSObject(isolate->object_function());
-  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(
-                   isolate, target, source,
-                   PropertiesEnumerationMode::kPropertyAdditionOrder,
-                   &excluded_properties, false),
-               ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(
+      JSReceiver::SetOrCopyDataProperties(
+          isolate, target, source,
+          PropertiesEnumerationMode::kPropertyAdditionOrder,
+          {excluded_properties.data(), excluded_properties.size()}, false),
+      ReadOnlyRoots(isolate).exception());
   return *target;
 }
 

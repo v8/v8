@@ -586,7 +586,7 @@ int InstanceSizeWithMinSlack(JSHeapBroker* broker, MapRef map) {
   // processing). This is to avoid having to take two locks
   // (full_transition_array_access and map_updater_access) at once and thus
   // having to deal with related deadlock issues.
-  ZoneVector<Handle<Map>> maps(broker->zone());
+  ZoneVector<IndirectHandle<Map>> maps(broker->zone());
   maps.push_back(map.object());
 
   {

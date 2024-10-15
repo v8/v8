@@ -103,14 +103,13 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
   }
 
   if (IsCallable(*exec)) {
-    const int argc = 1;
-    base::ScopedVector<Handle<Object>> argv(argc);
-    argv[0] = string;
+    constexpr int argc = 1;
+    std::array<Handle<Object>, argc> argv = {string};
 
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        Execution::Call(isolate, exec, regexp, argc, argv.begin()));
+        Execution::Call(isolate, exec, regexp, argc, argv.data()));
 
     if (!IsJSReceiver(*result) && !IsNull(*result, isolate)) {
       THROW_NEW_ERROR(isolate,
@@ -130,11 +129,10 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
   {
     Handle<JSFunction> regexp_exec = isolate->regexp_exec_function();
 
-    const int argc = 1;
-    base::ScopedVector<Handle<Object>> argv(argc);
-    argv[0] = string;
+    constexpr int argc = 1;
+    std::array<Handle<Object>, argc> argv = {string};
 
-    return Execution::Call(isolate, regexp_exec, regexp, argc, argv.begin());
+    return Execution::Call(isolate, regexp_exec, regexp, argc, argv.data());
   }
 }
 

@@ -4845,7 +4845,7 @@ MaybeHandle<JSReceiver> MergeLargestUnitOption(Isolate* isolate,
   // b. Perform ! CreateDataPropertyOrThrow(merged, nextKey, propValue).
   JSReceiver::SetOrCopyDataProperties(
       isolate, merged, options, PropertiesEnumerationMode::kEnumerationOrder,
-      nullptr, false)
+      {}, false)
       .Check();
 
   // 4. Perform ! CreateDataPropertyOrThrow(merged, "largestUnit", largestUnit).
@@ -14084,7 +14084,7 @@ AddDurationToOrSubtractDurationFromPlainYearMonth(
       isolate, set,
       JSReceiver::SetOrCopyDataProperties(
           isolate, options_copy, options,
-          PropertiesEnumerationMode::kEnumerationOrder, nullptr, false),
+          PropertiesEnumerationMode::kEnumerationOrder, {}, false),
       Handle<JSTemporalPlainYearMonth>());
 
   // 17. Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd,

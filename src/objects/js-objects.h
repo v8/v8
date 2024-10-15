@@ -124,10 +124,13 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   // target, using either Set or CreateDataProperty depending on the
   // use_set argument. This only copies values not present in the
   // maybe_excluded_properties list.
+  // If direct handles are enabled, it is the responsibility of the caller to
+  // ensure that the memory pointed to by `excluded_properties` is scanned
+  // during CSS, e.g., it comes from a `DirectHandleVector<Object>`.
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetOrCopyDataProperties(
       Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
       PropertiesEnumerationMode mode,
-      const base::ScopedVector<Handle<Object>>* excluded_properties = nullptr,
+      base::Vector<DirectHandle<Object>> excluded_properties = {},
       bool use_set = true);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.

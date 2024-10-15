@@ -256,12 +256,11 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
 
 namespace {
 
-bool HasExcludedProperty(
-    const base::ScopedVector<Handle<Object>>* excluded_properties,
-    DirectHandle<Object> search_element) {
+bool HasExcludedProperty(base::Vector<DirectHandle<Object>> excluded_properties,
+                         DirectHandle<Object> search_element) {
   // TODO(gsathya): Change this to be a hashtable.
-  for (int i = 0; i < excluded_properties->length(); i++) {
-    if (Object::SameValue(*search_element, *excluded_properties->at(i))) {
+  for (DirectHandle<Object> object : excluded_properties) {
+    if (Object::SameValue(*search_element, *object)) {
       return true;
     }
   }
@@ -269,11 +268,13 @@ bool HasExcludedProperty(
   return false;
 }
 
+// If direct handles are enabled, it is the responsibility of the caller to
+// ensure that the memory pointed to by `excluded_properties` is scanned
+// during CSS, e.g., it comes from a `DirectHandleVector<Object>`.
 V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
     PropertiesEnumerationMode mode,
-    const base::ScopedVector<Handle<Object>>* excluded_properties,
-    bool use_set) {
+    base::Vector<DirectHandle<Object>> excluded_properties, bool use_set) {
   // Non-empty strings are the only non-JSReceivers that need to be handled
   // explicitly by Object.assign.
   if (!IsJSReceiver(*source)) {
@@ -378,7 +379,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
       } else {
         // No element indexes should get here or the exclusion check may
         // yield false negatives for type mismatch.
-        if (excluded_properties != nullptr &&
+        if (!excluded_properties.empty() &&
             HasExcludedProperty(excluded_properties, next_key)) {
           continue;
         }
@@ -411,8 +412,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
 Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
     PropertiesEnumerationMode mode,
-    const base::ScopedVector<Handle<Object>>* excluded_properties,
-    bool use_set) {
+    base::Vector<DirectHandle<Object>> excluded_properties, bool use_set) {
   Maybe<bool> fast_assign =
       FastAssign(isolate, target, source, mode, excluded_properties, use_set);
   if (fast_assign.IsNothing()) return Nothing<bool>();
@@ -454,7 +454,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
   // 4. Repeat for each element nextKey of keys in List order,
   for (int i = 0; i < keys->length(); ++i) {
     Handle<Object> next_key(keys->get(i), isolate);
-    if (excluded_properties != nullptr &&
+    if (!excluded_properties.empty() &&
         HasExcludedProperty(excluded_properties, next_key)) {
       continue;
     }

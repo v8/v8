@@ -460,8 +460,7 @@ namespace {
 
 // Find the arguments of the JavaScript function invocation that called
 // into C++ code. Collect these in a newly allocated array of handles.
-std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
-                                                     int* total_argc) {
+DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
   // Find frame containing arguments passed to the caller.
   JavaScriptStackFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
@@ -485,9 +484,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
     iter++;
     argument_count--;
 
-    *total_argc = argument_count;
-    std::unique_ptr<Handle<Object>[]> param_data(
-        NewArray<Handle<Object>>(*total_argc));
+    DirectHandleVector<Object> param_data(isolate, argument_count);
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
       // If we materialize any object, we should deoptimize the frame because we
@@ -505,9 +502,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
     return param_data;
   } else {
     int args_count = frame->GetActualArgumentCount();
-    *total_argc = args_count;
-    std::unique_ptr<Handle<Object>[]> param_data(
-        NewArray<Handle<Object>>(*total_argc));
+    DirectHandleVector<Object> param_data(isolate, args_count);
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
       param_data[i] = val;
@@ -592,11 +587,15 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 
 class HandleArguments {
  public:
-  explicit HandleArguments(Handle<Object>* array) : array_(array) {}
+  // If direct handles are enabled, it is the responsibility of the caller to
+  // ensure that the memory pointed to by `array` is scanned during CSS, e.g.,
+  // it comes from a `DirectHandleVector<Object>`.
+  explicit HandleArguments(base::Vector<const DirectHandle<Object>> array)
+      : array_(array) {}
   Tagged<Object> operator[](int index) { return *array_[index]; }
 
  private:
-  Handle<Object>* array_;
+  base::Vector<const DirectHandle<Object>> array_;
 };
 
 class ParameterArguments {
@@ -618,11 +617,10 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   Handle<JSFunction> callee = args.at<JSFunction>(0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
-  int argument_count = 0;
-  std::unique_ptr<Handle<Object>[]> arguments =
-      GetCallerArguments(isolate, &argument_count);
-  HandleArguments argument_getter(arguments.get());
-  return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
+  auto arguments = GetCallerArguments(isolate);
+  HandleArguments argument_getter({arguments.data(), arguments.size()});
+  return *NewSloppyArguments(isolate, callee, argument_getter,
+                             static_cast<int>(arguments.size()));
 }
 
 RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
@@ -631,9 +629,8 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   Handle<JSFunction> callee = args.at<JSFunction>(0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
-  int argument_count = 0;
-  std::unique_ptr<Handle<Object>[]> arguments =
-      GetCallerArguments(isolate, &argument_count);
+  auto arguments = GetCallerArguments(isolate);
+  int argument_count = static_cast<int>(arguments.size());
   DirectHandle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
   if (argument_count) {
@@ -649,7 +646,6 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   return *result;
 }
 
-
 RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -658,9 +654,8 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
       callee->shared()->internal_formal_parameter_count_without_receiver();
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
-  int argument_count = 0;
-  std::unique_ptr<Handle<Object>[]> arguments =
-      GetCallerArguments(isolate, &argument_count);
+  auto arguments = GetCallerArguments(isolate);
+  int argument_count = static_cast<int>(arguments.size());
   int num_elements = std::max(0, argument_count - start_index);
   DirectHandle<JSObject> result = isolate->factory()->NewJSArray(
       PACKED_ELEMENTS, num_elements, num_elements,

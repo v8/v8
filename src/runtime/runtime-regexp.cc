@@ -1626,7 +1626,10 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kTooManyArguments));
   }
-  base::ScopedVector<Handle<Object>> argv(argc);
+  // TODO(42203211): This vector ends up in InvokeParams which is potentially
+  // used by generated code. It will be replaced, when generated code starts
+  // using direct handles.
+  base::ScopedVector<IndirectHandle<Object>> argv(argc);
 
   int cursor = 0;
   for (int j = 0; j < m; j++) {
@@ -1734,16 +1737,13 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
   Handle<JSReceiver> splitter;
   {
-    const int argc = 2;
-
-    base::ScopedVector<Handle<Object>> argv(argc);
-    argv[0] = recv;
-    argv[1] = new_flags;
+    constexpr int argc = 2;
+    std::array<Handle<Object>, argc> argv = {recv, new_flags};
 
     Handle<Object> splitter_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, splitter_obj,
-        Execution::New(isolate, ctor, argc, argv.begin()));
+        Execution::New(isolate, ctor, argc, argv.data()));
 
     splitter = Cast<JSReceiver>(splitter_obj);
   }
@@ -1998,7 +1998,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
             isolate, NewRangeError(MessageTemplate::kTooManyArguments));
       }
 
-      base::ScopedVector<Handle<Object>> argv(argc);
+      base::ScopedVector<IndirectHandle<Object>> argv(argc);
 
       int cursor = 0;
       for (uint32_t j = 0; j < captures_length; j++) {

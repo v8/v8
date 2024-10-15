@@ -839,10 +839,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSMap> NewJSMap();
   Handle<JSSet> NewJSSet();
 
-  // Allocates a bound function.
+  // Allocates a bound function. If direct handles are enabled, it is the
+  // responsibility of the caller to ensure that the memory pointed to by
+  // `bound_args` is scanned during CSS, e.g., it comes from a
+  // `DirectHandleVector<Object>`.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
       DirectHandle<JSReceiver> target_function, DirectHandle<JSAny> bound_this,
-      base::Vector<Handle<Object>> bound_args, Handle<HeapObject> prototype);
+      base::Vector<DirectHandle<Object>> bound_args,
+      Handle<HeapObject> prototype);
 
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(DirectHandle<JSReceiver> target,

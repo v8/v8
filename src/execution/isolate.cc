@@ -6077,7 +6077,7 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
   }
 
   // Collect existing feedback vectors.
-  std::vector<Handle<FeedbackVector>> vectors;
+  DirectHandleVector<FeedbackVector> vectors(this);
 
   {
     HeapObjectIterator heap_iterator(heap());

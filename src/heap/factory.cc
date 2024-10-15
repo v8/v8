@@ -3681,7 +3681,8 @@ Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
 
 MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
     DirectHandle<JSReceiver> target_function, DirectHandle<JSAny> bound_this,
-    base::Vector<Handle<Object>> bound_args, Handle<HeapObject> prototype) {
+    base::Vector<DirectHandle<Object>> bound_args,
+    Handle<HeapObject> prototype) {
   DCHECK(IsCallable(*target_function));
   static_assert(Code::kMaxArguments <= FixedArray::kMaxLength);
   if (bound_args.length() >= Code::kMaxArguments) {

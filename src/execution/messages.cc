@@ -329,8 +329,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
         ASSIGN_RETURN_ON_EXCEPTION(isolate, sites,
                                    GetStackFrames(isolate, elems));
 
-        const int argc = 2;
-        base::ScopedVector<Handle<Object>> argv(argc);
+        constexpr int argc = 2;
+        std::array<Handle<Object>, argc> argv;
         if (V8_UNLIKELY(IsJSGlobalObject(*error))) {
           // Pass global proxy instead of global object.
           argv[0] =
@@ -345,8 +345,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, result,
             Execution::Call(isolate, prepare_stack_trace, global_error, argc,
-                            argv.begin()));
-
+                            argv.data()));
         return result;
       }
     }
