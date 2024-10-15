@@ -1195,14 +1195,9 @@ std::optional<base::TimeDelta> GCTracer::AverageTimeToIncrementalMarkingTask()
   return average_time_to_incremental_marking_task_;
 }
 
-void GCTracer::RecordEmbedderSpeed(size_t bytes, double duration) {
-  if (duration == 0 || bytes == 0) return;
-  double current_speed = bytes / duration;
-  if (recorded_embedder_speed_ == 0.0) {
-    recorded_embedder_speed_ = current_speed;
-  } else {
-    recorded_embedder_speed_ = (recorded_embedder_speed_ + current_speed) / 2;
-  }
+void GCTracer::RecordEmbedderMarkingSpeed(size_t bytes,
+                                          base::TimeDelta duration) {
+  recorded_embedder_marking_.Push(BytesAndDuration(bytes, duration));
 }
 
 void GCTracer::RecordMutatorUtilization(base::TimeTicks mark_compact_end_time,
@@ -1255,9 +1250,7 @@ double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
 }
 
 double GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
-  // Note: Returning 0 is ok here as callers check for whether embedder speeds
-  // have been recorded at all.
-  return recorded_embedder_speed_;
+  return BoundedAverageSpeed(recorded_embedder_marking_);
 }
 
 double GCTracer::YoungGenerationSpeedInBytesPerMillisecond(

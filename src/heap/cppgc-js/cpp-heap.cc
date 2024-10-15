@@ -864,12 +864,9 @@ void CppHeap::WriteBarrier(void* object) {
 
 namespace {
 
-void RecordEmbedderSpeed(GCTracer* tracer, base::TimeDelta marking_time,
-                         size_t marked_bytes) {
-  constexpr auto kMinReportingTime = base::TimeDelta::FromMillisecondsD(0.5);
-  if (marking_time > kMinReportingTime) {
-    tracer->RecordEmbedderSpeed(marked_bytes, marking_time.InMillisecondsF());
-  }
+void RecordEmbedderMarkingSpeed(GCTracer* tracer, base::TimeDelta marking_time,
+                                size_t marked_bytes) {
+  tracer->RecordEmbedderMarkingSpeed(marked_bytes, marking_time);
 }
 
 }  // namespace
@@ -905,8 +902,8 @@ void CppHeap::FinishMarkingAndProcessWeakness() {
     // setting limits close to actual heap sizes.
     allocated_size_limit_for_check_ = 0;
 
-    RecordEmbedderSpeed(isolate_->heap()->tracer(),
-                        stats_collector_->marking_time(), used_size_);
+    RecordEmbedderMarkingSpeed(isolate_->heap()->tracer(),
+                               stats_collector_->marking_time(), used_size_);
   }
 }
 
