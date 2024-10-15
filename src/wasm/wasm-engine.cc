@@ -324,6 +324,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
 
 bool NativeModuleCache::GetStreamingCompilationOwnership(
     size_t prefix_hash, const CompileTimeImports& compile_imports) {
+  if (!v8_flags.wasm_native_module_cache_enabled) return true;
   base::MutexGuard lock(&mutex_);
   auto it = map_.lower_bound(Key{prefix_hash, compile_imports, {}});
   if (it != map_.end() && it->first.prefix_hash == prefix_hash) {
@@ -339,6 +340,7 @@ bool NativeModuleCache::GetStreamingCompilationOwnership(
 
 void NativeModuleCache::StreamingCompilationFailed(
     size_t prefix_hash, const CompileTimeImports& compile_imports) {
+  if (!v8_flags.wasm_native_module_cache_enabled) return;
   base::MutexGuard lock(&mutex_);
   Key key{prefix_hash, compile_imports, {}};
   map_.erase(key);
