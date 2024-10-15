@@ -1397,16 +1397,15 @@ class MjsunitModuleDis {
         for (const WasmExport& ex : module_->export_table) {
           if (ex.kind != kExternalFunction || ex.index != index) continue;
           if (names()->FunctionNameEquals(index, ex.name)) {
-            out_ << ".exportFunc();";
+            out_ << ".exportFunc()";
           } else {
             out_ << ".exportAs('";
             PrintName(ex.name);
-            out_ << "');";
+            out_ << "')";
           }
         }
-      } else {
-        out_ << ";";
       }
+      out_ << ";";
       out_.NextLine(0);
     }
 
