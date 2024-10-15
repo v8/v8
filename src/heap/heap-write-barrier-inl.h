@@ -177,6 +177,17 @@ void WriteBarrier::ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
 }
 
 // static
+void WriteBarrier::ForExternalPointer(Tagged<HeapObject> host,
+                                      ExternalPointerSlot slot,
+                                      WriteBarrierMode mode) {
+  if (mode == SKIP_WRITE_BARRIER) {
+    SLOW_DCHECK(HeapLayout::InYoungGeneration(host));
+    return;
+  }
+  Marking(host, slot);
+}
+
+// static
 void WriteBarrier::ForIndirectPointer(Tagged<HeapObject> host,
                                       IndirectPointerSlot slot,
                                       Tagged<HeapObject> value,
@@ -311,6 +322,13 @@ void WriteBarrier::ForDescriptorArray(Tagged<DescriptorArray> descriptor_array,
     return;
   }
   MarkingSlow(descriptor_array, number_of_own_descriptors);
+}
+
+void WriteBarrier::Marking(Tagged<HeapObject> host, ExternalPointerSlot slot) {
+  if (V8_LIKELY(!IsMarking(host))) {
+    return;
+  }
+  MarkingSlow(host, slot);
 }
 
 void WriteBarrier::Marking(Tagged<HeapObject> host, IndirectPointerSlot slot) {

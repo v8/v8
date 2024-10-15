@@ -719,6 +719,18 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
+#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag)
+#else
+#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag)           \
+  do {                                                                \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                     \
+    WriteBarrier::ForExternalPointer(                                 \
+        object, Tagged(object)->RawExternalPointerField(offset, tag), \
+        UPDATE_WRITE_BARRIER);                                        \
+  } while (false)
+#endif
+
+#ifdef V8_DISABLE_WRITE_BARRIERS
 #define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)
 #else
 #define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
@@ -767,6 +779,16 @@
   } while (false)
 #endif
 
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, mode)
+#else
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, mode) \
+  do {                                                                        \
+    DCHECK(HeapLayout::IsOwnedByAnyHeap(object));                             \
+    WriteBarrier::ForExternalPointer(                                         \
+        object, Tagged(object)->RawExternalPointerField(offset, tag), mode);  \
+  } while (false)
+#endif
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                    mode)

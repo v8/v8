@@ -780,8 +780,6 @@ TEST_F(HeapTest, Regress364396306) {
         iso->factory()->NewExternal(external_int);
       } while (space->freelist_length() > 1);
     }
-    // Entries are allocated as marked. Invoke a GC to clear the markbits.
-    InvokeMinorGC();
     {
       v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(iso));
       // Allocate one reachable entry on the same segment to prevent discarding

@@ -132,8 +132,14 @@ bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
   // EmbedderDataSlots are lazily initialized: initially they contain the null
   // external pointer handle (see EmbedderDataSlot::Initialize), and only once
   // an external pointer is stored in them are they properly initialized.
-  WriteLazilyInitializedExternalPointerField<kEmbedderDataSlotPayloadTag>(
-      host.address(), address() + kExternalPointerOffset, isolate, value);
+  // TODO(saelo): here we currently have to use the accessor on the host object
+  // as we may need a write barrier. This is a bit awkward. Maybe we should
+  // introduce helper methods on the ExternalPointerSlot class that allow us to
+  // determine whether the slot needs to be initialized, in which case a write
+  // barrier can be performed here.
+  size_t offset = address() - host.address() + kExternalPointerOffset;
+  host->WriteLazilyInitializedExternalPointerField<kEmbedderDataSlotPayloadTag>(
+      offset, isolate, value);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 #else

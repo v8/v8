@@ -331,8 +331,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // ExternalPointer_t field accessors.
   //
   template <ExternalPointerTag tag>
-  inline void InitExternalPointerField(size_t offset, IsolateForSandbox isolate,
-                                       Address value);
+  inline void InitExternalPointerField(
+      size_t offset, IsolateForSandbox isolate, Address value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <ExternalPointerTag tag>
   inline Address ReadExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate) const;
@@ -348,13 +349,25 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                         IsolateForSandbox isolate,
                                         Address value);
 
+  // Set up a lazily-initialized external pointer field. If the sandbox is
+  // enabled, this will set the field to the kNullExternalPointerHandle. It will
+  // *not* allocate an entry in the external pointer table. That will only
+  // happen on the first call to WriteLazilyInitializedExternalPointerField. If
+  // the sandbox is disabled, this is equivalent to InitExternalPointerField
+  // with a nullptr value.
+  inline void SetupLazilyInitializedExternalPointerField(size_t offset);
+
+  // Writes and possibly initializes a lazily-initialized external pointer
+  // field. When the sandbox is enabled, a lazily initialized external pointer
+  // field initially contains the kNullExternalPointerHandle and will only be
+  // properly initialized (i.e. allocate an entry in the external pointer table)
+  // once a value is written into it for the first time. If the sandbox is
+  // disabled, this is equivalent to WriteExternalPointerField.
   template <ExternalPointerTag tag>
   inline void WriteLazilyInitializedExternalPointerField(
       size_t offset, IsolateForSandbox isolate, Address value);
 
-  inline void SetupLazilyInitializedExternalPointerField(size_t offset);
   inline void SetupLazilyInitializedCppHeapPointerField(size_t offset);
-
   template <CppHeapPointerTag tag>
   inline void WriteLazilyInitializedCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate, Address value);
