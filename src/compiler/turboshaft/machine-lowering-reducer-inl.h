@@ -59,6 +59,12 @@ class MachineLoweringReducer : public Next {
     }
   }
 
+  V<Word32> REDUCE(Word32SignHint)(V<Word32> input, Word32SignHintOp::Sign) {
+    // As far as Machine operations are concerned, Int32 and Uint32 are both
+    // Word32.
+    return input;
+  }
+
   V<Untagged> REDUCE(ChangeOrDeopt)(V<Untagged> input,
                                     V<FrameState> frame_state,
                                     ChangeOrDeoptOp::Kind kind,

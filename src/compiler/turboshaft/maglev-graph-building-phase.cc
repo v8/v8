@@ -1074,7 +1074,7 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::Uint32Constant* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Word32Constant(node->value()));
+    SetMap(node, __ Word32SignHintUnsigned(__ Word32Constant(node->value())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Float64Constant* node,
@@ -3601,26 +3601,9 @@ class GraphBuildingNodeProcessor {
       // don't. For those that don't, which do this modulo 32 with a `& 0x1f`.
       right = __ Word32BitwiseAnd(right, 0x1f);
     }
-    V<Word32> left = Map(node->left_input());
-    OpIndex next_op = __ output_graph().next_operation_index();
-    V<Word32> ts_op = __ Word32ShiftRightLogical(left, right);
-    if (ts_op < next_op) {
-      // Turboshaft constant-folded a logical right-shift. However, there is
-      // still a difference in how the result should be interpreted: `x >>> 0`
-      // is always unsigned. Turboshaft doesn't care about signedness, but
-      // Maglev does, and in particular when retagging phi inputs (and in
-      // particular exception phis). We thus insert an identity node, so that we
-      // still have one and only one representation per OpIndex: the input can
-      // still have Int32 representation, and the Identity node will have Uint32
-      // representation (defined in RecordRepresentation). Note that this is a
-      // bit of a hack: a cleaner solution would be to change
-      // RecordRepresentation to record one representation for each node in each
-      // block or at a given instruction, but that would introduce yet another
-      // layer of complexity to the tracking of representation, so we prefer to
-      // have this small Identity hack.
-      ts_op = __ Identity(ts_op);
-    }
-    SetMap(node, ts_op);
+    V<Word32> ts_op =
+        __ Word32ShiftRightLogical(Map(node->left_input()), right);
+    SetMap(node, __ Word32SignHintUnsigned(ts_op));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -3905,7 +3888,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::TruncateUint32ToInt32* node,
                                 const maglev::ProcessingState& state) {
     // This doesn't matter in Turboshaft: both Uint32 and Int32 are Word32.
-    SetMap(node, Map(node->input()));
+    SetMap(node, __ Word32SignHintSigned(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckedInt32ToUint32* node,
@@ -3914,7 +3897,7 @@ class GraphBuildingNodeProcessor {
     __ DeoptimizeIf(__ Int32LessThan(Map(node->input()), 0), frame_state,
                     DeoptimizeReason::kNotUint32,
                     node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, Map(node->input()));
+    SetMap(node, __ Word32SignHintUnsigned(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckedUint32ToInt32* node,
@@ -3923,14 +3906,12 @@ class GraphBuildingNodeProcessor {
     __ DeoptimizeIf(__ Int32LessThan(Map(node->input()), 0), frame_state,
                     DeoptimizeReason::kNotInt32,
                     node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, Map(node->input()));
+    SetMap(node, __ Word32SignHintSigned(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::UnsafeInt32ToUint32* node,
                                 const maglev::ProcessingState& state) {
-    // This is a no-op in Maglev, and also in Turboshaft where both Uint32 and
-    // Int32 are Word32.
-    SetMap(node, Map(node->input()));
+    SetMap(node, __ Word32SignHintUnsigned(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckedObjectToIndex* node,

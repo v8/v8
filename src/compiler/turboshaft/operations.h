@@ -273,12 +273,12 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(TransitionAndStoreArrayElement)             \
   V(TransitionElementsKind)                     \
   V(DebugPrint)                                 \
-  V(CheckTurboshaftTypeOf)
+  V(CheckTurboshaftTypeOf)                      \
+  V(Word32SignHint)
 
 // These Operations are the lowest level handled by Turboshaft, and are
 // supported by the InstructionSelector.
 #define TURBOSHAFT_MACHINE_OPERATION_LIST(V) \
-  V(Identity)                                \
   V(WordBinop)                               \
   V(FloatBinop)                              \
   V(Word32PairBinop)                         \
@@ -1533,29 +1533,35 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
   auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 
-// Note that IdentityOp is always automatically removed by CopyingPhase, so that
-// they don't block optimizations down the line.
-struct IdentityOp : FixedArityOperationT<1, IdentityOp> {
-  RegisterRepresentation rep;
+// Word32SignHint is a type-hint used during Maglev->Turboshaft
+// translation to avoid having multiple values being used as both Int32 and
+// Uint32: for such cases, Maglev has explicit conversions, and it's helpful to
+// also have them in Turboshaft. Eventually, Word32SignHint is just a
+// nop in Turboshaft, since as far as Machine level graph is concerned, both
+// Int32 and Uint32 are just Word32 registers.
+struct Word32SignHintOp : FixedArityOperationT<1, Word32SignHintOp> {
+  enum class Sign : bool { kSigned, kUnsigned };
+  Sign sign;
 
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
+    return RepVector<RegisterRepresentation::Word32()>();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return InputsRepFactory::SingleRep(rep);
+    return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
   }
 
-  V<Any> input() const { return Base::input<Any>(0); }
+  V<Word32> input() const { return Base::input<Word32>(0); }
 
-  IdentityOp(V<Any> input, RegisterRepresentation rep)
-      : Base(input), rep(rep) {}
+  Word32SignHintOp(V<Word32> input, Sign sign) : Base(input), sign(sign) {}
 
   void Validate(const Graph& graph) const {}
-  auto options() const { return std::tuple{rep}; }
+  auto options() const { return std::tuple{sign}; }
 };
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           Word32SignHintOp::Sign sign);
 
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   enum class Kind : uint8_t {

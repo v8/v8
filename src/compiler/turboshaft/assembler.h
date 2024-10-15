@@ -1535,13 +1535,15 @@ class TurboshaftAssemblerOpInterface
   // Methods to be used by the reducers to reducer operations with the whole
   // reducer stack.
 
-  V<Any> Identity(V<Any> input, RegisterRepresentation rep) {
-    return ReduceIfReachableIdentity(input, rep);
+  V<Word32> Word32SignHint(V<Word32> input, Word32SignHintOp::Sign sign) {
+    return ReduceIfReachableWord32SignHint(input, sign);
   }
 
-  template <typename Rep = Any>
-  V<Rep> Identity(V<Rep> input) {
-    return V<Rep>::Cast(Identity(input, V<Rep>::rep));
+  V<Word32> Word32SignHintUnsigned(V<Word32> input) {
+    return Word32SignHint(input, Word32SignHintOp::Sign::kUnsigned);
+  }
+  V<Word32> Word32SignHintSigned(V<Word32> input) {
+    return Word32SignHint(input, Word32SignHintOp::Sign::kSigned);
   }
 
   V<Object> GenericBinop(V<Object> left, V<Object> right,
