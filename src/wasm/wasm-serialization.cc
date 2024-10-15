@@ -23,9 +23,7 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/well-known-imports.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 namespace {
 constexpr uint8_t kLazyFunction = 2;
@@ -216,9 +214,6 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 #endif
 }
 
-constexpr size_t kHeaderSize = sizeof(size_t) +  // total code size
-                               sizeof(bool);     // all functions validated
-
 constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +      // offset of constant pool
                                    sizeof(int) +  // offset of safepoint table
@@ -358,18 +353,22 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
 }
 
 size_t NativeModuleSerializer::Measure() const {
-  size_t size = kHeaderSize;
+  // From {WriteHeader}:
+  size_t size = sizeof(WasmDetectedFeatures::StorageType) +
+                sizeof(size_t) +  // total code size
+                sizeof(bool) +    // all functions validated
+                sizeof(typename CompileTimeImportFlags::StorageType) +
+                sizeof(uint32_t) +  // length of constants_module.
+                native_module_->compile_imports().constants_module().size() +
+                import_statuses_.size() * sizeof(WellKnownImport);
+
+  // From {WriteCode}, called repeatedly.
   for (WasmCode* code : code_table_) {
     size += MeasureCode(code);
   }
-  // Add the size of the well-known imports status.
-  size += import_statuses_.size() * sizeof(WellKnownImport);
-  // Add the size of the tiering budget.
+
+  // Tiering budget, wrote in {Write} directly.
   size += native_module_->module()->num_declared_functions * sizeof(uint32_t);
-  // Add the size of the compile-time imports.
-  size += sizeof(typename CompileTimeImportFlags::StorageType) +
-          native_module_->compile_imports().constants_module().size() +
-          sizeof(uint32_t);  // For the length of the name.
 
   return size;
 }
@@ -379,11 +378,15 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
   // TODO(eholk): We need to properly preserve the flag whether the trap
   // handler was used or not when serializing.
 
-  const CompileTimeImports& compile_imports = native_module_->compile_imports();
-  const std::string& constants_module = compile_imports.constants_module();
-  writer->Write(compile_imports.flags().ToIntegral());
-  writer->Write(static_cast<uint32_t>(constants_module.size()));
-  writer->WriteVector(base::VectorOf(constants_module));
+  // Serialize the set of detected features; this contains
+  // - all features detected during module decoding,
+  // - all features detected during function body decoding (if lazy validation
+  //   is disabled), and
+  // - some features detected during compilation; some might still be missing
+  //   because installing code and publishing detected features is not atomic.
+  writer->Write(
+      native_module_->compilation_state()->detected_features().ToIntegral());
+
   writer->Write(total_code_size);
 
   // We do not ship lazy validation, so in most cases all functions will be
@@ -400,6 +403,11 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
   }
 #endif
 
+  const CompileTimeImports& compile_imports = native_module_->compile_imports();
+  const std::string& constants_module = compile_imports.constants_module();
+  writer->Write(compile_imports.flags().ToIntegral());
+  writer->Write(static_cast<uint32_t>(constants_module.size()));
+  writer->WriteVector(base::VectorOf(constants_module));
   writer->WriteVector(base::VectorOf(import_statuses_));
 }
 
@@ -848,6 +856,17 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 }
 
 void NativeModuleDeserializer::ReadHeader(Reader* reader) {
+  WasmDetectedFeatures detected_features = WasmDetectedFeatures::FromIntegral(
+      reader->Read<WasmDetectedFeatures::StorageType>());
+  // Ignore the return value of UpdateDetectedFeatures; all features will be
+  // published after deserialization anyway.
+  USE(native_module_->compilation_state()->UpdateDetectedFeatures(
+      detected_features));
+
+  remaining_code_size_ = reader->Read<size_t>();
+
+  all_functions_validated_ = reader->Read<bool>();
+
   auto compile_imports_flags =
       reader->Read<CompileTimeImportFlags::StorageType>();
   uint32_t constants_module_size = reader->Read<uint32_t>();
@@ -855,9 +874,6 @@ void NativeModuleDeserializer::ReadHeader(Reader* reader) {
       reader->ReadVector<char>(constants_module_size);
   compile_imports_ = CompileTimeImports::FromSerialized(compile_imports_flags,
                                                         constants_module_data);
-
-  remaining_code_size_ = reader->Read<size_t>();
-  all_functions_validated_ = reader->Read<bool>();
 
   uint32_t imported = native_module_->module()->num_imported_functions;
   if (imported > 0) {
@@ -1103,6 +1119,10 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     shared_native_module->compilation_state()->InitializeAfterDeserialization(
         deserializer.lazy_functions(), deserializer.eager_functions());
     wasm_engine->UpdateNativeModuleCache(error, shared_native_module, isolate);
+    // Now publish the full set of detected features (read during
+    // deserialization, so potentially more than from DecodeWasmModule above).
+    detected_features =
+        shared_native_module->compilation_state()->detected_features();
     PublishDetectedFeatures(detected_features, isolate, true);
   }
 
@@ -1120,6 +1140,4 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   return module_object;
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
