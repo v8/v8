@@ -191,7 +191,7 @@ class CodeEventLogger::NameBuffer {
 
   void AppendString(Tagged<String> str) {
     if (str.is_null()) return;
-    int length = 0;
+    uint32_t length = 0;
     std::unique_ptr<char[]> c_str =
         str->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, &length);
     AppendBytes(c_str.get(), length);

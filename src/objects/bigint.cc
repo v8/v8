@@ -830,8 +830,8 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate,
     return isolate->factory()->zero_string();
   }
   const bool sign = bigint->sign();
-  int chars_allocated;
-  int chars_written;
+  uint32_t chars_allocated;
+  uint32_t chars_written;
   Handle<SeqOneByteString> result;
   if (bigint->length() == 1 && radix == 10) {
     // Fast path for the most common case, to avoid call/dispatch overhead.
@@ -903,7 +903,7 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate,
   DCHECK(result->length() == chars_written);
   DisallowGarbageCollection no_gc;
   uint8_t* chars = result->GetChars(no_gc);
-  for (int i = 0; i < chars_written; i++) {
+  for (uint32_t i = 0; i < chars_written; i++) {
     DCHECK_NE(chars[i], bigint::kStringZapValue);
   }
 #endif
@@ -923,13 +923,13 @@ Handle<String> BigInt::NoSideEffectsToString(Isolate* isolate,
         "<a very large BigInt>");
   }
 
-  int chars_allocated =
+  uint32_t chars_allocated =
       bigint::ToStringResultLength(bigint->digits(), 10, bigint->sign());
   DCHECK_LE(chars_allocated, String::kMaxLength);
   Handle<SeqOneByteString> result = isolate->factory()
                                         ->NewRawOneByteString(chars_allocated)
                                         .ToHandleChecked();
-  int chars_written = chars_allocated;
+  uint32_t chars_written = chars_allocated;
   DisallowGarbageCollection no_gc;
   char* characters = reinterpret_cast<char*>(result->GetChars(no_gc));
   std::unique_ptr<bigint::Processor, bigint::Processor::Destroyer>

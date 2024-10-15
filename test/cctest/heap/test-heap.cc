@@ -423,7 +423,7 @@ static void VerifyStringAllocation(Isolate* isolate, const char* string) {
                                ->NewStringFromUtf8(base::CStrVector(string))
                                .ToHandleChecked();
   CHECK_EQ(strlen(string), s->length());
-  for (int index = 0; index < s->length(); index++) {
+  for (uint32_t index = 0; index < s->length(); index++) {
     CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
   }
 }

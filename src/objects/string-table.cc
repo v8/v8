@@ -556,7 +556,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
 
   DisallowGarbageCollection no_gc;
 
-  int length = string->length();
+  uint32_t length = string->length();
   // The source hash is usable if it is not from a sliced string.
   // For sliced strings we need to recalculate the hash from the given offset
   // with the correct length.

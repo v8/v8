@@ -2488,8 +2488,8 @@ DEFINE_BOOL(heap_snapshot_on_oom, false,
             "Write a heap snapshot to disk on last-resort GCs")
 DEFINE_INT(heap_snapshot_on_gc, -1,
            "Write a heap snapshot to disk on a certain GC invocation")
-DEFINE_INT(heap_snapshot_string_limit, 1024,
-           "truncate strings to this length in the heap snapshot")
+DEFINE_UINT(heap_snapshot_string_limit, 1024,
+            "truncate strings to this length in the heap snapshot")
 DEFINE_BOOL(heap_profiler_show_hidden_objects, false,
             "use 'native' rather than 'hidden' node type in snapshot")
 DEFINE_BOOL(profile_heap_snapshot, false, "dump time spent on heap snapshot")

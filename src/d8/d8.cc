@@ -603,7 +603,7 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
   }
 
  private:
-  int source_length_;
+  uint32_t source_length_;
   std::unique_ptr<char[]> source_buffer_;
   bool done_;
 };

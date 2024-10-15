@@ -253,7 +253,7 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
     if (num_matches > 0) {
       DCHECK_EQ(num_matches, 1);
       if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-        if (output_registers[0] >= subject->length()) {
+        if (output_registers[0] >= static_cast<int32_t>(subject->length())) {
           return isolate->factory()->null_value();
         }
       }
@@ -322,7 +322,7 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
     if (num_matches > 0) {
       DCHECK_EQ(num_matches, 1);
       if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-        if (output_registers[0] >= subject->length()) {
+        if (output_registers[0] >= static_cast<int32_t>(subject->length())) {
           return isolate->factory()->null_value();
         }
       }

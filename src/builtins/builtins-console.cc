@@ -76,7 +76,8 @@ bool Formatter(Isolate* isolate, BuiltinArguments& args, int index) {
   while (!states.empty() && index < args.length()) {
     State& state = states.top();
     state.off = String::IndexOf(isolate, state.str, percent, state.off);
-    if (state.off < 0 || state.off == state.str->length() - 1) {
+    if (state.off < 0 ||
+        state.off == static_cast<int>(state.str->length()) - 1) {
       states.pop();
       continue;
     }

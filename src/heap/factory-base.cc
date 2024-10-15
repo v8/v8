@@ -798,7 +798,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   DCHECK_IMPLIES(!StringShape(map).IsShared(),
                  RefineAllocationTypeForInPlaceInternalizableString(
                      allocation, map) == allocation);
-  if (length > String::kMaxLength || length < 0) {
+  if (length < 0 || static_cast<uint32_t>(length) > String::kMaxLength) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
@@ -858,12 +858,12 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
   if (IsThinString(*right)) {
     right = handle(Cast<ThinString>(*right)->actual(), isolate());
   }
-  int left_length = left->length();
+  uint32_t left_length = left->length();
   if (left_length == 0) return right;
-  int right_length = right->length();
+  uint32_t right_length = right->length();
   if (right_length == 0) return left;
 
-  int length = left_length + right_length;
+  uint32_t length = left_length + right_length;
 
   if (length == 2) {
     uint16_t c1 = left->Get(0, isolate());

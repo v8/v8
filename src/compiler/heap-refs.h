@@ -1145,9 +1145,9 @@ class StringRef : public NameRef {
   // When concurrently accessing non-read-only non-supported strings, we return
   // std::nullopt for these methods.
   std::optional<Handle<String>> ObjectIfContentAccessible(JSHeapBroker* broker);
-  int length() const;
+  uint32_t length() const;
   std::optional<uint16_t> GetFirstChar(JSHeapBroker* broker) const;
-  std::optional<uint16_t> GetChar(JSHeapBroker* broker, int index) const;
+  std::optional<uint16_t> GetChar(JSHeapBroker* broker, uint32_t index) const;
   std::optional<double> ToNumber(JSHeapBroker* broker);
   std::optional<double> ToInt(JSHeapBroker* broker, int radix);
 

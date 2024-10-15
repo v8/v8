@@ -704,8 +704,8 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   } else if (IsString(*lookup_start_obj) && IsSmi(*key_obj)) {
     // Fast case for string indexing using [] with a smi index.
     Handle<String> str = Cast<String>(lookup_start_obj);
-    int smi_index = Cast<Smi>(*key_obj).value();
-    if (smi_index >= 0 && smi_index < str->length()) {
+    uint32_t smi_index = Cast<Smi>(*key_obj).value();
+    if (smi_index < str->length()) {
       Factory* factory = isolate->factory();
       return *factory->LookupSingleCharacterStringFromCode(
           String::Flatten(isolate, str)->Get(smi_index));

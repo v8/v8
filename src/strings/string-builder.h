@@ -56,7 +56,7 @@ class ReplacementStringBuilder {
 
   MaybeDirectHandle<String> ToString();
 
-  void IncrementCharacterCount(int by) {
+  void IncrementCharacterCount(uint32_t by) {
     if (character_count_ > String::kMaxLength - by) {
       static_assert(String::kMaxLength < kMaxInt);
       character_count_ = kMaxInt;
@@ -72,7 +72,7 @@ class ReplacementStringBuilder {
   Heap* heap_;
   FixedArrayBuilder array_builder_;
   DirectHandle<String> subject_;
-  int character_count_;
+  uint32_t character_count_;
   bool is_one_byte_;
 };
 

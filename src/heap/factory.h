@@ -366,14 +366,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<String> NewSurrogatePairString(uint16_t lead, uint16_t trail);
 
   // Create a new string object which holds a proper substring of a string.
-  Handle<String> NewProperSubString(Handle<String> str, int begin, int end);
+  Handle<String> NewProperSubString(Handle<String> str, uint32_t begin,
+                                    uint32_t end);
   // Same, but always copies (never creates a SlicedString).
   // {str} must be flat, {length} must be non-zero.
-  Handle<String> NewCopiedSubstring(DirectHandle<String> str, int begin,
-                                    int length);
+  Handle<String> NewCopiedSubstring(DirectHandle<String> str, uint32_t begin,
+                                    uint32_t length);
 
   // Create a new string object which holds a substring of a string.
-  inline Handle<String> NewSubString(Handle<String> str, int begin, int end);
+  inline Handle<String> NewSubString(Handle<String> str, uint32_t begin,
+                                     uint32_t end);
 
   // Creates a new external String object.  There are two String encodings
   // in the system: one-byte and two-byte.  Unlike other String types, it does

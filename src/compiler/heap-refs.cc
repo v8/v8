@@ -1410,14 +1410,14 @@ std::optional<Handle<String>> StringRef::ObjectIfContentAccessible(
   }
 }
 
-int StringRef::length() const { return object()->length(kAcquireLoad); }
+uint32_t StringRef::length() const { return object()->length(kAcquireLoad); }
 
 std::optional<uint16_t> StringRef::GetFirstChar(JSHeapBroker* broker) const {
   return GetChar(broker, 0);
 }
 
 std::optional<uint16_t> StringRef::GetChar(JSHeapBroker* broker,
-                                           int index) const {
+                                           uint32_t index) const {
   if (!IsContentAccessible()) {
     TRACE_BROKER_MISSING(
         broker,

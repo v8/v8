@@ -8040,7 +8040,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
     if (cst->IsString() && index->Is<Int32Constant>()) {
       compiler::StringRef str = cst->AsString();
       int idx = index->Cast<Int32Constant>()->value();
-      if (idx >= 0 && idx < str.length()) {
+      if (idx >= 0 && static_cast<uint32_t>(idx) < str.length()) {
         if (std::optional<uint16_t> value = str.GetChar(broker(), idx)) {
           return GetSmiConstant(*value);
         }

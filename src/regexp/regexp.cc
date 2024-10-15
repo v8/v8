@@ -168,13 +168,13 @@ namespace {
 // Identifies the sort of regexps where the regexp engine is faster
 // than the code used for atom matches.
 bool HasFewDifferentCharacters(DirectHandle<String> pattern) {
-  int length = std::min(kMaxLookaheadForBoyerMoore, pattern->length());
+  uint32_t length = std::min(kMaxLookaheadForBoyerMoore, pattern->length());
   if (length <= kPatternTooShortForBoyerMoore) return false;
   const int kMod = 128;
   bool character_found[kMod];
-  int different = 0;
+  uint32_t different = 0;
   memset(&character_found[0], 0, sizeof(character_found));
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     int ch = (pattern->Get(i) & (kMod - 1));
     if (!character_found[ch]) {
       character_found[ch] = true;
@@ -381,11 +381,11 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate,
   DisallowGarbageCollection no_gc;  // ensure vectors stay valid
 
   Tagged<String> needle = regexp_data->pattern(isolate);
-  int needle_len = needle->length();
+  uint32_t needle_len = needle->length();
   DCHECK(needle->IsFlat());
   DCHECK_LT(0, needle_len);
 
-  if (index + needle_len > subject->length()) {
+  if (static_cast<uint32_t>(index + needle_len) > subject->length()) {
     return RegExp::RE_FAILURE;
   }
 
@@ -766,7 +766,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
 
   if (res == RegExp::RE_SUCCESS) {
     if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-      if (output_registers[0] >= subject->length()) {
+      if (static_cast<uint32_t>(output_registers[0]) >= subject->length()) {
         return isolate->factory()->null_value();
       }
     }
@@ -878,8 +878,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   sample_subject = String::Flatten(isolate, sample_subject);
   int chars_sampled = 0;
-  int half_way = (sample_subject->length() - kSampleSize) / 2;
-  for (int i = std::max(0, half_way);
+  uint32_t half_way = (sample_subject->length() - kSampleSize) / 2;
+  for (uint32_t i = std::max(0u, half_way);
        i < sample_subject->length() && chars_sampled < kSampleSize;
        i++, chars_sampled++) {
     compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
@@ -1113,7 +1113,7 @@ RegExpGlobalCache::~RegExpGlobalCache() {
 
 int RegExpGlobalCache::AdvanceZeroLength(int last_index) {
   if (IsEitherUnicode(JSRegExp::AsRegExpFlags(regexp_data_->flags())) &&
-      last_index + 1 < subject_->length() &&
+      static_cast<uint32_t>(last_index + 1) < subject_->length() &&
       unibrow::Utf16::IsLeadSurrogate(subject_->Get(last_index)) &&
       unibrow::Utf16::IsTrailSurrogate(subject_->Get(last_index + 1))) {
     // Advance over the surrogate pair.
@@ -1158,7 +1158,7 @@ int32_t* RegExpGlobalCache::FetchNext() {
           // Zero-length match. Advance by one code point.
           last_end_index = AdvanceZeroLength(last_end_index);
         }
-        if (last_end_index > subject_->length()) {
+        if (static_cast<uint32_t>(last_end_index) > subject_->length()) {
           num_matches_ = 0;  // Signal failed match.
           return nullptr;
         }

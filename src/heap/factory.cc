@@ -1034,8 +1034,8 @@ Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
   return str;
 }
 
-Handle<String> Factory::NewCopiedSubstring(DirectHandle<String> str, int begin,
-                                           int length) {
+Handle<String> Factory::NewCopiedSubstring(DirectHandle<String> str,
+                                           uint32_t begin, uint32_t length) {
   DCHECK(str->IsFlat());  // Callers must flatten.
   DCHECK_GT(length, 0);   // Callers must handle empty string.
   bool one_byte;
@@ -1065,17 +1065,19 @@ Handle<String> Factory::NewCopiedSubstring(DirectHandle<String> str, int begin,
   }
 }
 
-Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
-                                           int end) {
+Handle<String> Factory::NewProperSubString(Handle<String> str, uint32_t begin,
+                                           uint32_t end) {
 #if VERIFY_HEAP
   if (v8_flags.verify_heap) str->StringVerify(isolate());
 #endif
-  DCHECK(begin > 0 || end < str->length());
+  DCHECK_LE(begin, str->length());
+  DCHECK_LE(end, str->length());
 
   str = String::Flatten(isolate(), str);
 
-  int length = end - begin;
-  if (length <= 0) return empty_string();
+  if (begin >= end) return empty_string();
+  uint32_t length = end - begin;
+
   if (length == 1) {
     return LookupSingleCharacterStringFromCode(str->Get(begin));
   }

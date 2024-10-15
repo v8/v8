@@ -56,7 +56,7 @@ class MyRandomNumberGenerator {
     Q[0] = seed;
     Q[1] = seed + phi;
     Q[2] = seed + phi + phi;
-    for (unsigned j = 3; j < kQSize; j++) {
+    for (uint32_t j = 3; j < kQSize; j++) {
       Q[j] = Q[j - 3] ^ Q[j - 2] ^ phi ^ j;
     }
   }
@@ -133,10 +133,10 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   for (int i = 0; i < bb_length; i++) {
-    int len = rng->next(16);
-    int slice_head_chars = 0;
-    int slice_tail_chars = 0;
-    int slice_depth = 0;
+    uint32_t len = rng->next(16);
+    uint32_t slice_head_chars = 0;
+    uint32_t slice_tail_chars = 0;
+    uint32_t slice_depth = 0;
     for (int j = 0; j < 3; j++) {
       if (rng->next(0.35)) slice_depth++;
     }
@@ -154,12 +154,12 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
     }
     // Don't slice 0 length strings.
     if (len == 0) slice_depth = 0;
-    int slice_length = slice_depth * (slice_head_chars + slice_tail_chars);
+    uint32_t slice_length = slice_depth * (slice_head_chars + slice_tail_chars);
     len += slice_length;
     switch (rng->next(4)) {
       case 0: {
         base::uc16 buf[2000];
-        for (int j = 0; j < len; j++) {
+        for (uint32_t j = 0; j < len; j++) {
           buf[j] = rng->next(0x10000);
         }
         building_blocks[i] =
@@ -167,48 +167,48 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
                 ->NewStringFromTwoByte(
                     v8::base::Vector<const base::uc16>(buf, len))
                 .ToHandleChecked();
-        for (int j = 0; j < len; j++) {
+        for (uint32_t j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
         break;
       }
       case 1: {
         char buf[2000];
-        for (int j = 0; j < len; j++) {
+        for (uint32_t j = 0; j < len; j++) {
           buf[j] = rng->next(0x80);
         }
         building_blocks[i] =
             factory->NewStringFromOneByte(v8::base::OneByteVector(buf, len))
                 .ToHandleChecked();
-        for (int j = 0; j < len; j++) {
+        for (uint32_t j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
         break;
       }
       case 2: {
         base::uc16* buf = NewArray<base::uc16>(len);
-        for (int j = 0; j < len; j++) {
+        for (uint32_t j = 0; j < len; j++) {
           buf[j] = rng->next(0x10000);
         }
         Resource* resource = new Resource(buf, len);
         building_blocks[i] = v8::Utils::OpenHandle(
             *v8::String::NewExternalTwoByte(CcTest::isolate(), resource)
                  .ToLocalChecked());
-        for (int j = 0; j < len; j++) {
+        for (uint32_t j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
         break;
       }
       case 3: {
         char* buf = NewArray<char>(len);
-        for (int j = 0; j < len; j++) {
+        for (uint32_t j = 0; j < len; j++) {
           buf[j] = rng->next(0x80);
         }
         OneByteResource* resource = new OneByteResource(buf, len);
         building_blocks[i] = v8::Utils::OpenHandle(
             *v8::String::NewExternalOneByte(CcTest::isolate(), resource)
                  .ToLocalChecked());
-        for (int j = 0; j < len; j++) {
+        for (uint32_t j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
         break;
@@ -308,8 +308,8 @@ void ConsStringGenerationData::Reset() {
 }
 
 void AccumulateStats(Tagged<ConsString> cons_string, ConsStringStats* stats) {
-  int left_length = cons_string->first()->length();
-  int right_length = cons_string->second()->length();
+  uint32_t left_length = cons_string->first()->length();
+  uint32_t right_length = cons_string->second()->length();
   CHECK(cons_string->length() == left_length + right_length);
   // Check left side.
   bool left_is_cons = IsConsString(cons_string->first());

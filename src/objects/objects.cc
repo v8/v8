@@ -479,8 +479,8 @@ DirectHandle<String> NoSideEffectsErrorToString(Isolate* isolate,
   if (msg_str->length() == 0) return name_str;
 
   constexpr const char error_suffix[] = "<a very large string>";
-  constexpr int error_suffix_size = sizeof(error_suffix);
-  int suffix_size = std::min(error_suffix_size, msg_str->length());
+  constexpr uint32_t error_suffix_size = sizeof(error_suffix);
+  uint32_t suffix_size = std::min(error_suffix_size, msg_str->length());
 
   IncrementalStringBuilder builder(isolate);
   if (name_str->length() + suffix_size + 2 /* ": " */ > String::kMaxLength) {
@@ -4169,10 +4169,9 @@ Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
   return dest.ptr();
 }
 
-uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
+uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, uint32_t length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
-  DCHECK_GT(length, 0);
   DCHECK_LE(length, String::kMaxArrayIndexSize);
   DCHECK(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
@@ -4448,7 +4447,7 @@ bool Script::GetPositionInfoInternal(
   if (info->line_end > 0) {
     DCHECK(IsString(source()));
     Tagged<String> src = Cast<String>(source());
-    if (src->length() >= info->line_end &&
+    if (src->length() >= static_cast<uint32_t>(info->line_end) &&
         src->Get(info->line_end - 1) == '\r') {
       info->line_end--;
     }

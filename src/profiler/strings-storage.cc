@@ -82,8 +82,8 @@ const char* StringsStorage::GetSymbol(Tagged<Symbol> sym) {
     return "<symbol>";
   }
   Tagged<String> description = Cast<String>(sym->description());
-  int length = std::min(v8_flags.heap_snapshot_string_limit.value(),
-                        description->length());
+  uint32_t length = std::min(v8_flags.heap_snapshot_string_limit.value(),
+                             description->length());
   auto data = description->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0,
                                      length, &length);
   if (sym->is_private_name()) {
@@ -98,9 +98,9 @@ const char* StringsStorage::GetSymbol(Tagged<Symbol> sym) {
 const char* StringsStorage::GetName(Tagged<Name> name) {
   if (IsString(name)) {
     Tagged<String> str = Cast<String>(name);
-    int length =
+    uint32_t length =
         std::min(v8_flags.heap_snapshot_string_limit.value(), str->length());
-    int actual_length = 0;
+    uint32_t actual_length = 0;
     std::unique_ptr<char[]> data = str->ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
     return AddOrDisposeString(data.release(), actual_length);
@@ -117,13 +117,14 @@ const char* StringsStorage::GetName(int index) {
 const char* StringsStorage::GetConsName(const char* prefix, Tagged<Name> name) {
   if (IsString(name)) {
     Tagged<String> str = Cast<String>(name);
-    int length =
+    uint32_t length =
         std::min(v8_flags.heap_snapshot_string_limit.value(), str->length());
-    int actual_length = 0;
+    uint32_t actual_length = 0;
     std::unique_ptr<char[]> data = str->ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
 
-    int cons_length = actual_length + static_cast<int>(strlen(prefix)) + 1;
+    uint32_t cons_length =
+        actual_length + static_cast<uint32_t>(strlen(prefix)) + 1;
     char* cons_result = NewArray<char>(cons_length);
     snprintf(cons_result, cons_length, "%s%s", prefix, data.get());
 
