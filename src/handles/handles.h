@@ -783,26 +783,100 @@ class DirectHandleVector {
   vector_type backing_;
 };
 #else   // !V8_ENABLE_DIRECT_HANDLE
+
+// ----------------------------------------------------------------------------
+// When conservative stack scanning is disabled, DirectHandle is a wrapper
+// around IndirectHandle (i.e. Handle). To preserve conservative stack scanning
+// semantics, DirectHandle be implicitly created from an IndirectHandle, but
+// does not implicitly convert to an IndirectHandle.
 template <typename T>
-IndirectHandle<T> indirect_handle(DirectHandle<T> handle) {
-  return handle;
+class DirectHandle {
+ public:
+  V8_INLINE static const DirectHandle null() {
+    return DirectHandle(Handle<T>::null());
+  }
+  V8_INLINE static DirectHandle<T> New(Tagged<T> object, Isolate* isolate) {
+    return DirectHandle(Handle<T>::New(object, isolate));
+  }
+
+  V8_INLINE DirectHandle() = default;
+
+  V8_INLINE DirectHandle(Tagged<T> object, Isolate* isolate)
+      : handle_(object, isolate) {}
+  V8_INLINE DirectHandle(Tagged<T> object, LocalIsolate* isolate)
+      : handle_(object, isolate) {}
+  V8_INLINE DirectHandle(Tagged<T> object, LocalHeap* local_heap)
+      : handle_(object, local_heap) {}
+
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  V8_INLINE DirectHandle(DirectHandle<S> handle) : handle_(handle.handle_) {}
+
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  V8_INLINE DirectHandle(IndirectHandle<S> handle) : handle_(handle) {}
+
+  V8_INLINE IndirectHandle<T> operator->() const { return handle_; }
+  V8_INLINE Tagged<T> operator*() const { return *handle_; }
+  V8_INLINE bool is_null() const { return handle_.is_null(); }
+  V8_INLINE Address* location() const { return handle_.location(); }
+  V8_INLINE void PatchValue(Tagged<T> new_value) {
+    handle_.PatchValue(new_value);
+  }
+  V8_INLINE bool equals(DirectHandle<T> other) const {
+    return handle_.equals(other.handle_);
+  }
+  V8_INLINE bool is_identical_to(DirectHandle<T> other) const {
+    return handle_.is_identical_to(other.handle_);
+  }
+
+ private:
+  // DirectHandles of different classes are allowed to access each other's
+  // handle_.
+  template <typename>
+  friend class DirectHandle;
+  // MaybeDirectHandle is allowed to access handle_.
+  template <typename>
+  friend class MaybeDirectHandle;
+  // Casts are allowed to access handle_.
+  template <typename To, typename From>
+  friend inline DirectHandle<To> Cast(DirectHandle<From> value,
+                                      const v8::SourceLocation& loc);
+  template <typename U>
+  friend inline IndirectHandle<U> indirect_handle(DirectHandle<U>);
+  template <typename U>
+  friend inline IndirectHandle<U> indirect_handle(DirectHandle<U>, Isolate*);
+  template <typename U>
+  friend inline IndirectHandle<U> indirect_handle(DirectHandle<U>,
+                                                  LocalIsolate*);
+  template <typename U>
+  friend inline IndirectHandle<U> indirect_handle(DirectHandle<U>, LocalHeap*);
+
+  IndirectHandle<T> handle_;
+};
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);
+
+template <typename T>
+V8_INLINE IndirectHandle<T> indirect_handle(DirectHandle<T> handle) {
+  return handle.handle_;
 }
 
 template <typename T>
-IndirectHandle<T> indirect_handle(DirectHandle<T> handle, Isolate* isolate) {
-  return handle;
+V8_INLINE IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                            Isolate* isolate) {
+  return handle.handle_;
 }
 
 template <typename T>
-IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
-                                  LocalIsolate* isolate) {
-  return handle;
+V8_INLINE IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                            LocalIsolate* isolate) {
+  return handle.handle_;
 }
 
 template <typename T>
-IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
-                                  LocalHeap* local_heap) {
-  return handle;
+V8_INLINE IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
+                                            LocalHeap* local_heap) {
+  return handle.handle_;
 }
 
 template <typename T>

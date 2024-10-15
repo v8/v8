@@ -4861,7 +4861,7 @@ Handle<Object> JSPromise::Fulfill(DirectHandle<JSPromise> promise,
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   if (isolate->HasContextPromiseHooks()) {
     isolate->raw_native_context()->RunPromiseHook(
-        PromiseHookType::kResolve, promise,
+        PromiseHookType::kResolve, indirect_handle(promise, isolate),
         isolate->factory()->undefined_value());
   }
 #endif

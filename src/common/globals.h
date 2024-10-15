@@ -991,9 +991,9 @@ class Debug;
 class DebugInfo;
 class Descriptor;
 class DescriptorArray;
-#ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
 class DirectHandle;
+#ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
 class DirectHandleVector;
 #endif
@@ -1008,10 +1008,6 @@ class FunctionTemplateInfo;
 class GlobalDictionary;
 template <typename T>
 class Handle;
-#ifndef V8_ENABLE_DIRECT_HANDLE
-template <typename T>
-using DirectHandle = Handle<T>;
-#endif
 class Heap;
 class HeapNumber;
 class Boolean;
@@ -1040,19 +1036,12 @@ class MaybeDirectHandle;
 #endif
 template <typename T>
 class MaybeHandle;
-#ifndef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
-using MaybeDirectHandle = MaybeHandle<T>;
-#endif
+class MaybeDirectHandle;
 template <typename T>
 using MaybeIndirectHandle = MaybeHandle<T>;
-#ifdef V8_ENABLE_DIRECT_HANDLE
-class MaybeObjectDirectHandle;
-#endif
 class MaybeObjectHandle;
-#ifndef V8_ENABLE_DIRECT_HANDLE
-using MaybeObjectDirectHandle = MaybeObjectHandle;
-#endif
+class MaybeObjectDirectHandle;
 using MaybeObjectIndirectHandle = MaybeObjectHandle;
 template <typename T>
 class MaybeWeak;

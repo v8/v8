@@ -242,7 +242,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                             std::is_convertible_v<Handle<T>, Handle<Name>>>>
   inline Handle<Name> InternalizeName(Handle<T> name);
 
-#ifdef V8_ENABLE_DIRECT_HANDLE
   template <typename T, typename = std::enable_if_t<std::is_convertible_v<
                             DirectHandle<T>, DirectHandle<String>>>>
   inline DirectHandle<String> InternalizeString(DirectHandle<T> string);
@@ -250,7 +249,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   template <typename T, typename = std::enable_if_t<std::is_convertible_v<
                             DirectHandle<T>, DirectHandle<Name>>>>
   inline DirectHandle<Name> InternalizeName(DirectHandle<T> name);
-#endif
 
   // String creation functions.  Most of the string creation functions take
   // an AllocationType argument to optionally request that they be

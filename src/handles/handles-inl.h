@@ -116,12 +116,20 @@ inline DirectHandle<To> Cast(DirectHandle<From> value,
   return DirectHandle<To>(value.obj_);
 }
 
+#else
+
+template <typename To, typename From>
+inline DirectHandle<To> Cast(DirectHandle<From> value,
+                             const v8::SourceLocation& loc) {
+  return DirectHandle<To>(Cast<To>(value.handle_));
+}
+
+#endif  // V8_ENABLE_DIRECT_HANDLE
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle) {
   return os << Brief(*handle);
 }
-
-#endif  // V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 V8_INLINE DirectHandle<T> direct_handle(Tagged<T> object, Isolate* isolate) {

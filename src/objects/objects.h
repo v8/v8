@@ -252,12 +252,10 @@ class Object : public AllStatic {
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<String> ToString(
       Isolate* isolate, Handle<T> input);
 
-#ifdef V8_ENABLE_DIRECT_HANDLE
   template <typename T, typename = std::enable_if_t<std::is_convertible_v<
                             DirectHandle<T>, DirectHandle<Object>>>>
   V8_WARN_UNUSED_RESULT static inline MaybeDirectHandle<String> ToString(
       Isolate* isolate, DirectHandle<T> input);
-#endif
 
   V8_EXPORT_PRIVATE static MaybeDirectHandle<String> NoSideEffectsToMaybeString(
       Isolate* isolate, DirectHandle<Object> input);
