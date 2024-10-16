@@ -1339,8 +1339,14 @@ bool RegExpResultsCache_MatchGlobalAtom::TryGet(Isolate* isolate,
   // Here we are looking for a subject slice that 1. starts at the same point
   // and 2. is of equal length or longer than the cached subject slice.
   Tagged<SlicedString> sliced_subject = Cast<SlicedString>(subject);
-  Tagged<SlicedString> cached_subject =
-      Cast<SlicedString>(cache->get(kSubjectIndex));
+  Tagged<Object> cached_subject_object = cache->get(kSubjectIndex);
+  if (!Is<SlicedString>(cached_subject_object)) {
+    // Note while we insert only sliced strings, they may be converted into
+    // other kinds, e.g. during GC or internalization.
+    Clear(isolate->heap());
+    return false;
+  }
+  auto cached_subject = Cast<SlicedString>(cached_subject_object);
   if (cached_subject->parent() != sliced_subject->parent()) return false;
   if (cached_subject->offset() != sliced_subject->offset()) return false;
   if (cached_subject->length() > sliced_subject->length()) return false;
