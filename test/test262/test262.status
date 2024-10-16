@@ -1367,6 +1367,7 @@
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
 
   # Unicode features unavaible without i18n, e.g. property escapes.
+  'built-ins/RegExp/prototype/exec/regexp-builtin-exec-v-u-flag': [SKIP],
   'built-ins/RegExp/unicode_full_case_folding': [SKIP],
   'built-ins/RegExp/property-escapes/*': [SKIP],
   'built-ins/RegExp/named-groups/unicode-property-names': [SKIP],
@@ -1445,6 +1446,11 @@
   'built-ins/RegExp/unicodeSets/generated/string-literal-intersection-property-of-strings-escape': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/string-literal-union-character-property-escape': [SKIP],
   'built-ins/RegExp/unicodeSets/generated/string-literal-union-property-of-strings-escape': [SKIP],
+  'built-ins/String/prototype/match/regexp-prototype-match-v-u-flag': [SKIP],
+  'built-ins/String/prototype/matchAll/regexp-prototype-matchAll-v-u-flag': [SKIP],
+  'built-ins/String/prototype/replace/regexp-prototype-replace-v-u-flag': [SKIP],
+  'built-ins/String/prototype/search/regexp-prototype-search-v-flag': [SKIP],
+  'built-ins/String/prototype/search/regexp-prototype-search-v-u-flag': [SKIP],
 
   # Unicode in identifiers.
   'language/identifiers/part-unicode*': [FAIL],
@@ -2330,12 +2336,6 @@
   'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/is-function': [SKIP],
   'built-ins/DisposableStack/prototype/Symbol.dispose': [SKIP],
   'built-ins/Iterator/prototype/Symbol.dispose/is-function': [SKIP],
-  'built-ins/RegExp/prototype/exec/regexp-builtin-exec-v-u-flag': [SKIP],
-  'built-ins/String/prototype/match/regexp-prototype-match-v-u-flag': [SKIP],
-  'built-ins/String/prototype/matchAll/regexp-prototype-matchAll-v-u-flag': [SKIP],
-  'built-ins/String/prototype/replace/regexp-prototype-replace-v-u-flag': [SKIP],
-  'built-ins/String/prototype/search/regexp-prototype-search-v-flag': [SKIP],
-  'built-ins/String/prototype/search/regexp-prototype-search-v-u-flag': [SKIP],
   'built-ins/Temporal/Duration/compare/relativeto-string-limits': [SKIP],
   'built-ins/Temporal/Duration/prototype/round/next-day-out-of-range': [SKIP],
   'built-ins/Temporal/Duration/prototype/round/relativeto-string-limits': [SKIP],
