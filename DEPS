@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cf625e474b02b1d845234771a5f4b7769e406bae',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '542dc62ade2a86aac1d8aa501dd980e5f9ae6362',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'cdead231af47d6c7e4667177f45014bd294c8cce',
   'buildtools/linux64': {
@@ -287,7 +287,7 @@ deps = {
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '62df7bdbc10887e094661e07ec2595b7920376fd',
   'third_party/highway/src':
-    Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '8295336dd70f1201d42c22ab5b0861de38cf8fbf',
+    Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + 'a97b5d371d696564e206627a883b1341c65bd983',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '4239b1559d11d4fa66c100543eda4161e060311e',
   'third_party/instrumented_libs': {
@@ -511,7 +511,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '36c94904a01d7d7f466b8eee376315af38c3ff0b',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '437172bab21cefc11513a814d4f93482d1898fcd',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
