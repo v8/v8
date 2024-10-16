@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'da6fd531567ce95199c5edbe43c852f4e14123c9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cf625e474b02b1d845234771a5f4b7769e406bae',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'db0eae9640184fb132061f248f6108771a6ea2d4',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'cdead231af47d6c7e4667177f45014bd294c8cce',
   'buildtools/linux64': {
     'packages': [
       {
@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'ba5e1a2c6802aad25d9ad72f206a47f966b898dc',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '2587c4974dbe9872451151c8e975f58567a1ce0d',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
@@ -305,7 +305,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6a68fd412b9aecd515a20a7cf84d11b598bfaf96',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '321045da9ad109e2e2cb4855c0277509989f97f6',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '9a1d90c3b412d5ebeb97a6e33d98e1d0dd923221',
   'third_party/libunwind/src':
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'fa9f14143c7938e6a1d18443900efee7a1e5e669',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '432277d27710cfc0d86f86a8a0101d6ba6ef9249',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '087058029801c0d9784b410eb3fb458a4716169d',
   'tools/luci-go': {
       'packages': [
         {
