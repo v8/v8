@@ -916,13 +916,9 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   }
   freed_bytes = reinterpret_cast<PagedSpaceBase*>(space)->FreeDuringSweep(
       free_start, size);
-#if !V8_OS_WIN
-  // Discarding memory on Windows does not decommit the memory and does not
-  // contribute to reduce the memory footprint. On the other hand, these calls
-  // become expensive the more memory is allocated in the system and can result
-  // in hangs. Thus, it is better to not discard on Windows.
-  if (should_reduce_memory) page->DiscardUnusedMemory(free_start, size);
-#endif  // !V8_OS_WIN
+  if (should_reduce_memory) {
+    ZeroOrDiscardUnusedMemory(page, free_start, size);
+  }
 
   if (v8_flags.sticky_mark_bits) {
     // Clear the bitmap, since fillers or slack may still be marked from black
@@ -933,6 +929,73 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   }
 
   return freed_bytes;
+}
+
+// static
+std::optional<base::AddressRegion> Sweeper::ComputeDiscardMemoryArea(
+    Address start, Address end) {
+  const size_t page_size = MemoryAllocator::GetCommitPageSize();
+  const Address discard_start = RoundUp(start, page_size);
+  const Address discard_end = RoundDown(end, page_size);
+
+  if (discard_start < discard_end) {
+    return base::AddressRegion(discard_start, discard_end - discard_start);
+  } else {
+    return {};
+  }
+}
+
+void Sweeper::ZeroOrDiscardUnusedMemory(PageMetadata* page, Address addr,
+                                        size_t size) {
+  if (size < FreeSpace::kSize) {
+    return;
+  }
+
+  const Address unused_start = addr + FreeSpace::kSize;
+  DCHECK(page->ContainsLimit(unused_start));
+  const Address unused_end = addr + size;
+  DCHECK(page->ContainsLimit(unused_end));
+
+  std::optional<RwxMemoryWriteScope> scope;
+  if (page->Chunk()->executable()) {
+    scope.emplace("For zeroing unused memory.");
+  }
+  const std::optional<base::AddressRegion> discard_area =
+      ComputeDiscardMemoryArea(unused_start, unused_end);
+
+#if !defined(V8_OS_WIN)
+  constexpr bool kDiscardEmptyPages = true;
+#else
+  // Discarding memory on Windows does not decommit the memory and does not
+  // contribute to reduce the memory footprint. On the other hand, these
+  // calls become expensive the more memory is allocated in the system and
+  // can result in hangs. Thus, it is better to not discard on Windows.
+  constexpr bool kDiscardEmptyPages = false;
+#endif  // !defined(V8_OS_WIN)
+
+  if (kDiscardEmptyPages && discard_area) {
+    {
+      v8::PageAllocator* page_allocator =
+          heap_->memory_allocator()->page_allocator(page->owner_identity());
+      DiscardSealedMemoryScope discard_scope("Discard unused memory");
+      CHECK(page_allocator->DiscardSystemPages(
+          reinterpret_cast<void*>(discard_area->begin()),
+          discard_area->size()));
+    }
+
+    if (v8_flags.zero_unused_memory) {
+      // Now zero unused memory right before and after the discarded OS pages to
+      // help with OS page compression.
+      memset(reinterpret_cast<void*>(unused_start), 0,
+             discard_area->begin() - unused_start);
+      memset(reinterpret_cast<void*>(discard_area->end()), 0,
+             unused_end - discard_area->end());
+    }
+  } else if (v8_flags.zero_unused_memory) {
+    // Unused memory does not span a full OS page. Simply clear all of the
+    // unused memory. This helps with OS page compression.
+    memset(reinterpret_cast<void*>(unused_start), 0, unused_end - unused_start);
+  }
 }
 
 V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
@@ -1443,7 +1506,7 @@ void Sweeper::SweepEmptyNewSpacePage(PageMetadata* page) {
   paged_space->RelinkFreeListCategories(page);
 
   if (heap_->ShouldReduceMemory()) {
-    page->DiscardUnusedMemory(start, size);
+    ZeroOrDiscardUnusedMemory(page, start, size);
     // Only decrement counter when we discard unused system pages.
     ActiveSystemPages active_system_pages_after_sweeping;
     active_system_pages_after_sweeping.Init(

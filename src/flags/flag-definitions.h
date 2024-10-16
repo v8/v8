@@ -819,6 +819,10 @@ DEFINE_BOOL(trace_protector_invalidation, false,
             "trace protector cell invalidations")
 DEFINE_BOOL(decommit_pooled_pages, true,
             "decommit, rather than discard pooled pages")
+DEFINE_BOOL(
+    zero_unused_memory, false,
+    "Zero unused memory (except for memory which was discarded) on memory "
+    "reducing GCs.")
 
 #ifdef V8_MINORMS_STRING_SHORTCUTTING
 DEFINE_BOOL(minor_ms_shortcut_strings, false,

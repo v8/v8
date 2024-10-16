@@ -560,19 +560,6 @@ void MemoryAllocator::InitializeOncePerProcess() {
   commit_page_size_bits_ = base::bits::WhichPowerOfTwo(commit_page_size_);
 }
 
-base::AddressRegion MemoryAllocator::ComputeDiscardMemoryArea(Address addr,
-                                                              size_t size) {
-  size_t page_size = GetCommitPageSize();
-  if (size < page_size + FreeSpace::kSize) {
-    return base::AddressRegion(0, 0);
-  }
-  Address discardable_start = RoundUp(addr + FreeSpace::kSize, page_size);
-  Address discardable_end = RoundDown(addr + size, page_size);
-  if (discardable_start >= discardable_end) return base::AddressRegion(0, 0);
-  return base::AddressRegion(discardable_start,
-                             discardable_end - discardable_start);
-}
-
 bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
                                                             Address start,
                                                             size_t chunk_size) {
