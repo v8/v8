@@ -119,9 +119,11 @@ void WriteBarrier::MarkingSlow(Tagged<DescriptorArray> descriptor_array,
 
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
                                ExternalPointerSlot slot) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
+  if (!slot.HasExternalPointerHandle()) return;
+
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
-  IsolateForSandbox isolate(marking_barrier->heap()->isolate());
+  IsolateForPointerCompression isolate(marking_barrier->heap()->isolate());
 
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(slot.tag());
   ExternalPointerTable::Space* space =
@@ -129,7 +131,7 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   table.Mark(space, handle, slot.address());
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
