@@ -6972,8 +6972,10 @@ class LiftoffCompiler {
       __ emit_i32_sari(dst.gp(), src.gp(), kSmiTagSize);
     } else {
       DCHECK(SmiValuesAre32Bits());
-      // Topmost bit is already sign-extended.
-      __ emit_i64_sari(dst, src, kSmiTagSize + kSmiShiftSize);
+      // The topmost bit is already sign-extended.
+      // Liftoff expects that the upper half of any i32 value in a register
+      // is zeroed out, not sign-extended from the lower half.
+      __ emit_i64_shri(dst, src, kSmiTagSize + kSmiShiftSize);
     }
     __ PushRegister(kI32, dst);
   }
