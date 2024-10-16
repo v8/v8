@@ -3308,7 +3308,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       if (catch_case.kind == kCatchRef || catch_case.kind == kCatchAllRef) {
         stack_.EnsureMoreCapacity(1, this->zone_);
-        Push(kWasmExnRef);
+        Push(ValueType::Ref(HeapType::kExn));
         push_count += 1;
       }
       Control* target = control_at(catch_case.br_imm.depth);
@@ -3534,7 +3534,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           }
           if (catch_case.kind == kCatchRef || catch_case.kind == kCatchAllRef) {
             stack_.EnsureMoreCapacity(1, this->zone_);
-            Push(kWasmExnRef);
+            Push(ValueType::Ref(HeapType::kExn));
             push_count += 1;
           }
           base::Vector<Value> values(
