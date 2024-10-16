@@ -124,8 +124,8 @@ RegExpMacroAssemblerRISCV::~RegExpMacroAssemblerRISCV() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerRISCV::stack_limit_slack() {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerRISCV::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
 
 void RegExpMacroAssemblerRISCV::AdvanceCurrentPosition(int by) {

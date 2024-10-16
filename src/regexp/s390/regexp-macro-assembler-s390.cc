@@ -140,8 +140,8 @@ RegExpMacroAssemblerS390::~RegExpMacroAssemblerS390() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerS390::stack_limit_slack() {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerS390::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
 
 void RegExpMacroAssemblerS390::AdvanceCurrentPosition(int by) {

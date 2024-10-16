@@ -400,9 +400,6 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
                                    DynamicBitSet* registers_to_pop,
                                    DynamicBitSet* registers_to_clear,
                                    Zone* zone) {
-  // The "+1" is to avoid a push_limit of zero if stack_limit_slack() is 1.
-  const int push_limit = (assembler->stack_limit_slack() + 1) / 2;
-
   // Count pushes performed to force a stack limit check occasionally.
   int pushes = 0;
 
@@ -496,7 +493,8 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
       pushes++;
       RegExpMacroAssembler::StackCheckFlag stack_check =
           RegExpMacroAssembler::kNoStackLimitCheck;
-      if (pushes == push_limit) {
+      DCHECK_GT(assembler->stack_limit_slack_slot_count(), 0);
+      if (pushes == assembler->stack_limit_slack_slot_count()) {
         stack_check = RegExpMacroAssembler::kCheckStackLimit;
         pushes = 0;
       }

@@ -130,11 +130,9 @@ RegExpMacroAssemblerX64::~RegExpMacroAssemblerX64() {
   fallback_label_.Unuse();
 }
 
-
-int RegExpMacroAssemblerX64::stack_limit_slack()  {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerX64::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
-
 
 void RegExpMacroAssemblerX64::AdvanceCurrentPosition(int by) {
   if (by != 0) {

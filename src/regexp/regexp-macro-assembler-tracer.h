@@ -17,7 +17,9 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   RegExpMacroAssemblerTracer(Isolate* isolate, RegExpMacroAssembler* assembler);
   ~RegExpMacroAssemblerTracer() override;
   void AbortedCodeGeneration() override;
-  int stack_limit_slack() override { return assembler_->stack_limit_slack(); }
+  int stack_limit_slack_slot_count() override {
+    return assembler_->stack_limit_slack_slot_count();
+  }
   bool CanReadUnaligned() const override {
     return assembler_->CanReadUnaligned();
   }

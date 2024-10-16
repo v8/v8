@@ -19,7 +19,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   RegExpMacroAssemblerIA32(Isolate* isolate, Zone* zone, Mode mode,
                            int registers_to_save);
   ~RegExpMacroAssemblerIA32() override;
-  int stack_limit_slack() override;
+  int stack_limit_slack_slot_count() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;
   void Backtrack() override;

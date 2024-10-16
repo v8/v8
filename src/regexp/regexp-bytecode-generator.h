@@ -26,7 +26,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   RegExpBytecodeGenerator(Isolate* isolate, Zone* zone);
   ~RegExpBytecodeGenerator() override;
   // The byte-code interpreter checks on each push anyway.
-  int stack_limit_slack() override { return 1; }
+  int stack_limit_slack_slot_count() override { return 1; }
   bool CanReadUnaligned() const override { return false; }
   void Bind(Label* label) override;
   void AdvanceCurrentPosition(int by) override;  // Signed cp change.

@@ -161,11 +161,9 @@ RegExpMacroAssemblerMIPS::~RegExpMacroAssemblerMIPS() {
   fallback_label_.Unuse();
 }
 
-
-int RegExpMacroAssemblerMIPS::stack_limit_slack()  {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerMIPS::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
-
 
 void RegExpMacroAssemblerMIPS::AdvanceCurrentPosition(int by) {
   if (by != 0) {
