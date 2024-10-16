@@ -62,7 +62,7 @@ namespace internal {
   V(SweepFinalizeSweptPages)                \
   V(SweepFinishIfOutOfWork)                 \
   V(SweepInvokePreFinalizers)               \
-  V(SweepInIdleTask)                        \
+  V(SweepInLowPriorityTask)                 \
   V(SweepInTask)                            \
   V(SweepInTaskForStatistics)               \
   V(SweepOnAllocation)                      \
