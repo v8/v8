@@ -18,6 +18,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/v8threads.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles.h"
@@ -1291,6 +1292,15 @@ bool CppHeap::IsGCForbidden() const {
   return (isolate_ && isolate_->InFastCCall() &&
           !v8_flags.allow_allocation_in_fast_api_call) ||
          HeapBase::IsGCForbidden();
+}
+
+bool CppHeap::IsCurrentThread(int thread_id) const {
+  if (isolate_ && V8_UNLIKELY(isolate_->was_locker_ever_used())) {
+    // If v8::Locker has been used, we only check if the isolate is now locked
+    // by the current thread.
+    return isolate_->thread_manager()->IsLockedByCurrentThread();
+  }
+  return HeapBase::IsCurrentThread(thread_id);
 }
 
 }  // namespace internal
