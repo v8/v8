@@ -160,7 +160,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
-    if (type == wasm::kWasmBottom) {
+    if (type.is_uninhabited()) {
       // We are either already in unreachable code (then this instruction isn't
       // even emitted) or the type analyzer inferred that this instruction will
       // always trap. In either case emitting an unconditional trap to increase
@@ -225,7 +225,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
-    if (type == wasm::kWasmBottom) {
+    if (type.is_uninhabited()) {
       __ Unreachable();
       return OpIndex::Invalid();
     }
@@ -278,7 +278,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
-    if (type == wasm::kWasmBottom) {
+    if (type.is_uninhabited()) {
       // We are either already in unreachable code (then this instruction isn't
       // even emitted) or the type analyzer inferred that this instruction will
       // always trap. In either case emitting an unconditional trap to increase
@@ -302,7 +302,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
-    if (type == wasm::kWasmBottom) {
+    if (type.is_uninhabited()) {
       __ Unreachable();
       return OpIndex::Invalid();
     }
@@ -330,7 +330,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
-    if (type == wasm::kWasmBottom) {
+    if (type.is_uninhabited()) {
       // We are either already in unreachable code (then this instruction isn't
       // even emitted) or the type analyzer inferred that this instruction will
       // always trap. In either case emitting an unconditional trap to increase
@@ -358,7 +358,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
-    if (type == wasm::kWasmBottom) {
+    if (type.is_uninhabited()) {
       // We are either already in unreachable code (then this instruction isn't
       // even emitted) or the type analyzer inferred that this instruction will
       // always trap. In either case emitting an unconditional trap to increase
