@@ -141,11 +141,11 @@ enum Where { AT_START, AT_END };
   V(Int16ElementsAccessor, INT16_ELEMENTS, ByteArray)                         \
   V(Uint32ElementsAccessor, UINT32_ELEMENTS, ByteArray)                       \
   V(Int32ElementsAccessor, INT32_ELEMENTS, ByteArray)                         \
-  V(Float32ElementsAccessor, FLOAT32_ELEMENTS, ByteArray)                     \
-  V(Float64ElementsAccessor, FLOAT64_ELEMENTS, ByteArray)                     \
-  V(Uint8ClampedElementsAccessor, UINT8_CLAMPED_ELEMENTS, ByteArray)          \
   V(BigUint64ElementsAccessor, BIGUINT64_ELEMENTS, ByteArray)                 \
   V(BigInt64ElementsAccessor, BIGINT64_ELEMENTS, ByteArray)                   \
+  V(Uint8ClampedElementsAccessor, UINT8_CLAMPED_ELEMENTS, ByteArray)          \
+  V(Float32ElementsAccessor, FLOAT32_ELEMENTS, ByteArray)                     \
+  V(Float64ElementsAccessor, FLOAT64_ELEMENTS, ByteArray)                     \
   V(Float16ElementsAccessor, FLOAT16_ELEMENTS, ByteArray)                     \
   V(RabGsabUint8ElementsAccessor, RAB_GSAB_UINT8_ELEMENTS, ByteArray)         \
   V(RabGsabInt8ElementsAccessor, RAB_GSAB_INT8_ELEMENTS, ByteArray)           \
@@ -153,12 +153,12 @@ enum Where { AT_START, AT_END };
   V(RabGsabInt16ElementsAccessor, RAB_GSAB_INT16_ELEMENTS, ByteArray)         \
   V(RabGsabUint32ElementsAccessor, RAB_GSAB_UINT32_ELEMENTS, ByteArray)       \
   V(RabGsabInt32ElementsAccessor, RAB_GSAB_INT32_ELEMENTS, ByteArray)         \
-  V(RabGsabFloat32ElementsAccessor, RAB_GSAB_FLOAT32_ELEMENTS, ByteArray)     \
-  V(RabGsabFloat64ElementsAccessor, RAB_GSAB_FLOAT64_ELEMENTS, ByteArray)     \
-  V(RabGsabUint8ClampedElementsAccessor, RAB_GSAB_UINT8_CLAMPED_ELEMENTS,     \
-    ByteArray)                                                                \
   V(RabGsabBigUint64ElementsAccessor, RAB_GSAB_BIGUINT64_ELEMENTS, ByteArray) \
   V(RabGsabBigInt64ElementsAccessor, RAB_GSAB_BIGINT64_ELEMENTS, ByteArray)   \
+  V(RabGsabUint8ClampedElementsAccessor, RAB_GSAB_UINT8_CLAMPED_ELEMENTS,     \
+    ByteArray)                                                                \
+  V(RabGsabFloat32ElementsAccessor, RAB_GSAB_FLOAT32_ELEMENTS, ByteArray)     \
+  V(RabGsabFloat64ElementsAccessor, RAB_GSAB_FLOAT64_ELEMENTS, ByteArray)     \
   V(RabGsabFloat16ElementsAccessor, RAB_GSAB_FLOAT16_ELEMENTS, ByteArray)
 
 template <ElementsKind Kind>
@@ -5656,6 +5656,12 @@ void CopyTypedArrayElementsSlice(Address raw_source, Address raw_destination,
       source, destination, start, end);
 }
 
+template <typename Mapping>
+constexpr bool IsIdentityMapping(const Mapping& mapping, size_t index) {
+  return (index >= std::size(mapping)) ||
+         (mapping[index] == index && IsIdentityMapping(mapping, index + 1));
+}
+
 void ElementsAccessor::InitializeOncePerProcess() {
   // Here we create an array with more entries than element kinds.
   // This is due to the sandbox: this array is indexed with an ElementsKind
@@ -5672,6 +5678,15 @@ void ElementsAccessor::InitializeOncePerProcess() {
 
   static_assert((sizeof(accessor_array) / sizeof(*accessor_array)) >=
                 kElementsKindCount);
+
+  // Check that the ELEMENTS_LIST macro is in the same order as the ElementsKind
+  // enum.
+  constexpr ElementsKind elements_kinds_from_macro[] = {
+#define ACCESSOR_KIND(Class, Kind, Store) Kind,
+      ELEMENTS_LIST(ACCESSOR_KIND)
+#undef ACCESSOR_KIND
+  };
+  static_assert(IsIdentityMapping(elements_kinds_from_macro, 0));
 
   elements_accessors_ = accessor_array;
 }

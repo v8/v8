@@ -65,11 +65,11 @@ enum ContextLookupFlags {
   V(INT16_ARRAY_FUN_INDEX, JSFunction, int16_array_fun)                        \
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun)                      \
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun)                        \
-  V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun)                    \
-  V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun)                    \
-  V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun)        \
   V(BIGUINT64_ARRAY_FUN_INDEX, JSFunction, biguint64_array_fun)                \
   V(BIGINT64_ARRAY_FUN_INDEX, JSFunction, bigint64_array_fun)                  \
+  V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun)        \
+  V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun)                    \
+  V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun)                    \
   V(FLOAT16_ARRAY_FUN_INDEX, JSFunction, float16_array_fun)                    \
   V(RAB_GSAB_UINT8_ARRAY_MAP_INDEX, Map, rab_gsab_uint8_array_map)             \
   V(RAB_GSAB_INT8_ARRAY_MAP_INDEX, Map, rab_gsab_int8_array_map)               \
@@ -77,12 +77,12 @@ enum ContextLookupFlags {
   V(RAB_GSAB_INT16_ARRAY_MAP_INDEX, Map, rab_gsab_int16_array_map)             \
   V(RAB_GSAB_UINT32_ARRAY_MAP_INDEX, Map, rab_gsab_uint32_array_map)           \
   V(RAB_GSAB_INT32_ARRAY_MAP_INDEX, Map, rab_gsab_int32_array_map)             \
-  V(RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX, Map, rab_gsab_float32_array_map)         \
-  V(RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX, Map, rab_gsab_float64_array_map)         \
-  V(RAB_GSAB_UINT8_CLAMPED_ARRAY_MAP_INDEX, Map,                               \
-    rab_gsab_uint8_clamped_array_map)                                          \
   V(RAB_GSAB_BIGUINT64_ARRAY_MAP_INDEX, Map, rab_gsab_biguint64_array_map)     \
   V(RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX, Map, rab_gsab_bigint64_array_map)       \
+  V(RAB_GSAB_UINT8_CLAMPED_ARRAY_MAP_INDEX, Map,                               \
+    rab_gsab_uint8_clamped_array_map)                                          \
+  V(RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX, Map, rab_gsab_float32_array_map)         \
+  V(RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX, Map, rab_gsab_float64_array_map)         \
   V(RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX, Map, rab_gsab_float16_array_map)         \
   /* Below is alpha-sorted */                                                  \
   V(ABSTRACT_MODULE_SOURCE_FUNCTION_INDEX, JSFunction,                         \
