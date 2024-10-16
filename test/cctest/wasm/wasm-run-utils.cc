@@ -61,7 +61,7 @@ TestingModuleBuilder::TestingModuleBuilder(
       isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       enabled_features_(WasmEnabledFeatures::FromIsolate(isolate_)),
       execution_tier_(tier) {
-  WasmJs::Install(isolate_, true);
+  WasmJs::Install(isolate_);
   test_module_->untagged_globals_buffer_size = kMaxGlobalsSize;
   // The GlobalsData must be located inside the sandbox, so allocate it from the
   // ArrayBuffer allocator.

@@ -10706,12 +10706,9 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   if (i_isolate->is_execution_terminating()) return;
   i_isolate->InstallConditionalFeatures(Utils::OpenHandle(*context));
+  if (i_isolate->has_exception()) return;
 #if V8_ENABLE_WEBASSEMBLY
-  if (i::v8_flags.expose_wasm && !i_isolate->has_exception()) {
-    i::WasmJs::InstallConditionalFeatures(i_isolate,
-                                          Utils::OpenHandle(*context));
-  }
-
+  i::WasmJs::InstallConditionalFeatures(i_isolate, Utils::OpenHandle(*context));
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

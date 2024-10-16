@@ -3098,6 +3098,7 @@ Handle<JSFunction> InstallFunc(
       CreateFunc(isolate, name, func, has_prototype, side_effect_type);
   function->shared()->set_length(length);
   CHECK(!JSObject::HasRealNamedProperty(isolate, object, name).FromMaybe(true));
+  CHECK(object->map()->is_extensible());
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
 }
@@ -3205,6 +3206,8 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   DirectHandle<JSGlobalObject> global = isolate->global_object();
   Handle<NativeContext> native_context(global->native_context(), isolate);
 
+  CHECK(IsUndefined(native_context->get(Context::WASM_WEBASSEMBLY_OBJECT_INDEX),
+                    isolate));
   CHECK(IsUndefined(native_context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX),
                     isolate));
 
@@ -3388,7 +3391,7 @@ void WasmJs::InstallModule(Isolate* isolate, Handle<JSObject> webassembly) {
 
     // Check that this is a reinstallation of the Module object.
     Handle<String> name = v8_str(isolate, "Module");
-    DCHECK(
+    CHECK(
         JSObject::HasRealNamedProperty(isolate, webassembly, name).ToChecked());
     // Reinstall the Module object with AbstractModuleSource as prototype.
     module_constructor =
@@ -3419,17 +3422,18 @@ void WasmJs::InstallModule(Isolate* isolate, Handle<JSObject> webassembly) {
 }
 
 // static
-void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
+void WasmJs::Install(Isolate* isolate) {
   Handle<JSGlobalObject> global = isolate->global_object();
   DirectHandle<NativeContext> native_context(global->native_context(), isolate);
 
   if (native_context->is_wasm_js_installed() != Smi::zero()) return;
   native_context->set_is_wasm_js_installed(Smi::FromInt(1));
 
-  // We can get the WebAssembly object here from the native context because no
-  // user code has been executed yet. However, once user code has been executed,
-  // the WebAssembly object has to be retrieved with a JavaScript property
-  // lookup.
+  // We always use the WebAssembly object from the native context; as this code
+  // is executed before any user code, this is expected to be the same as the
+  // global "WebAssembly" property. But even later during execution we always
+  // want to use this preallocated object instead of whatever user code
+  // installed as "WebAssembly" property.
   Handle<JSObject> webassembly(native_context->wasm_webassembly_object(),
                                isolate);
   if (v8_flags.js_source_phase_imports) {
@@ -3437,15 +3441,29 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     InstallModule(isolate, webassembly);
   }
 
-  // Expose the API on the global object if configured to do so.
-  if (exposed_on_global_object) {
+  // Expose the API on the global object if not in jitless mode (with more
+  // subtleties).
+  //
+  // Even in interpreter-only mode, wasm currently still creates executable
+  // memory at runtime. Unexpose wasm until this changes.
+  // The correctness fuzzers are a special case: many of their test cases are
+  // built by fetching a random property from the the global object, and thus
+  // the global object layout must not change between configs. That is why we
+  // continue exposing wasm on correctness fuzzers even in jitless mode.
+  // TODO(jgruber): Remove this once / if wasm can run without executable
+  // memory.
+  bool expose_wasm = !i::v8_flags.jitless ||
+                     i::v8_flags.correctness_fuzzer_suppressions ||
+                     i::v8_flags.wasm_jitless;
+  if (expose_wasm) {
     Handle<String> WebAssembly_string = v8_str(isolate, "WebAssembly");
     JSObject::AddProperty(isolate, global, WebAssembly_string, webassembly,
                           DONT_ENUM);
   }
 
-  // Reset canonical_type_index based on this Isolate's type_canonicalizer.
   {
+    // Reset the JSTag's canonical_type_index based on this Isolate's
+    // type_canonicalizer.
     DirectHandle<WasmTagObject> js_tag_object(
         Cast<WasmTagObject>(native_context->wasm_js_tag()), isolate);
     js_tag_object->set_canonical_type_index(
@@ -3485,30 +3503,19 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 // static
 void WasmJs::InstallConditionalFeatures(Isolate* isolate,
                                         Handle<NativeContext> context) {
-  Handle<JSGlobalObject> global = handle(context->global_object(), isolate);
-  // If some fuzzer decided to make the global object non-extensible, then
-  // we can't install any features (and would CHECK-fail if we tried).
-  if (!global->map()->is_extensible()) return;
-
-  MaybeHandle<Object> maybe_wasm =
-      JSReceiver::GetProperty(isolate, global, "WebAssembly");
-  Handle<Object> wasm_obj;
-  if (!maybe_wasm.ToHandle(&wasm_obj) || !IsJSObject(*wasm_obj)) return;
-  Handle<JSObject> webassembly = Cast<JSObject>(wasm_obj);
+  Handle<JSObject> webassembly{context->wasm_webassembly_object(), isolate};
   if (!webassembly->map()->is_extensible()) return;
   if (webassembly->map()->is_access_check_needed()) return;
 
-  /*
-    If you need to install some optional features, follow the pattern:
-
-    if (isolate->IsMyWasmFeatureEnabled(context)) {
-      Handle<String> feature = isolate->factory()->...;
-      if (!JSObject::HasRealNamedProperty(isolate, webassembly, feature)
-               .FromMaybe(true)) {
-        InstallFeature(isolate, webassembly);
-      }
-    }
-  */
+  // If you need to install some optional features, follow the pattern:
+  //
+  // if (isolate->IsMyWasmFeatureEnabled(context)) {
+  //   Handle<String> feature = isolate->factory()->...;
+  //   if (!JSObject::HasRealNamedProperty(isolate, webassembly, feature)
+  //            .FromMaybe(true)) {
+  //     InstallFeature(isolate, webassembly);
+  //   }
+  // }
 
   // Install JSPI-related features.
   if (isolate->IsWasmJSPIRequested(context)) {
@@ -3551,11 +3558,15 @@ bool WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
   return true;
 }
 
-// static
 // Return true only if this call resulted in installation of type reflection.
+// static
 bool WasmJs::InstallTypeReflection(Isolate* isolate,
                                    DirectHandle<NativeContext> context,
                                    Handle<JSObject> webassembly) {
+  // Extensibility of the `WebAssembly` object should already have been checked
+  // by the caller.
+  DCHECK(webassembly->map()->is_extensible());
+
   // First check if any of the type reflection fields already exist. If so, bail
   // out and don't install any new fields.
   if (JSObject::HasRealNamedProperty(isolate, webassembly,
@@ -3564,47 +3575,28 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
     return false;
   }
 
-  Handle<JSObject> table_proto(
-      Cast<JSObject>(context->wasm_table_constructor()->instance_prototype()),
-      isolate);
-  Handle<JSObject> global_proto(
-      Cast<JSObject>(context->wasm_global_constructor()->instance_prototype()),
-      isolate);
-  Handle<JSObject> memory_proto(
-      Cast<JSObject>(context->wasm_memory_constructor()->instance_prototype()),
-      isolate);
-  Handle<JSObject> tag_proto(
-      Cast<JSObject>(context->wasm_tag_constructor()->instance_prototype()),
-      isolate);
+  auto GetProto = [isolate](Tagged<JSFunction> constructor) {
+    return handle(Cast<JSObject>(constructor->instance_prototype()), isolate);
+  };
+  Handle<JSObject> table_proto = GetProto(context->wasm_table_constructor());
+  Handle<JSObject> global_proto = GetProto(context->wasm_global_constructor());
+  Handle<JSObject> memory_proto = GetProto(context->wasm_memory_constructor());
+  Handle<JSObject> tag_proto = GetProto(context->wasm_tag_constructor());
 
   Handle<String> type_string = v8_str(isolate, "type");
-  if (JSObject::HasRealNamedProperty(isolate, table_proto, type_string)
-          .FromMaybe(true)) {
-    return false;
-  }
-  if (JSObject::HasRealNamedProperty(isolate, global_proto, type_string)
-          .FromMaybe(true)) {
-    return false;
-  }
-  if (JSObject::HasRealNamedProperty(isolate, memory_proto, type_string)
-          .FromMaybe(true)) {
-    return false;
-  }
-  if (JSObject::HasRealNamedProperty(isolate, tag_proto, type_string)
-          .FromMaybe(true)) {
-    return false;
-  }
-
-  // Ensure prototype objects are extensible, otherwise adding properties
-  // to them will fail. Extensibility of the `WebAssembly` object should
-  // already have been checked by the caller.
-  DCHECK(webassembly->map()->is_extensible());
-  if (!table_proto->map()->is_extensible() ||
-      !global_proto->map()->is_extensible() ||
-      !memory_proto->map()->is_extensible() ||
-      !tag_proto->map()->is_extensible()) {
-    return false;
-  }
+  auto CheckProto = [isolate, type_string](Handle<JSObject> proto) {
+    if (JSObject::HasRealNamedProperty(isolate, proto, type_string)
+            .FromMaybe(true)) {
+      return false;
+    }
+    // Also check extensibility, otherwise adding properties will fail.
+    if (!proto->map()->is_extensible()) return false;
+    return true;
+  };
+  if (!CheckProto(table_proto)) return false;
+  if (!CheckProto(global_proto)) return false;
+  if (!CheckProto(memory_proto)) return false;
+  if (!CheckProto(tag_proto)) return false;
 
   // Checks are done, start installing the new fields.
   InstallFunc(isolate, table_proto, type_string, WebAssemblyTableType, 0, false,

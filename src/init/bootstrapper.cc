@@ -6588,7 +6588,7 @@ bool Genesis::InstallSpecialObjects(
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  WasmJs::Install(isolate, v8_flags.expose_wasm);
+  WasmJs::Install(isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API

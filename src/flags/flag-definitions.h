@@ -1512,31 +1512,6 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, size_t{1})
 DEFINE_BOOL(wasm_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers")
-DEFINE_BOOL(expose_wasm, true, "expose wasm interface to JavaScript")
-// Do not expose wasm in jitless mode.
-//
-// Even in interpreter-only mode, wasm currently still creates executable
-// memory at runtime. Unexpose wasm until this changes.
-// The correctness fuzzers are a special case: many of their test cases are
-// built by fetching a random property from the the global object, and thus
-// the global object layout must not change between configs. That is why we
-// continue exposing wasm on correctness fuzzers even in jitless mode.
-// TODO(jgruber): Remove this once / if wasm can run without executable
-// memory.
-DEFINE_BOOL(jitless_and_not_correctness_fuzzer_suppressions, true,
-            "jitless && !correctness_fuzzer_suppressions")
-DEFINE_NEG_NEG_IMPLICATION(jitless,
-                           jitless_and_not_correctness_fuzzer_suppressions)
-DEFINE_NEG_IMPLICATION(correctness_fuzzer_suppressions,
-                       jitless_and_not_correctness_fuzzer_suppressions)
-#ifdef V8_ENABLE_DRUMBRAKE
-DEFINE_NEG_IMPLICATION(wasm_jitless,
-                       jitless_and_not_correctness_fuzzer_suppressions)
-DEFINE_NEG_IMPLICATION(wasm_jitless_if_available_for_testing,
-                       jitless_and_not_correctness_fuzzer_suppressions)
-#endif  // V8_ENABLE_DRUMBRAKE
-DEFINE_DISABLE_FLAG_IMPLICATION(jitless_and_not_correctness_fuzzer_suppressions,
-                                expose_wasm)
 DEFINE_INT(wasm_num_compilation_tasks, 128,
            "maximum number of parallel compilation tasks for wasm")
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)

@@ -3213,15 +3213,11 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
 
  protected:
   static void SetUpTestSuite() {
-    g_saved_flag = i::v8_flags.expose_wasm;
-    i::v8_flags.expose_wasm = true;
     ValueSerializerTest::SetUpTestSuite();
   }
 
   static void TearDownTestSuite() {
     ValueSerializerTest::TearDownTestSuite();
-    i::v8_flags.expose_wasm = g_saved_flag;
-    g_saved_flag = false;
   }
 
   class ThrowingSerializer : public ValueSerializer::Delegate {
@@ -3351,7 +3347,6 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   }
 
  private:
-  static bool g_saved_flag;
   std::vector<CompiledWasmModule> transfer_modules_;
   SerializeToTransfer serialize_delegate_;
   DeserializeFromTransfer deserialize_delegate_;
@@ -3361,7 +3356,6 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   ValueDeserializer::Delegate default_deserializer_;
 };
 
-bool ValueSerializerTestWithWasm::g_saved_flag = false;
 const char* ValueSerializerTestWithWasm::kUnsupportedSerialization =
     "Wasm Serialization Not Supported";
 
