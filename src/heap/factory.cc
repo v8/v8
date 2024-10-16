@@ -2857,10 +2857,8 @@ Handle<JSObject> Factory::NewFunctionPrototype(
   return prototype;
 }
 
-Handle<JSObject> Factory::NewExternal(void* value,
-                                      AllocationType allocation_type) {
-  auto external = Cast<JSExternalObject>(
-      NewJSObjectFromMap(external_map(), allocation_type));
+Handle<JSObject> Factory::NewExternal(void* value) {
+  auto external = Cast<JSExternalObject>(NewJSObjectFromMap(external_map()));
   external->init_value(isolate(), value);
   return external;
 }
