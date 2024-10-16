@@ -916,41 +916,65 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void ULoadDouble(FPURegister fd, const MemOperand& rs, Register scratch);
   void UStoreDouble(FPURegister fd, const MemOperand& rs, Register scratch);
 
-  void Lb(Register rd, const MemOperand& rs);
-  void Lbu(Register rd, const MemOperand& rs);
-  void Sb(Register rd, const MemOperand& rs);
+  using Trapper = std::function<void(int)>;
 
-  void Lh(Register rd, const MemOperand& rs);
-  void Lhu(Register rd, const MemOperand& rs);
-  void Sh(Register rd, const MemOperand& rs);
+  void Lb(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Lbu(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Sb(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
 
-  void Lw(Register rd, const MemOperand& rs);
-  void Sw(Register rd, const MemOperand& rs);
+  void Lh(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Lhu(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Sh(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+
+  void Lw(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Sw(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
 
 #if V8_TARGET_ARCH_RISCV64
   void Ulwu(Register rd, const MemOperand& rs);
-  void Lwu(Register rd, const MemOperand& rs);
-  void Ld(Register rd, const MemOperand& rs);
-  void Sd(Register rd, const MemOperand& rs);
-  void Lld(Register rd, const MemOperand& rs);
-  void Scd(Register rd, const MemOperand& rs);
+  void Lwu(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Ld(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Sd(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Lld(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Scd(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
 
-  inline void Load32U(Register rd, const MemOperand& rs) { Lwu(rd, rs); }
-  inline void LoadWord(Register rd, const MemOperand& rs) { Ld(rd, rs); }
-  inline void StoreWord(Register rd, const MemOperand& rs) { Sd(rd, rs); }
+  inline void Load32U(Register rd, const MemOperand& rs,
+                      Trapper&& trapper = [](int){}) {
+    Lwu(rd, rs, std::forward<Trapper>(trapper));
+  }
+  inline void LoadWord(Register rd, const MemOperand& rs,
+                       Trapper&& trapper = [](int){}) {
+    Ld(rd, rs, std::forward<Trapper>(trapper));
+  }
+  inline void StoreWord(Register rd, const MemOperand& rs,
+                        Trapper&& trapper = [](int){}) {
+    Sd(rd, rs, std::forward<Trapper>(trapper));
+  }
 #elif V8_TARGET_ARCH_RISCV32
-  inline void Load32U(Register rd, const MemOperand& rs) { Lw(rd, rs); }
-  inline void LoadWord(Register rd, const MemOperand& rs) { Lw(rd, rs); }
-  inline void StoreWord(Register rd, const MemOperand& rs) { Sw(rd, rs); }
+  inline void Load32U(
+      Register rd, const MemOperand& rs, Trapper&& trapper = [](int){}) {
+    Lw(rd, rs, std::forward<Trapper>(trapper));
+  }
+  inline void LoadWord(
+      Register rd, const MemOperand& rs, Trapper&& trapper = [](int){}) {
+    Lw(rd, rs, std::forward<Trapper>(trapper));
+  }
+  inline void StoreWord(
+      Register rd, const MemOperand& rs, Trapper&& trapper = [](int){}) {
+    Sw(rd, rs, std::forward<Trapper>(trapper));
+  }
 #endif
-  void LoadFloat(FPURegister fd, const MemOperand& src);
-  void StoreFloat(FPURegister fs, const MemOperand& dst);
+  void LoadFloat(
+      FPURegister fd, const MemOperand& src, Trapper&& trapper = [](int){});
+  void StoreFloat(
+      FPURegister fs, const MemOperand& dst, Trapper&& trapper = [](int){});
 
-  void LoadDouble(FPURegister fd, const MemOperand& src);
-  void StoreDouble(FPURegister fs, const MemOperand& dst);
+  void LoadDouble(
+      FPURegister fd, const MemOperand& src, Trapper&& trapper = [](int){});
+  void StoreDouble(
+      FPURegister fs, const MemOperand& dst, Trapper&& trapper = [](int){});
 
-  void Ll(Register rd, const MemOperand& rs);
-  void Sc(Register rd, const MemOperand& rs);
+  void Ll(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
+  void Sc(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
 
   void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2);
   void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2);
@@ -1287,7 +1311,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
-                        const MemOperand& dst_field_operand);
+                        const MemOperand& dst_field_operand,
+                        Trapper&& trapper = [](int){});
   void AtomicStoreTaggedField(Register dst, const MemOperand& src);
 
   void DecompressTaggedSigned(const Register& destination,
@@ -1297,7 +1322,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTagged(const Register& destination, const Register& source);
   void DecompressTagged(Register dst, Tagged_t immediate);
   void DecompressProtected(const Register& destination,
-                           const MemOperand& field_operand);
+                           const MemOperand& field_operand,
+                           Trapper&& trapper = [](int){});
 
   // ---------------------------------------------------------------------------
   // V8 Sandbox support
@@ -1319,7 +1345,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Store an indirect pointer field.
   // Only available when the sandbox is enabled, but always visible to avoid
   // having to place the #ifdefs into the caller.
-  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand);
+  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand,
+                                 Trapper&& trapper = [](int){});
 
 #ifdef V8_ENABLE_SANDBOX
   // Retrieve the heap object referenced by the given indirect pointer handle,
@@ -1371,9 +1398,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
 
   // Compresses and stores tagged value to given on-heap location.
-  void StoreTaggedField(const Register& value,
-                        const MemOperand& dst_field_operand) {
-    Sw(value, dst_field_operand);
+  void StoreTaggedField(
+      const Register& value, const MemOperand& dst_field_operand,
+      Trapper&& trapper = [](int){}) {
+    Sw(value, dst_field_operand, std::forward<Trapper>(trapper));
   }
 
   void AtomicStoreTaggedField(Register src, const MemOperand& dst) {
@@ -1426,8 +1454,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void WasmRvvS128const(VRegister dst, const uint8_t imms[16]);
 
-  void LoadLane(int sz, VRegister dst, uint8_t laneidx, MemOperand src);
-  void StoreLane(int sz, VRegister src, uint8_t laneidx, MemOperand dst);
+  void LoadLane(
+      int sz, VRegister dst, uint8_t laneidx, MemOperand src,
+      Trapper&& trapper = [](int){});
+  void StoreLane(
+      int sz, VRegister src, uint8_t laneidx, MemOperand dst,
+      Trapper&& trapper = [](int){});
 
   // It assumes that the arguments are located below the stack pointer.
   void LoadReceiver(Register dest) { LoadWord(dest, MemOperand(sp, 0)); }

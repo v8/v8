@@ -548,13 +548,14 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
 }
 
 void MacroAssembler::StoreIndirectPointerField(Register value,
-                                               MemOperand dst_field_operand) {
+                                               MemOperand dst_field_operand,
+                                               Trapper&& trapper) {
 #ifdef V8_ENABLE_SANDBOX
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Lw(scratch,
      FieldMemOperand(value, ExposedTrustedObject::kSelfIndirectPointerOffset));
-  Sw(scratch, dst_field_operand);
+  Sw(scratch, dst_field_operand, std::forward<Trapper>(trapper));
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
@@ -2304,218 +2305,250 @@ void MacroAssembler::UStoreDouble(FPURegister fd, const MemOperand& rs,
 #endif
 }
 
-void MacroAssembler::Lb(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
-    this->lb(target, source.rm(), source.offset());
+void MacroAssembler::Lb(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register target, const MemOperand& source) {
+    trapper(pc_offset());
+    lb(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(rd, rs, fn);
 }
 
-void MacroAssembler::Lbu(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
-    this->lbu(target, source.rm(), source.offset());
+void MacroAssembler::Lbu(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register target, const MemOperand& source) {
+    trapper(pc_offset());
+    lbu(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(rd, rs, fn);
 }
 
-void MacroAssembler::Sb(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register value, const MemOperand& source) {
-    this->sb(value, source.rm(), source.offset());
+void MacroAssembler::Sb(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register value, const MemOperand& source) {
+    trapper(pc_offset());
+    sb(value, source.rm(), source.offset());
   };
   AlignedStoreHelper(rd, rs, fn);
 }
 
-void MacroAssembler::Lh(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
-    this->lh(target, source.rm(), source.offset());
+void MacroAssembler::Lh(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register target, const MemOperand& source) {
+    trapper(pc_offset());
+    lh(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(rd, rs, fn);
 }
 
-void MacroAssembler::Lhu(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
-    this->lhu(target, source.rm(), source.offset());
+void MacroAssembler::Lhu(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register target, const MemOperand& source) {
+    trapper(pc_offset());
+    lhu(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(rd, rs, fn);
 }
 
-void MacroAssembler::Sh(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register value, const MemOperand& source) {
-    this->sh(value, source.rm(), source.offset());
+void MacroAssembler::Sh(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register value, const MemOperand& source) {
+    trapper(pc_offset());
+    sh(value, source.rm(), source.offset());
   };
   AlignedStoreHelper(rd, rs, fn);
 }
 
-void MacroAssembler::Lw(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
+void MacroAssembler::Lw(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register target, const MemOperand& source) {
+    trapper(pc_offset());
     if (v8_flags.riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint7(source.offset()) && ((source.offset() & 0x3) == 0)) {
-      this->c_lw(target, source.rm(), source.offset());
+      c_lw(target, source.rm(), source.offset());
     } else if (v8_flags.riscv_c_extension && (target != zero_reg) &&
                is_uint8(source.offset()) && (source.rm() == sp) &&
                ((source.offset() & 0x3) == 0)) {
-      this->c_lwsp(target, source.offset());
+      c_lwsp(target, source.offset());
     } else {
-      this->lw(target, source.rm(), source.offset());
+      lw(target, source.rm(), source.offset());
     }
   };
   AlignedLoadHelper(rd, rs, fn);
 }
 
 #if V8_TARGET_ARCH_RISCV64
-void MacroAssembler::Lwu(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
-    this->lwu(target, source.rm(), source.offset());
+void MacroAssembler::Lwu(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register target, const MemOperand& source) {
+    trapper(pc_offset());
+    lwu(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(rd, rs, fn);
 }
 #endif
-void MacroAssembler::Sw(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register value, const MemOperand& source) {
+
+void MacroAssembler::Sw(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register value, const MemOperand& source) {
+    trapper(pc_offset());
     if (v8_flags.riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint7(source.offset()) && ((source.offset() & 0x3) == 0)) {
-      this->c_sw(value, source.rm(), source.offset());
+      c_sw(value, source.rm(), source.offset());
     } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
                is_uint8(source.offset()) && (((source.offset() & 0x3) == 0))) {
-      this->c_swsp(value, source.offset());
+      c_swsp(value, source.offset());
     } else {
-      this->sw(value, source.rm(), source.offset());
+      sw(value, source.rm(), source.offset());
     }
   };
   AlignedStoreHelper(rd, rs, fn);
 }
 
 #if V8_TARGET_ARCH_RISCV64
-void MacroAssembler::Ld(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
+void MacroAssembler::Ld(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register target, const MemOperand& source) {
+    trapper(pc_offset());
     if (v8_flags.riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
-      this->c_ld(target, source.rm(), source.offset());
+      c_ld(target, source.rm(), source.offset());
     } else if (v8_flags.riscv_c_extension && (target != zero_reg) &&
                is_uint9(source.offset()) && (source.rm() == sp) &&
                ((source.offset() & 0x7) == 0)) {
-      this->c_ldsp(target, source.offset());
+      c_ldsp(target, source.offset());
     } else {
-      this->ld(target, source.rm(), source.offset());
+      ld(target, source.rm(), source.offset());
     }
   };
   AlignedLoadHelper(rd, rs, fn);
 }
 
-void MacroAssembler::Sd(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register value, const MemOperand& source) {
+void MacroAssembler::Sd(Register rd, const MemOperand& rs, Trapper&& trapper) {
+  auto fn = [&](Register value, const MemOperand& source) {
+    trapper(pc_offset());
     if (v8_flags.riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
-      this->c_sd(value, source.rm(), source.offset());
+      c_sd(value, source.rm(), source.offset());
     } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
                is_uint9(source.offset()) && ((source.offset() & 0x7) == 0)) {
-      this->c_sdsp(value, source.offset());
+      c_sdsp(value, source.offset());
     } else {
-      this->sd(value, source.rm(), source.offset());
+      sd(value, source.rm(), source.offset());
     }
   };
   AlignedStoreHelper(rd, rs, fn);
 }
 #endif
-void MacroAssembler::LoadFloat(FPURegister fd, const MemOperand& src) {
-  auto fn = [this](FPURegister target, const MemOperand& source) {
-    this->flw(target, source.rm(), source.offset());
+
+void MacroAssembler::LoadFloat(FPURegister fd, const MemOperand& src,
+                               Trapper&& trapper) {
+  auto fn = [&](FPURegister target, const MemOperand& source) {
+    trapper(pc_offset());
+    flw(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(fd, src, fn);
 }
 
-void MacroAssembler::StoreFloat(FPURegister fs, const MemOperand& src) {
-  auto fn = [this](FPURegister value, const MemOperand& source) {
-    this->fsw(value, source.rm(), source.offset());
+void MacroAssembler::StoreFloat(FPURegister fs, const MemOperand& src,
+                                Trapper&& trapper) {
+  auto fn = [&](FPURegister value, const MemOperand& source) {
+    trapper(pc_offset());
+    fsw(value, source.rm(), source.offset());
   };
   AlignedStoreHelper(fs, src, fn);
 }
 
-void MacroAssembler::LoadDouble(FPURegister fd, const MemOperand& src) {
-  auto fn = [this](FPURegister target, const MemOperand& source) {
+void MacroAssembler::LoadDouble(FPURegister fd, const MemOperand& src,
+                                Trapper&& trapper) {
+  auto fn = [&](FPURegister target, const MemOperand& source) {
+    trapper(pc_offset());
     if (v8_flags.riscv_c_extension && ((target.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
-      this->c_fld(target, source.rm(), source.offset());
+      c_fld(target, source.rm(), source.offset());
     } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
                is_uint9(source.offset()) && ((source.offset() & 0x7) == 0)) {
-      this->c_fldsp(target, source.offset());
+      c_fldsp(target, source.offset());
     } else {
-      this->fld(target, source.rm(), source.offset());
+      fld(target, source.rm(), source.offset());
     }
   };
   AlignedLoadHelper(fd, src, fn);
 }
 
-void MacroAssembler::StoreDouble(FPURegister fs, const MemOperand& src) {
-  auto fn = [this](FPURegister value, const MemOperand& source) {
+void MacroAssembler::StoreDouble(FPURegister fs, const MemOperand& src,
+                                 Trapper&& trapper) {
+  auto fn = [&](FPURegister value, const MemOperand& source) {
+    trapper(pc_offset());
     if (v8_flags.riscv_c_extension && ((value.code() & 0b11000) == 0b01000) &&
         ((source.rm().code() & 0b11000) == 0b01000) &&
         is_uint8(source.offset()) && ((source.offset() & 0x7) == 0)) {
-      this->c_fsd(value, source.rm(), source.offset());
+      c_fsd(value, source.rm(), source.offset());
     } else if (v8_flags.riscv_c_extension && (source.rm() == sp) &&
                is_uint9(source.offset()) && ((source.offset() & 0x7) == 0)) {
-      this->c_fsdsp(value, source.offset());
+      c_fsdsp(value, source.offset());
     } else {
-      this->fsd(value, source.rm(), source.offset());
+      fsd(value, source.rm(), source.offset());
     }
   };
   AlignedStoreHelper(fs, src, fn);
 }
 
-void MacroAssembler::Ll(Register rd, const MemOperand& rs) {
+void MacroAssembler::Ll(Register rd, const MemOperand& rs, Trapper&& trapper) {
   bool is_one_instruction = rs.offset() == 0;
   if (is_one_instruction) {
+    trapper(pc_offset());
     lr_w(false, false, rd, rs.rm());
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     AddWord(scratch, rs.rm(), rs.offset());
+    trapper(pc_offset());
     lr_w(false, false, rd, scratch);
   }
 }
 
 #if V8_TARGET_ARCH_RISCV64
-void MacroAssembler::Lld(Register rd, const MemOperand& rs) {
+void MacroAssembler::Lld(Register rd, const MemOperand& rs, Trapper&& trapper) {
   bool is_one_instruction = rs.offset() == 0;
   if (is_one_instruction) {
+    trapper(pc_offset());
     lr_d(false, false, rd, rs.rm());
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     AddWord(scratch, rs.rm(), rs.offset());
+    trapper(pc_offset());
     lr_d(false, false, rd, scratch);
   }
 }
 #endif
-void MacroAssembler::Sc(Register rd, const MemOperand& rs) {
+
+void MacroAssembler::Sc(Register rd, const MemOperand& rs, Trapper&& trapper) {
   bool is_one_instruction = rs.offset() == 0;
   if (is_one_instruction) {
+    trapper(pc_offset());
     sc_w(false, false, rd, rs.rm(), rd);
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     AddWord(scratch, rs.rm(), rs.offset());
+    trapper(pc_offset());
     sc_w(false, false, rd, scratch, rd);
   }
 }
+
 #if V8_TARGET_ARCH_RISCV64
-void MacroAssembler::Scd(Register rd, const MemOperand& rs) {
+void MacroAssembler::Scd(Register rd, const MemOperand& rs, Trapper&& trapper) {
   bool is_one_instruction = rs.offset() == 0;
   if (is_one_instruction) {
+    trapper(pc_offset());
     sc_d(false, false, rd, rs.rm(), rd);
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     AddWord(scratch, rs.rm(), rs.offset());
+    trapper(pc_offset());
     sc_d(false, false, rd, scratch, rd);
   }
 }
 #endif
+
 void MacroAssembler::li(Register dst, Handle<HeapObject> value,
                         RelocInfo::Mode rmode) {
   // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
@@ -5825,36 +5858,36 @@ void MacroAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
 #endif
 
 void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
-                              MemOperand src) {
+                              MemOperand src, Trapper&& trapper) {
   DCHECK_NE(kScratchReg, src.rm());
   if (ts == 8) {
-    Lbu(kScratchReg2, src);
+    Lbu(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     VU.set(kScratchReg, E8, m1);
     vmerge_vx(dst, kScratchReg2, dst);
   } else if (ts == 16) {
-    Lhu(kScratchReg2, src);
+    Lhu(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E16, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
   } else if (ts == 32) {
-    Load32U(kScratchReg2, src);
+    Load32U(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
   } else if (ts == 64) {
 #if V8_TARGET_ARCH_RISCV64
-    LoadWord(kScratchReg2, src);
+    LoadWord(kScratchReg2, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E64, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
 #elif V8_TARGET_ARCH_RISCV32
-    LoadDouble(kScratchDoubleReg, src);
+    LoadDouble(kScratchDoubleReg, src, std::forward<Trapper>(trapper));
     VU.set(kScratchReg, E64, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
@@ -5866,33 +5899,33 @@ void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
 }
 
 void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
-                               MemOperand dst) {
+                               MemOperand dst, Trapper&& trapper) {
   DCHECK_NE(kScratchReg, dst.rm());
   if (sz == 8) {
     VU.set(kScratchReg, E8, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
-    Sb(kScratchReg, dst);
+    Sb(kScratchReg, dst, std::forward<Trapper>(trapper));
   } else if (sz == 16) {
     VU.set(kScratchReg, E16, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
-    Sh(kScratchReg, dst);
+    Sh(kScratchReg, dst, std::forward<Trapper>(trapper));
   } else if (sz == 32) {
     VU.set(kScratchReg, E32, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
-    Sw(kScratchReg, dst);
+    Sw(kScratchReg, dst, std::forward<Trapper>(trapper));
   } else {
     DCHECK_EQ(sz, 64);
     VU.set(kScratchReg, E64, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
 #if V8_TARGET_ARCH_RISCV64
     vmv_xs(kScratchReg, kSimd128ScratchReg);
-    StoreWord(kScratchReg, dst);
+    StoreWord(kScratchReg, dst, std::forward<Trapper>(trapper));
 #elif V8_TARGET_ARCH_RISCV32
     vfmv_fs(kScratchDoubleReg, kSimd128ScratchReg);
-    StoreDouble(kScratchDoubleReg, dst);
+    StoreDouble(kScratchDoubleReg, dst, std::forward<Trapper>(trapper));
 #endif
   }
 }
@@ -7343,11 +7376,12 @@ void MacroAssembler::SmiUntagField(Register dst, const MemOperand& src) {
 }
 
 void MacroAssembler::StoreTaggedField(const Register& value,
-                                      const MemOperand& dst_field_operand) {
+                                      const MemOperand& dst_field_operand,
+                                      Trapper&& trapper) {
   if (COMPRESS_POINTERS_BOOL) {
-    Sw(value, dst_field_operand);
+    Sw(value, dst_field_operand, std::forward<Trapper>(trapper));
   } else {
-    Sd(value, dst_field_operand);
+    Sd(value, dst_field_operand, std::forward<Trapper>(trapper));
   }
 }
 
@@ -7394,13 +7428,14 @@ void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {
 }
 
 void MacroAssembler::DecompressProtected(const Register& destination,
-                                         const MemOperand& field_operand) {
+                                         const MemOperand& field_operand,
+                                         Trapper&& trapper) {
 #ifdef V8_ENABLE_SANDBOX
   CHECK(V8_ENABLE_SANDBOX_BOOL);
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  Lw(destination, field_operand);
+  Lw(destination, field_operand, std::forward<Trapper>(trapper));
   LoadWord(scratch,
            MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
   Or(destination, destination, scratch);
