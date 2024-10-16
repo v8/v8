@@ -2361,7 +2361,11 @@ void MacroAssembler::I32x8DotI8x32I7x32AddS(YMMRegister dst, YMMRegister src1,
   DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
   // It's guaranteed in instruction selector
   DCHECK_EQ(dst, src3);
-  if (CpuFeatures::IsSupported(AVX_VNNI)) {
+  if (CpuFeatures::IsSupported(AVX_VNNI_INT8)) {
+    CpuFeatureScope avx_vnni_int8_scope(this, AVX_VNNI_INT8);
+    vpdpbssd(dst, src2, src1);
+    return;
+  } else if (CpuFeatures::IsSupported(AVX_VNNI)) {
     CpuFeatureScope avx_scope(this, AVX_VNNI);
     vpdpbusd(dst, src2, src1);
     return;
