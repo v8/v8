@@ -2891,6 +2891,9 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_SHARED_STRUCT_TYPE:
       accumulator->Add("<JSSharedStruct>");
       break;
+    case JS_ATOMICS_MUTEX_TYPE:
+      accumulator->Add("<JSAtomicsMutex>");
+      break;
     case JS_MESSAGE_OBJECT_TYPE:
       accumulator->Add("<JSMessageObject>");
       break;
