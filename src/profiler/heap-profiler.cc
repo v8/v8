@@ -168,15 +168,15 @@ class FileOutputStream : public v8::OutputStream {
 };
 
 // Precondition: only call this if you have just completed a full GC cycle.
-void HeapProfiler::WriteSnapshotToDiskAfterGC() {
+void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
   // We need to set a stack marker for the stack walk performed by the
   // snapshot generator to work.
-  heap()->stack().SetMarkerIfNeededAndCallback([this]() {
+  heap()->stack().SetMarkerIfNeededAndCallback([this, snapshot_mode]() {
     int64_t time = V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
     std::string filename = "v8-heap-" + std::to_string(time) + ".heapsnapshot";
     v8::HeapProfiler::HeapSnapshotOptions options;
     std::unique_ptr<HeapSnapshot> result(
-        new HeapSnapshot(this, options.snapshot_mode, options.numerics_mode));
+        new HeapSnapshot(this, snapshot_mode, options.numerics_mode));
     HeapSnapshotGenerator generator(result.get(), options.control,
                                     options.global_object_name_resolver, heap(),
                                     options.stack_state);
