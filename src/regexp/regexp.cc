@@ -368,66 +368,81 @@ void SetAtomLastCapture(Isolate* isolate,
   last_match_info->set_capture(1, to);
 }
 
+template <typename SChar, typename PChar>
+int AtomExecRawImpl(Isolate* isolate, base::Vector<const SChar> subject,
+                    base::Vector<const PChar> pattern, int index,
+                    int32_t* output, int output_size,
+                    const DisallowGarbageCollection& no_gc) {
+  const int pattern_length = pattern.length();
+  DCHECK_GT(pattern_length, 0);
+
+  StringSearch<PChar, SChar> search(isolate, pattern);
+  for (int i = 0; i < output_size; i += JSRegExp::kAtomRegisterCount) {
+    index = search.Search(subject, index);
+    if (index == -1) {
+      static_assert(RegExp::RE_FAILURE == 0);
+      return i / JSRegExp::kAtomRegisterCount;  // Return number of matches.
+    } else {
+      output[i] = index;  // match start
+      index += pattern_length;
+      output[i + 1] = index;  // match end
+    }
+  }
+
+  return output_size / JSRegExp::kAtomRegisterCount;
+}
+
 }  // namespace
 
+// static
 int RegExpImpl::AtomExecRaw(Isolate* isolate,
                             DirectHandle<AtomRegExpData> regexp_data,
                             Handle<String> subject, int index, int32_t* output,
                             int output_size) {
   DCHECK_LE(0, index);
   DCHECK_LE(index, subject->length());
+  CHECK_EQ(output_size % JSRegExp::kAtomRegisterCount, 0);
 
   subject = String::Flatten(isolate, subject);
   DisallowGarbageCollection no_gc;  // ensure vectors stay valid
 
   Tagged<String> needle = regexp_data->pattern(isolate);
-  uint32_t needle_len = needle->length();
   DCHECK(needle->IsFlat());
-  DCHECK_LT(0, needle_len);
 
-  if (static_cast<uint32_t>(index + needle_len) > subject->length()) {
-    return RegExp::RE_FAILURE;
-  }
+  String::FlatContent needle_content = needle->GetFlatContent(no_gc);
+  String::FlatContent subject_content = subject->GetFlatContent(no_gc);
+  DCHECK(needle_content.IsFlat());
+  DCHECK(subject_content.IsFlat());
 
-  for (int i = 0; i < output_size; i += 2) {
-    String::FlatContent needle_content = needle->GetFlatContent(no_gc);
-    String::FlatContent subject_content = subject->GetFlatContent(no_gc);
-    DCHECK(needle_content.IsFlat());
-    DCHECK(subject_content.IsFlat());
-    // dispatch on type of strings
-    index =
-        (needle_content.IsOneByte()
+  return needle_content.IsOneByte()
              ? (subject_content.IsOneByte()
-                    ? SearchString(isolate, subject_content.ToOneByteVector(),
-                                   needle_content.ToOneByteVector(), index)
-                    : SearchString(isolate, subject_content.ToUC16Vector(),
-                                   needle_content.ToOneByteVector(), index))
+                    ? AtomExecRawImpl(isolate,
+                                      subject_content.ToOneByteVector(),
+                                      needle_content.ToOneByteVector(), index,
+                                      output, output_size, no_gc)
+                    : AtomExecRawImpl(isolate, subject_content.ToUC16Vector(),
+                                      needle_content.ToOneByteVector(), index,
+                                      output, output_size, no_gc))
              : (subject_content.IsOneByte()
-                    ? SearchString(isolate, subject_content.ToOneByteVector(),
-                                   needle_content.ToUC16Vector(), index)
-                    : SearchString(isolate, subject_content.ToUC16Vector(),
-                                   needle_content.ToUC16Vector(), index)));
-    if (index == -1) {
-      return i / 2;  // Return number of matches.
-    } else {
-      output[i] = index;
-      output[i + 1] = index + needle_len;
-      index += needle_len;
-    }
-  }
-  return output_size / 2;
+                    ? AtomExecRawImpl(isolate,
+                                      subject_content.ToOneByteVector(),
+                                      needle_content.ToUC16Vector(), index,
+                                      output, output_size, no_gc)
+                    : AtomExecRawImpl(isolate, subject_content.ToUC16Vector(),
+                                      needle_content.ToUC16Vector(), index,
+                                      output, output_size, no_gc));
 }
 
 Handle<Object> RegExpImpl::AtomExec(Isolate* isolate,
                                     DirectHandle<AtomRegExpData> re_data,
                                     Handle<String> subject, int index,
                                     Handle<RegExpMatchInfo> last_match_info) {
-  static const int kNumRegisters = 2;
-  static_assert(kNumRegisters <= Isolate::kJSRegexpStaticOffsetsVectorSize);
+  static_assert(JSRegExp::kAtomRegisterCount <=
+                Isolate::kJSRegexpStaticOffsetsVectorSize);
   int32_t* output_registers = isolate->jsregexp_static_offsets_vector();
 
   int res = AtomExecRaw(isolate, re_data, subject, index, output_registers,
-                        kNumRegisters);
+                        JSRegExp::kAtomRegisterCount);
 
   if (res == RegExp::RE_FAILURE) return isolate->factory()->null_value();
 
@@ -1041,11 +1056,8 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<RegExpData> regexp_data,
 
   switch (regexp_data_->type_tag()) {
     case RegExpData::Type::ATOM: {
-      // ATOM regexps do not have a global loop, so we search for one match at
-      // a time.
-      static const int kAtomRegistersPerMatch = 2;
-      registers_per_match_ = kAtomRegistersPerMatch;
-      register_array_size_ = registers_per_match_;
+      registers_per_match_ = JSRegExp::kAtomRegisterCount;
+      register_array_size_ = Isolate::kJSRegexpStaticOffsetsVectorSize;
       break;
     }
     case RegExpData::Type::IRREGEXP: {
