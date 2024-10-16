@@ -863,7 +863,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSFunction> NewFunctionForTesting(DirectHandle<String> name);
 
   // Create an External object for V8's external API.
-  Handle<JSObject> NewExternal(void* value);
+  Handle<JSObject> NewExternal(
+      void* value, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a new code object and initializes it to point to the given
   // off-heap entry point.
