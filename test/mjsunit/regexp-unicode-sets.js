@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-unicode-sets
-
 // u and v are not allowed together.
 assertEarlyError('/./uv');
 assertThrowsAtRuntime("new RegExp('.','uv')", SyntaxError);
@@ -165,6 +163,26 @@ check(/[[a-c]--\0]/v, Array.from('abc'));
 check(/[Ā-č]/v, Array.from('ĀāĂăĄąĆć'), Array.from('abc'));
 check(/[ĀĂĄĆ]/vi, Array.from('ĀāĂăĄąĆć'), Array.from('abc'));
 check(/[āăąć]/vi, Array.from('ĀāĂăĄąĆć'), Array.from('abc'));
+
+// Ignore-Case intersections
+check(
+    /[\w&&[^a-z_]]/vi, Array.from('0123456789'),
+    Array.from('abcdxyzABCDXYZ_!?'));
+check(
+    /[^\w&&[a-z_]]/vi, Array.from('0123456789!?'),
+    Array.from('abcdxyzABCDXYZ_'));
+check(/[K&&K]/vi, Array.from('KkK')); // K && U+212A (Kelvin Sign)
+check(/[K&&K]/vi, Array.from('KkK')); // U+212A (Kelvin Sign) && K
+check(/[K&&\u{212A}]/vi, Array.from('Kk\u{212A}'));
+check(/[\u{212A}&&K]/vi, Array.from('Kk\u{212A}'));
+
+// Ignore-Case subtractions
+check(/[\d--[A-Z]]/vi, Array.from('0123456789'), Array.from('abcdEFGH'));
+check(/[[\d[a-c]]--9]/vi, Array.from('012345678abcABC'), Array.from('9xX'));
+check(/[K--K]/vi, [], Array.from('KkK')); // K -- U+212A (Kelvin Sign)
+check(/[K--k]/vi, [], Array.from('KkK')); // U+212A (Kelvin Sign) -- k
+check(/[K--\u{212A}]/vi, [], Array.from('KkK'));
+check(/[\u{212A}--k]/vi, [], Array.from('KkK'));
 
 // String disjunctions
 check(/[\q{foo|bar|0|5}]/v, ['foo', 'bar', 0, 5], ['fo', 'baz'], false);

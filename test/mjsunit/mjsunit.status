@@ -801,7 +801,7 @@
 
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
-  'harmony/regexp-unicode-sets': [PASS,FAIL],
+  'regexp-unicode-sets': [PASS,FAIL],
 
   # The noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
