@@ -3177,13 +3177,13 @@ namespace {
 void SwitchStackState(MacroAssembler* masm, Register jmpbuf,
                       wasm::JumpBuffer::StackState old_state,
                       wasm::JumpBuffer::StackState new_state) {
-#if V8_ENABLE_SANDBOX
-  __ cmpl(MemOperand(jmpbuf, wasm::kJmpBufStateOffset), Immediate(old_state));
-  Label ok;
-  __ j(equal, &ok, Label::kNear);
-  __ Trap();
-  __ bind(&ok);
-#endif
+  if (v8_flags.debug_code) {
+    __ cmpl(MemOperand(jmpbuf, wasm::kJmpBufStateOffset), Immediate(old_state));
+    Label ok;
+    __ j(equal, &ok, Label::kNear);
+    __ Trap();
+    __ bind(&ok);
+  }
   __ movl(MemOperand(jmpbuf, wasm::kJmpBufStateOffset), Immediate(new_state));
 }
 
@@ -3197,11 +3197,11 @@ void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc) {
   __ movq(MemOperand(jmpbuf, wasm::kJmpBufPcOffset), kScratchRegister);
 }
 
-void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc,
-                    wasm::JumpBuffer::StackState expected_state) {
+void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc) {
   __ movq(rsp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
   __ movq(rbp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
-  SwitchStackState(masm, jmpbuf, expected_state, wasm::JumpBuffer::Active);
+  SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Inactive,
+                   wasm::JumpBuffer::Active);
   if (load_pc) {
     __ jmp(MemOperand(jmpbuf, wasm::kJmpBufPcOffset));
   }
@@ -3218,8 +3218,7 @@ void SaveState(MacroAssembler* masm, Register active_continuation, Register tmp,
   FillJumpBuffer(masm, jmpbuf, suspend);
 }
 
-void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
-                          wasm::JumpBuffer::StackState expected_state) {
+void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation) {
   Register target_jmpbuf = target_continuation;
   __ LoadExternalPointerField(
       target_jmpbuf,
@@ -3229,7 +3228,7 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
       MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 0);
   // Switch stack!
-  LoadJumpBuffer(masm, target_jmpbuf, false, expected_state);
+  LoadJumpBuffer(masm, target_jmpbuf, false);
 }
 
 // Updates the stack limit to match the new active stack.
@@ -3297,7 +3296,7 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
       kWasmContinuationJmpbufTag, kScratchRegister);
 
   // Switch stack!
-  LoadJumpBuffer(masm, jmpbuf, false, wasm::JumpBuffer::Inactive);
+  LoadJumpBuffer(masm, jmpbuf, false);
   SwitchStacks(masm, active_continuation, promise, return_value, context);
 }
 
@@ -3375,7 +3374,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
   // Save the old stack's rbp in r9, and use it to access the parameters in
   // the parent frame.
   __ movq(original_fp, rbp);
-  LoadTargetJumpBuffer(masm, target_continuation, wasm::JumpBuffer::Suspended);
+  LoadTargetJumpBuffer(masm, target_continuation);
   // Push the loaded rbp. We know it is null, because there is no frame yet,
   // so we could also push 0 directly. In any case we need to push it, because
   // this marks the base of the stack segment for the stack frame iterator.
@@ -3731,7 +3730,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       kWasmContinuationJmpbufTag, r8);
   FillJumpBuffer(masm, jmpbuf, &resume);
   SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
-                   wasm::JumpBuffer::Suspended);
+                   wasm::JumpBuffer::Inactive);
   __ StoreTaggedSignedField(
       FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
       Smi::FromInt(WasmSuspenderObject::kSuspended));
@@ -3786,7 +3785,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 0);
-  LoadJumpBuffer(masm, jmpbuf, true, wasm::JumpBuffer::Inactive);
+  LoadJumpBuffer(masm, jmpbuf, true);
   __ Trap();
   __ bind(&resume);
   __ endbr64();
@@ -3909,7 +3908,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
           0);
   if (on_resume == wasm::OnResume::kThrow) {
     // Switch to the continuation's stack without restoring the PC.
-    LoadJumpBuffer(masm, target_jmpbuf, false, wasm::JumpBuffer::Suspended);
+    LoadJumpBuffer(masm, target_jmpbuf, false);
     // Pop this frame now. The unwinder expects that the first STACK_SWITCH
     // frame is the outermost one.
     __ LeaveFrame(StackFrame::STACK_SWITCH);
@@ -3919,7 +3918,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
     __ CallRuntime(Runtime::kThrow);
   } else {
     // Resume the continuation normally.
-    LoadJumpBuffer(masm, target_jmpbuf, true, wasm::JumpBuffer::Suspended);
+    LoadJumpBuffer(masm, target_jmpbuf, true);
   }
   __ Trap();
   __ bind(&suspend);

@@ -25,24 +25,7 @@ struct JumpBuffer {
   Address fp;
   Address pc;
   void* stack_limit;
-  // We track the state below to prevent stack corruptions under the sandbox
-  // security model.
-  // Assuming that the external pointer to the jump buffer has been corrupted
-  // and replaced with a different jump buffer, we check its state before
-  // resuming it to verify that it is not Active or Retired.
-  // The distinction between Suspended and Inactive may not be strictly
-  // necessary since we currently always pass a single JS value in the return
-  // register across stacks (either the Promise, the result of the Promise, or
-  // the result of the export). However adding a state does not cost anything
-  // and is more robust against potential changes in the calling conventions.
-  enum StackState : int32_t {
-    Active,     // The (unique) active stack. The jump buffer is invalid in that
-                // state.
-    Suspended,  // A stack suspended by WasmSuspend.
-    Inactive,   // A parent/ancestor of the active stack. In other words, a
-                // stack that either called or resumed a suspendable stack.
-    Retired     // A finished stack. The jump buffer is invalid in that state.
-  };
+  enum StackState : int32_t { Active, Inactive, Retired };
   StackState state;
 };
 
