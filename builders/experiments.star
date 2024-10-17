@@ -83,18 +83,6 @@ in_category(
 )
 
 in_category(
-    "Fuchsia",
-    experiment_builder(
-        name = "V8 Fuchsia",
-        parent_builder = "V8 Fuchsia - builder",
-        execution_timeout = 19800,
-        notifies = ["v8-infra-cc"],
-        # TODO(crbug.com/v8/12785): Enable again when it is green.
-        work_in_progress = True,
-    ),
-)
-
-in_category(
     "Coverage",
     experiment_builder(
         name = "V8 Linux64 - coverage",
