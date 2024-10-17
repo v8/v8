@@ -759,12 +759,14 @@ void WasmEngine::AsyncInstantiate(
   }
 
   if (isolate->has_exception()) {
+    thrower.Reset();
+    if (isolate->is_execution_terminating()) return;
     // The JS code executed during instantiation has thrown an exception.
     // We have to move the exception to the promise chain.
     Handle<Object> exception(isolate->exception(), isolate);
+    DCHECK(!IsHole(*exception));
     isolate->clear_exception();
     resolver->OnInstantiationFailed(exception);
-    thrower.Reset();
   } else {
     DCHECK(thrower.error());
     resolver->OnInstantiationFailed(thrower.Reify());

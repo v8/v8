@@ -2030,6 +2030,8 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
 Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
                               MessageLocation* location) {
   DCHECK(!has_exception());
+  DCHECK_IMPLIES(IsHole(raw_exception),
+                 raw_exception == ReadOnlyRoots{this}.termination_exception());
   IF_WASM(DCHECK_IMPLIES, trap_handler::IsTrapHandlerEnabled(),
           !trap_handler::IsThreadInWasm());
 
@@ -2043,10 +2045,11 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
       DirectHandle<Script> script = location->script();
       DirectHandle<Object> name(script->GetNameOrSourceURL(), this);
       PrintF("at ");
-      if (IsString(*name) && Cast<String>(*name)->length() > 0)
+      if (IsString(*name) && Cast<String>(*name)->length() > 0) {
         Cast<String>(*name)->PrintOn(stdout);
-      else
+      } else {
         PrintF("<anonymous>");
+      }
 // Script::GetLineNumber and Script::GetColumnNumber can allocate on the heap to
 // initialize the line_ends array, so be careful when calling them.
 #ifdef DEBUG
@@ -2060,13 +2063,11 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
         Script::GetPositionInfo(script, location->end_pos(), &end_pos);
         PrintF(", %d:%d - %d:%d\n", start_pos.line + 1, start_pos.column + 1,
                end_pos.line + 1, end_pos.column + 1);
-        // Make sure to update the raw exception pointer in case it moved.
-        raw_exception = *exception;
       } else {
         PrintF(", line %d\n", script->GetLineNumber(location->start_pos()) + 1);
       }
     }
-    Print(raw_exception);
+    Print(*exception);
     PrintF("Stack Trace:\n");
     PrintStack(stdout);
     PrintF("=========================================================\n");
@@ -2088,7 +2089,7 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
   thread_local_top()->rethrowing_message_ = false;
 
   // Notify debugger of exception.
-  if (is_catchable_by_javascript(raw_exception)) {
+  if (is_catchable_by_javascript(*exception)) {
     std::optional<Tagged<Object>> maybe_exception = debug()->OnThrow(exception);
     if (maybe_exception.has_value()) {
       return *maybe_exception;

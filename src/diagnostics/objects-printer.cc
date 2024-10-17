@@ -1764,6 +1764,14 @@ void Oddball::OddballPrint(std::ostream& os) {
 
 void Hole::HolePrint(std::ostream& os) {
   PrintHeapObjectHeaderWithoutMap(*this, os, "Hole");
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+#define PRINT_SPECIFIC_HOLE(type, name, CamelName) \
+  if (*this == roots.name()) {                     \
+    os << "\n  <" #name ">";                       \
+  }
+  HOLE_LIST(PRINT_SPECIFIC_HOLE);
+#undef PRINT_SPECIFIC_HOLE
+
   os << std::endl;
 }
 

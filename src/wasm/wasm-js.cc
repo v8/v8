@@ -729,6 +729,7 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
+    if (i_isolate->is_execution_terminating()) return;
     resolver->OnCompilationFailed(handle(i_isolate->exception(), i_isolate));
     i_isolate->clear_exception();
     return;
@@ -802,6 +803,7 @@ void WebAssemblyCompileStreaming(
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
+    if (i_isolate->is_execution_terminating()) return;
     resolver->OnCompilationFailed(handle(i_isolate->exception(), i_isolate));
     i_isolate->clear_exception();
     return;
@@ -863,6 +865,7 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
+    if (i_isolate->is_execution_terminating()) return;
     i_isolate->clear_exception();
     return_value.Set(v8::False(isolate));
     return;
@@ -1135,6 +1138,7 @@ void WebAssemblyInstantiateStreaming(
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[2], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
+    if (i_isolate->is_execution_terminating()) return;
     compilation_resolver->OnCompilationFailed(
         handle(i_isolate->exception(), i_isolate));
     i_isolate->clear_exception();
@@ -1252,6 +1256,7 @@ void WebAssemblyInstantiateImpl(
   CompileTimeImports compile_imports =
       ArgumentToCompileOptions(info[2], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
+    if (i_isolate->is_execution_terminating()) return;
     compilation_resolver->OnCompilationFailed(
         handle(i_isolate->exception(), i_isolate));
     i_isolate->clear_exception();
