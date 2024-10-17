@@ -7,6 +7,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "test/unittests/heap/heap-utils.h"  // For ManualGCScope
 #include "test/unittests/test-utils.h"
 
 #ifdef V8_ENABLE_SANDBOX
@@ -23,6 +24,8 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
   auto* iso = i_isolate();
   auto* heap = iso->heap();
   auto* space = heap->old_external_pointer_space();
+
+  ManualGCScope manual_gc_scope(iso);
 
   v8_flags.stress_compaction = true;
 
