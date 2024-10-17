@@ -348,7 +348,10 @@ class StackFrame {
 
   // Search for the code associated with this frame.
   V8_EXPORT_PRIVATE Tagged<Code> LookupCode() const;
+  V8_EXPORT_PRIVATE std::pair<Tagged<Code>, int> LookupCodeAndOffset() const;
   V8_EXPORT_PRIVATE Tagged<GcSafeCode> GcSafeLookupCode() const;
+  V8_EXPORT_PRIVATE std::pair<Tagged<GcSafeCode>, int>
+  GcSafeLookupCodeAndOffset() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
   void IteratePc(RootVisitor* v, Address* constant_pool_address,

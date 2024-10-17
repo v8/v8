@@ -781,16 +781,26 @@ std::optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
 }  // namespace
 
 Tagged<GcSafeCode> StackFrame::GcSafeLookupCode() const {
+  return GcSafeLookupCodeAndOffset().first;
+}
+
+std::pair<Tagged<GcSafeCode>, int> StackFrame::GcSafeLookupCodeAndOffset()
+    const {
   const Address pc = maybe_unauthenticated_pc();
   std::optional<Tagged<GcSafeCode>> result = GetContainingCode(isolate(), pc);
-  DCHECK_GE(pc, result.value()->InstructionStart(isolate(), pc));
-  DCHECK_LT(pc, result.value()->InstructionEnd(isolate(), pc));
-  return result.value();
+  return {result.value(),
+          result.value()->GetOffsetFromInstructionStart(isolate(), pc)};
 }
 
 Tagged<Code> StackFrame::LookupCode() const {
   DCHECK_NE(isolate()->heap()->gc_state(), Heap::MARK_COMPACT);
   return GcSafeLookupCode()->UnsafeCastToCode();
+}
+
+std::pair<Tagged<Code>, int> StackFrame::LookupCodeAndOffset() const {
+  DCHECK_NE(isolate()->heap()->gc_state(), Heap::MARK_COMPACT);
+  auto gc_safe_pair = GcSafeLookupCodeAndOffset();
+  return {gc_safe_pair.first->UnsafeCastToCode(), gc_safe_pair.second};
 }
 
 void StackFrame::IteratePc(RootVisitor* v, Address* constant_pool_address,
@@ -1238,8 +1248,9 @@ void BuiltinExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
   DCHECK(frames->empty());
   DirectHandle<FixedArray> parameters = GetParameters();
   DisallowGarbageCollection no_gc;
-  Tagged<Code> code = LookupCode();
-  int code_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
+  Tagged<Code> code;
+  int code_offset = -1;
+  std::tie(code, code_offset) = LookupCodeAndOffset();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), Cast<AbstractCode>(code), code_offset,
       IsConstructor(), *parameters);
@@ -1355,8 +1366,9 @@ void ApiCallbackExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
   DirectHandle<FixedArray> parameters = GetParameters();
   DirectHandle<JSFunction> function = GetFunction();
   DisallowGarbageCollection no_gc;
-  Tagged<Code> code = LookupCode();
-  int code_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
+  Tagged<Code> code;
+  int code_offset = -1;
+  std::tie(code, code_offset) = LookupCodeAndOffset();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), *function, Cast<AbstractCode>(code), code_offset,
       IsConstructor(), *parameters);
@@ -1490,8 +1502,9 @@ Tagged<Object> CommonFrame::context() const {
 }
 
 int CommonFrame::position() const {
-  Tagged<Code> code = LookupCode();
-  int code_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
+  Tagged<Code> code;
+  int code_offset = -1;
+  std::tie(code, code_offset) = LookupCodeAndOffset();
   return code->SourcePosition(code_offset);
 }
 
@@ -2392,11 +2405,12 @@ Tagged<HeapObject> StubFrame::unchecked_code() const {
 }
 
 int StubFrame::LookupExceptionHandlerInTable() {
-  Tagged<Code> code = LookupCode();
+  Tagged<Code> code;
+  int pc_offset = -1;
+  std::tie(code, pc_offset) = LookupCodeAndOffset();
   DCHECK(code->is_turbofanned());
   DCHECK(code->has_handler_table());
   HandlerTable table(code);
-  int pc_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
   return table.LookupReturn(pc_offset);
 }
 
@@ -2484,8 +2498,9 @@ std::tuple<Tagged<AbstractCode>, int> JavaScriptFrame::GetActiveCodeAndOffset()
     code_offset = baseline_frame->GetBytecodeOffset();
     abstract_code = Cast<AbstractCode>(baseline_frame->GetBytecodeArray());
   } else {
-    Tagged<Code> code = LookupCode();
-    code_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
+    Tagged<Code> code;
+    int pc_offset = -1;
+    std::tie(code, pc_offset) = LookupCodeAndOffset();
     abstract_code = Cast<AbstractCode>(code);
   }
   return {abstract_code, code_offset};
@@ -2498,8 +2513,9 @@ bool CommonFrameWithJSLinkage::IsConstructor() const {
 void CommonFrameWithJSLinkage::Summarize(
     std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  Tagged<GcSafeCode> code = GcSafeLookupCode();
-  int offset = code->GetOffsetFromInstructionStart(isolate(), pc());
+  Tagged<GcSafeCode> code;
+  int offset = -1;
+  std::tie(code, offset) = GcSafeLookupCodeAndOffset();
   DirectHandle<AbstractCode> abstract_code(
       Cast<AbstractCode>(code->UnsafeCastToCode()), isolate());
   DirectHandle<FixedArray> params = GetParameters();
@@ -3172,12 +3188,13 @@ int OptimizedJSFrame::LookupExceptionHandlerInTable(
   // to use FrameSummary to find the corresponding code offset in unoptimized
   // code to perform prediction there.
   DCHECK_NULL(prediction);
-  Tagged<Code> code = LookupCode();
+  Tagged<Code> code;
+  int pc_offset = -1;
+  std::tie(code, pc_offset) = LookupCodeAndOffset();
 
   HandlerTable table(code);
   if (table.NumberOfReturnEntries() == 0) return -1;
 
-  int pc_offset = code->GetOffsetFromInstructionStart(isolate(), pc());
   DCHECK_NULL(data);  // Data is not used and will not return a value.
 
   // When the return pc has been replaced by a trampoline there won't be
