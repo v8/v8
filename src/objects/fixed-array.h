@@ -307,9 +307,7 @@ class TrustedFixedArray
 
 class ProtectedArrayShape final : public AllStatic {
  public:
-  // Elements are of type TrustedObject or Smi, so we must declare it as Object
-  // here.
-  using ElementT = Object;
+  using ElementT = Union<TrustedObject, Smi>;
   using CompressionScheme = TrustedSpaceCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kProtectedFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
@@ -547,8 +545,8 @@ class TrustedWeakFixedArrayShape final : public AllStatic {
 
 // A WeakFixedArray in trusted space and with a unique instance type.
 V8_OBJECT class TrustedWeakFixedArray
-    : public TaggedArrayBase<TrustedWeakFixedArray,
-                             TrustedWeakFixedArrayShape> {
+    : public TaggedArrayBase<TrustedWeakFixedArray, TrustedWeakFixedArrayShape,
+                             TrustedObjectLayout> {
   using Super =
       TaggedArrayBase<TrustedWeakFixedArray, TrustedWeakFixedArrayShape>;
 

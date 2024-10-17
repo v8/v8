@@ -791,7 +791,7 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
     PrintF(scope.file(), "[marking dependent code ");
     ShortPrint(code, scope.file());
     PrintF(scope.file(), " (");
-    ShortPrint(deopt_data->SharedFunctionInfo(), scope.file());
+    ShortPrint(deopt_data->GetSharedFunctionInfo(), scope.file());
     PrintF(") (opt id %d) for deoptimization, reason: %s]\n",
            deopt_data->OptimizationId().value(), reason);
   }
@@ -799,13 +799,10 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
   no_gc.Release();
   {
     HandleScope handle_scope(isolate);
-    PROFILE(
-        isolate,
-        CodeDependencyChangeEvent(
-            handle(code, isolate),
-            handle(Cast<SharedFunctionInfo>(deopt_data->SharedFunctionInfo()),
-                   isolate),
-            reason));
+    PROFILE(isolate,
+            CodeDependencyChangeEvent(
+                handle(code, isolate),
+                handle(deopt_data->GetSharedFunctionInfo(), isolate), reason));
   }
 }
 

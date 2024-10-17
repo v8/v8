@@ -263,6 +263,9 @@ class DeoptimizationFrameTranslation::Iterator
 // It can be empty.
 class DeoptimizationData : public ProtectedFixedArray {
  public:
+  using SharedFunctionInfoWrapperOrSmi =
+      UnionOf<Smi, SharedFunctionInfoWrapper>;
+
   // Layout description.  Indices in the array.
   static const int kFrameTranslationIndex = 0;
   static const int kInlinedFunctionCountIndex = 1;
@@ -300,7 +303,8 @@ class DeoptimizationData : public ProtectedFixedArray {
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Tagged<Smi>)
-  DECL_ELEMENT_ACCESSORS(SharedFunctionInfoWrapper, Tagged<Object>)
+  DECL_ELEMENT_ACCESSORS(SharedFunctionInfoWrapper,
+                         Tagged<SharedFunctionInfoWrapperOrSmi>)
   DECL_ELEMENT_ACCESSORS(InliningPositions,
                          Tagged<TrustedPodArray<InliningPosition>>)
   DECL_ELEMENT_ACCESSORS(DeoptExitStart, Tagged<Smi>)
@@ -309,7 +313,7 @@ class DeoptimizationData : public ProtectedFixedArray {
 
 #undef DECL_ELEMENT_ACCESSORS
 
-  inline Tagged<Object> SharedFunctionInfo() const;
+  inline Tagged<SharedFunctionInfo> GetSharedFunctionInfo() const;
 
 // Accessors for elements of the ith deoptimization entry.
 #define DECL_ENTRY_ACCESSORS(name, type) \
@@ -340,7 +344,7 @@ class DeoptimizationData : public ProtectedFixedArray {
 
   // Returns the inlined function at the given position in LiteralArray, or the
   // outer function if index == kNotInlinedIndex.
-  Tagged<class SharedFunctionInfo> GetInlinedFunction(int index);
+  Tagged<SharedFunctionInfo> GetInlinedFunction(int index);
 
   // Allocates a DeoptimizationData.
   static Handle<DeoptimizationData> New(Isolate* isolate,

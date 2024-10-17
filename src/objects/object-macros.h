@@ -970,7 +970,7 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
 #endif
 
 #define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)         \
-  Tagged<type> DeoptimizationData::name() const {          \
+  auto DeoptimizationData::name() const -> Tagged<type> {  \
     return Cast<type>(get(k##name##Index));                \
   }                                                        \
   void DeoptimizationData::Set##name(Tagged<type> value) { \

@@ -74,7 +74,7 @@ Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
 
 Tagged<SharedFunctionInfo> DeoptimizationData::GetInlinedFunction(int index) {
   if (index == -1) {
-    return Cast<i::SharedFunctionInfo>(SharedFunctionInfo());
+    return GetSharedFunctionInfo();
   } else {
     return Cast<i::SharedFunctionInfo>(LiteralArray()->get(index));
   }
