@@ -28,13 +28,19 @@ class WeakMemberTag;
 class UntracedMemberTag;
 
 struct DijkstraWriteBarrierPolicy {
-  V8_INLINE static void InitializingBarrier(const void*, const void*) {
     // Since in initializing writes the source object is always white, having no
     // barrier doesn't break the tri-color invariant.
-  }
+    V8_INLINE static void InitializingBarrier(const void*, const void*) {}
+    V8_INLINE static void InitializingBarrier(const void*, RawPointer storage) {
+    }
+#if defined(CPPGC_POINTER_COMPRESSION)
+    V8_INLINE static void InitializingBarrier(const void*,
+                                              CompressedPointer storage) {}
+#endif
 
-  template <WriteBarrierSlotType SlotType>
-  V8_INLINE static void AssigningBarrier(const void* slot, const void* value) {
+    template <WriteBarrierSlotType SlotType>
+    V8_INLINE static void AssigningBarrier(const void* slot,
+                                           const void* value) {
 #ifdef CPPGC_SLIM_WRITE_BARRIER
     if (V8_UNLIKELY(WriteBarrier::IsEnabled()))
       WriteBarrier::CombinedWriteBarrierSlow<SlotType>(slot);
@@ -44,7 +50,7 @@ struct DijkstraWriteBarrierPolicy {
         WriteBarrier::GetWriteBarrierType(slot, value, params);
     WriteBarrier(type, params, slot, value);
 #endif  // !CPPGC_SLIM_WRITE_BARRIER
-  }
+    }
 
   template <WriteBarrierSlotType SlotType>
   V8_INLINE static void AssigningBarrier(const void* slot, RawPointer storage) {
@@ -101,6 +107,11 @@ struct DijkstraWriteBarrierPolicy {
 
 struct NoWriteBarrierPolicy {
   V8_INLINE static void InitializingBarrier(const void*, const void*) {}
+  V8_INLINE static void InitializingBarrier(const void*, RawPointer storage) {}
+#if defined(CPPGC_POINTER_COMPRESSION)
+  V8_INLINE static void InitializingBarrier(const void*,
+                                            CompressedPointer storage) {}
+#endif
   template <WriteBarrierSlotType>
   V8_INLINE static void AssigningBarrier(const void*, const void*) {}
   template <WriteBarrierSlotType, typename MemberStorage>
@@ -120,9 +131,28 @@ class V8_EXPORT SameThreadEnabledCheckingPolicy
     : private SameThreadEnabledCheckingPolicyBase {
  protected:
   template <typename T>
+  V8_INLINE void CheckPointer(RawPointer raw_pointer) {
+    if (raw_pointer.IsCleared() || raw_pointer.IsSentinel()) {
+      return;
+    }
+    CheckPointersImplTrampoline<T>::Call(
+        this, static_cast<const T*>(raw_pointer.Load()));
+  }
+#if defined(CPPGC_POINTER_COMPRESSION)
+  template <typename T>
+  V8_INLINE void CheckPointer(CompressedPointer compressed_pointer) {
+    if (compressed_pointer.IsCleared() || compressed_pointer.IsSentinel()) {
+      return;
+    }
+    CheckPointersImplTrampoline<T>::Call(
+        this, static_cast<const T*>(compressed_pointer.Load()));
+  }
+#endif
+  template <typename T>
   void CheckPointer(const T* ptr) {
-    if (!ptr || (kSentinelPointer == ptr)) return;
-
+    if (!ptr || (kSentinelPointer == ptr)) {
+      return;
+    }
     CheckPointersImplTrampoline<T>::Call(this, ptr);
   }
 
@@ -145,7 +175,14 @@ class V8_EXPORT SameThreadEnabledCheckingPolicy
 
 class DisabledCheckingPolicy {
  protected:
-  V8_INLINE void CheckPointer(const void*) {}
+  template <typename T>
+  V8_INLINE void CheckPointer(T*) {}
+  template <typename T>
+  V8_INLINE void CheckPointer(RawPointer) {}
+#if defined(CPPGC_POINTER_COMPRESSION)
+  template <typename T>
+  V8_INLINE void CheckPointer(CompressedPointer) {}
+#endif
 };
 
 #ifdef DEBUG
