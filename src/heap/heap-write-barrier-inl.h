@@ -363,10 +363,18 @@ void WriteBarrier::MarkingFromTracedHandle(Tagged<Object> value) {
 }
 
 // static
-void WriteBarrier::ForCppHeapPointer(Tagged<JSObject> host, void* value) {
+void WriteBarrier::ForCppHeapPointer(Tagged<JSObject> host,
+                                     CppHeapPointerSlot slot, void* value) {
+  // Note: this is currently a combined barrier for marking both the
+  // CppHeapPointerTable entry and the referenced object.
+
   if (V8_LIKELY(!IsMarking(host))) {
 #if defined(CPPGC_YOUNG_GENERATION)
-    GenerationalBarrierForCppHeapPointer(host, value);
+    // There is no young-gen CppHeapPointerTable space so we should not mark
+    // the table entry in this case.
+    if (value) {
+      GenerationalBarrierForCppHeapPointer(host, value);
+    }
 #endif
     return;
   }
@@ -377,7 +385,8 @@ void WriteBarrier::ForCppHeapPointer(Tagged<JSObject> host, void* value) {
     // unified heap, this barrier will be needed again.
     return;
   }
-  MarkingSlowFromCppHeapWrappable(marking_barrier->heap(), value);
+
+  MarkingSlowFromCppHeapWrappable(marking_barrier->heap(), host, slot, value);
 }
 
 // static

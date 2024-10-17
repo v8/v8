@@ -59,9 +59,26 @@ void WriteBarrier::MarkingSlowFromTracedHandle(Tagged<HeapObject> value) {
 }
 
 // static
-void WriteBarrier::MarkingSlowFromCppHeapWrappable(Heap* heap, void* object) {
-  if (auto* cpp_heap = heap->cpp_heap()) {
-    CppHeap::From(cpp_heap)->WriteBarrier(object);
+void WriteBarrier::MarkingSlowFromCppHeapWrappable(Heap* heap,
+                                                   Tagged<JSObject> host,
+                                                   CppHeapPointerSlot slot,
+                                                   void* object) {
+  // Note: this is currently a combined barrier for marking both the
+  // CppHeapPointerTable entry and the referenced object (if any).
+
+#ifdef V8_ENABLE_SANDBOX
+  MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
+  IsolateForPointerCompression isolate(marking_barrier->heap()->isolate());
+
+  CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
+  CppHeapPointerTable::Space* space = isolate.GetCppHeapPointerTableSpace();
+
+  ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  table.Mark(space, handle, slot.address());
+#endif
+
+  if (heap->cpp_heap() && object) {
+    CppHeap::From(heap->cpp_heap())->WriteBarrier(object);
   }
 }
 

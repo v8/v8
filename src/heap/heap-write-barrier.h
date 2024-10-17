@@ -75,7 +75,8 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
       Tagged<TrustedObject> host, ProtectedPointerSlot slot,
       Tagged<TrustedObject> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  static inline void ForCppHeapPointer(Tagged<JSObject> host, void* value);
+  static inline void ForCppHeapPointer(Tagged<JSObject> host,
+                                       CppHeapPointerSlot slot, void* value);
   static inline void ForJSDispatchHandle(
       Tagged<HeapObject> host, JSDispatchHandle handle,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -141,7 +142,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                           Tagged<TrustedObject> value);
   static void MarkingSlow(Tagged<HeapObject> host, JSDispatchHandle handle);
   static void MarkingSlowFromTracedHandle(Tagged<HeapObject> value);
-  static void MarkingSlowFromCppHeapWrappable(Heap* heap, void* object);
+  static void MarkingSlowFromCppHeapWrappable(Heap* heap, Tagged<JSObject> host,
+                                              CppHeapPointerSlot slot,
+                                              void* object);
 
   static void GenerationalBarrierSlow(Tagged<HeapObject> object, Address slot,
                                       Tagged<HeapObject> value);
