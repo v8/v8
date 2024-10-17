@@ -132,6 +132,14 @@ void ObjectAllocator::OutOfLineAllocateGCSafePoint(NormalPageSpace& space,
   }
 }
 
+namespace {
+constexpr GCConfig kOnAllocationFailureGCConfig = {
+    CollectionType::kMajor, StackState::kMayContainHeapPointers,
+    GCConfig::MarkingType::kAtomic,
+    GCConfig::SweepingType::kIncrementalAndConcurrent,
+    GCConfig::FreeMemoryHandling::kDiscardWherePossible};
+}  // namespace
+
 void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
                                              size_t size, AlignVal alignment,
                                              GCInfoIndex gcinfo) {
@@ -149,9 +157,7 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
     void* result = TryAllocateLargeObject(page_backend_, large_space,
                                           stats_collector_, size, gcinfo);
     if (!result) {
-      auto config = GCConfig::ConservativeAtomicConfig();
-      config.free_memory_handling =
-          GCConfig::FreeMemoryHandling::kDiscardWherePossible;
+      auto config = kOnAllocationFailureGCConfig;
       garbage_collector_.CollectGarbage(config);
       result = TryAllocateLargeObject(page_backend_, large_space,
                                       stats_collector_, size, gcinfo);
@@ -180,9 +186,7 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
   }
 
   if (!TryRefillLinearAllocationBuffer(space, request_size)) {
-    auto config = GCConfig::ConservativeAtomicConfig();
-    config.free_memory_handling =
-        GCConfig::FreeMemoryHandling::kDiscardWherePossible;
+    auto config = kOnAllocationFailureGCConfig;
     garbage_collector_.CollectGarbage(config);
     if (!TryRefillLinearAllocationBuffer(space, request_size)) {
 #if defined(CPPGC_CAGED_HEAP)
@@ -335,7 +339,7 @@ void ObjectAllocator::TriggerGCOnAllocationTimeoutIfNeeded() {
   if (!allocation_timeout_) return;
   DCHECK_GT(*allocation_timeout_, 0);
   if (--*allocation_timeout_ == 0) {
-    garbage_collector_.CollectGarbage(GCConfig::ConservativeAtomicConfig());
+    garbage_collector_.CollectGarbage(kOnAllocationFailureGCConfig);
     allocation_timeout_ = garbage_collector_.UpdateAllocationTimeout();
     DCHECK(allocation_timeout_);
     DCHECK_GT(*allocation_timeout_, 0);
