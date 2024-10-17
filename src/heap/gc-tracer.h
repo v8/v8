@@ -275,9 +275,6 @@ class V8_EXPORT_PRIVATE GCTracer {
       base::TimeDelta::FromSeconds(5);
   static constexpr double kConservativeSpeedInBytesPerMillisecond = 128 * KB;
 
-  static double CombineSpeedsInBytesPerMillisecond(double default_speed,
-                                                   double optional_speed);
-
 #ifdef V8_RUNTIME_CALL_STATS
   V8_INLINE static RuntimeCallCounterId RCSCounterFromScope(Scope::ScopeId id);
 #endif  // defined(V8_RUNTIME_CALL_STATS)
@@ -382,9 +379,9 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Returns 0 if no events have been recorded.
   double FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
 
-  // Compute the overall mark compact speed including incremental steps
-  // and the final mark-compact step.
-  double CombinedMarkCompactSpeedInBytesPerMillisecond();
+  // Compute the overall old generation mark compact speed including incremental
+  // steps and the final mark-compact step.
+  double OldGenerationSpeedInBytesPerMillisecond();
 
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
@@ -568,6 +565,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   BytesAndDurationBuffer recorded_compactions_;
   BytesAndDurationBuffer recorded_incremental_mark_compacts_;
   BytesAndDurationBuffer recorded_mark_compacts_;
+  BytesAndDurationBuffer recorded_major_totals_;
   BytesAndDurationBuffer recorded_embedder_marking_;
   BytesAndDurationBuffer recorded_new_generation_allocations_;
   BytesAndDurationBuffer recorded_old_generation_allocations_;

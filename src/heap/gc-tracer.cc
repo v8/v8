@@ -1276,7 +1276,11 @@ double GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const {
   return BoundedAverageSpeed(recorded_incremental_mark_compacts_);
 }
 
-double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
+double GCTracer::OldGenerationSpeedInBytesPerMillisecond() {
+  if (v8_flags.gc_speed_uses_counters) {
+    return BoundedAverageSpeed(recorded_major_totals_);
+  }
+
   const double kMinimumMarkingSpeed = 0.5;
   if (combined_mark_compact_speed_cache_ > 0)
     return combined_mark_compact_speed_cache_;
@@ -1299,15 +1303,6 @@ double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
     combined_mark_compact_speed_cache_ = speed1 * speed2 / (speed1 + speed2);
   }
   return combined_mark_compact_speed_cache_;
-}
-
-double GCTracer::CombineSpeedsInBytesPerMillisecond(double default_speed,
-                                                    double optional_speed) {
-  constexpr double kMinimumSpeed = 0.5;
-  if (optional_speed < kMinimumSpeed) {
-    return default_speed;
-  }
-  return default_speed * optional_speed / (default_speed + optional_speed);
 }
 
 double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
@@ -1444,6 +1439,9 @@ void GCTracer::RecordGCSumCounters() {
     marking_background_duration =
         background_scopes_[Scope::MC_BACKGROUND_MARKING];
   }
+
+  recorded_major_totals_.Push(
+      BytesAndDuration(current_.end_object_size, overall_duration));
 
   // Emit trace event counters.
   TRACE_EVENT_INSTANT2(

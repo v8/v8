@@ -2516,7 +2516,7 @@ Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
 #endif
   const HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
   double v8_gc_speed =
-      heap->tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
+      heap->tracer()->OldGenerationSpeedInBytesPerMillisecond();
   double v8_mutator_speed =
       heap->tracer()
           ->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
@@ -3770,7 +3770,7 @@ bool Heap::HasLowOldGenerationAllocationRate() {
   double mu = ComputeMutatorUtilization(
       "Old generation",
       tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond(),
-      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
+      tracer()->OldGenerationSpeedInBytesPerMillisecond());
   const double kHighMutatorUtilization = 0.993;
   return mu > kHighMutatorUtilization;
 }
