@@ -1015,6 +1015,7 @@ class BytecodeArrayRef : public HeapObjectRef {
 
   int register_count() const;
   uint16_t parameter_count() const;
+  uint16_t parameter_count_without_receiver() const;
   uint16_t max_arguments() const;
   interpreter::Register incoming_new_target_or_generator_register() const;
 

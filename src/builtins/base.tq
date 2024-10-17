@@ -130,6 +130,7 @@ type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
+type DispatchHandle generates 'TNode<JSDispatchHandleT>';
 
 type Simd128 generates 'TNode<Simd128T>';
 type I8X16 extends Simd128 generates 'TNode<I8x16T>';
@@ -595,6 +596,7 @@ extern macro TrueConstant(): True;
 extern macro UndefinedConstant(): Undefined;
 extern macro ValueOfStringConstant(): String;
 extern macro WasmWrappedObjectSymbolConstant(): Symbol;
+extern macro InvalidDispatchHandleConstant(): DispatchHandle;
 
 const TheHole: TheHole = TheHoleConstant();
 const PromiseHole: PromiseHole = PromiseHoleConstant();
@@ -621,6 +623,13 @@ const false: constexpr bool generates 'false';
 
 extern enum LanguageMode extends bool { kStrict, kSloppy }
 type LanguageModeSmi extends Smi;
+
+// Dispatch handle constant used when tailcalling into C++ builtins. As these
+// currently don't use the dispatch handle parameter, we can just use a constant
+// here. Alternatively, we could obtain the "real" dispatch handle (the one used
+// for calling the torque builtin) through a new CSA function that accesses the
+// kJSCallDispatchHandle parameter.
+const kInvalidDispatchHandle: DispatchHandle = InvalidDispatchHandleConstant();
 
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';

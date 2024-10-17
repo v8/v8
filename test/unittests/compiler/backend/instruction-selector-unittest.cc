@@ -372,8 +372,16 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       m.graph()->start());
 
   // Build the call.
-  Node* nodes[] = {function_node,      receiver, m.UndefinedConstant(),
-                   m.Int32Constant(1), context,  state_node};
+  Node* argc = m.Int32Constant(1);
+#ifdef V8_ENABLE_LEAPTIERING
+  Node* dispatch_handle = m.Int32Constant(-1);
+  Node* nodes[] = {function_node, receiver,        m.UndefinedConstant(),
+                   argc,          dispatch_handle, context,
+                   state_node};
+#else
+  Node* nodes[] = {function_node, receiver, m.UndefinedConstant(),
+                   argc,          context,  state_node};
+#endif
   Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
   m.Return(call);
 

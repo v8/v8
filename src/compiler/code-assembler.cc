@@ -1328,15 +1328,15 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
   return CallStubN(call_mode, descriptor, inputs.size(), inputs.data());
 }
 
-Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
-                                    TNode<Object> target, TNode<Object> context,
-                                    TNode<Object> function,
-                                    std::optional<TNode<Object>> new_target,
-                                    TNode<Int32T> arity,
-                                    std::initializer_list<Node*> args) {
+Node* CodeAssembler::CallJSStubImpl(
+    const CallInterfaceDescriptor& descriptor, TNode<Object> target,
+    TNode<Object> context, TNode<Object> function,
+    std::optional<TNode<Object>> new_target, TNode<Int32T> arity,
+    std::optional<TNode<JSDispatchHandleT>> dispatch_handle,
+    std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 10;
   DCHECK_GE(kMaxNumArgs, args.size());
-  NodeArray<kMaxNumArgs + 5> inputs;
+  NodeArray<kMaxNumArgs + 6> inputs;
 
   inputs.Add(target);
   inputs.Add(function);
@@ -1344,6 +1344,11 @@ Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
     inputs.Add(*new_target);
   }
   inputs.Add(arity);
+#ifdef V8_ENABLE_LEAPTIERING
+  if (dispatch_handle) {
+    inputs.Add(*dispatch_handle);
+  }
+#endif
   for (auto arg : args) inputs.Add(arg);
   // Context argument is implicit so isn't counted.
   DCHECK(IsValidArgumentCountFor(descriptor, inputs.size()));
@@ -1401,14 +1406,20 @@ template V8_EXPORT_PRIVATE void CodeAssembler::TailCallBytecodeDispatch(
 void CodeAssembler::TailCallJSCode(TNode<Code> code, TNode<Context> context,
                                    TNode<JSFunction> function,
                                    TNode<Object> new_target,
-                                   TNode<Int32T> arg_count) {
+                                   TNode<Int32T> arg_count,
+                                   TNode<JSDispatchHandleT> dispatch_handle) {
   JSTrampolineDescriptor descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(),
       CallDescriptor::kFixedTargetRegister, Operator::kNoProperties,
       StubCallMode::kCallCodeObject);
 
+#ifdef V8_ENABLE_LEAPTIERING
+  Node* nodes[] = {code,      function,        new_target,
+                   arg_count, dispatch_handle, context};
+#else
   Node* nodes[] = {code, function, new_target, arg_count, context};
+#endif
   // + 2 for code and context.
   CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));
   raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);

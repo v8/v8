@@ -1375,21 +1375,30 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     Callable callable = Builtins::CallableFor(isolate(), builtin);
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
+    TNode<JSDispatchHandleT> dispatch_handle = UncheckedCast<JSDispatchHandleT>(
+        Uint32Constant(kInvalidDispatchHandle));
     TNode<Code> target = HeapConstantNoHole(callable.code());
     return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
-                               new_target, arity, {receiver, args...}));
+                               new_target, arity, dispatch_handle,
+                               {receiver, args...}));
   }
 
   // A specialized version of TailCallBuiltin for builtins with JS linkage.
   // The JS arguments (including receiver) must already be on the stack.
   void TailCallJSBuiltin(Builtin id, TNode<Object> context,
                          TNode<Object> function, TNode<Object> new_target,
-                         TNode<Int32T> arg_count) {
+                         TNode<Int32T> arg_count,
+                         TNode<JSDispatchHandleT> dispatch_handle) {
     DCHECK(Builtins::HasJSLinkage(id));
     Callable callable = Builtins::CallableFor(isolate(), id);
     TNode<Code> target = HeapConstantNoHole(callable.code());
+#ifdef V8_ENABLE_LEAPTIERING
+    TailCallStub(callable.descriptor(), target, context, function, new_target,
+                 arg_count, dispatch_handle);
+#else
     TailCallStub(callable.descriptor(), target, context, function, new_target,
                  arg_count);
+#endif
   }
 
   // Call the given JavaScript callable through one of the JS Call builtins.
@@ -1403,7 +1412,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Code> target = HeapConstantNoHole(callable.code());
     return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
-                               std::nullopt, arity, {receiver, args...}));
+                               std::nullopt, arity, std::nullopt,
+                               {receiver, args...}));
   }
 
   // Construct the given JavaScript callable through a JS Construct builtin.
@@ -1420,7 +1430,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     TNode<Object> receiver = LoadRoot(RootIndex::kUndefinedValue);
     TNode<Code> target = HeapConstantNoHole(callable.code());
     return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
-                               new_target, arity, {receiver, args...}));
+                               new_target, arity, std::nullopt,
+                               {receiver, args...}));
   }
 
   // Tailcalls to the given code object with JSCall linkage. The JS arguments
@@ -1432,7 +1443,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // only be used after arguments adaptation has been performed already.
   void TailCallJSCode(TNode<Code> code, TNode<Context> context,
                       TNode<JSFunction> function, TNode<Object> new_target,
-                      TNode<Int32T> arg_count);
+                      TNode<Int32T> arg_count,
+                      TNode<JSDispatchHandleT> dispatch_handle);
 
   Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,
                        Node* const* inputs);
@@ -1544,7 +1556,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                        TNode<Object> target, TNode<Object> context,
                        TNode<Object> function,
                        std::optional<TNode<Object>> new_target,
-                       TNode<Int32T> arity, std::initializer_list<Node*> args);
+                       TNode<Int32T> arity,
+                       std::optional<TNode<JSDispatchHandleT>> dispatch_handle,
+                       std::initializer_list<Node*> args);
 
   Node* CallStubN(StubCallMode call_mode,
                   const CallInterfaceDescriptor& descriptor, int input_count,

@@ -59,6 +59,10 @@ uint16_t BytecodeArray::parameter_count() const {
   return ReadField<uint16_t>(kParameterSizeOffset);
 }
 
+uint16_t BytecodeArray::parameter_count_without_receiver() const {
+  return parameter_count() - 1;
+}
+
 void BytecodeArray::set_parameter_count(uint16_t number_of_parameters) {
   WriteField<uint16_t>(kParameterSizeOffset, number_of_parameters);
 }

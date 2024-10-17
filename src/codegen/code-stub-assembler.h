@@ -991,6 +991,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<JSDispatchHandleT> handle);
 #endif
 
+  TNode<JSDispatchHandleT> InvalidDispatchHandleConstant();
+
   TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
                                           TNode<IntPtrT> offset) {
     return CAST(LoadProtectedPointerFromObject(

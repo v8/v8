@@ -81,6 +81,13 @@ constexpr auto StaticJSCallInterfaceDescriptor<DerivedDescriptor>::registers() {
 }
 
 // static
+constexpr auto JSTrampolineDescriptor::registers() {
+  return RegisterArray(
+      kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+      kJavaScriptCallArgCountRegister, kJavaScriptCallDispatchHandleRegister);
+}
+
+// static
 constexpr auto CompareNoContextDescriptor::registers() {
   return CompareDescriptor::registers();
 }

@@ -356,7 +356,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
     // fast path.
     TNode<JSFunction> target = LoadTargetFromFrame();
     TailCallJSBuiltin(Builtin::kArrayPop, context, target, UndefinedConstant(),
-                      argc);
+                      argc, InvalidDispatchHandleConstant());
   }
 }
 
@@ -481,7 +481,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     // fast path.
     TNode<JSFunction> target = LoadTargetFromFrame();
     TailCallJSBuiltin(Builtin::kArrayPush, context, target, UndefinedConstant(),
-                      argc);
+                      argc, InvalidDispatchHandleConstant());
   }
 }
 

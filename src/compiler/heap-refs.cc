@@ -1558,6 +1558,9 @@ int BytecodeArrayRef::register_count() const {
 uint16_t BytecodeArrayRef::parameter_count() const {
   return object()->parameter_count();
 }
+uint16_t BytecodeArrayRef::parameter_count_without_receiver() const {
+  return object()->parameter_count_without_receiver();
+}
 uint16_t BytecodeArrayRef::max_arguments() const {
   return object()->max_arguments();
 }

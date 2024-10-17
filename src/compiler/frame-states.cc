@@ -236,9 +236,17 @@ FrameState CreateJavaScriptBuiltinContinuationFrameState(
 
   // Register parameters follow stack parameters. The context will be added by
   // instruction selector during FrameState translation.
+  DCHECK_EQ(
+      Builtins::CallInterfaceDescriptorFor(name).GetRegisterParameterCount(),
+      V8_ENABLE_LEAPTIERING_BOOL ? 4 : 3);
   actual_parameters.push_back(target);      // kJavaScriptCallTargetRegister
   actual_parameters.push_back(new_target);  // kJavaScriptCallNewTargetRegister
   actual_parameters.push_back(argc);        // kJavaScriptCallArgCountRegister
+#ifdef V8_ENABLE_LEAPTIERING
+  // The dispatch handle isn't used by the continuation builtins.
+  Node* handle = jsgraph->ConstantNoHole(kInvalidDispatchHandle);
+  actual_parameters.push_back(handle);  // kJavaScriptDispatchHandleRegister
+#endif
 
   return CreateBuiltinContinuationFrameStateCommon(
       jsgraph,
