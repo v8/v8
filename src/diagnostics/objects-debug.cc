@@ -2382,8 +2382,9 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   CHECK(IsSmi(length_.load()));
   CHECK(IsSmi(backing_store_size_.load()));
   CHECK(IsSmi(flags_.load()));
-  for (int i = 0; i < capacity(); ++i) {
-    CHECK(!IsThinString(get(i), isolate));
+  // The keys of the boilerplate should not be thin strings. The values can be.
+  for (int i = 0; i < boilerplate_properties_count(); ++i) {
+    CHECK(!IsThinString(name(i), isolate));
   }
 }
 
