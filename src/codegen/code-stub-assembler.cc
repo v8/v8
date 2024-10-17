@@ -16001,10 +16001,10 @@ TNode<Boolean> CodeStubAssembler::InstanceOf(TNode<Object> object,
   {
     // Call to Function.prototype[@@hasInstance] directly without using the
     // Builtins::Call().
-    var_result = CAST(CallJS(Builtin::kFunctionPrototypeHasInstance, context,
-                             inst_of_handler,
-                             UndefinedConstant(),  // new_target
-                             callable, object));
+    var_result = CAST(CallJSBuiltin(Builtin::kFunctionPrototypeHasInstance,
+                                    context, inst_of_handler,
+                                    UndefinedConstant(),  // new_target
+                                    callable, object));
     Goto(&return_result);
   }
 

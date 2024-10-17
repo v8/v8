@@ -160,7 +160,7 @@ namespace internal {
   ASM(ConstructBoundFunction, JSTrampoline)                                    \
   ASM(ConstructedNonConstructable, JSTrampoline)                               \
   /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
-  ASM(Construct, JSTrampoline)                                                 \
+  ASM(Construct, ConstructStub)                                                \
   ASM(ConstructVarargs, ConstructVarargs)                                      \
   TFC(ConstructWithSpread, ConstructWithSpread)                                \
   TFC(ConstructWithSpread_Baseline, ConstructWithSpread_Baseline)              \

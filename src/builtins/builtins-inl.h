@@ -89,6 +89,21 @@ constexpr Builtin Builtins::Call(ConvertReceiverMode mode) {
 }
 
 // static
+constexpr bool Builtins::IsAnyCall(Builtin builtin) {
+  switch (builtin) {
+    case Builtin::kCallFunction_ReceiverIsNullOrUndefined:
+    case Builtin::kCallFunction_ReceiverIsNotNullOrUndefined:
+    case Builtin::kCallFunction_ReceiverIsAny:
+    case Builtin::kCall_ReceiverIsNullOrUndefined:
+    case Builtin::kCall_ReceiverIsNotNullOrUndefined:
+    case Builtin::kCall_ReceiverIsAny:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// static
 constexpr Builtin Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
     case ToPrimitiveHint::kDefault:

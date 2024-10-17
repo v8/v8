@@ -693,9 +693,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         TNode<JSReceiver> target,
                                         TNode<JSReceiver> new_target,
                                         TArgs... args) {
-    return CAST(ConstructJSWithTarget(Builtin::kConstruct, context, target,
-                                      new_target,
-                                      implicit_cast<TNode<Object>>(args)...));
+    return CAST(ConstructJS(Builtin::kConstruct, context, target, new_target,
+                            implicit_cast<TNode<Object>>(args)...));
   }
   template <class... TArgs>
   TNode<JSReceiver> Construct(TNode<Context> context,

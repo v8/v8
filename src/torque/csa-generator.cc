@@ -528,8 +528,13 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
   std::vector<const Type*> result_types =
       LowerType(instruction.builtin->signature().return_type);
   if (instruction.is_tailcall) {
-    out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtin::k"
-          << instruction.builtin->ExternalName();
+    if (instruction.builtin->IsJavaScript()) {
+      out() << "   CodeStubAssembler(state_).TailCallJSBuiltin(Builtin::k"
+            << instruction.builtin->ExternalName();
+    } else {
+      out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtin::k"
+            << instruction.builtin->ExternalName();
+    }
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the TailCallBuiltin signature.
       out() << ", TNode<Object>()";
@@ -579,6 +584,10 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     for (const std::string& name : result_names) {
       stack->Push(name);
     }
+    // Currently we don't support calling javascript builtins directly. If ever
+    // needed, supporting that should be as easy as generating a call to
+    // CodeStubAssembler::CallJSBuiltin here though.
+    DCHECK(!instruction.builtin->IsJavaScript());
     if (result_types.empty()) {
       out() << "ca_.CallBuiltinVoid(Builtin::k"
             << instruction.builtin->ExternalName();
