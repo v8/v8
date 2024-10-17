@@ -1225,9 +1225,6 @@ void CppHeap::CollectGarbage(cppgc::internal::GCConfig config) {
           : GCFlag::kNoFlags;
   isolate_->heap()->CollectAllGarbage(
       flags, GarbageCollectionReason::kCppHeapAllocationFailure);
-  DCHECK_IMPLIES(
-      config.sweeping_type == cppgc::internal::GCConfig::SweepingType::kAtomic,
-      !sweeper_.IsSweepingInProgress());
 }
 
 std::optional<cppgc::EmbedderStackState> CppHeap::overridden_stack_state()
