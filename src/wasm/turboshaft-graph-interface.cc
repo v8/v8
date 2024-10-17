@@ -4634,7 +4634,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     wasm::ValueType element_type = type->element_type();
     int element_count = length_imm.index;
     // Initialize the array header.
-    bool shared = decoder->module_->types[array_imm.index].is_shared;
+    bool shared = decoder->module_->type(array_imm.index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), array_imm.index);
     V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type);
     // Initialize all elements.
@@ -4682,7 +4682,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
              : decoder->module_->data_segments[segment_imm.index].shared);
     // TODO(14616): Is this too restrictive?
     DCHECK_EQ(segment_is_shared,
-              decoder->module_->types[array_imm.index].is_shared);
+              decoder->module_->type(array_imm.index).is_shared);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmArrayInitSegment>(
         decoder,
         {array_index.op, segment_offset.op, length.op,
@@ -4744,9 +4744,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
-  void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-               Value* result, bool null_succeeds) {
-    bool shared = decoder->module_->types[ref_index].is_shared;
+  void RefTest(FullDecoder* decoder, ModuleTypeIndex ref_index,
+               const Value& object, Value* result, bool null_succeeds) {
+    bool shared = decoder->module_->type(ref_index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
     compiler::WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
@@ -4763,14 +4763,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     result->op = __ WasmTypeCheck(object.op, rtt, config);
   }
 
-  void RefCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-               Value* result, bool null_succeeds) {
+  void RefCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
+               const Value& object, Value* result, bool null_succeeds) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
     }
-    bool shared = decoder->module_->types[ref_index].is_shared;
+    bool shared = decoder->module_->type(ref_index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
     DCHECK_EQ(result->type.is_nullable(), null_succeeds);
     compiler::WasmTypeCheckConfig config{object.type, result->type};
@@ -4794,9 +4794,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     result->op = __ WasmTypeCast(object.op, rtt, config);
   }
 
-  void BrOnCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-                Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
-    bool shared = decoder->module_->types[ref_index].is_shared;
+  void BrOnCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
+                const Value& object, Value* value_on_branch, uint32_t br_depth,
+                bool null_succeeds) {
+    bool shared = decoder->module_->type(ref_index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
     compiler::WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
@@ -4816,10 +4817,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         null_succeeds);
   }
 
-  void BrOnCastFail(FullDecoder* decoder, uint32_t ref_index,
+  void BrOnCastFail(FullDecoder* decoder, ModuleTypeIndex ref_index,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
-    bool shared = decoder->module_->types[ref_index].is_shared;
+    bool shared = decoder->module_->type(ref_index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
     compiler::WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
@@ -7233,9 +7234,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     /* Step 3: Check the canonical real signature against the canonical declared
      * signature. */
-    // TODO(366180605): Consider introducing a {SigIndexImmediate} so we don't
-    // need the type conversion here.
-    ModuleTypeIndex sig_index{imm.sig_imm.index};
+    ModuleTypeIndex sig_index = imm.sig_imm.index;
     bool needs_type_check =
         needs_type_or_null_check &&
         !EquivalentTypes(table->type.AsNonNull(), ValueType::Ref(sig_index),
@@ -7938,11 +7937,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         __ AnnotateWasmType(V<Object>::Cast(object.op), config.to);
   }
 
-  V<HeapObject> ArrayNewImpl(FullDecoder* decoder, uint32_t index,
+  V<HeapObject> ArrayNewImpl(FullDecoder* decoder, ModuleTypeIndex index,
                              const ArrayType* array_type, V<Word32> length,
                              V<Any> initial_value) {
     // Initialize the array header.
-    bool shared = decoder->module_->types[index].is_shared;
+    bool shared = decoder->module_->type(index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), index);
     V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type);
     // Initialize the elements.
@@ -7953,7 +7952,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   V<WasmStruct> StructNewImpl(FullDecoder* decoder,
                               const StructIndexImmediate& imm, OpIndex args[]) {
-    bool shared = decoder->module_->types[imm.index].is_shared;
+    bool shared = decoder->module_->type(imm.index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), imm.index);
 
     V<WasmStruct> struct_value = __ WasmAllocateStruct(rtt, imm.struct_type);

@@ -119,8 +119,8 @@ V8_INLINE bool HeapTypesUnrelated(HeapType heap1, HeapType heap2,
 //   equivalence of element types for mutable arrays.
 // - Functions: equal number of parameter and return types. Contravariance for
 //   respective parameter types, covariance for respective return types.
-V8_EXPORT_PRIVATE bool ValidSubtypeDefinition(uint32_t subtype_index,
-                                              uint32_t supertype_index,
+V8_EXPORT_PRIVATE bool ValidSubtypeDefinition(ModuleTypeIndex subtype_index,
+                                              ModuleTypeIndex supertype_index,
                                               const WasmModule* sub_module,
                                               const WasmModule* super_module);
 

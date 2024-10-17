@@ -1534,9 +1534,10 @@ const Operator* SimplifiedOperatorBuilder::WasmTypeCastAbstract(
       "WasmTypeCastAbstract", 1, 1, 1, 1, 1, 1, config);
 }
 
-const Operator* SimplifiedOperatorBuilder::RttCanon(int index) {
+const Operator* SimplifiedOperatorBuilder::RttCanon(
+    wasm::ModuleTypeIndex index) {
   return zone()->New<Operator1<int>>(IrOpcode::kRttCanon, Operator::kPure,
-                                     "RttCanon", 1, 0, 0, 1, 0, 0, index);
+                                     "RttCanon", 1, 0, 0, 1, 0, 0, index.index);
 }
 
 // Note: The following two operators have a control input solely to find the

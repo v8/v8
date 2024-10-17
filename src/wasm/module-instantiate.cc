@@ -51,7 +51,8 @@ uint8_t* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
 }
 
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
-                            int struct_index, Handle<Map> opt_rtt_parent,
+                            ModuleTypeIndex struct_index,
+                            Handle<Map> opt_rtt_parent,
                             DirectHandle<WasmTrustedInstanceData> trusted_data,
                             Handle<WasmInstanceObject> instance) {
   const wasm::StructType* type = module->struct_type(struct_index);
@@ -79,7 +80,8 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
 }
 
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
-                           int array_index, Handle<Map> opt_rtt_parent,
+                           ModuleTypeIndex array_index,
+                           Handle<Map> opt_rtt_parent,
                            DirectHandle<WasmTrustedInstanceData> trusted_data,
                            Handle<WasmInstanceObject> instance) {
   const wasm::ArrayType* type = module->array_type(array_index);
@@ -106,15 +108,15 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
 }  // namespace
 
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
-                      int type_index,
+                      ModuleTypeIndex type_index,
                       Handle<WasmTrustedInstanceData> trusted_data,
                       Handle<WasmInstanceObject> instance,
                       Handle<FixedArray> maybe_shared_maps) {
   // Recursive calls for supertypes may already have created this map.
-  if (IsMap(maybe_shared_maps->get(type_index))) return;
+  if (IsMap(maybe_shared_maps->get(type_index.index))) return;
 
   CanonicalTypeIndex canonical_type_index =
-      module->isorecursive_canonical_type_ids[type_index];
+      module->canonical_type_id(type_index);
 
   // Try to find the canonical map for this type in the isolate store.
   DirectHandle<WeakFixedArray> canonical_rtts =
@@ -124,7 +126,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   Tagged<MaybeObject> maybe_canonical_map =
       canonical_rtts->get(canonical_type_index.index);
   if (!maybe_canonical_map.IsCleared()) {
-    maybe_shared_maps->set(type_index,
+    maybe_shared_maps->set(type_index.index,
                            maybe_canonical_map.GetHeapObjectAssumeWeak());
     return;
   }
@@ -145,7 +147,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
         handle(Cast<Map>(maybe_shared_maps->get(supertype.index)), isolate);
   }
   DirectHandle<Map> map;
-  switch (module->types[type_index].kind) {
+  switch (module->type(type_index).kind) {
     case TypeDefinition::kStruct:
       map = CreateStructMap(isolate, module, type_index, rtt_parent,
                             trusted_data, instance);
@@ -158,8 +160,8 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateFuncRefMap(isolate, rtt_parent);
       break;
   }
-  canonical_rtts->set(canonical_type_index, MakeWeak(*map));
-  maybe_shared_maps->set(type_index, *map);
+  canonical_rtts->set(canonical_type_index.index, MakeWeak(*map));
+  maybe_shared_maps->set(type_index.index, *map);
 }
 
 namespace {
@@ -1331,7 +1333,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (!module_->isorecursive_canonical_type_ids.empty()) {
     // Make sure all canonical indices have been set.
-    DCHECK_NE(module_->MaxCanonicalTypeIndex(), kNoSuperType);
+    DCHECK(module_->MaxCanonicalTypeIndex().valid());
     TypeCanonicalizer::PrepareForCanonicalTypeId(
         isolate_, module_->MaxCanonicalTypeIndex());
   }
@@ -1343,19 +1345,20 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
              : Handle<FixedArray>();
   for (uint32_t index = 0; index < module_->types.size(); index++) {
     bool shared = module_->types[index].is_shared;
-    CreateMapForType(isolate_, module_, index,
+    CreateMapForType(isolate_, module_, ModuleTypeIndex{index},
                      shared ? shared_trusted_data : trusted_data,
                      instance_object, shared ? shared_maps : non_shared_maps);
   }
   trusted_data->set_managed_object_maps(*non_shared_maps);
   if (shared) shared_trusted_data->set_managed_object_maps(*shared_maps);
 #if DEBUG
-  for (uint32_t index = 0; index < module_->types.size(); index++) {
+  for (uint32_t i = 0; i < module_->types.size(); i++) {
     DirectHandle<FixedArray> maps =
-        module_->types[index].is_shared ? shared_maps : non_shared_maps;
-    Tagged<Object> o = maps->get(index);
+        module_->types[i].is_shared ? shared_maps : non_shared_maps;
+    Tagged<Object> o = maps->get(i);
     DCHECK(IsMap(o));
     Tagged<Map> map = Cast<Map>(o);
+    ModuleTypeIndex index{i};
     if (module_->has_signature(index)) {
       DCHECK_EQ(map->instance_type(), WASM_FUNC_REF_TYPE);
     } else if (module_->has_array(index)) {

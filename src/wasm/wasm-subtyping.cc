@@ -11,21 +11,21 @@ namespace v8::internal::wasm {
 
 namespace {
 
-V8_INLINE bool EquivalentIndices(uint32_t index1, uint32_t index2,
+V8_INLINE bool EquivalentIndices(ModuleTypeIndex index1, ModuleTypeIndex index2,
                                  const WasmModule* module1,
                                  const WasmModule* module2) {
   DCHECK(index1 != index2 || module1 != module2);
-  return module1->isorecursive_canonical_type_ids[index1] ==
-         module2->isorecursive_canonical_type_ids[index2];
+  return module1->canonical_type_id(index1) ==
+         module2->canonical_type_id(index2);
 }
 
-bool ValidStructSubtypeDefinition(uint32_t subtype_index,
-                                  uint32_t supertype_index,
+bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
+                                  ModuleTypeIndex supertype_index,
                                   const WasmModule* sub_module,
                                   const WasmModule* super_module) {
-  const StructType* sub_struct = sub_module->types[subtype_index].struct_type;
+  const StructType* sub_struct = sub_module->type(subtype_index).struct_type;
   const StructType* super_struct =
-      super_module->types[supertype_index].struct_type;
+      super_module->type(supertype_index).struct_type;
 
   if (sub_struct->field_count() < super_struct->field_count()) {
     return false;
@@ -46,13 +46,12 @@ bool ValidStructSubtypeDefinition(uint32_t subtype_index,
   return true;
 }
 
-bool ValidArraySubtypeDefinition(uint32_t subtype_index,
-                                 uint32_t supertype_index,
+bool ValidArraySubtypeDefinition(ModuleTypeIndex subtype_index,
+                                 ModuleTypeIndex supertype_index,
                                  const WasmModule* sub_module,
                                  const WasmModule* super_module) {
-  const ArrayType* sub_array = sub_module->types[subtype_index].array_type;
-  const ArrayType* super_array =
-      super_module->types[supertype_index].array_type;
+  const ArrayType* sub_array = sub_module->type(subtype_index).array_type;
+  const ArrayType* super_array = super_module->type(supertype_index).array_type;
   bool sub_mut = sub_array->mutability();
   bool super_mut = super_array->mutability();
 
@@ -65,13 +64,13 @@ bool ValidArraySubtypeDefinition(uint32_t subtype_index,
                       sub_module, super_module));
 }
 
-bool ValidFunctionSubtypeDefinition(uint32_t subtype_index,
-                                    uint32_t supertype_index,
+bool ValidFunctionSubtypeDefinition(ModuleTypeIndex subtype_index,
+                                    ModuleTypeIndex supertype_index,
                                     const WasmModule* sub_module,
                                     const WasmModule* super_module) {
-  const FunctionSig* sub_func = sub_module->types[subtype_index].function_sig;
+  const FunctionSig* sub_func = sub_module->type(subtype_index).function_sig;
   const FunctionSig* super_func =
-      super_module->types[supertype_index].function_sig;
+      super_module->type(supertype_index).function_sig;
 
   if (sub_func->parameter_count() != super_func->parameter_count() ||
       sub_func->return_count() != super_func->return_count()) {
@@ -142,7 +141,7 @@ HeapType::Representation NullSentinelImpl(HeapType type,
     case HeapType::kNoFuncShared:
       return HeapType::kNoFuncShared;
     default: {
-      bool is_shared = module->types[type.ref_index()].is_shared;
+      bool is_shared = module->type(type.ref_index()).is_shared;
       return module->has_signature(type.ref_index())
                  ? (is_shared ? HeapType::kNoFuncShared : HeapType::kNoFunc)
                  : (is_shared ? HeapType::kNoneShared : HeapType::kNone);
@@ -168,11 +167,12 @@ bool IsNullSentinel(HeapType type) {
 
 }  // namespace
 
-bool ValidSubtypeDefinition(uint32_t subtype_index, uint32_t supertype_index,
+bool ValidSubtypeDefinition(ModuleTypeIndex subtype_index,
+                            ModuleTypeIndex supertype_index,
                             const WasmModule* sub_module,
                             const WasmModule* super_module) {
-  const TypeDefinition& subtype = sub_module->types[subtype_index];
-  const TypeDefinition& supertype = super_module->types[supertype_index];
+  const TypeDefinition& subtype = sub_module->type(subtype_index);
+  const TypeDefinition& supertype = super_module->type(supertype_index);
   if (subtype.kind != supertype.kind) return false;
   if (supertype.is_final) return false;
   if (subtype.is_shared != supertype.is_shared) return false;
@@ -192,7 +192,7 @@ bool ValidSubtypeDefinition(uint32_t subtype_index, uint32_t supertype_index,
 namespace {
 bool IsShared(HeapType type, const WasmModule* module) {
   return type.is_abstract_shared() ||
-         (type.is_index() && module->types[type.ref_index()].is_shared);
+         (type.is_index() && module->type(type.ref_index()).is_shared);
 }
 
 HeapType::Representation MaybeShared(HeapType::Representation base,
@@ -369,7 +369,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
   }
 
   DCHECK(sub_heap.is_index());
-  uint32_t sub_index = sub_heap.ref_index();
+  ModuleTypeIndex sub_index = sub_heap.ref_index();
   DCHECK(sub_module->has_type(sub_index));
 
   switch (super_repr_non_shared) {
@@ -403,7 +403,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
   }
 
   DCHECK(super_heap.is_index());
-  uint32_t super_index = super_heap.ref_index();
+  ModuleTypeIndex super_index = super_heap.ref_index();
   DCHECK(super_module->has_type(super_index));
   // The {IsSubtypeOf} entry point already has a fast path checking ValueType
   // equality; here we catch (ref $x) being a subtype of (ref null $x).
@@ -430,17 +430,18 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
 namespace {
 // Returns the least common ancestor of two type indices, as a type index in
 // {module1}.
-HeapType::Representation CommonAncestor(uint32_t type_index1,
-                                        uint32_t type_index2,
+HeapType::Representation CommonAncestor(ModuleTypeIndex type_index1,
+                                        ModuleTypeIndex type_index2,
                                         const WasmModule* module1,
                                         const WasmModule* module2) {
-  TypeDefinition::Kind kind1 = module1->types[type_index1].kind;
-  TypeDefinition::Kind kind2 = module2->types[type_index2].kind;
-  if (module1->types[type_index1].is_shared !=
-      module2->types[type_index2].is_shared) {
+  TypeDefinition type1 = module1->type(type_index1);
+  TypeDefinition type2 = module2->type(type_index2);
+  TypeDefinition::Kind kind1 = type1.kind;
+  TypeDefinition::Kind kind2 = type2.kind;
+  if (type1.is_shared != type2.is_shared) {
     return HeapType::kTop;
   }
-  bool both_shared = module1->types[type_index1].is_shared;
+  bool both_shared = type1.is_shared;
   {
     int depth1 = GetSubtypingDepth(module1, type_index1);
     int depth2 = GetSubtypingDepth(module2, type_index2);
@@ -463,7 +464,7 @@ HeapType::Representation CommonAncestor(uint32_t type_index1,
   }
   DCHECK_EQ(type_index1 == kNoSuperType, type_index2 == kNoSuperType);
   if (type_index1 != kNoSuperType) {
-    return static_cast<HeapType::Representation>(type_index1);
+    return static_cast<HeapType::Representation>(type_index1.index);
   }
   switch (kind1) {
     case TypeDefinition::kFunction:

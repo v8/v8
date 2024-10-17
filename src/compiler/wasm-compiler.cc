@@ -2937,7 +2937,8 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, base::Vector<Node*> args,
   return BuildWasmCall(sig, args, rets, position, GetInstanceData());
 }
 
-Node* WasmGraphBuilder::CallIndirect(uint32_t table_index, uint32_t sig_index,
+Node* WasmGraphBuilder::CallIndirect(uint32_t table_index,
+                                     wasm::ModuleTypeIndex sig_index,
                                      base::Vector<Node*> args,
                                      base::Vector<Node*> rets,
                                      wasm::WasmCodePosition position) {
@@ -2946,7 +2947,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t table_index, uint32_t sig_index,
 }
 
 Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
-                                          uint32_t sig_index,
+                                          wasm::ModuleTypeIndex sig_index,
                                           base::Vector<Node*> args,
                                           base::Vector<Node*> rets,
                                           wasm::WasmCodePosition position,
@@ -3010,7 +3011,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                       gasm_->IntPtrConstant(WasmDispatchTable::kSigBias)));
     Node* sig_match = gasm_->Word32Equal(loaded_sig, expected_sig_id);
 
-    if (!env_->module->types[sig_index].is_final) {
+    if (!env_->module->type(sig_index).is_final) {
       // Do a full subtyping check.
       auto end_label = gasm_->MakeLabel();
       gasm_->GotoIf(sig_match, &end_label);
@@ -3214,7 +3215,7 @@ Node* WasmGraphBuilder::ReturnCall(uint32_t index, base::Vector<Node*> args,
 }
 
 Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t table_index,
-                                           uint32_t sig_index,
+                                           wasm::ModuleTypeIndex sig_index,
                                            base::Vector<Node*> args,
                                            wasm::WasmCodePosition position) {
   return BuildIndirectCall(table_index, sig_index, args, {}, position,
@@ -5524,7 +5525,7 @@ Node* WasmGraphBuilder::DefaultValue(wasm::ValueType type) {
   }
 }
 
-Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
+Node* WasmGraphBuilder::StructNew(wasm::ModuleTypeIndex struct_index,
                                   const wasm::StructType* type, Node* rtt,
                                   base::Vector<Node*> fields) {
   int size = WasmStruct::Size(type);
@@ -5545,7 +5546,7 @@ Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
   return s;
 }
 
-Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
+Node* WasmGraphBuilder::ArrayNew(wasm::ModuleTypeIndex array_index,
                                  const wasm::ArrayType* type, Node* length,
                                  Node* initial_value, Node* rtt,
                                  wasm::WasmCodePosition position) {
@@ -5641,7 +5642,7 @@ void WasmGraphBuilder::ArrayInitSegment(uint32_t segment_index, Node* array,
   SetSourcePosition(control(), position);
 }
 
-Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
+Node* WasmGraphBuilder::RttCanon(wasm::ModuleTypeIndex type_index) {
   Node* rtt = graph()->NewNode(gasm_->simplified()->RttCanon(type_index),
                                GetInstanceData());
   // TODO(366180605): Drop the explicit conversion.

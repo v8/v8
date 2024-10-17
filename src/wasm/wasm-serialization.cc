@@ -572,8 +572,9 @@ uint32_t NativeModuleSerializer::CanonicalSigIdToModuleLocalTypeId(
     DCHECK_EQ(num_types, module->isorecursive_canonical_type_ids.size());
     for (uint32_t local_id = 0; local_id < num_types; ++local_id) {
       // Only add function signatures.
-      if (!module->has_signature(local_id)) continue;
-      CanonicalTypeIndex canonical_id = module->canonical_sig_id(local_id);
+      if (!module->has_signature(ModuleTypeIndex{local_id})) continue;
+      CanonicalTypeIndex canonical_id =
+          module->canonical_sig_id(ModuleTypeIndex{local_id});
       // Try to emplace, skip if an entry exists already. It does not matter
       // which local type ID we use if multiple types got canonicalized to the
       // same ID.
@@ -992,10 +993,16 @@ void NativeModuleDeserializer::CopyAndRelocate(
         break;
       }
       case RelocInfo::WASM_CANONICAL_SIG_ID: {
-        uint32_t module_local_sig_id = iter.rinfo()->wasm_canonical_sig_id();
+        // This is intentional: in serialized code, we patched embedded
+        // canonical signature IDs with their module-specific equivalents,
+        // so although the accessor is called "wasm_canonical_sig_id()", what
+        // we get back is actually a module-specific signature ID, which we
+        // now need to translate back to a canonical ID.
+        ModuleTypeIndex module_local_sig_id{
+            iter.rinfo()->wasm_canonical_sig_id()};
         CanonicalTypeIndex canonical_sig_id =
             native_module_->module()->canonical_sig_id(module_local_sig_id);
-        iter.rinfo()->set_wasm_canonical_sig_id(canonical_sig_id);
+        iter.rinfo()->set_wasm_canonical_sig_id(canonical_sig_id.index);
       } break;
       case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
         Address function_index = iter.rinfo()->wasm_indirect_call_target();

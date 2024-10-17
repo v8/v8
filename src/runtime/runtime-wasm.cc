@@ -729,7 +729,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       }
     }
   }
-  DCHECK_NE(sig_index, std::numeric_limits<uint32_t>::max());
+  DCHECK(sig_index.valid());
 
   // Compile a wrapper for the target callable.
   Handle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
@@ -1471,11 +1471,12 @@ RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
   Tagged<WasmArray> obj = Cast<WasmArray>(args[0]);
   Tagged<WasmTypeInfo> wti = obj->map()->wasm_type_info();
   const wasm::WasmModule* module = wti->trusted_data(isolate)->module();
-  DCHECK(module->has_array(wti->type_index()));
-  uint32_t expected = bits == 8
-                          ? wasm::TypeCanonicalizer::kPredefinedArrayI8Index
-                          : wasm::TypeCanonicalizer::kPredefinedArrayI16Index;
-  if (module->isorecursive_canonical_type_ids[wti->type_index()] != expected) {
+  wasm::ModuleTypeIndex type_index{wti->type_index()};
+  DCHECK(module->has_array(type_index));
+  wasm::CanonicalTypeIndex expected =
+      bits == 8 ? wasm::TypeCanonicalizer::kPredefinedArrayI8Index
+                : wasm::TypeCanonicalizer::kPredefinedArrayI16Index;
+  if (module->canonical_type_id(type_index) != expected) {
     return ThrowWasmError(isolate, illegal_cast);
   }
   return obj;
@@ -1871,8 +1872,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
   // This function can only get called from Wasm code, so we can safely assume
   // that the canonical RTT is still around.
   DirectHandle<Map> map(
-      Cast<Map>(rtts->get(wasm::TypeCanonicalizer::kPredefinedArrayI8Index)
-                    .GetHeapObjectAssumeWeak()),
+      Cast<Map>(
+          rtts->get(wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index)
+              .GetHeapObjectAssumeWeak()),
       isolate);
   Handle<WasmArray> array = isolate->factory()->NewWasmArray(
       wasm::kWasmI8, length, initial_value, map);

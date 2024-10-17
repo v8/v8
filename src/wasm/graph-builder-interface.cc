@@ -1715,8 +1715,8 @@ class WasmGraphBuildingInterface {
 
   using WasmTypeCheckConfig = v8::internal::compiler::WasmTypeCheckConfig;
 
-  void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-               Value* result, bool null_succeeds) {
+  void RefTest(FullDecoder* decoder, ModuleTypeIndex ref_index,
+               const Value& object, Value* result, bool null_succeeds) {
     TFNode* rtt = builder_->RttCanon(ref_index);
     WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
@@ -1732,8 +1732,8 @@ class WasmGraphBuildingInterface {
     SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
   }
 
-  void RefCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-               Value* result, bool null_succeeds) {
+  void RefCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
+               const Value& object, Value* result, bool null_succeeds) {
     TFNode* node = object.node;
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
       node = builder_->TypeGuard(node, result->type);
@@ -1770,9 +1770,10 @@ class WasmGraphBuildingInterface {
     // If the type is bottom (used for abstract types), set HeapType to None.
     // The heap type is not read but the null information is needed for the
     // cast.
-    ValueType to_type = ValueType::RefMaybeNull(
-        type.is_bottom() ? HeapType::kNone : type.ref_index(),
-        null_succeeds ? kNullable : kNonNullable);
+    Nullability nullable = null_succeeds ? kNullable : kNonNullable;
+    ValueType to_type =
+        type.is_bottom() ? ValueType::RefMaybeNull(HeapType::kNone, nullable)
+                         : ValueType::RefMaybeNull(type.ref_index(), nullable);
     WasmTypeCheckConfig config{object.type, to_type};
     SsaEnv* branch_env = Split(decoder->zone(), ssa_env_);
     // TODO(choongwoo): Clear locals of `no_branch_env` after use.
@@ -1816,14 +1817,15 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  void BrOnCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-                Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
+  void BrOnCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
+                const Value& object, Value* value_on_branch, uint32_t br_depth,
+                bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
         decoder, HeapType{ref_index}, object, value_on_branch, br_depth, true,
         null_succeeds);
   }
 
-  void BrOnCastFail(FullDecoder* decoder, uint32_t ref_index,
+  void BrOnCastFail(FullDecoder* decoder, ModuleTypeIndex ref_index,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnCast>(
@@ -2553,8 +2555,8 @@ class WasmGraphBuildingInterface {
     }
 
     static CallInfo CallIndirect(const Value& index_value, uint32_t table_index,
-                                 uint32_t sig_index) {
-      return {kCallIndirect, sig_index, &index_value, table_index,
+                                 ModuleTypeIndex sig_index) {
+      return {kCallIndirect, sig_index.index, &index_value, table_index,
               CheckForNull::kWithoutNullCheck};
     }
 
@@ -2565,9 +2567,9 @@ class WasmGraphBuildingInterface {
 
     CallMode call_mode() { return call_mode_; }
 
-    uint32_t sig_index() {
+    ModuleTypeIndex sig_index() {
       DCHECK_EQ(call_mode_, kCallIndirect);
-      return callee_or_sig_index_;
+      return ModuleTypeIndex{callee_or_sig_index_};
     }
 
     uint32_t callee_index() {

@@ -2075,7 +2075,7 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
               tag_object->trusted_data(i_isolate);
           const i::wasm::WasmModule* module = wtid->module();
           i::wasm::CanonicalTypeIndex index =
-              module->isorecursive_canonical_type_ids[type.ref_index()];
+              module->canonical_type_id(type.ref_index());
           canonical_type =
               i::wasm::CanonicalValueType::FromIndex(type.kind(), index);
         } else {
@@ -2197,7 +2197,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
   // TODO(14034): Create funcref RTTs lazily?
   i::DirectHandle<i::Map> rtt{
       i::Cast<i::Map>(
-          trusted_instance_data->managed_object_maps()->get(sig_index)),
+          trusted_instance_data->managed_object_maps()->get(sig_index.index)),
       i_isolate};
 
   int num_imported_functions = module->num_imported_functions;
@@ -3472,8 +3472,10 @@ void WasmJs::Install(Isolate* isolate) {
     DirectHandle<WasmTagObject> js_tag_object(
         Cast<WasmTagObject>(native_context->wasm_js_tag()), isolate);
     js_tag_object->set_canonical_type_index(
-        wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(
-            &kWasmExceptionTagSignature));
+        wasm::GetWasmEngine()
+            ->type_canonicalizer()
+            ->AddRecursiveGroup(&kWasmExceptionTagSignature)
+            .index);
   }
 
   if (v8_flags.wasm_test_streaming) {

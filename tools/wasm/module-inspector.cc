@@ -834,10 +834,8 @@ class FormatConverter {
 
   void SortAndPrintSigUses(std::map<uint32_t, uint32_t> uses,
                            const WasmModule* module, const char* kind) {
-    std::vector<std::pair<uint32_t, uint32_t>> sig_uses_vector;
-    for (auto sig_use : uses) {
-      sig_uses_vector.push_back(sig_use);
-    }
+    std::vector<std::pair<uint32_t, uint32_t>> sig_uses_vector{uses.begin(),
+                                                               uses.end()};
     std::sort(sig_uses_vector.begin(), sig_uses_vector.end(),
               sig_uses_vector_comparison);
 
@@ -847,7 +845,7 @@ class FormatConverter {
       uint32_t sig_index = sig_use.first;
       uint32_t uses = sig_use.second;
 
-      const FunctionSig* sig = module->signature(sig_index);
+      const FunctionSig* sig = module->signature(ModuleTypeIndex{sig_index});
 
       out_ << uses << " " << kind << " use the signature " << *sig << std::endl;
     }

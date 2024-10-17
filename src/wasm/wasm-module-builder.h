@@ -65,6 +65,8 @@ class ZoneBuffer : public ZoneObject {
     LEBHelper::write_u32v(&pos_, val);
   }
 
+  void write_u32v(ModuleTypeIndex index) { write_u32v(index.index); }
+
   void write_i32v(int32_t val) {
     EnsureSpace(kMaxVarInt32Size);
     LEBHelper::write_i32v(&pos_, val);
@@ -167,11 +169,15 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
  public:
   // Building methods.
   void SetSignature(const FunctionSig* sig);
-  void SetSignature(uint32_t sig_index);
+  void SetSignature(ModuleTypeIndex sig_index);
   uint32_t AddLocal(ValueType type);
   void EmitByte(uint8_t b);
   void EmitI32V(int32_t val);
+  // Some instructions need an "s33" heaptype immediate.
+  void EmitI32V(ModuleTypeIndex index) { EmitI32V(index.index); }
   void EmitU32V(uint32_t val);
+  // Some instructions need a u32 type index immediate.
+  void EmitU32V(ModuleTypeIndex index) { EmitU32V(index.index); }
   void EmitU64V(uint64_t val);
   void EmitCode(const uint8_t* code, uint32_t code_size);
   void EmitCode(std::initializer_list<const uint8_t> code);
@@ -189,6 +195,9 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitWithU8U8(WasmOpcode opcode, const uint8_t imm1, const uint8_t imm2);
   void EmitWithI32V(WasmOpcode opcode, int32_t immediate);
   void EmitWithU32V(WasmOpcode opcode, uint32_t immediate);
+  void EmitWithU32V(WasmOpcode opcode, ModuleTypeIndex index) {
+    EmitWithU32V(opcode, index.index);
+  }
   void EmitValueType(ValueType type);
   void EmitDirectCallIndex(uint32_t index);
   void EmitFromInitializerExpression(const WasmInitExpr& init_expr);
@@ -319,7 +328,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddImport(base::Vector<const char> name, const FunctionSig* sig,
                      base::Vector<const char> module = {});
   WasmFunctionBuilder* AddFunction(const FunctionSig* sig = nullptr);
-  WasmFunctionBuilder* AddFunction(uint32_t sig_index);
+  WasmFunctionBuilder* AddFunction(ModuleTypeIndex sig_index);
   uint32_t AddGlobal(ValueType type, bool mutability, WasmInitExpr init);
   uint32_t AddGlobalImport(base::Vector<const char> name, ValueType type,
                            bool mutability,
@@ -341,15 +350,15 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t IncreaseTableMinSize(uint32_t table_index, uint32_t count);
   // Adds the signature to the module if it does not already exist.
   ModuleTypeIndex AddSignature(const FunctionSig* sig, bool is_final,
-                               uint32_t supertype = kNoSuperType);
+                               ModuleTypeIndex supertype = kNoSuperType);
   // Does not deduplicate function signatures.
   ModuleTypeIndex ForceAddSignature(const FunctionSig* sig, bool is_final,
-                                    uint32_t supertype = kNoSuperType);
+                                    ModuleTypeIndex supertype = kNoSuperType);
   uint32_t AddTag(const FunctionSig* type);
   ModuleTypeIndex AddStructType(StructType* type, bool is_final,
-                                uint32_t supertype = kNoSuperType);
+                                ModuleTypeIndex supertype = kNoSuperType);
   ModuleTypeIndex AddArrayType(ArrayType* type, bool is_final,
-                               uint32_t supertype = kNoSuperType);
+                               ModuleTypeIndex supertype = kNoSuperType);
   uint32_t AddTable(ValueType type, uint32_t min_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
@@ -401,24 +410,36 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   bool IsSignature(uint32_t index) {
     return types_[index].kind == TypeDefinition::kFunction;
   }
+  bool IsSignature(ModuleTypeIndex index) { return IsSignature(index.index); }
 
   const FunctionSig* GetSignature(uint32_t index) {
     DCHECK(types_[index].kind == TypeDefinition::kFunction);
     return types_[index].function_sig;
   }
+  const FunctionSig* GetSignature(ModuleTypeIndex index) {
+    return GetSignature(index.index);
+  }
 
   bool IsStructType(uint32_t index) {
     return types_[index].kind == TypeDefinition::kStruct;
   }
+  bool IsStructType(ModuleTypeIndex index) { return IsStructType(index.index); }
   const StructType* GetStructType(uint32_t index) {
     return types_[index].struct_type;
+  }
+  const StructType* GetStructType(ModuleTypeIndex index) {
+    return GetStructType(index.index);
   }
 
   bool IsArrayType(uint32_t index) {
     return types_[index].kind == TypeDefinition::kArray;
   }
+  bool IsArrayType(ModuleTypeIndex index) { return IsArrayType(index.index); }
   const ArrayType* GetArrayType(uint32_t index) {
     return types_[index].array_type;
+  }
+  const ArrayType* GetArrayType(ModuleTypeIndex index) {
+    return GetArrayType(index.index);
   }
 
   ModuleTypeIndex GetSuperType(uint32_t index) {
@@ -446,7 +467,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   bool IsMemory64(uint32_t index) { return memories_[index].is_memory64(); }
 
   const FunctionSig* GetTagType(int index) {
-    return types_[tags_[index]].function_sig;
+    return types_[tags_[index].index].function_sig;
   }
 
   ValueType GetGlobalType(uint32_t index) const { return globals_[index].type; }
@@ -459,7 +480,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   struct WasmFunctionImport {
     base::Vector<const char> module;
     base::Vector<const char> name;
-    uint32_t sig_index;
+    ModuleTypeIndex sig_index;
   };
 
   struct WasmGlobalImport {
@@ -522,7 +543,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<WasmElemSegment> element_segments_;
   ZoneVector<WasmGlobal> globals_;
-  ZoneVector<int> tags_;
+  ZoneVector<ModuleTypeIndex> tags_;
   ZoneUnorderedMap<FunctionSig, ModuleTypeIndex> signature_map_;
   int current_recursive_group_start_;
   // first index -> size
@@ -535,7 +556,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 };
 
 const FunctionSig* WasmFunctionBuilder::signature() const {
-  return builder_->types_[signature_index_].function_sig;
+  return builder_->types_[signature_index_.index].function_sig;
 }
 
 }  // namespace v8::internal::wasm

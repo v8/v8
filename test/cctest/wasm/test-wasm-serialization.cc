@@ -496,7 +496,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     TestSignatures sigs;
 
     // Add the "call_indirect" function which calls table0[0].
-    uint32_t sig_id = builder.AddSignature(sigs.i_i(), true);
+    ModuleTypeIndex sig_id = builder.AddSignature(sigs.i_i(), true);
     WasmFunctionBuilder* f = builder.AddFunction(sig_id);
     f->EmitCode({// (i) => i != 0 ? f(i-1) : 42
                  WASM_IF_ELSE_I(
@@ -504,7 +504,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
                      WASM_LOCAL_GET(0),
                      // if_true:
                      WASM_CALL_INDIRECT(
-                         SIG_INDEX(sig_id),
+                         SIG_INDEX(sig_id.index),
                          WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_ONE), WASM_ZERO),
                      // if_false:
                      WASM_I32V_1(42)),
@@ -558,7 +558,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
           code->instructions(), code->reloc_info(), code->constant_pool(),
           RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID)};
       CHECK(!reloc_it.done());
-      CHECK_EQ(canonical_sig_id_before_serialization,
+      CHECK_EQ(canonical_sig_id_before_serialization.index,
                reloc_it.rinfo()->wasm_canonical_sig_id());
       reloc_it.next();
       CHECK(reloc_it.done());
@@ -592,7 +592,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     WasmModuleBuilder builder{&zone};
     TestSignatures sigs;
 
-    uint32_t sig_id = builder.AddSignature(sigs.v_v(), true);
+    ModuleTypeIndex sig_id = builder.AddSignature(sigs.v_v(), true);
     WasmFunctionBuilder* f = builder.AddFunction(sig_id);
     f->EmitByte(kExprEnd);
     builder.WriteTo(&buffer);
@@ -635,7 +635,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
         code->instructions(), code->reloc_info(), code->constant_pool(),
         RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID)};
     CHECK(!reloc_it.done());
-    CHECK_EQ(canonical_sig_id_after_deserialization,
+    CHECK_EQ(canonical_sig_id_after_deserialization.index,
              reloc_it.rinfo()->wasm_canonical_sig_id());
     reloc_it.next();
     CHECK(reloc_it.done());
@@ -677,7 +677,7 @@ TEST(SerializeDetectedFeatures) {
     WasmModuleBuilder builder{&zone};
 
     // Add a function which is tail-called by another one.
-    uint32_t sig_i_v = builder.AddSignature(TestSignatures::i_v(), true);
+    ModuleTypeIndex sig_i_v = builder.AddSignature(TestSignatures::i_v(), true);
     WasmFunctionBuilder* a = builder.AddFunction(sig_i_v);
     a->EmitCode({WASM_I32V_1(11), WASM_END});
     builder.AddExport(base::CStrVector("a"), a);

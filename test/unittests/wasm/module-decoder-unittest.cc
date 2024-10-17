@@ -1257,14 +1257,15 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
   EXPECT_EQ(3u, result.value()->types.size());
+  using idx = ModuleTypeIndex;
   if (result.value()->types.size() == 3) {
-    EXPECT_EQ(0u, result.value()->signature(0)->return_count());
-    EXPECT_EQ(1u, result.value()->signature(1)->return_count());
-    EXPECT_EQ(1u, result.value()->signature(2)->return_count());
+    EXPECT_EQ(0u, result.value()->signature(idx{0})->return_count());
+    EXPECT_EQ(1u, result.value()->signature(idx{1})->return_count());
+    EXPECT_EQ(1u, result.value()->signature(idx{2})->return_count());
 
-    EXPECT_EQ(0u, result.value()->signature(0)->parameter_count());
-    EXPECT_EQ(1u, result.value()->signature(1)->parameter_count());
-    EXPECT_EQ(2u, result.value()->signature(2)->parameter_count());
+    EXPECT_EQ(0u, result.value()->signature(idx{0})->parameter_count());
+    EXPECT_EQ(1u, result.value()->signature(idx{1})->parameter_count());
+    EXPECT_EQ(2u, result.value()->signature(idx{2})->parameter_count());
   }
 
   EXPECT_OFF_END_FAILURE(data, 1);
@@ -1295,11 +1296,11 @@ TEST_F(WasmModuleVerifyTest, CanonicalTypeIds) {
   EXPECT_EQ(7u, module->isorecursive_canonical_type_ids.size());
 
   static constexpr uint32_t kBase = TypeCanonicalizer::kNumberOfPredefinedTypes;
-  EXPECT_EQ(kBase + 0u, module->isorecursive_canonical_type_ids[0]);
-  EXPECT_EQ(kBase + 1u, module->isorecursive_canonical_type_ids[1]);
-  EXPECT_EQ(kBase + 2u, module->isorecursive_canonical_type_ids[2]);
-  EXPECT_EQ(kBase + 1u, module->isorecursive_canonical_type_ids[3]);
-  EXPECT_EQ(kBase + 3u, module->isorecursive_canonical_type_ids[4]);
+  EXPECT_EQ(kBase + 0u, module->isorecursive_canonical_type_ids[0].index);
+  EXPECT_EQ(kBase + 1u, module->isorecursive_canonical_type_ids[1].index);
+  EXPECT_EQ(kBase + 2u, module->isorecursive_canonical_type_ids[2].index);
+  EXPECT_EQ(kBase + 1u, module->isorecursive_canonical_type_ids[3].index);
+  EXPECT_EQ(kBase + 3u, module->isorecursive_canonical_type_ids[4].index);
 
   EXPECT_EQ(TypeCanonicalizer::kPredefinedArrayI16Index,
             module->isorecursive_canonical_type_ids[5]);

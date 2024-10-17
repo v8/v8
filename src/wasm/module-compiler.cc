@@ -1746,9 +1746,9 @@ namespace {
 
 bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
   if (!type.is_object_reference() || !type.has_index()) return false;
-  uint32_t reftype = type.ref_index();
+  ModuleTypeIndex reftype = type.ref_index();
   if (!module->has_array(reftype)) return false;
-  return module->isorecursive_canonical_type_ids[reftype] ==
+  return module->canonical_type_id(reftype) ==
          TypeCanonicalizer::kPredefinedArrayI16Index;
 }
 
@@ -1756,9 +1756,9 @@ bool IsI8Array(wasm::ValueType type, const WasmModule* module,
                bool allow_nullable) {
   if (!type.is_object_reference() || !type.has_index()) return false;
   if (!allow_nullable && type.is_nullable()) return false;
-  uint32_t reftype = type.ref_index();
+  ModuleTypeIndex reftype = type.ref_index();
   if (!module->has_array(reftype)) return false;
-  return module->isorecursive_canonical_type_ids[reftype] ==
+  return module->canonical_type_id(reftype) ==
          TypeCanonicalizer::kPredefinedArrayI8Index;
 }
 

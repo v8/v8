@@ -98,8 +98,9 @@ enum Suspend : int;
 enum Promise : int;
 struct CanonicalTypeIndex;
 class CanonicalValueType;
-class ValueType;  // TODO(366180605): Replace all uses of this.
+class ValueType;
 using CanonicalSig = Signature<CanonicalValueType>;
+struct ModuleTypeIndex;
 class StackMemory;
 }  // namespace wasm
 #endif
@@ -722,7 +723,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmDispatchTable> NewWasmDispatchTable(int length);
   Handle<WasmTypeInfo> NewWasmTypeInfo(
       Address type_address, Handle<Map> opt_parent,
-      DirectHandle<WasmTrustedInstanceData> opt_instance, uint32_t type_index);
+      DirectHandle<WasmTrustedInstanceData> opt_instance,
+      wasm::ModuleTypeIndex type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(
       DirectHandle<TrustedObject> ref, int function_index,
       uintptr_t signature_hash);

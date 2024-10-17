@@ -399,7 +399,7 @@ bool ValidateHeapType(Decoder* decoder, const uint8_t* pc,
   // A {nullptr} module is accepted if we are not validating anyway (e.g. for
   // opcode length computation).
   if (!ValidationTag::validate && module == nullptr) return true;
-  if (!VALIDATE(type.ref_index() < module->types.size())) {
+  if (!VALIDATE(type.ref_index().index < module->types.size())) {
     DecodeError<ValidationTag>(decoder, pc, "Type index %u is out of bounds",
                                type.ref_index());
     return false;
@@ -549,31 +549,44 @@ struct GlobalIndexImmediate : public IndexImmediate {
       : IndexImmediate(decoder, pc, "global index", validate) {}
 };
 
-struct SigIndexImmediate : public IndexImmediate {
+struct TypeIndexImmediate {
+  ModuleTypeIndex index;
+  uint32_t length;
+
+  template <typename ValidationTag>
+  TypeIndexImmediate(Decoder* decoder, const uint8_t* pc, const char* name,
+                     ValidationTag = {}) {
+    uint32_t raw_index;
+    std::tie(raw_index, length) = decoder->read_u32v<ValidationTag>(pc, name);
+    index = ModuleTypeIndex{raw_index};
+  }
+};
+
+struct SigIndexImmediate : public TypeIndexImmediate {
   const FunctionSig* sig = nullptr;
 
   template <typename ValidationTag>
   SigIndexImmediate(Decoder* decoder, const uint8_t* pc,
                     ValidationTag validate = {})
-      : IndexImmediate(decoder, pc, "signature index", validate) {}
+      : TypeIndexImmediate(decoder, pc, "signature index", validate) {}
 };
 
-struct StructIndexImmediate : public IndexImmediate {
+struct StructIndexImmediate : public TypeIndexImmediate {
   const StructType* struct_type = nullptr;
 
   template <typename ValidationTag>
   StructIndexImmediate(Decoder* decoder, const uint8_t* pc,
                        ValidationTag validate = {})
-      : IndexImmediate(decoder, pc, "struct index", validate) {}
+      : TypeIndexImmediate(decoder, pc, "struct index", validate) {}
 };
 
-struct ArrayIndexImmediate : public IndexImmediate {
+struct ArrayIndexImmediate : public TypeIndexImmediate {
   const ArrayType* array_type = nullptr;
 
   template <typename ValidationTag>
   ArrayIndexImmediate(Decoder* decoder, const uint8_t* pc,
                       ValidationTag validate = {})
-      : IndexImmediate(decoder, pc, "array index", validate) {}
+      : TypeIndexImmediate(decoder, pc, "array index", validate) {}
 };
 
 struct CallFunctionImmediate : public IndexImmediate {
@@ -609,13 +622,11 @@ struct SelectTypeImmediate {
   }
 };
 
-static constexpr uint32_t kInlineSignatureSentinel = UINT_MAX;
-
 struct BlockTypeImmediate {
   uint32_t length = 1;
   // After decoding, either {sig_index} is set XOR {sig} points to
   // {single_return_sig_storage}.
-  uint32_t sig_index = kInlineSignatureSentinel;
+  ModuleTypeIndex sig_index = ModuleTypeIndex::Invalid();
   FunctionSig sig{0, 0, single_return_sig_storage};
   // Internal field, potentially pointed to by {sig}. Do not access directly.
   ValueType single_return_sig_storage[1];
@@ -650,7 +661,7 @@ struct BlockTypeImmediate {
       }
     } else {
       sig = FunctionSig{0, 0, nullptr};
-      sig_index = static_cast<uint32_t>(block_type);
+      sig_index = ModuleTypeIndex{static_cast<uint32_t>(block_type)};
     }
   }
 
@@ -690,7 +701,7 @@ struct FieldImmediate {
 };
 
 struct CallIndirectImmediate {
-  IndexImmediate sig_imm;
+  SigIndexImmediate sig_imm;
   TableIndexImmediate table_imm;
   uint32_t length;
   const FunctionSig* sig = nullptr;
@@ -698,7 +709,7 @@ struct CallIndirectImmediate {
   template <typename ValidationTag>
   CallIndirectImmediate(Decoder* decoder, const uint8_t* pc,
                         ValidationTag validate = {})
-      : sig_imm(decoder, pc, "singature index", validate),
+      : sig_imm(decoder, pc, validate),
         table_imm(decoder, pc + sig_imm.length, validate),
         length(sig_imm.length + table_imm.length) {}
 };
@@ -1266,19 +1277,19 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value& length)                                                       \
   F(I31GetS, const Value& input, Value* result)                                \
   F(I31GetU, const Value& input, Value* result)                                \
-  F(RefTest, uint32_t ref_index, const Value& obj, Value* result,              \
+  F(RefTest, ModuleTypeIndex ref_index, const Value& obj, Value* result,       \
     bool null_succeeds)                                                        \
   F(RefTestAbstract, const Value& obj, HeapType type, Value* result,           \
     bool null_succeeds)                                                        \
-  F(RefCast, uint32_t ref_index, const Value& obj, Value* result,              \
+  F(RefCast, ModuleTypeIndex ref_index, const Value& obj, Value* result,       \
     bool null_succeeds)                                                        \
   F(RefCastAbstract, const Value& obj, HeapType type, Value* result,           \
     bool null_succeeds)                                                        \
   F(AssertNullTypecheck, const Value& obj, Value* result)                      \
   F(AssertNotNullTypecheck, const Value& obj, Value* result)                   \
-  F(BrOnCast, uint32_t ref_index, const Value& obj, Value* result_on_branch,   \
-    uint32_t depth, bool null_succeeds)                                        \
-  F(BrOnCastFail, uint32_t ref_index, const Value& obj,                        \
+  F(BrOnCast, ModuleTypeIndex ref_index, const Value& obj,                     \
+    Value* result_on_branch, uint32_t depth, bool null_succeeds)               \
+  F(BrOnCastFail, ModuleTypeIndex ref_index, const Value& obj,                 \
     Value* result_on_fallthrough, uint32_t depth, bool null_succeeds)          \
   F(BrOnCastAbstract, const Value& obj, HeapType type,                         \
     Value* result_on_branch, uint32_t depth, bool null_succeeds)               \
@@ -1692,7 +1703,7 @@ class WasmDecoder : public Decoder {
 
   bool Validate(const uint8_t* pc, SigIndexImmediate& imm) {
     if (!VALIDATE(module_->has_signature(imm.index))) {
-      DecodeError(pc, "invalid signature index: %u", imm.index);
+      DecodeError(pc, "invalid signature index: %u", imm.index.index);
       return false;
     }
     imm.sig = module_->signature(imm.index);
@@ -1701,7 +1712,7 @@ class WasmDecoder : public Decoder {
 
   bool Validate(const uint8_t* pc, StructIndexImmediate& imm) {
     if (!VALIDATE(module_->has_struct(imm.index))) {
-      DecodeError(pc, "invalid struct index: %u", imm.index);
+      DecodeError(pc, "invalid struct index: %u", imm.index.index);
       return false;
     }
     imm.struct_type = module_->struct_type(imm.index);
@@ -1721,7 +1732,7 @@ class WasmDecoder : public Decoder {
 
   bool Validate(const uint8_t* pc, ArrayIndexImmediate& imm) {
     if (!VALIDATE(module_->has_array(imm.index))) {
-      DecodeError(pc, "invalid array index: %u", imm.index);
+      DecodeError(pc, "invalid array index: %u", imm.index.index);
       return false;
     }
     imm.array_type = module_->array_type(imm.index);
@@ -1753,7 +1764,7 @@ class WasmDecoder : public Decoder {
   }
 
   bool Validate(const uint8_t* pc, CallIndirectImmediate& imm) {
-    if (!ValidateSignature(pc, imm.sig_imm)) return false;
+    if (!Validate(pc, imm.sig_imm)) return false;
     if (!Validate(pc + imm.sig_imm.length, imm.table_imm)) return false;
     ValueType table_type = imm.table_imm.table->type;
     if (!VALIDATE(IsSubtypeOf(table_type, kWasmFuncRef, module_) ||
@@ -2000,22 +2011,6 @@ class WasmDecoder : public Decoder {
   bool ValidateLocal(const uint8_t* pc, IndexImmediate& imm) {
     if (!VALIDATE(imm.index < num_locals())) {
       DecodeError(pc, "invalid local index: %u", imm.index);
-      return false;
-    }
-    return true;
-  }
-
-  bool ValidateType(const uint8_t* pc, IndexImmediate& imm) {
-    if (!VALIDATE(module_->has_type(imm.index))) {
-      DecodeError(pc, "invalid type index: %u", imm.index);
-      return false;
-    }
-    return true;
-  }
-
-  bool ValidateSignature(const uint8_t* pc, IndexImmediate& imm) {
-    if (!VALIDATE(module_->has_signature(imm.index))) {
-      DecodeError(pc, "invalid signature index: %u", imm.index);
       return false;
     }
     return true;
@@ -2450,16 +2445,12 @@ class WasmDecoder : public Decoder {
           }
           case kExprRefCast:
           case kExprRefCastNull:
+          case kExprRefCastNop:
           case kExprRefTest:
           case kExprRefTestNull: {
             HeapTypeImmediate imm(WasmEnabledFeatures::All(), decoder,
                                   pc + length, validate);
             (ios.HeapType(imm), ...);
-            return length + imm.length;
-          }
-          case kExprRefCastNop: {
-            IndexImmediate imm(decoder, pc + length, "type index", validate);
-            (ios.TypeIndex(imm), ...);
             return length + imm.length;
           }
           case kExprBrOnCast:
@@ -3935,7 +3926,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CALL_INTERFACE_IF_OK_AND_REACHABLE(CallIndirect, index, imm, args.data(),
                                        returns);
     MarkMightThrow();
-    if (!this->module_->types[imm.sig_imm.index].is_final) {
+    if (!this->module_->type(imm.sig_imm.index).is_final) {
       // In this case we emit an rtt.canon as part of the indirect call.
       this->detected_->add_gc();
     }
@@ -3972,7 +3963,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallIndirect, index, imm,
                                        args.data());
     EndControl();
-    if (!this->module_->types[imm.sig_imm.index].is_final) {
+    if (!this->module_->type(imm.sig_imm.index).is_final) {
       // In this case we emit an rtt.canon as part of the indirect call.
       this->detected_->add_gc();
     }
@@ -6285,7 +6276,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // https://github.com/WebAssembly/stringref/issues/66
     if (array.type.is_reference_to(HeapType::kNone)) return array;
     if (VALIDATE(array.type.is_object_reference() && array.type.has_index())) {
-      uint32_t ref_index = array.type.ref_index();
+      ModuleTypeIndex ref_index = array.type.ref_index();
       if (VALIDATE(this->module_->has_array(ref_index))) {
         const ArrayType* array_type = this->module_->array_type(ref_index);
         if (VALIDATE(array_type->element_type() == expected_element_type &&

@@ -58,9 +58,6 @@ constexpr int kMaxValueTypeSize = 16;  // bytes
 struct TypeIndex {
   uint32_t index;
 
-  // TODO(366180605): Drop this after completing the incremental transition.
-  operator uint32_t() const { return index; }  // NOLINT(runtime/explicit)
-
   // We intentionally don't define comparison operators here, because
   // different subclasses must not be compared to each other.
 
@@ -69,6 +66,7 @@ struct TypeIndex {
 };
 
 struct ModuleTypeIndex : public TypeIndex {
+  inline static constexpr ModuleTypeIndex Invalid();
   // Can't use "=default" because the base class doesn't have operator<=>.
   bool operator==(const ModuleTypeIndex& other) const {
     return index == other.index;
@@ -78,8 +76,12 @@ struct ModuleTypeIndex : public TypeIndex {
   }
 };
 
+constexpr ModuleTypeIndex ModuleTypeIndex::Invalid() {
+  return ModuleTypeIndex{ModuleTypeIndex::kInvalid};
+}
+
 struct CanonicalTypeIndex : public TypeIndex {
-  inline static CanonicalTypeIndex Invalid();
+  inline static constexpr CanonicalTypeIndex Invalid();
 
   bool operator==(const CanonicalTypeIndex& other) const {
     return index == other.index;
@@ -89,8 +91,12 @@ struct CanonicalTypeIndex : public TypeIndex {
   }
 };
 
-CanonicalTypeIndex CanonicalTypeIndex::Invalid() {
+constexpr CanonicalTypeIndex CanonicalTypeIndex::Invalid() {
   return CanonicalTypeIndex{CanonicalTypeIndex::kInvalid};
+}
+
+inline std::ostream& operator<<(std::ostream& oss, TypeIndex index) {
+  return oss << index.index;
 }
 
 // Represents a WebAssembly heap type, as per the typed-funcref and gc

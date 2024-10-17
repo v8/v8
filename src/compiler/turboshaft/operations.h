@@ -6798,16 +6798,16 @@ struct AssertNotNullOp : FixedArityOperationT<1, AssertNotNullOp> {
   auto options() const { return std::tuple{type, trap_id}; }
 };
 
-// The runtime type (RTT) is a value representing a conrete type (in this case
+// The runtime type (RTT) is a value representing a concrete type (in this case
 // heap-type). The canonical RTTs are implicitly created values and invisible to
 // the user in wasm-gc MVP. (See
 // https://github.com/WebAssembly/gc/blob/main/proposals/gc/MVP.md#runtime-types)
 struct RttCanonOp : FixedArityOperationT<1, RttCanonOp> {
-  uint32_t type_index;
+  wasm::ModuleTypeIndex type_index;
 
   static constexpr OpEffects effects = OpEffects();
 
-  explicit RttCanonOp(V<FixedArray> rtts, uint32_t type_index)
+  explicit RttCanonOp(V<FixedArray> rtts, wasm::ModuleTypeIndex type_index)
       : Base(rtts), type_index(type_index) {}
 
   V<FixedArray> rtts() const { return input<FixedArray>(0); }
@@ -6996,7 +6996,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   bool is_signed;  // `false` only for unsigned packed type accesses.
   CheckForNull null_check;
   const wasm::StructType* type;
-  uint32_t type_index;
+  wasm::ModuleTypeIndex type_index;
   int field_index;
 
   OpEffects Effects() const {
@@ -7013,7 +7013,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   }
 
   StructGetOp(V<WasmStructNullable> object, const wasm::StructType* type,
-              uint32_t type_index, int field_index, bool is_signed,
+              wasm::ModuleTypeIndex type_index, int field_index, bool is_signed,
               CheckForNull null_check)
       : Base(object),
         is_signed(is_signed),
@@ -7046,7 +7046,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
 struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   CheckForNull null_check;
   const wasm::StructType* type;
-  uint32_t type_index;
+  wasm::ModuleTypeIndex type_index;
   int field_index;
 
   OpEffects Effects() const {
@@ -7063,7 +7063,7 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   }
 
   StructSetOp(V<WasmStructNullable> object, V<Any> value,
-              const wasm::StructType* type, uint32_t type_index,
+              const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
               int field_index, CheckForNull null_check)
       : Base(object, value),
         null_check(null_check),
@@ -9148,6 +9148,7 @@ constexpr size_t input_count(const wasm::StructType*) { return 0; }
 constexpr size_t input_count(const wasm::ArrayType*) { return 0; }
 constexpr size_t input_count(wasm::ValueType) { return 0; }
 constexpr size_t input_count(WasmTypeCheckConfig) { return 0; }
+constexpr size_t input_count(wasm::ModuleTypeIndex) { return 0; }
 #endif
 
 // All parameters that are OpIndex-like (ie, OpIndex, and OpIndex containers)

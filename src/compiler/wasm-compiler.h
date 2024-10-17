@@ -295,7 +295,7 @@ class WasmGraphBuilder {
   // and will later help us generate better code if this call gets inlined.
   Node* CallDirect(uint32_t index, base::Vector<Node*> args,
                    base::Vector<Node*> rets, wasm::WasmCodePosition position);
-  Node* CallIndirect(uint32_t table_index, uint32_t sig_index,
+  Node* CallIndirect(uint32_t table_index, wasm::ModuleTypeIndex sig_index,
                      base::Vector<Node*> args, base::Vector<Node*> rets,
                      wasm::WasmCodePosition position);
   Node* CallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
@@ -304,7 +304,8 @@ class WasmGraphBuilder {
 
   Node* ReturnCall(uint32_t index, base::Vector<Node*> args,
                    wasm::WasmCodePosition position);
-  Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
+  Node* ReturnCallIndirect(uint32_t table_index,
+                           wasm::ModuleTypeIndex sig_index,
                            base::Vector<Node*> args,
                            wasm::WasmCodePosition position);
   Node* ReturnCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
@@ -421,15 +422,16 @@ class WasmGraphBuilder {
   void TableFill(uint32_t table_index, Node* start, Node* value, Node* count,
                  wasm::WasmCodePosition position);
 
-  Node* StructNew(uint32_t struct_index, const wasm::StructType* type,
-                  Node* rtt, base::Vector<Node*> fields);
+  Node* StructNew(wasm::ModuleTypeIndex struct_index,
+                  const wasm::StructType* type, Node* rtt,
+                  base::Vector<Node*> fields);
   Node* StructGet(Node* struct_object, const wasm::StructType* struct_type,
                   uint32_t field_index, CheckForNull null_check, bool is_signed,
                   wasm::WasmCodePosition position);
   void StructSet(Node* struct_object, const wasm::StructType* struct_type,
                  uint32_t field_index, Node* value, CheckForNull null_check,
                  wasm::WasmCodePosition position);
-  Node* ArrayNew(uint32_t array_index, const wasm::ArrayType* type,
+  Node* ArrayNew(wasm::ModuleTypeIndex array_index, const wasm::ArrayType* type,
                  Node* length, Node* initial_value, Node* rtt,
                  wasm::WasmCodePosition position);
   Node* ArrayGet(Node* array_object, const wasm::ArrayType* type, Node* index,
@@ -460,7 +462,7 @@ class WasmGraphBuilder {
                 wasm::WasmCodePosition position);
   Node* I31GetU(Node* input, CheckForNull null_check,
                 wasm::WasmCodePosition position);
-  Node* RttCanon(uint32_t type_index);
+  Node* RttCanon(wasm::ModuleTypeIndex type_index);
 
   Node* RefTest(Node* object, Node* rtt, WasmTypeCheckConfig config);
   Node* RefTestAbstract(Node* object, WasmTypeCheckConfig config);
@@ -669,7 +671,7 @@ class WasmGraphBuilder {
   void LoadIndirectFunctionTable(uint32_t table_index, Node** ift_size,
                                  Node** ift_sig_ids, Node** ift_targets,
                                  Node** ift_instances);
-  Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index,
+  Node* BuildIndirectCall(uint32_t table_index, wasm::ModuleTypeIndex sig_index,
                           base::Vector<Node*> args, base::Vector<Node*> rets,
                           wasm::WasmCodePosition position,
                           IsReturnCall continuation);

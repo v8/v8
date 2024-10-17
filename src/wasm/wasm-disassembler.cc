@@ -382,7 +382,7 @@ class ImmediatesPrinter {
     owner_->out_->PatchLabel(label_info, out_.start() + label_start_position);
   }
 
-  void PrintSignature(uint32_t sig_index) {
+  void PrintSignature(ModuleTypeIndex sig_index) {
     if (owner_->module_->has_signature(sig_index)) {
       const FunctionSig* sig = owner_->module_->signature(sig_index);
       PrintSignatureOneLine(out_, sig, 0 /* ignored */, names(), false);
@@ -484,7 +484,8 @@ class ImmediatesPrinter {
   void Field(FieldImmediate& imm) {
     TypeIndex(imm.struct_imm);
     out_ << " ";
-    names()->PrintFieldName(out_, imm.struct_imm.index, imm.field_imm.index);
+    names()->PrintFieldName(out_, imm.struct_imm.index.index,
+                            imm.field_imm.index);
   }
 
   void Length(IndexImmediate& imm) {
@@ -501,7 +502,7 @@ class ImmediatesPrinter {
     names()->PrintFunctionName(out_, imm.index, NamesProvider::kDevTools);
   }
 
-  void TypeIndex(IndexImmediate& imm) {
+  void TypeIndex(TypeIndexImmediate& imm) {
     out_ << " ";
     names()->PrintTypeName(out_, imm.index);
     use_type(imm.index);
@@ -672,7 +673,7 @@ class ImmediatesPrinter {
     names()->PrintTableName(out_, imm.table_src.index);
   }
 
-  void ArrayCopy(IndexImmediate& dst, IndexImmediate& src) {
+  void ArrayCopy(TypeIndexImmediate& dst, TypeIndexImmediate& src) {
     out_ << " ";
     names()->PrintTypeName(out_, dst.index);
     out_ << " ";
@@ -682,7 +683,9 @@ class ImmediatesPrinter {
   }
 
  private:
-  void use_type(uint32_t type_index) { owner_->used_types_.insert(type_index); }
+  void use_type(ModuleTypeIndex type_index) {
+    owner_->used_types_.insert(type_index.index);
+  }
 
   NamesProvider* names() { return owner_->names_; }
 
@@ -845,8 +848,8 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
         break;
       }
     }
-    if (kSkipFunctionTypesInTypeSection && module_->has_signature(i) &&
-        !in_explicit_recgroup) {
+    if (kSkipFunctionTypesInTypeSection &&
+        module_->has_signature(ModuleTypeIndex{i}) && !in_explicit_recgroup) {
       continue;
     }
     PrintTypeDefinition(i, indentation, kIndicesAsComments);

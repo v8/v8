@@ -140,7 +140,7 @@ inline Handle<Object> WasmInterpreterRuntime::GetFunctionRef(
 
 inline const ArrayType* WasmInterpreterRuntime::GetArrayType(
     uint32_t array_index) const {
-  return module_->array_type(array_index);
+  return module_->array_type(ModuleTypeIndex{array_index});
 }
 
 inline WasmRef WasmInterpreterRuntime::GetWasmArrayRefElement(

@@ -129,9 +129,9 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
   return func_index;
 }
 
-int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
-  DCHECK_LT(type_index, module->types.size());
-  int depth = module->types[type_index].subtyping_depth;
+int GetSubtypingDepth(const WasmModule* module, ModuleTypeIndex type_index) {
+  DCHECK_LT(type_index.index, module->types.size());
+  int depth = module->type(type_index).subtyping_depth;
   DCHECK_LE(depth, kV8MaxRttSubtypingDepth);
   return depth;
 }

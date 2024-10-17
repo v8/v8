@@ -293,7 +293,7 @@ void WasmGCTypeAnalyzer::ProcessRefFunc(const WasmRefFuncOp& ref_func) {
 
 void WasmGCTypeAnalyzer::ProcessAllocateArray(
     const WasmAllocateArrayOp& allocate_array) {
-  uint32_t type_index =
+  wasm::ModuleTypeIndex type_index =
       graph_.Get(allocate_array.rtt()).Cast<RttCanonOp>().type_index;
   RefineTypeKnowledge(graph_.Index(allocate_array),
                       wasm::ValueType::Ref(type_index), allocate_array);
@@ -301,7 +301,7 @@ void WasmGCTypeAnalyzer::ProcessAllocateArray(
 
 void WasmGCTypeAnalyzer::ProcessAllocateStruct(
     const WasmAllocateStructOp& allocate_struct) {
-  uint32_t type_index =
+  wasm::ModuleTypeIndex type_index =
       graph_.Get(allocate_struct.rtt()).Cast<RttCanonOp>().type_index;
   RefineTypeKnowledge(graph_.Index(allocate_struct),
                       wasm::ValueType::Ref(type_index), allocate_struct);

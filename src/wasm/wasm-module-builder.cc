@@ -211,12 +211,12 @@ void WasmFunctionBuilder::SetSignature(const FunctionSig* sig) {
   signature_index_ = builder_->AddSignature(sig, true);
 }
 
-void WasmFunctionBuilder::SetSignature(uint32_t sig_index) {
+void WasmFunctionBuilder::SetSignature(ModuleTypeIndex sig_index) {
   DCHECK(!locals_.has_sig());
-  DCHECK_EQ(builder_->types_[sig_index].kind, TypeDefinition::kFunction);
+  DCHECK_EQ(builder_->types_[sig_index.index].kind, TypeDefinition::kFunction);
   // TODO(366180605): Drop the explicit conversion.
   signature_index_ = ModuleTypeIndex{sig_index};
-  locals_.set_sig(builder_->types_[sig_index].function_sig);
+  locals_.set_sig(builder_->types_[sig_index.index].function_sig);
 }
 
 uint32_t WasmFunctionBuilder::AddLocal(ValueType type) {
@@ -451,7 +451,7 @@ WasmFunctionBuilder* WasmModuleBuilder::AddFunction(const FunctionSig* sig) {
   return functions_.back();
 }
 
-WasmFunctionBuilder* WasmModuleBuilder::AddFunction(uint32_t sig_index) {
+WasmFunctionBuilder* WasmModuleBuilder::AddFunction(ModuleTypeIndex sig_index) {
   functions_.push_back(zone_->New<WasmFunctionBuilder>(this));
   functions_.back()->SetSignature(sig_index);
   return functions_.back();
@@ -476,9 +476,8 @@ void WasmModuleBuilder::AddPassiveDataSegment(const uint8_t* data,
   }
 }
 
-ModuleTypeIndex WasmModuleBuilder::ForceAddSignature(const FunctionSig* sig,
-                                                     bool is_final,
-                                                     uint32_t supertype) {
+ModuleTypeIndex WasmModuleBuilder::ForceAddSignature(
+    const FunctionSig* sig, bool is_final, ModuleTypeIndex supertype) {
   ModuleTypeIndex index{static_cast<uint32_t>(types_.size())};
   signature_map_.emplace(*sig, index);
   types_.emplace_back(sig, supertype, is_final, false);
@@ -487,7 +486,7 @@ ModuleTypeIndex WasmModuleBuilder::ForceAddSignature(const FunctionSig* sig,
 
 ModuleTypeIndex WasmModuleBuilder::AddSignature(const FunctionSig* sig,
                                                 bool is_final,
-                                                uint32_t supertype) {
+                                                ModuleTypeIndex supertype) {
   auto sig_entry = signature_map_.find(*sig);
   if (sig_entry != signature_map_.end()) return sig_entry->second;
   return ForceAddSignature(sig, is_final, supertype);
@@ -495,7 +494,7 @@ ModuleTypeIndex WasmModuleBuilder::AddSignature(const FunctionSig* sig,
 
 uint32_t WasmModuleBuilder::AddTag(const FunctionSig* type) {
   DCHECK_EQ(0, type->return_count());
-  int type_index = AddSignature(type, true);
+  ModuleTypeIndex type_index = AddSignature(type, true);
   uint32_t except_index = static_cast<uint32_t>(tags_.size());
   tags_.push_back(type_index);
   return except_index;
@@ -503,14 +502,14 @@ uint32_t WasmModuleBuilder::AddTag(const FunctionSig* type) {
 
 ModuleTypeIndex WasmModuleBuilder::AddStructType(StructType* type,
                                                  bool is_final,
-                                                 uint32_t supertype) {
+                                                 ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
   types_.emplace_back(type, supertype, is_final, false);
   return ModuleTypeIndex{index};
 }
 
 ModuleTypeIndex WasmModuleBuilder::AddArrayType(ArrayType* type, bool is_final,
-                                                uint32_t supertype) {
+                                                ModuleTypeIndex supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
   types_.emplace_back(type, supertype, is_final, false);
   return ModuleTypeIndex{index};
@@ -693,7 +692,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
 
       const TypeDefinition& type = types_[i];
 
-      if (type.supertype != kNoSuperType) {
+      if (type.supertype.valid()) {
         buffer->write_u8(type.is_final ? kWasmSubtypeFinalCode
                                        : kWasmSubtypeCode);
         buffer->write_u8(1);
@@ -823,7 +822,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   if (!tags_.empty()) {
     size_t start = EmitSection(kTagSectionCode, buffer);
     buffer->write_size(tags_.size());
-    for (int type : tags_) {
+    for (ModuleTypeIndex type : tags_) {
       buffer->write_u32v(kExceptionAttribute);
       buffer->write_u32v(type);
     }

@@ -113,7 +113,7 @@ class MjsunitNamesProvider {
     return memcmp(name.begin(), question.begin(), name.length()) == 0;
   }
 
-  void PrintTypeVariableName(StringBuilder& out, uint32_t index) {
+  void PrintTypeVariableName(StringBuilder& out, ModuleTypeIndex index) {
     // The name creation scheme must be in sync with {PrintStructType} etc.
     // below!
     if (module_->has_struct(index)) {
@@ -128,22 +128,26 @@ class MjsunitNamesProvider {
     }
   }
 
-  void PrintStructType(StringBuilder& out, uint32_t index, OutputContext mode) {
+  void PrintStructType(StringBuilder& out, ModuleTypeIndex index,
+                       OutputContext mode) {
     DCHECK(module_->has_struct(index));
     PrintMaybeLEB(out, "$struct", index, mode);
   }
 
-  void PrintArrayType(StringBuilder& out, uint32_t index, OutputContext mode) {
+  void PrintArrayType(StringBuilder& out, ModuleTypeIndex index,
+                      OutputContext mode) {
     DCHECK(module_->has_array(index));
     PrintMaybeLEB(out, "$array", index, mode);
   }
 
-  void PrintSigType(StringBuilder& out, uint32_t index, OutputContext mode) {
+  void PrintSigType(StringBuilder& out, ModuleTypeIndex index,
+                    OutputContext mode) {
     DCHECK(module_->has_signature(index));
     PrintMaybeLEB(out, "$sig", index, mode);
   }
 
-  void PrintTypeIndex(StringBuilder& out, uint32_t index, OutputContext mode) {
+  void PrintTypeIndex(StringBuilder& out, ModuleTypeIndex index,
+                      OutputContext mode) {
     if (module_->has_struct(index)) {
       PrintStructType(out, index, mode);
     } else if (module_->has_array(index)) {
@@ -447,9 +451,9 @@ class MjsunitNamesProvider {
     return true;
   }
 
-  void PrintMaybeLEB(StringBuilder& out, const char* prefix, uint32_t index,
-                     OutputContext mode) {
-    if (index <= 0x3F || mode == kEmitObjects) {
+  void PrintMaybeLEB(StringBuilder& out, const char* prefix,
+                     ModuleTypeIndex index, OutputContext mode) {
+    if (index.index <= 0x3F || mode == kEmitObjects) {
       out << prefix << index;
     } else {
       out << "...wasmSignedLeb(" << prefix << index << ")";
@@ -778,7 +782,7 @@ class MjsunitImmediatesPrinter {
 
   MjsunitNamesProvider* names() { return owner_->names_; }
 
-  void PrintSignature(uint32_t sig_index) {
+  void PrintSignature(ModuleTypeIndex sig_index) {
     out_ << " ";
     if (owner_->module_->has_signature(sig_index)) {
       names()->PrintSigType(out_, sig_index, kEmitWireBytes);
@@ -933,7 +937,7 @@ class MjsunitImmediatesPrinter {
     out_ << ",";
   }
 
-  void TypeIndex(IndexImmediate& imm) {
+  void TypeIndex(TypeIndexImmediate& imm) {
     out_ << " ";
     names()->PrintTypeIndex(out_, imm.index, kEmitWireBytes);
     out_ << ",";
@@ -1056,7 +1060,7 @@ class MjsunitImmediatesPrinter {
     out_ << ",";
   }
 
-  void ArrayCopy(IndexImmediate& dst, IndexImmediate& src) {
+  void ArrayCopy(TypeIndexImmediate& dst, TypeIndexImmediate& src) {
     out_ << " ";
     names()->PrintTypeIndex(out_, dst.index, kEmitWireBytes);
     out_ << ", ";
@@ -1152,20 +1156,20 @@ class MjsunitModuleDis {
       if (!vt.is_object_reference()) return;
       HeapType ht = vt.heap_type();
       if (!ht.is_index()) return;
-      if (ht.ref_index() < here) return;
-      if (needed_at[ht.ref_index()] < here) return;
-      needed_at[ht.ref_index()] = here;
+      if (ht.ref_index().index < here) return;
+      if (needed_at[ht.ref_index().index] < here) return;
+      needed_at[ht.ref_index().index] = here;
     };
     for (uint32_t i = 0; i < module_->types.size(); i++) {
-      if (module_->has_struct(i)) {
+      if (module_->has_struct(ModuleTypeIndex{i})) {
         const StructType* struct_type = module_->types[i].struct_type;
         for (uint32_t fi = 0; fi < struct_type->field_count(); fi++) {
           MarkAsNeededHere(struct_type->field(fi), i);
         }
-      } else if (module_->has_array(i)) {
+      } else if (module_->has_array(ModuleTypeIndex{i})) {
         MarkAsNeededHere(module_->types[i].array_type->element_type(), i);
       } else {
-        DCHECK(module_->has_signature(i));
+        DCHECK(module_->has_signature(ModuleTypeIndex{i}));
         const FunctionSig* sig = module_->types[i].function_sig;
         for (size_t pi = 0; pi < sig->parameter_count(); pi++) {
           MarkAsNeededHere(sig->GetParam(pi), i);
@@ -1202,7 +1206,7 @@ class MjsunitModuleDis {
       for (uint32_t pre = i; pre < end_index; pre++) {
         if (needed_at[pre] == i) {
           out_ << "let ";
-          names()->PrintTypeVariableName(out_, pre);
+          names()->PrintTypeVariableName(out_, ModuleTypeIndex{pre});
           if (pre == i) {
             out_ << " = builder.nextTypeIndex();";
           } else {
@@ -1211,18 +1215,18 @@ class MjsunitModuleDis {
           out_.NextLine(0);
         }
       }
-      uint32_t supertype = module_->types[i].supertype;
+      ModuleTypeIndex supertype = module_->types[i].supertype;
       bool is_final = module_->types[i].is_final;
       if (needed_at[i] == kMaxUInt32) {
         out_ << "let ";
-        names()->PrintTypeVariableName(out_, i);
+        names()->PrintTypeVariableName(out_, ModuleTypeIndex{i});
         out_ << " = ";
       } else {
         out_ << "/* ";
-        names()->PrintTypeVariableName(out_, i);
+        names()->PrintTypeVariableName(out_, ModuleTypeIndex{i});
         out_ << " */ ";
       }
-      if (module_->has_struct(i)) {
+      if (module_->has_struct(ModuleTypeIndex{i})) {
         const StructType* struct_type = module_->types[i].struct_type;
         out_ << "builder.addStruct([";
         for (uint32_t fi = 0; fi < struct_type->field_count(); fi++) {
@@ -1240,7 +1244,7 @@ class MjsunitModuleDis {
         }
         out_ << ", " << (is_final ? "true" : "false") << ");";
         out_.NextLine(0);
-      } else if (module_->has_array(i)) {
+      } else if (module_->has_array(ModuleTypeIndex{i})) {
         const ArrayType* array_type = module_->types[i].array_type;
         out_ << "builder.addArray(";
         names()->PrintValueType(out_, array_type->element_type(), kEmitObjects);
@@ -1254,7 +1258,7 @@ class MjsunitModuleDis {
         out_ << ", " << (is_final ? "true" : "false") << ");";
         out_.NextLine(0);
       } else {
-        DCHECK(module_->has_signature(i));
+        DCHECK(module_->has_signature(ModuleTypeIndex{i}));
         const FunctionSig* sig = module_->types[i].function_sig;
         out_ << "builder.addType(";
         names()->PrintMakeSignature(out_, sig);

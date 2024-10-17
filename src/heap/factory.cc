@@ -1661,7 +1661,7 @@ Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(int length) {
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     Address type_address, Handle<Map> opt_parent,
     DirectHandle<WasmTrustedInstanceData> opt_trusted_data,
-    uint32_t type_index) {
+    wasm::ModuleTypeIndex type_index) {
   // We pretenure WasmTypeInfo objects for two reasons:
   // (1) They are referenced by Maps, which are assumed to be long-lived,
   //     so pretenuring the WTI is a bit more efficient.
@@ -1704,7 +1704,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   } else {
     result->set_trusted_data(*opt_trusted_data);
   }
-  result->set_type_index(type_index);
+  result->set_type_index(type_index.index);
   return handle(result, isolate());
 }
 
@@ -1813,7 +1813,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
-  result->set_canonical_sig_index(static_cast<int>(sig_index));
+  result->set_canonical_sig_index(sig_index.index);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
                                WasmFunctionData::PromiseField::encode(promise));
   return handle(result, isolate());
@@ -1890,7 +1890,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result->set_instance_data(*instance_data);
   result->set_function_index(func_index);
   result->set_sig(sig);
-  result->set_canonical_type_index(type_index);
+  result->set_canonical_type_index(type_index.index);
   result->set_wrapper_budget(*wrapper_budget_cell);
   // We can't skip the write barrier because Code objects are not immovable.
   result->set_c_wrapper_code(*BUILTIN_CODE(isolate(), Illegal),

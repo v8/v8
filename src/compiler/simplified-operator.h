@@ -1182,7 +1182,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* IsNull(wasm::ValueType type);
   const Operator* IsNotNull(wasm::ValueType type);
   const Operator* Null(wasm::ValueType type);
-  const Operator* RttCanon(int index);
+  const Operator* RttCanon(wasm::ModuleTypeIndex index);
   const Operator* WasmTypeCheck(WasmTypeCheckConfig config);
   const Operator* WasmTypeCheckAbstract(WasmTypeCheckConfig config);
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);

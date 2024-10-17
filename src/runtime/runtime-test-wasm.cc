@@ -736,9 +736,10 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
     return ReadOnlyRoots(isolate).exception();
   }
   wasm::WasmValue value(int64_t{0x7AADF00DBAADF00D});
-  int type_index = 0;
+  wasm::ModuleTypeIndex type_index{0};
   Tagged<Map> map = Tagged<Map>::cast(
-      instance->trusted_data(isolate)->managed_object_maps()->get(type_index));
+      instance->trusted_data(isolate)->managed_object_maps()->get(
+          type_index.index));
   if (is_struct) {
     const wasm::StructType* struct_type =
         instance->module()->struct_type(type_index);

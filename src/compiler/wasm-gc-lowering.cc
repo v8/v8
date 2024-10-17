@@ -155,7 +155,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
 
   Node* map = gasm_.LoadMap(object);
 
-  if (module_->types[config.to.ref_index()].is_final) {
+  if (module_->type(config.to.ref_index()).is_final) {
     gasm_.Goto(&end_label, gasm_.TaggedEqual(map, rtt));
   } else {
     // First, check if types happen to be equal. This has been shown to give
@@ -324,7 +324,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
 
   Node* map = gasm_.LoadMap(object);
 
-  if (module_->types[config.to.ref_index()].is_final) {
+  if (module_->type(config.to.ref_index()).is_final) {
     gasm_.TrapUnless(gasm_.TaggedEqual(map, rtt), TrapId::kTrapIllegalCast);
     UpdateSourcePosition(gasm_.effect(), node);
     gasm_.Goto(&end_label);

@@ -600,7 +600,7 @@ class ModuleDecoderImpl : public Decoder {
       constexpr uint32_t kMaximumSupertypes = 1;
       uint32_t supertype_count =
           consume_count("supertype count", kMaximumSupertypes);
-      uint32_t supertype = kNoSuperType;
+      uint32_t supertype = kNoSuperType.index;
       if (supertype_count == 1) {
         supertype = consume_u32v("supertype", tracer_);
         if (supertype >= current_type_index) {
@@ -681,7 +681,7 @@ class ModuleDecoderImpl : public Decoder {
     // depth.
     const WasmModule* module = module_.get();
     for (uint32_t i = 0; ok() && i < module_->types.size(); ++i) {
-      ModuleTypeIndex explicit_super = module_->supertype(i);
+      ModuleTypeIndex explicit_super = module_->supertype(ModuleTypeIndex{i});
       if (!explicit_super.valid()) continue;
       DCHECK_LT(explicit_super.index, i);  // Checked during decoding.
       uint32_t depth = module->type(explicit_super).subtyping_depth + 1;
@@ -697,7 +697,8 @@ class ModuleDecoderImpl : public Decoder {
         errorf("type %u extends final type %u", i, explicit_super.index);
         continue;
       }
-      if (!ValidSubtypeDefinition(i, explicit_super, module, module)) {
+      if (!ValidSubtypeDefinition(ModuleTypeIndex{i}, explicit_super, module,
+                                  module)) {
         errorf("type %u has invalid explicit supertype %u", i,
                explicit_super.index);
         continue;
