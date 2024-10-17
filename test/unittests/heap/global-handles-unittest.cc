@@ -50,7 +50,15 @@ struct TracedReferenceWrapper {
 
 class NonRootingEmbedderRootsHandler final : public v8::EmbedderRootsHandler {
  public:
-  NonRootingEmbedderRootsHandler() : v8::EmbedderRootsHandler() {}
+  START_ALLOW_USE_DEPRECATED()
+  NonRootingEmbedderRootsHandler()
+      : v8::EmbedderRootsHandler(v8::EmbedderRootsHandler::RootHandling::
+                                     kQueryEmbedderForNonDroppableReferences) {}
+  END_ALLOW_USE_DEPRECATED()
+  bool IsRoot(const v8::TracedReference<v8::Value>& handle) final {
+    return false;
+  }
+
   void ResetRoot(const v8::TracedReference<v8::Value>& handle) final {
     for (auto* wrapper : wrappers_) {
       if (wrapper->handle == handle) {
@@ -351,6 +359,17 @@ TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
       v8_isolate(), &ConstructJSApiObject<FlagAndHandles>,
       [](FlagAndHandles* fp) {}, [this]() { InvokeMinorGC(); },
       SurvivalMode::kDies);
+}
+
+TEST_F(GlobalHandlesTest,
+       TracedReferenceToUnmodifiedJSApiObjectDiesOnScavenge) {
+  if (v8_flags.single_generation) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
+
+  ManualGCScope manual_gc(i_isolate());
+  TracedReferenceTestWithScavenge(
+      &ConstructJSApiObject<TracedReferenceWrapper>,
+      [](TracedReferenceWrapper* fp) {}, SurvivalMode::kDies);
 }
 
 TEST_F(GlobalHandlesTest,
