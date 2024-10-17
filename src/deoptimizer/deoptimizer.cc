@@ -1090,17 +1090,23 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
         }
         break;
       case wasm::LiftoffVarState::kStack:
+#ifdef V8_TARGET_BIG_ENDIAN
+        static constexpr int kLiftoffStackBias = 4;
+#else
+        static constexpr int kLiftoffStackBias = 0;
+#endif
         switch (liftoff_iter->kind()) {
           case wasm::ValueKind::kI32:
             CHECK(value.kind() == TranslatedValue::Kind::kInt32 ||
                   value.kind() == TranslatedValue::Kind::kUint32);
             output_frame->SetLiftoffFrameSlot32(
-                base_offset - liftoff_iter->offset(), value.int32_value_);
+                base_offset - liftoff_iter->offset() + kLiftoffStackBias,
+                value.int32_value_);
             break;
           case wasm::ValueKind::kF32:
             CHECK_EQ(value.kind(), TranslatedValue::Kind::kFloat);
             output_frame->SetLiftoffFrameSlot32(
-                base_offset - liftoff_iter->offset(),
+                base_offset - liftoff_iter->offset() + kLiftoffStackBias,
                 value.float_value().get_bits());
             break;
           case wasm::ValueKind::kI64:
