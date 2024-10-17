@@ -361,27 +361,6 @@ void TracedHandles::ResetYoungDeadNodes(
   }
 }
 
-namespace {
-void ComputeWeaknessForYoungObject(
-    EmbedderRootsHandler* handler, TracedNode* node,
-    bool should_call_is_root_for_default_traced_reference) {
-  DCHECK(!node->is_weak());
-  bool is_unmodified_api_object =
-      JSObject::IsUnmodifiedApiObject(node->location());
-  if (is_unmodified_api_object) {
-    FullObjectSlot slot = node->location();
-    START_ALLOW_USE_DEPRECATED();
-    const bool is_weak =
-        node->is_droppable() ||
-        (should_call_is_root_for_default_traced_reference &&
-         !handler->IsRoot(
-             *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot)));
-    END_ALLOW_USE_DEPRECATED();
-    node->set_weak(is_weak);
-  }
-}
-}  // namespace
-
 void TracedHandles::ComputeWeaknessForYoungObjects() {
   if (!v8_flags.reclaim_unmodified_wrappers) return;
 
@@ -393,17 +372,16 @@ void TracedHandles::ComputeWeaknessForYoungObjects() {
   auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
   if (!handler) return;
 
-  const bool should_call_is_root_for_default_traced_reference =
-      handler->default_traced_reference_handling_ ==
-      EmbedderRootsHandler::RootHandling::
-          kQueryEmbedderForNonDroppableReferences;
   for (auto* block : young_blocks_) {
     DCHECK(block->InYoungList());
     for (auto* node : *block) {
       if (!node->is_in_young_list()) continue;
       DCHECK(node->is_in_use());
-      ComputeWeaknessForYoungObject(
-          handler, node, should_call_is_root_for_default_traced_reference);
+      DCHECK(!node->is_weak());
+      if (node->is_droppable() &&
+          JSObject::IsUnmodifiedApiObject(node->location())) {
+        node->set_weak(true);
+      }
     }
   }
 }
