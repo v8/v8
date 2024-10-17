@@ -1412,7 +1412,8 @@ void StackFrame::Print(StringStream* accumulator, PrintMode mode,
   DisallowGarbageCollection no_gc;
   PrintIndex(accumulator, mode, index);
   accumulator->Add(StringForStackFrameType(type()));
-  accumulator->Add(" [pc: %p]\n", reinterpret_cast<void*>(pc()));
+  accumulator->Add(" [pc: %p]\n",
+                   reinterpret_cast<void*>(maybe_unauthenticated_pc()));
 }
 
 void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
@@ -3897,6 +3898,7 @@ void StackSwitchFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
   DCHECK_EQ(ComputeFrameType(jmpbuf->fp), STACK_SWITCH);
   FillState(jmpbuf->fp, jmpbuf->sp, state);
   state->pc_address = &jmpbuf->pc;
+  state->is_stack_exit_frame = true;
   DCHECK_NE(*state->pc_address, kNullAddress);
 }
 

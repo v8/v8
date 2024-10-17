@@ -745,3 +745,18 @@ function TestNestedSuspenders(suspend) {
   }
   assertEquals(stacks[0], stacks[1]);
 })();
+
+(function RegressPCAuthFailure() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+  builder.addImport("mod", "func", kSig_v_v);
+  builder.addFunction("main", kSig_v_v)
+    .addBody([kExprCallFunction, 0])
+    .exportAs("main");
+  var main = builder.instantiate({
+    mod: {
+      func: ()=>{%DebugTrace();}
+    }
+  }).exports.main;
+  WebAssembly.promising(main)();
+})();

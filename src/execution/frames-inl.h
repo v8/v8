@@ -85,13 +85,15 @@ inline Address StackFrame::unauthenticated_pc(Address* pc_address) {
 }
 
 inline Address StackFrame::maybe_unauthenticated_pc() const {
-  if (!InFastCCall() && !is_profiler_entry_frame()) {
+  if (!InFastCCall() && !is_profiler_entry_frame() && !is_stack_exit_frame()) {
     // Here the pc_address() is on the stack and properly authenticated.
     return pc();
   } else {
     // For fast C calls pc_address() points into IsolateData and the pc in there
     // is unauthenticated. For the profiler, the pc_address of the first visited
     // frame is also not written by a call instruction.
+    // For wasm stacks, the exit frame's pc is stored in the jump buffer
+    // unsigned.
     return unauthenticated_pc(pc_address());
   }
 }
