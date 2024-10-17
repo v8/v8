@@ -68,6 +68,7 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_control_flow_integrity
 # v8_enable_sandbox
 # cppgc_enable_caged_heap
+# cppgc_enable_api_checks
 # cppgc_enable_check_assignments_in_prefinalizers
 # cppgc_enable_slim_write_barrier
 # cppgc_enable_object_names

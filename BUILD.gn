@@ -1024,16 +1024,20 @@ config("v8_header_features") {
 # List of defines that can appear in externally visible cppgc header files and
 # that are controlled by args.gn.
 external_cppgc_defines = [
-  "CPPGC_SUPPORTS_OBJECT_NAMES",
   "CPPGC_CAGED_HEAP",
-  "CPPGC_SLIM_WRITE_BARRIER",
-  "CPPGC_YOUNG_GENERATION",
-  "CPPGC_POINTER_COMPRESSION",
+  "CPPGC_ENABLE_API_CHECKS",
   "CPPGC_ENABLE_LARGER_CAGE",
+  "CPPGC_POINTER_COMPRESSION",
+  "CPPGC_SLIM_WRITE_BARRIER",
+  "CPPGC_SUPPORTS_OBJECT_NAMES",
+  "CPPGC_YOUNG_GENERATION",
 ]
 
 enabled_external_cppgc_defines = []
 
+if (cppgc_enable_api_checks) {
+  enabled_external_cppgc_defines += [ "CPPGC_ENABLE_API_CHECKS" ]
+}
 if (cppgc_enable_object_names) {
   enabled_external_cppgc_defines += [ "CPPGC_SUPPORTS_OBJECT_NAMES" ]
 }
