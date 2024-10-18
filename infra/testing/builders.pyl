@@ -45,24 +45,6 @@
     ],
   },
   ##############################################################################
-  # Fuchsia
-  'v8_fuchsia_rel': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'fuchsia-unittests'},
-    ],
-  },
-  'V8 Fuchsia': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'fuchsia-unittests'},
-    ],
-  },
-  ##############################################################################
   # Linux32
   'v8_linux_dbg': {
     'swarming_dimensions' : {
