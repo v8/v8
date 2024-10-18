@@ -64,6 +64,9 @@ void JSDispatchTable::SetCode(JSDispatchHandle handle, Tagged<Code> new_code) {
   // The new code must use JS linkage and its parameter count must match that
   // of the entry, unless the code does not assume a particular parameter count
   // (so uses the kDontAdaptArgumentsSentinel).
+  DCHECK_IMPLIES(
+      new_code->parameter_count() == kDontAdaptArgumentsSentinel,
+      new_code->is_builtin() || new_code->kind() == CodeKind::FOR_TESTING);
   CHECK_EQ(new_code->entrypoint_tag(), kJSEntrypointTag);
   CHECK(new_code->parameter_count() == kDontAdaptArgumentsSentinel ||
         new_code->parameter_count() == GetParameterCount(handle));

@@ -350,6 +350,7 @@ MaybeHandle<Code> BaselineCompiler::Build() {
   } else {
     code_builder.set_interpreter_data(bytecode_);
   }
+  code_builder.set_parameter_count(bytecode_->parameter_count());
   return code_builder.TryBuild();
 }
 
