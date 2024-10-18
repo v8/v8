@@ -441,8 +441,8 @@ namespace internal {
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   T(CollectionGrowFailed, "% maximum size exceeded")                           \
   T(MustBePositive, "% must be positive")                                      \
-  T(ArgumentIsNotUndefinedOrNonNegativeInteger,                                \
-    "% argument must be undefined or a non-negative integer")                  \
+  T(ArgumentIsNotUndefinedOrInteger,                                           \
+    "% argument must be undefined or an integer")                              \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
     "The requested module '%' contains conflicting star exports for name '%'") \
