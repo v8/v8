@@ -106,6 +106,9 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline bool IsRequired(Tagged<HeapObject> host, T value);
   template <typename T>
   static inline bool IsRequired(const HeapObjectLayout* host, T value);
+  static bool VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
+                                               JSDispatchHandle value,
+                                               WriteBarrierMode mode);
 #endif
 
  private:

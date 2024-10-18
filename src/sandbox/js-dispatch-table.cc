@@ -64,6 +64,10 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
 }
 
 #ifdef DEBUG
+bool JSDispatchTable::IsMarked(JSDispatchHandle handle) {
+  return at(HandleToIndex(handle)).IsMarked();
+}
+
 // Static
 std::atomic<bool> JSDispatchTable::initialized_ = false;
 #endif  // DEBUG

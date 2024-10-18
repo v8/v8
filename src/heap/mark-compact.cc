@@ -5710,7 +5710,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         bool instruction_stream_was_relocated =
             code->instruction_start() != entrypoint_address;
         if (code_object_was_relocated || instruction_stream_was_relocated) {
-          jdt->SetCode(handle, code);
+          jdt->SetCodeNoWriteBarrier(handle, code);
         }
       });
 #endif  // V8_ENABLE_LEAPTIERING

@@ -478,6 +478,9 @@ void MarkingBarrier::AssertMarkingIsActivated() const { DCHECK(is_activated_); }
 void MarkingBarrier::AssertSharedMarkingIsActivated() const {
   DCHECK(shared_heap_worklists_.has_value());
 }
+bool MarkingBarrier::IsMarked(const Tagged<HeapObject> value) const {
+  return marking_state_.IsMarked(value);
+}
 #endif  // DEBUG
 
 }  // namespace internal

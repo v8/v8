@@ -161,6 +161,7 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
 
   // Mark both the table entry and its content.
   JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  static_assert(JSDispatchTable::kWriteBarrierSetsEntryMarkBit);
   jdt->Mark(handle);
   marking_barrier->MarkValue(host, jdt->GetCode(handle));
 
@@ -509,5 +510,43 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
       UNREACHABLE();
   }
 }
+
+#ifdef ENABLE_SLOW_DCHECKS
+
+// static
+bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
+                                                    JSDispatchHandle handle,
+                                                    WriteBarrierMode mode) {
+#ifdef V8_ENABLE_LEAPTIERING
+  if (mode == SKIP_WRITE_BARRIER &&
+      WriteBarrier::IsRequired(
+          host, GetProcessWideJSDispatchTable()->GetCode(handle))) {
+    return false;
+  }
+
+  if (CurrentMarkingBarrier(host)->is_not_major()) return true;
+
+  // Ensure we don't have a black -> white -> black edge. This could happen when
+  // skipping a write barrier while concurrently the dispatch entry is marked
+  // from another JSFunction.
+  if (ReadOnlyHeap::Contains(host) ||
+      (IsMarking(host) && mode != SKIP_WRITE_BARRIER) ||
+      !CurrentMarkingBarrier(host)->IsMarked(host)) {
+    return true;
+  }
+  if (GetProcessWideJSDispatchTable()->IsMarked(handle)) {
+    return true;
+  }
+  Tagged<Code> value = GetProcessWideJSDispatchTable()->GetCode(handle);
+  if (ReadOnlyHeap::Contains(value)) {
+    return true;
+  }
+  return !CurrentMarkingBarrier(host)->IsMarked(value);
+#else
+  return true;
+#endif  // V8_ENABLE_LEAPTIERING
+}
+
+#endif  // ENABLE_SLOW_DCHECKS
 
 }  // namespace v8::internal

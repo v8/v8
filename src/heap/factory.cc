@@ -4741,7 +4741,8 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // code->parameter_count() here instead, but not all Code objects know
     // their parameter count yet.
     function->AllocateDispatchHandle(
-        isolate, sfi_->internal_formal_parameter_count_with_receiver(), *code);
+        isolate, sfi_->internal_formal_parameter_count_with_receiver(), *code,
+        mode);
   } else {
     // TODO(olivf, 42204201): Here we are explicitly not updating (only
     // potentially initializing) the code. Worst case the dispatch handle still
@@ -4754,9 +4755,17 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // and maybe find some alternative to initialize it correctly from the
     // beginning.
     if (jdt->GetCode(handle)->is_builtin()) {
-      jdt->SetCode(handle, *code);
+      jdt->SetCodeNoWriteBarrier(handle, *code);
+      // Write barrier is needed since the above update can race with marking
+      // which could leave the dispatch slot unmarked.
+      // TODO(olivf): This should be fixed by using a more traditional WB
+      // for dispatch handles (i.e. have a marking queue with dispatch handles
+      // instead of marking through the handle).
+      function->set_dispatch_handle(handle,
+                                    WriteBarrierMode::UPDATE_WRITE_BARRIER);
+    } else {
+      function->set_dispatch_handle(handle, mode);
     }
-    function->set_dispatch_handle(handle, mode);
   }
 #else
   function->UpdateCode(*code, mode);

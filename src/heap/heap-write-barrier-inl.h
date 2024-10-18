@@ -210,15 +210,10 @@ void WriteBarrier::ForIndirectPointer(Tagged<HeapObject> host,
 void WriteBarrier::ForJSDispatchHandle(Tagged<HeapObject> host,
                                        JSDispatchHandle handle,
                                        WriteBarrierMode mode) {
-  // TODO(saelo): expand this: we either need to separate write barriers for
-  // the table entry and the objects referenced from it, or a single barrier
-  // for both. Maybe the latter is easier.
-
   DCHECK(V8_ENABLE_LEAPTIERING_BOOL);
+  SLOW_DCHECK(
+      WriteBarrier::VerifyDispatchHandleMarkingState(host, handle, mode));
   if (mode == SKIP_WRITE_BARRIER) {
-    // TODO(saelo): once/if this write barrier handles both the table entry and
-    // the objects referenced by it, we should SLOW_DCHECK here that a barrier
-    // is not required.
     return;
   }
   Marking(host, handle);
