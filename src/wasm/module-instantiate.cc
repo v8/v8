@@ -1275,7 +1275,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
           isolate_, table.shared ? shared_trusted_data : trusted_data,
           table.type, table.initial_size, table.has_maximum_size,
           table.maximum_size,
-          IsSubtypeOf(table.type, kWasmExternRef, module_)
+          IsSubtypeOf(table.type, kWasmExternRef, module_) ||
+                  IsSubtypeOf(table.type, kWasmExnRef, module_)
               ? Handle<HeapObject>{isolate_->factory()->null_value()}
               : Handle<HeapObject>{isolate_->factory()->wasm_null()},
           table.index_type);
