@@ -757,7 +757,6 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
       }
       page.space().AddPage(&page);
     } else {
-      DCHECK_EQ(empty_page_handling_, EmptyPageHandling::kDestroy);
       header->Finalize();
       largest_destroyed_large_page_ =
           std::max(page.PayloadSize(), largest_destroyed_large_page_);
