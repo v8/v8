@@ -38,9 +38,8 @@ class V8_TRIVIAL_ABI MemberBase {
 
   V8_INLINE MemberBase() = default;
   V8_INLINE explicit MemberBase(const void* value) : raw_(value) {}
-  V8_INLINE MemberBase(const void* value, AtomicInitializerTag) {
-    SetRawAtomic(value);
-  }
+  V8_INLINE MemberBase(const void* value, AtomicInitializerTag)
+      : raw_(value, typename RawStorage::AtomicInitializerTag{}) {}
 
   V8_INLINE explicit MemberBase(RawStorage raw) : raw_(raw) {}
   V8_INLINE explicit MemberBase(std::nullptr_t) : raw_(nullptr) {}
