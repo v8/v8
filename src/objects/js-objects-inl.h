@@ -645,11 +645,9 @@ void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
   object_->WriteLazilyInitializedCppHeapPointerField<tag>(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
       reinterpret_cast<Address>(instance));
-  WriteBarrier::ForCppHeapPointer(
-      object_,
-      object_->RawCppHeapPointerField(
-          JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset),
-      instance);
+  if (instance) {
+    WriteBarrier::ForCppHeapPointer(object_, instance);
+  }
 }
 
 void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
@@ -657,11 +655,9 @@ void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
   object_->WriteLazilyInitializedCppHeapPointerField(
       JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
       reinterpret_cast<Address>(instance), tag);
-  WriteBarrier::ForCppHeapPointer(
-      object_,
-      object_->RawCppHeapPointerField(
-          JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset),
-      instance);
+  if (instance) {
+    WriteBarrier::ForCppHeapPointer(object_, instance);
+  }
 }
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
