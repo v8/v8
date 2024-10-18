@@ -214,7 +214,9 @@ def detect_reclient_cert():
   ret = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   if ret.returncode != 0:
     return False
-  MARGIN = 300  # Request fresh cert if less than 5 mins remain.
+  # Request fresh cert if less than an hour remains. Reproxy will refuse to
+  # start when the certificate is close to expiring.
+  MARGIN = 3600
   lifetime = int(ret.stdout.decode("utf-8").strip().split(':')[1]) - MARGIN
   if lifetime < 0:
     return False
