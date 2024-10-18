@@ -1227,8 +1227,10 @@ class ParserBase {
   // Needs to be called if the reference needs to be available from the current
   // point. It causes the receiver to be context allocated if necessary.
   // Returns the receiver variable that we're referencing.
-  V8_INLINE Variable* UseThis() {
-    DeclarationScope* closure_scope = scope()->GetClosureScope();
+  V8_INLINE void UseThis() {
+    Scope* scope = this->scope();
+    if (scope->is_reparsed()) return;
+    DeclarationScope* closure_scope = scope->GetClosureScope();
     DeclarationScope* receiver_scope = closure_scope->GetReceiverScope();
     Variable* var = receiver_scope->receiver();
     var->set_is_used();
@@ -1241,7 +1243,6 @@ class ParserBase {
       closure_scope->set_has_this_reference();
       var->ForceContextAllocation();
     }
-    return var;
   }
 
   V8_INLINE IdentifierT ParseAndClassifyIdentifier(Token::Value token);
