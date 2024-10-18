@@ -1509,25 +1509,32 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
   ASM_CODE_COMMENT(this);
   // ----------- S t a t e -------------
-  //  -- x0 : actual argument count
+  //  -- x0 : actual argument count (preserved for callee)
   //  -- x1 : target function (preserved for callee)
   //  -- x3 : new target (preserved for callee)
+  //  -- x4 : dispatch handle (preserved for callee)
   // -----------------------------------
   {
     FrameScope scope(this, StackFrame::INTERNAL);
-    // Push a copy of the target function, the new target and the actual
-    // argument count.
+    // Push a copy of the target function, the new target, the actual
+    // argument count, and the dispatch handle.
+    Register lastreg = V8_ENABLE_LEAPTIERING_BOOL
+                           ? kJavaScriptCallDispatchHandleRegister
+                           : padreg;
     SmiTag(kJavaScriptCallArgCountRegister);
+    // No need to SmiTag the dispatch handle as it always looks like a Smi.
+    static_assert(kJSDispatchHandleShift > 0);
     Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
-         kJavaScriptCallArgCountRegister, padreg);
+         kJavaScriptCallArgCountRegister, lastreg);
     // Push another copy as a parameter to the runtime call.
     PushArgument(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
     Mov(x2, x0);
 
-    // Restore target function, new target and actual argument count.
-    Pop(padreg, kJavaScriptCallArgCountRegister,
+    // Restore target function, new target, actual argument count, and dispatch
+    // handle.
+    Pop(lastreg, kJavaScriptCallArgCountRegister,
         kJavaScriptCallNewTargetRegister, kJavaScriptCallTargetRegister);
     SmiUntag(kJavaScriptCallArgCountRegister);
   }

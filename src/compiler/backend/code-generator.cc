@@ -233,6 +233,14 @@ void CodeGenerator::AssembleCode() {
     AssembleCodeStartRegisterCheck();
   }
 
+#ifdef V8_ENABLE_LEAPTIERING
+  // Check that {kJavaScriptCallDispatchHandleRegister} has been set correctly.
+  if (v8_flags.debug_code && call_descriptor->IsJSFunctionCall()) {
+    masm()->RecordComment("-- Prologue: check dispatch handle register --");
+    AssembleDispatchHandleRegisterCheck();
+  }
+#endif
+
 #if V8_ENABLE_WEBASSEMBLY
   if (info->code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
       info->builtin() == Builtin::kWasmToJsWrapperCSA ||
