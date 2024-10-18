@@ -753,10 +753,10 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   bool PrintValue(const char* desc);
 
   // Push an address onto the JS stack.
-  uintptr_t PushAddress(uintptr_t address);
+  V8_EXPORT_PRIVATE uintptr_t PushAddress(uintptr_t address);
 
   // Pop an address from the JS stack.
-  uintptr_t PopAddress();
+  V8_EXPORT_PRIVATE uintptr_t PopAddress();
 
   // Accessor to the internal simulator stack area. Adds a safety
   // margin to prevent overflows (kAdditionalStackMargin).
