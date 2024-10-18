@@ -745,10 +745,6 @@ class FastCApiObject {
 
     HandleScope handle_scope(isolate);
 
-    if (i::v8_flags.fuzzing) {
-      info.GetReturnValue().Set(false);
-      return;
-    }
     double real_arg = 0;
     if (info.Length() > 1 && info[1]->IsNumber()) {
       real_arg = info[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
