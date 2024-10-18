@@ -113,6 +113,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   ClassScope* AsClassScope();
   const ClassScope* AsClassScope() const;
 
+  bool is_reparsed() const { return !scope_info_.is_null(); }
+
   class Snapshot final {
    public:
     inline explicit Snapshot(Scope* scope);
@@ -1412,8 +1414,6 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   Variable* DeclarePrivateName(const AstRawString* name, VariableMode mode,
                                IsStaticFlag is_static_flag, bool* was_added);
   Variable* RedeclareSyntheticContextVariable(const AstRawString* name);
-
-  bool is_reparsed() const { return !scope_info_.is_null(); }
 
   // Try resolving all unresolved private names found in the current scope.
   // Called from DeclarationScope::AllocateVariables() when reparsing a
