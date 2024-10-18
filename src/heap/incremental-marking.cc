@@ -430,8 +430,11 @@ void IncrementalMarking::FinishBlackAllocation() {
 }
 
 void IncrementalMarking::StartPointerTableBlackAllocation() {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   heap()->old_external_pointer_space()->set_allocate_black(true);
+  heap()->cpp_heap_pointer_space()->set_allocate_black(true);
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   heap()->code_pointer_space()->set_allocate_black(true);
   heap()->trusted_pointer_space()->set_allocate_black(true);
   if (isolate()->is_shared_space_isolate()) {
@@ -444,8 +447,11 @@ void IncrementalMarking::StartPointerTableBlackAllocation() {
 }
 
 void IncrementalMarking::StopPointerTableBlackAllocation() {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   heap()->old_external_pointer_space()->set_allocate_black(false);
+  heap()->cpp_heap_pointer_space()->set_allocate_black(false);
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   heap()->code_pointer_space()->set_allocate_black(false);
   heap()->trusted_pointer_space()->set_allocate_black(false);
   if (isolate()->is_shared_space_isolate()) {
