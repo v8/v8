@@ -1059,6 +1059,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(
       masm, shared_function_info, kInterpreterBytecodeArrayRegister,
       kScratchRegister, &is_baseline, &compile_lazy);
 
+#ifdef V8_ENABLE_LEAPTIERING
+  // Validate the parameter count. This protects against an attacker swapping
+  // the bytecode (or the dispatch handle) such that the parameter count of the
+  // dispatch entry doesn't match the one of the BytecodeArray.
+  // TODO(saelo): instead of this validation step, it would probably be nicer
+  // if we could store the BytecodeArray directly in the dispatch entry and
+  // load it from there. Then we can easily guarantee that the parameter count
+  // of the entry matches the parameter count of the bytecode.
+  Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
+  __ LoadParameterCountFromJSDispatchTable(r8, dispatch_handle);
+  __ cmpw(r8, FieldOperand(kInterpreterBytecodeArrayRegister,
+                           BytecodeArray::kParameterSizeOffset));
+  __ SbxCheck(equal, AbortReason::kJSSignatureMismatch);
+#endif  // V8_ENABLE_LEAPTIERING
+
   Label push_stack_frame;
   Register feedback_vector = rbx;
   __ LoadFeedbackVector(feedback_vector, closure, &push_stack_frame,
@@ -1797,8 +1812,8 @@ void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
 // static
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Register feedback_cell = r8;
-  Register feedback_vector = r11;
-  Register return_address = r15;
+  Register feedback_vector = r9;
+  Register return_address = r11;
 
 #ifdef DEBUG
   for (auto reg : BaselineOutOfLinePrologueDescriptor::registers()) {
@@ -1847,8 +1862,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       __ Push(callee_js_function);  // Callee's JS function.
       __ Push(descriptor.GetRegisterParameter(
           BaselineOutOfLinePrologueDescriptor::
-              kJavaScriptCallArgCount));  // Actual argument
-                                          // count.
+              kJavaScriptCallArgCount));  // Actual argument count.
 
       // We'll use the bytecode for both code age/OSR resetting, and pushing
       // onto the frame, so load it into a register.
@@ -1912,9 +1926,17 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       FrameScope inner_frame_scope(masm, StackFrame::INTERNAL);
       // Save incoming new target or generator
       __ Push(new_target);
+#ifdef V8_ENABLE_LEAPTIERING
+      // No need to SmiTag as dispatch handles always look like Smis.
+      static_assert(kJSDispatchHandleShift > 0);
+      __ Push(kJavaScriptCallDispatchHandleRegister);
+#endif
       __ SmiTag(frame_size);
       __ Push(frame_size);
       __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+#ifdef V8_ENABLE_LEAPTIERING
+      __ Pop(kJavaScriptCallDispatchHandleRegister);
+#endif
       __ Pop(new_target);
     }
 
