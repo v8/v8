@@ -1034,10 +1034,8 @@ class LiftoffCompiler {
           ValueType type = decoder->local_types_[local_index];
           if (type.is_reference()) {
             __ Spill(__ cache_state()->stack_state[local_index].offset(),
-                     IsSubtypeOf(type, kWasmExternRef, decoder->module_) ||
-                             IsSubtypeOf(type, kWasmExnRef, decoder->module_)
-                         ? LiftoffRegister(null_ref_reg)
-                         : LiftoffRegister(wasm_null_ref_reg),
+                     type.use_wasm_null() ? LiftoffRegister(wasm_null_ref_reg)
+                                          : LiftoffRegister(null_ref_reg),
                      type.kind());
           }
         }
@@ -2749,8 +2747,7 @@ class LiftoffCompiler {
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
         IsSubtypeOf(kWasmI31Ref.AsNonNull(), arg.type, decoder->module_) ||
-        IsSubtypeOf(arg.type, kWasmExternRef, decoder->module_) ||
-        IsSubtypeOf(arg.type, kWasmExnRef, decoder->module_)) {
+        !arg.type.use_wasm_null()) {
       // Use an explicit null check if
       // (1) we cannot use trap handler or
       // (2) the object might be a Smi or
@@ -8911,13 +8908,11 @@ class LiftoffCompiler {
   }
 
   void LoadNullValue(Register null, ValueType type) {
-    // TODO(thibaudm): Can we use wasm null for exnref?
     __ LoadFullPointer(
         null, kRootRegister,
-        type == kWasmExternRef || type == kWasmNullExternRef ||
-                type == kWasmExnRef || type == kWasmNullExnRef
-            ? IsolateData::root_slot_offset(RootIndex::kNullValue)
-            : IsolateData::root_slot_offset(RootIndex::kWasmNull));
+        type.use_wasm_null()
+            ? IsolateData::root_slot_offset(RootIndex::kWasmNull)
+            : IsolateData::root_slot_offset(RootIndex::kNullValue));
   }
 
   // Stores the null value representation in the passed register.
@@ -8927,12 +8922,8 @@ class LiftoffCompiler {
   void LoadNullValueForCompare(Register null, LiftoffRegList pinned,
                                ValueType type) {
 #if V8_STATIC_ROOTS_BOOL
-    // TODO(14616): Extend this for shared types.
-    bool is_wasm_null =
-        !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, env_->module) &&
-        !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, env_->module);
-    uint32_t value = is_wasm_null ? StaticReadOnlyRoot::kWasmNull
-                                  : StaticReadOnlyRoot::kNullValue;
+    uint32_t value = type.use_wasm_null() ? StaticReadOnlyRoot::kWasmNull
+                                          : StaticReadOnlyRoot::kNullValue;
     __ LoadConstant(LiftoffRegister(null),
                     WasmValue(static_cast<uint32_t>(value)));
 #else

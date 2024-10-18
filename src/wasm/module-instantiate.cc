@@ -429,7 +429,7 @@ WellKnownImport CheckForWellKnownImport(
       case Builtin::kNumberParseFloat:
         if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
             IsStringRef(sig->GetParam(0)) &&
-            sig->GetReturn(0) == wasm::kWasmF64) {
+            sig->GetReturn(0) == wasm::kCanonicalF64) {
           return WellKnownImport::kParseFloat;
         }
         break;
@@ -519,8 +519,8 @@ WellKnownImport CheckForWellKnownImport(
           IsStringRef(sig->GetParam(0)) && IsStringRef(sig->GetReturn(0))) {
         return WellKnownImport::kStringToLowerCaseStringref;
       } else if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
-                 sig->GetParam(0) == wasm::kWasmExternRef &&
-                 sig->GetReturn(0) == wasm::kWasmExternRef) {
+                 sig->GetParam(0) == wasm::kCanonicalExternRef &&
+                 sig->GetReturn(0) == wasm::kCanonicalExternRef) {
         return WellKnownImport::kStringToLowerCaseImported;
       }
       break;
@@ -1275,10 +1275,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
           isolate_, table.shared ? shared_trusted_data : trusted_data,
           table.type, table.initial_size, table.has_maximum_size,
           table.maximum_size,
-          IsSubtypeOf(table.type, kWasmExternRef, module_) ||
-                  IsSubtypeOf(table.type, kWasmExnRef, module_)
-              ? Handle<HeapObject>{isolate_->factory()->null_value()}
-              : Handle<HeapObject>{isolate_->factory()->wasm_null()},
+          table.type.use_wasm_null()
+              ? Handle<HeapObject>{isolate_->factory()->wasm_null()}
+              : Handle<HeapObject>{isolate_->factory()->null_value()},
           table.index_type);
       (table.shared ? shared_tables : tables)->set(i, *table_obj);
     }

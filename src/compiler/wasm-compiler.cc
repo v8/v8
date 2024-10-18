@@ -399,14 +399,9 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects_and_control) {
 }
 
 Node* WasmGraphBuilder::RefNull(wasm::ValueType type) {
-  // We immediately lower null in wrappers, as they do not go through a lowering
-  // phase.
-  // TODO(thibaudm): Can we use wasm null for exnref?
-  return parameter_mode_ == kInstanceParameterMode ? gasm_->Null(type)
-         : (type == wasm::kWasmExternRef || type == wasm::kWasmNullExternRef ||
-            type == wasm::kWasmExnRef || type == wasm::kWasmNullExnRef)
-             ? LOAD_ROOT(NullValue, null_value)
-             : LOAD_ROOT(WasmNull, wasm_null);
+  // This version is for functions, not wrappers.
+  DCHECK_EQ(parameter_mode_, kInstanceParameterMode);
+  return gasm_->Null(type);
 }
 
 Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
@@ -2765,11 +2760,13 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
 }
 
 Node* WasmGraphBuilder::IsNull(Node* object, wasm::ValueType type) {
-  // We immediately lower null in wrappers, as they do not go through a lowering
-  // phase.
-  return parameter_mode_ == kInstanceParameterMode
-             ? gasm_->IsNull(object, type)
-             : gasm_->TaggedEqual(object, RefNull(type));
+  // This version is for Wasm functions (i.e. not wrappers):
+  // - they use module-specific types
+  // - they go through a lowering phase later
+  // Both points are different in wrappers, see
+  // WasmWrapperGraphBuilder::IsNull().
+  DCHECK_EQ(parameter_mode_, kInstanceParameterMode);
+  return gasm_->IsNull(object, type);
 }
 
 template <typename... Args>
@@ -3696,8 +3693,8 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
   return {converted_index, BoundsCheckResult::kDynamicallyChecked};
 }
 
-const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
-                                                      wasm::ValueType type) {
+const Operator* WasmGraphBuilder::GetSafeLoadOperator(
+    int offset, wasm::ValueTypeBase type) {
   int alignment = offset % type.value_kind_size();
   MachineType mach_type = type.machine_type();
   if (COMPRESS_POINTERS_BOOL && mach_type.IsTagged()) {
@@ -3712,8 +3709,8 @@ const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
   return mcgraph()->machine()->UnalignedLoad(mach_type);
 }
 
-const Operator* WasmGraphBuilder::GetSafeStoreOperator(int offset,
-                                                       wasm::ValueType type) {
+const Operator* WasmGraphBuilder::GetSafeStoreOperator(
+    int offset, wasm::ValueTypeBase type) {
   int alignment = offset % type.value_kind_size();
   MachineRepresentation rep = type.machine_representation();
   if (COMPRESS_POINTERS_BOOL && IsAnyTagged(rep)) {
@@ -5645,8 +5642,7 @@ void WasmGraphBuilder::ArrayInitSegment(uint32_t segment_index, Node* array,
 Node* WasmGraphBuilder::RttCanon(wasm::ModuleTypeIndex type_index) {
   Node* rtt = graph()->NewNode(gasm_->simplified()->RttCanon(type_index),
                                GetInstanceData());
-  // TODO(366180605): Drop the explicit conversion.
-  return SetType(rtt, wasm::ValueType::Rtt(wasm::ModuleTypeIndex{type_index}));
+  return SetType(rtt, wasm::ValueType::Rtt(type_index));
 }
 
 WasmGraphBuilder::Callbacks WasmGraphBuilder::TestCallbacks(
@@ -7073,6 +7069,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return gasm_->GetBuiltinPointerTarget(builtin);
   }
 
+  Node* IsNull(Node* object, wasm::CanonicalValueType type) {
+    // We immediately lower null in wrappers, as they do not go through a
+    // lowering phase.
+    Node* null = type.use_wasm_null() ? LOAD_ROOT(WasmNull, wasm_null)
+                                      : LOAD_ROOT(NullValue, null_value);
+    return gasm_->TaggedEqual(object, null);
+  }
+
   Node* BuildChangeInt32ToNumber(Node* value) {
     // We expect most integers at runtime to be Smis, so it is important for
     // wrapper performance that Smi conversion be inlined.
@@ -7375,7 +7379,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->GotoIf(IsSmi(input), &type_error, BranchHint::kFalse);
     if (type.is_nullable()) {
       auto not_null = gasm_->MakeLabel();
-      gasm_->GotoIfNot(IsNull(input, wasm::kWasmExternRef), &not_null);
+      gasm_->GotoIfNot(IsNull(input, wasm::kCanonicalExternRef), &not_null);
       gasm_->Goto(&done, LOAD_ROOT(WasmNull, wasm_null));
       gasm_->Bind(&not_null);
     }

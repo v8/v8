@@ -44,10 +44,7 @@ class WasmLoweringReducer : public Next {
   OpIndex REDUCE(Null)(wasm::ValueType type) {
     OpIndex roots = __ LoadRootRegister();
     RootIndex index =
-        wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
-                wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)
-            ? RootIndex::kNullValue
-            : RootIndex::kWasmNull;
+        type.use_wasm_null() ? RootIndex::kWasmNull : RootIndex::kNullValue;
     // We load WasmNull as a pointer here and not as a TaggedPointer because
     // WasmNull is stored uncompressed in the IsolateData, and a load of a
     // TaggedPointer loads compressed pointers.
@@ -67,13 +64,9 @@ class WasmLoweringReducer : public Next {
 
   V<Word32> REDUCE(IsNull)(OpIndex object, wasm::ValueType type) {
 #if V8_STATIC_ROOTS_BOOL
-    // TODO(14616): Extend this for shared types.
-    const bool is_wasm_null =
-        !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
-        !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_);
-    V<Object> null_value = V<Object>::Cast(
-        __ UintPtrConstant(is_wasm_null ? StaticReadOnlyRoot::kWasmNull
-                                        : StaticReadOnlyRoot::kNullValue));
+    V<Object> null_value = V<Object>::Cast(__ UintPtrConstant(
+        type.use_wasm_null() ? StaticReadOnlyRoot::kWasmNull
+                             : StaticReadOnlyRoot::kNullValue));
 #else
     V<Object> null_value = __ Null(type);
 #endif
@@ -91,8 +84,7 @@ class WasmLoweringReducer : public Next {
         // (3) the object might be a JS object.
         if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
             wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type, module_) ||
-            wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
-            wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)) {
+            !type.use_wasm_null()) {
           __ TrapIf(__ IsNull(object, type), trap_id);
         } else {
           // Otherwise, load the word after the map word.

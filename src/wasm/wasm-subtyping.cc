@@ -511,9 +511,9 @@ HeapType::Representation CommonAncestorWithAbstract(HeapType heap1,
   // TODO(mliedtke): These types should be normalized to the value type kTop and
   // kBottom and therefore should never appear here. Can we convert these into
   // assertions?
-  if (heap1 == HeapType::kTop || heap2 == HeapType::kTop) return HeapType::kTop;
-  if (heap1 == HeapType::kBottom) return heap2.representation();
-  if (heap2 == HeapType::kBottom) return heap1.representation();
+  if (heap1.is_top() || heap2.is_top()) return HeapType::kTop;
+  if (heap1.is_bottom()) return heap2.representation();
+  if (heap2.is_bottom()) return heap1.representation();
 
   HeapType::Representation repr_non_shared2 = heap2.representation_non_shared();
   switch (heap1.representation_non_shared()) {

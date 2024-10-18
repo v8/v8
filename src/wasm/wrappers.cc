@@ -352,7 +352,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       returns[0] = call;
     } else if (sig->return_count() > 1) {
       for (uint32_t i = 0; i < sig->return_count(); i++) {
-        ValueType type = sig->GetReturn(i);
+        CanonicalValueType type = sig->GetReturn(i);
         returns[i] = __ Projection(call, i, RepresentationFor(type));
       }
     }
@@ -681,11 +681,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
     // Store arguments on our stack, then align the stack for calling to C.
     int param_bytes = 0;
-    for (ValueType type : sig_->parameters()) {
+    for (CanonicalValueType type : sig_->parameters()) {
       param_bytes += type.value_kind_size();
     }
     int return_bytes = 0;
-    for (ValueType type : sig_->returns()) {
+    for (CanonicalValueType type : sig_->returns()) {
       return_bytes += type.value_kind_size();
     }
 
@@ -696,7 +696,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
     int offset = 0;
     for (size_t i = 0; i < sig_->parameter_count(); ++i) {
-      ValueType type = sig_->GetParam(i);
+      CanonicalValueType type = sig_->GetParam(i);
       // Start from the parameter with index 1 to drop the instance_node.
       // TODO(jkummerow): When a values is a reference type, we should pass it
       // in a GC-safe way, not just as a raw pointer.
@@ -762,7 +762,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       base::SmallVector<OpIndex, 8> returns(return_count);
       offset = 0;
       for (size_t i = 0; i < return_count; ++i) {
-        ValueType type = sig_->GetReturn(i);
+        CanonicalValueType type = sig_->GetReturn(i);
         OpIndex val = SafeLoad(values, offset, type);
         returns[i] = val;
         offset += type.value_kind_size();
@@ -793,7 +793,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         input, compiler::AccessBuilder::ForHeapNumberValue());
   }
 
-  OpIndex FromJSFast(OpIndex input, ValueType type) {
+  OpIndex FromJSFast(OpIndex input, CanonicalValueType type) {
     switch (type.kind()) {
       case kI32:
         return BuildChangeSmiToInt32(input);
@@ -835,7 +835,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                    MemoryRepresentation::Uint16(), Map::kInstanceTypeOffset);
   }
 
-  OpIndex BuildCheckString(OpIndex input, OpIndex js_context, ValueType type) {
+  OpIndex BuildCheckString(OpIndex input, OpIndex js_context,
+                           CanonicalValueType type) {
     auto done = __ NewBlock();
     auto type_error = __ NewBlock();
     ScopedVar<Object> result(this, LOAD_ROOT(WasmNull));
@@ -931,7 +932,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                : __ Call(target, {input, context}, ts_call_descriptor);
   }
 
-  OpIndex FromJS(OpIndex input, OpIndex context, ValueType type,
+  OpIndex FromJS(OpIndex input, OpIndex context, CanonicalValueType type,
                  OptionalOpIndex frame_state = {}) {
     switch (type.kind()) {
       case kRef:
@@ -1002,7 +1003,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   bool QualifiesForFastTransform() {
     const int wasm_count = static_cast<int>(sig_->parameter_count());
     for (int i = 0; i < wasm_count; ++i) {
-      ValueType type = sig_->GetParam(i);
+      CanonicalValueType type = sig_->GetParam(i);
       switch (type.kind()) {
         case kRef:
         case kRefNull:
@@ -1047,7 +1048,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 #endif
   }
 
-  void CanTransformFast(OpIndex input, ValueType type, TSBlock* slow_path) {
+  void CanTransformFast(OpIndex input, CanonicalValueType type,
+                        TSBlock* slow_path) {
     switch (type.kind()) {
       case kI32: {
         __ GotoIfNot(LIKELY(__ IsSmi(input)), slow_path);
@@ -1247,7 +1249,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         iterable, length, context);
   }
 
-  void SafeStore(int offset, ValueType type, OpIndex base, OpIndex value) {
+  void SafeStore(int offset, CanonicalValueType type, OpIndex base,
+                 OpIndex value) {
     int alignment = offset % type.value_kind_size();
     auto rep = MemoryRepresentation::FromMachineRepresentation(
         type.machine_representation());
@@ -1276,7 +1279,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                    WasmInternalFunction::kCallTargetOffset);
   }
 
-  const OpIndex SafeLoad(OpIndex base, int offset, ValueType type) {
+  const OpIndex SafeLoad(OpIndex base, int offset, CanonicalValueType type) {
     int alignment = offset % type.value_kind_size();
     auto rep = MemoryRepresentation::FromMachineRepresentation(
         type.machine_representation());

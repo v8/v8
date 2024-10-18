@@ -104,12 +104,10 @@ void ConstantExpressionInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
 void ConstantExpressionInterface::RefNull(FullDecoder* decoder, ValueType type,
                                           Value* result) {
   if (!generate_value()) return;
-  result->runtime_value =
-      WasmValue((IsSubtypeOf(type, kWasmExternRef, decoder->module_) ||
-                 IsSubtypeOf(type, kWasmExnRef, decoder->module_))
-                    ? Cast<Object>(isolate_->factory()->null_value())
-                    : Cast<Object>(isolate_->factory()->wasm_null()),
-                type);
+  result->runtime_value = WasmValue(
+      type.use_wasm_null() ? Cast<Object>(isolate_->factory()->wasm_null())
+                           : Cast<Object>(isolate_->factory()->null_value()),
+      type);
 }
 
 void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
@@ -205,10 +203,9 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
     case kS128:
       return WasmValue(Simd128());
     case kRefNull:
-      return WasmValue(type == kWasmExternRef || type == kWasmNullExternRef ||
-                               type == kWasmExnRef || type == kWasmNullExnRef
-                           ? Cast<Object>(isolate->factory()->null_value())
-                           : Cast<Object>(isolate->factory()->wasm_null()),
+      return WasmValue(type.use_wasm_null()
+                           ? Cast<Object>(isolate->factory()->wasm_null())
+                           : Cast<Object>(isolate->factory()->null_value()),
                        type);
     case kVoid:
     case kRtt:

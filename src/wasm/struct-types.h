@@ -48,19 +48,6 @@ class StructTypeBase : public ZoneObject {
     return {mutabilities_, mutabilities_ + field_count_};
   }
 
-  // TODO(366180605): Comparisons should move to the subclasses.
-  bool operator==(const StructTypeBase& other) const {
-    if (this == &other) return true;
-    if (field_count() != other.field_count()) return false;
-    return std::equal(fields().begin(), fields().end(),
-                      other.fields().begin()) &&
-           std::equal(mutabilities().begin(), mutabilities().end(),
-                      other.mutabilities().begin());
-  }
-  bool operator!=(const StructTypeBase& other) const {
-    return !(*this == other);
-  }
-
   // Returns the offset of this field in the runtime representation of the
   // object, from the start of the object fields (disregarding the object
   // header).
@@ -199,6 +186,7 @@ class StructTypeBase : public ZoneObject {
 
  private:
   friend class StructType;
+  friend class CanonicalStructType;
 
   const uint32_t field_count_;
 #if DEBUG
@@ -217,6 +205,16 @@ class StructType : public StructTypeBase {
   StructType(uint32_t field_count, uint32_t* field_offsets,
              const ValueType* reps, const bool* mutabilities)
       : StructTypeBase(field_count, field_offsets, reps, mutabilities) {}
+
+  bool operator==(const StructType& other) const {
+    if (this == &other) return true;
+    if (field_count() != other.field_count()) return false;
+    return std::equal(fields().begin(), fields().end(),
+                      other.fields().begin()) &&
+           std::equal(mutabilities().begin(), mutabilities().end(),
+                      other.mutabilities().begin());
+  }
+  bool operator!=(const StructType& other) const { return !(*this == other); }
 
   ValueType field(uint32_t index) const {
     return ValueType{StructTypeBase::field(index)};
@@ -237,6 +235,24 @@ class CanonicalStructType : public StructTypeBase {
   CanonicalStructType(uint32_t field_count, uint32_t* field_offsets,
                       const CanonicalValueType* reps, const bool* mutabilities)
       : StructTypeBase(field_count, field_offsets, reps, mutabilities) {}
+
+  bool operator==(const CanonicalStructType& other) const {
+    if (this == &other) return true;
+    if (field_count() != other.field_count()) return false;
+    return std::equal(fields().begin(), fields().end(),
+                      other.fields().begin()) &&
+           std::equal(mutabilities().begin(), mutabilities().end(),
+                      other.mutabilities().begin());
+  }
+  bool operator!=(const CanonicalStructType& other) const {
+    return !(*this == other);
+  }
+
+  base::iterator_range<const CanonicalValueType*> fields() const {
+    const CanonicalValueType* cast_reps =
+        static_cast<const CanonicalValueType*>(reps_);
+    return {cast_reps, cast_reps + field_count_};
+  }
 };
 
 inline std::ostream& operator<<(std::ostream& out, StructTypeBase type) {
@@ -259,52 +275,55 @@ inline size_t hash_value(const StructTypeBase& type) {
 
 class ArrayTypeBase : public ZoneObject {
  public:
-  constexpr ArrayTypeBase(ValueTypeBase rep, bool mutability)
-      : rep_(rep), mutability_(mutability) {}
+  constexpr explicit ArrayTypeBase(bool mutability) : mutability_(mutability) {}
 
-  ValueTypeBase element_type() const { return rep_; }
   bool mutability() const { return mutability_; }
 
-  // TODO(366180605): Comparisons should move to the subclasses.
-  bool operator==(const ArrayTypeBase& other) const {
-    return rep_ == other.rep_ && mutability_ == other.mutability_;
-  }
-  bool operator!=(const ArrayTypeBase& other) const {
-    return rep_ != other.rep_ || mutability_ != other.mutability_;
-  }
-
-  static const intptr_t kRepOffset;
-
- private:
-  const ValueTypeBase rep_;
+ protected:
   const bool mutability_;
 };
 
 class ArrayType : public ArrayTypeBase {
  public:
   constexpr ArrayType(ValueType rep, bool mutability)
-      : ArrayTypeBase(rep, mutability) {}
+      : ArrayTypeBase(mutability), rep_(rep) {}
 
-  ValueType element_type() const {
-    return ValueType{ArrayTypeBase::element_type()};
+  bool operator==(const ArrayType& other) const {
+    return rep_ == other.rep_ && mutability_ == other.mutability_;
   }
+  bool operator!=(const ArrayType& other) const {
+    return rep_ != other.rep_ || mutability_ != other.mutability_;
+  }
+
+  ValueType element_type() const { return rep_; }
+
+ private:
+  ValueType rep_;
 };
 
 class CanonicalArrayType : public ArrayTypeBase {
  public:
   CanonicalArrayType(CanonicalValueType rep, bool mutability)
-      : ArrayTypeBase(rep, mutability) {}
+      : ArrayTypeBase(mutability), rep_(rep) {}
 
-  CanonicalValueType element_type() const {
-    return CanonicalValueType{ArrayTypeBase::element_type()};
+  bool operator==(const CanonicalArrayType& other) const {
+    return rep_ == other.rep_ && mutability_ == other.mutability_;
   }
+  bool operator!=(const CanonicalArrayType& other) const {
+    return rep_ != other.rep_ || mutability_ != other.mutability_;
+  }
+
+  CanonicalValueType element_type() const { return rep_; }
+
+ private:
+  CanonicalValueType rep_;
 };
 
-inline constexpr intptr_t ArrayTypeBase::kRepOffset =
-    offsetof(ArrayTypeBase, rep_);
-
-// Support base::hash<ArrayTypeBase>.
-inline size_t hash_value(const ArrayTypeBase& type) {
+// Support base::hash<...> for ArrayType and CanonicalArrayType.
+inline size_t hash_value(const ArrayType& type) {
+  return base::Hasher::Combine(type.element_type(), type.mutability());
+}
+inline size_t hash_value(const CanonicalArrayType& type) {
   return base::Hasher::Combine(type.element_type(), type.mutability());
 }
 

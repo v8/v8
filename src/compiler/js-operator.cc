@@ -724,7 +724,7 @@ int JSWasmCallParameters::input_count() const {
 }
 
 // static
-Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
+Type JSWasmCallNode::TypeForWasmReturnType(wasm::CanonicalValueType type) {
   switch (type.kind()) {
     case wasm::kI32:
       return Type::Signed32();
@@ -735,7 +735,7 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
       return Type::Number();
     case wasm::kRef:
     case wasm::kRefNull:
-      CHECK_EQ(type.heap_type(), wasm::HeapType::kExtern);
+      CHECK(type.is_reference_to(wasm::HeapType::kExtern));
       return Type::Any();
     default:
       UNREACHABLE();

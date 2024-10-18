@@ -2341,7 +2341,9 @@ bool WasmCapiFunction::MatchesSignature(
     wasm::CanonicalTypeIndex other_canonical_sig_index) const {
 #if DEBUG
   // TODO(14034): Change this if indexed types are allowed.
-  for (wasm::ValueType type : this->sig()->all()) CHECK(!type.has_index());
+  for (wasm::CanonicalValueType type : this->sig()->all()) {
+    CHECK(!type.has_index());
+  }
 #endif
   // TODO(14034): Check for subtyping instead if C API functions can define
   // signature supertype.
@@ -2947,14 +2949,9 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       case HeapType::kNoExn:
         *error_message = "invalid type (ref null noexn)";
         return {};
-      default: {
-        HeapType::Representation repr =
-            expected.heap_representation_non_shared();
-        bool is_extern_subtype =
-            repr == HeapType::kExtern || repr == HeapType::kNoExtern ||
-            repr == HeapType::kExn || repr == HeapType::kNoExn;
-        return is_extern_subtype ? value : isolate->factory()->wasm_null();
-      }
+      default:
+        return expected.use_wasm_null() ? isolate->factory()->wasm_null()
+                                        : value;
     }
   }
 
@@ -3093,11 +3090,11 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
         auto wasm_obj = Cast<WasmObject>(value);
         Tagged<WasmTypeInfo> type_info = wasm_obj->map()->wasm_type_info();
-        uint32_t real_idx = type_info->type_index();
+        ModuleTypeIndex real_idx = type_info->type_index();
         const WasmModule* real_module =
             type_info->trusted_data(isolate)->module();
         CanonicalTypeIndex real_canonical_index =
-            real_module->isorecursive_canonical_type_ids[real_idx];
+            real_module->canonical_type_id(real_idx);
         if (!type_canonicalizer->IsCanonicalSubtype(real_canonical_index,
                                                     canonical_index)) {
           *error_message = "object is not a subtype of expected type";

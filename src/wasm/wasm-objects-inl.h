@@ -519,6 +519,9 @@ Tagged<WasmFuncRef> WasmExternalFunction::func_ref() const {
 // WasmTypeInfo
 EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,
                            kNativeTypeOffset, kWasmTypeInfoNativeTypeTag)
+wasm::ModuleTypeIndex WasmTypeInfo::type_index() const {
+  return wasm::ModuleTypeIndex{module_type_index()};
+}
 TRUSTED_POINTER_ACCESSORS(WasmTypeInfo, trusted_data, WasmTrustedInstanceData,
                           kTrustedDataOffset,
                           kWasmTrustedInstanceDataIndirectPointerTag)

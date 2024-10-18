@@ -276,7 +276,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       return {};
     }
     wasm::ValueType target_type = wasm::ValueType::RefMaybeNull(
-        static_cast<uint32_t>(heap_index),
+        wasm::ModuleTypeIndex{static_cast<uint32_t>(heap_index)},
         null_succeeds ? wasm::kNullable : wasm::kNonNullable);
     Node* rtt = mcgraph_->graph()->NewNode(
         gasm_.simplified()->RttCanon(target_type.ref_index()),

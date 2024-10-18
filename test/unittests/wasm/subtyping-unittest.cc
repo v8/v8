@@ -12,10 +12,11 @@ namespace v8::internal::wasm::subtyping_unittest {
 
 class WasmSubtypingTest : public TestWithPlatform {};
 using FieldInit = std::pair<ValueType, bool>;
+using Idx = ModuleTypeIndex;
 
-constexpr ValueType ref(uint32_t index) { return ValueType::Ref(index); }
+constexpr ValueType ref(uint32_t index) { return ValueType::Ref(Idx{index}); }
 constexpr ValueType refNull(uint32_t index) {
-  return ValueType::RefNull(index);
+  return ValueType::RefNull(Idx{index});
 }
 
 FieldInit mut(ValueType type) { return FieldInit(type, true); }
@@ -70,8 +71,6 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
   WasmModule* module1 = &module1_;
   WasmModule* module2 = &module2_;
-
-  using Idx = ModuleTypeIndex;
 
   // Set up two identical modules.
   for (WasmModule* module : {module1, module2}) {
@@ -182,12 +181,12 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 #define NOT_VALID_SUBTYPE(type1, type2)                                     \
   EXPECT_FALSE(ValidSubtypeDefinition(type1.ref_index(), type2.ref_index(), \
                                       module1, module));
-#define IDENTICAL(index1, index2)                         \
-  EXPECT_TRUE(EquivalentTypes(ValueType::RefNull(index1), \
-                              ValueType::RefNull(index2), module1, module));
-#define DISTINCT(index1, index2)                           \
-  EXPECT_FALSE(EquivalentTypes(ValueType::RefNull(index1), \
-                               ValueType::RefNull(index2), module1, module));
+#define IDENTICAL(index1, index2) \
+  EXPECT_TRUE(                    \
+      EquivalentTypes(refNull(index1), refNull(index2), module1, module));
+#define DISTINCT(index1, index2) \
+  EXPECT_FALSE(                  \
+      EquivalentTypes(refNull(index1), refNull(index2), module1, module));
 // For union and intersection, we have a version that also checks the module,
 // and one that does not.
 #define UNION(type1, type2, type_result) \
@@ -320,11 +319,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     VALID_SUBTYPE(ref(9), ref(8));
 
     // Identical rtts are subtypes of each other.
-    SUBTYPE(ValueType::Rtt(5), ValueType::Rtt(5));
+    SUBTYPE(ValueType::Rtt(Idx{5}), ValueType::Rtt(Idx{5}));
     // Rtts of unrelated types are unrelated.
-    NOT_SUBTYPE(ValueType::Rtt(1), ValueType::Rtt(2));
+    NOT_SUBTYPE(ValueType::Rtt(Idx{1}), ValueType::Rtt(Idx{2}));
     // Rtts of subtypes are not related.
-    NOT_SUBTYPE(ValueType::Rtt(1), ValueType::Rtt(0));
+    NOT_SUBTYPE(ValueType::Rtt(Idx{1}), ValueType::Rtt(Idx{0}));
 
     // Function subtyping;
     // Unrelated function types are unrelated.
@@ -405,7 +404,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     NOT_SUBTYPE(ref(10), ValueType::Ref(HeapType::kFuncShared));
 
     // Rtts of identical types are subtype-related.
-    SUBTYPE(ValueType::Rtt(8), ValueType::Rtt(17));
+    SUBTYPE(ValueType::Rtt(Idx{8}), ValueType::Rtt(Idx{17}));
 
     // Unions and intersections.
 

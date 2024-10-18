@@ -28,6 +28,8 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   return os;
 }
 
+// TODO(366180605): All callers have a CanonicalSig available, so drop the
+// templatization and consume a CanonicalSig*.
 template <typename T>
 bool IsJSCompatibleSignature(const Signature<T>* sig) {
   for (auto type : sig->all()) {

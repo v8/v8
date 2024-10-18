@@ -650,8 +650,8 @@ class WasmGraphBuilder {
       const wasm::WasmMemory* memory, int8_t access_size, Node* index,
       uintptr_t offset, wasm::WasmCodePosition, EnforceBoundsCheck);
 
-  const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
-  const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
+  const Operator* GetSafeLoadOperator(int offset, wasm::ValueTypeBase type);
+  const Operator* GetSafeStoreOperator(int offset, wasm::ValueTypeBase type);
   Node* BuildChangeEndiannessStore(Node* node, MachineRepresentation rep,
                                    wasm::ValueType wasmtype = wasm::kWasmVoid);
   Node* BuildChangeEndiannessLoad(Node* node, MachineType type,

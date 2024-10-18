@@ -1890,8 +1890,8 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
     return;
   }
 
-  const wasm::FunctionSig* sig =
-      reinterpret_cast<wasm::FunctionSig*>(maybe_sig);
+  const wasm::CanonicalSig* sig =
+      reinterpret_cast<wasm::CanonicalSig*>(maybe_sig);
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   wasm::LinkageLocationAllocator allocator(wasm::kGpParamRegisters,
                                            wasm::kFpParamRegisters, 0);
@@ -1904,7 +1904,7 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
   // first to process all untagged parameters, and afterwards we can scan the
   // tagged parameters.
   bool has_tagged_param = false;
-  for (wasm::ValueType type : sig->parameters()) {
+  for (wasm::CanonicalValueType type : sig->parameters()) {
     MachineRepresentation param = type.machine_representation();
     // Skip tagged parameters (e.g. any-ref).
     if (IsAnyTagged(param)) {
@@ -1931,7 +1931,7 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
   constexpr size_t size_of_sig = 1;
 #endif
 
-  for (wasm::ValueType type : sig->parameters()) {
+  for (wasm::CanonicalValueType type : sig->parameters()) {
     MachineRepresentation param = type.machine_representation();
     // Skip untagged parameters.
     if (!IsAnyTagged(param)) continue;

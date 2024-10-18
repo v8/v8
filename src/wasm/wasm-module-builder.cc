@@ -214,8 +214,7 @@ void WasmFunctionBuilder::SetSignature(const FunctionSig* sig) {
 void WasmFunctionBuilder::SetSignature(ModuleTypeIndex sig_index) {
   DCHECK(!locals_.has_sig());
   DCHECK_EQ(builder_->types_[sig_index.index].kind, TypeDefinition::kFunction);
-  // TODO(366180605): Drop the explicit conversion.
-  signature_index_ = ModuleTypeIndex{sig_index};
+  signature_index_ = sig_index;
   locals_.set_sig(builder_->types_[sig_index.index].function_sig);
 }
 

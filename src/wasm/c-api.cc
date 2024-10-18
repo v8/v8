@@ -1649,7 +1649,7 @@ void PrepareFunctionData(
 void PushArgs(const i::wasm::CanonicalSig* sig, const Val args[],
               i::wasm::CWasmArgumentsPacker* packer, StoreImpl* store) {
   for (size_t i = 0; i < sig->parameter_count(); i++) {
-    i::wasm::ValueType type = sig->GetParam(i);
+    i::wasm::CanonicalValueType type = sig->GetParam(i);
     switch (type.kind()) {
       case i::wasm::kI32:
         packer->Push(args[i].i32());
@@ -1687,7 +1687,7 @@ void PopArgs(const i::wasm::CanonicalSig* sig, Val results[],
              i::wasm::CWasmArgumentsPacker* packer, StoreImpl* store) {
   packer->Reset();
   for (size_t i = 0; i < sig->return_count(); i++) {
-    i::wasm::ValueType type = sig->GetReturn(i);
+    i::wasm::CanonicalValueType type = sig->GetReturn(i);
     switch (type.kind()) {
       case i::wasm::kI32:
         results[i] = Val(packer->Pop<int32_t>());

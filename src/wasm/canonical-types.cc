@@ -81,7 +81,6 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size,
     module->isorecursive_canonical_type_ids[start_index + i] = canonical_id;
     if (canonical_type.kind == CanonicalType::kFunction) {
       const CanonicalSig* sig = canonical_type.function_sig;
-      DCHECK(zone_.Contains(sig));  // TODO(366180605): Drop.
       CHECK(canonical_function_sigs_.emplace(canonical_id, sig).second);
     }
   }
@@ -175,7 +174,6 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(CanonicalType type) {
           : type.supertype);
   if (type.kind == CanonicalType::kFunction) {
     const CanonicalSig* sig = type.function_sig;
-    DCHECK(zone_.Contains(sig));  // TODO(366180605): Drop.
     CHECK(canonical_function_sigs_.emplace(index, sig).second);
   }
   CheckMaxCanonicalIndex();
@@ -414,10 +412,6 @@ bool TypeCanonicalizer::IsFunctionSignature(CanonicalTypeIndex index) const {
 }
 
 #ifdef DEBUG
-bool TypeCanonicalizer::Contains(const FunctionSig* sig) const {
-  base::MutexGuard mutex_guard(&mutex_);
-  return zone_.Contains(sig);
-}
 bool TypeCanonicalizer::Contains(const CanonicalSig* sig) const {
   base::MutexGuard mutex_guard(&mutex_);
   return zone_.Contains(sig);

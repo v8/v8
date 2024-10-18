@@ -113,7 +113,7 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   BuildFunctionTargetAndImplicitArg(V<WasmInternalFunction> internal_function,
                                     uint64_t expected_sig_hash);
 
-  RegisterRepresentation RepresentationFor(ValueType type);
+  RegisterRepresentation RepresentationFor(ValueTypeBase type);
   V<WasmTrustedInstanceData> LoadTrustedDataFromInstanceObject(
       V<HeapObject> instance_object);
 

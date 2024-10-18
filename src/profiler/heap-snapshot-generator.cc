@@ -2213,7 +2213,7 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
   Isolate* isolate = heap_->isolate();
   for (uint32_t i = 0; i < type->field_count(); i++) {
     wasm::StringBuilder sb;
-    names->PrintFieldName(sb, info->type_index(), i);
+    names->PrintFieldName(sb, info->module_type_index(), i);
     sb << '\0';
     const char* field_name = names_->GetCopy(sb.start());
     switch (type->field(i).kind()) {

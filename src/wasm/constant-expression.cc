@@ -36,12 +36,10 @@ ValueOrError EvaluateConstantExpression(
     case ConstantExpression::kI32Const:
       return WasmValue(expr.i32_value());
     case ConstantExpression::kRefNull:
-      return WasmValue(
-          expected == kWasmExternRef || expected == kWasmNullExternRef ||
-                  expected == kWasmNullExnRef || expected == kWasmExnRef
-              ? Cast<Object>(isolate->factory()->null_value())
-              : Cast<Object>(isolate->factory()->wasm_null()),
-          ValueType::RefNull(expr.repr()));
+      return WasmValue(expected.use_wasm_null()
+                           ? Cast<Object>(isolate->factory()->wasm_null())
+                           : Cast<Object>(isolate->factory()->null_value()),
+                       ValueType::RefNull(expr.repr()));
     case ConstantExpression::kRefFunc: {
       uint32_t index = expr.index();
       const WasmModule* module = trusted_instance_data->module();

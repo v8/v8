@@ -1704,7 +1704,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   } else {
     result->set_trusted_data(*opt_trusted_data);
   }
-  result->set_type_index(type_index.index);
+  result->set_module_type_index(type_index.index);
   return handle(result, isolate());
 }
 

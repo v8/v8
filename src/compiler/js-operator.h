@@ -1524,7 +1524,7 @@ class JSWasmCallNode final : public JSCallOrConstructNode {
     return Parameters().arity_without_implicit_args();
   }
 
-  static Type TypeForWasmReturnType(const wasm::ValueType& type);
+  static Type TypeForWasmReturnType(wasm::CanonicalValueType type);
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 

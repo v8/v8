@@ -290,7 +290,8 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
   if (chosen_id >= types.size()) {
     // Return user-defined type.
     return ValueType::RefMaybeNull(
-        chosen_id - static_cast<uint32_t>(types.size()), nullability);
+        ModuleTypeIndex{chosen_id - static_cast<uint32_t>(types.size())},
+        nullability);
   }
   // If returning a reference type, fix its nullability according to {nullable}.
   if (types[chosen_id].is_reference()) {
@@ -1851,11 +1852,11 @@ class BodyGen {
         }
         // Collect all (direct) sub types.
         // TODO(14034): Also collect indirect sub types.
-        std::vector<uint32_t> subtypes;
+        std::vector<ModuleTypeIndex> subtypes;
         uint32_t type_count = builder_->builder()->NumTypes();
         for (uint32_t i = 0; i < type_count; ++i) {
           if (builder_->builder()->GetSuperType(i) == type.ref_index()) {
-            subtypes.push_back(i);
+            subtypes.push_back(ModuleTypeIndex{i});
           }
         }
         return subtypes.empty()
@@ -3189,7 +3190,7 @@ class BodyGen {
           // and array types come before signatures.
           DCHECK(builder_->builder()->IsArrayType(random) ||
                  builder_->builder()->IsStructType(random));
-          GenerateRef(HeapType(random), data, nullability);
+          GenerateRef(HeapType(ModuleTypeIndex{random}), data, nullability);
         } else {
           GenerateRef(HeapType(HeapType::kI31), data, nullability);
         }

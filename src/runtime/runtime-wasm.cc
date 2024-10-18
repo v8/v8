@@ -1471,7 +1471,7 @@ RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
   Tagged<WasmArray> obj = Cast<WasmArray>(args[0]);
   Tagged<WasmTypeInfo> wti = obj->map()->wasm_type_info();
   const wasm::WasmModule* module = wti->trusted_data(isolate)->module();
-  wasm::ModuleTypeIndex type_index{wti->type_index()};
+  wasm::ModuleTypeIndex type_index = wti->type_index();
   DCHECK(module->has_array(type_index));
   wasm::CanonicalTypeIndex expected =
       bits == 8 ? wasm::TypeCanonicalizer::kPredefinedArrayI8Index

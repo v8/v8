@@ -163,6 +163,8 @@ namespace module_decoder_unittest {
     }                                                        \
   } while (false)
 
+using Idx = ModuleTypeIndex;
+
 static size_t SizeOfVarInt(size_t value) {
   size_t size = 0;
   do {
@@ -1257,15 +1259,14 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
   EXPECT_EQ(3u, result.value()->types.size());
-  using idx = ModuleTypeIndex;
   if (result.value()->types.size() == 3) {
-    EXPECT_EQ(0u, result.value()->signature(idx{0})->return_count());
-    EXPECT_EQ(1u, result.value()->signature(idx{1})->return_count());
-    EXPECT_EQ(1u, result.value()->signature(idx{2})->return_count());
+    EXPECT_EQ(0u, result.value()->signature(Idx{0})->return_count());
+    EXPECT_EQ(1u, result.value()->signature(Idx{1})->return_count());
+    EXPECT_EQ(1u, result.value()->signature(Idx{2})->return_count());
 
-    EXPECT_EQ(0u, result.value()->signature(idx{0})->parameter_count());
-    EXPECT_EQ(1u, result.value()->signature(idx{1})->parameter_count());
-    EXPECT_EQ(2u, result.value()->signature(idx{2})->parameter_count());
+    EXPECT_EQ(0u, result.value()->signature(Idx{0})->parameter_count());
+    EXPECT_EQ(1u, result.value()->signature(Idx{1})->parameter_count());
+    EXPECT_EQ(2u, result.value()->signature(Idx{2})->parameter_count());
   }
 
   EXPECT_OFF_END_FAILURE(data, 1);
@@ -2045,7 +2046,7 @@ TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
 
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::RefNull(0), result.value()->tables[0].type);
+  EXPECT_EQ(ValueType::RefNull(Idx{0}), result.value()->tables[0].type);
 }
 
 TEST_F(WasmModuleVerifyTest, NullableTableIllegalInitializer) {
@@ -2100,7 +2101,7 @@ TEST_F(WasmModuleVerifyTest, TableWithInitializer) {
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::RefNull(0), result.value()->tables[0].type);
+  EXPECT_EQ(ValueType::RefNull(Idx{0}), result.value()->tables[0].type);
 }
 
 TEST_F(WasmModuleVerifyTest, NonNullableTable) {
@@ -2117,7 +2118,7 @@ TEST_F(WasmModuleVerifyTest, NonNullableTable) {
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::Ref(0), result.value()->tables[0].type);
+  EXPECT_EQ(ValueType::Ref(Idx{0}), result.value()->tables[0].type);
 }
 
 TEST_F(WasmModuleVerifyTest, NonNullableTableNoInitializer) {
@@ -3395,20 +3396,21 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInGlobal) {
 }
 
 TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
-  static const uint8_t data[] = {SECTION(
-      Type, ENTRY_COUNT(1),
-      WASM_STRUCT_DEF(FIELD_COUNT(1),
-                      STRUCT_FIELD(WASM_REF_TYPE(ValueType::Ref(1)), true)))};
+  static const uint8_t data[] = {
+      SECTION(Type, ENTRY_COUNT(1),
+              WASM_STRUCT_DEF(
+                  FIELD_COUNT(1),
+                  STRUCT_FIELD(WASM_REF_TYPE(ValueType::Ref(Idx{1})), true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_NOT_OK(result, "Type index 1 is out of bounds");
 }
 
 TEST_F(WasmModuleVerifyTest, RecursiveTypeOutsideRecursiveGroup) {
-  static const uint8_t data[] = {
-      SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(
-                  FIELD_COUNT(1),
-                  STRUCT_FIELD(WASM_REF_TYPE(ValueType::RefNull(0)), true)))};
+  static const uint8_t data[] = {SECTION(
+      Type, ENTRY_COUNT(1),
+      WASM_STRUCT_DEF(
+          FIELD_COUNT(1),
+          STRUCT_FIELD(WASM_REF_TYPE(ValueType::RefNull(Idx{0})), true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
 }

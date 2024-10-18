@@ -276,7 +276,7 @@ extern class WasmTypeInfo extends HeapObject {
   // and introduce a new link from here to just that zone using a Managed<...>.
   // Details: https://bit.ly/2UxD4hW
   native_type: ExternalPointer;
-  type_index: uint32;
+  module_type_index: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   // Is undefined for WasmExternalFunctions referring to WasmJSFunctions.

@@ -259,7 +259,8 @@ WasmGraphBuilderBase::BuildFunctionTargetAndImplicitArg(
   return {target, implicit_arg};
 }
 
-RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(ValueType type) {
+RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(
+    ValueTypeBase type) {
   switch (type.kind()) {
     case kI8:
     case kI16:

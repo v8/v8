@@ -152,7 +152,7 @@ class WasmGCTester {
     const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 1);
     DCHECK_EQ(sig->return_count(), 1);
-    DCHECK(sig->parameters()[0] == kWasmI32);
+    DCHECK(sig->parameters()[0] == kCanonicalI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CallFunctionImpl(function_index, sig, &packer);
@@ -172,7 +172,7 @@ class WasmGCTester {
                       const char* expected = "") {
     const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 1);
-    DCHECK(sig->parameters()[0] == kWasmI32);
+    DCHECK(sig->parameters()[0] == kCanonicalI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CheckHasThrownImpl(function_index, sig, &packer, expected);
@@ -1651,7 +1651,7 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   ModuleTypeIndex struct_index = tester.DefineStruct({F(kWasmI32, true)});
   uint8_t function_index =
       tester.DefineFunction(tester.sigs.v_v(), {}, {kExprEnd});
-  uint8_t sig_index = 2;
+  ModuleTypeIndex sig_index{2};
 
   // This is just so func_index counts as "declared".
   tester.AddGlobal(ValueType::RefNull(sig_index), false,

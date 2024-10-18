@@ -3803,12 +3803,18 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
   }
 }
 
+using HeapRep = HeapType::Representation;
+
+HeapRep Repr(ModuleTypeIndex type_index) {
+  return HeapType(type_index).representation();
+}
+
 TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
   WASM_FEATURE_SCOPE(exnref);
 
-  uint32_t struct_type_index = builder.AddStruct({F(kWasmI32, true)}).index;
-  uint32_t array_type_index = builder.AddArray(kWasmI32, true).index;
-  uint32_t heap_types[] = {
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep heap_types[] = {
       struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
       HeapType::kEq,     HeapType::kExtern, HeapType::kAny, HeapType::kI31};
 
@@ -3816,7 +3822,7 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
                                       kWasmS128};
 
   // It works with nullable types.
-  for (uint32_t heap_type : heap_types) {
+  for (HeapRep heap_type : heap_types) {
     ValueType reprs[] = {ValueType::Ref(heap_type),
                          ValueType::RefNull(heap_type)};
     FunctionSig sig(1, 1, reprs);
@@ -3824,7 +3830,7 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
   }
 
   // It works with non-nullable types.
-  for (uint32_t heap_type : heap_types) {
+  for (HeapRep heap_type : heap_types) {
     ValueType reprs[] = {ValueType::Ref(heap_type), ValueType::Ref(heap_type)};
     FunctionSig sig(1, 1, reprs);
     ExpectValidates(&sig, {WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(0))});
@@ -3842,16 +3848,14 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
 TEST_F(FunctionBodyDecoderTest, RefNull) {
   WASM_FEATURE_SCOPE(exnref);
 
-  HeapType::Representation struct_type_index =
-      HeapType(builder.AddStruct({F(kWasmI32, true)})).representation();
-  HeapType::Representation array_type_index =
-      HeapType(builder.AddArray(kWasmI32, true)).representation();
-  HeapType::Representation type_reprs[] = {
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep type_reprs[] = {
       struct_type_index, array_type_index, HeapType::kExn,
       HeapType::kFunc,   HeapType::kEq,    HeapType::kExtern,
       HeapType::kAny,    HeapType::kI31,   HeapType::kNone};
   // It works with heap types.
-  for (HeapType::Representation type_repr : type_reprs) {
+  for (HeapRep type_repr : type_reprs) {
     const ValueType type = ValueType::RefNull(type_repr);
     const FunctionSig sig(1, 0, &type);
     ExpectValidates(&sig, {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(type_repr)))});
@@ -3868,13 +3872,13 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
       sigs.i_i(), {WASM_REF_IS_NULL(WASM_LOCAL_GET(0))}, kAppendEnd,
       "ref.is_null[0] expected reference type, found local.get of type i32");
 
-  uint32_t struct_type_index = builder.AddStruct({F(kWasmI32, true)}).index;
-  uint32_t array_type_index = builder.AddArray(kWasmI32, true).index;
-  uint32_t heap_types[] = {
-      struct_type_index, array_type_index, HeapType::kFunc, HeapType::kEq,
-      HeapType::kExtern, HeapType::kAny,   HeapType::kI31};
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep heap_types[] = {struct_type_index, array_type_index,  HeapType::kFunc,
+                          HeapType::kEq,     HeapType::kExtern, HeapType::kAny,
+                          HeapType::kI31};
 
-  for (uint32_t heap_type : heap_types) {
+  for (HeapRep heap_type : heap_types) {
     const ValueType types[] = {kWasmI32, ValueType::RefNull(heap_type)};
     const FunctionSig sig(1, 1, types);
     // It works for nullable references.
@@ -3891,13 +3895,13 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnNull) {
-  uint32_t struct_type_index = builder.AddStruct({F(kWasmI32, true)}).index;
-  uint32_t array_type_index = builder.AddArray(kWasmI32, true).index;
-  uint32_t type_reprs[] = {
-      struct_type_index, array_type_index, HeapType::kFunc, HeapType::kEq,
-      HeapType::kExtern, HeapType::kAny,   HeapType::kI31,  HeapType::kNone};
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep type_reprs[] = {struct_type_index, array_type_index,  HeapType::kFunc,
+                          HeapType::kEq,     HeapType::kExtern, HeapType::kAny,
+                          HeapType::kI31,    HeapType::kNone};
 
-  for (uint32_t type_repr : type_reprs) {
+  for (HeapRep type_repr : type_reprs) {
     const ValueType reps[] = {ValueType::Ref(type_repr),
                               ValueType::RefNull(type_repr)};
     const FunctionSig sig(1, 1, reps);
@@ -3916,13 +3920,13 @@ TEST_F(FunctionBodyDecoderTest, BrOnNull) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnNonNull) {
-  uint32_t struct_type_index = builder.AddStruct({F(kWasmI32, true)}).index;
-  uint32_t array_type_index = builder.AddArray(kWasmI32, true).index;
-  uint32_t type_reprs[] = {
-      struct_type_index, array_type_index, HeapType::kFunc, HeapType::kEq,
-      HeapType::kExtern, HeapType::kAny,   HeapType::kI31};
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep type_reprs[] = {struct_type_index, array_type_index,  HeapType::kFunc,
+                          HeapType::kEq,     HeapType::kExtern, HeapType::kAny,
+                          HeapType::kI31};
 
-  for (uint32_t type_repr : type_reprs) {
+  for (HeapRep type_repr : type_reprs) {
     const ValueType reps[] = {ValueType::Ref(type_repr),
                               ValueType::RefNull(type_repr)};
     const FunctionSig sig(1, 1, reps);
@@ -3947,10 +3951,10 @@ TEST_F(FunctionBodyDecoderTest, BrOnNonNull) {
 }
 
 TEST_F(FunctionBodyDecoderTest, GCStruct) {
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)}).index;
-  uint8_t array_type_index = builder.AddArray(kWasmI32, true).index;
-  uint8_t immutable_struct_type_index =
-      builder.AddStruct({F(kWasmI32, false)}).index;
+  ModuleTypeIndex struct_type_index = builder.AddStruct({F(kWasmI32, true)});
+  ModuleTypeIndex array_type_index = builder.AddArray(kWasmI32, true);
+  ModuleTypeIndex immutable_struct_type_index =
+      builder.AddStruct({F(kWasmI32, false)});
   uint8_t field_index = 0;
 
   ValueType struct_type = ValueType::Ref(struct_type_index);
@@ -3964,7 +3968,8 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   /** struct.new **/
   ExpectValidates(&sig_r_v, {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0))});
   // Too few arguments.
-  ExpectFailure(&sig_r_v, {WASM_GC_OP(kExprStructNew), struct_type_index},
+  ExpectFailure(&sig_r_v,
+                {WASM_GC_OP(kExprStructNew), ToByte(struct_type_index)},
                 kAppendEnd,
                 "not enough arguments on the stack for struct.new "
                 "(need 1, got 0)");
@@ -5186,7 +5191,7 @@ TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
   const uint8_t* end = nullptr;
   LocalDeclEncoder local_decls(zone());
 
-  local_decls.AddLocals(1, ValueType::RefNull(0));
+  local_decls.AddLocals(1, ValueType::RefNull(ModuleTypeIndex{0}));
   BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, end);
   EXPECT_FALSE(result);
