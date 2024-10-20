@@ -2411,4 +2411,23 @@
 # End roll-watcher patch
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Error/isError/bigints': [SKIP],
+  'built-ins/Error/isError/error-subclass': [SKIP],
+  'built-ins/Error/isError/errors': [SKIP],
+  'built-ins/Error/isError/errors-other-realm': [SKIP],
+  'built-ins/Error/isError/fake-errors': [SKIP],
+  'built-ins/Error/isError/is-a-constructor': [SKIP],
+  'built-ins/Error/isError/name': [SKIP],
+  'built-ins/Error/isError/non-error-objects': [SKIP],
+  'built-ins/Error/isError/non-error-objects-other-realm': [SKIP],
+  'built-ins/Error/isError/primitives': [SKIP],
+  'built-ins/Error/isError/prop-desc': [SKIP],
+  'built-ins/Error/isError/symbols': [SKIP],
+}],
+# End roll-watcher patch
+####
+
 ]
