@@ -262,8 +262,11 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                       Cast<AbstractCode>(code), name));
   }
-  isolate_->heap()->js_to_wasm_wrappers()->set(sig_index_.index,
-                                               MakeWeak(code->wrapper()));
+  // We should always have checked the cache before compiling a wrapper.
+  Tagged<WeakFixedArray> cache = isolate_->heap()->js_to_wasm_wrappers();
+  DCHECK(cache->get(sig_index_.index).IsCleared());
+  // Install the compiled wrapper in the cache now.
+  cache->set(sig_index_.index, MakeWeak(code->wrapper()));
   Counters* counters = isolate_->counters();
   counters->wasm_generated_code_size()->Increment(code->body_size());
   counters->wasm_reloc_size()->Increment(code->relocation_size());
