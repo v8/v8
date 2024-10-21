@@ -2100,7 +2100,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
       isolate, i::Handle<i::WasmTrustedInstanceData>(), i_type, minimum,
       has_maximum, maximum, isolate->factory()->null_value(),
-      i::wasm::IndexType::kI32);
+      i::wasm::AddressType::kI32);
 
   if (ref) {
     i::DirectHandle<i::FixedArray> entries{table_obj->entries(), isolate};
@@ -2230,9 +2230,9 @@ auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory> {
   }
   // TODO(wasm+): Support shared memory and memory64.
   i::SharedFlag shared = i::SharedFlag::kNotShared;
-  i::wasm::IndexType index_type = i::wasm::IndexType::kI32;
+  i::wasm::AddressType address_type = i::wasm::AddressType::kI32;
   i::Handle<i::WasmMemoryObject> memory_obj;
-  if (!i::WasmMemoryObject::New(isolate, minimum, maximum, shared, index_type)
+  if (!i::WasmMemoryObject::New(isolate, minimum, maximum, shared, address_type)
            .ToHandle(&memory_obj)) {
     return own<Memory>();
   }

@@ -1902,8 +1902,8 @@ class ModuleDecoderImpl : public Decoder {
     bool has_maximum() const { return flags & 0x1; }
     bool is_shared() const { return flags & 0x2; }
     bool is_64bit() const { return flags & 0x4; }
-    IndexType index_type() const {
-      return is_64bit() ? IndexType::kI64 : IndexType::kI32;
+    AddressType address_type() const {
+      return is_64bit() ? AddressType::kI64 : AddressType::kI32;
     }
   };
 
@@ -1961,7 +1961,7 @@ class ModuleDecoderImpl : public Decoder {
     LimitsByte limits = consume_limits_byte<kTable>();
     table->has_maximum_size = limits.has_maximum();
     table->shared = limits.is_shared();
-    table->index_type = limits.index_type();
+    table->address_type = limits.address_type();
 
     if (table->is_table64()) detected_features_->add_memory64();
   }
@@ -1970,7 +1970,7 @@ class ModuleDecoderImpl : public Decoder {
     LimitsByte limits = consume_limits_byte<kMemory>();
     memory->has_maximum_pages = limits.has_maximum();
     memory->is_shared = limits.is_shared();
-    memory->index_type = limits.index_type();
+    memory->address_type = limits.address_type();
 
     if (memory->is_shared) detected_features_->add_shared_memory();
     if (memory->is_memory64()) detected_features_->add_memory64();

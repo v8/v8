@@ -4,7 +4,7 @@
 
 // For wasm::FunctionSig.
 #include "src/wasm/value-type.h"
-// For wasm::IndexType.
+// For wasm::AddressType.
 #include "src/wasm/wasm-module.h"
 
 @useParentTypeChecker
@@ -16,7 +16,7 @@ type ManagedWasmNativeModule extends Foreign
 
 type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::CanonicalSig*';
 
-extern enum IndexType extends uint8 constexpr 'wasm::IndexType' {
+extern enum AddressType extends uint8 constexpr 'wasm::AddressType' {
   kI32,
   kI64
 }
@@ -208,7 +208,7 @@ extern class WasmTableObject extends JSObject {
   entries: FixedArray;
   current_length: Smi;
   // The declared maximum. Undefined if no maximum was declared.
-  // If {index_type == kI32} this stores a Smi or HeapNumber, otherwise a
+  // If {address_type == kI32} this stores a Smi or HeapNumber, otherwise a
   // BigInt. Note that the value can in any case be bigger than
   // {wasm::kV8MaxWasmTableSize}.
   maximum_length: Smi|HeapNumber|BigInt|Undefined;
@@ -220,22 +220,22 @@ extern class WasmTableObject extends JSObject {
   // This field is undefined if the table is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Table).
   trusted_data: TrustedPointer<WasmTrustedInstanceData>;
-  index_type: IndexType;
+  address_type: AddressType;
   // TODO(clemensb): Support fixed-sized arrays in torque.
-  padding_for_index_type_0: uint8;
-  padding_for_index_type_1: uint16;
-  @if(TAGGED_SIZE_8_BYTES) padding_for_index_type_2: uint32;
+  padding_for_address_type_0: uint8;
+  padding_for_address_type_1: uint16;
+  @if(TAGGED_SIZE_8_BYTES) padding_for_address_type_2: uint32;
 }
 
 extern class WasmMemoryObject extends JSObject {
   array_buffer: JSArrayBuffer;
   maximum_pages: Smi;
   instances: WeakArrayList;
-  index_type: IndexType;
+  address_type: AddressType;
   // TODO(clemensb): Support fixed-sized arrays in torque.
-  padding_for_index_type_0: uint8;
-  padding_for_index_type_1: uint16;
-  @if(TAGGED_SIZE_8_BYTES) padding_for_index_type_2: uint32;
+  padding_for_address_type_0: uint8;
+  padding_for_address_type_1: uint16;
+  @if(TAGGED_SIZE_8_BYTES) padding_for_address_type_2: uint32;
 }
 
 extern class WasmGlobalObject extends JSObject {

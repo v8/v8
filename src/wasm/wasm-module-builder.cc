@@ -557,7 +557,7 @@ uint32_t WasmModuleBuilder::AddTable64(ValueType type, uint32_t min_size,
                      .min_size = min_size,
                      .max_size = max_size,
                      .has_maximum = true,
-                     .index_type = IndexType::kI64});
+                     .address_type = AddressType::kI64});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
@@ -567,7 +567,7 @@ uint32_t WasmModuleBuilder::AddTable64(ValueType type, uint32_t min_size,
                      .min_size = min_size,
                      .max_size = max_size,
                      .has_maximum = true,
-                     .index_type = IndexType::kI64,
+                     .address_type = AddressType::kI64,
                      .init = {init}});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
@@ -588,7 +588,7 @@ uint32_t WasmModuleBuilder::AddMemory64(uint32_t min_pages,
   memories_.push_back({.min_pages = min_pages,
                        .max_pages = max_pages,
                        .has_max_pages = true,
-                       .index_type = IndexType::kI64});
+                       .address_type = AddressType::kI64});
   return static_cast<uint32_t>(memories_.size() - 1);
 }
 

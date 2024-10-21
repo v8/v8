@@ -63,7 +63,7 @@ TEST_F(RuntimeTest, WasmTableWithoutInstance) {
   Handle<WasmTableObject> table = WasmTableObject::New(
       i_isolate(), Handle<WasmTrustedInstanceData>(), wasm::kWasmAnyRef,
       initial, has_maximum, maximum, i_isolate()->factory()->null_value(),
-      wasm::IndexType::kI32);
+      wasm::AddressType::kI32);
   MaybeHandle<JSArray> result =
       Runtime::GetInternalProperties(i_isolate(), table);
   ASSERT_FALSE(result.is_null());

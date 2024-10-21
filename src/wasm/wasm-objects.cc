@@ -155,7 +155,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 Handle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
     wasm::ValueType type, uint32_t initial, bool has_maximum, uint64_t maximum,
-    DirectHandle<Object> initial_value, wasm::IndexType index_type) {
+    DirectHandle<Object> initial_value, wasm::AddressType address_type) {
   CHECK(type.is_object_reference());
 
   DCHECK_LE(initial, v8_flags.wasm_max_table_size);
@@ -167,7 +167,7 @@ Handle<WasmTableObject> WasmTableObject::New(
   DirectHandle<UnionOf<Undefined, Number, BigInt>> max =
       isolate->factory()->undefined_value();
   if (has_maximum) {
-    if (index_type == wasm::IndexType::kI32) {
+    if (address_type == wasm::AddressType::kI32) {
       DCHECK_GE(kMaxUInt32, maximum);
       max = isolate->factory()->NewNumber(maximum);
     } else {
@@ -190,11 +190,11 @@ Handle<WasmTableObject> WasmTableObject::New(
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
   table_obj->set_raw_type(static_cast<int>(type.raw_bit_field()));
-  table_obj->set_index_type(index_type);
-  table_obj->set_padding_for_index_type_0(0);
-  table_obj->set_padding_for_index_type_1(0);
+  table_obj->set_address_type(address_type);
+  table_obj->set_padding_for_address_type_0(0);
+  table_obj->set_padding_for_address_type_1(0);
 #if TAGGED_SIZE_8_BYTES
-  table_obj->set_padding_for_index_type_2(0);
+  table_obj->set_padding_for_address_type_2(0);
 #endif
 
   table_obj->set_uses(ReadOnlyRoots(isolate).empty_fixed_array());
@@ -829,7 +829,7 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
 Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
                                                Handle<JSArrayBuffer> buffer,
                                                int maximum,
-                                               wasm::IndexType index_type) {
+                                               wasm::AddressType address_type) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
 
@@ -837,11 +837,11 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
       isolate->factory()->NewJSObject(memory_ctor, AllocationType::kOld));
   memory_object->set_array_buffer(*buffer);
   memory_object->set_maximum_pages(maximum);
-  memory_object->set_index_type(index_type);
-  memory_object->set_padding_for_index_type_0(0);
-  memory_object->set_padding_for_index_type_1(0);
+  memory_object->set_address_type(address_type);
+  memory_object->set_padding_for_address_type_0(0);
+  memory_object->set_padding_for_address_type_1(0);
 #if TAGGED_SIZE_8_BYTES
-  memory_object->set_padding_for_index_type_2(0);
+  memory_object->set_padding_for_address_type_2(0);
 #endif
   memory_object->set_instances(ReadOnlyRoots{isolate}.empty_weak_array_list());
 
@@ -864,10 +864,10 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
 
 MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, int initial, int maximum, SharedFlag shared,
-    wasm::IndexType index_type) {
+    wasm::AddressType address_type) {
   bool has_maximum = maximum != kNoMaximum;
 
-  int engine_maximum = index_type == wasm::IndexType::kI64
+  int engine_maximum = address_type == wasm::AddressType::kI64
                            ? static_cast<int>(wasm::max_mem64_pages())
                            : static_cast<int>(wasm::max_mem32_pages());
 
@@ -907,7 +907,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
 
   std::unique_ptr<BackingStore> backing_store =
       BackingStore::AllocateWasmMemory(isolate, initial, heuristic_maximum,
-                                       index_type == wasm::IndexType::kI32
+                                       address_type == wasm::AddressType::kI32
                                            ? WasmMemoryFlag::kWasmMemory32
                                            : WasmMemoryFlag::kWasmMemory64,
                                        shared);
@@ -919,7 +919,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
           ? isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store))
           : isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
 
-  return New(isolate, buffer, maximum, index_type);
+  return New(isolate, buffer, maximum, address_type);
 }
 
 void WasmMemoryObject::UseInInstance(

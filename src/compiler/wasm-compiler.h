@@ -751,15 +751,15 @@ class WasmGraphBuilder {
                        MachineType result_type, wasm::TrapReason trap_zero,
                        wasm::WasmCodePosition position);
 
-  void MemTypeToUintPtrOrOOBTrap(wasm::IndexType index_type,
+  void MemTypeToUintPtrOrOOBTrap(wasm::AddressType address_type,
                                  std::initializer_list<Node**> nodes,
                                  wasm::WasmCodePosition position);
 
-  void TableTypeToUintPtrOrOOBTrap(wasm::IndexType index_type,
+  void TableTypeToUintPtrOrOOBTrap(wasm::AddressType address_type,
                                    std::initializer_list<Node**> nodes,
                                    wasm::WasmCodePosition position);
 
-  void MemOrTableTypeToUintPtrOrOOBTrap(wasm::IndexType index_type,
+  void MemOrTableTypeToUintPtrOrOOBTrap(wasm::AddressType address_type,
                                         std::initializer_list<Node**> nodes,
                                         wasm::WasmCodePosition position,
                                         wasm::TrapReason trap_reason);

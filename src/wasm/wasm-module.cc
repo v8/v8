@@ -324,7 +324,7 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
 
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                   std::optional<uint64_t> max_size, bool shared,
-                                  IndexType index_type) {
+                                  AddressType address_type) {
   Factory* factory = isolate->factory();
 
   Handle<JSFunction> object_function = isolate->object_function();
@@ -337,7 +337,7 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                         factory->NewNumberFromUint(min_size), NONE);
   if (max_size.has_value()) {
     Handle<UnionOf<Smi, HeapNumber, BigInt>> max;
-    if (index_type == IndexType::kI32) {
+    if (address_type == AddressType::kI32) {
       DCHECK_GE(kMaxUInt32, *max_size);
       max = factory->NewNumberFromUint(static_cast<uint32_t>(*max_size));
     } else {
@@ -350,7 +350,7 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
 
   JSObject::AddProperty(
       isolate, object, index_string,
-      factory->InternalizeUtf8String(IndexTypeToStr(index_type)), NONE);
+      factory->InternalizeUtf8String(AddressTypeToStr(address_type)), NONE);
 
   return object;
 }
@@ -358,7 +358,7 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
                                  std::optional<uint64_t> max_size,
-                                 IndexType index_type) {
+                                 AddressType address_type) {
   Factory* factory = isolate->factory();
 
   DirectHandle<String> element =
@@ -375,7 +375,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                         factory->NewNumberFromUint(min_size), NONE);
   if (max_size.has_value()) {
     Handle<UnionOf<Smi, HeapNumber, BigInt>> max;
-    if (index_type == IndexType::kI32) {
+    if (address_type == AddressType::kI32) {
       DCHECK_GE(kMaxUInt32, *max_size);
       max = factory->NewNumberFromUint(static_cast<uint32_t>(*max_size));
     } else {
@@ -385,7 +385,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
   }
   JSObject::AddProperty(
       isolate, object, index_string,
-      factory->InternalizeUtf8String(IndexTypeToStr(index_type)), NONE);
+      factory->InternalizeUtf8String(AddressTypeToStr(address_type)), NONE);
 
   return object;
 }
@@ -451,7 +451,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
           std::optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
           type_value = GetTypeForTable(isolate, table.type, table.initial_size,
-                                       maximum_size, table.index_type);
+                                       maximum_size, table.address_type);
         }
         import_kind = table_string;
         break;
@@ -464,7 +464,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
           }
           type_value =
               GetTypeForMemory(isolate, memory.initial_pages, maximum_size,
-                               memory.is_shared, memory.index_type);
+                               memory.is_shared, memory.address_type);
         }
         import_kind = memory_string;
         break;
@@ -558,7 +558,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
           std::optional<uint32_t> maximum_size;
           if (table.has_maximum_size) maximum_size.emplace(table.maximum_size);
           type_value = GetTypeForTable(isolate, table.type, table.initial_size,
-                                       maximum_size, table.index_type);
+                                       maximum_size, table.address_type);
         }
         export_kind = table_string;
         break;
@@ -571,7 +571,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
           }
           type_value =
               GetTypeForMemory(isolate, memory.initial_pages, maximum_size,
-                               memory.is_shared, memory.index_type);
+                               memory.is_shared, memory.address_type);
         }
         export_kind = memory_string;
         break;

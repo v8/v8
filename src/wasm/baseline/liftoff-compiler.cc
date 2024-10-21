@@ -6167,11 +6167,11 @@ class LiftoffCompiler {
   // Checks that the top-of-stack value matches the declared memory (64-bit or
   // 32-bit).
   bool MatchingMemTypeOnTopOfStack(const WasmMemory* memory) {
-    return MatchingIndexTypeOnTopOfStack(memory->is_memory64());
+    return MatchingAddressTypeOnTopOfStack(memory->is_memory64());
   }
 
   // Checks that the top-of-stack value matches the expected bitness.
-  bool MatchingIndexTypeOnTopOfStack(bool expect_64bit_value) {
+  bool MatchingAddressTypeOnTopOfStack(bool expect_64bit_value) {
     DCHECK_LT(0, __ cache_state()->stack_height());
     ValueKind expected_kind = expect_64bit_value ? kI64 : kI32;
     DCHECK_EQ(expected_kind, __ cache_state()->stack_state.back().kind());
@@ -6261,8 +6261,9 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
 
     // The type of {size} is the min of {src} and {dst} (where {kI32 < kI64}).
-    DCHECK(MatchingIndexTypeOnTopOfStack(imm.memory_dst.memory->is_memory64() &&
-                                         imm.memory_src.memory->is_memory64()));
+    DCHECK(
+        MatchingAddressTypeOnTopOfStack(imm.memory_dst.memory->is_memory64() &&
+                                        imm.memory_src.memory->is_memory64()));
     VarState size = PopIndexToVarState(&mem_offsets_high_word, &pinned);
     DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_src.memory));
     VarState src = PopIndexToVarState(&mem_offsets_high_word, &pinned);

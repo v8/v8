@@ -111,15 +111,15 @@ class TestingModuleBuilder {
   ~TestingModuleBuilder();
 
   uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
-                     IndexType index_type = wasm::IndexType::kI32,
+                     AddressType address_type = wasm::AddressType::kI32,
                      std::optional<size_t> max_size = {});
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count,
-                    IndexType index_type = wasm::IndexType::kI32) {
-    AddMemory(count * sizeof(T), SharedFlag::kNotShared, index_type);
+                    AddressType address_type = wasm::AddressType::kI32) {
+    AddMemory(count * sizeof(T), SharedFlag::kNotShared, address_type);
     return raw_mem_start<T>();
   }
 

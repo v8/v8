@@ -116,7 +116,7 @@ TestingModuleBuilder::~TestingModuleBuilder() {
 }
 
 uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
-                                         IndexType index_type,
+                                         AddressType address_type,
                                          std::optional<size_t> max_size) {
   // The TestingModuleBuilder only supports one memory currently.
   CHECK_EQ(0, test_module_->memories.size());
@@ -134,13 +134,13 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   WasmMemory* memory = &test_module_->memories[0];
   memory->initial_pages = initial_pages;
   memory->maximum_pages = maximum_pages;
-  memory->index_type = index_type;
+  memory->address_type = address_type;
   UpdateComputedInformation(memory, test_module_->origin);
 
   // Create the WasmMemoryObject.
   DirectHandle<WasmMemoryObject> memory_object =
       WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared,
-                            index_type)
+                            address_type)
           .ToHandleChecked();
   DirectHandle<FixedArray> memory_objects =
       isolate_->factory()->NewFixedArray(1);
@@ -288,7 +288,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
           ? Handle<HeapObject>{isolate_->factory()->null_value()}
           : Handle<HeapObject>{isolate_->factory()->wasm_null()},
       // TODO(clemensb): Make this configurable.
-      wasm::IndexType::kI32);
+      wasm::AddressType::kI32);
 
   WasmTableObject::AddUse(isolate_, table_obj, instance_object_, table_index);
 

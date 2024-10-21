@@ -557,7 +557,7 @@ bool WasmTableObject::is_in_bounds(uint32_t entry_index) {
 }
 
 bool WasmTableObject::is_table64() const {
-  return index_type() == wasm::IndexType::kI64;
+  return address_type() == wasm::AddressType::kI64;
 }
 
 std::optional<uint64_t> WasmTableObject::maximum_length_u64() const {
@@ -584,7 +584,7 @@ std::optional<uint64_t> WasmTableObject::maximum_length_u64() const {
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 
 bool WasmMemoryObject::is_memory64() const {
-  return index_type() == wasm::IndexType::kI64;
+  return address_type() == wasm::AddressType::kI64;
 }
 
 // static

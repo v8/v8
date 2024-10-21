@@ -2968,7 +2968,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   // Bounds check the index.
   Node* index = args[0];
   const wasm::WasmTable& table = env_->module->tables[table_index];
-  TableTypeToUintPtrOrOOBTrap(table.index_type, {&index}, position);
+  TableTypeToUintPtrOrOOBTrap(table.address_type, {&index}, position);
   const bool needs_dynamic_size =
       !table.has_maximum_size || table.maximum_size != table.initial_size;
   Node* table_size =
@@ -3557,7 +3557,7 @@ Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
   auto stub =
       is_funcref ? Builtin::kWasmTableGetFuncRef : Builtin::kWasmTableGet;
 
-  TableTypeToUintPtrOrOOBTrap(table.index_type, {&index}, position);
+  TableTypeToUintPtrOrOOBTrap(table.address_type, {&index}, position);
   return gasm_->CallBuiltinThroughJumptable(
       stub, Operator::kNoThrow, gasm_->IntPtrConstant(table_index), index);
 }
@@ -3568,7 +3568,7 @@ void WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
   bool is_funcref = IsSubtypeOf(table.type, wasm::kWasmFuncRef, env_->module);
   auto stub =
       is_funcref ? Builtin::kWasmTableSetFuncRef : Builtin::kWasmTableSet;
-  TableTypeToUintPtrOrOOBTrap(table.index_type, {&index}, position);
+  TableTypeToUintPtrOrOOBTrap(table.address_type, {&index}, position);
   gasm_->CallBuiltinThroughJumptable(stub, Operator::kNoThrow,
                                      gasm_->IntPtrConstant(table_index),
                                      gasm_->Int32Constant(0), index, val);
@@ -5260,7 +5260,7 @@ void WasmGraphBuilder::MemoryInit(const wasm::WasmMemory* memory,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_init());
 
-  MemTypeToUintPtrOrOOBTrap(memory->index_type, {&dst}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->address_type, {&dst}, position);
 
   auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                  .Params(MachineType::Pointer(), MachineType::Uint32(),
@@ -5310,23 +5310,23 @@ Node* WasmGraphBuilder::StoreArgsInStackSlot(
 }
 
 void WasmGraphBuilder::MemTypeToUintPtrOrOOBTrap(
-    wasm::IndexType index_type, std::initializer_list<Node**> nodes,
+    wasm::AddressType address_type, std::initializer_list<Node**> nodes,
     wasm::WasmCodePosition position) {
-  MemOrTableTypeToUintPtrOrOOBTrap(index_type, nodes, position,
+  MemOrTableTypeToUintPtrOrOOBTrap(address_type, nodes, position,
                                    wasm::kTrapMemOutOfBounds);
 }
 
 void WasmGraphBuilder::TableTypeToUintPtrOrOOBTrap(
-    wasm::IndexType index_type, std::initializer_list<Node**> nodes,
+    wasm::AddressType address_type, std::initializer_list<Node**> nodes,
     wasm::WasmCodePosition position) {
-  MemOrTableTypeToUintPtrOrOOBTrap(index_type, nodes, position,
+  MemOrTableTypeToUintPtrOrOOBTrap(address_type, nodes, position,
                                    wasm::kTrapTableOutOfBounds);
 }
 
 void WasmGraphBuilder::MemOrTableTypeToUintPtrOrOOBTrap(
-    wasm::IndexType index_type, std::initializer_list<Node**> nodes,
+    wasm::AddressType address_type, std::initializer_list<Node**> nodes,
     wasm::WasmCodePosition position, wasm::TrapReason trap_reason) {
-  if (index_type == wasm::IndexType::kI32) {
+  if (address_type == wasm::AddressType::kI32) {
     for (Node** node : nodes) {
       *node = gasm_->BuildChangeUint32ToUintPtr(*node);
     }
@@ -5352,17 +5352,17 @@ void WasmGraphBuilder::MemoryCopy(const wasm::WasmMemory* dst_memory,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_copy());
 
-  if (dst_memory->index_type == src_memory->index_type) {
-    MemTypeToUintPtrOrOOBTrap(dst_memory->index_type, {&dst, &src, &size},
+  if (dst_memory->address_type == src_memory->address_type) {
+    MemTypeToUintPtrOrOOBTrap(dst_memory->address_type, {&dst, &src, &size},
                               position);
   } else {
-    MemTypeToUintPtrOrOOBTrap(dst_memory->index_type, {&dst}, position);
-    MemTypeToUintPtrOrOOBTrap(src_memory->index_type, {&src}, position);
-    wasm::IndexType min_index_type =
+    MemTypeToUintPtrOrOOBTrap(dst_memory->address_type, {&dst}, position);
+    MemTypeToUintPtrOrOOBTrap(src_memory->address_type, {&src}, position);
+    wasm::AddressType min_address_type =
         dst_memory->is_memory64() && src_memory->is_memory64()
-            ? wasm::IndexType::kI64
-            : wasm::IndexType::kI32;
-    MemTypeToUintPtrOrOOBTrap(min_index_type, {&size}, position);
+            ? wasm::AddressType::kI64
+            : wasm::AddressType::kI32;
+    MemTypeToUintPtrOrOOBTrap(min_address_type, {&size}, position);
   }
 
   auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
@@ -5383,7 +5383,7 @@ void WasmGraphBuilder::MemoryFill(const wasm::WasmMemory* memory, Node* dst,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_fill());
 
-  MemTypeToUintPtrOrOOBTrap(memory->index_type, {&dst, &size}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->address_type, {&dst, &size}, position);
 
   auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
                  .Params(MachineType::Pointer(), MachineType::Uint32(),
@@ -5400,7 +5400,7 @@ void WasmGraphBuilder::TableInit(uint32_t table_index,
                                  Node* src, Node* size,
                                  wasm::WasmCodePosition position) {
   const wasm::WasmTable& table = env_->module->tables[table_index];
-  TableTypeToUintPtrOrOOBTrap(table.index_type, {&dst}, position);
+  TableTypeToUintPtrOrOOBTrap(table.address_type, {&dst}, position);
   gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmTableInit, Operator::kNoThrow, dst, src, size,
       gasm_->NumberConstant(table_index),
@@ -5430,12 +5430,13 @@ void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
   // into one. This would result in smaller graphs because we would have a
   // single `TrapIf` node that uses the combined high words of `dst`, `src`, and
   // `size`.
-  TableTypeToUintPtrOrOOBTrap(table_dst.index_type, {&dst}, position);
-  TableTypeToUintPtrOrOOBTrap(table_src.index_type, {&src}, position);
-  wasm::IndexType min_index_type =
-      table_src.is_table64() && table_dst.is_table64() ? wasm::IndexType::kI64
-                                                       : wasm::IndexType::kI32;
-  TableTypeToUintPtrOrOOBTrap(min_index_type, {&size}, position);
+  TableTypeToUintPtrOrOOBTrap(table_dst.address_type, {&dst}, position);
+  TableTypeToUintPtrOrOOBTrap(table_src.address_type, {&src}, position);
+  wasm::AddressType min_address_type =
+      table_src.is_table64() && table_dst.is_table64()
+          ? wasm::AddressType::kI64
+          : wasm::AddressType::kI32;
+  TableTypeToUintPtrOrOOBTrap(min_address_type, {&size}, position);
   gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmTableCopy, Operator::kNoThrow, dst, src, size,
       gasm_->NumberConstant(table_dst_index),
@@ -5489,7 +5490,7 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
 void WasmGraphBuilder::TableFill(uint32_t table_index, Node* start, Node* value,
                                  Node* count, wasm::WasmCodePosition position) {
   const wasm::WasmTable& table = env_->module->tables[table_index];
-  TableTypeToUintPtrOrOOBTrap(table.index_type, {&start, &count}, position);
+  TableTypeToUintPtrOrOOBTrap(table.address_type, {&start, &count}, position);
   gasm_->CallBuiltinThroughJumptable(
       Builtin::kWasmTableFill, Operator::kNoThrow, start, count,
       gasm_->Int32Constant(false), gasm_->NumberConstant(table_index), value);
@@ -6214,7 +6215,7 @@ Node* WasmGraphBuilder::StringNewWtf8(const wasm::WasmMemory* memory,
                                       unibrow::Utf8Variant variant,
                                       Node* offset, Node* size,
                                       wasm::WasmCodePosition position) {
-  MemTypeToUintPtrOrOOBTrap(memory->index_type, {&offset}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->address_type, {&offset}, position);
   return gasm_->CallBuiltin(Builtin::kWasmStringNewWtf8,
                             Operator::kNoDeopt | Operator::kNoThrow, offset,
                             size, gasm_->Int32Constant(memory->index),
@@ -6262,7 +6263,7 @@ Node* WasmGraphBuilder::StringNewWtf8Array(unibrow::Utf8Variant variant,
 Node* WasmGraphBuilder::StringNewWtf16(const wasm::WasmMemory* memory,
                                        Node* offset, Node* size,
                                        wasm::WasmCodePosition position) {
-  MemTypeToUintPtrOrOOBTrap(memory->index_type, {&offset}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->address_type, {&offset}, position);
   return gasm_->CallBuiltin(Builtin::kWasmStringNewWtf16,
                             Operator::kNoDeopt | Operator::kNoThrow,
                             gasm_->Uint32Constant(memory->index), offset, size);
@@ -6321,7 +6322,7 @@ Node* WasmGraphBuilder::StringEncodeWtf8(const wasm::WasmMemory* memory,
   if (null_check == kWithNullCheck) {
     string = AssertNotNull(string, wasm::kWasmStringRef, position);
   }
-  MemTypeToUintPtrOrOOBTrap(memory->index_type, {&offset}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->address_type, {&offset}, position);
   return gasm_->CallBuiltin(
       Builtin::kWasmStringEncodeWtf8, Operator::kNoDeopt | Operator::kNoThrow,
       offset, gasm_->Int32Constant(memory->index),
@@ -6360,7 +6361,7 @@ Node* WasmGraphBuilder::StringEncodeWtf16(const wasm::WasmMemory* memory,
   if (null_check == kWithNullCheck) {
     string = AssertNotNull(string, wasm::kWasmStringRef, position);
   }
-  MemTypeToUintPtrOrOOBTrap(memory->index_type, {&offset}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->address_type, {&offset}, position);
   return gasm_->CallBuiltin(Builtin::kWasmStringEncodeWtf16,
                             Operator::kNoDeopt | Operator::kNoThrow, string,
                             offset, gasm_->Int32Constant(memory->index));
@@ -6462,7 +6463,7 @@ void WasmGraphBuilder::StringViewWtf8Encode(
   if (null_check == kWithNullCheck) {
     view = AssertNotNull(view, wasm::kWasmStringRef, position);
   }
-  MemTypeToUintPtrOrOOBTrap(memory->index_type, {&addr}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->address_type, {&addr}, position);
   Node* pair =
       gasm_->CallBuiltin(Builtin::kWasmStringViewWtf8Encode,
                          Operator::kNoDeopt | Operator::kNoThrow, addr, pos,
@@ -6621,7 +6622,7 @@ Node* WasmGraphBuilder::StringViewWtf16Encode(const wasm::WasmMemory* memory,
   if (null_check == kWithNullCheck) {
     string = AssertNotNull(string, wasm::kWasmStringRef, position);
   }
-  MemTypeToUintPtrOrOOBTrap(memory->index_type, {&offset}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->address_type, {&offset}, position);
   return gasm_->CallBuiltin(Builtin::kWasmStringViewWtf16Encode,
                             Operator::kNoDeopt | Operator::kNoThrow, offset,
                             start, codeunits, string,

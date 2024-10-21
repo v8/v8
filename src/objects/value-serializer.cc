@@ -2333,8 +2333,8 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   uint8_t memory64_byte;
   if (!ReadByte(&memory64_byte)) return {};
   if (memory64_byte > 1) return {};
-  wasm::IndexType index_type =
-      memory64_byte ? wasm::IndexType::kI64 : wasm::IndexType::kI32;
+  wasm::AddressType address_type =
+      memory64_byte ? wasm::AddressType::kI64 : wasm::AddressType::kI32;
 
   Handle<Object> buffer_object;
   if (!ReadObject().ToHandle(&buffer_object)) return {};
@@ -2344,7 +2344,7 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   if (!buffer->is_shared()) return {};
 
   Handle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, buffer, maximum_pages, index_type);
+      WasmMemoryObject::New(isolate_, buffer, maximum_pages, address_type);
 
   AddObjectWithID(id, result);
   return result;

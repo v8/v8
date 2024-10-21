@@ -2964,11 +2964,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     control_at(control_depth_of_current_catch())->might_throw = true;
   }
 
-  V8_INLINE ValueType TableIndexType(const WasmTable* table) {
+  V8_INLINE ValueType TableAddressType(const WasmTable* table) {
     return table->is_table64() ? kWasmI64 : kWasmI32;
   }
 
-  V8_INLINE ValueType MemoryIndexType(const WasmMemory* memory) {
+  V8_INLINE ValueType MemoryAddressType(const WasmMemory* memory) {
     return memory->is_memory64() ? kWasmI64 : kWasmI32;
   }
 
@@ -3866,7 +3866,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     this->detected_->add_reftypes();
     TableIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    Value index = Pop(TableIndexType(imm.table));
+    Value index = Pop(TableAddressType(imm.table));
     Value* result = Push(imm.table->type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(TableGet, index, result, imm);
     return 1 + imm.length;
@@ -3876,8 +3876,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     this->detected_->add_reftypes();
     TableIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ValueType table_index_type = TableIndexType(imm.table);
-    auto [index, value] = Pop(table_index_type, imm.table->type);
+    ValueType table_address_type = TableAddressType(imm.table);
+    auto [index, value] = Pop(table_address_type, imm.table->type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(TableSet, index, value, imm);
     return 1 + imm.length;
   }
@@ -3891,7 +3891,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DCHECK_EQ(kWasmOrigin, this->module_->origin);
     MemoryIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ValueType mem_type = MemoryIndexType(imm.memory);
+    ValueType mem_type = MemoryAddressType(imm.memory);
     Value value = Pop(mem_type);
     Value* result = Push(mem_type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryGrow, imm, value, result);
@@ -3901,7 +3901,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(MemorySize) {
     MemoryIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ValueType result_type = MemoryIndexType(imm.memory);
+    ValueType result_type = MemoryAddressType(imm.memory);
     Value* result = Push(result_type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(CurrentMemoryPages, imm, result);
     return 1 + imm.length;
@@ -3920,7 +3920,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(CallIndirect) {
     CallIndirectImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    Value index = Pop(TableIndexType(imm.table_imm.table));
+    Value index = Pop(TableAddressType(imm.table_imm.table));
     PoppedArgVector args = PopArgs(imm.sig);
     Value* returns = PushReturns(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(CallIndirect, index, imm, args.data(),
@@ -3958,7 +3958,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                         "tail call return types mismatch");
       return 0;
     }
-    Value index = Pop(TableIndexType(imm.table_imm.table));
+    Value index = Pop(TableAddressType(imm.table_imm.table));
     PoppedArgVector args = PopArgs(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallIndirect, index, imm,
                                        args.data());
@@ -4403,8 +4403,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     MemoryAccessImmediate imm =
         MakeMemoryAccessImmediate(prefix_len, type.size_log_2());
     if (!this->Validate(this->pc_ + prefix_len, imm)) return 0;
-    ValueType index_type = MemoryIndexType(imm.memory);
-    Value index = Pop(index_type);
+    ValueType address_type = MemoryAddressType(imm.memory);
+    Value index = Pop(address_type);
     Value* result = Push(type.value_type());
     if (V8_LIKELY(
             !CheckStaticallyOutOfBounds(imm.memory, type.size(), imm.offset))) {
@@ -4421,8 +4421,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     MemoryAccessImmediate imm =
         MakeMemoryAccessImmediate(opcode_length, max_alignment);
     if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-    ValueType index_type = MemoryIndexType(imm.memory);
-    Value index = Pop(index_type);
+    ValueType address_type = MemoryAddressType(imm.memory);
+    Value index = Pop(address_type);
     Value* result = Push(kWasmS128);
     uintptr_t op_size =
         transform == LoadTransformationKind::kExtend ? 8 : type.size();
@@ -4441,8 +4441,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     SimdLaneImmediate lane_imm(this, this->pc_ + opcode_length + mem_imm.length,
                                validate);
     if (!this->Validate(this->pc_ + opcode_length, opcode, lane_imm)) return 0;
-    ValueType index_type = MemoryIndexType(mem_imm.memory);
-    auto [index, v128] = Pop(index_type, kWasmS128);
+    ValueType address_type = MemoryAddressType(mem_imm.memory);
+    auto [index, v128] = Pop(address_type, kWasmS128);
 
     Value* result = Push(kWasmS128);
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(mem_imm.memory, type.size(),
@@ -4461,8 +4461,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     SimdLaneImmediate lane_imm(this, this->pc_ + opcode_length + mem_imm.length,
                                validate);
     if (!this->Validate(this->pc_ + opcode_length, opcode, lane_imm)) return 0;
-    ValueType index_type = MemoryIndexType(mem_imm.memory);
-    auto [index, v128] = Pop(index_type, kWasmS128);
+    ValueType address_type = MemoryAddressType(mem_imm.memory);
+    auto [index, v128] = Pop(address_type, kWasmS128);
 
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(mem_imm.memory, type.size(),
                                               mem_imm.offset))) {
@@ -4487,8 +4487,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     MemoryAccessImmediate imm =
         MakeMemoryAccessImmediate(prefix_len, store.size_log_2());
     if (!this->Validate(this->pc_ + prefix_len, imm)) return 0;
-    ValueType index_type = MemoryIndexType(imm.memory);
-    auto [index, value] = Pop(index_type, store.value_type());
+    ValueType address_type = MemoryAddressType(imm.memory);
+    auto [index, value] = Pop(address_type, store.value_type());
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(imm.memory, store.size(),
                                               imm.offset))) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreMem, store, imm, index, value);
@@ -5554,7 +5554,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     bool null_on_invalid = variant == unibrow::Utf8Variant::kUtf8NoTrap;
     MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
     if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-    ValueType addr_type = MemoryIndexType(imm.memory);
+    ValueType addr_type = MemoryAddressType(imm.memory);
     auto [offset, size] = Pop(addr_type, kWasmI32);
     Value* result = Push(ValueType::RefMaybeNull(
         HeapType::kString, null_on_invalid ? kNullable : kNonNullable));
@@ -5577,7 +5577,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     NON_CONST_ONLY
     MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
     if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-    ValueType addr_type = MemoryIndexType(imm.memory);
+    ValueType addr_type = MemoryAddressType(imm.memory);
     auto [str, addr] = Pop(kWasmStringRef, addr_type);
     Value* result = Push(kWasmI32);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8, imm, variant, str,
@@ -5590,7 +5590,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     NON_CONST_ONLY
     MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
     if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-    ValueType addr_type = MemoryIndexType(imm.memory);
+    ValueType addr_type = MemoryAddressType(imm.memory);
     auto [view, addr, pos, bytes] =
         Pop(kWasmStringViewWtf8, addr_type, kWasmI32, kWasmI32);
     Value* next_pos = Push(kWasmI32);
@@ -5649,7 +5649,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType addr_type = MemoryIndexType(imm.memory);
+        ValueType addr_type = MemoryAddressType(imm.memory);
         auto [offset, size] = Pop(addr_type, kWasmI32);
         Value* result = Push(kWasmRefString);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16, imm, offset, size,
@@ -5689,7 +5689,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType addr_type = MemoryIndexType(imm.memory);
+        ValueType addr_type = MemoryAddressType(imm.memory);
         auto [str, addr] = Pop(kWasmStringRef, addr_type);
         Value* result = Push(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf16, imm, str, addr,
@@ -5775,7 +5775,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType addr_type = MemoryIndexType(imm.memory);
+        ValueType addr_type = MemoryAddressType(imm.memory);
         auto [view, addr, pos, codeunits] =
             Pop(kWasmStringViewWtf16, addr_type, kWasmI32, kWasmI32);
         Value* result = Push(kWasmI32);
@@ -5991,7 +5991,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprMemoryInit: {
         MemoryInitImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType mem_type = MemoryIndexType(imm.memory.memory);
+        ValueType mem_type = MemoryAddressType(imm.memory.memory);
         auto [dst, offset, size] = Pop(mem_type, kWasmI32, kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryInit, imm, dst, offset, size);
         return opcode_length + imm.length;
@@ -6008,8 +6008,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprMemoryCopy: {
         MemoryCopyImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType dst_type = MemoryIndexType(imm.memory_dst.memory);
-        ValueType src_type = MemoryIndexType(imm.memory_src.memory);
+        ValueType dst_type = MemoryAddressType(imm.memory_dst.memory);
+        ValueType src_type = MemoryAddressType(imm.memory_src.memory);
         // size_type = min(dst_type, src_type), where kI32 < kI64.
         ValueType size_type = dst_type == kWasmI32 ? kWasmI32 : src_type;
 
@@ -6020,7 +6020,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprMemoryFill: {
         MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType mem_type = MemoryIndexType(imm.memory);
+        ValueType mem_type = MemoryAddressType(imm.memory);
         auto [dst, value, size] = Pop(mem_type, kWasmI32, mem_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryFill, imm, dst, value, size);
         return opcode_length + imm.length;
@@ -6028,8 +6028,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprTableInit: {
         TableInitImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType table_index_type = TableIndexType(imm.table.table);
-        auto [dst, src, size] = Pop(table_index_type, kWasmI32, kWasmI32);
+        ValueType table_address_type = TableAddressType(imm.table.table);
+        auto [dst, src, size] = Pop(table_address_type, kWasmI32, kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableInit, imm, dst, src, size);
         return opcode_length + imm.length;
       }
@@ -6045,8 +6045,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprTableCopy: {
         TableCopyImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType dst_type = TableIndexType(imm.table_dst.table);
-        ValueType src_type = TableIndexType(imm.table_src.table);
+        ValueType dst_type = TableAddressType(imm.table_dst.table);
+        ValueType src_type = TableAddressType(imm.table_src.table);
         // size_type = min(dst_type, src_type), where kI32 < kI64.
         ValueType size_type = dst_type == kWasmI32 ? kWasmI32 : src_type;
 
@@ -6057,9 +6057,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprTableGrow: {
         TableIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType table_index_type = TableIndexType(imm.table);
-        auto [value, delta] = Pop(imm.table->type, table_index_type);
-        Value* result = Push(table_index_type);
+        ValueType table_address_type = TableAddressType(imm.table);
+        auto [value, delta] = Pop(imm.table->type, table_address_type);
+        Value* result = Push(table_address_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableGrow, imm, value, delta,
                                            result);
         return opcode_length + imm.length;
@@ -6067,16 +6067,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprTableSize: {
         TableIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        Value* result = Push(TableIndexType(imm.table));
+        Value* result = Push(TableAddressType(imm.table));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableSize, imm, result);
         return opcode_length + imm.length;
       }
       case kExprTableFill: {
         TableIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType table_index_type = TableIndexType(imm.table);
+        ValueType table_address_type = TableAddressType(imm.table);
         auto [start, value, count] =
-            Pop(table_index_type, imm.table->type, table_index_type);
+            Pop(table_address_type, imm.table->type, table_address_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(TableFill, imm, start, value, count);
         return opcode_length + imm.length;
       }

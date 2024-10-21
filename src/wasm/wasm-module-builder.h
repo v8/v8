@@ -509,10 +509,10 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     uint32_t max_size = 0;
     bool has_maximum = false;
     bool is_shared = false;
-    IndexType index_type = IndexType::kI32;
+    AddressType address_type = AddressType::kI32;
     std::optional<WasmInitExpr> init = {};
 
-    bool is_table64() const { return index_type == IndexType::kI64; }
+    bool is_table64() const { return address_type == AddressType::kI64; }
   };
 
   struct WasmMemory {
@@ -520,9 +520,9 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     uint32_t max_pages = 0;
     bool has_max_pages = false;
     bool is_shared = false;
-    IndexType index_type = IndexType::kI32;
+    AddressType address_type = AddressType::kI32;
 
-    bool is_memory64() const { return index_type == IndexType::kI64; }
+    bool is_memory64() const { return address_type == AddressType::kI64; }
   };
 
   struct WasmDataSegment {

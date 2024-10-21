@@ -42,14 +42,14 @@ class WasmInterpreterRuntime;
 #endif  // V8_ENABLE_DRUMBRAKE
 class WellKnownImportsList;
 
-enum class IndexType : uint8_t { kI32, kI64 };
+enum class AddressType : uint8_t { kI32, kI64 };
 
-inline constexpr const char* IndexTypeToStr(IndexType index_type) {
-  return index_type == IndexType::kI32 ? "i32" : "i64";
+inline constexpr const char* AddressTypeToStr(AddressType address_type) {
+  return address_type == AddressType::kI32 ? "i32" : "i64";
 }
 
-inline std::ostream& operator<<(std::ostream& os, IndexType index_type) {
-  return os << IndexTypeToStr(index_type);
+inline std::ostream& operator<<(std::ostream& os, AddressType address_type) {
+  return os << AddressTypeToStr(address_type);
 }
 
 // Reference to a string in the wire bytes.
@@ -138,7 +138,7 @@ struct WasmMemory {
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
   bool is_shared = false;          // true if memory is a SharedArrayBuffer
   bool has_maximum_pages = false;  // true if there is a maximum memory size
-  IndexType index_type = IndexType::kI32;  // 32 or 64 bit memory?
+  AddressType address_type = AddressType::kI32;  // 32 or 64 bit memory?
   bool imported = false;                   // true if the memory is imported
   bool exported = false;                   // true if the memory is exported
   // Computed information, cached here for faster compilation.
@@ -155,7 +155,7 @@ struct WasmMemory {
     return 1ull << GetMemory64GuardsShift();
   }
 
-  bool is_memory64() const { return index_type == IndexType::kI64; }
+  bool is_memory64() const { return address_type == AddressType::kI64; }
 };
 
 inline void UpdateComputedInformation(WasmMemory* memory, ModuleOrigin origin) {
@@ -652,13 +652,13 @@ struct WasmTable {
   // TODO(369904698): Allow true 64-bit declared maximum sizes (for memory64).
   uint32_t maximum_size = 0;
   bool has_maximum_size = false;
-  IndexType index_type = IndexType::kI32;
+  AddressType address_type = AddressType::kI32;
   bool shared = false;
   bool imported = false;
   bool exported = false;
   ConstantExpression initial_value = {};
 
-  bool is_table64() const { return index_type == IndexType::kI64; }
+  bool is_table64() const { return address_type == AddressType::kI64; }
 };
 
 // Static representation of a module.
@@ -1013,11 +1013,11 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                   std::optional<uint64_t> max_size, bool shared,
-                                  IndexType index_type);
+                                  AddressType address_type);
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
                                  std::optional<uint64_t> max_size,
-                                 IndexType index_type);
+                                 AddressType address_type);
 Handle<JSArray> GetImports(Isolate* isolate,
                            DirectHandle<WasmModuleObject> module);
 Handle<JSArray> GetExports(Isolate* isolate,
