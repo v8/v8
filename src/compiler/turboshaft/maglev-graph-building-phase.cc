@@ -2815,7 +2815,7 @@ class GraphBuildingNodeProcessor {
              StoreOp::Kind::TaggedBase(),
              MemoryRepresentation::IndirectPointer(),
              WriteBarrierKind::kIndirectPointerWriteBarrier, node->offset(),
-             node->initializing_or_transitioning());
+             node->initializing_or_transitioning(), node->tag());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(
