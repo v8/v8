@@ -32,9 +32,13 @@ ReadOnlyArtifacts::~ReadOnlyArtifacts() {
   // TearDown requires MemoryAllocator which itself is tied to an Isolate.
   shared_read_only_space_->pages_.resize(0);
 
-  for (ReadOnlyPageMetadata* chunk : pages_) {
-    void* chunk_address = reinterpret_cast<void*>(chunk->ChunkAddress());
-    size_t size = RoundUp(chunk->size(), page_allocator_->AllocatePageSize());
+  for (ReadOnlyPageMetadata* metadata : pages_) {
+#ifdef V8_ENABLE_SANDBOX
+    MemoryChunk::ClearMetadataPointer(metadata);
+#endif
+    void* chunk_address = reinterpret_cast<void*>(metadata->ChunkAddress());
+    size_t size =
+        RoundUp(metadata->size(), page_allocator_->AllocatePageSize());
     CHECK(page_allocator_->FreePages(chunk_address, size));
   }
 }
