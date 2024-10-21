@@ -22,7 +22,7 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, DeoptimizationLiteralArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfoWrapper,
+DEFINE_DEOPT_ELEMENT_ACCESSORS(WrappedSharedFunctionInfo,
                                SharedFunctionInfoWrapperOrSmi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions,
                                TrustedPodArray<InliningPosition>)
@@ -38,7 +38,7 @@ DEFINE_DEOPT_ENTRY_ACCESSORS(NodeId, Smi)
 #endif  // DEBUG
 
 Tagged<SharedFunctionInfo> DeoptimizationData::GetSharedFunctionInfo() const {
-  return Cast<i::SharedFunctionInfoWrapper>(SharedFunctionInfoWrapper())
+  return Cast<i::SharedFunctionInfoWrapper>(WrappedSharedFunctionInfo())
       ->shared_info();
 }
 

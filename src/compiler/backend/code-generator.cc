@@ -1017,9 +1017,9 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   if (info->has_shared_info()) {
     DirectHandle<SharedFunctionInfoWrapper> sfi_wrapper =
         isolate()->factory()->NewSharedFunctionInfoWrapper(info->shared_info());
-    data->SetSharedFunctionInfoWrapper(*sfi_wrapper);
+    data->SetWrappedSharedFunctionInfo(*sfi_wrapper);
   } else {
-    data->SetSharedFunctionInfoWrapper(Smi::zero());
+    data->SetWrappedSharedFunctionInfo(Smi::zero());
   }
 
   DirectHandle<DeoptimizationLiteralArray> literals =

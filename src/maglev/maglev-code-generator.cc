@@ -1998,7 +1998,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     raw_data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
     raw_data->SetEagerDeoptCount(Smi::FromInt(eager_deopt_count));
     raw_data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count));
-    raw_data->SetSharedFunctionInfoWrapper(*sfi_wrapper);
+    raw_data->SetWrappedSharedFunctionInfo(*sfi_wrapper);
   }
 
   int inlined_functions_size =

@@ -273,7 +273,7 @@ class DeoptimizationData : public ProtectedFixedArray {
   static const int kOsrBytecodeOffsetIndex = 3;
   static const int kOsrPcOffsetIndex = 4;
   static const int kOptimizationIdIndex = 5;
-  static const int kSharedFunctionInfoWrapperIndex = 6;
+  static const int kWrappedSharedFunctionInfoIndex = 6;
   static const int kInliningPositionsIndex = 7;
   static const int kDeoptExitStartIndex = 8;
   static const int kEagerDeoptCountIndex = 9;
@@ -303,7 +303,7 @@ class DeoptimizationData : public ProtectedFixedArray {
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Tagged<Smi>)
-  DECL_ELEMENT_ACCESSORS(SharedFunctionInfoWrapper,
+  DECL_ELEMENT_ACCESSORS(WrappedSharedFunctionInfo,
                          Tagged<SharedFunctionInfoWrapperOrSmi>)
   DECL_ELEMENT_ACCESSORS(InliningPositions,
                          Tagged<TrustedPodArray<InliningPosition>>)
