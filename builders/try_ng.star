@@ -77,6 +77,14 @@ trybot_pair(
 )
 
 trybot_pair(
+    name = "v8_android_arm64_p7_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    properties = {"target_platform": "android", "target_arch": "arm"},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+)
+
+trybot_pair(
     name = "v8_linux64_arm64_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},

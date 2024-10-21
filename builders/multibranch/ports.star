@@ -130,6 +130,15 @@ in_category(
         disable_resultdb_exports = True,
     ),
     multibranch_builder(
+        name = "V8 Android Arm64 - P7",
+        parent_builder = "V8 Android Arm64 - builder",
+        properties = {"builder_group": "client.v8.ports"},
+        barrier = BARRIER.NONE,
+        notifies = ["V8 Flake Sheriff"],
+        first_branch_version = "13.2",
+        disable_resultdb_exports = True,
+    ),
+    multibranch_builder(
         name = "V8 Linux64 - arm64 - no wasm - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {
