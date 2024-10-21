@@ -44,6 +44,18 @@
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
     ],
   },
+  'v8_android_arm64_p7_rel': {
+    'swarming_dimensions' : {
+      'device_os': 'AP2A.240705.004',
+      'device_type': 'panther',
+      'os': 'Android',
+    },
+    'tests': [
+      {'name': 'mozilla', 'variant': 'default'},
+      {'name': 'test262', 'variant': 'default', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+    ],
+  },
   ##############################################################################
   # Linux32
   'v8_linux_dbg': {
@@ -2104,6 +2116,18 @@
     'swarming_dimensions': {
       'device_os': 'OPR4.170623.020',
       'device_type': 'bullhead',
+      'os': 'Android',
+    },
+    'tests': [
+      {'name': 'mozilla', 'variant': 'default'},
+      {'name': 'test262', 'variant': 'default', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+    ],
+  },
+  'V8 Android Arm64 - P7': {
+    'swarming_dimensions': {
+      'device_os': 'AP2A.240705.004',
+      'device_type': 'panther',
       'os': 'Android',
     },
     'tests': [
