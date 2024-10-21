@@ -2188,7 +2188,9 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
   int func_index = data->function_index();
   const i::wasm::WasmModule* module = trusted_instance_data->module();
   i::wasm::ModuleTypeIndex sig_index = module->functions[func_index].sig_index;
-  const i::wasm::FunctionSig* sig = module->signature(sig_index);
+  const i::wasm::CanonicalSig* sig =
+      i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
+          module->canonical_sig_id(sig_index));
   i::DirectHandle<i::Code> wrapper;
   if (!internal::wasm::IsJSCompatibleSignature(sig)) {
     // If the signature is incompatible with JS, the original export will have

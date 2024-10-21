@@ -1185,7 +1185,6 @@ Address WasmCodePointerAddress(WasmCodePointer pointer) {
 void ImportedFunctionEntry::SetGenericWasmToJs(
     Isolate* isolate, DirectHandle<JSReceiver> callable, wasm::Suspend suspend,
     const wasm::CanonicalSig* sig) {
-  DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   WasmCodePointer wrapper_entry;
   if (wasm::IsJSCompatibleSignature(sig)) {
     DCHECK(
@@ -1218,7 +1217,6 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
     wasm::WasmCode* wasm_to_js_wrapper, wasm::Suspend suspend,
     const wasm::CanonicalSig* sig) {
-  DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=%p}\n",
             instance_data_->ptr(), index_, callable->ptr(),
@@ -2762,7 +2760,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   }
 
   DirectHandle<Code> js_to_js_wrapper_code =
-      wasm::IsJSCompatibleSignature(sig)
+      wasm::IsJSCompatibleSignature(canonical_sig)
           ? isolate->builtins()->code_handle(Builtin::kJSToJSWrapper)
           : isolate->builtins()->code_handle(Builtin::kJSToJSWrapperInvalidSig);
 
@@ -2779,7 +2777,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   DirectHandle<WasmInternalFunction> internal_function{
       function_data->internal(), isolate};
 
-  if (!wasm::IsJSCompatibleSignature(sig)) {
+  if (!wasm::IsJSCompatibleSignature(canonical_sig)) {
     internal_function->set_call_target(
         wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperInvalidSig>(
             isolate));

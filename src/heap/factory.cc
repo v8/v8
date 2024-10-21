@@ -1712,7 +1712,6 @@ Handle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<HeapObject> callable, wasm::Suspend suspend,
     MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
     const wasm::CanonicalSig* sig) {
-  DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   Tagged<Map> map = *wasm_import_data_map();
   auto result = Cast<WasmImportData>(AllocateRawWithImmortalMap(
       map->instance_size(), AllocationType::kTrusted, map));
@@ -1874,7 +1873,6 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<WasmInternalFunction> internal_function,
     const wasm::CanonicalSig* sig, wasm::CanonicalTypeIndex type_index,
     int wrapper_budget, wasm::Promise promise) {
-  DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   int func_index = internal_function->function_index();
   DirectHandle<Cell> wrapper_budget_cell =
       NewCell(Smi::FromInt(wrapper_budget));

@@ -1157,6 +1157,8 @@ constexpr CanonicalValueType kCanonicalF32 =
     CanonicalValueType::Primitive(kF32);
 constexpr CanonicalValueType kCanonicalF64 =
     CanonicalValueType::Primitive(kF64);
+constexpr CanonicalValueType kCanonicalS128 =
+    CanonicalValueType::Primitive(kS128);
 constexpr CanonicalValueType kCanonicalExternRef =
     CanonicalValueType::RefNull(HeapType::kExtern);
 constexpr CanonicalValueType kCanonicalAnyRef =

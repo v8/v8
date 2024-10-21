@@ -26,8 +26,7 @@ struct WasmModule;
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const FunctionSig& function);
 
-template <typename T>
-V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const Signature<T>* sig);
+V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
 
 // Format of all opcode macros: kExprName, binary, signature, wat name
 
