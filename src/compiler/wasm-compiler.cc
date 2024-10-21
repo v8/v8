@@ -3642,9 +3642,6 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
     TrapIfTrue(wasm::kTrapMemOutOfBounds, high_word, position);
   }
 
-  // We already checked that offset is below the max memory size.
-  DCHECK_LT(offset, memory->max_memory_size);
-
   // The accessed memory is [index + offset, index + end_offset].
   // Check that the last read byte (at {index + end_offset}) is in bounds.
   // 1) Check that {end_offset < mem_size}. This also ensures that we can safely
@@ -3655,6 +3652,7 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
   //    - checking that {index < effective_size}.
 
   uintptr_t end_offset = offset + access_size - 1u;
+  DCHECK_LT(end_offset, memory->max_memory_size);
 
   if (constant_index.HasResolvedValue() &&
       end_offset <= memory->min_memory_size &&
@@ -3667,8 +3665,11 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
   if (bounds_checks == wasm::kTrapHandler &&
       enforce_check == EnforceBoundsCheck::kCanOmitBoundsCheck) {
     if (memory->is_memory64()) {
+      // Bounds check `index` against `max_mem_size - end_offset`, such that
+      // at runtime `index + end_offset` will be within `max_mem_size`, where
+      // the trap handler can handle out-of-bound accesses.
       Node* cond = gasm_->Uint64LessThan(
-          converted_index, Int64Constant(memory->GetMemory64GuardsSize()));
+          converted_index, Int64Constant(memory->max_memory_size - end_offset));
       TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
     }
     return {converted_index, BoundsCheckResult::kTrapHandler};

@@ -147,14 +147,6 @@ struct WasmMemory {
   uintptr_t max_memory_size = 0;  // largest size of any memory in bytes
   BoundsCheckStrategy bounds_checks = kExplicitBoundsChecks;
 
-  inline int GetMemory64GuardsShift() const {
-    return GetMemory64GuardsShift(maximum_pages * kWasmPageSize);
-  }
-  static int GetMemory64GuardsShift(uint64_t max_memory_size);
-  inline uint64_t GetMemory64GuardsSize() const {
-    return 1ull << GetMemory64GuardsShift();
-  }
-
   bool is_memory64() const { return address_type == AddressType::kI64; }
 };
 

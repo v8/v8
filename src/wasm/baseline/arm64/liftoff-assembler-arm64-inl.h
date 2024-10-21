@@ -4130,13 +4130,10 @@ bool LiftoffAssembler::supports_f16_mem_access() {
   return CpuFeatures::IsSupported(FP16);
 }
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
-                                             uint64_t oob_index) {
-  Label done;
-  Cmp(index, oob_size);
-  B(&done, kUnsignedLessThan);
-  Mov(index, oob_index);
-  bind(&done);
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
+                                             Label* trap_label) {
+  Cmp(index, max_index);
+  B(trap_label, kUnsignedGreaterThanEqual);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {

@@ -7049,10 +7049,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       __ TrapIf(high_word, TrapId::kTrapMemOutOfBounds);
     }
 
-    // We already checked that offset is below the max memory size.
-    DCHECK_LT(offset, memory->max_memory_size);
-
     uintptr_t end_offset = offset + repr.SizeInBytes() - 1u;
+    DCHECK_LT(end_offset, memory->max_memory_size);
 
     // The index can be invalid if we are generating unreachable operations.
     if (end_offset <= memory->min_memory_size && index.valid() &&
@@ -7067,17 +7065,24 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     }
 
+#if V8_TRAP_HANDLER_SUPPORTED
     if (bounds_checks == kTrapHandler &&
         enforce_bounds_check ==
             compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
       if (memory->is_memory64()) {
-        V<Word32> cond = __ __ Uint64LessThan(
+        // Bounds check `index` against `max_mem_size - end_offset`, such that
+        // at runtime `index + end_offset` will be within `max_mem_size`, where
+        // the trap handler can handle out-of-bound accesses.
+        V<Word32> cond = __ Uint64LessThan(
             V<Word64>::Cast(converted_index),
-            __ Word64Constant(memory->GetMemory64GuardsSize()));
+            __ Word64Constant(uint64_t{memory->max_memory_size - end_offset}));
         __ TrapIfNot(cond, TrapId::kTrapMemOutOfBounds);
       }
       return {converted_index, compiler::BoundsCheckResult::kTrapHandler};
     }
+#else
+    CHECK_NE(bounds_checks, kTrapHandler);
+#endif  // V8_TRAP_HANDLER_SUPPORTED
 
     V<WordPtr> memory_size = MemSize(memory->index);
     if (end_offset > memory->min_memory_size) {

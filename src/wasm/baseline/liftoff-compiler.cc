@@ -3384,35 +3384,46 @@ class LiftoffCompiler {
       return index_ptrsize;
     }
 
-    // We already checked that offset is below the max memory size.
-    DCHECK_LT(offset, memory->max_memory_size);
+    // We already checked that an access at `offset` is within max memory size.
+    uintptr_t end_offset = offset + access_size - 1u;
+    DCHECK_LT(end_offset, memory->max_memory_size);
 
     // Early return for trap handler.
+    bool use_trap_handler = !force_check && bounds_checks == kTrapHandler;
+    bool need_ool_code = !use_trap_handler || memory->is_memory64();
+    Label* trap_label =
+        need_ool_code
+            ? AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds)
+            : nullptr;
+
     DCHECK_IMPLIES(
         memory->is_memory64() && !v8_flags.wasm_memory64_trap_handling,
         bounds_checks == kExplicitBoundsChecks);
-    if (!force_check && bounds_checks == kTrapHandler) {
+#if V8_TRAP_HANDLER_SUPPORTED
+    if (use_trap_handler) {
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
       if (memory->is_memory64()) {
         SCOPED_CODE_COMMENT("bounds check memory");
-        // If index is outside the guards pages, sets index to a value that will
-        // certainly cause (memory_start + offset + index) to be not accessible,
-        // to make sure that the OOB access will be caught by the trap handler.
-        __ set_trap_on_oob_mem64(index_ptrsize, memory->GetMemory64GuardsSize(),
-                                 memory->max_memory_size);
+        // Bounds check `index` against `max_mem_size - end_offset`, such that
+        // at runtime `index + end_offset` will be < `max_mem_size`, where the
+        // trap handler can handle out-of-bound accesses.
+        __ set_trap_on_oob_mem64(
+            index_ptrsize, memory->max_memory_size - end_offset, trap_label);
       }
+#else
+      CHECK(!memory->is_memory64());
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 
       // With trap handlers we should not have a register pair as input (we
       // would only return the lower half).
       DCHECK(index.is_gp());
       return index_ptrsize;
     }
+#else
+    CHECK(!use_trap_handler);
+#endif  // V8_TRAP_HANDLER_SUPPORTED
 
     SCOPED_CODE_COMMENT("bounds check memory");
-
-    // Set {pc} of the OOL code to {0} to avoid generation of protected
-    // instruction information (see {GenerateOutOfLineCode}).
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
 
     // Convert the index to ptrsize, bounds-checking the high word on 32-bit
     // systems for memory64.
@@ -3424,8 +3435,6 @@ class LiftoffCompiler {
       __ emit_cond_jump(kNotZero, trap_label, kI32, index.high_gp(), no_reg,
                         trapping);
     }
-
-    uintptr_t end_offset = offset + access_size - 1u;
 
     pinned.set(index_ptrsize);
     LiftoffRegister end_offset_reg =
