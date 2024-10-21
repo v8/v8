@@ -10344,11 +10344,8 @@ std::unique_ptr<MeasureMemoryDelegate> MeasureMemoryDelegate::Default(
     Isolate* v8_isolate, Local<Context> context,
     Local<Promise::Resolver> promise_resolver, MeasureMemoryMode mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::Handle<i::NativeContext> native_context(
-      Utils::OpenDirectHandle(*context)->native_context(), i_isolate);
-  auto js_promise = i::Cast<i::JSPromise>(Utils::OpenHandle(*promise_resolver));
-  return i_isolate->heap()->MeasureMemoryDelegate(native_context, js_promise,
-                                                  mode);
+  return i_isolate->heap()->CreateDefaultMeasureMemoryDelegate(
+      context, promise_resolver, mode);
 }
 
 void Isolate::GetStackSample(const RegisterState& state, void** frames,

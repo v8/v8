@@ -4333,11 +4333,12 @@ bool Heap::MeasureMemory(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
                                              to_measure);
 }
 
-std::unique_ptr<v8::MeasureMemoryDelegate> Heap::MeasureMemoryDelegate(
-    Handle<NativeContext> context, Handle<JSPromise> promise,
+std::unique_ptr<v8::MeasureMemoryDelegate>
+Heap::CreateDefaultMeasureMemoryDelegate(
+    v8::Local<v8::Context> context, v8::Local<v8::Promise::Resolver> promise,
     v8::MeasureMemoryMode mode) {
-  return i::MemoryMeasurement::DefaultDelegate(isolate_, context, promise,
-                                               mode);
+  return i::MemoryMeasurement::DefaultDelegate(
+      reinterpret_cast<v8::Isolate*>(isolate_), context, promise, mode);
 }
 
 void Heap::CollectCodeStatistics() {

@@ -596,8 +596,8 @@ class Heap final {
   bool MeasureMemory(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
                      v8::MeasureMemoryExecution execution);
 
-  std::unique_ptr<v8::MeasureMemoryDelegate> MeasureMemoryDelegate(
-      Handle<NativeContext> context, Handle<JSPromise> promise,
+  std::unique_ptr<v8::MeasureMemoryDelegate> CreateDefaultMeasureMemoryDelegate(
+      v8::Local<v8::Context> context, v8::Local<v8::Promise::Resolver> promise,
       v8::MeasureMemoryMode mode);
 
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
