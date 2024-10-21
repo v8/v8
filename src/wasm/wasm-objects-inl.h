@@ -457,6 +457,11 @@ wasm::CanonicalTypeIndex WasmExportedFunctionData::sig_index() const {
       static_cast<uint32_t>(canonical_type_index())};
 }
 
+bool WasmExportedFunctionData::is_promising() const {
+  return WasmFunctionData::PromiseField::decode(js_promise_flags()) ==
+         wasm::kPromise;
+}
+
 // WasmJSFunctionData
 wasm::CanonicalTypeIndex WasmJSFunctionData::sig_index() const {
   return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};

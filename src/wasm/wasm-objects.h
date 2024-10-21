@@ -1000,8 +1000,8 @@ class WasmFunctionData
       WithStrongCodePointer<kWrapperCodeOffset>,
       WithProtectedPointer<kProtectedInternalOffset>>;
 
-  using SuspendField = base::BitField<wasm::Suspend, 0, 2>;
-  using PromiseField = base::BitField<wasm::Promise, 2, 2>;
+  using SuspendField = base::BitField<wasm::Suspend, 0, 1>;
+  using PromiseField = SuspendField::Next<wasm::Promise, 1>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmFunctionData)
 };
@@ -1020,6 +1020,8 @@ class WasmExportedFunctionData
   // Prefer to use this convenience wrapper of the Torque-generated
   // {canonical_type_index()}.
   inline wasm::CanonicalTypeIndex sig_index() const;
+
+  inline bool is_promising() const;
 
   bool MatchesSignature(wasm::CanonicalTypeIndex other_canonical_sig_index);
 

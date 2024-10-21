@@ -3823,9 +3823,11 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   // Read the trusted object only once to ensure a consistent view on it.
   Tagged<Object> trusted_data = shared.object()->GetTrustedData();
   if (!IsWasmExportedFunctionData(trusted_data)) return NoChange();
-
   Tagged<WasmExportedFunctionData> function_data =
       Cast<WasmExportedFunctionData>(trusted_data);
+
+  if (function_data->is_promising()) return NoChange();
+
   Tagged<WasmTrustedInstanceData> instance_data =
       function_data->instance_data();
   const wasm::CanonicalSig* wasm_signature = function_data->sig();
@@ -5204,8 +5206,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if ((flags() & kInlineJSToWasmCalls) && shared.wasm_function_signature() &&
-      !shared.is_promising_wasm_export()) {
+  if ((flags() & kInlineJSToWasmCalls) &&
+      // Peek at the trusted object; ReduceCallWasmFunction will do that again
+      // and crash if this is not a WasmExportedFunctionData any more then.
+      IsWasmExportedFunctionData(shared.object()->GetTrustedData())) {
     return ReduceCallWasmFunction(node, shared);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
