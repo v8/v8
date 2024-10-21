@@ -5888,6 +5888,7 @@ bool ProcessMessages(
     if (isolate->IsExecutionTerminating()) return true;
     if (try_catch.HasCaught()) return false;
     if (ran_a_task) MicrotasksScope::PerformCheckpoint(isolate);
+    if (isolate->IsExecutionTerminating()) return true;
 
     // In predictable mode we push all background tasks into the foreground
     // task queue of the {kProcessGlobalPredictablePlatformWorkerTaskQueue}
