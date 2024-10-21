@@ -162,6 +162,7 @@
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
+  'tools/processor': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/futex': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
@@ -1657,7 +1658,6 @@
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-779407': [PASS, SLOW],
   'regress/regress-1449567': [PASS, SLOW],
-  'tools/processor': [PASS, SLOW],
   'tools/processor-bigint': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
 
