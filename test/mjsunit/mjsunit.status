@@ -2400,4 +2400,15 @@
   'baseline/cross-realm': [SKIP],
 }],  # 'leaptiering'
 
+['variant == stress_wasm_stack_switching', {
+  # TODO(thibaudm): Fix profiler.
+  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
+}],
+
+['variant == stress_wasm_stack_switching and mode == debug', {
+  # Very slow.
+  'wasm/turboshaft/reduction-shuffle': [SKIP]
+}]
+
 ]
