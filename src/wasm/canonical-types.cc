@@ -357,6 +357,7 @@ size_t TypeCanonicalizer::GetCurrentNumberOfTypes() const {
 // static
 void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
                                                   CanonicalTypeIndex id) {
+  if (!id.valid()) return;
   Heap* heap = isolate->heap();
   // {2 * (id + 1)} needs to fit in an int.
   CHECK_LE(id.index, kMaxInt / 2 - 1);
