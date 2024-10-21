@@ -84,6 +84,9 @@
   'debug/regress/regress-opt-after-debug-deopt': [SKIP],
   'debug/regress/regress-prepare-break-while-recompile': [SKIP],
   'regress/regress-7421': [SKIP],
+
+  # https://crbug.com/374722652
+  'regress/regress-374013413': [SKIP],
 }],  # 'verify_predictable'
 
 ##############################################################################

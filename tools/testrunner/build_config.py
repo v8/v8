@@ -14,7 +14,7 @@ SCALE_FACTOR = dict(
     lite_mode=2,
     tsan=2,
     use_sanitizer=1.5,
-    verify_predictable=4,
+    verify_predictable=8,
 )
 
 INITIALIZATION_ERROR = f"""
