@@ -1578,9 +1578,6 @@ DEFINE_DEBUG_BOOL(trace_wasm_streaming, false,
                   "trace streaming compilation of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_stack_switching, false,
                   "trace wasm stack switching")
-DEFINE_BOOL(stress_wasm_stack_switching, false,
-            "Always run wasm on a secondary stack, even when it is called "
-            "with a regular (non-JSPI) export")
 DEFINE_INT(wasm_stack_switching_stack_size, V8_DEFAULT_STACK_SIZE_KB,
            "default size of stacks for wasm stack-switching (in kB)")
 DEFINE_BOOL(liftoff, true,

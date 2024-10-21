@@ -1171,7 +1171,6 @@ namespace internal {
                                                                                \
   IF_WASM(ASM, JSToWasmWrapperAsm, WasmJSToWasmWrapper)                        \
   IF_WASM(ASM, WasmReturnPromiseOnSuspendAsm, WasmJSToWasmWrapper)             \
-  IF_WASM(ASM, JSToWasmStressSwitchStacksAsm, WasmJSToWasmWrapper)             \
   IF_WASM(ASM, WasmToJsWrapperAsm, WasmDummy)                                  \
   IF_WASM(TFC, WasmToJsWrapperCSA, WasmToJSWrapper)                            \
   IF_WASM(TFC, WasmToJsWrapperInvalidSig, WasmToJSWrapper)                     \

@@ -1830,13 +1830,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
         Builtin::kGenericJSToWasmInterpreterWrapper);
 #endif  // V8_ENABLE_DRUMBRAKE
   } else if (CanUseGenericJsToWasmWrapper(module, sig)) {
-    if (v8_flags.stress_wasm_stack_switching) {
-      wrapper_code =
-          isolate->builtins()->code_handle(Builtin::kWasmStressSwitch);
-    } else {
-      wrapper_code =
-          isolate->builtins()->code_handle(Builtin::kJSToWasmWrapper);
-    }
+    wrapper_code = isolate->builtins()->code_handle(Builtin::kJSToWasmWrapper);
   } else {
     // The wrapper does not exist yet; compile it now.
     wrapper_code = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
@@ -2540,8 +2534,7 @@ bool WasmExportedFunction::IsWasmExportedFunction(Tagged<Object> object) {
       code->builtin_id() != Builtin::kGenericJSToWasmInterpreterWrapper &&
 #endif  // V8_ENABLE_DRUMBRAKE
       code->builtin_id() != Builtin::kJSToWasmWrapper &&
-      code->builtin_id() != Builtin::kWasmPromising &&
-      code->builtin_id() != Builtin::kWasmStressSwitch) {
+      code->builtin_id() != Builtin::kWasmPromising) {
     return false;
   }
   DCHECK(js_function->shared()->HasWasmExportedFunctionData());
@@ -2599,8 +2592,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
            export_wrapper->builtin_id() ==
                Builtin::kGenericJSToWasmInterpreterWrapper ||
 #endif  // V8_ENABLE_DRUMBRAKE
-           export_wrapper->builtin_id() == Builtin::kWasmPromising ||
-           export_wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
+           export_wrapper->builtin_id() == Builtin::kWasmPromising)));
   int func_index = internal_function->function_index();
   Factory* factory = isolate->factory();
   DirectHandle<Map> rtt;

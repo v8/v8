@@ -3511,10 +3511,6 @@ void WasmJs::Install(Isolate* isolate) {
     isolate->WasmInitJSPIFeature();
     InstallJSPromiseIntegration(isolate, native_context, webassembly);
     native_context->set_is_wasm_jspi_installed(Smi::FromInt(1));
-  } else if (v8_flags.stress_wasm_stack_switching) {
-    // Set up the JSPI objects necessary for stress-testing stack-switching, but
-    // don't install WebAssembly.promising and WebAssembly.Suspending.
-    isolate->WasmInitJSPIFeature();
   }
 }
 

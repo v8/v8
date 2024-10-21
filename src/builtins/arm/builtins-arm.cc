@@ -3632,7 +3632,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
 }
 
 void SwitchBackAndReturnPromise(MacroAssembler* masm, RegisterAllocator& regs,
-                                wasm::Promise mode, Label* return_promise) {
+                                Label* return_promise) {
   regs.ResetExcept();
   // The return value of the wasm function becomes the parameter of the
   // FulfillPromise builtin, and the promise is the return value of this
@@ -3640,15 +3640,14 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, RegisterAllocator& regs,
   static const Builtin_FulfillPromise_InterfaceDescriptor desc;
   DEFINE_PINNED(promise, desc.GetRegisterParameter(0));
   DEFINE_PINNED(return_value, desc.GetRegisterParameter(1));
+  __ Move(return_value, kReturnRegister0);
   DEFINE_SCOPED(tmp);
   DEFINE_SCOPED(tmp2);
   DEFINE_SCOPED(tmp3);
-  if (mode == wasm::kPromise) {
-    __ Move(return_value, kReturnRegister0);
-    __ LoadRoot(promise, RootIndex::kActiveSuspender);
-    __ LoadTaggedField(
-        promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
-  }
+  __ LoadRoot(promise, RootIndex::kActiveSuspender);
+  __ LoadTaggedField(
+      promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
+
   __ ldr(kContextRegister,
          MemOperand(fp, StackSwitchFrameConstants::kImplicitArgOffset));
   GetContextFromImplicitArg(masm, kContextRegister, tmp);
@@ -3657,16 +3656,15 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, RegisterAllocator& regs,
                            tmp2, tmp3);
   RestoreParentSuspender(masm, tmp, tmp2);
 
-  if (mode == wasm::kPromise) {
-    __ Move(tmp, Operand(1));
-    __ str(tmp,
-           MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
-    __ Push(promise);
-    __ CallBuiltin(Builtin::kFulfillPromise);
-    __ Pop(promise);
-  }
-  FREE_REG(promise);
+  __ Move(tmp, Operand(1));
+  __ str(tmp,
+         MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
+  __ Push(promise);
+  __ CallBuiltin(Builtin::kFulfillPromise);
+  __ Pop(promise);
   FREE_REG(return_value);
+  FREE_REG(promise);
+
   __ bind(return_promise);
 }
 
@@ -3720,8 +3718,7 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   masm->isolate()->builtins()->SetJSPIPromptHandlerOffset(catch_handler);
 }
 
-void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
-  bool stack_switch = mode == wasm::kPromise || mode == wasm::kStressSwitch;
+void JSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
 
   __ EnterFrame(stack_switch ? StackFrame::STACK_SWITCH
@@ -3918,7 +3915,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
 
   Label return_promise;
   if (stack_switch) {
-    SwitchBackAndReturnPromise(masm, regs, mode, &return_promise);
+    SwitchBackAndReturnPromise(masm, regs, &return_promise);
   }
   __ bind(&suspend);
 
@@ -3933,7 +3930,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
 
   // Catch handler for the stack-switching wrapper: reject the promise with the
   // thrown exception.
-  if (mode == wasm::kPromise) {
+  if (stack_switch) {
     // Block literal pool emission whilst taking the position of the handler
     // entry.
     Assembler::BlockConstPoolScope block_const_pool(masm);
@@ -3945,15 +3942,11 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
 }  // namespace
 
 void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
-  JSToWasmWrapperHelper(masm, wasm::kNoPromise);
+  JSToWasmWrapperHelper(masm, false);
 }
 
 void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
-  JSToWasmWrapperHelper(masm, wasm::kPromise);
-}
-
-void Builtins::Generate_JSToWasmStressSwitchStacksAsm(MacroAssembler* masm) {
-  JSToWasmWrapperHelper(masm, wasm::kStressSwitch);
+  JSToWasmWrapperHelper(masm, true);
 }
 
 namespace {
