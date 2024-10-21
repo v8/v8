@@ -936,3 +936,152 @@ THREADED_TEST(ArrayBuffer_DataApiWithEmptyExternal) {
   CHECK_EQ(buffer, ab2->Data());
   CHECK_EQ(0, ab->ByteLength());
 }
+
+namespace {
+void TestArrayBufferViewGetContent(const char* source, void* expected) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  auto view = v8::Local<v8::ArrayBufferView>::Cast(CompileRun(source));
+  uint8_t buffer[i::JSTypedArray::kMaxSizeInHeap];
+  v8::MemorySpan<uint8_t> storage(buffer);
+  storage = view->GetContents(storage);
+  CHECK_EQ(view->ByteLength(), storage.size());
+  CHECK_EQ(0, memcmp(storage.data(), expected, view->ByteLength()));
+}
+}  // namespace
+
+TEST(ArrayBufferView_GetContentsSmallUint8) {
+  const char* source = "new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9])";
+  uint8_t expected[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsLargeUint8) {
+  const char* source =
+      "let array = new Uint8Array(100);"
+      "for (let i = 0; i < 100; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "array";
+  uint8_t expected[100];
+  for (uint8_t i = 0; i < 100; ++i) {
+    expected[i] = i;
+  }
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsUint8View) {
+  const char* source =
+      "let array = new Uint8Array(100);"
+      "for (let i = 0; i < 100; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "new Uint8Array(array.buffer, 70, 9)";
+  uint8_t expected[]{70, 71, 72, 73, 74, 75, 76, 77, 78, 79};
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsSmallUint32) {
+  const char* source = "new Uint16Array([1, 2, 3, 4, 5, 6, 7, 8, 9])";
+  uint16_t expected[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsLargeUint16) {
+  const char* source =
+      "let array = new Uint16Array(100);"
+      "for (let i = 0; i < 100; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "array";
+  uint16_t expected[100];
+  for (uint16_t i = 0; i < 100; ++i) {
+    expected[i] = i;
+  }
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsUint16View) {
+  const char* source =
+      "let array = new Uint16Array(100);"
+      "for (let i = 0; i < 100; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "new Uint16Array(array.buffer, 140, 9)";
+  uint16_t expected[]{70, 71, 72, 73, 74, 75, 76, 77, 78, 79};
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsSmallDataView) {
+  const char* source =
+      "let array = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]);"
+      "new DataView(array.buffer)";
+  uint8_t expected[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsLargeDataView) {
+  const char* source =
+      "let array = new Uint8Array(100);"
+      "for (let i = 0; i < 100; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "new DataView(array.buffer)";
+  uint8_t expected[100];
+  for (uint8_t i = 0; i < 100; ++i) {
+    expected[i] = i;
+  }
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsDataViewWithOffset) {
+  const char* source =
+      "let array = new Uint8Array(100);"
+      "for (let i = 0; i < 100; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "new DataView(array.buffer, 70, 9)";
+  uint8_t expected[]{70, 71, 72, 73, 74, 75, 76, 77, 78, 79};
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsSmallResizableDataView) {
+  const char* source =
+      "let rsab = new ArrayBuffer(10, {maxByteLength: 20});"
+      "let array = new Uint8Array(rsab);"
+      "for (let i = 0; i < 10; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "new DataView(rsab)";
+  uint8_t expected[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsLargeResizableDataView) {
+  const char* source =
+      "let rsab = new ArrayBuffer(100, {maxByteLength: 200});"
+      "let array = new Uint8Array(rsab);"
+      "for (let i = 0; i < 100; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "new DataView(rsab)";
+  uint8_t expected[100];
+  for (uint8_t i = 0; i < 100; ++i) {
+    expected[i] = i;
+  }
+  TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsResizableDataViewWithOffset) {
+  const char* source =
+      "let rsab = new ArrayBuffer(100, {maxByteLength: 200});"
+      "let array = new Uint8Array(rsab);"
+      "for (let i = 0; i < 100; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "new DataView(rsab, 70, 9)";
+  uint8_t expected[]{70, 71, 72, 73, 74, 75, 76, 77, 78, 79};
+  TestArrayBufferViewGetContent(source, expected);
+}
