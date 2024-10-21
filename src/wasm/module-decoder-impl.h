@@ -2375,8 +2375,10 @@ class ModuleDecoderImpl : public Decoder {
       if (tracer_) tracer_->Description(table_index);
     }
     if (V8_UNLIKELY(is_active && table_index >= module_->tables.size())) {
+      // If `has_table_index`, we have an explicit table index. Otherwise, we
+      // always have the implicit table index 0.
       errorf(pos, "out of bounds%s table index %u",
-             has_table_index ? " implicit" : "", table_index);
+             has_table_index ? "" : " implicit", table_index);
       return {};
     }
 
