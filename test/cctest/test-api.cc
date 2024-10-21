@@ -29505,6 +29505,247 @@ TEST(FastApiCalls) {
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
 
+template <typename Ret, v8::CFunctionInfo::Int64Representation Int64Repr =
+                            v8::CFunctionInfo::Int64Representation::kNumber>
+struct SeqOneByteStringChecker {
+  static void Test(std::function<Ret()> f) {
+    LocalContext env;
+    v8::Isolate* isolate = CcTest::isolate();
+
+    static v8::CFunction c_function =
+        v8::CFunction::Make(FastCallback, Int64Repr);
+    v8::Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
+        isolate, SlowCallback, {}, {}, 1, v8::ConstructorBehavior::kThrow,
+        v8::SideEffectType::kHasSideEffect, &c_function);
+
+    v8::Local<v8::ObjectTemplate> object_template =
+        v8::ObjectTemplate::New(isolate);
+    object_template->SetInternalFieldCount(kV8WrapperObjectIndex + 1);
+    object_template->Set(isolate, "api_func", checker_templ);
+
+    SeqOneByteStringChecker checker{f};
+
+    v8::Local<v8::Object> object =
+        object_template->NewInstance(env.local()).ToLocalChecked();
+    object->SetAlignedPointerInInternalField(kV8WrapperObjectIndex,
+                                             reinterpret_cast<void*>(&checker));
+    CHECK((*env)
+              ->Global()
+              ->Set(env.local(), v8_str("receiver"), object)
+              .FromJust());
+
+    v8::TryCatch try_catch(isolate);
+    CompileRun(
+        "function func(arg) { return receiver.api_func(arg); }"
+        "%PrepareFunctionForOptimization(func);"
+        "func('');");
+    CHECK(!try_catch.HasCaught());
+    CHECK(checker.DidCallSlow());
+    checker.Reset();
+
+    CompileRun(
+        "%OptimizeFunctionOnNextCall(func);"
+        "const fastr = func('');");
+    CHECK(!try_catch.HasCaught());
+    CHECK(checker.DidCallFast());
+    checker.Reset();
+
+    // Call func with two-byte string to take slow path
+    CompileRun("const slowr = func('\\u{1F4A9}');");
+    CHECK(!try_catch.HasCaught());
+    CHECK(checker.DidCallSlow());
+
+    if constexpr (std::is_same_v<Ret, void*>) {
+      CompileRun(
+          "if (typeof slowr !== 'object') { throw new Error(`${slowr} is not "
+          "object`) }");
+    } else {
+      CompileRun(
+          "if (!Object.is(fastr, slowr)) { throw new Error(`${slowr} is not "
+          "${fastr}`); }");
+    }
+    CHECK(!try_catch.HasCaught());
+  }
+
+  static Ret FastCallback(v8::Local<v8::Object> receiver,
+                          const v8::FastOneByteString& string) {
+    SeqOneByteStringChecker* receiver_ptr =
+        GetInternalField<SeqOneByteStringChecker>(*receiver);
+    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+
+    return receiver_ptr->func_();
+  }
+
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Object* receiver_obj = v8::Object::Cast(*info.This());
+    SeqOneByteStringChecker* receiver_ptr =
+        GetInternalField<SeqOneByteStringChecker>(receiver_obj);
+    receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
+
+    CHECK(info[0]->IsString());
+    if constexpr (std::is_void<Ret>::value) {
+      // do nothing
+    } else if constexpr (std::is_same_v<Ret, void*>) {
+      info.GetReturnValue().Set(
+          v8::External::New(info.GetIsolate(), receiver_ptr->func_()));
+    } else if constexpr (sizeof(Ret) == 8 &&
+                         Int64Repr ==
+                             v8::CFunctionInfo::Int64Representation::kBigInt) {
+      if constexpr (std::is_same_v<Ret, int64_t>) {
+        info.GetReturnValue().Set(
+            v8::BigInt::New(info.GetIsolate(), receiver_ptr->func_()));
+      } else {
+        info.GetReturnValue().Set(v8::BigInt::NewFromUnsigned(
+            info.GetIsolate(), receiver_ptr->func_()));
+      }
+    } else if constexpr (std::is_same_v<Ret, uint64_t>) {
+      info.GetReturnValue().Set(v8::Number::New(
+          info.GetIsolate(), static_cast<double>(receiver_ptr->func_())));
+    } else {
+      info.GetReturnValue().Set(receiver_ptr->func_());
+    }
+  }
+
+  explicit SeqOneByteStringChecker(std::function<Ret()> f) : func_(f) {}
+
+  bool DidCallFast() const { return (result_ & ApiCheckerResult::kFastCalled); }
+  bool DidCallSlow() const { return (result_ & ApiCheckerResult::kSlowCalled); }
+
+  void Reset() { result_ = ApiCheckerResult::kNotCalled; }
+
+ private:
+  std::function<Ret()> func_;
+  ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
+};
+
+TEST(FastApiCallsString) {
+#if !defined(V8_LITE_MODE) &&                          \
+    !defined(V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS) && \
+    defined(V8_ENABLE_TURBOFAN)
+  if (i::v8_flags.jitless) return;
+  if (i::v8_flags.disable_optimizing_compilers) return;
+
+  i::v8_flags.turbofan = true;
+  i::v8_flags.turbo_fast_api_calls = true;
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.fast_api_allow_float_in_sim = true;
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
+  // feedback to go down the "best optimization" path for the fast call.
+  i::v8_flags.always_turbofan = false;
+  i::FlagList::EnforceFlagImplications();
+
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
+  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
+
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  SeqOneByteStringChecker<void>::Test([]() {});
+
+  SeqOneByteStringChecker<void*>::Test(
+      []() { return reinterpret_cast<void*>(0xFF); });
+
+  SeqOneByteStringChecker<bool>::Test([]() { return true; });
+  SeqOneByteStringChecker<bool>::Test([]() { return false; });
+
+  SeqOneByteStringChecker<int32_t>::Test([]() { return 0; });
+  SeqOneByteStringChecker<int32_t>::Test(
+      []() { return std::numeric_limits<int32_t>::min(); });
+  SeqOneByteStringChecker<int32_t>::Test(
+      []() { return std::numeric_limits<int32_t>::max(); });
+
+  SeqOneByteStringChecker<uint32_t>::Test([]() { return 0; });
+  SeqOneByteStringChecker<uint32_t>::Test(
+      []() { return std::numeric_limits<uint32_t>::min(); });
+  SeqOneByteStringChecker<uint32_t>::Test(
+      []() { return std::numeric_limits<uint32_t>::max(); });
+
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  SeqOneByteStringChecker<float>::Test([]() { return 0; });
+  SeqOneByteStringChecker<float>::Test(
+      []() { return std::numeric_limits<float>::quiet_NaN(); });
+  SeqOneByteStringChecker<float>::Test(
+      []() { return std::numeric_limits<float>::infinity(); });
+  SeqOneByteStringChecker<float>::Test(
+      []() { return std::numeric_limits<float>::min(); });
+  SeqOneByteStringChecker<float>::Test(
+      []() { return std::numeric_limits<float>::max(); });
+
+  SeqOneByteStringChecker<double>::Test([]() { return 0; });
+  SeqOneByteStringChecker<double>::Test(
+      []() { return std::numeric_limits<double>::quiet_NaN(); });
+  SeqOneByteStringChecker<double>::Test(
+      []() { return std::numeric_limits<double>::infinity(); });
+  SeqOneByteStringChecker<double>::Test(
+      []() { return std::numeric_limits<double>::min(); });
+  SeqOneByteStringChecker<double>::Test(
+      []() { return std::numeric_limits<double>::max(); });
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+
+#ifdef V8_TARGET_ARCH_64_BIT
+  SeqOneByteStringChecker<
+      int64_t, v8::CFunctionInfo::Int64Representation::kNumber>::Test([]() {
+    return 0;
+  });
+  SeqOneByteStringChecker<
+      int64_t, v8::CFunctionInfo::Int64Representation::kNumber>::Test([]() {
+    return std::numeric_limits<int64_t>::min();
+  });
+  SeqOneByteStringChecker<
+      int64_t, v8::CFunctionInfo::Int64Representation::kNumber>::Test([]() {
+    // The highest int64_t representable as double.
+    return 0x7ffffffffffff000L;
+  });
+
+  SeqOneByteStringChecker<
+      int64_t, v8::CFunctionInfo::Int64Representation::kBigInt>::Test([]() {
+    return 0;
+  });
+  SeqOneByteStringChecker<
+      int64_t, v8::CFunctionInfo::Int64Representation::kBigInt>::Test([]() {
+    return std::numeric_limits<int64_t>::min();
+  });
+  SeqOneByteStringChecker<
+      int64_t, v8::CFunctionInfo::Int64Representation::kBigInt>::Test([]() {
+    return std::numeric_limits<int64_t>::max();
+  });
+
+  SeqOneByteStringChecker<
+      uint64_t, v8::CFunctionInfo::Int64Representation::kNumber>::Test([]() {
+    return 0;
+  });
+  SeqOneByteStringChecker<
+      uint64_t, v8::CFunctionInfo::Int64Representation::kNumber>::Test([]() {
+    return std::numeric_limits<uint64_t>::min();
+  });
+  SeqOneByteStringChecker<
+      uint64_t, v8::CFunctionInfo::Int64Representation::kNumber>::Test([]() {
+    // The highest uint64 representable as double.
+    return 0xfffffffffffff000UL;
+  });
+
+  SeqOneByteStringChecker<
+      uint64_t, v8::CFunctionInfo::Int64Representation::kBigInt>::Test([]() {
+    return 0;
+  });
+  SeqOneByteStringChecker<
+      uint64_t, v8::CFunctionInfo::Int64Representation::kBigInt>::Test([]() {
+    return std::numeric_limits<uint64_t>::min();
+  });
+  SeqOneByteStringChecker<
+      uint64_t, v8::CFunctionInfo::Int64Representation::kBigInt>::Test([]() {
+    return std::numeric_limits<uint64_t>::max();
+  });
+#endif  // V8_TARGET_ARCH_64_BIT
+
+#endif  // !defined(V8_LITE_MODE) &&
+        // !defined(V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS) &&
+        // defined(V8_ENABLE_TURBOFAN)
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 TEST(FastApiCallsFromWasm) {
   if (i::v8_flags.jitless) return;

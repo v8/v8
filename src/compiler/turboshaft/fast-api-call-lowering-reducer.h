@@ -37,24 +37,8 @@ class FastApiCallLoweringReducer : public Next {
 
     Label<> handle_error(this);
     Label<Word32> done(this);
-    MachineType result_type =
-        MachineType::TypeForCType(c_signature->ReturnInfo());
-    if (result_type == MachineType::Pointer()) {
-      result_type = MachineType::TaggedPointer();
-    } else if (result_type.representation() == MachineRepresentation::kWord64) {
-      if (c_signature->GetInt64Representation() ==
-          CFunctionInfo::Int64Representation::kBigInt) {
-        // In the end we are only interested in the register representation, and
-        // that is the same for both Int64 and Uint64.
-        result_type = MachineType::Int64();
-      } else {
-        DCHECK_EQ(c_signature->GetInt64Representation(),
-                  CFunctionInfo::Int64Representation::kNumber);
-        result_type = MachineType::Float64();
-      }
-    }
-    Variable result =
-        __ NewVariable(RegisterRepresentation::FromMachineType(result_type));
+    Variable result = __ NewVariable(RegisterRepresentation::FromCTypeInfo(
+        c_signature->ReturnInfo(), c_signature->GetInt64Representation()));
 
     OpIndex callee;
     base::SmallVector<OpIndex, 16> args;
@@ -515,8 +499,15 @@ class FastApiCallLoweringReducer : public Next {
       case CTypeInfo::Type::kUint32:
         return __ Word32Constant(0);
       case CTypeInfo::Type::kInt64:
-      case CTypeInfo::Type::kUint64:
-        return __ Word64Constant(int64_t{0});
+      case CTypeInfo::Type::kUint64: {
+        CFunctionInfo::Int64Representation repr =
+            c_signature->GetInt64Representation();
+        if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+          return __ Word64Constant(int64_t{0});
+        }
+        DCHECK_EQ(repr, CFunctionInfo::Int64Representation::kNumber);
+        return __ Float64Constant(0);
+      }
       case CTypeInfo::Type::kFloat32:
         return __ Float32Constant(0);
       case CTypeInfo::Type::kFloat64:

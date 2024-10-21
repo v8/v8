@@ -824,6 +824,7 @@
   'test-api/FastApiCallRecursionNoException': [FAIL],
   'test-api/FastApiCallRecursionWithException': [FAIL],
   'test-api/FastApiCallWithThrowInReentrantCode': [FAIL],
+  'test-api/FastApiCallsString': [FAIL],
 }],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ['conservative_stack_scanning', {

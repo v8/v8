@@ -108,7 +108,8 @@ namespace internal {
     "A type assertion failed in Turboshaft-generated code")                    \
   V(kMetadataAreaStartDoesNotMatch,                                            \
     "The metadata doesn't belong to the chunk")                                \
-  V(kJSSignatureMismatch, "Signature mismatch during JS function call")
+  V(kJSSignatureMismatch, "Signature mismatch during JS function call")        \
+  V(kFastCallFallbackInvalid, "Fast call fallback returned incorrect type")
 
 #define BAILOUT_MESSAGES_LIST(V)                                             \
   V(kNoReason, "no reason")                                                  \
