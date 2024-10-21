@@ -3091,16 +3091,17 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   external_string_table_.IterateAll(&external_string_table_visitor);
 }
 
-static_assert(IsAligned(FixedDoubleArray::kHeaderSize, kDoubleAlignment));
+static_assert(IsAligned(OFFSET_OF_DATA_START(FixedDoubleArray),
+                        kDoubleAlignment));
 
 #ifdef V8_COMPRESS_POINTERS
 // TODO(ishell, v8:8875): When pointer compression is enabled the kHeaderSize
 // is only kTaggedSize aligned but we can keep using unaligned access since
 // both x64 and arm64 architectures (where pointer compression supported)
 // allow unaligned access to doubles.
-static_assert(IsAligned(ByteArray::kHeaderSize, kTaggedSize));
+static_assert(IsAligned(OFFSET_OF_DATA_START(ByteArray), kTaggedSize));
 #else
-static_assert(IsAligned(ByteArray::kHeaderSize, kDoubleAlignment));
+static_assert(IsAligned(OFFSET_OF_DATA_START(ByteArray), kDoubleAlignment));
 #endif
 
 int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {

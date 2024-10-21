@@ -4238,7 +4238,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     __ Store(data_segment_sizes, __ Word32Constant(0),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
              compiler::kNoWriteBarrier,
-             FixedUInt32Array::kHeaderSize + imm.index * kUInt32Size);
+             FixedUInt32Array::OffsetOfElementAt(imm.index));
   }
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,

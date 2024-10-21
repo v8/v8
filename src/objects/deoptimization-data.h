@@ -192,16 +192,11 @@ class DeoptimizationFrameTranslation : public TrustedByteArray {
   static constexpr int kDeoptimizationFrameTranslationElementSize = kInt32Size;
 #endif  // V8_USE_ZLIB
 
-  inline uint32_t get_int(int offset) const;
-  inline void set_int(int offset, uint32_t value);
-
 #ifdef ENABLE_DISASSEMBLER
   void PrintFrameTranslation(
       std::ostream& os, int index,
       Tagged<DeoptimizationLiteralArray> literal_array) const;
 #endif
-
-  OBJECT_CONSTRUCTORS(DeoptimizationFrameTranslation, TrustedByteArray);
 };
 
 class DeoptTranslationIterator {

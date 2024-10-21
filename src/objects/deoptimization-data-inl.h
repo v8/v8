@@ -103,19 +103,6 @@ inline void DeoptimizationLiteralArray::set(int index, Tagged<Object> value) {
   TrustedWeakFixedArray::set(index, maybe);
 }
 
-inline DeoptimizationFrameTranslation::DeoptimizationFrameTranslation(
-    Address ptr)
-    : TrustedByteArray(ptr) {}
-
-uint32_t DeoptimizationFrameTranslation::get_int(int offset) const {
-  DCHECK_LE(offset + sizeof(uint32_t), length());
-  return ReadField<uint32_t>(OffsetOfElementAt(offset));
-}
-
-void DeoptimizationFrameTranslation::set_int(int offset, uint32_t value) {
-  DCHECK_LE(offset + sizeof(uint32_t), length());
-  WriteField<uint32_t>(OffsetOfElementAt(offset), value);
-}
 }  // namespace internal
 }  // namespace v8
 

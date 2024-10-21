@@ -880,17 +880,13 @@ void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   }
 }
 
-void ByteArray::ByteArrayVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
-}
+void ByteArray::ByteArrayVerify(Isolate* isolate) {}
 
 void TrustedByteArray::TrustedByteArrayVerify(Isolate* isolate) {
   TrustedObjectVerify(isolate);
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
 }
 
 void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
   for (int i = 0; i < length(); i++) {
     if (!is_the_hole(i)) {
       uint64_t value = get_representation(i);

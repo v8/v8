@@ -11803,7 +11803,8 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
   BuildStoreMap(allocation, broker()->fixed_double_array_map(),
                 StoreMap::initializing_kind(allocation_type));
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-      {allocation, GetSmiConstant(length)}, FixedDoubleArray::kLengthOffset,
+      {allocation, GetSmiConstant(length)},
+      static_cast<int>(offsetof(FixedDoubleArray, length_)),
       StoreTaggedMode::kDefault);
   for (int i = 0; i < length; ++i) {
     AddNewNode<StoreFloat64>(

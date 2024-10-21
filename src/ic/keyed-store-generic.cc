@@ -425,7 +425,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
            slow);
   }
   static_assert(OFFSET_OF_DATA_START(FixedArray) ==
-                FixedDoubleArray::kHeaderSize);
+                OFFSET_OF_DATA_START(FixedDoubleArray));
   const int kHeaderSize = OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag;
 
   Label check_double_elements(this), check_cow_elements(this);

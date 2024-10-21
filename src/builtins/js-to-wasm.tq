@@ -606,7 +606,7 @@ macro JSToWasmWrapperHelper(
             Convert<intptr>(torque_internal::SizeOf<intptr>()) +
         UniqueIntPtrConstant(kNumFPRegisterParameters) * kSlotSize +
         Convert<intptr>(paramCount) * kSlotSize;
-    const slice = &AllocateByteArray(Convert<uintptr>(bufferSize)).bytes;
+    const slice = &AllocateByteArray(Convert<uintptr>(bufferSize)).values;
     paramBuffer = torque_internal::unsafe::NewReference<intptr>(
         slice.object, slice.offset);
   }

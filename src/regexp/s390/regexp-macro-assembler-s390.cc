@@ -535,8 +535,8 @@ void RegExpMacroAssemblerS390::CheckBitInTable(Handle<ByteArray> table,
     __ AndP(r3, current_character(), Operand(kTableSize - 1));
     index = r3;
   }
-  __ LoadU8(r2,
-            MemOperand(r2, index, (ByteArray::kHeaderSize - kHeapObjectTag)));
+  __ LoadU8(r2, MemOperand(r2, index,
+                           (OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag)));
   __ CmpS64(r2, Operand::Zero());
   BranchOrBacktrack(ne, on_bit_set);
 }

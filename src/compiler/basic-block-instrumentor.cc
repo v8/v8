@@ -112,7 +112,8 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
     // Construct increment operation.
     int offset_to_counter_value = static_cast<int>(block_number) * kInt32Size;
     if (on_heap_counters) {
-      offset_to_counter_value += ByteArray::kHeaderSize - kHeapObjectTag;
+      offset_to_counter_value +=
+          OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag;
     }
     Node* offset_to_counter =
         graph->NewNode(IntPtrConstant(&common, offset_to_counter_value));

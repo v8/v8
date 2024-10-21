@@ -28,9 +28,9 @@ extern class ProtectedFixedArray extends TrustedObject {
   objects[length]: TrustedObject|Smi;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class FixedDoubleArray extends FixedArrayBase {
-  floats[length]: float64_or_hole;
+  values[length]: float64_or_hole;
 }
 
 @cppObjectLayoutDefinition
@@ -45,15 +45,15 @@ extern class TrustedWeakFixedArray extends TrustedObject {
   objects[length]: MaybeObject;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class ByteArray extends FixedArrayBase {
-  bytes[length]: uint8;
+  values[length]: uint8;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class TrustedByteArray extends TrustedObject {
   const length: Smi;
-  bytes[length]: uint8;
+  values[length]: uint8;
 }
 
 extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
@@ -107,15 +107,15 @@ extern macro StoreFixedArrayElement(
     FixedArray, intptr, Object, constexpr WriteBarrierMode): void;
 extern macro StoreFixedArrayElement(
     FixedArray, intptr, Smi, constexpr WriteBarrierMode): void;
-extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
+extern operator '.values[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, intptr, float64): void;
-extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
+extern operator '.values[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, Smi, float64): void;
-extern operator '.floats[]' macro LoadFixedDoubleArrayElement(
+extern operator '.values[]' macro LoadFixedDoubleArrayElement(
     FixedDoubleArray, intptr): float64;
 operator '[]=' macro StoreFixedDoubleArrayDirect(
     a: FixedDoubleArray, i: Smi, v: Number): void {
-  a.floats[i] = Convert<float64_or_hole>(Convert<float64>(v));
+  a.values[i] = Convert<float64_or_hole>(Convert<float64>(v));
 }
 operator '[]=' macro StoreFixedArrayDirect(
     a: FixedArray, i: Smi, v: Object): void {
@@ -169,7 +169,7 @@ macro ExtractFixedDoubleArray(
   return NewFixedDoubleArray(
       capacity,
       IteratorSequence<float64_or_hole>(
-          (&source.floats).Iterator(first, first + count),
+          (&source.values).Iterator(first, first + count),
           ConstantIterator(kDoubleHole)));
 }
 
@@ -196,6 +196,6 @@ macro NewFixedDoubleArray<Iterator: type>(
   return new FixedDoubleArray{
     map: kFixedDoubleArrayMap,
     length: Convert<Smi>(length),
-    floats: ...it
+    values: ...it
   };
 }

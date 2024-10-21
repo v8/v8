@@ -3048,7 +3048,7 @@ class TurboshaftAssemblerOpInterface
                   ElementsKindToShiftSize(HOLEY_DOUBLE_ELEMENTS));
     Store(array, index, value, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::Float64(), WriteBarrierKind::kNoWriteBarrier,
-          FixedDoubleArray::kHeaderSize,
+          sizeof(FixedDoubleArray::Header),
           ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS));
   }
 

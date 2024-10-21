@@ -552,10 +552,10 @@ void RegExpMacroAssemblerPPC::CheckBitInTable(Handle<ByteArray> table,
   __ mov(r3, Operand(table));
   if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ andi(r4, current_character(), Operand(kTableSize - 1));
-    __ addi(r4, r4, Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+    __ addi(r4, r4, Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   } else {
     __ addi(r4, current_character(),
-            Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+            Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   }
   __ lbzx(r3, MemOperand(r3, r4));
   __ cmpi(r3, Operand::Zero());

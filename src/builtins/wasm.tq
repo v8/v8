@@ -1215,7 +1215,7 @@ builtin WasmStringAsWtf8(str: String): ByteArray {
 macro IsWtf8CodepointStart(view: ByteArray, pos: uint32): bool {
   // We're already at the start of a codepoint if the current byte
   // doesn't start with 0b10xxxxxx.
-  return (view.bytes[Convert<uintptr>(pos)] & 0xc0) != 0x80;
+  return (view.values[Convert<uintptr>(pos)] & 0xc0) != 0x80;
 }
 macro AlignWtf8PositionForward(view: ByteArray, pos: uint32): uint32 {
   const length = Unsigned(SmiToInt32(view.length));

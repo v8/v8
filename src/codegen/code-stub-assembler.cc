@@ -3205,12 +3205,13 @@ TNode<MaybeObject> CodeStubAssembler::LoadWeakFixedArrayElement(
 TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(
     TNode<FixedDoubleArray> object, TNode<IntPtrT> index, Label* if_hole,
     MachineType machine_type) {
-  int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
+  int32_t header_size = OFFSET_OF_DATA_START(FixedDoubleArray) - kHeapObjectTag;
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(index, HOLEY_DOUBLE_ELEMENTS, header_size);
-  CSA_DCHECK(this, IsOffsetInBounds(
-                       offset, LoadAndUntagFixedArrayBaseLength(object),
-                       FixedDoubleArray::kHeaderSize, HOLEY_DOUBLE_ELEMENTS));
+  CSA_DCHECK(this,
+             IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(object),
+                              OFFSET_OF_DATA_START(FixedDoubleArray),
+                              HOLEY_DOUBLE_ELEMENTS));
   return LoadDoubleWithHoleCheck(object, offset, if_hole, machine_type);
 }
 
@@ -3799,7 +3800,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS, header_size);
   static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
-                static_cast<int>(FixedDoubleArray::kLengthOffset));
+                static_cast<int>(offsetof(FixedDoubleArray, length_)));
   static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
                 static_cast<int>(offsetof(WeakFixedArray, length_)));
   static_assert(static_cast<int>(offsetof(FixedArray, length_)) ==
@@ -4173,9 +4174,9 @@ TNode<ByteArray> CodeStubAssembler::AllocateNonEmptyByteArray(
   Comment("AllocateNonEmptyByteArray");
   TVARIABLE(Object, var_result);
 
-  TNode<IntPtrT> raw_size =
-      GetArrayAllocationSize(Signed(length), UINT8_ELEMENTS,
-                             ByteArray::kHeaderSize + kObjectAlignmentMask);
+  TNode<IntPtrT> raw_size = GetArrayAllocationSize(
+      Signed(length), UINT8_ELEMENTS,
+      OFFSET_OF_DATA_START(ByteArray) + kObjectAlignmentMask);
   TNode<IntPtrT> size =
       WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
 
@@ -4183,7 +4184,7 @@ TNode<ByteArray> CodeStubAssembler::AllocateNonEmptyByteArray(
 
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kByteArrayMap));
   StoreMapNoWriteBarrier(result, RootIndex::kByteArrayMap);
-  StoreObjectFieldNoWriteBarrier(result, ByteArray::kLengthOffset,
+  StoreObjectFieldNoWriteBarrier(result, offsetof(ByteArray, length_),
                                  SmiTag(Signed(length)));
 
   return CAST(result);
@@ -4201,9 +4202,9 @@ TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
       if_notsizeissmall(this, Label::kDeferred), if_join(this);
   GotoIf(WordEqual(length, UintPtrConstant(0)), &if_lengthiszero);
 
-  TNode<IntPtrT> raw_size =
-      GetArrayAllocationSize(Signed(length), UINT8_ELEMENTS,
-                             ByteArray::kHeaderSize + kObjectAlignmentMask);
+  TNode<IntPtrT> raw_size = GetArrayAllocationSize(
+      Signed(length), UINT8_ELEMENTS,
+      OFFSET_OF_DATA_START(ByteArray) + kObjectAlignmentMask);
   TNode<IntPtrT> size =
       WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
   Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
@@ -4216,7 +4217,7 @@ TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
         AllocateInNewSpace(UncheckedCast<IntPtrT>(size), flags);
     DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kByteArrayMap));
     StoreMapNoWriteBarrier(result, RootIndex::kByteArrayMap);
-    StoreObjectFieldNoWriteBarrier(result, ByteArray::kLengthOffset,
+    StoreObjectFieldNoWriteBarrier(result, offsetof(ByteArray, length_),
                                    SmiTag(Signed(length)));
     var_result = result;
     Goto(&if_join);
@@ -5277,7 +5278,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
   // extracted from CopyFixedArrayElements.
   CSA_SLOW_DCHECK(this, IsFixedArrayWithKindOrEmpty(from_array, kind));
   static_assert(OFFSET_OF_DATA_START(FixedArray) ==
-                FixedDoubleArray::kHeaderSize);
+                OFFSET_OF_DATA_START(FixedDoubleArray));
 
   Comment("[ ExtractFixedDoubleArrayFillingHoles");
 
@@ -5557,9 +5558,10 @@ void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS,
                              OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-  CSA_DCHECK(this, IsOffsetInBounds(
-                       offset, LoadAndUntagFixedArrayBaseLength(array),
-                       FixedDoubleArray::kHeaderSize, PACKED_DOUBLE_ELEMENTS));
+  CSA_DCHECK(this,
+             IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(array),
+                              OFFSET_OF_DATA_START(FixedDoubleArray),
+                              PACKED_DOUBLE_ELEMENTS));
   StoreDoubleHole(array, offset);
 }
 
@@ -5602,7 +5604,7 @@ void CodeStubAssembler::FillFixedDoubleArrayWithZero(
   CSA_DCHECK(this, UintPtrLessThan(length, byte_length));
 
   static const int32_t fa_base_data_offset =
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag;
+      OFFSET_OF_DATA_START(FixedDoubleArray) - kHeapObjectTag;
   TNode<IntPtrT> offset = ElementOffsetFromIndex(start, PACKED_DOUBLE_ELEMENTS,
                                                  fa_base_data_offset);
   TNode<IntPtrT> backing_store = IntPtrAdd(BitcastTaggedToWord(array), offset);
@@ -5841,7 +5843,7 @@ void CodeStubAssembler::CopyFixedArrayElements(
   CSA_SLOW_DCHECK(this, IsFixedArrayWithKindOrEmpty(from_array, from_kind));
   CSA_SLOW_DCHECK(this, IsFixedArrayWithKindOrEmpty(to_array, to_kind));
   static_assert(OFFSET_OF_DATA_START(FixedArray) ==
-                FixedDoubleArray::kHeaderSize);
+                OFFSET_OF_DATA_START(FixedDoubleArray));
   static_assert(
       std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
       "Only Smi or IntPtrT indices are allowed");
@@ -13814,7 +13816,7 @@ void CodeStubAssembler::BuildFastArrayForEach(
     TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
     LoopUnrollingMode loop_unrolling_mode, ForEachDirection direction) {
   static_assert(OFFSET_OF_DATA_START(FixedArray) ==
-                FixedDoubleArray::kHeaderSize);
+                OFFSET_OF_DATA_START(FixedDoubleArray));
   CSA_SLOW_DCHECK(this, Word32Or(IsFixedArrayWithKind(array, kind),
                                  IsPropertyArray(array)));
 
@@ -17770,7 +17772,8 @@ class MetaTableAccessor {
                                TNode<IntPtrT> index) {
     // TODO(v8:11330): consider using ElementOffsetFromIndex().
 
-    int offset_to_data_minus_tag = ByteArray::kHeaderSize - kHeapObjectTag;
+    int offset_to_data_minus_tag =
+        OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag;
 
     TNode<IntPtrT> overall_offset;
     int size = mt.MemSize();
@@ -18168,12 +18171,12 @@ TNode<SwissNameDictionary> CodeStubAssembler::CopySwissNameDictionary(
     TNode<IntPtrT> meta_table_size =
         SwissNameDictionaryMetaTableSizeFor(capacity);
 
-    TNode<IntPtrT> old_data_start =
-        IntPtrAdd(old_meta_table_address_with_tag,
-                  IntPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag));
-    TNode<IntPtrT> new_data_start =
-        IntPtrAdd(new_meta_table_address_with_tag,
-                  IntPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag));
+    TNode<IntPtrT> old_data_start = IntPtrAdd(
+        old_meta_table_address_with_tag,
+        IntPtrConstant(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
+    TNode<IntPtrT> new_data_start = IntPtrAdd(
+        new_meta_table_address_with_tag,
+        IntPtrConstant(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
 
     CallCFunction(memcpy, MachineType::Pointer(),
                   std::make_pair(MachineType::Pointer(), new_data_start),

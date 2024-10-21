@@ -2159,7 +2159,7 @@ class MaglevGraphBuilder {
         DCHECK_EQ(vobject->type(), VirtualObject::kFixedDoubleArray);
         // The only offset we're allowed to read from the a FixedDoubleArray as
         // tagged field is the length.
-        CHECK_EQ(offset, FixedDoubleArray::kLengthOffset);
+        CHECK_EQ(offset, offsetof(FixedDoubleArray, length_));
         value = GetInt32Constant(vobject->double_elements_length());
       }
       if (v8_flags.trace_maglev_object_tracking) {

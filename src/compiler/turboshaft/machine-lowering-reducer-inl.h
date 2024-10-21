@@ -1577,7 +1577,7 @@ class MachineLoweringReducer : public Next {
       case NewArrayOp::Kind::kDouble: {
         size_log2 = kDoubleSizeLog2;
         array_map = factory_->fixed_double_array_map();
-        access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
+        access = {kTaggedBase, OFFSET_OF_DATA_START(FixedDoubleArray),
                   compiler::Type::NumberOrHole(), MachineType::Float64(),
                   kNoWriteBarrier};
         the_hole_value = __ template LoadField<Float64>(

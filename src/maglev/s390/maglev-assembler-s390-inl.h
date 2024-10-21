@@ -400,8 +400,8 @@ void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
                           AbortReason::kUnexpectedNegativeValue);
   }
   ShiftLeftU64(scratch, index, Operand(kDoubleSizeLog2));
-  LoadF64(result,
-          FieldMemOperand(array, scratch, FixedDoubleArray::kHeaderSize));
+  LoadF64(result, FieldMemOperand(array, scratch,
+                                  OFFSET_OF_DATA_START(FixedDoubleArray)));
 }
 
 inline void MaglevAssembler::StoreFixedDoubleArrayElement(
@@ -409,8 +409,8 @@ inline void MaglevAssembler::StoreFixedDoubleArrayElement(
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   ShiftLeftU64(scratch, index, Operand(kDoubleSizeLog2));
-  StoreF64(value,
-           FieldMemOperand(array, scratch, FixedDoubleArray::kHeaderSize));
+  StoreF64(value, FieldMemOperand(array, scratch,
+                                  OFFSET_OF_DATA_START(FixedDoubleArray)));
 }
 
 inline void MaglevAssembler::LoadSignedField(Register result,

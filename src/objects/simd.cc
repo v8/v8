@@ -377,9 +377,12 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
   if constexpr (kind == ArrayIndexOfIncludesKind::DOUBLE) {
     Tagged<FixedDoubleArray> fixed_array =
         Cast<FixedDoubleArray>(Tagged<Object>(array_start));
-    double* array = static_cast<double*>(
-        fixed_array->RawField(FixedDoubleArray::OffsetOfElementAt(0))
-            .ToVoidPtr());
+    UnalignedDoubleMember* unaligned_array = fixed_array->begin();
+    // TODO(leszeks): This reinterpret cast is a bit sketchy because the values
+    // are unaligned doubles. Ideally we'd fix the search method to support
+    // UnalignedDoubleMember.
+    static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
+    double* array = reinterpret_cast<double*>(unaligned_array);
 
     double search_num;
     if (IsSmi(Tagged<Object>(search_element))) {

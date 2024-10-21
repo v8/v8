@@ -594,7 +594,7 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
     __ andq(rbx, Immediate(kTableMask));
     index = rbx;
   }
-  __ cmpb(FieldOperand(rax, index, times_1, ByteArray::kHeaderSize),
+  __ cmpb(FieldOperand(rax, index, times_1, OFFSET_OF_DATA_START(ByteArray)),
           Immediate(0));
   BranchOrBacktrack(not_equal, on_bit_set);
 }
@@ -623,7 +623,7 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
     // BoyerMooreLookahead::GetSkipTable in regexp-compiler.cc.
     XMMRegister nibble_table = xmm0;
     __ Move(r11, nibble_table_array);
-    __ Movdqu(nibble_table, FieldOperand(r11, ByteArray::kHeaderSize));
+    __ Movdqu(nibble_table, FieldOperand(r11, OFFSET_OF_DATA_START(ByteArray)));
     XMMRegister nibble_mask = xmm1;
     __ Move(r11, 0x0f0f0f0f'0f0f0f0f);
     __ movq(nibble_mask, r11);
@@ -711,8 +711,9 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
     __ movq(index, current_character());
     __ andq(index, Immediate(kTableMask));
   }
-  __ cmpb(FieldOperand(table_reg, index, times_1, ByteArray::kHeaderSize),
-          Immediate(0));
+  __ cmpb(
+      FieldOperand(table_reg, index, times_1, OFFSET_OF_DATA_START(ByteArray)),
+      Immediate(0));
   __ j(not_equal, &cont);
   AdvanceCurrentPosition(advance_by);
   __ jmp(&scalar_repeat);

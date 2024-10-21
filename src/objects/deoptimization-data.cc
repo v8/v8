@@ -222,9 +222,7 @@ DeoptTranslationIterator::DeoptTranslationIterator(
 DeoptimizationFrameTranslation::Iterator::Iterator(
     Tagged<DeoptimizationFrameTranslation> buffer, int index)
     : DeoptTranslationIterator(
-          base::Vector<uint8_t>(buffer->AddressOfElementAt(0),
-                                buffer->length()),
-          index) {}
+          base::Vector<uint8_t>(buffer->begin(), buffer->length()), index) {}
 
 int32_t DeoptTranslationIterator::NextOperand() {
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
@@ -388,7 +386,7 @@ void DeoptimizationFrameTranslation::PrintFrameTranslation(
     Tagged<DeoptimizationLiteralArray> literal_array) const {
   DisallowGarbageCollection gc_oh_noes;
 
-  DeoptimizationFrameTranslation::Iterator iterator(*this, index);
+  DeoptimizationFrameTranslation::Iterator iterator(this, index);
   TranslationOpcode opcode = iterator.NextOpcode();
   DCHECK(TranslationOpcodeIsBegin(opcode));
   os << opcode << " ";

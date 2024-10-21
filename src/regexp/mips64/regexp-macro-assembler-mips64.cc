@@ -538,7 +538,7 @@ void RegExpMacroAssemblerMIPS::CheckBitInTable(
     __ Daddu(a0, a0, current_character());
   }
 
-  __ Lbu(a0, FieldMemOperand(a0, ByteArray::kHeaderSize));
+  __ Lbu(a0, FieldMemOperand(a0, OFFSET_OF_DATA_START(ByteArray)));
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
 }
 

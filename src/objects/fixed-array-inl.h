@@ -21,6 +21,7 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 #include "src/roots/roots-inl.h"
+#include "src/sandbox/sandboxed-pointer-inl.h"
 #include "src/torque/runtime-macro-shims.h"
 #include "src/torque/runtime-support.h"
 
@@ -32,66 +33,65 @@ namespace v8::internal {
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
 template <class S>
-int detail::TaggedArrayHeaderBase<S, false>::capacity() const {
+int detail::ArrayHeaderBase<S, false>::capacity() const {
   return capacity_.load().value();
 }
 
 template <class S>
-int detail::TaggedArrayHeaderBase<S, false>::capacity(
-    AcquireLoadTag tag) const {
+int detail::ArrayHeaderBase<S, false>::capacity(AcquireLoadTag tag) const {
   return capacity_.Acquire_Load().value();
 }
 
 template <class S>
-void detail::TaggedArrayHeaderBase<S, false>::set_capacity(int value) {
+void detail::ArrayHeaderBase<S, false>::set_capacity(int value) {
   capacity_.store(this, Smi::FromInt(value));
 }
 
 template <class S>
-void detail::TaggedArrayHeaderBase<S, false>::set_capacity(
-    int value, ReleaseStoreTag tag) {
+void detail::ArrayHeaderBase<S, false>::set_capacity(int value,
+                                                     ReleaseStoreTag tag) {
   capacity_.Release_Store(this, Smi::FromInt(value));
 }
 
 template <class S>
-int detail::TaggedArrayHeaderBase<S, true>::length() const {
+int detail::ArrayHeaderBase<S, true>::length() const {
   return length_.load().value();
 }
 
 template <class S>
-int detail::TaggedArrayHeaderBase<S, true>::length(AcquireLoadTag tag) const {
+int detail::ArrayHeaderBase<S, true>::length(AcquireLoadTag tag) const {
   return length_.Acquire_Load().value();
 }
 
 template <class S>
-void detail::TaggedArrayHeaderBase<S, true>::set_length(int value) {
+void detail::ArrayHeaderBase<S, true>::set_length(int value) {
   length_.store(this, Smi::FromInt(value));
 }
 
 template <class S>
-void detail::TaggedArrayHeaderBase<S, true>::set_length(int value,
-                                                        ReleaseStoreTag tag) {
+void detail::ArrayHeaderBase<S, true>::set_length(int value,
+                                                  ReleaseStoreTag tag) {
   length_.Release_Store(this, Smi::FromInt(value));
 }
 
 template <class S>
-int detail::TaggedArrayHeaderBase<S, true>::capacity() const {
+int detail::ArrayHeaderBase<S, true>::capacity() const {
   return length();
 }
 
 template <class S>
-int detail::TaggedArrayHeaderBase<S, true>::capacity(AcquireLoadTag tag) const {
+int detail::ArrayHeaderBase<S, true>::capacity(AcquireLoadTag tag) const {
   return length(tag);
 }
 
 template <class S>
-void detail::TaggedArrayHeaderBase<S, true>::set_capacity(int value) {
+void detail::ArrayHeaderBase<S, true>::set_capacity(int value) {
   set_length(value);
 }
 
 template <class S>
-void detail::TaggedArrayHeaderBase<S, true>::set_capacity(int value,
-                                                          ReleaseStoreTag tag) {
+void detail::ArrayHeaderBase<S, true>::set_capacity(int value,
+                                                    ReleaseStoreTag tag) {
   set_length(value, tag);
 }
 
@@ -387,15 +387,6 @@ constexpr int TaggedArrayBase<D, S, P>::NewCapacityForIndex(int index,
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
-template <class D, class S, class P>
-PrimitiveArrayBase<D, S, P>::PrimitiveArrayBase(Address ptr) : P(ptr) {}
-
-OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedDoubleArray::Super)
-
-OBJECT_CONSTRUCTORS_IMPL(ByteArray, ByteArray::Super)
-
-OBJECT_CONSTRUCTORS_IMPL(TrustedByteArray, TrustedByteArray::Super)
-
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
@@ -443,59 +434,20 @@ Handle<FixedArray> FixedArray::Resize(Isolate* isolate,
 inline int WeakArrayList::AllocatedSize() const { return SizeFor(capacity()); }
 
 template <class D, class S, class P>
-int PrimitiveArrayBase<D, S, P>::length() const {
-  return Smi::ToInt(TaggedField<Smi, D::kLengthOffset>::load(*this));
-}
-
-template <class D, class S, class P>
-int PrimitiveArrayBase<D, S, P>::length(AcquireLoadTag tag) const {
-  return Smi::ToInt(TaggedField<Smi, D::kLengthOffset>::Acquire_Load(*this));
-}
-
-template <class D, class S, class P>
-void PrimitiveArrayBase<D, S, P>::set_length(int value) {
-  TaggedField<Smi, D::kLengthOffset>::store(*this, Smi::FromInt(value));
-}
-
-template <class D, class S, class P>
-void PrimitiveArrayBase<D, S, P>::set_length(int value, ReleaseStoreTag tag) {
-  TaggedField<Smi, D::kLengthOffset>::Release_Store(*this, Smi::FromInt(value));
-}
-
-template <class D, class S, class P>
-int PrimitiveArrayBase<D, S, P>::capacity() const {
-  return length();
-}
-template <class D, class S, class P>
-int PrimitiveArrayBase<D, S, P>::capacity(AcquireLoadTag tag) const {
-  return length(tag);
-}
-template <class D, class S, class P>
-void PrimitiveArrayBase<D, S, P>::set_capacity(int value) {
-  set_length(value);
-}
-template <class D, class S, class P>
-void PrimitiveArrayBase<D, S, P>::set_capacity(int value, ReleaseStoreTag tag) {
-  set_length(value, tag);
-}
-
-template <class D, class S, class P>
 bool PrimitiveArrayBase<D, S, P>::IsInBounds(int index) const {
-  return static_cast<unsigned>(index) < static_cast<unsigned>(length());
+  return static_cast<unsigned>(index) < static_cast<unsigned>(this->length());
 }
 
 template <class D, class S, class P>
-typename S::ElementT PrimitiveArrayBase<D, S, P>::get(int index) const {
+auto PrimitiveArrayBase<D, S, P>::get(int index) const -> ElementMemberT {
   DCHECK(IsInBounds(index));
-  return this->template ReadField<typename S::ElementT>(
-      OffsetOfElementAt(index));
+  return values()[index];
 }
 
 template <class D, class S, class P>
-void PrimitiveArrayBase<D, S, P>::set(int index, typename S::ElementT value) {
+void PrimitiveArrayBase<D, S, P>::set(int index, ElementMemberT value) {
   DCHECK(IsInBounds(index));
-  this->template WriteField<typename S::ElementT>(OffsetOfElementAt(index),
-                                                  value);
+  values()[index] = value;
 }
 
 // Due to right-trimming (which creates a filler object before publishing the
@@ -503,30 +455,33 @@ void PrimitiveArrayBase<D, S, P>::set(int index, typename S::ElementT value) {
 // visitors need to read the length with acquire semantics.
 template <class D, class S, class P>
 int PrimitiveArrayBase<D, S, P>::AllocatedSize() const {
-  return SizeFor(length(kAcquireLoad));
+  return SizeFor(this->length(kAcquireLoad));
 }
 
 template <class D, class S, class P>
-typename S::ElementT* PrimitiveArrayBase<D, S, P>::AddressOfElementAt(
-    int index) const {
-  return reinterpret_cast<ElementT*>(
-      this->field_address(OffsetOfElementAt(index)));
+auto PrimitiveArrayBase<D, S, P>::begin() -> ElementMemberT* {
+  return &values()[0];
 }
 
 template <class D, class S, class P>
-typename S::ElementT* PrimitiveArrayBase<D, S, P>::begin() const {
-  return AddressOfElementAt(0);
+auto PrimitiveArrayBase<D, S, P>::begin() const -> const ElementMemberT* {
+  return &values()[0];
 }
 
 template <class D, class S, class P>
-typename S::ElementT* PrimitiveArrayBase<D, S, P>::end() const {
-  return AddressOfElementAt(length());
+auto PrimitiveArrayBase<D, S, P>::end() -> ElementMemberT* {
+  return &values()[this->length()];
+}
+
+template <class D, class S, class P>
+auto PrimitiveArrayBase<D, S, P>::end() const -> const ElementMemberT* {
+  return &values()[this->length()];
 }
 
 template <class D, class S, class P>
 int PrimitiveArrayBase<D, S, P>::DataSize() const {
-  int data_size = SizeFor(length()) - S::kHeaderSize;
-  DCHECK_EQ(data_size, OBJECT_POINTER_ALIGN(length() * S::kElementSize));
+  int data_size = SizeFor(this->length()) - sizeof(Header);
+  DCHECK_EQ(data_size, OBJECT_POINTER_ALIGN(this->length() * kElementSize));
   return data_size;
 }
 
@@ -582,14 +537,12 @@ Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
 
 double FixedDoubleArray::get_scalar(int index) {
   DCHECK(!is_the_hole(index));
-  return Super::get(index);
+  return values()[index].value();
 }
 
 uint64_t FixedDoubleArray::get_representation(int index) {
   DCHECK(IsInBounds(index));
-  // Bug(v8:8875): Doubles may be unaligned.
-  return base::ReadUnalignedValue<uint64_t>(
-      field_address(OffsetOfElementAt(index)));
+  return values()[index].value_as_bits();
 }
 
 Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
@@ -605,7 +558,7 @@ void FixedDoubleArray::set(int index, double value) {
   if (std::isnan(value)) {
     value = std::numeric_limits<double>::quiet_NaN();
   }
-  Super::set(index, value);
+  values()[index].set_value(value);
   DCHECK(!is_the_hole(index));
 }
 
@@ -615,8 +568,7 @@ void FixedDoubleArray::set_the_hole(Isolate* isolate, int index) {
 
 void FixedDoubleArray::set_the_hole(int index) {
   DCHECK(IsInBounds(index));
-  base::WriteUnalignedValue<uint64_t>(field_address(OffsetOfElementAt(index)),
-                                      kHoleNanInt64);
+  values()[index].set_value_as_bits(kHoleNanInt64);
 }
 
 bool FixedDoubleArray::is_the_hole(Isolate* isolate, int index) {
@@ -631,8 +583,7 @@ void FixedDoubleArray::MoveElements(Isolate* isolate, int dst_index,
                                     int src_index, int len,
                                     WriteBarrierMode mode) {
   DCHECK_EQ(SKIP_WRITE_BARRIER, mode);
-  MemMove(AddressOfElementAt(dst_index), AddressOfElementAt(src_index),
-          len * kElementSize);
+  MemMove(&values()[dst_index], &values()[src_index], len * kElementSize);
 }
 
 void FixedDoubleArray::FillWithHoles(int from, int to) {
@@ -768,7 +719,7 @@ Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
       Cast<ByteArray>(Allocate(isolate, length, &no_gc, allocation));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
-  memset(result->AddressOfElementAt(length), 0, padding_size);
+  memset(&result->values()[length], 0, padding_size);
 
   return result;
 }
@@ -776,13 +727,15 @@ Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
 uint32_t ByteArray::get_int(int offset) const {
   DCHECK(IsInBounds(offset));
   DCHECK_LE(offset + sizeof(uint32_t), length());
-  return ReadField<uint32_t>(OffsetOfElementAt(offset));
+  return base::ReadUnalignedValue<uint32_t>(
+      reinterpret_cast<Address>(&values()[offset]));
 }
 
 void ByteArray::set_int(int offset, uint32_t value) {
   DCHECK(IsInBounds(offset));
   DCHECK_LE(offset + sizeof(uint32_t), length());
-  WriteField<uint32_t>(OffsetOfElementAt(offset), value);
+  base::WriteUnalignedValue<uint32_t>(
+      reinterpret_cast<Address>(&values()[offset]), value);
 }
 
 // static
@@ -800,28 +753,23 @@ Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
       Allocate(isolate, length, &no_gc, allocation_type));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
-  memset(result->AddressOfElementAt(length), 0, padding_size);
+  memset(&result->values()[length], 0, padding_size);
 
   return result;
 }
 
-template <typename Base>
-Address FixedAddressArrayBase<Base>::get_sandboxed_pointer(int offset) const {
-  DCHECK_GE(offset, 0);
-  DCHECK_GT(this->length(), offset);
-  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  return this->ReadSandboxedPointerField(
-      FixedAddressArrayBase::OffsetOfElementAt(offset), sandbox_base);
+uint32_t TrustedByteArray::get_int(int offset) const {
+  DCHECK(IsInBounds(offset));
+  DCHECK_LE(offset + sizeof(uint32_t), length());
+  return base::ReadUnalignedValue<uint32_t>(
+      reinterpret_cast<Address>(&values()[offset]));
 }
 
-template <typename Base>
-void FixedAddressArrayBase<Base>::set_sandboxed_pointer(int offset,
-                                                        Address value) {
-  DCHECK_GE(offset, 0);
-  DCHECK_GT(this->length(), offset);
-  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  this->WriteSandboxedPointerField(
-      FixedAddressArrayBase::OffsetOfElementAt(offset), sandbox_base, value);
+void TrustedByteArray::set_int(int offset, uint32_t value) {
+  DCHECK(IsInBounds(offset));
+  DCHECK_LE(offset + sizeof(uint32_t), length());
+  base::WriteUnalignedValue<uint32_t>(
+      reinterpret_cast<Address>(&values()[offset]), value);
 }
 
 template <typename Base>
@@ -831,15 +779,6 @@ Handle<FixedAddressArrayBase<Base>> FixedAddressArrayBase<Base>::New(
     Isolate* isolate, int length, MoreArgs&&... more_args) {
   return Cast<FixedAddressArrayBase>(
       Underlying::New(isolate, length, std::forward<MoreArgs>(more_args)...));
-}
-
-template <typename Base>
-FixedAddressArrayBase<Base>::FixedAddressArrayBase(Address ptr)
-    : Underlying(ptr) {}
-
-template <typename T, typename Base>
-FixedIntegerArrayBase<T, Base>::FixedIntegerArrayBase(Address ptr) : Base(ptr) {
-  DCHECK_EQ(Base::length() % sizeof(T), 0);
 }
 
 template <typename T, typename Base>
@@ -854,19 +793,22 @@ Handle<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::New(
 }
 
 template <typename T, typename Base>
-T FixedIntegerArrayBase<T, Base>::get(int index) const {
-  static_assert(std::is_integral<T>::value);
+Address FixedIntegerArrayBase<T, Base>::get_element_address(int index) const {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
-  return this->template ReadField<T>(Base::kHeaderSize + index * sizeof(T));
+  return reinterpret_cast<Address>(&this->values()[index * sizeof(T)]);
+}
+
+template <typename T, typename Base>
+T FixedIntegerArrayBase<T, Base>::get(int index) const {
+  static_assert(std::is_integral<T>::value);
+  return base::ReadUnalignedValue<T>(get_element_address(index));
 }
 
 template <typename T, typename Base>
 void FixedIntegerArrayBase<T, Base>::set(int index, T value) {
   static_assert(std::is_integral<T>::value);
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length());
-  this->template WriteField<T>(Base::kHeaderSize + index * sizeof(T), value);
+  return base::WriteUnalignedValue<T>(get_element_address(index), value);
 }
 
 template <typename T, typename Base>
@@ -875,13 +817,25 @@ int FixedIntegerArrayBase<T, Base>::length() const {
   return Base::length() / sizeof(T);
 }
 
+template <typename Base>
+Address FixedAddressArrayBase<Base>::get_sandboxed_pointer(int index) const {
+  PtrComprCageBase sandbox_base = GetPtrComprCageBase(this);
+  return ReadSandboxedPointerField(this->get_element_address(index),
+                                   sandbox_base);
+}
+
+template <typename Base>
+void FixedAddressArrayBase<Base>::set_sandboxed_pointer(int index,
+                                                        Address value) {
+  PtrComprCageBase sandbox_base = GetPtrComprCageBase(this);
+  WriteSandboxedPointerField(this->get_element_address(index), sandbox_base,
+                             value);
+}
+
 template <class T, class Super>
 int PodArrayBase<T, Super>::length() const {
   return Super::length() / sizeof(T);
 }
-
-template <class T, class Super>
-PodArrayBase<T, Super>::PodArrayBase(Address ptr) : Super(ptr) {}
 
 // static
 template <class T>
@@ -903,9 +857,6 @@ Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
       isolate->factory()->NewByteArray(byte_length, allocation));
 }
 
-template <class T>
-PodArray<T>::PodArray(Address ptr) : PodArrayBase<T, ByteArray>(ptr) {}
-
 // static
 template <class T>
 Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(Isolate* isolate,
@@ -925,10 +876,6 @@ Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(LocalIsolate* isolate,
   return Cast<TrustedPodArray<T>>(
       isolate->factory()->NewTrustedByteArray(byte_length));
 }
-
-template <class T>
-TrustedPodArray<T>::TrustedPodArray(Address ptr)
-    : PodArrayBase<T, TrustedByteArray>(ptr) {}
 
 }  // namespace v8::internal
 

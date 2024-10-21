@@ -390,16 +390,33 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
   }
 }
 
+template <typename T>
+void PrintByteArrayElements(std::ostream& os, const T* array) {
+  int length = array->length();
+  int i = 0;
+  while (i < length) {
+    os << "   0x" << std::setfill('0') << std::setw(4) << std::hex << i << ":";
+    int line_end = std::min(i + 16, length);
+    for (; i < line_end; ++i) {
+      os << " " << std::setfill('0') << std::setw(2) << std::hex
+         << static_cast<int>(array->get(i));
+    }
+    os << "\n";
+  }
+}
+
 void ByteArray::ByteArrayPrint(std::ostream& os) {
   PrintHeader(os, "ByteArray");
   os << "\n - length: " << length()
      << "\n - begin: " << static_cast<void*>(begin()) << "\n";
+  PrintByteArrayElements(os, this);
 }
 
 void TrustedByteArray::TrustedByteArrayPrint(std::ostream& os) {
   PrintHeader(os, "TrustedByteArray");
   os << "\n - length: " << length()
      << "\n - begin: " << static_cast<void*>(begin()) << "\n";
+  PrintByteArrayElements(os, this);
 }
 
 void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {
@@ -1463,7 +1480,7 @@ void PropertyArray::PropertyArrayPrint(std::ostream& os) {
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {
   PrintHeader(os, "FixedDoubleArray");
   os << "\n - length: " << length();
-  DoPrintElements<FixedDoubleArray>(os, *this, length());
+  DoPrintElements<FixedDoubleArray>(os, this, length());
   os << "\n";
 }
 

@@ -449,8 +449,9 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
 
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<JSTypedArray> holder, TNode<ByteArray> base, TNode<UintPtrT> offset) {
-  offset = UintPtrAdd(UintPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag),
-                      offset);
+  offset = UintPtrAdd(
+      UintPtrConstant(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag),
+      offset);
   if (COMPRESS_POINTERS_BOOL) {
     TNode<IntPtrT> full_base = Signed(BitcastTaggedToWord(base));
     TNode<Int32T> compressed_base = TruncateIntPtrToInt32(full_base);

@@ -348,9 +348,9 @@ Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
                                                Node* index_intptr,
                                                MachineType type) {
   int element_size = ElementSizeInBytes(type.representation());
-  Node* offset = IntAdd(
-      IntMul(index_intptr, IntPtrConstant(element_size)),
-      IntPtrConstant(wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize)));
+  Node* offset = IntAdd(IntMul(index_intptr, IntPtrConstant(element_size)),
+                        IntPtrConstant(wasm::ObjectAccess::ToTagged(
+                            OFFSET_OF_DATA_START(ByteArray))));
   return LoadFromObject(type, byte_array, offset);
 }
 

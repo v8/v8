@@ -1600,7 +1600,7 @@ AllocationAlignment HeapObject::RequiredAlignment(Tagged<Map> map) {
     int instance_type = map->instance_type();
 
     static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
-                  (FixedDoubleArray::kHeaderSize & kDoubleAlignmentMask) ==
+                  (sizeof(FixedDoubleArray::Header) & kDoubleAlignmentMask) ==
                       kTaggedSize);
     if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) return kDoubleAligned;
 

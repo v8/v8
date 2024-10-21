@@ -518,11 +518,10 @@ void RegExpMacroAssemblerARM::CheckBitInTable(
   __ mov(r0, Operand(table));
   if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ and_(r1, current_character(), Operand(kTableSize - 1));
-    __ add(r1, r1, Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+    __ add(r1, r1, Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   } else {
-    __ add(r1,
-           current_character(),
-           Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+    __ add(r1, current_character(),
+           Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   }
   __ ldrb(r0, MemOperand(r0, r1));
   __ cmp(r0, Operand::Zero());

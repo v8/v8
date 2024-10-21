@@ -575,7 +575,7 @@ void RegExpMacroAssemblerIA32::CheckBitInTable(
     __ and_(ebx, current_character());
     index = ebx;
   }
-  __ cmpb(FieldOperand(eax, index, times_1, ByteArray::kHeaderSize),
+  __ cmpb(FieldOperand(eax, index, times_1, OFFSET_OF_DATA_START(ByteArray)),
           Immediate(0));
   BranchOrBacktrack(not_equal, on_bit_set);
 }

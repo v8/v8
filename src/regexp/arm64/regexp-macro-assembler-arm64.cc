@@ -629,9 +629,10 @@ void RegExpMacroAssemblerARM64::CheckBitInTable(
   __ Mov(x11, Operand(table));
   if ((mode_ != LATIN1) || (kTableMask != String::kMaxOneByteCharCode)) {
     __ And(w10, current_character(), kTableMask);
-    __ Add(w10, w10, ByteArray::kHeaderSize - kHeapObjectTag);
+    __ Add(w10, w10, OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
   } else {
-    __ Add(w10, current_character(), ByteArray::kHeaderSize - kHeapObjectTag);
+    __ Add(w10, current_character(),
+           OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
   }
   __ Ldrb(w11, MemOperand(x11, w10, UXTW));
   CompareAndBranchOrBacktrack(w11, 0, ne, on_bit_set);
@@ -661,7 +662,7 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
     // BoyerMooreLookahead::GetSkipTable in regexp-compiler.cc.
     VRegister nibble_table = v0;
     __ Mov(x8, Operand(nibble_table_array));
-    __ Add(x8, x8, ByteArray::kHeaderSize - kHeapObjectTag);
+    __ Add(x8, x8, OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
     __ Ld1(nibble_table.V16B(), MemOperand(x8));
     VRegister nibble_mask = v1;
     const uint64_t nibble_mask_imm = 0x0f0f0f0f'0f0f0f0f;
@@ -743,9 +744,10 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
   Register index = w10;
   if ((mode_ != LATIN1) || (kTableMask != String::kMaxOneByteCharCode)) {
     __ And(index, current_character(), kTableMask);
-    __ Add(index, index, ByteArray::kHeaderSize - kHeapObjectTag);
+    __ Add(index, index, OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
   } else {
-    __ Add(index, current_character(), ByteArray::kHeaderSize - kHeapObjectTag);
+    __ Add(index, current_character(),
+           OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
   }
   Register found_in_table = w11;
   __ Ldrb(found_in_table, MemOperand(table_reg, index, UXTW));

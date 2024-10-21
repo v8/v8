@@ -343,8 +343,8 @@ void CopyDoubleToDoubleElements(Tagged<FixedArrayBase> from_base,
   if (copy_size == 0) return;
   Tagged<FixedDoubleArray> from = Cast<FixedDoubleArray>(from_base);
   Tagged<FixedDoubleArray> to = Cast<FixedDoubleArray>(to_base);
-  Address to_address = to.address() + FixedDoubleArray::kHeaderSize;
-  Address from_address = from.address() + FixedDoubleArray::kHeaderSize;
+  Address to_address = reinterpret_cast<Address>(to->begin());
+  Address from_address = reinterpret_cast<Address>(from->begin());
   to_address += kDoubleSize * to_start;
   from_address += kDoubleSize * from_start;
 #ifdef V8_COMPRESS_POINTERS

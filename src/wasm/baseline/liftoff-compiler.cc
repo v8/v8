@@ -3447,8 +3447,9 @@ class LiftoffCompiler {
     } else {
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
                                         pinned);
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
-                          kSystemPointerSize * (memory->index * 2 + 1);
+      int buffer_offset =
+          wasm::ObjectAccess::ToTagged(OFFSET_OF_DATA_START(ByteArray)) +
+          kSystemPointerSize * (memory->index * 2 + 1);
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
     }
 
@@ -3927,8 +3928,9 @@ class LiftoffCompiler {
     } else {
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
                                         pinned);
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
-                          kSystemPointerSize * (imm.memory->index * 2 + 1);
+      int buffer_offset =
+          wasm::ObjectAccess::ToTagged(OFFSET_OF_DATA_START(ByteArray)) +
+          kSystemPointerSize * (imm.memory->index * 2 + 1);
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
     }
     // Convert bytes to pages.
@@ -5701,8 +5703,9 @@ class LiftoffCompiler {
       LOAD_INSTANCE_FIELD(addr, Memory0Start, kSystemPointerSize, pinned);
     } else {
       LOAD_PROTECTED_PTR_INSTANCE_FIELD(addr, MemoryBasesAndSizes, pinned);
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
-                          kSystemPointerSize * imm.memory->index * 2;
+      int buffer_offset =
+          wasm::ObjectAccess::ToTagged(OFFSET_OF_DATA_START(ByteArray)) +
+          kSystemPointerSize * imm.memory->index * 2;
       __ LoadFullPointer(addr, addr, buffer_offset);
     }
     __ emit_i32_add(addr, addr, index);

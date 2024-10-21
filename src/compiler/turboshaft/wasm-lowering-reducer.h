@@ -862,14 +862,12 @@ class WasmLoweringReducer : public Next {
       V<FixedAddressArray> imported_mutable_globals =
           LOAD_IMMUTABLE_INSTANCE_FIELD(instance, ImportedMutableGlobals,
                                         MemoryRepresentation::TaggedPointer());
-      int field_offset =
-          FixedAddressArray::kHeaderSize + global->index * kSystemPointerSize;
+      int field_offset = FixedAddressArray::OffsetOfElementAt(global->index);
       if (global->type.is_reference()) {
         V<FixedArray> buffers = LOAD_IMMUTABLE_INSTANCE_FIELD(
             instance, ImportedMutableGlobalsBuffers,
             MemoryRepresentation::TaggedPointer());
-        int offset_in_buffers =
-            OFFSET_OF_DATA_START(FixedArray) + global->offset * kTaggedSize;
+        int offset_in_buffers = FixedArray::OffsetOfElementAt(global->offset);
         V<HeapObject> base =
             __ Load(buffers, LoadOp::Kind::TaggedBase(),
                     MemoryRepresentation::AnyTagged(), offset_in_buffers);

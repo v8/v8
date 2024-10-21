@@ -1196,7 +1196,7 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
 
 // static
 ElementAccess AccessBuilder::ForFixedDoubleArrayElement() {
-  ElementAccess access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
+  ElementAccess access = {kTaggedBase, OFFSET_OF_DATA_START(FixedDoubleArray),
                           TypeCache::Get()->kFloat64, MachineType::Float64(),
                           kNoWriteBarrier};
   return access;
@@ -1224,7 +1224,7 @@ FieldAccess AccessBuilder::ForEnumCacheIndices() {
 ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
                                                   bool is_external) {
   BaseTaggedness taggedness = is_external ? kUntaggedBase : kTaggedBase;
-  int header_size = is_external ? 0 : ByteArray::kHeaderSize;
+  int header_size = is_external ? 0 : OFFSET_OF_DATA_START(ByteArray);
   switch (type) {
     case kExternalInt8Array: {
       ElementAccess access = {taggedness, header_size, Type::Signed32(),

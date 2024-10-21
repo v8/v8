@@ -419,13 +419,14 @@ void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
     CompareInt32AndAssert(index, 0, kUnsignedGreaterThanEqual,
                           AbortReason::kUnexpectedNegativeValue);
   }
-  Movsd(result,
-        FieldOperand(array, index, times_8, FixedDoubleArray::kHeaderSize));
+  Movsd(result, FieldOperand(array, index, times_8,
+                             OFFSET_OF_DATA_START(FixedDoubleArray)));
 }
 
 inline void MaglevAssembler::StoreFixedDoubleArrayElement(
     Register array, Register index, DoubleRegister value) {
-  Movsd(FieldOperand(array, index, times_8, FixedDoubleArray::kHeaderSize),
+  Movsd(FieldOperand(array, index, times_8,
+                     OFFSET_OF_DATA_START(FixedDoubleArray)),
         value);
 }
 

@@ -75,7 +75,7 @@ const uint8_t* TypedArrayAndRabGsabTypedArrayElementsKindSizes() {
 
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
   static_assert(OFFSET_OF_DATA_START(FixedArray) ==
-                FixedDoubleArray::kHeaderSize);
+                OFFSET_OF_DATA_START(FixedDoubleArray));
 
   if (IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind)) {
     return 0;

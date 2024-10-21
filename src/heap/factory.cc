@@ -2729,9 +2729,9 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
   Handle<FixedDoubleArray> result =
       Cast<FixedDoubleArray>(NewFixedDoubleArray(len));
   Heap::CopyBlock(
-      result->address() + FixedDoubleArray::kLengthOffset,
-      array->address() + FixedDoubleArray::kLengthOffset,
-      FixedDoubleArray::SizeFor(len) - FixedDoubleArray::kLengthOffset);
+      result->address() + offsetof(FixedDoubleArray, length_),
+      array->address() + offsetof(FixedDoubleArray, length_),
+      FixedDoubleArray::SizeFor(len) - offsetof(FixedDoubleArray, length_));
   return result;
 }
 

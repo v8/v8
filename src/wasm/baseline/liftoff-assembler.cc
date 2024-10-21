@@ -621,8 +621,9 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
           target.cached_mem_start, instance_data,
           ObjectAccess::ToTagged(
               WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset));
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
-                          kSystemPointerSize * target.cached_mem_index * 2;
+      int buffer_offset =
+          wasm::ObjectAccess::ToTagged(OFFSET_OF_DATA_START(ByteArray)) +
+          kSystemPointerSize * target.cached_mem_index * 2;
       LoadFullPointer(target.cached_mem_start, target.cached_mem_start,
                       buffer_offset);
     }
