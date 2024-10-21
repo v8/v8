@@ -159,14 +159,14 @@ TRUSTED_VISITOR_ID_LIST(FORWARD_DECLARE)
 // behavior of all visit functions is to iterate body of the given object using
 // the BodyDescriptor of the object.
 //
-// The visit functions return the size of the object cast to ResultType.
+// The visit functions return the size of the object cast to int.
 //
 // This class is intended to be used in the following way:
 //
-//   class SomeVisitor : public HeapVisitor<ResultType, SomeVisitor> {
+//   class SomeVisitor : public HeapVisitor<SomeVisitor> {
 //     ...
 //   }
-template <typename ResultType, typename ConcreteVisitor>
+template <typename ConcreteVisitor>
 class HeapVisitor : public ObjectVisitorWithCageBases {
  public:
   inline HeapVisitor(PtrComprCageBase cage_base,
@@ -174,8 +174,8 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   inline explicit HeapVisitor(Isolate* isolate);
   inline explicit HeapVisitor(Heap* heap);
 
-  V8_INLINE ResultType Visit(Tagged<HeapObject> object);
-  V8_INLINE ResultType Visit(Tagged<Map> map, Tagged<HeapObject> object);
+  V8_INLINE size_t Visit(Tagged<HeapObject> object);
+  V8_INLINE size_t Visit(Tagged<Map> map, Tagged<HeapObject> object);
 
  protected:
   // If this predicate returns false the default implementations of Visit*
@@ -204,32 +204,27 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
     return static_cast<const ConcreteVisitor*>(this);
   }
 
-#define VISIT(TypeName)                                 \
-  V8_INLINE ResultType Visit##TypeName(Tagged<Map> map, \
-                                       Tagged<TypeName> object);
+#define VISIT(TypeName) \
+  V8_INLINE size_t Visit##TypeName(Tagged<Map> map, Tagged<TypeName> object);
   TYPED_VISITOR_ID_LIST(VISIT)
   TYPED_VISITOR_WITH_SLACK_ID_LIST(VISIT)
   TORQUE_VISITOR_ID_LIST(VISIT)
   TRUSTED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
-  V8_INLINE ResultType VisitShortcutCandidate(Tagged<Map> map,
-                                              Tagged<ConsString> object);
-  V8_INLINE ResultType VisitJSObjectFast(Tagged<Map> map,
-                                         Tagged<JSObject> object);
-  V8_INLINE ResultType VisitJSApiObject(Tagged<Map> map,
-                                        Tagged<JSObject> object);
-  V8_INLINE ResultType VisitStruct(Tagged<Map> map, Tagged<HeapObject> object);
-  V8_INLINE ResultType VisitFiller(Tagged<Map> map, Tagged<HeapObject> object);
-  V8_INLINE ResultType VisitFreeSpace(Tagged<Map> map,
-                                      Tagged<FreeSpace> object);
+  V8_INLINE size_t VisitShortcutCandidate(Tagged<Map> map,
+                                          Tagged<ConsString> object);
+  V8_INLINE size_t VisitJSObjectFast(Tagged<Map> map, Tagged<JSObject> object);
+  V8_INLINE size_t VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object);
+  V8_INLINE size_t VisitStruct(Tagged<Map> map, Tagged<HeapObject> object);
+  V8_INLINE size_t VisitFiller(Tagged<Map> map, Tagged<HeapObject> object);
+  V8_INLINE size_t VisitFreeSpace(Tagged<Map> map, Tagged<FreeSpace> object);
 
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  V8_INLINE ResultType VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object);
+  V8_INLINE size_t VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object);
 
   template <VisitorId visitor_id, typename T,
             typename TBodyDescriptor = typename T::BodyDescriptor>
-  V8_INLINE ResultType VisitWithBodyDescriptor(Tagged<Map> map,
-                                               Tagged<T> object);
+  V8_INLINE size_t VisitWithBodyDescriptor(Tagged<Map> map, Tagged<T> object);
 
   template <typename T>
   static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object);
@@ -267,17 +262,16 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
 // A HeapVisitor that allows for concurrently tracing through objects. Tracing
 // through objects with unsafe shape changes is guarded by
 // `EnableConcurrentVisitation()` which defaults to off.
-template <typename ResultType, typename ConcreteVisitor>
-class ConcurrentHeapVisitor : public HeapVisitor<ResultType, ConcreteVisitor> {
+template <typename ConcreteVisitor>
+class ConcurrentHeapVisitor : public HeapVisitor<ConcreteVisitor> {
  public:
   V8_INLINE explicit ConcurrentHeapVisitor(Isolate* isolate);
 
   V8_INLINE static constexpr bool EnableConcurrentVisitation() { return false; }
 
  protected:
-#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)     \
-  V8_INLINE ResultType Visit##TypeName(Tagged<Map> map, \
-                                       Tagged<TypeName> object);
+#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName) \
+  V8_INLINE size_t Visit##TypeName(Tagged<Map> map, Tagged<TypeName> object);
 
   UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
 #undef VISIT_AS_LOCKED_STRING
@@ -287,13 +281,13 @@ class ConcurrentHeapVisitor : public HeapVisitor<ResultType, ConcreteVisitor> {
 
  private:
   template <typename T>
-  V8_INLINE ResultType VisitStringLocked(Tagged<T> object);
+  V8_INLINE size_t VisitStringLocked(Tagged<T> object);
 
-  friend class HeapVisitor<ResultType, ConcreteVisitor>;
+  friend class HeapVisitor<ConcreteVisitor>;
 };
 
 template <typename ConcreteVisitor>
-class NewSpaceVisitor : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
+class NewSpaceVisitor : public ConcurrentHeapVisitor<ConcreteVisitor> {
  public:
   V8_INLINE explicit NewSpaceVisitor(Isolate* isolate);
 
@@ -316,14 +310,18 @@ class NewSpaceVisitor : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 
   // Special cases: Unreachable visitors for objects that are never found in the
   // young generation.
-  int VisitNativeContext(Tagged<Map>, Tagged<NativeContext>) { UNREACHABLE(); }
-  int VisitBytecodeArray(Tagged<Map>, Tagged<BytecodeArray>) { UNREACHABLE(); }
-  int VisitSharedFunctionInfo(Tagged<Map> map, Tagged<SharedFunctionInfo>) {
+  size_t VisitNativeContext(Tagged<Map>, Tagged<NativeContext>) {
     UNREACHABLE();
   }
-  int VisitWeakCell(Tagged<Map>, Tagged<WeakCell>) { UNREACHABLE(); }
+  size_t VisitBytecodeArray(Tagged<Map>, Tagged<BytecodeArray>) {
+    UNREACHABLE();
+  }
+  size_t VisitSharedFunctionInfo(Tagged<Map> map, Tagged<SharedFunctionInfo>) {
+    UNREACHABLE();
+  }
+  size_t VisitWeakCell(Tagged<Map>, Tagged<WeakCell>) { UNREACHABLE(); }
 
-  friend class HeapVisitor<int, ConcreteVisitor>;
+  friend class HeapVisitor<ConcreteVisitor>;
 };
 
 class WeakObjectRetainer;

@@ -44,9 +44,9 @@ struct EphemeronMarking {
 // concurrently. On the other hand, the reference summarizer is not supposed to
 // write into heap objects.
 template <typename ConcreteVisitor>
-class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
+class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
  public:
-  using Base = ConcurrentHeapVisitor<int, ConcreteVisitor>;
+  using Base = ConcurrentHeapVisitor<ConcreteVisitor>;
 
   MarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects::Local* local_weak_objects, Heap* heap,
@@ -54,7 +54,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool should_keep_ages_unchanged,
                      uint16_t code_flushing_increase)
-      : ConcurrentHeapVisitor<int, ConcreteVisitor>(heap->isolate()),
+      : ConcurrentHeapVisitor<ConcreteVisitor>(heap->isolate()),
         local_marking_worklists_(local_marking_worklists),
         local_weak_objects_(local_weak_objects),
         heap_(heap),
@@ -81,23 +81,23 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   {
   }
 
-  V8_INLINE int VisitDescriptorArrayStrongly(Tagged<Map> map,
-                                             Tagged<DescriptorArray> object);
-  V8_INLINE int VisitDescriptorArray(Tagged<Map> map,
-                                     Tagged<DescriptorArray> object);
-  V8_INLINE int VisitEphemeronHashTable(Tagged<Map> map,
-                                        Tagged<EphemeronHashTable> object);
-  V8_INLINE int VisitFixedArray(Tagged<Map> map, Tagged<FixedArray> object);
-  V8_INLINE int VisitJSArrayBuffer(Tagged<Map> map,
-                                   Tagged<JSArrayBuffer> object);
-  V8_INLINE int VisitJSFunction(Tagged<Map> map, Tagged<JSFunction> object);
-  V8_INLINE int VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object);
-  V8_INLINE int VisitMap(Tagged<Map> map, Tagged<Map> object);
-  V8_INLINE int VisitSharedFunctionInfo(Tagged<Map> map,
-                                        Tagged<SharedFunctionInfo> object);
-  V8_INLINE int VisitTransitionArray(Tagged<Map> map,
-                                     Tagged<TransitionArray> object);
-  V8_INLINE int VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object);
+  V8_INLINE size_t VisitDescriptorArrayStrongly(Tagged<Map> map,
+                                                Tagged<DescriptorArray> object);
+  V8_INLINE size_t VisitDescriptorArray(Tagged<Map> map,
+                                        Tagged<DescriptorArray> object);
+  V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
+                                           Tagged<EphemeronHashTable> object);
+  V8_INLINE size_t VisitFixedArray(Tagged<Map> map, Tagged<FixedArray> object);
+  V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
+                                      Tagged<JSArrayBuffer> object);
+  V8_INLINE size_t VisitJSFunction(Tagged<Map> map, Tagged<JSFunction> object);
+  V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object);
+  V8_INLINE size_t VisitMap(Tagged<Map> map, Tagged<Map> object);
+  V8_INLINE size_t VisitSharedFunctionInfo(Tagged<Map> map,
+                                           Tagged<SharedFunctionInfo> object);
+  V8_INLINE size_t VisitTransitionArray(Tagged<Map> map,
+                                        Tagged<TransitionArray> object);
+  V8_INLINE size_t VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object);
 
   // ObjectVisitor overrides.
   void VisitMapPointer(Tagged<HeapObject> host) final {
@@ -178,7 +178,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
       Tagged<HeapObject> host, Tagged<HeapObject> heap_object);
 
  protected:
-  using ConcurrentHeapVisitor<int, ConcreteVisitor>::concrete_visitor;
+  using ConcurrentHeapVisitor<ConcreteVisitor>::concrete_visitor;
 
   template <typename THeapObjectSlot>
   void ProcessStrongHeapObject(Tagged<HeapObject> host, THeapObjectSlot slot,
@@ -196,9 +196,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE void VisitDescriptorsForMap(Tagged<Map> map);
 
-  V8_INLINE int VisitFixedArrayWithProgressBar(Tagged<Map> map,
-                                               Tagged<FixedArray> object,
-                                               ProgressBar& progress_bar);
+  V8_INLINE size_t VisitFixedArrayWithProgressBar(Tagged<Map> map,
+                                                  Tagged<FixedArray> object,
+                                                  ProgressBar& progress_bar);
 
   // Methods needed for supporting code flushing.
   bool ShouldFlushCode(Tagged<SharedFunctionInfo> sfi) const;
