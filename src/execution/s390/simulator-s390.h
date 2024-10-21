@@ -181,10 +181,10 @@ class Simulator : public SimulatorBase {
   double CallFPReturnsDouble(Address entry, double d0, double d1);
 
   // Push an address onto the JS stack.
-  uintptr_t PushAddress(uintptr_t address);
+  V8_EXPORT_PRIVATE uintptr_t PushAddress(uintptr_t address);
 
   // Pop an address from the JS stack.
-  uintptr_t PopAddress();
+  V8_EXPORT_PRIVATE uintptr_t PopAddress();
 
   // Debugger input.
   void set_last_debugger_input(char* input);
