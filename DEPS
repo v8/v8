@@ -60,7 +60,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.168.0.c46e68bc-gomaip',
+  'reclient_version': 're_client_version:0.169.0.5ae0d8b0-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -491,9 +491,9 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'fa9f14143c7938e6a1d18443900efee7a1e5e669',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '4e8c4d69fda7aa903f725a96917ad09d9c5d6a66',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'fa046de6102b3a6c26ab91707326da50cf250472',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '53554bf3da41153f2e01f9ff234c194c156b7a93',
   'tools/luci-go': {
       'packages': [
         {
