@@ -275,10 +275,10 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/google_benchmark_chrome': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/google_benchmark.git' + '@' + 'f049b96d7a50ae19f2748aae7fba7bde705bcd8c',
+    'url': Var('chromium_url') + '/chromium/src/third_party/google_benchmark.git' + '@' + '75f504f8c9501a07357e1033475629bb750a1d80',
   },
   'third_party/google_benchmark_chrome/src': {
-    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '344117638c8ff7e239044fd0fa7085839fc03021',
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '761305ec3b33abf30e08d50eb829e19a802581cc',
   },
   'third_party/fuzztest':
     Var('chromium_url') + '/chromium/src/third_party/fuzztest.git' + '@' + 'f9f9e5f68ea55f41c86f9b2892779e24c1d53d3d',
