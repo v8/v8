@@ -1099,7 +1099,7 @@ class MatchInfoBackedMatch : public String::Match {
 class VectorBackedMatch : public String::Match {
  public:
   VectorBackedMatch(Isolate* isolate, Handle<String> subject,
-                    Handle<String> match, int match_position,
+                    Handle<String> match, uint32_t match_position,
                     base::Vector<Handle<Object>> captures,
                     Handle<Object> groups_obj)
       : isolate_(isolate),
@@ -1116,12 +1116,18 @@ class VectorBackedMatch : public String::Match {
   Handle<String> GetMatch() override { return match_; }
 
   Handle<String> GetPrefix() override {
-    return isolate_->factory()->NewSubString(subject_, 0, match_position_);
+    // match_position_ and match_ are user-controlled, hence we manually clamp
+    // the index here.
+    uint32_t end = std::min(subject_->length(), match_position_);
+    return isolate_->factory()->NewSubString(subject_, 0, end);
   }
 
   Handle<String> GetSuffix() override {
-    const int match_end_position = match_position_ + match_->length();
-    return isolate_->factory()->NewSubString(subject_, match_end_position,
+    // match_position_ and match_ are user-controlled, hence we manually clamp
+    // the index here.
+    uint32_t start =
+        std::min(subject_->length(), match_position_ + match_->length());
+    return isolate_->factory()->NewSubString(subject_, start,
                                              subject_->length());
   }
 
@@ -1169,7 +1175,7 @@ class VectorBackedMatch : public String::Match {
   Isolate* isolate_;
   Handle<String> subject_;
   Handle<String> match_;
-  const int match_position_;
+  const uint32_t match_position_;
   base::Vector<Handle<Object>> captures_;
 
   bool has_named_captures_;
