@@ -171,7 +171,7 @@ class PipelineImpl final {
   explicit PipelineImpl(TFPipelineData* data) : data_(data) {}
 
   // Helpers for executing pipeline phases.
-  template <CONCEPT(turboshaft::TurbofanPhase) Phase, typename... Args>
+  template <turboshaft::TurbofanPhase Phase, typename... Args>
   auto Run(Args&&... args);
 
   // Step A.1. Initialize the heap broker.
@@ -903,7 +903,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   return SUCCEEDED;
 }
 
-template <CONCEPT(turboshaft::TurbofanPhase) Phase, typename... Args>
+template <turboshaft::TurbofanPhase Phase, typename... Args>
 auto PipelineImpl::Run(Args&&... args) {
 #ifdef V8_RUNTIME_CALL_STATS
   PipelineRunScope scope(this->data_, Phase::phase_name(),

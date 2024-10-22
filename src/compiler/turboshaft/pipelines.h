@@ -55,7 +55,7 @@ class Pipeline {
     }
   }
 
-  template <CONCEPT(TurboshaftPhase) Phase, typename... Args>
+  template <TurboshaftPhase Phase, typename... Args>
   auto Run(Args&&... args) {
     // Setup run scope.
     PhaseScope phase_scope(data_->pipeline_statistics(), Phase::phase_name());

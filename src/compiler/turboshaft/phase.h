@@ -28,18 +28,12 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 
-#ifdef HAS_CPP_CONCEPTS
-#define STATIC_ASSERT_IF_CONCEPTS(cond) static_assert(cond)
-#else
-#define STATIC_ASSERT_IF_CONCEPTS(cond)
-#endif  // HAS_CPP_CONCEPTS
-
 #define DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, CallStatsName)             \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(CallStatsName, PhaseKind::kTurboshaft, \
                                        RuntimeCallStats::kThreadSpecific)     \
   static constexpr char kPhaseName[] = "V8.TF" #CallStatsName;                \
   static void AssertTurboshaftPhase() {                                       \
-    STATIC_ASSERT_IF_CONCEPTS(TurboshaftPhase<Name##Phase>);                  \
+    static_assert(TurboshaftPhase<Name##Phase>);                              \
   }
 
 #define DECL_TURBOSHAFT_PHASE_CONSTANTS(Name) \
@@ -53,7 +47,7 @@
                                        RuntimeCallStats::kExact)               \
   static constexpr char kPhaseName[] = "V8.TF" #Name;                          \
   static void AssertTurboshaftPhase() {                                        \
-    STATIC_ASSERT_IF_CONCEPTS(TurboshaftPhase<Name##Phase>);                   \
+    static_assert(TurboshaftPhase<Name##Phase>);                               \
   }
 
 namespace v8::internal::compiler {
@@ -66,7 +60,6 @@ namespace v8::internal::compiler::turboshaft {
 
 class PipelineData;
 
-#ifdef HAS_CPP_CONCEPTS
 template <typename Phase>
 struct HasProperRunMethod {
   using parameters = base::tmp::call_parameters_t<decltype(&Phase::Run)>;
@@ -89,11 +82,6 @@ concept TurbofanPhase = requires(Phase p) { p.kKind == PhaseKind::kTurbofan; };
 
 template <typename Phase>
 concept CompilerPhase = TurboshaftPhase<Phase> || TurbofanPhase<Phase>;
-
-#define CONCEPT(name) name
-#else  // HAS_CPP_CONCEPTS
-#define CONCEPT(name) typename
-#endif  // HAS_CPP_CONCEPTS
 
 namespace detail {
 template <typename, typename = void>

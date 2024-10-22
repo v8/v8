@@ -99,8 +99,6 @@ static_assert((ConditionalGotoStatus::kGotoDestination |
                ConditionalGotoStatus::kGotoEliminated) ==
               ConditionalGotoStatus::kBranch);
 
-#ifdef HAS_CPP_CONCEPTS
-
 template <typename It, typename A>
 concept ForeachIterable = requires(It iterator, A& assembler) {
   { iterator.Begin(assembler) } -> std::same_as<typename It::iterator_type>;
@@ -114,8 +112,6 @@ concept ForeachIterable = requires(It iterator, A& assembler) {
     iterator.Dereference(assembler, typename It::iterator_type{})
   } -> std::same_as<typename It::value_type>;
 };
-
-#endif
 
 // `Range<T>` implements the `ForeachIterable` concept to iterate over a range
 // of values inside a `FOREACH` loop. The range can be specified with a begin,
@@ -1375,7 +1371,7 @@ class GenericAssemblerOpInterface {
     label.EndLoop(Asm());
   }
 
-  template <CONCEPT(ForeachIterable<assembler_t>) It>
+  template <ForeachIterable<assembler_t> It>
   auto ControlFlowHelper_Foreach(It iterable) {
     // We need to take ownership over the `iterable` instance as we need to make
     // sure that the `ControlFlowHelper_Foreach` and
@@ -1417,7 +1413,7 @@ class GenericAssemblerOpInterface {
         std::move(loop_exit), current_iterator, current_value);
   }
 
-  template <CONCEPT(ForeachIterable<assembler_t>) It>
+  template <ForeachIterable<assembler_t> It>
   void ControlFlowHelper_EndForeachLoop(
       It iterable, LoopLabelFor<typename It::iterator_type>& header_label,
       Label<>& exit_label, typename It::iterator_type current_iterator) {
