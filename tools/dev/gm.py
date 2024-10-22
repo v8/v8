@@ -697,7 +697,7 @@ class ArgumentParser(object):
     # Specifying a single unit test looks like "unittests/Foo.Bar", test262
     # tests have names like "S15.4.4.7_A4_T1", don't split these.
     if (argstring.startswith("unittests/") or
-        argstring.startswith("test262/") or
+        argstring.startswith("test262/") or argstring.startswith("fuzzer/") or
         argstring.startswith("wasm-api-tests/")):
       words = [argstring]
     else:
