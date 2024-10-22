@@ -194,23 +194,13 @@ bool Map::EquivalentToForNormalization(const Tagged<Map> other,
 
 bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   if (UnusedPropertyFields() != 0) return false;
+  if (store_origin != StoreOrigin::kMaybeKeyed) return false;
   if (is_prototype_map()) return false;
-  if (store_origin == StoreOrigin::kNamed) {
-    int limit = std::max(
-        {v8_flags.max_fast_properties.value(), GetInObjectProperties()});
-    FieldCounts counts = GetFieldCounts();
-    // Only count mutable fields so that objects with large numbers of
-    // constant functions do not go to dictionary mode. That would be bad
-    // because such objects have often been used as modules.
-    int external = counts.mutable_count() - GetInObjectProperties();
-    return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
-  } else {
-    int limit = std::max(
-        {v8_flags.fast_properties_soft_limit.value(), GetInObjectProperties()});
-    int external =
-        NumberOfFields(ConcurrencyMode::kSynchronous) - GetInObjectProperties();
-    return external > limit;
-  }
+  int limit = std::max(
+      {v8_flags.fast_properties_soft_limit.value(), GetInObjectProperties()});
+  int external =
+      NumberOfFields(ConcurrencyMode::kSynchronous) - GetInObjectProperties();
+  return external > limit;
 }
 
 Tagged<Name> Map::GetLastDescriptorName(Isolate* isolate) const {
