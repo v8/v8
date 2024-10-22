@@ -628,8 +628,8 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
 
   // Data needed for merging onto the main thread after background finalization.
   std::unique_ptr<PersistentHandles> persistent_handles_;
-  MaybeHandle<SharedFunctionInfo> outer_function_sfi_;
-  Handle<Script> script_;
+  MaybeIndirectHandle<SharedFunctionInfo> outer_function_sfi_;
+  IndirectHandle<Script> script_;
   IsCompiledScope is_compiled_scope_;
   FinalizeUnoptimizedCompilationDataList finalize_unoptimized_compilation_data_;
   DeferredFinalizationJobDataList jobs_to_retry_finalization_on_main_thread_;
@@ -637,7 +637,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int total_preparse_skipped_ = 0;
 
   // Single function data for top-level function compilation.
-  MaybeHandle<SharedFunctionInfo> input_shared_info_;
+  MaybeIndirectHandle<SharedFunctionInfo> input_shared_info_;
   int start_position_;
   int end_position_;
   int function_literal_id_;

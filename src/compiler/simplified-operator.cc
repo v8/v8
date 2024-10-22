@@ -1891,17 +1891,17 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeToBigInt(
 
 const Operator* SimplifiedOperatorBuilder::CheckClosure(
     const Handle<FeedbackCell>& feedback_cell) {
-  return zone()->New<Operator1<Handle<FeedbackCell>>>(  // --
-      IrOpcode::kCheckClosure,                          // opcode
-      Operator::kNoThrow | Operator::kNoWrite,          // flags
-      "CheckClosure",                                   // name
-      1, 1, 1, 1, 1, 0,                                 // counts
-      feedback_cell);                                   // parameter
+  return zone()->New<Operator1<IndirectHandle<FeedbackCell>>>(  // --
+      IrOpcode::kCheckClosure,                                  // opcode
+      Operator::kNoThrow | Operator::kNoWrite,                  // flags
+      "CheckClosure",                                           // name
+      1, 1, 1, 1, 1, 0,                                         // counts
+      feedback_cell);                                           // parameter
 }
 
 Handle<FeedbackCell> FeedbackCellOf(const Operator* op) {
   DCHECK(IrOpcode::kCheckClosure == op->opcode());
-  return OpParameter<Handle<FeedbackCell>>(op);
+  return OpParameter<IndirectHandle<FeedbackCell>>(op);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(

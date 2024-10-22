@@ -19,10 +19,10 @@ class JSOperatorBuilder;
 // Pair of a context and its distance from some point of reference.
 struct OuterContext {
   OuterContext() = default;
-  OuterContext(Handle<Context> context_, size_t distance_)
+  OuterContext(IndirectHandle<Context> context_, size_t distance_)
       : context(context_), distance(distance_) {}
 
-  Handle<Context> context;
+  IndirectHandle<Context> context;
   size_t distance = 0;
 };
 

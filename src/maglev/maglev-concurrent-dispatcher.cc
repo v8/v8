@@ -184,11 +184,11 @@ void MaglevCompilationJob::DisposeOnMainThread(Isolate* isolate) {
   info()->DetachCanonicalHandles()->Clear();
 }
 
-MaybeHandle<Code> MaglevCompilationJob::code() const {
+MaybeIndirectHandle<Code> MaglevCompilationJob::code() const {
   return info_->get_code();
 }
 
-Handle<JSFunction> MaglevCompilationJob::function() const {
+IndirectHandle<JSFunction> MaglevCompilationJob::function() const {
   return info_->toplevel_function();
 }
 
@@ -319,7 +319,6 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
   QueueT* destruction_queue() const { return &dispatcher_->destruction_queue_; }
 
   MaglevConcurrentDispatcher* const dispatcher_;
-  const Handle<JSFunction> function_;
 };
 
 MaglevConcurrentDispatcher::MaglevConcurrentDispatcher(Isolate* isolate)

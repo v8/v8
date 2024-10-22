@@ -364,6 +364,11 @@ struct HandleScopeData final {
 
 static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
 
+template <typename T>
+struct is_direct_handle : public std::false_type {};
+template <typename T>
+static constexpr bool is_direct_handle_v = is_direct_handle<T>::value;
+
 #ifdef V8_ENABLE_DIRECT_HANDLE
 // Direct handles should not be used without conservative stack scanning,
 // as this would break the correctness of the GC.
@@ -582,6 +587,9 @@ class DirectHandle : public DirectHandleBase {
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);
+
+template <typename T>
+struct is_direct_handle<DirectHandle<T>> : public std::true_type {};
 
 template <typename T>
 IndirectHandle<T> indirect_handle(DirectHandle<T> handle) {

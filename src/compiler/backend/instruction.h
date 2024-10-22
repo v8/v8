@@ -1217,7 +1217,7 @@ class V8_EXPORT_PRIVATE Constant final {
   explicit Constant(ExternalReference ref)
       : type_(kExternalReference),
         value_(base::bit_cast<intptr_t>(ref.raw())) {}
-  explicit Constant(Handle<HeapObject> obj, bool is_compressed = false)
+  explicit Constant(IndirectHandle<HeapObject> obj, bool is_compressed = false)
       : type_(is_compressed ? kCompressedHeapObject : kHeapObject),
         value_(base::bit_cast<intptr_t>(obj)) {}
   explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
@@ -1282,8 +1282,8 @@ class V8_EXPORT_PRIVATE Constant final {
     return RpoNumber::FromInt(static_cast<int>(value_));
   }
 
-  Handle<HeapObject> ToHeapObject() const;
-  Handle<Code> ToCode() const;
+  IndirectHandle<HeapObject> ToHeapObject() const;
+  IndirectHandle<Code> ToCode() const;
 
  private:
   Type type_;
@@ -1501,7 +1501,7 @@ class FrameStateDescriptor : public ZoneObject {
       Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
       OutputFrameStateCombine state_combine, uint16_t parameters_count,
       uint16_t max_arguments, size_t locals_count, size_t stack_count,
-      MaybeHandle<SharedFunctionInfo> shared_info,
+      MaybeIndirectHandle<SharedFunctionInfo> shared_info,
       FrameStateDescriptor* outer_state = nullptr,
       uint32_t wasm_liftoff_frame_size = std::numeric_limits<uint32_t>::max(),
       uint32_t wasm_function_index = std::numeric_limits<uint32_t>::max());
@@ -1513,7 +1513,9 @@ class FrameStateDescriptor : public ZoneObject {
   uint16_t max_arguments() const { return max_arguments_; }
   size_t locals_count() const { return locals_count_; }
   size_t stack_count() const { return stack_count_; }
-  MaybeHandle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  MaybeIndirectHandle<SharedFunctionInfo> shared_info() const {
+    return shared_info_;
+  }
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   bool HasClosure() const {
     return
@@ -1573,7 +1575,7 @@ class FrameStateDescriptor : public ZoneObject {
   const size_t stack_count_;
   const size_t total_conservative_frame_size_in_bytes_;
   StateValueList values_;
-  MaybeHandle<SharedFunctionInfo> const shared_info_;
+  MaybeIndirectHandle<SharedFunctionInfo> const shared_info_;
   FrameStateDescriptor* const outer_state_;
   uint32_t wasm_function_index_;
 };
@@ -1581,14 +1583,13 @@ class FrameStateDescriptor : public ZoneObject {
 #if V8_ENABLE_WEBASSEMBLY
 class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
  public:
-  JSToWasmFrameStateDescriptor(Zone* zone, FrameStateType type,
-                               BytecodeOffset bailout_id,
-                               OutputFrameStateCombine state_combine,
-                               uint16_t parameters_count, size_t locals_count,
-                               size_t stack_count,
-                               MaybeHandle<SharedFunctionInfo> shared_info,
-                               FrameStateDescriptor* outer_state,
-                               const wasm::CanonicalSig* wasm_signature);
+  JSToWasmFrameStateDescriptor(
+      Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
+      OutputFrameStateCombine state_combine, uint16_t parameters_count,
+      size_t locals_count, size_t stack_count,
+      MaybeIndirectHandle<SharedFunctionInfo> shared_info,
+      FrameStateDescriptor* outer_state,
+      const wasm::CanonicalSig* wasm_signature);
 
   std::optional<wasm::ValueKind> return_kind() const { return return_kind_; }
 

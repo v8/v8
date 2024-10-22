@@ -173,7 +173,8 @@ void StoreBuiltinCallForNode(Node* n, Builtin builtin, int block_id,
       Node* callee = n->InputAt(0);
       Operator* op = const_cast<Operator*>(callee->op());
       if (op->opcode() == IrOpcode::kHeapConstant) {
-        Handle<HeapObject> para = OpParameter<Handle<HeapObject>>(op);
+        IndirectHandle<HeapObject> para =
+            OpParameter<IndirectHandle<HeapObject>>(op);
         if (IsCode(*para)) {
           DirectHandle<Code> code = Cast<Code>(para);
           if (code->is_builtin()) {

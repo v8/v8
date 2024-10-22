@@ -882,10 +882,10 @@ class InstanceBuilder {
   Handle<JSArrayBuffer> shared_untagged_globals_;
   Handle<FixedArray> tagged_globals_;
   Handle<FixedArray> shared_tagged_globals_;
-  std::vector<Handle<WasmTagObject>> tags_wrappers_;
-  std::vector<Handle<WasmTagObject>> shared_tags_wrappers_;
+  std::vector<IndirectHandle<WasmTagObject>> tags_wrappers_;
+  std::vector<IndirectHandle<WasmTagObject>> shared_tags_wrappers_;
   Handle<JSFunction> start_function_;
-  std::vector<Handle<Object>> sanitized_imports_;
+  std::vector<IndirectHandle<Object>> sanitized_imports_;
   std::vector<WellKnownImport> well_known_imports_;
   // We pass this {Zone} to the temporary {WasmFullDecoder} we allocate during
   // each call to {EvaluateConstantExpression}, and reset it after each such
@@ -2586,7 +2586,7 @@ MaybeHandle<WasmMemoryObject> InstanceBuilder::AllocateMemory(
 void InstanceBuilder::ProcessExports(
     Handle<WasmTrustedInstanceData> trusted_instance_data,
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
-  std::unordered_map<int, Handle<Object>> imported_globals;
+  std::unordered_map<int, IndirectHandle<Object>> imported_globals;
 
   // If an imported WebAssembly function or global gets exported, the export
   // has to be identical to to import. Therefore we cache all imported

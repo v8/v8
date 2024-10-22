@@ -29,7 +29,7 @@ MacroAssemblerBase::MacroAssemblerBase(Isolate* isolate,
                                        std::unique_ptr<AssemblerBuffer> buffer)
     : Assembler(zone, options, std::move(buffer)), isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
-    code_object_ = Handle<HeapObject>::New(
+    code_object_ = IndirectHandle<HeapObject>::New(
         ReadOnlyRoots(isolate).self_reference_marker(), isolate);
   }
 }

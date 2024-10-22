@@ -229,13 +229,13 @@ class AsyncCompileJob {
   // Reference to the wire bytes (held in {bytes_copy_} or as part of
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
-  Handle<NativeContext> native_context_;
-  Handle<NativeContext> incumbent_context_;
+  IndirectHandle<NativeContext> native_context_;
+  IndirectHandle<NativeContext> incumbent_context_;
   v8::metrics::Recorder::ContextId context_id_;
   v8::metrics::WasmModuleDecoded metrics_event_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
-  Handle<WasmModuleObject> module_object_;
+  IndirectHandle<WasmModuleObject> module_object_;
   std::shared_ptr<NativeModule> native_module_;
 
   std::unique_ptr<CompileStep> step_;

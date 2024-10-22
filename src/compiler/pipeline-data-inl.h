@@ -1,4 +1,3 @@
-
 // Copyright 2024 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -242,8 +241,8 @@ class TFPipelineData {
   bool verify_graph() const { return verify_graph_; }
   void set_verify_graph(bool value) { verify_graph_ = value; }
 
-  MaybeHandle<Code> code() { return code_; }
-  void set_code(MaybeHandle<Code> code) {
+  MaybeIndirectHandle<Code> code() { return code_; }
+  void set_code(MaybeIndirectHandle<Code> code) {
     DCHECK(code_.is_null());
     code_ = code;
   }
@@ -581,7 +580,7 @@ class TFPipelineData {
   bool verify_graph_ = false;
   int start_source_position_ = kNoSourcePosition;
   std::shared_ptr<OsrHelper> osr_helper_;
-  MaybeHandle<Code> code_;
+  MaybeIndirectHandle<Code> code_;
   CodeGenerator* code_generator_ = nullptr;
   Typer* typer_ = nullptr;
   Typer::Flags typer_flags_ = Typer::kNoFlags;

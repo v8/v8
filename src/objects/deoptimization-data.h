@@ -59,7 +59,7 @@ class DeoptimizationLiteral {
  public:
   DeoptimizationLiteral()
       : kind_(DeoptimizationLiteralKind::kInvalid), object_() {}
-  explicit DeoptimizationLiteral(Handle<Object> object)
+  explicit DeoptimizationLiteral(IndirectHandle<Object> object)
       : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
     CHECK(!object_.is_null());
   }
@@ -86,7 +86,7 @@ class DeoptimizationLiteral {
     return literal;
   }
 
-  Handle<Object> object() const { return object_; }
+  IndirectHandle<Object> object() const { return object_; }
 
   bool operator==(const DeoptimizationLiteral& other) const {
     if (kind_ != other.kind_) {
@@ -158,7 +158,7 @@ class DeoptimizationLiteral {
   DeoptimizationLiteralKind kind_;
 
   union {
-    Handle<Object> object_;
+    IndirectHandle<Object> object_;
     double number_;
     Float32 float32_;
     Float64 float64_;

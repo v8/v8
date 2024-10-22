@@ -1716,7 +1716,6 @@ BackgroundCompileTask::BackgroundCompileTask(
       worker_thread_runtime_call_stats_(worker_thread_runtime_stats),
       timer_(timer),
       compilation_details_(nullptr),
-      input_shared_info_(shared_info),
       start_position_(shared_info->StartPosition()),
       end_position_(shared_info->EndPosition()),
       function_literal_id_(shared_info->function_literal_id()) {
@@ -2245,11 +2244,11 @@ class ConstantPoolPointerForwarder {
   PtrComprCageBase cage_base_;
   LocalHeap* local_heap_;
   DirectHandle<Script> old_script_;
-  std::vector<Handle<BytecodeArray>> bytecode_arrays_to_update_;
+  std::vector<IndirectHandle<BytecodeArray>> bytecode_arrays_to_update_;
 
   // Indicates whether we have any shared function info to forward.
   bool has_shared_function_info_to_forward_ = false;
-  std::unordered_map<int, Handle<ScopeInfo>> scope_infos_to_update_;
+  std::unordered_map<int, IndirectHandle<ScopeInfo>> scope_infos_to_update_;
 };
 
 void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,

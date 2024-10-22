@@ -371,11 +371,11 @@ class V8_EXPORT_PRIVATE PipelineData {
   CodeGenerator* code_generator() const {
     return codegen_component_->code_generator.get();
   }
-  void set_code(MaybeHandle<Code> code) {
+  void set_code(MaybeIndirectHandle<Code> code) {
     DCHECK(code_.is_null());
     code_ = code;
   }
-  MaybeHandle<Code> code() const { return code_; }
+  MaybeIndirectHandle<Code> code() const { return code_; }
   InstructionSequence* sequence() const {
     return instruction_component_->sequence;
   }
@@ -505,7 +505,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   CompilationDependencies* dependencies_ = nullptr;
   int start_source_position_ = kNoSourcePosition;
   const AssemblerOptions assembler_options_;
-  MaybeHandle<Code> code_;
+  MaybeIndirectHandle<Code> code_;
   std::string source_position_output_;
   RuntimeCallStats* runtime_call_stats_ = nullptr;
   // Components

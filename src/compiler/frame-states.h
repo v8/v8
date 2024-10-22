@@ -92,7 +92,7 @@ class FrameStateFunctionInfo {
  public:
   FrameStateFunctionInfo(FrameStateType type, uint16_t parameter_count,
                          uint16_t max_arguments, int local_count,
-                         Handle<SharedFunctionInfo> shared_info,
+                         IndirectHandle<SharedFunctionInfo> shared_info,
                          uint32_t wasm_liftoff_frame_size = 0,
                          uint32_t wasm_function_index = -1)
       : type_(type),
@@ -109,7 +109,9 @@ class FrameStateFunctionInfo {
   int local_count() const { return local_count_; }
   uint16_t parameter_count() const { return parameter_count_; }
   uint16_t max_arguments() const { return max_arguments_; }
-  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  IndirectHandle<SharedFunctionInfo> shared_info() const {
+    return shared_info_;
+  }
   FrameStateType type() const { return type_; }
   uint32_t wasm_liftoff_frame_size() const {
     return wasm_liftoff_frame_size_;
@@ -136,7 +138,7 @@ class FrameStateFunctionInfo {
   static constexpr uint32_t wasm_liftoff_frame_size_ = 0;
   static constexpr uint32_t wasm_function_index_ = -1;
 #endif
-  const Handle<SharedFunctionInfo> shared_info_;
+  const IndirectHandle<SharedFunctionInfo> shared_info_;
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -144,7 +146,7 @@ class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
  public:
   JSToWasmFrameStateFunctionInfo(FrameStateType type, uint16_t parameter_count,
                                  int local_count,
-                                 Handle<SharedFunctionInfo> shared_info,
+                                 IndirectHandle<SharedFunctionInfo> shared_info,
                                  const wasm::CanonicalSig* signature)
       : FrameStateFunctionInfo(type, parameter_count, 0, local_count,
                                shared_info),
@@ -174,8 +176,8 @@ class FrameStateInfo final {
   }
   BytecodeOffset bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
-  MaybeHandle<SharedFunctionInfo> shared_info() const {
-    return info_ == nullptr ? MaybeHandle<SharedFunctionInfo>()
+  MaybeIndirectHandle<SharedFunctionInfo> shared_info() const {
+    return info_ == nullptr ? MaybeIndirectHandle<SharedFunctionInfo>()
                             : info_->shared_info();
   }
   uint16_t parameter_count() const {

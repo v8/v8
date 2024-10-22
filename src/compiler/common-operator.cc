@@ -1342,36 +1342,36 @@ const Operator* CommonOperatorBuilder::PointerConstant(intptr_t value) {
 
 const Operator* CommonOperatorBuilder::HeapConstant(
     const Handle<HeapObject>& value) {
-  return zone()->New<Operator1<Handle<HeapObject>>>(  // --
-      IrOpcode::kHeapConstant, Operator::kPure,       // opcode
-      "HeapConstant",                                 // name
-      0, 0, 0, 1, 0, 0,                               // counts
-      value);                                         // parameter
+  return zone()->New<Operator1<IndirectHandle<HeapObject>>>(  // --
+      IrOpcode::kHeapConstant, Operator::kPure,               // opcode
+      "HeapConstant",                                         // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      value);                                                 // parameter
 }
 
 const Operator* CommonOperatorBuilder::CompressedHeapConstant(
     const Handle<HeapObject>& value) {
-  return zone()->New<Operator1<Handle<HeapObject>>>(       // --
-      IrOpcode::kCompressedHeapConstant, Operator::kPure,  // opcode
-      "CompressedHeapConstant",                            // name
-      0, 0, 0, 1, 0, 0,                                    // counts
-      value);                                              // parameter
+  return zone()->New<Operator1<IndirectHandle<HeapObject>>>(  // --
+      IrOpcode::kCompressedHeapConstant, Operator::kPure,     // opcode
+      "CompressedHeapConstant",                               // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      value);                                                 // parameter
 }
 
 const Operator* CommonOperatorBuilder::TrustedHeapConstant(
     const Handle<HeapObject>& value) {
-  return zone()->New<Operator1<Handle<HeapObject>>>(    // --
-      IrOpcode::kTrustedHeapConstant, Operator::kPure,  // opcode
-      "TrustedHeapConstant",                            // name
-      0, 0, 0, 1, 0, 0,                                 // counts
-      value);                                           // parameter
+  return zone()->New<Operator1<IndirectHandle<HeapObject>>>(  // --
+      IrOpcode::kTrustedHeapConstant, Operator::kPure,        // opcode
+      "TrustedHeapConstant",                                  // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      value);                                                 // parameter
 }
 
 Handle<HeapObject> HeapConstantOf(const Operator* op) {
   DCHECK(IrOpcode::kHeapConstant == op->opcode() ||
          IrOpcode::kCompressedHeapConstant == op->opcode() ||
          IrOpcode::kTrustedHeapConstant == op->opcode());
-  return OpParameter<Handle<HeapObject>>(op);
+  return OpParameter<IndirectHandle<HeapObject>>(op);
 }
 
 const char* StaticAssertSourceOf(const Operator* op) {

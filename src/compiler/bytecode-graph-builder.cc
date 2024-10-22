@@ -410,7 +410,7 @@ class BytecodeGraphBuilder {
     return frame_state_function_info_;
   }
   SourcePositionTableIterator& source_position_iterator() {
-    return *source_position_iterator_;
+    return source_position_iterator_;
   }
   interpreter::BytecodeArrayIterator const& bytecode_iterator() const {
     return bytecode_iterator_;
@@ -462,7 +462,7 @@ class BytecodeGraphBuilder {
   CallFrequency const invocation_frequency_;
   JSTypeHintLowering const type_hint_lowering_;
   const FrameStateFunctionInfo* const frame_state_function_info_;
-  std::unique_ptr<SourcePositionTableIterator> source_position_iterator_;
+  SourcePositionTableIterator source_position_iterator_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
   BytecodeAnalysis const bytecode_analysis_;
   Environment* environment_;
@@ -1070,8 +1070,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           FrameStateType::kUnoptimizedFunction,
           bytecode_array().parameter_count(), bytecode_array().max_arguments(),
           bytecode_array().register_count(), shared_info.object())),
-      source_position_iterator_(std::make_unique<SourcePositionTableIterator>(
-          bytecode_array().SourcePositionTable(broker))),
+      source_position_iterator_(bytecode_array().SourcePositionTable(broker)),
       bytecode_iterator_(bytecode_array().object()),
       bytecode_analysis_(
           bytecode_array().object(), local_zone, osr_offset,

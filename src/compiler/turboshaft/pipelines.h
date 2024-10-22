@@ -522,15 +522,15 @@ class Pipeline {
 
   OptimizedCompilationInfo* info() { return data_->info(); }
 
-  MaybeHandle<Code> FinalizeCode(bool retire_broker = true) {
+  MaybeIndirectHandle<Code> FinalizeCode(bool retire_broker = true) {
     BeginPhaseKind("V8.TFFinalizeCode");
     if (data_->broker() && retire_broker) {
       data_->broker()->Retire();
     }
     Run<FinalizeCodePhase>();
 
-    MaybeHandle<Code> maybe_code = data_->code();
-    Handle<Code> code;
+    MaybeIndirectHandle<Code> maybe_code = data_->code();
+    IndirectHandle<Code> code;
     if (!maybe_code.ToHandle(&code)) {
       return maybe_code;
     }

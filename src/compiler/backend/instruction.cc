@@ -604,16 +604,17 @@ Constant::Constant(RelocatablePtrConstantInfo info) {
   rmode_ = info.rmode();
 }
 
-Handle<HeapObject> Constant::ToHeapObject() const {
+IndirectHandle<HeapObject> Constant::ToHeapObject() const {
   DCHECK(kHeapObject == type() || kCompressedHeapObject == type());
-  Handle<HeapObject> value(
+  IndirectHandle<HeapObject> value(
       reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   return value;
 }
 
-Handle<Code> Constant::ToCode() const {
+IndirectHandle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  IndirectHandle<Code> value(
+      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   DCHECK(IsCode(*value));
   return value;
 }
@@ -1224,7 +1225,7 @@ FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, uint16_t parameters_count,
     uint16_t max_arguments, size_t locals_count, size_t stack_count,
-    MaybeHandle<SharedFunctionInfo> shared_info,
+    MaybeIndirectHandle<SharedFunctionInfo> shared_info,
     FrameStateDescriptor* outer_state, uint32_t wasm_liftoff_frame_size,
     uint32_t wasm_function_index)
     : type_(type),
@@ -1313,7 +1314,7 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, uint16_t parameters_count,
     size_t locals_count, size_t stack_count,
-    MaybeHandle<SharedFunctionInfo> shared_info,
+    MaybeIndirectHandle<SharedFunctionInfo> shared_info,
     FrameStateDescriptor* outer_state, const wasm::CanonicalSig* wasm_signature)
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
                            parameters_count, 0, locals_count, stack_count,
