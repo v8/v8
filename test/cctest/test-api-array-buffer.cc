@@ -948,7 +948,11 @@ void TestArrayBufferViewGetContent(const char* source, void* expected) {
   v8::MemorySpan<uint8_t> storage(buffer);
   storage = view->GetContents(storage);
   CHECK_EQ(view->ByteLength(), storage.size());
-  CHECK_EQ(0, memcmp(storage.data(), expected, view->ByteLength()));
+  if (expected) {
+    CHECK_EQ(0, memcmp(storage.data(), expected, view->ByteLength()));
+  } else {
+    CHECK_EQ(0, storage.size());
+  }
 }
 }  // namespace
 
@@ -1059,6 +1063,18 @@ TEST(ArrayBufferView_GetContentsSmallResizableDataView) {
   TestArrayBufferViewGetContent(source, expected);
 }
 
+TEST(ArrayBufferView_GetContentsResizableTypedArray) {
+  const char* source =
+      "let rsab = new ArrayBuffer(8, {maxByteLength: 8});"
+      "let array = new Uint8Array(rsab);"
+      "for (let i = 0; i < 8; ++i) {"
+      "  array[i] = i;"
+      "};"
+      "array";
+  uint8_t expected[]{0, 1, 2, 3, 4, 5, 6, 7};
+  TestArrayBufferViewGetContent(source, expected);
+}
+
 TEST(ArrayBufferView_GetContentsLargeResizableDataView) {
   const char* source =
       "let rsab = new ArrayBuffer(100, {maxByteLength: 200});"
@@ -1084,4 +1100,16 @@ TEST(ArrayBufferView_GetContentsResizableDataViewWithOffset) {
       "new DataView(rsab, 70, 9)";
   uint8_t expected[]{70, 71, 72, 73, 74, 75, 76, 77, 78, 79};
   TestArrayBufferViewGetContent(source, expected);
+}
+
+TEST(ArrayBufferView_GetContentsDetached) {
+  const char* source =
+      "let array = new Uint8Array(100);"
+      "for (let i = 0; i < 100; ++i) {"
+      "  array[i] = i;"
+      "}"
+      "const data_view = new DataView(array.buffer);"
+      "let buffer = array.buffer.transfer();"
+      "data_view";
+  TestArrayBufferViewGetContent(source, nullptr);
 }
