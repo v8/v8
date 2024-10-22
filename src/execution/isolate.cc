@@ -4072,7 +4072,6 @@ Isolate::Isolate(IsolateGroup* isolate_group)
 #if defined(DEBUG) || defined(VERIFY_HEAP)
       num_active_deserializers_(0),
 #endif
-      rail_mode_(PERFORMANCE_ANIMATION),
       logger_(new Logger()),
       detailed_source_positions_for_profiling_(v8_flags.detailed_line_info),
       persistent_handles_list_(new PersistentHandlesList()),
@@ -7008,16 +7007,29 @@ void Isolate::DetachGlobal(Handle<Context> env) {
 void Isolate::UpdateLoadStartTime() { heap()->UpdateLoadStartTime(); }
 
 void Isolate::SetRAILMode(RAILMode rail_mode) {
-  RAILMode old_rail_mode = rail_mode_.load();
-  if (old_rail_mode != PERFORMANCE_LOAD && rail_mode == PERFORMANCE_LOAD) {
+  bool is_loading = rail_mode == PERFORMANCE_LOAD;
+  bool was_loading = is_loading_.exchange(is_loading);
+  if (is_loading && !was_loading) {
     heap()->NotifyLoadingStarted();
   }
-  rail_mode_.store(rail_mode);
-  if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD) {
+  if (!is_loading && was_loading) {
     heap()->NotifyLoadingEnded();
   }
   if (v8_flags.trace_rail) {
     PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));
+  }
+}
+
+void Isolate::SetIsLoading(bool is_loading) {
+  is_loading_.store(is_loading);
+  if (is_loading) {
+    heap()->NotifyLoadingStarted();
+  } else {
+    heap()->NotifyLoadingEnded();
+  }
+  if (v8_flags.trace_rail) {
+    // TODO(crbug.com/373688984): Switch to a trace flag for loading state.
+    PrintIsolate(this, "RAIL mode: %s\n", is_loading ? "LOAD" : "ANIMATION");
   }
 }
 

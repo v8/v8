@@ -5329,8 +5329,7 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
 }
 
 bool Heap::ShouldOptimizeForLoadTime() const {
-  return isolate()->rail_mode() == PERFORMANCE_LOAD &&
-         !AllocationLimitOvershotByLargeMargin() &&
+  return isolate()->is_loading() && !AllocationLimitOvershotByLargeMargin() &&
          MonotonicallyIncreasingTimeInMs() <
              (load_start_time_ms_.load(std::memory_order_relaxed) +
               kMaxLoadTimeMs);

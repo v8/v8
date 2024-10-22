@@ -10600,12 +10600,17 @@ void Isolate::ClearCachesForTesting() {
 
 void Isolate::SetRAILMode(RAILMode rail_mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  return i_isolate->SetRAILMode(rail_mode);
+  i_isolate->SetRAILMode(rail_mode);
 }
 
 void Isolate::UpdateLoadStartTime() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->UpdateLoadStartTime();
+}
+
+void Isolate::SetIsLoading(bool is_loading) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->SetIsLoading(is_loading);
 }
 
 void Isolate::IncreaseHeapLimitForDebugging() {

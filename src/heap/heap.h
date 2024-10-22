@@ -1905,8 +1905,8 @@ class Heap final {
 
   MemoryReducer* memory_reducer() { return memory_reducer_.get(); }
 
-  // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
-  // This constant limits the effect of load RAIL mode on GC.
+  // For some webpages NotifyLoadingEnded() is never called.
+  // This constant limits the effect of load time on GC.
   // The value is arbitrary and chosen as the largest load time observed in
   // v8 browsing benchmarks.
   static const int kMaxLoadTimeMs = 7000;
@@ -2398,7 +2398,9 @@ class Heap final {
 
   std::unique_ptr<MemoryBalancer> mb_;
 
+  // Time that the embedder started loading resources.
   std::atomic<double> load_start_time_ms_{0};
+
   bool update_allocation_limits_after_loading_ = false;
   // Full GC may trigger during loading due to overshooting allocation limits.
   // In such cases we may want to update the limits again once loading is
