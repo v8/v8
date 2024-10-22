@@ -2562,7 +2562,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         isolate(), result,
         IsDefineKeyedOwnIC()
             ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
-                                               StoreOrigin::kMaybeKeyed)
+                                               StoreOrigin::kNamed)
             : Runtime::SetObjectProperty(isolate(), object, key, value,
                                          StoreOrigin::kMaybeKeyed));
     return result;
@@ -2633,7 +2633,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   MaybeHandle<Object> result =
       IsDefineKeyedOwnIC()
           ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
-                                             StoreOrigin::kMaybeKeyed)
+                                             StoreOrigin::kNamed)
           : Runtime::SetObjectProperty(isolate(), object, key, value,
                                        StoreOrigin::kMaybeKeyed);
   if (result.is_null()) {
@@ -3185,7 +3185,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Slow) {
   Handle<Object> key = args.at(2);
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::DefineObjectOwnProperty(isolate, object, key, value,
-                                                StoreOrigin::kMaybeKeyed));
+                                                StoreOrigin::kNamed));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Slow) {
@@ -3224,12 +3224,11 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
     DCHECK(IsKeyedStoreICKind(kind) || IsSetNamedICKind(kind) ||
            IsDefineKeyedOwnICKind(kind));
     RETURN_RESULT_OR_FAILURE(
-        isolate,
-        IsDefineKeyedOwnICKind(kind)
-            ? Runtime::DefineObjectOwnProperty(isolate, object, key, value,
-                                               StoreOrigin::kMaybeKeyed)
-            : Runtime::SetObjectProperty(isolate, object, key, value,
-                                         StoreOrigin::kMaybeKeyed));
+        isolate, IsDefineKeyedOwnICKind(kind)
+                     ? Runtime::DefineObjectOwnProperty(
+                           isolate, object, key, value, StoreOrigin::kNamed)
+                     : Runtime::SetObjectProperty(isolate, object, key, value,
+                                                  StoreOrigin::kMaybeKeyed));
   }
 }
 
