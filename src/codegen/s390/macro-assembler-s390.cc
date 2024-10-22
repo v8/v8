@@ -940,11 +940,12 @@ void MacroAssembler::LoadTaggedField(const Register& destination,
   }
 }
 void MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-    const Register& destination, const MemOperand& field_operand) {
+    const Register& destination, const MemOperand& field_operand,
+    const Register& scratch) {
   if (COMPRESS_POINTERS_BOOL) {
-    llgf(destination, field_operand);
+    LoadU32(destination, field_operand, scratch);
   } else {
-    LoadU64(destination, field_operand);
+    LoadU64(destination, field_operand, scratch);
   }
 }
 void MacroAssembler::SmiUntag(Register dst, const MemOperand& src) {

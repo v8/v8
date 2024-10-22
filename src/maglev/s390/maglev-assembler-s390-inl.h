@@ -372,6 +372,14 @@ void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
                          OFFSET_OF_DATA_START(FixedArray));
 }
 
+inline void MaglevAssembler::LoadTaggedFieldWithoutDecompressing(
+    Register result, Register object, int offset) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  MacroAssembler::LoadTaggedFieldWithoutDecompressing(
+      result, FieldMemOperand(object, offset), scratch);
+}
+
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     Register result, Register array, Register index) {
   if (v8_flags.debug_code) {
@@ -382,10 +390,11 @@ void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
   int times_tagged_size = (kTaggedSize == 8) ? 3 : 2;
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
+  Register scratch2 = temps.AcquireScratch();
   ShiftLeftU64(scratch, index, Operand(times_tagged_size));
   MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-      result,
-      FieldMemOperand(array, scratch, OFFSET_OF_DATA_START(FixedArray)));
+      result, FieldMemOperand(array, scratch, OFFSET_OF_DATA_START(FixedArray)),
+      scratch2);
 }
 
 void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,

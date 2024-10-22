@@ -1520,7 +1520,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                        const Register& scratch = no_reg);
   void LoadTaggedSignedField(Register destination, MemOperand field_operand);
   void LoadTaggedFieldWithoutDecompressing(const Register& destination,
-                                           const MemOperand& field_operand);
+                                           const MemOperand& field_operand,
+                                           const Register& scratch = no_reg);
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);

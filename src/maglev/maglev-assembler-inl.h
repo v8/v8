@@ -390,12 +390,6 @@ inline void MaglevAssembler::LoadTaggedField(Register result, Register object,
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
 }
 
-inline void MaglevAssembler::LoadTaggedFieldWithoutDecompressing(
-    Register result, Register object, int offset) {
-  MacroAssembler::LoadTaggedFieldWithoutDecompressing(
-      result, FieldMemOperand(object, offset));
-}
-
 inline void MaglevAssembler::LoadTaggedSignedField(Register result,
                                                    MemOperand operand) {
   MacroAssembler::LoadTaggedField(result, operand);

@@ -600,6 +600,12 @@ void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
                          OFFSET_OF_DATA_START(FixedArray));
 }
 
+inline void MaglevAssembler::LoadTaggedFieldWithoutDecompressing(
+    Register result, Register object, int offset) {
+  MacroAssembler::LoadTaggedFieldWithoutDecompressing(
+      result, FieldMemOperand(object, offset));
+}
+
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     Register result, Register array, Register index) {
   if (v8_flags.debug_code) {
