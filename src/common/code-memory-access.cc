@@ -475,9 +475,10 @@ WritableJitAllocation ThreadIsolation::RegisterInstructionStreamAllocation(
 
 // static
 WritableJitAllocation ThreadIsolation::LookupJitAllocation(
-    Address addr, size_t size, JitAllocationType type) {
+    Address addr, size_t size, JitAllocationType type, bool enforce_write_api) {
   return WritableJitAllocation(
-      addr, size, type, WritableJitAllocation::JitAllocationSource::kLookup);
+      addr, size, type, WritableJitAllocation::JitAllocationSource::kLookup,
+      enforce_write_api);
 }
 
 // static
