@@ -1018,11 +1018,14 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       // https://crbug.com/369652671
       RESET_WHEN_CORRECTNESS_FUZZING(stress_lazy_compilation),
 
+      // https://crbug.com/369974230
+      RESET_WHEN_FUZZING(expose_async_hooks),
+
       // https://crbug.com/371061101
       RESET_WHEN_FUZZING(parallel_compile_tasks_for_lazy),
 
-      // https://crbug.com/369974230
-      RESET_WHEN_FUZZING(expose_async_hooks),
+      // https://crbug.com/366671002
+      RESET_WHEN_FUZZING(stress_snapshot),
   };
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;
