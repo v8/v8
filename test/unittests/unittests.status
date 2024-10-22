@@ -336,4 +336,9 @@
   'LogAllTest.LogAll': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 
+['device_type == bullhead', {
+  # https://crbug.com/374300658
+  'SandboxTest.*': [SKIP],
+}],  # 'device_type == bullhead'
+
 ]

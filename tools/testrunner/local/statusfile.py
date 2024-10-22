@@ -61,7 +61,8 @@ VARIABLES = {ALWAYS: True}
 for var in [
     "debug", "release", "big", "little", "android", "arm", "arm64", "ia32",
     "mips64", "mips64el", "x64", "ppc64", "s390x", "macos", "windows", "linux",
-    "aix", "r1", "r2", "r3", "r5", "r6", "riscv32", "riscv64", "loong64", "zos"
+    "aix", "r1", "r2", "r3", "r5", "r6", "riscv32", "riscv64", "loong64", "zos",
+    "bullhead",
 ]:
   assert var not in VARIABLES
   VARIABLES[var] = var
