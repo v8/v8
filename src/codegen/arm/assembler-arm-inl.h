@@ -125,25 +125,16 @@ void WritableRelocInfo::set_target_external_reference(
                                    icache_flush_mode);
 }
 
-WasmCodePointer RelocInfo::wasm_indirect_call_target() const {
+Address RelocInfo::wasm_indirect_call_target() const {
   DCHECK(rmode_ == WASM_INDIRECT_CALL_TARGET);
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
-  return Assembler::uint32_constant_at(pc_, constant_pool_);
-#else
   return Assembler::target_address_at(pc_, constant_pool_);
-#endif
 }
 
 void WritableRelocInfo::set_wasm_indirect_call_target(
-    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
+    Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::WASM_INDIRECT_CALL_TARGET);
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
-  Assembler::set_uint32_constant_at(pc_, constant_pool_, target,
-                                    icache_flush_mode);
-#else
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
-#endif
 }
 
 Address RelocInfo::target_internal_reference() {

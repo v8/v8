@@ -343,12 +343,6 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
     }
     return *this;
   }
-
-  static constexpr RegisterRepresentation WasmCodePointer() {
-    return V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL
-               ? RegisterRepresentation::Word32()
-               : RegisterRepresentation::WordPtr();
-  }
 };
 
 V8_INLINE constexpr bool operator==(MaybeRegisterRepresentation a,

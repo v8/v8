@@ -2637,9 +2637,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTrustedHeapObject:
       case Kind::kRelocatableWasmCall:
       case Kind::kRelocatableWasmStubCall:
-        return RegisterRepresentation::WordPtr();
       case Kind::kRelocatableWasmIndirectCallTarget:
-        return RegisterRepresentation::WasmCodePointer();
+        return RegisterRepresentation::WordPtr();
       case Kind::kSmi:
       case Kind::kHeapObject:
       case Kind::kNumber:
