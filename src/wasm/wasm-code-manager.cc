@@ -2584,11 +2584,9 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
         // CHECK failure in this case.
         if (v8_flags.wasm_max_code_space_size_mb <
             kDefaultMaxWasmCodeSpaceSizeMb / 10) {
-          // TODO(clemensb): Fix `FormattedString` to accept uint32_t values.
-          auto oom_detail =
-              base::FormattedString{}
-              << "--wasm-max-code-space-size="
-              << size_t{v8_flags.wasm_max_code_space_size_mb.value()};
+          auto oom_detail = base::FormattedString{}
+                            << "--wasm-max-code-space-size="
+                            << v8_flags.wasm_max_code_space_size_mb.value();
           V8::FatalProcessOutOfMemory(nullptr,
                                       "A single code object needs more than "
                                       "half of the code space size",
