@@ -2578,9 +2578,29 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
       // Split off the first part of the {results} vector and process it
       // separately. This method then continues with the rest.
       size_t split_point = &result - results.begin();
-      CHECK_WITH_MSG(
-          split_point != 0,
-          "A single code object needs more than half of the code space size");
+      if (split_point == 0) {
+        // Fuzzers sometimes hit this by reducing --wasm-max-code-sapce-size-mb
+        // to an unreasonably small value. Make this an OOM to avoid getting a
+        // CHECK failure in this case.
+        if (v8_flags.wasm_max_code_space_size_mb <
+            kDefaultMaxWasmCodeSpaceSizeMb / 10) {
+          // TODO(clemensb): Fix `FormattedString` to accept uint32_t values.
+          auto oom_detail =
+              base::FormattedString{}
+              << "--wasm-max-code-space-size="
+              << size_t{v8_flags.wasm_max_code_space_size_mb.value()};
+          V8::FatalProcessOutOfMemory(nullptr,
+                                      "A single code object needs more than "
+                                      "half of the code space size",
+                                      oom_detail.PrintToArray().data());
+        } else {
+          // Otherwise make this a CHECK failure so we see if this is happening
+          // in the wild or in tests.
+          FATAL(
+              "A single code object needs more than half of the code space "
+              "size");
+        }
+      }
       auto first_results = AddCompiledCode(results.SubVector(0, split_point));
       generated_code.insert(generated_code.end(),
                             std::make_move_iterator(first_results.begin()),
