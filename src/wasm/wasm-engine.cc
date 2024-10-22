@@ -1083,13 +1083,22 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
 }
 
 std::pair<size_t, size_t> WasmEngine::FlushLiftoffCode() {
+  // Keep the NativeModules alive until after the destructor of the
+  // `WasmCodeRefScope`, which still needs to access the code and the
+  // NativeModule.
+  std::vector<std::shared_ptr<NativeModule>> native_modules_with_dead_code;
   WasmCodeRefScope ref_scope;
   base::MutexGuard guard(&mutex_);
   size_t removed_code_size = 0;
   size_t removed_metadata_size = 0;
   for (auto& [native_module, info] : native_modules_) {
+    std::shared_ptr<NativeModule> shared = info->weak_ptr.lock();
+    if (!shared) continue;  // The NativeModule is dying anyway.
     auto [code_size, metadata_size] = native_module->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveLiftoffCode);
+    DCHECK_EQ(code_size == 0, metadata_size == 0);
+    if (code_size == 0) continue;
+    native_modules_with_dead_code.emplace_back(std::move(shared));
     removed_code_size += code_size;
     removed_metadata_size += metadata_size;
   }
