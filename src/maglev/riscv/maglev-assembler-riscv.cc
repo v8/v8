@@ -6,7 +6,6 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-graph.h"
-
 namespace v8 {
 namespace internal {
 namespace maglev {
@@ -231,7 +230,7 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
 
   DCHECK_GE(Deoptimizer::kLazyDeoptExitSize, Deoptimizer::kEagerDeoptExitSize);
 
-  ScratchRegisterScope scope(this);
+  TemporaryRegisterScope scope(this);
   Register scratch = scope.Acquire();
   if (eager_deopt_count > 0) {
     bind(eager_deopt_entry);
