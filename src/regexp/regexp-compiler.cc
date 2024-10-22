@@ -1534,10 +1534,13 @@ EatsAtLeastInfo LoopChoiceNode::EatsAtLeastFromLoopEntry() {
   // successful match in the loop body must also include the continuation node.
   // However, in some cases involving positive lookaround, the loop body under-
   // reports its appetite, so use saturated math here to avoid negative numbers.
+  // For this to work correctly, we explicitly need to use signed integers here.
   uint8_t loop_body_from_not_start = base::saturated_cast<uint8_t>(
-      loop_node_->EatsAtLeast(true) - continue_node_->EatsAtLeast(true));
+      static_cast<int>(loop_node_->EatsAtLeast(true)) -
+      static_cast<int>(continue_node_->EatsAtLeast(true)));
   uint8_t loop_body_from_possibly_start = base::saturated_cast<uint8_t>(
-      loop_node_->EatsAtLeast(false) - continue_node_->EatsAtLeast(true));
+      static_cast<int>(loop_node_->EatsAtLeast(false)) -
+      static_cast<int>(continue_node_->EatsAtLeast(true)));
 
   // Limit the number of loop iterations to avoid overflow in subsequent steps.
   int loop_iterations = base::saturated_cast<uint8_t>(min_loop_iterations());

@@ -892,11 +892,15 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   static const int kSampleSize = 128;
 
   sample_subject = String::Flatten(isolate, sample_subject);
-  int chars_sampled = 0;
-  uint32_t half_way = (sample_subject->length() - kSampleSize) / 2;
-  for (uint32_t i = std::max(0u, half_way);
-       i < sample_subject->length() && chars_sampled < kSampleSize;
-       i++, chars_sampled++) {
+  uint32_t start, end;
+  if (sample_subject->length() > kSampleSize) {
+    start = (sample_subject->length() - kSampleSize) / 2;
+    end = start + kSampleSize;
+  } else {
+    start = 0;
+    end = sample_subject->length();
+  }
+  for (uint32_t i = start; i < end; i++) {
     compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
   }
 
