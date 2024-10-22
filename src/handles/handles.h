@@ -284,8 +284,16 @@ class V8_NODISCARD HandleScope {
   // created in the scope of the HandleScope) and returns
   // a Handle backed by the parent scope holding the
   // value of the argument handle.
-  template <typename T>
-  Handle<T> CloseAndEscape(Handle<T> handle_value);
+  //
+  // TODO(42203211): When direct handles are enabled, the version with
+  // HandleType = DirectHandle does not need to be called, as it simply
+  // closes the scope (which is done by the scope's destructor anyway)
+  // and returns its parameter. This will be cleaned up after direct
+  // handles ship.
+  template <typename T, template <typename> typename HandleType,
+            typename = std::enable_if_t<
+                std::is_convertible_v<HandleType<T>, DirectHandle<T>>>>
+  HandleType<T> CloseAndEscape(HandleType<T> handle_value);
 
   Isolate* isolate() { return isolate_; }
 
@@ -648,11 +656,9 @@ class StrongRootAllocator<DirectHandleUnchecked<T>>
   static_assert(std::is_standard_layout_v<value_type>);
   static_assert(sizeof(value_type) == sizeof(Address));
 
-  explicit StrongRootAllocator(Heap* heap) : StrongRootAllocatorBase(heap) {}
-  explicit StrongRootAllocator(Isolate* isolate)
-      : StrongRootAllocatorBase(isolate) {}
-  explicit StrongRootAllocator(v8::Isolate* isolate)
-      : StrongRootAllocatorBase(reinterpret_cast<Isolate*>(isolate)) {}
+  template <typename HeapOrIsolateT>
+  explicit StrongRootAllocator(HeapOrIsolateT* heap_or_isolate)
+      : StrongRootAllocatorBase(heap_or_isolate) {}
   template <typename U>
   StrongRootAllocator(const StrongRootAllocator<U>& other) noexcept
       : StrongRootAllocatorBase(other) {}
@@ -672,7 +678,8 @@ class DirectHandleVector {
 
   using allocator_type = internal::StrongRootAllocator<element_type>;
 
-  static allocator_type make_allocator(Isolate* isolate) noexcept {
+  template <typename IsolateT>
+  static allocator_type make_allocator(IsolateT* isolate) noexcept {
     return allocator_type(isolate);
   }
 
@@ -690,11 +697,14 @@ class DirectHandleVector {
       internal::WrappedIterator<typename vector_type::const_iterator,
                                 const DirectHandle<T>>;
 
-  explicit DirectHandleVector(Isolate* isolate)
+  template <typename IsolateT>
+  explicit DirectHandleVector(IsolateT* isolate)
       : backing_(make_allocator(isolate)) {}
-  DirectHandleVector(Isolate* isolate, size_t n)
+  template <typename IsolateT>
+  DirectHandleVector(IsolateT* isolate, size_t n)
       : backing_(n, make_allocator(isolate)) {}
-  DirectHandleVector(Isolate* isolate,
+  template <typename IsolateT>
+  DirectHandleVector(IsolateT* isolate,
                      std::initializer_list<DirectHandle<T>> init)
       : backing_(make_allocator(isolate)) {
     if (init.size() == 0) return;
@@ -890,11 +900,14 @@ V8_INLINE IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
 template <typename T>
 class DirectHandleVector : public std::vector<DirectHandle<T>> {
  public:
-  explicit DirectHandleVector(Isolate* isolate)
+  template <typename IsolateT>
+  explicit DirectHandleVector(IsolateT* isolate)
       : std::vector<DirectHandle<T>>() {}
-  DirectHandleVector(Isolate* isolate, size_t n)
+  template <typename IsolateT>
+  DirectHandleVector(IsolateT* isolate, size_t n)
       : std::vector<DirectHandle<T>>(n) {}
-  DirectHandleVector(Isolate* isolate,
+  template <typename IsolateT>
+  DirectHandleVector(IsolateT* isolate,
                      std::initializer_list<DirectHandle<T>> init)
       : std::vector<DirectHandle<T>>(init) {}
 };

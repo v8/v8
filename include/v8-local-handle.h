@@ -471,11 +471,9 @@ class StrongRootAllocator<LocalUnchecked<T>> : public StrongRootAllocatorBase {
   static_assert(std::is_standard_layout_v<value_type>);
   static_assert(sizeof(value_type) == sizeof(Address));
 
-  explicit StrongRootAllocator(Heap* heap) : StrongRootAllocatorBase(heap) {}
-  explicit StrongRootAllocator(Isolate* isolate)
-      : StrongRootAllocatorBase(isolate) {}
-  explicit StrongRootAllocator(v8::Isolate* isolate)
-      : StrongRootAllocatorBase(reinterpret_cast<Isolate*>(isolate)) {}
+  template <typename HeapOrIsolateT>
+  explicit StrongRootAllocator(HeapOrIsolateT* heap_or_isolate)
+      : StrongRootAllocatorBase(heap_or_isolate) {}
   template <typename U>
   StrongRootAllocator(const StrongRootAllocator<U>& other) noexcept
       : StrongRootAllocatorBase(other) {}

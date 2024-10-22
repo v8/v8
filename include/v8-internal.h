@@ -44,7 +44,9 @@ class Isolate;
 namespace internal {
 
 class Heap;
+class LocalHeap;
 class Isolate;
+class LocalIsolate;
 
 typedef uintptr_t Address;
 static constexpr Address kNullAddress = 0;
@@ -1375,7 +1377,10 @@ class V8_EXPORT StrongRootAllocatorBase {
 
  protected:
   explicit StrongRootAllocatorBase(Heap* heap) : heap_(heap) {}
+  explicit StrongRootAllocatorBase(LocalHeap* heap);
   explicit StrongRootAllocatorBase(Isolate* isolate);
+  explicit StrongRootAllocatorBase(v8::Isolate* isolate);
+  explicit StrongRootAllocatorBase(LocalIsolate* isolate);
 
   // Allocate/deallocate a range of n elements of type internal::Address.
   Address* allocate_impl(size_t n);
@@ -1395,9 +1400,8 @@ class StrongRootAllocator : private std::allocator<T> {
  public:
   using value_type = T;
 
-  explicit StrongRootAllocator(Heap* heap) {}
-  explicit StrongRootAllocator(Isolate* isolate) {}
-  explicit StrongRootAllocator(v8::Isolate* isolate) {}
+  template <typename HeapOrIsolateT>
+  explicit StrongRootAllocator(HeapOrIsolateT*) {}
   template <typename U>
   StrongRootAllocator(const StrongRootAllocator<U>& other) noexcept {}
 

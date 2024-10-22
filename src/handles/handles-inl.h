@@ -244,8 +244,8 @@ void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
 #endif
 }
 
-template <typename T>
-Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
+template <typename T, template <typename> typename HandleType, typename>
+HandleType<T> HandleScope::CloseAndEscape(HandleType<T> handle_value) {
   HandleScopeData* current = isolate_->handle_scope_data();
   Tagged<T> value = *handle_value;
 #ifdef V8_ENABLE_CHECKS
@@ -255,7 +255,7 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.
   DCHECK(current->level > current->sealed_level);
-  Handle<T> result(value, isolate_);
+  HandleType<T> result(value, isolate_);
   // Reinitialize the current scope (so that it's ready
   // to be used or closed again).
   prev_next_ = current->next;
