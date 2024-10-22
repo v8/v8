@@ -93,7 +93,7 @@ class GraphTest : public TestWithNativeContextAndZone {
     Graph graph_;
     JSHeapBroker broker_;
     JSHeapBrokerScopeForTesting broker_scope_;
-    std::unique_ptr<PersistentHandlesScope> persistent_scope_;
+    std::optional<PersistentHandlesScope> persistent_scope_;
     CurrentHeapBrokerScope current_broker_;
     SourcePositionTable source_positions_;
     NodeOriginTable node_origins_;

@@ -11921,23 +11921,26 @@ char* HandleScopeImplementer::RestoreThread(char* storage) {
 
 void HandleScopeImplementer::IterateThis(RootVisitor* v) {
 #ifdef DEBUG
-  bool found_block_before_deferred = false;
+  bool found_block_before_persistent = false;
 #endif
   // Iterate over all handles in the blocks except for the last.
   for (int i = static_cast<int>(blocks()->size()) - 2; i >= 0; --i) {
     Address* block = blocks()->at(i);
     // Cast possibly-unrelated pointers to plain Address before comparing them
     // to avoid undefined behavior.
-    if (last_handle_before_deferred_block_ != nullptr &&
-        (reinterpret_cast<Address>(last_handle_before_deferred_block_) <=
+    if (HasPersistentScope() &&
+        (reinterpret_cast<Address>(
+             last_handle_before_persistent_block_.value()) <=
          reinterpret_cast<Address>(&block[kHandleBlockSize])) &&
-        (reinterpret_cast<Address>(last_handle_before_deferred_block_) >=
+        (reinterpret_cast<Address>(
+             last_handle_before_persistent_block_.value()) >=
          reinterpret_cast<Address>(block))) {
-      v->VisitRootPointers(Root::kHandleScope, nullptr, FullObjectSlot(block),
-                           FullObjectSlot(last_handle_before_deferred_block_));
-      DCHECK(!found_block_before_deferred);
+      v->VisitRootPointers(
+          Root::kHandleScope, nullptr, FullObjectSlot(block),
+          FullObjectSlot(last_handle_before_persistent_block_.value()));
+      DCHECK(!found_block_before_persistent);
 #ifdef DEBUG
-      found_block_before_deferred = true;
+      found_block_before_persistent = true;
 #endif
     } else {
       v->VisitRootPointers(Root::kHandleScope, nullptr, FullObjectSlot(block),
@@ -11945,8 +11948,9 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
     }
   }
 
-  DCHECK(last_handle_before_deferred_block_ == nullptr ||
-         found_block_before_deferred);
+  DCHECK_EQ(HasPersistentScope() &&
+                last_handle_before_persistent_block_.value() != nullptr,
+            found_block_before_persistent);
 
   // Iterate over live handles in the last block (if any).
   if (!blocks()->empty()) {
@@ -11985,6 +11989,7 @@ char* HandleScopeImplementer::Iterate(RootVisitor* v, char* storage) {
 std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
     Address* first_block) {
   std::unique_ptr<PersistentHandles> ph(new PersistentHandles(isolate()));
+  DCHECK(HasPersistentScope());
   DCHECK_NOT_NULL(first_block);
 
   Address* block_start;
@@ -11997,27 +12002,22 @@ std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
     blocks_.pop_back();
   } while (block_start != first_block);
 
-  // ph->blocks_ now contains the blocks installed on the
-  // HandleScope stack since BeginDeferredScope was called, but in
-  // reverse order.
+  // ph->blocks_ now contains the blocks installed on the HandleScope stack
+  // since BeginPersistentScope was called, but in reverse order.
 
   // Switch first and last blocks, such that the last block is the one
   // that is potentially half full.
-  DCHECK(!blocks_.empty() && !ph->blocks_.empty());
+  DCHECK(!ph->blocks_.empty());
   std::swap(ph->blocks_.front(), ph->blocks_.back());
 
   ph->block_next_ = isolate()->handle_scope_data()->next;
   block_start = ph->blocks_.back();
   ph->block_limit_ = block_start + kHandleBlockSize;
 
-  DCHECK_NOT_NULL(last_handle_before_deferred_block_);
-  last_handle_before_deferred_block_ = nullptr;
+  DCHECK_EQ(blocks_.empty(),
+            last_handle_before_persistent_block_.value() == nullptr);
+  last_handle_before_persistent_block_.reset();
   return ph;
-}
-
-void HandleScopeImplementer::BeginDeferredScope() {
-  DCHECK_NULL(last_handle_before_deferred_block_);
-  last_handle_before_deferred_block_ = isolate()->handle_scope_data()->next;
 }
 
 void InvokeAccessorGetterCallback(

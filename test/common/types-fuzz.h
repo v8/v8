@@ -53,14 +53,8 @@ class Types {
     PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
 #undef DECLARE_TYPE
 
-    // PersistentHandlesScope currently requires an active handle before it can
-    // be opened and they can't be nested.
-    // TODO(v8:13897): Remove once PersistentHandlesScopes can be opened
-    // uncontionally.
     if (!PersistentHandlesScope::IsActive(isolate)) {
-      DirectHandle<i::Object> dummy(
-          ReadOnlyRoots(isolate->heap()).empty_string(), isolate);
-      persistent_scope_ = std::make_unique<PersistentHandlesScope>(isolate);
+      persistent_scope_.emplace(isolate);
     }
 
     SignedSmall = Type::SignedSmall();
@@ -144,7 +138,7 @@ class Types {
   }
 
   ~Types() {
-    if (persistent_scope_ != nullptr) {
+    if (persistent_scope_) {
       persistent_scope_->Detach();
     }
   }
@@ -259,7 +253,7 @@ class Types {
   Zone* zone_;
   JSHeapBroker js_heap_broker_;
   JSHeapBrokerScopeForTesting js_heap_broker_scope_;
-  std::unique_ptr<PersistentHandlesScope> persistent_scope_;
+  std::optional<PersistentHandlesScope> persistent_scope_;
   CurrentHeapBrokerScope current_broker_;
   v8::base::RandomNumberGenerator* rng_;
 };

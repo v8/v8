@@ -1639,10 +1639,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return persistent_handles_list_.get();
   }
 
-#ifdef DEBUG
-  bool IsDeferredHandle(Address* location);
-#endif  // DEBUG
-
 #ifdef V8_ENABLE_SPARKPLUG
   baseline::BaselineBatchCompiler* baseline_batch_compiler() const {
     DCHECK_NOT_NULL(baseline_batch_compiler_);
