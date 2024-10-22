@@ -12378,13 +12378,6 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
       double>(src, dst, max_length);
 }
 
-std::string SourceLocation::ToString() const {
-  if (!file_) {
-    return {};
-  }
-  return std::string(function_) + "@" + file_ + ":" + std::to_string(line_);
-}
-
 }  // namespace v8
 
 EXPORT_CONTEXTUAL_VARIABLE(v8::internal::StackAllocatedCheck)
