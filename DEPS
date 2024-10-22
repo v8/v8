@@ -60,7 +60,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.169.0.5ae0d8b0-gomaip',
+  'reclient_version': 're_client_version:0.168.0.c46e68bc-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:24.20241014.3.1',
+  'fuchsia_version': 'version:25.20241022.0.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6f78132b7587bc8532006c2f233aaf0a1a5818c3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2581b2345bade95a0cf1d70526f9fd132f36e000',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1cc98ade2a20a609d821a16abc362e16226fc3d7',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '09ea565f4a93e516581892f574e86b17c6283faf',
   'buildtools/linux64': {
     'packages': [
       {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'ee3f9468584b6607f944b885ad50db35a70daf8d',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'fb5b271624ec0344d4ec800b4f89dc84cada741a',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'dc40fdd237a959d13efa08880830a57654e87ab7',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'cedf987a11e1b9458ad0077bb91c2acc28a1e87b',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f818fb4b1b4ccc42c39349bb82b430ef7b47d1be',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cc924d1ab677d93595fcb8ca5657723fe38b5318',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -473,7 +473,7 @@ deps = {
   'third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '24764a1d9c2fce1e9816ffae691f00353ade330d',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'a661187e08bed786425d0c64102e1f0f7238c82f',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '29d8a79ce5bf80243f6bda9c117d1aefaa4e61ce',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '6dcd83d60f7944926bfd308cc13979fc53dd69ca',
   'third_party/requests': {
