@@ -860,9 +860,13 @@ class PreParser : public ParserBase<PreParser> {
             PendingCompilationErrorHandler* pending_error_handler,
             RuntimeCallStats* runtime_call_stats, V8FileLogger* v8_file_logger,
             UnoptimizedCompileFlags flags, bool parsing_on_main_thread = true)
+      // Set compile_hints_magic_enabled = false, since we cannot have eager
+      // functions inside lazy functions (when we're already using the
+      // PreParser).
       : ParserBase<PreParser>(zone, scanner, stack_limit, ast_value_factory,
                               pending_error_handler, runtime_call_stats,
-                              v8_file_logger, flags, parsing_on_main_thread),
+                              v8_file_logger, flags, parsing_on_main_thread,
+                              /*compile_hints_magic_enabled=*/false),
         use_counts_(nullptr),
         preparse_data_builder_(nullptr),
         preparse_data_builder_buffer_() {

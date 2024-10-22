@@ -566,11 +566,11 @@ Expression* Parser::NewV8RuntimeFunctionForFuzzing(
 }
 
 Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info)
-    : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
-                         info->ast_value_factory(),
-                         info->pending_error_handler(),
-                         info->runtime_call_stats(), info->v8_file_logger(),
-                         info->flags(), true),
+    : ParserBase<Parser>(
+          info->zone(), &scanner_, info->stack_limit(),
+          info->ast_value_factory(), info->pending_error_handler(),
+          info->runtime_call_stats(), info->v8_file_logger(), info->flags(),
+          true, info->flags().compile_hints_magic_enabled()),
       local_isolate_(local_isolate),
       info_(info),
       scanner_(info->character_stream(), flags()),
