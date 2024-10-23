@@ -104,6 +104,14 @@ Handle<WasmModuleObject> CompileReferenceModule(
   // caller before).
   module->set_all_functions_validated();
 
+  // The value is -3 so that it is different than the compilation ID of actual
+  // compilations, different than the sentinel value of the CompilationState
+  // (-1) and the value used by native module deserialization (-2).
+  const int dummy_fuzzing_compilation_id = -3;
+  native_module->compilation_state()->set_compilation_id(
+      dummy_fuzzing_compilation_id);
+  InitializeCompilationForTesting(native_module.get());
+
   // Compile all functions with Liftoff.
   CompileAllFunctionsForReferenceExecution(native_module.get(), max_steps,
                                            nondeterminism);

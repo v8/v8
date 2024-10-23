@@ -96,6 +96,9 @@ V8_EXPORT_PRIVATE void TierUpNowForTesting(Isolate*,
 V8_EXPORT_PRIVATE void TierUpAllForTesting(Isolate*,
                                            Tagged<WasmTrustedInstanceData>);
 
+V8_EXPORT_PRIVATE void InitializeCompilationForTesting(
+    NativeModule* native_module);
+
 // Publish a set of detected features in a given isolate. If this is the initial
 // compilation, also the "kWasmModuleCompilation" use counter is incremented to
 // serve as a baseline for the other detected features.

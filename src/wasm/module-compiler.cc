@@ -1669,6 +1669,11 @@ void TierUpAllForTesting(
   }
 }
 
+void InitializeCompilationForTesting(NativeModule* native_module) {
+  Impl(native_module->compilation_state())
+      ->InitializeCompilationProgress(nullptr);
+}
+
 void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
                              Isolate* isolate, bool is_initial_compilation) {
   using Feature = v8::Isolate::UseCounterFeature;
