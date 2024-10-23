@@ -314,7 +314,8 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
  private:
   size_t MeasureCode(const WasmCode*) const;
   void WriteHeader(Writer*, size_t total_code_size);
-  void WriteCode(const WasmCode*, Writer*);
+  void WriteCode(const WasmCode*, Writer*,
+                 const NativeModule::CallIndirectTargetMap&);
   void WriteTieringBudget(Writer* writer);
 
   uint32_t CanonicalSigIdToModuleLocalTypeId(uint32_t canonical_sig_id);
@@ -411,7 +412,9 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
   writer->WriteVector(base::VectorOf(import_statuses_));
 }
 
-void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
+void NativeModuleSerializer::WriteCode(
+    const WasmCode* code, Writer* writer,
+    const NativeModule::CallIndirectTargetMap& function_index_map) {
   if (code == nullptr) {
     writer->Write(kLazyFunction);
     return;
@@ -494,6 +497,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), kMask);
+
   WritableJitAllocation jit_allocation =
       WritableJitAllocation::ForNonExecutableMemory(
           reinterpret_cast<Address>(code_start), code->instructions().size(),
@@ -526,8 +530,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
       } break;
       case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
         WasmCodePointer target = orig_iter.rinfo()->wasm_indirect_call_target();
-        uint32_t function_index =
-            native_module_->GetFunctionIndexFromIndirectCallTarget(target);
+        uint32_t function_index = function_index_map.at(target);
         iter.rinfo()->set_wasm_indirect_call_target(function_index,
                                                     SKIP_ICACHE_FLUSH);
       } break;
@@ -600,8 +603,10 @@ bool NativeModuleSerializer::Write(Writer* writer) {
   }
   WriteHeader(writer, total_code_size);
 
+  NativeModule::CallIndirectTargetMap function_index_map =
+      native_module_->CreateIndirectCallTargetToFunctionIndexMap();
   for (WasmCode* code : code_table_) {
-    WriteCode(code, writer);
+    WriteCode(code, writer, function_index_map);
   }
   // No TurboFan-compiled functions in jitless mode.
   if (!v8_flags.wasm_jitless) {

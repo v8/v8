@@ -1092,8 +1092,15 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
                          RelocInfo::WASM_CANONICAL_SIG_ID),
                      {});
     case ConstantOp::Kind::kRelocatableWasmIndirectCallTarget:
-      return RelocatableIntPtrConstant(op.integral(),
-                                       RelocInfo::WASM_INDIRECT_CALL_TARGET);
+      if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
+        return AddNode(common.RelocatableInt32Constant(
+                           base::checked_cast<int32_t>(op.integral()),
+                           RelocInfo::WASM_INDIRECT_CALL_TARGET),
+                       {});
+      } else {
+        return RelocatableIntPtrConstant(op.integral(),
+                                         RelocInfo::WASM_INDIRECT_CALL_TARGET);
+      }
   }
 }
 

@@ -342,6 +342,11 @@ void WasmCode::Validate() const {
                 std::numeric_limits<uint16_t>::max());
 
 #ifdef DEBUG
+  NativeModule::CallIndirectTargetMap function_index_map;
+  if (native_module_) {
+    function_index_map =
+        native_module_->CreateIndirectCallTargetToFunctionIndexMap();
+  }
   // Scope for foreign WasmCode pointers.
   WasmCodeRefScope code_ref_scope;
   // We expect certain relocation info modes to never appear in {WasmCode}
@@ -374,8 +379,7 @@ void WasmCode::Validate() const {
       }
       case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
         WasmCodePointer call_target = it.rinfo()->wasm_indirect_call_target();
-        uint32_t function_index =
-            native_module_->GetFunctionIndexFromIndirectCallTarget(call_target);
+        uint32_t function_index = function_index_map.at(call_target);
         CHECK_EQ(call_target,
                  native_module_->GetIndirectCallTarget(function_index));
         break;
@@ -2030,19 +2034,14 @@ uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
   return module_->num_imported_functions + slot_idx;
 }
 
-uint32_t NativeModule::GetFunctionIndexFromIndirectCallTarget(
-    WasmCodePointer target) const {
-  // The indirect call target always points to the entry in the main jump table.
-  // See `GetIndirectCallTarget()` for the reverse operation.
-  Address jt_start = jump_table_start();
-  uint32_t jt_size = JumpTableAssembler::SizeForNumberOfSlots(
-      module()->num_declared_functions);
-  CHECK_GE(target, jt_start);
-  uint32_t jt_offset = base::checked_cast<uint32_t>(target - jt_start);
-  CHECK_LT(jt_offset, jt_size);
-  uint32_t declared_function_index =
-      JumpTableAssembler::SlotOffsetToIndex(jt_offset);
-  return module_->num_imported_functions + declared_function_index;
+NativeModule::CallIndirectTargetMap
+NativeModule::CreateIndirectCallTargetToFunctionIndexMap() const {
+  absl::flat_hash_map<WasmCodePointer, uint32_t> lookup_map;
+  for (uint32_t func_index = num_imported_functions();
+       func_index < num_functions(); func_index++) {
+    lookup_map.emplace(GetIndirectCallTarget(func_index), func_index);
+  }
+  return lookup_map;
 }
 
 Builtin NativeModule::GetBuiltinInJumptableSlot(Address target) const {
@@ -2078,13 +2077,14 @@ WasmCodePointerTable::Handle NativeModule::GetCodePointerHandle(
 }
 
 WasmCodePointer NativeModule::GetIndirectCallTarget(int func_index) const {
-  DCHECK_GE(func_index, module_->num_imported_functions);
-  func_index -= module_->num_imported_functions;
-  DCHECK_LT(func_index, module_->num_declared_functions);
-  Address jump_table_slot =
-      jump_table_start() +
-      JumpTableAssembler::JumpSlotIndexToOffset(func_index);
-  return jump_table_slot;
+  DCHECK_GE(func_index, num_imported_functions());
+  DCHECK_LT(func_index, num_functions());
+
+#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+  return GetCodePointerHandle(func_index);
+#else
+  return jump_table_start() + JumpTableOffset(module(), func_index);
+#endif
 }
 
 NativeModule::~NativeModule() {
