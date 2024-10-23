@@ -3173,6 +3173,10 @@ void Builtins::Generate_WasmReturnPromiseOnSuspendAsm(MacroAssembler* masm) {
   __ Trap();
 }
 
+void Builtins::Generate_JSToWasmStressSwitchStacksAsm(MacroAssembler* masm) {
+  __ Trap();
+}
+
 // Loads the context field of the WasmTrustedInstanceData or WasmImportData
 // depending on the data's type, and places the result in the input register.
 void GetContextFromImplicitArg(MacroAssembler* masm, Register data,
