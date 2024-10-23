@@ -2639,27 +2639,11 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::EntryMask(
   return IntPtrSub(capacity, IntPtrConstant(1));
 }
 
-TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::Coefficient(
-    TNode<IntPtrT> capacity) {
-  TVARIABLE(IntPtrT, coeff, IntPtrConstant(1));
-  Label done(this, &coeff);
-  GotoIf(IntPtrLessThan(capacity,
-                        IntPtrConstant(1 << PropertyArray::HashField::kSize)),
-         &done);
-  coeff = Signed(
-      WordShr(capacity, IntPtrConstant(PropertyArray::HashField::kSize)));
-  Goto(&done);
-  BIND(&done);
-  return coeff.value();
-}
-
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndex(
-    TNode<HeapObject> table, TNode<IntPtrT> key_hash, TNode<IntPtrT> capacity,
+    TNode<HeapObject> table, TNode<IntPtrT> key_hash, TNode<IntPtrT> entry_mask,
     const KeyComparator& key_compare) {
   // See HashTable::FirstProbe().
-  TNode<IntPtrT> entry_mask = EntryMask(capacity);
-  TVARIABLE(IntPtrT, var_entry,
-            WordAnd(IntPtrMul(key_hash, Coefficient(capacity)), entry_mask));
+  TVARIABLE(IntPtrT, var_entry, WordAnd(key_hash, entry_mask));
   TVARIABLE(IntPtrT, var_count, IntPtrConstant(0));
 
   Label loop(this, {&var_count, &var_entry}), if_found(this);
@@ -2685,25 +2669,26 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndex(
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndexForInsertion(
-    TNode<HeapObject> table, TNode<IntPtrT> key_hash, TNode<IntPtrT> capacity) {
+    TNode<HeapObject> table, TNode<IntPtrT> key_hash,
+    TNode<IntPtrT> entry_mask) {
   // See HashTable::FindInsertionEntry().
   auto is_not_live = [&](TNode<Object> entry_key, Label* if_found) {
     // This is the the negative form BaseShape::IsLive().
     GotoIf(Word32Or(IsTheHole(entry_key), IsUndefined(entry_key)), if_found);
   };
-  return FindKeyIndex(table, key_hash, capacity, is_not_live);
+  return FindKeyIndex(table, key_hash, entry_mask, is_not_live);
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndexForKey(
     TNode<HeapObject> table, TNode<Object> key, TNode<IntPtrT> hash,
-    TNode<IntPtrT> capacity, Label* if_not_found) {
+    TNode<IntPtrT> entry_mask, Label* if_not_found) {
   // See HashTable::FindEntry().
   auto match_key_or_exit_on_empty = [&](TNode<Object> entry_key,
                                         Label* if_same) {
     GotoIf(IsUndefined(entry_key), if_not_found);
     GotoIf(TaggedEqual(entry_key, key), if_same);
   };
-  return FindKeyIndex(table, hash, capacity, match_key_or_exit_on_empty);
+  return FindKeyIndex(table, hash, entry_mask, match_key_or_exit_on_empty);
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::KeyIndexFromEntry(
@@ -2838,8 +2823,8 @@ TF_BUILTIN(WeakMapLookupHashIndex, WeakCollectionsBuiltinsAssembler) {
 
   TNode<IntPtrT> hash = GetHash(CAST(key), &if_cannot_be_held_weakly);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
-  TNode<IntPtrT> key_index =
-      FindKeyIndexForKey(table, key, hash, capacity, &if_cannot_be_held_weakly);
+  TNode<IntPtrT> key_index = FindKeyIndexForKey(
+      table, key, hash, EntryMask(capacity), &if_cannot_be_held_weakly);
   Return(SmiTag(ValueIndexFromKeyIndex(key_index)));
 
   BIND(&if_cannot_be_held_weakly);
@@ -2904,8 +2889,8 @@ TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
   TNode<IntPtrT> hash = GetHash(CAST(key), &if_cannot_be_held_weakly);
   TNode<EphemeronHashTable> table = LoadTable(collection);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
-  TNode<IntPtrT> key_index =
-      FindKeyIndexForKey(table, key, hash, capacity, &if_cannot_be_held_weakly);
+  TNode<IntPtrT> key_index = FindKeyIndexForKey(
+      table, key, hash, EntryMask(capacity), &if_cannot_be_held_weakly);
   TNode<Int32T> number_of_elements = LoadNumberOfElements(table, -1);
   GotoIf(ShouldShrink(capacity, ChangeInt32ToIntPtr(number_of_elements)),
          &call_runtime);
@@ -2935,10 +2920,11 @@ TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
 
   TNode<EphemeronHashTable> table = LoadTable(collection);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
+  TNode<IntPtrT> entry_mask = EntryMask(capacity);
 
   TVARIABLE(IntPtrT, var_hash, GetHash(key, &if_no_hash));
-  TNode<IntPtrT> key_index =
-      FindKeyIndexForKey(table, key, var_hash.value(), capacity, &if_not_found);
+  TNode<IntPtrT> key_index = FindKeyIndexForKey(table, key, var_hash.value(),
+                                                entry_mask, &if_not_found);
 
   StoreFixedArrayElement(table, ValueIndexFromKeyIndex(key_index), value);
   Return(collection);
@@ -2966,7 +2952,7 @@ TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
            &call_runtime);
 
     TNode<IntPtrT> insertion_key_index =
-        FindKeyIndexForInsertion(table, var_hash.value(), capacity);
+        FindKeyIndexForInsertion(table, var_hash.value(), entry_mask);
     AddEntry(table, insertion_key_index, key, value, number_of_elements);
     Return(collection);
   }

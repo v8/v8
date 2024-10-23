@@ -218,7 +218,6 @@
   'wasm/stringrefs-regressions': [PASS, HEAVY],
   'wasm/table': [PASS, HEAVY],
   'wasm/table-grow': [PASS, HEAVY],
-  'es6/big-weakmap': [PASS, HEAVY],
 
   # TODO(v8:10915): Fails with --future.
   'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
