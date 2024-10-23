@@ -20,6 +20,27 @@
 namespace v8 {
 namespace internal {
 
+// This class is used as argument to the HeapVisitor::Visit() method as a
+// cheaper alternative to std::optional<size_t>.
+class MaybeObjectSize final {
+ public:
+  explicit MaybeObjectSize(size_t size) : raw_size_(size) {
+    DCHECK_GT(size, 0);
+  }
+
+  MaybeObjectSize() : raw_size_(0) {}
+
+  size_t AssumeSize() const {
+    DCHECK_GT(raw_size_, 0);
+    return raw_size_;
+  }
+
+  bool IsNone() const { return raw_size_ == 0; }
+
+ private:
+  size_t raw_size_;
+};
+
 // Visitation in here will refer to BodyDescriptors with the regular instance
 // size.
 #define TYPED_VISITOR_ID_LIST(V)     \
@@ -159,7 +180,7 @@ TRUSTED_VISITOR_ID_LIST(FORWARD_DECLARE)
 // behavior of all visit functions is to iterate body of the given object using
 // the BodyDescriptor of the object.
 //
-// The visit functions return the size of the object cast to int.
+// The visit functions return the size of the object.
 //
 // This class is intended to be used in the following way:
 //
@@ -174,10 +195,20 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   inline explicit HeapVisitor(Isolate* isolate);
   inline explicit HeapVisitor(Heap* heap);
 
-  V8_INLINE size_t Visit(Tagged<HeapObject> object);
-  V8_INLINE size_t Visit(Tagged<Map> map, Tagged<HeapObject> object);
+  V8_INLINE size_t Visit(Tagged<HeapObject> object)
+    requires(!ConcreteVisitor::UsePrecomputedObjectSize());
+
+  V8_INLINE size_t Visit(Tagged<Map> map, Tagged<HeapObject> object)
+    requires(!ConcreteVisitor::UsePrecomputedObjectSize());
+
+  V8_INLINE size_t Visit(Tagged<Map> map, Tagged<HeapObject> object,
+                         int object_size)
+    requires(ConcreteVisitor::UsePrecomputedObjectSize());
 
  protected:
+  V8_INLINE size_t Visit(Tagged<Map> map, Tagged<HeapObject> object,
+                         MaybeObjectSize maybe_object_size);
+
   // If this predicate returns false the default implementations of Visit*
   // functions bail out from visiting the map pointer.
   V8_INLINE static constexpr bool ShouldVisitMapPointer() { return true; }
@@ -191,6 +222,16 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   V8_INLINE static constexpr bool CanEncounterFillerOrFreeSpace() {
     return true;
   }
+  // If this predicate returns false the default implementation of
+  // `VisitFiller()` and `VisitFreeSpace()` will be unreachable.
+  V8_INLINE static constexpr bool ShouldUseUncheckedCast() { return false; }
+
+  // This should really only be defined and used in ConcurrentHeapVisitor but we
+  // need it here for a DCHECK in HeapVisitor::VisitWithBodyDescriptor.
+  V8_INLINE static constexpr bool EnableConcurrentVisitation() { return false; }
+
+  // Avoids size computation in visitors and uses the input argument instead.
+  V8_INLINE static constexpr bool UsePrecomputedObjectSize() { return false; }
 
   // Only visits the Map pointer if `ShouldVisitMapPointer()` returns true.
   template <VisitorId visitor_id>
@@ -204,27 +245,36 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
     return static_cast<const ConcreteVisitor*>(this);
   }
 
-#define VISIT(TypeName) \
-  V8_INLINE size_t Visit##TypeName(Tagged<Map> map, Tagged<TypeName> object);
+#define VISIT(TypeName)                                                      \
+  V8_INLINE size_t Visit##TypeName(Tagged<Map> map, Tagged<TypeName> object, \
+                                   MaybeObjectSize maybe_object_size);
   TYPED_VISITOR_ID_LIST(VISIT)
   TYPED_VISITOR_WITH_SLACK_ID_LIST(VISIT)
   TORQUE_VISITOR_ID_LIST(VISIT)
   TRUSTED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
   V8_INLINE size_t VisitShortcutCandidate(Tagged<Map> map,
-                                          Tagged<ConsString> object);
-  V8_INLINE size_t VisitJSObjectFast(Tagged<Map> map, Tagged<JSObject> object);
-  V8_INLINE size_t VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object);
-  V8_INLINE size_t VisitStruct(Tagged<Map> map, Tagged<HeapObject> object);
-  V8_INLINE size_t VisitFiller(Tagged<Map> map, Tagged<HeapObject> object);
-  V8_INLINE size_t VisitFreeSpace(Tagged<Map> map, Tagged<FreeSpace> object);
+                                          Tagged<ConsString> object,
+                                          MaybeObjectSize maybe_object_size);
+  V8_INLINE size_t VisitJSObjectFast(Tagged<Map> map, Tagged<JSObject> object,
+                                     MaybeObjectSize maybe_object_size);
+  V8_INLINE size_t VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object,
+                                    MaybeObjectSize maybe_object_size);
+  V8_INLINE size_t VisitStruct(Tagged<Map> map, Tagged<HeapObject> object,
+                               MaybeObjectSize maybe_object_size);
+  V8_INLINE size_t VisitFiller(Tagged<Map> map, Tagged<HeapObject> object,
+                               MaybeObjectSize maybe_object_size);
+  V8_INLINE size_t VisitFreeSpace(Tagged<Map> map, Tagged<FreeSpace> object,
+                                  MaybeObjectSize maybe_object_size);
 
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  V8_INLINE size_t VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object);
+  V8_INLINE size_t VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object,
+                                         MaybeObjectSize maybe_object_size);
 
   template <VisitorId visitor_id, typename T,
             typename TBodyDescriptor = typename T::BodyDescriptor>
-  V8_INLINE size_t VisitWithBodyDescriptor(Tagged<Map> map, Tagged<T> object);
+  V8_INLINE size_t VisitWithBodyDescriptor(Tagged<Map> map, Tagged<T> object,
+                                           MaybeObjectSize maybe_object_size);
 
   template <typename T>
   static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object);
@@ -270,8 +320,9 @@ class ConcurrentHeapVisitor : public HeapVisitor<ConcreteVisitor> {
   V8_INLINE static constexpr bool EnableConcurrentVisitation() { return false; }
 
  protected:
-#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName) \
-  V8_INLINE size_t Visit##TypeName(Tagged<Map> map, Tagged<TypeName> object);
+#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
+  V8_INLINE size_t Visit##TypeName(Tagged<Map> map, Tagged<TypeName> object, \
+                                   MaybeObjectSize maybe_object_size);
 
   UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
 #undef VISIT_AS_LOCKED_STRING
@@ -310,16 +361,21 @@ class NewSpaceVisitor : public ConcurrentHeapVisitor<ConcreteVisitor> {
 
   // Special cases: Unreachable visitors for objects that are never found in the
   // young generation.
-  size_t VisitNativeContext(Tagged<Map>, Tagged<NativeContext>) {
+  size_t VisitNativeContext(Tagged<Map>, Tagged<NativeContext>,
+                            MaybeObjectSize) {
     UNREACHABLE();
   }
-  size_t VisitBytecodeArray(Tagged<Map>, Tagged<BytecodeArray>) {
+  size_t VisitBytecodeArray(Tagged<Map>, Tagged<BytecodeArray>,
+                            MaybeObjectSize) {
     UNREACHABLE();
   }
-  size_t VisitSharedFunctionInfo(Tagged<Map> map, Tagged<SharedFunctionInfo>) {
+  size_t VisitSharedFunctionInfo(Tagged<Map> map, Tagged<SharedFunctionInfo>,
+                                 MaybeObjectSize) {
     UNREACHABLE();
   }
-  size_t VisitWeakCell(Tagged<Map>, Tagged<WeakCell>) { UNREACHABLE(); }
+  size_t VisitWeakCell(Tagged<Map>, Tagged<WeakCell>, MaybeObjectSize) {
+    UNREACHABLE();
+  }
 
   friend class HeapVisitor<ConcreteVisitor>;
 };

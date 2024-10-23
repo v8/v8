@@ -67,23 +67,25 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitCppHeapPointer(
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSArrayBuffer(
-    Tagged<Map> map, Tagged<JSArrayBuffer> object) {
+    Tagged<Map> map, Tagged<JSArrayBuffer> object,
+    MaybeObjectSize maybe_object_size) {
   object->YoungMarkExtension();
-  return Base::VisitJSArrayBuffer(map, object);
+  return Base::VisitJSArrayBuffer(map, object, maybe_object_size);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename T, typename TBodyDescriptor>
 size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
-    Tagged<Map> map, Tagged<T> object) {
+    Tagged<Map> map, Tagged<T> object, MaybeObjectSize maybe_object_size) {
   PretenuringHandler::UpdateAllocationSite(isolate_->heap(), map, object,
                                            local_pretenuring_feedback_);
-  return Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(map, object);
+  return Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(
+      map, object, maybe_object_size);
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 size_t YoungGenerationMarkingVisitor<marking_mode>::VisitEphemeronHashTable(
-    Tagged<Map> map, Tagged<EphemeronHashTable> table) {
+    Tagged<Map> map, Tagged<EphemeronHashTable> table, MaybeObjectSize) {
   // Register table with Minor MC, so it can take care of the weak keys later.
   // This allows to only iterate the tables' values, which are treated as strong
   // independently of whether the key is live.

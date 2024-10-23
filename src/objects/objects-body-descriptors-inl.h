@@ -1722,13 +1722,6 @@ void HeapObject::IterateFast(Tagged<Map> map, ObjectVisitor* v) {
 }
 
 template <typename ObjectVisitor>
-void HeapObject::IterateFast(Tagged<Map> map, int object_size,
-                             ObjectVisitor* v) {
-  v->VisitMapPointer(*this);
-  IterateBodyFast(map, object_size, v);
-}
-
-template <typename ObjectVisitor>
 void HeapObject::IterateBodyFast(PtrComprCageBase cage_base, ObjectVisitor* v) {
   Tagged<Map> m = map(cage_base);
   IterateBodyFast(m, SizeFromMap(m), v);

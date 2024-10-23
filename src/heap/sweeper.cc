@@ -476,14 +476,16 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
   V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
-                                      Tagged<JSArrayBuffer> object) {
+                                      Tagged<JSArrayBuffer> object,
+                                      MaybeObjectSize maybe_object_size) {
     object->YoungMarkExtensionPromoted();
-    return NewSpaceVisitor<
-        PromotedPageRecordMigratedSlotVisitor>::VisitJSArrayBuffer(map, object);
+    return NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
+        VisitJSArrayBuffer(map, object, maybe_object_size);
   }
 
   V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
-                                           Tagged<EphemeronHashTable> table) {
+                                           Tagged<EphemeronHashTable> table,
+                                           MaybeObjectSize) {
     NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
         VisitMapPointerIfNeeded<VisitorId::kVisitEphemeronHashTable>(table);
     EphemeronRememberedSet::IndicesSet indices;

@@ -500,12 +500,12 @@ void HeapVerification::VerifyReadOnlyHeap() {
   VerifySpace(read_only_space());
 }
 
-class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
+class SlotVerifyingVisitor : public HeapVisitor<SlotVerifyingVisitor> {
  public:
   SlotVerifyingVisitor(Isolate* isolate, std::set<Address>* untyped,
                        std::set<std::pair<SlotType, Address>>* typed,
                        std::set<Address>* protected_pointer)
-      : ObjectVisitorWithCageBases(isolate),
+      : HeapVisitor(isolate),
         untyped_(untyped),
         typed_(typed),
         protected_(protected_pointer) {}
@@ -573,6 +573,10 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
       CHECK_NOT_NULL(protected_);
       CHECK_GT(protected_->count(slot.address()), 0);
     }
+  }
+
+  void VisitMapPointer(Tagged<HeapObject> object) override {
+    VisitPointers(object, object->map_slot(), object->map_slot() + 1);
   }
 
  protected:
@@ -673,8 +677,10 @@ void CollectSlots(MutablePageMetadata* chunk, Address start, Address end,
 }
 
 // Helper class for collecting slot addresses.
-class SlotCollectingVisitor final : public ObjectVisitor {
+class SlotCollectingVisitor final : public HeapVisitor<SlotCollectingVisitor> {
  public:
+  explicit SlotCollectingVisitor(Isolate* isolate) : HeapVisitor(isolate) {}
+
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override {
     VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
@@ -742,7 +748,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
   OldToNewSlotVerifyingVisitor old_to_new_visitor(
       isolate(), &old_to_new, &typed_old_to_new,
       heap()->ephemeron_remembered_set()->tables());
-  object->IterateBody(cage_base_, &old_to_new_visitor);
+  old_to_new_visitor.Visit(object);
 
   std::set<Address> old_to_shared;
   std::set<std::pair<SlotType, Address>> typed_old_to_shared;
@@ -889,12 +895,12 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap,
   }
 
   // Check that the set of slots before and after the transition match.
-  SlotCollectingVisitor old_visitor;
-  object->IterateFast(cage_base, &old_visitor);
+  SlotCollectingVisitor old_visitor(heap->isolate());
+  old_visitor.Visit(object);
   MapWord old_map_word = object->map_word(cage_base, kRelaxedLoad);
   // Temporarily set the new map to iterate new slots.
   object->set_map_word(new_map, kRelaxedStore);
-  SlotCollectingVisitor new_visitor;
+  SlotCollectingVisitor new_visitor(heap->isolate());
   object->IterateFast(cage_base, &new_visitor);
   // Restore the old map.
   object->set_map_word(old_map_word.ToMap(), kRelaxedStore);

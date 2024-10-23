@@ -236,9 +236,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   template <typename ObjectVisitor>
   inline void IterateFast(Tagged<Map> map, ObjectVisitor* v);
 
-  template <typename ObjectVisitor>
-  inline void IterateFast(Tagged<Map> map, int object_size, ObjectVisitor* v);
-
   // Iterates over all pointers contained in the object except the
   // first map pointer.  The object type is given in the first
   // parameter. This function does not access the map pointer in the

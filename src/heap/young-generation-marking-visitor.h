@@ -66,13 +66,16 @@ class YoungGenerationMarkingVisitor final
 
   // Visitation specializations used for unified heap young gen marking.
   V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
-                                      Tagged<JSArrayBuffer> object);
+                                      Tagged<JSArrayBuffer> object,
+                                      MaybeObjectSize);
   // Visitation specializations used for collecting pretenuring feedback.
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  V8_INLINE size_t VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object);
+  V8_INLINE size_t VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object,
+                                         MaybeObjectSize);
 
   V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
-                                           Tagged<EphemeronHashTable> table);
+                                           Tagged<EphemeronHashTable> table,
+                                           MaybeObjectSize);
 
 #ifdef V8_COMPRESS_POINTERS
   V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,

@@ -83,17 +83,47 @@ HeapVisitor<ConcreteVisitor>::HeapVisitor(Heap* heap)
 template <typename ConcreteVisitor>
 template <typename T>
 Tagged<T> HeapVisitor<ConcreteVisitor>::Cast(Tagged<HeapObject> object) {
+  if constexpr (ConcreteVisitor::ShouldUseUncheckedCast()) {
+    return i::UncheckedCast<T>(object);
+  }
   return i::Cast<T>(object);
 }
 
 template <typename ConcreteVisitor>
-size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<HeapObject> object) {
+size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<HeapObject> object)
+  requires(!ConcreteVisitor::UsePrecomputedObjectSize())
+{
   return Visit(object->map(cage_base()), object);
 }
 
 template <typename ConcreteVisitor>
 size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
-                                           Tagged<HeapObject> object) {
+                                           Tagged<HeapObject> object)
+  requires(!ConcreteVisitor::UsePrecomputedObjectSize())
+{
+  return Visit(map, object, MaybeObjectSize());
+}
+
+template <typename ConcreteVisitor>
+size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
+                                           Tagged<HeapObject> object,
+                                           int object_size)
+  requires(ConcreteVisitor::UsePrecomputedObjectSize())
+{
+  return Visit(map, object, MaybeObjectSize(object_size));
+}
+
+template <typename ConcreteVisitor>
+size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
+                                           Tagged<HeapObject> object,
+                                           MaybeObjectSize maybe_object_size) {
+  if constexpr (ConcreteVisitor::UsePrecomputedObjectSize()) {
+    DCHECK_EQ(maybe_object_size.AssumeSize(), object->SizeFromMap(map));
+    static_assert(!ConcreteVisitor::EnableConcurrentVisitation());
+  } else {
+    DCHECK(maybe_object_size.IsNone());
+  }
+
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   switch (map->visitor_id()) {
 #define CASE(TypeName)                                                        \
@@ -105,7 +135,8 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
      * space, hence the second condition. */                                  \
     DCHECK(!IsTrustedObject(object) || !HeapLayout::InTrustedSpace(object));  \
     return visitor->Visit##TypeName(                                          \
-        map, ConcreteVisitor::template Cast<TypeName>(object));
+        map, ConcreteVisitor::template Cast<TypeName>(object),                \
+        maybe_object_size);
     TYPED_VISITOR_ID_LIST(CASE)
     TYPED_VISITOR_WITH_SLACK_ID_LIST(CASE)
     TORQUE_VISITOR_ID_LIST(CASE)
@@ -123,24 +154,29 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
      * See also crbug.com/c/1505089. */                                    \
     SBXCHECK(OutsideSandboxOrInReadonlySpace(object));                     \
     return visitor->Visit##TypeName(                                       \
-        map, ConcreteVisitor::template Cast<TypeName>(object));
+        map, ConcreteVisitor::template Cast<TypeName>(object),             \
+        maybe_object_size);
     TRUSTED_VISITOR_ID_LIST(CASE)
 #undef CASE
     case kVisitShortcutCandidate:
       return visitor->VisitShortcutCandidate(
-          map, ConcreteVisitor::template Cast<ConsString>(object));
+          map, ConcreteVisitor::template Cast<ConsString>(object),
+          maybe_object_size);
     case kVisitJSObjectFast:
       return visitor->VisitJSObjectFast(
-          map, ConcreteVisitor::template Cast<JSObject>(object));
+          map, ConcreteVisitor::template Cast<JSObject>(object),
+          maybe_object_size);
     case kVisitJSApiObject:
       return visitor->VisitJSApiObject(
-          map, ConcreteVisitor::template Cast<JSObject>(object));
+          map, ConcreteVisitor::template Cast<JSObject>(object),
+          maybe_object_size);
     case kVisitStruct:
-      return visitor->VisitStruct(map, object);
+      return visitor->VisitStruct(map, object, maybe_object_size);
     case kVisitFiller:
-      return visitor->VisitFiller(map, object);
+      return visitor->VisitFiller(map, object, maybe_object_size);
     case kVisitFreeSpace:
-      return visitor->VisitFreeSpace(map, Cast<FreeSpace>(object));
+      return visitor->VisitFreeSpace(map, Cast<FreeSpace>(object),
+                                     maybe_object_size);
     case kDataOnlyVisitorIdCount:
     case kVisitorIdCount:
       UNREACHABLE();
@@ -163,7 +199,6 @@ template <typename ConcreteVisitor>
 template <VisitorId visitor_id>
 void HeapVisitor<ConcreteVisitor>::VisitMapPointerIfNeeded(
     Tagged<HeapObject> host) {
-  DCHECK(!host->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress());
   if constexpr (!ConcreteVisitor::ShouldVisitMapPointer()) {
     return;
   }
@@ -175,14 +210,16 @@ void HeapVisitor<ConcreteVisitor>::VisitMapPointerIfNeeded(
   static_cast<ConcreteVisitor*>(this)->VisitMapPointer(host);
 }
 
-#define VISIT(TypeName)                                           \
-  template <typename ConcreteVisitor>                             \
-  size_t HeapVisitor<ConcreteVisitor>::Visit##TypeName(           \
-      Tagged<Map> map, Tagged<TypeName> object) {                 \
-    return static_cast<ConcreteVisitor*>(this)                    \
-        ->template VisitWithBodyDescriptor<                       \
-            VisitorId::kVisit##TypeName, TypeName,                \
-            ObjectTraits<TypeName>::BodyDescriptor>(map, object); \
+#define VISIT(TypeName)                                                 \
+  template <typename ConcreteVisitor>                                   \
+  size_t HeapVisitor<ConcreteVisitor>::Visit##TypeName(                 \
+      Tagged<Map> map, Tagged<TypeName> object,                         \
+      MaybeObjectSize maybe_object_size) {                              \
+    return static_cast<ConcreteVisitor*>(this)                          \
+        ->template VisitWithBodyDescriptor<                             \
+            VisitorId::kVisit##TypeName, TypeName,                      \
+            ObjectTraits<TypeName>::BodyDescriptor>(map, object,        \
+                                                    maybe_object_size); \
   }
 
 TYPED_VISITOR_ID_LIST(VISIT)
@@ -193,10 +230,11 @@ TRUSTED_VISITOR_ID_LIST(VISIT)
 #define VISIT_WITH_SLACK(TypeName)                                            \
   template <typename ConcreteVisitor>                                         \
   size_t HeapVisitor<ConcreteVisitor>::Visit##TypeName(                       \
-      Tagged<Map> map, Tagged<TypeName> object) {                             \
+      Tagged<Map> map, Tagged<TypeName> object,                               \
+      MaybeObjectSize maybe_object_size) {                                    \
     return static_cast<ConcreteVisitor*>(this)                                \
         ->template VisitJSObjectSubclass<TypeName, TypeName::BodyDescriptor>( \
-            map, object);                                                     \
+            map, object, maybe_object_size);                                  \
   }
 
 TYPED_VISITOR_WITH_SLACK_ID_LIST(VISIT_WITH_SLACK)
@@ -204,24 +242,30 @@ TYPED_VISITOR_WITH_SLACK_ID_LIST(VISIT_WITH_SLACK)
 
 template <typename ConcreteVisitor>
 size_t HeapVisitor<ConcreteVisitor>::VisitShortcutCandidate(
-    Tagged<Map> map, Tagged<ConsString> object) {
-  return static_cast<ConcreteVisitor*>(this)->VisitConsString(map, object);
+    Tagged<Map> map, Tagged<ConsString> object,
+    MaybeObjectSize maybe_object_size) {
+  return static_cast<ConcreteVisitor*>(this)->VisitConsString(
+      map, object, maybe_object_size);
 }
 
 template <typename ConcreteVisitor>
-size_t HeapVisitor<ConcreteVisitor>::VisitFiller(Tagged<Map> map,
-                                                 Tagged<HeapObject> object) {
+size_t HeapVisitor<ConcreteVisitor>::VisitFiller(
+    Tagged<Map> map, Tagged<HeapObject> object,
+    MaybeObjectSize maybe_object_size) {
   if constexpr (!ConcreteVisitor::CanEncounterFillerOrFreeSpace()) {
     UNREACHABLE();
   }
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitFiller>(object);
-  return map->instance_size();
+  return ConcreteVisitor::UsePrecomputedObjectSize()
+             ? maybe_object_size.AssumeSize()
+             : map->instance_size();
 }
 
 template <typename ConcreteVisitor>
-size_t HeapVisitor<ConcreteVisitor>::VisitFreeSpace(Tagged<Map> map,
-                                                    Tagged<FreeSpace> object) {
+size_t HeapVisitor<ConcreteVisitor>::VisitFreeSpace(
+    Tagged<Map> map, Tagged<FreeSpace> object,
+    MaybeObjectSize maybe_object_size) {
   if constexpr (!ConcreteVisitor::CanEncounterFillerOrFreeSpace()) {
     UNREACHABLE();
   }
@@ -232,25 +276,31 @@ size_t HeapVisitor<ConcreteVisitor>::VisitFreeSpace(Tagged<Map> map,
 
 template <typename ConcreteVisitor>
 size_t HeapVisitor<ConcreteVisitor>::VisitJSObjectFast(
-    Tagged<Map> map, Tagged<JSObject> object) {
+    Tagged<Map> map, Tagged<JSObject> object,
+    MaybeObjectSize maybe_object_size) {
   return static_cast<ConcreteVisitor*>(this)
       ->template VisitJSObjectSubclass<JSObject, JSObject::FastBodyDescriptor>(
-          map, object);
+          map, object, maybe_object_size);
 }
 
 template <typename ConcreteVisitor>
-size_t HeapVisitor<ConcreteVisitor>::VisitJSApiObject(Tagged<Map> map,
-                                                      Tagged<JSObject> object) {
+size_t HeapVisitor<ConcreteVisitor>::VisitJSApiObject(
+    Tagged<Map> map, Tagged<JSObject> object,
+    MaybeObjectSize maybe_object_size) {
   return static_cast<ConcreteVisitor*>(this)
       ->template VisitJSObjectSubclass<
-          JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(map, object);
+          JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(
+          map, object, maybe_object_size);
 }
 
 template <typename ConcreteVisitor>
-size_t HeapVisitor<ConcreteVisitor>::VisitStruct(Tagged<Map> map,
-                                                 Tagged<HeapObject> object) {
+size_t HeapVisitor<ConcreteVisitor>::VisitStruct(
+    Tagged<Map> map, Tagged<HeapObject> object,
+    MaybeObjectSize maybe_object_size) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = map->instance_size();
+  int size = ConcreteVisitor::UsePrecomputedObjectSize()
+                 ? static_cast<int>(maybe_object_size.AssumeSize())
+                 : map->instance_size();
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitStruct>(object);
   StructBodyDescriptor::IterateBody(map, object, size, visitor);
   return size;
@@ -258,8 +308,8 @@ size_t HeapVisitor<ConcreteVisitor>::VisitStruct(Tagged<Map> map,
 
 template <typename ConcreteVisitor>
 template <typename T, typename TBodyDescriptor>
-size_t HeapVisitor<ConcreteVisitor>::VisitJSObjectSubclass(Tagged<Map> map,
-                                                           Tagged<T> object) {
+size_t HeapVisitor<ConcreteVisitor>::VisitJSObjectSubclass(
+    Tagged<Map> map, Tagged<T> object, MaybeObjectSize maybe_object_size) {
   // JSObject types are subject to slack tracking. At the end of slack tracking
   // a Map's instance size is adjusted properly. Since this changes the instance
   // size, we cannot DCHECK that `SizeFromMap()` is consistent with
@@ -273,7 +323,9 @@ size_t HeapVisitor<ConcreteVisitor>::VisitJSObjectSubclass(Tagged<Map> map,
   // because the slack fields may be trimmed concurrently and we don't want to
   // find fillers (slack) during pointer visitation.
   TBodyDescriptor::IterateBody(map, object, used_size, visitor);
-  const int size = TBodyDescriptor::SizeOf(map, object);
+  const size_t size = ConcreteVisitor::UsePrecomputedObjectSize()
+                          ? maybe_object_size.AssumeSize()
+                          : TBodyDescriptor::SizeOf(map, object);
   DCHECK_LE(used_size, size);
   DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
   return size;
@@ -281,8 +333,8 @@ size_t HeapVisitor<ConcreteVisitor>::VisitJSObjectSubclass(Tagged<Map> map,
 
 template <typename ConcreteVisitor>
 template <VisitorId visitor_id, typename T, typename TBodyDescriptor>
-size_t HeapVisitor<ConcreteVisitor>::VisitWithBodyDescriptor(Tagged<Map> map,
-                                                             Tagged<T> object) {
+size_t HeapVisitor<ConcreteVisitor>::VisitWithBodyDescriptor(
+    Tagged<Map> map, Tagged<T> object, MaybeObjectSize maybe_object_size) {
   // If you see the following DCHECK fail, then the size computation of
   // BodyDescriptor doesn't match the size return via obj.Size(). This is
   // problematic as the GC requires those sizes to match for accounting reasons.
@@ -301,7 +353,9 @@ size_t HeapVisitor<ConcreteVisitor>::VisitWithBodyDescriptor(Tagged<Map> map,
 
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<visitor_id>(object);
-  const int size = TBodyDescriptor::SizeOf(map, object);
+  const int size = ConcreteVisitor::UsePrecomputedObjectSize()
+                       ? static_cast<int>(maybe_object_size.AssumeSize())
+                       : TBodyDescriptor::SizeOf(map, object);
   TBodyDescriptor::IterateBody(map, object, size, visitor);
   return size;
 }
@@ -353,14 +407,16 @@ Tagged<T> ConcurrentHeapVisitor<ConcreteVisitor>::Cast(
   return i::Cast<T>(object);
 }
 
-#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                    \
-  template <typename ConcreteVisitor>                                  \
-  size_t ConcurrentHeapVisitor<ConcreteVisitor>::Visit##TypeName(      \
-      Tagged<Map> map, Tagged<TypeName> object) {                      \
-    if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {     \
-      return VisitStringLocked(object);                                \
-    }                                                                  \
-    return HeapVisitor<ConcreteVisitor>::Visit##TypeName(map, object); \
+#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
+  template <typename ConcreteVisitor>                                        \
+  size_t ConcurrentHeapVisitor<ConcreteVisitor>::Visit##TypeName(            \
+      Tagged<Map> map, Tagged<TypeName> object,                              \
+      MaybeObjectSize maybe_object_size) {                                   \
+    if constexpr (ConcreteVisitor::EnableConcurrentVisitation()) {           \
+      return VisitStringLocked(object);                                      \
+    }                                                                        \
+    return HeapVisitor<ConcreteVisitor>::Visit##TypeName(map, object,        \
+                                                         maybe_object_size); \
   }
 
 UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)

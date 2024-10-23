@@ -82,22 +82,33 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
   }
 
   V8_INLINE size_t VisitDescriptorArrayStrongly(Tagged<Map> map,
-                                                Tagged<DescriptorArray> object);
+                                                Tagged<DescriptorArray> object,
+                                                MaybeObjectSize);
   V8_INLINE size_t VisitDescriptorArray(Tagged<Map> map,
-                                        Tagged<DescriptorArray> object);
+                                        Tagged<DescriptorArray> object,
+                                        MaybeObjectSize);
   V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
-                                           Tagged<EphemeronHashTable> object);
-  V8_INLINE size_t VisitFixedArray(Tagged<Map> map, Tagged<FixedArray> object);
+                                           Tagged<EphemeronHashTable> object,
+                                           MaybeObjectSize);
+  V8_INLINE size_t VisitFixedArray(Tagged<Map> map, Tagged<FixedArray> object,
+                                   MaybeObjectSize);
   V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
-                                      Tagged<JSArrayBuffer> object);
-  V8_INLINE size_t VisitJSFunction(Tagged<Map> map, Tagged<JSFunction> object);
-  V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object);
-  V8_INLINE size_t VisitMap(Tagged<Map> map, Tagged<Map> object);
+                                      Tagged<JSArrayBuffer> object,
+                                      MaybeObjectSize);
+  V8_INLINE size_t VisitJSFunction(Tagged<Map> map, Tagged<JSFunction> object,
+                                   MaybeObjectSize);
+  V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
+                                  MaybeObjectSize);
+  V8_INLINE size_t VisitMap(Tagged<Map> map, Tagged<Map> object,
+                            MaybeObjectSize);
   V8_INLINE size_t VisitSharedFunctionInfo(Tagged<Map> map,
-                                           Tagged<SharedFunctionInfo> object);
+                                           Tagged<SharedFunctionInfo> object,
+                                           MaybeObjectSize);
   V8_INLINE size_t VisitTransitionArray(Tagged<Map> map,
-                                        Tagged<TransitionArray> object);
-  V8_INLINE size_t VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object);
+                                        Tagged<TransitionArray> object,
+                                        MaybeObjectSize);
+  V8_INLINE size_t VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object,
+                                 MaybeObjectSize);
 
   // ObjectVisitor overrides.
   void VisitMapPointer(Tagged<HeapObject> host) final {
