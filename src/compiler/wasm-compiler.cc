@@ -7889,6 +7889,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->GotoIf(gasm_->TaggedEqual(suspender, UndefinedValue()),
                   &bad_suspender, BranchHint::kFalse);
 
+    if (v8_flags.stress_wasm_stack_switching) {
+      Node* undefined = LOAD_ROOT(UndefinedValue, undefined_value);
+      Node* for_stress_testing = gasm_->TaggedEqual(
+          gasm_->Load(
+              MachineType::TaggedPointer(), suspender,
+              wasm::ObjectAccess::ToTagged(WasmSuspenderObject::kResumeOffset)),
+          undefined);
+      gasm_->GotoIf(for_stress_testing, &bad_suspender);
+    }
+
     auto* call_descriptor = GetBuiltinCallDescriptor(
         Builtin::kWasmSuspend, zone_, StubCallMode::kCallBuiltinPointer);
     Node* call_target = GetTargetForBuiltinCall(Builtin::kWasmSuspend);

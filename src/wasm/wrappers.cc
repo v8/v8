@@ -1180,17 +1180,25 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     ScopedVar<WordPtr> old_sp_var(this, *old_sp);
     IF_NOT (__ IsSmi(value)) {
       IF (__ HasInstanceType(value, JS_PROMISE_TYPE)) {
+        OpIndex suspender = LOAD_ROOT(ActiveSuspender);
         V<Context> native_context =
             __ Load(import_data, LoadOp::Kind::TaggedBase(),
                     MemoryRepresentation::TaggedPointer(),
                     WasmImportData::kNativeContextOffset);
-        OpIndex suspender = LOAD_ROOT(ActiveSuspender);
-        // Trap if the suspender is undefined, which occurs when the export was
-        // not wrapped with WebAssembly.promising.
         IF (__ TaggedEqual(suspender, LOAD_ROOT(UndefinedValue))) {
           CallRuntime(__ phase_zone(), Runtime::kThrowBadSuspenderError, {},
                       native_context);
           __ Unreachable();
+        }
+        if (v8_flags.stress_wasm_stack_switching) {
+          V<Word32> for_stress_testing = __ TaggedEqual(
+              __ LoadTaggedField(suspender, WasmSuspenderObject::kResumeOffset),
+              LOAD_ROOT(UndefinedValue));
+          IF (for_stress_testing) {
+            CallRuntime(__ phase_zone(), Runtime::kThrowBadSuspenderError, {},
+                        native_context);
+            __ Unreachable();
+          }
         }
         // If {old_sp} is null, it must be that we were on the central stack
         // before entering the wasm-to-js wrapper, which means that there are JS

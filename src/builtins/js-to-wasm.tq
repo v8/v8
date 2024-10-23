@@ -18,6 +18,8 @@ extern builtin JSToWasmWrapperAsm(
     RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
 extern builtin WasmReturnPromiseOnSuspendAsm(
     RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
+extern builtin JSToWasmStressSwitchStacksAsm(
+    RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
 
 extern macro UniqueIntPtrConstant(constexpr intptr): intptr;
 
@@ -73,7 +75,8 @@ extern enum ValueKind extends int32 constexpr 'wasm::ValueKind' {
 
 extern enum Promise extends int32 constexpr 'wasm::Promise' {
   kPromise,
-  kNoPromise
+  kNoPromise,
+  kStressSwitch
 }
 
 extern enum HeapType extends int32
@@ -486,7 +489,8 @@ macro JSToWasmWrapperHelper(
   const functionData = target.shared_function_info.wasm_exported_function_data;
 
   // Trigger a wrapper tier-up when this function got called often enough.
-  const switchStack = promise != Promise::kNoPromise;
+  const switchStack =
+      promise == Promise::kPromise || promise == Promise::kStressSwitch;
   if constexpr (!switchStack) {
     const budget: Smi =
         UnsafeCast<Smi>(functionData.wrapper_budget.value) - SmiConstant(1);
@@ -684,6 +688,12 @@ macro JSToWasmWrapperHelper(
   let suspender: JSAny = Undefined;
   if constexpr (switchStack) {
     suspender = runtime::WasmAllocateSuspender(context);
+    if (promise == Promise::kStressSwitch) {
+      // In case we have a non-JSPI test where an import returns a Promise,
+      // we don't want the import to try and suspend the wasm stack. Clear the
+      // "resume" field as a way to signal this to the import.
+      UnsafeCast<WasmSuspenderObject>(suspender).resume = Undefined;
+    }
   }
   if (hasRefParam) {
     // Iterate over all parameters again and handle all those with ref types.
@@ -739,11 +749,16 @@ macro JSToWasmWrapperHelper(
   // they get scanned by the GC as part of the outgoing parameters of this
   // Torque builtin.
   let result: JSAny;
-  if constexpr (switchStack) {
+  if constexpr (promise == Promise::kPromise) {
     result =
         WasmReturnPromiseOnSuspendAsm(wrapperBuffer, implicitArg, resultArray);
-  } else {
+  } else if (promise == Promise::kNoPromise) {
     result = JSToWasmWrapperAsm(wrapperBuffer, implicitArg, resultArray);
+  } else if (promise == Promise::kStressSwitch) {
+    result =
+        JSToWasmStressSwitchStacksAsm(wrapperBuffer, implicitArg, resultArray);
+  } else {
+    unreachable;
   }
 
   // The normal return sequence of Torque-generated JavaScript builtins does not
@@ -776,6 +791,13 @@ transitioning javascript builtin WasmPromising(
     ...arguments): JSAny {
   JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kPromise);
+}
+
+transitioning javascript builtin WasmStressSwitch(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
+  JSToWasmWrapperHelper(
+      context, receiver, target, arguments, Promise::kStressSwitch);
 }
 
 macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):

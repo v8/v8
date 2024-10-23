@@ -32,7 +32,9 @@ class Zone;
 namespace wasm {
 class ErrorThrower;
 enum Suspend : int { kSuspend, kNoSuspend };
-enum Promise : int { kPromise, kNoPromise };
+// kStressSwitch: switch to a secondary stack, but without the JSPI semantics:
+// do not handle async imports and do not return a Promise. For testing only.
+enum Promise : int { kPromise, kNoPromise, kStressSwitch };
 struct WasmModule;
 
 // Calls to Wasm imports are handled in several different ways, depending on the

@@ -2254,7 +2254,8 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
        ; iter.Advance(), visited_frames++) {
 #if V8_ENABLE_WEBASSEMBLY
     if (iter.frame()->type() == StackFrame::STACK_SWITCH) {
-      if (catchable_by_js) {
+      if (catchable_by_js && iter.frame()->LookupCode()->builtin_id() !=
+                                 Builtin::kJSToWasmStressSwitchStacksAsm) {
         Tagged<Code> code =
             builtins()->code(Builtin::kWasmReturnPromiseOnSuspendAsm);
         HandlerTable table(code);

@@ -80,6 +80,7 @@ ALL_VARIANT_FLAGS = {
     "stress_js_bg_compile_wasm_code_gc": [[
         "--stress-background-compile", "--stress-wasm-code-gc"
     ]],
+    "stress_wasm_stack_switching": [["--stress-wasm-stack-switching"]],
     "stress_incremental_marking": [["--stress-incremental-marking"]],
     "stress_snapshot": [["--stress-snapshot"]],
     # Trigger stress sampling allocation profiler with sample interval = 2^14
@@ -175,6 +176,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
     ],
+    "stress_wasm_stack_switching": ["--no-stress-wasm-stack-switching"],
     "--turboshaft-assert-types": [
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-turboshaft-assert-types"
