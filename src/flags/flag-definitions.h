@@ -1384,9 +1384,8 @@ DEFINE_BOOL(turboshaft_enable_debug_features, false,
             "enables Turboshaft's DebugPrint, StaticAssert and "
             "CheckTurboshaftTypeOf operations")
 #endif
-DEFINE_BOOL(turboshaft_wasm, false,
+DEFINE_BOOL(turboshaft_wasm, true,
             "enable TurboFan's Turboshaft phases for wasm")
-DEFINE_WEAK_IMPLICATION(future, turboshaft_wasm)
 DEFINE_BOOL(turboshaft_wasm_load_elimination, false,
             "enable Turboshaft's WasmLoadElimination")
 DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_wasm_load_elimination)
