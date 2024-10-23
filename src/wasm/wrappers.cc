@@ -744,8 +744,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
           call_descriptor, compiler::CanThrow::kYes,
           compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
-      OpIndex call_target = __ RelocatableWasmBuiltinCallTarget(
-          Builtin::kWasmRethrowExplicitContext);
+      OpIndex call_target =
+          GetTargetForBuiltinCall(Builtin::kWasmRethrowExplicitContext);
       V<Context> context =
           __ Load(incoming_params[0], LoadOp::Kind::TaggedBase(),
                   MemoryRepresentation::TaggedPointer(),

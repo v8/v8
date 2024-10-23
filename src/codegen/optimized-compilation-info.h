@@ -169,6 +169,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
   bool IsWasmBuiltin() const {
     return code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
+           code_kind() == CodeKind::WASM_TO_CAPI_FUNCTION ||
            code_kind() == CodeKind::JS_TO_WASM_FUNCTION ||
            (code_kind() == CodeKind::BUILTIN &&
             (builtin() == Builtin::kJSToWasmWrapper ||
