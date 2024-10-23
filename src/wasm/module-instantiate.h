@@ -147,7 +147,6 @@ V8_EXPORT_PRIVATE void CreateMapForType(
 // Wrapper information required for graph building.
 struct WrapperCompilationInfo {
   CodeKind code_kind;
-  StubCallMode stub_mode;
   // For wasm-js wrappers only:
   wasm::ImportCallKind import_kind = kDefaultImportCallKind;
   int expected_arity = 0;

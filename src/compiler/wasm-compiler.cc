@@ -8515,9 +8515,8 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
   if (v8_flags.turboshaft_wasm_wrappers) {
     return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
         isolate, sig,
-        wasm::WrapperCompilationInfo{CodeKind::JS_TO_WASM_FUNCTION,
-                                     StubCallMode::kCallBuiltinPointer},
-        module, std::move(debug_name), WasmAssemblerOptions());
+        wasm::WrapperCompilationInfo{CodeKind::JS_TO_WASM_FUNCTION}, module,
+        std::move(debug_name), WasmAssemblerOptions());
   } else {
     std::unique_ptr<Zone> zone = std::make_unique<Zone>(
         wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -8690,8 +8689,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   auto compile_with_turboshaft = [&]() {
     return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         env->module, sig,
-        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_JS_FUNCTION,
-                                     StubCallMode::kCallBuiltinPointer, kind,
+        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_JS_FUNCTION, kind,
                                      expected_arity, suspend},
         func_name, WasmStubAssemblerOptions(), nullptr);
   };
@@ -8750,8 +8748,7 @@ wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
   auto compile_with_turboshaft = [&]() {
     return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         native_module->module(), sig,
-        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION,
-                                     StubCallMode::kCallBuiltinPointer},
+        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION},
         debug_name, WasmStubAssemblerOptions(), nullptr);
   };
 
@@ -8842,9 +8839,8 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
     std::unique_ptr<turboshaft::TurboshaftCompilationJob> job =
         Pipeline::NewWasmTurboshaftWrapperCompilationJob(
             isolate, sig,
-            wasm::WrapperCompilationInfo{CodeKind::WASM_TO_JS_FUNCTION,
-                                         StubCallMode::kCallBuiltinPointer,
-                                         kind, expected_arity, suspend},
+            wasm::WrapperCompilationInfo{CodeKind::WASM_TO_JS_FUNCTION, kind,
+                                         expected_arity, suspend},
             module, std::move(name_buffer), WasmAssemblerOptions());
 
     // Compile the wrapper
