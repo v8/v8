@@ -898,7 +898,8 @@ void RegExpMacroAssemblerX64::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source,
+                                                    RegExpFlags flags) {
   Label return_rax;
   // Finalize code - write the entry point code now we know how many registers
   // we need.
@@ -1268,7 +1269,8 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
                           .set_self_reference(masm_.CodeObject())
                           .set_empty_source_position_table()
                           .Build();
-  PROFILE(isolate, RegExpCodeCreateEvent(Cast<AbstractCode>(code), source));
+  PROFILE(isolate,
+          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
   return Cast<HeapObject>(code);
 }
 

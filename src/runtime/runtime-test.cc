@@ -1951,8 +1951,8 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
     void CallbackEvent(Handle<Name> name, Address entry_point) final {}
     void GetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
     void SetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
-    void RegExpCodeCreateEvent(Handle<AbstractCode> code,
-                               Handle<String> source) final {}
+    void RegExpCodeCreateEvent(Handle<AbstractCode> code, Handle<String> source,
+                               RegExpFlags flags) final {}
     void CodeMoveEvent(Tagged<InstructionStream> from,
                        Tagged<InstructionStream> to) final {}
     void BytecodeMoveEvent(Tagged<BytecodeArray> from,

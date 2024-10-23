@@ -696,7 +696,8 @@ void RegExpMacroAssemblerARM::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source,
+                                                    RegExpFlags flags) {
   Label return_r0;
   // Finalize code - write the entry point code now we know how many
   // registers we need.
@@ -1028,10 +1029,9 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
           .set_empty_source_position_table()
           .Build();
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source));
+          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
   return Cast<HeapObject>(code);
 }
-
 
 void RegExpMacroAssemblerARM::GoTo(Label* to) {
   BranchOrBacktrack(al, to);
