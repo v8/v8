@@ -5898,7 +5898,7 @@ void RehashObjectHashTableAndGCIfNeeded(Isolate* isolate, Handle<T> table) {
   // isn't enough to avoid a crash.
   if (!table->HasSufficientCapacityToAdd(1)) {
     int nof = table->NumberOfElements() + 1;
-    int capacity = T::ComputeCapacity(nof * 2);
+    int capacity = T::ComputeCapacity(nof);
     if (capacity > T::kMaxCapacity) {
       for (size_t i = 0; i < 2; ++i) {
         isolate->heap()->CollectAllGarbage(
