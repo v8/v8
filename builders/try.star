@@ -285,7 +285,7 @@ try_builder(
     cq_properties = CQ.OPTIONAL,
     cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"host_class": "default", "os": "Windows-10", "cpu": "x86-64"},
-    use_remoteexec = RECLIENT.DEFAULT,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
 )
 
 try_builder(
