@@ -1035,7 +1035,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
     CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
 
-    std::vector<Handle<FixedArray>> handles;
+    DirectHandleVector<FixedArray> handles(i_isolate);
     // Fill the page and do a full GC. Page promotion should kick in and promote
     // the page as is to old space.
     heap::FillCurrentPage(heap->new_space(), &handles);
@@ -1094,7 +1094,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
     CHECK(HeapLayout::InYoungGeneration(*young_object));
     Address young_object_address = young_object->address();
 
-    std::vector<Handle<FixedArray>> handles;
+    DirectHandleVector<FixedArray> handles(i_isolate);
     // Make the whole page transition from new->old, getting the buffers
     // processed in the sweeper (relying on marking information) instead of
     // processing during newspace evacuation.
@@ -2120,7 +2120,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       CHECK(HeapLayout::InYoungGeneration(*young_object));
       Address young_object_address = young_object->address();
 
-      std::vector<Handle<FixedArray>> handles;
+      DirectHandleVector<FixedArray> handles(i_client);
       // Make the whole page transition from new->old, getting the buffers
       // processed in the sweeper (relying on marking information) instead of
       // processing during newspace evacuation.
@@ -2278,7 +2278,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       CHECK(HeapLayout::InYoungGeneration(*young_object));
       Address young_object_address = young_object->address();
 
-      std::vector<IndirectHandle<FixedArray>> handles;
+      DirectHandleVector<FixedArray> handles(i_client);
       // Make the whole page transition from new->old, getting the buffers
       // processed in the sweeper (relying on marking information) instead of
       // processing during newspace evacuation.

@@ -640,8 +640,8 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   heap::SealCurrentObjects(CcTest::heap());
 
   const int kFillerSize = 0;
-  std::vector<Handle<FixedArray>> arrays =
-      heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
+  DirectHandleVector<FixedArray> arrays(isolate);
+  heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize, &arrays);
   DirectHandle<FixedArray> array = arrays.back();
   PageMetadata* page = PageMetadata::FromHeapObject(*array);
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
@@ -664,8 +664,8 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   heap::SealCurrentObjects(CcTest::heap());
 
   const int kFillerSize = kTaggedSize;
-  std::vector<Handle<FixedArray>> arrays =
-      heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
+  DirectHandleVector<FixedArray> arrays(isolate);
+  heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize, &arrays);
   DirectHandle<FixedArray> array = arrays.back();
   PageMetadata* page = PageMetadata::FromHeapObject(*array);
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
@@ -693,8 +693,8 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   heap::SealCurrentObjects(CcTest::heap());
 
   const int kFillerSize = 2 * kTaggedSize;
-  std::vector<Handle<FixedArray>> arrays =
-      heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
+  DirectHandleVector<FixedArray> arrays(isolate);
+  heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize, &arrays);
   DirectHandle<FixedArray> array = arrays.back();
   PageMetadata* page = PageMetadata::FromHeapObject(*array);
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);

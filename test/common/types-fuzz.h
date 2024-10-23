@@ -42,7 +42,8 @@ namespace compiler {
 class Types {
  public:
   Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : zone_(zone),
+      : integers(isolate),
+        zone_(zone),
         js_heap_broker_(isolate, zone),
         js_heap_broker_scope_(&js_heap_broker_, isolate, zone),
         current_broker_(&js_heap_broker_),
@@ -115,8 +116,8 @@ class Types {
     values.push_back(
         CanonicalHandle(isolate->factory()->NewStringFromStaticChars(
             "Ask not for whom the typer types; it types for thee.")));
-    for (ValueVector::iterator it = values.begin(); it != values.end(); ++it) {
-      types.push_back(Type::Constant(js_heap_broker(), *it, zone));
+    for (IndirectHandle<i::Object> obj : values) {
+      types.push_back(Type::Constant(js_heap_broker(), obj, zone));
     }
 
     integers.push_back(isolate->factory()->NewNumber(-V8_INFINITY));
@@ -159,12 +160,10 @@ class Types {
 
   Type Integer;
 
-  using TypeVector = std::vector<Type>;
-  using ValueVector = std::vector<Handle<i::Object> >;
-
-  TypeVector types;
-  ValueVector values;
-  ValueVector integers;  // "Integer" values used for range limits.
+  std::vector<Type> types;
+  std::vector<IndirectHandle<i::Object>> values;
+  DirectHandleVector<i::Object>
+      integers;  // "Integer" values used for range limits.
 
   Type Constant(Handle<i::Object> value) {
     return Type::Constant(js_heap_broker(), value, zone_);

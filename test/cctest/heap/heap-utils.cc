@@ -46,16 +46,16 @@ int FixedArrayLenFromSize(int size) {
                    FixedArray::kMaxRegularLength});
 }
 
-std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
-                                                                int remainder) {
+void FillOldSpacePageWithFixedArrays(
+    Heap* heap, int remainder, DirectHandleVector<FixedArray>* out_handles) {
   PauseAllocationObserversScope pause_observers(heap);
-  std::vector<Handle<FixedArray>> handles;
   Isolate* isolate = heap->isolate();
   const int kArraySize = 128;
   const int kArrayLen = heap::FixedArrayLenFromSize(kArraySize);
-  Handle<FixedArray> array;
   int allocated = 0;
+  bool empty = true;
   do {
+    Handle<FixedArray> array;
     if (allocated + kArraySize * 2 >
         static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage())) {
       int size =
@@ -74,22 +74,21 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
       allocated += array->Size();
       CHECK_EQ(kArraySize, array->Size());
     }
-    if (handles.empty()) {
+    if (empty) {
       // Check that allocations started on a new page.
       CHECK_EQ(array->address(),
                PageMetadata::FromHeapObject(*array)->area_start());
+      empty = false;
     }
-    handles.push_back(array);
+    if (out_handles) out_handles->push_back(array);
   } while (allocated <
            static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()));
   heap->FreeMainThreadLinearAllocationAreas();
-  return handles;
 }
 
-std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
-                                              AllocationType allocation,
-                                              int object_size) {
-  std::vector<Handle<FixedArray>> handles;
+void CreatePadding(Heap* heap, int padding_size, AllocationType allocation,
+                   DirectHandleVector<FixedArray>* out_handles,
+                   int object_size) {
   Isolate* isolate = heap->isolate();
   int allocate_memory;
   int length;
@@ -121,21 +120,20 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
         break;
       }
     }
-    handles.push_back(isolate->factory()->NewFixedArray(length, allocation));
+    auto array = isolate->factory()->NewFixedArray(length, allocation);
+    if (out_handles) out_handles->push_back(array);
     CHECK((allocation == AllocationType::kYoung &&
-           heap->new_space()->Contains(*handles.back())) ||
-          (allocation == AllocationType::kOld &&
-           heap->InOldSpace(*handles.back())) ||
+           heap->new_space()->Contains(*array)) ||
+          (allocation == AllocationType::kOld && heap->InOldSpace(*array)) ||
           v8_flags.single_generation);
-    free_memory -= handles.back()->Size();
+    free_memory -= array->Size();
   }
   heap->FreeMainThreadLinearAllocationAreas();
-  return handles;
 }
 
 namespace {
 void FillPageInPagedSpace(PageMetadata* page,
-                          std::vector<Handle<FixedArray>>* out_handles) {
+                          DirectHandleVector<FixedArray>* out_handles) {
   Heap* heap = page->heap();
   Isolate* isolate = heap->isolate();
   DCHECK(page->SweepingDone());
@@ -233,7 +231,7 @@ void FillPageInPagedSpace(PageMetadata* page,
 }  // namespace
 
 void FillCurrentPage(v8::internal::NewSpace* space,
-                     std::vector<Handle<FixedArray>>* out_handles) {
+                     DirectHandleVector<FixedArray>* out_handles) {
   if (v8_flags.minor_ms) {
     const Address top = space->heap()->NewSpaceTop();
     space->heap()->FreeMainThreadLinearAllocationAreas();
@@ -251,7 +249,7 @@ void FillCurrentPage(v8::internal::NewSpace* space,
 
 void FillCurrentPageButNBytes(v8::internal::SemiSpaceNewSpace* space,
                               int extra_bytes,
-                              std::vector<Handle<FixedArray>>* out_handles) {
+                              DirectHandleVector<FixedArray>* out_handles) {
   space->heap()->FreeMainThreadLinearAllocationAreas();
   PauseAllocationObserversScope pause_observers(space->heap());
   // We cannot rely on `space->limit()` to point to the end of the current page
@@ -264,11 +262,8 @@ void FillCurrentPageButNBytes(v8::internal::SemiSpaceNewSpace* space,
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return;
-  std::vector<Handle<FixedArray>> handles = heap::CreatePadding(
-      space->heap(), space_remaining, i::AllocationType::kYoung);
-  if (out_handles != nullptr) {
-    out_handles->insert(out_handles->end(), handles.begin(), handles.end());
-  }
+  heap::CreatePadding(space->heap(), space_remaining, i::AllocationType::kYoung,
+                      out_handles);
   space->heap()->FreeMainThreadLinearAllocationAreas();
 }
 

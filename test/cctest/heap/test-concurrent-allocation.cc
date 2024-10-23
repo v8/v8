@@ -565,7 +565,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       Handle<Code> code_handle =
           Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
       // Globalize the handle for |code| for the incremental marker to mark it.
-      i_isolate->global_handles()->Create(*code_handle.location());
+      i_isolate->global_handles()->Create(*code_handle);
       heap::AbandonCurrentlyFreeMemory(heap->old_space());
       DirectHandle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
