@@ -314,7 +314,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
     Tagged<InstructionStream> istream = code->instruction_stream();
     WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
         istream.address(), istream->Size(),
-        ThreadIsolation::JitAllocationType::kInstructionStream, true);
+        ThreadIsolation::JitAllocationType::kInstructionStream);
     bool flush_icache = false;
     for (WritableRelocIterator it(jit_allocation, istream,
                                   code->constant_pool(), kRelocMask);

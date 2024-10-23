@@ -78,7 +78,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
     WritableJitAllocation jit_allocation =
         ThreadIsolation::RegisterJitAllocation(
             reinterpret_cast<Address>(code_space.begin()), code_space.size(),
-            ThreadIsolation::JitAllocationType::kWasmCode, true);
+            ThreadIsolation::JitAllocationType::kWasmCode);
     jit_allocation.CopyCode(0, desc.buffer, desc.instr_size);
 
     intptr_t delta = code_space.begin() - desc.buffer;

@@ -39,7 +39,7 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
   {
     WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
         istream->address(), istream->Size(),
-        ThreadIsolation::JitAllocationType::kInstructionStream, true);
+        ThreadIsolation::JitAllocationType::kInstructionStream);
     for (WritableRelocIterator it(jit_allocation, istream, constant_pool(),
                                   mode_mask);
          !it.done(); it.next()) {
