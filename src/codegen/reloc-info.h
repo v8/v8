@@ -410,11 +410,10 @@ class WritableRelocInfo : public RelocInfo {
  public:
   WritableRelocInfo(WritableJitAllocation& jit_allocation, Address pc,
                     Mode rmode)
-      : RelocInfo(pc, rmode), jit_allocation_(jit_allocation) {}
+      : RelocInfo(pc, rmode) {}
   WritableRelocInfo(WritableJitAllocation& jit_allocation, Address pc,
                     Mode rmode, intptr_t data, Address constant_pool)
-      : RelocInfo(pc, rmode, data, constant_pool),
-        jit_allocation_(jit_allocation) {}
+      : RelocInfo(pc, rmode, data, constant_pool) {}
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
   // relative addresses have to be updated as well as absolute addresses
@@ -448,11 +447,6 @@ class WritableRelocInfo : public RelocInfo {
 
   V8_INLINE void set_target_external_reference(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-
-  V8_INLINE WritableJitAllocation& jit_allocation() { return jit_allocation_; }
-
- private:
-  WritableJitAllocation& jit_allocation_;
 };
 
 // RelocInfoWriter serializes a stream of relocation info. It writes towards

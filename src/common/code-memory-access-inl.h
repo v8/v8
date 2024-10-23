@@ -177,25 +177,6 @@ V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
   }
 }
 
-template <typename T>
-V8_INLINE void WritableJitAllocation::WriteUnalignedValue(Address address,
-                                                          T value) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
-  DCHECK_GE(address, address_);
-  DCHECK_LT(address - address_, size());
-  base::WriteUnalignedValue<T>(address, value);
-}
-
-template <typename T>
-V8_INLINE void WritableJitAllocation::WriteValue(Address address, T value) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
-  DCHECK_GE(address, address_);
-  DCHECK_LT(address - address_, size());
-  base::Memory<T>(address) = value;
-}
-
 void WritableJitAllocation::CopyCode(size_t dst_offset, const uint8_t* src,
                                      size_t num_bytes) {
   std::optional<RwxMemoryWriteScope> write_scope =

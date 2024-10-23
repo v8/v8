@@ -421,11 +421,6 @@ class WritableJitAllocation {
   V8_INLINE void CopyData(size_t dst_offset, const uint8_t* src,
                           size_t num_bytes);
 
-  template <typename T>
-  V8_INLINE void WriteUnalignedValue(Address address, T value);
-  template <typename T>
-  V8_INLINE void WriteValue(Address address, T value);
-
   V8_INLINE void ClearBytes(size_t offset, size_t len);
 
   Address address() const { return address_; }

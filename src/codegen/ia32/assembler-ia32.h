@@ -422,8 +422,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline static Address target_address_at(Address pc, Address constant_pool);
   inline static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
-      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  // This sets the branch destination (which is in the instruction on x86).
+  // This is for calls and branches within generated code.
+  inline static void deserialization_set_special_target_at(
+      Address instruction_payload, Tagged<Code> code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -438,7 +442,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
   static inline void set_uint32_constant_at(
       Address pc, Address constant_pool, uint32_t new_constant,
-      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   static constexpr int kSpecialTargetSize = kSystemPointerSize;

@@ -531,7 +531,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static inline Address target_address_at(Address pc, Address constant_pool);
   static inline void set_target_address_at(
       Address pc, Address constant_pool, Address target,
-      WritableJitAllocation* writable_jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   static inline int32_t relative_target_offset(Address target, Address pc);
 
@@ -539,6 +538,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // instructions are temporarily encoded as builtin ID until the generated
   // code is moved into the code space.
   static inline Builtin target_builtin_at(Address pc);
+
+  // This sets the branch destination (which is in the instruction on x64).
+  // This is for calls and branches within generated code.
+  inline static void deserialization_set_special_target_at(
+      Address instruction_payload, Tagged<Code> code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -556,7 +560,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
   static inline void set_uint32_constant_at(
       Address pc, Address constant_pool, uint32_t new_constant,
-      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Number of bytes taken up by the branch target in the code.

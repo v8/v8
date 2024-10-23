@@ -150,13 +150,8 @@ uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
 
 void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
                                        uint32_t new_constant,
-                                       WritableJitAllocation* jit_allocation,
                                        ICacheFlushMode icache_flush_mode) {
-  if (jit_allocation) {
-    jit_allocation->WriteUnalignedValue<uint32_t>(pc, new_constant);
-  } else {
-    WriteUnalignedValue<uint32_t>(pc, new_constant);
-  }
+  WriteUnalignedValue<uint32_t>(pc, new_constant);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, sizeof(uint32_t));
   }
@@ -231,16 +226,18 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
-                                      WritableJitAllocation* jit_allocation,
                                       ICacheFlushMode icache_flush_mode) {
-  if (jit_allocation) {
-    jit_allocation->WriteUnalignedValue(pc, target - (pc + sizeof(int32_t)));
-  } else {
-    WriteUnalignedValue(pc, target - (pc + sizeof(int32_t)));
-  }
+  WriteUnalignedValue(pc, target - (pc + sizeof(int32_t)));
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, sizeof(int32_t));
   }
+}
+
+void Assembler::deserialization_set_special_target_at(
+    Address instruction_payload, Tagged<Code> code, Address target) {
+  set_target_address_at(instruction_payload,
+                        !code.is_null() ? code->constant_pool() : kNullAddress,
+                        target);
 }
 
 int Assembler::deserialization_special_target_size(

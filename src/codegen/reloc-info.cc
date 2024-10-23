@@ -257,7 +257,7 @@ Address RelocInfo::wasm_call_address() const {
 void WritableRelocInfo::set_wasm_call_address(Address address) {
   DCHECK_EQ(rmode_, WASM_CALL);
   Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   &jit_allocation_, SKIP_ICACHE_FLUSH);
+                                   SKIP_ICACHE_FLUSH);
 }
 
 Address RelocInfo::wasm_stub_call_address() const {
@@ -268,7 +268,7 @@ Address RelocInfo::wasm_stub_call_address() const {
 void WritableRelocInfo::set_wasm_stub_call_address(Address address) {
   DCHECK_EQ(rmode_, WASM_STUB_CALL);
   Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   &jit_allocation_, SKIP_ICACHE_FLUSH);
+                                   SKIP_ICACHE_FLUSH);
 }
 
 uint32_t RelocInfo::wasm_canonical_sig_id() const {
@@ -279,7 +279,7 @@ uint32_t RelocInfo::wasm_canonical_sig_id() const {
 void WritableRelocInfo::set_wasm_canonical_sig_id(uint32_t canonical_sig_id) {
   DCHECK_EQ(rmode_, WASM_CANONICAL_SIG_ID);
   Assembler::set_uint32_constant_at(pc_, constant_pool_, canonical_sig_id,
-                                    &jit_allocation_, SKIP_ICACHE_FLUSH);
+                                    SKIP_ICACHE_FLUSH);
 }
 
 void WritableRelocInfo::set_target_address(Address target,
@@ -287,7 +287,7 @@ void WritableRelocInfo::set_target_address(Address target,
   DCHECK(IsCodeTargetMode(rmode_) || IsNearBuiltinEntry(rmode_) ||
          IsWasmCall(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   &jit_allocation_, icache_flush_mode);
+                                   icache_flush_mode);
 }
 
 void WritableRelocInfo::set_target_address(Tagged<InstructionStream> host,
@@ -305,7 +305,7 @@ void WritableRelocInfo::set_target_address(Tagged<InstructionStream> host,
 void RelocInfo::set_off_heap_target_address(Address target,
                                             ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTargetMode(rmode_));
-  Assembler::set_target_address_at(pc_, constant_pool_, target, nullptr,
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
 }
 

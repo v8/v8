@@ -284,7 +284,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                                                       Address constant_pool);
   inline static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
-      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   inline static void set_target_compressed_address_at(
@@ -305,6 +304,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // code is moved into the code space.
   static inline Builtin target_builtin_at(Address pc);
 
+  // This sets the branch destination. 'location' here can be either the pc of
+  // an immediate branch or the address of an entry in the constant pool.
+  // This is for calls and branches within generated code.
+  inline static void deserialization_set_special_target_at(Address location,
+                                                           Tagged<Code> code,
+                                                           Address target);
+
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);
 
@@ -317,7 +323,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
   static inline void set_uint32_constant_at(
       Address pc, Address constant_pool, uint32_t new_constant,
-      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // This value is used in the serialization process and must be zero for

@@ -5,23 +5,10 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/codegen/arm64/instructions-arm64.h"
-
 #include "src/codegen/arm64/assembler-arm64-inl.h"
-#include "src/common/code-memory-access-inl.h"
 
 namespace v8 {
 namespace internal {
-
-void Instruction::SetInstructionBits(Instr new_instr,
-                                     WritableJitAllocation* jit_allocation) {
-  // Usually this is aligned, but when de/serializing that's not guaranteed.
-  if (jit_allocation) {
-    jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(this),
-                                        new_instr);
-  } else {
-    base::WriteUnalignedValue(reinterpret_cast<Address>(this), new_instr);
-  }
-}
 
 bool Instruction::IsLoad() const {
   if (Mask(LoadStoreAnyFMask) != LoadStoreAnyFixed) {
