@@ -91,8 +91,6 @@ luci.cq_group(
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench End2End Android x64 Try",
-            # Run Android E2E tests on 50% of CLs without blocking them.
-            experiment_percentage = 50,
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench Pytype Try",
