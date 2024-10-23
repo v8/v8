@@ -185,17 +185,17 @@ class DisabledCheckingPolicy {
 #endif
 };
 
-#ifdef DEBUG
+#ifdef CPPGC_ENABLE_SLOW_API_CHECKS
 // Off heap members are not connected to object graph and thus cannot ressurect
 // dead objects.
 using DefaultMemberCheckingPolicy =
     SameThreadEnabledCheckingPolicy<false /* kCheckOffHeapAssignments*/>;
 using DefaultPersistentCheckingPolicy =
     SameThreadEnabledCheckingPolicy<true /* kCheckOffHeapAssignments*/>;
-#else   // !DEBUG
+#else   // !CPPGC_ENABLE_SLOW_API_CHECKS
 using DefaultMemberCheckingPolicy = DisabledCheckingPolicy;
 using DefaultPersistentCheckingPolicy = DisabledCheckingPolicy;
-#endif  // !DEBUG
+#endif  // !CPPGC_ENABLE_SLOW_API_CHECKS
 // For CT(W)P neither marking information (for value), nor objectstart bitmap
 // (for slot) are guaranteed to be present because there's no synchronization
 // between heaps after marking.

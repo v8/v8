@@ -1027,6 +1027,7 @@ external_cppgc_defines = [
   "CPPGC_CAGED_HEAP",
   "CPPGC_ENABLE_API_CHECKS",
   "CPPGC_ENABLE_LARGER_CAGE",
+  "CPPGC_ENABLE_SLOW_API_CHECKS",
   "CPPGC_POINTER_COMPRESSION",
   "CPPGC_SLIM_WRITE_BARRIER",
   "CPPGC_SUPPORTS_OBJECT_NAMES",
@@ -1037,6 +1038,10 @@ enabled_external_cppgc_defines = []
 
 if (cppgc_enable_api_checks) {
   enabled_external_cppgc_defines += [ "CPPGC_ENABLE_API_CHECKS" ]
+}
+cppgc_enable_slow_api_checks = v8_enable_slow_dchecks
+if (cppgc_enable_slow_api_checks) {
+  enabled_external_cppgc_defines += [ "CPPGC_ENABLE_SLOW_API_CHECKS" ]
 }
 if (cppgc_enable_object_names) {
   enabled_external_cppgc_defines += [ "CPPGC_SUPPORTS_OBJECT_NAMES" ]

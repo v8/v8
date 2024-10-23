@@ -131,6 +131,9 @@ declare_args() {
   # Enables certain checks on API level functionality.
   cppgc_enable_api_checks = is_debug || dcheck_always_on
 
+  # Enable slow checks on API level functionality.
+  cppgc_enable_slow_api_checks = false
+
   # Enable object names in cppgc for profiling purposes.
   cppgc_enable_object_names = is_chrome_for_testing
 
