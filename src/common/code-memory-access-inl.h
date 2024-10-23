@@ -155,6 +155,16 @@ void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
       HeapObject::FromAddress(address_), value);
 }
 
+template <typename T, size_t offset>
+void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
+                                                            ReleaseStoreTag) {
+  static_assert(offset != HeapObject::kMapOffset);
+  std::optional<RwxMemoryWriteScope> write_scope =
+      WriteScopeForApiEnforcement();
+  TaggedField<T, offset, TrustedSpaceCompressionScheme>::Release_Store(
+      HeapObject::FromAddress(address_), value);
+}
+
 template <typename T>
 V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
                                                       RelaxedStoreTag tag) {

@@ -167,8 +167,8 @@ class V8_EXPORT ThreadIsolation {
       bool enforce_write_api = false);
   // TODO(sroettger): remove this overwrite and use RegisterJitAllocation
   // instead.
-  static WritableJitAllocation RegisterInstructionStreamAllocation(Address addr,
-                                                                   size_t size);
+  static WritableJitAllocation RegisterInstructionStreamAllocation(
+      Address addr, size_t size, bool enforce_write_api = false);
   // Register multiple consecutive allocations together.
   static void RegisterJitAllocations(Address start,
                                      const std::vector<size_t>& sizes,
@@ -409,6 +409,9 @@ class WritableJitAllocation {
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, ReleaseStoreTag);
   template <typename T, size_t offset>
   V8_INLINE void WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag);
+  template <typename T, size_t offset>
+  V8_INLINE void WriteProtectedPointerHeaderSlot(Tagged<T> value,
+                                                 ReleaseStoreTag);
   template <typename T, size_t offset>
   V8_INLINE void WriteProtectedPointerHeaderSlot(Tagged<T> value,
                                                  RelaxedStoreTag);

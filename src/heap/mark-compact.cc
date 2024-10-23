@@ -1535,7 +1535,14 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         WritableJitAllocation writable_allocation =
             ThreadIsolation::RegisterInstructionStreamAllocation(dst_addr,
                                                                  size);
-        base->heap_->CopyBlock(dst_addr, src_addr, size);
+        DCHECK_GT(size, InstructionStream::kHeaderSize);
+        writable_allocation.CopyData(0, reinterpret_cast<uint8_t*>(src_addr),
+                                     InstructionStream::kHeaderSize);
+        writable_allocation.CopyCode(
+            InstructionStream::kHeaderSize,
+            reinterpret_cast<uint8_t*>(src_addr +
+                                       InstructionStream::kHeaderSize),
+            size - InstructionStream::kHeaderSize);
         Tagged<InstructionStream> istream = Cast<InstructionStream>(dst);
         istream->Relocate(writable_allocation, dst_addr - src_addr);
       }

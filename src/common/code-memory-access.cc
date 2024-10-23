@@ -469,9 +469,9 @@ WritableJitAllocation ThreadIsolation::RegisterJitAllocation(
 
 // static
 WritableJitAllocation ThreadIsolation::RegisterInstructionStreamAllocation(
-    Address addr, size_t size) {
-  return RegisterJitAllocation(addr, size,
-                               JitAllocationType::kInstructionStream);
+    Address addr, size_t size, bool enforce_write_api) {
+  return RegisterJitAllocation(
+      addr, size, JitAllocationType::kInstructionStream, enforce_write_api);
 }
 
 // static
