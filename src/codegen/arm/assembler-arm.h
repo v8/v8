@@ -373,12 +373,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   V8_INLINE static Address target_address_at(Address pc, Address constant_pool);
   V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-
-  // This sets the branch destination (which is in the constant pool on ARM).
-  // This is for calls and branches within generated code.
-  inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Tagged<Code> code, Address target);
 
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);
@@ -392,6 +388,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
   static inline void set_uint32_constant_at(
       Address pc, Address constant_pool, uint32_t new_constant,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Here we are patching the address in the constant pool, not the actual call
