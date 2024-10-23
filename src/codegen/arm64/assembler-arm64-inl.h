@@ -591,10 +591,14 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 
 void Assembler::set_target_compressed_address_at(
     Address pc, Address constant_pool, Tagged_t target,
-    ICacheFlushMode icache_flush_mode) {
+    WritableJitAllocation* jit_allocation, ICacheFlushMode icache_flush_mode) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   CHECK(instr->IsLdrLiteralW());
-  Memory<Tagged_t>(target_pointer_address_at(pc)) = target;
+  if (jit_allocation) {
+    jit_allocation->WriteValue(target_pointer_address_at(pc), target);
+  } else {
+    Memory<Tagged_t>(target_pointer_address_at(pc)) = target;
+  }
 }
 
 int RelocInfo::target_address_size() {
@@ -679,7 +683,7 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
                    !HeapLayout::InCodeSpace(target));
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
-        V8HeapCompressionScheme::CompressObject(target.ptr()),
+        V8HeapCompressionScheme::CompressObject(target.ptr()), &jit_allocation_,
         icache_flush_mode);
   } else {
     DCHECK(IsFullEmbeddedObject(rmode_));

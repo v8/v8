@@ -289,6 +289,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   inline static void set_target_compressed_address_at(
       Address pc, Address constant_pool, Tagged_t target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Returns the handle for the code object called at 'pc'.

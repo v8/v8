@@ -461,9 +461,10 @@ bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
 
 // static
 WritableJitAllocation ThreadIsolation::RegisterJitAllocation(
-    Address obj, size_t size, JitAllocationType type) {
+    Address obj, size_t size, JitAllocationType type, bool enforce_write_api) {
   return WritableJitAllocation(
-      obj, size, type, WritableJitAllocation::JitAllocationSource::kRegister);
+      obj, size, type, WritableJitAllocation::JitAllocationSource::kRegister,
+      enforce_write_api);
 }
 
 // static

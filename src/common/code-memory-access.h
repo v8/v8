@@ -162,8 +162,9 @@ class V8_EXPORT ThreadIsolation {
   // Register a new JIT allocation for tracking and return a writable reference
   // to it. All writes should go through the returned WritableJitAllocation
   // object since it will perform additional validation required for CFI.
-  static WritableJitAllocation RegisterJitAllocation(Address addr, size_t size,
-                                                     JitAllocationType type);
+  static WritableJitAllocation RegisterJitAllocation(
+      Address addr, size_t size, JitAllocationType type,
+      bool enforce_write_api = false);
   // TODO(sroettger): remove this overwrite and use RegisterJitAllocation
   // instead.
   static WritableJitAllocation RegisterInstructionStreamAllocation(Address addr,
