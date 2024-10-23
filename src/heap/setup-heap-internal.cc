@@ -1475,6 +1475,12 @@ void Heap::CreateInitialMutableObjects() {
     DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAsyncIteratorValueUnwrap, 1);
     set_async_iterator_value_unwrap_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kAsyncIteratorPrototypeAsyncDisposeResolveClosure,
+        1);
+    set_async_iterator_prototype_async_dispose_resolve_closure_shared_fun(
+        *info);
   }
 
   // AsyncFromSyncIterator:

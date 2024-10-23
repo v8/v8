@@ -301,7 +301,10 @@ class RootVisitor;
   APPLY(V, PromiseValueThunkFinally, promise_value_thunk_finally)              \
   APPLY(V, PromiseThenFinally, promise_then_finally)                           \
   APPLY(V, PromiseCatchFinally, promise_catch_finally)                         \
-  APPLY(V, ShadowRealmImportValueFulfilled, shadow_realm_import_value_fulfilled)
+  APPLY(V, ShadowRealmImportValueFulfilled,                                    \
+        shadow_realm_import_value_fulfilled)                                   \
+  APPLY(V, AsyncIteratorPrototypeAsyncDisposeResolveClosure,                   \
+        async_iterator_prototype_async_dispose_resolve_closure)
 
 #define BUILTINS_WITH_SFI_ROOTS_LIST_ADAPTER(V, CamelName, underscore_name, \
                                              ...)                           \

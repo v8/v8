@@ -5860,8 +5860,11 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
                                    Context::JS_DISPOSABLE_STACK_FUNCTION_INDEX);
   SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "use",
                         Builtin::kDisposableStackPrototypeUse, 1, kAdapt);
-  SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "dispose",
-                        Builtin::kDisposableStackPrototypeDispose, 0, kAdapt);
+  DirectHandle<JSFunction> dispose = SimpleInstallFunction(
+      isolate(), sync_disposable_stack_prototype, "dispose",
+      Builtin::kDisposableStackPrototypeDispose, 0, kAdapt);
+  JSObject::AddProperty(isolate(), sync_disposable_stack_prototype,
+                        factory->dispose_symbol(), dispose, DONT_ENUM);
   SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "adopt",
                         Builtin::kDisposableStackPrototypeAdopt, 2, kAdapt);
   SimpleInstallFunction(isolate(), sync_disposable_stack_prototype, "defer",
@@ -5888,9 +5891,12 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
       Context::JS_ASYNC_DISPOSABLE_STACK_FUNCTION_INDEX);
   SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "use",
                         Builtin::kAsyncDisposableStackPrototypeUse, 1, kAdapt);
-  SimpleInstallFunction(
+  DirectHandle<JSFunction> dispose_async = SimpleInstallFunction(
       isolate(), async_disposable_stack_prototype, "disposeAsync",
       Builtin::kAsyncDisposableStackPrototypeDisposeAsync, 0, kAdapt);
+  JSObject::AddProperty(isolate(), async_disposable_stack_prototype,
+                        factory->async_dispose_symbol(), dispose_async,
+                        DONT_ENUM);
   SimpleInstallFunction(isolate(), async_disposable_stack_prototype, "adopt",
                         Builtin::kAsyncDisposableStackPrototypeAdopt, 2,
                         kAdapt);
@@ -5905,6 +5911,20 @@ void Genesis::InitializeGlobal_js_explicit_resource_management() {
   SimpleInstallGetter(
       isolate(), async_disposable_stack_prototype, factory->disposed_string(),
       Builtin::kAsyncDisposableStackPrototypeGetDisposed, kAdapt);
+
+  // Add symbols to iterator prototypes
+  Handle<JSObject> iterator_prototype(
+      native_context()->initial_iterator_prototype(), isolate());
+  InstallFunctionAtSymbol(isolate(), iterator_prototype,
+                          factory->dispose_symbol(), "[Symbol.dispose]",
+                          Builtin::kIteratorPrototypeDispose, 0, kAdapt);
+
+  Handle<JSObject> async_iterator_prototype(
+      native_context()->initial_async_iterator_prototype(), isolate());
+  InstallFunctionAtSymbol(
+      isolate(), async_iterator_prototype, factory->async_dispose_symbol(),
+      "[Symbol.asyncDispose]", Builtin::kAsyncIteratorPrototypeAsyncDispose, 0,
+      kAdapt);
 }
 
 void Genesis::InitializeGlobal_js_float16array() {

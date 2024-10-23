@@ -2243,12 +2243,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/length': [SKIP],
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/name': [SKIP],
-  'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/prop-desc': [SKIP],
-  'built-ins/Iterator/prototype/Symbol.dispose/length': [SKIP],
-  'built-ins/Iterator/prototype/Symbol.dispose/name': [SKIP],
-  'built-ins/Iterator/prototype/Symbol.dispose/prop-desc': [SKIP],
   'built-ins/RegExp/escape/cross-realm': [SKIP],
   'built-ins/RegExp/escape/escaped-control-characters': [SKIP],
   'built-ins/RegExp/escape/escaped-lineterminator': [SKIP],

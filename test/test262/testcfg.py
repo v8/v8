@@ -61,7 +61,7 @@ FEATURE_FLAGS = {
     'regexp-duplicate-named-groups': '--js-regexp-duplicate-named-groups',
     'regexp-modifiers': '--js-regexp-modifiers',
     'Float16Array': '--js-float16array',
-    'explicit-resource-management': '--js_explicit_resource_management',
+    'explicit-resource-management': '--js-explicit-resource-management',
     'decorators': '--js-decorators',
     'promise-try': '--js-promise-try',
     'Atomics.pause': '--js-atomics-pause',
