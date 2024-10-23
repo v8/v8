@@ -2379,6 +2379,14 @@ Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
       Builtin::kWasmRethrow, Operator::kNoProperties, except_obj);
 }
 
+Node* WasmGraphBuilder::ThrowRef(Node* except_obj) {
+  // TODO(v8:8091): Currently the message of the original exception is not being
+  // preserved when rethrown to the console. The pending message will need to be
+  // saved when caught and restored here while being rethrown.
+  return gasm_->CallBuiltinThroughJumptable(
+      Builtin::kWasmThrowRef, Operator::kNoProperties, except_obj);
+}
+
 Node* WasmGraphBuilder::IsExceptionTagUndefined(Node* tag) {
   return gasm_->TaggedEqual(tag, UndefinedValue());
 }

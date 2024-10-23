@@ -212,9 +212,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           case HeapType::kNone:
           case HeapType::kNoFunc:
           case HeapType::kNoExtern:
+            return ret;
           case HeapType::kExn:
           case HeapType::kNoExn:
-            return ret;
           case HeapType::kBottom:
           case HeapType::kTop:
           case HeapType::kStringViewWtf8:
@@ -250,12 +250,13 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         switch (type.heap_representation_non_shared()) {
           case HeapType::kExtern:
           case HeapType::kNoExtern:
-          case HeapType::kExn:
-          case HeapType::kNoExn:
             return ret;
           case HeapType::kNone:
           case HeapType::kNoFunc:
             return LOAD_ROOT(NullValue);
+          case HeapType::kExn:
+          case HeapType::kNoExn:
+            UNREACHABLE();
           case HeapType::kEq:
           case HeapType::kStruct:
           case HeapType::kArray:
@@ -940,7 +941,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         switch (type.heap_representation_non_shared()) {
           // TODO(14034): Add more fast paths?
           case HeapType::kExtern:
-          case HeapType::kExn:
             if (type.kind() == kRef) {
               IF (UNLIKELY(__ TaggedEqual(input, LOAD_ROOT(NullValue)))) {
                 CallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
@@ -951,8 +951,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             return input;
           case HeapType::kString:
             return BuildCheckString(input, context, type);
+          case HeapType::kExn:
+          case HeapType::kNoExn: {
+            UNREACHABLE();
+          }
           case HeapType::kNoExtern:
-          case HeapType::kNoExn:
           case HeapType::kNone:
           case HeapType::kNoFunc:
           case HeapType::kI31:

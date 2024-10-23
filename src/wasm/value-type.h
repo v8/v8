@@ -713,7 +713,6 @@ class ValueTypeBase {
     DCHECK(is_object_reference());
     // Most nullable types use the "WasmNull" sentinel, but some reuse the
     // external "NullValue" sentinel.
-    // TODO(thibaudm): Can we use wasm null for exnref?
     // TODO(jkummerow): Consider calling {wasm::IsSubtypeOf}; but then we'd
     // need a module.
     // TODO(14616): Extend this for shared types.
@@ -721,8 +720,6 @@ class ValueTypeBase {
     if (repr == HeapType::kExtern) return false;
     if (repr == HeapType::kExternString) return false;
     if (repr == HeapType::kNoExtern) return false;
-    if (repr == HeapType::kExn) return false;
-    if (repr == HeapType::kNoExn) return false;
     return true;
   }
 

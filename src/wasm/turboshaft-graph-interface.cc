@@ -7817,7 +7817,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void ThrowRef(FullDecoder* decoder, OpIndex exn) {
-    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmRethrow>(
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmThrowRef>(
         decoder, {exn}, CheckForException::kCatchInThisFrame);
     __ Unreachable();
   }

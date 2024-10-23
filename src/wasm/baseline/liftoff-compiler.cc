@@ -1788,7 +1788,7 @@ class LiftoffCompiler {
   void ThrowRef(FullDecoder* decoder, Value*) {
     // Like Rethrow, but pops the exception from the stack.
     VarState exn = __ PopVarState();
-    CallBuiltin(Builtin::kWasmRethrow, MakeSig::Params(kRef), {exn},
+    CallBuiltin(Builtin::kWasmThrowRef, MakeSig::Params(kRef), {exn},
                 decoder->position());
     int pc_offset = __ pc_offset();
     MaybeOSR();
