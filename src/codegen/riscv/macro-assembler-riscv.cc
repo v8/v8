@@ -7347,11 +7347,13 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
 
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::LoadTaggedField(const Register& destination,
-                                     const MemOperand& field_operand) {
+                                     const MemOperand& field_operand,
+                                     Trapper&& trapper) {
   if (COMPRESS_POINTERS_BOOL) {
-    DecompressTagged(destination, field_operand);
+    DecompressTagged(destination, field_operand,
+                     std::forward<Trapper>(trapper));
   } else {
-    Ld(destination, field_operand);
+    Ld(destination, field_operand, std::forward<Trapper>(trapper));
   }
 }
 
@@ -7411,9 +7413,10 @@ void MacroAssembler::DecompressTaggedSigned(const Register& destination,
 }
 
 void MacroAssembler::DecompressTagged(const Register& destination,
-                                      const MemOperand& field_operand) {
+                                      const MemOperand& field_operand,
+                                      Trapper&& trapper) {
   ASM_CODE_COMMENT(this);
-  Lwu(destination, field_operand);
+  Lwu(destination, field_operand, std::forward<Trapper>(trapper));
   AddWord(destination, kPtrComprCageBaseRegister, destination);
 }
 

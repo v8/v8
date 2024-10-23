@@ -1295,7 +1295,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads a field containing any tagged value and decompresses it if necessary.
   void LoadTaggedField(const Register& destination,
-                       const MemOperand& field_operand);
+                       const MemOperand& field_operand,
+                       Trapper&& trapper = [](int){});
 
   // Loads a field containing any tagged value but never decompresses it.
   void LoadTaggedFieldWithoutDecompressing(const Register& destination,
@@ -1318,7 +1319,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTaggedSigned(const Register& destination,
                               const MemOperand& field_operand);
   void DecompressTagged(const Register& destination,
-                        const MemOperand& field_operand);
+                        const MemOperand& field_operand,
+                        Trapper&& trapper = [](int){});
   void DecompressTagged(const Register& destination, const Register& source);
   void DecompressTagged(Register dst, Tagged_t immediate);
   void DecompressProtected(const Register& destination,
@@ -1385,9 +1387,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // rv32 don't support Pointer compression. Defines these functions for
   // simplify builtins.
   inline void LoadTaggedField(const Register& destination,
-                              const MemOperand& field_operand) {
-    Lw(destination, field_operand);
+                              const MemOperand& field_operand,
+                              Trapper&& trapper = [](int){}) {
+    Lw(destination, field_operand, std::forward<Trapper>(trapper));
   }
+
   inline void LoadTaggedSignedField(const Register& destination,
                                     const MemOperand& field_operand) {
     Lw(destination, field_operand);
