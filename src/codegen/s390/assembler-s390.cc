@@ -349,7 +349,7 @@ void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
     Handle<HeapObject> object =
         isolate->factory()->NewHeapNumber<AllocationType::kOld>(
             request.heap_number());
-    set_target_address_at(pc, kNullAddress, object.address(),
+    set_target_address_at(pc, kNullAddress, object.address(), nullptr,
                           SKIP_ICACHE_FLUSH);
   }
 }
@@ -856,7 +856,7 @@ void Assembler::EmitRelocations() {
       Address pos = target_address_at(pc, 0);
       set_target_address_at(pc, 0,
                             reinterpret_cast<Address>(buffer_start_) + pos,
-                            SKIP_ICACHE_FLUSH);
+                            nullptr, SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);

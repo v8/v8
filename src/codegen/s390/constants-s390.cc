@@ -6,8 +6,19 @@
 
 #include "src/codegen/s390/constants-s390.h"
 
+#include "src/common/code-memory-access-inl.h"
+
 namespace v8 {
 namespace internal {
+
+void Instruction::SetInstructionBits(Instr value,
+                                     WritableJitAllocation* jit_allocation) {
+  if (jit_allocation) {
+    jit_allocation->WriteValue(reinterpret_cast<Address>(this), value);
+  } else {
+    *reinterpret_cast<Instr*>(this) = value;
+  }
+}
 
 Instruction::OpcodeFormatType Instruction::OpcodeFormatTable[] = {
     // Based on Figure B-3 in z/Architecture Principles of
