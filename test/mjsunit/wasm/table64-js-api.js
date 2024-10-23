@@ -17,20 +17,20 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   for (let initial of [undefined, 1, 1n, "1", true]) {
     for (let maximum of [undefined, 1, 1n, "1", true]) {
-      for (let index of [undefined, 'i32', 'i64', "1", true]) {
-        let is_i32 = is_undefined(index) || index === 'i32';
-        let valid_index = is_i32 || index === 'i64';
+      for (let address of [undefined, 'i32', 'i64', "1", true]) {
+        let is_i32 = is_undefined(address) || address === 'i32';
+        let valid_address = is_i32 || address === 'i64';
         let valid_initial = !is_undefined(initial) &&
             (is_i32 ? !is_bigint(initial) : !is_number(initial));
         let valid_maximum = is_i32 ? !is_bigint(maximum) : !is_number(maximum);
-        let valid = valid_index && valid_initial && valid_maximum;
+        let valid = valid_address && valid_initial && valid_maximum;
         let desc = `${Print(initial)} / ${Print(maximum)} / ${
-            Print(index)} -> ${valid}`;
+            Print(address)} -> ${valid}`;
         let code = () => new WebAssembly.Table({
           element: 'anyfunc',
           initial: initial,
           maximum: maximum,
-          index: index
+          address: address
         });
         try {
           code();
@@ -51,7 +51,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let table32 = new WebAssembly.Table({initial: 5, element: 'externref'});
   let table64 =
-      new WebAssembly.Table({initial: 5n, element: 'externref', index: 'i64'});
+      new WebAssembly.Table({initial: 5n, element: 'externref', address: 'i64'});
 
   assertThrows(
       () => table32.get(1n), TypeError,
@@ -76,7 +76,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function TestTable64Grow() {
   print(arguments.callee.name);
   let table = new WebAssembly.Table(
-      {initial: 1n, maximum: 5n, element: 'externref', index: 'i64'});
+      {initial: 1n, maximum: 5n, element: 'externref', address: 'i64'});
   assertEquals(1n, table.grow(2n));
   assertThrows(
       () => table.grow(3n), RangeError,

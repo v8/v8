@@ -317,7 +317,7 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
   Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
   Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
   Handle<String> shared_string = factory->InternalizeUtf8String("shared");
-  Handle<String> index_string = factory->InternalizeUtf8String("index");
+  Handle<String> address_string = factory->InternalizeUtf8String("address");
   JSObject::AddProperty(isolate, object, minimum_string,
                         factory->NewNumberFromUint(min_size), NONE);
   if (max_size.has_value()) {
@@ -334,7 +334,7 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                         factory->ToBoolean(shared), NONE);
 
   JSObject::AddProperty(
-      isolate, object, index_string,
+      isolate, object, address_string,
       factory->InternalizeUtf8String(AddressTypeToStr(address_type)), NONE);
 
   return object;
@@ -354,7 +354,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
   Handle<String> element_string = factory->element_string();
   Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
   Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
-  Handle<String> index_string = factory->InternalizeUtf8String("index");
+  Handle<String> address_string = factory->InternalizeUtf8String("address");
   JSObject::AddProperty(isolate, object, element_string, element, NONE);
   JSObject::AddProperty(isolate, object, minimum_string,
                         factory->NewNumberFromUint(min_size), NONE);
@@ -369,7 +369,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
     JSObject::AddProperty(isolate, object, maximum_string, max, NONE);
   }
   JSObject::AddProperty(
-      isolate, object, index_string,
+      isolate, object, address_string,
       factory->InternalizeUtf8String(AddressTypeToStr(address_type)), NONE);
 
   return object;

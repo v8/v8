@@ -34,14 +34,14 @@ const oob_size_b = BigInt(oob_size);
   print(arguments.callee.name);
   assertThrows(
       () => new WebAssembly.Table(
-          {element: 'anyfunc', initial: oob_size_b, index: 'i64'}),
+          {element: 'anyfunc', initial: oob_size_b, address: 'i64'}),
       RangeError, /above the upper bound/);
 })();
 
 (function TestJSTable64OOBMaxSize() {
   print(arguments.callee.name);
   new WebAssembly.Table(
-      {element: 'anyfunc', initial: 1n, maximum: oob_size_b, index: 'i64'});
+      {element: 'anyfunc', initial: 1n, maximum: oob_size_b, address: 'i64'});
 })();
 
 (function TestJSTable64OOBGrowSize() {
@@ -50,7 +50,7 @@ const oob_size_b = BigInt(oob_size);
     initial: 1n,
     maximum: oob_size_b + 10n,
     element: 'anyfunc',
-    index: 'i64'
+    address: 'i64'
   });
   assertThrows(
       () => table.grow(oob_size_b - 1n), RangeError, /failed to grow table/);

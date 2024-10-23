@@ -43,6 +43,11 @@
   'proposals/js-promise-integration/throw_ref': [FAIL],
   'proposals/js-promise-integration/try_table': [FAIL],
 
+  # TODO(clemensb): Update spec tests to include
+  # https://github.com/WebAssembly/memory64/pull/91 and
+  # https://github.com/WebAssembly/memory64/pull/92.
+  'proposals/memory64/*': [SKIP],
+
   # The function-references spec tests haven't been updated to the final
   # binary encoding. We don't care, because the GC tests are up to date and
   # we'll ship both proposals together.

@@ -9,7 +9,7 @@ const worker = new Worker(function() {
       "initial": 1,
     };
     table_descriptor[Symbol.toPrimitive] = eval;
-    table_descriptor.index = table_descriptor;
+    table_descriptor.address = table_descriptor;
     try {
       new WebAssembly.Table(table_descriptor);
     } catch (e) {

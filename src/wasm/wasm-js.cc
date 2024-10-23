@@ -522,7 +522,7 @@ std::optional<uint32_t> EnforceUint32(Name argument_name, Local<v8::Value> v,
   return static_cast<uint32_t>(double_number);
 }
 
-// First step of IndexValueToU64, for indextype == "i64".
+// First step of AddressValueToU64, for addrtype == "i64".
 template <typename Name>
 std::optional<uint64_t> EnforceBigIntUint64(Name argument_name, Local<Value> v,
                                             Local<Context> context,
@@ -1270,15 +1270,15 @@ void WebAssemblyInstantiateImpl(
                                          is_shared, js_api_scope.api_name());
 }
 
-// {IndexValueToU64} as defined in the memory64 js-api spec.
+// {AddressValueToU64} as defined in the memory64 js-api spec.
 // Returns std::nullopt on error (exception or error set in the thrower), and
-// the index value otherwise.
+// the address value otherwise.
 template <typename Name>
-std::optional<uint64_t> IndexValueToU64(ErrorThrower* thrower,
-                                        Local<Context> context,
-                                        v8::Local<v8::Value> value,
-                                        Name property_name,
-                                        AddressType address_type) {
+std::optional<uint64_t> AddressValueToU64(ErrorThrower* thrower,
+                                          Local<Context> context,
+                                          v8::Local<v8::Value> value,
+                                          Name property_name,
+                                          AddressType address_type) {
   switch (address_type) {
     case AddressType::kI32:
       return EnforceUint32(property_name, value, context, thrower);
@@ -1287,37 +1287,37 @@ std::optional<uint64_t> IndexValueToU64(ErrorThrower* thrower,
   }
 }
 
-// {IndexValueToU64} plus additional bounds checks.
-std::optional<uint64_t> IndexValueToBoundedU64(
+// {AddressValueToU64} plus additional bounds checks.
+std::optional<uint64_t> AddressValueToBoundedU64(
     ErrorThrower* thrower, Local<Context> context, v8::Local<v8::Value> value,
     i::Handle<i::String> property_name, AddressType address_type,
     uint64_t lower_bound, uint64_t upper_bound) {
-  std::optional<uint64_t> maybe_index_value =
-      IndexValueToU64(thrower, context, value, property_name, address_type);
-  if (!maybe_index_value) return std::nullopt;
-  uint64_t index_value = *maybe_index_value;
+  std::optional<uint64_t> maybe_address_value =
+      AddressValueToU64(thrower, context, value, property_name, address_type);
+  if (!maybe_address_value) return std::nullopt;
+  uint64_t address_value = *maybe_address_value;
 
-  if (index_value < lower_bound) {
+  if (address_value < lower_bound) {
     thrower->RangeError(
         "Property '%s': value %" PRIu64 " is below the lower bound %" PRIx64,
-        property_name->ToCString().get(), index_value, lower_bound);
+        property_name->ToCString().get(), address_value, lower_bound);
     return std::nullopt;
   }
 
-  if (index_value > upper_bound) {
+  if (address_value > upper_bound) {
     thrower->RangeError(
         "Property '%s': value %" PRIu64 " is above the upper bound %" PRIu64,
-        property_name->ToCString().get(), index_value, upper_bound);
+        property_name->ToCString().get(), address_value, upper_bound);
     return std::nullopt;
   }
 
-  return index_value;
+  return address_value;
 }
 
 // Returns std::nullopt on error (exception or error set in the thrower).
 // The inner optional is std::nullopt if the property did not exist, and the
-// index value otherwise.
-std::optional<std::optional<uint64_t>> GetOptionalIndexValue(
+// address value otherwise.
+std::optional<std::optional<uint64_t>> GetOptionalAddressValue(
     ErrorThrower* thrower, Local<Context> context, Local<v8::Object> descriptor,
     Local<String> property, AddressType address_type, int64_t lower_bound,
     uint64_t upper_bound) {
@@ -1335,11 +1335,11 @@ std::optional<std::optional<uint64_t>> GetOptionalIndexValue(
 
   i::Handle<i::String> property_name = v8::Utils::OpenHandle(*property);
 
-  std::optional<uint64_t> maybe_index_value =
-      IndexValueToBoundedU64(thrower, context, value, property_name,
-                             address_type, lower_bound, upper_bound);
-  if (!maybe_index_value) return std::nullopt;
-  return *maybe_index_value;
+  std::optional<uint64_t> maybe_address_value =
+      AddressValueToBoundedU64(thrower, context, value, property_name,
+                               address_type, lower_bound, upper_bound);
+  if (!maybe_address_value) return std::nullopt;
+  return *maybe_address_value;
 }
 
 // Fetch 'initial' or 'minimum' property from `descriptor`. If both are
@@ -1351,7 +1351,7 @@ std::optional<uint64_t> GetInitialOrMinimumProperty(
     v8::Isolate* isolate, ErrorThrower* thrower, Local<Context> context,
     Local<v8::Object> descriptor, AddressType address_type,
     uint64_t upper_bound) {
-  auto maybe_maybe_initial = GetOptionalIndexValue(
+  auto maybe_maybe_initial = GetOptionalAddressValue(
       thrower, context, descriptor, v8_str(isolate, "initial"), address_type, 0,
       upper_bound);
   if (!maybe_maybe_initial) return std::nullopt;
@@ -1360,7 +1360,7 @@ std::optional<uint64_t> GetInitialOrMinimumProperty(
   auto enabled_features =
       WasmEnabledFeatures::FromIsolate(reinterpret_cast<i::Isolate*>(isolate));
   if (enabled_features.has_type_reflection()) {
-    auto maybe_maybe_minimum = GetOptionalIndexValue(
+    auto maybe_maybe_minimum = GetOptionalAddressValue(
         thrower, context, descriptor, v8_str(isolate, "minimum"), address_type,
         0, upper_bound);
     if (!maybe_maybe_minimum) return std::nullopt;
@@ -1406,28 +1406,26 @@ std::optional<AddressType> GetAddressType(Isolate* isolate,
                                           Local<Context> context,
                                           Local<v8::Object> descriptor,
                                           ErrorThrower* thrower) {
-  // TODO(clemensb): Fix this once the discussion around the property name
-  // settles (https://github.com/WebAssembly/memory64/pull/92).
-  v8::Local<v8::Value> index_value;
-  if (!descriptor->Get(context, v8_str(isolate, "index"))
-           .ToLocal(&index_value)) {
+  v8::Local<v8::Value> address_value;
+  if (!descriptor->Get(context, v8_str(isolate, "address"))
+           .ToLocal(&address_value)) {
     return std::nullopt;
   }
 
-  if (index_value->IsUndefined()) return AddressType::kI32;
+  if (address_value->IsUndefined()) return AddressType::kI32;
 
-  i::Handle<i::String> index;
+  i::Handle<i::String> address;
   if (!i::Object::ToString(reinterpret_cast<i::Isolate*>(isolate),
-                           Utils::OpenHandle(*index_value))
-           .ToHandle(&index)) {
+                           Utils::OpenHandle(*address_value))
+           .ToHandle(&address)) {
     return std::nullopt;
   }
 
-  if (index->IsEqualTo(base::CStrVector("i64"))) return AddressType::kI64;
-  if (index->IsEqualTo(base::CStrVector("i32"))) return AddressType::kI32;
+  if (address->IsEqualTo(base::CStrVector("i64"))) return AddressType::kI64;
+  if (address->IsEqualTo(base::CStrVector("i32"))) return AddressType::kI32;
 
   thrower->TypeError("Unknown address type '%s'; pass 'i32' or 'i64'",
-                     index->ToCString().get());
+                     address->ToCString().get());
   return std::nullopt;
 }
 }  // namespace
@@ -1492,7 +1490,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     // TODO(14616): Support shared types.
   }
 
-  // Parse the 'index' property of the `descriptor`.
+  // Parse the 'address' property of the `descriptor`.
   std::optional<AddressType> maybe_address_type =
       GetAddressType(isolate, context, descriptor, &thrower);
   if (!maybe_address_type) {
@@ -1510,7 +1508,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   uint32_t initial = static_cast<uint32_t>(*maybe_initial);
 
   // Parse the 'maximum' property of the `descriptor`.
-  auto maybe_maybe_maximum = GetOptionalIndexValue(
+  auto maybe_maybe_maximum = GetOptionalAddressValue(
       &thrower, context, descriptor, v8_str(isolate, "maximum"), address_type,
       initial, std::numeric_limits<uint32_t>::max());
   if (!maybe_maybe_maximum) return js_api_scope.AssertException();
@@ -1588,7 +1586,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(info[0]);
 
-  // Parse the 'index' property of the `descriptor`.
+  // Parse the 'address' property of the `descriptor`.
   std::optional<AddressType> maybe_address_type =
       GetAddressType(isolate, context, descriptor, &thrower);
   if (!maybe_address_type) return js_api_scope.AssertException();
@@ -1611,7 +1609,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   uint64_t initial = *maybe_initial;
 
   // Parse the 'maximum' property of the `descriptor`.
-  auto maybe_maybe_maximum = GetOptionalIndexValue(
+  auto maybe_maybe_maximum = GetOptionalAddressValue(
       &thrower, context, descriptor, v8_str(isolate, "maximum"), address_type,
       initial, max_supported_pages);
   if (!maybe_maybe_maximum) {
@@ -2508,7 +2506,7 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
 
-  std::optional<uint64_t> maybe_grow_by = IndexValueToU64(
+  std::optional<uint64_t> maybe_grow_by = AddressValueToU64(
       &thrower, context, info[0], "Argument 0", receiver->address_type());
   if (!maybe_grow_by) return js_api_scope.AssertException();
   uint64_t grow_by = *maybe_grow_by;
@@ -2581,21 +2579,21 @@ void WebAssemblyTableGetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
 
-  std::optional<uint64_t> maybe_index = IndexValueToU64(
+  std::optional<uint64_t> maybe_address = AddressValueToU64(
       &thrower, context, info[0], "Argument 0", receiver->address_type());
-  if (!maybe_index) return;
-  uint64_t index = *maybe_index;
+  if (!maybe_address) return;
+  uint64_t address = *maybe_address;
 
-  if (index > i::kMaxUInt32 ||
-      !receiver->is_in_bounds(static_cast<uint32_t>(index))) {
-    thrower.RangeError("invalid index %" PRIu64 " into %s table of size %d",
-                       index, receiver->type().name().c_str(),
+  if (address > i::kMaxUInt32 ||
+      !receiver->is_in_bounds(static_cast<uint32_t>(address))) {
+    thrower.RangeError("invalid address %" PRIu64 " in %s table of size %d",
+                       address, receiver->type().name().c_str(),
                        receiver->current_length());
     return;
   }
 
   i::Handle<i::Object> result = i::WasmTableObject::Get(
-      i_isolate, receiver, static_cast<uint32_t>(index));
+      i_isolate, receiver, static_cast<uint32_t>(address));
 
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
   if (!WasmObjectToJSReturnValue(return_value, result, receiver->type(),
@@ -2611,15 +2609,15 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(table_object, WasmTableObject);
 
-  std::optional<uint64_t> maybe_index = IndexValueToU64(
+  std::optional<uint64_t> maybe_address = AddressValueToU64(
       &thrower, context, info[0], "Argument 0", table_object->address_type());
-  if (!maybe_index) return js_api_scope.AssertException();
-  uint64_t index = *maybe_index;
+  if (!maybe_address) return js_api_scope.AssertException();
+  uint64_t address = *maybe_address;
 
-  if (index > i::kMaxUInt32 ||
-      !table_object->is_in_bounds(static_cast<uint32_t>(index))) {
-    thrower.RangeError("invalid index %" PRIu64 " into %s table of size %d",
-                       index, table_object->type().name().c_str(),
+  if (address > i::kMaxUInt32 ||
+      !table_object->is_in_bounds(static_cast<uint32_t>(address))) {
+    thrower.RangeError("invalid address %" PRIu64 " in %s table of size %d",
+                       address, table_object->type().name().c_str(),
                        table_object->current_length());
     return;
   }
@@ -2642,8 +2640,8 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  i::WasmTableObject::Set(i_isolate, table_object, static_cast<uint32_t>(index),
-                          element);
+  i::WasmTableObject::Set(i_isolate, table_object,
+                          static_cast<uint32_t>(address), element);
 }
 
 // WebAssembly.Table.type() -> TableType
@@ -2666,7 +2664,7 @@ void WebAssemblyMemoryGrowImpl(
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
-  std::optional<uint64_t> maybe_delta_pages = IndexValueToU64(
+  std::optional<uint64_t> maybe_delta_pages = AddressValueToU64(
       &thrower, context, info[0], "Argument 0", receiver->address_type());
   if (!maybe_delta_pages) return js_api_scope.AssertException();
   uint64_t delta_pages = *maybe_delta_pages;

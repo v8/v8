@@ -447,22 +447,22 @@ function allowOOM(fn) {
   for (let initial of [undefined, 1, 1n, "1", true]) {
     for (let maximum of [undefined, 1, 1n, "1", true]) {
       for (let shared of [undefined, true, false, 1, "1"]) {
-        for (let index of [undefined, 'i32', 'i64', "1", true]) {
-          let is_i32 = is_undefined(index) || index === 'i32';
-          let valid_index = is_i32 || index === 'i64';
+        for (let address of [undefined, 'i32', 'i64', "1", true]) {
+          let is_i32 = is_undefined(address) || address === 'i32';
+          let valid_address = is_i32 || address === 'i64';
           let valid_initial = !is_undefined(initial) &&
               (is_i32 ? !is_bigint(initial) : !is_number(initial));
           let valid_maximum =
               is_i32 ? !is_bigint(maximum) : !is_number(maximum);
-          let valid = valid_index && valid_initial && valid_maximum &&
+          let valid = valid_address && valid_initial && valid_maximum &&
               (!shared || maximum);  // shared implies maximum
           let desc = `${Print(initial)} / ${Print(maximum)} / ${
-              Print(shared)} / ${Print(index)} -> ${valid}`;
+              Print(shared)} / ${Print(address)} -> ${valid}`;
           let code = () => new WebAssembly.Memory({
             initial: initial,
             maximum: maximum,
             shared: shared,
-            index: index
+            address: address
           });
           try {
             code();
@@ -482,7 +482,7 @@ function allowOOM(fn) {
 
 (function TestMemory64GrowViaJSApi() {
   print(arguments.callee.name);
-  let memory = new WebAssembly.Memory({initial: 1n, maximum: 5n, index: 'i64'});
+  let memory = new WebAssembly.Memory({initial: 1n, maximum: 5n, address: 'i64'});
   assertEquals(1n, memory.grow(2n));
   assertThrows(
       () => memory.grow(3n), RangeError,
@@ -498,7 +498,7 @@ function allowOOM(fn) {
 (function TestMemory64SharedBetweenWorkers() {
   print(arguments.callee.name);
   let shared_mem64 = new WebAssembly.Memory(
-      {initial: 1n, maximum: 10n, shared: true, index: 'i64'});
+      {initial: 1n, maximum: 10n, shared: true, address: 'i64'});
 
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory('imp', 'mem', 1, 10, true, true);
