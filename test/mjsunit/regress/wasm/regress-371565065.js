@@ -68,9 +68,6 @@ builder_1.addFunction('crash', $sig_v_ii_1).addBody([
 let instance_1 = builder_1.instantiate({ import: { table } });
 let { tierup, crash } = instance_1.exports;
 
-const countBefore = %CountUnoptimizedWasmToJSWrapper(instance_1);
 tierup();
-const countAfter = %CountUnoptimizedWasmToJSWrapper(instance_1);
-assertEquals(countBefore, countAfter);
 
 assertThrows(() => crash(0x42424242, 0x13371337), TypeError);

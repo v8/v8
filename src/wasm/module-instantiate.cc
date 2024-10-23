@@ -684,11 +684,12 @@ WellKnownImport CheckForWellKnownImport(
 ResolvedWasmImport::ResolvedWasmImport(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     Handle<JSReceiver> callable, const wasm::CanonicalSig* expected_sig,
-    CanonicalTypeIndex expected_canonical_type_index,
-    WellKnownImport preknown_import) {
+    CanonicalTypeIndex expected_sig_id, WellKnownImport preknown_import) {
+  DCHECK_EQ(expected_sig, wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
+                              expected_sig_id));
   SetCallable(callable->GetIsolate(), callable);
   kind_ = ComputeKind(trusted_instance_data, func_index, expected_sig,
-                      expected_canonical_type_index, preknown_import);
+                      expected_sig_id, preknown_import);
 }
 
 void ResolvedWasmImport::SetCallable(Isolate* isolate,
@@ -708,8 +709,7 @@ void ResolvedWasmImport::SetCallable(Isolate* isolate,
 
 ImportCallKind ResolvedWasmImport::ComputeKind(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
-    const wasm::CanonicalSig* expected_sig,
-    CanonicalTypeIndex expected_canonical_type_index,
+    const wasm::CanonicalSig* expected_sig, CanonicalTypeIndex expected_sig_id,
     WellKnownImport preknown_import) {
   // If we already have a compile-time import, simply pass that through.
   if (IsCompileTimeImport(preknown_import)) {
@@ -730,7 +730,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
       IsWasmExportedFunctionData(*trusted_function_data_)) {
     Tagged<WasmExportedFunctionData> data =
         Cast<WasmExportedFunctionData>(*trusted_function_data_);
-    if (!data->MatchesSignature(expected_canonical_type_index)) {
+    if (!data->MatchesSignature(expected_sig_id)) {
       return ImportCallKind::kLinkError;
     }
     uint32_t func_index = static_cast<uint32_t>(data->function_index());
@@ -749,7 +749,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     Tagged<WasmJSFunctionData> js_function_data =
         Cast<WasmJSFunctionData>(*trusted_function_data_);
     suspend_ = js_function_data->GetSuspend();
-    if (!js_function_data->MatchesSignature(expected_canonical_type_index)) {
+    if (!js_function_data->MatchesSignature(expected_sig_id)) {
       return ImportCallKind::kLinkError;
     }
     // Resolve the short-cut to the underlying callable and continue.
@@ -759,7 +759,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     // TODO(jkummerow): Update this to follow the style of the other kinds of
     // functions.
     auto capi_function = Cast<WasmCapiFunction>(callable_);
-    if (!capi_function->MatchesSignature(expected_canonical_type_index)) {
+    if (!capi_function->MatchesSignature(expected_sig_id)) {
       return ImportCallKind::kLinkError;
     }
     return ImportCallKind::kWasmToCapi;

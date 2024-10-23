@@ -90,11 +90,12 @@ constexpr ImportCallKind kDefaultImportCallKind =
 // is why the ultimate target is provided as well.
 class ResolvedWasmImport {
  public:
+  // TODO(clemensb): We should only need one of {sig} and {expected_sig_id};
+  // currently we can't efficiently translate between them.
   V8_EXPORT_PRIVATE ResolvedWasmImport(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int func_index, Handle<JSReceiver> callable,
-      const wasm::CanonicalSig* sig,
-      CanonicalTypeIndex expected_canonical_type_index,
+      const wasm::CanonicalSig* sig, CanonicalTypeIndex expected_sig_id,
       WellKnownImport preknown_import);
 
   ImportCallKind kind() const { return kind_; }

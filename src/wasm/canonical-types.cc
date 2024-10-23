@@ -224,6 +224,9 @@ CanonicalValueType TypeCanonicalizer::CanonicalizeValueType(
 
 bool TypeCanonicalizer::IsCanonicalSubtype(CanonicalTypeIndex sub_index,
                                            CanonicalTypeIndex super_index) {
+  // Fast path without synchronization:
+  if (sub_index == super_index) return true;
+
   // Multiple threads could try to register and access recursive groups
   // concurrently.
   // TODO(manoskouk): Investigate if we can improve this synchronization.

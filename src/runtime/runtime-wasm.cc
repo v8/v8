@@ -676,34 +676,21 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     call_origin_instance_data =
         handle(Cast<WasmInstanceObject>(tuple->value1())->trusted_data(isolate),
                isolate);
-    // TODO(371565065): We do not tier up the wrapper if the JS function wasn't
-    // imported in the current instance but the signature is specific to the
-    // importing instance. Remove this bailout again.
-    if (defining_instance_data->module() !=
-        call_origin_instance_data->module()) {
-      for (wasm::CanonicalValueType type : sig->all()) {
-        if (type.has_index()) {
-          // Reset the tiering budget, so that we don't have to deal with the
-          // underflow.
-          import_data->set_wrapper_budget(Smi::kMaxValue);
-          return ReadOnlyRoots(isolate).undefined_value();
-        }
-      }
-    }
-    defining_instance_data = call_origin_instance_data;
     origin = direct_handle(tuple->value2(), isolate);
   }
   CHECK(IsSmi(*origin));
   Tagged<Smi> call_origin_index = Cast<Smi>(*origin);
 
-  const wasm::WasmModule* defining_module = defining_instance_data->module();
-
   // Get the function's canonical signature index.
+  // TODO(clemensb): Just get the sig_index based on WasmImportData::sig.
   wasm::CanonicalTypeIndex sig_index = wasm::CanonicalTypeIndex::Invalid();
+
   if (WasmImportData::CallOriginIsImportIndex(call_origin_index)) {
     int func_index = WasmImportData::CallOriginAsIndex(call_origin_index);
-    sig_index = defining_module->canonical_sig_id(
-        defining_module->functions[func_index].sig_index);
+    const wasm::WasmModule* call_origin_module =
+        call_origin_instance_data->module();
+    sig_index = call_origin_module->canonical_sig_id(
+        call_origin_module->functions[func_index].sig_index);
   } else {
     // Indirect function table index.
     int entry_index = WasmImportData::CallOriginAsIndex(call_origin_index);
@@ -727,7 +714,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       }
     }
   }
-  DCHECK(sig_index.valid());
+  // Do not trust the `Tuple2` stored in `call_origin`. If we failed to find the
+  // signature, crash early.
+  SBXCHECK(sig_index.valid());
 
   // Compile a wrapper for the target callable.
   Handle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
