@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:7c178f4716033a2f8ac1beec3311044d17370cc2',
+  'siso_version': 'git_revision:4237c4b45d2accad9955693251a99f0b862a0a03',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:d212e392e327834378013806f0263ab263600db2',
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2581b2345bade95a0cf1d70526f9fd132f36e000',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '774b6086430e0dad09f351a3d2deb0a8fe1c7eae',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '09ea565f4a93e516581892f574e86b17c6283faf',
   'buildtools/linux64': {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'fb5b271624ec0344d4ec800b4f89dc84cada741a',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '453207b73e9997cd49f79fee98843255638e74a4',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'cedf987a11e1b9458ad0077bb91c2acc28a1e87b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '940a36cedfc38dc257dc8c0a6469b4eaea90b4e1',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -491,7 +491,7 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '4e8c4d69fda7aa903f725a96917ad09d9c5d6a66',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c7678ba8af4577e45023b35ae96b6b71efa0acf7',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '53554bf3da41153f2e01f9ff234c194c156b7a93',
   'tools/luci-go': {
