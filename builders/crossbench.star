@@ -43,6 +43,7 @@ def crossbench_cbb_builder(builder_name, recipe_path, os, cpu, caches = None, pr
 presubmit_builder("Crossbench Presubmit", "crossbench.try", timeout = 900, console = "crossbench")
 crossbench_cbb_builder("Crossbench End2End Mac arm64 Try", "perf/crossbench", "Mac", "arm64")
 crossbench_cbb_builder("Crossbench End2End Linux x64 Try", "perf/crossbench", "Ubuntu-20", "x86-64")
+crossbench_cbb_builder("Crossbench End2End Windows x64 Try", "perf/crossbench", "Windows-10", "x86-64")
 crossbench_cbb_builder(
     "Crossbench End2End Android x64 Try",
     "perf/crossbench_android",
@@ -88,6 +89,10 @@ luci.cq_group(
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench End2End Linux x64 Try",
+        ),
+        luci.cq_tryjob_verifier(
+            builder = "Crossbench End2End Windows x64 Try",
+            experiment_percentage = 50,
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench End2End Android x64 Try",
