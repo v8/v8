@@ -30,7 +30,9 @@
   'ParsingTest.ParserSync': [PASS, NO_VARIANTS],
 
   # Slow tests.
+  'Mutex.SharedMutexThreadsFuzz': [PASS, SLOW],
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
+  'SignalAndMutexTest.SignalsPlusSharedMutexes': [PASS, SLOW],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'LogAllTest.LogAll': [PASS, SLOW, HEAVY],
