@@ -73,24 +73,22 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
-    wasm::CompilationEnv* env, wasm::ImportCallKind, const wasm::CanonicalSig*,
-    bool source_positions, int expected_arity, wasm::Suspend);
+    wasm::ImportCallKind, const wasm::CanonicalSig*, bool source_positions,
+    int expected_arity, wasm::Suspend);
 
 // Compiles a host call wrapper, which allows Wasm to call host functions.
 wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
-    wasm::NativeModule*, const wasm::CanonicalSig*);
+    const wasm::CanonicalSig*);
 
 bool IsFastCallSupportedSignature(const v8::CFunctionInfo*);
 // Compiles a wrapper to call a Fast API function from Wasm.
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
-    wasm::NativeModule*, const wasm::CanonicalSig*,
-    Handle<JSReceiver> callable);
+    const wasm::CanonicalSig*, Handle<JSReceiver> callable);
 
 // Returns an TurbofanCompilationJob or TurboshaftCompilationJob object
 // (depending on the --turboshaft-wasm-wrappers flag) for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, const wasm::CanonicalSig* sig,
-    wasm::WasmEnabledFeatures enabled_features);
+    Isolate* isolate, const wasm::CanonicalSig* sig);
 
 enum CWasmEntryParameters {
   kCodeEntry,
@@ -891,8 +889,7 @@ class WasmGraphBuilder {
 
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::CanonicalSig* signature,
-    Isolate* isolate, compiler::SourcePositionTable* spt,
-    wasm::WasmEnabledFeatures features, Node* frame_state,
+    Isolate* isolate, compiler::SourcePositionTable* spt, Node* frame_state,
     bool set_in_wasm_flag);
 
 AssemblerOptions WasmAssemblerOptions();

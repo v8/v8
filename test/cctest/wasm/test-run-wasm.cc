@@ -2128,7 +2128,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
                             &machine);
   const FunctionSig* sig = WasmOpcodes::Signature(opcode);
-  CompilationEnv env = CompilationEnv::NoModuleAllFeatures();
+  CompilationEnv env = CompilationEnv::NoModuleAllFeaturesForTesting();
 
   if (sig->parameter_count() == 1) {
     uint8_t code[] = {WASM_NO_LOCALS, kExprLocalGet, 0,

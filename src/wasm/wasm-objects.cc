@@ -629,7 +629,6 @@ void WasmTableObject::UpdateDispatchTables(
         Cast<WasmInstanceObject>(uses->get(i + TableUses::kInstanceOffset))
             ->trusted_data(isolate),
         isolate);
-    wasm::NativeModule* native_module = trusted_instance_data->native_module();
     wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
     auto kind = wasm::ImportCallKind::kWasmToCapi;
     int param_count = static_cast<int>(sig->parameter_count());
@@ -637,7 +636,7 @@ void WasmTableObject::UpdateDispatchTables(
         cache->MaybeGet(kind, sig_index, param_count, wasm::kNoSuspend);
     if (wasm_code == nullptr) {
       wasm::WasmCompilationResult result =
-          compiler::CompileWasmCapiCallWrapper(native_module, sig);
+          compiler::CompileWasmCapiCallWrapper(sig);
       {
         wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
         wasm::WasmImportWrapperCache::CacheKey key(kind, sig_index, param_count,
@@ -1926,11 +1925,9 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
   wasm::Suspend suspend = function_data->GetSuspend();
   wasm::WasmCodeRefScope code_ref_scope;
 
-  const wasm::WasmModule* module = trusted_instance_data->module();
-  SBXCHECK(FunctionSigMatchesTable(sig_id, module, table_index));
-  auto module_canonical_ids = module->isorecursive_canonical_type_ids;
+  SBXCHECK(FunctionSigMatchesTable(sig_id, trusted_instance_data->module(),
+                                   table_index));
 
-  wasm::NativeModule* native_module = trusted_instance_data->native_module();
   wasm::ResolvedWasmImport resolved({}, -1, callable, sig, sig_id,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
@@ -1953,8 +1950,9 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
     call_target =
         wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
   } else {
-    wasm_code = cache->CompileWasmImportCallWrapper(isolate, native_module,
-                                                    kind, sig, sig_id, false,
+    constexpr bool kNoSourcePositions = false;
+    wasm_code = cache->CompileWasmImportCallWrapper(isolate, kind, sig, sig_id,
+                                                    kNoSourcePositions,
                                                     expected_arity, suspend);
     call_target = wasm_code->code_pointer();
   }
@@ -2815,10 +2813,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     } else {
       // Initialize the import wrapper cache if that hasn't happened yet.
       cache->LazyInitialize(isolate);
-      wasm::NativeModule* no_module = nullptr;
-      bool source_positions = false;
+      constexpr bool kNoSourcePositions = false;
       wrapper = cache->CompileWasmImportCallWrapper(
-          isolate, no_module, kind, canonical_sig, sig_id, source_positions,
+          isolate, kind, canonical_sig, sig_id, kNoSourcePositions,
           expected_arity, suspend);
       internal_function->set_call_target(wrapper->code_pointer());
       function_data->offheap_data()->set_wrapper(wrapper);

@@ -65,9 +65,7 @@
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
+namespace v8::internal::compiler {
 
 namespace {
 
@@ -7063,10 +7061,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   WasmWrapperGraphBuilder(Zone* zone, MachineGraph* mcgraph,
                           const wasm::CanonicalSig* sig,
                           ParameterMode parameter_mode, Isolate* isolate,
-                          compiler::SourcePositionTable* spt,
-                          wasm::WasmEnabledFeatures features)
+                          compiler::SourcePositionTable* spt)
       : WasmGraphBuilder(nullptr, zone, mcgraph, nullptr, spt, parameter_mode,
-                         isolate, features, sig) {}
+                         isolate, wasm::WasmEnabledFeatures::All(), sig) {}
 
   CallDescriptor* GetBigIntToI64CallDescriptor(bool needs_frame_state) {
     return wasm::GetWasmEngine()->call_descriptors()->GetBigIntToI64Descriptor(
@@ -8517,17 +8514,15 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
                                  const wasm::CanonicalSig* signature,
                                  Isolate* isolate,
                                  compiler::SourcePositionTable* spt,
-                                 wasm::WasmEnabledFeatures features,
                                  Node* frame_state, bool set_in_wasm_flag) {
   WasmWrapperGraphBuilder builder(zone, mcgraph, signature,
                                   WasmGraphBuilder::kJSFunctionAbiMode, isolate,
-                                  spt, features);
+                                  spt);
   builder.BuildJSToWasmWrapper(false, frame_state, set_in_wasm_flag);
 }
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, const wasm::CanonicalSig* sig,
-    wasm::WasmEnabledFeatures enabled_features) {
+    Isolate* isolate, const wasm::CanonicalSig* sig) {
   std::unique_ptr<char[]> debug_name = WasmExportedFunction::GetDebugName(sig);
   if (v8_flags.turboshaft_wasm_wrappers) {
     return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
@@ -8555,7 +8550,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
 
     WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig,
                                     WasmGraphBuilder::kJSFunctionAbiMode,
-                                    isolate, nullptr, enabled_features);
+                                    isolate, nullptr);
     builder.BuildJSToWasmWrapper();
 
     //----------------------------------------------------------------------------
@@ -8629,12 +8624,10 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
   SourcePositionTable* source_positions = nullptr;
   MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
 
-  wasm::CompilationEnv env = wasm::CompilationEnv::NoModuleAllFeatures();
-
-  WasmGraphBuilder builder(&env, mcgraph->zone(), mcgraph,
-                           nullptr /* function_sig */, source_positions,
-                           WasmGraphBuilder::kWasmImportDataMode,
-                           nullptr /* isolate */, env.enabled_features, sig);
+  WasmGraphBuilder builder(
+      nullptr, mcgraph->zone(), mcgraph, nullptr /* function_sig */,
+      source_positions, WasmGraphBuilder::kWasmImportDataMode,
+      nullptr /* isolate */, wasm::WasmEnabledFeatures::All(), sig);
 
   // Set up the graph start.
   builder.Start(static_cast<int>(sig->parameter_count() + 1 + 1));
@@ -8673,9 +8666,8 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
 }  // namespace
 
 wasm::WasmCompilationResult CompileWasmImportCallWrapper(
-    wasm::CompilationEnv* env, wasm::ImportCallKind kind,
-    const wasm::CanonicalSig* sig, bool source_positions, int expected_arity,
-    wasm::Suspend suspend) {
+    wasm::ImportCallKind kind, const wasm::CanonicalSig* sig,
+    bool source_positions, int expected_arity, wasm::Suspend suspend) {
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToWasm, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToJSFastApi, kind);
@@ -8727,9 +8719,9 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     SourcePositionTable* source_position_table =
         source_positions ? zone.New<SourcePositionTable>(graph) : nullptr;
 
-    WasmWrapperGraphBuilder builder(
-        &zone, mcgraph, sig, WasmGraphBuilder::kWasmImportDataMode, nullptr,
-        source_position_table, env->enabled_features);
+    WasmWrapperGraphBuilder builder(&zone, mcgraph, sig,
+                                    WasmGraphBuilder::kWasmImportDataMode,
+                                    nullptr, source_position_table);
     builder.BuildWasmToJSWrapper(kind, expected_arity, suspend);
 
     // Schedule and compile to machine code.
@@ -8757,7 +8749,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
 }
 
 wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
-    wasm::NativeModule* native_module, const wasm::CanonicalSig* sig) {
+    const wasm::CanonicalSig* sig) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmCapiFunction");
   const char* debug_name = "WasmCapiCall";
@@ -8775,9 +8767,9 @@ wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
     SourcePositionTable* source_positions = nullptr;
     MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
 
-    WasmWrapperGraphBuilder builder(
-        &zone, mcgraph, sig, WasmGraphBuilder::kWasmImportDataMode, nullptr,
-        source_positions, native_module->enabled_features());
+    WasmWrapperGraphBuilder builder(&zone, mcgraph, sig,
+                                    WasmGraphBuilder::kWasmImportDataMode,
+                                    nullptr, source_positions);
 
     builder.BuildCapiCallWrapper();
 
@@ -8801,8 +8793,7 @@ bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
 }
 
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
-    wasm::NativeModule* native_module, const wasm::CanonicalSig* sig,
-    Handle<JSReceiver> callable) {
+    const wasm::CanonicalSig* sig, Handle<JSReceiver> callable) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmJSFastCallWrapper");
 
@@ -8810,9 +8801,9 @@ wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
   SourcePositionTable* source_positions = nullptr;
   MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
 
-  WasmWrapperGraphBuilder builder(
-      &zone, mcgraph, sig, WasmGraphBuilder::kWasmImportDataMode, nullptr,
-      source_positions, native_module->enabled_features());
+  WasmWrapperGraphBuilder builder(&zone, mcgraph, sig,
+                                  WasmGraphBuilder::kWasmImportDataMode,
+                                  nullptr, source_positions);
 
   // Set up the graph start.
   int param_count = static_cast<int>(sig->parameter_count()) +
@@ -8849,9 +8840,9 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate,
       InstructionSelector::AlignmentRequirements());
   MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(
-      zone.get(), mcgraph, sig, WasmGraphBuilder::kNoSpecialParameterMode,
-      nullptr, nullptr, wasm::WasmEnabledFeatures::FromIsolate(isolate));
+  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig,
+                                  WasmGraphBuilder::kNoSpecialParameterMode,
+                                  nullptr, nullptr);
   builder.BuildCWasmEntry();
 
   // Schedule and compile to machine code.
@@ -9029,6 +9020,4 @@ AssemblerOptions WasmStubAssemblerOptions() {
 #undef LOAD_ROOT
 #undef LOAD_MUTABLE_ROOT
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::compiler

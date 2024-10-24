@@ -645,10 +645,6 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     } else {
       kind = wasm::ImportCallKind::kUseCallBuiltin;
     }
-    wasm::NativeModule* module =
-        import_data->has_instance_data()
-            ? import_data->instance_data()->native_module()
-            : nullptr;
     wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
     wasm::CanonicalTypeIndex canonical_sig_index =
         wasm::GetTypeCanonicalizer()->FindIndex_Slow(sig);
@@ -658,10 +654,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
         cache->MaybeGet(kind, canonical_sig_index, arity, suspend);
     bool source_positions = false;
     if (!wrapper) {
-      // TODO(jkummerow): See if we can get rid of the {module} argument.
       wrapper = cache->CompileWasmImportCallWrapper(
-          isolate, module, kind, sig, canonical_sig_index, source_positions,
-          arity, suspend);
+          isolate, kind, sig, canonical_sig_index, source_positions, arity,
+          suspend);
     }
     Tagged<WasmInternalFunction> internal =
         Cast<WasmFuncRef>(origin)->internal(isolate);
@@ -777,11 +772,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   wasm::WasmCode* wasm_code =
       cache->MaybeGet(kind, sig_index, expected_arity, suspend);
   if (!wasm_code) {
-    wasm::NativeModule* native_module =
-        call_origin_instance_data->native_module();
-    wasm_code = cache->CompileWasmImportCallWrapper(isolate, native_module,
-                                                    kind, sig, sig_index, false,
-                                                    expected_arity, suspend);
+    wasm_code = cache->CompileWasmImportCallWrapper(
+        isolate, kind, sig, sig_index, false, expected_arity, suspend);
   }
   // Note: we don't need to decrement any refcounts here, because tier-up
   // doesn't overwrite an existing compiled wrapper, and the generic wrapper

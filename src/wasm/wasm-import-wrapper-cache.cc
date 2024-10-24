@@ -137,13 +137,11 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
 }
 
 WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
-    Isolate* isolate, NativeModule* native_module, ImportCallKind kind,
-    const CanonicalSig* sig, CanonicalTypeIndex sig_index,
-    bool source_positions, int expected_arity, Suspend suspend) {
-  CompilationEnv env = native_module ? CompilationEnv::ForModule(native_module)
-                                     : CompilationEnv::NoModuleAllFeatures();
+    Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
+    CanonicalTypeIndex sig_index, bool source_positions, int expected_arity,
+    Suspend suspend) {
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      &env, kind, sig, source_positions, expected_arity, suspend);
+      kind, sig, source_positions, expected_arity, suspend);
   WasmCode* wasm_code;
   {
     ModificationScope cache_scope(this);

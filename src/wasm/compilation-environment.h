@@ -83,7 +83,7 @@ struct CompilationEnv {
   // being used.
   static inline CompilationEnv ForModule(const NativeModule* native_module);
 
-  static constexpr CompilationEnv NoModuleAllFeatures();
+  static constexpr CompilationEnv NoModuleAllFeaturesForTesting();
 
  private:
   constexpr CompilationEnv(

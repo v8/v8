@@ -1924,7 +1924,6 @@ bool InstanceBuilder::ProcessImportedFunction(
       break;
     }
     case ImportCallKind::kWasmToCapi: {
-      NativeModule* native_module = trusted_instance_data->native_module();
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
       WasmCodeRefScope code_ref_scope;
@@ -1934,7 +1933,7 @@ bool InstanceBuilder::ProcessImportedFunction(
         {
           WasmImportWrapperCache::ModificationScope cache_scope(cache);
           WasmCompilationResult result =
-              compiler::CompileWasmCapiCallWrapper(native_module, expected_sig);
+              compiler::CompileWasmCapiCallWrapper(expected_sig);
           WasmImportWrapperCache::CacheKey key(kind, sig_index, expected_arity,
                                                kNoSuspend);
           wasm_code = cache_scope.AddWrapper(
@@ -1956,7 +1955,6 @@ bool InstanceBuilder::ProcessImportedFunction(
       break;
     }
     case ImportCallKind::kWasmToJSFastApi: {
-      NativeModule* native_module = trusted_instance_data->native_module();
       DCHECK(IsJSFunction(*js_receiver) || IsJSBoundFunction(*js_receiver));
       WasmCodeRefScope code_ref_scope;
       // Note: the wrapper we're about to compile is specific to this
@@ -1967,8 +1965,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       // So the {CacheKey} is a dummy, and we don't look for an existing
       // wrapper. Key collisions are not a concern because lifetimes are
       // determined by refcounting.
-      WasmCompilationResult result = compiler::CompileWasmJSFastCallWrapper(
-          native_module, expected_sig, js_receiver);
+      WasmCompilationResult result =
+          compiler::CompileWasmJSFastCallWrapper(expected_sig, js_receiver);
       WasmCode* wasm_code;
       {
         WasmImportWrapperCache::ModificationScope cache_scope(
@@ -2015,11 +2013,11 @@ bool InstanceBuilder::ProcessImportedFunction(
       if (!wasm_code) {
         // This should be a very rare fallback case. We expect that the
         // generic wrapper will be used (see above).
-        NativeModule* native_module = trusted_instance_data->native_module();
-        bool source_positions = is_asmjs_module(native_module->module());
+        bool source_positions =
+            is_asmjs_module(trusted_instance_data->module());
         wasm_code = cache->CompileWasmImportCallWrapper(
-            isolate_, native_module, kind, expected_sig, sig_index,
-            source_positions, expected_arity, resolved.suspend());
+            isolate_, kind, expected_sig, sig_index, source_positions,
+            expected_arity, resolved.suspend());
       }
 
       DCHECK_NOT_NULL(wasm_code);
