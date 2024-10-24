@@ -559,7 +559,7 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
   } else if (IsWasmModuleObject(*argument)) {
     native_module = Cast<WasmModuleObject>(*argument)->native_module();
   } else {
-    UNREACHABLE();
+    return CrashUnlessFuzzing(isolate);
   }
   size_t num_spaces = native_module->GetNumberOfCodeSpacesForTesting();
   return *isolate->factory()->NewNumberFromSize(num_spaces);
