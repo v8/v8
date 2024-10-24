@@ -4,6 +4,7 @@
 
 #include "src/execution/stack-guard.h"
 
+#include "src/base/atomicops.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/isolate.h"
@@ -55,11 +56,28 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
 }
 
 void StackGuard::SetStackLimitForStackSwitching(uintptr_t limit) {
-  ExecutionAccess access(isolate_);
   uintptr_t climit = SimulatorStack::ShouldSwitchCStackForWasmStackSwitching()
                          ? limit
                          : thread_local_.real_climit_;
-  SetStackLimitInternal(access, climit, limit);
+  // Try to compare and swap the new jslimit without the ExecutionAccess lock.
+  uintptr_t old_jslimit = base::Relaxed_CompareAndSwap(
+      &thread_local_.jslimit_, thread_local_.real_jslimit_, limit);
+  if (old_jslimit != thread_local_.real_jslimit_) {
+    // If it failed, there must have been an interrupt set before or during this
+    // call. Keep the special limit there and in the climit to ensure that the
+    // interrupt is processed by the next stack check.
+    thread_local_.set_climit(old_jslimit);
+  }
+  // Do the same with the climit.
+  uintptr_t old_climit = base::Relaxed_CompareAndSwap(
+      &thread_local_.climit_, thread_local_.real_climit_, climit);
+  if (old_climit != thread_local_.real_climit_) {
+    thread_local_.set_jslimit(old_climit);
+  }
+
+  // Either way, set the real limits. This does not require synchronization.
+  thread_local_.real_climit_ = climit;
+  thread_local_.real_jslimit_ = limit;
 }
 
 void StackGuard::SetStackLimitInternal(const ExecutionAccess& lock,
