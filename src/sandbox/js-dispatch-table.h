@@ -255,6 +255,9 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 #endif  // DEBUG
   }
 
+  static inline bool IsCompatibleCode(Tagged<Code> code,
+                                      uint16_t parameter_count);
+
   static base::LeakyObject<JSDispatchTable> instance_;
   static JSDispatchTable* instance_nocheck() { return instance_.get(); }
 

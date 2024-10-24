@@ -62,15 +62,7 @@ Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
 
 void JSDispatchTable::SetCodeNoWriteBarrier(JSDispatchHandle handle,
                                             Tagged<Code> new_code) {
-  // The new code must use JS linkage and its parameter count must match that
-  // of the entry, unless the code does not assume a particular parameter count
-  // (so uses the kDontAdaptArgumentsSentinel).
-  DCHECK_IMPLIES(
-      new_code->parameter_count() == kDontAdaptArgumentsSentinel,
-      new_code->is_builtin() || new_code->kind() == CodeKind::FOR_TESTING);
-  CHECK_EQ(new_code->entrypoint_tag(), kJSEntrypointTag);
-  CHECK(new_code->parameter_count() == kDontAdaptArgumentsSentinel ||
-        new_code->parameter_count() == GetParameterCount(handle));
+  SBXCHECK(IsCompatibleCode(new_code, GetParameterCount(handle)));
 
   // The object should be in old space to avoid creating old-to-new references.
   DCHECK(!HeapLayout::InYoungGeneration(new_code));
@@ -95,9 +87,7 @@ JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
 JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
     Space* space, uint16_t parameter_count, Tagged<Code> new_code) {
   DCHECK(space->BelongsTo(this));
-  CHECK_EQ(new_code->entrypoint_tag(), kJSEntrypointTag);
-  CHECK(new_code->parameter_count() == kDontAdaptArgumentsSentinel ||
-        new_code->parameter_count() == parameter_count);
+  SBXCHECK(IsCompatibleCode(new_code, parameter_count));
 
   uint32_t index = AllocateEntry(space);
   JSDispatchEntry& entry = at(index);
@@ -225,6 +215,48 @@ uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters,
   uint32_t num_live_entries = GenericSweep(space, callback);
   counters->js_dispatch_table_entries_count()->AddSample(num_live_entries);
   return num_live_entries;
+}
+
+// static
+bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
+                                       uint16_t parameter_count) {
+  if (code->entrypoint_tag() != kJSEntrypointTag) {
+    // Target code doesn't use JS linkage. This cannot be valid.
+    return false;
+  }
+  if (code->parameter_count() == parameter_count) {
+    // Dispatch entry and code have the same signature. This is correct.
+    return true;
+  }
+
+  // Signature mismatch. This is mostly not safe, except for certain varargs
+  // builtins which are able to correctly handle such a mismatch. Examples
+  // include generic builtins like the InterpreterEntryTrampoline or the
+  // JSToWasm wrapper which determine the function's parameter count at
+  // runtime, or internal builtins that end up tailcalling into other code.
+  //
+  // Currently, we also allow this for testing code (from our test suites).
+  // TODO(saelo): maybe we should also forbid this just to be sure.
+  if (code->kind() == CodeKind::FOR_TESTING) {
+    return true;
+  }
+  DCHECK(code->is_builtin());
+  DCHECK_EQ(code->parameter_count(), kDontAdaptArgumentsSentinel);
+  switch (code->builtin_id()) {
+    case Builtin::kCompileLazy:
+    case Builtin::kInterpreterEntryTrampoline:
+    case Builtin::kInstantiateAsmJs:
+    case Builtin::kDebugBreakTrampoline:
+#ifdef V8_ENABLE_WEBASSEMBLY
+    case Builtin::kJSToWasmWrapper:
+    case Builtin::kJSToJSWrapper:
+    case Builtin::kJSToJSWrapperInvalidSig:
+    case Builtin::kWasmPromising:
+#endif
+      return true;
+    default:
+      return false;
+  }
 }
 
 }  // namespace internal

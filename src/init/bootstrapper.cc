@@ -2620,7 +2620,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kArrayReduceRight, 1, kDontAdapt);
 
     SimpleInstallFunction(isolate_, proto, "toReversed",
-                          Builtin::kArrayPrototypeToReversed, 0, kAdapt);
+                          Builtin::kArrayPrototypeToReversed, 0, kDontAdapt);
     SimpleInstallFunction(isolate_, proto, "toSorted",
                           Builtin::kArrayPrototypeToSorted, 1, kDontAdapt);
     SimpleInstallFunction(isolate_, proto, "toSpliced",
@@ -4336,14 +4336,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install "keys", "values" and "entries" methods on the {prototype}.
     InstallFunctionWithBuiltinId(isolate_, prototype, "entries",
                                  Builtin::kTypedArrayPrototypeEntries, 0,
-                                 kAdapt);
+                                 kDontAdapt);
 
     InstallFunctionWithBuiltinId(isolate_, prototype, "keys",
-                                 Builtin::kTypedArrayPrototypeKeys, 0, kAdapt);
+                                 Builtin::kTypedArrayPrototypeKeys, 0,
+                                 kDontAdapt);
 
     DirectHandle<JSFunction> values = InstallFunctionWithBuiltinId(
         isolate_, prototype, "values", Builtin::kTypedArrayPrototypeValues, 0,
-        kAdapt);
+        kDontAdapt);
     JSObject::AddProperty(isolate_, prototype, factory->iterator_symbol(),
                           values, DONT_ENUM);
 
@@ -4400,7 +4401,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, prototype, "subarray",
                           Builtin::kTypedArrayPrototypeSubArray, 2, kDontAdapt);
     SimpleInstallFunction(isolate_, prototype, "toReversed",
-                          Builtin::kTypedArrayPrototypeToReversed, 0, kAdapt);
+                          Builtin::kTypedArrayPrototypeToReversed, 0,
+                          kDontAdapt);
     SimpleInstallFunction(isolate_, prototype, "toSorted",
                           Builtin::kTypedArrayPrototypeToSorted, 1, kDontAdapt);
     SimpleInstallFunction(isolate_, prototype, "with",
