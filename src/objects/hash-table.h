@@ -11,6 +11,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/property-array.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged-field.h"
 #include "src/roots/roots.h"
@@ -112,7 +113,14 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
 
   // Returns probe entry.
   inline static InternalIndex FirstProbe(uint32_t hash, uint32_t size) {
-    return InternalIndex(hash & (size - 1));
+    if (size <= (1 << PropertyArray::HashField::kSize)) {
+      return InternalIndex(hash & (size - 1));
+    }
+    // The hash stored in JSReceiver (see PropertyArray::HashField) only has 20
+    // bits. This is suboptimal, if the hash table size is larger than 1 << 20.
+    // This distributes the probes more evenly even in that case.
+    return InternalIndex((hash * (size >> PropertyArray::HashField::kSize)) &
+                         (size - 1));
   }
 
   inline static InternalIndex NextProbe(InternalIndex last, uint32_t number,

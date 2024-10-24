@@ -218,6 +218,7 @@
   'wasm/stringrefs-regressions': [PASS, HEAVY],
   'wasm/table': [PASS, HEAVY],
   'wasm/table-grow': [PASS, HEAVY],
+  'es6/big-weakmap': [PASS, HEAVY],
 
   # TODO(v8:10915): Fails with --future.
   'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
@@ -315,6 +316,7 @@
   # Profiler test is flaky on simulators.
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
   'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
+  'es6/big-weakmap': [SKIP],
 }],  # simulator_run
 
 ##############################################################################
