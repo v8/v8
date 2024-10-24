@@ -230,8 +230,8 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
 
   DCHECK_GE(Deoptimizer::kLazyDeoptExitSize, Deoptimizer::kEagerDeoptExitSize);
 
-  TemporaryRegisterScope scope(this);
-  Register scratch = scope.Acquire();
+  MaglevAssembler::TemporaryRegisterScope scope(this);
+  Register scratch = scope.AcquireScratch();
   if (eager_deopt_count > 0) {
     bind(eager_deopt_entry);
     LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Eager, scratch);
