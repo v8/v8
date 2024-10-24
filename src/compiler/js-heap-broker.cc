@@ -239,6 +239,15 @@ ElementAccessFeedback const& ElementAccessFeedback::Refine(
   return Refine(broker, inferred, false);
 }
 
+NamedAccessFeedback const& ElementAccessFeedback::Refine(JSHeapBroker* broker,
+                                                         NameRef name) const {
+  // Allow swapping megamorphic elements accesses for named accesses when the
+  // key is know to be a known name.
+  CHECK(transition_groups_.empty());
+  ZoneVector<MapRef> maps(broker->zone());
+  return *broker->zone()->New<NamedAccessFeedback>(name, maps, slot_kind());
+}
+
 ElementAccessFeedback const& ElementAccessFeedback::Refine(
     JSHeapBroker* broker, ZoneRefSet<Map> const& inferred_maps,
     bool always_keep_group_target) const {

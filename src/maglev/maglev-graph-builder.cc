@@ -6632,11 +6632,21 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
   FeedbackSlot slot = GetSlotOperand(1);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  const compiler::ProcessedFeedback& processed_feedback =
-      broker()->GetFeedbackForPropertyAccess(
+  const compiler::ProcessedFeedback* processed_feedback =
+      &broker()->GetFeedbackForPropertyAccess(
           feedback_source, compiler::AccessMode::kLoad, std::nullopt);
+  if (processed_feedback->kind() ==
+          compiler::ProcessedFeedback::kElementAccess &&
+      processed_feedback->AsElementAccess().transition_groups().empty()) {
+    if (auto constant = TryGetConstant(GetAccumulator())) {
+      if (constant->IsName()) {
+        processed_feedback = &processed_feedback->AsElementAccess().Refine(
+            broker(), constant->AsName());
+      }
+    }
+  }
 
-  BuildGetKeyedProperty(object, feedback_source, processed_feedback);
+  BuildGetKeyedProperty(object, feedback_source, *processed_feedback);
 }
 
 void MaglevGraphBuilder::VisitGetEnumeratedKeyedProperty() {
