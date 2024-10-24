@@ -139,8 +139,7 @@ def main():
       parser.error(f"D8 '{d8_bin}' does not exist")
 
     if options.perf_data_dir is None:
-      date = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-      options.perf_data_dir = Path.cwd() / f"perf_profile_d8_{date}"
+      options.perf_data_dir = Path.cwd()
     else:
       options.perf_data_dir = Path(options.perf_data_dir).absolute()
     options.perf_data_dir.mkdir(parents=True, exist_ok=True)
@@ -152,16 +151,27 @@ def main():
       parser.error("--timeout should be a positive number")
 
     # ==========================================================================
-    def make_path_absolute(maybe_path):
+    def make_path_absolute(maybe_path, is_d8_js_argument=False):
       if maybe_path.startswith("-"):
         return maybe_path
       path = Path(maybe_path)
-      if path.exists():
-        return str(path.absolute())
-      return maybe_path
+      if not path.exists():
+        return maybe_path
+      if is_d8_js_argument:
+        # Be slightly more strict with JS arguments as they might accidentally
+        # point to files that exist (e.h. JetStream workloads).
+        if "/" not in maybe_path:
+          return maybe_path
+      return str(path.absolute())
 
     def make_args_paths_absolute(args):
-      return list(map(make_path_absolute, args))
+      args_absolute_paths = []
+      is_d8_js_argument = False
+      for arg in args:
+        if arg == "--":
+          is_d8_js_argument = True
+        args_absolute_paths.append(make_path_absolute(arg, is_d8_js_argument))
+      return args_absolute_paths
 
     # Preprocess args if we change CWD to get cleaner output
     if options.perf_data_dir != Path.cwd():
