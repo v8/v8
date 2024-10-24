@@ -3414,15 +3414,6 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
   __ b(r14);
 }
 
-void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmImportData and tail-call there.
-  Register import_data = wasm::kGpParamRegisters[0];
-  Register scratch = ip;
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(import_data, WasmImportData::kCodeOffset));
-  __ LoadU64(scratch, FieldMemOperand(scratch, Code::kInstructionStartOffset));
-  __ Jump(scratch);
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,

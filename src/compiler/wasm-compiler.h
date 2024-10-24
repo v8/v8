@@ -92,13 +92,6 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::CanonicalSig* sig,
     const wasm::WasmModule* module, wasm::WasmEnabledFeatures enabled_features);
 
-MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
-                                         const wasm::WasmModule* module,
-                                         const wasm::CanonicalSig* sig,
-                                         wasm::ImportCallKind kind,
-                                         int expected_arity,
-                                         wasm::Suspend suspend);
-
 enum CWasmEntryParameters {
   kCodeEntry,
   kObjectRef,

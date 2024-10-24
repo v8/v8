@@ -286,7 +286,7 @@ class IsolateData final {
 
 // Offset of a ThreadLocalTop member from {isolate_root()}.
 #define THREAD_LOCAL_TOP_MEMBER_OFFSET(Name)                              \
-  static uint32_t Name##_offset() {                                       \
+  static constexpr uint32_t Name##_offset() {                             \
     return static_cast<uint32_t>(IsolateData::thread_local_top_offset() + \
                                  OFFSET_OF(ThreadLocalTop, Name##_));     \
   }

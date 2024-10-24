@@ -2122,15 +2122,6 @@ EnumerateCompiledFunctions(Heap* heap) {
       if (function->HasAttachedOptimizedCode(isolate) &&
           Cast<Script>(function->shared()->script())->HasValidSource()) {
         record(function->shared(), Cast<AbstractCode>(function->code(isolate)));
-#if V8_ENABLE_WEBASSEMBLY
-      } else if (WasmJSFunction::IsWasmJSFunction(function)) {
-        Tagged<WasmInternalFunction> internal_function =
-            function->shared()->wasm_js_function_data()->internal();
-        Tagged<WasmImportData> import_data =
-            Cast<WasmImportData>(internal_function->implicit_arg());
-        record(function->shared(),
-               Cast<AbstractCode>(import_data->code(isolate)));
-#endif  // V8_ENABLE_WEBASSEMBLY
       }
     }
   }

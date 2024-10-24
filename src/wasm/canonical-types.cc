@@ -415,6 +415,22 @@ bool TypeCanonicalizer::IsFunctionSignature(CanonicalTypeIndex index) const {
   return it != canonical_function_sigs_.end();
 }
 
+CanonicalTypeIndex TypeCanonicalizer::FindIndex_Slow(
+    const CanonicalSig* sig) const {
+  // TODO(jkummerow): Make this faster. The plan is to allocate an extra
+  // slot in the Zone immediately preceding each CanonicalSig, so we can
+  // get from the sig's address to that slot's address via pointer arithmetic.
+  // For now, just search through all known signatures, which is acceptable
+  // as long as only the type-reflection proposal needs this.
+  // TODO(42210967): Improve this before shipping Type Reflection.
+  for (auto [key, value] : canonical_function_sigs_) {
+    if (value == sig) return key;
+  }
+  // If callers have a CanonicalSig* to pass into this function, the
+  // type canonicalizer must know about this sig.
+  UNREACHABLE();
+}
+
 #ifdef DEBUG
 bool TypeCanonicalizer::Contains(const CanonicalSig* sig) const {
   base::MutexGuard mutex_guard(&mutex_);

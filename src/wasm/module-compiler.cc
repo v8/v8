@@ -4375,7 +4375,7 @@ WasmCode* CompileImportWrapperForTest(Isolate* isolate,
 
   return GetWasmImportWrapperCache()->CompileWasmImportCallWrapper(
       isolate, native_module, kind, sig, type_index, source_positions,
-      expected_arity, suspend);
+      expected_arity, suspend, native_module->log_code());
 }
 
 }  // namespace v8::internal::wasm

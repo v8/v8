@@ -1044,8 +1044,6 @@ class WasmImportData
   // Dispatched behavior.
   DECL_PRINTER(WasmImportData)
 
-  DECL_CODE_POINTER_ACCESSORS(code)
-
   DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
 
   static constexpr int kInvalidCallOrigin = 0;
@@ -1071,8 +1069,7 @@ class WasmImportData
 
   using BodyDescriptor =
       StackedBodyDescriptor<FixedBodyDescriptorFor<WasmImportData>,
-                            WithProtectedPointer<kProtectedInstanceDataOffset>,
-                            WithStrongCodePointer<kCodeOffset>>;
+                            WithProtectedPointer<kProtectedInstanceDataOffset>>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmImportData)
 };
@@ -1122,6 +1119,25 @@ class WasmJSFunctionData
     : public TorqueGeneratedWasmJSFunctionData<WasmJSFunctionData,
                                                WasmFunctionData> {
  public:
+  // The purpose of this class is to provide lifetime management for compiled
+  // wrappers: the {WasmJSFunction} owns an {OffheapData} via {TrustedManaged},
+  // which decrements the wrapper's refcount when the {WasmJSFunction} is
+  // garbage-collected.
+  class OffheapData {
+   public:
+    OffheapData() = default;
+    ~OffheapData();
+
+    void set_wrapper(wasm::WasmCode* wrapper);
+
+   private:
+    wasm::WasmCode* wrapper_{nullptr};
+  };
+
+  DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,
+                                   TrustedManaged<OffheapData>)
+  inline OffheapData* offheap_data() const;
+
   Tagged<JSReceiver> GetCallable() const;
   wasm::Suspend GetSuspend() const;
   const wasm::CanonicalSig* GetSignature() const;
@@ -1134,9 +1150,10 @@ class WasmJSFunctionData
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)
 
-  using BodyDescriptor =
+  using BodyDescriptor = StackedBodyDescriptor<
       SubclassBodyDescriptor<WasmFunctionData::BodyDescriptor,
-                             FixedBodyDescriptorFor<WasmJSFunctionData>>;
+                             FixedBodyDescriptorFor<WasmJSFunctionData>>,
+      WithProtectedPointer<kProtectedOffheapDataOffset>>;
 
  private:
   TQ_OBJECT_CONSTRUCTORS(WasmJSFunctionData)

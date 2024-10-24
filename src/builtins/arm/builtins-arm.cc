@@ -4037,16 +4037,6 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 
 }  // namespace
 
-void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmImportData and tail-call there.
-  Register import_data = wasm::kGpParamRegisters[0];
-  UseScratchRegisterScope temps{masm};
-  Register scratch = temps.Acquire();
-  __ Move(scratch, FieldMemOperand(import_data, WasmImportData::kCodeOffset));
-  __ Move(scratch, FieldMemOperand(scratch, Code::kInstructionStartOffset));
-  __ Jump(scratch);
-}
-
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,

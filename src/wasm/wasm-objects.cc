@@ -1953,9 +1953,9 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
     call_target =
         wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
   } else {
-    wasm_code = cache->CompileWasmImportCallWrapper(isolate, native_module,
-                                                    kind, sig, sig_id, false,
-                                                    expected_arity, suspend);
+    wasm_code = cache->CompileWasmImportCallWrapper(
+        isolate, native_module, kind, sig, sig_id, false, expected_arity,
+        suspend, native_module->log_code());
     call_target = wasm_code->code_pointer();
   }
 
@@ -2781,51 +2781,48 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     internal_function->set_call_target(
         wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperInvalidSig>(
             isolate));
-  } else if (UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind,
-                                       canonical_sig, suspend)) {
-    internal_function->set_call_target(
-        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
+#if V8_ENABLE_DRUMBRAKE
+  } else if (v8_flags.wasm_jitless) {
+    function_data->func_ref()->internal(isolate)->set_call_target(
+        wasm::GetBuiltinCodePointer<
+            Builtin::kGenericWasmToJSInterpreterWrapper>(isolate));
+#endif  // V8_ENABLE_DRUMBRAKE
   } else {
     int expected_arity = parameter_count;
-    wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
+    wasm::ImportCallKind kind;
     if (IsJSFunction(*callable)) {
       Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(callable)->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
-      if (expected_arity != parameter_count) {
+      if (expected_arity == parameter_count) {
+        kind = wasm::ImportCallKind::kJSFunctionArityMatch;
+      } else {
         kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
       }
-    }
-    // TODO(jkummerow): Now that we have a per-process WasmImportWrapperCache,
-    // make use of that here.
-#if V8_ENABLE_DRUMBRAKE
-    if (v8_flags.wasm_jitless) {
-      function_data->func_ref()->internal(isolate)->set_call_target(
-          wasm::GetBuiltinCodePointer<
-              Builtin::kGenericWasmToJSInterpreterWrapper>(isolate));
     } else {
-#endif  // V8_ENABLE_DRUMBRAKE
-      if (UseGenericWasmToJSWrapper(kind, canonical_sig, suspend)) {
-        internal_function->set_call_target(
-            wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
-      } else {
-        // The Code object can be moved during compaction, so do not store a
-        // call_target directly but load the target from the code object at
-        // runtime.
-        DirectHandle<Code> wrapper_code =
-            compiler::CompileWasmToJSWrapper(isolate, nullptr, canonical_sig,
-                                             kind, expected_arity, suspend)
-                .ToHandleChecked();
-        DirectHandle<WasmImportData> import_data{
-            Cast<WasmImportData>(internal_function->implicit_arg()), isolate};
-        import_data->set_code(*wrapper_code);
-        internal_function->set_call_target(
-            wasm::GetBuiltinCodePointer<
-                Builtin::kWasmToOnHeapWasmToJsTrampoline>(isolate));
-      }
-#if V8_ENABLE_DRUMBRAKE
+      kind = wasm::ImportCallKind::kUseCallBuiltin;
     }
-#endif  // V8_ENABLE_DRUMBRAKE
+    wasm::WasmCodeRefScope code_ref_scope;
+    wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
+    wasm::WasmCode* wrapper =
+        cache->MaybeGet(kind, sig_id, expected_arity, suspend);
+    if (wrapper) {
+      internal_function->set_call_target(wrapper->code_pointer());
+      function_data->offheap_data()->set_wrapper(wrapper);
+    } else if (UseGenericWasmToJSWrapper(kind, canonical_sig, suspend)) {
+      internal_function->set_call_target(
+          wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
+    } else {
+      // Initialize the import wrapper cache if that hasn't happened yet.
+      cache->LazyInitialize(isolate);
+      wasm::NativeModule* no_module = nullptr;
+      bool source_positions = false;
+      wrapper = cache->CompileWasmImportCallWrapper(
+          isolate, no_module, kind, canonical_sig, sig_id, source_positions,
+          expected_arity, suspend, isolate->IsLoggingCodeCreation());
+      internal_function->set_call_target(wrapper->code_pointer());
+      function_data->offheap_data()->set_wrapper(wrapper);
+    }
   }
 
   Handle<String> name = factory->Function_string();
@@ -2843,6 +2840,18 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
           .Build();
   internal_function->set_external(*js_function);
   return Cast<WasmJSFunction>(js_function);
+}
+
+void WasmJSFunctionData::OffheapData::set_wrapper(wasm::WasmCode* wrapper) {
+  DCHECK_NULL(wrapper_);  // We shouldn't overwrite existing wrappers.
+  wrapper_ = wrapper;
+  wrapper->IncRef();
+}
+
+WasmJSFunctionData::OffheapData::~OffheapData() {
+  if (wrapper_) {
+    wasm::WasmCode::DecrementRefCount({&wrapper_, 1});
+  }
 }
 
 Tagged<JSReceiver> WasmJSFunctionData::GetCallable() const {

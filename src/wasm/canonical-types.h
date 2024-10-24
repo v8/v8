@@ -121,6 +121,8 @@ class TypeCanonicalizer {
 
   bool IsFunctionSignature(CanonicalTypeIndex index) const;
 
+  CanonicalTypeIndex FindIndex_Slow(const CanonicalSig* sig) const;
+
 #if DEBUG
   // Check whether a supposedly-canonicalized function signature does indeed
   // live in this class's storage. Useful for guarding casts of signatures

@@ -1318,7 +1318,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &isolate_data_.thread_local_top_;
   }
 
-  static uint32_t thread_in_wasm_flag_address_offset() {
+  static constexpr uint32_t thread_in_wasm_flag_address_offset() {
     // For WebAssembly trap handlers there is a flag in thread-local storage
     // which indicates that the executing thread executes WebAssembly code. To
     // access this flag directly from generated code, we store a pointer to the

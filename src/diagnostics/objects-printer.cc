@@ -2814,7 +2814,6 @@ void WasmResumeData::WasmResumeDataPrint(std::ostream& os) {
 
 void WasmImportData::WasmImportDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmImportData");
-  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
   os << "\n - instance_data: ";
@@ -2828,7 +2827,6 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
   os << "\n - call_origin: " << Brief(call_origin());
   os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
      << sig()->return_count() << " returns)";
-  os << "\n - code: " << Brief(code(isolate));
   os << "\n";
 }
 

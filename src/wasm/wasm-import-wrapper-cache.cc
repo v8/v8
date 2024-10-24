@@ -139,8 +139,9 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
 WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
     Isolate* isolate, NativeModule* native_module, ImportCallKind kind,
     const CanonicalSig* sig, CanonicalTypeIndex sig_index,
-    bool source_positions, int expected_arity, Suspend suspend) {
-  CompilationEnv env = CompilationEnv::ForModule(native_module);
+    bool source_positions, int expected_arity, Suspend suspend, bool log_code) {
+  CompilationEnv env = native_module ? CompilationEnv::ForModule(native_module)
+                                     : CompilationEnv::NoModuleAllFeatures();
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
       &env, kind, sig, source_positions, expected_arity, suspend);
   WasmCode* wasm_code;
@@ -163,7 +164,7 @@ WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
       wasm_code->instructions().length());
   isolate->counters()->wasm_reloc_size()->Increment(
       wasm_code->reloc_info().length());
-  if (V8_UNLIKELY(native_module->log_code())) {
+  if (V8_UNLIKELY(log_code)) {
     GetWasmEngine()->LogWrapperCode(base::VectorOf(&wasm_code, 1));
     // Log the code immediately in the current isolate.
     GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);

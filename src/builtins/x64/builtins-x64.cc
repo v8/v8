@@ -4077,23 +4077,6 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
 
 }  // namespace
 
-void Builtins::Generate_WasmToOnHeapWasmToJsTrampoline(MacroAssembler* masm) {
-  // Load the code pointer from the WasmImportData and tail-call there.
-  Register import_data = wasm::kGpParamRegisters[0];
-#ifdef V8_ENABLE_SANDBOX
-  Register call_target = r11;  // Anything not in kGpParamRegisters.
-  __ LoadCodeEntrypointViaCodePointer(
-      call_target, FieldOperand(import_data, WasmImportData::kCodeOffset),
-      kWasmEntrypointTag);
-  __ jmp(call_target);
-#else
-  Register code = r11;  // Anything not in kGpParamRegisters.
-  __ LoadTaggedField(code,
-                     FieldOperand(import_data, WasmImportData::kCodeOffset));
-  __ jmp(FieldOperand(code, Code::kInstructionStartOffset));
-#endif
-}
-
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,

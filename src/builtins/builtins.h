@@ -114,7 +114,6 @@ class Builtins {
   // The list of builtins that can be called indirectly from Wasm and need an
   // entry in the WasmCodePointerTable.
   static constexpr Builtin kWasmIndirectlyCallableBuiltins[] = {
-      Builtin::kWasmToOnHeapWasmToJsTrampoline,
       Builtin::kWasmToJsWrapperInvalidSig, Builtin::kWasmToJsWrapperAsm};
   static constexpr size_t kNumWasmIndirectlyCallableBuiltins =
       arraysize(kWasmIndirectlyCallableBuiltins);

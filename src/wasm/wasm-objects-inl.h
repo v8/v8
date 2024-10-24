@@ -418,8 +418,6 @@ struct CastTraits<WasmExportedFunction> {
 
 // WasmImportData
 
-CODE_POINTER_ACCESSORS(WasmImportData, code, kCodeOffset)
-
 PROTECTED_POINTER_ACCESSORS(WasmImportData, instance_data,
                             WasmTrustedInstanceData,
                             kProtectedInstanceDataOffset)
@@ -465,6 +463,13 @@ bool WasmExportedFunctionData::is_promising() const {
 // WasmJSFunctionData
 wasm::CanonicalTypeIndex WasmJSFunctionData::sig_index() const {
   return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};
+}
+PROTECTED_POINTER_ACCESSORS(WasmJSFunctionData, protected_offheap_data,
+                            TrustedManaged<WasmJSFunctionData::OffheapData>,
+                            kProtectedOffheapDataOffset)
+
+WasmJSFunctionData::OffheapData* WasmJSFunctionData::offheap_data() const {
+  return protected_offheap_data()->get().get();
 }
 
 // WasmJSFunction

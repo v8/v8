@@ -1727,7 +1727,6 @@ Handle<WasmImportData> Factory::NewWasmImportData(
   result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
   result->set_call_origin(Smi::FromInt(WasmImportData::kInvalidCallOrigin));
   result->set_sig(sig);
-  result->set_code(*BUILTIN_CODE(isolate(), Abort));
   return handle(result, isolate());
 }
 
@@ -1799,6 +1798,13 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   DirectHandle<WasmImportData> import_data = NewWasmImportData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig);
 
+  // Rough guess for a wrapper that may be shared with other users of it.
+  constexpr size_t kOffheapDataSizeEstimate = 100;
+  DirectHandle<TrustedManaged<WasmJSFunctionData::OffheapData>> offheap_data =
+      TrustedManaged<WasmJSFunctionData::OffheapData>::From(
+          isolate(), kOffheapDataSizeEstimate,
+          std::make_shared<WasmJSFunctionData::OffheapData>());
+
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(import_data, -1, signature_hash);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
@@ -1815,6 +1821,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result->set_canonical_sig_index(sig_index.index);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
                                WasmFunctionData::PromiseField::encode(promise));
+  result->set_protected_offheap_data(*offheap_data);
   return handle(result, isolate());
 }
 

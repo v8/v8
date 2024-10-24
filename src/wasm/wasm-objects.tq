@@ -13,6 +13,9 @@ type PodArrayOfWasmValueType extends ByteArray
 @useParentTypeChecker
 type ManagedWasmNativeModule extends Foreign
     constexpr 'Managed<wasm::NativeModule>';
+@useParentTypeChecker
+type TrustedManagedWasmJSFunctionOffheapData extends TrustedForeign
+    constexpr 'TrustedManaged<WasmJSFunctionData::OffheapData>';
 
 type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::CanonicalSig*';
 
@@ -55,8 +58,6 @@ extern class WasmImportData extends TrustedObject {
   call_origin: Smi|WasmFuncRef|Tuple2;
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: RawFunctionSigPtr;
-  // This field is used by the WasmToOnHeapWasmToJSTrampoline.
-  code: TrustedPointer<Code>;
 }
 
 extern operator '.instance_data' macro LoadInstanceDataFromWasmImportData(
@@ -81,8 +82,12 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
       ProtectedPointer<WasmTrustedInstanceData|WasmImportData>;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
-  // The function index if implicit_arg is a WasmTrustedInstanceData, -1
-  // otherwise.
+  // For exported Wasm functions: the function index in the defining module;
+  // {protected_implicit_arg} is the {WasmTrustedInstanceData} corresponding
+  // to this module.
+  // For imported JS functions: the function index in the importing module;
+  // {protected_implicit_arg} is a {WasmImportData} describing this module.
+  // For WasmJSFunctions and WasmCapiFunctions: -1.
   function_index: Smi;
   // The call target, stored as raw pointer in this trusted object.
   call_target: WasmCodePointer;
@@ -151,6 +156,8 @@ extern operator '.instance_data' macro
 
 extern class WasmJSFunctionData extends WasmFunctionData {
   canonical_sig_index: Smi;
+  protected_offheap_data:
+      ProtectedPointer<TrustedManagedWasmJSFunctionOffheapData>;
 }
 
 extern class WasmCapiFunctionData extends WasmFunctionData {
