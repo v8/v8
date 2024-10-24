@@ -1310,7 +1310,7 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
         Handle<Object> value = property.value;
         NumberDictionary::UncheckedSet(isolate_, elms, index, value);
       }
-      elms->SetInitialNumberOfElements(length);
+      elms->SetInitialNumberOfElements(cont.elements);
       elms->UpdateMaxNumberKey(cont.max_index, Handle<JSObject>::null());
       elements_kind = DICTIONARY_ELEMENTS;
       elements = elms;
