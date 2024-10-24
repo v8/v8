@@ -2960,30 +2960,19 @@ void MaglevGraphBuilder::VisitLdaConstant() {
 }
 
 bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
-    ValueNode** context, size_t* depth, int slot_index,
-    ContextSlotMutability slot_mutability) {
+    ValueNode* context, int slot_index, ContextSlotMutability slot_mutability) {
   DCHECK(compilation_unit_->info()->specialize_to_function_context());
 
-  size_t new_depth = *depth;
-  compiler::OptionalContextRef maybe_context_ref =
-      FunctionContextSpecialization::TryToRef(compilation_unit_, *context,
-                                              &new_depth);
-  if (!maybe_context_ref.has_value()) return false;
+  if (slot_mutability == kMutable) return false;
 
-  compiler::ContextRef context_ref = maybe_context_ref.value();
-  if (slot_mutability == kMutable || new_depth != 0) {
-    *depth = new_depth;
-    *context = GetConstant(context_ref);
-    return false;
-  }
+  auto constant = TryGetConstant(context);
+  if (!constant) return false;
+
+  compiler::ContextRef context_ref = constant.value().AsContext();
 
   compiler::OptionalObjectRef maybe_slot_value =
       context_ref.get(broker(), slot_index);
-  if (!maybe_slot_value.has_value()) {
-    *depth = new_depth;
-    *context = GetConstant(context_ref);
-    return false;
-  }
+  if (!maybe_slot_value.has_value()) return false;
 
   compiler::ObjectRef slot_value = maybe_slot_value.value();
   if (slot_value.IsHeapObject()) {
@@ -2998,8 +2987,6 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
         slot_value.AsHeapObject().map(broker()).oddball_type(broker());
     if (oddball_type == compiler::OddballType::kUndefined ||
         slot_value.IsTheHole()) {
-      *depth = new_depth;
-      *context = GetConstant(context_ref);
       return false;
     }
   }
@@ -3115,18 +3102,11 @@ void MaglevGraphBuilder::StoreAndCacheContextSlot(ValueNode* context,
 void MaglevGraphBuilder::BuildLoadContextSlot(
     ValueNode* context, size_t depth, int slot_index,
     ContextSlotMutability slot_mutability) {
-  MinimizeContextChainDepth(&context, &depth);
-
+  context = GetContextAtDepth(context, depth);
   if (compilation_unit_->info()->specialize_to_function_context() &&
-      TrySpecializeLoadContextSlotToFunctionContext(
-          &context, &depth, slot_index, slot_mutability)) {
+      TrySpecializeLoadContextSlotToFunctionContext(context, slot_index,
+                                                    slot_mutability)) {
     return;  // Our work here is done.
-  }
-
-  for (size_t i = 0; i < depth; ++i) {
-    context = LoadAndCacheContextSlot(
-        context, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
-        kImmutable);
   }
 
   // Always load the slot here as if it were mutable. Immutable slots have a
@@ -3140,22 +3120,7 @@ void MaglevGraphBuilder::BuildLoadContextSlot(
 void MaglevGraphBuilder::BuildStoreContextSlotHelper(
     ValueNode* context, size_t depth, int slot_index, ValueNode* value,
     bool update_const_tracking_let_side_data) {
-  MinimizeContextChainDepth(&context, &depth);
-
-  if (compilation_unit_->info()->specialize_to_function_context()) {
-    compiler::OptionalContextRef maybe_ref =
-        FunctionContextSpecialization::TryToRef(compilation_unit_, context,
-                                                &depth);
-    if (maybe_ref.has_value()) {
-      context = GetConstant(maybe_ref.value());
-    }
-  }
-
-  for (size_t i = 0; i < depth; ++i) {
-    context = LoadAndCacheContextSlot(
-        context, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
-        kImmutable);
-  }
+  context = GetContextAtDepth(context, depth);
 
   if (update_const_tracking_let_side_data) {
     BuildCheckConstTrackingLetCell(context, value, slot_index);
@@ -3696,22 +3661,61 @@ void MaglevGraphBuilder::VisitLdaLookupContextSlot() {
       BuildCallBuiltin<Builtin::kLookupContextTrampoline>({name, depth, slot}));
 }
 
+bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
+  compiler::OptionalScopeInfoRef maybe_scope_info =
+      graph()->TryGetScopeInfo(GetContext(), broker());
+  if (!maybe_scope_info.has_value()) return false;
+  compiler::ScopeInfoRef scope_info = maybe_scope_info.value();
+  for (uint32_t d = 0; d < depth; d++) {
+    CHECK_NE(scope_info.scope_type(), ScopeType::SCRIPT_SCOPE);
+    CHECK_NE(scope_info.scope_type(), ScopeType::REPL_MODE_SCOPE);
+    if (scope_info.HasContextExtensionSlot()) {
+      ValueNode* context = GetContextAtDepth(GetContext(), d);
+      // Only support known contexts so that we can check that there's no
+      // extension at compile time. Otherwise we could end up in a deopt loop
+      // once we do get an extension.
+      compiler::OptionalHeapObjectRef maybe_ref = TryGetConstant(context);
+      if (!maybe_ref) return false;
+      compiler::ContextRef context_ref = maybe_ref.value().AsContext();
+      if (!context_ref.get(broker(), Context::EXTENSION_INDEX)->IsUndefined()) {
+        return false;
+      }
+      ValueNode* extension = LoadAndCacheContextSlot(
+          context, Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
+          kMutable);
+      AddNewNode<CheckValue>({extension}, broker()->undefined_value());
+    }
+    CHECK_IMPLIES(!scope_info.HasOuterScopeInfo(), d + 1 == depth);
+    if (scope_info.HasOuterScopeInfo()) {
+      scope_info = scope_info.OuterScopeInfo(broker());
+    }
+  }
+  return true;
+}
+
 void MaglevGraphBuilder::VisitLdaLookupGlobalSlot() {
   // LdaLookupGlobalSlot <name_index> <feedback_slot> <depth>
-  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
-  ValueNode* depth =
-      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
-  ValueNode* result;
-  if (parent_) {
-    ValueNode* vector = GetConstant(feedback());
-    result =
-        BuildCallBuiltin<Builtin::kLookupGlobalIC>({name, depth, slot, vector});
+  compiler::NameRef name = GetRefOperand<Name>(0);
+  if (CheckContextExtensions(iterator_.GetUnsignedImmediateOperand(2))) {
+    FeedbackSlot slot = GetSlotOperand(1);
+    compiler::FeedbackSource feedback_source{feedback(), slot};
+    BuildLoadGlobal(name, feedback_source, TypeofMode::kNotInside);
   } else {
-    result = BuildCallBuiltin<Builtin::kLookupGlobalICTrampoline>(
-        {name, depth, slot});
+    ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+    ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+    ValueNode* depth =
+        GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
+    ValueNode* result;
+    if (parent_) {
+      ValueNode* vector = GetConstant(feedback());
+      result = BuildCallBuiltin<Builtin::kLookupGlobalIC>(
+          {name, depth, slot, vector});
+    } else {
+      result = BuildCallBuiltin<Builtin::kLookupGlobalICTrampoline>(
+          {name, depth, slot});
+    }
+    SetAccumulator(result);
   }
-  SetAccumulator(result);
 }
 
 void MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
@@ -6666,24 +6670,8 @@ void MaglevGraphBuilder::VisitLdaModuleVariable() {
   // LdaModuleVariable <cell_index> <depth>
   int cell_index = iterator_.GetImmediateOperand(0);
   size_t depth = iterator_.GetUnsignedImmediateOperand(1);
+  ValueNode* context = GetContextAtDepth(GetContext(), depth);
 
-  ValueNode* context = GetContext();
-  MinimizeContextChainDepth(&context, &depth);
-
-  if (compilation_unit_->info()->specialize_to_function_context()) {
-    compiler::OptionalContextRef maybe_ref =
-        FunctionContextSpecialization::TryToRef(compilation_unit_, context,
-                                                &depth);
-    if (maybe_ref.has_value()) {
-      context = GetConstant(maybe_ref.value());
-    }
-  }
-
-  for (size_t i = 0; i < depth; i++) {
-    context = LoadAndCacheContextSlot(
-        context, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
-        kImmutable);
-  }
   ValueNode* module = LoadAndCacheContextSlot(
       context, Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
       kImmutable);
@@ -6703,20 +6691,8 @@ void MaglevGraphBuilder::VisitLdaModuleVariable() {
   SetAccumulator(BuildLoadTaggedField(cell, Cell::kValueOffset));
 }
 
-void MaglevGraphBuilder::VisitStaModuleVariable() {
-  // StaModuleVariable <cell_index> <depth>
-  int cell_index = iterator_.GetImmediateOperand(0);
-  if (V8_UNLIKELY(cell_index < 0)) {
-    // TODO(verwaest): Make this fail as well.
-    CHECK(BuildCallRuntime(Runtime::kAbort,
-                           {GetSmiConstant(static_cast<int>(
-                               AbortReason::kUnsupportedModuleOperation))})
-              .IsDone());
-    return;
-  }
-
-  ValueNode* context = GetContext();
-  size_t depth = iterator_.GetUnsignedImmediateOperand(1);
+ValueNode* MaglevGraphBuilder::GetContextAtDepth(ValueNode* context,
+                                                 size_t depth) {
   MinimizeContextChainDepth(&context, &depth);
 
   if (compilation_unit_->info()->specialize_to_function_context()) {
@@ -6733,6 +6709,24 @@ void MaglevGraphBuilder::VisitStaModuleVariable() {
         context, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
         kImmutable);
   }
+  return context;
+}
+
+void MaglevGraphBuilder::VisitStaModuleVariable() {
+  // StaModuleVariable <cell_index> <depth>
+  int cell_index = iterator_.GetImmediateOperand(0);
+  if (V8_UNLIKELY(cell_index < 0)) {
+    // TODO(verwaest): Make this fail as well.
+    CHECK(BuildCallRuntime(Runtime::kAbort,
+                           {GetSmiConstant(static_cast<int>(
+                               AbortReason::kUnsupportedModuleOperation))})
+              .IsDone());
+    return;
+  }
+
+  size_t depth = iterator_.GetUnsignedImmediateOperand(1);
+  ValueNode* context = GetContextAtDepth(GetContext(), depth);
+
   ValueNode* module = LoadAndCacheContextSlot(
       context, Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
       kImmutable);
