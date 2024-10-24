@@ -418,11 +418,8 @@ class V8_EXPORT_PRIVATE PipelineData {
            pipeline_kind() == TurboshaftPipelineKind::kJSToWasm);
   }
 
-  void SetIsWasmWrapper(const wasm::WasmModule* module,
-                        const wasm::CanonicalSig* sig) {
-    wasm_module_ = module;
+  void SetIsWasmWrapper(const wasm::CanonicalSig* sig) {
     wasm_canonical_sig_ = sig;
-    wasm_shared_ = false;
     DCHECK(pipeline_kind() == TurboshaftPipelineKind::kWasm ||
            pipeline_kind() == TurboshaftPipelineKind::kJSToWasm);
   }

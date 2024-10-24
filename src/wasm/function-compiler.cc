@@ -203,14 +203,13 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index,
-    const WasmModule* module, WasmEnabledFeatures enabled_features)
+    WasmEnabledFeatures enabled_features)
     : isolate_(isolate),
       sig_(sig),
       sig_index_(sig_index),
-      job_(v8_flags.wasm_jitless
-               ? nullptr
-               : compiler::NewJSToWasmCompilationJob(isolate, sig, module,
-                                                     enabled_features)) {
+      job_(v8_flags.wasm_jitless ? nullptr
+                                 : compiler::NewJSToWasmCompilationJob(
+                                       isolate, sig, enabled_features)) {
   if (!v8_flags.wasm_jitless) {
     OptimizedCompilationInfo* info =
         v8_flags.turboshaft_wasm_wrappers
@@ -276,12 +275,11 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 
 // static
 Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index,
-    const WasmModule* module) {
+    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index) {
   // Run the compilation unit synchronously.
   WasmEnabledFeatures enabled_features =
       WasmEnabledFeatures::FromIsolate(isolate);
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, sig_index, module,
+  JSToWasmWrapperCompilationUnit unit(isolate, sig, sig_index,
                                       enabled_features);
   unit.Execute();
   return unit.Finalize();

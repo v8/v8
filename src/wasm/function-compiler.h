@@ -132,7 +132,6 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
   JSToWasmWrapperCompilationUnit(Isolate* isolate, const CanonicalSig* sig,
                                  CanonicalTypeIndex sig_index,
-                                 const wasm::WasmModule* module,
                                  WasmEnabledFeatures enabled_features);
   ~JSToWasmWrapperCompilationUnit();
 
@@ -153,8 +152,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   // Run a compilation unit synchronously.
   static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
                                              const CanonicalSig* sig,
-                                             CanonicalTypeIndex sig_index,
-                                             const WasmModule* module);
+                                             CanonicalTypeIndex sig_index);
 
  private:
   // Wrapper compilation is bound to an isolate. Concurrent accesses to the

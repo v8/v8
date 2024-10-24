@@ -1840,7 +1840,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   } else {
     // The wrapper does not exist yet; compile it now.
     wrapper_code = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-        isolate, sig, sig_id, module);
+        isolate, sig, sig_id);
     // This should have added an entry in the per-isolate cache.
     DCHECK_EQ(MakeWeak(wrapper_code->wrapper()),
               isolate->heap()->js_to_wasm_wrappers()->get(wrapper_index));

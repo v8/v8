@@ -8527,13 +8527,12 @@ void BuildInlinedJSToWasmWrapper(Zone* zone, MachineGraph* mcgraph,
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::CanonicalSig* sig,
-    const wasm::WasmModule* module,
     wasm::WasmEnabledFeatures enabled_features) {
   std::unique_ptr<char[]> debug_name = WasmExportedFunction::GetDebugName(sig);
   if (v8_flags.turboshaft_wasm_wrappers) {
     return Pipeline::NewWasmTurboshaftWrapperCompilationJob(
         isolate, sig,
-        wasm::WrapperCompilationInfo{CodeKind::JS_TO_WASM_FUNCTION}, module,
+        wasm::WrapperCompilationInfo{CodeKind::JS_TO_WASM_FUNCTION},
         std::move(debug_name), WasmAssemblerOptions());
   } else {
     std::unique_ptr<Zone> zone = std::make_unique<Zone>(
@@ -8706,7 +8705,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
 
   auto compile_with_turboshaft = [&]() {
     return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
-        env->module, sig,
+        sig,
         wasm::WrapperCompilationInfo{CodeKind::WASM_TO_JS_FUNCTION, kind,
                                      expected_arity, suspend},
         func_name, WasmStubAssemblerOptions(), nullptr);
@@ -8765,8 +8764,7 @@ wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
 
   auto compile_with_turboshaft = [&]() {
     return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
-        native_module->module(), sig,
-        wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION},
+        sig, wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION},
         debug_name, WasmStubAssemblerOptions(), nullptr);
   };
 

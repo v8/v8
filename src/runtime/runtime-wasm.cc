@@ -576,7 +576,7 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
     Handle<WasmTrustedInstanceData> trusted_data_handle{trusted_data, isolate};
     DirectHandle<Code> new_wrapper_code =
         wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate, sig, sig_id, module);
+            isolate, sig, sig_id);
 
     // Compilation must have installed the wrapper into the cache.
     DCHECK_EQ(MakeWeak(new_wrapper_code->wrapper()),

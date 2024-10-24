@@ -90,7 +90,7 @@ wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
 // (depending on the --turboshaft-wasm-wrappers flag) for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::CanonicalSig* sig,
-    const wasm::WasmModule* module, wasm::WasmEnabledFeatures enabled_features);
+    wasm::WasmEnabledFeatures enabled_features);
 
 enum CWasmEntryParameters {
   kCodeEntry,
