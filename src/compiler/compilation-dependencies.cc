@@ -919,7 +919,7 @@ class ConstTrackingLetDependency final : public CompilationDependency {
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
     SLOW_DCHECK(IsValid(broker));
     Isolate* isolate = broker->isolate();
-    deps->Register(handle(Context::GetOrCreateConstTrackingLetCell(
+    deps->Register(handle(Context::GetOrCreateContextSidePropertyCell(
                               script_context_.object(), index_, isolate),
                           isolate),
                    DependentCode::kConstTrackingLetChangedGroup);
@@ -1245,7 +1245,7 @@ bool CompilationDependencies::DependOnConstTrackingLet(
     // The side data element is either
     // - kConstMarker (the value is a constant thus far but no code depends on
     //   it yet)
-    // - a ConstTrackingLetCell pointing to a DependentCode (the value is a
+    // - a ContextSidePropertyCell pointing to a DependentCode (the value is a
     //   constant thus far and some code depends on it)
     // - kNonConstMarker (the value is no longer a constant)
     // - undefined (we're reading an uninitialized value (this will throw but we
@@ -1254,8 +1254,7 @@ bool CompilationDependencies::DependOnConstTrackingLet(
     if (maybe_side_data.has_value()) {
       ObjectRef side_data = maybe_side_data.value();
       if ((side_data.IsSmi() &&
-           side_data.AsSmi() ==
-               Smi::ToInt(ConstTrackingLetCell::kConstMarker)) ||
+           side_data.AsSmi() == ContextSidePropertyCell::kConst) ||
           (!side_data.IsSmi() && !side_data.IsUndefined())) {
         RecordDependency(
             zone_->New<ConstTrackingLetDependency>(script_context, index));

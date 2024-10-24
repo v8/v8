@@ -660,7 +660,7 @@ void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
   // Load the const tracking let side data.
   LoadTaggedField(
       data, context,
-      Context::OffsetOfElementAt(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX));
+      Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
 
   LoadTaggedField(data, data,
                   FixedArray::OffsetOfElementAt(
@@ -670,8 +670,8 @@ void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
   // different value is fine. But if it's anything else (including the hole,
   // which means no value was stored yet), deopt this code. The lower tier code
   // will update the side data and invalidate DependentCode if needed.
-  CompareTaggedAndJumpIf(data, ConstTrackingLetCell::kNonConstMarker, kEqual,
-                         done, Label::kNear);
+  CompareTaggedAndJumpIf(data, ContextSidePropertyCell::Other(), kEqual, done,
+                         Label::kNear);
 }
 
 void MaglevAssembler::TryMigrateInstance(Register object,

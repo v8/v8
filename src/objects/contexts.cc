@@ -471,24 +471,24 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
   return Handle<Object>::null();
 }
 
-Tagged<ConstTrackingLetCell> Context::GetOrCreateConstTrackingLetCell(
+Tagged<ContextSidePropertyCell> Context::GetOrCreateContextSidePropertyCell(
     DirectHandle<Context> script_context, size_t index, Isolate* isolate) {
   DCHECK(v8_flags.const_tracking_let);
   DCHECK(script_context->IsScriptContext());
   int side_data_index =
       static_cast<int>(index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
   DirectHandle<FixedArray> side_data(
-      Cast<FixedArray>(script_context->get(CONST_TRACKING_LET_SIDE_DATA_INDEX)),
+      Cast<FixedArray>(script_context->get(CONTEXT_SIDE_TABLE_PROPERTY_INDEX)),
       isolate);
   Tagged<Object> object = side_data->get(side_data_index);
-  if (!IsConstTrackingLetCell(object)) {
+  if (!IsContextSidePropertyCell(object)) {
     // If these CHECKs fail, there's a code path which initializes or assigns a
     // top-level `let` variable but doesn't update the side data.
-    CHECK_EQ(object, ConstTrackingLetCell::kConstMarker);
-    object = *isolate->factory()->NewConstTrackingLetCell();
+    CHECK_EQ(object, ContextSidePropertyCell::Const());
+    object = *isolate->factory()->NewContextSidePropertyCell();
     side_data->set(side_data_index, object);
   }
-  return Cast<ConstTrackingLetCell>(object);
+  return Cast<ContextSidePropertyCell>(object);
 }
 
 bool Context::ConstTrackingLetSideDataIsConst(size_t index) const {
@@ -497,9 +497,9 @@ bool Context::ConstTrackingLetSideDataIsConst(size_t index) const {
   int side_data_index =
       static_cast<int>(index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
   Tagged<FixedArray> side_data =
-      Cast<FixedArray>(get(CONST_TRACKING_LET_SIDE_DATA_INDEX));
+      Cast<FixedArray>(get(CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
   Tagged<Object> object = side_data->get(side_data_index);
-  return !ConstTrackingLetCell::IsNotConst(object);
+  return !ContextSidePropertyCell::IsNotConst(object);
 }
 
 void Context::UpdateConstTrackingLetSideData(
@@ -511,12 +511,12 @@ void Context::UpdateConstTrackingLetSideData(
   const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
   DirectHandle<FixedArray> side_data(
       Cast<FixedArray>(
-          script_context->get(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX)),
+          script_context->get(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX)),
       isolate);
   if (IsTheHole(*old_value)) {
     // Setting the initial value. Here we cannot assert the corresponding side
     // data is `undefined` - that won't hold w/ variable redefinitions in REPL.
-    side_data->set(side_data_index, ConstTrackingLetCell::kConstMarker);
+    side_data->set(side_data_index, ContextSidePropertyCell::Const());
     return;
   }
   if (*old_value == *new_value) {
@@ -525,9 +525,9 @@ void Context::UpdateConstTrackingLetSideData(
   // From now on, we know the value is no longer a constant. If there's a
   // DependentCode, invalidate it.
   Tagged<Object> data = side_data->get(side_data_index);
-  if (IsConstTrackingLetCell(data)) {
+  if (IsContextSidePropertyCell(data)) {
     DependentCode::DeoptimizeDependencyGroups(
-        isolate, Cast<ConstTrackingLetCell>(data),
+        isolate, Cast<ContextSidePropertyCell>(data),
         DependentCode::kConstTrackingLetChangedGroup);
   } else {
     // The value is not constant, but it also was not used as a constant
@@ -538,7 +538,7 @@ void Context::UpdateConstTrackingLetSideData(
     // top-level `let` variable but doesn't update the side data.
     CHECK(IsSmi(data));
   }
-  side_data->set(side_data_index, ConstTrackingLetCell::kNonConstMarker);
+  side_data->set(side_data_index, ContextSidePropertyCell::Other());
 }
 
 bool NativeContext::HasTemplateLiteralObject(Tagged<JSArray> array) {

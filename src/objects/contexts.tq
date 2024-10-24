@@ -186,7 +186,7 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   WRAPPED_FUNCTION_MAP_INDEX: Slot<NativeContext, Map>,
 
   @sameEnumValueAs(MIN_CONTEXT_SLOTS)
-  CONST_TRACKING_LET_SIDE_DATA_INDEX: Slot<Context, HeapObject>,
+  CONTEXT_SIDE_TABLE_PROPERTY_INDEX: Slot<Context, HeapObject>,
 
   MIN_CONTEXT_SLOTS,
   MIN_CONTEXT_EXTENDED_SLOTS,
@@ -272,7 +272,7 @@ macro UpdateConstTrackingLetSideData(
 
   const sideDataIndex = index - ContextSlot::MIN_CONTEXT_EXTENDED_SLOTS;
   const sideData: Object = *ContextSlot(
-      scriptContext, ContextSlot::CONST_TRACKING_LET_SIDE_DATA_INDEX);
+      scriptContext, ContextSlot::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
 
   const sideDataFixedArray: FixedArray =
       Cast<FixedArray>(sideData) otherwise return;
@@ -286,7 +286,7 @@ macro UpdateConstTrackingLetSideData(
     // Setting the initial value.
     dcheck(sideDataFixedArray.objects[sideDataIndex] == Undefined);
     sideDataFixedArray.objects[sideDataIndex] =
-        kConstTrackingLetCellConstMarker;
+        SmiTag(kContextSidePropertyConst);
     return;
   }
   if (TaggedEqual(oldValue, newValue)) {
@@ -301,7 +301,7 @@ macro UpdateConstTrackingLetSideData(
       // a constant (there's no code to invalidate). No action needed here; the
       // side data will be updated below.
     }
-    case (cell: ConstTrackingLetCell): {
+    case (cell: ContextSidePropertyCell): {
       runtime::InvalidateDependentCodeForConstTrackingLet(c, cell);
     }
     case (Object): {
@@ -310,8 +310,7 @@ macro UpdateConstTrackingLetSideData(
       unreachable;
     }
   }
-  sideDataFixedArray.objects[sideDataIndex] =
-      kConstTrackingLetCellNonConstMarker;
+  sideDataFixedArray.objects[sideDataIndex] = SmiTag(kContextSidePropertyOther);
 }
 
 // A dummy used instead of a context constant for runtime calls that don't need

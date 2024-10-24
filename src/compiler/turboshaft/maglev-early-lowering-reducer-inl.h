@@ -184,8 +184,8 @@ class MaglevEarlyLoweringReducer : public Next {
                                  const FeedbackSource& feedback) {
     // Load the const tracking let side data.
     V<Object> side_data = __ LoadTaggedField(
-        context, Context::OffsetOfElementAt(
-                     Context::CONST_TRACKING_LET_SIDE_DATA_INDEX));
+        context,
+        Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
     V<Object> index_data = __ LoadTaggedField(
         side_data, FixedArray::OffsetOfElementAt(
                        index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
@@ -194,7 +194,7 @@ class MaglevEarlyLoweringReducer : public Next {
     // which means no value was stored yet), deopt this code. The lower tier
     // code will update the side data and invalidate DependentCode if needed.
     V<Word32> is_const = __ TaggedEqual(
-        index_data, __ SmiConstant(ConstTrackingLetCell::kNonConstMarker));
+        index_data, __ SmiConstant(ContextSidePropertyCell::Other()));
     __ DeoptimizeIfNot(is_const, frame_state,
                        DeoptimizeReason::kConstTrackingLet, feedback);
   }

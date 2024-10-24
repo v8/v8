@@ -21,8 +21,8 @@ Tagged<DependentCode> DependentCode::GetDependentCode(
     return Cast<PropertyCell>(object)->dependent_code();
   } else if (IsAllocationSite(object)) {
     return Cast<AllocationSite>(object)->dependent_code();
-  } else if (IsConstTrackingLetCell(object)) {
-    return Cast<ConstTrackingLetCell>(object)->dependent_code();
+  } else if (IsContextSidePropertyCell(object)) {
+    return Cast<ContextSidePropertyCell>(object)->dependent_code();
   }
   UNREACHABLE();
 }
@@ -35,8 +35,8 @@ void DependentCode::SetDependentCode(Handle<HeapObject> object,
     Cast<PropertyCell>(object)->set_dependent_code(*dep);
   } else if (IsAllocationSite(*object)) {
     Cast<AllocationSite>(object)->set_dependent_code(*dep);
-  } else if (IsConstTrackingLetCell(*object)) {
-    Cast<ConstTrackingLetCell>(object)->set_dependent_code(*dep);
+  } else if (IsContextSidePropertyCell(*object)) {
+    Cast<ContextSidePropertyCell>(object)->set_dependent_code(*dep);
   } else {
     UNREACHABLE();
   }

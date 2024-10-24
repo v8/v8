@@ -21,7 +21,7 @@ void GenerateCheckConstTrackingLetSideData(Node* context, Node** effect,
                                            JSGraph* jsgraph) {
   Node* side_data = *effect = jsgraph->graph()->NewNode(
       jsgraph->simplified()->LoadField(AccessBuilder::ForContextSlot(
-          Context::CONST_TRACKING_LET_SIDE_DATA_INDEX)),
+          Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX)),
       context, *effect, *control);
   Node* side_data_value = *effect = jsgraph->graph()->NewNode(
       jsgraph->simplified()->LoadField(
@@ -34,7 +34,7 @@ void GenerateCheckConstTrackingLetSideData(Node* context, Node** effect,
   // Deoptimize if the side_data_value is something else than the "not a
   // constant" sentinel: the value might be a constant and something might
   // depend on it.
-  static_assert(ConstTrackingLetCell::kNonConstMarker.value() == 0);
+  static_assert(ContextSidePropertyCell::kOther == 0);
   Node* check =
       jsgraph->graph()->NewNode(jsgraph->simplified()->ReferenceEqual(),
                                 side_data_value, jsgraph->ZeroConstant());
@@ -49,15 +49,13 @@ bool IsConstTrackingLetVariableSurelyNotConstant(
   if (maybe_context.has_value() && depth == 0) {
     ContextRef context = maybe_context.value();
     OptionalObjectRef side_data =
-        context.get(broker, Context::CONST_TRACKING_LET_SIDE_DATA_INDEX);
+        context.get(broker, Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
     if (side_data.has_value()) {
       OptionalObjectRef side_data_value =
           side_data->AsFixedArray().TryGet(broker, side_data_index);
       if (side_data_value.has_value()) {
         auto value = side_data_value.value();
-        if (value.IsSmi() &&
-            value.AsSmi() ==
-                Smi::ToInt(ConstTrackingLetCell::kNonConstMarker)) {
+        if (value.IsSmi() && value.AsSmi() == ContextSidePropertyCell::kOther) {
           // The value is not a constant any more.
           return true;
         }

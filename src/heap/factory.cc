@@ -1326,7 +1326,7 @@ Handle<Context> Factory::NewScriptContext(DirectHandle<NativeContext> outer,
   DisallowGarbageCollection no_gc;
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
-  context->set(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX, *side_data);
+  context->set(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX, *side_data);
   DCHECK(context->IsScriptContext());
   return handle(context, isolate());
 }
@@ -2212,13 +2212,14 @@ Handle<PropertyCell> Factory::NewPropertyCell(DirectHandle<Name> name,
   return handle(cell, isolate());
 }
 
-Handle<ConstTrackingLetCell> Factory::NewConstTrackingLetCell(
+Handle<ContextSidePropertyCell> Factory::NewContextSidePropertyCell(
     AllocationType allocation) {
-  static_assert(ConstTrackingLetCell::kSize <= kMaxRegularHeapObjectSize);
-  Tagged<ConstTrackingLetCell> cell = Cast<ConstTrackingLetCell>(
-      AllocateRawWithImmortalMap(ConstTrackingLetCell::kSize, allocation,
-                                 *global_const_tracking_let_cell_map()));
+  static_assert(ContextSidePropertyCell::kSize <= kMaxRegularHeapObjectSize);
+  Tagged<ContextSidePropertyCell> cell = Cast<ContextSidePropertyCell>(
+      AllocateRawWithImmortalMap(ContextSidePropertyCell::kSize, allocation,
+                                 *global_context_side_property_cell_map()));
   DisallowGarbageCollection no_gc;
+  cell->set_context_side_property_raw(ContextSidePropertyCell::Const());
   cell->set_dependent_code(
       DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
       SKIP_WRITE_BARRIER);

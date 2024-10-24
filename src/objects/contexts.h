@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-class ConstTrackingLetCell;
+class ContextSidePropertyCell;
 class JSGlobalObject;
 class JSGlobalProxy;
 class MicrotaskQueue;
@@ -554,7 +554,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
     WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
 
     // This slot holds the const tracking let side data.
-    CONST_TRACKING_LET_SIDE_DATA_INDEX = MIN_CONTEXT_SLOTS,
+    CONTEXT_SIDE_TABLE_PROPERTY_INDEX = MIN_CONTEXT_SLOTS,
   };
 
   static const int kExtensionSize =
@@ -676,7 +676,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
 
-  static Tagged<ConstTrackingLetCell> GetOrCreateConstTrackingLetCell(
+  static Tagged<ContextSidePropertyCell> GetOrCreateContextSidePropertyCell(
       DirectHandle<Context> context, size_t index, Isolate* isolate);
 
   bool ConstTrackingLetSideDataIsConst(size_t index) const;

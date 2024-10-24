@@ -2347,9 +2347,10 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
   os << "\n";
 }
 
-void ConstTrackingLetCell::ConstTrackingLetCellPrint(std::ostream& os) {
-  PrintHeader(os, "ConstTrackingLetCell");
+void ContextSidePropertyCell::ContextSidePropertyCellPrint(std::ostream& os) {
+  PrintHeader(os, "ContextSidePropertyCell");
   os << "\n - dependent code: " << dependent_code();
+  os << "\n - cell_type: " << context_side_property_raw();
   os << "\n";
 }
 
@@ -3594,8 +3595,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << '>';
       break;
     }
-    case CONST_TRACKING_LET_CELL_TYPE: {
-      os << "<ConstTrackingLetCell>";
+    case CONTEXT_SIDE_PROPERTY_CELL_TYPE: {
+      os << "<ContextSidePropertyCell>";
       break;
     }
     case ACCESSOR_INFO_TYPE: {

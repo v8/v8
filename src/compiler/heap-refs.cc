@@ -1007,7 +1007,7 @@ OptionalObjectRef ContextRef::TryGetSideData(JSHeapBroker* broker,
   }
 
   OptionalObjectRef maybe_side_data =
-      get(broker, Context::CONST_TRACKING_LET_SIDE_DATA_INDEX);
+      get(broker, Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
   if (!maybe_side_data.has_value()) return {};
   // The FixedArray itself will stay constant, but its contents may change while
   // we compile in the background.
