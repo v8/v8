@@ -2019,8 +2019,7 @@ bool InstanceBuilder::ProcessImportedFunction(
         bool source_positions = is_asmjs_module(native_module->module());
         wasm_code = cache->CompileWasmImportCallWrapper(
             isolate_, native_module, kind, expected_sig, sig_index,
-            source_positions, expected_arity, resolved.suspend(),
-            native_module->log_code());
+            source_positions, expected_arity, resolved.suspend());
       }
 
       DCHECK_NOT_NULL(wasm_code);

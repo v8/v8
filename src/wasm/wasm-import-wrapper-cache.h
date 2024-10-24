@@ -100,8 +100,7 @@ class WasmImportWrapperCache {
   WasmCode* CompileWasmImportCallWrapper(
       Isolate* isolate, NativeModule* native_module, ImportCallKind kind,
       const CanonicalSig* sig, CanonicalTypeIndex sig_index,
-      bool source_positions, int expected_arity, Suspend suspend,
-      bool log_code);
+      bool source_positions, int expected_arity, Suspend suspend);
 
  private:
   std::unique_ptr<WasmCodeAllocator> code_allocator_;

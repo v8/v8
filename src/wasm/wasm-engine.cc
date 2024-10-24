@@ -1423,19 +1423,25 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
   }
 }
 
-void WasmEngine::LogWrapperCode(base::Vector<WasmCode*> code_vec) {
+bool WasmEngine::LogWrapperCode(WasmCode* code) {
+  // Wrappers don't belong to any particular NativeModule.
+  DCHECK_NULL(code->native_module());
   // Fast path:
-  if (!num_modules_with_code_logging_.load(std::memory_order_relaxed)) return;
+  if (!num_modules_with_code_logging_.load(std::memory_order_relaxed)) {
+    return false;
+  }
 
   using TaskToSchedule =
       std::pair<std::shared_ptr<v8::TaskRunner>, std::unique_ptr<LogCodesTask>>;
   std::vector<TaskToSchedule> to_schedule;
+  bool did_trigger_code_logging = false;
   {
     base::MutexGuard guard(&mutex_);
     for (const auto& entry : isolates_) {
       Isolate* isolate = entry.first;
       IsolateInfo* info = entry.second.get();
       if (info->log_codes == false) continue;
+      did_trigger_code_logging = true;
 
       // If this is the first code to log in that isolate, request an interrupt
       // to log the newly added code as soon as possible.
@@ -1447,22 +1453,21 @@ void WasmEngine::LogWrapperCode(base::Vector<WasmCode*> code_vec) {
 
       constexpr int kNoScriptId = -1;
       auto& log_entry = info->code_to_log[kNoScriptId];
-      log_entry.code.insert(log_entry.code.end(), code_vec.begin(),
-                            code_vec.end());
+      log_entry.code.push_back(code);
 
-      // Increment the reference count for the added {log_entry.code} entries.
+      // Increment the reference count for the added {log_entry.code} entry.
       // TODO(jkummerow): It might be nice to have a custom smart pointer
       // that manages updating the refcount for the WasmCode it holds.
-      for (WasmCode* code : code_vec) {
-        // Wrappers don't belong to any particular NativeModule.
-        DCHECK_NULL(code->native_module());
-        code->IncRef();
-      }
+      code->IncRef();
     }
+    DCHECK_EQ(did_trigger_code_logging, num_modules_with_code_logging_.load(
+                                            std::memory_order_relaxed) > 0);
   }
   for (auto& [runner, task] : to_schedule) {
     runner->PostTask(std::move(task));
   }
+
+  return did_trigger_code_logging;
 }
 
 void WasmEngine::EnableCodeLogging(Isolate* isolate) {

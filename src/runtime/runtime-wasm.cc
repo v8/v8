@@ -661,7 +661,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       // TODO(jkummerow): See if we can get rid of the {module} argument.
       wrapper = cache->CompileWasmImportCallWrapper(
           isolate, module, kind, sig, canonical_sig_index, source_positions,
-          arity, suspend, isolate->IsLoggingCodeCreation());
+          arity, suspend);
     }
     Tagged<WasmInternalFunction> internal =
         Cast<WasmFuncRef>(origin)->internal(isolate);
@@ -779,9 +779,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   if (!wasm_code) {
     wasm::NativeModule* native_module =
         call_origin_instance_data->native_module();
-    wasm_code = cache->CompileWasmImportCallWrapper(
-        isolate, native_module, kind, sig, sig_index, false, expected_arity,
-        suspend, native_module->log_code());
+    wasm_code = cache->CompileWasmImportCallWrapper(isolate, native_module,
+                                                    kind, sig, sig_index, false,
+                                                    expected_arity, suspend);
   }
   // Note: we don't need to decrement any refcounts here, because tier-up
   // doesn't overwrite an existing compiled wrapper, and the generic wrapper

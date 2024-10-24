@@ -283,10 +283,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // access to the NativeModule containing this code. This method can be called
   // from background threads.
   void LogCode(base::Vector<WasmCode*>);
-  // Trigger code logging for the given code objects, which must be wrappers
-  // that are shared engine-wide. This method can be called from background
+  // Trigger code logging for the given code object, which must be a wrapper
+  // that is shared engine-wide. This method can be called from background
   // threads.
-  void LogWrapperCode(base::Vector<WasmCode*>);
+  // Returns whether code logging was triggered in any isolate.
+  bool LogWrapperCode(WasmCode*);
 
   // Enable code logging for the given Isolate. Initially, code logging is
   // enabled if {WasmCode::ShouldBeLogged(Isolate*)} returns true during

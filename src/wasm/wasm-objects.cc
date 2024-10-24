@@ -1953,9 +1953,9 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
     call_target =
         wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
   } else {
-    wasm_code = cache->CompileWasmImportCallWrapper(
-        isolate, native_module, kind, sig, sig_id, false, expected_arity,
-        suspend, native_module->log_code());
+    wasm_code = cache->CompileWasmImportCallWrapper(isolate, native_module,
+                                                    kind, sig, sig_id, false,
+                                                    expected_arity, suspend);
     call_target = wasm_code->code_pointer();
   }
 
@@ -2819,7 +2819,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       bool source_positions = false;
       wrapper = cache->CompileWasmImportCallWrapper(
           isolate, no_module, kind, canonical_sig, sig_id, source_positions,
-          expected_arity, suspend, isolate->IsLoggingCodeCreation());
+          expected_arity, suspend);
       internal_function->set_call_target(wrapper->code_pointer());
       function_data->offheap_data()->set_wrapper(wrapper);
     }
