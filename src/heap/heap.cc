@@ -1978,6 +1978,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   incremental_marking()->Start(collector, gc_reason);
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
+    DCHECK(incremental_marking()->IsMajorMarking());
     is_full_gc_during_loading_ = update_allocation_limits_after_loading_;
     RecomputeLimitsAfterLoadingIfNeeded();
     DCHECK(!update_allocation_limits_after_loading_);
@@ -2370,7 +2371,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   RecomputeLimits(collector, atomic_pause_end_time);
   if ((collector == GarbageCollector::MARK_COMPACTOR) &&
       is_full_gc_during_loading_) {
-    if (ShouldOptimizeForLoadTime()) {
+    if (ShouldOptimizeForLoadTime() &&
+        v8_flags.update_allocation_limits_after_loading) {
       update_allocation_limits_after_loading_ = true;
     }
     is_full_gc_during_loading_ = false;
@@ -2603,18 +2605,29 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
 }
 
 void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
+  if (!v8_flags.update_allocation_limits_after_loading) {
+    DCHECK(!update_allocation_limits_after_loading_);
+    return;
+  }
+
   if (!update_allocation_limits_after_loading_) {
     return;
   }
-  update_allocation_limits_after_loading_ = false;
-
-  if (!v8_flags.update_allocation_limits_after_loading) return;
 
   if ((OldGenerationSpaceAvailable() > 0) && (GlobalMemoryAvailable() > 0)) {
     // Only recompute limits if memory accumulated during loading may lead to
     // atomic GC. If there is still room to allocate, keep the current limits.
-    // TODO(346498599): Consider removing this bailout.
     DCHECK(!AllocationLimitOvershotByLargeMargin());
+    update_allocation_limits_after_loading_ = false;
+    return;
+  }
+
+  if (!incremental_marking()->IsMajorMarking()) {
+    // Incremental marking should have started already but was delayed. Don't
+    // update the limits yet to not delay starting incremental marking any
+    // further. Limits will be updated on incremental marking start, with the
+    // intention to give more slack and avoid an immediate large finalization
+    // pause.
     return;
   }
 
@@ -7404,7 +7417,9 @@ void Heap::EnsureYoungSweepingCompleted() {
 }
 
 void Heap::NotifyLoadingStarted() {
-  update_allocation_limits_after_loading_ = true;
+  if (v8_flags.update_allocation_limits_after_loading) {
+    update_allocation_limits_after_loading_ = true;
+  }
   UpdateLoadStartTime();
 }
 
