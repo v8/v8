@@ -38,6 +38,7 @@
 #include "src/base/cpu.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/safepoint-table.h"
+#include "src/common/code-memory-access-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
@@ -811,14 +812,15 @@ int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
 }
 
 int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
-                                     Instr instr_jalr, int32_t offset) {
+                                     Instr instr_jalr, int32_t offset,
+                                     WritableJitAllocation* jit_allocation) {
   DCHECK(IsAuipc(instr_auipc));
   DCHECK(IsJalr(instr_jalr));
   CHECK(is_int32(offset + 0x800));
   int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
   int32_t Lo12 = (int32_t)offset << 20 >> 20;
-  instr_at_put(pc, SetAuipcOffset(Hi20, instr_auipc));
-  instr_at_put(pc + 4, SetJalrOffset(Lo12, instr_jalr));
+  instr_at_put(pc, SetAuipcOffset(Hi20, instr_auipc), jit_allocation);
+  instr_at_put(pc + 4, SetJalrOffset(Lo12, instr_jalr), jit_allocation);
   DCHECK(offset ==
          BrachlongOffset(Assembler::instr_at(pc), Assembler::instr_at(pc + 4)));
   return 2;
@@ -1555,6 +1557,7 @@ void Assembler::CheckTrampolinePool() {
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
+                                      WritableJitAllocation* jit_allocation,
                                       ICacheFlushMode icache_flush_mode) {
   Instr* instr = reinterpret_cast<Instr*>(pc);
   if (IsAuipc(*instr)) {
@@ -1565,7 +1568,8 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 #endif
       int32_t Hi20 = AuipcOffset(*instr);
       int32_t Lo12 = LoadOffset(*reinterpret_cast<Instr*>(pc + 4));
-      Memory<Address>(pc + Hi20 + Lo12) = target;
+      jit_allocation->WriteUnalignedValue(
+          reinterpret_cast<Address>(pc + Hi20 + Lo12), target);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
         FlushInstructionCache(pc + Hi20 + Lo12, 2 * kInstrSize);
       }
@@ -1575,13 +1579,14 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       Instr instr = instr_at(pc);
       Instr instr1 = instr_at(pc + 1 * kInstrSize);
       DCHECK(is_int32(imm + 0x800));
-      int num = PatchBranchlongOffset(pc, instr, instr1, (int32_t)imm);
+      int num = PatchBranchlongOffset(pc, instr, instr1, (int32_t)imm,
+                                      jit_allocation);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
         FlushInstructionCache(pc, num * kInstrSize);
       }
     }
   } else {
-    set_target_address_at(pc, target, icache_flush_mode);
+    set_target_address_at(pc, target, jit_allocation, icache_flush_mode);
   }
 }
 
@@ -1676,6 +1681,7 @@ Address Assembler::target_address_at(Address pc) {
 // Patching the address must replace all instructions, and flush the i-cache.
 // Note that this assumes the use of SV48, the 48-bit virtual memory system.
 void Assembler::set_target_value_at(Address pc, uint64_t target,
+                                    WritableJitAllocation* jit_allocation,
                                     ICacheFlushMode icache_flush_mode) {
   DEBUG_PRINTF("set_target_value_at: pc: %" PRIxPTR "\ttarget: %" PRIx64 "\n",
                pc, target);
@@ -1756,9 +1762,10 @@ Address Assembler::target_address_at(Address pc) {
 //
 // Patching the address must replace all instructions, and flush the i-cache.
 void Assembler::set_target_value_at(Address pc, uint32_t target,
+                                    WritableJitAllocation* jit_allocation,
                                     ICacheFlushMode icache_flush_mode) {
   DEBUG_PRINTF("set_target_value_at: pc: %x\ttarget: %x\n", pc, target);
-  set_target_constant32_at(pc, target, icache_flush_mode);
+  set_target_constant32_at(pc, target, jit_allocation, icache_flush_mode);
 }
 #endif
 
@@ -1838,6 +1845,35 @@ void Assembler::emit(uint64_t data) {
   DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
   if (!is_buffer_growth_blocked()) CheckBuffer();
   EmitHelper(data);
+}
+
+void Assembler::instr_at_put(int pos, Instr instr,
+                             WritableJitAllocation* jit_allocation) {
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue(
+        reinterpret_cast<Address>(buffer_start_ + pos), instr);
+  } else {
+    *reinterpret_cast<Instr*>(buffer_start_ + pos) = instr;
+  }
+}
+
+void Assembler::instr_at_put(int pos, ShortInstr instr,
+                             WritableJitAllocation* jit_allocation) {
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue(
+        reinterpret_cast<Address>(buffer_start_ + pos), instr);
+  } else {
+    *reinterpret_cast<ShortInstr*>(buffer_start_ + pos) = instr;
+  }
+}
+
+void Assembler::instr_at_put(Address pc, Instr instr,
+                             WritableJitAllocation* jit_allocation) {
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue(pc, instr);
+  } else {
+    *reinterpret_cast<Instr*>(pc) = instr;
+  }
 }
 
 // Constant Pool

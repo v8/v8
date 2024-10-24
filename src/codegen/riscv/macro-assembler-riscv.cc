@@ -6823,6 +6823,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertSmiOrHeapObjectInMainCompressionCage(
     Register object) {
+#if V8_TARGET_ARCH_RISCV64
   if (!PointerCompressionIsEnabled()) return;
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -6843,6 +6844,7 @@ void MacroAssembler::AssertSmiOrHeapObjectInMainCompressionCage(
         Operand(kPtrComprCageBaseRegister));
   bind(&ok);
   Pop(object, zero_reg);
+#endif
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 
