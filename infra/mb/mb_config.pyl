@@ -359,6 +359,7 @@
       'v8_linux_arm64_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_mips64el_compile_rel': 'release_simulate_mips64el',
+      'v8_numfuzz_asan_compile_rel': 'release_x64_asan_symbolized_verify_heap_turboshaft_csa',
       'v8_numfuzz_compile_rel': 'release_x64',
       'v8_numfuzz_compile_dbg': 'debug_x64',
       'v8_numfuzz_tsan_compile_rel': 'release_x64_tsan',
