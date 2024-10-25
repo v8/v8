@@ -205,6 +205,12 @@ class WasmGCTypedOptimizationReducer : public Next {
         }
         return __ MapToNewGraph(cast_op.object());
       }
+
+      // If the cast resulted in an uninhabitable type, the analyzer should have
+      // returned a sentinel (bottom) type as {type}.
+      CHECK(!wasm::Intersection(type, cast_op.config.to, module_, module_)
+                 .type.is_uninhabited());
+
       // The cast cannot be replaced. Still, we can refine the source type, so
       // that the lowering could potentially skip null or smi checks.
       wasm::ValueType from_type =
@@ -257,6 +263,15 @@ class WasmGCTypedOptimizationReducer : public Next {
           return __ Word32Constant(0);
         }
       }
+
+      // If there isn't a type that matches our known input type and the
+      // type_check.config.to type, the type check always fails.
+      wasm::ValueType true_type =
+          wasm::Intersection(type, type_check.config.to, module_, module_).type;
+      if (true_type.is_uninhabited()) {
+        return __ Word32Constant(0);
+      }
+
       // The check cannot be replaced. Still, we can refine the source type, so
       // that the lowering could potentially skip null or smi checks.
       wasm::ValueType from_type =
