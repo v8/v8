@@ -263,6 +263,8 @@ static_assert(LAST_TYPE < 1 << 15);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            InstanceType instance_type);
 
+V8_EXPORT_PRIVATE std::string ToString(InstanceType instance_type);
+
 // This list must contain only maps that are shared by all objects of their
 // instance type AND respective object must not represent a parent class for
 // multiple instance types (e.g. DescriptorArray has a unique map, but it has

@@ -364,34 +364,64 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case ALLOCATION_SITE_TYPE:
       return kVisitAllocationSite;
 
-#define MAKE_STRUCT_CASE(TYPE, Name, name) case TYPE:
-      STRUCT_LIST(MAKE_STRUCT_CASE)
-#undef MAKE_STRUCT_CASE
-      if (instance_type == PROTOTYPE_INFO_TYPE) {
-        return kVisitPrototypeInfo;
-      }
-      if (instance_type == DEBUG_INFO_TYPE) {
-        return kVisitDebugInfo;
-      }
-      if (instance_type == CALL_SITE_INFO_TYPE) {
-        return kVisitCallSiteInfo;
-      }
-      if (instance_type == BYTECODE_WRAPPER_TYPE) {
-        return kVisitBytecodeWrapper;
-      }
-      if (instance_type == CODE_WRAPPER_TYPE) {
-        return kVisitCodeWrapper;
-      }
-      if (instance_type == INTERPRETER_DATA_TYPE) {
-        return kVisitInterpreterData;
-      }
-      if (instance_type == REG_EXP_BOILERPLATE_DESCRIPTION_TYPE) {
-        return kVisitRegExpBoilerplateDescription;
-      }
-      if (instance_type == REG_EXP_DATA_WRAPPER_TYPE) {
-        return kVisitRegExpDataWrapper;
-      }
+    // Here we list all structs explicitly on purpose. This forces new structs
+    // to choose a VisitorId explicitly.
+    case PROMISE_FULFILL_REACTION_JOB_TASK_TYPE:
+    case PROMISE_REJECT_REACTION_JOB_TASK_TYPE:
+    case CALLABLE_TASK_TYPE:
+    case CALLBACK_TASK_TYPE:
+    case PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE:
+    case ACCESS_CHECK_INFO_TYPE:
+    case ACCESSOR_PAIR_TYPE:
+    case ALIASED_ARGUMENTS_ENTRY_TYPE:
+    case ALLOCATION_MEMENTO_TYPE:
+    case ARRAY_BOILERPLATE_DESCRIPTION_TYPE:
+    case ASYNC_GENERATOR_REQUEST_TYPE:
+    case BREAK_POINT_TYPE:
+    case BREAK_POINT_INFO_TYPE:
+    case CLASS_BOILERPLATE_TYPE:
+    case CLASS_POSITIONS_TYPE:
+    case ENUM_CACHE_TYPE:
+    case ERROR_STACK_DATA_TYPE:
+    case FUNCTION_TEMPLATE_RARE_DATA_TYPE:
+    case INTERCEPTOR_INFO_TYPE:
+    case MODULE_REQUEST_TYPE:
+    case PROMISE_CAPABILITY_TYPE:
+    case PROMISE_REACTION_TYPE:
+    case PROPERTY_DESCRIPTOR_OBJECT_TYPE:
+    case SCRIPT_TYPE:
+    case SCRIPT_OR_MODULE_TYPE:
+    case SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE:
+    case STACK_FRAME_INFO_TYPE:
+    case STACK_TRACE_INFO_TYPE:
+    case TEMPLATE_OBJECT_DESCRIPTION_TYPE:
+    case TUPLE2_TYPE:
+#if V8_ENABLE_WEBASSEMBLY
+    case ASM_WASM_DATA_TYPE:
+    case WASM_EXCEPTION_TAG_TYPE:
+#endif
       return kVisitStruct;
+
+    case PROTOTYPE_INFO_TYPE:
+      return kVisitPrototypeInfo;
+
+    case DEBUG_INFO_TYPE:
+      return kVisitDebugInfo;
+
+    case CALL_SITE_INFO_TYPE:
+      return kVisitCallSiteInfo;
+
+    case BYTECODE_WRAPPER_TYPE:
+      return kVisitBytecodeWrapper;
+
+    case CODE_WRAPPER_TYPE:
+      return kVisitCodeWrapper;
+
+    case REG_EXP_BOILERPLATE_DESCRIPTION_TYPE:
+      return kVisitRegExpBoilerplateDescription;
+
+    case REG_EXP_DATA_WRAPPER_TYPE:
+      return kVisitRegExpDataWrapper;
 
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
@@ -446,7 +476,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       CONCRETE_TRUSTED_OBJECT_TYPE_LIST2(CASE)
 #undef CASE
   }
-  UNREACHABLE();
+  std::string name = ToString(map->instance_type());
+  FATAL("Instance type %s (code %d) not mapped to VisitorId.", name.c_str(),
+        instance_type);
 }
 
 // static

@@ -179,21 +179,29 @@ bool ComparisonResultToBool(Operation op, ComparisonResult result) {
   UNREACHABLE();
 }
 
-std::ostream& operator<<(std::ostream& os, InstanceType instance_type) {
+std::string ToString(InstanceType instance_type) {
   if (InstanceTypeChecker::IsJSApiObject(instance_type)) {
-    return os << "[api object] "
-              << static_cast<int16_t>(instance_type) -
-                     i::Internals::kFirstJSApiObjectType;
+    std::stringstream ss;
+    ss << "[api object] "
+       << static_cast<int16_t>(instance_type) -
+              i::Internals::kFirstJSApiObjectType;
+    return ss.str();
   }
   switch (instance_type) {
 #define WRITE_TYPE(TYPE) \
   case TYPE:             \
-    return os << #TYPE;
+    return #TYPE;
     INSTANCE_TYPE_LIST(WRITE_TYPE)
 #undef WRITE_TYPE
   }
-  return os << "[unknown instance type " << static_cast<int16_t>(instance_type)
-            << "]";
+
+  std::stringstream ss;
+  ss << "[unknown instance type " << static_cast<int16_t>(instance_type) << "]";
+  return ss.str();
+}
+
+std::ostream& operator<<(std::ostream& os, InstanceType instance_type) {
+  return os << ToString(instance_type);
 }
 
 std::ostream& operator<<(std::ostream& os, PropertyCellType type) {
