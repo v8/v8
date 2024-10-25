@@ -287,7 +287,7 @@ class Deserializer : public SerializerDeserializer {
   GlobalHandleVector<DescriptorArray> new_descriptor_arrays_;
 
   // Vector of allocated objects that can be accessed by a backref, by index.
-  std::vector<Handle<HeapObject>> back_refs_;
+  std::vector<IndirectHandle<HeapObject>> back_refs_;
 
   // Map of JSDispatchTable entries. When such an entry is serialized, we also
   // serialize an ID of the entry, which then allows the deserializer to
@@ -305,7 +305,7 @@ class Deserializer : public SerializerDeserializer {
                          ReferenceDescriptor descr)
         : object(object), offset(offset), descr(descr) {}
 
-    Handle<HeapObject> object;
+    IndirectHandle<HeapObject> object;
     int offset;
     ReferenceDescriptor descr;
   };

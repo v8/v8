@@ -4622,7 +4622,7 @@ class GetIterator : public FixedInputValueNodeT<2, GetIterator> {
 
   int load_slot() const { return load_slot_; }
   int call_slot() const { return call_slot_; }
-  Handle<FeedbackVector> feedback() const { return feedback_; }
+  IndirectHandle<FeedbackVector> feedback() const { return feedback_; }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -4632,7 +4632,7 @@ class GetIterator : public FixedInputValueNodeT<2, GetIterator> {
  private:
   const int load_slot_;
   const int call_slot_;
-  const Handle<FeedbackVector> feedback_;
+  const IndirectHandle<FeedbackVector> feedback_;
 };
 
 class GetSecondReturnedValue

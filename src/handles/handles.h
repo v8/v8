@@ -594,18 +594,14 @@ class DirectHandle : public DirectHandleBase {
 };
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);
-
-template <typename T>
-struct is_direct_handle<DirectHandle<T>> : public std::true_type {};
-
-template <typename T>
 IndirectHandle<T> indirect_handle(DirectHandle<T> handle) {
+  if (handle.is_null()) return IndirectHandle<T>();
   return IndirectHandle<T>(HandleBase::indirect_handle(handle.address()));
 }
 
 template <typename T>
 IndirectHandle<T> indirect_handle(DirectHandle<T> handle, Isolate* isolate) {
+  if (handle.is_null()) return IndirectHandle<T>();
   return IndirectHandle<T>(
       HandleBase::indirect_handle(handle.address(), isolate));
 }
@@ -613,6 +609,7 @@ IndirectHandle<T> indirect_handle(DirectHandle<T> handle, Isolate* isolate) {
 template <typename T>
 IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
                                   LocalIsolate* isolate) {
+  if (handle.is_null()) return IndirectHandle<T>();
   return IndirectHandle<T>(
       HandleBase::indirect_handle(handle.address(), isolate));
 }
@@ -620,6 +617,7 @@ IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
 template <typename T>
 IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
                                   LocalHeap* local_heap) {
+  if (handle.is_null()) return IndirectHandle<T>();
   return IndirectHandle<T>(
       HandleBase::indirect_handle(handle.address(), local_heap));
 }
@@ -872,9 +870,6 @@ class DirectHandle {
 };
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);
-
-template <typename T>
 V8_INLINE IndirectHandle<T> indirect_handle(DirectHandle<T> handle) {
   return handle.handle_;
 }
@@ -912,6 +907,12 @@ class DirectHandleVector : public std::vector<DirectHandle<T>> {
       : std::vector<DirectHandle<T>>(init) {}
 };
 #endif  // V8_ENABLE_DIRECT_HANDLE
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);
+
+template <typename T>
+struct is_direct_handle<DirectHandle<T>> : public std::true_type {};
 
 }  // namespace internal
 }  // namespace v8

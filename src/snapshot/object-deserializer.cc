@@ -89,7 +89,7 @@ OffThreadObjectDeserializer::OffThreadObjectDeserializer(
 MaybeHandle<SharedFunctionInfo>
 OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
     LocalIsolate* isolate, const SerializedCodeData* data,
-    std::vector<Handle<Script>>* deserialized_scripts) {
+    std::vector<IndirectHandle<Script>>* deserialized_scripts) {
   OffThreadObjectDeserializer d(isolate, data);
 
   // Attach the empty string as the source.
@@ -103,7 +103,7 @@ OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
 }
 
 MaybeHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(
-    std::vector<Handle<Script>>* deserialized_scripts) {
+    std::vector<IndirectHandle<Script>>* deserialized_scripts) {
   DCHECK(deserializing_user_code());
   LocalHandleScope scope(isolate());
   Handle<HeapObject> result;

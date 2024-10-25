@@ -1367,7 +1367,7 @@ class ObjectLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
   }
   ZoneList<Property*>* properties_;
   uint32_t boilerplate_properties_;
-  Handle<ObjectBoilerplateDescription> boilerplate_description_;
+  IndirectHandle<ObjectBoilerplateDescription> boilerplate_description_;
 
   using HasElementsField = LiteralBoilerplateBuilder::NextBitField<bool, 1>;
   using HasRestPropertyField = HasElementsField::Next<bool, 1>;
@@ -1459,7 +1459,7 @@ class ArrayLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
 
   const ZonePtrList<Expression>* values_;
   int first_spread_index_;
-  Handle<ArrayBoilerplateDescription> boilerplate_description_;
+  IndirectHandle<ArrayBoilerplateDescription> boilerplate_description_;
 };
 
 // An array literal has a literals object that is used
@@ -2482,7 +2482,7 @@ class FunctionLiteral final : public Expression {
   DeclarationScope* scope_;
   ZonePtrList<Statement> body_;
   AstConsString* raw_inferred_name_;
-  Handle<SharedFunctionInfo> shared_function_info_;
+  IndirectHandle<SharedFunctionInfo> shared_function_info_;
   ProducedPreparseData* produced_preparse_data_;
 };
 

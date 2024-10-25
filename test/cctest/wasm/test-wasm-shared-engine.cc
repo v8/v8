@@ -113,7 +113,7 @@ ZoneBuffer* BuildReturnConstantModule(Zone* zone, int constant) {
 
 class MockInstantiationResolver : public InstantiationResultResolver {
  public:
-  explicit MockInstantiationResolver(Handle<Object>* out_instance)
+  explicit MockInstantiationResolver(IndirectHandle<Object>* out_instance)
       : out_instance_(out_instance) {}
   void OnInstantiationSucceeded(Handle<WasmInstanceObject> result) override {
     *out_instance_->location() = result->ptr();
@@ -123,13 +123,13 @@ class MockInstantiationResolver : public InstantiationResultResolver {
   }
 
  private:
-  Handle<Object>* out_instance_;
+  IndirectHandle<Object>* out_instance_;
 };
 
 class MockCompilationResolver : public CompilationResultResolver {
  public:
   MockCompilationResolver(SharedEngineIsolate* isolate,
-                          Handle<Object>* out_instance)
+                          IndirectHandle<Object>* out_instance)
       : isolate_(isolate), out_instance_(out_instance) {}
   void OnCompilationSucceeded(Handle<WasmModuleObject> result) override {
     GetWasmEngine()->AsyncInstantiate(
@@ -142,7 +142,7 @@ class MockCompilationResolver : public CompilationResultResolver {
 
  private:
   SharedEngineIsolate* isolate_;
-  Handle<Object>* out_instance_;
+  IndirectHandle<Object>* out_instance_;
 };
 
 void PumpMessageLoop(SharedEngineIsolate* isolate) {
@@ -155,7 +155,7 @@ void PumpMessageLoop(SharedEngineIsolate* isolate) {
 
 Handle<WasmInstanceObject> CompileAndInstantiateAsync(
     SharedEngineIsolate* isolate, ZoneBuffer* buffer) {
-  Handle<Object> maybe_instance = handle(Smi::zero(), isolate->isolate());
+  IndirectHandle<Object> maybe_instance(Smi::zero(), isolate->isolate());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate->isolate());
   constexpr const char* kAPIMethodName = "Test.CompileAndInstantiateAsync";
   GetWasmEngine()->AsyncCompile(

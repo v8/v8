@@ -34,7 +34,7 @@ class OffThreadObjectDeserializer final : public Deserializer<LocalIsolate> {
  public:
   static MaybeHandle<SharedFunctionInfo> DeserializeSharedFunctionInfo(
       LocalIsolate* isolate, const SerializedCodeData* data,
-      std::vector<Handle<Script>>* deserialized_scripts);
+      std::vector<IndirectHandle<Script>>* deserialized_scripts);
 
  private:
   explicit OffThreadObjectDeserializer(LocalIsolate* isolate,
@@ -42,7 +42,7 @@ class OffThreadObjectDeserializer final : public Deserializer<LocalIsolate> {
 
   // Deserialize an object graph. Fail gracefully.
   MaybeHandle<HeapObject> Deserialize(
-      std::vector<Handle<Script>>* deserialized_scripts);
+      std::vector<IndirectHandle<Script>>* deserialized_scripts);
 };
 
 }  // namespace internal

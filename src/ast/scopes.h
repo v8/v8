@@ -737,7 +737,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   template <typename IsolateT>
   void AllocateScopeInfosRecursively(
       IsolateT* isolate, MaybeHandle<ScopeInfo> outer_scope,
-      std::unordered_map<int, Handle<ScopeInfo>>& scope_infos_to_reuse);
+      std::unordered_map<int, IndirectHandle<ScopeInfo>>& scope_infos_to_reuse);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, AstValueFactory* ast_value_factory,
@@ -781,7 +781,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   base::ThreadedList<Declaration> decls_;
 
   // Serialized scope info support.
-  Handle<ScopeInfo> scope_info_;
+  IndirectHandle<ScopeInfo> scope_info_;
 // Debugging support.
 #ifdef DEBUG
   const AstRawString* scope_name_;

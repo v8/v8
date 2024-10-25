@@ -319,7 +319,7 @@ class NodeBase {
   }
 
   // Publishes all internal state to be consumed by other threads.
-  Handle<Object> Publish(Tagged<Object> object) {
+  IndirectHandle<Object> Publish(Tagged<Object> object) {
     DCHECK(!AsChild()->IsInUse());
     data_.parameter = nullptr;
     AsChild()->MarkAsUsed();
@@ -337,7 +337,7 @@ class NodeBase {
 
   Tagged<Object> object() const { return Tagged<Object>(object_); }
   FullObjectSlot location() { return FullObjectSlot(&object_); }
-  Handle<Object> handle() { return Handle<Object>(&object_); }
+  IndirectHandle<Object> handle() { return IndirectHandle<Object>(&object_); }
   Address raw_object() const { return object_; }
 
   uint8_t index() const { return index_; }
@@ -621,7 +621,7 @@ bool NeedsTrackingInYoungNodes(Tagged<Object> value, NodeType* node) {
 
 }  // namespace
 
-Handle<Object> GlobalHandles::Create(Tagged<Object> value) {
+IndirectHandle<Object> GlobalHandles::Create(Tagged<Object> value) {
   GlobalHandles::Node* node = regular_nodes_->Allocate();
   if (NeedsTrackingInYoungNodes(value, node)) {
     young_nodes_.push_back(node);
@@ -630,11 +630,11 @@ Handle<Object> GlobalHandles::Create(Tagged<Object> value) {
   return node->Publish(value);
 }
 
-Handle<Object> GlobalHandles::Create(Address value) {
+IndirectHandle<Object> GlobalHandles::Create(Address value) {
   return Create(Tagged<Object>(value));
 }
 
-Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
+IndirectHandle<Object> GlobalHandles::CopyGlobal(Address* location) {
   DCHECK_NOT_NULL(location);
   GlobalHandles* global_handles =
       Node::FromLocation(location)->global_handles();

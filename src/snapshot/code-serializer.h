@@ -66,8 +66,8 @@ class CodeSerializer : public Serializer {
 
    private:
     friend class CodeSerializer;
-    MaybeHandle<SharedFunctionInfo> maybe_result;
-    std::vector<Handle<Script>> scripts;
+    MaybeIndirectHandle<SharedFunctionInfo> maybe_result;
+    std::vector<IndirectHandle<Script>> scripts;
     std::unique_ptr<PersistentHandles> persistent_handles;
     SerializedCodeSanityCheckResult sanity_check_result;
   };

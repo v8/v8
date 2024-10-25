@@ -21,7 +21,7 @@ class CanonicalHandles {
     CHECK_NOT_NULL(canonical_handles_);
     auto find_result = canonical_handles_->FindOrInsert(object);
     if (!find_result.already_exists) {
-      *find_result.entry = Handle<T>(object, isolate_).location();
+      *find_result.entry = IndirectHandle<T>(object, isolate_).location();
     }
     return Handle<T>(*find_result.entry);
   }

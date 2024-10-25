@@ -561,7 +561,7 @@ class RootsTable {
                                    RootIndex* index) const;
 
   template <typename T>
-  bool IsRootHandle(Handle<T> handle, RootIndex* index) const;
+  bool IsRootHandle(IndirectHandle<T> handle, RootIndex* index) const;
 
   Address const& operator[](RootIndex root_index) const {
     size_t index = static_cast<size_t>(root_index);
@@ -693,7 +693,7 @@ class ReadOnlyRoots {
 #define ROOT_ACCESSOR(Type, name, CamelName)       \
   V8_INLINE Tagged<Type> name() const;             \
   V8_INLINE Tagged<Type> unchecked_##name() const; \
-  V8_INLINE Handle<Type> name##_handle() const;
+  V8_INLINE IndirectHandle<Type> name##_handle() const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
@@ -705,15 +705,15 @@ class ReadOnlyRoots {
 #endif
 
   V8_INLINE Tagged<Boolean> boolean_value(bool value) const;
-  V8_INLINE Handle<Boolean> boolean_value_handle(bool value) const;
+  V8_INLINE IndirectHandle<Boolean> boolean_value_handle(bool value) const;
 
   // Returns heap number with identical value if it already exists or the empty
   // handle otherwise.
-  Handle<HeapNumber> FindHeapNumber(double value);
+  IndirectHandle<HeapNumber> FindHeapNumber(double value);
 
   V8_INLINE Address address_at(RootIndex root_index) const;
   V8_INLINE Tagged<Object> object_at(RootIndex root_index) const;
-  V8_INLINE Handle<Object> handle_at(RootIndex root_index) const;
+  V8_INLINE IndirectHandle<Object> handle_at(RootIndex root_index) const;
 
   // Check if a slot is initialized yet. Should only be neccessary for code
   // running during snapshot creation.

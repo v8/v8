@@ -164,7 +164,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
     explicit Entry(Tag tag) : tag_(tag) {}
 
     union {
-      Handle<Object> handle_;
+      IndirectHandle<Object> handle_;
       Tagged<Smi> smi_;
       double heap_number_;
       const AstRawString* raw_string_;

@@ -67,27 +67,32 @@ class V8_EXPORT_PRIVATE LocalHeap {
   LocalHandles* handles() { return handles_.get(); }
 
   template <typename T>
-  Handle<T> NewPersistentHandle(Tagged<T> object) {
+  IndirectHandle<T> NewPersistentHandle(Tagged<T> object) {
     if (!persistent_handles_) {
       EnsurePersistentHandles();
     }
     return persistent_handles_->NewHandle(object);
   }
 
-  template <typename T>
-  Handle<T> NewPersistentHandle(Handle<T> object) {
+  template <typename T, template <typename> typename HandleType,
+            typename = std::enable_if_t<
+                std::is_convertible_v<HandleType<T>, DirectHandle<T>>>>
+  IndirectHandle<T> NewPersistentHandle(HandleType<T> object) {
     return NewPersistentHandle(*object);
   }
 
   template <typename T>
-  Handle<T> NewPersistentHandle(T object) {
+  IndirectHandle<T> NewPersistentHandle(T object) {
     static_assert(kTaggedCanConvertToRawObjects);
     return NewPersistentHandle(Tagged<T>(object));
   }
 
-  template <typename T>
-  MaybeHandle<T> NewPersistentMaybeHandle(MaybeHandle<T> maybe_handle) {
-    Handle<T> handle;
+  template <typename T, template <typename> typename MaybeHandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                MaybeHandleType<T>, MaybeDirectHandle<T>>>>
+  MaybeIndirectHandle<T> NewPersistentMaybeHandle(
+      MaybeHandleType<T> maybe_handle) {
+    DirectHandle<T> handle;
     if (maybe_handle.ToHandle(&handle)) {
       return NewPersistentHandle(handle);
     }
