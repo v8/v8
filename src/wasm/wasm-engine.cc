@@ -454,9 +454,8 @@ struct WasmEngine::CurrentGCInfo {
 };
 
 struct WasmEngine::IsolateInfo {
-  explicit IsolateInfo(Isolate* isolate)
-      : log_codes(WasmCode::ShouldBeLogged(isolate)),
-        async_counters(isolate->async_counters()) {
+  IsolateInfo(Isolate* isolate, bool log_code)
+      : log_codes(log_code), async_counters(isolate->async_counters()) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Platform* platform = V8::GetCurrentPlatform();
     foreground_task_runner = platform->GetForegroundTaskRunner(v8_isolate);
@@ -1074,7 +1073,9 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     isolate_info->native_modules.insert(native_module);
     DCHECK_EQ(1, native_modules_.count(native_module));
     native_modules_[native_module]->isolates.insert(isolate);
-    if (isolate_info->log_codes) native_module->EnableCodeLogging();
+    if (isolate_info->log_codes && !native_module->log_code()) {
+      EnableCodeLogging(native_module);
+    }
   }
 
   // Finish the Wasm script now and make it public to the debugger.
@@ -1237,16 +1238,17 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
 }
 
 void WasmEngine::AddIsolate(Isolate* isolate) {
+  const bool log_code = WasmCode::ShouldBeLogged(isolate);
   // Create the IsolateInfo.
   {
     // Create the IsolateInfo outside the mutex to reduce the size of the
     // critical section and to avoid lock-order-inversion issues.
-    auto isolate_info = std::make_unique<IsolateInfo>(isolate);
+    auto isolate_info = std::make_unique<IsolateInfo>(isolate, log_code);
     base::MutexGuard guard(&mutex_);
     DCHECK_EQ(0, isolates_.count(isolate));
     isolates_.emplace(isolate, std::move(isolate_info));
   }
-  if (WasmCode::ShouldBeLogged(isolate)) {
+  if (log_code) {
     // Log existing wrappers (which are shared across isolates).
     GetWasmImportWrapperCache()->LogForIsolate(isolate);
   }
@@ -1329,8 +1331,8 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     DCHECK_EQ(native_module->log_code(), has_isolate_with_code_logging());
     DCHECK_EQ(1, native_module_info->isolates.count(isolate));
     native_module_info->isolates.erase(isolate);
-    if (!has_isolate_with_code_logging()) {
-      native_module->DisableCodeLogging();
+    if (native_module->log_code() && !has_isolate_with_code_logging()) {
+      DisableCodeLogging(native_module);
     }
 
     // Remove any debug code and other info for this isolate.
@@ -1422,6 +1424,9 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
 }
 
 void WasmEngine::LogWrapperCode(base::Vector<WasmCode*> code_vec) {
+  // Fast path:
+  if (!num_modules_with_code_logging_.load(std::memory_order_relaxed)) return;
+
   using TaskToSchedule =
       std::pair<std::shared_ptr<v8::TaskRunner>, std::unique_ptr<LogCodesTask>>;
   std::vector<TaskToSchedule> to_schedule;
@@ -1465,12 +1470,43 @@ void WasmEngine::EnableCodeLogging(Isolate* isolate) {
   auto it = isolates_.find(isolate);
   DCHECK_NE(isolates_.end(), it);
   IsolateInfo* info = it->second.get();
+  if (info->log_codes) return;
   info->log_codes = true;
   // Also set {NativeModule::log_code_} for all native modules currently used by
   // this isolate.
   for (NativeModule* native_module : info->native_modules) {
-    native_module->EnableCodeLogging();
+    if (!native_module->log_code()) EnableCodeLogging(native_module);
   }
+}
+
+void WasmEngine::EnableCodeLogging(NativeModule* native_module) {
+  // The caller should hold the mutex.
+  DCHECK(!mutex_.TryLock());
+  DCHECK(!native_module->log_code());
+  native_module->EnableCodeLogging();
+  num_modules_with_code_logging_.fetch_add(1, std::memory_order_relaxed);
+  // Check the accuracy of {num_modules_with_code_logging_}.
+  DCHECK_EQ(
+      num_modules_with_code_logging_.load(std::memory_order_relaxed),
+      std::count_if(
+          native_modules_.begin(), native_modules_.end(),
+          [](std::pair<NativeModule* const, std::unique_ptr<NativeModuleInfo>>&
+                 pair) { return pair.first->log_code(); }));
+}
+
+void WasmEngine::DisableCodeLogging(NativeModule* native_module) {
+  // The caller should hold the mutex.
+  DCHECK(!mutex_.TryLock());
+  DCHECK(native_module->log_code());
+  native_module->DisableCodeLogging();
+  num_modules_with_code_logging_.fetch_sub(1, std::memory_order_relaxed);
+  // Check the accuracy of {num_modules_with_code_logging_}.
+  DCHECK_EQ(
+      num_modules_with_code_logging_.load(std::memory_order_relaxed),
+      std::count_if(
+          native_modules_.begin(), native_modules_.end(),
+          [](std::pair<NativeModule* const, std::unique_ptr<NativeModuleInfo>>&
+                 pair) { return pair.first->log_code(); }));
 }
 
 void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
@@ -1540,7 +1576,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     native_module->SetDebugState(kDebugging);
   }
   if (isolate_info->log_codes) {
-    native_module->EnableCodeLogging();
+    EnableCodeLogging(native_module.get());
   }
 
   // Record memory protection key support.
@@ -1583,7 +1619,7 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
       native_module->SetDebugState(kDebugging);
     }
     if (isolate_data->log_codes && !native_module->log_code()) {
-      native_module->EnableCodeLogging();
+      EnableCodeLogging(native_module.get());
     }
   }
   if (remove_all_code) {
@@ -1616,7 +1652,7 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
       native_module->SetDebugState(kDebugging);
     }
     if (isolate_data->log_codes && !native_module->log_code()) {
-      native_module->EnableCodeLogging();
+      EnableCodeLogging(native_module.get());
     }
   }
   if (remove_all_code) {
@@ -1703,6 +1739,8 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
   // references belonging to the NativeModule that's being deleted.
   std::erase_if(dead_code_, part_of_native_module);
   std::erase_if(potentially_dead_code_, part_of_native_module);
+
+  if (native_module->log_code()) DisableCodeLogging(native_module);
 
   native_module_cache_.Erase(native_module);
   native_modules_.erase(module);
@@ -1969,7 +2007,7 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 }
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 800);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 808);
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 168);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 56);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);

@@ -432,6 +432,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // calling this method.
   void PotentiallyFinishCurrentGC();
 
+  // Enable/disable code logging on the NativeModule, updating
+  // {num_modules_with_code_logging_} accordingly.
+  void EnableCodeLogging(NativeModule*);
+  void DisableCodeLogging(NativeModule*);
+
   AccountingAllocator allocator_;
 
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
@@ -472,6 +477,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   std::shared_ptr<OperationsBarrier> operations_barrier_{
       std::make_shared<OperationsBarrier>()};
+
+  // Store the number of modules which have code logging enabled. This is then
+  // used for a fast-path to avoid taking the mutex and iterating Isolates or
+  // NativeModules.
+  std::atomic<size_t> num_modules_with_code_logging_{0};
 
   // Size of code that became dead since the last GC. If this exceeds a certain
   // threshold, a new GC is triggered.
