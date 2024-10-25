@@ -1812,8 +1812,6 @@ filegroup(
         "src/heap/sweeper.h",
         "src/heap/traced-handles-marking-visitor.cc",
         "src/heap/traced-handles-marking-visitor.h",
-        "src/heap/visit-object.cc",
-        "src/heap/visit-object.h",
         "src/heap/weak-object-worklists.cc",
         "src/heap/weak-object-worklists.h",
         "src/heap/young-generation-marking-visitor.h",

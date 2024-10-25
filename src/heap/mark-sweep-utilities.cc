@@ -12,7 +12,6 @@
 #include "src/heap/marking-worklist.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/new-spaces.h"
-#include "src/heap/visit-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/visitors-inl.h"
@@ -47,7 +46,7 @@ void MarkingVerifierBase::VerifyMarkingOnPage(const PageMetadata* page,
     if (current >= end) break;
     CHECK(IsMarked(object));
     CHECK(current >= next_object_must_be_here_or_later);
-    VisitObject(heap_->isolate(), object, this);
+    object->Iterate(cage_base(), this);
     next_object_must_be_here_or_later = current + size;
     // The object is either part of a black area of black allocation or a
     // regular black object
@@ -87,7 +86,7 @@ void MarkingVerifierBase::VerifyMarking(LargeObjectSpace* lo_space) {
   LargeObjectSpaceObjectIterator it(lo_space);
   for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (IsMarked(obj)) {
-      VisitObject(heap_->isolate(), obj, this);
+      obj->Iterate(cage_base(), this);
     }
   }
 }

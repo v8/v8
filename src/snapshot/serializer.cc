@@ -11,7 +11,6 @@
 #include "src/heap/heap-inl.h"  // For Space::identity().
 #include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/read-only-heap.h"
-#include "src/heap/visit-object.h"
 #include "src/objects/code.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/instance-type-checker.h"
@@ -951,7 +950,7 @@ void Serializer::ObjectSerializer::SerializeContent(Tagged<Map> map, int size) {
   Tagged<HeapObject> raw = *object_;
   UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), raw);
   // Iterate references first.
-  VisitObjectBody(isolate(), raw, this);
+  raw->IterateBody(map, size, this);
   // Then output data payload, if any.
   OutputRawData(raw.address() + size);
 }

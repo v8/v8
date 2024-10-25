@@ -225,6 +225,33 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Returns the address of this HeapObject.
   inline Address address() const { return ptr() - kHeapObjectTag; }
 
+  // Iterates over pointers contained in the object (including the Map).
+  // If it's not performance critical iteration use the non-templatized
+  // version.
+  void Iterate(PtrComprCageBase cage_base, ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  inline void IterateFast(PtrComprCageBase cage_base, ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  inline void IterateFast(Tagged<Map> map, ObjectVisitor* v);
+
+  // Iterates over all pointers contained in the object except the
+  // first map pointer.  The object type is given in the first
+  // parameter. This function does not access the map pointer in the
+  // object, and so is safe to call while the map pointer is modified.
+  // If it's not performance critical iteration use the non-templatized
+  // version.
+  void IterateBody(PtrComprCageBase cage_base, ObjectVisitor* v);
+  void IterateBody(Tagged<Map> map, int object_size, ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  inline void IterateBodyFast(PtrComprCageBase cage_base, ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  inline void IterateBodyFast(Tagged<Map> map, int object_size,
+                              ObjectVisitor* v);
+
   // Returns the heap object's size in bytes
   DECL_GETTER(Size, int)
 

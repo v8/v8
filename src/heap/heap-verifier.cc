@@ -24,7 +24,6 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/objects-visiting-inl.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
@@ -61,11 +60,11 @@ class VerifySmisVisitor final : public RootVisitor {
 // point into the heap to a location that has a map pointer at its first word.
 // Caveat: Heap::Contains is an approximation because it can return true for
 // objects in a heap space but above the allocation pointer.
-class VerifyPointersVisitor : public HeapVisitor<VerifyPointersVisitor>,
+class VerifyPointersVisitor : public ObjectVisitorWithCageBases,
                               public RootVisitor {
  public:
   V8_INLINE explicit VerifyPointersVisitor(Heap* heap)
-      : HeapVisitor(heap), heap_(heap) {}
+      : ObjectVisitorWithCageBases(heap), heap_(heap) {}
 
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
@@ -450,7 +449,7 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
   switch (current_space_identity()) {
     case RO_SPACE: {
       VerifyReadOnlyPointersVisitor visitor(heap());
-      visitor.Visit(object);
+      object->Iterate(cage_base_, &visitor);
       break;
     }
 
@@ -459,7 +458,7 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
     case SHARED_LO_SPACE:
     case SHARED_TRUSTED_LO_SPACE: {
       VerifySharedHeapObjectVisitor visitor(heap());
-      visitor.Visit(object);
+      object->Iterate(cage_base_, &visitor);
       break;
     }
 
@@ -472,7 +471,7 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
     case CODE_LO_SPACE:
     case TRUSTED_LO_SPACE: {
       VerifyPointersVisitor visitor(heap());
-      visitor.Visit(object);
+      object->Iterate(cage_base_, &visitor);
       break;
     }
   }
@@ -761,7 +760,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
   OldToSharedSlotVerifyingVisitor old_to_shared_visitor(
       isolate(), &old_to_shared, &typed_old_to_shared,
       &trusted_to_shared_trusted);
-  old_to_shared_visitor.Visit(object);
+  object->IterateBody(cage_base_, &old_to_shared_visitor);
 
   if (!MemoryChunk::FromHeapObject(object)->IsTrusted()) {
     CHECK_NULL(chunk->slot_set<TRUSTED_TO_TRUSTED>());
@@ -902,7 +901,7 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap,
   // Temporarily set the new map to iterate new slots.
   object->set_map_word(new_map, kRelaxedStore);
   SlotCollectingVisitor new_visitor(heap->isolate());
-  new_visitor.Visit(object);
+  object->IterateFast(cage_base, &new_visitor);
   // Restore the old map.
   object->set_map_word(old_map_word.ToMap(), kRelaxedStore);
   CHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
