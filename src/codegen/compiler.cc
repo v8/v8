@@ -44,6 +44,7 @@
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope-inl.h"
+#include "src/heap/visit-object.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters-scopes.h"
@@ -1770,8 +1771,8 @@ namespace {
 // BackgroundMergeTask.
 class MergeAssumptionChecker final : public ObjectVisitor {
  public:
-  explicit MergeAssumptionChecker(PtrComprCageBase cage_base)
-      : cage_base_(cage_base) {}
+  explicit MergeAssumptionChecker(LocalIsolate* isolate)
+      : isolate_(isolate), cage_base_(isolate->cage_base()) {}
 
   void IterateObjects(Tagged<HeapObject> start) {
     QueueVisit(start, kNormalObject);
@@ -1802,7 +1803,7 @@ class MergeAssumptionChecker final : public ObjectVisitor {
         QueueVisit(constants, kConstantPool);
       }
       current_object_kind_ = pair.second;
-      current->IterateBody(cage_base_, this);
+      i::VisitObjectBody(isolate_, current, this);
       QueueVisit(current->map(), kNormalObject);
     }
   }
@@ -1880,6 +1881,7 @@ class MergeAssumptionChecker final : public ObjectVisitor {
 
   DisallowGarbageCollection no_gc_;
 
+  LocalIsolate* isolate_;
   PtrComprCageBase cage_base_;
   std::stack<std::pair<Tagged<HeapObject>, ObjectKind>> to_visit_;
 

@@ -17,6 +17,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
+#include "src/heap/visit-object.h"
 #include "src/logging/counters.h"
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/heap-object.h"
@@ -43,6 +44,7 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
                       size_t* boxed_double_fields_count,
                       size_t* string_data_count, size_t* raw_fields_count)
       : ObjectVisitorWithCageBases(heap),
+        heap_(heap),
         tagged_fields_count_(tagged_fields_count),
         embedder_fields_count_(embedder_fields_count),
         inobject_smi_fields_count_(inobject_smi_fields_count),
@@ -52,7 +54,7 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
 
   void RecordStats(Tagged<HeapObject> host) {
     size_t old_pointer_fields_count = *tagged_fields_count_;
-    host->Iterate(cage_base(), this);
+    VisitObject(heap_->isolate(), host, this);
     size_t tagged_fields_count_in_object =
         *tagged_fields_count_ - old_pointer_fields_count;
 
@@ -130,6 +132,7 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
 
   JSObjectFieldStats GetInobjectFieldStats(Tagged<Map> map);
 
+  Heap* const heap_;
   size_t* const tagged_fields_count_;
   size_t* const embedder_fields_count_;
   size_t* const inobject_smi_fields_count_;
