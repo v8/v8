@@ -189,6 +189,17 @@ in_category(
         disable_resultdb_exports = True,
     ),
     v8_builder(
+        name = "V8 NumFuzz - ASAN",
+        parent_builder = "V8 Clusterfuzz Linux64 ASAN no inline - release builder",
+        bucket = "ci",
+        execution_timeout = 19800,
+        properties = {"builder_group": "client.v8.clusterfuzz", "disable_auto_bisect": True},
+        barrier = BARRIER.NONE,
+        experiments = {"v8.resultdb": 100},
+        notifies = ["NumFuzz maintainer"],
+        disable_resultdb_exports = True,
+    ),
+    v8_builder(
         name = "V8 NumFuzz - TSAN",
         parent_builder = "V8 Clusterfuzz Linux64 TSAN - release builder",
         bucket = "ci",
