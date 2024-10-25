@@ -94,7 +94,6 @@
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/trusted-range.h"
-#include "src/heap/visit-object.h"
 #include "src/heap/zapping.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/v8.h"
@@ -111,7 +110,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots-inl.h"
-#include "src/objects/slots.h"
 #include "src/objects/visitors.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/regexp/regexp.h"
@@ -3996,11 +3994,10 @@ namespace {
 thread_local Address pending_layout_change_object_address = kNullAddress;
 
 #ifdef V8_ENABLE_SANDBOX
-class ExternalPointerSlotInvalidator
-    : public HeapVisitor<ExternalPointerSlotInvalidator> {
+class ExternalPointerSlotInvalidator : public ObjectVisitor {
  public:
   explicit ExternalPointerSlotInvalidator(Isolate* isolate)
-      : HeapVisitor(isolate), isolate_(isolate) {}
+      : isolate_(isolate) {}
 
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override {}
@@ -4023,7 +4020,7 @@ class ExternalPointerSlotInvalidator
   int Visit(Tagged<HeapObject> target) {
     target_ = target;
     num_invalidated_slots = 0;
-    HeapVisitor::Visit(target);
+    target->IterateFast(isolate_, this);
     return num_invalidated_slots;
   }
 
@@ -6645,7 +6642,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       while (!marking_stack_.empty()) {
         Tagged<HeapObject> obj = marking_stack_.back();
         marking_stack_.pop_back();
-        VisitObject(filter_->heap_->isolate(), obj, this);
+        obj->Iterate(cage_base(), this);
       }
     }
 

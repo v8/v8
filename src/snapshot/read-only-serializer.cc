@@ -6,7 +6,6 @@
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
-#include "src/heap/visit-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer-deserializer.h"
@@ -270,7 +269,7 @@ void ReadOnlySegmentForSerialization::EncodeTaggedSlots(Isolate* isolate) {
                                 SkipFreeSpaceOrFiller::kNo);
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
     if (o.address() >= segment_end) break;
-    VisitObject(isolate, o, &v);
+    o->Iterate(cage_base, &v);
   }
 }
 
