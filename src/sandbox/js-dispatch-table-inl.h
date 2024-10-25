@@ -231,9 +231,10 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
 
   // Signature mismatch. This is mostly not safe, except for certain varargs
   // builtins which are able to correctly handle such a mismatch. Examples
-  // include generic builtins like the InterpreterEntryTrampoline or the
-  // JSToWasm wrapper which determine the function's parameter count at
-  // runtime, or internal builtins that end up tailcalling into other code.
+  // include builtins like the InterpreterEntryTrampoline or the JSToWasm and
+  // JSToJS wrappers which determine their actual parameter count at runtime
+  // (see CodeStubAssembler::SetSupportsDynamicParameterCount()), or internal
+  // builtins that end up tailcalling into other code such as CompileLazy.
   //
   // Currently, we also allow this for testing code (from our test suites).
   // TODO(saelo): maybe we should also forbid this just to be sure.

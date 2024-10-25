@@ -1654,8 +1654,12 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   auto dispatch_handle = InvalidDispatchHandleConstant();
 #endif
 
+  // This builtin is used on functions with different parameter counts.
+  SetSupportsDynamicParameterCount(function, dispatch_handle);
+
   // Retrieve arguments from caller (stdlib, foreign, heap).
   CodeStubArguments args(this, arg_count);
+
   TNode<Object> stdlib = args.GetOptionalArgumentValue(0);
   TNode<Object> foreign = args.GetOptionalArgumentValue(1);
   TNode<Object> heap = args.GetOptionalArgumentValue(2);
@@ -1665,21 +1669,6 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   TNode<Object> maybe_result_or_smi_zero = CallRuntime(
       Runtime::kInstantiateAsmJs, context, function, stdlib, foreign, heap);
   GotoIf(TaggedIsSmi(maybe_result_or_smi_zero), &tailcall_to_function);
-
-  TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(function);
-  // TODO(40931165): obtain parameter count via dispatch_handle here instead.
-  TNode<Int32T> parameter_count = UncheckedCast<Int32T>(
-      LoadSharedFunctionInfoFormalParameterCountWithReceiver(shared));
-  // This builtin intercepts a call to {function}, where the number of arguments
-  // pushed is the maximum of actual arguments count and formal parameters
-  // count.
-  Label argc_lt_param_count(this), argc_ge_param_count(this);
-  Branch(IntPtrLessThan(args.GetLengthWithReceiver(),
-                        ChangeInt32ToIntPtr(parameter_count)),
-         &argc_lt_param_count, &argc_ge_param_count);
-  BIND(&argc_lt_param_count);
-  PopAndReturn(parameter_count, maybe_result_or_smi_zero);
-  BIND(&argc_ge_param_count);
   args.PopAndReturn(maybe_result_or_smi_zero);
 
   BIND(&tailcall_to_function);

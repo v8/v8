@@ -637,6 +637,22 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<UintPtrT>(x);
   }
 
+  // Support for code with a "dynamic" parameter count.
+  //
+  // Code assembled by our code assembler always has a "static" parameter count
+  // as defined by the call descriptor for the code. This parameter count is
+  // known at compile time. However, some builtins also have a "dynamic"
+  // parameter count because they can be installed on different function
+  // objects with different parameter counts. In that case, the actual
+  // parameter count is only known at runtime. Examples of such builtins
+  // include the CompileLazy builtin and the InterpreterEntryTrampoline, or the
+  // generic JSToWasm and JSToJS wrappers. These builtins then may have to
+  // obtain the "dynamic" parameter count, for example to correctly remove all
+  // function arguments (including padding arguments) from the stack.
+  bool HasDynamicJSParameterCount();
+  TNode<Uint16T> DynamicJSParameterCount();
+  void SetDynamicJSParameterCount(TNode<Uint16T> parameter_count);
+
   static constexpr int kTargetParameterIndex = kJSCallClosureParameterIndex;
   static_assert(kTargetParameterIndex == -1);
 

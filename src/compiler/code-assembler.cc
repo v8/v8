@@ -87,7 +87,7 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
 CodeAssemblerState::~CodeAssemblerState() = default;
 
 int CodeAssemblerState::parameter_count() const {
-  return static_cast<int>(raw_assembler_->call_descriptor()->ParameterCount());
+  return static_cast<int>(raw_assembler_->parameter_count());
 }
 
 CodeAssembler::~CodeAssembler() = default;
@@ -431,6 +431,29 @@ TNode<Context> CodeAssembler::GetJSContextParameter() {
   DCHECK(call_descriptor->IsJSFunctionCall());
   return Parameter<Context>(Linkage::GetJSCallContextParamIndex(
       static_cast<int>(call_descriptor->JSParameterCount())));
+}
+
+bool CodeAssembler::HasDynamicJSParameterCount() {
+  return raw_assembler()->dynamic_js_parameter_count() != nullptr;
+}
+
+TNode<Uint16T> CodeAssembler::DynamicJSParameterCount() {
+  DCHECK(HasDynamicJSParameterCount());
+  return UncheckedCast<Uint16T>(raw_assembler()->dynamic_js_parameter_count());
+}
+
+void CodeAssembler::SetDynamicJSParameterCount(TNode<Uint16T> parameter_count) {
+  DCHECK(!HasDynamicJSParameterCount());
+  // For code to support a dynamic parameter count, it's static parameter count
+  // must currently be zero, i.e. varargs. Otherwise we'd also need to ensure
+  // that the dynamic parameter count is not smaller than the static one.
+  //
+  // TODO(saelo): it would probably be a bit nicer if we could assert here that
+  // IsJSFunctionCall() is true and then use the JSParameterCount() of the
+  // descriptor instead, but that doesn't work because not all users of this
+  // feature are TFJ builtins (some are TFC builtins).
+  DCHECK_EQ(raw_assembler()->call_descriptor()->ParameterSlotCount(), 0);
+  raw_assembler()->set_dynamic_js_parameter_count(parameter_count);
 }
 
 void CodeAssembler::Return(TNode<Object> value) {
