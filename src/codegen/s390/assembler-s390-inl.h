@@ -355,7 +355,7 @@ void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
   instr_1 <<= 32;
   instr_1 |= new_constant;
   Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<uint8_t*>(pc),
-                                                instr_1);
+                                                instr_1, jit_allocation);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 6);
   }

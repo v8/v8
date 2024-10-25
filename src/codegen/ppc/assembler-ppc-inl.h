@@ -457,18 +457,22 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     itarget = itarget >> 16;
 
     if (jit_allocation) {
-      jit_allocation->WriteValue(reinterpret_cast<Address>(&p[0]), instr1);
-      jit_allocation->WriteValue(reinterpret_cast<Address>(&p[1]), instr2);
-      jit_allocation->WriteValue(reinterpret_cast<Address>(&p[3]), instr4);
-      jit_allocation->WriteValue(reinterpret_cast<Address>(&p[4]), instr5);
+      jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(&p[0]),
+                                          instr1);
+      jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(&p[1]),
+                                          instr2);
+      jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(&p[3]),
+                                          instr4);
+      jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(&p[4]),
+                                          instr5);
     } else {
       *p = instr1;
       *(p + 1) = instr2;
       *(p + 3) = instr4;
       *(p + 4) = instr5;
-      if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-        FlushInstructionCache(p, 5 * kInstrSize);
-      }
+    }
+    if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+      FlushInstructionCache(p, 5 * kInstrSize);
     }
     return;
   }
@@ -501,8 +505,15 @@ void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
   instr2 &= ~kImm16Mask;
   instr2 |= lo_word;
 
-  *p = instr1;
-  *(p + 1) = instr2;
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(&p[0]),
+                                        instr1);
+    jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(&p[1]),
+                                        instr2);
+  } else {
+    *p = instr1;
+    *(p + 1) = instr2;
+  }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(p, 2 * kInstrSize);
   }

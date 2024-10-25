@@ -2096,7 +2096,8 @@ class Instruction {
 #endif
     if (sizeof(T) <= 4) {
       if (jit_allocation) {
-        jit_allocation->WriteValue(reinterpret_cast<Address>(instr), value);
+        jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(instr),
+                                            value);
       } else {
         *reinterpret_cast<T*>(instr) = value;
       }
@@ -2104,9 +2105,9 @@ class Instruction {
 #if V8_TARGET_LITTLE_ENDIAN
       uint64_t orig_value = static_cast<uint64_t>(value);
       if (jit_allocation) {
-        jit_allocation->WriteValue(reinterpret_cast<Address>(instr),
-                                   static_cast<uint32_t>(value));
-        jit_allocation->WriteValue(
+        jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(instr),
+                                            static_cast<uint32_t>(value));
+        jit_allocation->WriteUnalignedValue(
             reinterpret_cast<Address>(instr + 4),
             static_cast<uint16_t>((orig_value >> 32) & 0xFFFF));
       } else {
@@ -2116,10 +2117,11 @@ class Instruction {
       }
 #else
       if (jit_allocation) {
-        jit_allocation->WriteValue(reinterpret_cast<Address>(instr),
-                                   static_cast<uint32_t>(value >> 16));
-        jit_allocation->WriteValue(reinterpret_cast<Address>(instr + 4),
-                                   static_cast<uint16_t>(value & 0xFFFF));
+        jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(instr),
+                                            static_cast<uint32_t>(value >> 16));
+        jit_allocation->WriteUnalignedValue(
+            reinterpret_cast<Address>(instr + 4),
+            static_cast<uint16_t>(value & 0xFFFF));
       } else {
         *reinterpret_cast<uint32_t*>(instr) =
             static_cast<uint32_t>(value >> 16);
