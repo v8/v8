@@ -1583,13 +1583,23 @@ ValueNode* MaglevGraphBuilder::GetInternalizedString(
   ValueNode* node = current_interpreter_frame_.get(reg);
   NodeType old_type;
   if (CheckType(node, NodeType::kInternalizedString, &old_type)) return node;
+  NodeInfo* known_info = GetOrCreateInfoFor(node);
+  if (known_info->alternative().checked_value()) {
+    node = known_info->alternative().checked_value();
+    if (CheckType(node, NodeType::kInternalizedString, &old_type)) return node;
+  }
+
   if (!NodeTypeIs(old_type, NodeType::kString)) {
-    NodeInfo* known_info = GetOrCreateInfoFor(node);
     known_info->CombineType(NodeType::kString);
   }
-  node = AddNewNode<CheckedInternalizedString>({node}, GetCheckType(old_type));
-  current_interpreter_frame_.set(reg, node);
-  return node;
+
+  // This node may unwrap ThinStrings.
+  ValueNode* maybe_unwrapping_node =
+      AddNewNode<CheckedInternalizedString>({node}, GetCheckType(old_type));
+  known_info->alternative().set_checked_value(maybe_unwrapping_node);
+
+  current_interpreter_frame_.set(reg, maybe_unwrapping_node);
+  return maybe_unwrapping_node;
 }
 
 namespace {
@@ -2626,9 +2636,8 @@ compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
   }
   const NodeInfo* info = known_node_aspects().TryGetInfoFor(node);
   if (info) {
-    if (auto c = info->alternative().constant()) {
-      if (constant_node) *constant_node = c;
-      return TryGetConstant(c);
+    if (auto c = info->alternative().checked_value()) {
+      return TryGetConstant(c, constant_node);
     }
   }
   return {};
@@ -3920,7 +3929,7 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
   // ref type should be compatible with type.
   DCHECK(NodeTypeIs(StaticTypeForConstant(broker(), ref), new_node_type));
   known_info->CombineType(new_node_type);
-  known_info->alternative().set_constant(GetConstant(ref));
+  known_info->alternative().set_checked_value(GetConstant(ref));
 }
 
 NodeType MaglevGraphBuilder::CheckTypes(ValueNode* node,

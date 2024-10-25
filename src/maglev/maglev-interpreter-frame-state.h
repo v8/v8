@@ -104,7 +104,7 @@ class NodeInfo {
   V(int32, Int32)                                      \
   V(truncated_int32_to_number, TruncatedInt32ToNumber) \
   V(float64, Float64)                                  \
-  V(constant, Constant)
+  V(checked_value, CheckedValue)
 
     enum Kind {
 #define KIND(name, Name) k##Name,
