@@ -207,7 +207,7 @@ class DebugInfoImpl {
   WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
                                             base::Vector<const int> offsets,
                                             int dead_breakpoint) {
-    DCHECK(!mutex_.TryLock());  // Mutex is held externally.
+    mutex_.AssertHeld();  // Mutex is held externally.
 
     ForDebugging for_debugging = offsets.size() == 1 && offsets[0] == 0
                                      ? kForStepping
@@ -351,7 +351,7 @@ class DebugInfoImpl {
   }
 
   std::vector<int> FindAllBreakpoints(int func_index) {
-    DCHECK(!mutex_.TryLock());  // Mutex must be held externally.
+    mutex_.AssertHeld();  // Mutex must be held externally.
     std::set<int> breakpoints;
     for (auto& data : per_isolate_data_) {
       auto it = data.second.breakpoints_per_function.find(func_index);
@@ -364,7 +364,7 @@ class DebugInfoImpl {
   void UpdateBreakpoints(int func_index, base::Vector<int> breakpoints,
                          Isolate* isolate, StackFrameId stepping_frame,
                          int dead_breakpoint) {
-    DCHECK(!mutex_.TryLock());  // Mutex is held externally.
+    mutex_.AssertHeld();  // Mutex is held externally.
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
         func_index, breakpoints, dead_breakpoint);
     UpdateReturnAddresses(isolate, new_code, stepping_frame);

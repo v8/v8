@@ -4084,7 +4084,7 @@ class TriggerCodeCachingAfterTimeoutTask : public v8::Task {
 }  // namespace
 
 void CompilationStateImpl::TriggerOutstandingCallbacks() {
-  DCHECK(!callbacks_mutex_.TryLock());
+  callbacks_mutex_.AssertHeld();
 
   base::EnumSet<CompilationEvent> triggered_events;
   if (outstanding_baseline_units_ == 0) {

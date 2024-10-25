@@ -149,7 +149,7 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
 }
 
 CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(CanonicalType type) {
-  DCHECK(!mutex_.TryLock());  // The caller must hold the mutex.
+  mutex_.AssertHeld();  // The caller must hold the mutex.
   CanonicalSingletonGroup group{type};
   if (CanonicalTypeIndex index = FindCanonicalGroup(group); index.valid()) {
     //  Make sure this signature can be looked up later.
@@ -261,7 +261,7 @@ void TypeCanonicalizer::EmptyStorageForTesting() {
 TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
     const WasmModule* module, TypeDefinition type,
     uint32_t recursive_group_start) {
-  DCHECK(!mutex_.TryLock());  // The caller must hold the mutex.
+  mutex_.AssertHeld();  // The caller must hold the mutex.
   CanonicalTypeIndex supertype{kNoSuperType};
   bool is_relative_supertype = false;
   if (type.supertype.index < recursive_group_start) {

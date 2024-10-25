@@ -1486,7 +1486,7 @@ void WasmEngine::EnableCodeLogging(Isolate* isolate) {
 
 void WasmEngine::EnableCodeLogging(NativeModule* native_module) {
   // The caller should hold the mutex.
-  DCHECK(!mutex_.TryLock());
+  mutex_.AssertHeld();
   DCHECK(!native_module->log_code());
   native_module->EnableCodeLogging();
   num_modules_with_code_logging_.fetch_add(1, std::memory_order_relaxed);
@@ -1501,7 +1501,7 @@ void WasmEngine::EnableCodeLogging(NativeModule* native_module) {
 
 void WasmEngine::DisableCodeLogging(NativeModule* native_module) {
   // The caller should hold the mutex.
-  DCHECK(!mutex_.TryLock());
+  mutex_.AssertHeld();
   DCHECK(native_module->log_code());
   native_module->DisableCodeLogging();
   num_modules_with_code_logging_.fetch_sub(1, std::memory_order_relaxed);
@@ -1871,7 +1871,7 @@ void WasmEngine::FreeDeadCode(const DeadCodeMap& dead_code,
 void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code,
                                     std::vector<WasmCode*>& dead_wrappers) {
   TRACE_EVENT0("v8.wasm", "wasm.FreeDeadCode");
-  DCHECK(!mutex_.TryLock());
+  mutex_.AssertHeld();
   for (auto& dead_code_entry : dead_code) {
     NativeModule* native_module = dead_code_entry.first;
     const std::vector<WasmCode*>& code_vec = dead_code_entry.second;
@@ -1929,7 +1929,7 @@ WasmEngine::GetBarrierForBackgroundCompile() {
 }
 
 void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
-  DCHECK(!mutex_.TryLock());
+  mutex_.AssertHeld();
   DCHECK_NULL(current_gc_info_);
   DCHECK(v8_flags.wasm_code_gc);
   new_potentially_dead_code_size_ = 0;
@@ -1963,13 +1963,13 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
 }
 
 bool WasmEngine::RemoveIsolateFromCurrentGC(Isolate* isolate) {
-  DCHECK(!mutex_.TryLock());
+  mutex_.AssertHeld();
   DCHECK_NOT_NULL(current_gc_info_);
   return current_gc_info_->outstanding_isolates.erase(isolate) != 0;
 }
 
 void WasmEngine::PotentiallyFinishCurrentGC() {
-  DCHECK(!mutex_.TryLock());
+  mutex_.AssertHeld();
   TRACE_CODE_GC(
       "Remaining dead code objects: %zu; outstanding isolates: %zu.\n",
       current_gc_info_->dead_code.size(),
