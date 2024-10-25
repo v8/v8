@@ -40,6 +40,7 @@
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
 
@@ -828,6 +829,8 @@ OpIndex GraphBuilder::Process(
                            NotAJavaScriptObjectOrNullOrUndefined, {})
       CHECK_OBJECT_IS_CASE(CheckString, String, HeapObject, NotAString,
                            CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckStringWrapper, StringWrapper, HeapObject,
+                           NotAStringWrapper, CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckStringOrStringWrapper, StringOrStringWrapper,
                            HeapObject, NotAStringOrStringWrapper,
                            CheckParametersOf(op).feedback())
@@ -1764,6 +1767,13 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kStringLength:
       return __ StringLength(Map(node->InputAt(0)));
+
+    case IrOpcode::kStringWrapperLength: {
+      V<String> str =
+          __ LoadField<String>(Map<JSPrimitiveWrapper>(node->InputAt(0)),
+                               AccessBuilder::ForJSPrimitiveWrapperValue());
+      return __ StringLength(str);
+    }
 
     case IrOpcode::kStringIndexOf:
       return __ StringIndexOf(Map(node->InputAt(0)), Map(node->InputAt(1)),

@@ -939,6 +939,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringFromCodePointAt();
   const Operator* StringIndexOf();
   const Operator* StringLength();
+  const Operator* StringWrapperLength();
   const Operator* StringToLowerCaseIntl();
   const Operator* StringToUpperCaseIntl();
   const Operator* StringSubstring();
@@ -1008,6 +1009,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckReceiverOrNullOrUndefined();
   const Operator* CheckSmi(const FeedbackSource& feedback);
   const Operator* CheckString(const FeedbackSource& feedback);
+  const Operator* CheckStringWrapper(const FeedbackSource& feedback);
   const Operator* CheckStringOrStringWrapper(const FeedbackSource& feedback);
   const Operator* CheckSymbol();
 

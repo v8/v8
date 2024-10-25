@@ -40,6 +40,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckReceiverOrNullOrUndefined:
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
+    case IrOpcode::kCheckStringWrapper:
     case IrOpcode::kCheckStringOrStringWrapper:
     case IrOpcode::kCheckSymbol:
     // These are not really check nodes, but behave the same in that they can be
@@ -186,6 +187,9 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
     } else if (a->opcode() == IrOpcode::kCheckInternalizedString &&
                b->opcode() == IrOpcode::kCheckStringOrStringWrapper) {
       // CheckInteralizedString(node) implies CheckStringOrStringWrapper(node)
+    } else if (a->opcode() == IrOpcode::kCheckStringWrapper &&
+               b->opcode() == IrOpcode::kCheckStringOrStringWrapper) {
+      // CheckStringWrapper(node) implies CheckStringOrStringWrapper(node)
     } else if (a->opcode() == IrOpcode::kCheckSmi &&
                b->opcode() == IrOpcode::kCheckNumber) {
       // CheckSmi(node) implies CheckNumber(node)
@@ -219,6 +223,7 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
         case IrOpcode::kCheckBounds:
         case IrOpcode::kCheckSmi:
         case IrOpcode::kCheckString:
+        case IrOpcode::kCheckStringWrapper:
         case IrOpcode::kCheckStringOrStringWrapper:
         case IrOpcode::kCheckNumber:
         case IrOpcode::kCheckBigInt:

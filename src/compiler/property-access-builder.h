@@ -35,6 +35,12 @@ class PropertyAccessBuilder {
   // maps.
   bool TryBuildStringCheck(JSHeapBroker* broker, ZoneVector<MapRef> const& maps,
                            Node** receiver, Effect* effect, Control control);
+  // Builds the appropriate string wrapper check if the maps are only string
+  // wrapper maps.
+  bool TryBuildStringWrapperCheck(JSHeapBroker* broker,
+                                  ZoneVector<MapRef> const& maps,
+                                  Node** receiver, Effect* effect,
+                                  Control control);
   // Builds a number check if all maps are number maps.
   bool TryBuildNumberCheck(JSHeapBroker* broker, ZoneVector<MapRef> const& maps,
                            Node** receiver, Effect* effect, Control control);
@@ -88,6 +94,8 @@ class PropertyAccessBuilder {
 };
 
 bool HasOnlyStringMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps);
+bool HasOnlyStringWrapperMaps(JSHeapBroker* broker,
+                              ZoneVector<MapRef> const& maps);
 
 }  // namespace compiler
 }  // namespace internal

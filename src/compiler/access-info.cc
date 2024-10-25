@@ -16,8 +16,10 @@
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
 #include "src/objects/cell-inl.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/field-type.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/struct-inl.h"
@@ -160,6 +162,13 @@ PropertyAccessInfo PropertyAccessInfo::ModuleExport(Zone* zone,
 PropertyAccessInfo PropertyAccessInfo::StringLength(Zone* zone,
                                                     MapRef receiver_map) {
   return PropertyAccessInfo(zone, kStringLength, {}, {{receiver_map}, zone});
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::StringWrapperLength(
+    Zone* zone, MapRef receiver_map) {
+  return PropertyAccessInfo(zone, kStringWrapperLength, {},
+                            {{receiver_map}, zone});
 }
 
 // static
@@ -342,7 +351,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     }
 
     case kNotFound:
-    case kStringLength: {
+    case kStringLength:
+    case kStringWrapperLength: {
       DCHECK(unrecorded_dependencies_.empty());
       DCHECK(that->unrecorded_dependencies_.empty());
       AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
@@ -1062,6 +1072,14 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
       return PropertyAccessInfo::StringLength(zone(), map);
     }
     return Invalid();
+  }
+  if (IsJSPrimitiveWrapperMap(*map.object()) &&
+      (map.elements_kind() == FAST_STRING_WRAPPER_ELEMENTS ||
+       map.elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS)) {
+    if (Name::Equals(isolate(), name.object(),
+                     isolate()->factory()->length_string())) {
+      return PropertyAccessInfo::StringWrapperLength(zone(), map);
+    }
   }
   // Check for special JSObject field accessors.
   FieldIndex field_index;

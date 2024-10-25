@@ -2401,6 +2401,10 @@ Type Typer::Visitor::TypeStringLength(Node* node) {
   return typer_->cache_->kStringLengthType;
 }
 
+Type Typer::Visitor::TypeStringWrapperLength(Node* node) {
+  return typer_->cache_->kStringLengthType;
+}
+
 Type Typer::Visitor::TypeStringSubstring(Node* node) { return Type::String(); }
 
 Type Typer::Visitor::TypeCheckBounds(Node* node) {
@@ -2446,6 +2450,11 @@ Type Typer::Visitor::TypeCheckSmi(Node* node) {
 Type Typer::Visitor::TypeCheckString(Node* node) {
   Type arg = Operand(node, 0);
   return Type::Intersect(arg, Type::String(), zone());
+}
+
+Type Typer::Visitor::TypeCheckStringWrapper(Node* node) {
+  Type arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::StringWrapper(), zone());
 }
 
 Type Typer::Visitor::TypeCheckStringOrStringWrapper(Node* node) {

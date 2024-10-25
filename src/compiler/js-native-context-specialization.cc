@@ -1599,6 +1599,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     } else if (!access_builder.TryBuildStringCheck(
                    broker(), access_info.lookup_start_object_maps(), &receiver,
                    &effect, control) &&
+               !access_builder.TryBuildStringWrapperCheck(
+                   broker(), access_info.lookup_start_object_maps(), &receiver,
+                   &effect, control) &&
                !access_builder.TryBuildNumberCheck(
                    broker(), access_info.lookup_start_object_maps(), &receiver,
                    &effect, control)) {
@@ -1760,6 +1763,12 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           DCHECK_EQ(receiver, lookup_start_object);
           this_lookup_start_object = this_receiver = this_effect =
               graph()->NewNode(common()->TypeGuard(Type::String()),
+                               lookup_start_object, this_effect, this_control);
+        } else if (HasOnlyStringWrapperMaps(broker(),
+                                            lookup_start_object_maps)) {
+          DCHECK_EQ(receiver, lookup_start_object);
+          this_lookup_start_object = this_receiver = this_effect =
+              graph()->NewNode(common()->TypeGuard(Type::StringWrapper()),
                                lookup_start_object, this_effect, this_control);
         }
       }
@@ -2944,6 +2953,9 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   } else if (access_info.IsStringLength()) {
     DCHECK_EQ(receiver, lookup_start_object);
     value = graph()->NewNode(simplified()->StringLength(), receiver);
+  } else if (access_info.IsStringWrapperLength()) {
+    DCHECK_EQ(receiver, lookup_start_object);
+    value = graph()->NewNode(simplified()->StringWrapperLength(), receiver);
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant() ||
            access_info.IsDictionaryProtoDataConstant());

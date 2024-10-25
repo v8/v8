@@ -41,6 +41,19 @@ bool HasOnlyStringMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps) {
   return true;
 }
 
+bool HasOnlyStringWrapperMaps(JSHeapBroker* broker,
+                              ZoneVector<MapRef> const& maps) {
+  for (MapRef map : maps) {
+    if (!map.IsJSPrimitiveWrapperMap()) return false;
+    auto elements_kind = map.elements_kind();
+    if (elements_kind != FAST_STRING_WRAPPER_ELEMENTS &&
+        elements_kind != SLOW_STRING_WRAPPER_ELEMENTS) {
+      return false;
+    }
+  }
+  return true;
+}
+
 namespace {
 
 bool HasOnlyNumberMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps) {
@@ -62,6 +75,20 @@ bool PropertyAccessBuilder::TryBuildStringCheck(JSHeapBroker* broker,
     *receiver = *effect =
         graph()->NewNode(simplified()->CheckString(FeedbackSource()), *receiver,
                          *effect, control);
+    return true;
+  }
+  return false;
+}
+
+bool PropertyAccessBuilder::TryBuildStringWrapperCheck(
+    JSHeapBroker* broker, ZoneVector<MapRef> const& maps, Node** receiver,
+    Effect* effect, Control control) {
+  if (HasOnlyStringWrapperMaps(broker, maps)) {
+    // Monormorphic string access (ignoring the fact that there are multiple
+    // String maps).
+    *receiver = *effect =
+        graph()->NewNode(simplified()->CheckStringWrapper(FeedbackSource()),
+                         *receiver, *effect, control);
     return true;
   }
   return false;
@@ -191,6 +218,13 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
   // If {access_info} has a holder, just use it.
   if (!holder.has_value()) {
     // Otherwise, try to match the {lookup_start_object} as a constant.
+    if (lookup_start_object->opcode() == IrOpcode::kCheckString ||
+        lookup_start_object->opcode() == IrOpcode::kCheckStringWrapper ||
+        lookup_start_object->opcode() ==
+            IrOpcode::kCheckStringOrStringWrapper) {
+      // Bypassing Check inputs in order to allow constant folding.
+      lookup_start_object = lookup_start_object->InputAt(0);
+    }
     HeapObjectMatcher m(lookup_start_object);
     if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSObject()) return nullptr;
 

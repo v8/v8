@@ -2104,6 +2104,7 @@ class TurboshaftAssemblerOpInterface
   DECL_OBJECT_IS(ReceiverOrNullOrUndefined)
   DECL_OBJECT_IS(Smi)
   DECL_OBJECT_IS(String)
+  DECL_OBJECT_IS(StringWrapper)
   DECL_OBJECT_IS(StringOrStringWrapper)
   DECL_OBJECT_IS(Symbol)
   DECL_OBJECT_IS(Undetectable)

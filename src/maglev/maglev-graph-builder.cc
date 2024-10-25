@@ -5141,6 +5141,12 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
                           compiler::AccessMode::kLoad);
       return result;
     }
+    case compiler::PropertyAccessInfo::kStringWrapperLength: {
+      // TODO(dmercadier): update KnownNodeInfo.
+      ValueNode* string =
+          BuildLoadTaggedField(receiver, JSPrimitiveWrapper::kValueOffset);
+      return AddNewNode<StringLength>({string});
+    }
   }
 }
 
@@ -5176,6 +5182,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
     case compiler::PropertyAccessInfo::kDictionaryProtoAccessorConstant:
     case compiler::PropertyAccessInfo::kModuleExport:
     case compiler::PropertyAccessInfo::kStringLength:
+    case compiler::PropertyAccessInfo::kStringWrapperLength:
       UNREACHABLE();
   }
 }

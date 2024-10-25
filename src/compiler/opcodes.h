@@ -461,6 +461,7 @@
   V(CheckReceiverOrNullOrUndefined)     \
   V(CheckSmi)                           \
   V(CheckString)                        \
+  V(CheckStringWrapper)                 \
   V(CheckStringOrStringWrapper)         \
   V(CheckSymbol)                        \
   V(CheckTurboshaftTypeOf)              \
@@ -533,6 +534,7 @@
   V(StringFromSingleCodePoint)          \
   V(StringIndexOf)                      \
   V(StringLength)                       \
+  V(StringWrapperLength)                \
   V(StringSubstring)                    \
   V(StringToLowerCaseIntl)              \
   V(StringToNumber)                     \

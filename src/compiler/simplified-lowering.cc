@@ -3719,7 +3719,8 @@ class RepresentationSelector {
         SetOutput<T>(node, MachineRepresentation::kTaggedSigned);
         return;
       }
-      case IrOpcode::kStringLength: {
+      case IrOpcode::kStringLength:
+      case IrOpcode::kStringWrapperLength: {
         // TODO(bmeurer): The input representation should be TaggedPointer.
         // Fix this once we have a dedicated StringConcat/JSStringAdd
         // operator, which marks it's output as TaggedPointer properly.
@@ -3802,6 +3803,20 @@ class RepresentationSelector {
       case IrOpcode::kCheckString: {
         const CheckParameters& params = CheckParametersOf(node->op());
         if (InputIs(node, Type::String())) {
+          VisitUnop<T>(node, UseInfo::AnyTagged(),
+                       MachineRepresentation::kTaggedPointer);
+          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop<T>(
+              node,
+              UseInfo::CheckedHeapObjectAsTaggedPointer(params.feedback()),
+              MachineRepresentation::kTaggedPointer);
+        }
+        return;
+      }
+      case IrOpcode::kCheckStringWrapper: {
+        const CheckParameters& params = CheckParametersOf(node->op());
+        if (InputIs(node, Type::StringWrapper())) {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
                        MachineRepresentation::kTaggedPointer);
           if (lower<T>()) DeferReplacement(node, node->InputAt(0));

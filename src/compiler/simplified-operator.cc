@@ -822,6 +822,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(StringFromSingleCodePoint, Operator::kNoProperties, 1, 0)     \
   V(StringIndexOf, Operator::kNoProperties, 3, 0)                 \
   V(StringLength, Operator::kNoProperties, 1, 0)                  \
+  V(StringWrapperLength, Operator::kNoProperties, 1, 0)           \
   V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)         \
   V(StringToUpperCaseIntl, Operator::kNoProperties, 1, 0)         \
   V(TypeOf, Operator::kNoProperties, 1, 1)                        \
@@ -936,6 +937,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(CheckNumber, 1, 1)                   \
   V(CheckSmi, 1, 1)                      \
   V(CheckString, 1, 1)                   \
+  V(CheckStringWrapper, 1, 1)            \
   V(CheckStringOrStringWrapper, 1, 1)    \
   V(CheckBigInt, 1, 1)                   \
   V(CheckedBigIntToBigInt64, 1, 1)       \

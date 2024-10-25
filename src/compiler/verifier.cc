@@ -1237,6 +1237,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::String());
       CheckTypeIs(node, TypeCache::Get()->kStringLengthType);
       break;
+    case IrOpcode::kStringWrapperLength:
+      CheckValueInputIs(node, 0, Type::StringWrapper());
+      CheckTypeIs(node, TypeCache::Get()->kStringLengthType);
+      break;
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:
       CheckValueInputIs(node, 0, Type::String());
@@ -1550,6 +1554,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckString:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::String());
+      break;
+    case IrOpcode::kCheckStringWrapper:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::StringWrapper());
       break;
     case IrOpcode::kCheckStringOrStringWrapper:
       CheckValueInputIs(node, 0, Type::Any());
