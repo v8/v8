@@ -889,6 +889,10 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         offsetof(SlicedString, parent_);
     fields[SHARED_FUNCTION_INFO_TYPE]["trusted_function_data"] =
         SharedFunctionInfo::kTrustedFunctionDataOffset;
+    fields[SHARED_FUNCTION_INFO_TYPE]["length"] =
+        SharedFunctionInfo::kLengthOffset;
+    fields[SHARED_FUNCTION_INFO_TYPE]["formal_parameter_count"] =
+        SharedFunctionInfo::kFormalParameterCountOffset;
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         Script::kEvalFromPositionOffset;
 #ifdef V8_ENABLE_WEBASSEMBLY

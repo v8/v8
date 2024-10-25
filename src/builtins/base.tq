@@ -681,6 +681,9 @@ extern macro PrintErr(Object): void;
 extern macro Comment(constexpr string): void;
 extern macro DebugBreak(): void;
 
+extern macro SetSupportsDynamicParameterCount(
+    JSFunction, DispatchHandle): void;
+
 // ES6 7.1.4 ToInteger ( argument )
 transitioning macro ToIntegerImpl(
     implicit context: Context)(input: JSAny): Number {

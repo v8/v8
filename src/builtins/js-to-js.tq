@@ -72,8 +72,12 @@ transitioning javascript builtin JSToJSWrapperInvalidSig(
 }
 
 transitioning javascript builtin JSToJSWrapper(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
-    ...arguments): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
   const functionData = target.shared_function_info.wasm_js_function_data;
 
   const importData =
@@ -138,20 +142,6 @@ transitioning javascript builtin JSToJSWrapper(
     result = resultArray;
   }
 
-  // The normal return sequence of Torque-generated JavaScript builtins does not
-  // consider the case where the caller may push additional "undefined"
-  // parameters on the stack, and therefore does not generate code to pop these
-  // additional parameters. Here we calculate the actual number of parameters on
-  // the stack. This number is the number of actual parameters provided by the
-  // caller, which is `arguments.length`, or the number of declared arguments,
-  // if not enough actual parameters were provided, i.e.
-  // `SharedFunctionInfo::length`.
-  let popCount = arguments.length;
-  const declaredArgCount = paramCount;
-  if (declaredArgCount > popCount) {
-    popCount = declaredArgCount;
-  }
-  // Also pop the receiver.
-  PopAndReturn(popCount + 1, result);
+  return result;
 }
 }

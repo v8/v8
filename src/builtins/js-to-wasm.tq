@@ -182,8 +182,6 @@ struct Int64AsInt32Pair {
 // This is only safe to use on 32-bit platforms.
 extern macro BigIntToRawBytes(BigInt): Int64AsInt32Pair;
 
-extern macro PopAndReturn(intptr, JSAny): never;
-
 // The ReturnSlotAllocator calculates the size of the space needed on the stack
 // for return values.
 struct ReturnSlotAllocator {
@@ -485,7 +483,7 @@ macro HandleF32Params(
 
 macro JSToWasmWrapperHelper(
     context: NativeContext, _receiver: JSAny, target: JSFunction,
-    arguments: Arguments, promise: constexpr Promise): never {
+    arguments: Arguments, promise: constexpr Promise): JSAny {
   const functionData = target.shared_function_info.wasm_exported_function_data;
 
   // Trigger a wrapper tier-up when this function got called often enough.
@@ -760,43 +758,39 @@ macro JSToWasmWrapperHelper(
   } else {
     unreachable;
   }
-
-  // The normal return sequence of Torque-generated JavaScript builtins does not
-  // consider the case where the caller may push additional "undefined"
-  // parameters on the stack, and therefore does not generate code to pop these
-  // additional parameters. Here we calculate the actual number of parameters on
-  // the stack. This number is the number of actual parameters provided by the
-  // caller, which is `arguments.length`, or the number of declared arguments,
-  // if not enough actual parameters were provided, i.e.
-  // `SharedFunctionInfo::length`.
-  let popCount = arguments.length;
-  const declaredArgCount =
-      Convert<intptr>(Convert<int32>(target.shared_function_info.length));
-  if (declaredArgCount > popCount) {
-    popCount = declaredArgCount;
-  }
-  // Also pop the receiver.
-  PopAndReturn(popCount + 1, result);
+  return result;
 }
 
 transitioning javascript builtin JSToWasmWrapper(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
-    ...arguments): JSAny {
-  JSToWasmWrapperHelper(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
+  return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kNoPromise);
 }
 
 transitioning javascript builtin WasmPromising(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
-    ...arguments): JSAny {
-  JSToWasmWrapperHelper(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
+  return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kPromise);
 }
 
 transitioning javascript builtin WasmStressSwitch(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
-    ...arguments): JSAny {
-  JSToWasmWrapperHelper(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
+  return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kStressSwitch);
 }
 

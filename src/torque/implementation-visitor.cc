@@ -674,6 +674,18 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                      << "Descriptor::kJSTarget);\n";
         csa_ccfile() << "USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetJSFunctionType()};
+      } else if (param_name == "dispatchHandle") {
+        if (V8_ENABLE_LEAPTIERING_BOOL) {
+          csa_ccfile() << "  TNode<JSDispatchHandleT> " << generated_name
+                       << " = "
+                          "UncheckedParameter<JSDispatchHandleT>(Descriptor::"
+                          "kJSDispatchHandle);\n";
+        } else {
+          csa_ccfile() << "  TNode<JSDispatchHandleT> " << generated_name
+                       << " = InvalidDispatchHandleConstant();\n";
+        }
+        csa_ccfile() << "USE(" << generated_name << ");\n";
+        expected_types = {TypeOracle::GetDispatchHandleType()};
       } else {
         Error(
             "Unexpected implicit parameter \"", param_name,
