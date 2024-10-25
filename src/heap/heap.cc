@@ -2631,6 +2631,8 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
     return;
   }
 
+  update_allocation_limits_after_loading_ = false;
+
   UpdateOldGenerationAllocationCounter();
   old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
   old_generation_wasted_at_last_gc_ = OldGenerationWastedBytes();
