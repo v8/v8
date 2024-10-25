@@ -22,11 +22,13 @@ template <typename T>
 MaybeHandle<T>::MaybeHandle(Tagged<T> object, LocalHeap* local_heap)
     : MaybeHandle(handle(object, local_heap)) {}
 
+template <typename T, typename U>
+inline bool Is(MaybeHandle<U> value) {
+  Handle<U> handle;
+  return !value.ToHandle(&handle) || Is<T>(handle);
+}
 template <typename To, typename From>
-inline MaybeHandle<To> Cast(MaybeHandle<From> value,
-                            const v8::SourceLocation& loc) {
-  DCHECK_WITH_MSG_AND_LOC(value.is_null() || Is<To>(*value.ToHandleChecked()),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+inline MaybeHandle<To> UncheckedCast(MaybeHandle<From> value) {
   return MaybeHandle<To>(value.location_);
 }
 
@@ -160,11 +162,14 @@ template <typename T>
 MaybeDirectHandle<T>::MaybeDirectHandle(Tagged<T> object, LocalHeap* local_heap)
     : MaybeDirectHandle(direct_handle(object, local_heap)) {}
 
+template <typename T, typename U>
+inline bool Is(MaybeDirectHandle<U> value) {
+  DirectHandle<U> handle;
+  return !value.ToHandle(&handle) || Is<T>(handle);
+}
+
 template <typename To, typename From>
-inline MaybeDirectHandle<To> Cast(MaybeDirectHandle<From> value,
-                                  const v8::SourceLocation& loc) {
-  DCHECK_WITH_MSG_AND_LOC(value.is_null() || Is<To>(*value.ToHandleChecked()),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+inline MaybeDirectHandle<To> UncheckedCast(MaybeDirectHandle<From> value) {
   return MaybeDirectHandle<To>(value.location_);
 }
 
@@ -172,6 +177,19 @@ template <typename T>
 inline std::ostream& operator<<(std::ostream& os, MaybeDirectHandle<T> handle) {
   if (handle.is_null()) return os << "null";
   return os << handle.ToHandleChecked();
+}
+
+#else
+
+template <typename T, typename U>
+inline bool Is(MaybeDirectHandle<U> value) {
+  DirectHandle<U> handle;
+  return !value.ToHandle(&handle) || Is<T>(handle);
+}
+
+template <typename To, typename From>
+inline MaybeDirectHandle<To> UncheckedCast(MaybeDirectHandle<From> value) {
+  return MaybeDirectHandle<To>(UncheckedCast<To>(value.handle_));
 }
 
 #endif  // V8_ENABLE_DIRECT_HANDLE

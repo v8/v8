@@ -422,9 +422,10 @@ MaybeHandle<JSFunction> InstantiateFunction(
       Handle<Object> parent_prototype;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
                                  GetInstancePrototype(isolate, parent));
-      CHECK(IsHeapObject(*parent_prototype));
+      Handle<JSPrototype> checked_parent_prototype;
+      CHECK(TryCast(parent_prototype, &checked_parent_prototype));
       JSObject::ForceSetPrototype(isolate, Cast<JSObject>(prototype),
-                                  Cast<HeapObject>(parent_prototype));
+                                  checked_parent_prototype);
     }
   }
   InstanceType function_type = JS_SPECIAL_API_OBJECT_TYPE;

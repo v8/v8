@@ -1403,7 +1403,8 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
     if (emit_write_barrier == EmitWriteBarrier::kYes) {
-      WriteBarrier::ForValue(*this, map_slot(), value, UPDATE_WRITE_BARRIER);
+      WriteBarrier::ForValue(*this, MaybeObjectSlot(map_slot()), value,
+                             UPDATE_WRITE_BARRIER);
     } else {
       DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
       SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
@@ -1427,7 +1428,7 @@ void HeapObject::set_map_after_allocation(IsolateT* isolate, Tagged<Map> value,
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
-    WriteBarrier::ForValue(*this, map_slot(), value, mode);
+    WriteBarrier::ForValue(*this, MaybeObjectSlot(map_slot()), value, mode);
   } else {
     SLOW_DCHECK(
         // We allow writes of a null map before root initialisation.

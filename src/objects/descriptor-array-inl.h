@@ -232,7 +232,7 @@ void DescriptorArray::SetValue(InternalIndex descriptor_number,
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   EntryValueField::Relaxed_Store(*this, entry_offset, value);
-  WEAK_WRITE_BARRIER(*this, entry_offset + kEntryValueOffset, value);
+  WRITE_BARRIER(*this, entry_offset + kEntryValueOffset, value);
 }
 
 Tagged<MaybeObject> DescriptorArray::GetValue(InternalIndex descriptor_number) {

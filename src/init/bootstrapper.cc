@@ -442,9 +442,9 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltin(
 
 V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
     Isolate* isolate, Handle<String> name, Builtin builtin,
-    Handle<HeapObject> prototype, InstanceType type, int instance_size,
-    int inobject_properties, MutableMode prototype_mutability, int len,
-    AdaptArguments adapt) {
+    Handle<UnionOf<JSPrototype, Hole>> prototype, InstanceType type,
+    int instance_size, int inobject_properties,
+    MutableMode prototype_mutability, int len, AdaptArguments adapt) {
   Factory* factory = isolate->factory();
   Handle<NativeContext> context(isolate->native_context());
   Handle<Map> map =
@@ -487,7 +487,8 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
   if (!IsResumableFunction(info->kind()) && IsTheHole(*prototype, isolate)) {
     prototype = factory->NewFunctionPrototype(result);
   }
-  JSFunction::SetInitialMap(isolate, result, initial_map, prototype);
+  JSFunction::SetInitialMap(isolate, result, initial_map,
+                            Cast<JSPrototype>(prototype));
 
   return result;
 }
@@ -509,8 +510,8 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithoutPrototype(
 
 V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
-    int inobject_properties, Handle<HeapObject> prototype, Builtin builtin,
-    int len, AdaptArguments adapt) {
+    int inobject_properties, Handle<UnionOf<JSPrototype, Hole>> prototype,
+    Builtin builtin, int len, AdaptArguments adapt) {
   DCHECK(Builtins::HasJSLinkage(builtin));
 
   Handle<JSFunction> result = CreateFunctionForBuiltinWithPrototype(
@@ -529,8 +530,8 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
 
 V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, const char* name, InstanceType type, int instance_size,
-    int inobject_properties, Handle<HeapObject> prototype, Builtin builtin,
-    int len, AdaptArguments adapt) {
+    int inobject_properties, Handle<UnionOf<JSPrototype, Hole>> prototype,
+    Builtin builtin, int len, AdaptArguments adapt) {
   return CreateFunction(
       isolate, isolate->factory()->InternalizeUtf8String(name), type,
       instance_size, inobject_properties, prototype, builtin, len, adapt);
@@ -539,7 +540,8 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
 V8_NOINLINE Handle<JSFunction> InstallFunction(
     Isolate* isolate, Handle<JSObject> target, Handle<String> name,
     InstanceType type, int instance_size, int inobject_properties,
-    Handle<HeapObject> prototype, Builtin call, int len, AdaptArguments adapt) {
+    Handle<UnionOf<JSPrototype, Hole>> prototype, Builtin call, int len,
+    AdaptArguments adapt) {
   DCHECK(Builtins::HasJSLinkage(call));
   Handle<JSFunction> function =
       CreateFunction(isolate, name, type, instance_size, inobject_properties,
@@ -551,7 +553,8 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
 V8_NOINLINE Handle<JSFunction> InstallFunction(
     Isolate* isolate, Handle<JSObject> target, const char* name,
     InstanceType type, int instance_size, int inobject_properties,
-    Handle<HeapObject> prototype, Builtin call, int len, AdaptArguments adapt) {
+    Handle<UnionOf<JSPrototype, Hole>> prototype, Builtin call, int len,
+    AdaptArguments adapt) {
   return InstallFunction(
       isolate, target, isolate->factory()->InternalizeUtf8String(name), type,
       instance_size, inobject_properties, prototype, call, len, adapt);
@@ -6952,7 +6955,7 @@ void Genesis::TransferObject(DirectHandle<JSObject> from, Handle<JSObject> to) {
   TransferIndexedProperties(from, to);
 
   // Transfer the prototype (new map is needed).
-  Handle<HeapObject> proto(from->map()->prototype(), isolate());
+  Handle<JSPrototype> proto(from->map()->prototype(), isolate());
   JSObject::ForceSetPrototype(isolate(), to, proto);
 }
 

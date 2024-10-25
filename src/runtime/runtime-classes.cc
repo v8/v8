@@ -485,7 +485,7 @@ Handle<JSObject> CreateClassPrototype(Isolate* isolate) {
 bool InitClassPrototype(Isolate* isolate,
                         DirectHandle<ClassBoilerplate> class_boilerplate,
                         Handle<JSObject> prototype,
-                        Handle<HeapObject> prototype_parent,
+                        Handle<JSPrototype> prototype_parent,
                         DirectHandle<JSFunction> constructor,
                         RuntimeArguments& args) {
   Handle<Map> map(prototype->map(), isolate);
@@ -529,7 +529,7 @@ bool InitClassPrototype(Isolate* isolate,
 
 bool InitClassConstructor(Isolate* isolate,
                           DirectHandle<ClassBoilerplate> class_boilerplate,
-                          Handle<HeapObject> constructor_parent,
+                          Handle<JSPrototype> constructor_parent,
                           Handle<JSFunction> constructor,
                           RuntimeArguments& args) {
   Handle<Map> map(constructor->map(), isolate);
@@ -588,8 +588,8 @@ MaybeHandle<Object> DefineClass(
     Isolate* isolate, DirectHandle<ClassBoilerplate> class_boilerplate,
     Handle<Object> super_class, Handle<JSFunction> constructor,
     RuntimeArguments& args) {
-  Handle<Object> prototype_parent;
-  Handle<HeapObject> constructor_parent;
+  Handle<JSPrototype> prototype_parent;
+  Handle<JSPrototype> constructor_parent;
 
   if (IsTheHole(*super_class, isolate)) {
     prototype_parent = isolate->initial_object_prototype();
@@ -600,20 +600,20 @@ MaybeHandle<Object> DefineClass(
       DCHECK(!IsJSFunction(*super_class) ||
              !IsResumableFunction(
                  Cast<JSFunction>(super_class)->shared()->kind()));
+      Handle<Object> maybe_prototype_parent;
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, prototype_parent,
+          isolate, maybe_prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
                                      isolate->factory()->prototype_string()));
-      if (!IsNull(*prototype_parent, isolate) &&
-          !IsJSReceiver(*prototype_parent)) {
+      if (!TryCast(maybe_prototype_parent, &prototype_parent)) {
         THROW_NEW_ERROR(
             isolate, NewTypeError(MessageTemplate::kPrototypeParentNotAnObject,
-                                  prototype_parent));
+                                  maybe_prototype_parent));
       }
       // Create new handle to avoid |constructor_parent| corruption because of
       // |super_class| handle value overwriting via storing to
       // args[ClassBoilerplate::kPrototypeArgumentIndex] below.
-      constructor_parent = handle(Cast<HeapObject>(*super_class), isolate);
+      constructor_parent = handle(Cast<JSPrototype>(*super_class), isolate);
     } else {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kExtendsValueNotConstructor,
@@ -633,8 +633,7 @@ MaybeHandle<Object> DefineClass(
   if (!InitClassConstructor(isolate, class_boilerplate, constructor_parent,
                             constructor, args) ||
       !InitClassPrototype(isolate, class_boilerplate, prototype,
-                          Cast<HeapObject>(prototype_parent), constructor,
-                          args)) {
+                          prototype_parent, constructor, args)) {
     DCHECK(isolate->has_exception());
     return MaybeHandle<Object>();
   }

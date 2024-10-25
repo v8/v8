@@ -286,8 +286,7 @@ void InitializePartialMap(Isolate* isolate, Tagged<Map> map,
   map->set_visitor_id(Map::GetVisitorId(map));
   map->set_inobject_properties_start_or_constructor_function_index(0);
   DCHECK(!IsJSObjectMap(map));
-  map->set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
-                                   kRelaxedStore);
+  map->set_prototype_validity_cell(Map::kPrototypeChainValidSmi, kRelaxedStore);
   map->SetInObjectUnusedPropertyFields(0);
   map->set_bit_field(0);
   map->set_bit_field2(0);

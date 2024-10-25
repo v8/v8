@@ -100,22 +100,9 @@ void WriteBarrier::ForRelocInfo(Tagged<InstructionStream> host,
 }
 
 // static
-void WriteBarrier::ForValue(Tagged<HeapObject> host, ObjectSlot slot,
-                            Tagged<Object> value, WriteBarrierMode mode) {
-  if (mode == SKIP_WRITE_BARRIER) {
-    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
-    return;
-  }
-  if (!value.IsHeapObject()) {
-    return;
-  }
-  CombinedWriteBarrierInternal(host, HeapObjectSlot(slot),
-                               Cast<HeapObject>(value), mode);
-}
-
-// static
+template <typename T>
 void WriteBarrier::ForValue(Tagged<HeapObject> host, MaybeObjectSlot slot,
-                            Tagged<MaybeObject> value, WriteBarrierMode mode) {
+                            Tagged<T> value, WriteBarrierMode mode) {
   if (mode == SKIP_WRITE_BARRIER) {
     SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
     return;

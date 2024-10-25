@@ -422,7 +422,7 @@ namespace internal {
   V(NonNullForeign)                          \
   V(ScriptContext)                           \
   V(WithContext)                             \
-  V(JSPrototype)                             \
+  V(JSInternalPrototypeBase)                 \
   V(JSObjectPrototype)                       \
   V(JSRegExpPrototype)                       \
   V(JSPromisePrototype)                      \

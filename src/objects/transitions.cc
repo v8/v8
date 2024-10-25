@@ -551,7 +551,7 @@ Tagged<Map> TransitionsAccessor::GetMigrationTarget() {
 // static
 void TransitionsAccessor::ReplaceTransitions(
     Isolate* isolate, DirectHandle<Map> map,
-    Tagged<MaybeObject> new_transitions) {
+    Tagged<UnionOf<TransitionArray, MaybeWeak<Map>>> new_transitions) {
 #if DEBUG
   if (GetEncoding(isolate, map) == kFullTransitionArray) {
     CheckNewTransitionsAreConsistent(

@@ -91,7 +91,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
                        JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   // [prototype_or_initial_map]:
-  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map, Tagged<HeapObject>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
+                                 Tagged<UnionOf<JSPrototype, Map, Hole>>)
 
   // [shared]: The information about the function that can be shared by
   // instances.
@@ -307,9 +308,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(initial_map, Tagged<Map>)
 
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            Handle<Map> map, Handle<HeapObject> prototype);
+                            Handle<Map> map, Handle<JSPrototype> prototype);
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            Handle<Map> map, Handle<HeapObject> prototype,
+                            Handle<Map> map, Handle<JSPrototype> prototype,
                             DirectHandle<JSFunction> constructor);
 
   DECL_GETTER(has_initial_map, bool)
@@ -340,7 +341,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(has_prototype, bool)
   DECL_GETTER(has_instance_prototype, bool)
   DECL_GETTER(prototype, Tagged<Object>)
-  DECL_GETTER(instance_prototype, Tagged<HeapObject>)
+  DECL_GETTER(instance_prototype, Tagged<JSPrototype>)
   DECL_GETTER(has_prototype_property, bool)
   DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
   static void SetPrototype(DirectHandle<JSFunction> function,

@@ -45,10 +45,12 @@ Handle<T> Handle<T>::New(Tagged<T> object, Isolate* isolate) {
   return Handle(HandleScope::CreateHandle(isolate, object.ptr()));
 }
 
+template <typename T, typename U>
+inline bool Is(Handle<U> value) {
+  return value.is_null() || Is<T>(*value);
+}
 template <typename To, typename From>
-inline Handle<To> Cast(Handle<From> value, const v8::SourceLocation& loc) {
-  DCHECK_WITH_MSG_AND_LOC(value.is_null() || Is<To>(*value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+inline Handle<To> UncheckedCast(Handle<From> value) {
   return Handle<To>(value.location());
 }
 
@@ -108,20 +110,24 @@ template <typename T>
 V8_INLINE DirectHandle<T>::DirectHandle(Tagged<T> object)
     : DirectHandle(object.ptr()) {}
 
+template <typename T, typename U>
+inline bool Is(DirectHandle<U> value) {
+  return value.is_null() || Is<T>(*value);
+}
 template <typename To, typename From>
-inline DirectHandle<To> Cast(DirectHandle<From> value,
-                             const v8::SourceLocation& loc) {
-  DCHECK_WITH_MSG_AND_LOC(value.is_null() || Is<To>(*value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+inline DirectHandle<To> UncheckedCast(DirectHandle<From> value) {
   return DirectHandle<To>(value.obj_);
 }
 
 #else
 
+template <typename T, typename U>
+inline bool Is(DirectHandle<U> value) {
+  return value.is_null() || Is<T>(*value);
+}
 template <typename To, typename From>
-inline DirectHandle<To> Cast(DirectHandle<From> value,
-                             const v8::SourceLocation& loc) {
-  return DirectHandle<To>(Cast<To>(value.handle_));
+inline DirectHandle<To> UncheckedCast(DirectHandle<From> value) {
+  return DirectHandle<To>(UncheckedCast<To>(value.handle_));
 }
 
 #endif  // V8_ENABLE_DIRECT_HANDLE

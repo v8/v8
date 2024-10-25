@@ -24,8 +24,8 @@ void PrepareMapCommon(Tagged<Map> map) {
   map->set_is_extensible(false);
   // Shared space objects are not optimizable as prototypes because it is
   // not threadsafe.
-  map->set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
-                                   kRelaxedStore, SKIP_WRITE_BARRIER);
+  map->set_prototype_validity_cell(Map::kPrototypeChainValidSmi, kRelaxedStore,
+                                   SKIP_WRITE_BARRIER);
 }
 
 }  // namespace

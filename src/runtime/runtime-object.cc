@@ -339,13 +339,15 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
 // an Object.create stub.
 RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   HandleScope scope(isolate);
-  Handle<Object> prototype = args.at(0);
+  Handle<Object> maybe_prototype = args.at(0);
   Handle<Object> properties = args.at(1);
   Handle<JSObject> obj;
   // 1. If Type(O) is neither Object nor Null, throw a TypeError exception.
-  if (!IsNull(*prototype, isolate) && !IsJSReceiver(*prototype)) {
+  Handle<JSPrototype> prototype;
+  if (!TryCast(maybe_prototype, &prototype)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
+        isolate,
+        NewTypeError(MessageTemplate::kProtoObjectOrNull, maybe_prototype));
   }
 
   // 2. Let obj be ObjectCreate(O).

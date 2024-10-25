@@ -4745,10 +4745,7 @@ void CppClassGenerator::EmitStoreFieldStatement(
     stream << "  " << write_macro << "(*this, " << offset << ", "
            << value_to_write << ");\n";
     if (!is_smi) {
-      const char* write_barrier = strong_pointer
-                                      ? "CONDITIONAL_WRITE_BARRIER"
-                                      : "CONDITIONAL_WEAK_WRITE_BARRIER";
-      stream << "  " << write_barrier << "(*this, " << offset
+      stream << "  CONDITIONAL_WRITE_BARRIER(*this, " << offset
              << ", value, mode);\n";
     }
   }

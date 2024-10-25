@@ -114,7 +114,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       DirectHandle<JSReceiver> receiver);
 
   // Get the first non-hidden prototype.
-  static inline MaybeHandle<HeapObject> GetPrototype(
+  static inline MaybeHandle<JSPrototype> GetPrototype(
       Isolate* isolate, Handle<JSReceiver> receiver);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> HasInPrototypeChain(
@@ -360,7 +360,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
-      Isolate* isolate, Handle<Object> prototype);
+      Isolate* isolate, Handle<JSPrototype> prototype);
 
   DECL_ACCESSORS(elements, Tagged<FixedArrayBase>)
   DECL_RELAXED_GETTER(elements, Tagged<FixedArrayBase>)
@@ -683,7 +683,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Forces a prototype without any of the checks that the regular SetPrototype
   // would do.
   static void ForceSetPrototype(Isolate* isolate, DirectHandle<JSObject> object,
-                                Handle<HeapObject> proto);
+                                Handle<JSPrototype> proto);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties

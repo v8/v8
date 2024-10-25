@@ -2403,13 +2403,12 @@ MaybeHandle<JSObject> JSObject::NewWithMap(Isolate* isolate,
 // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
 // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
 MaybeHandle<JSObject> JSObject::ObjectCreate(Isolate* isolate,
-                                             Handle<Object> prototype) {
+                                             Handle<JSPrototype> prototype) {
   // Generate the map with the specified {prototype} based on the Object
   // function's initial map from the current native context.
   // TODO(bmeurer): Use a dedicated cache for Object.create; think about
   // slack tracking for Object.create.
-  DirectHandle<Map> map =
-      Map::GetObjectCreateMap(isolate, Cast<HeapObject>(prototype));
+  DirectHandle<Map> map = Map::GetObjectCreateMap(isolate, prototype);
 
   // Actually allocate the object.
   return isolate->factory()->NewFastOrSlowJSObjectFromMap(map);
@@ -3448,7 +3447,7 @@ void JSObject::MigrateToMap(Isolate* isolate, DirectHandle<JSObject> object,
 
 void JSObject::ForceSetPrototype(Isolate* isolate,
                                  DirectHandle<JSObject> object,
-                                 Handle<HeapObject> proto) {
+                                 Handle<JSPrototype> proto) {
   // object.__proto__ = proto;
   Handle<Map> old_map = Handle<Map>(object->map(), isolate);
   DirectHandle<Map> new_map = Map::Copy(isolate, old_map, "ForceSetPrototype");
@@ -3822,9 +3821,8 @@ void JSObject::NormalizeProperties(Isolate* isolate,
   if (!object->HasFastProperties()) return;
 
   Handle<Map> map(object->map(), isolate);
-  DirectHandle<Map> new_map =
-      Map::Normalize(isolate, map, map->elements_kind(), Handle<HeapObject>(),
-                     mode, use_cache, reason);
+  DirectHandle<Map> new_map = Map::Normalize(isolate, map, map->elements_kind(),
+                                             {}, mode, use_cache, reason);
 
   JSObject::MigrateToMap(isolate, object, new_map,
                          expected_additional_properties);
@@ -5205,7 +5203,8 @@ void JSObject::InvalidatePrototypeValidityCell(Tagged<JSGlobalObject> global) {
 }
 
 Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
-                                   Handle<Object> value, bool from_javascript,
+                                   Handle<Object> value_obj,
+                                   bool from_javascript,
                                    ShouldThrow should_throw) {
 #ifdef DEBUG
   int size = object->Size();
@@ -5224,7 +5223,8 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
 
   // Silently ignore the change if value is not a JSReceiver or null.
   // SpiderMonkey behaves this way.
-  if (!IsJSReceiver(*value) && !IsNull(*value, isolate)) return Just(true);
+  Handle<JSPrototype> value;
+  if (!TryCast(value_obj, &value)) return Just(true);
 
   bool all_extensible = object->map()->is_extensible();
   Handle<JSObject> real_receiver = object;
@@ -5273,9 +5273,8 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
   // Before we can set the prototype we need to be sure prototype cycles are
   // prevented.  It is sufficient to validate that the receiver is not in the
   // new prototype chain.
-  if (IsJSReceiver(*value)) {
-    for (PrototypeIterator iter(isolate, Cast<JSReceiver>(*value),
-                                kStartAtReceiver);
+  if (Tagged<JSReceiver> receiver; TryCast<JSReceiver>(*value, &receiver)) {
+    for (PrototypeIterator iter(isolate, receiver, kStartAtReceiver);
          !iter.IsAtEnd(); iter.Advance()) {
       if (iter.GetCurrent<JSReceiver>() == *object) {
         // Cycle detected.
@@ -5291,10 +5290,8 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
 
   DirectHandle<Map> new_map =
       v8_flags.move_prototype_transitions_first
-          ? MapUpdater(isolate, map)
-                .ApplyPrototypeTransition(Cast<HeapObject>(value))
-          : Map::TransitionToUpdatePrototype(isolate, map,
-                                             Cast<HeapObject>(value));
+          ? MapUpdater(isolate, map).ApplyPrototypeTransition(value)
+          : Map::TransitionToUpdatePrototype(isolate, map, value);
 
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(isolate, real_receiver, new_map);

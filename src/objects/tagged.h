@@ -87,6 +87,9 @@ template <typename T>
 struct is_maybe_weak : public std::false_type {};
 template <typename T>
 struct is_maybe_weak<MaybeWeak<T>> : public std::true_type {};
+template <typename... T>
+struct is_maybe_weak<Union<T...>>
+    : public std::disjunction<is_maybe_weak<T>...> {};
 template <typename T>
 static constexpr bool is_maybe_weak_v = is_maybe_weak<T>::value;
 

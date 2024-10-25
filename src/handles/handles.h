@@ -227,8 +227,7 @@ class Handle final : public HandleBase {
   friend class MaybeHandle;
   // Casts are allowed to access location_.
   template <typename To, typename From>
-  friend inline Handle<To> Cast(Handle<From> value,
-                                const v8::SourceLocation& loc);
+  friend inline Handle<To> UncheckedCast(Handle<From> value);
 };
 
 template <typename T>
@@ -581,8 +580,7 @@ class DirectHandle : public DirectHandleBase {
   friend class DirectHandleUnchecked<T>;
   // Casts are allowed to access obj_.
   template <typename To, typename From>
-  friend inline DirectHandle<To> Cast(DirectHandle<From> value,
-                                      const v8::SourceLocation& loc);
+  friend inline DirectHandle<To> UncheckedCast(DirectHandle<From> value);
 
   V8_INLINE explicit DirectHandle(Tagged<T> object);
 
@@ -854,8 +852,7 @@ class DirectHandle {
   friend class MaybeDirectHandle;
   // Casts are allowed to access handle_.
   template <typename To, typename From>
-  friend inline DirectHandle<To> Cast(DirectHandle<From> value,
-                                      const v8::SourceLocation& loc);
+  friend inline DirectHandle<To> UncheckedCast(DirectHandle<From> value);
   template <typename U>
   friend inline IndirectHandle<U> indirect_handle(DirectHandle<U>);
   template <typename U>

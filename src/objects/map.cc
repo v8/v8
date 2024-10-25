@@ -899,7 +899,7 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
 
 // static
 Handle<Map> Map::GetObjectCreateMap(Isolate* isolate,
-                                    Handle<HeapObject> prototype) {
+                                    Handle<JSPrototype> prototype) {
   Handle<Map> map(isolate->native_context()->object_function()->initial_map(),
                   isolate);
   if (map->prototype() == *prototype) return map;
@@ -1272,14 +1272,14 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> src_handle,
     raw->set_bit_field3(new_bit_field3);
     raw->clear_padding();
   }
-  Handle<HeapObject> prototype(src_handle->prototype(), isolate);
+  Handle<JSPrototype> prototype(src_handle->prototype(), isolate);
   Map::SetPrototype(isolate, result, prototype);
   return result;
 }
 
 Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                            ElementsKind new_elements_kind,
-                           Handle<HeapObject> new_prototype,
+                           Handle<JSPrototype> new_prototype,
                            PropertyNormalizationMode mode, bool use_cache,
                            const char* reason) {
   DCHECK(!fast_map->is_dictionary_map());
@@ -1790,7 +1790,7 @@ Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
 }
 
 Handle<Map> Map::CopyForPrototypeTransition(Isolate* isolate, Handle<Map> map,
-                                            Handle<HeapObject> prototype) {
+                                            Handle<JSPrototype> prototype) {
   // For simplicity we always copy descriptors although it would be possible to
   // share them in some situations.
   Handle<Map> new_map =
@@ -2039,7 +2039,8 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
       result = Map::Normalize(isolate, initial_map, CLEAR_INOBJECT_PROPERTIES,
                               reason);
       initial_map->DeprecateTransitionTree(isolate);
-      Handle<HeapObject> prototype(result->prototype(), isolate);
+      Handle<JSReceiver> prototype(Cast<JSReceiver>(result->prototype()),
+                                   isolate);
       JSFunction::SetInitialMap(isolate, constructor, result, prototype);
 
       // Deoptimize all code that embeds the previous initial map.
@@ -2417,7 +2418,7 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
         handle(map->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
   }
   if (!IsJSObjectThatCanBeTrackedAsPrototype(*maybe_prototype)) {
-    return handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
+    return handle(Map::kPrototypeChainValidSmi, isolate);
   }
   auto prototype = Cast<JSObject>(maybe_prototype);
   // Ensure the prototype is registered with its own prototypes so its cell
@@ -2430,13 +2431,12 @@ Handle<UnionOf<Smi, Cell>> Map::GetOrCreatePrototypeChainValidityCell(
   // Return existing cell if it's still valid.
   if (IsCell(maybe_cell)) {
     Tagged<Cell> cell = Cast<Cell>(maybe_cell);
-    if (cell->value() == Smi::FromInt(Map::kPrototypeChainValid)) {
+    if (cell->value() == Map::kPrototypeChainValidSmi) {
       return handle(cell, isolate);
     }
   }
   // Otherwise create a new cell.
-  Handle<Cell> cell =
-      isolate->factory()->NewCell(Smi::FromInt(Map::kPrototypeChainValid));
+  Handle<Cell> cell = isolate->factory()->NewCell(Map::kPrototypeChainValidSmi);
   prototype->map()->set_prototype_validity_cell(*cell, kRelaxedStore);
   return cell;
 }
@@ -2447,14 +2447,14 @@ bool Map::IsPrototypeChainInvalidated(Tagged<Map> map) {
   Tagged<Object> maybe_cell = map->prototype_validity_cell(kRelaxedLoad);
   if (IsCell(maybe_cell)) {
     Tagged<Cell> cell = Cast<Cell>(maybe_cell);
-    return cell->value() != Smi::FromInt(Map::kPrototypeChainValid);
+    return cell->value() != Map::kPrototypeChainValidSmi;
   }
   return true;
 }
 
 // static
 void Map::SetPrototype(Isolate* isolate, DirectHandle<Map> map,
-                       Handle<HeapObject> prototype,
+                       Handle<JSPrototype> prototype,
                        bool enable_prototype_setup_mode) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kMap_SetPrototype);
 
@@ -2479,7 +2479,7 @@ void Map::StartInobjectSlackTracking() {
 }
 
 Handle<Map> Map::TransitionRootMapToPrototypeForNewObject(
-    Isolate* isolate, Handle<Map> map, Handle<HeapObject> prototype) {
+    Isolate* isolate, Handle<Map> map, Handle<JSPrototype> prototype) {
   DCHECK(IsUndefined(map->GetBackPointer()));
   Handle<Map> new_map = TransitionToUpdatePrototype(isolate, map, prototype);
   if (new_map->GetBackPointer() != *map &&
@@ -2492,7 +2492,7 @@ Handle<Map> Map::TransitionRootMapToPrototypeForNewObject(
 }
 
 Handle<Map> Map::TransitionToUpdatePrototype(Isolate* isolate, Handle<Map> map,
-                                             Handle<HeapObject> prototype) {
+                                             Handle<JSPrototype> prototype) {
   Handle<Map> new_map;
   DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
                  IsUndefined(map->GetBackPointer()));

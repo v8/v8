@@ -7913,9 +7913,10 @@ Local<v8::Object> v8::Object::New(Isolate* v8_isolate,
                                   Local<Name>* names, Local<Value>* values,
                                   size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  auto proto = Utils::OpenHandle(*prototype_or_null);
-  if (!Utils::ApiCheck(i::IsNull(*proto) || IsJSReceiver(*proto),
-                       "v8::Object::New", "prototype must be null or object")) {
+  i::Handle<i::JSPrototype> proto;
+  if (!Utils::ApiCheck(
+          i::TryCast(Utils::OpenHandle(*prototype_or_null), &proto),
+          "v8::Object::New", "prototype must be null or object")) {
     return Local<v8::Object>();
   }
   API_RCS_SCOPE(i_isolate, Object, New);
@@ -7935,7 +7936,7 @@ Local<v8::Object> v8::Object::New(Isolate* v8_isolate,
                                      values, length);
     i::Handle<i::JSObject> obj =
         i_isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
-            i::Cast<i::HeapObject>(proto), properties, elements);
+            proto, properties, elements);
     return Utils::ToLocal(obj);
   } else {
     i::Handle<i::NameDictionary> properties =
@@ -7944,7 +7945,7 @@ Local<v8::Object> v8::Object::New(Isolate* v8_isolate,
                                      values, length);
     i::Handle<i::JSObject> obj =
         i_isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
-            i::Cast<i::HeapObject>(proto), properties, elements);
+            proto, properties, elements);
     return Utils::ToLocal(obj);
   }
 }

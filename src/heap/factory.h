@@ -658,7 +658,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // fast elements, or a NumberDictionary, in which case the resulting
   // object will have dictionary elements.
   Handle<JSObject> NewSlowJSObjectWithPropertiesAndElements(
-      Handle<HeapObject> prototype, DirectHandle<HeapObject> properties,
+      Handle<JSPrototype> prototype, DirectHandle<HeapObject> properties,
       DirectHandle<FixedArrayBase> elements);
 
   // JS arrays are pretenured when allocated by the parser.
@@ -846,7 +846,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
       DirectHandle<JSReceiver> target_function, DirectHandle<JSAny> bound_this,
       base::Vector<DirectHandle<Object>> bound_args,
-      Handle<HeapObject> prototype);
+      Handle<JSPrototype> prototype);
 
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(DirectHandle<JSReceiver> target,

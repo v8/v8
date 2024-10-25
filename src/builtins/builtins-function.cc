@@ -204,7 +204,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
     }
   }
 
-  Handle<HeapObject> proto;
+  Handle<JSPrototype> proto;
   if (proto_source == ProtoSource::kUseTargetPrototype) {
     // Determine the prototype of the {target_function}.
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -212,8 +212,8 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
   } else if (proto_source == ProtoSource::kNormalFunction) {
     DirectHandle<NativeContext> native_context(
         isolate->global_object()->native_context(), isolate);
-    auto function_proto = native_context->function_function()->prototype();
-    proto = handle(Cast<HeapObject>(function_proto), isolate);
+    auto function_proto = native_context->function_prototype();
+    proto = handle(function_proto, isolate);
   } else {
     UNREACHABLE();
   }

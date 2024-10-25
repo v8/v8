@@ -2332,7 +2332,7 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
   } else {
     DCHECK_EQ(inobject_properties, 0);
     map->set_inobject_properties_start_or_constructor_function_index(0);
-    map->set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
+    map->set_prototype_validity_cell(Map::kPrototypeChainValidSmi,
                                      kRelaxedStore, SKIP_WRITE_BARRIER);
   }
   map->set_dependent_code(DependentCode::empty_dependent_code(roots),
@@ -3148,7 +3148,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(DirectHandle<Map> map) {
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
-    Handle<HeapObject> prototype, DirectHandle<HeapObject> properties,
+    Handle<JSPrototype> prototype, DirectHandle<HeapObject> properties,
     DirectHandle<FixedArrayBase> elements) {
   DCHECK(IsPropertyDictionary(*properties));
 
@@ -3689,7 +3689,7 @@ Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
 MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
     DirectHandle<JSReceiver> target_function, DirectHandle<JSAny> bound_this,
     base::Vector<DirectHandle<Object>> bound_args,
-    Handle<HeapObject> prototype) {
+    Handle<JSPrototype> prototype) {
   DCHECK(IsCallable(*target_function));
   static_assert(Code::kMaxArguments <= FixedArray::kMaxLength);
   if (bound_args.length() >= Code::kMaxArguments) {

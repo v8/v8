@@ -188,36 +188,37 @@ const kDoubleHole: float64_or_hole = float64_or_hole{is_hole: true, value: 0};
 
 @doNotGenerateCast
 @abstract
-extern class JSPrototype extends JSObject generates 'TNode<JSObject>';
-@doNotGenerateCast
-extern class JSObjectPrototype extends JSPrototype
+extern class JSInternalPrototypeBase extends JSObject
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSRegExpPrototype extends JSPrototype
+extern class JSObjectPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSPromisePrototype extends JSPrototype
+extern class JSRegExpPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSTypedArrayPrototype extends JSPrototype
+extern class JSPromisePrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSSetPrototype extends JSPrototype
+extern class JSTypedArrayPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSIteratorPrototype extends JSPrototype
+extern class JSSetPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSArrayIteratorPrototype extends JSPrototype
+extern class JSIteratorPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSMapIteratorPrototype extends JSPrototype
+extern class JSArrayIteratorPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSSetIteratorPrototype extends JSPrototype
+extern class JSMapIteratorPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSStringIteratorPrototype extends JSPrototype
+extern class JSSetIteratorPrototype extends JSInternalPrototypeBase
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSStringIteratorPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 
 // The HashTable inheritance hierarchy doesn't actually look like this in C++

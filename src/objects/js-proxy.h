@@ -29,7 +29,7 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
   static void Revoke(DirectHandle<JSProxy> proxy);
 
   // ES6 9.5.1
-  static MaybeHandle<HeapObject> GetPrototype(DirectHandle<JSProxy> receiver);
+  static MaybeHandle<JSPrototype> GetPrototype(DirectHandle<JSProxy> receiver);
 
   // ES6 9.5.2
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
