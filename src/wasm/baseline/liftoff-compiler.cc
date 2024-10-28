@@ -8377,7 +8377,7 @@ class LiftoffCompiler {
             ObjectAccess::ToTagged(WasmDispatchTable::OffsetOf(imm.index) +
                                    WasmDispatchTable::kImplicitArgBias));
 
-        __ LoadFullPointer(
+        __ LoadCodePointer(
             target, dispatch_table,
             ObjectAccess::ToTagged(WasmDispatchTable::OffsetOf(imm.index) +
                                    WasmDispatchTable::kTargetBias));
@@ -8693,9 +8693,9 @@ class LiftoffCompiler {
         __ LoadProtectedPointer(
             implicit_arg, dispatch_table_base.gp_reg(),
             dispatch_table_offset + WasmDispatchTable::kImplicitArgBias);
-        __ Load(LiftoffRegister(target), dispatch_table_base.gp_reg(), no_reg,
-                dispatch_table_offset + WasmDispatchTable::kTargetBias,
-                LoadType::ForValueKind(kIntPtrKind));
+        __ LoadCodePointer(
+            target, dispatch_table_base.gp_reg(),
+            dispatch_table_offset + WasmDispatchTable::kTargetBias);
       }
 
       if (v8_flags.wasm_inlining_call_indirect) {

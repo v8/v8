@@ -124,6 +124,16 @@ void LiftoffAssembler::LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::LoadCodePointer(Register dst, Register src_addr,
+                                       int32_t offset_imm) {
+  if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
+    return Load(LiftoffRegister(dst), src_addr, no_reg, offset_imm,
+                LoadType::kI32Load);
+  } else {
+    return LoadFullPointer(dst, src_addr, offset_imm);
+  }
+}
+
 void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
                                         Register rhs) {
   if constexpr (kSystemPointerSize == 8) {

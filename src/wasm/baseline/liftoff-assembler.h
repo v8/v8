@@ -705,6 +705,7 @@ class LiftoffAssembler : public MacroAssembler {
                                    int32_t offset);
   inline void LoadFullPointer(Register dst, Register src_addr,
                               int32_t offset_imm);
+  inline void LoadCodePointer(Register dst, Register src_addr, int32_t offset);
 #ifdef V8_ENABLE_SANDBOX
   inline void LoadCodeEntrypointViaCodePointer(Register dsr, Register src_addr,
                                                int offset_imm);

@@ -5105,14 +5105,14 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
   // Since we have more cache registers than parameter registers, the
   // {LiftoffCompiler} should always be able to place {target} in a register.
   DCHECK(target.is_valid());
-  call(target);
+  CallWasmCodePointer(target);
 }
 
 void LiftoffAssembler::TailCallIndirect(Register target) {
   // Since we have more cache registers than parameter registers, the
   // {LiftoffCompiler} should always be able to place {target} in a register.
   DCHECK(target.is_valid());
-  jmp(target);
+  CallWasmCodePointer(target, CallJumpMode::kTailCall);
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {

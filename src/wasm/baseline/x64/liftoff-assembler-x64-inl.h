@@ -4874,7 +4874,7 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
     popq(kScratchRegister);
     target = kScratchRegister;
   }
-  call(target);
+  CallWasmCodePointer(target);
 }
 
 void LiftoffAssembler::TailCallIndirect(Register target) {
@@ -4882,7 +4882,7 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
     popq(kScratchRegister);
     target = kScratchRegister;
   }
-  jmp(target);
+  CallWasmCodePointer(target, CallJumpMode::kTailCall);
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {
