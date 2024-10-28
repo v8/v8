@@ -47,11 +47,10 @@
   'proposals/js-promise-integration/exception/identity.tentative': [FAIL],
   'proposals/js-promise-integration/exception/jsTag.tentative': [FAIL],
 
-  # TODO(clemensb): Update spec tests to include
-  # https://github.com/WebAssembly/memory64/pull/91 and
-  # https://github.com/WebAssembly/memory64/pull/92.
-  'proposals/memory64/memory/constructor': [SKIP],
-  'proposals/memory64/table/constructor': [SKIP],
+  # TODO(https://crbug.com/364917766): Investigate and fix.
+  'proposals/memory64/table/constructor': [FAIL],
+  'proposals/memory64/table/get-set': [FAIL],
+  'proposals/memory64/table/grow': [FAIL],
 }], # ALWAYS
 
 ['system == android', {
