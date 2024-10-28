@@ -3205,6 +3205,7 @@ bool HeapSnapshotGenerator::GenerateSnapshotAfterGC() {
   v8_heap_explorer_.MakeGlobalObjectTagMap(
       std::move(temporary_global_object_tags));
   snapshot_->AddSyntheticRootEntries();
+  v8_heap_explorer_.PopulateLineEnds();
   if (!FillReferences()) return false;
   snapshot_->FillChildren();
   snapshot_->RememberLastJSObjectId();
