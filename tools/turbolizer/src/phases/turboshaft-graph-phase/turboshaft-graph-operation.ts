@@ -20,6 +20,7 @@ enum Opcode {
   Shift = "Shift",
   Load = "Load",
   Store = "Store",
+  DeoptimizeIf = "DeoptimizeIf",
 }
 
 enum RegisterRepresentation {
@@ -125,7 +126,7 @@ function chooseOption(option: string, otherwise: number | undefined,
   throw new CompactOperationError(
     `Option "${option}" is unexpected. Expecing any of: ${candidates}`);
 }
- 
+
 class CompactOperationError {
   message: string;
 
@@ -203,6 +204,22 @@ class CompactOperationPrinter_Constant extends CompactOperationPrinter {
   }
 }
 
+class CompactOperationPrinter_DeoptimizeIf extends CompactOperationPrinter {
+  negated: boolean;
+
+  constructor(operation: TurboshaftGraphOperation, properties: string) {
+    super(operation);
+    const options = this.parseOptions(properties);
+    this.negated = options[0] == "negated";
+  }
+
+  public override Print(n: number, input: InputPrinter): string {
+    return `DeoptimizeIf(${this.negated ? "!" : ""}${input(0)}, ${input(1)})`;
+  }
+
+  public PrintInLine(): string { return ""; }
+}
+
 enum Shift_Kind {
     ShiftRightArithmeticShiftOutZeros = "ShiftRightArithmeticShiftOutZeros",
     ShiftRightArithmetic = "ShiftRightArithmetic",
@@ -262,7 +279,7 @@ class CompactOperationPrinter_Shift extends CompactOperationPrinter {
         subscript += "w64";
         break;
     }
- 
+
     return `v${id} = ${input(0)} ${symbol}${this.sub(subscript)} ${input(1)}`;
   }
 
@@ -633,6 +650,8 @@ export class TurboshaftGraphOperation extends Node<TurboshaftGraphEdge<Turboshaf
           return new CompactOperationPrinter_Load(this, properties);
         case Opcode.Store:
           return new CompactOperationPrinter_Store(this, properties);
+        case Opcode.DeoptimizeIf:
+          return new CompactOperationPrinter_DeoptimizeIf(this, properties);
         default:
           return null;
       }
