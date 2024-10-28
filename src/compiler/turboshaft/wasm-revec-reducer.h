@@ -407,6 +407,8 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   bool IsSideEffectFree(OpIndex first, OpIndex second);
   bool CanBePacked(const NodeGroup& node_group);
   bool IsEqual(const OpIndex node0, const OpIndex node1);
+  // Check if the nodes in the node_group depend on the result of each other.
+  bool HasInputDependencies(const NodeGroup& node_group);
 
   Graph& graph() const { return graph_; }
   Zone* zone() const { return phase_zone_; }
@@ -507,7 +509,8 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       // Extract128 is needed for the additional Simd128 store before
       // Simd256 store in case of OOB trap at the higher 128-bit
       // address.
-      if (auto use_pnode = analyzer_.GetPackNode(use)) {
+      auto use_pnode = analyzer_.GetPackNode(use);
+      if (use_pnode != nullptr && !use_pnode->is_force_pack()) {
         DCHECK_GE(use_pnode->nodes().size(), 2);
         if (__ input_graph().Get(use).opcode != Opcode::kStore ||
             use_pnode->nodes()[0] != use ||

@@ -228,6 +228,37 @@ void SLPTree::Print(const char* info) {
           node_to_packnode_);
 }
 
+bool SLPTree::HasInputDependencies(const NodeGroup& node_group) {
+  DCHECK_EQ(node_group.size(), 2);
+  if (node_group[0] == node_group[1]) return false;
+  OpIndex start, end;
+  if (node_group[0] < node_group[1]) {
+    start = node_group[0];
+    end = node_group[1];
+  } else {
+    start = node_group[1];
+    end = node_group[0];
+  }
+  // Do BFS from the end node and see if there is a path to the start node.
+  ZoneQueue<OpIndex> to_visit(phase_zone_);
+  to_visit.push(end);
+  while (!to_visit.empty()) {
+    OpIndex to_visit_node = to_visit.front();
+    Operation& op = graph_.Get(to_visit_node);
+    to_visit.pop();
+    for (OpIndex input : op.inputs()) {
+      if (input == start) {
+        return true;
+      } else if (input > start) {
+        // We should ensure that there is no back edge.
+        DCHECK_LT(input, to_visit_node);
+        to_visit.push(input);
+      }
+    }
+  }
+  return false;
+}
+
 PackNode* SLPTree::NewPackNode(const NodeGroup& node_group) {
   TRACE("PackNode %s(#%d, #%d)\n",
         GetSimdOpcodeName(graph_.Get(node_group[0])).c_str(),
@@ -242,6 +273,22 @@ PackNode* SLPTree::NewPackNode(const NodeGroup& node_group) {
 PackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
                                     PackNode::ForcePackType type,
                                     const Graph& graph) {
+  // Currently we only support force packing two nodes.
+  DCHECK_EQ(node_group.size(), 2);
+  // We should guarantee that the one node in the NodeGroup does not rely on the
+  // result of the other. Because it is costly to force pack such candidates.
+  // For example, we have four nodes {A, B, C, D} which are connected by input
+  // edges: A <-- B <-- C <-- D. If {B} and {D} are already packed into a
+  // PackNode and we want to force pack {A} and {C}, we need to duplicate {B}
+  // and the result will be {A, B, C}, {B, D}. This increase the cost of
+  // ForcePack so currently we do not support it.
+  if (HasInputDependencies(node_group)) {
+    TRACE("ForcePackNode %s(#%d, #%d) failed due to input dependencies.\n",
+          GetSimdOpcodeName(graph_.Get(node_group[0])).c_str(),
+          node_group[0].id(), node_group[1].id());
+    return nullptr;
+  }
+
   TRACE("ForcePackNode %s(#%d, #%d)\n",
         GetSimdOpcodeName(graph_.Get(node_group[0])).c_str(),
         node_group[0].id(), node_group[1].id());
@@ -1034,7 +1081,7 @@ bool WasmRevecAnalyzer::DecideVectorize() {
 #endif  // V8_TARGET_ARCH_X64
 
           for (auto use : use_map_->uses(nodes[i])) {
-            if (!GetPackNode(use)) {
+            if (!GetPackNode(use) || GetPackNode(use)->is_force_pack()) {
               TRACE("External use edge: (%d:%s) -> (%d:%s)\n", use.id(),
                     OpcodeName(graph_.Get(use).opcode), nodes[i].id(),
                     OpcodeName(graph_.Get(nodes[i]).opcode));
