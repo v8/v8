@@ -257,6 +257,7 @@ enum class IsolateFieldId : uint8_t;
           "wasm::switch_to_the_central_stack_for_js")                          \
   IF_WASM(V, wasm_switch_from_the_central_stack_for_js,                        \
           "wasm::switch_from_the_central_stack_for_js")                        \
+  IF_WASM(V, wasm_code_pointer_table, "GetProcessWideWasmCodePointerTable()")  \
   IF_WASM(V, wasm_grow_stack, "wasm::grow_stack")                              \
   IF_WASM(V, wasm_shrink_stack, "wasm::shrink_stack")                          \
   IF_WASM(V, wasm_load_old_fp, "wasm::load_old_fp")                            \

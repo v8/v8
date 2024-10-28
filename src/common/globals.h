@@ -2721,6 +2721,8 @@ using WasmCodePointer = uint32_t;
 using WasmCodePointer = Address;
 #endif
 
+enum CallJumpMode { kCall, kTailCall };
+
 }  // namespace internal
 
 // Tag dispatching support for atomic loads and stores.

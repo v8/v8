@@ -4122,41 +4122,39 @@ class LiftoffCompiler {
             .as_vector());
   }
 
-  enum TailCall : bool { kTailCall = true, kNoTailCall = false };
-
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value[]) {
-    CallDirect(decoder, imm, args, nullptr, kNoTailCall);
+    CallDirect(decoder, imm, args, nullptr, CallJumpMode::kCall);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
-    CallIndirectImpl(decoder, imm, kNoTailCall);
+    CallIndirectImpl(decoder, imm, CallJumpMode::kCall);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, const Value args[], Value returns[]) {
-    CallRefImpl(decoder, func_ref.type, sig, kNoTailCall);
+    CallRefImpl(decoder, func_ref.type, sig, CallJumpMode::kCall);
   }
 
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
     TierupCheckOnTailCall(decoder);
-    CallDirect(decoder, imm, args, nullptr, kTailCall);
+    CallDirect(decoder, imm, args, nullptr, CallJumpMode::kTailCall);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index_val,
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
     TierupCheckOnTailCall(decoder);
-    CallIndirectImpl(decoder, imm, kTailCall);
+    CallIndirectImpl(decoder, imm, CallJumpMode::kTailCall);
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, const Value args[]) {
     TierupCheckOnTailCall(decoder);
-    CallRefImpl(decoder, func_ref.type, sig, kTailCall);
+    CallRefImpl(decoder, func_ref.type, sig, CallJumpMode::kTailCall);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
@@ -8344,7 +8342,8 @@ class LiftoffCompiler {
 
  private:
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
-                  const Value args[], Value returns[], TailCall tail_call) {
+                  const Value args[], Value returns[],
+                  CallJumpMode call_jump_mode) {
     MostlySmallValueKindSig sig(zone_, imm.sig);
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
@@ -8385,7 +8384,7 @@ class LiftoffCompiler {
       }
 
       __ PrepareCall(&sig, call_descriptor, &target, implicit_arg);
-      if (tail_call) {
+      if (call_jump_mode == CallJumpMode::kTailCall) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
             static_cast<int>(
@@ -8412,7 +8411,7 @@ class LiftoffCompiler {
       __ PrepareCall(&sig, call_descriptor);
       // Just encode the function index. This will be patched at instantiation.
       Address addr = static_cast<Address>(imm.index);
-      if (tail_call) {
+      if (call_jump_mode == CallJumpMode::kTailCall) {
         DCHECK(descriptor_->CanTailCall(call_descriptor));
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -8429,7 +8428,7 @@ class LiftoffCompiler {
   }
 
   void CallIndirectImpl(FullDecoder* decoder, const CallIndirectImmediate& imm,
-                        TailCall tail_call) {
+                        CallJumpMode call_jump_mode) {
     MostlySmallValueKindSig sig(zone_, imm.sig);
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
@@ -8753,7 +8752,7 @@ class LiftoffCompiler {
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
       __ PrepareCall(&sig, call_descriptor, &target, implicit_arg);
-      if (tail_call) {
+      if (call_jump_mode == CallJumpMode::kTailCall) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
             static_cast<int>(
@@ -8813,7 +8812,7 @@ class LiftoffCompiler {
   }
 
   void CallRefImpl(FullDecoder* decoder, ValueType func_ref_type,
-                   const FunctionSig* type_sig, TailCall tail_call) {
+                   const FunctionSig* type_sig, CallJumpMode call_jump_mode) {
     MostlySmallValueKindSig sig(zone_, type_sig);
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
@@ -8906,7 +8905,7 @@ class LiftoffCompiler {
     }  // v8_flags.wasm_inlining
 
     __ PrepareCall(&sig, call_descriptor, &target_reg, implicit_arg_reg);
-    if (tail_call) {
+    if (call_jump_mode == CallJumpMode::kTailCall) {
       __ PrepareTailCall(
           static_cast<int>(call_descriptor->ParameterSlotCount()),
           static_cast<int>(

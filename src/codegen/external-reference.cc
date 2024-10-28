@@ -672,6 +672,11 @@ FUNCTION_REFERENCE(wasm_signature_check_fail, WasmSignatureCheckFail)
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)
 #undef V
+
+ExternalReference ExternalReference::wasm_code_pointer_table() {
+  return ExternalReference(wasm::GetProcessWideWasmCodePointerTable()->base());
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 static void f64_acos_wrapper(Address data) {

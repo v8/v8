@@ -3950,8 +3950,6 @@ TEST(IsDoubleElementsKind) {
 
 namespace {
 
-enum CallJumpMode { kCall, kTailCall };
-
 void TestCallJumpBuiltin(CallJumpMode mode,
                          BuiltinCallJumpMode builtin_call_jump_mode) {
   Isolate* isolate(CcTest::InitIsolateOnce());

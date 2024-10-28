@@ -3864,7 +3864,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     __ ldr(call_target,
            MemOperand(wrapper_buffer,
                       JSToWasmWrapperFrameConstants::kWrapperBufferCallTarget));
-    __ Call(call_target);
+    __ CallWasmCodePointer(call_target);
   }
 
   regs.ResetExcept();
