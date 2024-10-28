@@ -787,14 +787,14 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 
     // Sweep empty normal pages first. These pages can be reused across all
     // regular spaces.
-    SweepState(delegate, *empty_normal_pages_);
+    if (!SweepStateOrYield(delegate, *empty_normal_pages_)) return;
     for (SweepingState& state : *space_states_) {
-      SweepState(delegate, state);
+      if (!SweepStateOrYield(delegate, state)) return;
     }
     // Sweep empty large pages last. They generally cannot be reused.
     // TODO(mlippautz): We could split them into pages that can be split up for
     // normal pages.
-    SweepState(delegate, *empty_large_pages_);
+    if (!SweepStateOrYield(delegate, *empty_large_pages_)) return;
 
     is_completed_.store(true, std::memory_order_relaxed);
   }
@@ -804,15 +804,17 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
   }
 
  private:
-  void SweepState(cppgc::JobDelegate* delegate, SweepingState& state) {
+  // Returns true if sweeping completed, or false if it yielded.
+  bool SweepStateOrYield(cppgc::JobDelegate* delegate, SweepingState& state) {
     current_sweeping_state_ = &state;
     while (auto page = state.unswept_pages.Pop()) {
       Traverse(**page);
       if (delegate->ShouldYield()) {
-        return;
+        return false;
       }
     }
     current_sweeping_state_ = nullptr;
+    return true;
   }
 
   bool VisitNormalPage(NormalPage& page) {
