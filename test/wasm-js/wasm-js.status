@@ -46,11 +46,6 @@
   'proposals/js-promise-integration/exception/basic.tentative': [FAIL],
   'proposals/js-promise-integration/exception/identity.tentative': [FAIL],
   'proposals/js-promise-integration/exception/jsTag.tentative': [FAIL],
-
-  # TODO(https://crbug.com/364917766): Investigate and fix.
-  'proposals/memory64/table/constructor': [FAIL],
-  'proposals/memory64/table/get-set': [FAIL],
-  'proposals/memory64/table/grow': [FAIL],
 }], # ALWAYS
 
 ['system == android', {

@@ -1270,6 +1270,7 @@ void WebAssemblyInstantiateImpl(
                                          is_shared, js_api_scope.api_name());
 }
 
+namespace {
 // {AddressValueToU64} as defined in the memory64 js-api spec.
 // Returns std::nullopt on error (exception or error set in the thrower), and
 // the address value otherwise.
@@ -1385,7 +1386,14 @@ std::optional<uint64_t> GetInitialOrMinimumProperty(
   return *maybe_initial;
 }
 
-namespace {
+v8::Local<Value> AddressValueFromUnsigned(Isolate* isolate,
+                                          i::wasm::AddressType type,
+                                          unsigned value) {
+  return type == i::wasm::AddressType::kI64
+             ? BigInt::NewFromUnsigned(isolate, value).As<Value>()
+             : Integer::NewFromUnsigned(isolate, value).As<Value>();
+}
+
 i::Handle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
                                                i::wasm::ValueType type) {
   DCHECK(type.is_object_reference());
@@ -2495,8 +2503,10 @@ void WebAssemblyTableGetLengthImpl(
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmTableObject);
 
+  int length = receiver->current_length();
+  DCHECK_LE(0, length);
   info.GetReturnValue().Set(
-      v8::Number::New(isolate, receiver->current_length()));
+      AddressValueFromUnsigned(isolate, receiver->address_type(), length));
 }
 
 // WebAssembly.Table.grow(num, init_value = null) -> num
@@ -2540,11 +2550,8 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     thrower.RangeError("failed to grow table by %" PRIu64, grow_by);
     return;
   }
-  v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(
-      receiver->is_table64()
-          ? BigInt::NewFromUnsigned(isolate, old_size).As<Value>()
-          : Integer::NewFromUnsigned(isolate, old_size).As<Value>());
+  info.GetReturnValue().Set(
+      AddressValueFromUnsigned(isolate, receiver->address_type(), old_size));
 }
 
 namespace {
@@ -2687,10 +2694,8 @@ void WebAssemblyMemoryGrowImpl(
     thrower.RangeError("Unable to grow instance memory");
     return;
   }
-  v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(receiver->is_memory64()
-                       ? BigInt::New(isolate, ret).As<Value>()
-                       : Integer::New(isolate, ret).As<Value>());
+  info.GetReturnValue().Set(
+      AddressValueFromUnsigned(isolate, receiver->address_type(), ret));
 }
 
 // WebAssembly.Memory.buffer -> ArrayBuffer
