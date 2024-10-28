@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:4237c4b45d2accad9955693251a99f0b862a0a03',
+  'siso_version': 'git_revision:ce4f6bcc0a2fa899d89f73b80cc6c7d5b841eb4a',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:d212e392e327834378013806f0263ab263600db2',
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c7678ba8af4577e45023b35ae96b6b71efa0acf7',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '97acaed4b9aef24f9f877bf23c8c135a57362884',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '9a8b90b14d9b92ac797f4a94127655e5a8905f40',
   'tools/luci-go': {
       'packages': [
         {
