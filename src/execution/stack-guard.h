@@ -201,7 +201,8 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
     uintptr_t real_climit_ = kIllegalLimit;
 
     // jslimit_ and climit_ can be read without any lock.
-    // Writing requires the ExecutionAccess lock.
+    // Writing requires the ExecutionAccess lock, or may be updated with a
+    // strong compare-and-swap (e.g. for stack-switching).
     base::AtomicWord jslimit_ = kIllegalLimit;
     base::AtomicWord climit_ = kIllegalLimit;
 

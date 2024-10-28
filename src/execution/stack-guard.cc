@@ -59,21 +59,18 @@ void StackGuard::SetStackLimitForStackSwitching(uintptr_t limit) {
   uintptr_t climit = SimulatorStack::ShouldSwitchCStackForWasmStackSwitching()
                          ? limit
                          : thread_local_.real_climit_;
-  // Try to compare and swap the new jslimit without the ExecutionAccess lock.
+  // Try to compare and swap the new jslimit and climit without the
+  // ExecutionAccess lock.
   uintptr_t old_jslimit = base::Relaxed_CompareAndSwap(
       &thread_local_.jslimit_, thread_local_.real_jslimit_, limit);
-  if (old_jslimit != thread_local_.real_jslimit_) {
-    // If it failed, there must have been an interrupt set before or during this
-    // call. Keep the special limit there and in the climit to ensure that the
-    // interrupt is processed by the next stack check.
-    thread_local_.set_climit(old_jslimit);
-  }
-  // Do the same with the climit.
+  USE(old_jslimit);
+  DCHECK_IMPLIES(old_jslimit != thread_local_.real_jslimit_,
+                 old_jslimit == kInterruptLimit);
   uintptr_t old_climit = base::Relaxed_CompareAndSwap(
       &thread_local_.climit_, thread_local_.real_climit_, climit);
-  if (old_climit != thread_local_.real_climit_) {
-    thread_local_.set_jslimit(old_climit);
-  }
+  USE(old_climit);
+  DCHECK_IMPLIES(old_climit != thread_local_.real_climit_,
+                 old_climit == kInterruptLimit);
 
   // Either way, set the real limits. This does not require synchronization.
   thread_local_.real_climit_ = climit;
@@ -82,15 +79,6 @@ void StackGuard::SetStackLimitForStackSwitching(uintptr_t limit) {
 
 void StackGuard::SetStackLimitInternal(const ExecutionAccess& lock,
                                        uintptr_t limit, uintptr_t jslimit) {
-  // If secondary stack SP is not 0, it means we are currently switching
-  // to the central stack from a secondary stack.
-  if (isolate_->thread_local_top()->secondary_stack_sp_ != 0) {
-    DCHECK(isolate_->thread_local_top()->is_on_central_stack_flag_);
-    // Update only logical stack limit here.
-    // It will be synchronized on the exit from CEntry.
-    isolate_->thread_local_top()->secondary_stack_limit_ = jslimit;
-    return;
-  }
   // If the current limits are special (e.g. due to a pending interrupt) then
   // leave them alone.
   if (thread_local_.jslimit() == thread_local_.real_jslimit_) {
