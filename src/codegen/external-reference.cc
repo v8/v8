@@ -547,6 +547,11 @@ FUNCTION_REFERENCE(new_deoptimizer_function, Deoptimizer::New)
 FUNCTION_REFERENCE(compute_output_frames_function,
                    Deoptimizer::ComputeOutputFrames)
 
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+FUNCTION_REFERENCE(ensure_valid_return_address,
+                   Deoptimizer::EnsureValidReturnAddress)
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
 #ifdef V8_ENABLE_WEBASSEMBLY
 FUNCTION_REFERENCE(wasm_sync_stack_limit, wasm::sync_stack_limit)
 FUNCTION_REFERENCE(wasm_return_switch, wasm::return_switch)
@@ -827,6 +832,12 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
 ExternalReference ExternalReference::address_of_shared_string_table_flag() {
   return ExternalReference(&v8_flags.shared_string_table);
 }
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+ExternalReference ExternalReference::address_of_cet_compatible_flag() {
+  return ExternalReference(&v8_flags.cet_compatible);
+}
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
 ExternalReference ExternalReference::address_of_load_from_stack_count(
     const char* function_name) {

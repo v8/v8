@@ -149,6 +149,12 @@ void Heap::SetConstructStubInvokeDeoptPCOffset(int pc_offset) {
   set_construct_stub_invoke_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
+void Heap::SetDeoptPCOffsetAfterAdaptShadowStack(int pc_offset) {
+  DCHECK((Smi::zero() == deopt_pc_offset_after_adapt_shadow_stack()) ||
+         (pc_offset == deopt_pc_offset_after_adapt_shadow_stack().value()));
+  set_deopt_pc_offset_after_adapt_shadow_stack(Smi::FromInt(pc_offset));
+}
+
 void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
   DCHECK_EQ(Smi::zero(), interpreter_entry_return_pc_offset());
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));

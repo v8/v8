@@ -425,6 +425,8 @@ class RootVisitor;
     ConstructStubCreateDeoptPCOffset)                                          \
   V(Smi, construct_stub_invoke_deopt_pc_offset,                                \
     ConstructStubInvokeDeoptPCOffset)                                          \
+  V(Smi, deopt_pc_offset_after_adapt_shadow_stack,                             \
+    DeoptPCOffsetAfterAdaptShadowStack)                                        \
   V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
 
 // Produces (String, name, CamelCase) entries

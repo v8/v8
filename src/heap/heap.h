@@ -1100,6 +1100,7 @@ class Heap final {
   // Setters for code offsets of well-known deoptimization targets.
   void SetConstructStubCreateDeoptPCOffset(int pc_offset);
   void SetConstructStubInvokeDeoptPCOffset(int pc_offset);
+  void SetDeoptPCOffsetAfterAdaptShadowStack(int pc_offset);
   void SetInterpreterEntryReturnPCOffset(int pc_offset);
 
   void DeoptMarkedAllocationSites();

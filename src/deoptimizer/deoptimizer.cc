@@ -513,6 +513,63 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
   }
 }
 
+#define DEOPTIMIZATION_HELPER_BUILTINS(V)                                    \
+  V(Builtin::kInterpreterEnterAtBytecode,                                    \
+    deopt_pc_offset_after_adapt_shadow_stack)                                \
+  V(Builtin::kInterpreterEnterAtNextBytecode,                                \
+    deopt_pc_offset_after_adapt_shadow_stack)                                \
+  V(Builtin::kContinueToCodeStubBuiltinWithResult,                           \
+    deopt_pc_offset_after_adapt_shadow_stack)                                \
+  V(Builtin::kContinueToCodeStubBuiltin,                                     \
+    deopt_pc_offset_after_adapt_shadow_stack)                                \
+  V(Builtin::kContinueToJavaScriptBuiltinWithResult,                         \
+    deopt_pc_offset_after_adapt_shadow_stack)                                \
+  V(Builtin::kContinueToJavaScriptBuiltin,                                   \
+    deopt_pc_offset_after_adapt_shadow_stack)                                \
+  V(Builtin::kBaselineOrInterpreterEnterAtBytecode,                          \
+    deopt_pc_offset_after_adapt_shadow_stack)                                \
+  V(Builtin::kBaselineOrInterpreterEnterAtNextBytecode,                      \
+    deopt_pc_offset_after_adapt_shadow_stack)                                \
+  V(Builtin::kRestartFrameTrampoline,                                        \
+    deopt_pc_offset_after_adapt_shadow_stack)                                \
+  V(Builtin::kJSConstructStubGeneric, construct_stub_create_deopt_pc_offset) \
+  V(Builtin::kInterpreterPushArgsThenFastConstructFunction,                  \
+    construct_stub_invoke_deopt_pc_offset)
+
+// static
+Address Deoptimizer::EnsureValidReturnAddress(Isolate* isolate,
+                                              Address address) {
+  // TODO(42201233): We should make sure everything here we use for validation
+  // (builtins array, code object, and offset values) are not writable.
+  Builtins* builtins = isolate->builtins();
+  Heap* heap = isolate->heap();
+#define CHECK_BUILTIN(builtin, offset)                                        \
+  if (builtins->code(builtin)->instruction_start() + heap->offset().value() - \
+          Deoptimizer::kAdaptShadowStackOffsetToSubtract ==                   \
+      address)                                                                \
+    return address;
+
+  DEOPTIMIZATION_HELPER_BUILTINS(CHECK_BUILTIN)
+#undef CHECK_BUILTIN
+
+  // NotifyDeoptimized is used for continuation.
+  if (builtins->code(Builtin::kNotifyDeoptimized)->instruction_start() ==
+      address)
+    return address;
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (v8_flags.wasm_deopt &&
+      wasm::GetWasmCodeManager()->LookupCode(isolate, address) != nullptr) {
+    // TODO(42204618): This does not check for the PC being a valid "deopt
+    // point" but could be any arbitrary address inside a wasm code object
+    // (including pointing into the middle of an instruction).
+    return address;
+  }
+#endif
+
+  CHECK_WITH_MSG(false, "Not allowed return address");
+}
+
 void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
@@ -681,6 +738,9 @@ Handle<Code> Deoptimizer::compiled_code() const {
 
 Deoptimizer::~Deoptimizer() {
   DCHECK(input_ == nullptr && output_ == nullptr);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  DCHECK_NULL(shadow_stack_);
+#endif
   DCHECK_NULL(disallow_garbage_collection_);
   delete trace_scope_;
 }
@@ -693,6 +753,12 @@ void Deoptimizer::DeleteFrameDescriptions() {
   delete[] output_;
   input_ = nullptr;
   output_ = nullptr;
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  if (shadow_stack_ != nullptr) {
+    delete[] shadow_stack_;
+    shadow_stack_ = nullptr;
+  }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 #ifdef DEBUG
   DCHECK(!AllowGarbageCollection::IsAllowed());
   DCHECK_NOT_NULL(disallow_garbage_collection_);
@@ -1543,6 +1609,37 @@ void Deoptimizer::DoComputeOutputFrames() {
                                             isolate()->cage_base());
 #endif
 
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  if (v8_flags.cet_compatible) {
+    DCHECK_EQ(shadow_stack_count_, 0);
+    shadow_stack_ = new intptr_t[count + 1];
+
+    // We should jump to the continuation through AdaptShadowStack to avoid
+    // security exception.
+    // Clear the continuation so that DeoptimizationEntry does not push the
+    // address onto the stack, and push it to the shadow stack instead.
+    if (output_[count - 1]->GetContinuation()) {
+      shadow_stack_[shadow_stack_count_++] =
+          output_[count - 1]->GetContinuation();
+      output_[count - 1]->SetContinuation(0);
+    }
+
+    // Add topmost frame's pc to the shadow stack.
+    shadow_stack_[shadow_stack_count_++] =
+        output_[count - 1]->GetPc() -
+        Deoptimizer::kAdaptShadowStackOffsetToSubtract;
+
+    // Add return addresses to the shadow stack, except for the bottommost.
+    // The bottommost frame's return address already exists in the shadow stack.
+    for (int i = static_cast<int>(count) - 1; i > 0; i--) {
+      if (!output_[i]->HasCallerPc()) continue;
+      shadow_stack_[shadow_stack_count_++] =
+          output_[i]->GetCallerPc() -
+          Deoptimizer::kAdaptShadowStackOffsetToSubtract;
+    }
+  }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
   // Don't reset the tiering state for OSR code since we might reuse OSR code
   // after deopt, and we still want to tier up to non-OSR code even if OSR code
   // deoptimized.
@@ -1921,7 +2018,8 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   CHECK_EQ(0u, frame_writer.top_offset());
 
   const intptr_t pc =
-      static_cast<intptr_t>(dispatch_builtin->instruction_start());
+      static_cast<intptr_t>(dispatch_builtin->instruction_start()) +
+      isolate()->heap()->deopt_pc_offset_after_adapt_shadow_stack().value();
   if (is_topmost) {
     // Only the pc of the topmost frame needs to be signed since it is
     // authenticated at the end of the DeoptimizationEntry builtin.
@@ -2729,17 +2827,17 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       isolate()->builtins()->code(TrampolineForBuiltinContinuation(
           mode, frame_info.frame_has_result_stack_slot() &&
                     !is_js_to_wasm_builtin_continuation));
+  intptr_t pc =
+      static_cast<intptr_t>(continue_to_builtin->instruction_start()) +
+      isolate()->heap()->deopt_pc_offset_after_adapt_shadow_stack().value();
   if (is_topmost) {
     // Only the pc of the topmost frame needs to be signed since it is
     // authenticated at the end of the DeoptimizationEntry builtin.
     const intptr_t top_most_pc = PointerAuthentication::SignAndCheckPC(
-        isolate(),
-        static_cast<intptr_t>(continue_to_builtin->instruction_start()),
-        frame_writer.frame()->GetTop());
+        isolate(), pc, frame_writer.frame()->GetTop());
     output_frame->SetPc(top_most_pc);
   } else {
-    output_frame->SetPc(
-        static_cast<intptr_t>(continue_to_builtin->instruction_start()));
+    output_frame->SetPc(pc);
   }
 
   Tagged<Code> continuation =

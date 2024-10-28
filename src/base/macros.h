@@ -494,6 +494,15 @@ bool is_inbounds(float_t v) {
 #define IF_INTL(V, ...)
 #endif  // V8_INTL_SUPPORT
 
+// Defines IF_SHADOW_STACK, to be used in macro lists for elements that should
+// only be there if CET shadow stack is enabled.
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_SHADOW_STACK(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_SHADOW_STACK(V, ...)
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
 // Defines IF_TARGET_ARCH_64_BIT, to be used in macro lists for elements that
 // should only be there if the target architecture is a 64-bit one.
 #if V8_TARGET_ARCH_64_BIT

@@ -5012,7 +5012,6 @@ void Isolate::CreateAndSetEmbeddedBlob() {
   base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
 
   PrepareBuiltinSourcePositionMap();
-  PrepareBuiltinLabelInfoMap();
 
   // If a sticky blob has been set, we reuse it.
   if (StickyEmbeddedBlobCode() != nullptr) {
@@ -6651,14 +6650,6 @@ void Isolate::PrepareBuiltinSourcePositionMap() {
   if (embedded_file_writer_ != nullptr) {
     return embedded_file_writer_->PrepareBuiltinSourcePositionMap(
         this->builtins());
-  }
-}
-
-void Isolate::PrepareBuiltinLabelInfoMap() {
-  if (embedded_file_writer_ != nullptr) {
-    embedded_file_writer_->PrepareBuiltinLabelInfoMap(
-        heap()->construct_stub_create_deopt_pc_offset().value(),
-        heap()->construct_stub_invoke_deopt_pc_offset().value());
   }
 }
 

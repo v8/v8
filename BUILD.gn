@@ -2935,9 +2935,6 @@ v8_source_set("v8_snapshot") {
   public = []
 
   sources = [ "src/init/setup-isolate-deserialize.cc" ]
-  if (v8_control_flow_integrity) {
-    sources += [ "src/deoptimizer/deoptimizer-cfi-builtins.cc" ]
-  }
   if (emit_builtins_as_inline_asm) {
     deps += [ ":asm_to_inline_asm_default" ]
     sources += [ "$target_gen_dir/embedded.cc" ]
@@ -7330,10 +7327,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/snapshot/static-roots-gen.cc",
       "src/snapshot/static-roots-gen.h",
     ]
-
-    if (v8_control_flow_integrity) {
-      sources += [ "src/deoptimizer/deoptimizer-cfi-empty.cc" ]
-    }
 
     configs = [
       ":internal_config",

@@ -144,6 +144,30 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
 }  // namespace
 
+// This code needs to be present in all continuations pushed onto the
+// stack during the deoptimization process. It is part of a scheme to ensure
+// that the return address immediately after the call to
+// Builtin::kAdaptShadowStackForDeopt is present on the hardware shadow stack.
+// Below, you'll see that this call is unconditionally jumped over. However,
+// during deoptimization, the address of the call is jumped to directly
+// and executed. The end result being that later, returning to that address
+// after the call will be successful because the user stack and the
+// shadow stack will be found to match perfectly.
+void Generate_CallToAdaptShadowStackForDeopt(MacroAssembler* masm,
+                                             bool add_jump) {
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  ASM_CODE_COMMENT(masm);
+  Label post_adapt_shadow_stack;
+  if (add_jump) __ jmp(&post_adapt_shadow_stack, Label::kNear);
+  const auto saved_pc_offset = masm->pc_offset();
+  __ Call(Operand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(
+                                     Builtin::kAdaptShadowStackForDeopt)));
+  CHECK_EQ(Deoptimizer::kAdaptShadowStackOffsetToSubtract,
+           masm->pc_offset() - saved_pc_offset);
+  if (add_jump) __ bind(&post_adapt_shadow_stack);
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+}
+
 // The construct stub for ES5 constructor functions and ES6 class constructors.
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -201,9 +225,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   //  -- Slot 1 / sp[3*kSystemPointerSize]  number of arguments
   //  -- Slot 0 / sp[4*kSystemPointerSize]  context
   // -----------------------------------
-  // Deoptimizer enters here.
-  masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
-      masm->pc_offset());
   __ bind(&post_instantiation_deopt_entry);
 
   // Restore new target.
@@ -294,6 +315,15 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowStackOverflow);
   // This should be unreachable.
   __ int3();
+
+  // Since the address below is returned into instead of being called directly,
+  // special code to get that address on the shadow stack is necessary to avoid
+  // a security exception.
+  Generate_CallToAdaptShadowStackForDeopt(masm, false);
+  // Deoptimizer enters here.
+  masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
+      masm->pc_offset());
+  __ jmp(&post_instantiation_deopt_entry, Label::kNear);
 }
 
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
@@ -1216,9 +1246,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ movq(kJavaScriptCallCodeStartRegister,
           Operand(kInterpreterDispatchTableRegister, kScratchRegister,
                   times_system_pointer_size, 0));
-  __ call(kJavaScriptCallCodeStartRegister);
 
-  __ RecordComment("--- InterpreterEntryReturnPC point ---");
+  // X64 has this location as the interpreter_entry_return_offset for CET
+  // shadow stack rather than after `call`. InterpreterEnterBytecode will
+  // jump to this location and call kJavaScriptCallCodeStartRegister, which
+  // will form the valid shadow stack.
+  __ RecordComment("--- InterpreterEntryPC point ---");
   if (mode == InterpreterEntryTrampolineMode::kDefault) {
     masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(
         masm->pc_offset());
@@ -1230,6 +1263,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
         masm->isolate()->heap()->interpreter_entry_return_pc_offset().value(),
         masm->pc_offset());
   }
+  __ call(kJavaScriptCallCodeStartRegister);
 
   // Any returns to the entry trampoline are either due to the return bytecode
   // or the interpreter tail calling a builtin and then a dispatch.
@@ -1649,9 +1683,8 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   //  -- FramePointer
   // -----------------------------------
 
-  // Store offset of return address for deoptimizer.
-  masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
-      masm->pc_offset());
+  Label deopt_entry;
+  __ bind(&deopt_entry);
 
   // If the result is an object (in the ECMA sense), we should get rid
   // of the receiver and use the result; see ECMA-262 section 13.2.2-7
@@ -1705,6 +1738,12 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ TailCallRuntime(Runtime::kThrowStackOverflow);
   // This should be unreachable.
   __ int3();
+
+  Generate_CallToAdaptShadowStackForDeopt(masm, false);
+  // Store offset of return address for deoptimizer.
+  masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+      masm->pc_offset());
+  __ jmp(&deopt_entry);
 }
 
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
@@ -1747,7 +1786,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ bind(&trampoline_loaded);
   __ addq(rbx, Immediate(interpreter_entry_return_pc_offset.value()));
-  __ Push(rbx);
+  __ movq(kScratchRegister, rbx);
 
   // Initialize dispatch table register.
   __ Move(
@@ -1762,7 +1801,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
     // Check function data field is actually a BytecodeArray object.
     __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
     __ IsObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
-                    rbx);
+                    kScratchRegister);
     __ Assert(
         equal,
         AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
@@ -1789,10 +1828,16 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ movq(kJavaScriptCallCodeStartRegister,
           Operand(kInterpreterDispatchTableRegister, kScratchRegister,
                   times_system_pointer_size, 0));
-  __ jmp(kJavaScriptCallCodeStartRegister);
+
+  // Jump to the interpreter entry, and call kJavaScriptCallCodeStartRegister.
+  __ jmp(rbx);
 }
 
 void Builtins::Generate_InterpreterEnterAtNextBytecode(MacroAssembler* masm) {
+  Generate_CallToAdaptShadowStackForDeopt(masm, true);
+  masm->isolate()->heap()->SetDeoptPCOffsetAfterAdaptShadowStack(
+      masm->pc_offset());
+
   // Get bytecode array and bytecode offset from the stack frame.
   __ movq(kInterpreterBytecodeArrayRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
@@ -1839,6 +1884,10 @@ void Builtins::Generate_InterpreterEnterAtNextBytecode(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
+  Generate_CallToAdaptShadowStackForDeopt(masm, true);
+  masm->isolate()->heap()->SetDeoptPCOffsetAfterAdaptShadowStack(
+      masm->pc_offset());
+
   Generate_InterpreterEnterBytecode(masm);
 }
 
@@ -2010,6 +2059,10 @@ namespace {
 void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool javascript_builtin,
                                       bool with_result) {
+  Generate_CallToAdaptShadowStackForDeopt(masm, true);
+  masm->isolate()->heap()->SetDeoptPCOffsetAfterAdaptShadowStack(
+      masm->pc_offset());
+
   ASM_CODE_COMMENT(masm);
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
@@ -2053,14 +2106,12 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   __ Drop(offsetToPC / kSystemPointerSize);
 
   // Replace the builtin index Smi on the stack with the instruction start
-  // address of the builtin from the builtins table, and then Ret to this
+  // address of the builtin from the builtins table, and then jump to this
   // address
-  __ movq(kScratchRegister, Operand(rsp, 0));
+  __ popq(kScratchRegister);
   __ movq(kScratchRegister,
           __ EntryFromBuiltinIndexAsOperand(kScratchRegister));
-  __ movq(Operand(rsp, 0), kScratchRegister);
-
-  __ Ret();
+  __ jmp(kScratchRegister);
 }
 }  // namespace
 
@@ -3040,6 +3091,119 @@ void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
 }
 
 #endif  // V8_ENABLE_MAGLEV
+
+namespace {
+
+void Generate_RestoreFrameDescriptionRegisters(MacroAssembler* masm,
+                                               Register frame_description) {
+  // Set the xmm (simd / double) registers.
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
+  int simd128_regs_offset = FrameDescription::simd128_registers_offset();
+  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
+    int code = config->GetAllocatableSimd128Code(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    int src_offset = code * kSimd128Size + simd128_regs_offset;
+    __ movdqu(xmm_reg, Operand(frame_description, src_offset));
+  }
+
+  // Restore the non-xmm registers from the stack.
+  for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
+    Register r = Register::from_code(i);
+    // Do not restore rsp and kScratchRegister.
+    if (r == rsp || r == kScratchRegister) continue;
+    __ popq(r);
+  }
+}
+
+}  // namespace
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+// AdaptShadowStackForDeopt assists the deoptimizer in getting continuation
+// addresses placed on the shadow stack. This can only be done with a call
+// instruction. Earlier in the deoptimization process, the user stack was
+// seeded with return addresses into the continuations. At this stage, we
+// make calls into the continuations such that the shadow stack contains
+// precisely those necessary return addresses back into those continuations,
+// and in the appropriate order that the shadow stack and the user stack
+// perfectly match up at the points where return instructions are executed.
+//
+// The stack layout on entry to AdaptShadowStackForDeopt is as follows:
+//
+// ReturnAddress_1
+// ReturnAddress_2
+// ...
+// ReturnAddresss_N
+// LastFrameDescription (for restoring registers)
+// savedRegister_1
+// savedRegister_2
+// ...
+//
+// kAdaptShadowStackCountRegister, on entry, has the value N, matching the
+// number of identifiers to pop from the stack above. It is decremented each
+// time AdaptShadowStackForDeopt pops a return address from the stack. This
+// happens once per invocation of AdaptShadowStackForDeopt. When the value
+// is 0, the function jumps to the last return address and will not be called
+// again for this deoptimization process.
+//
+// The other cpu registers have already been populated with the required values
+// to kick off execution running the builtin continuation associated with
+// ReturnAddress_N on the stack above. AdaptShadowStackForDeopt uses
+// kScratchRegister and kAdaptShadowStackRegister for its own work, and
+// that is why those registers are additionaly saved on the stack, to be
+// restored at the end of the process.
+
+// kAdaptShadowStackDispatchFirstEntryOffset marks the "kick-off" location in
+// AdaptShadowStackForDeopt for the process.
+constexpr int kAdaptShadowStackDispatchFirstEntryOffset = 1;
+
+// kAdaptShadowStackCountRegister contains the number of identifiers on
+// the stack to be consumed via repeated calls into AdaptShadowStackForDeopt.
+constexpr Register kAdaptShadowStackCountRegister = r11;
+
+void Builtins::Generate_AdaptShadowStackForDeopt(MacroAssembler* masm) {
+  Register count_reg = kAdaptShadowStackCountRegister;
+  Register addr = rax;
+
+  // Pop unnecessary return address on stack.
+  __ popq(addr);
+
+  // DeoptimizationEntry enters here.
+  CHECK_EQ(masm->pc_offset(), kAdaptShadowStackDispatchFirstEntryOffset);
+
+  __ decl(count_reg);
+  __ popq(addr);  // Pop the next target address.
+
+  __ pushq(count_reg);
+  __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+  __ movq(kCArgRegs[1], addr);
+  __ PrepareCallCFunction(2);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    // We should block jumps to arbitrary locations for a security reason.
+    // This function will crash if the address is not in the allow list.
+    // And, return the given address if it is valid.
+    __ CallCFunction(ExternalReference::ensure_valid_return_address(), 2);
+  }
+  __ popq(count_reg);
+  // Now `kReturnRegister0` is the address we want to jump to.
+
+  __ cmpl(count_reg, Immediate(0));
+  Label finished;
+  __ j(equal, &finished, Label::kNear);
+  // This will jump to CallToAdaptShadowStackForDeopt which call back into this
+  // function and continue adapting shadow stack.
+  __ jmp(kReturnRegister0);
+
+  __ bind(&finished);
+  __ movb(__ ExternalReferenceAsOperand(IsolateFieldId::kStackIsIterable),
+          Immediate(1));
+  __ movq(kScratchRegister, kReturnRegister0);
+
+  __ popq(rbx);  // Restore the last FrameDescription.
+  Generate_RestoreFrameDescriptionRegisters(masm, rbx);
+  __ jmp(kScratchRegister);
+}
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
 #if V8_ENABLE_WEBASSEMBLY
 
@@ -4852,6 +5016,9 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 2);
   }
   __ popq(rax);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  __ movq(r8, rax);
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
   __ movq(rsp, Operand(rax, Deoptimizer::caller_frame_top_offset()));
 
@@ -4884,43 +5051,86 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ movq(rax, Operand(rbx, FrameDescription::continuation_offset()));
   // Skip pushing the continuation if it is zero. This is used as a marker for
   // wasm deopts that do not use a builtin call to finish the deopt.
-  Label push_xmm_registers;
+  Label push_registers;
   __ testq(rax, rax);
-  __ j(zero, &push_xmm_registers);
+  __ j(zero, &push_registers);
   __ Push(rax);
-  __ bind(&push_xmm_registers);
-  // Set the xmm (simd / double) registers.
-  for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
-    int code = config->GetAllocatableSimd128Code(i);
-    XMMRegister xmm_reg = XMMRegister::from_code(code);
-    int src_offset = code * kSimd128Size + simd128_regs_offset;
-    __ movdqu(xmm_reg, Operand(rbx, src_offset));
-  }
-
+  __ bind(&push_registers);
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
+    Register r = Register::from_code(i);
+    // Do not restore rsp and kScratchRegister.
+    if (r == rsp || r == kScratchRegister) continue;
     int offset =
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
     __ PushQuad(Operand(rbx, offset));
   }
 
-  // Restore the non-xmm registers from the stack.
-  for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
-    Register r = Register::from_code(i);
-    // Do not restore rsp, simply pop the value into the next register
-    // and overwrite this afterwards.
-    if (r == rsp) {
-      DCHECK_GT(i, 0);
-      r = Register::from_code(i - 1);
-    }
-    __ popq(r);
-  }
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  // Check v8_flags.cet_compatible.
+  Label shadow_stack_push;
+  __ cmpb(__ ExternalReferenceAsOperand(
+              ExternalReference::address_of_cet_compatible_flag(),
+              kScratchRegister),
+          Immediate(0));
+  __ j(not_equal, &shadow_stack_push);
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
+  Generate_RestoreFrameDescriptionRegisters(masm, rbx);
 
   __ movb(__ ExternalReferenceAsOperand(IsolateFieldId::kStackIsIterable),
           Immediate(1));
 
   // Return to the continuation point.
   __ ret(0);
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  // Push candidate return addresses for shadow stack onto the stack.
+  __ bind(&shadow_stack_push);
+
+  // push the last FrameDescription onto the stack for restoring xmm registers
+  // later.
+  __ pushq(rbx);
+
+  // r8 = deoptimizer
+  __ movl(kAdaptShadowStackCountRegister,
+          Operand(r8, Deoptimizer::shadow_stack_count_offset()));
+  __ movq(rax, Operand(r8, Deoptimizer::shadow_stack_offset()));
+
+  Label check_more_pushes, next_push;
+  __ Move(kScratchRegister, 0);
+  __ jmp(&check_more_pushes, Label::kNear);
+  __ bind(&next_push);
+  // rax points to the start of the shadow stack array.
+  __ pushq(Operand(rax, kScratchRegister, times_system_pointer_size, 0));
+  __ incl(kScratchRegister);
+  __ bind(&check_more_pushes);
+  __ cmpl(kScratchRegister, kAdaptShadowStackCountRegister);
+  __ j(not_equal, &next_push);
+
+  // We drop 1 word from the shadow stack. It contains the return address from
+  // DeoptimizationEntry.
+  __ Move(rax, 1);
+  __ IncsspqIfSupported(rax, kScratchRegister);
+
+  // Now, kick off the process of getting our continuations onto the shadow
+  // stack. Note that the stack has 2 extra words to be popped at the end
+  // of the process:
+  // 1) the kAdaptShadowStackCountRegister
+  // 2) kScratchRegister
+  __ movq(kScratchRegister,
+          Operand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(
+                                     Builtin::kAdaptShadowStackForDeopt)));
+  // We don't enter at the start of AdaptShadowStackForDeopt, because that
+  // is designed to be called by builtin continuations in order to get
+  // return addresses into those continuations on the stack. Therefore, we
+  // have to make a special entry at kAdaptShadowStackDispatchFirstEntryOffset.
+  __ addq(kScratchRegister,
+          Immediate(kAdaptShadowStackDispatchFirstEntryOffset));
+  __ jmp(kScratchRegister);
+
+  __ int3();
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 }
 
 }  // namespace
@@ -5100,11 +5310,19 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
 void Builtins::Generate_BaselineOrInterpreterEnterAtBytecode(
     MacroAssembler* masm) {
+  Generate_CallToAdaptShadowStackForDeopt(masm, true);
+  masm->isolate()->heap()->SetDeoptPCOffsetAfterAdaptShadowStack(
+      masm->pc_offset());
+
   Generate_BaselineOrInterpreterEntry(masm, false);
 }
 
 void Builtins::Generate_BaselineOrInterpreterEnterAtNextBytecode(
     MacroAssembler* masm) {
+  Generate_CallToAdaptShadowStackForDeopt(masm, true);
+  masm->isolate()->heap()->SetDeoptPCOffsetAfterAdaptShadowStack(
+      masm->pc_offset());
+
   Generate_BaselineOrInterpreterEntry(masm, true);
 }
 
@@ -5114,6 +5332,10 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
 }
 
 void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
+  Generate_CallToAdaptShadowStackForDeopt(masm, true);
+  masm->isolate()->heap()->SetDeoptPCOffsetAfterAdaptShadowStack(
+      masm->pc_offset());
+
   // Restart the current frame:
   // - Look up current function on the frame.
   // - Leave the frame.

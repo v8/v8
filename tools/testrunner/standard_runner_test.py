@@ -256,6 +256,7 @@ class StandardRunnerTest(TestRunnerTest):
     result.stdout_includes('>>> Statusfile variables:')
     result.stdout_includes(
         "DEBUG_defined=False, arch=ia32, asan=True, byteorder=little, "
+        "cet_shadow_stack=False, "
         "cfi=True, code_comments=False, component_build=False, "
         "dcheck_always_on=True, debug_code=False, debugging_features=False, "
         "deopt_fuzzer=False, device_type=None, "

@@ -455,7 +455,9 @@ enum class IsolateFieldId : uint8_t;
   V(typed_array_and_rab_gsab_typed_array_elements_kind_sizes,                  \
     "TypedArrayAndRabGsabTypedArrayElementsKindSizes")                         \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
-  EXTERNAL_REFERENCE_LIST_SANDBOX(V)
+  EXTERNAL_REFERENCE_LIST_SANDBOX(V)                                           \
+  EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)
+
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
   V(intl_convert_one_byte_to_lower, "intl_convert_one_byte_to_lower") \
@@ -478,6 +480,14 @@ enum class IsolateFieldId : uint8_t;
 #else
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+#define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)            \
+  V(address_of_cet_compatible_flag, "v8_flags.cet_compatible") \
+  V(ensure_valid_return_address, "Deoptimizer::EnsureValidReturnAddress()")
+#else
+#define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
 // An ExternalReference represents a C++ address used in the generated
 // code. All references to C++ functions and variables must be encapsulated

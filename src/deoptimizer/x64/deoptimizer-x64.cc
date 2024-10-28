@@ -31,6 +31,12 @@ const int Deoptimizer::kLazyDeoptExitSize = 8;
 const int Deoptimizer::kLazyDeoptExitSize = 4;
 #endif
 
+#if V8_ENABLE_CET_SHADOW_STACK
+const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 7;
+#else
+const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
+#endif
+
 // static
 void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
   if (!Assembler::IsNop(pc)) {
@@ -69,6 +75,7 @@ void RegisterValues::SetDoubleRegister(unsigned n, Float64 value) {
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
+  caller_pc_ = value;
 }
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
