@@ -277,7 +277,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
     if (protected_store_pc) *protected_store_pc = static_cast<uint32_t>(offset)
   };
   StoreWord(src, dst_op, trapper);
-  DCHECK(protected_store_pc && InstructionAt(*protected_store_pc)->IsStore());
+  if (protected_store_pc) {
+    DCHECK(InstructionAt(*protected_store_pc)->IsStore());
+  }
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
@@ -374,7 +376,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     default:
       UNREACHABLE();
   }
-  DCHECK(protected_load_pc && InstructionAt(*protected_load_pc)->IsLoad());
+  if (protected_load_pc) {
+    DCHECK(InstructionAt(*protected_load_pc)->IsLoad());
+  }
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_load_mem) {
@@ -451,7 +455,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
-  DCHECK(protected_store_pc && InstructionAt(*protected_store_pc)->IsStore());
+  if (protected_store_pc) {
+    DCHECK(InstructionAt(*protected_store_pc)->IsStore());
+  }
 }
 
 namespace liftoff {
@@ -2028,7 +2034,9 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
     vfmv_fs(kScratchDoubleReg, kSimd128ScratchReg);
     StoreDouble(kScratchDoubleReg, dst_op, trapper);
   }
-  DCHECK(protected_store_pc && InstructionAt(*protected_store_pc)->IsStore());
+  if (protected_store_pc) {
+    DCHECK(InstructionAt(*protected_store_pc)->IsStore());
+  }
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,

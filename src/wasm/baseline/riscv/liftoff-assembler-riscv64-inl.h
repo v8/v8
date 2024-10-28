@@ -271,7 +271,9 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   LoadTaggedField(dst, src_op, [protected_load_pc](int offset) {
     if (protected_load_pc) *protected_load_pc = offset;
   });
-  DCHECK(protected_load_pc && InstructionAt(*protected_load_pc)->IsLoad());
+  if (protected_load_pc) {
+    DCHECK(InstructionAt(*protected_load_pc)->IsLoad());
+  }
 }
 
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
@@ -321,7 +323,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   } else {
     StoreTaggedField(src, MemOperand(dst_addr, offset_imm), trapper);
   }
-  DCHECK(protected_store_pc && InstructionAt(*protected_store_pc)->IsStore());
+  if (protected_store_pc) {
+    DCHECK(InstructionAt(*protected_store_pc)->IsStore());
+  }
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
@@ -396,7 +400,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     default:
       UNREACHABLE();
   }
-  DCHECK(protected_load_pc && InstructionAt(*protected_load_pc)->IsLoad());
+  if (protected_load_pc) {
+    DCHECK(InstructionAt(*protected_load_pc)->IsLoad());
+  }
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_load_mem) {
@@ -466,7 +472,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
-  DCHECK(protected_store_pc && InstructionAt(*protected_store_pc)->IsStore());
+  if (protected_store_pc) {
+    DCHECK(InstructionAt(*protected_store_pc)->IsStore());
+  }
 }
 
 namespace liftoff {
@@ -1620,7 +1628,9 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       vmv_vx(dst_v, scratch);
     }
   }
-  DCHECK(protected_load_pc && InstructionAt(*protected_load_pc)->IsLoad());
+  if (protected_load_pc) {
+    DCHECK(InstructionAt(*protected_load_pc)->IsLoad());
+  }
 }
 
 void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
@@ -1664,7 +1674,9 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
   } else {
     UNREACHABLE();
   }
-  DCHECK(protected_load_pc && InstructionAt(*protected_load_pc)->IsLoad());
+  if (protected_load_pc) {
+    DCHECK(InstructionAt(*protected_load_pc)->IsLoad());
+  }
 }
 
 void LiftoffAssembler::StoreLane(Register dst, Register offset,
@@ -1700,7 +1712,9 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     Sd(kScratchReg, dst_op, trapper);
   }
-  DCHECK(protected_store_pc && InstructionAt(*protected_store_pc)->IsStore());
+  if (protected_store_pc) {
+    DCHECK(InstructionAt(*protected_store_pc)->IsStore());
+  }
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
