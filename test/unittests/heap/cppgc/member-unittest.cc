@@ -636,7 +636,7 @@ class LinkedNode final : public GarbageCollected<LinkedNode> {
 
 // The following tests create multiple heaps per thread, which is not supported
 // with pointer compression enabled.
-#if !defined(CPPGC_POINTER_COMPRESSION)
+#if !defined(CPPGC_POINTER_COMPRESSION) && defined(ENABLE_SLOW_DCHECKS)
 TEST_F(MemberHeapDeathTest, CheckForOffHeapMemberCrashesOnReassignment) {
   std::vector<Member<LinkedNode>> off_heap_member;
   // Verification state is constructed on first assignment.
@@ -674,7 +674,7 @@ TEST_F(MemberHeapDeathTest, CheckForOnHeapMemberCrashesOnInitialAssignment) {
         "");
   }
 }
-#endif  // defined(CPPGC_POINTER_COMPRESSION)
+#endif  // defined(CPPGC_POINTER_COMPRESSION) && defined(ENABLE_SLOW_DCHECKS)
 
 #if defined(CPPGC_POINTER_COMPRESSION)
 TEST_F(MemberTest, CompressDecompress) {
