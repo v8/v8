@@ -76,6 +76,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       safepoints_(codegen_zone),
       handlers_(codegen_zone),
       deoptimization_exits_(codegen_zone),
+      protected_deoptimization_literals_(codegen_zone),
       deoptimization_literals_(codegen_zone),
       translations_(codegen_zone),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
@@ -275,22 +276,6 @@ void CodeGenerator::AssembleCode() {
     }
   }
   inlined_function_count_ = deoptimization_literals_.size();
-
-  // Define deoptimization literals for all BytecodeArrays to which we might
-  // deopt to ensure they are strongly held by the optimized code.
-  if (info->has_bytecode_array()) {
-    DefineDeoptimizationLiteral(DeoptimizationLiteral(info->bytecode_array()));
-  }
-  for (OptimizedCompilationInfo::InlinedFunctionHolder& inlined :
-       info->inlined_functions()) {
-    if (!inlined.bytecode_array.is_null()) {
-      DefineDeoptimizationLiteral(
-          DeoptimizationLiteral(inlined.bytecode_array));
-    } else {
-      // Inlined wasm functions do not have a bytecode array.
-      DCHECK(info->inline_js_wasm_calls());
-    }
-  }
 
   unwinding_info_writer_.SetNumberOfInstructionBlocks(
       instructions()->InstructionBlockCount());
@@ -1022,6 +1007,17 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     data->SetWrappedSharedFunctionInfo(Smi::zero());
   }
 
+  DirectHandle<ProtectedDeoptimizationLiteralArray> protected_literals =
+      isolate()->factory()->NewProtectedFixedArray(
+          static_cast<int>(protected_deoptimization_literals_.size()));
+  for (unsigned i = 0; i < protected_deoptimization_literals_.size(); i++) {
+    IndirectHandle<TrustedObject> object =
+        protected_deoptimization_literals_[i];
+    CHECK(!object.is_null());
+    protected_literals->set(i, *object);
+  }
+  data->SetProtectedLiteralArray(*protected_literals);
+
   DirectHandle<DeoptimizationLiteralArray> literals =
       isolate()->factory()->NewDeoptimizationLiteralArray(
           static_cast<int>(deoptimization_literals_.size()));
@@ -1167,15 +1163,33 @@ void CodeGenerator::RecordDeoptInfo(Instruction* instr, int pc_offset) {
                    descriptor->state_combine());
 }
 
+int CodeGenerator::DefineProtectedDeoptimizationLiteral(
+    IndirectHandle<TrustedObject> object) {
+  unsigned i;
+  for (i = 0; i < protected_deoptimization_literals_.size(); ++i) {
+    if (protected_deoptimization_literals_[i].equals(object)) return i;
+  }
+  protected_deoptimization_literals_.push_back(object);
+  return i;
+}
+
 int CodeGenerator::DefineDeoptimizationLiteral(DeoptimizationLiteral literal) {
   literal.Validate();
-  int result = static_cast<int>(deoptimization_literals_.size());
-  for (unsigned i = 0; i < deoptimization_literals_.size(); ++i) {
+  unsigned i;
+  for (i = 0; i < deoptimization_literals_.size(); ++i) {
     deoptimization_literals_[i].Validate();
     if (deoptimization_literals_[i] == literal) return i;
   }
   deoptimization_literals_.push_back(literal);
-  return result;
+  return i;
+}
+
+bool CodeGenerator::HasProtectedDeoptimizationLiteral(
+    IndirectHandle<TrustedObject> object) const {
+  for (unsigned i = 0; i < protected_deoptimization_literals_.size(); ++i) {
+    if (protected_deoptimization_literals_[i].equals(object)) return true;
+  }
+  return false;
 }
 
 DeoptimizationEntry const& CodeGenerator::GetDeoptimizationEntry(
@@ -1259,13 +1273,16 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
 
   switch (descriptor->type()) {
     case FrameStateType::kUnoptimizedFunction: {
+      int bytecode_array_id = DefineProtectedDeoptimizationLiteral(
+          descriptor->bytecode_array().ToHandleChecked());
       int return_offset = 0;
       int return_count = 0;
       if (!state_combine.IsOutputIgnored()) {
         return_offset = static_cast<int>(state_combine.GetOffsetToPokeAt());
         return_count = static_cast<int>(iter->instruction()->OutputCount());
       }
-      translations_.BeginInterpretedFrame(bailout_id, shared_info_id, height,
+      translations_.BeginInterpretedFrame(bailout_id, shared_info_id,
+                                          bytecode_array_id, height,
                                           return_offset, return_count);
       break;
     }

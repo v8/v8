@@ -4896,8 +4896,11 @@ class GraphBuildingNodeProcessor {
     int local_count = maglev_frame.unit().register_count();
     Handle<SharedFunctionInfo> shared_info =
         maglev_frame.unit().shared_function_info().object();
+    Handle<BytecodeArray> bytecode_array =
+        maglev_frame.unit().bytecode().object();
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
-        type, parameter_count, max_arguments, local_count, shared_info);
+        type, parameter_count, max_arguments, local_count, shared_info,
+        bytecode_array);
 
     return graph_zone()->New<FrameStateInfo>(maglev_frame.bytecode_position(),
                                              combine, info);
@@ -4913,7 +4916,8 @@ class GraphBuildingNodeProcessor {
     Handle<SharedFunctionInfo> shared_info =
         maglev_frame.unit().shared_function_info().object();
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
-        type, parameter_count, max_arguments, local_count, shared_info);
+        type, parameter_count, max_arguments, local_count, shared_info,
+        kNullMaybeHandle);
 
     return graph_zone()->New<FrameStateInfo>(maglev_frame.bytecode_position(),
                                              OutputFrameStateCombine::Ignore(),
@@ -4929,7 +4933,8 @@ class GraphBuildingNodeProcessor {
     constexpr uint16_t kMaxArguments = 0;
     constexpr int kLocalCount = 0;
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
-        type, kParameterCount, kMaxArguments, kLocalCount, shared_info);
+        type, kParameterCount, kMaxArguments, kLocalCount, shared_info,
+        kNullMaybeHandle);
 
     return graph_zone()->New<FrameStateInfo>(
         BytecodeOffset::None(), OutputFrameStateCombine::Ignore(), info);
@@ -4955,7 +4960,8 @@ class GraphBuildingNodeProcessor {
     constexpr int kLocalCount = 0;
     constexpr uint16_t kMaxArguments = 0;
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
-        type, parameter_count, kMaxArguments, kLocalCount, shared_info);
+        type, parameter_count, kMaxArguments, kLocalCount, shared_info,
+        kNullMaybeHandle);
 
     return graph_zone()->New<FrameStateInfo>(
         Builtins::GetContinuationBytecodeOffset(maglev_frame.builtin_id()),
@@ -4974,6 +4980,7 @@ class GraphBuildingNodeProcessor {
       case maglev::DeoptFrame::FrameType::kBuiltinContinuationFrame:
         return GetSharedFunctionInfo(*deopt_frame.parent());
     }
+    UNREACHABLE();
   }
 
   enum class Sign { kSigned, kUnsigned };

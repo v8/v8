@@ -117,8 +117,7 @@ Node* GraphTest::EmptyFrameState() {
       graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
   FrameStateFunctionInfo const* function_info =
       common()->CreateFrameStateFunctionInfo(
-          FrameStateType::kUnoptimizedFunction, 0, 0, 0,
-          Handle<SharedFunctionInfo>());
+          FrameStateType::kUnoptimizedFunction, 0, 0, 0, {}, {});
   return graph()->NewNode(
       common()->FrameState(BytecodeOffset::None(),
                            OutputFrameStateCombine::Ignore(), function_info),

@@ -1176,6 +1176,18 @@ compiler::SharedFunctionInfoRef GetSharedFunctionInfo(
       return GetSharedFunctionInfo(*deopt_frame.parent());
   }
 }
+compiler::BytecodeArrayRef GetBytecodeArray(const DeoptFrame& deopt_frame) {
+  switch (deopt_frame.type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      return deopt_frame.as_interpreted().unit().bytecode();
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      return deopt_frame.as_inlined_arguments().unit().bytecode();
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+      return deopt_frame.as_construct_stub().unit().bytecode();
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      return GetBytecodeArray(*deopt_frame.parent());
+  }
+}
 }  // namespace
 
 class MaglevFrameTranslationBuilder {
@@ -1183,10 +1195,12 @@ class MaglevFrameTranslationBuilder {
   MaglevFrameTranslationBuilder(
       LocalIsolate* local_isolate, MaglevAssembler* masm,
       FrameTranslationBuilder* translation_array_builder,
+      IdentityMap<int, base::DefaultAllocationPolicy>* protected_deopt_literals,
       IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals)
       : local_isolate_(local_isolate),
         masm_(masm),
         translation_array_builder_(translation_array_builder),
+        protected_deopt_literals_(protected_deopt_literals),
         deopt_literals_(deopt_literals),
         object_ids_(10) {}
 
@@ -1291,6 +1305,7 @@ class MaglevFrameTranslationBuilder {
     translation_array_builder_->BeginInterpretedFrame(
         frame.bytecode_position(),
         GetDeoptLiteral(GetSharedFunctionInfo(frame)),
+        GetProtectedDeoptLiteral(*GetBytecodeArray(frame).object()),
         frame.unit().register_count(), return_offset, result_size);
 
     BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
@@ -1309,6 +1324,7 @@ class MaglevFrameTranslationBuilder {
     translation_array_builder_->BeginInterpretedFrame(
         frame.bytecode_position(),
         GetDeoptLiteral(GetSharedFunctionInfo(frame)),
+        GetProtectedDeoptLiteral(*GetBytecodeArray(frame).object()),
         frame.unit().register_count(), return_offset, return_count);
 
     BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
@@ -1665,6 +1681,16 @@ class MaglevFrameTranslationBuilder {
     }
   }
 
+  int GetProtectedDeoptLiteral(Tagged<TrustedObject> obj) {
+    IdentityMapFindResult<int> res =
+        protected_deopt_literals_->FindOrInsert(obj);
+    if (!res.already_exists) {
+      DCHECK_EQ(0, *res.entry);
+      *res.entry = protected_deopt_literals_->size() - 1;
+    }
+    return *res.entry;
+  }
+
   int GetDeoptLiteral(Tagged<Object> obj) {
     IdentityMapFindResult<int> res = deopt_literals_->FindOrInsert(obj);
     if (!res.already_exists) {
@@ -1681,6 +1707,7 @@ class MaglevFrameTranslationBuilder {
   LocalIsolate* local_isolate_;
   MaglevAssembler* masm_;
   FrameTranslationBuilder* translation_array_builder_;
+  IdentityMap<int, base::DefaultAllocationPolicy>* protected_deopt_literals_;
   IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals_;
 
   static const int kNotDuplicated = -1;
@@ -1701,6 +1728,7 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       masm_(isolate->GetMainThreadIsolateUnsafe(), compilation_info->zone(),
             &code_gen_state_),
       graph_(graph),
+      protected_deopt_literals_(isolate->heap()->heap()),
       deopt_literals_(isolate->heap()->heap()),
       retained_maps_(isolate->heap()),
       is_context_specialized_(
@@ -1818,7 +1846,8 @@ bool MaglevCodeGenerator::EmitDeopts() {
   }
 
   MaglevFrameTranslationBuilder translation_builder(
-      local_isolate_, &masm_, &frame_translation_builder_, &deopt_literals_);
+      local_isolate_, &masm_, &frame_translation_builder_,
+      &protected_deopt_literals_, &deopt_literals_);
 
   // Deoptimization exits must be as small as possible, since their count grows
   // with function size. These labels are an optimization which extracts the
@@ -2003,17 +2032,29 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
 
   int inlined_functions_size =
       static_cast<int>(graph_->inlined_functions().size());
+  DirectHandle<ProtectedDeoptimizationLiteralArray> protected_literals =
+      local_isolate->factory()->NewProtectedFixedArray(
+          protected_deopt_literals_.size());
   DirectHandle<DeoptimizationLiteralArray> literals =
       local_isolate->factory()->NewDeoptimizationLiteralArray(
-          deopt_literals_.size() + inlined_functions_size + 1);
+          deopt_literals_.size());
   DirectHandle<TrustedPodArray<InliningPosition>> inlining_positions =
       TrustedPodArray<InliningPosition>::New(local_isolate,
                                              inlined_functions_size);
 
   DisallowGarbageCollection no_gc;
 
+  Tagged<ProtectedDeoptimizationLiteralArray> raw_protected_literals =
+      *protected_literals;
+  {
+    IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
+        &protected_deopt_literals_);
+    for (auto it = iterate.begin(); it != iterate.end(); ++it) {
+      raw_protected_literals->set(*it.entry(), Cast<TrustedObject>(it.key()));
+    }
+  }
+
   Tagged<DeoptimizationLiteralArray> raw_literals = *literals;
-  Tagged<DeoptimizationData> raw_data = *data;
   {
     IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
         &deopt_literals_);
@@ -2021,20 +2062,14 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
       raw_literals->set(*it.entry(), it.key());
     }
   }
-  // Add the bytecode to the deopt literals to make sure it's held strongly.
-  int literal_offsets = deopt_literals_.size();
-  // Clear the deopt literals while the local isolate is still active.
-  deopt_literals_.Clear();
 
   for (int i = 0; i < inlined_functions_size; i++) {
     auto inlined_function_info = graph_->inlined_functions()[i];
     inlining_positions->set(i, inlined_function_info.position);
-    raw_literals->set(literal_offsets++, *inlined_function_info.bytecode_array);
   }
-  raw_literals->set(literal_offsets, *code_gen_state_.compilation_info()
-                                          ->toplevel_compilation_unit()
-                                          ->bytecode()
-                                          .object());
+
+  Tagged<DeoptimizationData> raw_data = *data;
+  raw_data->SetProtectedLiteralArray(raw_protected_literals);
   raw_data->SetLiteralArray(raw_literals);
   raw_data->SetInliningPositions(*inlining_positions);
 

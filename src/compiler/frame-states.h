@@ -93,6 +93,7 @@ class FrameStateFunctionInfo {
   FrameStateFunctionInfo(FrameStateType type, uint16_t parameter_count,
                          uint16_t max_arguments, int local_count,
                          IndirectHandle<SharedFunctionInfo> shared_info,
+                         MaybeIndirectHandle<BytecodeArray> bytecode_array,
                          uint32_t wasm_liftoff_frame_size = 0,
                          uint32_t wasm_function_index = -1)
       : type_(type),
@@ -103,7 +104,8 @@ class FrameStateFunctionInfo {
         wasm_liftoff_frame_size_(wasm_liftoff_frame_size),
         wasm_function_index_(wasm_function_index),
 #endif
-        shared_info_(shared_info) {
+        shared_info_(shared_info),
+        bytecode_array_(bytecode_array) {
   }
 
   int local_count() const { return local_count_; }
@@ -111,6 +113,9 @@ class FrameStateFunctionInfo {
   uint16_t max_arguments() const { return max_arguments_; }
   IndirectHandle<SharedFunctionInfo> shared_info() const {
     return shared_info_;
+  }
+  MaybeIndirectHandle<BytecodeArray> bytecode_array() const {
+    return bytecode_array_;
   }
   FrameStateType type() const { return type_; }
   uint32_t wasm_liftoff_frame_size() const {
@@ -139,6 +144,7 @@ class FrameStateFunctionInfo {
   static constexpr uint32_t wasm_function_index_ = -1;
 #endif
   const IndirectHandle<SharedFunctionInfo> shared_info_;
+  const MaybeIndirectHandle<BytecodeArray> bytecode_array_;
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -149,7 +155,7 @@ class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
                                  IndirectHandle<SharedFunctionInfo> shared_info,
                                  const wasm::CanonicalSig* signature)
       : FrameStateFunctionInfo(type, parameter_count, 0, local_count,
-                               shared_info),
+                               shared_info, {}),
         signature_(signature) {
     DCHECK_NOT_NULL(signature);
   }
@@ -179,6 +185,10 @@ class FrameStateInfo final {
   MaybeIndirectHandle<SharedFunctionInfo> shared_info() const {
     return info_ == nullptr ? MaybeIndirectHandle<SharedFunctionInfo>()
                             : info_->shared_info();
+  }
+  MaybeIndirectHandle<BytecodeArray> bytecode_array() const {
+    return info_ == nullptr ? MaybeIndirectHandle<BytecodeArray>()
+                            : info_->bytecode_array();
   }
   uint16_t parameter_count() const {
     return info_ == nullptr ? 0 : info_->parameter_count();

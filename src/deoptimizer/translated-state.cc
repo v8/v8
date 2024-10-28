@@ -39,6 +39,7 @@ namespace internal {
 void DeoptimizationFrameTranslationPrintSingleOpcode(
     std::ostream& os, TranslationOpcode opcode,
     DeoptimizationFrameTranslation::Iterator& iterator,
+    Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
     Tagged<DeoptimizationLiteralArray> literal_array) {
   disasm::NameConverter converter;
   switch (opcode) {
@@ -57,6 +58,7 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
     case TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN: {
       int bytecode_offset = iterator.NextOperand();
       int shared_info_id = iterator.NextOperand();
+      int bytecode_array_id = iterator.NextOperand();
       unsigned height = iterator.NextOperand();
       int return_value_offset = 0;
       int return_value_count = 0;
@@ -68,10 +70,13 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
       }
       Tagged<Object> shared_info = literal_array->get(shared_info_id);
+      Tagged<Object> bytecode_array =
+          protected_literal_array->get(bytecode_array_id);
       os << "{bytecode_offset=" << bytecode_offset << ", function="
          << Cast<SharedFunctionInfo>(shared_info)->DebugNameCStr().get()
-         << ", height=" << height << ", retval=@" << return_value_offset << "(#"
-         << return_value_count << ")}";
+         << ", bytecode=" << Brief(bytecode_array) << ", height=" << height
+         << ", retval=@" << return_value_offset << "(#" << return_value_count
+         << ")}";
       break;
     }
 
@@ -820,32 +825,33 @@ void TranslatedValue::Handlify() {
 
 TranslatedFrame TranslatedFrame::UnoptimizedJSFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-    int height, int return_value_offset, int return_value_count) {
-  TranslatedFrame frame(kUnoptimizedFunction, shared_info, height,
-                        return_value_offset, return_value_count);
+    Tagged<BytecodeArray> bytecode_array, int height, int return_value_offset,
+    int return_value_count) {
+  TranslatedFrame frame(kUnoptimizedFunction, shared_info, bytecode_array,
+                        height, return_value_offset, return_value_count);
   frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::InlinedExtraArguments(
     Tagged<SharedFunctionInfo> shared_info, int height) {
-  return TranslatedFrame(kInlinedExtraArguments, shared_info, height);
+  return TranslatedFrame(kInlinedExtraArguments, shared_info, {}, height);
 }
 
 TranslatedFrame TranslatedFrame::ConstructCreateStubFrame(
     Tagged<SharedFunctionInfo> shared_info, int height) {
-  return TranslatedFrame(kConstructCreateStub, shared_info, height);
+  return TranslatedFrame(kConstructCreateStub, shared_info, {}, height);
 }
 
 TranslatedFrame TranslatedFrame::ConstructInvokeStubFrame(
     Tagged<SharedFunctionInfo> shared_info) {
-  return TranslatedFrame(kConstructInvokeStub, shared_info, 0);
+  return TranslatedFrame(kConstructInvokeStub, shared_info, {}, 0);
 }
 
 TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
     int height) {
-  TranslatedFrame frame(kBuiltinContinuation, shared_info, height);
+  TranslatedFrame frame(kBuiltinContinuation, shared_info, {}, height);
   frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
@@ -854,7 +860,7 @@ TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
 TranslatedFrame TranslatedFrame::WasmInlinedIntoJSFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
     int height) {
-  TranslatedFrame frame(kWasmInlinedIntoJS, shared_info, height);
+  TranslatedFrame frame(kWasmInlinedIntoJS, shared_info, {}, height);
   frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
@@ -862,7 +868,7 @@ TranslatedFrame TranslatedFrame::WasmInlinedIntoJSFrame(
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
     int height, std::optional<wasm::ValueKind> return_kind) {
-  TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, height);
+  TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, {}, height);
   frame.bytecode_offset_ = bytecode_offset;
   frame.return_kind_ = return_kind;
   return frame;
@@ -873,7 +879,7 @@ TranslatedFrame TranslatedFrame::LiftoffFrame(BytecodeOffset bytecode_offset,
   // WebAssembly functions do not have a SharedFunctionInfo on the stack.
   // The deoptimizer has to recover the function-specific data based on the PC.
   Tagged<SharedFunctionInfo> shared_info;
-  TranslatedFrame frame(kLiftoffFunction, shared_info, height);
+  TranslatedFrame frame(kLiftoffFunction, shared_info, {}, height);
   frame.bytecode_offset_ = bytecode_offset;
   frame.wasm_function_index_ = function_index;
   return frame;
@@ -883,7 +889,8 @@ TranslatedFrame TranslatedFrame::LiftoffFrame(BytecodeOffset bytecode_offset,
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
     int height) {
-  TranslatedFrame frame(kJavaScriptBuiltinContinuation, shared_info, height);
+  TranslatedFrame frame(kJavaScriptBuiltinContinuation, shared_info, {},
+                        height);
   frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
@@ -892,7 +899,7 @@ TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
     int height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuationWithCatch, shared_info,
-                        height);
+                        {}, height);
   frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
@@ -904,8 +911,7 @@ int TranslatedFrame::GetValueCount() const {
 
   switch (kind()) {
     case kUnoptimizedFunction: {
-      int parameter_count =
-          raw_shared_info_->internal_formal_parameter_count_with_receiver();
+      int parameter_count = raw_bytecode_array_->parameter_count();
       static constexpr int kTheContext = 1;
       static constexpr int kTheAccumulator = 1;
       return height() + parameter_count + kTheContext + kTheFunction +
@@ -943,13 +949,17 @@ int TranslatedFrame::GetValueCount() const {
 }
 
 void TranslatedFrame::Handlify(Isolate* isolate) {
+  CHECK_EQ(handle_state_, kRawPointers);
   if (!raw_shared_info_.is_null()) {
     shared_info_ = handle(raw_shared_info_, isolate);
-    raw_shared_info_ = SharedFunctionInfo();
+  }
+  if (!raw_bytecode_array_.is_null()) {
+    bytecode_array_ = handle(raw_bytecode_array_, isolate);
   }
   for (auto& value : values_) {
     value.Handlify();
   }
+  handle_state_ = kHandles;
 }
 
 DeoptimizationLiteralProvider::DeoptimizationLiteralProvider(
@@ -993,6 +1003,7 @@ TranslatedValue DeoptimizationLiteralProvider::Get(TranslatedState* container,
 
 TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     DeoptTranslationIterator* iterator,
+    Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
     const DeoptimizationLiteralProvider& literal_array, Address fp,
     FILE* trace_file) {
   TranslationOpcode opcode = iterator->NextOpcode();
@@ -1002,6 +1013,8 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
+      Tagged<BytecodeArray> bytecode_array = Cast<BytecodeArray>(
+          protected_literal_array->get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       int return_value_offset = 0;
       int return_value_count = 0;
@@ -1012,17 +1025,16 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
         PrintF(trace_file, "  reading input frame %s", name.get());
-        int arg_count =
-            shared_info->internal_formal_parameter_count_with_receiver();
+        int arg_count = bytecode_array->parameter_count();
         PrintF(trace_file,
                " => bytecode_offset=%d, args=%d, height=%d, retval=%i(#%i); "
                "inputs:\n",
                bytecode_offset.ToInt(), arg_count, height, return_value_offset,
                return_value_count);
       }
-      return TranslatedFrame::UnoptimizedJSFrame(bytecode_offset, shared_info,
-                                                 height, return_value_offset,
-                                                 return_value_count);
+      return TranslatedFrame::UnoptimizedJSFrame(
+          bytecode_offset, shared_info, bytecode_array, height,
+          return_value_offset, return_value_count);
     }
 
     case TranslationOpcode::INLINED_EXTRA_ARGUMENTS: {
@@ -1830,18 +1842,19 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame)
       data->FrameTranslation(), data->TranslationIndex(deopt_index).value());
   int actual_argc = frame->GetActualArgumentCount();
   DeoptimizationLiteralProvider literals(data->LiteralArray());
-  Init(frame->isolate(), frame->fp(), frame->fp(), &it, literals,
-       nullptr /* registers */, nullptr /* trace file */,
-       code->parameter_count_without_receiver(), actual_argc);
+  Init(frame->isolate(), frame->fp(), frame->fp(), &it,
+       data->ProtectedLiteralArray(), literals, nullptr /* registers */,
+       nullptr /* trace file */, code->parameter_count_without_receiver(),
+       actual_argc);
 }
 
-void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
-                           Address stack_frame_pointer,
-                           DeoptTranslationIterator* iterator,
-                           const DeoptimizationLiteralProvider& literal_array,
-                           RegisterValues* registers, FILE* trace_file,
-                           int formal_parameter_count,
-                           int actual_argument_count) {
+void TranslatedState::Init(
+    Isolate* isolate, Address input_frame_pointer, Address stack_frame_pointer,
+    DeoptTranslationIterator* iterator,
+    Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
+    const DeoptimizationLiteralProvider& literal_array,
+    RegisterValues* registers, FILE* trace_file, int formal_parameter_count,
+    int actual_argument_count) {
   DCHECK(frames_.empty());
 
   stack_frame_pointer_ = stack_frame_pointer;
@@ -1868,7 +1881,8 @@ void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
   for (int frame_index = 0; frame_index < count; frame_index++) {
     // Read the frame descriptor.
     frames_.push_back(CreateNextTranslatedFrame(
-        iterator, literal_array, input_frame_pointer, trace_file));
+        iterator, protected_literal_array, literal_array, input_frame_pointer,
+        trace_file));
     TranslatedFrame& frame = frames_.back();
 
     // Read the values.

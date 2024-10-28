@@ -1692,9 +1692,11 @@ const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
 const FrameStateFunctionInfo*
 CommonOperatorBuilder::CreateFrameStateFunctionInfo(
     FrameStateType type, uint16_t parameter_count, uint16_t max_arguments,
-    int local_count, Handle<SharedFunctionInfo> shared_info) {
-  return zone()->New<FrameStateFunctionInfo>(
-      type, parameter_count, max_arguments, local_count, shared_info);
+    int local_count, IndirectHandle<SharedFunctionInfo> shared_info,
+    IndirectHandle<BytecodeArray> bytecode_array) {
+  return zone()->New<FrameStateFunctionInfo>(type, parameter_count,
+                                             max_arguments, local_count,
+                                             shared_info, bytecode_array);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

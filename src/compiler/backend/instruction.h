@@ -1502,6 +1502,7 @@ class FrameStateDescriptor : public ZoneObject {
       OutputFrameStateCombine state_combine, uint16_t parameters_count,
       uint16_t max_arguments, size_t locals_count, size_t stack_count,
       MaybeIndirectHandle<SharedFunctionInfo> shared_info,
+      MaybeIndirectHandle<BytecodeArray> bytecode_array,
       FrameStateDescriptor* outer_state = nullptr,
       uint32_t wasm_liftoff_frame_size = std::numeric_limits<uint32_t>::max(),
       uint32_t wasm_function_index = std::numeric_limits<uint32_t>::max());
@@ -1515,6 +1516,9 @@ class FrameStateDescriptor : public ZoneObject {
   size_t stack_count() const { return stack_count_; }
   MaybeIndirectHandle<SharedFunctionInfo> shared_info() const {
     return shared_info_;
+  }
+  MaybeIndirectHandle<BytecodeArray> bytecode_array() const {
+    return bytecode_array_;
   }
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   bool HasClosure() const {
@@ -1576,6 +1580,7 @@ class FrameStateDescriptor : public ZoneObject {
   const size_t total_conservative_frame_size_in_bytes_;
   StateValueList values_;
   MaybeIndirectHandle<SharedFunctionInfo> const shared_info_;
+  MaybeIndirectHandle<BytecodeArray> const bytecode_array_;
   FrameStateDescriptor* const outer_state_;
   uint32_t wasm_function_index_;
 };

@@ -1226,6 +1226,7 @@ FrameStateDescriptor::FrameStateDescriptor(
     OutputFrameStateCombine state_combine, uint16_t parameters_count,
     uint16_t max_arguments, size_t locals_count, size_t stack_count,
     MaybeIndirectHandle<SharedFunctionInfo> shared_info,
+    MaybeIndirectHandle<BytecodeArray> bytecode_aray,
     FrameStateDescriptor* outer_state, uint32_t wasm_liftoff_frame_size,
     uint32_t wasm_function_index)
     : type_(type),
@@ -1241,6 +1242,7 @@ FrameStateDescriptor::FrameStateDescriptor(
               wasm_liftoff_frame_size, outer_state)),
       values_(zone),
       shared_info_(shared_info),
+      bytecode_array_(bytecode_aray),
       outer_state_(outer_state),
       wasm_function_index_(wasm_function_index) {}
 
@@ -1318,7 +1320,7 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     FrameStateDescriptor* outer_state, const wasm::CanonicalSig* wasm_signature)
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
                            parameters_count, 0, locals_count, stack_count,
-                           shared_info, outer_state),
+                           shared_info, {}, outer_state),
       return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 

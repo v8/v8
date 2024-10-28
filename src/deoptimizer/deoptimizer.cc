@@ -1265,8 +1265,9 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   FILE* trace_file =
       verbose_tracing_enabled() ? trace_scope()->file() : nullptr;
   translated_state_.Init(isolate_, input_->GetFramePointerAddress(), stack_fp_,
-                         &state_iterator, literals, input_->GetRegisterValues(),
-                         trace_file, parameter_count, parameter_count);
+                         &state_iterator, {}, literals,
+                         input_->GetRegisterValues(), trace_file,
+                         parameter_count, parameter_count);
 
   const size_t output_frames = translated_state_.frames().size();
   CHECK_GT(output_frames, 0);
@@ -1450,8 +1451,8 @@ void Deoptimizer::DoComputeOutputFrames() {
                                                           translation_index);
   DeoptimizationLiteralProvider literals(input_data->LiteralArray());
   translated_state_.Init(isolate_, input_->GetFramePointerAddress(), stack_fp_,
-                         &state_iterator, literals, input_->GetRegisterValues(),
-                         trace_file,
+                         &state_iterator, input_data->ProtectedLiteralArray(),
+                         literals, input_->GetRegisterValues(), trace_file,
                          compiled_code_->parameter_count_without_receiver(),
                          actual_argument_count_ - kJSArgcReceiverSlots);
 
@@ -1651,7 +1652,7 @@ Builtin DispatchBuiltinFor(bool deopt_to_baseline, bool advance_bc,
 void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                             int frame_index,
                                             bool goto_catch_handler) {
-  Tagged<SharedFunctionInfo> shared = translated_frame->raw_shared_info();
+  Tagged<BytecodeArray> bytecode_array = translated_frame->raw_bytecode_array();
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   const bool is_bottommost = (0 == frame_index);
   const bool is_topmost = (output_count_ - 1 == frame_index);
@@ -1660,8 +1661,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const int bytecode_offset =
       goto_catch_handler ? catch_handler_pc_offset_ : real_bytecode_offset;
 
-  const int parameters_count =
-      shared->internal_formal_parameter_count_with_receiver();
+  const int parameters_count = bytecode_array->parameter_count();
 
   // If this is the bottom most frame or the previous frame was the inlined
   // extra arguments frame, then we already have extra arguments in the stack
@@ -1678,13 +1678,11 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
 
-  Tagged<BytecodeArray> bytecode_array;
   std::optional<Tagged<DebugInfo>> debug_info =
-      shared->TryGetDebugInfo(isolate());
+      translated_frame->raw_shared_info()->TryGetDebugInfo(isolate());
   if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
+    // TODO(leszeks): Validate this bytecode.
     bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
-  } else {
-    bytecode_array = shared->GetBytecodeArray(isolate());
   }
 
   // Allocate and store the output frame description.
@@ -1708,8 +1706,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const bool advance_bc =
       (!is_topmost || (deopt_kind_ == DeoptimizeKind::kLazy)) &&
       !goto_catch_handler;
-  const bool deopt_to_baseline =
-      shared->HasBaselineCode() && v8_flags.deopt_to_baseline;
+  const bool deopt_to_baseline = v8_flags.deopt_to_baseline;
   const bool restart_frame = goto_catch_handler && is_restart_frame();
   Tagged<Code> dispatch_builtin = builtins->code(
       DispatchBuiltinFor(deopt_to_baseline, advance_bc, restart_frame));
@@ -1717,7 +1714,8 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(), "  translating %s frame ",
            deopt_to_baseline ? "baseline" : "interpreted");
-    std::unique_ptr<char[]> name = shared->DebugNameCStr();
+    std::unique_ptr<char[]> name =
+        translated_frame->raw_shared_info()->DebugNameCStr();
     PrintF(trace_scope()->file(), "%s", name.get());
     PrintF(trace_scope()->file(), " => bytecode_offset=%d, ",
            real_bytecode_offset);

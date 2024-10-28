@@ -134,12 +134,12 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
       signature ? common->CreateJSToWasmFrameStateFunctionInfo(
                       frame_type, parameter_count, 0, shared, signature)
                 : common->CreateFrameStateFunctionInfo(
-                      frame_type, parameter_count, 0, 0, shared);
+                      frame_type, parameter_count, 0, 0, shared, {});
 #else
   DCHECK_NULL(signature);
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0, 0,
-                                           shared);
+                                           shared, {});
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   const Operator* op = common->FrameState(

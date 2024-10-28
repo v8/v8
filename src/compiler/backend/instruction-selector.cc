@@ -5995,7 +5995,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(
   return zone->New<FrameStateDescriptor>(
       zone, state_info.type(), state_info.bailout_id(),
       state_info.state_combine(), parameters, max_arguments, locals, stack,
-      state_info.shared_info(), outer_state,
+      state_info.shared_info(), state_info.bytecode_array(), outer_state,
       state_info.function_info()->wasm_liftoff_frame_size(),
       state_info.function_info()->wasm_function_index());
 }
@@ -6030,7 +6030,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
   return zone->New<FrameStateDescriptor>(
       zone, state_info.type(), state_info.bailout_id(),
       state_info.state_combine(), parameters, max_arguments, locals, stack,
-      state_info.shared_info(), outer_state,
+      state_info.shared_info(), state_info.bytecode_array(), outer_state,
       state_info.function_info()->wasm_liftoff_frame_size(),
       state_info.function_info()->wasm_function_index());
 }

@@ -172,7 +172,7 @@ TurboshaftInstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
   const uint16_t max_arguments = 0;
   return test_->zone()->New<FrameStateFunctionInfo>(
       FrameStateType::kUnoptimizedFunction, parameter_count, max_arguments,
-      local_count, Handle<SharedFunctionInfo>());
+      local_count, Handle<SharedFunctionInfo>(), Handle<BytecodeArray>());
 }
 
 // -----------------------------------------------------------------------------

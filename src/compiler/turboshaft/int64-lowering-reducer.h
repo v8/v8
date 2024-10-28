@@ -564,7 +564,8 @@ class Int64LoweringReducer : public Next {
     auto* function_info_lowered = zone->New<compiler::FrameStateFunctionInfo>(
         compiler::FrameStateType::kLiftoffFunction, lowered_parameter_count,
         function_info->max_arguments(), lowered_local_count,
-        function_info->shared_info(), function_info->wasm_liftoff_frame_size(),
+        function_info->shared_info(), kNullMaybeHandle,
+        function_info->wasm_liftoff_frame_size(),
         function_info->wasm_function_index());
     const FrameStateInfo& frame_state_info = data->frame_state_info;
     auto* frame_state_info_lowered = zone->New<compiler::FrameStateInfo>(

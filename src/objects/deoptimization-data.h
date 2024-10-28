@@ -35,6 +35,8 @@ class DeoptimizationLiteralArray : public TrustedWeakFixedArray {
   inline void set(int index, Tagged<Object> value);
 };
 
+using ProtectedDeoptimizationLiteralArray = ProtectedFixedArray;
+
 enum class DeoptimizationLiteralKind {
   kObject,
   kNumber,
@@ -195,6 +197,7 @@ class DeoptimizationFrameTranslation : public TrustedByteArray {
 #ifdef ENABLE_DISASSEMBLER
   void PrintFrameTranslation(
       std::ostream& os, int index,
+      Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
       Tagged<DeoptimizationLiteralArray> literal_array) const;
 #endif
 };
@@ -264,16 +267,17 @@ class DeoptimizationData : public ProtectedFixedArray {
   // Layout description.  Indices in the array.
   static const int kFrameTranslationIndex = 0;
   static const int kInlinedFunctionCountIndex = 1;
-  static const int kLiteralArrayIndex = 2;
-  static const int kOsrBytecodeOffsetIndex = 3;
-  static const int kOsrPcOffsetIndex = 4;
-  static const int kOptimizationIdIndex = 5;
-  static const int kWrappedSharedFunctionInfoIndex = 6;
-  static const int kInliningPositionsIndex = 7;
-  static const int kDeoptExitStartIndex = 8;
-  static const int kEagerDeoptCountIndex = 9;
-  static const int kLazyDeoptCountIndex = 10;
-  static const int kFirstDeoptEntryIndex = 11;
+  static const int kProtectedLiteralArrayIndex = 2;
+  static const int kLiteralArrayIndex = 3;
+  static const int kOsrBytecodeOffsetIndex = 4;
+  static const int kOsrPcOffsetIndex = 5;
+  static const int kOptimizationIdIndex = 6;
+  static const int kWrappedSharedFunctionInfoIndex = 7;
+  static const int kInliningPositionsIndex = 8;
+  static const int kDeoptExitStartIndex = 9;
+  static const int kEagerDeoptCountIndex = 10;
+  static const int kLazyDeoptCountIndex = 11;
+  static const int kFirstDeoptEntryIndex = 12;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kBytecodeOffsetRawOffset = 0;
@@ -294,6 +298,8 @@ class DeoptimizationData : public ProtectedFixedArray {
   DECL_ELEMENT_ACCESSORS(FrameTranslation,
                          Tagged<DeoptimizationFrameTranslation>)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Tagged<Smi>)
+  DECL_ELEMENT_ACCESSORS(ProtectedLiteralArray,
+                         Tagged<ProtectedDeoptimizationLiteralArray>)
   DECL_ELEMENT_ACCESSORS(LiteralArray, Tagged<DeoptimizationLiteralArray>)
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Tagged<Smi>)

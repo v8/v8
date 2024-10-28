@@ -158,7 +158,7 @@ InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
   const uint16_t max_arguments = 0;
   return common()->CreateFrameStateFunctionInfo(
       FrameStateType::kUnoptimizedFunction, parameter_count, max_arguments,
-      local_count, Handle<SharedFunctionInfo>());
+      local_count, {}, {});
 }
 
 // -----------------------------------------------------------------------------

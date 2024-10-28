@@ -178,6 +178,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
 
     if (v8_flags.print_code_verbose) {
       FrameTranslation()->PrintFrameTranslation(os, TranslationIndex(i).value(),
+                                                ProtectedLiteralArray(),
                                                 LiteralArray());
     }
   }
@@ -383,6 +384,7 @@ void DeoptTranslationIterator::SkipOpcodeAndItsOperandsAtPreviousIndex() {
 
 void DeoptimizationFrameTranslation::PrintFrameTranslation(
     std::ostream& os, int index,
+    Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
     Tagged<DeoptimizationLiteralArray> literal_array) const {
   DisallowGarbageCollection gc_oh_noes;
 
@@ -390,16 +392,16 @@ void DeoptimizationFrameTranslation::PrintFrameTranslation(
   TranslationOpcode opcode = iterator.NextOpcode();
   DCHECK(TranslationOpcodeIsBegin(opcode));
   os << opcode << " ";
-  DeoptimizationFrameTranslationPrintSingleOpcode(os, opcode, iterator,
-                                                  literal_array);
+  DeoptimizationFrameTranslationPrintSingleOpcode(
+      os, opcode, iterator, protected_literal_array, literal_array);
   while (iterator.HasNextOpcode()) {
     TranslationOpcode opcode = iterator.NextOpcode();
     if (TranslationOpcodeIsBegin(opcode)) {
       break;
     }
     os << opcode << " ";
-    DeoptimizationFrameTranslationPrintSingleOpcode(os, opcode, iterator,
-                                                    literal_array);
+    DeoptimizationFrameTranslationPrintSingleOpcode(
+        os, opcode, iterator, protected_literal_array, literal_array);
   }
 }
 

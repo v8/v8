@@ -363,7 +363,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void RecordCallPosition(Instruction* instr);
   void RecordDeoptInfo(Instruction* instr, int pc_offset);
   Handle<DeoptimizationData> GenerateDeoptimizationData();
+  int DefineProtectedDeoptimizationLiteral(
+      IndirectHandle<TrustedObject> object);
   int DefineDeoptimizationLiteral(DeoptimizationLiteral literal);
+  bool HasProtectedDeoptimizationLiteral(
+      IndirectHandle<TrustedObject> object) const;
   DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
                                                     size_t frame_state_offset);
 
@@ -415,6 +419,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   int eager_deopt_count_ = 0;
   int lazy_deopt_count_ = 0;
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
+  ZoneDeque<IndirectHandle<TrustedObject>> protected_deoptimization_literals_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_ = 0;
   FrameTranslationBuilder translations_;

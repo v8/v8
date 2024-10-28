@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/api/api-arguments.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
@@ -4072,6 +4073,8 @@ V8_EXPORT_PRIVATE extern i::Tagged<i::Object> _v8_internal_Get_Object(
 
 V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
+  i::AllowHandleDereference allow_deref;
+  i::AllowHandleDereferenceAllThreads allow_deref_all_threads;
   i::Print(GetObjectFromRaw(object));
 }
 
