@@ -682,7 +682,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       // We're tiering up a WasmToJS wrapper, so the function must be an
       // imported JS function.
       DCHECK(IsWasmImportData(internal->implicit_arg()));
-      instance_data = Cast<WasmTrustedInstanceData>(internal->implicit_arg());
+      instance_data =
+          Cast<WasmImportData>(internal->implicit_arg())->instance_data();
     }
     // For imported JS functions, we don't really care about updating the call
     // target in the table, but we do need the table to manage the lifetime
