@@ -969,7 +969,7 @@ class FixedArrayBaseRef : public HeapObjectRef {
 
   IndirectHandle<FixedArrayBase> object() const;
 
-  int length() const;
+  uint32_t length() const;
 };
 
 class ArrayBoilerplateDescriptionRef : public HeapObjectRef {

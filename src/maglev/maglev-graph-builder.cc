@@ -4630,7 +4630,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
       maybe_constant.value().IsFixedArray()) {
     compiler::FixedArrayRef fixed_array_ref =
         maybe_constant.value().AsFixedArray();
-    if (index >= 0 && index < fixed_array_ref.length()) {
+    if (index >= 0 && static_cast<uint32_t>(index) < fixed_array_ref.length()) {
       compiler::OptionalObjectRef maybe_value =
           fixed_array_ref.TryGet(broker(), index);
       if (maybe_value) return GetConstant(*maybe_value);
@@ -4687,7 +4687,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
     VirtualObject* vobject =
         GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
     compiler::FixedDoubleArrayRef elements_array = vobject->double_elements();
-    if (index >= 0 && index < elements_array.length()) {
+    if (index >= 0 && static_cast<uint32_t>(index) < elements_array.length()) {
       Float64 value = elements_array.GetFromImmutableFixedDoubleArray(index);
       return GetFloat64Constant(value.get_scalar());
     } else {
@@ -9750,7 +9750,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     for (int i = 0; i < static_cast<int>(args.count()); i++) {
       arg_list.push_back(args[i]);
     }
-    for (int i = 0; i < elements.length(); i++) {
+    for (uint32_t i = 0; i < elements.length(); i++) {
       arg_list.push_back(GetConstant(*elements.TryGet(broker(), i)));
     }
     CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
@@ -11339,7 +11339,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
   compiler::FixedArrayBaseRef boilerplate_elements = maybe_elements.value();
   broker()->dependencies()->DependOnObjectSlotValue(
       boilerplate, JSObject::kElementsOffset, boilerplate_elements);
-  int const elements_length = boilerplate_elements.length();
+  const uint32_t elements_length = boilerplate_elements.length();
 
   VirtualObject* fast_literal =
       boilerplate_map.IsJSArrayMap()
@@ -11453,7 +11453,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
           CreateFixedArray(broker()->fixed_array_map(), elements_length);
       compiler::FixedArrayRef boilerplate_elements_as_fixed_array =
           boilerplate_elements.AsFixedArray();
-      for (int i = 0; i < elements_length; ++i) {
+      for (uint32_t i = 0; i < elements_length; ++i) {
         if ((*max_properties)-- == 0) return {};
         compiler::OptionalObjectRef element_value =
             boilerplate_elements_as_fixed_array.TryGet(broker(), i);

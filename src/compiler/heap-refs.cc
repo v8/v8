@@ -906,7 +906,7 @@ class FixedArrayBaseData : public HeapObjectData {
       : HeapObjectData(broker, storage, object, kind),
         length_(object->length(kAcquireLoad)) {}
 
-  int length() const { return length_; }
+  uint32_t length() const { return length_; }
 
  private:
   int const length_;
@@ -2236,7 +2236,7 @@ OptionalFixedArrayBaseRef JSObjectRef::elements(JSHeapBroker* broker,
   return TryMakeRef(broker, object()->elements(tag));
 }
 
-int FixedArrayBaseRef::length() const {
+uint32_t FixedArrayBaseRef::length() const {
   IF_ACCESS_FROM_HEAP_C(length);
   return data()->AsFixedArrayBase()->length();
 }

@@ -4651,10 +4651,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       // TODO(jgruber): Inline this block below once TryGet is guaranteed to
       // succeed.
       FixedArrayRef bound_arguments = function.bound_arguments(broker());
-      const int bound_arguments_length = bound_arguments.length();
+      const uint32_t bound_arguments_length = bound_arguments.length();
       static constexpr int kInlineSize = 16;  // Arbitrary.
       base::SmallVector<Node*, kInlineSize> args;
-      for (int i = 0; i < bound_arguments_length; ++i) {
+      for (uint32_t i = 0; i < bound_arguments_length; ++i) {
         OptionalObjectRef maybe_arg = bound_arguments.TryGet(broker(), i);
         if (!maybe_arg.has_value()) {
           TRACE_BROKER_MISSING(broker(), "bound argument");
@@ -4675,7 +4675,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           JSCallNode::ReceiverIndex());
 
       // Insert the [[BoundArguments]] for {node}.
-      for (int i = 0; i < bound_arguments_length; ++i) {
+      for (uint32_t i = 0; i < bound_arguments_length; ++i) {
         node->InsertInput(graph()->zone(), i + 2, args[i]);
         arity++;
       }
@@ -4721,7 +4721,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   if (target->opcode() == IrOpcode::kJSCreateBoundFunction) {
     Node* bound_target_function = NodeProperties::GetValueInput(target, 0);
     Node* bound_this = NodeProperties::GetValueInput(target, 1);
-    int const bound_arguments_length =
+    uint32_t const bound_arguments_length =
         static_cast<int>(CreateBoundFunctionParametersOf(target->op()).arity());
 
     // Patch the {node} to use [[BoundTargetFunction]] and [[BoundThis]].
@@ -4730,7 +4730,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     NodeProperties::ReplaceValueInput(node, bound_this, n.ReceiverIndex());
 
     // Insert the [[BoundArguments]] for {node}.
-    for (int i = 0; i < bound_arguments_length; ++i) {
+    for (uint32_t i = 0; i < bound_arguments_length; ++i) {
       Node* value = NodeProperties::GetValueInput(target, 2 + i);
       node->InsertInput(graph()->zone(), n.ArgumentIndex(i), value);
       arity++;
@@ -5484,13 +5484,13 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       JSReceiverRef bound_target_function =
           function.bound_target_function(broker());
       FixedArrayRef bound_arguments = function.bound_arguments(broker());
-      const int bound_arguments_length = bound_arguments.length();
+      const uint32_t bound_arguments_length = bound_arguments.length();
 
       // TODO(jgruber): Inline this block below once TryGet is guaranteed to
       // succeed.
       static constexpr int kInlineSize = 16;  // Arbitrary.
       base::SmallVector<Node*, kInlineSize> args;
-      for (int i = 0; i < bound_arguments_length; ++i) {
+      for (uint32_t i = 0; i < bound_arguments_length; ++i) {
         OptionalObjectRef maybe_arg = bound_arguments.TryGet(broker(), i);
         if (!maybe_arg.has_value()) {
           TRACE_BROKER_MISSING(broker(), "bound argument");
@@ -5522,7 +5522,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
 
       // Insert the [[BoundArguments]] for {node}.
-      for (int i = 0; i < bound_arguments_length; ++i) {
+      for (uint32_t i = 0; i < bound_arguments_length; ++i) {
         node->InsertInput(graph()->zone(), n.ArgumentIndex(i), args[i]);
         arity++;
       }
@@ -5544,7 +5544,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   // function directly instead.
   if (target->opcode() == IrOpcode::kJSCreateBoundFunction) {
     Node* bound_target_function = NodeProperties::GetValueInput(target, 0);
-    int const bound_arguments_length =
+    uint32_t const bound_arguments_length =
         static_cast<int>(CreateBoundFunctionParametersOf(target->op()).arity());
 
     // Patch the {node} to use [[BoundTargetFunction]].
@@ -5564,7 +5564,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     }
 
     // Insert the [[BoundArguments]] for {node}.
-    for (int i = 0; i < bound_arguments_length; ++i) {
+    for (uint32_t i = 0; i < bound_arguments_length; ++i) {
       Node* value = NodeProperties::GetValueInput(target, 2 + i);
       node->InsertInput(graph()->zone(), n.ArgumentIndex(i), value);
       arity++;
