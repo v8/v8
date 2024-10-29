@@ -1399,6 +1399,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   // Get the initial map from the function, jumping to the runtime if we don't
   // have one.
   Label done(this), runtime(this);
+  GotoIfForceSlowPath(&runtime);
   GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
   TNode<HeapObject> maybe_map = LoadObjectField<HeapObject>(
       closure, JSFunction::kPrototypeOrInitialMapOffset);
@@ -1407,20 +1408,24 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
   TNode<SharedFunctionInfo> shared = LoadObjectField<SharedFunctionInfo>(
       closure, JSFunction::kSharedFunctionInfoOffset);
+  // TODO(40931165): load bytecode array from function's dispatch table entry
+  // when available instead of shared function info.
   TNode<BytecodeArray> bytecode_array =
       LoadSharedFunctionInfoBytecodeArray(shared);
 
-  TNode<IntPtrT> formal_parameter_count = ChangeInt32ToIntPtr(
-      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared));
+  TNode<IntPtrT> parameter_count = Signed(ChangeUint32ToWord(
+      LoadBytecodeArrayParameterCountWithoutReceiver(bytecode_array)));
+
   TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(
       LoadObjectField<Int32T>(bytecode_array, BytecodeArray::kFrameSizeOffset));
-  TNode<IntPtrT> size =
-      IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
-                formal_parameter_count);
+  TNode<IntPtrT> length =
+      IntPtrAdd(WordSar(frame_size, IntPtrConstant(kSystemPointerSizeLog2)),
+                parameter_count);
   TNode<FixedArrayBase> parameters_and_registers =
-      AllocateFixedArray(HOLEY_ELEMENTS, size);
+      AllocateFixedArray(HOLEY_ELEMENTS, length);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
-                          IntPtrConstant(0), size, RootIndex::kUndefinedValue);
+                          IntPtrConstant(0), length,
+                          RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
   TNode<JSObject> result =
       AllocateJSObjectFromMap(map, std::nullopt, std::nullopt,

@@ -3626,6 +3626,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<Object> callable,
                                      TNode<Object> object);
 
+  TNode<BytecodeArray> LoadBytecodeArrayFromBaseline();
+
   // Load type feedback vector from the stub caller's frame.
   TNode<FeedbackVector> LoadFeedbackVectorForStub();
   TNode<FeedbackVector> LoadFeedbackVectorFromBaseline();
