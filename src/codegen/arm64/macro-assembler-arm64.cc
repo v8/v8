@@ -2586,6 +2586,11 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   DCHECK_NE(code, x17);
   Mov(x17, code);
   Jump(x17);
+  // This implementation is not currently used because callers usually need
+  // to load both entry point and parameter count and then do something with
+  // the latter before the actual call.
+  // TODO(ishell): remove the above code once it's clear it's not needed.
+  UNREACHABLE();
 #elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In

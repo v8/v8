@@ -472,9 +472,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ AssertGeneratorObject(x1);
 
   // Load suspended function and context.
-  __ LoadTaggedField(x4,
+  __ LoadTaggedField(x5,
                      FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
-  __ LoadTaggedField(cp, FieldMemOperand(x4, JSFunction::kContextOffset));
+  __ LoadTaggedField(cp, FieldMemOperand(x5, JSFunction::kContextOffset));
 
   // Flood function if we are stepping.
   Label prepare_step_in_if_stepping, prepare_step_in_suspended_generator;
@@ -501,15 +501,38 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Cmp(sp, x10);
   __ B(lo, &stack_overflow);
 
-  // Get number of arguments for generator function.
-  __ LoadTaggedField(
-      x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldrh(w10, FieldMemOperand(
-                   x10, SharedFunctionInfo::kFormalParameterCountOffset));
+  Register argc = kJavaScriptCallArgCountRegister;
 
-  __ Sub(x10, x10, kJSArgcReceiverSlots);
+  // Compute actual arguments count value as a formal parameter count without
+  // receiver, loaded from the dispatch table entry or shared function info.
+#if V8_ENABLE_LEAPTIERING
+  Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
+  Register code = kJavaScriptCallCodeStartRegister;
+  Register scratch = x20;
+  __ Ldr(dispatch_handle.W(),
+         FieldMemOperand(x5, JSFunction::kDispatchHandleOffset));
+  __ LoadEntrypointAndParameterCountFromJSDispatchTable(
+      code, argc, dispatch_handle, scratch);
+
+  // In case the formal parameter count is kDontAdaptArgumentsSentinel the
+  // actual arguments count should be set accordingly.
+  static_assert(kDontAdaptArgumentsSentinel < JSParameterCount(0));
+  __ Cmp(argc, Operand(JSParameterCount(0)));
+  __ Csel(argc, argc, Operand(JSParameterCount(0)), kGreaterThan);
+#else
+  __ LoadTaggedField(
+      argc, FieldMemOperand(x5, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldrh(argc.W(), FieldMemOperand(
+                        argc, SharedFunctionInfo::kFormalParameterCountOffset));
+
+  // Generator functions are always created from user code and thus the
+  // formal parameter count is never equal to kDontAdaptArgumentsSentinel,
+  // which is used only for certain non-generator builtin functions.
+#endif  // V8_ENABLE_LEAPTIERING
+
   // Claim slots for arguments and receiver (rounded up to a multiple of two).
-  __ Add(x11, x10, 2);
+  static_assert(JSParameterCount(0) == 1);  // argc includes receiver
+  __ Add(x11, argc, 1);
   __ Bic(x11, x11, 1);
   __ Claim(x11);
 
@@ -518,32 +541,36 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Poke(padreg, Operand(x11, LSL, kSystemPointerSizeLog2));
 
   // Poke receiver into highest claimed slot.
-  __ LoadTaggedField(x5,
+  __ LoadTaggedField(x6,
                      FieldMemOperand(x1, JSGeneratorObject::kReceiverOffset));
-  __ Poke(x5, __ ReceiverOperand());
+  __ Poke(x6, __ ReceiverOperand());
 
   // ----------- S t a t e -------------
+  //  -- x0                       : actual arguments count
   //  -- x1                       : the JSGeneratorObject to resume
-  //  -- x4                       : generator function
-  //  -- x10                      : argument count
+  //  -- x2                       : target code object (leaptiering only)
+  //  -- x4                       : dispatch handle (leaptiering only)
+  //  -- x5                       : generator function
   //  -- cp                       : generator context
   //  -- lr                       : return address
   //  -- sp[0 .. arg count]       : claimed for receiver and args
   // -----------------------------------
 
   // Copy the function arguments from the generator object's register file.
-  __ LoadTaggedField(
-      x5,
-      FieldMemOperand(x1, JSGeneratorObject::kParametersAndRegistersOffset));
   {
     Label loop, done;
+    __ Sub(x10, argc, kJSArgcReceiverSlots);
     __ Cbz(x10, &done);
+    __ LoadTaggedField(
+        x6,
+        FieldMemOperand(x1, JSGeneratorObject::kParametersAndRegistersOffset));
+
     __ SlotAddress(x12, x10);
-    __ Add(x5, x5, Operand(x10, LSL, kTaggedSizeLog2));
-    __ Add(x5, x5, Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
+    __ Add(x6, x6, Operand(x10, LSL, kTaggedSizeLog2));
+    __ Add(x6, x6, Operand(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
     __ Bind(&loop);
     __ Sub(x10, x10, 1);
-    __ LoadTaggedField(x11, MemOperand(x5, -kTaggedSize, PreIndex));
+    __ LoadTaggedField(x11, MemOperand(x6, -kTaggedSize, PreIndex));
     __ Str(x11, MemOperand(x12, -kSystemPointerSize, PostIndex));
     __ Cbnz(x10, &loop);
     __ Bind(&done);
@@ -552,11 +579,12 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Underlying function needs to have bytecode available.
   if (v8_flags.debug_code) {
     Label ok, is_baseline, is_unavailable;
-    Register sfi = x3;
-    Register bytecode = x3;
+    Register sfi = x10;
+    Register bytecode = x10;
+    Register scratch = x11;
     __ LoadTaggedField(
-        sfi, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
-    GetSharedFunctionInfoBytecodeOrBaseline(masm, sfi, bytecode, x0,
+        sfi, FieldMemOperand(x5, JSFunction::kSharedFunctionInfoOffset));
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, sfi, bytecode, scratch,
                                             &is_baseline, &is_unavailable);
     __ B(&ok);
 
@@ -564,7 +592,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Abort(AbortReason::kMissingBytecodeArray);
 
     __ Bind(&is_baseline);
-    __ IsObjectType(bytecode, x0, x0, CODE_TYPE);
+    __ IsObjectType(bytecode, scratch, scratch, CODE_TYPE);
     __ Assert(eq, AbortReason::kMissingBytecodeArray);
 
     __ Bind(&ok);
@@ -572,29 +600,34 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Resume (Ignition/TurboFan) generator object.
   {
-    // TODO(40931165): use parameter count from JSDispatchTable and validate
-    // that it matches the number of values in the JSGeneratorObject.
-    __ LoadTaggedField(
-        x0, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
-    __ Ldrh(w0, FieldMemOperand(
-                    x0, SharedFunctionInfo::kFormalParameterCountOffset));
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
-    __ Mov(x3, x1);
-    __ Mov(x1, x4);
+    __ Mov(x3, x1);  // new.target
+    __ Mov(x1, x5);  // target
+#if V8_ENABLE_LEAPTIERING
+    // We jump through x17 here because for Branch Identification (BTI) we use
+    // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for
+    // tail-called code. See TailCallBuiltin for more information.
+    DCHECK_NE(code, x17);
+    __ Mov(x17, code);
+    // Actual arguments count and code start are already initialized above.
+    __ Jump(x17);
+#else
+    // Actual arguments count is already initialized above.
     __ JumpJSFunction(x1);
+#endif  // V8_ENABLE_LEAPTIERING
   }
 
   __ Bind(&prepare_step_in_if_stepping);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Push hole as receiver since we do not use it for stepping.
-    __ LoadRoot(x5, RootIndex::kTheHoleValue);
-    __ Push(x1, padreg, x4, x5);
+    __ LoadRoot(x6, RootIndex::kTheHoleValue);
+    __ Push(x1, padreg, x5, x6);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(padreg, x1);
-    __ LoadTaggedField(x4,
+    __ LoadTaggedField(x5,
                        FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
   }
   __ B(&stepping_prepared);
@@ -605,7 +638,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Push(x1, padreg);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
     __ Pop(padreg, x1);
-    __ LoadTaggedField(x4,
+    __ LoadTaggedField(x5,
                        FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
   }
   __ B(&stepping_prepared);

@@ -756,8 +756,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check that rdx is still valid, RecordWrite might have clobbered it.
   __ AssertGeneratorObject(rdx);
 
-  Register decompr_scratch1 = COMPRESS_POINTERS_BOOL ? r8 : no_reg;
-
   // Load suspended function and context.
   __ LoadTaggedField(rdi,
                      FieldOperand(rdx, JSGeneratorObject::kFunctionOffset));
@@ -787,31 +785,64 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ cmpq(rsp, __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
   __ j(below, &stack_overflow);
 
-  // Pop return address.
-  __ PopReturnAddressTo(rax);
-
   // ----------- S t a t e -------------
-  //  -- rax    : return address
   //  -- rdx    : the JSGeneratorObject to resume
   //  -- rdi    : generator function
   //  -- rsi    : generator context
   // -----------------------------------
 
-  // Copy the function arguments from the generator object's register file.
-  __ LoadTaggedField(rcx,
-                     FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movzxwq(
-      rcx, FieldOperand(rcx, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ decq(rcx);  // Exclude receiver.
-  __ LoadTaggedField(
-      rbx, FieldOperand(rdx, JSGeneratorObject::kParametersAndRegistersOffset));
+  Register decompr_scratch1 = COMPRESS_POINTERS_BOOL ? r8 : no_reg;
+  Register argc = kJavaScriptCallArgCountRegister;
+  Register index = r9;
+  Register return_address = r11;
+  Register params_array = rbx;
 
+  __ PopReturnAddressTo(return_address);
+
+  // Compute actual arguments count value as a formal parameter count without
+  // receiver, loaded from the dispatch table entry or shared function info.
+#if V8_ENABLE_LEAPTIERING
+  static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+  static_assert(kJavaScriptCallDispatchHandleRegister == r15, "ABI mismatch");
+  __ movl(r15, FieldOperand(rdi, JSFunction::kDispatchHandleOffset));
+  __ LoadEntrypointAndParameterCountFromJSDispatchTable(rcx, argc, r15);
+#else
+  __ LoadTaggedField(argc,
+                     FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movzxwq(argc, FieldOperand(
+                       argc, SharedFunctionInfo::kFormalParameterCountOffset));
+#endif  // V8_ENABLE_LEAPTIERING
+
+  // Сopy the function arguments from the generator object's register file.
   {
-    Label done_loop, loop;
+    Label push_arguments, done_loop, loop;
+
+#if V8_ENABLE_LEAPTIERING
+    // In case the formal parameter count is kDontAdaptArgumentsSentinel the
+    // actual arguments count should be set accordingly.
+    static_assert(kDontAdaptArgumentsSentinel < JSParameterCount(0));
+    __ cmpl(argc, Immediate(JSParameterCount(0)));
+    __ j(kGreaterThan, &push_arguments, Label::kNear);
+    __ movl(argc, Immediate(JSParameterCount(0)));
+    __ jmp(&done_loop, Label::kNear);
+#else
+    // Generator functions are always created from user code and thus the
+    // formal parameter count is never equal to kDontAdaptArgumentsSentinel,
+    // which is used only for certain non-generator builtin functions.
+#endif  // V8_ENABLE_LEAPTIERING
+
+    __ bind(&push_arguments);
+    __ LoadTaggedField(
+        params_array,
+        FieldOperand(rdx, JSGeneratorObject::kParametersAndRegistersOffset));
+
+    // Exclude receiver.
+    __ leal(index, Operand(argc, -1));
+
     __ bind(&loop);
-    __ decq(rcx);
-    __ j(less, &done_loop, Label::kNear);
-    __ PushTaggedField(FieldOperand(rbx, rcx, times_tagged_size,
+    __ decl(index);
+    __ j(kLessThan, &done_loop, Label::kNear);
+    __ PushTaggedField(FieldOperand(params_array, index, times_tagged_size,
                                     OFFSET_OF_DATA_START(FixedArray)),
                        decompr_scratch1);
     __ jmp(&loop);
@@ -825,17 +856,19 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Underlying function needs to have bytecode available.
   if (v8_flags.debug_code) {
     Label is_baseline, is_unavailable, ok;
+    Register scratch = ReassignRegister(params_array);
     __ LoadTaggedField(
-        rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    GetSharedFunctionInfoBytecodeOrBaseline(masm, rcx, rcx, kScratchRegister,
-                                            &is_baseline, &is_unavailable);
+        scratch, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, scratch, scratch,
+                                            kScratchRegister, &is_baseline,
+                                            &is_unavailable);
     __ jmp(&ok);
 
     __ bind(&is_unavailable);
     __ Abort(AbortReason::kMissingBytecodeArray);
 
     __ bind(&is_baseline);
-    __ IsObjectType(rcx, CODE_TYPE, rcx);
+    __ IsObjectType(scratch, CODE_TYPE, scratch);
     __ Assert(equal, AbortReason::kMissingBytecodeArray);
 
     __ bind(&ok);
@@ -843,18 +876,18 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Resume (Ignition/TurboFan) generator object.
   {
-    __ PushReturnAddressFrom(rax);
-    // TODO(40931165): use parameter count from JSDispatchTable and validate
-    // that it matches the number of values in the JSGeneratorObject.
-    __ LoadTaggedField(
-        rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ movzxwq(rax, FieldOperand(
-                        rax, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ PushReturnAddressFrom(return_address);
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
     static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+#if V8_ENABLE_LEAPTIERING
+    // Actual arguments count and code start are already initialized above.
+    __ jmp(rcx);
+#else
+    // Actual arguments count is already initialized above.
     __ JumpJSFunction(rdi);
+#endif  // V8_ENABLE_LEAPTIERING
   }
 
   __ bind(&prepare_step_in_if_stepping);
