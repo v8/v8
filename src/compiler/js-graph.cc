@@ -5,7 +5,6 @@
 #include "src/compiler/js-graph.h"
 
 #include "src/codegen/code-factory.h"
-#include "src/compiler/js-heap-broker.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -53,10 +52,6 @@ Node* JSGraph::ConstantNoHole(ObjectRef ref, JSHeapBroker* broker) {
   CHECK(ref.IsSmi() || ref.IsHeapNumber() ||
         ref.AsHeapObject().GetHeapObjectType(broker).hole_type() ==
             HoleType::kNone);
-  if (IsThinString(*ref.object())) {
-    ref = MakeRefAssumeMemoryFence(broker,
-                                   Cast<ThinString>(*ref.object())->actual());
-  }
   return Constant(ref, broker);
 }
 
