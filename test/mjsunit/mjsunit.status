@@ -203,7 +203,7 @@
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'd8/d8-worker-shutdown*': [PASS, HEAVY],
   'huge-typedarrays': [PASS, HEAVY],
-  'json2': [PASS, HEAVY],
+  'json2': [PASS, SLOW, HEAVY],
   'regress/regress-678917': [PASS, HEAVY],
   'regress/regress-779407': [PASS, HEAVY],
   'regress/regress-852258': [PASS, HEAVY],
@@ -931,7 +931,6 @@
   'compiler/osr-with-args': [PASS, SLOW],
   'frozen-array-reduce': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
-  'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'messages': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
