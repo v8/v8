@@ -633,13 +633,9 @@ void EmitLoad(InstructionSelectorT<TurboshaftAdapter>* selector,
                    g.DefineAsRegister(output.valid() ? output : node),
                    g.UseRegister(base), g.UseImmediate(index));
   } else {
-    InstructionOperand addr_reg = g.TempRegister();
-    selector->Emit(kLoong64Add_d | AddressingModeField::encode(kMode_None),
-                   addr_reg, g.UseRegister(index), g.UseRegister(base));
-    // Emit desired load opcode, using temp addr_reg.
-    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
-                   g.DefineAsRegister(output.valid() ? output : node), addr_reg,
-                   g.TempImmediate(0));
+    selector->Emit(opcode | AddressingModeField::encode(kMode_MRR),
+                   g.DefineAsRegister(output.valid() ? output : node),
+                   g.UseRegister(base), g.UseRegister(index));
   }
 }
 
@@ -762,13 +758,13 @@ ArchOpcode GetLoadOpcode(turboshaft::MemoryRepresentation loaded_rep,
     case MemoryRepresentation::AnyTagged():
     case MemoryRepresentation::TaggedPointer():
       if (result_rep == RegisterRepresentation::Compressed()) {
-        return kLoong64Ld_wu;
+        return kLoong64Ld_w;
       }
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
       return kLoong64LoadDecompressTagged;
     case MemoryRepresentation::TaggedSigned():
       if (result_rep == RegisterRepresentation::Compressed()) {
-        return kLoong64Ld_wu;
+        return kLoong64Ld_w;
       }
       DCHECK_EQ(result_rep, RegisterRepresentation::Tagged());
       return kLoong64LoadDecompressTaggedSigned;
@@ -826,7 +822,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
-      return kLoong64Ld_wu;
+      return kLoong64Ld_w;
 #else
       UNREACHABLE();
 #endif
@@ -2207,6 +2203,8 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
           opcode = load_rep.IsUnsigned() ? kLoong64Ld_hu : kLoong64Ld_h;
           break;
         case MachineRepresentation::kWord32:
+        case MachineRepresentation::kTaggedSigned:
+        case MachineRepresentation::kTaggedPointer:
           opcode = kLoong64Ld_w;
           break;
         default:
@@ -2971,7 +2969,8 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
 
 template <typename Adapter>
 void VisitOptimizedWord32Compare(InstructionSelectorT<Adapter>* selector,
-                                 Node* node, InstructionCode opcode,
+                                 typename Adapter::node_t node,
+                                 InstructionCode opcode,
                                  FlagsContinuationT<Adapter>* cont) {
   // TODO(LOONG_dev): LOONG64 Add check for debug mode
   VisitWordCompare(selector, node, opcode, cont, false);
@@ -3001,25 +3000,32 @@ template <typename Adapter>
 void VisitWord32Compare(InstructionSelectorT<Adapter>* selector,
                         typename Adapter::node_t node,
                         FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    VisitFullWord32Compare(selector, node, kLoong64Cmp64, cont);
-  } else {
-    // LOONG64 doesn't support Word32 compare instructions. Instead it relies
-    // that the values in registers are correctly sign-extended and uses
-    // Word64 comparison instead.
+  // LoongArch64 doesn't support Word32 compare instructions. Instead it relies
+  // that the values in registers are correctly sign-extended and uses Word64
+  // comparison.
+
+  // When call to a host function in simulator, if the function return a 32-bit
+  // value, the simulator does not sign-extended it to 64 bits, because in
+  // simulator we do not know the function whether return an int32 or int64
+  // value. So we need to do a full word32 compare in this case.
 #ifdef USE_SIMULATOR
-    // When call to a host function in simulator, if the function return a
-    // int32 value, the simulator do not sign-extended to int64 because in
-    // simulator we do not know the function whether return an int32 or int64.
-    // so we need do a full word32 compare in this case.
+  if constexpr (Adapter::IsTurboshaft) {
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Operation& lhs = selector->Get(selector->input_at(node, 0));
+    const Operation& rhs = selector->Get(selector->input_at(node, 1));
+    if (lhs.Is<DidntThrowOp>() || rhs.Is<DidntThrowOp>()) {
+      VisitFullWord32Compare(selector, node, kLoong64Cmp64, cont);
+      return;
+    }
+  } else {
     if (node->InputAt(0)->opcode() == IrOpcode::kCall ||
         node->InputAt(1)->opcode() == IrOpcode::kCall) {
       VisitFullWord32Compare(selector, node, kLoong64Cmp64, cont);
       return;
     }
-#endif
-    VisitOptimizedWord32Compare(selector, node, kLoong64Cmp32, cont);
   }
+#endif
+  VisitOptimizedWord32Compare(selector, node, kLoong64Cmp32, cont);
 }
 
 template <typename Adapter>
@@ -3190,13 +3196,9 @@ void VisitAtomicStore(InstructionSelectorT<Adapter>* selector,
                    g.NoOutput(), g.UseRegister(base), g.UseImmediate(index),
                    g.UseRegisterOrImmediateZero(value));
   } else {
-    InstructionOperand addr_reg = g.TempRegister();
-    selector->Emit(kLoong64Add_d | AddressingModeField::encode(kMode_None),
-                   addr_reg, g.UseRegister(index), g.UseRegister(base));
-    // Emit desired store opcode, using temp addr_reg.
-    selector->Emit(code | AddressingModeField::encode(kMode_MRI) |
+    selector->Emit(code | AddressingModeField::encode(kMode_MRR) |
                        AtomicWidthField::encode(width),
-                   g.NoOutput(), addr_reg, g.TempImmediate(0),
+                   g.NoOutput(), g.UseRegister(base), g.UseRegister(index),
                    g.UseRegisterOrImmediateZero(value));
   }
 }
