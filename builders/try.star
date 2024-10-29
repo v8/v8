@@ -50,7 +50,7 @@ try_builder(
 
 try_builder(
     name = "v8_fuchsia_compile_rel",
-    cq_properties = CQ.EXP_100_PERCENT,
+    cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
