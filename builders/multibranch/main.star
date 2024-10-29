@@ -201,14 +201,14 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_platform": "fuchsia"},
         use_remoteexec = RECLIENT.DEFAULT,
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.LKGR_ONLY,
     ),
     main_multibranch_builder(
         name = "V8 Fuchsia - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_platform": "fuchsia"},
         use_remoteexec = RECLIENT.DEFAULT,
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.LKGR_ONLY,
     ),
 )
 
