@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_OBJECTS_VISITING_INL_H_
-#define V8_HEAP_OBJECTS_VISITING_INL_H_
+#ifndef V8_HEAP_HEAP_VISITOR_INL_H_
+#define V8_HEAP_HEAP_VISITOR_INL_H_
 
 #include <optional>
 
 #include "src/base/logging.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/object-lock-inl.h"
-#include "src/heap/objects-visiting.h"
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/free-space-inl.h"
@@ -459,4 +459,4 @@ NewSpaceVisitor<ConcreteVisitor>::NewSpaceVisitor(Isolate* isolate)
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_OBJECTS_VISITING_INL_H_
+#endif  // V8_HEAP_HEAP_VISITOR_INL_H_

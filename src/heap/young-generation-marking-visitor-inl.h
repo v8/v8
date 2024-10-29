@@ -7,11 +7,11 @@
 
 #include "src/common/globals.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-visitor-inl.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-metadata.h"
-#include "src/heap/objects-visiting-inl.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/young-generation-marking-visitor.h"

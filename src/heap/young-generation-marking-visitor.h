@@ -8,9 +8,9 @@
 #include <type_traits>
 
 #include "src/heap/ephemeron-remembered-set.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler.h"
 
 namespace v8 {

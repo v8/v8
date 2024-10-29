@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/objects-visiting.h"
+#include "src/heap/heap-visitor.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-visitor-inl.h"
 #include "src/heap/mark-compact-inl.h"
-#include "src/heap/objects-visiting-inl.h"
 #include "src/objects/js-weak-refs.h"
 
 namespace v8 {
@@ -20,7 +20,6 @@ static bool MustRecordSlots(Heap* heap) {
   return heap->gc_state() == Heap::MARK_COMPACT &&
          heap->mark_compact_collector()->is_compacting();
 }
-
 
 template <class T>
 struct WeakListVisitor;
@@ -138,7 +137,6 @@ struct WeakListVisitor<Context> {
 
   static void VisitPhantomObject(Heap* heap, Tagged<Context> context) {}
 };
-
 
 template <>
 struct WeakListVisitor<AllocationSite> {

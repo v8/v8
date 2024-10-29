@@ -100,7 +100,7 @@ constexpr uint32_t kStringRepresentationEncodingAndSharedMask =
 // non-flat internalized strings, so we do not shortcut them thereby
 // avoiding turning internalized strings into strings. The bit-masks
 // below contain the internalized bit as additional safety.
-// See heap.cc, mark-compact.cc and objects-visiting.cc.
+// See heap.cc, mark-compact.cc and heap-visitor.cc.
 const uint32_t kShortcutTypeMask =
     kIsNotStringMask | kIsNotInternalizedMask | kStringRepresentationMask;
 const uint32_t kShortcutTypeTag = kConsStringTag | kNotInternalizedTag;
