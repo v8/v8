@@ -9,6 +9,7 @@
 #include "src/base/enum-set.h"
 #include "src/base/logging.h"
 #include "src/base/small-vector.h"
+#include "src/compiler/turboshaft/utils.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -28,7 +29,6 @@ namespace maglev {
 
 BlockProcessResult MaglevPhiRepresentationSelector::PreProcessBasicBlock(
     BasicBlock* block) {
-  MergeNewNodesInBlock(current_block_);
   PreparePhiTaggings(current_block_, block);
   current_block_ = block;
 
@@ -753,7 +753,7 @@ void MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
-    CheckSmi* node, Phi* phi, int input_index, const ProcessingState& state) {
+    CheckSmi* node, Phi* phi, int input_index) {
   DCHECK_EQ(input_index, 0);
 
   switch (phi->value_representation()) {
@@ -780,30 +780,26 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
-    CheckNumber* node, Phi* phi, int input_index,
-    const ProcessingState& state) {
+    CheckNumber* node, Phi* phi, int input_index) {
   if (phi->value_representation() != ValueRepresentation::kTagged) {
     // The phi was untagged, so we know that it's a number. We thus remove this
     // CheckNumber from the graph.
     return ProcessResult::kRemove;
   }
-  return UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index,
-                            state);
+  return UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index);
 }
 
 // If the input of a StoreTaggedFieldNoWriteBarrier was a Phi that got
 // untagged, then we need to retag it, and we might need to actually use a write
 // barrier.
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
-    StoreTaggedFieldNoWriteBarrier* node, Phi* phi, int input_index,
-    const ProcessingState& state) {
+    StoreTaggedFieldNoWriteBarrier* node, Phi* phi, int input_index) {
   if (input_index == StoreTaggedFieldNoWriteBarrier::kObjectIndex) {
     // The 1st input of a Store should usually not be untagged. However, it is
     // possible to write `let x = a ? 4 : 2; x.c = 10`, which will produce a
     // store whose receiver could be an untagged Phi. So, for such cases, we use
     // the generic UpdateNodePhiInput method to tag `phi` if needed.
-    return UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index,
-                              state);
+    return UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index);
   }
   DCHECK_EQ(input_index, StoreTaggedFieldNoWriteBarrier::kValueIndex);
 
@@ -828,11 +824,9 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 // untagged, then we need to retag it, and we might need to actually use a write
 // barrier.
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
-    StoreFixedArrayElementNoWriteBarrier* node, Phi* phi, int input_index,
-    const ProcessingState& state) {
+    StoreFixedArrayElementNoWriteBarrier* node, Phi* phi, int input_index) {
   if (input_index != StoreFixedArrayElementNoWriteBarrier::kValueIndex) {
-    return UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index,
-                              state);
+    return UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index);
   }
 
   if (phi->value_representation() != ValueRepresentation::kTagged) {
@@ -858,8 +852,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 // convert it to a BranchIfInt32ToBooleanTrue/BranchIfFloat6ToBooleanTrue to
 // avoid retagging the Phi.
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
-    BranchIfToBooleanTrue* node, Phi* phi, int input_index,
-    const ProcessingState& state) {
+    BranchIfToBooleanTrue* node, Phi* phi, int input_index) {
   DCHECK_EQ(input_index, 0);
 
   switch (phi->value_representation()) {
@@ -885,7 +878,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 // {phi} as a tagged value, so, if we've untagged {phi}, we need to re-tag it
 // for {node}.
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
-    NodeBase* node, Phi* phi, int input_index, const ProcessingState&) {
+    NodeBase* node, Phi* phi, int input_index) {
   if (node->properties().is_conversion()) {
     // {node} can't be an Untagging if we reached this point (because
     // UpdateNodePhiInput is not called on untagging nodes).
@@ -1044,22 +1037,13 @@ ValueNode* MaglevPhiRepresentationSelector::AddNode(ValueNode* node,
     DCHECK_NOT_NULL(deopt_frame);
     node->SetEagerDeoptInfo(builder_->zone(), *deopt_frame);
   }
-  if (block == current_block_) {
-    // When adding an Node in the current block, we delay until we've finished
-    // processing the current block, to avoid mutating the list of nodes while
-    // we're iterating it.
-    if (pos == NewNodePosition::kStart) {
-      new_nodes_current_block_start_.push_back(node);
-    } else {
-      new_nodes_current_block_end_.push_back(node);
-    }
+
+  if (pos == NewNodePosition::kStart) {
+    block->nodes().AddFront(node);
   } else {
-    // However, when adding a node in a predecessor, the node won't be used
-    // until the current block, and it might be using nodes computed in the
-    // predecessor, so we add it at the end of the predecessor.
-    DCHECK_EQ(pos, NewNodePosition::kEnd);
     block->nodes().Add(node);
   }
+
   RegisterNewNode(node);
   return node;
 }
@@ -1071,22 +1055,6 @@ void MaglevPhiRepresentationSelector::RegisterNewNode(ValueNode* node) {
 #ifdef DEBUG
   new_nodes_.insert(node);
 #endif
-}
-
-void MaglevPhiRepresentationSelector::MergeNewNodesInBlock(BasicBlock* block) {
-  if (block != nullptr && !new_nodes_current_block_start_.empty()) {
-    for (Node* node : new_nodes_current_block_start_) {
-      block->nodes().AddFront(node);
-    }
-  }
-  new_nodes_current_block_start_.clear();
-
-  if (block != nullptr && !new_nodes_current_block_end_.empty()) {
-    for (Node* node : new_nodes_current_block_end_) {
-      block->nodes().Add(node);
-    }
-  }
-  new_nodes_current_block_end_.clear();
 }
 
 void MaglevPhiRepresentationSelector::PreparePhiTaggings(
