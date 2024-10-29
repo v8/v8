@@ -218,6 +218,16 @@ TEST_F(MarkingVerifierDeathTest, DieOnUnexpectedLiveByteCount) {
                             "");
 }
 
+namespace {
+void EscapeControlRegexCharacters(std::string& s) {
+  for (std::string::size_type start_pos = 0;
+       (start_pos = s.find_first_of("().*+\\", start_pos)) != std::string::npos;
+       start_pos += 2) {
+    s.insert(start_pos, "\\");
+  }
+}
+}  // anonymous namespace
+
 TEST_F(MarkingVerifierDeathTest, DieWithDebugInfoOnUnexpectedLiveByteCount) {
   using ::testing::AllOf;
   using ::testing::ContainsRegex;
@@ -230,14 +240,19 @@ TEST_F(MarkingVerifierDeathTest, DieWithDebugInfoOnUnexpectedLiveByteCount) {
       "\n<--- Mismatch in marking verifier --->"
       "\nMarked bytes: expected " +
       std::to_string(expected) + " vs. verifier found " +
-      std::to_string(allocated) + ",.*";
+      std::to_string(allocated) + ",";
+  std::string class_name =
+      header.GetName(HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
+          .value;
+  EscapeControlRegexCharacters(class_name);
   std::string regex_page =
       "\nNormal page in space \\d+:"
       "\nMarked bytes: expected 0 vs. verifier found " +
       std::to_string(allocated) +
       ",.*"
-      "\n- InternalNode at .*, size " +
-      std::to_string(header.ObjectSize()) + ", marked\n";
+      "\n- " +
+      class_name + " at .*, size " + std::to_string(header.ObjectSize()) +
+      ", marked\n";
   EXPECT_DEATH_IF_SUPPORTED(
       VerifyMarking(Heap::From(GetHeap())->AsBase(),
                     StackState::kNoHeapPointers, expected),
