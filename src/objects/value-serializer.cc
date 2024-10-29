@@ -377,11 +377,11 @@ void ValueSerializer::WriteTwoByteString(base::Vector<const base::uc16> chars) {
 
 void ValueSerializer::WriteBigIntContents(Tagged<BigInt> bigint) {
   uint32_t bitfield = bigint->GetBitfieldForSerialization();
-  int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
+  size_t bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
   WriteVarint<uint32_t>(bitfield);
   uint8_t* dest;
   if (ReserveRawBytes(bytelength).To(&dest)) {
-    bigint->SerializeDigits(dest);
+    bigint->SerializeDigits(dest, bytelength);
   }
 }
 
@@ -1695,7 +1695,7 @@ MaybeHandle<String> ValueDeserializer::ReadString() {
 MaybeHandle<BigInt> ValueDeserializer::ReadBigInt() {
   uint32_t bitfield;
   if (!ReadVarint<uint32_t>().To(&bitfield)) return MaybeHandle<BigInt>();
-  int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
+  size_t bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
   base::Vector<const uint8_t> digits_storage;
   if (!ReadRawBytes(bytelength).To(&digits_storage)) {
     return MaybeHandle<BigInt>();

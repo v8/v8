@@ -111,7 +111,7 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
   static const int kLengthFieldBits = 30;
   static_assert(kMaxLength <= ((1 << kLengthFieldBits) - 1));
   using SignBits = base::BitField<bool, 0, 1>;
-  using LengthBits = SignBits::Next<int, kLengthFieldBits>;
+  using LengthBits = SignBits::Next<uint32_t, kLengthFieldBits>;
   static_assert(LengthBits::kLastUsedBit < 32);
 
   DECL_VERIFIER(BigIntBase)
@@ -293,10 +293,10 @@ V8_OBJECT class BigInt : public BigIntBase {
 
   // Special functions for ValueSerializer/ValueDeserializer:
   uint32_t GetBitfieldForSerialization() const;
-  static int DigitsByteLengthForBitfield(uint32_t bitfield);
-  // Expects {storage} to have a length of at least
+  static size_t DigitsByteLengthForBitfield(uint32_t bitfield);
+  // Serialize the raw digits. {storage_length} is expected to be
   // {DigitsByteLengthForBitfield(GetBitfieldForSerialization())}.
-  void SerializeDigits(uint8_t* storage);
+  void SerializeDigits(uint8_t* storage, size_t storage_length);
   V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
       Isolate* isolate, uint32_t bitfield,
       base::Vector<const uint8_t> digits_storage);

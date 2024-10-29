@@ -1201,20 +1201,22 @@ uint32_t BigInt::GetBitfieldForSerialization() const {
   return SignBits::encode(sign()) | LengthBits::encode(bytelength);
 }
 
-int BigInt::DigitsByteLengthForBitfield(uint32_t bitfield) {
+size_t BigInt::DigitsByteLengthForBitfield(uint32_t bitfield) {
   return LengthBits::decode(bitfield);
 }
 
 // The serialization format MUST NOT CHANGE without updating the format
 // version in value-serializer.cc!
-void BigInt::SerializeDigits(uint8_t* storage) {
+void BigInt::SerializeDigits(uint8_t* storage, size_t storage_length) {
+  size_t num_digits_to_write = storage_length / kDigitSize;
+  // {storage_length} should have been computed from {length()}.
+  DCHECK_EQ(num_digits_to_write, length());
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  int bytelength = length() * kDigitSize;
-  memcpy(storage, raw_digits(), bytelength);
+  memcpy(storage, raw_digits(), num_digits_to_write * kDigitSize);
 #elif defined(V8_TARGET_BIG_ENDIAN)
   digit_t* digit_storage = reinterpret_cast<digit_t*>(storage);
   const digit_t* digit = reinterpret_cast<const digit_t*>(raw_digits());
-  for (int i = 0; i < length(); i++) {
+  for (size_t i = 0; i < num_digits_to_write; i++) {
     *digit_storage = ByteReverse(*digit);
     digit_storage++;
     digit++;
