@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9387be0ff282b5ec1a0fb396301d6565b9111f75',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6c65d5a596c140187ecd24a8abb141d197f76b3e',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9fba2b959007f7ef80990be4e940d98a692f7dd0',
   'buildtools/linux64': {
@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '197a654639aa39a86782b06abebdeccbfa197e2b',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '9ac494a171014fa0f06dbf2b0e08abf1d7ec85aa',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
