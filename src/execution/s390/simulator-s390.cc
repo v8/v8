@@ -4189,12 +4189,13 @@ EVALUATE(VFD) {
   return length;
 }
 
-#define VECTOR_FP_MULTIPLY_QFMS_OPERATION(type, op, sign, first_lane_only) \
+#define VECTOR_FP_MULTIPLY_QFMS_OPERATION(type, op, sign, first_lane_only, \
+                                          function)                        \
   for (size_t i = 0, j = 0; j < kSimd128Size; i++, j += sizeof(type)) {    \
     type src0 = get_simd_register_by_lane<type>(r2, i);                    \
     type src1 = get_simd_register_by_lane<type>(r3, i);                    \
     type src2 = get_simd_register_by_lane<type>(r4, i);                    \
-    type result = sign * (src0 * src1 op src2);                            \
+    type result = sign * function(src0, src1, op src2);                    \
     if (isinf(src0)) result = src0;                                        \
     if (isinf(src1)) result = src1;                                        \
     if (isinf(src2)) result = src2;                                        \
@@ -4202,28 +4203,28 @@ EVALUATE(VFD) {
     if (first_lane_only) break;                                            \
   }
 
-#define VECTOR_FP_MULTIPLY_QFMS(op, sign)                          \
-  switch (m6) {                                                    \
-    case 2:                                                        \
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)); \
-      if (m5 == 8) {                                               \
-        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, true)   \
-      } else {                                                     \
-        DCHECK_EQ(m5, 0);                                          \
-        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, false)  \
-      }                                                            \
-      break;                                                       \
-    case 3:                                                        \
-      if (m5 == 8) {                                               \
-        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, true)  \
-      } else {                                                     \
-        DCHECK_EQ(m5, 0);                                          \
-        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, false) \
-      }                                                            \
-      break;                                                       \
-    default:                                                       \
-      UNREACHABLE();                                               \
-      break;                                                       \
+#define VECTOR_FP_MULTIPLY_QFMS(op, sign)                               \
+  switch (m6) {                                                         \
+    case 2:                                                             \
+      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));      \
+      if (m5 == 8) {                                                    \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, true, fmaf)  \
+      } else {                                                          \
+        DCHECK_EQ(m5, 0);                                               \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, false, fmaf) \
+      }                                                                 \
+      break;                                                            \
+    case 3:                                                             \
+      if (m5 == 8) {                                                    \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, true, fma)  \
+      } else {                                                          \
+        DCHECK_EQ(m5, 0);                                               \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, false, fma) \
+      }                                                                 \
+      break;                                                            \
+    default:                                                            \
+      UNREACHABLE();                                                    \
+      break;                                                            \
   }
 
 EVALUATE(VFMA) {
