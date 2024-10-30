@@ -144,6 +144,13 @@ BUILTIN(ArrayBufferConstructor) {
           options, isolate->factory()->max_byte_length_string(), isolate));
 
   if (!IsUndefined(*max_length, isolate)) {
+    if (*target == target->native_context()->array_buffer_fun()) {
+      isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kResizableArrayBuffer);
+    } else {
+      isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kGrowableSharedArrayBuffer);
+    }
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_max_length,
                                        Object::ToInteger(isolate, max_length));
   }

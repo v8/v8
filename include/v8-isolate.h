@@ -549,6 +549,8 @@ class V8_EXPORT Isolate {
     kDocumentAllLegacyConstruct = 142,
     kConsoleContext = 143,
     kWasmImportedStringsUtf8 = 144,
+    kResizableArrayBuffer = 145,
+    kGrowableSharedArrayBuffer = 146,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
