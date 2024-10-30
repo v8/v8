@@ -1999,9 +1999,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool RunFilterETWSessionByURLCallback(const std::string& payload);
 #endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
 
-  // Deprecated: prefer SetIsLoading.
-  void SetRAILMode(RAILMode rail_mode);
-
   void SetIsLoading(bool is_loading);
 
   bool is_loading() const { return is_loading_.load(); }
@@ -2012,9 +2009,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   debug::CoverageMode code_coverage_mode() const {
     return code_coverage_mode_.load(std::memory_order_relaxed);
   }
-
-  // Deprecated: prefer SetIsLoading.
-  void UpdateLoadStartTime();
 
   void SetPriority(v8::Isolate::Priority priority);
 
@@ -2408,20 +2402,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool HasAsyncEventDelegate() const {
     return PromiseHookFields::HasAsyncEventDelegate::decode(
         promise_hook_flags_);
-  }
-
-  const char* RAILModeName(RAILMode rail_mode) const {
-    switch (rail_mode) {
-      case PERFORMANCE_RESPONSE:
-        return "RESPONSE";
-      case PERFORMANCE_ANIMATION:
-        return "ANIMATION";
-      case PERFORMANCE_IDLE:
-        return "IDLE";
-      case PERFORMANCE_LOAD:
-        return "LOAD";
-    }
-    return "";
   }
 
   void AddCrashKeysForIsolateAndHeapPointers();

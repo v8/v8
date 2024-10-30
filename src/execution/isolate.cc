@@ -6994,22 +6994,6 @@ void Isolate::DetachGlobal(Handle<Context> env) {
   env->native_context()->set_microtask_queue(this, nullptr);
 }
 
-void Isolate::UpdateLoadStartTime() { heap()->UpdateLoadStartTime(); }
-
-void Isolate::SetRAILMode(RAILMode rail_mode) {
-  bool is_loading = rail_mode == PERFORMANCE_LOAD;
-  bool was_loading = is_loading_.exchange(is_loading);
-  if (is_loading && !was_loading) {
-    heap()->NotifyLoadingStarted();
-  }
-  if (!is_loading && was_loading) {
-    heap()->NotifyLoadingEnded();
-  }
-  if (v8_flags.trace_rail) {
-    PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));
-  }
-}
-
 void Isolate::SetIsLoading(bool is_loading) {
   is_loading_.store(is_loading);
   if (is_loading) {

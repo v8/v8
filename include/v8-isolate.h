@@ -165,28 +165,6 @@ class V8_EXPORT ResourceConstraints {
 };
 
 /**
- * Option flags passed to the SetRAILMode function.
- * See documentation https://developers.google.com/web/tools/chrome-devtools/
- * profile/evaluate-performance/rail
- */
-enum RAILMode : unsigned {
-  // Response performance mode: In this mode very low virtual machine latency
-  // is provided. V8 will try to avoid JavaScript execution interruptions.
-  // Throughput may be throttled.
-  PERFORMANCE_RESPONSE,
-  // Animation performance mode: In this mode low virtual machine latency is
-  // provided. V8 will try to avoid as many JavaScript execution interruptions
-  // as possible. Throughput may be throttled. This is the default mode.
-  PERFORMANCE_ANIMATION,
-  // Idle performance mode: The embedder is idle. V8 can complete deferred work
-  // in this mode.
-  PERFORMANCE_IDLE,
-  // Load performance mode: In this mode high throughput is provided. V8 may
-  // turn off latency optimizations.
-  PERFORMANCE_LOAD
-};
-
-/**
  * Memory pressure level for the MemoryPressureNotification.
  * kNone hints V8 that there is no memory pressure.
  * kModerate hints V8 to speed up incremental garbage collection at the cost of
@@ -1451,22 +1429,6 @@ class V8_EXPORT Isolate {
    * V8 uses the priority value to guide heuristics.
    */
   void SetPriority(Priority priority);
-
-  /**
-   * Optional notification to tell V8 the current performance requirements
-   * of the embedder based on RAIL.
-   * V8 uses these notifications to guide heuristics.
-   * This is an unfinished experimental feature. Semantics and implementation
-   * may change frequently.
-   */
-  V8_DEPRECATED("Use SetIsLoading instead")
-  void SetRAILMode(RAILMode rail_mode);
-
-  /**
-   * Update load start time of the RAIL mode
-   */
-  V8_DEPRECATED("Use SetIsLoading instead")
-  void UpdateLoadStartTime();
 
   /**
    * Optional notification to tell V8 whether the embedder is currently loading

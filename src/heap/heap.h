@@ -1900,7 +1900,6 @@ class Heap final {
   V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
   void NotifyLoadingStarted();
   void NotifyLoadingEnded();
-  void UpdateLoadStartTime();
 
   size_t old_generation_allocation_limit() const {
     return old_generation_allocation_limit_.load(std::memory_order_relaxed);

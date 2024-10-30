@@ -7443,7 +7443,8 @@ void Heap::NotifyLoadingStarted() {
   if (v8_flags.update_allocation_limits_after_loading) {
     update_allocation_limits_after_loading_ = true;
   }
-  UpdateLoadStartTime();
+  load_start_time_ms_.store(MonotonicallyIncreasingTimeInMs(),
+                            std::memory_order_relaxed);
 }
 
 void Heap::NotifyLoadingEnded() {
@@ -7453,11 +7454,6 @@ void Heap::NotifyLoadingEnded() {
     // and advance marking if incremental marking is active.
     job->ScheduleTask(TaskPriority::kUserVisible);
   }
-}
-
-void Heap::UpdateLoadStartTime() {
-  load_start_time_ms_.store(MonotonicallyIncreasingTimeInMs(),
-                            std::memory_order_relaxed);
 }
 
 int Heap::NextScriptId() {
