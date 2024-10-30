@@ -4007,6 +4007,28 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         SimpleInstallGetter(isolate(), prototype, factory->weekInfo_string(),
                             Builtin::kLocalePrototypeWeekInfo, kAdapt);
       }
+
+      SimpleInstallFunction(isolate(), prototype, "getCalendars",
+                            Builtin::kLocalePrototypeGetCalendars, 0,
+                            kDontAdapt);
+      SimpleInstallFunction(isolate(), prototype, "getCollations",
+                            Builtin::kLocalePrototypeGetCollations, 0,
+                            kDontAdapt);
+      SimpleInstallFunction(isolate(), prototype, "getHourCycles",
+                            Builtin::kLocalePrototypeGetHourCycles, 0,
+                            kDontAdapt);
+      SimpleInstallFunction(isolate(), prototype, "getNumberingSystems",
+                            Builtin::kLocalePrototypeGetNumberingSystems, 0,
+                            kDontAdapt);
+      SimpleInstallFunction(isolate(), prototype, "getTimeZones",
+                            Builtin::kLocalePrototypeGetTimeZones, 0,
+                            kDontAdapt);
+      SimpleInstallFunction(isolate(), prototype, "getTextInfo",
+                            Builtin::kLocalePrototypeGetTextInfo, 0,
+                            kDontAdapt);
+      SimpleInstallFunction(isolate(), prototype, "getWeekInfo",
+                            Builtin::kLocalePrototypeGetWeekInfo, 0,
+                            kDontAdapt);
     }
 
     {  // -- D i s p l a y N a m e s
@@ -6024,30 +6046,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     JSObject::SetAccessor(date_prototype, name, accessor, DONT_ENUM).Check();
   }
 }
-
-#ifdef V8_INTL_SUPPORT
-void Genesis::InitializeGlobal_harmony_intl_locale_info_func() {
-  if (!v8_flags.harmony_intl_locale_info_func) return;
-  Handle<JSObject> prototype(
-      Cast<JSObject>(native_context()->intl_locale_function()->prototype()),
-      isolate_);
-  SimpleInstallFunction(isolate(), prototype, "getCalendars",
-                        Builtin::kLocalePrototypeGetCalendars, 0, kDontAdapt);
-  SimpleInstallFunction(isolate(), prototype, "getCollations",
-                        Builtin::kLocalePrototypeGetCollations, 0, kDontAdapt);
-  SimpleInstallFunction(isolate(), prototype, "getHourCycles",
-                        Builtin::kLocalePrototypeGetHourCycles, 0, kDontAdapt);
-  SimpleInstallFunction(isolate(), prototype, "getNumberingSystems",
-                        Builtin::kLocalePrototypeGetNumberingSystems, 0,
-                        kDontAdapt);
-  SimpleInstallFunction(isolate(), prototype, "getTimeZones",
-                        Builtin::kLocalePrototypeGetTimeZones, 0, kDontAdapt);
-  SimpleInstallFunction(isolate(), prototype, "getTextInfo",
-                        Builtin::kLocalePrototypeGetTextInfo, 0, kDontAdapt);
-  SimpleInstallFunction(isolate(), prototype, "getWeekInfo",
-                        Builtin::kLocalePrototypeGetWeekInfo, 0, kDontAdapt);
-}
-#endif  // V8_INTL_SUPPORT
 
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
