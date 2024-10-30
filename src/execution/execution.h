@@ -38,10 +38,10 @@ class Execution final : public AllStatic {
 
   // Construct object from function, the caller supplies an array of
   // arguments.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> New(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> New(
       Isolate* isolate, Handle<Object> constructor, int argc,
       Handle<Object> argv[]);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> New(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> New(
       Isolate* isolate, Handle<Object> constructor, Handle<Object> new_target,
       int argc, Handle<Object> argv[]);
 

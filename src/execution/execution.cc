@@ -530,17 +530,20 @@ MaybeHandle<Object> Execution::CallBuiltin(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
-                                   int argc, Handle<Object> argv[]) {
+MaybeHandle<JSReceiver> Execution::New(Isolate* isolate,
+                                       Handle<Object> constructor, int argc,
+                                       Handle<Object> argv[]) {
   return New(isolate, constructor, constructor, argc, argv);
 }
 
 // static
-MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
-                                   Handle<Object> new_target, int argc,
-                                   Handle<Object> argv[]) {
-  return Invoke(isolate, InvokeParams::SetUpForNew(isolate, constructor,
-                                                   new_target, argc, argv));
+MaybeHandle<JSReceiver> Execution::New(Isolate* isolate,
+                                       Handle<Object> constructor,
+                                       Handle<Object> new_target, int argc,
+                                       Handle<Object> argv[]) {
+  return Cast<JSReceiver>(Invoke(
+      isolate,
+      InvokeParams::SetUpForNew(isolate, constructor, new_target, argc, argv)));
 }
 
 // static
