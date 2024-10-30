@@ -2807,6 +2807,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                          frame_state);
             } else {
               emit_deopt = false;
+              use_deopt_slowpath = false;
             }
           }
           if (!emit_deopt) {
@@ -3052,6 +3053,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                        frame_state);
           } else {
             emit_deopt = false;
+            use_deopt_slowpath = false;
           }
         }
         if (!emit_deopt) {
@@ -5904,6 +5906,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);
 
+    // TODO(mliedtke): For compile-time and memory reasons (huge deopt data), it
+    // might be beneficial to limit this to an arbitrary lower value.
     size_t max_input_count =
         std::numeric_limits<decltype(Operation::input_count)>::max();
     // Int64 lowering might double the input count.
