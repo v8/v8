@@ -2035,20 +2035,20 @@ void MacroAssembler::UnalignedLoadHelper(Register rd, const MemOperand& rs) {
 
 #if V8_TARGET_ARCH_RISCV64
 template <int NBYTES>
-void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
-                                          const MemOperand& rs) {
+void MacroAssembler::UnalignedFLoadHelper(FPURegister frd, const MemOperand& rs,
+                                          Register scratch_base) {
   DCHECK(NBYTES == 4 || NBYTES == 8);
+  DCHECK_NE(scratch_base, rs.rm());
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand source = rs;
-  UseScratchRegisterScope temps(this);
-  Register scratch_base = temps.Acquire();
   if (NeedAdjustBaseAndOffset(rs, OffsetAccessType::TWO_ACCESSES, NBYTES - 1)) {
     // Adjust offset for two accesses and check if offset + 3 fits into int12.
     DCHECK(scratch_base != rs.rm());
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
-  Register scratch_other = scratch_base;
+  UseScratchRegisterScope temps(this);
+  Register scratch_other = temps.Acquire();
   Register scratch = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
          scratch_other != rs.rm());
@@ -2060,20 +2060,20 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
 }
 #elif V8_TARGET_ARCH_RISCV32
 template <int NBYTES>
-void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
-                                          const MemOperand& rs) {
+void MacroAssembler::UnalignedFLoadHelper(FPURegister frd, const MemOperand& rs,
+                                          Register scratch_base) {
   DCHECK_EQ(NBYTES, 4);
+  DCHECK_NE(scratch_base, rs.rm());
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand source = rs;
-  UseScratchRegisterScope temps(this);
-  Register scratch_base = temps.Acquire();
   if (NeedAdjustBaseAndOffset(rs, OffsetAccessType::TWO_ACCESSES, NBYTES - 1)) {
     // Adjust offset for two accesses and check if offset + 3 fits into int12.
     DCHECK(scratch_base != rs.rm());
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
-  Register scratch_other = scratch_base;
+  UseScratchRegisterScope temps(this);
+  Register scratch_other = temps.Acquire();
   Register scratch = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
          scratch_other != rs.rm());
@@ -2082,18 +2082,19 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
 }
 
 void MacroAssembler::UnalignedDoubleHelper(FPURegister frd,
-                                           const MemOperand& rs) {
+                                           const MemOperand& rs,
+                                           Register scratch_base) {
+  DCHECK_NE(scratch_base, rs.rm());
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand source = rs;
-  UseScratchRegisterScope temps(this);
-  Register scratch_base = temps.Acquire();
   if (NeedAdjustBaseAndOffset(rs, OffsetAccessType::TWO_ACCESSES, 8 - 1)) {
     // Adjust offset for two accesses and check if offset + 3 fits into int12.
     DCHECK(scratch_base != rs.rm());
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         8 - 1);
   }
-  Register scratch_other = scratch_base;
+  UseScratchRegisterScope temps(this);
+  Register scratch_other = temps.Acquire();
   Register scratch = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
          scratch_other != rs.rm());
@@ -2149,10 +2150,10 @@ void MacroAssembler::UnalignedStoreHelper(Register rd, const MemOperand& rs,
 #if V8_TARGET_ARCH_RISCV64
 template <int NBYTES>
 void MacroAssembler::UnalignedFStoreHelper(FPURegister frd,
-                                           const MemOperand& rs) {
+                                           const MemOperand& rs,
+                                           Register scratch) {
   DCHECK(NBYTES == 8 || NBYTES == 4);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+  DCHECK_NE(scratch, rs.rm());
   if (NBYTES == 4) {
     fmv_x_w(scratch, frd);
   } else {
@@ -2163,17 +2164,17 @@ void MacroAssembler::UnalignedFStoreHelper(FPURegister frd,
 #elif V8_TARGET_ARCH_RISCV32
 template <int NBYTES>
 void MacroAssembler::UnalignedFStoreHelper(FPURegister frd,
-                                           const MemOperand& rs) {
+                                           const MemOperand& rs,
+                                           Register scratch) {
   DCHECK_EQ(NBYTES, 4);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+  DCHECK_NE(scratch, rs.rm());
   fmv_x_w(scratch, frd);
   UnalignedStoreHelper<NBYTES>(scratch, rs);
 }
 void MacroAssembler::UnalignedDStoreHelper(FPURegister frd,
-                                           const MemOperand& rs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+                                           const MemOperand& rs,
+                                           Register scratch) {
+  DCHECK_NE(scratch, rs.rm());
   Sub32(sp, sp, 8);
   StoreDouble(frd, MemOperand(sp, 0));
   Lw(scratch, MemOperand(sp, 0));
@@ -2272,27 +2273,35 @@ void MacroAssembler::Usd(Register rd, const MemOperand& rs) {
   UnalignedStoreHelper<8>(rd, rs);
 }
 
-void MacroAssembler::ULoadFloat(FPURegister fd, const MemOperand& rs) {
-  UnalignedFLoadHelper<4>(fd, rs);
+void MacroAssembler::ULoadFloat(FPURegister fd, const MemOperand& rs,
+                                Register scratch) {
+  DCHECK_NE(scratch, rs.rm());
+  UnalignedFLoadHelper<4>(fd, rs, scratch);
 }
 
-void MacroAssembler::UStoreFloat(FPURegister fd, const MemOperand& rs) {
-  UnalignedFStoreHelper<4>(fd, rs);
+void MacroAssembler::UStoreFloat(FPURegister fd, const MemOperand& rs,
+                                 Register scratch) {
+  DCHECK_NE(scratch, rs.rm());
+  UnalignedFStoreHelper<4>(fd, rs, scratch);
 }
 
-void MacroAssembler::ULoadDouble(FPURegister fd, const MemOperand& rs) {
+void MacroAssembler::ULoadDouble(FPURegister fd, const MemOperand& rs,
+                                 Register scratch) {
+  DCHECK_NE(scratch, rs.rm());
 #if V8_TARGET_ARCH_RISCV64
-  UnalignedFLoadHelper<8>(fd, rs);
+  UnalignedFLoadHelper<8>(fd, rs, scratch);
 #elif V8_TARGET_ARCH_RISCV32
-  UnalignedDoubleHelper(fd, rs);
+  UnalignedDoubleHelper(fd, rs, scratch);
 #endif
 }
 
-void MacroAssembler::UStoreDouble(FPURegister fd, const MemOperand& rs) {
+void MacroAssembler::UStoreDouble(FPURegister fd, const MemOperand& rs,
+                                  Register scratch) {
+  DCHECK_NE(scratch, rs.rm());
 #if V8_TARGET_ARCH_RISCV64
-  UnalignedFStoreHelper<8>(fd, rs);
+  UnalignedFStoreHelper<8>(fd, rs, scratch);
 #elif V8_TARGET_ARCH_RISCV32
-  UnalignedDStoreHelper(fd, rs);
+  UnalignedDStoreHelper(fd, rs, scratch);
 #endif
 }
 

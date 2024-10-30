@@ -2009,7 +2009,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvULoadFloat: {
-      __ ULoadFloat(i.OutputSingleRegister(), i.MemoryOperand());
+      __ ULoadFloat(i.OutputSingleRegister(), i.MemoryOperand(), kScratchReg);
       break;
     }
     case kRiscvStoreFloat: {
@@ -2028,16 +2028,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (ft == kSingleRegZero && !__ IsSingleZeroRegSet()) {
         __ LoadFPRImmediate(kSingleRegZero, 0.0f);
       }
-      __ UStoreFloat(ft, operand);
+      __ UStoreFloat(ft, operand, kScratchReg);
       break;
     }
     case kRiscvLoadDouble:
       __ LoadDouble(i.OutputDoubleRegister(), i.MemoryOperand(), trapper);
       break;
-    case kRiscvULoadDouble: {
-      __ ULoadDouble(i.OutputDoubleRegister(), i.MemoryOperand());
+    case kRiscvULoadDouble:
+      __ ULoadDouble(i.OutputDoubleRegister(), i.MemoryOperand(), kScratchReg);
       break;
-    }
     case kRiscvStoreDouble: {
       FPURegister ft = i.InputOrZeroDoubleRegister(0);
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
@@ -2051,7 +2050,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ LoadFPRImmediate(kDoubleRegZero, 0.0);
       }
-      __ UStoreDouble(ft, i.MemoryOperand());
+      __ UStoreDouble(ft, i.MemoryOperand(), kScratchReg);
       break;
     }
     case kRiscvSync: {

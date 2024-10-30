@@ -877,12 +877,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                             Register scratch_other = no_reg);
 
   template <int NBYTES>
-  void UnalignedFLoadHelper(FPURegister frd, const MemOperand& rs);
+  void UnalignedFLoadHelper(FPURegister frd, const MemOperand& rs,
+                            Register scratch);
   template <int NBYTES>
-  void UnalignedFStoreHelper(FPURegister frd, const MemOperand& rs);
+  void UnalignedFStoreHelper(FPURegister frd, const MemOperand& rs,
+                             Register scratch);
 #if V8_TARGET_ARCH_RISCV32
-  void UnalignedDoubleHelper(FPURegister frd, const MemOperand& rs);
-  void UnalignedDStoreHelper(FPURegister frd, const MemOperand& rs);
+  void UnalignedDoubleHelper(FPURegister frd, const MemOperand& rs,
+                             Register scratch_base);
+  void UnalignedDStoreHelper(FPURegister frd, const MemOperand& rs,
+                             Register scratch);
 #endif
 
   template <typename Reg_T, typename Func>
@@ -906,11 +910,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Uld(Register rd, const MemOperand& rs);
   void Usd(Register rd, const MemOperand& rs);
 
-  void ULoadFloat(FPURegister fd, const MemOperand& rs);
-  void UStoreFloat(FPURegister fd, const MemOperand& rs);
+  void ULoadFloat(FPURegister fd, const MemOperand& rs, Register scratch);
+  void UStoreFloat(FPURegister fd, const MemOperand& rs, Register scratch);
 
-  void ULoadDouble(FPURegister fd, const MemOperand& rs);
-  void UStoreDouble(FPURegister fd, const MemOperand& rs);
+  void ULoadDouble(FPURegister fd, const MemOperand& rs, Register scratch);
+  void UStoreDouble(FPURegister fd, const MemOperand& rs, Register scratch);
 
   using Trapper = std::function<void(int)>;
 
