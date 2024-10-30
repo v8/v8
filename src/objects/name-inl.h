@@ -270,6 +270,11 @@ bool Name::IsPrivateBrand() {
   return is_private_brand;
 }
 
+bool Name::IsArrayIndex() {
+  uint32_t index;
+  return AsArrayIndex(&index);
+}
+
 bool Name::AsArrayIndex(uint32_t* index) {
   return IsString(this) && Cast<String>(this)->AsArrayIndex(index);
 }
