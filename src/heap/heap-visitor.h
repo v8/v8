@@ -237,6 +237,10 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   template <VisitorId visitor_id>
   V8_INLINE void VisitMapPointerIfNeeded(Tagged<HeapObject> host);
 
+  // If this predicate returns true, the visitor will visit the full JSObject
+  // (including slack).
+  V8_INLINE static constexpr bool ShouldVisitFullJSObject() { return false; }
+
   ConcreteVisitor* concrete_visitor() {
     return static_cast<ConcreteVisitor*>(this);
   }

@@ -70,6 +70,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/safepoint.h"
+#include "src/heap/visit-object.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/icu_util.h"
 #include "src/init/startup-data-util.h"
@@ -7215,7 +7216,7 @@ class ObjectVisitorDeepFreezer : i::ObjectVisitor {
     }
 
     DCHECK(!error_.has_value());
-    obj->Iterate(isolate_, this);
+    i::VisitObject(isolate_, obj, this);
     // Iterate sets error_ on failure. We should propagate errors.
     return !error_.has_value();
   }

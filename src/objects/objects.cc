@@ -1854,20 +1854,6 @@ void CallableTask::BriefPrintDetails(std::ostream& os) {
   os << " callable=" << Brief(callable());
 }
 
-void HeapObject::Iterate(PtrComprCageBase cage_base, ObjectVisitor* v) {
-  IterateFast<ObjectVisitor>(cage_base, v);
-}
-
-void HeapObject::IterateBody(PtrComprCageBase cage_base, ObjectVisitor* v) {
-  Tagged<Map> m = map(cage_base);
-  IterateBodyFast<ObjectVisitor>(m, SizeFromMap(m), v);
-}
-
-void HeapObject::IterateBody(Tagged<Map> map, int object_size,
-                             ObjectVisitor* v) {
-  IterateBodyFast<ObjectVisitor>(map, object_size, v);
-}
-
 int HeapObjectLayout::SizeFromMap(Tagged<Map> map) const {
   return Tagged<HeapObject>(this)->SizeFromMap(map);
 }

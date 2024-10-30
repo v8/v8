@@ -318,16 +318,26 @@ size_t HeapVisitor<ConcreteVisitor>::VisitJSObjectSubclass(
 
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitJSObject>(object);
-  const int used_size = map->UsedInstanceSize();
-  // It is important to visit only the used field and ignore the slack fields
-  // because the slack fields may be trimmed concurrently and we don't want to
-  // find fillers (slack) during pointer visitation.
-  TBodyDescriptor::IterateBody(map, object, used_size, visitor);
+
   const size_t size = ConcreteVisitor::UsePrecomputedObjectSize()
                           ? maybe_object_size.AssumeSize()
                           : TBodyDescriptor::SizeOf(map, object);
-  DCHECK_LE(used_size, size);
-  DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
+
+  int visitation_size = static_cast<int>(size);
+
+  if (!ConcreteVisitor::ShouldVisitFullJSObject()) {
+    // It is important to visit only the used field and ignore the slack fields
+    // because the slack fields may be trimmed concurrently and we don't want to
+    // find fillers (slack) during pointer visitation.
+    const int used_size = map->UsedInstanceSize();
+    DCHECK_LE(used_size, size);
+    DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
+
+    visitation_size = used_size;
+  }
+
+  TBodyDescriptor::IterateBody(map, object, visitation_size, visitor);
+
   return size;
 }
 
