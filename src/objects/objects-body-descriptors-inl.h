@@ -383,6 +383,12 @@ class RegExpData::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    // If new pointers are added to RegExpData, make sure to also add them to
+    // the subclasses descriptors (AtomRegExpData and IrRegExpData).
+    // We don't directly call the base class IterateBody, as in the future
+    // the subclasses will have a different indirect pointer tag from the base
+    // class (once inheritance hierarchies are supported for indirect pointer
+    // tags).
     IterateSelfIndirectPointer(obj, kRegExpDataIndirectPointerTag, v);
     IteratePointer(obj, kSourceOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
@@ -421,10 +427,10 @@ class IrRegExpData::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointer(obj, kSourceOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
 
-    IterateCodePointer(obj, kLatin1CodeOffset, v, IndirectPointerMode::kStrong);
-    IterateCodePointer(obj, kUc16CodeOffset, v, IndirectPointerMode::kStrong);
     IterateProtectedPointer(obj, kLatin1BytecodeOffset, v);
     IterateProtectedPointer(obj, kUc16BytecodeOffset, v);
+    IterateCodePointer(obj, kLatin1CodeOffset, v, IndirectPointerMode::kStrong);
+    IterateCodePointer(obj, kUc16CodeOffset, v, IndirectPointerMode::kStrong);
     IteratePointer(obj, kCaptureNameMapOffset, v);
   }
 
