@@ -343,9 +343,4 @@
   'SandboxTest.*': [SKIP],
 }],  # 'device_type == bullhead'
 
-['device_type == panther', {
-  # https://crbug.com/375121012
-  'EmbedderRootsHandlerTest.YoungGC_UnreachableTracedReferenceToDroppableDies': [SKIP],
-}],  # 'device_type == panther'
-
 ]
