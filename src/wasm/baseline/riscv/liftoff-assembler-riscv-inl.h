@@ -2175,8 +2175,9 @@ void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
   VU.set(kScratchReg, E32, m1);
-  vfmadd_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
-  vmv_vv(dst.fp().toV(), src1.fp().toV());
+  vmv_vv(kSimd128ScratchReg, src1.fp().toV());
+  vfmadd_vv(kSimd128ScratchReg, src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f32x4_qfms(LiftoffRegister dst,
@@ -2184,8 +2185,9 @@ void LiftoffAssembler::emit_f32x4_qfms(LiftoffRegister dst,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
   VU.set(kScratchReg, E32, m1);
-  vfnmsub_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
-  vmv_vv(dst.fp().toV(), src1.fp().toV());
+  vmv_vv(kSimd128ScratchReg, src1.fp().toV());
+  vfnmsub_vv(kSimd128ScratchReg, src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_qfma(LiftoffRegister dst,
@@ -2193,8 +2195,9 @@ void LiftoffAssembler::emit_f64x2_qfma(LiftoffRegister dst,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
   VU.set(kScratchReg, E64, m1);
-  vfmadd_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
-  vmv_vv(dst.fp().toV(), src1.fp().toV());
+  vmv_vv(kSimd128ScratchReg, src1.fp().toV());
+  vfmadd_vv(kSimd128ScratchReg, src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
@@ -2202,8 +2205,9 @@ void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
                                        LiftoffRegister src2,
                                        LiftoffRegister src3) {
   VU.set(kScratchReg, E64, m1);
-  vfnmsub_vv(src1.fp().toV(), src2.fp().toV(), src3.fp().toV());
-  vmv_vv(dst.fp().toV(), src1.fp().toV());
+  vmv_vv(kSimd128ScratchReg, src1.fp().toV());
+  vfnmsub_vv(kSimd128ScratchReg, src2.fp().toV(), src3.fp().toV());
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
