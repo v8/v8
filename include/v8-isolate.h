@@ -1449,13 +1449,13 @@ class V8_EXPORT Isolate {
    * This is an unfinished experimental feature. Semantics and implementation
    * may change frequently.
    */
-  V8_DEPRECATE_SOON("Use SetIsLoading instead")
+  V8_DEPRECATED("Use SetIsLoading instead")
   void SetRAILMode(RAILMode rail_mode);
 
   /**
    * Update load start time of the RAIL mode
    */
-  V8_DEPRECATE_SOON("Use SetIsLoading instead")
+  V8_DEPRECATED("Use SetIsLoading instead")
   void UpdateLoadStartTime();
 
   /**
