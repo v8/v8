@@ -1823,23 +1823,23 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   //                              | frame      |
   //                              |------------| <- sp()
   //                              | out params |
-  //        |-------------|       |------------| <- maybe_stack_switch
-  //        | spill slots |                         ->target_sp
+  //        |-------------|       |------------| <- maybe_stack_switch.target_sp
+  //        | spill slots |
   //        |-------------| <- frame_header_base
   //        | frame header|
   //        |-------------| <- fp()
   //
   // The base (lowest address) of the outgoing stack parameters area is always
   // sp(), and the limit (highest address) is either {frame_header_base -
-  // spill_slot_space} or {maybe_stack_switch->target_sp} depending on
+  // spill_slot_space} or {maybe_stack_switch.target_sp} depending on
   // stack-switching.
-  std::optional<wasm::StackMemory::StackSwitchInfo> maybe_stack_switch;
+  wasm::StackMemory::StackSwitchInfo maybe_stack_switch;
   if (iterator_->wasm_stack() != nullptr) {
     maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
   }
   FullObjectSlot parameters_limit(
-      maybe_stack_switch.has_value() && maybe_stack_switch->source_fp == fp()
-          ? maybe_stack_switch->target_sp
+      maybe_stack_switch.has_value() && maybe_stack_switch.source_fp == fp()
+          ? maybe_stack_switch.target_sp
           : frame_header_base.address() - spill_slot_space);
   FullObjectSlot spill_space_end =
       FullObjectSlot(frame_header_base.address() - spill_slot_space);
@@ -2078,23 +2078,23 @@ void TypedFrame::Iterate(RootVisitor* v) const {
   //                              | frame      |
   //                              |------------| <- sp()
   //                              | out params |
-  //        |-------------|       |------------| <- maybe_stack_switch
-  //        | spill slots |                         ->target_sp
+  //        |-------------|       |------------| <- maybe_stack_switch.target_sp
+  //        | spill slots |
   //        |-------------| <- frame_header_base
   //        | frame header|
   //        |-------------| <- fp()
   //
   // The base (lowest address) of the outgoing stack parameters area is always
   // sp(), and the limit (highest address) is either {frame_header_base -
-  // spill_slot_size} or {maybe_stack_switch->target_sp} depending on
+  // spill_slot_size} or {maybe_stack_switch.target_sp} depending on
   // stack-switching.
-  std::optional<wasm::StackMemory::StackSwitchInfo> maybe_stack_switch;
+  wasm::StackMemory::StackSwitchInfo maybe_stack_switch;
   if (iterator_->wasm_stack() != nullptr) {
     maybe_stack_switch = iterator_->wasm_stack()->stack_switch_info();
   }
   FullObjectSlot parameters_limit(
-      maybe_stack_switch.has_value() && maybe_stack_switch->source_fp == fp()
-          ? maybe_stack_switch->target_sp
+      maybe_stack_switch.has_value() && maybe_stack_switch.source_fp == fp()
+          ? maybe_stack_switch.target_sp
           : frame_header_base.address() - spill_slots_size);
 #else
   FullObjectSlot parameters_limit(frame_header_base.address() -

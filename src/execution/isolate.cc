@@ -2219,13 +2219,13 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 #if V8_ENABLE_WEBASSEMBLY
   auto HandleStackSwitch = [&](StackFrameIterator& iter) {
     if (iter.wasm_stack() == nullptr) return;
-    auto switch_info = iter.wasm_stack()->stack_switch_info();
+    auto& switch_info = iter.wasm_stack()->stack_switch_info();
     if (!switch_info.has_value()) return;
     Tagged<Object> suspender_obj = root(RootIndex::kActiveSuspender);
     if (!IsUndefined(suspender_obj)) {
       // If the wasm-to-js wrapper was on a secondary stack and switched
       // to the central stack, handle the implicit switch back.
-      if (switch_info->source_fp == iter.frame()->fp()) {
+      if (switch_info.source_fp == iter.frame()->fp()) {
         thread_local_top()->is_on_central_stack_flag_ = false;
         stack_guard()->SetStackLimitForStackSwitching(
             reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit()));

@@ -137,16 +137,19 @@ class StackMemory {
     // stack.
     // The stack cannot be suspended while it is on the central stack, so there
     // can be at most one switch for a given stack.
-    Address source_fp;
-    Address target_sp;
+    Address source_fp = kNullAddress;
+    Address target_sp = kNullAddress;
+    bool has_value() const { return source_fp != kNullAddress; }
   };
-  std::optional<StackSwitchInfo> stack_switch_info() {
+  const StackSwitchInfo& stack_switch_info() const {
     return stack_switch_info_;
   }
   void set_stack_switch_info(Address fp, Address sp) {
     stack_switch_info_ = {fp, sp};
   }
-  void clear_stack_switch_info() { stack_switch_info_.reset(); }
+  void clear_stack_switch_info() {
+    stack_switch_info_.source_fp = kNullAddress;
+  }
 
 #ifdef DEBUG
   static constexpr int kJSLimitOffsetKB = 80;
@@ -173,7 +176,7 @@ class StackMemory {
   // allows us to add and remove from the vector in constant time (see
   // return_switch()).
   size_t index_;
-  std::optional<StackSwitchInfo> stack_switch_info_;
+  StackSwitchInfo stack_switch_info_;
   StackSegment* first_segment_ = nullptr;
   StackSegment* active_segment_ = nullptr;
 };

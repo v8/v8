@@ -34,11 +34,18 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   // the simulator's stack instead of using {limit}.
   void SetStackLimit(uintptr_t limit);
 
-  // Similar to the method above, with one important difference: With Wasm
-  // stack switching, we always want to switch to {limit}, even when running on
-  // the simulator, since we might be switching to a Wasm continuation that's
-  // not on the main stack.
-  void SetStackLimitForStackSwitching(uintptr_t limit);
+  // Try to compare and swap the given jslimit without the ExecutionAccess lock.
+  // Expects potential concurrent writes of the interrupt limit, and of the
+  // interrupt limit only.
+  void V8_INLINE SetStackLimitForStackSwitching(uintptr_t limit) {
+    uintptr_t old_jslimit = base::Relaxed_CompareAndSwap(
+        &thread_local_.jslimit_, thread_local_.real_jslimit_, limit);
+    USE(old_jslimit);
+    DCHECK_IMPLIES(old_jslimit != thread_local_.real_jslimit_,
+                   old_jslimit == kInterruptLimit);
+    // Either way, set the real limit. This does not require synchronization.
+    thread_local_.real_jslimit_ = limit;
+  }
 
 #ifdef USE_SIMULATOR
   // The simulator uses a separate JS stack. Limits on the JS stack might have

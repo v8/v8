@@ -1016,11 +1016,12 @@ intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
   auto* stack = reinterpret_cast<StackMemory*>(active_continuation->stack());
-  stack->set_stack_switch_info(fp, thread_local_top->central_stack_sp_);
+  Address central_stack_sp = thread_local_top->central_stack_sp_;
+  stack->set_stack_switch_info(fp, central_stack_sp);
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
   thread_local_top->is_on_central_stack_flag_ = true;
-  return thread_local_top->central_stack_sp_;
+  return central_stack_sp;
 }
 
 void switch_from_the_central_stack_for_js(Isolate* isolate) {

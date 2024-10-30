@@ -59,17 +59,6 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
                         SimulatorStack::JsLimitFromCLimit(isolate_, limit));
 }
 
-void StackGuard::SetStackLimitForStackSwitching(uintptr_t limit) {
-  // Try to compare and swap the new jslimit without the ExecutionAccess lock.
-  uintptr_t old_jslimit = base::Relaxed_CompareAndSwap(
-      &thread_local_.jslimit_, thread_local_.real_jslimit_, limit);
-  USE(old_jslimit);
-  DCHECK_IMPLIES(old_jslimit != thread_local_.real_jslimit_,
-                 old_jslimit == kInterruptLimit);
-  // Either way, set the real limit. This does not require synchronization.
-  thread_local_.real_jslimit_ = limit;
-}
-
 void StackGuard::SetStackLimitInternal(const ExecutionAccess& lock,
                                        uintptr_t limit, uintptr_t jslimit) {
   // If the current limits are special (e.g. due to a pending interrupt) then
