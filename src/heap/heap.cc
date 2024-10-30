@@ -2528,16 +2528,14 @@ Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
   double v8_gc_speed =
       heap->tracer()->OldGenerationSpeedInBytesPerMillisecond();
   double v8_mutator_speed =
-      heap->tracer()
-          ->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
+      heap->tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond();
   double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
       heap, heap->max_old_generation_size(), v8_gc_speed, v8_mutator_speed,
       mode);
   double embedder_gc_speed =
       heap->tracer()->EmbedderSpeedInBytesPerMillisecond();
   double embedder_speed =
-      heap->tracer()
-          ->CurrentEmbedderAllocationThroughputInBytesPerMillisecond();
+      heap->tracer()->EmbedderAllocationThroughputInBytesPerMillisecond();
   double embedder_growing_factor =
       (embedder_gc_speed > 0 && embedder_speed > 0)
           ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
@@ -3801,8 +3799,7 @@ bool Heap::HasLowOldGenerationAllocationRate() {
 
 bool Heap::HasLowEmbedderAllocationRate() {
   double mu = ComputeMutatorUtilization(
-      "Embedder",
-      tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond(),
+      "Embedder", tracer()->EmbedderAllocationThroughputInBytesPerMillisecond(),
       tracer()->EmbedderSpeedInBytesPerMillisecond());
   const double kHighMutatorUtilization = 0.993;
   return mu > kHighMutatorUtilization;
@@ -3924,7 +3921,7 @@ Heap::ResizeNewSpaceMode Heap::ShouldResizeNewSpace() {
 
   static const size_t kLowAllocationThroughput = 1000;
   const double allocation_throughput =
-      tracer_->CurrentAllocationThroughputInBytesPerMillisecond();
+      tracer_->AllocationThroughputInBytesPerMillisecond();
   const bool should_shrink = !v8_flags.predictable &&
                              (allocation_throughput != 0) &&
                              (allocation_throughput < kLowAllocationThroughput);

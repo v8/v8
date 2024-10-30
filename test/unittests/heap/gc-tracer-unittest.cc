@@ -85,41 +85,6 @@ void StopTracing(GCTracer* tracer, GarbageCollector collector,
 
 }  // namespace
 
-TEST_F(GCTracerTest, AllocationThroughput) {
-  if (v8_flags.stress_incremental_marking) return;
-  // GCTracer::AllocationThroughputInBytesPerMillisecond ignores global memory.
-  GCTracer* tracer = i_isolate()->heap()->tracer();
-  tracer->ResetForTesting();
-
-  const int time1 = 100;
-  const size_t counter1 = 1000;
-  SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time1),
-                   counter1);
-  const int time2 = 200;
-  const size_t counter2 = 2000;
-  SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time2),
-                   counter2);
-  // Will only consider the current sample.
-  EXPECT_EQ(
-      2 * (counter2 - counter1) / (time2 - time1),
-      static_cast<size_t>(tracer->AllocationThroughputInBytesPerMillisecond(
-          base::TimeDelta::FromMilliseconds(100))));
-  const int time3 = 1000;
-  const size_t counter3 = 30000;
-  SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time3),
-                   counter3);
-  // Only consider last sample.
-  EXPECT_EQ(
-      2 * (counter3 - counter2) / (time3 - time2),
-      static_cast<size_t>(tracer->AllocationThroughputInBytesPerMillisecond(
-          base::TimeDelta::FromMilliseconds(800))));
-  // Considers last 2 samples.
-  EXPECT_EQ(
-      2 * (counter3 - counter1) / (time3 - time1),
-      static_cast<size_t>(tracer->AllocationThroughputInBytesPerMillisecond(
-          base::TimeDelta::FromMilliseconds(801))));
-}
-
 TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
@@ -134,7 +99,7 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   const size_t counter2 = 2000;
   SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time2),
                    counter2);
-  const size_t expected_throughput1 = (counter2 - counter1) / (200 - 100);
+  const size_t expected_throughput1 = counter2 / time2 * (1.0 - exp2(-2.0));
   EXPECT_EQ(expected_throughput1,
             static_cast<size_t>(
                 tracer->NewSpaceAllocationThroughputInBytesPerMillisecond()));
@@ -149,7 +114,11 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   const size_t counter3 = 30000;
   SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time3),
                    counter3);
-  const size_t expected_throughput2 = counter3 / time3;
+  const size_t expected_throughput2 =
+      (counter3 - counter2) / (time3 - time2) * (1.0 - exp2(-8.0)) +
+      exp2(-8.0) * expected_throughput1;
+  EXPECT_GE(expected_throughput2, expected_throughput1);
+  EXPECT_LE(expected_throughput2, (counter3 - counter2) / (time3 - time2));
   EXPECT_EQ(expected_throughput2,
             static_cast<size_t>(
                 tracer->NewSpaceAllocationThroughputInBytesPerMillisecond()));
@@ -160,54 +129,6 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   EXPECT_EQ(expected_throughput2,
             static_cast<size_t>(
                 tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
-}
-
-TEST_F(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime) {
-  if (v8_flags.stress_incremental_marking) return;
-  GCTracer* tracer = i_isolate()->heap()->tracer();
-  tracer->ResetForTesting();
-
-  const int time1 = 100;
-  const size_t counter1 = 1000;
-  SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time1),
-                   counter1);
-  const int time2 = 200;
-  const size_t counter2 = 2000;
-  SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time2),
-                   counter2);
-  const size_t expected_throughput1 = (counter2 - counter1) / (time2 - time1);
-  EXPECT_EQ(expected_throughput1,
-            static_cast<size_t>(
-                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(
-                    base::TimeDelta::FromMilliseconds(100))));
-  EXPECT_EQ(expected_throughput1,
-            static_cast<size_t>(
-                tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(
-                    base::TimeDelta::FromMilliseconds(100))));
-  const int time3 = 1000;
-  const size_t counter3 = 30000;
-  SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time3),
-                   counter3);
-  const size_t expected_throughput2 = (counter3 - counter2) / (time3 - time2);
-  // Only consider last sample.
-  EXPECT_EQ(expected_throughput2,
-            static_cast<size_t>(
-                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(
-                    base::TimeDelta::FromMilliseconds(800))));
-  EXPECT_EQ(expected_throughput2,
-            static_cast<size_t>(
-                tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(
-                    base::TimeDelta::FromMilliseconds(800))));
-  const size_t expected_throughput3 = (counter3 - counter1) / (time3 - time1);
-  // Consider last two samples.
-  EXPECT_EQ(expected_throughput3,
-            static_cast<size_t>(
-                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(
-                    base::TimeDelta::FromMilliseconds(801))));
-  EXPECT_EQ(expected_throughput3,
-            static_cast<size_t>(
-                tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(
-                    base::TimeDelta::FromMilliseconds(801))));
 }
 
 TEST_F(GCTracerTest, RegularScope) {

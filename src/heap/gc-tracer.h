@@ -385,41 +385,22 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
-  double NewSpaceAllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration = std::nullopt) const;
+  double NewSpaceAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in the old generation in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  double OldGenerationAllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration = std::nullopt) const;
+  double OldGenerationAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in the embedder in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  double EmbedderAllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration = std::nullopt) const;
+  double EmbedderAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  double AllocationThroughputInBytesPerMillisecond(
-      std::optional<base::TimeDelta> selected_duration) const;
-
-  // Allocation throughput in heap in bytes/milliseconds in the last
-  // kThroughputTimeFrameMs seconds.
-  // Returns 0 if no allocation events have been recorded.
-  double CurrentAllocationThroughputInBytesPerMillisecond() const;
-
-  // Allocation throughput in old generation in bytes/milliseconds in the last
-  // kThroughputTimeFrameMs seconds.
-  // Returns 0 if no allocation events have been recorded.
-  double CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
-
-  // Allocation throughput in the embedder in bytes/milliseconds in the last
-  // kThroughputTimeFrameMs seconds.
-  // Returns 0 if no allocation events have been recorded.
-  double CurrentEmbedderAllocationThroughputInBytesPerMillisecond() const;
+  double AllocationThroughputInBytesPerMillisecond() const;
 
   // Computes the average survival ratio based on the last recorded survival
   // events.
@@ -467,6 +448,7 @@ class V8_EXPORT_PRIVATE GCTracer {
 
  private:
   using BytesAndDurationBuffer = ::heap::base::BytesAndDurationBuffer;
+  using SmoothedBytesAndDuration = ::heap::base::SmoothedBytesAndDuration;
 
   struct BackgroundCounter {
     double total_duration_ms;
@@ -567,9 +549,17 @@ class V8_EXPORT_PRIVATE GCTracer {
   BytesAndDurationBuffer recorded_mark_compacts_;
   BytesAndDurationBuffer recorded_major_totals_;
   BytesAndDurationBuffer recorded_embedder_marking_;
-  BytesAndDurationBuffer recorded_new_generation_allocations_;
-  BytesAndDurationBuffer recorded_old_generation_allocations_;
-  BytesAndDurationBuffer recorded_embedder_generation_allocations_;
+
+  static constexpr base::TimeDelta kSmoothedAllocationSpeedDecayRate =
+      v8::base::TimeDelta::FromMilliseconds(100);
+
+  SmoothedBytesAndDuration new_generation_allocations_{
+      kSmoothedAllocationSpeedDecayRate};
+  SmoothedBytesAndDuration old_generation_allocations_{
+      kSmoothedAllocationSpeedDecayRate};
+  SmoothedBytesAndDuration embedder_generation_allocations_{
+      kSmoothedAllocationSpeedDecayRate};
+
   // Estimate for young generation speed. Based on walltime and concurrency
   // estimates.
   BytesAndDurationBuffer recorded_minor_gc_per_thread_;
