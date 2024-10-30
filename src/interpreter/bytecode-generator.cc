@@ -4475,8 +4475,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
         return;
       }
 
-      builder()->LoadContextSlot(context_reg, variable->index(), depth,
-                                 immutable);
+      builder()->LoadContextSlot(context_reg, variable, depth, immutable);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
         BuildThrowIfHole(variable);
       }
@@ -4491,7 +4490,11 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
           Variable* local_variable = variable->local_if_not_shadowed();
           int depth =
               execution_context()->ContextChainDepth(local_variable->scope());
+          ContextKind context_kind = (local_variable->scope()->is_script_scope()
+                                          ? ContextKind::kScriptContext
+                                          : ContextKind::kDefault);
           builder()->LoadLookupContextSlot(variable->raw_name(), typeof_mode,
+                                           context_kind,
                                            local_variable->index(), depth);
           if (VariableNeedsHoleCheckInCurrentBlock(local_variable,
                                                    hole_check_mode)) {
@@ -4737,7 +4740,7 @@ void BytecodeGenerator::BuildVariableAssignment(
         Register value_temp = register_allocator()->NewRegister();
         builder()
             ->StoreAccumulatorInRegister(value_temp)
-            .LoadContextSlot(context_reg, variable->index(), depth,
+            .LoadContextSlot(context_reg, variable, depth,
                              BytecodeArrayBuilder::kMutableSlot);
 
         BuildHoleCheckForVariableAssignment(variable, op);

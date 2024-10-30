@@ -754,6 +754,8 @@ enum class StoreOrigin { kMaybeKeyed, kNamed };
 
 enum class TypeofMode { kInside, kNotInside };
 
+enum class ContextKind { kDefault, kScriptContext };
+
 // Whether floating point registers should be saved (and restored).
 enum class SaveFPRegsMode { kIgnore, kSave };
 

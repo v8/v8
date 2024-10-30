@@ -759,6 +759,11 @@ void BaselineCompiler::VisitLdaContextSlot() {
   __ LdaContextSlot(context, index, depth);
 }
 
+void BaselineCompiler::VisitLdaScriptContextSlot() {
+  // TODO(victorgomes): Deal with script context loads.
+  VisitLdaContextSlot();
+}
+
 void BaselineCompiler::VisitLdaImmutableContextSlot() { VisitLdaContextSlot(); }
 
 void BaselineCompiler::VisitLdaCurrentContextSlot() {
@@ -767,6 +772,11 @@ void BaselineCompiler::VisitLdaCurrentContextSlot() {
   __ LoadContext(context);
   __ LoadTaggedField(kInterpreterAccumulatorRegister, context,
                      Context::OffsetOfElementAt(Index(0)));
+}
+
+void BaselineCompiler::VisitLdaCurrentScriptContextSlot() {
+  // TODO(victorgomes): Deal with script context loads.
+  VisitLdaCurrentContextSlot();
 }
 
 void BaselineCompiler::VisitLdaImmutableCurrentContextSlot() {
@@ -827,6 +837,11 @@ void BaselineCompiler::VisitLdaLookupContextSlot() {
       Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
 }
 
+void BaselineCompiler::VisitLdaLookupScriptContextSlot() {
+  CallBuiltin<Builtin::kLookupScriptContextBaseline>(
+      Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
+}
+
 void BaselineCompiler::VisitLdaLookupGlobalSlot() {
   CallBuiltin<Builtin::kLookupGlobalICBaseline>(
       Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
@@ -838,6 +853,11 @@ void BaselineCompiler::VisitLdaLookupSlotInsideTypeof() {
 
 void BaselineCompiler::VisitLdaLookupContextSlotInsideTypeof() {
   CallBuiltin<Builtin::kLookupContextInsideTypeofBaseline>(
+      Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
+}
+
+void BaselineCompiler::VisitLdaLookupScriptContextSlotInsideTypeof() {
+  CallBuiltin<Builtin::kLookupScriptContextInsideTypeofBaseline>(
       Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
 }
 

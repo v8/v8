@@ -3162,6 +3162,12 @@ void MaglevGraphBuilder::VisitLdaContextSlot() {
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   BuildLoadContextSlot(context, depth, slot_index, kMutable);
 }
+void MaglevGraphBuilder::VisitLdaScriptContextSlot() {
+  ValueNode* context = LoadRegister(0);
+  int slot_index = iterator_.GetIndexOperand(1);
+  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
+  BuildLoadContextSlot(context, depth, slot_index, kMutable);
+}
 void MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
   ValueNode* context = LoadRegister(0);
   int slot_index = iterator_.GetIndexOperand(1);
@@ -3169,6 +3175,11 @@ void MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
   BuildLoadContextSlot(context, depth, slot_index, kImmutable);
 }
 void MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
+  ValueNode* context = GetContext();
+  int slot_index = iterator_.GetIndexOperand(0);
+  BuildLoadContextSlot(context, 0, slot_index, kMutable);
+}
+void MaglevGraphBuilder::VisitLdaCurrentScriptContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetIndexOperand(0);
   BuildLoadContextSlot(context, 0, slot_index, kMutable);
@@ -3670,6 +3681,16 @@ void MaglevGraphBuilder::VisitLdaLookupContextSlot() {
       BuildCallBuiltin<Builtin::kLookupContextTrampoline>({name, depth, slot}));
 }
 
+void MaglevGraphBuilder::VisitLdaLookupScriptContextSlot() {
+  // LdaLookupContextSlot <name_index> <feedback_slot> <depth>
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth =
+      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
+  SetAccumulator(BuildCallBuiltin<Builtin::kLookupScriptContextTrampoline>(
+      {name, depth, slot}));
+}
+
 bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
   compiler::OptionalScopeInfoRef maybe_scope_info =
       graph()->TryGetScopeInfo(GetContext(), broker());
@@ -3742,6 +3763,17 @@ void MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
       GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
       BuildCallBuiltin<Builtin::kLookupContextInsideTypeofTrampoline>(
+          {name, depth, slot}));
+}
+
+void MaglevGraphBuilder::VisitLdaLookupScriptContextSlotInsideTypeof() {
+  // LdaLookupContextSlotInsideTypeof <name_index> <context_slot> <depth>
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth =
+      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
+  SetAccumulator(
+      BuildCallBuiltin<Builtin::kLookupScriptContextInsideTypeofTrampoline>(
           {name, depth, slot}));
 }
 

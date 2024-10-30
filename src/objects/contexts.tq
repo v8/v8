@@ -209,6 +209,24 @@ macro LoadContextElement(c: Context, i: constexpr int32): Object {
 }
 
 @export
+macro LoadScriptContextElement(c: Context, i: intptr): Object {
+  // TODO(victorgomes): Deal with mutable heap numbers.
+  return c.elements[i];
+}
+
+@export
+macro LoadScriptContextElement(c: Context, i: Smi): Object {
+  // TODO(victorgomes): Deal with mutable heap numbers.
+  return c.elements[i];
+}
+
+@export
+macro LoadScriptContextElement(c: Context, i: constexpr int32): Object {
+  // TODO(victorgomes): Deal with mutable heap numbers.
+  return c.elements[i];
+}
+
+@export
 macro StoreContextElement(c: Context, i: intptr, o: Object): void {
   c.elements[i] = o;
 }

@@ -1314,7 +1314,8 @@ Handle<Context> Factory::NewScriptContext(DirectHandle<NativeContext> outer,
   int variadic_part_length = scope_info->ContextLength();
 
   DirectHandle<FixedArray> side_data;
-  if (v8_flags.const_tracking_let) {
+  if (v8_flags.const_tracking_let ||
+      v8_flags.script_context_mutable_heap_number) {
     side_data = NewFixedArray(scope_info->ContextLocalCount());
   } else {
     side_data = empty_fixed_array();
