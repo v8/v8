@@ -19696,7 +19696,7 @@ TEST(ModifyCodeGenFromStrings) {
       &ModifyCodeGeneration);
 
   // Test 'allowed' case in different modes (direct eval, indirect eval,
-  // Function constructor, Function contructor with arguments).
+  // Function constructor, Function constructor with arguments).
   Local<Value> result = CompileRun("eval('42')");
   CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
 

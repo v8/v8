@@ -2689,7 +2689,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Spill context.
     __ movd(xmm3, esi);
 
-    // Save Return Adress and Receiver into registers.
+    // Save Return Address and Receiver into registers.
     __ pop(esi);
     __ movd(xmm1, esi);
     __ pop(esi);

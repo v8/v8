@@ -2717,7 +2717,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (v8_flags.wasm_inlining_call_indirect) {
       CHECK(v8_flags.wasm_inlining);
       feedback_slot_++;
-      // In case of being unreachable, skip it because it tries to accesss nodes
+      // In case of being unreachable, skip it because it tries to access nodes
       // which might be non-existent (OpIndex::Invalid()) in unreachable code.
       if (__ generating_unreachable_operations()) return;
 
@@ -2974,7 +2974,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // stack slot index would be provided by the decoder and passed to both
     // Liftoff and Turbofan.
     feedback_slot_++;
-    // In case of being unreachable, skip it because it tries to accesss nodes
+    // In case of being unreachable, skip it because it tries to access nodes
     // which might be non-existent (OpIndex::Invalid()) in unreachable code.
     if (__ generating_unreachable_operations()) return;
 

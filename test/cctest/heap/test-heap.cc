@@ -3987,7 +3987,7 @@ TEST(DetailedErrorStackTraceBuiltinExitWithAdaptation) {
   });
 }
 
-// Ensure that inlined call of CPP builtin works corrrectly with stack traces.
+// Ensure that inlined call of CPP builtin works correctly with stack traces.
 // See https://crbug.com/v8/14409.
 TEST(DetailedErrorStackTraceBuiltinExitArrayShift) {
   v8_flags.allow_natives_syntax = true;

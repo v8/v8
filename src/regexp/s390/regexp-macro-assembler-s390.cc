@@ -765,7 +765,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source,
   //          r3: start_index
   //          r4: start addr
   //          r5: end addr
-  //          r6: capture output arrray
+  //          r6: capture output array
   //    Requires us to save the callee-preserved registers r6-r13
   //    General convention is to also save r14 (return addr) and
   //    sp/r15 as well in a single STM/STMG

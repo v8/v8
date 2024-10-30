@@ -5058,7 +5058,7 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
 
   InstallConstant(isolate(), result, "BYTES_PER_ELEMENT", bytes_per_element);
 
-  // TODO(v8:11256, ishell): given the granularity of typed array contructor
+  // TODO(v8:11256, ishell): given the granularity of typed array constructor
   // protectors, consider creating only one constructor instance type for all
   // typed array constructors.
   SetConstructorInstanceType(isolate_, result, constructor_type);

@@ -378,7 +378,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
  private:
   // Backend allocator shared by all ArrayBufferAllocator instances. This way,
-  // there is a single region of virtual addres space reserved inside the
+  // there is a single region of virtual address space reserved inside the
   // sandbox from which all ArrayBufferAllocators allocate their memory,
   // instead of each allocator creating their own region, which may cause
   // address space exhaustion inside the sandbox.
