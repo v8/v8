@@ -674,13 +674,13 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> StringReplaceGlobalRegExpWithString(
     }
   }
 
-  RegExpGlobalCache global_cache(handle(*regexp_data, isolate), subject,
-                                 isolate);
-  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
+  RegExpGlobalExecRunner runner(handle(*regexp_data, isolate), subject,
+                                isolate);
+  if (runner.HasException()) return ReadOnlyRoots(isolate).exception();
 
-  int32_t* current_match = global_cache.FetchNext();
+  int32_t* current_match = runner.FetchNext();
   if (current_match == nullptr) {
-    if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
+    if (runner.HasException()) return ReadOnlyRoots(isolate).exception();
     return *subject;
   }
 
@@ -709,17 +709,17 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> StringReplaceGlobalRegExpWithString(
     }
     prev = end;
 
-    current_match = global_cache.FetchNext();
+    current_match = runner.FetchNext();
   } while (current_match != nullptr);
 
-  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
+  if (runner.HasException()) return ReadOnlyRoots(isolate).exception();
 
   if (prev < subject_length) {
     builder.AddSubjectSlice(prev, subject_length);
   }
 
   RegExp::SetLastMatchInfo(isolate, last_match_info, subject, capture_count,
-                           global_cache.LastSuccessfulMatch());
+                           runner.LastSuccessfulMatch());
 
   RETURN_RESULT_OR_FAILURE(isolate, builder.ToString());
 }
@@ -746,13 +746,13 @@ StringReplaceGlobalRegExpWithEmptyString(
     }
   }
 
-  RegExpGlobalCache global_cache(handle(*regexp_data, isolate), subject,
-                                 isolate);
-  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
+  RegExpGlobalExecRunner runner(handle(*regexp_data, isolate), subject,
+                                isolate);
+  if (runner.HasException()) return ReadOnlyRoots(isolate).exception();
 
-  int32_t* current_match = global_cache.FetchNext();
+  int32_t* current_match = runner.FetchNext();
   if (current_match == nullptr) {
-    if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
+    if (runner.HasException()) return ReadOnlyRoots(isolate).exception();
     return *subject;
   }
 
@@ -788,13 +788,13 @@ StringReplaceGlobalRegExpWithEmptyString(
     }
     prev = end;
 
-    current_match = global_cache.FetchNext();
+    current_match = runner.FetchNext();
   } while (current_match != nullptr);
 
-  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
+  if (runner.HasException()) return ReadOnlyRoots(isolate).exception();
 
   RegExp::SetLastMatchInfo(isolate, last_match_info, subject, capture_count,
-                           global_cache.LastSuccessfulMatch());
+                           runner.LastSuccessfulMatch());
 
   if (prev < subject_length) {
     // Add substring subject[prev;length] to answer string.
@@ -925,6 +925,20 @@ MaybeHandle<Object> RegExpExec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
                       exec_quirks);
 }
 
+std::optional<int> RegExpExec2(Isolate* isolate, DirectHandle<JSRegExp> regexp,
+                               Handle<String> subject, int32_t index,
+                               int32_t* result_offsets_vector,
+                               uint32_t result_offsets_vector_length,
+                               RegExp::ExecQuirks exec_quirks) {
+  // Due to the way the JS calls are constructed this must be less than the
+  // length of a string, i.e. it is always a Smi.  We check anyway for security.
+  CHECK_LE(0, index);
+  CHECK_GE(subject->length(), index);
+  isolate->counters()->regexp_entry_runtime()->Increment();
+  return RegExp::Exec2(isolate, regexp, subject, index, result_offsets_vector,
+                       result_offsets_vector_length, exec_quirks);
+}
+
 MaybeHandle<Object> ExperimentalOneshotExec(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
     DirectHandle<String> subject, int32_t index,
@@ -936,6 +950,26 @@ MaybeHandle<Object> ExperimentalOneshotExec(
   isolate->counters()->regexp_entry_runtime()->Increment();
   return RegExp::ExperimentalOneshotExec(isolate, regexp, subject, index,
                                          last_match_info, exec_quirks);
+}
+
+std::optional<int> ExperimentalOneshotExec2(
+    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    DirectHandle<String> subject, int32_t index, int32_t* result_offsets_vector,
+    uint32_t result_offsets_vector_length, RegExp::ExecQuirks exec_quirks) {
+  // TODO(jgruber): To properly support RegExpExecInternal2 (i.e. global
+  // execution), this function must be extended to support returning multiple
+  // results.
+  CHECK_EQ(result_offsets_vector_length,
+           JSRegExp::RegistersForCaptureCount(
+               regexp->data(isolate)->capture_count()));
+  // Due to the way the JS calls are constructed this must be less than the
+  // length of a string, i.e. it is always a Smi.  We check anyway for security.
+  CHECK_LE(0, index);
+  CHECK_GE(subject->length(), index);
+  isolate->counters()->regexp_entry_runtime()->Increment();
+  return RegExp::ExperimentalOneshotExec2(
+      isolate, regexp, subject, index, result_offsets_vector,
+      result_offsets_vector_length, exec_quirks);
 }
 
 }  // namespace
@@ -966,6 +1000,81 @@ RUNTIME_FUNCTION(Runtime_RegExpExecTreatMatchAtEndAsFailure) {
                           RegExp::ExecQuirks::kTreatMatchAtEndAsFailure));
 }
 
+RUNTIME_FUNCTION(Runtime_RegExpExec2) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  Handle<String> subject = args.at<String>(1);
+  int32_t index = 0;
+  CHECK(Object::ToInt32(args[2], &index));
+  uint32_t result_offsets_vector_length = 0;
+  CHECK(Object::ToUint32(args[3], &result_offsets_vector_length));
+
+  // This untagged arg must be passed as an implicit arg.
+  int32_t* result_offsets_vector = reinterpret_cast<int32_t*>(
+      isolate->isolate_data()->regexp_exec_vector_argument());
+  DCHECK_NOT_NULL(result_offsets_vector);
+
+  std::optional<int> result =
+      RegExpExec2(isolate, regexp, subject, index, result_offsets_vector,
+                  result_offsets_vector_length, RegExp::ExecQuirks::kNone);
+  DCHECK_EQ(!result, isolate->has_exception());
+  if (!result) return ReadOnlyRoots(isolate).exception();
+  return Smi::FromInt(result.value());
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpExecTreatMatchAtEndAsFailure2) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  Handle<String> subject = args.at<String>(1);
+  int32_t index = 0;
+  CHECK(Object::ToInt32(args[2], &index));
+  uint32_t result_offsets_vector_length = 0;
+  CHECK(Object::ToUint32(args[3], &result_offsets_vector_length));
+
+  // This untagged arg must be passed as an implicit arg.
+  int32_t* result_offsets_vector = reinterpret_cast<int32_t*>(
+      isolate->isolate_data()->regexp_exec_vector_argument());
+  DCHECK_NOT_NULL(result_offsets_vector);
+
+  std::optional<int> result =
+      RegExpExec2(isolate, regexp, subject, index, result_offsets_vector,
+                  result_offsets_vector_length,
+                  RegExp::ExecQuirks::kTreatMatchAtEndAsFailure);
+  DCHECK_EQ(!result, isolate->has_exception());
+  if (!result) return ReadOnlyRoots(isolate).exception();
+  return Smi::FromInt(result.value());
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpGrowRegExpMatchInfo) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<RegExpMatchInfo> match_info = args.at<RegExpMatchInfo>(0);
+  int32_t register_count;
+  CHECK(Object::ToInt32(args[1], &register_count));
+
+  // We never pass anything besides the global last_match_info.
+  DCHECK_EQ(*match_info, *isolate->regexp_last_match_info());
+
+  Handle<RegExpMatchInfo> result = RegExpMatchInfo::ReserveCaptures(
+      isolate, match_info, JSRegExp::CaptureCountForRegisters(register_count));
+  if (*result != *match_info) {
+    isolate->native_context()->set_regexp_last_match_info(*result);
+  }
+
+  return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpStackClaimInt32Slots) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  int32_t slot_count;
+  CHECK(Object::ToInt32(args[0], &slot_count));
+  isolate->regexp_stack()->ClaimInt32Slots(slot_count);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -993,6 +1102,54 @@ RUNTIME_FUNCTION(
       isolate,
       ExperimentalOneshotExec(isolate, regexp, subject, index, last_match_info,
                               RegExp::ExecQuirks::kTreatMatchAtEndAsFailure));
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec2) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<String> subject = args.at<String>(1);
+  int32_t index = 0;
+  CHECK(Object::ToInt32(args[2], &index));
+  uint32_t result_offsets_vector_length = 0;
+  CHECK(Object::ToUint32(args[3], &result_offsets_vector_length));
+
+  // This untagged arg must be passed as an implicit arg.
+  int32_t* result_offsets_vector = reinterpret_cast<int32_t*>(
+      isolate->isolate_data()->regexp_exec_vector_argument());
+  DCHECK_NOT_NULL(result_offsets_vector);
+
+  std::optional<int> result = ExperimentalOneshotExec2(
+      isolate, regexp, subject, index, result_offsets_vector,
+      result_offsets_vector_length, RegExp::ExecQuirks::kNone);
+  DCHECK_EQ(!result, isolate->has_exception());
+  if (!result) return ReadOnlyRoots(isolate).exception();
+  return Smi::FromInt(result.value());
+}
+
+RUNTIME_FUNCTION(
+    Runtime_RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure2) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
+  DirectHandle<String> subject = args.at<String>(1);
+  int32_t index = 0;
+  CHECK(Object::ToInt32(args[2], &index));
+  uint32_t result_offsets_vector_length = 0;
+  CHECK(Object::ToUint32(args[3], &result_offsets_vector_length));
+
+  // This untagged arg must be passed as an implicit arg.
+  int32_t* result_offsets_vector = reinterpret_cast<int32_t*>(
+      isolate->isolate_data()->regexp_exec_vector_argument());
+  DCHECK_NOT_NULL(result_offsets_vector);
+
+  std::optional<int> result = ExperimentalOneshotExec2(
+      isolate, regexp, subject, index, result_offsets_vector,
+      result_offsets_vector_length,
+      RegExp::ExecQuirks::kTreatMatchAtEndAsFailure);
+  DCHECK_EQ(!result, isolate->has_exception());
+  if (!result) return ReadOnlyRoots(isolate).exception();
+  return Smi::FromInt(result.value());
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpBuildIndices) {
@@ -1280,9 +1437,9 @@ static Tagged<Object> SearchRegExpMultiple(
     }
   }
 
-  RegExpGlobalCache global_cache(handle(*regexp_data, isolate), subject,
-                                 isolate);
-  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
+  RegExpGlobalExecRunner runner(handle(*regexp_data, isolate), subject,
+                                isolate);
+  if (runner.HasException()) return ReadOnlyRoots(isolate).exception();
 
   FixedArrayBuilder builder = FixedArrayBuilder::Lazy(isolate);
 
@@ -1295,7 +1452,7 @@ static Tagged<Object> SearchRegExpMultiple(
   static const int kMaxBuilderEntriesPerRegExpMatch = 5;
 
   while (true) {
-    int32_t* current_match = global_cache.FetchNext();
+    int32_t* current_match = runner.FetchNext();
     if (current_match == nullptr) break;
     match_start = current_match[0];
     builder.EnsureCapacity(isolate, kMaxBuilderEntriesPerRegExpMatch);
@@ -1367,7 +1524,7 @@ static Tagged<Object> SearchRegExpMultiple(
     }
   }
 
-  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
+  if (runner.HasException()) return ReadOnlyRoots(isolate).exception();
 
   if (match_start >= 0) {
     // Finished matching, with at least one match.
@@ -1377,14 +1534,14 @@ static Tagged<Object> SearchRegExpMultiple(
     }
 
     RegExp::SetLastMatchInfo(isolate, last_match_array, subject, capture_count,
-                             global_cache.LastSuccessfulMatch());
+                             runner.LastSuccessfulMatch());
 
     if (subject_length > kMinLengthToCache) {
       // Store the last successful match into the array for caching.
       int capture_registers = JSRegExp::RegistersForCaptureCount(capture_count);
       DirectHandle<FixedArray> last_match_cache =
           isolate->factory()->NewFixedArray(capture_registers);
-      int32_t* last_match = global_cache.LastSuccessfulMatch();
+      int32_t* last_match = runner.LastSuccessfulMatch();
       for (int i = 0; i < capture_registers; i++) {
         last_match_cache->set(i, Smi::FromInt(last_match[i]));
       }
@@ -1791,7 +1948,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
     if (IsNull(*result, isolate)) {
       string_index = static_cast<uint32_t>(
-          RegExpUtils::AdvanceStringIndex(string, string_index, unicode));
+          RegExpUtils::AdvanceStringIndex(*string, string_index, unicode));
       continue;
     }
 
@@ -1806,7 +1963,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
         std::min(PositiveNumberToUint32(*last_index_obj), length);
     if (end == prev_string_index) {
       string_index = static_cast<uint32_t>(
-          RegExpUtils::AdvanceStringIndex(string, string_index, unicode));
+          RegExpUtils::AdvanceStringIndex(*string, string_index, unicode));
       continue;
     }
 

@@ -755,6 +755,24 @@ void RegExpMacroAssemblerIA32::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
+void RegExpMacroAssemblerIA32::EncodePositionIndependentRegisterOutput(
+    Register scratch_and_out) {
+  // pi = memory_top - register_output_vector
+  ExternalReference ref =
+      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
+  __ mov(scratch_and_out, __ ExternalReferenceAsOperand(ref, scratch_and_out));
+  __ sub(scratch_and_out, Operand(ebp, kRegisterOutputOffset));
+}
+
+void RegExpMacroAssemblerIA32::DecodePositionIndependentRegisterOutput(
+    Register scratch_and_out) {
+  // register_output_vector = memory_top - pi
+  ExternalReference ref =
+      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
+  __ mov(scratch_and_out, __ ExternalReferenceAsOperand(ref, scratch_and_out));
+  __ sub(scratch_and_out, Operand(ebp, kRegisterOutputOffset));
+}
+
 Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source,
                                                      RegExpFlags flags) {
   Label return_eax;
@@ -792,6 +810,11 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source,
   static_assert(kRegExpStackBasePointerOffset ==
                 kBacktrackCountOffset - kSystemPointerSize);
   __ push(Immediate(0));  // The regexp stack base ptr.
+
+  // Change the output_offsets_vector to be position-independent since the
+  // stack may grow and thus change location.
+  EncodePositionIndependentRegisterOutput(ecx);
+  __ mov(Operand(ebp, kRegisterOutputOffset), ecx);
 
   // Initialize backtrack stack pointer. It must not be clobbered from here on.
   // Note the backtrack_stackpointer is *not* callee-saved.
@@ -907,7 +930,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source,
     __ bind(&success_label_);
     if (num_saved_registers_ > 0) {
       // copy captures to output
-      __ mov(ebx, Operand(ebp, kRegisterOutputOffset));
+      DecodePositionIndependentRegisterOutput(ebx);
       __ mov(ecx, Operand(ebp, kInputEndOffset));
       __ mov(edx, Operand(ebp, kStartIndexOffset));
       __ sub(ecx, Operand(ebp, kInputStartOffset));
@@ -945,7 +968,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source,
 
       __ mov(Operand(ebp, kNumOutputRegistersOffset), ecx);
       // Advance the location for output.
-      __ add(Operand(ebp, kRegisterOutputOffset),
+      __ sub(Operand(ebp, kRegisterOutputOffset),
              Immediate(num_saved_registers_ * kSystemPointerSize));
 
       // Restore the original regexp stack pointer value (effectively, pop the

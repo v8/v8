@@ -9,6 +9,7 @@
 #include "src/handles/handles.h"
 #include "src/regexp/regexp-error.h"
 #include "src/regexp/regexp-flags.h"
+#include "src/regexp/regexp-stack.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -120,12 +121,23 @@ class RegExp final : public AllStatic {
       Isolate* isolate, DirectHandle<JSRegExp> regexp, Handle<String> subject,
       int index, Handle<RegExpMatchInfo> last_match_info,
       ExecQuirks exec_quirks = ExecQuirks::kNone);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static std::optional<int> Exec2(
+      Isolate* isolate, DirectHandle<JSRegExp> regexp, Handle<String> subject,
+      int index, int32_t* result_offsets_vector,
+      uint32_t result_offsets_vector_length,
+      ExecQuirks exec_quirks = ExecQuirks::kNone);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   ExperimentalOneshotExec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
                           DirectHandle<String> subject, int index,
                           Handle<RegExpMatchInfo> last_match_info,
                           ExecQuirks exec_quirks = ExecQuirks::kNone);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static std::optional<int>
+  ExperimentalOneshotExec2(Isolate* isolate, DirectHandle<JSRegExp> regexp,
+                           DirectHandle<String> subject, int index,
+                           int32_t* result_offsets_vector,
+                           uint32_t result_offsets_vector_length,
+                           ExecQuirks exec_quirks = ExecQuirks::kNone);
 
   // Integral return values used throughout regexp code layers.
   static constexpr int kInternalRegExpFailure = 0;
@@ -177,12 +189,10 @@ class RegExp final : public AllStatic {
 // Uses a special global mode of irregexp-generated code to perform a global
 // search and return multiple results at once. As such, this is essentially an
 // iterator over multiple results (retrieved batch-wise in advance).
-class RegExpGlobalCache final {
+class RegExpGlobalExecRunner final {
  public:
-  RegExpGlobalCache(Handle<RegExpData> regexp_data, Handle<String> subject,
-                    Isolate* isolate);
-
-  ~RegExpGlobalCache();
+  RegExpGlobalExecRunner(Handle<RegExpData> regexp_data, Handle<String> subject,
+                         Isolate* isolate);
 
   // Fetch the next entry in the cache for global regexp match results.
   // This does not set the last match info.  Upon failure, nullptr is
@@ -190,23 +200,28 @@ class RegExpGlobalCache final {
   // still in available in memory when a failure happens.
   int32_t* FetchNext();
 
-  int32_t* LastSuccessfulMatch();
+  int32_t* LastSuccessfulMatch() const;
 
-  bool HasException() { return num_matches_ < 0; }
+  bool HasException() const { return num_matches_ < 0; }
 
  private:
-  int AdvanceZeroLength(int last_index);
+  int AdvanceZeroLength(int last_index) const;
 
-  int num_matches_;
-  int max_matches_;
-  int current_match_index_;
-  int registers_per_match_;
+  int max_matches() const {
+    DCHECK_NE(register_array_size_, 0);
+    return register_array_size_ / registers_per_match_;
+  }
+
+  int num_matches_ = 0;
+  int current_match_index_ = 0;
+  int registers_per_match_ = 0;
   // Pointer to the last set of captures.
-  int32_t* register_array_;
-  int register_array_size_;
+  int32_t* register_array_ = nullptr;
+  int register_array_size_ = 0;
   Handle<RegExpData> regexp_data_;
   Handle<String> subject_;
-  Isolate* isolate_;
+  Isolate* const isolate_;
+  RegExpStackScope regexp_stack_scope_;
 };
 
 // Caches results for specific regexp queries on the isolate. At the time of

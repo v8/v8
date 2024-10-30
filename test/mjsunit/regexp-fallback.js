@@ -19,7 +19,7 @@ assertArrayEquals([match], regexp.exec(subject));
 assertArrayEquals([match], regexp.exec(subject));
 
 // Now the same again with String.replace and a replacement function to
-// exercise the RegExpGlobalCache.
+// exercise the RegExpGlobalExecRunner.
 regexp = new RegExp(regexp.source, "g");
 assertEquals("", subject.replace(regexp, function () { return ""; }));
 assertEquals("", subject.replace(regexp, function () { return ""; }));

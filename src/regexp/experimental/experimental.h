@@ -53,6 +53,11 @@ class ExperimentalRegExp final : public AllStatic {
       DirectHandle<String> subject, int index,
       Handle<RegExpMatchInfo> last_match_info,
       RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
+  static std::optional<int> OneshotExec2(
+      Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
+      DirectHandle<String> subject, int index, int32_t* result_offsets_vector,
+      uint32_t result_offsets_vector_length,
+      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
   static int32_t OneshotExecRaw(Isolate* isolate,
                                 DirectHandle<IrRegExpData> regexp_data,
                                 DirectHandle<String> subject,

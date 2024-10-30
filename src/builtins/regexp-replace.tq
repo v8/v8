@@ -17,6 +17,10 @@ extern transitioning runtime StringBuilderConcat(
     implicit context: Context)(FixedArray, Smi, String): String;
 extern transitioning runtime StringReplaceNonGlobalRegExpWithFunction(
     implicit context: Context)(String, JSRegExp, Callable): String;
+extern transitioning macro
+    RegExpBuiltinsAssembler::RegExpReplaceGlobalSimpleStringIrregexp(
+        implicit context: Context)(JSRegExp, String, RegExpData, String):
+        String;
 
 // matchesCapacity is the length of the matchesElements FixedArray, and
 // matchesElements is allowed to contain holes at the end.
@@ -145,6 +149,15 @@ transitioning macro RegExpReplaceFastString(
   if (global) {
     unicode = fastRegexp.unicode || fastRegexp.unicodeSets;
     fastRegexp.lastIndex = 0;
+
+    const data: RegExpData =
+        UnsafeCast<RegExpData>(LoadTrustedPointerFromObject(
+            fastRegexp, kJSRegExpRegExpDataOffset,
+            kRegExpDataIndirectPointerTag));
+    if (data.type_tag == kIRREGEXP) {
+      return RegExpReplaceGlobalSimpleStringIrregexp(
+          regexp, string, data, replaceString);
+    }
   }
 
   while (true) {

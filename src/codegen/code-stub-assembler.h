@@ -3764,10 +3764,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadNestedAllocationSite(TNode<AllocationSite> allocation_site);
 
   enum class IndexAdvanceMode { kPre, kPost };
+  enum class IndexAdvanceDirection { kUp, kDown };
   enum class LoopUnrollingMode { kNo, kYes };
 
   template <typename TIndex>
   using FastLoopBody = std::function<void(TNode<TIndex> index)>;
+
+  template <typename TIndex>
+  void BuildFastLoop(const VariableList& vars, TVariable<TIndex>& var_index,
+                     TNode<TIndex> start_index, TNode<TIndex> end_index,
+                     const FastLoopBody<TIndex>& body, TNode<TIndex> increment,
+                     LoopUnrollingMode unrolling_mode,
+                     IndexAdvanceMode advance_mode,
+                     IndexAdvanceDirection advance_direction);
 
   template <typename TIndex>
   void BuildFastLoop(const VariableList& vars, TVariable<TIndex>& var_index,

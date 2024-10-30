@@ -184,8 +184,8 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate,
   return IsSmi(last_index) && Smi::ToInt(last_index) >= 0;
 }
 
-uint64_t RegExpUtils::AdvanceStringIndex(DirectHandle<String> string,
-                                         uint64_t index, bool unicode) {
+uint64_t RegExpUtils::AdvanceStringIndex(Tagged<String> string, uint64_t index,
+                                         bool unicode) {
   DCHECK_LE(static_cast<double>(index), kMaxSafeInteger);
   const uint64_t string_length = static_cast<uint64_t>(string->length());
   if (unicode && index < string_length) {
@@ -215,7 +215,7 @@ MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
                              Object::ToLength(isolate, last_index_obj));
   const uint64_t last_index = PositiveNumberToUint64(*last_index_obj);
   const uint64_t new_last_index =
-      AdvanceStringIndex(string, last_index, unicode);
+      AdvanceStringIndex(*string, last_index, unicode);
 
   return SetLastIndex(isolate, regexp, new_last_index);
 }

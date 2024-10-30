@@ -120,6 +120,7 @@ struct JSBuiltinDispatchHandleRoot {
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                   \
   ISOLATE_DATA_FIELDS_SANDBOX(V)                                               \
   V(ApiCallbackThunkArgument, kSystemPointerSize, api_callback_thunk_argument) \
+  V(RegexpExecVectorArgument, kSystemPointerSize, regexp_exec_vector_argument) \
   V(ContinuationPreservedEmbedderData, kSystemPointerSize,                     \
     continuation_preserved_embedder_data)                                      \
   /* Full tables (arbitrary size, potentially slower access). */               \
@@ -254,6 +255,9 @@ class IsolateData final {
   RootsTable& roots() { return roots_table_; }
   Address api_callback_thunk_argument() const {
     return api_callback_thunk_argument_;
+  }
+  Address regexp_exec_vector_argument() const {
+    return regexp_exec_vector_argument_;
   }
   Tagged<Object> continuation_preserved_embedder_data() const {
     return continuation_preserved_embedder_data_;
@@ -427,6 +431,11 @@ class IsolateData final {
   // This is a storage for an additional argument for the Api callback thunk
   // functions, see InvokeAccessorGetterCallback and InvokeFunctionCallback.
   Address api_callback_thunk_argument_ = kNullAddress;
+
+  // Storage for an additional (untagged) argument for
+  // Runtime::kRegExpExecInternal2, required since runtime functions only
+  // accept tagged arguments.
+  Address regexp_exec_vector_argument_ = kNullAddress;
 
   // This is data that should be preserved on newly created continuations.
   Tagged<Object> continuation_preserved_embedder_data_ = Smi::zero();

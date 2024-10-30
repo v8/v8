@@ -8,6 +8,10 @@ namespace regexp {
 
 const kATOM: constexpr uint8
     generates 'static_cast<uint8_t>(RegExpData::Type::ATOM)';
+const kIRREGEXP: constexpr uint8
+    generates 'static_cast<uint8_t>(RegExpData::Type::IRREGEXP)';
+const kEXPERIMENTAL: constexpr uint8
+    generates 'static_cast<uint8_t>(RegExpData::Type::EXPERIMENTAL)';
 const kRegExpDataIndirectPointerTag:
     constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
 
@@ -16,6 +20,8 @@ extern transitioning macro RegExpBuiltinsAssembler::FlagGetter(
 
 extern macro LoadTrustedPointerFromObject(
     HeapObject, constexpr int31, constexpr uint64): TrustedObject;
+extern transitioning macro RegExpBuiltinsAssembler::RegExpMatchGlobalIrregexp(
+    implicit context: Context)(JSRegExp, String, RegExpData): JSAny;
 
 namespace runtime {
 extern runtime RegExpMatchGlobalAtom(
@@ -40,14 +46,18 @@ transitioning macro RegExpPrototypeMatchBody(
 
   // Check if the regexp is an ATOM type. If so, take the runtime fast path.
   if constexpr (isFastPath) {
-    const maybeAtomRegexp = UnsafeCast<JSRegExp>(regexp);
+    const jsregexp = UnsafeCast<JSRegExp>(regexp);
     const data: RegExpData =
         UnsafeCast<RegExpData>(LoadTrustedPointerFromObject(
-            maybeAtomRegexp, kJSRegExpRegExpDataOffset,
+            jsregexp, kJSRegExpRegExpDataOffset,
             kRegExpDataIndirectPointerTag));
     if (data.type_tag == kATOM) {
-      return runtime::RegExpMatchGlobalAtom(maybeAtomRegexp, string, data);
+      return runtime::RegExpMatchGlobalAtom(jsregexp, string, data);
     }
+    if (data.type_tag == kIRREGEXP) {
+      return RegExpMatchGlobalIrregexp(jsregexp, string, data);
+    }
+    dcheck(data.type_tag == kEXPERIMENTAL);
   }
 
   const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath) ||

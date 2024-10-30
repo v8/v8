@@ -343,4 +343,15 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
   UNREACHABLE();
 }
 
+std::optional<int> ExperimentalRegExp::OneshotExec2(
+    Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
+    DirectHandle<String> subject, int subject_index,
+    int32_t* result_offsets_vector, uint32_t result_offsets_vector_length,
+    RegExp::ExecQuirks exec_quirks) {
+  // TODO(jgruber): Implement. Either s.t. we always return the max number of
+  // results, or callers must change the expectation so they only terminate the
+  // global loop once the engine returns FAILURE, i.e. no match.
+  UNREACHABLE();
+}
+
 }  // namespace v8::internal
