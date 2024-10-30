@@ -7365,7 +7365,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     LoadOp::Kind load_kind =
         type.is_nullable() && null_check_strategy_ ==
                                   compiler::NullCheckStrategy::kTrapHandler
-            ? LoadOp::Kind::TrapOnNull()
+            ? LoadOp::Kind::TrapOnNull().Immutable()
             : LoadOp::Kind::TaggedBase().Immutable();
 
     V<WasmInternalFunction> internal_function =
