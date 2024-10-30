@@ -29854,6 +29854,7 @@ void SequenceSlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }  // namespace
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
+START_ALLOW_USE_DEPRECATED()
 TEST(FastApiSequenceOverloads) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
@@ -29961,6 +29962,7 @@ TEST(FastApiOverloadResolution) {
 
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
+END_ALLOW_USE_DEPRECATED()
 
 TEST(Recorder_GetContext) {
   using v8::Context;

@@ -83,6 +83,7 @@ OverloadsResolutionResult ResolveOverloads(
           candidates[i].signature->ArgumentInfo(arg_index);
       CTypeInfo::SequenceType sequence_type = type_info.GetSequenceType();
 
+      START_ALLOW_USE_DEPRECATED()
       if (sequence_type == CTypeInfo::SequenceType::kIsSequence) {
         DCHECK_LT(index_of_func_with_js_array_arg, 0);
         index_of_func_with_js_array_arg = static_cast<int>(i);
@@ -94,6 +95,7 @@ OverloadsResolutionResult ResolveOverloads(
         DCHECK_LT(index_of_func_with_js_array_arg, 0);
         DCHECK_LT(index_of_func_with_typed_array_arg, 0);
       }
+      END_ALLOW_USE_DEPRECATED()
     }
 
     if (index_of_func_with_js_array_arg >= 0 &&

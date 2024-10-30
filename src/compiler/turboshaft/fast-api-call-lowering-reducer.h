@@ -187,6 +187,7 @@ class FastApiCallLoweringReducer : public Next {
           GOTO(done, target_address, argument_to_pass);
           break;
         }
+          START_ALLOW_USE_DEPRECATED()
         case CTypeInfo::SequenceType::kIsTypedArray: {
           // Check that the value is a TypedArray with a type that matches the
           // type declared in the c-function.
@@ -201,6 +202,7 @@ class FastApiCallLoweringReducer : public Next {
           GOTO(done, target_address, stack_slot);
           break;
         }
+          END_ALLOW_USE_DEPRECATED()
 
         default: {
           UNREACHABLE();
@@ -337,6 +339,7 @@ class FastApiCallLoweringReducer : public Next {
 
         return __ AdaptLocalArgument(argument);
       }
+        START_ALLOW_USE_DEPRECATED()
       case CTypeInfo::SequenceType::kIsTypedArray: {
         // Check that the value is a HeapObject.
         GOTO_IF(__ ObjectIsSmi(argument), handle_error);
@@ -346,6 +349,7 @@ class FastApiCallLoweringReducer : public Next {
             fast_api_call::GetTypedArrayElementsKind(arg_type.GetType()),
             handle_error);
       }
+        END_ALLOW_USE_DEPRECATED()
       default: {
         UNREACHABLE();
       }
