@@ -1844,17 +1844,17 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
   auto value = input_at(node, 0);
   if (CanCover(node, value)) {
     if (Get(value).Is<Opmask::kWord64ShiftRightArithmetic>()) {
+      auto shift_value = input_at(value, 1);
       if (CanCover(value, input_at(value, 0)) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
-      } else {
-        auto constant = constant_view(input_at(value, 1));
+      } else if (g.IsIntegerConstant(shift_value)) {
+        auto constant = constant_view(shift_value);
         if (constant.is_int64()) {
           if (constant.int64_value() <= 63 && constant.int64_value() >= 32) {
             // After smi untagging no need for truncate. Combine sequence.
             Emit(kRiscvSar64, g.DefineSameAsFirst(node),
-                 g.UseRegister(input_at(value, 0)),
-                 g.UseImmediate(input_at(value, 1)));
+                 g.UseRegister(input_at(value, 0)), g.UseImmediate(constant));
             return;
           }
         }
@@ -1865,8 +1865,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitTruncateInt64ToInt32(
   // the truncated value; arm treats it as nop thus the upper 32-bit as
   // undefined; Riscv emits ext instruction which zero-extend the 32-bit
   // value; for riscv, we do sign-extension of the truncated value
-  Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
-       g.UseRegister(input_at(node, 0)), g.TempImmediate(0));
+  Emit(kRiscvSignExtendWord, g.DefineAsRegister(node), g.UseRegister(value),
+       g.TempImmediate(0));
 }
 
 template <typename Adapter>
