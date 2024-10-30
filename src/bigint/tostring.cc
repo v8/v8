@@ -586,10 +586,10 @@ Status Processor::ToString(char* out, uint32_t* out_length, Digits X, int radix,
 }
 
 uint32_t ToStringResultLength(Digits X, int radix, bool sign) {
-  const int bit_length = BitLength(X);
-  int result;
+  const uint32_t bit_length = BitLength(X);
+  uint32_t result;
   if (IsPowerOfTwo(radix)) {
-    const int bits_per_char = CountTrailingZeros(radix);
+    const uint32_t bits_per_char = CountTrailingZeros(radix);
     result = DIV_CEIL(bit_length, bits_per_char) + sign;
   } else {
     // Maximum number of bits we can represent with one character.
@@ -602,8 +602,8 @@ uint32_t ToStringResultLength(Digits X, int radix, bool sign) {
     chars_required *= kBitsPerCharTableMultiplier;
     chars_required = DIV_CEIL(chars_required, min_bits_per_char);
     DCHECK(chars_required <
-           static_cast<uint64_t>(std::numeric_limits<int>::max()));
-    result = static_cast<int>(chars_required);
+           static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()));
+    result = static_cast<uint32_t>(chars_required);
   }
   result += sign;
   return result;
