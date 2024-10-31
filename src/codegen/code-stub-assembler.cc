@@ -891,15 +891,8 @@ TNode<Smi> CodeStubAssembler::SmiFromInt32(TNode<Int32T> value) {
   if (COMPRESS_POINTERS_BOOL) {
     static_assert(!COMPRESS_POINTERS_BOOL || (kSmiShiftSize + kSmiTagSize == 1),
                   "Use shifting instead of add");
-#if defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
-    // LoongArch64 and MIPS64 need 32-bit values to be sign-extended, so here
-    // we use Int32 instead of Uint23.
-    return BitcastWordToTaggedSigned(
-        ChangeInt32ToIntPtr(Int32Add(value, value)));
-#else
     return BitcastWordToTaggedSigned(
         ChangeUint32ToWord(Int32Add(value, value)));
-#endif
   }
   return SmiTag(ChangeInt32ToIntPtr(value));
 }
