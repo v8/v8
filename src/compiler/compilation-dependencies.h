@@ -6,6 +6,7 @@
 #define V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/objects/property-cell.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -82,10 +83,10 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
   // {IsReadOnly()} flag of {cell}'s {PropertyDetails}.
   void DependOnGlobalProperty(PropertyCellRef cell);
 
-  // Record the assumption that a const-tracked let variable doesn't change, if
-  // true.
-  bool DependOnConstTrackingLet(ContextRef script_context, size_t index,
-                                JSHeapBroker* broker);
+  // Record a property assumption in the script context slot.
+  bool DependOnScriptContextSlotProperty(
+      ContextRef script_context, size_t index,
+      ContextSidePropertyCell::Property property, JSHeapBroker* broker);
 
   // Return the validity of the given protector and, if true, record the
   // assumption that the protector remains valid.

@@ -102,11 +102,19 @@ class ContextSidePropertyCell
                                                     HeapObject> {
  public:
   // Keep in sync with property-cell.tq.
+  // This enum tracks a property of a ScriptContext slot.
+  // The property determines how the slot's value can be accessed and modified.
   enum Property {
-    kOther = 0,
-    kConst = 1,
-    kSmi = 2,
-    kMutableHeapNumber = 3,
+    kOther = 0,  // The slot holds an arbitrary tagged value. kOther is a sink
+                 // state and cannot transition to any other state.
+    kConst = 1,  // The slot holds a constant value. kConst can transition to
+                 // any other state.
+    kSmi = 2,    // The slot holds a Smi. kSmi can transition to kOther or
+                 // kMutableHeapNumber.
+    kMutableHeapNumber =
+        3,  // The slot holds a HeapNumber that can be mutated in-place by
+            // optimized code. This HeapNumber should never leak from the slot.
+            // kMutableHeapNumber can only transition to kOther.
   };
 
   static Tagged<Smi> Const() { return Smi::FromInt(Property::kConst); }
@@ -122,8 +130,6 @@ class ContextSidePropertyCell
     DCHECK_LE(value, kMutableHeapNumber);
     return static_cast<Property>(value);
   }
-
-  static inline bool IsNotConst(Tagged<Object> object);
 
   inline Property context_side_property() const;
 

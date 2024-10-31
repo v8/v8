@@ -268,7 +268,7 @@ namespace internal {
   F(BytecodeBudgetInterruptWithStackCheck_Sparkplug, 1, 1) \
   F(BytecodeBudgetInterrupt_Maglev, 1, 1)                  \
   F(BytecodeBudgetInterruptWithStackCheck_Maglev, 1, 1)    \
-  F(InvalidateDependentCodeForConstTrackingLet, 1, 1)      \
+  F(InvalidateDependentCodeForScriptContextSlot, 1, 1)     \
   F(NewError, 2, 1)                                        \
   F(NewReferenceError, 2, 1)                               \
   F(NewTypeError, -1 /* [1, 4] */, 1)                      \

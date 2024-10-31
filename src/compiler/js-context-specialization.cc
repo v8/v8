@@ -16,6 +16,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/objects/contexts-inl.h"
+#include "src/objects/property-cell.h"
 
 namespace v8 {
 namespace internal {
@@ -167,8 +168,9 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   }
 
   if (!access.immutable() &&
-      !broker()->dependencies()->DependOnConstTrackingLet(
-          concrete, access.index(), broker())) {
+      !broker()->dependencies()->DependOnScriptContextSlotProperty(
+          concrete, access.index(), ContextSidePropertyCell::kConst,
+          broker())) {
     // We found the requested context object but since the context slot is
     // mutable we can only partially reduce the load.
     return SimplifyJSLoadContext(
