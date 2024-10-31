@@ -65,10 +65,11 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
       TNode<RawPtrT> result_offsets_vector);
 
   // Low level logic around the actual call into pattern matching code.
-  TNode<HeapObject> RegExpExecInternal(
-      TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
-      TNode<Number> last_index, TNode<RegExpMatchInfo> match_info,
-      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
+  TNode<HeapObject> RegExpExecInternal(TNode<Context> context,
+                                       TNode<JSRegExp> regexp,
+                                       TNode<String> string,
+                                       TNode<Number> last_index,
+                                       TNode<RegExpMatchInfo> match_info);
 
   // This is the new API which makes it possible to use the global irregexp
   // execution mode from within CSA.
@@ -95,8 +96,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<UintPtrT> RegExpExecInternal2(
       TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
       TNode<Number> last_index, TNode<RawPtrT> result_offsets_vector,
-      TNode<Int32T> result_offsets_vector_length,
-      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
+      TNode<Int32T> result_offsets_vector_length);
 
   TNode<UintPtrT> RegExpExecAtom2(TNode<Context> context,
                                   TNode<AtomRegExpData> data,
@@ -225,8 +225,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<JSArray> RegExpPrototypeSplitBody(TNode<Context> context,
                                           TNode<JSRegExp> regexp,
-                                          const TNode<String> string,
-                                          const TNode<Smi> limit);
+                                          TNode<String> string,
+                                          TNode<Smi> limit);
 
   TNode<HeapObject> RegExpMatchGlobal(TNode<Context> context,
                                       TNode<JSRegExp> regexp,

@@ -428,9 +428,7 @@ namespace internal {
   F(RegExpGrowRegExpMatchInfo, 2, 1)                                 \
   F(RegExpStackClaimInt32Slots, 1, 1)                                \
   F(RegExpExec, 4, 1)                                                \
-  F(RegExpExecTreatMatchAtEndAsFailure, 4, 1)                        \
   F(RegExpExperimentalOneshotExec, 4, 1)                             \
-  F(RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure, 4, 1)     \
   F(RegExpExecMultiple, 3, 1)                                        \
   F(RegExpInitializeAndCompile, 3, 1)                                \
   F(RegExpMatchGlobalAtom, 3, 1)                                     \
@@ -442,9 +440,7 @@ namespace internal {
   /* TODO(jgruber): Once all callers are ported, rename all these */ \
   /* Foo2 functions to Foo and remove the old versions. */           \
   F(RegExpExec2, 4, 1)                                               \
-  F(RegExpExecTreatMatchAtEndAsFailure2, 4, 1)                       \
-  F(RegExpExperimentalOneshotExec2, 4, 1)                            \
-  F(RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure2, 4, 1)
+  F(RegExpExperimentalOneshotExec2, 4, 1)
 
 #define FOR_EACH_THROWING_INTRINSIC_SCOPES(F, I) \
   F(ThrowConstAssignError, 0, 1)                 \

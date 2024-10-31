@@ -914,48 +914,45 @@ namespace {
 
 MaybeHandle<Object> RegExpExec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
                                Handle<String> subject, int32_t index,
-                               Handle<RegExpMatchInfo> last_match_info,
-                               RegExp::ExecQuirks exec_quirks) {
+                               Handle<RegExpMatchInfo> last_match_info) {
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CHECK_LE(0, index);
   CHECK_GE(subject->length(), index);
   isolate->counters()->regexp_entry_runtime()->Increment();
-  return RegExp::Exec(isolate, regexp, subject, index, last_match_info,
-                      exec_quirks);
+  return RegExp::Exec(isolate, regexp, subject, index, last_match_info);
 }
 
 std::optional<int> RegExpExec2(Isolate* isolate, DirectHandle<JSRegExp> regexp,
                                Handle<String> subject, int32_t index,
                                int32_t* result_offsets_vector,
-                               uint32_t result_offsets_vector_length,
-                               RegExp::ExecQuirks exec_quirks) {
+                               uint32_t result_offsets_vector_length) {
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CHECK_LE(0, index);
   CHECK_GE(subject->length(), index);
   isolate->counters()->regexp_entry_runtime()->Increment();
   return RegExp::Exec2(isolate, regexp, subject, index, result_offsets_vector,
-                       result_offsets_vector_length, exec_quirks);
+                       result_offsets_vector_length);
 }
 
 MaybeHandle<Object> ExperimentalOneshotExec(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
     DirectHandle<String> subject, int32_t index,
-    Handle<RegExpMatchInfo> last_match_info, RegExp::ExecQuirks exec_quirks) {
+    Handle<RegExpMatchInfo> last_match_info) {
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CHECK_LE(0, index);
   CHECK_GE(subject->length(), index);
   isolate->counters()->regexp_entry_runtime()->Increment();
   return RegExp::ExperimentalOneshotExec(isolate, regexp, subject, index,
-                                         last_match_info, exec_quirks);
+                                         last_match_info);
 }
 
 std::optional<int> ExperimentalOneshotExec2(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
     DirectHandle<String> subject, int32_t index, int32_t* result_offsets_vector,
-    uint32_t result_offsets_vector_length, RegExp::ExecQuirks exec_quirks) {
+    uint32_t result_offsets_vector_length) {
   CHECK_GE(result_offsets_vector_length,
            JSRegExp::RegistersForCaptureCount(
                regexp->data(isolate)->capture_count()));
@@ -964,9 +961,9 @@ std::optional<int> ExperimentalOneshotExec2(
   CHECK_LE(0, index);
   CHECK_GE(subject->length(), index);
   isolate->counters()->regexp_entry_runtime()->Increment();
-  return RegExp::ExperimentalOneshotExec2(
-      isolate, regexp, subject, index, result_offsets_vector,
-      result_offsets_vector_length, exec_quirks);
+  return RegExp::ExperimentalOneshotExec2(isolate, regexp, subject, index,
+                                          result_offsets_vector,
+                                          result_offsets_vector_length);
 }
 
 }  // namespace
@@ -980,21 +977,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   CHECK(Object::ToInt32(args[2], &index));
   Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
   RETURN_RESULT_OR_FAILURE(
-      isolate, RegExpExec(isolate, regexp, subject, index, last_match_info,
-                          RegExp::ExecQuirks::kNone));
-}
-
-RUNTIME_FUNCTION(Runtime_RegExpExecTreatMatchAtEndAsFailure) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
-  Handle<String> subject = args.at<String>(1);
-  int32_t index = 0;
-  CHECK(Object::ToInt32(args[2], &index));
-  Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, RegExpExec(isolate, regexp, subject, index, last_match_info,
-                          RegExp::ExecQuirks::kTreatMatchAtEndAsFailure));
+      isolate, RegExpExec(isolate, regexp, subject, index, last_match_info));
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpExec2) {
@@ -1014,31 +997,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExec2) {
 
   std::optional<int> result =
       RegExpExec2(isolate, regexp, subject, index, result_offsets_vector,
-                  result_offsets_vector_length, RegExp::ExecQuirks::kNone);
-  DCHECK_EQ(!result, isolate->has_exception());
-  if (!result) return ReadOnlyRoots(isolate).exception();
-  return Smi::FromInt(result.value());
-}
-
-RUNTIME_FUNCTION(Runtime_RegExpExecTreatMatchAtEndAsFailure2) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
-  Handle<String> subject = args.at<String>(1);
-  int32_t index = 0;
-  CHECK(Object::ToInt32(args[2], &index));
-  uint32_t result_offsets_vector_length = 0;
-  CHECK(Object::ToUint32(args[3], &result_offsets_vector_length));
-
-  // This untagged arg must be passed as an implicit arg.
-  int32_t* result_offsets_vector = reinterpret_cast<int32_t*>(
-      isolate->isolate_data()->regexp_exec_vector_argument());
-  DCHECK_NOT_NULL(result_offsets_vector);
-
-  std::optional<int> result =
-      RegExpExec2(isolate, regexp, subject, index, result_offsets_vector,
-                  result_offsets_vector_length,
-                  RegExp::ExecQuirks::kTreatMatchAtEndAsFailure);
+                  result_offsets_vector_length);
   DCHECK_EQ(!result, isolate->has_exception());
   if (!result) return ReadOnlyRoots(isolate).exception();
   return Smi::FromInt(result.value());
@@ -1081,24 +1040,8 @@ RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
   CHECK(Object::ToInt32(args[2], &index));
   Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      ExperimentalOneshotExec(isolate, regexp, subject, index, last_match_info,
-                              RegExp::ExecQuirks::kNone));
-}
-
-RUNTIME_FUNCTION(
-    Runtime_RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
-  DirectHandle<String> subject = args.at<String>(1);
-  int32_t index = 0;
-  CHECK(Object::ToInt32(args[2], &index));
-  Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      ExperimentalOneshotExec(isolate, regexp, subject, index, last_match_info,
-                              RegExp::ExecQuirks::kTreatMatchAtEndAsFailure));
+      isolate, ExperimentalOneshotExec(isolate, regexp, subject, index,
+                                       last_match_info));
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec2) {
@@ -1118,32 +1061,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec2) {
 
   std::optional<int> result = ExperimentalOneshotExec2(
       isolate, regexp, subject, index, result_offsets_vector,
-      result_offsets_vector_length, RegExp::ExecQuirks::kNone);
-  DCHECK_EQ(!result, isolate->has_exception());
-  if (!result) return ReadOnlyRoots(isolate).exception();
-  return Smi::FromInt(result.value());
-}
-
-RUNTIME_FUNCTION(
-    Runtime_RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure2) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
-  DirectHandle<String> subject = args.at<String>(1);
-  int32_t index = 0;
-  CHECK(Object::ToInt32(args[2], &index));
-  uint32_t result_offsets_vector_length = 0;
-  CHECK(Object::ToUint32(args[3], &result_offsets_vector_length));
-
-  // This untagged arg must be passed as an implicit arg.
-  int32_t* result_offsets_vector = reinterpret_cast<int32_t*>(
-      isolate->isolate_data()->regexp_exec_vector_argument());
-  DCHECK_NOT_NULL(result_offsets_vector);
-
-  std::optional<int> result = ExperimentalOneshotExec2(
-      isolate, regexp, subject, index, result_offsets_vector,
-      result_offsets_vector_length,
-      RegExp::ExecQuirks::kTreatMatchAtEndAsFailure);
+      result_offsets_vector_length);
   DCHECK_EQ(!result, isolate->has_exception());
   if (!result) return ReadOnlyRoots(isolate).exception();
   return Smi::FromInt(result.value());

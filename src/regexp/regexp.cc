@@ -90,13 +90,11 @@ class RegExpImpl final : public AllStatic {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> IrregexpExec(
       Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
       Handle<String> subject, int index,
-      Handle<RegExpMatchInfo> last_match_info,
-      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
+      Handle<RegExpMatchInfo> last_match_info);
   V8_WARN_UNUSED_RESULT static std::optional<int> IrregexpExec2(
       Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
       Handle<String> subject, int index, int32_t* result_offsets_vector,
-      uint32_t result_offsets_vector_length,
-      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
+      uint32_t result_offsets_vector_length);
 
   static bool CompileIrregexp(Isolate* isolate,
                               DirectHandle<IrRegExpData> re_data,
@@ -323,32 +321,30 @@ bool RegExp::EnsureFullyCompiled(Isolate* isolate,
 MaybeHandle<Object> RegExp::ExperimentalOneshotExec(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
     DirectHandle<String> subject, int index,
-    Handle<RegExpMatchInfo> last_match_info, RegExp::ExecQuirks exec_quirks) {
+    Handle<RegExpMatchInfo> last_match_info) {
   DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
   SBXCHECK(Is<IrRegExpData>(*data));
   return ExperimentalRegExp::OneshotExec(isolate, Cast<IrRegExpData>(data),
-                                         subject, index, last_match_info,
-                                         exec_quirks);
+                                         subject, index, last_match_info);
 }
 
 // static
 std::optional<int> RegExp::ExperimentalOneshotExec2(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
     DirectHandle<String> subject, int index, int32_t* result_offsets_vector,
-    uint32_t result_offsets_vector_length, RegExp::ExecQuirks exec_quirks) {
+    uint32_t result_offsets_vector_length) {
   DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
   SBXCHECK(Is<IrRegExpData>(*data));
-  return ExperimentalRegExp::OneshotExec2(
-      isolate, Cast<IrRegExpData>(data), subject, index, result_offsets_vector,
-      result_offsets_vector_length, exec_quirks);
+  return ExperimentalRegExp::OneshotExec2(isolate, Cast<IrRegExpData>(data),
+                                          subject, index, result_offsets_vector,
+                                          result_offsets_vector_length);
 }
 
 // static
 MaybeHandle<Object> RegExp::Exec(Isolate* isolate,
                                  DirectHandle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
-                                 Handle<RegExpMatchInfo> last_match_info,
-                                 ExecQuirks exec_quirks) {
+                                 Handle<RegExpMatchInfo> last_match_info) {
   DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
   switch (data->type_tag()) {
     case RegExpData::Type::ATOM:
@@ -356,12 +352,10 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate,
                                   index, last_match_info);
     case RegExpData::Type::IRREGEXP:
       return RegExpImpl::IrregexpExec(isolate, Cast<IrRegExpData>(data),
-                                      subject, index, last_match_info,
-                                      exec_quirks);
+                                      subject, index, last_match_info);
     case RegExpData::Type::EXPERIMENTAL:
       return ExperimentalRegExp::Exec(isolate, Cast<IrRegExpData>(data),
-                                      subject, index, last_match_info,
-                                      exec_quirks);
+                                      subject, index, last_match_info);
   }
   // This UNREACHABLE() is necessary because we don't return a value here,
   // which causes the compiler to emit potentially unsafe code for the switch
@@ -374,14 +368,13 @@ std::optional<int> RegExp::Exec2(Isolate* isolate,
                                  DirectHandle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
                                  int32_t* result_offsets_vector,
-                                 uint32_t result_offsets_vector_length,
-                                 ExecQuirks exec_quirks) {
+                                 uint32_t result_offsets_vector_length) {
   DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
   // TODO(jgruber): Support other types.
   CHECK_EQ(data->type_tag(), RegExpData::Type::IRREGEXP);
   return RegExpImpl::IrregexpExec2(isolate, Cast<IrRegExpData>(data), subject,
                                    index, result_offsets_vector,
-                                   result_offsets_vector_length, exec_quirks);
+                                   result_offsets_vector_length);
 }
 
 // RegExp Atom implementation: Simple string search using indexOf.
@@ -806,7 +799,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
 MaybeHandle<Object> RegExpImpl::IrregexpExec(
     Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
     Handle<String> subject, int previous_index,
-    Handle<RegExpMatchInfo> last_match_info, RegExp::ExecQuirks exec_quirks) {
+    Handle<RegExpMatchInfo> last_match_info) {
   subject = String::Flatten(isolate, subject);
 
 #ifdef DEBUG
@@ -849,11 +842,6 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
                                   output_registers, output_register_count);
 
   if (res == RegExp::RE_SUCCESS) {
-    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-      if (static_cast<uint32_t>(output_registers[0]) >= subject->length()) {
-        return isolate->factory()->null_value();
-      }
-    }
     int capture_count = regexp_data->capture_count();
     // Reload the register array since the stack may have grown.
     output_registers = stack_scope.stack_pointer();
@@ -874,7 +862,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
 std::optional<int> RegExpImpl::IrregexpExec2(
     Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
     Handle<String> subject, int previous_index, int32_t* result_offsets_vector,
-    uint32_t result_offsets_vector_length, RegExp::ExecQuirks exec_quirks) {
+    uint32_t result_offsets_vector_length) {
   subject = String::Flatten(isolate, subject);
 
 #ifdef DEBUG
@@ -936,15 +924,6 @@ std::optional<int> RegExpImpl::IrregexpExec2(
 
   if (res >= RegExp::RE_SUCCESS) {
     DCHECK_LE(res * output_register_count, result_offsets_vector_length);
-
-    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-      int start_of_last_match =
-          result_offsets_vector[(res - 1) * output_register_count];
-      if (static_cast<uint32_t>(start_of_last_match) >= subject->length()) {
-        res--;
-      }
-    }
-
     return res;
   } else if (res == RegExp::RE_FALLBACK_TO_EXPERIMENTAL) {
     return ExperimentalRegExp::OneshotExec2(
