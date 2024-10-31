@@ -2685,7 +2685,9 @@ void V8HeapExplorer::SetPropertyReference(HeapEntry* parent_entry,
       name_format_string != nullptr && IsString(reference_name)
           ? names_->GetFormatted(
                 name_format_string,
-                Cast<String>(reference_name)->ToCString(DISALLOW_NULLS).get())
+                Cast<String>(reference_name)
+                    ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
+                    .get())
           : names_->GetName(reference_name);
 
   parent_entry->SetNamedReference(type, name, child_entry, generator_);

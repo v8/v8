@@ -3695,7 +3695,8 @@ class StressBackgroundCompileThread : public ParkingThread {
   class SourceStream : public v8::ScriptCompiler::ExternalSourceStream {
    public:
     SourceStream(DirectHandle<String> source, Isolate* isolate) : done_(false) {
-      source_buffer_ = source->ToCString(ALLOW_NULLS, &source_length_);
+      source_buffer_ = source->ToCString(ALLOW_NULLS, FAST_STRING_TRAVERSAL,
+                                         &source_length_);
     }
 
     size_t GetMoreData(const uint8_t** src) override {

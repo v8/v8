@@ -493,6 +493,8 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   Tagged<String> script_source =
       UncheckedCast<String>(Cast<Script>(s->script())->source());
 
+  if (!script_source->LooksValid()) return os << "<Invalid Source>";
+
   if (!s->is_toplevel()) {
     os << "function ";
     Tagged<String> name = s->Name();

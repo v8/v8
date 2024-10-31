@@ -43,6 +43,7 @@ class SharedStringAccessGuardIfNeeded;
 enum InstanceType : uint16_t;
 
 enum AllowNullsFlag { ALLOW_NULLS, DISALLOW_NULLS };
+enum RobustnessFlag { ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL };
 
 // The characteristics of a string are stored in its map.  Retrieving these
 // few bits of information is moderately expensive, involving two memory
@@ -410,15 +411,19 @@ V8_OBJECT class String : public Name {
 
   // Return a UTF8 representation of the string.  The string is null
   // terminated but may optionally contain nulls.  Length is returned
-  // in length_output if length_output is not a null pointer.  The string
+  // in length_output if length_output is not a null pointer  The string
   // should be nearly flat, otherwise the performance of this method may
-  // be very slow (quadratic in the length).
+  // be very slow (quadratic in the length).  Setting robustness_flag to
+  // ROBUST_STRING_TRAVERSAL invokes behaviour that is robust  This means it
+  // handles unexpected data without causing assert failures and it does not
+  // do any heap allocations.  This is useful when printing stack traces.
   std::unique_ptr<char[]> ToCString(AllowNullsFlag allow_nulls,
+                                    RobustnessFlag robustness_flag,
                                     uint32_t offset, uint32_t length,
                                     uint32_t* length_output = nullptr);
-
   V8_EXPORT_PRIVATE std::unique_ptr<char[]> ToCString(
       AllowNullsFlag allow_nulls = DISALLOW_NULLS,
+      RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       uint32_t* length_output = nullptr);
 
   // Externalization.
@@ -458,6 +463,9 @@ V8_OBJECT class String : public Name {
 
   V8_EXPORT_PRIVATE void PrintOn(FILE* out);
   V8_EXPORT_PRIVATE void PrintOn(std::ostream& out);
+
+  // For use during stack traces.  Performs rudimentary sanity check.
+  bool LooksValid();
 
   // Printing utility functions.
   // - PrintUC16 prints the raw string contents to the given stream.

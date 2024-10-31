@@ -318,7 +318,9 @@ base::Vector<const char> GetScriptName(Tagged<Object> maybeScript,
               static_cast<size_t>(str->length())};
     } else if (IsString(name_or_url)) {
       uint32_t length;
-      *storage = Cast<String>(name_or_url)->ToCString(DISALLOW_NULLS, &length);
+      *storage =
+          Cast<String>(name_or_url)
+              ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
       return {storage->get(), length};
     }
   }

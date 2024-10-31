@@ -62,7 +62,9 @@ const char* ICStats::GetOrCacheScriptName(Tagged<Script> script) {
   Tagged<Object> script_name_raw = script->name();
   if (IsString(script_name_raw)) {
     Tagged<String> script_name = Cast<String>(script_name_raw);
-    char* c_script_name = script_name->ToCString(DISALLOW_NULLS).release();
+    char* c_script_name =
+        script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
+            .release();
     script_name_map_.insert(
         std::make_pair(script_ptr, std::unique_ptr<char[]>(c_script_name)));
     return c_script_name;

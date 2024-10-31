@@ -2585,7 +2585,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(Isolate* isolate,
       if (IsString(script_name_raw)) {
         Tagged<String> script_name = Cast<String>(script->name());
         std::unique_ptr<char[]> c_script_name =
-            script_name->ToCString(DISALLOW_NULLS);
+            script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
         PrintF(file, " at %s:%d", c_script_name.get(), line);
       } else {
         PrintF(file, " at <unknown>:%d", line);

@@ -110,7 +110,9 @@ void SourcePosition::Print(std::ostream& out,
   }
   out << "<";
   if (IsString(source_name)) {
-    out << Cast<String>(source_name)->ToCString(DISALLOW_NULLS).get();
+    out << Cast<String>(source_name)
+               ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
+               .get();
   } else {
     out << "unknown";
   }
