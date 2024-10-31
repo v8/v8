@@ -588,10 +588,10 @@ class ContextProxyPrototype {
       const char* kDelegateNames[] = {"memories", "locals", "tables",
                                       "functions", "globals"};
       for (auto delegate_name : kDelegateNames) {
-        Handle<Object> delegate;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, delegate,
-            JSObject::GetProperty(isolate, receiver, delegate_name));
+        Handle<JSAny> delegate;
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, delegate,
+                                   Cast<JSAny>(JSObject::GetProperty(
+                                       isolate, receiver, delegate_name)));
         if (!IsUndefined(*delegate, isolate)) {
           Handle<Object> value;
           ASSIGN_RETURN_ON_EXCEPTION(

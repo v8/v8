@@ -971,8 +971,8 @@ MaybeHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
 
 // static
 MaybeHandle<Object> Object::OrdinaryHasInstance(Isolate* isolate,
-                                                Handle<Object> callable,
-                                                Handle<Object> object) {
+                                                Handle<JSAny> callable,
+                                                Handle<JSAny> object) {
   // The {callable} must have a [[Call]] internal method.
   if (!IsCallable(*callable)) return isolate->factory()->false_value();
 
@@ -982,7 +982,7 @@ MaybeHandle<Object> Object::OrdinaryHasInstance(Isolate* isolate,
     // Since there is a mutual recursion here, we might run out of stack
     // space for long chains of bound functions.
     STACK_CHECK(isolate, MaybeHandle<Object>());
-    Handle<Object> bound_callable(
+    Handle<JSCallable> bound_callable(
         Cast<JSBoundFunction>(callable)->bound_target_function(), isolate);
     return Object::InstanceOf(isolate, object, bound_callable);
   }
@@ -1010,8 +1010,8 @@ MaybeHandle<Object> Object::OrdinaryHasInstance(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<Object> object,
-                                       Handle<Object> callable) {
+MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<JSAny> object,
+                                       Handle<JSAny> callable) {
   // The {callable} must be a receiver.
   if (!IsJSReceiver(*callable)) {
     THROW_NEW_ERROR(isolate,
@@ -1027,9 +1027,10 @@ MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<Object> object,
   if (!IsUndefined(*inst_of_handler, isolate)) {
     // Call the {inst_of_handler} on the {callable}.
     Handle<Object> result;
+    Handle<Object> args[] = {object};
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        Execution::Call(isolate, inst_of_handler, callable, 1, &object));
+        Execution::Call(isolate, inst_of_handler, callable, 1, args));
     return isolate->factory()->ToBoolean(
         Object::BooleanValue(*result, isolate));
   }
@@ -1179,7 +1180,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         UNREACHABLE();
       case LookupIterator::JSPROXY: {
         bool was_found;
-        Handle<Object> receiver = it->GetReceiver();
+        Handle<JSAny> receiver = it->GetReceiver();
         // In case of global IC, the receiver is the global object. Replace by
         // the global proxy.
         if (IsJSGlobalObject(*receiver)) {
@@ -1252,7 +1253,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
 MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
                                         DirectHandle<JSProxy> proxy,
                                         Handle<Name> name,
-                                        Handle<Object> receiver,
+                                        Handle<JSAny> receiver,
                                         bool* was_found) {
   *was_found = true;
 
@@ -1261,7 +1262,7 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
   Handle<Name> trap_name = isolate->factory()->get_string();
   // 1. Assert: IsPropertyKey(P) is true.
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
-  Handle<Object> handler(proxy->handler(), isolate);
+  Handle<UnionOf<JSReceiver, Null>> handler(proxy->handler(), isolate);
   // 3. If handler is null, throw a TypeError exception.
   // 4. Assert: Type(handler) is Object.
   if (proxy->IsRevoked()) {
@@ -1440,7 +1441,7 @@ MaybeHandle<JSPrototype> JSProxy::GetPrototype(DirectHandle<JSProxy> proxy) {
 MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   Handle<Object> structure = it->GetAccessors();
-  Handle<Object> receiver = it->GetReceiver();
+  Handle<JSAny> receiver = it->GetReceiver();
   // In case of global IC, the receiver is the global object. Replace by the
   // global proxy.
   if (IsJSGlobalObject(*receiver)) {
@@ -1506,7 +1507,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(
     Maybe<ShouldThrow> maybe_should_throw) {
   Isolate* isolate = it->isolate();
   Handle<Object> structure = it->GetAccessors();
-  Handle<Object> receiver = it->GetReceiver();
+  Handle<JSAny> receiver = it->GetReceiver();
   // In case of global IC, the receiver is the global object. Replace by the
   // global proxy.
   if (IsJSGlobalObject(*receiver)) {
@@ -1571,7 +1572,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(
 }
 
 MaybeHandle<JSAny> Object::GetPropertyWithDefinedGetter(
-    Handle<Object> receiver, Handle<JSReceiver> getter) {
+    Handle<JSAny> receiver, Handle<JSReceiver> getter) {
   Isolate* isolate = getter->GetIsolate();
 
   // Platforms with simulators like arm/arm64 expose a funny issue. If the
@@ -1592,7 +1593,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithDefinedGetter(
 }
 
 Maybe<bool> Object::SetPropertyWithDefinedSetter(
-    Handle<Object> receiver, Handle<JSReceiver> setter, Handle<Object> value,
+    Handle<JSAny> receiver, Handle<JSReceiver> setter, Handle<Object> value,
     Maybe<ShouldThrow> should_throw) {
   Isolate* isolate = setter->GetIsolate();
 
@@ -1665,7 +1666,7 @@ bool Object::SameValueZero(Tagged<Object> obj, Tagged<Object> other) {
 }
 
 MaybeHandle<Object> Object::ArraySpeciesConstructor(
-    Isolate* isolate, Handle<Object> original_array) {
+    Isolate* isolate, Handle<JSAny> original_array) {
   Handle<Object> default_species = isolate->array_function();
   if (!v8_flags.builtin_subclassing) return default_species;
   if (IsJSArray(*original_array) &&
@@ -2170,7 +2171,7 @@ void DescriptorArray::GeneralizeAllFields(bool clear_constness) {
   }
 }
 
-MaybeHandle<Object> Object::SetProperty(Isolate* isolate, Handle<Object> object,
+MaybeHandle<Object> Object::SetProperty(Isolate* isolate, Handle<JSAny> object,
                                         Handle<Name> name, Handle<Object> value,
                                         StoreOrigin store_origin,
                                         Maybe<ShouldThrow> should_throw) {
@@ -2200,7 +2201,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                                           should_throw);
 
       case LookupIterator::JSPROXY: {
-        Handle<Object> receiver = it->GetReceiver();
+        Handle<JSAny> receiver = it->GetReceiver();
         // In case of global IC, the receiver is the global object. Replace by
         // the global proxy.
         if (IsJSGlobalObject(*receiver)) {
@@ -2471,7 +2472,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
 }
 
 Maybe<bool> Object::CannotCreateProperty(Isolate* isolate,
-                                         Handle<Object> receiver,
+                                         Handle<JSAny> receiver,
                                          Handle<Object> name,
                                          DirectHandle<Object> value,
                                          Maybe<ShouldThrow> should_throw) {
@@ -2499,7 +2500,7 @@ Maybe<bool> Object::WriteToReadOnlyProperty(
 }
 
 Maybe<bool> Object::WriteToReadOnlyProperty(Isolate* isolate,
-                                            Handle<Object> receiver,
+                                            Handle<JSAny> receiver,
                                             Handle<Object> name,
                                             DirectHandle<Object> value,
                                             ShouldThrow should_throw) {
@@ -2857,7 +2858,7 @@ Maybe<bool> JSProxy::CheckHasTrap(Isolate* isolate, Handle<Name> name,
 }
 
 Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy, Handle<Name> name,
-                                 Handle<Object> value, Handle<Object> receiver,
+                                 Handle<Object> value, Handle<JSAny> receiver,
                                  Maybe<ShouldThrow> should_throw) {
   DCHECK(!name->IsPrivate());
   Isolate* isolate = proxy->GetIsolate();
@@ -4938,7 +4939,7 @@ Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
 // https://tc39.es/ecma262/#sec-promise-resolve-functions
 // static
 MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
-                                       Handle<Object> resolution) {
+                                       Handle<Object> resolution_obj) {
   Isolate* const isolate = promise->GetIsolate();
   DCHECK(
       !reinterpret_cast<v8::Isolate*>(isolate)->GetCurrentContext().IsEmpty());
@@ -4947,31 +4948,31 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                           isolate->factory()->undefined_value());
 
   // 7. If SameValue(resolution, promise) is true, then
-  if (promise.is_identical_to(resolution)) {
+  if (promise.is_identical_to(resolution_obj)) {
     // a. Let selfResolutionError be a newly created TypeError object.
     Handle<Object> self_resolution_error = isolate->factory()->NewTypeError(
-        MessageTemplate::kPromiseCyclic, resolution);
+        MessageTemplate::kPromiseCyclic, resolution_obj);
     // b. Return RejectPromise(promise, selfResolutionError).
     return Reject(promise, self_resolution_error);
   }
 
   // 8. If Type(resolution) is not Object, then
-  if (!IsJSReceiver(*resolution)) {
+  Handle<JSReceiver> resolution_recv;
+  if (!TryCast<JSReceiver>(resolution_obj, &resolution_recv)) {
     // a. Return FulfillPromise(promise, resolution).
-    return Fulfill(promise, resolution);
+    return Fulfill(promise, resolution_obj);
   }
 
   // 9. Let then be Get(resolution, "then").
   MaybeHandle<Object> then;
-  Handle<JSReceiver> receiver(Cast<JSReceiver>(resolution));
 
   // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
   // initial %PromisePrototype% yields the initial method. In addition this
   // protector also guards the negative lookup of "then" on the intrinsic
   // %ObjectPrototype%, meaning that such lookups are guaranteed to yield
   // undefined without triggering any side-effects.
-  if (IsJSPromise(*receiver) &&
-      receiver->map()->prototype()->map()->instance_type() ==
+  if (IsJSPromise(*resolution_recv) &&
+      resolution_recv->map()->prototype()->map()->instance_type() ==
           JS_PROMISE_PROTOTYPE_TYPE &&
       Protectors::IsPromiseThenLookupChainIntact(isolate)) {
     // We can skip the "then" lookup on {resolution} if its [[Prototype]]
@@ -4980,7 +4981,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
     // on JSPromise instances which have the (initial) %PromisePrototype%.
     then = isolate->promise_then();
   } else {
-    then = JSReceiver::GetProperty(isolate, receiver,
+    then = JSReceiver::GetProperty(isolate, resolution_recv,
                                    isolate->factory()->then_string());
   }
 
@@ -5002,7 +5003,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
   // 12. If IsCallable(thenAction) is false, then
   if (!IsCallable(*then_action)) {
     // a. Return FulfillPromise(promise, resolution).
-    return Fulfill(promise, resolution);
+    return Fulfill(promise, resolution_recv);
   }
 
   // 13. Let job be NewPromiseResolveThenableJob(promise, resolution,
@@ -5015,11 +5016,11 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
 
   DirectHandle<PromiseResolveThenableJobTask> task =
       isolate->factory()->NewPromiseResolveThenableJobTask(
-          promise, Cast<JSReceiver>(resolution), Cast<JSReceiver>(then_action),
+          promise, resolution_recv, Cast<JSReceiver>(then_action),
           then_context);
-  if (isolate->debug()->is_active() && IsJSPromise(*resolution)) {
+  if (isolate->debug()->is_active() && IsJSPromise(*resolution_recv)) {
     // Mark the dependency of the new {promise} on the {resolution}.
-    Object::SetProperty(isolate, resolution,
+    Object::SetProperty(isolate, resolution_recv,
                         isolate->factory()->promise_handled_by_symbol(),
                         promise)
         .Check();

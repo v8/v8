@@ -1577,10 +1577,11 @@ MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
   DCHECK(!ffi_.is_null());
   // Look up the module first.
   Handle<Object> module;
+  Handle<JSReceiver> module_recv;
   if (!Object::GetPropertyOrElement(isolate_, ffi_.ToHandleChecked(),
                                     module_name)
            .ToHandle(&module) ||
-      !IsJSReceiver(*module)) {
+      !TryCast<JSReceiver>(module, &module_recv)) {
     const char* error = module.is_null()
                             ? "module not found"
                             : "module is not an object or function";
@@ -1590,7 +1591,7 @@ MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
   }
 
   MaybeHandle<Object> value =
-      Object::GetPropertyOrElement(isolate_, module, import_name);
+      Object::GetPropertyOrElement(isolate_, module_recv, import_name);
   if (value.is_null()) {
     thrower_->LinkError("%s: import not found", ImportName(index).c_str());
     return {};

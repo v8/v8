@@ -34,30 +34,30 @@ class JsonStringifier {
     DeleteArray(gap_);
   }
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Stringify(Handle<Object> object,
-                                                      Handle<Object> replacer,
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Stringify(Handle<JSAny> object,
+                                                      Handle<JSAny> replacer,
                                                       Handle<Object> gap);
 
  private:
   enum Result { UNCHANGED, SUCCESS, EXCEPTION, NEED_STACK };
 
-  bool InitializeReplacer(Handle<Object> replacer);
+  bool InitializeReplacer(Handle<JSAny> replacer);
   bool InitializeGap(Handle<Object> gap);
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> ApplyToJsonFunction(
-      Handle<Object> object, Handle<Object> key);
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> ApplyReplacerFunction(
-      Handle<Object> value, Handle<Object> key,
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSAny> ApplyToJsonFunction(
+      Handle<JSAny> object, Handle<Object> key);
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSAny> ApplyReplacerFunction(
+      Handle<JSAny> value, Handle<Object> key,
       DirectHandle<Object> initial_holder);
 
   // Entry point to serialize the object.
-  V8_INLINE Result SerializeObject(Handle<Object> obj) {
+  V8_INLINE Result SerializeObject(Handle<JSAny> obj) {
     return Serialize_<false>(obj, false, factory()->empty_string());
   }
 
   // Serialize an array element.
   // The index may serve as argument for the toJSON function.
-  V8_INLINE Result SerializeElement(Isolate* isolate, Handle<Object> object,
+  V8_INLINE Result SerializeElement(Isolate* isolate, Handle<JSAny> object,
                                     int i) {
     return Serialize_<false>(object, false,
                              Handle<Object>(Smi::FromInt(i), isolate));
@@ -66,7 +66,7 @@ class JsonStringifier {
   // Serialize an object property.
   // The key may or may not be serialized depending on the property.
   // The key may also serve as argument for the toJSON function.
-  V8_INLINE Result SerializeProperty(Handle<Object> object, bool deferred_comma,
+  V8_INLINE Result SerializeProperty(Handle<JSAny> object, bool deferred_comma,
                                      Handle<String> deferred_key) {
     DCHECK(!deferred_key.is_null());
     return Serialize_<true>(object, deferred_comma, deferred_key);
@@ -218,7 +218,7 @@ class JsonStringifier {
   bool HasValidCurrentIndex() const { return current_index_ < part_length_; }
 
   template <bool deferred_string_key>
-  Result Serialize_(Handle<Object> object, bool comma, Handle<Object> key);
+  Result Serialize_(Handle<JSAny> object, bool comma, Handle<Object> key);
 
   V8_INLINE void SerializeDeferredKey(bool deferred_comma,
                                       Handle<Object> deferred_key);
@@ -435,8 +435,8 @@ class JsonStringifier {
   static const bool JsonDoNotEscapeFlagTable[];
 };
 
-MaybeHandle<Object> JsonStringify(Isolate* isolate, Handle<Object> object,
-                                  Handle<Object> replacer, Handle<Object> gap) {
+MaybeHandle<Object> JsonStringify(Isolate* isolate, Handle<JSAny> object,
+                                  Handle<JSAny> replacer, Handle<Object> gap) {
   JsonStringifier stringifier(isolate);
   return stringifier.Stringify(object, replacer, gap);
 }
@@ -500,8 +500,8 @@ JsonStringifier::JsonStringifier(Isolate* isolate)
   part_ptr_ = one_byte_ptr_;
 }
 
-MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
-                                               Handle<Object> replacer,
+MaybeHandle<Object> JsonStringifier::Stringify(Handle<JSAny> object,
+                                               Handle<JSAny> replacer,
                                                Handle<Object> gap) {
   if (!InitializeReplacer(replacer)) {
     CHECK(isolate_->has_exception());
@@ -538,7 +538,7 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
   return MaybeHandle<Object>();
 }
 
-bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
+bool JsonStringifier::InitializeReplacer(Handle<JSAny> replacer) {
   DCHECK(property_list_.is_null());
   DCHECK(replacer_function_.is_null());
   Maybe<bool> is_array = Object::IsArray(replacer);
@@ -629,8 +629,8 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
   return true;
 }
 
-MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
-                                                         Handle<Object> key) {
+MaybeHandle<JSAny> JsonStringifier::ApplyToJsonFunction(Handle<JSAny> object,
+                                                        Handle<Object> key) {
   HandleScope scope(isolate_);
 
   // Retrieve toJSON function. The LookupIterator automatically handles
@@ -644,13 +644,14 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
   // Call toJSON function.
   if (IsSmi(*key)) key = factory()->NumberToString(key);
   Handle<Object> argv[] = {key};
-  ASSIGN_RETURN_ON_EXCEPTION(isolate_, object,
-                             Execution::Call(isolate_, fun, object, 1, argv));
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, object,
+      Cast<JSAny>(Execution::Call(isolate_, fun, object, 1, argv)));
   return scope.CloseAndEscape(object);
 }
 
-MaybeHandle<Object> JsonStringifier::ApplyReplacerFunction(
-    Handle<Object> value, Handle<Object> key,
+MaybeHandle<JSAny> JsonStringifier::ApplyReplacerFunction(
+    Handle<JSAny> value, Handle<Object> key,
     DirectHandle<Object> initial_holder) {
   HandleScope scope(isolate_);
   if (IsSmi(*key)) key = factory()->NumberToString(key);
@@ -658,7 +659,8 @@ MaybeHandle<Object> JsonStringifier::ApplyReplacerFunction(
   Handle<JSReceiver> holder = CurrentHolder(value, initial_holder);
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate_, value,
-      Execution::Call(isolate_, replacer_function_, holder, 2, argv));
+      Cast<JSAny>(
+          Execution::Call(isolate_, replacer_function_, holder, 2, argv)));
   return scope.CloseAndEscape(value);
 }
 
@@ -846,7 +848,7 @@ bool MayHaveInterestingProperties(Isolate* isolate, Tagged<JSReceiver> object) {
 }
 
 template <bool deferred_string_key>
-JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
+JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
                                                     bool comma,
                                                     Handle<Object> key) {
   StackLimitCheck interrupt_check(isolate_);
@@ -855,7 +857,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     return EXCEPTION;
   }
 
-  DirectHandle<Object> initial_value = object;
+  DirectHandle<JSAny> initial_value = object;
   PtrComprCageBase cage_base(isolate_);
   if (!IsSmi(*object)) {
     InstanceType instance_type =
@@ -1177,8 +1179,8 @@ JsonStringifier::SerializeFixedArrayWithPossibleTransitions(
       AppendCStringLiteral("null");
     } else {
       Separator(i == 0);
-      Result result =
-          SerializeElement(isolate_, handle(current_element, isolate_), i);
+      Result result = SerializeElement(
+          isolate_, handle(Cast<JSAny>(current_element), isolate_), i);
       if (result == UNCHANGED) {
         AppendCStringLiteral("null");
       } else if (result != SUCCESS) {
@@ -1235,7 +1237,7 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, element, JSReceiver::GetElement(isolate_, object, i),
         EXCEPTION);
-    Result result = SerializeElement(isolate_, element, i);
+    Result result = SerializeElement(isolate_, Cast<JSAny>(element), i);
     if (result == SUCCESS) continue;
     if (result == UNCHANGED) {
       // Detect overflow sooner for large sparse arrays.
@@ -1313,7 +1315,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       details = descriptors->GetDetails(i);
     }
     if (details.IsDontEnum()) continue;
-    Handle<Object> property;
+    Handle<JSAny> property;
     if (details.location() == PropertyLocation::kField &&
         *map == object->map(cage_base)) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
@@ -1335,7 +1337,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       }
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, property,
-          Object::GetPropertyOrElement(isolate_, object, key_name), EXCEPTION);
+          Cast<JSAny>(Object::GetPropertyOrElement(isolate_, object, key_name)),
+          EXCEPTION);
     }
     Result result = SerializeProperty(property, comma, key_name);
     if (!comma && result == SUCCESS) comma = true;
@@ -1368,7 +1371,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, property, Object::GetPropertyOrElement(isolate_, object, key),
         EXCEPTION);
-    Result result = SerializeProperty(property, comma, key);
+    Result result = SerializeProperty(Cast<JSAny>(property), comma, key);
     if (!comma && result == SUCCESS) comma = true;
     if (result == EXCEPTION || result == NEED_STACK) return result;
   }

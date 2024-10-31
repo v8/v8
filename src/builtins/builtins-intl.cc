@@ -236,7 +236,7 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
 template <class T>
 Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
                                        v8::Isolate::UseCounterFeature feature,
-                                       Handle<Object> constructor,
+                                       Handle<JSAny> constructor,
                                        const char* method_name) {
   isolate->CountUsage(feature);
   Handle<JSReceiver> new_target;
@@ -265,7 +265,7 @@ Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
       isolate, format, T::New(isolate, map, locales, options, method_name));
   // 4. Let this be the this value.
   if (IsUndefined(*args.new_target(), isolate)) {
-    Handle<Object> receiver = args.receiver();
+    Handle<JSAny> receiver = args.receiver();
     // 5. If NewTarget is undefined and ? OrdinaryHasInstance(%<T>%, this)
     // is true, then Look up the intrinsic value that has been stored on
     // the context.

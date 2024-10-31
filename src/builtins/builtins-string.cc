@@ -430,13 +430,14 @@ BUILTIN(StringRaw) {
   Handle<String> raw_string =
       isolate->factory()->NewStringFromAsciiChecked("raw");
 
-  Handle<Object> cooked;
+  Handle<JSReceiver> cooked;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, cooked,
                                      Object::ToObject(isolate, templ));
 
-  Handle<Object> raw;
+  Handle<JSAny> raw;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, raw, Object::GetProperty(isolate, cooked, raw_string));
+      isolate, raw,
+      Cast<JSAny>(Object::GetProperty(isolate, cooked, raw_string)));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw,
                                      Object::ToObject(isolate, raw));
   Handle<Object> raw_len;

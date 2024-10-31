@@ -216,7 +216,7 @@ void LookupIterator::ReloadPropertyInformation() {
 
 // static
 void LookupIterator::InternalUpdateProtector(Isolate* isolate,
-                                             Handle<Object> receiver_generic,
+                                             Handle<JSAny> receiver_generic,
                                              DirectHandle<Name> name) {
   if (isolate->bootstrapper()->IsActive()) return;
   if (!IsJSObject(*receiver_generic)) return;

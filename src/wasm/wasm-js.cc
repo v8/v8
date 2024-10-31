@@ -570,10 +570,11 @@ CompileTimeImports ArgumentToCompileOptions(
   CompileTimeImports result;
 
   // ==================== Builtins ====================
-  i::Handle<i::Object> builtins;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, builtins,
-      i::JSReceiver::GetProperty(isolate, receiver, "builtins"), {});
+  i::Handle<i::JSAny> builtins;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, builtins,
+                                   i::Cast<i::JSAny>(i::JSReceiver::GetProperty(
+                                       isolate, receiver, "builtins")),
+                                   {});
   if (i::IsJSReceiver(*builtins)) {
     i::Handle<i::Object> length_obj;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(

@@ -670,8 +670,10 @@ namespace {
  */
 class ArrayConcatVisitor {
  public:
-  ArrayConcatVisitor(Isolate* isolate, DirectHandle<HeapObject> storage,
-                     bool fast_elements)
+  ArrayConcatVisitor(
+      Isolate* isolate,
+      DirectHandle<UnionOf<JSReceiver, FixedArray, NumberDictionary>> storage,
+      bool fast_elements)
       : isolate_(isolate),
         storage_(isolate->global_handles()->Create(*storage)),
         index_offset_(0u),
@@ -704,9 +706,9 @@ class ArrayConcatVisitor {
     }
 
     if (!is_fixed_array()) {
-      MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate_, storage_,
-                                                  PropertyKey(isolate_, index),
-                                                  elm, Just(kThrowOnError)),
+      MAYBE_RETURN(JSReceiver::CreateDataProperty(
+                       isolate_, Cast<JSReceiver>(storage_),
+                       PropertyKey(isolate_, index), elm, Just(kThrowOnError)),
                    false);
       return true;
     }
@@ -848,7 +850,8 @@ class ArrayConcatVisitor {
   }
 
   Isolate* isolate_;
-  Handle<Object> storage_;  // Always a global handle.
+  Handle<UnionOf<JSReceiver, FixedArray, NumberDictionary>>
+      storage_;  // Always a global handle.
   // Index after last seen index. Always less than or equal to
   // JSArray::kMaxArrayLength.
   uint32_t index_offset_;
@@ -1273,19 +1276,20 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
 static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
-  if (!IsJSReceiver(*obj)) return Just(false);
+  Handle<JSReceiver> receiver;
+  if (!TryCast<JSReceiver>(obj, &receiver)) return Just(false);
   if (!Protectors::IsIsConcatSpreadableLookupChainIntact(isolate) ||
-      Cast<JSReceiver>(*obj)->HasProxyInPrototype(isolate)) {
+      receiver->HasProxyInPrototype(isolate)) {
     // Slow path if @@isConcatSpreadable has been used.
     Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
     Handle<Object> value;
     MaybeHandle<Object> maybeValue =
-        i::Runtime::GetObjectProperty(isolate, obj, key);
+        i::Runtime::GetObjectProperty(isolate, receiver, key);
     if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
     if (!IsUndefined(*value, isolate))
       return Just(Object::BooleanValue(*value, isolate));
   }
-  return Object::IsArray(obj);
+  return Object::IsArray(receiver);
 }
 
 Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
@@ -1443,7 +1447,7 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     // In case of failure, fall through.
   }
 
-  DirectHandle<HeapObject> storage;
+  DirectHandle<UnionOf<JSReceiver, FixedArray, NumberDictionary>> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
@@ -1454,11 +1458,11 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   } else {
     DCHECK(IsConstructor(*species));
     Handle<Object> length(Smi::zero(), isolate);
-    Handle<Object> storage_object;
+    Handle<JSReceiver> storage_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,
         Execution::New(isolate, species, species, 1, &length));
-    storage = Cast<HeapObject>(storage_object);
+    storage = storage_object;
   }
 
   ArrayConcatVisitor visitor(isolate, storage, fast_case);
@@ -1557,7 +1561,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
 BUILTIN(ArrayConcat) {
   HandleScope scope(isolate);
 
-  Handle<Object> receiver = args.receiver();
+  Handle<JSAny> receiver = args.receiver();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, receiver,
       Object::ToObject(isolate, args.receiver(), "Array.prototype.concat"));

@@ -1125,7 +1125,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
-  Tagged<Object> CopyElements(Handle<Object> source,
+  Tagged<Object> CopyElements(Handle<JSAny> source,
                               Handle<JSObject> destination, size_t length,
                               size_t offset) final {
     return Subclass::CopyElementsHandleImpl(source, destination, length,
@@ -4067,7 +4067,7 @@ class TypedElementsAccessor
   }
 
   // ES#sec-settypedarrayfromarraylike
-  static Tagged<Object> CopyElementsHandleSlow(Handle<Object> source,
+  static Tagged<Object> CopyElementsHandleSlow(Handle<JSAny> source,
                                                Handle<JSTypedArray> destination,
                                                size_t length, size_t offset) {
     Isolate* isolate = destination->GetIsolate();
@@ -4118,7 +4118,7 @@ class TypedElementsAccessor
   // This doesn't guarantee that the destination array will be completely
   // filled. The caller must do this by passing a source with equal length, if
   // that is required.
-  static Tagged<Object> CopyElementsHandleImpl(Handle<Object> source,
+  static Tagged<Object> CopyElementsHandleImpl(Handle<JSAny> source,
                                                Handle<JSObject> destination,
                                                size_t length, size_t offset) {
     Isolate* isolate = destination->GetIsolate();

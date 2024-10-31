@@ -603,7 +603,7 @@ MaybeHandle<Object> DefineClass(
       Handle<Object> maybe_prototype_parent;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, maybe_prototype_parent,
-          Runtime::GetObjectProperty(isolate, super_class,
+          Runtime::GetObjectProperty(isolate, Cast<JSAny>(super_class),
                                      isolate->factory()->prototype_string()));
       if (!TryCast(maybe_prototype_parent, &prototype_parent)) {
         THROW_NEW_ERROR(
@@ -694,7 +694,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
   return Cast<JSReceiver>(proto);
 }
 
-MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
+MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<JSAny> receiver,
                                   Handle<JSObject> home_object,
                                   PropertyKey* key) {
   Handle<JSReceiver> holder;
@@ -712,7 +712,7 @@ MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
 RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> receiver = args.at(0);
+  Handle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSObject> home_object = args.at<JSObject>(1);
   Handle<Name> name = args.at<Name>(2);
 
@@ -726,7 +726,7 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
 RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> receiver = args.at(0);
+  Handle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSObject> home_object = args.at<JSObject>(1);
   // TODO(ishell): To improve performance, consider performing the to-string
   // conversion of {key} before calling into the runtime.
@@ -743,7 +743,7 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
 namespace {
 
 MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
-                                 Handle<Object> receiver, PropertyKey* key,
+                                 Handle<JSAny> receiver, PropertyKey* key,
                                  Handle<Object> value,
                                  StoreOrigin store_origin) {
   Handle<JSReceiver> holder;
@@ -761,7 +761,7 @@ MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
 RUNTIME_FUNCTION(Runtime_StoreToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<Object> receiver = args.at(0);
+  Handle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSObject> home_object = args.at<JSObject>(1);
   Handle<Name> name = args.at<Name>(2);
   Handle<Object> value = args.at(3);
@@ -776,7 +776,7 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper) {
 RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<Object> receiver = args.at(0);
+  Handle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSObject> home_object = args.at<JSObject>(1);
   // TODO(ishell): To improve performance, consider performing the to-string
   // conversion of {key} before calling into the runtime.

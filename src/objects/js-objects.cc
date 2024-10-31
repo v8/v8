@@ -1727,7 +1727,7 @@ Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
 
 // static
 Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
-                                           Handle<Object> object,
+                                           Handle<JSAny> object,
                                            PropertyKey key,
                                            Handle<Object> value,
                                            Maybe<ShouldThrow> should_throw) {
@@ -3722,7 +3722,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         // The interceptor declined to handle the operation, so proceed defining
         // own property without the interceptor.
         Isolate* isolate = it->isolate();
-        Handle<Object> receiver = it->GetReceiver();
+        Handle<JSAny> receiver = it->GetReceiver();
         LookupIterator own_lookup(isolate, receiver, it->GetKey(),
                                   LookupIterator::OWN_SKIP_INTERCEPTOR);
         return JSObject::DefineOwnPropertyIgnoreAttributes(

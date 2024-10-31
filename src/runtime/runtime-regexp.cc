@@ -1938,7 +1938,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, RegExpUtils::SetLastIndex(isolate, splitter, string_index));
 
-    Handle<Object> result;
+    Handle<JSAny> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, RegExpUtils::RegExpExec(isolate, splitter, string,
                                                  factory->undefined_value()));
@@ -2063,10 +2063,10 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
                                 RegExpUtils::SetLastIndex(isolate, recv, 0));
   }
 
-  base::SmallVector<Handle<Object>, kStaticVectorSlots> results;
+  base::SmallVector<Handle<JSAny>, kStaticVectorSlots> results;
 
   while (true) {
-    Handle<Object> result;
+    Handle<JSAny> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, RegExpUtils::RegExpExec(isolate, recv, string,
                                                  factory->undefined_value()));

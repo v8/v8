@@ -23,8 +23,8 @@ namespace v8 {
 namespace internal {
 
 MaybeHandle<Object> Runtime::GetObjectProperty(
-    Isolate* isolate, Handle<Object> lookup_start_object, Handle<Object> key,
-    Handle<Object> receiver, bool* is_found) {
+    Isolate* isolate, Handle<JSAny> lookup_start_object, Handle<Object> key,
+    Handle<JSAny> receiver, bool* is_found) {
   if (receiver.is_null()) {
     receiver = lookup_start_object;
   }
@@ -167,7 +167,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   PropertyKey key(isolate, property, &success);
   if (!success) return ReadOnlyRoots(isolate).exception();
 
-  Handle<Object> object = args.at(0);
+  Handle<JSAny> object = args.at<JSAny>(0);
 
   if (IsJSModuleNamespace(*object)) {
     LookupIterator it(isolate, object, key, LookupIterator::OWN);
@@ -366,10 +366,10 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
 }
 
 MaybeHandle<Object> Runtime::SetObjectProperty(
-    Isolate* isolate, Handle<Object> lookup_start_obj, Handle<Object> key,
-    Handle<Object> value, MaybeHandle<Object> maybe_receiver,
+    Isolate* isolate, Handle<JSAny> lookup_start_obj, Handle<Object> key,
+    Handle<Object> value, MaybeHandle<JSAny> maybe_receiver,
     StoreOrigin store_origin, Maybe<ShouldThrow> should_throw) {
-  Handle<Object> receiver;
+  Handle<JSAny> receiver;
   if (!maybe_receiver.ToHandle(&receiver)) {
     receiver = lookup_start_obj;
   }
@@ -409,7 +409,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
 }
 
 MaybeHandle<Object> Runtime::SetObjectProperty(
-    Isolate* isolate, Handle<Object> object, Handle<Object> key,
+    Isolate* isolate, Handle<JSAny> object, Handle<Object> key,
     Handle<Object> value, StoreOrigin store_origin,
     Maybe<ShouldThrow> should_throw) {
   return SetObjectProperty(isolate, object, key, value, object, store_origin,
@@ -417,7 +417,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
 }
 
 MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,
-                                                     Handle<Object> object,
+                                                     Handle<JSAny> object,
                                                      Handle<Object> key,
                                                      Handle<Object> value,
                                                      StoreOrigin store_origin) {
@@ -617,11 +617,11 @@ RUNTIME_FUNCTION(Runtime_JSReceiverSetPrototypeOfDontThrow) {
 RUNTIME_FUNCTION(Runtime_GetProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3 || args.length() == 2);
-  Handle<Object> lookup_start_obj = args.at(0);
+  Handle<JSAny> lookup_start_obj = args.at<JSAny>(0);
   Handle<Object> key_obj = args.at(1);
-  Handle<Object> receiver_obj = lookup_start_obj;
+  Handle<JSAny> receiver_obj = lookup_start_obj;
   if (args.length() == 3) {
-    receiver_obj = args.at<Object>(2);
+    receiver_obj = args.at<JSAny>(2);
   }
 
   // Fast cases for getting named properties of the lookup_start_obj JSObject
@@ -724,7 +724,7 @@ RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  Handle<Object> object = args.at(0);
+  Handle<JSAny> object = args.at<JSAny>(0);
   Handle<Object> key = args.at(1);
   Handle<Object> value = args.at(2);
 
@@ -737,7 +737,7 @@ RUNTIME_FUNCTION(Runtime_DefineObjectOwnProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  Handle<Object> object = args.at(0);
+  Handle<JSAny> object = args.at<JSAny>(0);
   Handle<Object> key = args.at(1);
   Handle<Object> value = args.at(2);
 
@@ -750,7 +750,7 @@ RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  Handle<Object> object = args.at(0);
+  Handle<JSAny> object = args.at<JSAny>(0);
   Handle<Object> key = args.at(1);
   Handle<Object> value = args.at(2);
 

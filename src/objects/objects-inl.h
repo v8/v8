@@ -868,21 +868,21 @@ MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
   return ConvertToIndex(isolate, input, error_index);
 }
 
-MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<Object> object,
+MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<JSAny> object,
                                         Handle<Name> name) {
   LookupIterator it(isolate, object, name);
   if (!it.IsFound()) return it.factory()->undefined_value();
   return GetProperty(&it);
 }
 
-MaybeHandle<Object> Object::GetElement(Isolate* isolate, Handle<Object> object,
+MaybeHandle<Object> Object::GetElement(Isolate* isolate, Handle<JSAny> object,
                                        uint32_t index) {
   LookupIterator it(isolate, object, index);
   if (!it.IsFound()) return it.factory()->undefined_value();
   return GetProperty(&it);
 }
 
-MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
+MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<JSAny> object,
                                        uint32_t index, Handle<Object> value,
                                        ShouldThrow should_throw) {
   LookupIterator it(isolate, object, index);
@@ -1692,7 +1692,7 @@ Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, Handle<Object> x,
 }
 
 MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
-                                                 Handle<Object> object,
+                                                 Handle<JSAny> object,
                                                  Handle<Name> name) {
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key);
@@ -1700,7 +1700,7 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
 }
 
 MaybeHandle<Object> Object::SetPropertyOrElement(
-    Isolate* isolate, Handle<Object> object, Handle<Name> name,
+    Isolate* isolate, Handle<JSAny> object, Handle<Name> name,
     Handle<Object> value, Maybe<ShouldThrow> should_throw,
     StoreOrigin store_origin) {
   PropertyKey key(isolate, name);
@@ -1709,7 +1709,7 @@ MaybeHandle<Object> Object::SetPropertyOrElement(
   return value;
 }
 
-MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
+MaybeHandle<Object> Object::GetPropertyOrElement(Handle<JSAny> receiver,
                                                  Handle<Name> name,
                                                  Handle<JSReceiver> holder) {
   Isolate* isolate = holder->GetIsolate();

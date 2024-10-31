@@ -245,7 +245,7 @@ RUNTIME_FUNCTION(Runtime_InitializeDisposableStack) {
 
 Tagged<Object> AddToDisposableStack(Isolate* isolate,
                                     DirectHandle<JSDisposableStackBase> stack,
-                                    Handle<Object> value,
+                                    Handle<JSAny> value,
                                     DisposeMethodCallType type,
                                     DisposeMethodHint hint) {
   // a. If V is either null or undefined and hint is sync-dispose, return
@@ -274,7 +274,7 @@ RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
   DCHECK_EQ(2, args.length());
 
   DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
-  Handle<Object> value = args.at<Object>(1);
+  Handle<JSAny> value = args.at<JSAny>(1);
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
@@ -288,7 +288,7 @@ RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
   DCHECK_EQ(2, args.length());
 
   DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
-  Handle<Object> value = args.at<Object>(1);
+  Handle<JSAny> value = args.at<JSAny>(1);
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
@@ -819,8 +819,9 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                               Object::GetProperty(isolate, holder, name));
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, value,
+        Object::GetProperty(isolate, Cast<JSAny>(holder), name));
     if (receiver_return) {
       *receiver_return =
           (IsJSGlobalObject(*holder) || IsJSContextExtensionObject(*holder))

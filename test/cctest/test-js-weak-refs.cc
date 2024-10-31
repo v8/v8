@@ -21,7 +21,7 @@ Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
   Factory* factory = isolate->factory();
   Handle<String> finalization_registry_name =
       factory->NewStringFromStaticChars("FinalizationRegistry");
-  Handle<Object> global =
+  Handle<JSGlobalObject> global =
       handle(isolate->native_context()->global_object(), isolate);
   Handle<JSFunction> finalization_registry_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, finalization_registry_name)
@@ -48,7 +48,7 @@ Handle<JSWeakRef> ConstructJSWeakRef(DirectHandle<JSReceiver> target,
                                      Isolate* isolate) {
   Factory* factory = isolate->factory();
   Handle<String> weak_ref_name = factory->WeakRef_string();
-  Handle<Object> global =
+  Handle<JSGlobalObject> global =
       handle(isolate->native_context()->global_object(), isolate);
   Handle<JSFunction> weak_ref_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, weak_ref_name).ToHandleChecked());

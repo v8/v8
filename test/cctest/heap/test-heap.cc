@@ -414,7 +414,8 @@ TEST(GarbageCollection) {
       Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
   CHECK(IsJSObject(*obj));
   CHECK_EQ(Smi::FromInt(23),
-           *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
+           *Object::GetProperty(isolate, Cast<JSObject>(obj), prop_name)
+                .ToHandleChecked());
 }
 
 static void VerifyStringAllocation(Isolate* isolate, const char* string) {
@@ -5503,10 +5504,11 @@ TEST(PreprocessStackTrace) {
   CompileRun("throw new Error();");
   CHECK(try_catch.HasCaught());
   Isolate* isolate = CcTest::i_isolate();
-  Handle<Object> exception = v8::Utils::OpenHandle(*try_catch.Exception());
+  Handle<JSAny> exception =
+      Cast<JSAny>(v8::Utils::OpenHandle(*try_catch.Exception()));
   Handle<Name> key = isolate->factory()->error_stack_symbol();
-  Handle<Object> stack_trace =
-      Object::GetProperty(isolate, exception, key).ToHandleChecked();
+  Handle<JSAny> stack_trace = Cast<JSAny>(
+      Object::GetProperty(isolate, exception, key).ToHandleChecked());
   DirectHandle<Object> code =
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
   CHECK(IsInstructionStream(*code));

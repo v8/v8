@@ -658,15 +658,14 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
                                          ToStringMessageSource message_source) {
   // 1. Let O be the this value.
   // 2. If Type(O) is not Object, throw a TypeError exception.
-  if (!IsJSReceiver(*receiver)) {
+  Handle<JSReceiver> recv;
+  if (!TryCast<JSReceiver>(receiver, &recv)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                                  isolate->factory()->NewStringFromAsciiChecked(
                                      "Error.prototype.toString"),
                                  receiver));
   }
-  Handle<JSReceiver> recv = Cast<JSReceiver>(receiver);
-
   // 3. Let name be ? Get(O, "name").
   // 4. If name is undefined, let name be "Error"; otherwise let name be
   // ? ToString(name).
@@ -690,7 +689,7 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
     //
     // If |recv| was not constructed with %Error%, use the "message" property.
     LookupIterator it(isolate, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR,
-                      receiver, isolate->factory()->error_message_symbol());
+                      recv, isolate->factory()->error_message_symbol());
     Handle<Object> result = JSReceiver::GetDataProperty(&it);
     if (it.IsFound() && IsUndefined(*result, isolate)) {
       msg = msg_default;

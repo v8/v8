@@ -190,7 +190,7 @@ class ElementsAccessor {
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
 
-  virtual Tagged<Object> CopyElements(Handle<Object> source,
+  virtual Tagged<Object> CopyElements(Handle<JSAny> source,
                                       Handle<JSObject> destination,
                                       size_t length, size_t offset) = 0;
 

@@ -953,12 +953,12 @@ class Runtime : public AllStatic {
   // is a private field assignment), this method throws if the private field
   // does not exist on object.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  SetObjectProperty(Isolate* isolate, Handle<Object> object, Handle<Object> key,
-                    Handle<Object> value, MaybeHandle<Object> receiver,
+  SetObjectProperty(Isolate* isolate, Handle<JSAny> object, Handle<Object> key,
+                    Handle<Object> value, MaybeHandle<JSAny> receiver,
                     StoreOrigin store_origin,
                     Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  SetObjectProperty(Isolate* isolate, Handle<Object> object, Handle<Object> key,
+  SetObjectProperty(Isolate* isolate, Handle<JSAny> object, Handle<Object> key,
                     Handle<Object> value, StoreOrigin store_origin,
                     Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
@@ -966,15 +966,15 @@ class Runtime : public AllStatic {
   // private field definition), this method throws if the field already exists
   // on object.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  DefineObjectOwnProperty(Isolate* isolate, Handle<Object> object,
+  DefineObjectOwnProperty(Isolate* isolate, Handle<JSAny> object,
                           Handle<Object> key, Handle<Object> value,
                           StoreOrigin store_origin);
 
   // When "receiver" is not passed, it defaults to "lookup_start_object".
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  GetObjectProperty(Isolate* isolate, Handle<Object> lookup_start_object,
+  GetObjectProperty(Isolate* isolate, Handle<JSAny> lookup_start_object,
                     Handle<Object> key,
-                    Handle<Object> receiver = Handle<Object>(),
+                    Handle<JSAny> receiver = Handle<JSAny>(),
                     bool* is_found = nullptr);
 
   // Look up for a private member with a name matching "desc" and return its

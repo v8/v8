@@ -69,7 +69,7 @@ class BuiltinArguments : public JavaScriptArguments {
 
   // Zero index states for receiver.
   inline Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
-  inline Handle<Object> receiver() const;
+  inline Handle<JSAny> receiver() const;
   inline Handle<JSFunction> target() const;
   inline Handle<HeapObject> new_target() const;
 

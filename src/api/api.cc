@@ -3383,8 +3383,14 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
                                    Local<Value> json_object,
                                    Local<String> gap) {
   PREPARE_FOR_EXECUTION(context, JSON, Stringify);
-  auto object = Utils::OpenHandle(*json_object);
-  i::Handle<i::Object> replacer = i_isolate->factory()->undefined_value();
+  i::Handle<i::JSAny> object;
+  if (!Utils::ApiCheck(
+          i::TryCast<i::JSAny>(Utils::OpenHandle(*json_object), &object),
+          "JSON::Stringify",
+          "Invalid object, must be a JSON-serializable object.")) {
+    return {};
+  }
+  i::Handle<i::Undefined> replacer = i_isolate->factory()->undefined_value();
   i::Handle<i::String> gap_string = gap.IsEmpty()
                                         ? i_isolate->factory()->empty_string()
                                         : Utils::OpenHandle(*gap);
@@ -4455,7 +4461,12 @@ Maybe<bool> Value::InstanceOf(v8::Local<v8::Context> context,
                               v8::Local<v8::Object> object) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Value, InstanceOf, i::HandleScope);
-  auto left = Utils::OpenHandle(this);
+  i::Handle<i::JSAny> left;
+  if (!Utils::ApiCheck(i::TryCast<i::JSAny>(Utils::OpenHandle(this), &left),
+                       "Value::InstanceOf",
+                       "Invalid type, must be a JS primitive or object.")) {
+    return Nothing<bool>();
+  }
   auto right = Utils::OpenHandle(*object);
   i::Handle<i::Object> result;
   has_exception =
@@ -4488,7 +4499,7 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   auto value_obj = Utils::OpenHandle(*value);
-  i::MaybeHandle<i::Object> receiver_obj;
+  i::MaybeHandle<i::JSReceiver> receiver_obj;
   if (!receiver.IsEmpty()) {
     receiver_obj = Utils::OpenHandle(*receiver.ToLocalChecked());
   }
@@ -4761,7 +4772,7 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context, Local<Value> key,
   PREPARE_FOR_EXECUTION(context, Object, Get);
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::Object> receiver_obj;
+  i::Handle<i::JSReceiver> receiver_obj;
   if (!receiver.IsEmpty()) {
     receiver_obj = Utils::OpenHandle(*receiver.ToLocalChecked());
   }
