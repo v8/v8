@@ -3707,9 +3707,13 @@ bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
       compiler::OptionalHeapObjectRef maybe_ref = TryGetConstant(context);
       if (!maybe_ref) return false;
       compiler::ContextRef context_ref = maybe_ref.value().AsContext();
-      if (!context_ref.get(broker(), Context::EXTENSION_INDEX)->IsUndefined()) {
-        return false;
-      }
+      compiler::OptionalObjectRef extension_ref =
+          context_ref.get(broker(), Context::EXTENSION_INDEX);
+      // The extension may be concurrently installed while we're checking the
+      // context, in which case it may still be uninitialized. This still means
+      // an extension is about to appear, so we should block this optimization.
+      if (!extension_ref) return false;
+      if (!extension_ref->IsUndefined()) return false;
       ValueNode* extension = LoadAndCacheContextSlot(
           context, Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
           kMutable);
