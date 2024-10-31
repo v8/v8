@@ -4807,6 +4807,10 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   // be unpacked.
   TNode<String> TryToDirect(Label* if_bailout);
 
+  // As above, but flattens in runtime if the string cannot be unpacked
+  // otherwise.
+  TNode<String> ToDirect();
+
   // Returns a pointer to the beginning of the string data.
   // Jumps to if_bailout if the external string cannot be unpacked.
   TNode<RawPtrT> PointerToData(Label* if_bailout) {

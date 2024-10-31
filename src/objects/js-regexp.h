@@ -96,6 +96,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
     return (register_count - 2) / 2;
   }
   // ATOM regexps don't have captures.
+  static constexpr int kAtomCaptureCount = 0;
   static constexpr int kAtomRegisterCount = 2;
 
   // Dispatched behavior.

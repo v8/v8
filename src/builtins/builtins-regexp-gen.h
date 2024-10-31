@@ -42,7 +42,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void SlowStoreLastIndex(TNode<Context> context, TNode<Object> regexp,
                           TNode<Object> value);
 
-  TNode<Smi> LoadCaptureCount(TNode<IrRegExpData> data);
+  TNode<Smi> LoadCaptureCount(TNode<RegExpData> data);
   TNode<Smi> RegistersForCaptureCount(TNode<Smi> capture_count);
 
   // Loads {var_string_start} and {var_string_end} with the corresponding
@@ -99,8 +99,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
       RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
 
   TNode<UintPtrT> RegExpExecAtom2(TNode<Context> context,
-                                  TNode<JSRegExp> regexp, TNode<String> string,
-                                  TNode<Smi> last_index,
+                                  TNode<AtomRegExpData> data,
+                                  TNode<String> string, TNode<Smi> last_index,
                                   TNode<RawPtrT> result_offsets_vector,
                                   TNode<Int32T> result_offsets_vector_length);
 
@@ -228,17 +228,19 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                           const TNode<String> string,
                                           const TNode<Smi> limit);
 
-  TNode<HeapObject> RegExpMatchGlobalIrregexp(TNode<Context> context,
-                                              TNode<JSRegExp> regexp,
-                                              TNode<String> subject,
-                                              TNode<RegExpData> data);
+  TNode<HeapObject> RegExpMatchGlobal(TNode<Context> context,
+                                      TNode<JSRegExp> regexp,
+                                      TNode<String> subject,
+                                      TNode<RegExpData> data);
   TNode<String> AppendStringSlice(TNode<Context> context,
                                   TNode<String> to_string,
                                   TNode<String> from_string,
                                   TNode<Smi> slice_start, TNode<Smi> slice_end);
-  TNode<String> RegExpReplaceGlobalSimpleStringIrregexp(
-      TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> subject,
-      TNode<RegExpData> data, TNode<String> replace_string);
+  TNode<String> RegExpReplaceGlobalSimpleString(TNode<Context> context,
+                                                TNode<JSRegExp> regexp,
+                                                TNode<String> subject,
+                                                TNode<RegExpData> data,
+                                                TNode<String> replace_string);
 };
 
 class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {

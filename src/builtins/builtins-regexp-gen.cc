@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/builtins/builtins-constructor-gen.h"
+#include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
@@ -178,8 +179,14 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(TNode<Context> context,
   SetPropertyStrict(context, regexp, name, value);
 }
 
-TNode<Smi> RegExpBuiltinsAssembler::LoadCaptureCount(TNode<IrRegExpData> data) {
-  return LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
+TNode<Smi> RegExpBuiltinsAssembler::LoadCaptureCount(TNode<RegExpData> data) {
+  return Select<Smi>(
+      SmiEqual(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset),
+               SmiConstant(RegExpData::Type::ATOM)),
+      [=, this] { return SmiConstant(JSRegExp::kAtomCaptureCount); },
+      [=, this] {
+        return LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
+      });
 }
 
 TNode<Smi> RegExpBuiltinsAssembler::RegistersForCaptureCount(
@@ -599,7 +606,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   // Check (number_of_captures + 1) * 2 <= offsets vector size
   // Or              number_of_captures <= offsets vector size / 2 - 1
-  TNode<Smi> capture_count = LoadCaptureCount(CAST(data));
+  TNode<Smi> capture_count = LoadCaptureCount(data);
 
   const int kOffsetsSize = Isolate::kJSRegexpStaticOffsetsVectorSize;
   static_assert(kOffsetsSize >= 2);
@@ -782,7 +789,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     var_result_offsets_vector = LoadRegExpStackStackPointer();
 
     TNode<Smi> register_count =
-        RegistersForCaptureCount(LoadCaptureCount(CAST(data)));
+        RegistersForCaptureCount(LoadCaptureCount(data));
 
     var_result = InitializeMatchInfoFromRegisters(
         context, match_info, register_count, string,
@@ -883,6 +890,9 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
 
   GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &if_failure);
 
+  // Unpack the string if possible.
+  to_direct.ToDirect();
+
   // Since the RegExp has been compiled, data contains a RegExpData object.
   TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
       regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
@@ -913,13 +923,9 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
   }
 
   // Check (number_of_captures + 1) * 2 <= offsets vector size.
-  CSA_DCHECK(this, SmiLessThanOrEqual(
-                       RegistersForCaptureCount(LoadCaptureCount(CAST(data))),
-                       SmiFromInt32(result_offsets_vector_length)));
-
-  // Unpack the string if possible.
-
-  to_direct.TryToDirect(&runtime);
+  CSA_DCHECK(
+      this, SmiLessThanOrEqual(RegistersForCaptureCount(LoadCaptureCount(data)),
+                               SmiFromInt32(result_offsets_vector_length)));
 
   // Load the irregexp code or bytecode object and offsets into the subject
   // string. Both depend on whether the string is one- or two-byte.
@@ -1084,7 +1090,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
       result_offsets_vector = LoadRegExpStackStackPointer();
 
       TNode<Smi> register_count =
-          RegistersForCaptureCount(LoadCaptureCount(CAST(data)));
+          RegistersForCaptureCount(LoadCaptureCount(data));
       TNode<IntPtrT> offset_of_start_of_last_match =
           IntPtrMul(IntPtrSub(UncheckedCast<IntPtrT>(var_result.value()),
                               IntPtrConstant(1)),
@@ -1164,10 +1170,9 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
   BIND(&atom);
   {
     var_result =
-        RegExpExecAtom2(context, regexp, string, CAST(last_index),
+        RegExpExecAtom2(context, CAST(data), string, CAST(last_index),
                         result_offsets_vector, result_offsets_vector_length);
-    // Unreachable.
-    // TODO(jgruber): Implement.
+    Goto(&out);
   }
 
   BIND(&out);
@@ -1326,15 +1331,21 @@ void RegExpBuiltinsAssembler::BranchIfRegExpResult(const TNode<Context> context,
 }
 
 TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecAtom2(
-    TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
-    TNode<Smi> last_index, TNode<RawPtrT> result_offsets_vector,
+    TNode<Context> context, TNode<AtomRegExpData> data,
+    TNode<String> subject_string, TNode<Smi> last_index,
+    TNode<RawPtrT> result_offsets_vector,
     TNode<Int32T> result_offsets_vector_length) {
-  // TODO(jgruber): To properly support RegExpExecInternal2 (i.e. global
-  // execution), this function must be extended to support returning multiple
-  // results. It's probably best to just call into runtime (with a fast c call)
-  // and use the code there that already exists.
-  Unreachable();
-  return UintPtrConstant(0);
+  auto f = ExternalConstant(ExternalReference::re_atom_exec_raw());
+  auto isolate_ptr = ExternalConstant(ExternalReference::isolate_address());
+  auto result = UncheckedCast<IntPtrT>(CallCFunction(
+      f, MachineType::IntPtr(),
+      std::make_pair(MachineType::Pointer(), isolate_ptr),
+      std::make_pair(MachineType::TaggedPointer(), data),
+      std::make_pair(MachineType::TaggedPointer(), subject_string),
+      std::make_pair(MachineType::Int32(), SmiToInt32(last_index)),
+      std::make_pair(MachineType::Pointer(), result_offsets_vector),
+      std::make_pair(MachineType::Int32(), result_offsets_vector_length)));
+  return Unsigned(result);
 }
 
 // Fast path stub for ATOM regexps. String matching is done by StringIndexOf,
@@ -2154,9 +2165,6 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::RegExpExecInternal_Batched(
     OncePerBatchFunction once_per_batch, OncePerMatchFunction once_per_match) {
   CSA_DCHECK(this, IsFastRegExpPermissive(context, regexp));
   CSA_DCHECK(this, FastFlagGetter(regexp, JSRegExp::kGlobal));
-  CSA_DCHECK(this,
-             SmiEqual(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset),
-                      SmiConstant(RegExpData::Type::IRREGEXP)));
 
   // This calls into irregexp and loops over the returned result. Roughly:
   //
@@ -2175,7 +2183,7 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::RegExpExecInternal_Batched(
 
   // Determine the number of result slots we want and allocate them.
   TNode<Smi> register_count_per_match =
-      RegistersForCaptureCount(LoadCaptureCount(CAST(data)));
+      RegistersForCaptureCount(LoadCaptureCount(data));
   // TODO(jgruber): Consider a different length selection that considers the
   // register count per match and can go higher than the current static offsets
   // size. Could be helpful for patterns that 1. have many captures and 2.
@@ -2312,14 +2320,11 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::RegExpExecInternal_Batched(
   return var_num_matches.value();
 }
 
-TNode<HeapObject> RegExpBuiltinsAssembler::RegExpMatchGlobalIrregexp(
+TNode<HeapObject> RegExpBuiltinsAssembler::RegExpMatchGlobal(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> subject,
     TNode<RegExpData> data) {
   CSA_DCHECK(this, IsFastRegExpPermissive(context, regexp));
   CSA_DCHECK(this, FastFlagGetter(regexp, JSRegExp::kGlobal));
-  CSA_DCHECK(this,
-             SmiEqual(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset),
-                      SmiConstant(RegExpData::Type::IRREGEXP)));
 
   TVARIABLE(HeapObject, var_result, NullConstant());
   Label out(this);
@@ -2369,14 +2374,17 @@ TNode<String> RegExpBuiltinsAssembler::AppendStringSlice(
       CallBuiltin(Builtin::kStringAdd_CheckNone, context, to_string, slice));
 }
 
-TNode<String> RegExpBuiltinsAssembler::RegExpReplaceGlobalSimpleStringIrregexp(
+TNode<String> RegExpBuiltinsAssembler::RegExpReplaceGlobalSimpleString(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> subject,
     TNode<RegExpData> data, TNode<String> replace_string) {
   CSA_DCHECK(this, IsFastRegExpPermissive(context, regexp));
   CSA_DCHECK(this, FastFlagGetter(regexp, JSRegExp::kGlobal));
-  CSA_DCHECK(this,
-             SmiEqual(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset),
-                      SmiConstant(RegExpData::Type::IRREGEXP)));
+
+  // The replace_string is 'simple' if it doesn't contain a '$' character.
+  CSA_SLOW_DCHECK(this,
+                  SmiEqual(StringBuiltinsAssembler{state()}.IndexOfDollarChar(
+                               context, replace_string),
+                           SmiConstant(-1)));
 
   TNode<Smi> replace_string_length = LoadStringLengthAsSmi(replace_string);
 

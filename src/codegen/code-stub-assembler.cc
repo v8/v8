@@ -8606,6 +8606,32 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   return var_string_.value();
 }
 
+TNode<String> ToDirectStringAssembler::ToDirect() {
+  Label flatten_in_runtime(this), unreachable(this, Label::kDeferred),
+      out(this);
+
+  TryToDirect(&flatten_in_runtime);
+  Goto(&out);
+
+  BIND(&flatten_in_runtime);
+  var_string_ = CAST(CallRuntime(Runtime::kFlattenString, NoContextConstant(),
+                                 var_string_.value()));
+#if V8_STATIC_ROOTS_BOOL
+  var_map_ = LoadMap(var_string_.value());
+#else
+  var_instance_type_ = LoadInstanceType(var_string_.value());
+#endif
+
+  TryToDirect(&unreachable);
+  Goto(&out);
+
+  BIND(&unreachable);
+  Unreachable();
+
+  BIND(&out);
+  return var_string_.value();
+}
+
 TNode<BoolT> ToDirectStringAssembler::IsOneByte() {
 #if V8_STATIC_ROOTS_BOOL
   return IsOneByteStringMap(var_map_.value());
