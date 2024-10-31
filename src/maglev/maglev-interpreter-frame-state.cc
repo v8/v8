@@ -190,7 +190,11 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
         }
       }
     }
-    if (!loaded_context_slots.empty()) {
+  }
+  if (optimistic_initial_state) {
+    if (loop_effects->may_have_aliasing_contexts) {
+      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
+    } else {
       may_have_aliasing_contexts_ = other.may_have_aliasing_contexts();
     }
   }
@@ -282,7 +286,8 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
   // Analysis state can change with loads.
   if (loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::Yes &&
       loop_header.may_have_aliasing_contexts() !=
-          may_have_aliasing_contexts()) {
+          may_have_aliasing_contexts() &&
+      may_have_aliasing_contexts() != ContextSlotLoadsAlias::None) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible "
                    "loop_header.may_have_aliasing_contexts\n";
