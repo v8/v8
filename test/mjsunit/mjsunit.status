@@ -1943,6 +1943,8 @@
   'regress/regress-crbug-935800': [SKIP],
   'regress/wasm/*': [SKIP],
   'wasm/*': [SKIP],
+  # Contain Wasm functions, which are not supported in snapshots.
+  'maglev/regress-355256380': [SKIP],
   'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
   # Investigate (IsScript).
   'harmony/import-from-compilation-errored': [SKIP],
