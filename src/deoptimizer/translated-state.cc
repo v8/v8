@@ -1822,7 +1822,13 @@ int TranslatedState::CreateNextTranslatedValue(
 
 Address TranslatedState::DecompressIfNeeded(intptr_t value) {
   if (COMPRESS_POINTERS_BOOL &&
+#ifdef V8_TARGET_ARCH_LOONG64
+      // The 32-bit compressed values are supposed to be sign-extended on
+      // loongarch64.
+      is_int32(value)) {
+#else
       static_cast<uintptr_t>(value) <= std::numeric_limits<uint32_t>::max()) {
+#endif
     return V8HeapCompressionScheme::DecompressTagged(
         isolate(), static_cast<uint32_t>(value));
   } else {
