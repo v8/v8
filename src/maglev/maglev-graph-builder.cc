@@ -6712,10 +6712,12 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
   if (processed_feedback->kind() ==
           compiler::ProcessedFeedback::kElementAccess &&
       processed_feedback->AsElementAccess().transition_groups().empty()) {
-    if (auto constant = TryGetConstant(GetAccumulator())) {
-      if (constant->IsName() && !constant->AsName().object()->IsArrayIndex()) {
-        processed_feedback = &processed_feedback->AsElementAccess().Refine(
-            broker(), constant->AsName());
+    if (auto constant = TryGetConstant(GetAccumulator());
+        constant.has_value() && constant->IsName()) {
+      compiler::NameRef name = constant->AsName();
+      if (name.IsUniqueName() && !name.object()->IsArrayIndex()) {
+        processed_feedback =
+            &processed_feedback->AsElementAccess().Refine(broker(), name);
       }
     }
   }
