@@ -760,8 +760,20 @@ void BaselineCompiler::VisitLdaContextSlot() {
 }
 
 void BaselineCompiler::VisitLdaScriptContextSlot() {
-  // TODO(victorgomes): Deal with script context loads.
-  VisitLdaContextSlot();
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  Label done;
+  LoadRegister(context, 0);
+  uint32_t index = Index(1);
+  uint32_t depth = Uint(2);
+  __ LdaContextSlot(context, index, depth);
+  __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
+                          HEAP_NUMBER_TYPE, &done, Label::kNear);
+  CallBuiltin<Builtin::kAllocateIfMutableHeapNumberScriptContextSlot>(
+      kInterpreterAccumulatorRegister,  // heap number
+      context,                          // context
+      Smi::FromInt(index));             // slot
+  __ Bind(&done);
 }
 
 void BaselineCompiler::VisitLdaImmutableContextSlot() { VisitLdaContextSlot(); }
@@ -775,8 +787,21 @@ void BaselineCompiler::VisitLdaCurrentContextSlot() {
 }
 
 void BaselineCompiler::VisitLdaCurrentScriptContextSlot() {
-  // TODO(victorgomes): Deal with script context loads.
-  VisitLdaCurrentContextSlot();
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  Label done;
+  LoadRegister(context, 0);
+  uint32_t index = Index(1);
+  __ LoadContext(context);
+  __ LoadTaggedField(kInterpreterAccumulatorRegister, context,
+                     Context::OffsetOfElementAt(index));
+  __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
+                          HEAP_NUMBER_TYPE, &done, Label::kNear);
+  CallBuiltin<Builtin::kAllocateIfMutableHeapNumberScriptContextSlot>(
+      kInterpreterAccumulatorRegister,  // heap number
+      context,                          // context
+      Smi::FromInt(index));             // slot
+  __ Bind(&done);
 }
 
 void BaselineCompiler::VisitLdaImmutableCurrentContextSlot() {
