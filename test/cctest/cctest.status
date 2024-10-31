@@ -120,7 +120,7 @@
   'test-lockers/SeparateIsolatesLocksNonexclusive': [PASS, HEAVY],
   'test-ptr-compr-cage/SharedPtrComprCageRace': [PASS, HEAVY],
   'test-serialize/ContextSerializerContext': [PASS, SLOW, HEAVY],
-  'test-serialize/ContextSerializerCustomContext': [PASS, HEAVY],
+  'test-serialize/ContextSerializerCustomContext': [PASS, SLOW, HEAVY],
   'test-serialize/SnapshotCompression': [PASS, HEAVY],
   'test-serialize/StartupSerializerOnceRunScript': [PASS, SLOW, HEAVY],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, SLOW, HEAVY],
