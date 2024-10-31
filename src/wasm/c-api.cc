@@ -1076,8 +1076,7 @@ auto Trap::message() const -> Message {
   i::Handle<i::String> result = i::MessageHandler::GetMessage(isolate, message);
   result = i::String::Flatten(isolate, result);  // For performance.
   uint32_t length = 0;
-  std::unique_ptr<char[]> utf8 =
-      result->ToCString(i::DISALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &length);
+  std::unique_ptr<char[]> utf8 = result->ToCString(i::DISALLOW_NULLS, &length);
   return vec<byte_t>::adopt(length, utf8.release());
 }
 
