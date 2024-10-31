@@ -178,6 +178,17 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(TNode<Context> context,
   SetPropertyStrict(context, regexp, name, value);
 }
 
+TNode<Smi> RegExpBuiltinsAssembler::LoadCaptureCount(TNode<IrRegExpData> data) {
+  return LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
+}
+
+TNode<Smi> RegExpBuiltinsAssembler::RegistersForCaptureCount(
+    TNode<Smi> capture_count) {
+  // See also: JSRegExp::RegistersForCaptureCount.
+  static_assert(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) * 2));
+  return SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
+}
+
 TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<Context> context, TNode<JSRegExp> regexp,
     TNode<RegExpMatchInfo> match_info, TNode<String> string,
@@ -588,8 +599,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   // Check (number_of_captures + 1) * 2 <= offsets vector size
   // Or              number_of_captures <= offsets vector size / 2 - 1
-  TNode<Smi> capture_count =
-      LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
+  TNode<Smi> capture_count = LoadCaptureCount(CAST(data));
 
   const int kOffsetsSize = Isolate::kJSRegexpStaticOffsetsVectorSize;
   static_assert(kOffsetsSize >= 2);
@@ -656,10 +666,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   Label if_success(this), if_exception(this, Label::kDeferred);
 
-  // capture_count is the number of captures without the match itself.
-  // Required registers = (capture_count + 1) * 2.
-  static_assert(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) * 2));
-  TNode<Smi> register_count = SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
+  TNode<Smi> register_count = RegistersForCaptureCount(capture_count);
   var_result_offsets_vector = RegExpStackClaimInt32Slots(register_count);
   claimed_stack_slots = register_count;
 
@@ -774,10 +781,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     // thus we must reload its location here.
     var_result_offsets_vector = LoadRegExpStackStackPointer();
 
-    TNode<Smi> capture_count =
-        LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
     TNode<Smi> register_count =
-        SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
+        RegistersForCaptureCount(LoadCaptureCount(CAST(data)));
 
     var_result = InitializeMatchInfoFromRegisters(
         context, match_info, register_count, string,
@@ -907,19 +912,10 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
     BIND(&next);
   }
 
-#ifdef DEBUG
-  // Check (number_of_captures + 1) * 2 <= offsets vector size
-  // Or              number_of_captures <= offsets vector size / 2 - 1
-  TNode<Smi> capture_count =
-      LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
-  // capture_count is the number of captures without the match itself.
-  // Required registers = (capture_count + 1) * 2.
-  static_assert(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) * 2));
-  TNode<Smi> register_count = SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
-  CSA_DCHECK(this,
-             SmiLessThanOrEqual(register_count,
-                                SmiFromInt32(result_offsets_vector_length)));
-#endif  // DEBUG
+  // Check (number_of_captures + 1) * 2 <= offsets vector size.
+  CSA_DCHECK(this, SmiLessThanOrEqual(
+                       RegistersForCaptureCount(LoadCaptureCount(CAST(data))),
+                       SmiFromInt32(result_offsets_vector_length)));
 
   // Unpack the string if possible.
 
@@ -1079,10 +1075,23 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
   BIND(&if_success);
   {
     if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-      static constexpr int kMatchStartOffset = 0;
+      // TODO(jgruber): We can remove this ExecQuirk by using this new API in
+      // the caller and checking for the match-at-end scenario there. Once done,
+      // also remove all code that refers to this ExecQuirk.
+
+      // Subtle: The stack may grow (i.e. move) during irregexp execution, and
+      // thus we must reload its location here.
+      result_offsets_vector = LoadRegExpStackStackPointer();
+
+      TNode<Smi> register_count =
+          RegistersForCaptureCount(LoadCaptureCount(CAST(data)));
+      TNode<IntPtrT> offset_of_start_of_last_match =
+          IntPtrMul(IntPtrSub(UncheckedCast<IntPtrT>(var_result.value()),
+                              IntPtrConstant(1)),
+                    SmiUntag(register_count));
       TNode<IntPtrT> value = ChangeInt32ToIntPtr(UncheckedCast<Int32T>(
           Load(MachineType::Int32(), result_offsets_vector,
-               IntPtrConstant(kMatchStartOffset))));
+               offset_of_start_of_last_match)));
       GotoIf(UintPtrGreaterThanOrEqual(value, int_string_length), &if_failure);
     }
 
@@ -2165,12 +2174,8 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::RegExpExecInternal_Batched(
   Label out(this);
 
   // Determine the number of result slots we want and allocate them.
-  TNode<Smi> capture_count =
-      LoadObjectField<Smi>(data, IrRegExpData::kCaptureCountOffset);
-  static_assert(Internals::IsValidSmi(
-      JSRegExp::RegistersForCaptureCount(JSRegExp::kMaxCaptures)));
   TNode<Smi> register_count_per_match =
-      SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
+      RegistersForCaptureCount(LoadCaptureCount(CAST(data)));
   // TODO(jgruber): Consider a different length selection that considers the
   // register count per match and can go higher than the current static offsets
   // size. Could be helpful for patterns that 1. have many captures and 2.

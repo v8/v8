@@ -897,16 +897,21 @@ std::optional<int> RegExpImpl::IrregexpExec2(
                                         result_offsets_vector_length);
 
   if (res >= RegExp::RE_SUCCESS) {
+    DCHECK_LE(res * output_register_count, result_offsets_vector_length);
+
     if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-      if (static_cast<uint32_t>(result_offsets_vector[0]) >=
-          subject->length()) {
-        res = 0;
+      int start_of_last_match =
+          result_offsets_vector[(res - 1) * output_register_count];
+      if (static_cast<uint32_t>(start_of_last_match) >= subject->length()) {
+        res--;
       }
     }
+
     return res;
   } else if (res == RegExp::RE_FALLBACK_TO_EXPERIMENTAL) {
-    // TODO(jgruber): Support the experimental engine.
-    UNREACHABLE();
+    return ExperimentalRegExp::OneshotExec2(
+        isolate, regexp_data, subject, previous_index, result_offsets_vector,
+        result_offsets_vector_length);
   } else if (res == RegExp::RE_EXCEPTION) {
     DCHECK(isolate->has_exception());
     return {};

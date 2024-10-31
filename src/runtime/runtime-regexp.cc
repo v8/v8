@@ -956,10 +956,7 @@ std::optional<int> ExperimentalOneshotExec2(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
     DirectHandle<String> subject, int32_t index, int32_t* result_offsets_vector,
     uint32_t result_offsets_vector_length, RegExp::ExecQuirks exec_quirks) {
-  // TODO(jgruber): To properly support RegExpExecInternal2 (i.e. global
-  // execution), this function must be extended to support returning multiple
-  // results.
-  CHECK_EQ(result_offsets_vector_length,
+  CHECK_GE(result_offsets_vector_length,
            JSRegExp::RegistersForCaptureCount(
                regexp->data(isolate)->capture_count()));
   // Due to the way the JS calls are constructed this must be less than the

@@ -348,9 +348,42 @@ std::optional<int> ExperimentalRegExp::OneshotExec2(
     DirectHandle<String> subject, int subject_index,
     int32_t* result_offsets_vector, uint32_t result_offsets_vector_length,
     RegExp::ExecQuirks exec_quirks) {
-  // TODO(jgruber): Implement. Either s.t. we always return the max number of
-  // results, or callers must change the expectation so they only terminate the
-  // global loop once the engine returns FAILURE, i.e. no match.
+  DCHECK(v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);
+
+  do {
+    int num_matches =
+        OneshotExecRaw(isolate, regexp_data, subject, result_offsets_vector,
+                       result_offsets_vector_length, subject_index);
+
+    if (num_matches > 0) {
+      DCHECK_LE(num_matches * JSRegExp::RegistersForCaptureCount(
+                                  regexp_data->capture_count()),
+                result_offsets_vector_length);
+
+      if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+        int capture_count = regexp_data->capture_count();
+        int output_register_count =
+            JSRegExp::RegistersForCaptureCount(capture_count);
+        int start_of_last_match =
+            result_offsets_vector[(num_matches - 1) * output_register_count];
+        if (static_cast<uint32_t>(start_of_last_match) >= subject->length()) {
+          num_matches--;
+        }
+      }
+
+      return num_matches;
+    } else if (num_matches == 0) {
+      return num_matches;
+    } else {
+      DCHECK_LT(num_matches, 0);
+      if (num_matches == RegExp::kInternalRegExpRetry) {
+        // Re-run execution.
+        continue;
+      }
+      DCHECK(isolate->has_exception());
+      return {};
+    }
+  } while (true);
   UNREACHABLE();
 }
 

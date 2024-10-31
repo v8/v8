@@ -42,6 +42,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void SlowStoreLastIndex(TNode<Context> context, TNode<Object> regexp,
                           TNode<Object> value);
 
+  TNode<Smi> LoadCaptureCount(TNode<IrRegExpData> data);
+  TNode<Smi> RegistersForCaptureCount(TNode<Smi> capture_count);
+
   // Loads {var_string_start} and {var_string_end} with the corresponding
   // offsets into the given {string_data}.
   void GetStringPointers(TNode<RawPtrT> string_data, TNode<IntPtrT> offset,
