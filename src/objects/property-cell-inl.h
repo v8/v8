@@ -76,18 +76,8 @@ ACCESSORS(ContextSidePropertyCell, context_side_property_raw, Tagged<Smi>,
 ACCESSORS(ContextSidePropertyCell, dependent_code, Tagged<DependentCode>,
           kDependentCodeOffset)
 
-// static
 bool ContextSidePropertyCell::IsNotConst(Tagged<Object> object) {
-  if (IsContextSidePropertyCell(object)) {
-    return Cast<ContextSidePropertyCell>(object)->context_side_property() !=
-           ContextSidePropertyCell::kConst;
-  }
-  return object != ContextSidePropertyCell::Const();
-}
-
-ContextSidePropertyCell::Property
-ContextSidePropertyCell::context_side_property() const {
-  return FromSmi(context_side_property_raw());
+  return object == ContextSidePropertyCell::Other();
 }
 
 }  // namespace internal

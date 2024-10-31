@@ -915,9 +915,8 @@ void Context::ContextVerify(Isolate* isolate) {
       for (int i = 0; i < side_data_array->length(); i++) {
         Tagged<Object> element = side_data_array->get(i);
         if (IsSmi(element)) {
-          int value = element.ToSmi().value();
-          CHECK(ContextSidePropertyCell::kOther <= value);
-          CHECK(value <= ContextSidePropertyCell::kMutableHeapNumber);
+          CHECK(element.ToSmi().value() == ContextSidePropertyCell::kConst ||
+                element.ToSmi().value() == ContextSidePropertyCell::kOther);
         } else {
           // The slot contains `undefined` before the variable is initialized.
           CHECK(IsUndefined(element) || IsContextSidePropertyCell(element));

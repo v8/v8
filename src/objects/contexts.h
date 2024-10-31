@@ -6,7 +6,6 @@
 #define V8_OBJECTS_CONTEXTS_H_
 
 #include "include/v8-promise.h"
-#include "src/handles/handles.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"
@@ -682,11 +681,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   bool ConstTrackingLetSideDataIsConst(size_t index) const;
 
-  static DirectHandle<Object> LoadScriptContextElement(
-      DirectHandle<Context> script_context, int index,
-      DirectHandle<Object> new_value, Isolate* isolate);
-
-  static void StoreScriptContextAndUpdateSlotProperty(
+  static void UpdateConstTrackingLetSideData(
       DirectHandle<Context> script_context, int index,
       DirectHandle<Object> new_value, Isolate* isolate);
 

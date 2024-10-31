@@ -398,8 +398,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForWasmDispatchTableLength();
 #endif
 
-  static FieldAccess ForContextSideProperty();
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
 };

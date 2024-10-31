@@ -18,7 +18,6 @@
 #include "src/heap/factory-base.h"
 #include "src/heap/heap.h"
 #include "src/objects/feedback-cell.h"
-#include "src/objects/property-cell.h"
 // TODO(leszeks): Remove this by forward declaring JSRegExp::Flags.
 #include "src/objects/js-regexp.h"
 
@@ -491,7 +490,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Object> value,
       AllocationType allocation = AllocationType::kOld);
   Handle<ContextSidePropertyCell> NewContextSidePropertyCell(
-      ContextSidePropertyCell::Property property,
       AllocationType allocation = AllocationType::kOld);
   Handle<PropertyCell> NewProtector();
 

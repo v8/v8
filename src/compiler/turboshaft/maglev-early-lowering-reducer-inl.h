@@ -182,29 +182,21 @@ class MaglevEarlyLoweringReducer : public Next {
   void CheckConstTrackingLetCell(V<Context> context, int index,
                                  V<FrameState> frame_state,
                                  const FeedbackSource& feedback) {
-    Label<Object> if_smi(this);
-
     // Load the const tracking let side data.
-    V<Object> side_data_table = __ LoadTaggedField(
+    V<Object> side_data = __ LoadTaggedField(
         context,
         Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
-    V<Object> data = __ LoadTaggedField(
-        side_data_table, FixedArray::OffsetOfElementAt(
-                             index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
-
-    GOTO_IF(__ IsSmi(data), if_smi, data);
-    __ DeoptimizeIf(__ RootEqual(data, RootIndex::kUndefinedValue, isolate_),
-                    frame_state, DeoptimizeReason::kConstTrackingLet, feedback);
-
-    V<Object> raw_property = __ LoadTaggedField(
-        data, ContextSidePropertyCell::kPropertyDetailsRawOffset);
-    GOTO(if_smi, raw_property);
-
-    BIND(if_smi, property);
+    V<Object> index_data = __ LoadTaggedField(
+        side_data, FixedArray::OffsetOfElementAt(
+                       index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
+    // If the field is already marked as "not a constant", storing a
+    // different value is fine. But if it's anything else (including the hole,
+    // which means no value was stored yet), deopt this code. The lower tier
+    // code will update the side data and invalidate DependentCode if needed.
     V<Word32> is_const = __ TaggedEqual(
-        property, __ SmiConstant(ContextSidePropertyCell::Const()));
-    __ DeoptimizeIf(is_const, frame_state, DeoptimizeReason::kConstTrackingLet,
-                    feedback);
+        index_data, __ SmiConstant(ContextSidePropertyCell::Other()));
+    __ DeoptimizeIfNot(is_const, frame_state,
+                       DeoptimizeReason::kConstTrackingLet, feedback);
   }
 
   V<Smi> UpdateJSArrayLength(V<Word32> length_raw, V<JSArray> object,
