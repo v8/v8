@@ -2349,21 +2349,6 @@ class GraphBuildingNodeProcessor {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::CheckStringOrStringWrapper* node,
-                                const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    ObjectIsOp::InputAssumptions input_assumptions =
-        node->check_type() == maglev::CheckType::kCheckHeapObject
-            ? ObjectIsOp::InputAssumptions::kNone
-            : ObjectIsOp::InputAssumptions::kHeapObject;
-    V<Word32> check = __ ObjectIs(Map(node->receiver_input()),
-                                  ObjectIsOp::Kind::kStringOrStringWrapper,
-                                  input_assumptions);
-    __ DeoptimizeIfNot(check, frame_state,
-                       DeoptimizeReason::kNotAStringOrStringWrapper,
-                       node->eager_deopt_info()->feedback_to_update());
-    return maglev::ProcessResult::kContinue;
-  }
   maglev::ProcessResult Process(maglev::CheckSymbol* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -2568,9 +2553,8 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  template <typename Node>
-  maglev::ProcessResult StringConcatHelper(Node* node, V<String> left,
-                                           V<String> right) {
+  maglev::ProcessResult Process(maglev::StringConcat* node,
+                                const maglev::ProcessingState& state) {
     // When coming from Turbofan, StringConcat is always guarded by a check that
     // the length is less than String::kMaxLength, which prevents StringConcat
     // from ever throwing (and as a consequence of this, it does not need a
@@ -2585,6 +2569,9 @@ class GraphBuildingNodeProcessor {
     // without adding a member to all throwing operations (like adding
     // LazyDeoptOnThrow in FrameStateOp).
     ThrowingScope throwing_scope(this, node);
+
+    V<String> left = Map(node->lhs());
+    V<String> right = Map(node->rhs());
 
     V<Word32> left_len = __ StringLength(left);
     V<Word32> right_len = __ StringLength(right);
@@ -2615,37 +2602,6 @@ class GraphBuildingNodeProcessor {
 
     SetMap(node, __ StringConcat(Map(node->lhs()), Map(node->rhs())));
     return maglev::ProcessResult::kContinue;
-  }
-  maglev::ProcessResult Process(maglev::StringConcat* node,
-                                const maglev::ProcessingState& state) {
-    V<String> left = Map(node->lhs());
-    V<String> right = Map(node->rhs());
-    return StringConcatHelper(node, left, right);
-  }
-  maglev::ProcessResult Process(maglev::StringWrapperConcat* node,
-                                const maglev::ProcessingState& state) {
-    ThrowingScope throwing_scope(this, node);
-
-    V<HeapObject> left_string_or_wrapper = Map(node->lhs());
-    V<HeapObject> right_string_or_wrapper = Map(node->rhs());
-
-    V<String> left;
-    V<String> right;
-    IF (__ ObjectIsString(left_string_or_wrapper)) {
-      left = V<String>::Cast(left_string_or_wrapper);
-    } ELSE {
-      left = V<String>::Cast(__ LoadTaggedField(
-          V<JSPrimitiveWrapper>::Cast(left), JSPrimitiveWrapper::kValueOffset));
-    }
-    IF (__ ObjectIsString(right_string_or_wrapper)) {
-      right = V<String>::Cast(right_string_or_wrapper);
-    } ELSE {
-      right =
-          V<String>::Cast(__ LoadTaggedField(V<JSPrimitiveWrapper>::Cast(right),
-                                             JSPrimitiveWrapper::kValueOffset));
-    }
-
-    return StringConcatHelper(node, left, right);
   }
   maglev::ProcessResult Process(maglev::StringEqual* node,
                                 const maglev::ProcessingState& state) {
