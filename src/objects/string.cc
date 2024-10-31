@@ -659,11 +659,6 @@ const char* String::SuffixForDebugPrint() const {
 }
 
 void String::StringShortPrint(StringStream* accumulator) {
-  if (!LooksValid()) {
-    accumulator->Add("<Invalid String>");
-    return;
-  }
-
   const uint32_t len = length();
   accumulator->Add("<String[%u]: ", len);
   accumulator->Add(PrefixForDebugPrint());
@@ -717,16 +712,6 @@ int32_t String::ToArrayIndex(Address addr) {
   return -1;
 }
 
-bool String::LooksValid() {
-  // TODO(leszeks): Maybe remove this check entirely, Heap::Contains uses
-  // basically the same logic as the way we access the heap in the first place.
-  // RO_SPACE objects should always be valid.
-  if (ReadOnlyHeap::Contains(this)) return true;
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(this);
-  if (chunk->heap() == nullptr) return false;
-  return chunk->heap()->Contains(this);
-}
-
 // static
 Handle<Number> String::ToNumber(Isolate* isolate, Handle<String> subject) {
   return isolate->factory()->NewNumber(
@@ -771,15 +756,8 @@ String::FlatContent String::SlowGetFlatContent(
 }
 
 std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
-                                          RobustnessFlag robust_flag,
                                           uint32_t offset, uint32_t length,
                                           uint32_t* length_return) {
-  if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return std::unique_ptr<char[]>();
-  }
-  // Negative length means the to the end of the string.
-  if (length < 0) length = kMaxInt - offset;
-
   // Compute the size of the UTF-8 string. Start at the specified offset.
   StringCharacterStream stream(this, offset);
   uint32_t character_position = offset;
@@ -816,9 +794,8 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
 }
 
 std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
-                                          RobustnessFlag robust_flag,
                                           uint32_t* length_return) {
-  return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
+  return ToCString(allow_nulls, 0, -1, length_return);
 }
 
 // static

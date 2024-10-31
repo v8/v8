@@ -2246,8 +2246,8 @@ void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
     Tagged<String> source = Cast<String>(Cast<Script>(script())->source());
     int start = StartPosition();
     int length = EndPosition() - start;
-    std::unique_ptr<char[]> source_string = source->ToCString(
-        DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, nullptr);
+    std::unique_ptr<char[]> source_string =
+        source->ToCString(DISALLOW_NULLS, start, length, nullptr);
     os << source_string.get();
   }
 }

@@ -586,7 +586,7 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
   explicit DummySourceStream(Local<String> source) : done_(false) {
     source_buffer_ = Utils::OpenDirectHandle(*source)->ToCString(
-        i::ALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &source_length_);
+        i::ALLOW_NULLS, &source_length_);
   }
 
   size_t GetMoreData(const uint8_t** src) override {
