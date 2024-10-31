@@ -485,7 +485,8 @@ Tagged<ContextSidePropertyCell> Context::GetOrCreateContextSidePropertyCell(
     // If these CHECKs fail, there's a code path which initializes or assigns a
     // top-level `let` variable but doesn't update the side data.
     CHECK_EQ(object, ContextSidePropertyCell::Const());
-    object = *isolate->factory()->NewContextSidePropertyCell();
+    object = *isolate->factory()->NewContextSidePropertyCell(
+        ContextSidePropertyCell::kConst);
     side_data->set(side_data_index, object);
   }
   return Cast<ContextSidePropertyCell>(object);
@@ -502,43 +503,146 @@ bool Context::ConstTrackingLetSideDataIsConst(size_t index) const {
   return !ContextSidePropertyCell::IsNotConst(object);
 }
 
-void Context::UpdateConstTrackingLetSideData(
+namespace {
+bool IsMutableHeapNumber(DirectHandle<Context> script_context, int index,
+                         DirectHandle<Object> value) {
+  DCHECK(v8_flags.script_context_mutable_heap_number);
+  DCHECK(script_context->IsScriptContext());
+  if (!IsHeapNumber(*value)) return false;
+  const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
+  Tagged<FixedArray> side_data_table = Cast<FixedArray>(
+      script_context->get(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
+  Tagged<Object> data = side_data_table->get(side_data_index);
+  if (IsUndefined(data)) return false;
+  if (IsSmi(data)) {
+    return data.ToSmi().value() == ContextSidePropertyCell::kMutableHeapNumber;
+  }
+  CHECK(Is<ContextSidePropertyCell>(data));
+  return Cast<ContextSidePropertyCell>(data)->context_side_property() ==
+         ContextSidePropertyCell::kMutableHeapNumber;
+}
+}  // namespace
+
+DirectHandle<Object> Context::LoadScriptContextElement(
+    DirectHandle<Context> script_context, int index, DirectHandle<Object> value,
+    Isolate* isolate) {
+  DCHECK(v8_flags.script_context_mutable_heap_number);
+  DCHECK(script_context->IsScriptContext());
+  if (IsMutableHeapNumber(script_context, index, value)) {
+    return isolate->factory()->NewHeapNumber(Cast<HeapNumber>(*value)->value());
+  }
+  return value;
+}
+
+void Context::StoreScriptContextAndUpdateSlotProperty(
     DirectHandle<Context> script_context, int index,
     DirectHandle<Object> new_value, Isolate* isolate) {
   DCHECK(v8_flags.const_tracking_let);
   DCHECK(script_context->IsScriptContext());
+
   DirectHandle<Object> old_value(script_context->get(index), isolate);
   const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
   DirectHandle<FixedArray> side_data(
       Cast<FixedArray>(
           script_context->get(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX)),
       isolate);
+
   if (IsTheHole(*old_value)) {
     // Setting the initial value. Here we cannot assert the corresponding side
     // data is `undefined` - that won't hold w/ variable redefinitions in REPL.
     side_data->set(side_data_index, ContextSidePropertyCell::Const());
+    script_context->set(index, *new_value);
     return;
   }
+
+  // If we are assigning the same value, the property won't change.
   if (*old_value == *new_value) {
     return;
   }
-  // From now on, we know the value is no longer a constant. If there's a
-  // DependentCode, invalidate it.
-  Tagged<Object> data = side_data->get(side_data_index);
-  if (IsContextSidePropertyCell(data)) {
-    DependentCode::DeoptimizeDependencyGroups(
-        isolate, Cast<ContextSidePropertyCell>(data),
-        DependentCode::kConstTrackingLetChangedGroup);
-  } else {
-    // The value is not constant, but it also was not used as a constant
-    // (there's no code to invalidate). No action needed here; the data will
-    // be updated below.
 
-    // If the CHECK fails, there's a code path which initializes or assigns a
-    // top-level `let` variable but doesn't update the side data.
+  // From now on, we know the value is no longer a constant.
+
+  Tagged<Object> data = side_data->get(side_data_index);
+  std::optional<Tagged<ContextSidePropertyCell>> maybe_cell;
+  ContextSidePropertyCell::Property property;
+
+  if (IsContextSidePropertyCell(data)) {
+    maybe_cell = Cast<ContextSidePropertyCell>(data);
+    property = maybe_cell.value()->context_side_property();
+  } else {
     CHECK(IsSmi(data));
+    property = ContextSidePropertyCell::FromSmi(data.ToSmi());
   }
-  side_data->set(side_data_index, ContextSidePropertyCell::Other());
+
+  switch (property) {
+    case ContextSidePropertyCell::kConst:
+      if (maybe_cell) {
+        DependentCode::DeoptimizeDependencyGroups(
+            isolate, maybe_cell.value(),
+            DependentCode::kConstTrackingLetChangedGroup);
+      }
+      // It can transition to Smi, MutableHeapNumber or Other.
+      if (IsHeapNumber(*new_value)) {
+        side_data->set(side_data_index,
+                       ContextSidePropertyCell::MutableHeapNumber());
+        Handle<HeapNumber> new_number = isolate->factory()->NewHeapNumber(
+            Cast<HeapNumber>(*new_value)->value());
+        script_context->set(index, *new_number);
+      } else {
+        side_data->set(side_data_index,
+                       IsSmi(*new_value) ? ContextSidePropertyCell::SmiMarker()
+                                         : ContextSidePropertyCell::Other());
+        script_context->set(index, *new_value);
+      }
+      break;
+    case ContextSidePropertyCell::kSmi:
+      if (IsSmi(*new_value)) {
+        script_context->set(index, *new_value);
+      } else {
+        if (maybe_cell) {
+          DependentCode::DeoptimizeDependencyGroups(
+              isolate, maybe_cell.value(),
+              DependentCode::kConstTrackingLetChangedGroup);
+        }
+        // It can transition to a MutableHeapNumber or Other.
+        if (IsHeapNumber(*new_value)) {
+          side_data->set(side_data_index,
+                         ContextSidePropertyCell::MutableHeapNumber());
+          Handle<HeapNumber> new_number = isolate->factory()->NewHeapNumber(
+              Cast<HeapNumber>(*new_value)->value());
+          script_context->set(index, *new_number);
+        } else {
+          side_data->set(side_data_index, ContextSidePropertyCell::Other());
+          script_context->set(index, *new_value);
+        }
+      }
+      break;
+    case ContextSidePropertyCell::kMutableHeapNumber:
+      CHECK(IsHeapNumber(*old_value));
+      if (IsSmi(*new_value)) {
+        Cast<HeapNumber>(old_value)->set_value(
+            static_cast<double>(Cast<Smi>(*new_value).value()));
+      } else if (IsHeapNumber(*new_value)) {
+        Cast<HeapNumber>(old_value)->set_value(
+            Cast<HeapNumber>(*new_value)->value());
+      } else {
+        if (maybe_cell) {
+          DependentCode::DeoptimizeDependencyGroups(
+              isolate, maybe_cell.value(),
+              DependentCode::kConstTrackingLetChangedGroup);
+        }
+        // It can only transition to Other.
+        side_data->set(side_data_index, ContextSidePropertyCell::Other());
+        script_context->set(index, *new_value);
+      }
+      break;
+    case ContextSidePropertyCell::kOther:
+      // We should not have a code depending on Other.
+      DCHECK(!maybe_cell.has_value());
+      // No need to update side data, this is a sink state...
+      script_context->set(index, *new_value);
+      break;
+  }
 }
 
 bool NativeContext::HasTemplateLiteralObject(Tagged<JSArray> array) {

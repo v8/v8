@@ -798,10 +798,11 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   }
   if (index != Context::kNotFound) {
     DCHECK(IsContext(*holder));
+    Handle<Context> holder_context = Cast<Context>(holder);
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    Handle<Object> value = handle(Cast<Context>(*holder)->get(index), isolate);
+    Handle<Object> value = handle(holder_context->get(index), isolate);
     // Check for uninitialized bindings.
     if (flag == kNeedsInitialization && IsTheHole(*value, isolate)) {
       THROW_NEW_ERROR(isolate,
@@ -809,6 +810,12 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     }
     DCHECK(!IsTheHole(*value, isolate));
     if (receiver_return) *receiver_return = receiver;
+    if (v8_flags.script_context_mutable_heap_number &&
+        holder_context->IsScriptContext()) {
+      return handle(*Context::LoadScriptContextElement(holder_context, index,
+                                                       value, isolate),
+                    isolate);
+    }
     return value;
   }
 
@@ -931,11 +938,14 @@ MaybeHandle<Object> StoreLookupSlot(
                       NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     if ((attributes & READ_ONLY) == 0) {
-      if (v8_flags.const_tracking_let && holder_context->IsScriptContext()) {
-        Context::UpdateConstTrackingLetSideData(holder_context, index, value,
-                                                isolate);
+      if ((v8_flags.script_context_mutable_heap_number ||
+           v8_flags.const_tracking_let) &&
+          holder_context->IsScriptContext()) {
+        Context::StoreScriptContextAndUpdateSlotProperty(holder_context, index,
+                                                         value, isolate);
+      } else {
+        Cast<Context>(holder)->set(index, *value);
       }
-      Cast<Context>(holder)->set(index, *value);
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kConstAssign, name));
@@ -1025,8 +1035,10 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   // by functions using the LdaContextSlot bytecode, and such accesses are not
   // regarded as "immutable" when optimizing.
   if (v8_flags.const_tracking_let) {
-    Context::UpdateConstTrackingLetSideData(
+    Context::StoreScriptContextAndUpdateSlotProperty(
         script_context, lookup_result.slot_index, value, isolate);
+  } else {
+    script_context->set(lookup_result.slot_index, *value);
   }
 
   script_context->set(lookup_result.slot_index, *value);
