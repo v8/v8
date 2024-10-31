@@ -51,8 +51,6 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceCheckNumber(node);
     case IrOpcode::kCheckString:
       return ReduceCheckString(node);
-    case IrOpcode::kCheckStringWrapper:
-      return ReduceCheckStringWrapper(node);
     case IrOpcode::kCheckStringOrStringWrapper:
       return ReduceCheckStringOrStringWrapper(node);
     case IrOpcode::kCheckEqualsInternalizedString:
@@ -264,16 +262,6 @@ Reduction TypedOptimization::ReduceCheckString(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type const input_type = NodeProperties::GetType(input);
   if (input_type.Is(Type::String())) {
-    ReplaceWithValue(node, input);
-    return Replace(input);
-  }
-  return NoChange();
-}
-
-Reduction TypedOptimization::ReduceCheckStringWrapper(Node* node) {
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type const input_type = NodeProperties::GetType(input);
-  if (input_type.Is(Type::StringWrapper())) {
     ReplaceWithValue(node, input);
     return Replace(input);
   }

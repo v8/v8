@@ -937,7 +937,6 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(CheckNumber, 1, 1)                   \
   V(CheckSmi, 1, 1)                      \
   V(CheckString, 1, 1)                   \
-  V(CheckStringWrapper, 1, 1)            \
   V(CheckStringOrStringWrapper, 1, 1)    \
   V(CheckBigInt, 1, 1)                   \
   V(CheckedBigIntToBigInt64, 1, 1)       \

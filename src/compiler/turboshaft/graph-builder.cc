@@ -829,8 +829,6 @@ OpIndex GraphBuilder::Process(
                            NotAJavaScriptObjectOrNullOrUndefined, {})
       CHECK_OBJECT_IS_CASE(CheckString, String, HeapObject, NotAString,
                            CheckParametersOf(op).feedback())
-      CHECK_OBJECT_IS_CASE(CheckStringWrapper, StringWrapper, HeapObject,
-                           NotAStringWrapper, CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckStringOrStringWrapper, StringOrStringWrapper,
                            HeapObject, NotAStringOrStringWrapper,
                            CheckParametersOf(op).feedback())

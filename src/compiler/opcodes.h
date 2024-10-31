@@ -461,7 +461,6 @@
   V(CheckReceiverOrNullOrUndefined)     \
   V(CheckSmi)                           \
   V(CheckString)                        \
-  V(CheckStringWrapper)                 \
   V(CheckStringOrStringWrapper)         \
   V(CheckSymbol)                        \
   V(CheckTurboshaftTypeOf)              \

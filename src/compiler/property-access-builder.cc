@@ -80,20 +80,6 @@ bool PropertyAccessBuilder::TryBuildStringCheck(JSHeapBroker* broker,
   return false;
 }
 
-bool PropertyAccessBuilder::TryBuildStringWrapperCheck(
-    JSHeapBroker* broker, ZoneVector<MapRef> const& maps, Node** receiver,
-    Effect* effect, Control control) {
-  if (HasOnlyStringWrapperMaps(broker, maps)) {
-    // Monormorphic string access (ignoring the fact that there are multiple
-    // String maps).
-    *receiver = *effect =
-        graph()->NewNode(simplified()->CheckStringWrapper(FeedbackSource()),
-                         *receiver, *effect, control);
-    return true;
-  }
-  return false;
-}
-
 bool PropertyAccessBuilder::TryBuildNumberCheck(JSHeapBroker* broker,
                                                 ZoneVector<MapRef> const& maps,
                                                 Node** receiver, Effect* effect,
@@ -219,7 +205,6 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
   if (!holder.has_value()) {
     // Otherwise, try to match the {lookup_start_object} as a constant.
     if (lookup_start_object->opcode() == IrOpcode::kCheckString ||
-        lookup_start_object->opcode() == IrOpcode::kCheckStringWrapper ||
         lookup_start_object->opcode() ==
             IrOpcode::kCheckStringOrStringWrapper) {
       // Bypassing Check inputs in order to allow constant folding.

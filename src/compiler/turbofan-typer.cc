@@ -2452,11 +2452,6 @@ Type Typer::Visitor::TypeCheckString(Node* node) {
   return Type::Intersect(arg, Type::String(), zone());
 }
 
-Type Typer::Visitor::TypeCheckStringWrapper(Node* node) {
-  Type arg = Operand(node, 0);
-  return Type::Intersect(arg, Type::StringWrapper(), zone());
-}
-
 Type Typer::Visitor::TypeCheckStringOrStringWrapper(Node* node) {
   Type arg = Operand(node, 0);
   return Type::Intersect(arg, Type::StringOrStringWrapper(), zone());

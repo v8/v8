@@ -1599,9 +1599,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     } else if (!access_builder.TryBuildStringCheck(
                    broker(), access_info.lookup_start_object_maps(), &receiver,
                    &effect, control) &&
-               !access_builder.TryBuildStringWrapperCheck(
-                   broker(), access_info.lookup_start_object_maps(), &receiver,
-                   &effect, control) &&
                !access_builder.TryBuildNumberCheck(
                    broker(), access_info.lookup_start_object_maps(), &receiver,
                    &effect, control)) {
@@ -1632,6 +1629,19 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       } else {
         access_builder.BuildCheckMaps(receiver, &effect, control,
                                       access_info.lookup_start_object_maps());
+      }
+
+      if (HasOnlyStringWrapperMaps(broker(),
+                                   access_info.lookup_start_object_maps())) {
+        // In order to be able to use StringWrapperLength, we need a TypeGuard
+        // when all input maps are StringWrapper maps. Note that, alternatively,
+        // we could have a CheckStringWrapper, but it makes things simpler to
+        // just rely on CheckMaps. This is slightly suboptimal in case the code
+        // contains multiple string wrappers with different properties, but this
+        // should be a rare case.
+        lookup_start_object = receiver = effect =
+            graph()->NewNode(common()->TypeGuard(Type::StringWrapper()),
+                             lookup_start_object, effect, control);
       }
     } else {
       // At least one of TryBuildStringCheck & TryBuildNumberCheck succeeded
