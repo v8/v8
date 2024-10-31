@@ -10,7 +10,6 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"
-#include "src/objects/property-cell.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -679,11 +678,9 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
 
   static Tagged<ContextSidePropertyCell> GetOrCreateContextSidePropertyCell(
-      DirectHandle<Context> context, size_t index,
-      ContextSidePropertyCell::Property property, Isolate* isolate);
+      DirectHandle<Context> context, size_t index, Isolate* isolate);
 
-  ContextSidePropertyCell::Property GetScriptContextSideProperty(
-      size_t index) const;
+  bool ConstTrackingLetSideDataIsConst(size_t index) const;
 
   static DirectHandle<Object> LoadScriptContextElement(
       DirectHandle<Context> script_context, int index,

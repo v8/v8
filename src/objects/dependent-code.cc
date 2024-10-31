@@ -203,8 +203,8 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-tenuring-changed";
     case kAllocationSiteTransitionChangedGroup:
       return "allocation-site-transition-changed";
-    case kScriptContextSlotPropertyChangedGroup:
-      return "script-context-slot-property-changed";
+    case kConstTrackingLetChangedGroup:
+      return "const-tracking-let-changed";
   }
   UNREACHABLE();
 }
