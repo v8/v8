@@ -2620,6 +2620,12 @@ bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
     }
     Run<JSWasmLoweringPhase>();
     RunPrintAndVerify(JSWasmLoweringPhase::phase_name(), true);
+    if (v8_flags.turbo_optimize_inlined_js_wasm_wrappers && v8_flags.wasm_opt) {
+      wasm::WasmDetectedFeatures detected({wasm::WasmDetectedFeature::gc});
+      Run<WasmOptimizationPhase>(MachineOperatorReducer::kSilenceSignallingNan,
+                                 detected);
+      RunPrintAndVerify(WasmOptimizationPhase::phase_name(), true);
+    }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

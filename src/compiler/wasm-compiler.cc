@@ -3143,7 +3143,7 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
         kWasmInternalFunctionIndirectPointerTag);
   }
 
-  Node* implicit_arg = gasm_->LoadProtectedPointerFromObject(
+  Node* implicit_arg = gasm_->LoadImmutableProtectedPointerFromObject(
       internal_function,
       wasm::ObjectAccess::ToTagged(
           WasmInternalFunction::kProtectedImplicitArgOffset));
@@ -7609,14 +7609,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // The (cached) call target is the jump table slot for that function.
       // We do not use the imports dispatch table here so that the wrapper is
       // target independent, in particular for tier-up.
-      Node* internal = gasm_->LoadProtectedPointerFromObject(
+      Node* internal = gasm_->LoadImmutableProtectedPointerFromObject(
           function_data, wasm::ObjectAccess::ToTagged(
                              WasmFunctionData::kProtectedInternalOffset));
       args[0] =
           gasm_->LoadFromObject(MachineType::WasmCodePointer(), internal,
                                 wasm::ObjectAccess::ToTagged(
                                     WasmInternalFunction::kCallTargetOffset));
-      Node* implicit_arg = gasm_->LoadProtectedPointerFromObject(
+      Node* implicit_arg = gasm_->LoadImmutableProtectedPointerFromObject(
           internal, wasm::ObjectAccess::ToTagged(
                         WasmInternalFunction::kProtectedImplicitArgOffset));
       BuildWasmCall(wrapper_sig_, base::VectorOf(args), base::VectorOf(rets),

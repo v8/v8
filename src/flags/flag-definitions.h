@@ -1369,6 +1369,13 @@ DEFINE_BOOL(
     "inline JS->Wasm calls (specifically: inline JS-to-Wasm wrappers and then "
     "the body of the Wasm function, if applicable)")
 
+DEFINE_BOOL(turbo_optimize_inlined_js_wasm_wrappers, false,
+            "Run additional optimizations (especially load-elimination) on "
+            "inlined JS-to-Wasm wrappers")
+DEFINE_NEG_NEG_IMPLICATION(turbo_inline_js_wasm_calls,
+                           turbo_optimize_inlined_js_wasm_wrappers)
+DEFINE_WEAK_IMPLICATION(future, turbo_optimize_inlined_js_wasm_wrappers)
+
 DEFINE_BOOL(turbo_optimize_apply, true, "optimize Function.prototype.apply")
 DEFINE_BOOL(turbo_optimize_math_minmax, true,
             "optimize call math.min/max with double array")
