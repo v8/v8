@@ -2198,7 +2198,10 @@ void VisitFullWord32Compare(InstructionSelectorT<Adapter>* selector,
                  g.UseRegister(selector->input_at(node, 1)),
                  g.TempImmediate(32));
 
-  VisitCompare(selector, opcode, leftOp, rightOp, cont);
+  Instruction* instr = VisitCompare(selector, opcode, leftOp, rightOp, cont);
+  if constexpr (Adapter::IsTurboshaft) {
+    selector->UpdateSourcePosition(instr, node);
+  }
 }
 
 #ifndef V8_COMPRESS_POINTERS
@@ -2234,7 +2237,10 @@ void VisitOptimizedWord32Compare(InstructionSelectorT<Adapter>* selector,
                        AbortReason::kUnsupportedNonPrimitiveCompare)));
   }
 
-  VisitWordCompare(selector, node, opcode, cont, false);
+  Instruction* instr = VisitWordCompare(selector, node, opcode, cont, false);
+  if constexpr (Adapter::IsTurboshaft) {
+    selector->UpdateSourcePosition(instr, node);
+  }
 }
 #endif
 template <typename Adapter>
@@ -2731,10 +2737,12 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWordCompareZero(
         break;
       case IrOpcode::kWord32And:
 #if V8_COMPRESS_POINTERS
-          return VisitWordCompare(this, value, kRiscvTst32, cont, true);
+        VisitWordCompare(this, value, kRiscvTst32, cont, true);
+        return;
 #endif
         case IrOpcode::kWord64And:
-          return VisitWordCompare(this, value, kRiscvTst64, cont, true);
+          VisitWordCompare(this, value, kRiscvTst64, cont, true);
+          return;
         case IrOpcode::kStackPointerGreaterThan:
           cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
           return VisitStackPointerGreaterThan(value, cont);
@@ -2923,8 +2931,9 @@ void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
           Tagged_t ptr =
               MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
           if (g.CanBeImmediate(ptr, kRiscvCmp32)) {
-            return VisitCompare(this, kRiscvCmp32, g.UseRegister(left),
-                                g.TempImmediate(int32_t(ptr)), &cont);
+            VisitCompare(this, kRiscvCmp32, g.UseRegister(left),
+                         g.TempImmediate(int32_t(ptr)), &cont);
+            return;
           }
         }
       }
@@ -2961,8 +2970,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Equal(node_t node) {
         Tagged_t ptr =
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
         if (g.CanBeImmediate(ptr, kRiscvCmp32)) {
-          return VisitCompare(this, kRiscvCmp32, g.UseRegister(left),
-                              g.TempImmediate(int32_t(ptr)), &cont);
+          VisitCompare(this, kRiscvCmp32, g.UseRegister(left),
+                       g.TempImmediate(int32_t(ptr)), &cont);
+          return;
         }
       }
     }

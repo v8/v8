@@ -1956,7 +1956,9 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       vfmv_vf(dst_v, kScratchDoubleReg);
     }
   }
-  DCHECK(protected_store_pc && InstructionAt(*protected_store_pc)->IsLoad());
+  if (protected_load_pc) {
+    DCHECK(InstructionAt(*protected_load_pc)->IsLoad());
+  }
 }
 
 void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
@@ -1999,7 +2001,9 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
   } else {
     UNREACHABLE();
   }
-  DCHECK(protected_store_pc && InstructionAt(*protected_store_pc)->IsLoad());
+  if (protected_load_pc) {
+    DCHECK(InstructionAt(*protected_load_pc)->IsLoad());
+  }
 }
 
 void LiftoffAssembler::StoreLane(Register dst, Register offset,
