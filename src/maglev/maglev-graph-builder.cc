@@ -913,12 +913,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(
                          compilation_unit->osr_offset(), true),
       iterator_(bytecode().object()),
       source_position_iterator_(bytecode().SourcePositionTable(broker())),
-      allow_loop_peeling_(
-          // For osr we favor compilation speed over everything
-          !compilation_unit->is_osr() &&
-          (is_inline() ? parent_->allow_loop_peeling_
-                       : v8_flags.maglev_loop_peeling)),
-      loop_effects_(is_inline() ? parent_->loop_effects_ : nullptr),
+      allow_loop_peeling_(v8_flags.maglev_loop_peeling),
       loop_effects_stack_(zone()),
       decremented_predecessor_offsets_(zone()),
       loop_headers_to_peel_(bytecode().length(), zone()),
@@ -962,6 +957,10 @@ MaglevGraphBuilder::MaglevGraphBuilder(
     DCHECK_EQ(inline_exit_offset(), bytecode().length());
     merge_states_[inline_exit_offset()] = nullptr;
     new (&jump_targets_[inline_exit_offset()]) BasicBlockRef();
+    if (parent_->loop_effects_) {
+      loop_effects_ = parent->loop_effects_;
+      loop_effects_stack_.push_back(loop_effects_);
+    }
   }
 
   CHECK_IMPLIES(compilation_unit_->is_osr(), graph_->is_osr());

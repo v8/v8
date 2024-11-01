@@ -1120,13 +1120,6 @@ struct LoopEffects {
   ZoneSet<InlinedAllocation*> allocations;
   bool unstable_aspects_cleared = false;
   bool may_have_aliasing_contexts = false;
-  void Clear() {
-    context_slot_written.clear();
-    objects_written.clear();
-    keys_cleared.clear();
-    allocations.clear();
-    unstable_aspects_cleared = false;
-  }
   void Merge(const LoopEffects* other) {
     if (!unstable_aspects_cleared) {
       unstable_aspects_cleared = other->unstable_aspects_cleared;

@@ -276,6 +276,8 @@ class MaglevGraphBuilder {
       }
       VisitSingleBytecode();
     }
+    DCHECK_EQ(loop_effects_stack_.size(),
+              is_inline() && parent_->loop_effects_ ? 1 : 0);
   }
 
   VirtualObject* CreateVirtualObjectForMerge(compiler::MapRef map,
@@ -2741,8 +2743,11 @@ class MaglevGraphBuilder {
         int size = loop_info.loop_end() - loop_info.loop_start();
         if (loop_info.innermost() && !loop_info.resumable() &&
             iterator.next_offset() < loop_info.loop_end() &&
-            size < v8_flags.maglev_loop_peeling_max_size) {
+            size < v8_flags.maglev_loop_peeling_max_size &&
+            size + graph_->total_peeled_bytecode_size() <
+                v8_flags.maglev_loop_peeling_max_size_cumulative) {
           DCHECK(!is_loop_peeling_iteration);
+          graph_->add_peeled_bytecode_size(size);
           is_loop_peeling_iteration = true;
           loop_headers_to_peel_.Add(iterator.current_offset());
           peeled_loop_end = bytecode_analysis().GetLoopEndOffsetForInnermost(

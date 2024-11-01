@@ -97,6 +97,11 @@ class Graph final : public ZoneObject {
     total_inlined_bytecode_size_ += size;
   }
 
+  int total_peeled_bytecode_size() const { return total_peeled_bytecode_size_; }
+  void add_peeled_bytecode_size(int size) {
+    total_peeled_bytecode_size_ += size;
+  }
+
   ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
   ZoneVector<InitialValue*>& osr_values() { return osr_values_; }
   ZoneMap<int, SmiConstant*>& smi() { return smi_; }
@@ -236,6 +241,7 @@ class Graph final : public ZoneObject {
       inlined_functions_;
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;
+  int total_peeled_bytecode_size_ = 0;
   bool is_osr_ = false;
   uint32_t object_ids_ = 0;
   bool has_resumable_generator_ = false;
