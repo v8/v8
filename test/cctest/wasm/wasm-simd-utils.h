@@ -389,10 +389,17 @@ void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op,
 void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op,
                               compiler::IrOpcode::Value revec_opcode);
 
-template <typename T>
+template <typename IntType>
 void RunI32x8ConvertF32x8RevecTest(WasmOpcode opcode,
                                    ConvertToIntOp expected_op,
                                    compiler::IrOpcode::Value revec_opcode);
+template <typename IntType>
+void RunF32x8ConvertI32x8RevecTest(WasmOpcode opcode,
+                                   compiler::IrOpcode::Value revec_opcode);
+template <typename NarrowIntType, typename WideIntType>
+void RunIntSignExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
+                                  WasmOpcode splat_op,
+                                  compiler::IrOpcode::Value revec_opcode);
 template <typename S, typename T>
 void RunIntToIntNarrowingRevecTest(WasmOpcode opcode,
                                    compiler::IrOpcode::Value revec_opcode);
