@@ -910,29 +910,47 @@ void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_s(LiftoffRegister dst,
                                                         LiftoffRegister src) {
   VU.set(FPURoundingMode::RTZ);
   VU.set(kScratchReg, E32, m1);
-  vfcvt_x_f_v(dst.fp().toV(), src.fp().toV());
+  vmfeq_vv(v0, src.fp().toV(), src.fp().toV());
+  vmv_vv(kSimd128ScratchReg, src.fp().toV());
+  vmv_vx(dst.fp().toV(), zero_reg);
+  vfcvt_x_f_v(dst.fp().toV(), kSimd128ScratchReg, MaskType::Mask);
 }
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_u(LiftoffRegister dst,
                                                         LiftoffRegister src) {
   VU.set(FPURoundingMode::RTZ);
   VU.set(kScratchReg, E32, m1);
-  vfcvt_xu_f_v(dst.fp().toV(), src.fp().toV());
+  vmfeq_vv(v0, src.fp().toV(), src.fp().toV());
+  li(kScratchReg, Operand(-1));
+  vmv_vv(kSimd128ScratchReg, src.fp().toV());
+  vmv_vx(dst.fp().toV(), kScratchReg);
+  vfcvt_xu_f_v(dst.fp().toV(), kSimd128ScratchReg, MaskType::Mask);
 }
+
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_s_zero(
     LiftoffRegister dst, LiftoffRegister src) {
+  VU.set(kScratchReg, E64, m1);
+  vmfeq_vv(v0, src.fp().toV(), src.fp().toV());
+
   VU.set(kScratchReg, E32, m1);
   VU.set(FPURoundingMode::RTZ);
   vmv_vv(kSimd128ScratchReg, src.fp().toV());
-  vfncvt_x_f_w(kSimd128ScratchReg, kSimd128ScratchReg);
-  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
+  vmv_vx(dst.fp().toV(), zero_reg);
+  vfncvt_x_f_w(dst.fp().toV(), kSimd128ScratchReg, MaskType::Mask);
 }
+
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_u_zero(
     LiftoffRegister dst, LiftoffRegister src) {
+  VU.set(kScratchReg, E64, m1);
+  vmv_vv(kSimd128ScratchReg, v0);
+  vmv_vv(kSimd128ScratchReg, src.fp().toV());
+  vmfeq_vv(v0, src.fp().toV(), src.fp().toV());
   VU.set(kScratchReg, E32, m1);
   VU.set(FPURoundingMode::RTZ);
+  li(kScratchReg, Operand(-1));
   vmv_vv(kSimd128ScratchReg, src.fp().toV());
-  vfncvt_xu_f_w(kSimd128ScratchReg, kSimd128ScratchReg);
-  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
+  vmv_vx(dst.fp().toV(), zero_reg);
+  vmerge_vx(dst.fp().toV(), kScratchReg, dst.fp().toV());
+  vfncvt_xu_f_w(dst.fp().toV(), kSimd128ScratchReg, MaskType::Mask);
 }
 
 void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
