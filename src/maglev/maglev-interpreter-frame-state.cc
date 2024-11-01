@@ -190,12 +190,12 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
         }
       }
     }
-  }
-  if (optimistic_initial_state) {
-    if (loop_effects->may_have_aliasing_contexts) {
-      may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
-    } else {
-      may_have_aliasing_contexts_ = other.may_have_aliasing_contexts();
+    if (!loaded_context_slots.empty()) {
+      if (loop_effects->may_have_aliasing_contexts) {
+        may_have_aliasing_contexts_ = ContextSlotLoadsAlias::Yes;
+      } else {
+        may_have_aliasing_contexts_ = other.may_have_aliasing_contexts();
+      }
     }
   }
 
@@ -284,7 +284,8 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
   // Needs to be in sync with `CloneForLoopHeader(zone, true)`.
 
   // Analysis state can change with loads.
-  if (loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::Yes &&
+  if (!loop_header.loaded_context_slots.empty() &&
+      loop_header.may_have_aliasing_contexts() != ContextSlotLoadsAlias::Yes &&
       loop_header.may_have_aliasing_contexts() !=
           may_have_aliasing_contexts() &&
       may_have_aliasing_contexts() != ContextSlotLoadsAlias::None) {
