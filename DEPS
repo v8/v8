@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:bf523d95598ccdc9003361bf8a4142414af474f1',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:e76a7fa7e1d656b1d6a484e3fcf3b02d0717f87a',
+  'luci_go': 'git_revision:4a7755a0f40eb3aa20ff4dcecde6bab0f6a24889',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5d70e83ee7015037506cbf2ff6652462d8e1da6b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a3782693110bfcaeb75f712d7138fcb9206840dc',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'de2e80e6bcf84e27c67c025c2f828a1a93df5861',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c61bf9c942c84d2c42d4ce4fd5cf751fa36c7fd7',
   'buildtools/linux64': {
     'packages': [
       {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'fa2b8e9998947c38d55f96954b44a8a3133149aa',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '59f4cc4e90ec856504483a3125eccfe6c0a2b011',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '61356f2ec38a40d02175178bf1ac1bb29b51b437',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '77ab8f92116384bcdb6e88ebea06e81c7f7decc4',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9bf2a2011acea186fac4089a94da46666ddacf6a',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c73dc115ba56aee7283c1afd46de147f633d0d94',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -307,7 +307,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '8e31ad42561900383e10dbefc1d3e8f38cedfbe9',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '88c655feba660bbd918905eee800d2d6ae4af8d1',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '191356bd9953e40cf506d069c9e9e13ef7f424b7',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'bf062897f1bcc109fd40ba18a71a0977c4c593d1',
   'third_party/llvm-libc/src':
