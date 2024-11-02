@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:bf523d95598ccdc9003361bf8a4142414af474f1',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:4a7755a0f40eb3aa20ff4dcecde6bab0f6a24889',
+  'luci_go': 'git_revision:4797ba66f62a28b1bedf6790134a0cc6d1fe89ea',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7ae4531448d309fb6d138eae732b3b8166d632c9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '43a2115b4e2ecabfc002919263b35e535e05a9dc',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c61bf9c942c84d2c42d4ce4fd5cf751fa36c7fd7',
   'buildtools/linux64': {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '59f4cc4e90ec856504483a3125eccfe6c0a2b011',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '96472802acf39548d26958ee6809b26ca25baa7d',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '77ab8f92116384bcdb6e88ebea06e81c7f7decc4',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '3a454956bcb5a255d7d5def27af1ed3641e9e0bb',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c73dc115ba56aee7283c1afd46de147f633d0d94',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '39b2e4efd608584059aa5bb9af8e65597ca86276',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
