@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '96472802acf39548d26958ee6809b26ca25baa7d',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'ddc0647304a8ed854b2d84117f095a5f73571d37',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
