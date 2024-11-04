@@ -1222,12 +1222,13 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(length);
   for (int i = 0; i < length; ++i) {
     Handle<Object> entry = WasmTableObject::Get(isolate, table, i);
-    wasm::WasmValue wasm_value(entry, table->type());
     Handle<WasmModuleObject> module;
     if (table->has_trusted_data()) {
       module = Handle<WasmModuleObject>(
           table->trusted_data(isolate)->module_object(), isolate);
     }
+    wasm::WasmValue wasm_value(entry, table->type(),
+                               !module.is_null() ? module->module() : nullptr);
     DirectHandle<Object> debug_value =
         WasmValueObject::New(isolate, wasm_value, module);
     entries->set(i, *debug_value);

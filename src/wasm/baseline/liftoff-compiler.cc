@@ -282,8 +282,7 @@ class DebugSideTableBuilder {
 
  private:
   static std::vector<Value> GetChangedStackValues(
-      std::vector<Value>& last_values,
-      base::Vector<DebugSideTable::Entry::Value> values) {
+      std::vector<Value>& last_values, base::Vector<Value> values) {
     std::vector<Value> changed_values;
     int old_stack_size = static_cast<int>(last_values.size());
     last_values.resize(values.size());
@@ -4060,8 +4059,9 @@ class LiftoffCompiler {
       bool exception_on_stack =
           control->is_try_catch() || control->is_try_catchall();
       for (; index < end_index; ++index) {
-        auto& slot = stack_state[index];
-        auto& value = values[index];
+        const LiftoffVarState& slot = stack_state[index];
+        DebugSideTable::Entry::Value& value = values[index];
+        value.module = decoder->module_;
         value.index = index;
         if (exception_on_stack) {
           value.type = ValueType::Ref(HeapType::kAny);

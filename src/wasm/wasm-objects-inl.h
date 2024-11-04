@@ -674,6 +674,11 @@ wasm::StructType* WasmStruct::type(Tagged<Map> map) {
   return reinterpret_cast<wasm::StructType*>(type_info->native_type());
 }
 
+const wasm::WasmModule* WasmStruct::module() {
+  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  return map()->wasm_type_info()->trusted_data(isolate)->module();
+}
+
 wasm::StructType* WasmStruct::GcSafeType(Tagged<Map> map) {
   DCHECK_EQ(WASM_STRUCT_TYPE, map->instance_type());
   Tagged<HeapObject> raw = Cast<HeapObject>(map->constructor_or_back_pointer());
@@ -736,6 +741,11 @@ wasm::ArrayType* WasmArray::GcSafeType(Tagged<Map> map) {
 }
 
 wasm::ArrayType* WasmArray::type() const { return type(map()); }
+
+const wasm::WasmModule* WasmArray::module() {
+  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  return map()->wasm_type_info()->trusted_data(isolate)->module();
+}
 
 int WasmArray::SizeFor(Tagged<Map> map, int length) {
   int element_size = DecodeElementSizeFromMap(map);

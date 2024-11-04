@@ -350,7 +350,8 @@ void FuzzIt(base::Vector<const uint8_t> data) {
             WasmValue global_value =
                 instance->trusted_data(i_isolate)->GetGlobalValue(
                     i_isolate, instance->module()->globals[i]);
-            WasmValue func_value(function_result, global_value.type());
+            WasmValue func_value(function_result, global_value.type(),
+                                 global_value.module());
             CheckEquivalent(global_value, func_value, *module_object->module());
           }
         }

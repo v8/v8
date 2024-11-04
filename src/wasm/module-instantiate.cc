@@ -1706,7 +1706,7 @@ void InstanceBuilder::LoadDataSegments(
     size_t dest_offset;
     ValueOrError result = EvaluateConstantExpression(
         &init_expr_zone_, segment.dest_addr,
-        dst_memory.is_memory64() ? kWasmI64 : kWasmI32, isolate_,
+        dst_memory.is_memory64() ? kWasmI64 : kWasmI32, module_, isolate_,
         trusted_instance_data, shared_trusted_instance_data);
     if (MaybeMarkError(result, thrower_)) return;
     if (dst_memory.is_memory64()) {
@@ -1746,7 +1746,10 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
             ? reinterpret_cast<uint8_t*>(tagged_globals_->address())
             : raw_buffer_ptr(untagged_globals_, 0),
         global.offset, value.to_string().c_str(), global.type.name().c_str());
-  DCHECK(IsSubtypeOf(value.type(), global.type, module_));
+  DCHECK(
+      global.mutability
+          ? EquivalentTypes(value.type(), global.type, value.module(), module_)
+          : IsSubtypeOf(value.type(), global.type, value.module(), module_));
   if (global.type.is_numeric()) {
     value.CopyTo(GetRawUntaggedGlobalPtr<uint8_t>(global));
   } else {
@@ -2251,7 +2254,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       break;
     case kRef:
     case kRefNull:
-      value = WasmValue(global_object->GetRef(), global_object->type());
+      value = WasmValue(global_object->GetRef(), global.type, module_);
       break;
     case kVoid:
     case kTop:
@@ -2334,7 +2337,7 @@ bool InstanceBuilder::ProcessImportedGlobal(
                           error_message);
       return false;
     }
-    WriteGlobalValue(global, WasmValue(wasm_value, global.type));
+    WriteGlobalValue(global, WasmValue(wasm_value, global.type, module_));
     return true;
   }
 
@@ -2547,7 +2550,7 @@ void InstanceBuilder::InitGlobals(
     if (!global.init.is_set()) continue;
 
     ValueOrError result = EvaluateConstantExpression(
-        &init_expr_zone_, global.init, global.type, isolate_,
+        &init_expr_zone_, global.init, global.type, module_, isolate_,
         trusted_instance_data, shared_trusted_instance_data);
     if (MaybeMarkError(result, thrower_)) return;
 
@@ -2859,8 +2862,9 @@ void InstanceBuilder::SetTableInitialValues(
         }
       } else {
         ValueOrError result = EvaluateConstantExpression(
-            &init_expr_zone_, table.initial_value, table.type, isolate_,
-            maybe_shared_trusted_instance_data, shared_trusted_instance_data);
+            &init_expr_zone_, table.initial_value, table.type, module_,
+            isolate_, maybe_shared_trusted_instance_data,
+            shared_trusted_instance_data);
         if (MaybeMarkError(result, thrower_)) return;
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
@@ -2886,12 +2890,13 @@ ValueOrError ConsumeElementSegmentEntry(
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     const WasmElemSegment& segment, Decoder& decoder,
     FunctionComputationMode function_mode) {
+  const WasmModule* module = trusted_instance_data->module();
   if (segment.element_type == WasmElemSegment::kFunctionIndexElements) {
     uint32_t function_index = decoder.consume_u32v();
     return function_mode == kStrictFunctionsAndNull
                ? EvaluateConstantExpression(
                      zone, ConstantExpression::RefFunc(function_index),
-                     segment.type, isolate, trusted_instance_data,
+                     segment.type, module, isolate, trusted_instance_data,
                      shared_trusted_instance_data)
                : ValueOrError(WasmValue(function_index));
   }
@@ -2906,7 +2911,7 @@ ValueOrError ConsumeElementSegmentEntry(
         return function_mode == kStrictFunctionsAndNull
                    ? EvaluateConstantExpression(
                          zone, ConstantExpression::RefFunc(function_index),
-                         segment.type, isolate, trusted_instance_data,
+                         segment.type, module, isolate, trusted_instance_data,
                          shared_trusted_instance_data)
                    : ValueOrError(WasmValue(function_index));
       }
@@ -2922,7 +2927,7 @@ ValueOrError ConsumeElementSegmentEntry(
                    ? EvaluateConstantExpression(zone,
                                                 ConstantExpression::RefNull(
                                                     heap_type.representation()),
-                                                segment.type, isolate,
+                                                segment.type, module, isolate,
                                                 trusted_instance_data,
                                                 shared_trusted_instance_data)
                    : WasmValue(int32_t{-1});
@@ -3019,7 +3024,7 @@ void InstanceBuilder::LoadTableSegments(
     size_t dest_offset;
     ValueOrError result = EvaluateConstantExpression(
         &init_expr_zone_, elem_segment.offset,
-        table->is_table64() ? kWasmI64 : kWasmI32, isolate_,
+        table->is_table64() ? kWasmI64 : kWasmI32, module_, isolate_,
         trusted_instance_data, shared_trusted_instance_data);
     if (MaybeMarkError(result, thrower_)) return;
     if (table->is_table64()) {

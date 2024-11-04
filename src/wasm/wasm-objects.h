@@ -1319,6 +1319,7 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   static inline wasm::StructType* GcSafeType(Tagged<Map> map);
   static inline int Size(const wasm::StructType* type);
   static inline int GcSafeSize(Tagged<Map> map);
+  inline const wasm::WasmModule* module();
   static inline void EncodeInstanceSizeInMap(int instance_size,
                                              Tagged<Map> map);
   static inline int DecodeInstanceSizeFromMap(Tagged<Map> map);
@@ -1355,6 +1356,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   static inline wasm::ArrayType* type(Tagged<Map> map);
   inline wasm::ArrayType* type() const;
   static inline wasm::ArrayType* GcSafeType(Tagged<Map> map);
+  inline const wasm::WasmModule* module();
 
   // Get the {ObjectSlot} corresponding to the element at {index}. Requires that
   // this is a reference array.

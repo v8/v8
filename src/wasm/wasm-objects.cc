@@ -2015,7 +2015,7 @@ wasm::WasmValue WasmTrustedInstanceData::GetGlobalValue(
     uint32_t global_index = 0;         // The index into the buffer.
     std::tie(global_buffer, global_index) = GetGlobalBufferAndIndex(global);
     return wasm::WasmValue(handle(global_buffer->get(global_index), isolate),
-                           global.type);
+                           global.type, module());
   }
   Address ptr = reinterpret_cast<Address>(GetGlobalStorage(global));
   switch (global.type.kind()) {
@@ -2048,7 +2048,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
     case wasm::kRefNull: {
       Handle<Object> ref(TaggedField<Object>::load(*this, field_offset),
                          GetIsolateFromWritableObject(*this));
-      return wasm::WasmValue(ref, field_type);
+      return wasm::WasmValue(ref, field_type, module());
     }
     case wasm::kRtt:
     case wasm::kVoid:
@@ -2078,7 +2078,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     case wasm::kRefNull: {
       Handle<Object> ref(TaggedField<Object>::load(*this, element_offset),
                          GetIsolateFromWritableObject(*this));
-      return wasm::WasmValue(ref, element_type);
+      return wasm::WasmValue(ref, element_type, module());
     }
     case wasm::kRtt:
     case wasm::kVoid:

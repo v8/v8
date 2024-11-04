@@ -609,7 +609,7 @@ class DebugInfoImpl {
                      const DebugSideTable::Entry* debug_side_table_entry,
                      int index, Address stack_frame_base,
                      Address debug_break_fp, Isolate* isolate) const {
-    const auto* value =
+    const DebugSideTable::Entry::Value* value =
         debug_side_table->FindValue(debug_side_table_entry, index);
     if (value->is_constant()) {
       DCHECK(value->type == kWasmI32 || value->type == kWasmI64);
@@ -640,7 +640,7 @@ class DebugInfoImpl {
           Handle<Object> obj(
               Tagged<Object>(ReadUnalignedValue<Address>(gp_addr(reg.gp()))),
               isolate);
-          return WasmValue(obj, value->type);
+          return WasmValue(obj, value->type, value->module);
         } else {
           UNREACHABLE();
         }
@@ -686,7 +686,7 @@ class DebugInfoImpl {
         Handle<Object> obj(
             Tagged<Object>(ReadUnalignedValue<Address>(stack_address)),
             isolate);
-        return WasmValue(obj, value->type);
+        return WasmValue(obj, value->type, value->module);
       }
       case kI8:
       case kI16:
