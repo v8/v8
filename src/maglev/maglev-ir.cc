@@ -3362,6 +3362,49 @@ void CheckString::GenerateCode(MaglevAssembler* masm,
                      __ GetDeoptLabel(this, DeoptimizeReason::kNotAString));
 }
 
+void CheckStringOrStringWrapper::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  set_temporaries_needed(1);
+}
+
+void CheckStringOrStringWrapper::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    __ EmitEagerDeoptIfSmi(this, object,
+                           DeoptimizeReason::kNotAStringOrStringWrapper);
+  }
+
+  auto deopt =
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotAStringOrStringWrapper);
+  Label done;
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+
+  __ JumpIfString(object, &done);
+  __ JumpIfNotObjectType(object, InstanceType::JS_PRIMITIVE_WRAPPER_TYPE,
+                         deopt);
+  __ LoadMap(scratch, object);
+  __ Move(scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
+  __ AndInt32(scratch, Map::Bits2::ElementsKindBits::kMask);
+  static_assert(FAST_STRING_WRAPPER_ELEMENTS + 1 ==
+                SLOW_STRING_WRAPPER_ELEMENTS);
+  __ CompareInt32AndJumpIf(
+      scratch,
+      FAST_STRING_WRAPPER_ELEMENTS << Map::Bits2::ElementsKindBits::kShift,
+      kLessThan, deopt);
+  __ CompareInt32AndJumpIf(
+      scratch,
+      SLOW_STRING_WRAPPER_ELEMENTS << Map::Bits2::ElementsKindBits::kShift,
+      kGreaterThan, deopt);
+  __ Jump(&done);
+  __ bind(&done);
+}
+
 void CheckDetectableCallable::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   set_temporaries_needed(1);
@@ -4663,6 +4706,42 @@ void StringConcat::GenerateCode(MaglevAssembler* masm,
       masm->native_context().object(),  // context
       lhs(),                            // left
       rhs()                             // right
+  );
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  DCHECK_EQ(kReturnRegister0, ToRegister(result()));
+}
+
+void StringWrapperConcat::SetValueLocationConstraints() {
+  using D = StringAdd_CheckNoneDescriptor;
+  UseFixed(lhs(), D::GetRegisterParameter(D::kLeft));
+  UseFixed(rhs(), D::GetRegisterParameter(D::kRight));
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+void StringWrapperConcat::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+
+  Register left = ToRegister(lhs());
+  Label left_done;
+  __ JumpIfString(left, &left_done);
+  __ LoadTaggedField(left, left, JSPrimitiveWrapper::kValueOffset);
+  __ Jump(&left_done);
+
+  __ bind(&left_done);
+
+  Register right = ToRegister(rhs());
+  Label right_done;
+  __ JumpIfString(right, &right_done);
+  __ LoadTaggedField(right, right, JSPrimitiveWrapper::kValueOffset);
+  __ Jump(&right_done);
+
+  __ bind(&right_done);
+
+  __ CallBuiltin<Builtin::kStringAdd_CheckNone>(
+      masm->native_context().object(),  // context
+      left,                             // left
+      right                             // right
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
   DCHECK_EQ(kReturnRegister0, ToRegister(result()));

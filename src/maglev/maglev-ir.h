@@ -264,6 +264,7 @@ class ExceptionHandlerInfo;
   V(StringEqual)                                    \
   V(StringLength)                                   \
   V(StringConcat)                                   \
+  V(StringWrapperConcat)                            \
   V(ToBoolean)                                      \
   V(ToBooleanLogicalNot)                            \
   V(AllocateElementsArray)                          \
@@ -313,6 +314,7 @@ class ExceptionHandlerInfo;
   V(CheckNumber)                              \
   V(CheckSmi)                                 \
   V(CheckString)                              \
+  V(CheckStringOrStringWrapper)               \
   V(CheckSymbol)                              \
   V(CheckValue)                               \
   V(CheckValueEqualsInt32)                    \
@@ -573,10 +575,10 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
  *      NumberOrOddball
  *       /     |      \
  *      /      |       NumberOrBoolean
- *      |      |   ___/  /
- *      |      \ /      /
- *      |       X      /         JSReceiver*                 Name*
- *     /       / \    |          /       \                  /    \
+ *      |      |   ___/  /                     StringOrStringWrapper
+ *      |      \ /      /                             |
+ *      |       X      /         JSReceiver*          |      Name*
+ *     /       / \    |          /       \            |     /    \
  *  Oddball*  /  Number      Callable* JSArray*     String*  Symbol*
  *    |      /   /    \                                |
  *  Boolean*    Smi   HeapNumber*              InternalizedString*
@@ -593,12 +595,13 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
   V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)  \
   V(Boolean, (1 << 7) | kOddball | kNumberOrBoolean)        \
   V(Name, (1 << 8) | kAnyHeapObject)                        \
-  V(String, (1 << 9) | kName)                               \
-  V(InternalizedString, (1 << 10) | kString)                \
-  V(Symbol, (1 << 11) | kName)                              \
-  V(JSReceiver, (1 << 12) | kAnyHeapObject)                 \
-  V(JSArray, (1 << 13) | kJSReceiver)                       \
-  V(Callable, (1 << 14) | kJSReceiver)                      \
+  V(StringOrStringWrapper, (1 << 9))                        \
+  V(String, (1 << 10) | kName | kStringOrStringWrapper)     \
+  V(InternalizedString, (1 << 11) | kString)                \
+  V(Symbol, (1 << 12) | kName)                              \
+  V(JSReceiver, (1 << 13) | kAnyHeapObject)                 \
+  V(JSArray, (1 << 14) | kJSReceiver)                       \
+  V(Callable, (1 << 15) | kJSReceiver)                      \
   V(HeapNumber, kAnyHeapObject | kNumber)
 
 enum class NodeType : uint32_t {
@@ -662,6 +665,10 @@ inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
       return map.IsNameMap();
     case NodeType::kString:
       return map.IsStringMap();
+    case NodeType::kStringOrStringWrapper:
+      return map.IsStringMap() ||
+             (map.IsJSPrimitiveWrapperMap() &&
+              IsStringWrapperElementsKind(map.elements_kind()));
     case NodeType::kInternalizedString:
       return map.IsInternalizedStringMap();
     case NodeType::kSymbol:
@@ -6132,6 +6139,32 @@ class CheckString : public FixedInputNodeT<1, CheckString> {
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
+class CheckStringOrStringWrapper
+    : public FixedInputNodeT<1, CheckStringOrStringWrapper> {
+  using Base = FixedInputNodeT<1, CheckStringOrStringWrapper>;
+
+ public:
+  explicit CheckStringOrStringWrapper(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  auto options() const { return std::tuple{check_type()}; }
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
+};
+
 class CheckDetectableCallable
     : public FixedInputNodeT<1, CheckDetectableCallable> {
   using Base = FixedInputNodeT<1, CheckDetectableCallable>;
@@ -7992,6 +8025,28 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
 
  public:
   explicit StringConcat(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::LazyDeopt() |
+                                              OpProperties::CanThrow();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  Input& lhs() { return Node::input(0); }
+  Input& rhs() { return Node::input(1); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class StringWrapperConcat
+    : public FixedInputValueNodeT<2, StringWrapperConcat> {
+  using Base = FixedInputValueNodeT<2, StringWrapperConcat>;
+
+ public:
+  explicit StringWrapperConcat(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Call() |
                                               OpProperties::LazyDeopt() |

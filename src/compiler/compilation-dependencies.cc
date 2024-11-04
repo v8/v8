@@ -1330,6 +1330,12 @@ bool CompilationDependencies::DependOnPromiseThenProtector() {
       broker_, broker_->isolate()->factory()->promise_then_protector()));
 }
 
+bool CompilationDependencies::DependOnStringWrapperToPrimitiveProtector() {
+  return DependOnProtector(MakeRef(
+      broker_,
+      broker_->isolate()->factory()->string_wrapper_to_primitive_protector()));
+}
+
 void CompilationDependencies::DependOnElementsKind(AllocationSiteRef site) {
   ElementsKind kind =
       site.PointsToLiteral()
