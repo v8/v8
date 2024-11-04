@@ -631,11 +631,11 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
   FastApiCallReducerAssembler(
       JSCallReducer* reducer, Node* node,
       const FunctionTemplateInfoRef function_template_info,
-      const FastApiCallFunctionVector& c_candidate_functions, Node* receiver,
-      Node* holder, const SharedFunctionInfoRef shared, Node* target,
-      const int arity, Node* effect)
+      FastApiCallFunction c_function, Node* receiver, Node* holder,
+      const SharedFunctionInfoRef shared, Node* target, const int arity,
+      Node* effect)
       : JSCallReducerAssembler(reducer, node),
-        c_candidate_functions_(c_candidate_functions),
+        c_function_(c_function),
         function_template_info_(function_template_info),
         receiver_(receiver),
         holder_(holder),
@@ -643,7 +643,6 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
         target_(target),
         arity_(arity) {
     DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-    CHECK_GT(c_candidate_functions.size(), 0);
     InitializeEffectControl(effect, NodeProperties::GetControlInput(node));
   }
 
@@ -655,7 +654,7 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     // All functions in c_candidate_functions_ have the same number of
     // arguments, so extract c_argument_count from the first function.
     const int c_argument_count =
-        static_cast<int>(c_candidate_functions_[0].signature->ArgumentCount());
+        static_cast<int>(c_function_.signature->ArgumentCount());
     CHECK_GE(c_argument_count, kReceiver);
 
     const int slow_arg_count =
@@ -756,13 +755,12 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
 
   TNode<Object> FastApiCall(CallDescriptor* descriptor, Node** inputs,
                             size_t inputs_size) {
-    return AddNode<Object>(
-        graph()->NewNode(simplified()->FastApiCall(c_candidate_functions_,
-                                                   feedback(), descriptor),
-                         static_cast<int>(inputs_size), inputs));
+    return AddNode<Object>(graph()->NewNode(
+        simplified()->FastApiCall(c_function_, feedback(), descriptor),
+        static_cast<int>(inputs_size), inputs));
   }
 
-  const FastApiCallFunctionVector c_candidate_functions_;
+  FastApiCallFunction c_function_;
   const FunctionTemplateInfoRef function_template_info_;
   Node* const receiver_;
   Node* const holder_;
@@ -3888,11 +3886,10 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
 // Returns an array with the indexes of the remaining entries in S, which
 // represents the set of "optimizable" function overloads.
 
-FastApiCallFunctionVector CanOptimizeFastCall(
-    JSHeapBroker* broker, Zone* zone,
-    FunctionTemplateInfoRef function_template_info, size_t arg_count) {
-  FastApiCallFunctionVector result(zone);
-  if (!v8_flags.turbo_fast_api_calls) return result;
+FastApiCallFunction GetFastApiCallTarget(
+    JSHeapBroker* broker, FunctionTemplateInfoRef function_template_info,
+    size_t arg_count) {
+  if (!v8_flags.turbo_fast_api_calls) return {0, nullptr};
 
   static constexpr int kReceiver = 1;
 
@@ -3921,15 +3918,15 @@ FastApiCallFunctionVector CanOptimizeFastCall(
             static_cast<uint8_t>(c_signature->ArgumentInfo(i).GetFlags());
         if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
           // Bailout
-          return FastApiCallFunctionVector(zone);
+          return {0, nullptr};
         }
       }
 #endif
-      result.push_back({functions[i], c_signature});
+      return {functions[i], c_signature};
     }
   }
 
-  return result;
+  return {0, nullptr};
 }
 
 Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
@@ -4112,15 +4109,13 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   }
 
   // Handles overloaded functions.
+  FastApiCallFunction c_function =
+      GetFastApiCallTarget(broker(), function_template_info, argc);
 
-  FastApiCallFunctionVector c_candidate_functions = CanOptimizeFastCall(
-      broker(), graph()->zone(), function_template_info, argc);
-  DCHECK_LE(c_candidate_functions.size(), 2);
-
-  if (!c_candidate_functions.empty()) {
+  if (c_function.address) {
     FastApiCallReducerAssembler a(this, node, function_template_info,
-                                  c_candidate_functions, receiver, holder,
-                                  shared, target, argc, effect);
+                                  c_function, receiver, holder, shared, target,
+                                  argc, effect);
     Node* fast_call_subgraph = a.ReduceFastApiCall();
 
     return Replace(fast_call_subgraph);

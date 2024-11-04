@@ -2055,26 +2055,21 @@ FastApiCallParameters const& FastApiCallParametersOf(const Operator* op) {
 }
 
 std::ostream& operator<<(std::ostream& os, FastApiCallParameters const& p) {
-  const auto& c_functions = p.c_functions();
-  for (size_t i = 0; i < c_functions.size(); i++) {
-    os << c_functions[i].address << ":" << c_functions[i].signature << ", ";
-  }
+  FastApiCallFunction c_function = p.c_function();
+  os << c_function.address << ":" << c_function.signature << ", ";
   return os << p.feedback() << ", " << p.descriptor();
 }
 
 size_t hash_value(FastApiCallParameters const& p) {
-  const auto& c_functions = p.c_functions();
-  size_t hash = 0;
-  for (size_t i = 0; i < c_functions.size(); i++) {
-    hash = base::hash_combine(c_functions[i].address, c_functions[i].signature);
-  }
+  FastApiCallFunction c_function = p.c_function();
+  size_t hash = base::hash_combine(c_function.address, c_function.signature);
   return base::hash_combine(hash, FeedbackSource::Hash()(p.feedback()),
                             p.descriptor());
 }
 
 bool operator==(FastApiCallParameters const& lhs,
                 FastApiCallParameters const& rhs) {
-  return lhs.c_functions() == rhs.c_functions() &&
+  return lhs.c_function() == rhs.c_function() &&
          lhs.feedback() == rhs.feedback() &&
          lhs.descriptor() == rhs.descriptor();
 }
@@ -2284,19 +2279,11 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
 }
 
 const Operator* SimplifiedOperatorBuilder::FastApiCall(
-    const FastApiCallFunctionVector& c_functions,
-    FeedbackSource const& feedback, CallDescriptor* descriptor) {
-  DCHECK(!c_functions.empty());
-
-  // All function overloads have the same number of arguments and options.
-  const CFunctionInfo* signature = c_functions[0].signature;
+    FastApiCallFunction c_function, FeedbackSource const& feedback,
+    CallDescriptor* descriptor) {
+  CHECK_NOT_NULL(c_function.signature);
+  const CFunctionInfo* signature = c_function.signature;
   const int c_arg_count = signature->ArgumentCount();
-  for (size_t i = 1; i < c_functions.size(); i++) {
-    CHECK_NOT_NULL(c_functions[i].signature);
-    DCHECK_EQ(c_functions[i].signature->ArgumentCount(), c_arg_count);
-    DCHECK_EQ(c_functions[i].signature->HasOptions(),
-              c_functions[0].signature->HasOptions());
-  }
   // Arguments for CallApiCallbackOptimizedXXX builtin (including context)
   // plus JS arguments (including receiver).
   int slow_arg_count = static_cast<int>(descriptor->ParameterCount());
@@ -2306,13 +2293,13 @@ const Operator* SimplifiedOperatorBuilder::FastApiCall(
   return zone()->New<Operator1<FastApiCallParameters>>(
       IrOpcode::kFastApiCall, Operator::kNoProperties, "FastApiCall",
       value_input_count, 1, 1, 1, 1, 2,
-      FastApiCallParameters(c_functions, feedback, descriptor));
+      FastApiCallParameters(c_function, feedback, descriptor));
 }
 
 // static
 int FastApiCallNode::FastCallArgumentCount(Node* node) {
   FastApiCallParameters p = FastApiCallParametersOf(node->op());
-  const CFunctionInfo* signature = p.c_functions()[0].signature;
+  const CFunctionInfo* signature = p.c_function().signature;
   CHECK_NOT_NULL(signature);
   return signature->ArgumentCount();
 }

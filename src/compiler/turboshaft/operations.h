@@ -6318,24 +6318,16 @@ struct Float64SameValueOp : FixedArityOperationT<2, Float64SameValueOp> {
 };
 
 struct FastApiCallParameters : public NON_EXPORTED_BASE(ZoneObject) {
-  const FastApiCallFunctionVector c_functions;
-  fast_api_call::OverloadsResolutionResult resolution_result;
+  FastApiCallFunction c_function;
 
-  const CFunctionInfo* c_signature() const { return c_functions[0].signature; }
+  const CFunctionInfo* c_signature() const { return c_function.signature; }
 
-  FastApiCallParameters(
-      const FastApiCallFunctionVector& c_functions,
-      const fast_api_call::OverloadsResolutionResult& resolution_result)
-      : c_functions(c_functions), resolution_result(resolution_result) {
-    DCHECK_LT(0, c_functions.size());
-  }
+  explicit FastApiCallParameters(FastApiCallFunction c_function)
+      : c_function(c_function) {}
 
-  static const FastApiCallParameters* Create(
-      const FastApiCallFunctionVector& c_functions,
-      const fast_api_call::OverloadsResolutionResult& resolution_result,
-      Zone* graph_zone) {
-    return graph_zone->New<FastApiCallParameters>(std::move(c_functions),
-                                                  resolution_result);
+  static const FastApiCallParameters* Create(FastApiCallFunction c_function,
+                                             Zone* graph_zone) {
+    return graph_zone->New<FastApiCallParameters>(c_function);
   }
 };
 

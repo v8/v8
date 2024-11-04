@@ -1186,11 +1186,8 @@ Type Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeFastApiCall(Node* node) {
   FastApiCallParameters const& op_params = FastApiCallParametersOf(node->op());
-  if (op_params.c_functions().empty()) {
-    return Type::Undefined();
-  }
 
-  const CFunctionInfo* c_signature = op_params.c_functions()[0].signature;
+  const CFunctionInfo* c_signature = op_params.c_function().signature;
   CTypeInfo return_type = c_signature->ReturnInfo();
 
   switch (return_type.GetType()) {

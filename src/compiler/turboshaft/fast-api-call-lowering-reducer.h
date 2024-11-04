@@ -29,41 +29,23 @@ class FastApiCallLoweringReducer : public Next {
       base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
-    const auto& c_functions = parameters->c_functions;
+    FastApiCallFunction c_function = parameters->c_function;
     const auto& c_signature = parameters->c_signature();
     const int c_arg_count = c_signature->ArgumentCount();
     DCHECK_EQ(c_arg_count, arguments.size());
-    const auto& resolution_result = parameters->resolution_result;
 
     Label<> handle_error(this);
     Label<Word32> done(this);
     Variable result = __ NewVariable(RegisterRepresentation::FromCTypeInfo(
         c_signature->ReturnInfo(), c_signature->GetInt64Representation()));
 
-    OpIndex callee;
+    OpIndex callee = __ ExternalConstant(ExternalReference::Create(
+        c_function.address, ExternalReference::FAST_C_CALL));
+
     base::SmallVector<OpIndex, 16> args;
     for (int i = 0; i < c_arg_count; ++i) {
-      // Check if this is the argument on which we need to perform overload
-      // resolution.
-      if (i == resolution_result.distinguishable_arg_index) {
-        DCHECK_GT(c_functions.size(), 1);
-        // This only happens when the FastApiCall node represents multiple
-        // overloaded functions and {i} is the index of the distinguishable
-        // argument.
-        OpIndex arg_i;
-        std::tie(callee, arg_i) = AdaptOverloadedFastCallArgument(
-            arguments[i], c_functions, resolution_result, handle_error);
-        args.push_back(arg_i);
-      } else {
         CTypeInfo type = c_signature->ArgumentInfo(i);
         args.push_back(AdaptFastCallArgument(arguments[i], type, handle_error));
-      }
-    }
-
-    if (c_functions.size() == 1) {
-      DCHECK(!callee.valid());
-      callee = __ ExternalConstant(ExternalReference::Create(
-          c_functions[0].address, ExternalReference::FAST_C_CALL));
     }
 
     // While adapting the arguments, we might have noticed an inconsistency that
@@ -155,56 +137,6 @@ class FastApiCallLoweringReducer : public Next {
   }
 
  private:
-  std::pair<OpIndex, OpIndex> AdaptOverloadedFastCallArgument(
-      OpIndex argument, const FastApiCallFunctionVector& c_functions,
-      const fast_api_call::OverloadsResolutionResult& resolution_result,
-      Label<>& handle_error) {
-    Label<WordPtr, WordPtr> done(this);
-
-    for (size_t func_index = 0; func_index < c_functions.size(); ++func_index) {
-      const CFunctionInfo* c_signature = c_functions[func_index].signature;
-      CTypeInfo arg_type = c_signature->ArgumentInfo(
-          resolution_result.distinguishable_arg_index);
-
-      Label<> next(this);
-
-      // Check that the value is a HeapObject.
-      GOTO_IF(__ ObjectIsSmi(argument), handle_error);
-
-      switch (arg_type.GetSequenceType()) {
-        case CTypeInfo::SequenceType::kIsSequence: {
-          CHECK_EQ(arg_type.GetType(), CTypeInfo::Type::kVoid);
-
-          // Check that the value is a JSArray.
-          V<Map> map = __ LoadMapField(argument);
-          V<Word32> instance_type = __ LoadInstanceTypeField(map);
-          GOTO_IF_NOT(__ Word32Equal(instance_type, JS_ARRAY_TYPE), next);
-
-          OpIndex argument_to_pass = __ AdaptLocalArgument(argument);
-          OpIndex target_address = __ ExternalConstant(
-              ExternalReference::Create(c_functions[func_index].address,
-                                        ExternalReference::FAST_C_CALL));
-          GOTO(done, target_address, argument_to_pass);
-          break;
-        }
-          START_ALLOW_USE_DEPRECATED()
-        case CTypeInfo::SequenceType::kIsTypedArray:
-          UNREACHABLE();
-          END_ALLOW_USE_DEPRECATED()
-
-        default: {
-          UNREACHABLE();
-        }
-      }
-
-      BIND(next);
-    }
-    GOTO(handle_error);
-
-    BIND(done, callee, arg);
-    return {callee, arg};
-  }
-
   template <typename T>
   V<T> Checked(V<Tuple<T, Word32>> result, Label<>& otherwise) {
     V<Word32> result_state = __ template Projection<1>(result);

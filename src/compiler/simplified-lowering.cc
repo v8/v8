@@ -2015,7 +2015,7 @@ class RepresentationSelector {
     // argument, which must be a JSArray in one function and a TypedArray in the
     // other function, and both JSArrays and TypedArrays have the same UseInfo
     // UseInfo::AnyTagged(). All the other argument types must match.
-    const CFunctionInfo* c_signature = op_params.c_functions()[0].signature;
+    const CFunctionInfo* c_signature = op_params.c_function().signature;
     const int c_arg_count = c_signature->ArgumentCount();
     CallDescriptor* call_descriptor = op_params.descriptor();
     // Arguments for CallApiCallbackOptimizedXXX builtin (including context)
@@ -2057,12 +2057,8 @@ class RepresentationSelector {
 
     // Effect and Control.
     ProcessRemainingInputs<T>(node, value_input_count);
-    if (op_params.c_functions().empty()) {
-      SetOutput<T>(node, MachineRepresentation::kTagged);
-      return;
-    }
 
-    CTypeInfo return_type = op_params.c_functions()[0].signature->ReturnInfo();
+    CTypeInfo return_type = op_params.c_function().signature->ReturnInfo();
     switch (return_type.GetType()) {
       case CTypeInfo::Type::kBool:
         SetOutput<T>(node, MachineRepresentation::kBit);

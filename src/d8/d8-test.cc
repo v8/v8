@@ -443,20 +443,6 @@ class FastCApiObject {
     }
   }
 
-  static int32_t AddAllIntInvalidCallback(Local<Object> receiver,
-                                          int32_t arg_i32,
-                                          FastApiCallbackOptions& options) {
-    // This should never be called
-    UNREACHABLE();
-  }
-
-  static int32_t AddAllIntInvalidOverloadCallback(
-      Local<Object> receiver, Local<Object> seq_arg,
-      FastApiCallbackOptions& options) {
-    // This should never be called
-    UNREACHABLE();
-  }
-
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType Add32BitIntFastCallbackPatch(AnyCType receiver,
                                                AnyCType arg_i32,
@@ -1564,22 +1550,6 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::AddAllSequenceSlowCallback, Local<Value>(),
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {add_all_overloads, 2}));
-
-    CFunction add_all_int_invalid_func =
-        CFunction::Make(FastCApiObject::AddAllIntInvalidCallback);
-    CFunction add_all_int_invalid_overload =
-        CFunction::Make(FastCApiObject::AddAllIntInvalidOverloadCallback);
-
-    const CFunction add_all_invalid_overloads[] = {
-        add_all_int_invalid_func,
-        add_all_int_invalid_overload,
-    };
-    api_obj_ctor->PrototypeTemplate()->Set(
-        isolate, "add_all_invalid_overload",
-        FunctionTemplate::NewWithCFunctionOverloads(
-            isolate, FastCApiObject::AddAllSequenceSlowCallback, Local<Value>(),
-            signature, 1, ConstructorBehavior::kThrow,
-            SideEffectType::kHasSideEffect, {add_all_invalid_overloads, 2}));
 
     CFunction add_all_32bit_int_8args_c_func = CFunction::Make(
         FastCApiObject::AddAll32BitIntFastCallback_8Args V8_IF_USE_SIMULATOR(

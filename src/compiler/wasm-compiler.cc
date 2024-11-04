@@ -8351,19 +8351,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                     wasm::ObjectAccess::ToTagged(
                         FunctionTemplateInfo::kCallbackDataOffset));
 
-    FastApiCallFunctionVector fast_api_call_function_vector(mcgraph()->zone());
-    fast_api_call_function_vector.push_back({c_address, c_signature});
+    FastApiCallFunction c_function{c_address, c_signature};
     Node* call = fast_api_call::BuildFastApiCall(
-        target->GetIsolate(), graph(), gasm_.get(),
-        fast_api_call_function_vector, c_signature, api_data_argument,
+        target->GetIsolate(), graph(), gasm_.get(), c_function,
+        api_data_argument,
         // Load and convert parameters passed to C function
-        [this, c_signature, receiver_node](
-            int param_index,
-            fast_api_call::OverloadsResolutionResult& overloads,
-            GraphAssemblerLabel<0>*) {
-          // Wasm does not currently support overloads
-          CHECK(!overloads.is_valid());
-
+        [this, c_signature, receiver_node](int param_index,
+                                           GraphAssemblerLabel<0>*) {
           if (param_index == 0) {
             return gasm_->AdaptLocalArgument(receiver_node);
           }

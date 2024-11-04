@@ -1974,7 +1974,7 @@ OpIndex GraphBuilder::Process(
       DCHECK(dominating_frame_state.valid());
       FastApiCallNode n(node);
       const auto& params = n.Parameters();
-      const FastApiCallFunctionVector& c_functions = params.c_functions();
+      FastApiCallFunction c_function = params.c_function();
       const int c_arg_count = params.argument_count();
 
       base::SmallVector<OpIndex, 16> slow_call_arguments;
@@ -2141,40 +2141,6 @@ OpIndex GraphBuilder::Process(
         Block* catch_block = Map(block->SuccessorAt(1));
         catch_scope.emplace(assembler, catch_block);
       }
-      // Overload resolution.
-      auto resolution_result =
-          fast_api_call::OverloadsResolutionResult::Invalid();
-      if (c_functions.size() != 1) {
-        DCHECK_EQ(c_functions.size(), 2);
-        resolution_result =
-            fast_api_call::ResolveOverloads(c_functions, c_arg_count);
-        if (!resolution_result.is_valid()) {
-          V<Object> fallback_result = V<Object>::Cast(__ Call(
-              slow_call_callee, dominating_frame_state,
-              base::VectorOf(slow_call_arguments),
-              TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
-                                       LazyDeoptOnThrow::kNo,
-                                       __ graph_zone())));
-          Variable result =
-              __ NewVariable(RegisterRepresentation::FromCTypeInfo(
-                  c_functions[0].signature->ReturnInfo(),
-                  c_functions[0].signature->GetInt64Representation()));
-          convert_fallback_return(
-              result, c_functions[0].signature->GetInt64Representation(),
-              c_functions[0].signature->ReturnInfo().GetType(),
-              fallback_result);
-          V<Any> value = __ GetVariable(result);
-          if (is_final_control) {
-            // The `__ Call()` before has already created exceptional
-            // control flow and bound a new block for the success case. So we
-            // can just `Goto` the block that Turbofan designated as the
-            // `IfSuccess` successor.
-            __ Goto(Map(block->SuccessorAt(0)));
-          }
-          return value;
-        }
-      }
-
       // Prepare FastCallApiOp parameters.
       base::SmallVector<OpIndex, 16> arguments;
       for (int i = 0; i < c_arg_count; ++i) {
@@ -2184,8 +2150,8 @@ OpIndex GraphBuilder::Process(
 
       V<Context> context = Map(n.Context());
 
-      const FastApiCallParameters* parameters = FastApiCallParameters::Create(
-          c_functions, resolution_result, __ graph_zone());
+      const FastApiCallParameters* parameters =
+          FastApiCallParameters::Create(c_function, __ graph_zone());
 
       // There is one return in addition to the return value of the C function,
       // which indicates if a fast API call actually happened.

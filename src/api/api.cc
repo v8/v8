@@ -1348,6 +1348,16 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, FunctionTemplate, New);
 
+  // Check that all overloads of the fast API callback have different numbers of
+  // parameters. Since the number of overloads is supposed to be small, just
+  // comparing them with each other should be fine.
+  for (size_t i = 0; i < c_function_overloads.size(); ++i) {
+    for (size_t j = i + 1; j < c_function_overloads.size(); ++j) {
+      CHECK_NE(c_function_overloads.data()[i].ArgumentCount(),
+               c_function_overloads.data()[j].ArgumentCount());
+    }
+  }
+
   if (!Utils::ApiCheck(
           c_function_overloads.empty() ||
               behavior == ConstructorBehavior::kThrow,
