@@ -327,6 +327,17 @@ void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   LoadWord(destination,
            MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
+void MacroAssembler::LoadCompressedTaggedRoot(Register destination,
+                                              RootIndex index) {
+#ifdef V8_TARGET_ARCH_RISCV64
+  Lwu(destination,
+      MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+#else
+  LoadWord(destination,
+           MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+#endif
+}
+
 void MacroAssembler::PushCommonFrame(Register marker_reg) {
   if (marker_reg.is_valid()) {
     Push(ra, fp, marker_reg);

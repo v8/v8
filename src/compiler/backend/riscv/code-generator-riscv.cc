@@ -3733,6 +3733,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vsext_vf2(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kRiscvEnableDebugTrace: {
+      __ Debug(TRACE_ENABLE | LOG_TRACE | LOG_REGS);
+      break;
+    }
+    case kRiscvDisableDebugTrace: {
+      __ Debug(TRACE_DISABLE | LOG_TRACE | LOG_REGS);
+      break;
+    }
     default:
 #ifdef DEBUG
       switch (arch_opcode) {
@@ -4696,7 +4704,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           Handle<HeapObject> src_object = src.ToHeapObject();
           RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
-            __ LoadTaggedRoot(dst, index);
+            __ LoadCompressedTaggedRoot(dst, index);
           } else {
             __ li(dst, src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
           }

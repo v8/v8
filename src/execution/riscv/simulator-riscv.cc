@@ -3507,8 +3507,12 @@ void Simulator::SoftwareInterrupt() {
           PrintF("Add --debug-sim when tracepoint instruction is used.\n");
           abort();
         }
+        Builtin builtin = LookUp((Address)get_pc());
         printf("%d %d %d %d\n", code, code & LOG_TRACE, code & LOG_REGS,
                code & kDebuggerTracingDirectivesMask);
+        if (builtin != Builtin::kNoBuiltinId) {
+          printf("Builitin: %s\n", builtins_.name(builtin));
+        }
         switch (code & kDebuggerTracingDirectivesMask) {
           case TRACE_ENABLE:
             if (code & LOG_TRACE) {
