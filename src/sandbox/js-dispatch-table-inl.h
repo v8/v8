@@ -253,6 +253,7 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
     case Builtin::kJSToJSWrapper:
     case Builtin::kJSToJSWrapperInvalidSig:
     case Builtin::kWasmPromising:
+    case Builtin::kWasmStressSwitch:
 #endif
       return true;
     default:
