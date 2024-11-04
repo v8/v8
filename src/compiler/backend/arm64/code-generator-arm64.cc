@@ -770,7 +770,8 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   Register scratch = temps.AcquireX();
   __ LoadParameterCountFromJSDispatchTable(
       actual_parameter_count, kJavaScriptCallDispatchHandleRegister, scratch);
-  __ cmp(actual_parameter_count, Immediate(parameter_count_));
+  __ Mov(scratch, parameter_count_);
+  __ cmp(actual_parameter_count, scratch);
   __ Assert(eq, AbortReason::kWrongFunctionDispatchHandle);
 }
 #endif  // V8_ENABLE_LEAPTIERING
