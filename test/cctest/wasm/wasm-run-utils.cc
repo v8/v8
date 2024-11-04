@@ -299,14 +299,12 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
           test_module_->canonical_sig_id(function.sig_index);
       FunctionTargetAndImplicitArg entry(isolate_, trusted_instance_data_,
                                          function.func_index);
-#if !V8_ENABLE_DRUMBRAKE
-      trusted_instance_data_->dispatch_table(table_index)
-          ->Set(i, *entry.implicit_arg(), entry.call_target(), sig_id);
-#else   // !V8_ENABLE_DRUMBRAKE
       trusted_instance_data_->dispatch_table(table_index)
           ->Set(i, *entry.implicit_arg(), entry.call_target(), sig_id,
-                function.func_index);
+#if V8_ENABLE_DRUMBRAKE
+                function.func_index,
 #endif  // !V8_ENABLE_DRUMBRAKE
+                nullptr, IsAWrapper::kMaybe, WasmDispatchTable::kNewEntry);
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, trusted_instance_data_, function_indexes[i]);
     }

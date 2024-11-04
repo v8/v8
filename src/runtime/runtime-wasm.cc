@@ -690,9 +690,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     // of the wrapper we just compiled.
     Tagged<WasmDispatchTable> table =
         instance_data->dispatch_table_for_imports();
-    table->offheap_data()->Add(wrapper->code_pointer(), wrapper,
-                               IsAWrapper::kYes);
-    table->SetTarget(internal->function_index(), wrapper->code_pointer());
+    table->InstallCompiledWrapper(internal->function_index(), wrapper);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -782,8 +780,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
 
   if (WasmImportData::CallOriginIsImportIndex(call_origin_index)) {
     int func_index = WasmImportData::CallOriginAsIndex(call_origin_index);
-    ImportedFunctionEntry entry(call_origin_instance_data, func_index);
-    entry.set_target(wasm_code->code_pointer(), wasm_code, IsAWrapper::kYes);
+    call_origin_instance_data->dispatch_table_for_imports()
+        ->InstallCompiledWrapper(func_index, wasm_code);
   } else {
     // Indirect function table index.
     int entry_index = WasmImportData::CallOriginAsIndex(call_origin_index);
@@ -795,9 +793,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
           call_origin_instance_data->dispatch_table(table_index);
       if (entry_index < table->length() &&
           table->implicit_arg(entry_index) == *import_data) {
-        table->offheap_data()->Add(wasm_code->code_pointer(), wasm_code,
-                                   IsAWrapper::kYes);
-        table->SetTarget(entry_index, wasm_code->code_pointer());
+        table->InstallCompiledWrapper(entry_index, wasm_code);
         // {ref} is used in at most one table.
         break;
       }

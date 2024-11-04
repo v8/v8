@@ -570,10 +570,8 @@ void WasmTableObject::UpdateDispatchTables(
                                      table_index));
     Tagged<WasmDispatchTable> table =
         target_instance_data->dispatch_table(table_index);
-    // Decrement the refcount of any overwritten entry.
-    table->offheap_data()->Remove(table->target(entry_index));
-    table->offheap_data()->Add(call_target, nullptr, is_a_wrapper);
-    table->Set(entry_index, *implicit_arg, call_target, sig_id);
+    table->Set(entry_index, *implicit_arg, call_target, sig_id, nullptr,
+               is_a_wrapper, WasmDispatchTable::kExistingEntry);
 #else   // !V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless &&
         instance_object->trusted_data(isolate)->has_interpreter_object()) {
@@ -583,7 +581,8 @@ void WasmTableObject::UpdateDispatchTables(
     }
     target_instance_data->dispatch_table(table_index)
         ->Set(entry_index, *implicit_arg, call_target, sig_id,
-              target_func_index);
+              target_func_index, nullptr, is_a_wrapper,
+              WasmDispatchTable::kExistingEntry);
 #endif  // !V8_ENABLE_DRUMBRAKE
   }
 }
@@ -656,15 +655,11 @@ void WasmTableObject::UpdateDispatchTables(
     WasmCodePointer call_target = wasm_code->code_pointer();
     Tagged<WasmDispatchTable> table =
         trusted_instance_data->dispatch_table(table_index);
-    // Decrement the refcount of any overwritten entry.
-    table->offheap_data()->Remove(table->target(entry_index));
-    table->offheap_data()->Add(call_target, wasm_code, IsAWrapper::kYes);
-    table->Set(entry_index, implicit_arg, call_target, sig_index
+    table->Set(entry_index, implicit_arg, call_target, sig_index,
 #if V8_ENABLE_DRUMBRAKE
-               ,
-               WasmDispatchTable::kInvalidFunctionIndex
+               WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
-    );
+               wasm_code, IsAWrapper::kYes, WasmDispatchTable::kExistingEntry);
   }
 }
 
@@ -686,8 +681,7 @@ void WasmTableObject::ClearDispatchTables(int index) {
                   : non_shared_instance_data;
     Tagged<WasmDispatchTable> table =
         target_instance_data->dispatch_table(table_index);
-    table->offheap_data()->Remove(table->target(index));
-    table->Clear(index);
+    table->Clear(index, WasmDispatchTable::kExistingEntry);
 #if V8_ENABLE_DRUMBRAKE
     if (v8_flags.wasm_jitless &&
         non_shared_instance_data->has_interpreter_object()) {
@@ -1205,8 +1199,9 @@ void ImportedFunctionEntry::SetGenericWasmToJs(
   WasmImportData::SetImportIndexAsCallOrigin(import_data, index_);
   DisallowGarbageCollection no_gc;
 
+  constexpr IsAWrapper kNotACompiledWrapper = IsAWrapper::kNo;
   instance_data_->dispatch_table_for_imports()->SetForImport(
-      index_, *import_data, wrapper_entry);
+      index_, *import_data, wrapper_entry, nullptr, kNotACompiledWrapper);
 #if V8_ENABLE_DRUMBRAKE
   instance_data_->imported_function_indices()->set(index_, -1);
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1235,12 +1230,12 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
   if (V8_UNLIKELY(v8_flags.wasm_jitless)) {
-    dispatch_table->SetForImport(index_, *import_data, Address());
+    dispatch_table->SetForImport(index_, *import_data, Address{}, nullptr,
+                                 IsAWrapper::kNo);
   } else {
-    WasmCodePointer call_target = wasm_to_js_wrapper->code_pointer();
-    dispatch_table->offheap_data()->Add(call_target, wasm_to_js_wrapper,
-                                        IsAWrapper::kYes);
-    dispatch_table->SetForImport(index_, *import_data, call_target);
+    dispatch_table->SetForImport(index_, *import_data,
+                                 wasm_to_js_wrapper->code_pointer(),
+                                 wasm_to_js_wrapper, IsAWrapper::kYes);
   }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -1263,8 +1258,8 @@ void ImportedFunctionEntry::SetWasmToWasm(
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
-  dispatch_table->offheap_data()->Add(call_target, nullptr, IsAWrapper::kNo);
-  dispatch_table->SetForImport(index_, target_instance_data, call_target);
+  dispatch_table->SetForImport(index_, target_instance_data, call_target,
+                               nullptr, IsAWrapper::kNo);
 
 #if V8_ENABLE_DRUMBRAKE
   instance_data_->imported_function_indices()->set(index_,
@@ -1290,16 +1285,6 @@ Tagged<Object> ImportedFunctionEntry::implicit_arg() {
 
 WasmCodePointer ImportedFunctionEntry::target() {
   return instance_data_->dispatch_table_for_imports()->target(index_);
-}
-
-void ImportedFunctionEntry::set_target(WasmCodePointer new_target,
-                                       wasm::WasmCode* wrapper_if_known,
-                                       IsAWrapper contextual_knowledge) {
-  Tagged<WasmDispatchTable> table =
-      instance_data_->dispatch_table_for_imports();
-  table->offheap_data()->Add(new_target, wrapper_if_known,
-                             contextual_knowledge);
-  table->SetTarget(index_, new_target);
 }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -1963,23 +1948,18 @@ void WasmTrustedInstanceData::ImportWasmJSFunctionIntoTable(
                                             trusted_instance_data, sig);
 
   WasmImportData::SetIndexInTableAsCallOrigin(import_data, entry_index);
-#if !V8_ENABLE_DRUMBRAKE
   Tagged<WasmDispatchTable> table =
       trusted_instance_data->dispatch_table(table_index);
-  // Decrement the refcount of any overwritten entry.
-  table->offheap_data()->Remove(table->target(entry_index));
   DCHECK(
       wasm_code ||
       call_target ==
           wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
-  table->offheap_data()->Add(call_target, wasm_code,
-                             wasm_code ? IsAWrapper::kYes : IsAWrapper::kNo);
-  table->Set(entry_index, *import_data, call_target, sig_id);
-#else   // !V8_ENABLE_DRUMBRAKE
-  trusted_instance_data->dispatch_table(table_index)
-      ->Set(entry_index, *import_data, call_target, canonical_sig_id,
-            WasmDispatchTable::kInvalidFunctionIndex);
-#endif  // !V8_ENABLE_DRUMBRAKE
+  table->Set(entry_index, *import_data, call_target, sig_id,
+#if V8_ENABLE_DRUMBRAKE
+             WasmDispatchTable::kInvalidFunctionIndex,
+#endif  // V8_ENABLE_DRUMBRAKE
+             wasm_code, wasm_code ? IsAWrapper::kYes : IsAWrapper::kNo,
+             WasmDispatchTable::kExistingEntry);
 }
 
 uint8_t* WasmTrustedInstanceData::GetGlobalStorage(
@@ -2223,15 +2203,16 @@ void WasmDispatchTableData::Remove(WasmCodePointer call_target) {
 
 void WasmDispatchTable::Set(int index, Tagged<Object> implicit_arg,
                             WasmCodePointer call_target,
-                            wasm::CanonicalTypeIndex sig_id
+                            wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                            ,
-                            uint32_t function_index
+                            uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-) {
+                            wasm::WasmCode* wrapper_if_known,
+                            IsAWrapper contextual_knowledge,
+                            NewOrExistingEntry new_or_existing) {
   if (implicit_arg == Smi::zero()) {
     DCHECK_EQ(wasm::kInvalidWasmCodePointer, call_target);
-    Clear(index);
+    Clear(index, new_or_existing);
     return;
   }
 
@@ -2239,6 +2220,18 @@ void WasmDispatchTable::Set(int index, Tagged<Object> implicit_arg,
   DCHECK(IsWasmImportData(implicit_arg) ||
          IsWasmTrustedInstanceData(implicit_arg));
   const int offset = OffsetOf(index);
+  if (!v8_flags.wasm_jitless) {
+    WasmDispatchTableData* offheap_data = this->offheap_data();
+    // When overwriting an existing entry, we must decrement the refcount
+    // of any overwritten wrappers. When initializing an entry, we must not
+    // read uninitialized memory.
+    if (new_or_existing == kExistingEntry) {
+      WasmCodePointer old_target =
+          ReadField<WasmCodePointer>(offset + kTargetBias);
+      offheap_data->Remove(old_target);
+    }
+    offheap_data->Add(call_target, wrapper_if_known, contextual_knowledge);
+  }
   WriteProtectedPointerField(offset + kImplicitArgBias,
                              Cast<TrustedObject>(implicit_arg));
   CONDITIONAL_WRITE_BARRIER(*this, offset + kImplicitArgBias, implicit_arg,
@@ -2256,7 +2249,9 @@ void WasmDispatchTable::Set(int index, Tagged<Object> implicit_arg,
 
 void WasmDispatchTable::SetForImport(int index,
                                      Tagged<TrustedObject> implicit_arg,
-                                     WasmCodePointer call_target) {
+                                     WasmCodePointer call_target,
+                                     wasm::WasmCode* wrapper_if_known,
+                                     IsAWrapper contextual_knowledge) {
   SBXCHECK_BOUNDS(index, length());
   DCHECK(IsWasmImportData(implicit_arg) ||
          IsWasmTrustedInstanceData(implicit_arg));
@@ -2267,28 +2262,41 @@ void WasmDispatchTable::SetForImport(int index,
   CONDITIONAL_WRITE_BARRIER(*this, offset + kImplicitArgBias, implicit_arg,
                             UPDATE_WRITE_BARRIER);
   if (!v8_flags.wasm_jitless) {
-    // Ignore call_target, not used in jitless mode.
+    offheap_data()->Add(call_target, wrapper_if_known, contextual_knowledge);
     WriteField<WasmCodePointer>(offset + kTargetBias, call_target);
+  } else {
+    // Ignore call_target, not used in jitless mode.
   }
   // Leave the signature untouched, it is unused for imports.
   DCHECK_EQ(-1, ReadField<int>(offset + kSigBias));
 }
 
-void WasmDispatchTable::Clear(int index) {
+void WasmDispatchTable::Clear(int index, NewOrExistingEntry new_or_existing) {
   SBXCHECK_BOUNDS(index, length());
   const int offset = OffsetOf(index);
+  // When clearing an existing entry, we must update the refcount of any
+  // wrappers. When clear-initializing new entries, we must not read
+  // uninitialized memory.
+  if (new_or_existing == kExistingEntry) {
+    WasmCodePointer old_target =
+        ReadField<WasmCodePointer>(offset + kTargetBias);
+    offheap_data()->Remove(old_target);
+  }
   ClearProtectedPointerField(offset + kImplicitArgBias);
   WriteField<WasmCodePointer>(offset + kTargetBias,
                               wasm::kInvalidWasmCodePointer);
   WriteField<int>(offset + kSigBias, -1);
 }
 
-void WasmDispatchTable::SetTarget(int index, WasmCodePointer call_target) {
+void WasmDispatchTable::InstallCompiledWrapper(int index,
+                                               wasm::WasmCode* wrapper) {
   SBXCHECK_BOUNDS(index, length());
-  if (!v8_flags.wasm_jitless) {
-    const int offset = OffsetOf(index) + kTargetBias;
-    WriteField<WasmCodePointer>(offset, call_target);
-  }
+  if (v8_flags.wasm_jitless) return;  // Nothing to do.
+
+  WasmCodePointer call_target = wrapper->code_pointer();
+  offheap_data()->Add(call_target, wrapper, IsAWrapper::kYes);
+  const int offset = OffsetOf(index) + kTargetBias;
+  WriteField<WasmCodePointer>(offset, call_target);
 }
 
 // static
@@ -2325,18 +2333,14 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
   // Writing non-atomically is fine here because this is a freshly allocated
   // object.
   new_table->WriteField<int>(kLengthOffset, new_length);
-  WasmDispatchTableData* offheap_data = new_table->offheap_data();
   for (int i = 0; i < old_length; ++i) {
     WasmCodePointer call_target = old_table->target(i);
-    offheap_data->Add(call_target, nullptr, IsAWrapper::kMaybe);
-    new_table->Set(i, old_table->implicit_arg(i), call_target, old_table->sig(i)
+    new_table->Set(i, old_table->implicit_arg(i), call_target,
+                   old_table->sig(i),
 #if V8_ENABLE_DRUMBRAKE
-                                                                   ,
-                   old_table->function_index(i)
+                   old_table->function_index(i),
 #endif  // V8_ENABLE_DRUMBRAKE
-    );
-    // When the old table dies, it'll decrement the refcounts of any wrappers
-    // in it.
+                   nullptr, IsAWrapper::kMaybe, WasmDispatchTable::kNewEntry);
   }
   return new_table;
 }

@@ -1653,7 +1653,7 @@ Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(int length) {
   result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
   result->set_protected_offheap_data(*offheap_data);
   for (int i = 0; i < length; ++i) {
-    result->Clear(i);
+    result->Clear(i, WasmDispatchTable::kNewEntry);
     result->clear_entry_padding(i);
   }
   return handle(result, isolate());

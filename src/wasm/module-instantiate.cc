@@ -2101,17 +2101,15 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
 
     CanonicalTypeIndex sig_index =
         target_module->canonical_sig_id(function.sig_index);
-#if !V8_ENABLE_DRUMBRAKE
     SBXCHECK(FunctionSigMatchesTable(sig_index, trusted_instance_data->module(),
                                      table_index));
 
     trusted_instance_data->dispatch_table(table_index)
-        ->Set(i, *implicit_arg, entry.call_target(), sig_index);
-#else   // !V8_ENABLE_DRUMBRAKE
-    trusted_instance_data->dispatch_table(table_index)
-        ->Set(i, *implicit_arg, entry.call_target(), canonical_sig_index,
-              entry.target_func_index());
-#endif  // !V8_ENABLE_DRUMBRAKE
+        ->Set(i, *implicit_arg, entry.call_target(), sig_index,
+#if V8_ENABLE_DRUMBRAKE
+              entry.target_func_index(),
+#endif  // V8_ENABLE_DRUMBRAKE
+              nullptr, IsAWrapper::kMaybe, WasmDispatchTable::kNewEntry);
   }
   return true;
 }

@@ -139,8 +139,6 @@ class ImportedFunctionEntry {
   Tagged<Object> maybe_callable();
   Tagged<Object> implicit_arg();
   WasmCodePointer target();
-  void set_target(WasmCodePointer new_target, wasm::WasmCode* wrapper_if_known,
-                  IsAWrapper contextual_knowledge);
 
 #if V8_ENABLE_DRUMBRAKE
   int function_index_in_called_module();
@@ -716,6 +714,9 @@ class WasmDispatchTableData {
   WasmDispatchTableData() = default;
   ~WasmDispatchTableData();
 
+ private:
+  friend class WasmDispatchTable;
+
   // We need to map {call_target} to a WasmCode* if it is an import wrapper.
   // Doing that via the wrapper cache has overhead, so as a performance
   // optimization, callers can avoid that lookup by providing additional
@@ -728,7 +729,6 @@ class WasmDispatchTableData {
            IsAWrapper contextual_knowledge);
   void Remove(WasmCodePointer call_target);
 
- private:
   // The {wrappers_} data structure serves two purposes:
   // 1) It maps call targets to wrappers.
   //    When an entry's value is {nullptr}, that means we know for sure it's not
@@ -755,6 +755,9 @@ class WasmDispatchTable : public TrustedObject {
 #if V8_ENABLE_DRUMBRAKE
   static const uint32_t kInvalidFunctionIndex = UINT_MAX;
 #endif  // V8_ENABLE_DRUMBRAKE
+
+  enum NewOrExistingEntry : bool { kNewEntry, kExistingEntry };
+
   class BodyDescriptor;
 
   static constexpr size_t kLengthOffset = kHeaderSize;
@@ -835,12 +838,13 @@ class WasmDispatchTable : public TrustedObject {
   // Smi::zero().
   void V8_EXPORT_PRIVATE Set(int index, Tagged<Object> implicit_arg,
                              WasmCodePointer call_target,
-                             wasm::CanonicalTypeIndex sig_id
+                             wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                             ,
-                             uint32_t function_index
+                             uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-  );
+                             wasm::WasmCode* wrapper_if_known,
+                             IsAWrapper contextual_knowledge,
+                             NewOrExistingEntry new_or_existing);
 #if V8_ENABLE_DRUMBRAKE
   inline uint32_t function_index(int index) const;
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -850,10 +854,12 @@ class WasmDispatchTable : public TrustedObject {
   // {implicit_arg} has to be a WasmImportData or a WasmTrustedInstanceData.
   void V8_EXPORT_PRIVATE SetForImport(int index,
                                       Tagged<TrustedObject> implicit_arg,
-                                      WasmCodePointer call_target);
+                                      WasmCodePointer call_target,
+                                      wasm::WasmCode* wrapper_if_known,
+                                      IsAWrapper contextual_knowledge);
 
-  void Clear(int index);
-  void SetTarget(int index, WasmCodePointer call_target);
+  void Clear(int index, NewOrExistingEntry new_or_existing);
+  void InstallCompiledWrapper(int index, wasm::WasmCode* wrapper);
 
   static V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> New(
       Isolate* isolate, int length);
