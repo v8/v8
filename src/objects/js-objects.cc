@@ -2893,6 +2893,9 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_ATOMICS_MUTEX_TYPE:
       accumulator->Add("<JSAtomicsMutex>");
       break;
+    case JS_ATOMICS_CONDITION_TYPE:
+      accumulator->Add("<JSAtomicsCondition>");
+      break;
     case JS_MESSAGE_OBJECT_TYPE:
       accumulator->Add("<JSMessageObject>");
       break;
