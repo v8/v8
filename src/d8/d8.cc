@@ -5196,9 +5196,14 @@ void Worker::ProcessMessages() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
   i::SaveAndSwitchContext saved_context(i_isolate, i::Context());
   SealHandleScope shs(isolate_);
+
+  TryCatch try_catch(isolate_);
+  try_catch.SetVerbose(true);
+
   while (is_running() && v8::platform::PumpMessageLoop(
                              g_default_platform, isolate_,
                              platform::MessageLoopBehavior::kWaitForWork)) {
+    if (try_catch.HasCaught()) return;
     if (is_running()) {
       MicrotasksScope::PerformCheckpoint(isolate_);
     }
