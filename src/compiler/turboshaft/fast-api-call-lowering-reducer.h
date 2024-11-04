@@ -188,20 +188,8 @@ class FastApiCallLoweringReducer : public Next {
           break;
         }
           START_ALLOW_USE_DEPRECATED()
-        case CTypeInfo::SequenceType::kIsTypedArray: {
-          // Check that the value is a TypedArray with a type that matches the
-          // type declared in the c-function.
-          OpIndex stack_slot = AdaptFastCallTypedArrayArgument(
-              argument,
-              fast_api_call::GetTypedArrayElementsKind(
-                  resolution_result.element_type),
-              next);
-          OpIndex target_address = __ ExternalConstant(
-              ExternalReference::Create(c_functions[func_index].address,
-                                        ExternalReference::FAST_C_CALL));
-          GOTO(done, target_address, stack_slot);
-          break;
-        }
+        case CTypeInfo::SequenceType::kIsTypedArray:
+          UNREACHABLE();
           END_ALLOW_USE_DEPRECATED()
 
         default: {
@@ -340,15 +328,8 @@ class FastApiCallLoweringReducer : public Next {
         return __ AdaptLocalArgument(argument);
       }
         START_ALLOW_USE_DEPRECATED()
-      case CTypeInfo::SequenceType::kIsTypedArray: {
-        // Check that the value is a HeapObject.
-        GOTO_IF(__ ObjectIsSmi(argument), handle_error);
-
-        return AdaptFastCallTypedArrayArgument(
-            argument,
-            fast_api_call::GetTypedArrayElementsKind(arg_type.GetType()),
-            handle_error);
-      }
+      case CTypeInfo::SequenceType::kIsTypedArray:
+        UNREACHABLE();
         END_ALLOW_USE_DEPRECATED()
       default: {
         UNREACHABLE();
@@ -404,94 +385,6 @@ class FastApiCallLoweringReducer : public Next {
       default:
         UNREACHABLE();
     }
-  }
-
-  OpIndex AdaptFastCallTypedArrayArgument(V<HeapObject> argument,
-                                          ElementsKind expected_elements_kind,
-                                          Label<>& bailout) {
-    V<Map> map = __ LoadMapField(argument);
-    V<Word32> instance_type = __ LoadInstanceTypeField(map);
-    GOTO_IF_NOT(LIKELY(__ Word32Equal(instance_type, JS_TYPED_ARRAY_TYPE)),
-                bailout);
-
-    V<Word32> bitfield2 =
-        __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField2());
-    V<Word32> kind = __ Word32ShiftRightLogical(
-        __ Word32BitwiseAnd(bitfield2, Map::Bits2::ElementsKindBits::kMask),
-        Map::Bits2::ElementsKindBits::kShift);
-    GOTO_IF_NOT(LIKELY(__ Word32Equal(kind, expected_elements_kind)), bailout);
-
-    V<HeapObject> buffer = __ template LoadField<HeapObject>(
-        argument, AccessBuilder::ForJSArrayBufferViewBuffer());
-    V<Word32> buffer_bitfield = __ template LoadField<Word32>(
-        buffer, AccessBuilder::ForJSArrayBufferBitField());
-
-    // Go to the slow path if the {buffer} was detached.
-    GOTO_IF(UNLIKELY(__ Word32BitwiseAnd(buffer_bitfield,
-                                         JSArrayBuffer::WasDetachedBit::kMask)),
-            bailout);
-
-    // Go to the slow path if the {buffer} is shared.
-    GOTO_IF(UNLIKELY(__ Word32BitwiseAnd(buffer_bitfield,
-                                         JSArrayBuffer::IsSharedBit::kMask)),
-            bailout);
-
-    // Unpack the store and length, and store them to a struct
-    // FastApiTypedArray.
-    OpIndex external_pointer =
-        __ LoadField(argument, AccessBuilder::ForJSTypedArrayExternalPointer());
-
-    // Load the base pointer for the buffer. This will always be Smi
-    // zero unless we allow on-heap TypedArrays, which is only the case
-    // for Chrome. Node and Electron both set this limit to 0. Setting
-    // the base to Smi zero here allows the BuildTypedArrayDataPointer
-    // to optimize away the tricky part of the access later.
-    V<WordPtr> data_ptr;
-    if constexpr (JSTypedArray::kMaxSizeInHeap == 0) {
-      data_ptr = external_pointer;
-    } else {
-      V<Object> base_pointer = __ template LoadField<Object>(
-          argument, AccessBuilder::ForJSTypedArrayBasePointer());
-      V<WordPtr> base = __ BitcastTaggedToWordPtr(base_pointer);
-      if (COMPRESS_POINTERS_BOOL) {
-        // Zero-extend Tagged_t to UintPtr according to current compression
-        // scheme so that the addition with |external_pointer| (which already
-        // contains compensated offset value) will decompress the tagged value.
-        // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for
-        // details.
-        base = __ ChangeUint32ToUintPtr(__ TruncateWordPtrToWord32(base));
-      }
-      data_ptr = __ WordPtrAdd(base, external_pointer);
-    }
-
-    V<WordPtr> length_in_bytes = __ template LoadField<WordPtr>(
-        argument, AccessBuilder::ForJSTypedArrayLength());
-
-    // We hard-code int32_t here, because all specializations of
-    // FastApiTypedArray have the same size.
-    START_ALLOW_USE_DEPRECATED()
-    constexpr int kAlign = alignof(FastApiTypedArray<int32_t>);
-    constexpr int kSize = sizeof(FastApiTypedArray<int32_t>);
-    static_assert(kAlign == alignof(FastApiTypedArray<double>),
-                  "Alignment mismatch between different specializations of "
-                  "FastApiTypedArray");
-    static_assert(kSize == sizeof(FastApiTypedArray<double>),
-                  "Size mismatch between different specializations of "
-                  "FastApiTypedArray");
-    END_ALLOW_USE_DEPRECATED()
-    static_assert(
-        kSize == sizeof(uintptr_t) + sizeof(size_t),
-        "The size of "
-        "FastApiTypedArray isn't equal to the sum of its expected members.");
-    OpIndex stack_slot = __ StackSlot(kSize, kAlign);
-    __ StoreOffHeap(stack_slot, length_in_bytes,
-                    MemoryRepresentation::UintPtr());
-    __ StoreOffHeap(stack_slot, data_ptr, MemoryRepresentation::UintPtr(),
-                    sizeof(size_t));
-    static_assert(sizeof(uintptr_t) == sizeof(size_t),
-                  "The buffer length can't "
-                  "fit the PointerRepresentation used to store it.");
-    return stack_slot;
   }
 
   V<Any> DefaultReturnValue(const CFunctionInfo* c_signature) {

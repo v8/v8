@@ -339,42 +339,6 @@ struct V8_DEPRECATE_SOON(
   size_t length_ = 0;
 };
 
-template <typename T>
-struct V8_DEPRECATED(
-    "When an API function expects a TypedArray as a parameter, the type in the "
-    "signature should be `v8::Local<v8::Value>` instead of "
-    "FastApiTypedArray<>. The API function then has to type-check the "
-    "parameter and convert it to a `v8::Local<v8::TypedArray` to access the "
-    "data. In essence, the parameter should be handled the same as for a "
-    "regular API call.") FastApiTypedArray : public FastApiTypedArrayBase {
- public:
-  V8_INLINE T get(size_t index) const {
-#ifdef DEBUG
-    ValidateIndex(index);
-#endif  // DEBUG
-    T tmp;
-    memcpy(&tmp, static_cast<void*>(reinterpret_cast<T*>(data_) + index),
-           sizeof(T));
-    return tmp;
-  }
-
-  bool getStorageIfAligned(T** elements) const {
-    if (reinterpret_cast<uintptr_t>(data_) % alignof(T) != 0) {
-      return false;
-    }
-    *elements = reinterpret_cast<T*>(data_);
-    return true;
-  }
-
- private:
-  // This pointer should include the typed array offset applied.
-  // It's not guaranteed that it's aligned to sizeof(T), it's only
-  // guaranteed that it's 4-byte aligned, so for 8-byte types we need to
-  // provide a special implementation for reading from it, which hides
-  // the possibly unaligned read in the `get` method.
-  void* data_;
-};
-
 struct V8_DEPRECATE_SOON("This API is dead within V8") FastApiArrayBufferView {
   void* data;
   size_t byte_length;
@@ -699,32 +663,6 @@ PRIMITIVE_C_TYPES(DEFINE_TYPE_INFO_TRAITS)
 
 #undef PRIMITIVE_C_TYPES
 #undef ALL_C_TYPES
-
-#define SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA(T, Enum)                        \
-  template <>                                                                  \
-  struct V8_DEPRECATE_SOON(                                                    \
-      "This struct is unnecessary now, because FastApiTypedArray has already " \
-      "been deprecated as well") TypeInfoHelper<const FastApiTypedArray<T>&> { \
-    static constexpr CTypeInfo::Flags Flags() {                                \
-      return CTypeInfo::Flags::kNone;                                          \
-    }                                                                          \
-                                                                               \
-    static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::Enum; }  \
-    static constexpr CTypeInfo::SequenceType SequenceType() {                  \
-      return CTypeInfo::SequenceType::kIsTypedArray;                           \
-    }                                                                          \
-  };
-
-#define TYPED_ARRAY_C_TYPES(V) \
-  V(uint8_t, kUint8)           \
-  V(int32_t, kInt32)           \
-  V(uint32_t, kUint32)         \
-  V(int64_t, kInt64)           \
-  V(uint64_t, kUint64)         \
-  V(float, kFloat32)           \
-  V(double, kFloat64)
-
-TYPED_ARRAY_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA)
 
 #undef TYPED_ARRAY_C_TYPES
 

@@ -29790,16 +29790,6 @@ static Trivial* UnwrapTrivialObject(Local<Object> object) {
   return wrapped;
 }
 
-START_ALLOW_USE_DEPRECATED()
-void FastCallback1TypedArray(v8::Local<v8::Object> receiver, int arg0,
-                             const v8::FastApiTypedArray<int32_t>& arg1) {
-  Trivial* self = UnwrapTrivialObject(receiver);
-  CHECK_NOT_NULL(self);
-  CHECK_EQ(arg0, arg1.length());
-  self->set_x(arg0);
-}
-END_ALLOW_USE_DEPRECATED()
-
 void FastCallback2JSArray(v8::Local<v8::Object> receiver, int arg0,
                           v8::Local<v8::Array> arg1) {
   Trivial* self = UnwrapTrivialObject(receiver);
@@ -29817,103 +29807,10 @@ void FastCallback4Scalar(v8::Local<v8::Object> receiver, int arg0, float arg1) {
 void FastCallback5DifferentArity(v8::Local<v8::Object> receiver, int arg0,
                                  v8::Local<v8::Array> arg1, float arg2) {}
 
-void SequenceSlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::ValidateCallbackInfo(info));
-  v8::Isolate* isolate = info.GetIsolate();
-  Trivial* self = UnwrapTrivialObject(info.This());
-  if (!self) {
-    isolate->ThrowError("This method is not defined on the given receiver.");
-    return;
-  }
-  self->set_x(1337);
-
-  HandleScope handle_scope(isolate);
-
-  if (info.Length() < 2 || !info[0]->IsNumber()) {
-    isolate->ThrowError(
-        "This method expects at least 2 arguments,"
-        " first one a number.");
-    return;
-  }
-  int64_t len = info[0]->IntegerValue(isolate->GetCurrentContext()).FromJust();
-  if (info[1]->IsTypedArray()) {
-    v8::Local<v8::TypedArray> typed_array_arg = info[1].As<v8::TypedArray>();
-    size_t length = typed_array_arg->Length();
-    CHECK_EQ(len, length);
-    return;
-  }
-  if (!info[1]->IsArray()) {
-    isolate->ThrowError("This method expects an array as a second argument.");
-    return;
-  }
-  v8::Local<v8::Array> seq_arg = info[1].As<v8::Array>();
-  uint32_t length = seq_arg->Length();
-  CHECK_EQ(len, length);
-  return;
-}
 }  // namespace
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 
 START_ALLOW_USE_DEPRECATED()
-TEST(FastApiSequenceOverloads) {
-#if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-  if (i::v8_flags.jitless) return;
-  if (i::v8_flags.disable_optimizing_compilers) return;
-
-  i::v8_flags.turbofan = true;
-  i::v8_flags.turbo_fast_api_calls = true;
-  i::v8_flags.allow_natives_syntax = true;
-  // Disable --always_turbofan, otherwise we haven't generated the necessary
-  // feedback to go down the "best optimization" path for the fast call.
-  i::v8_flags.always_turbofan = false;
-  i::FlagList::EnforceFlagImplications();
-
-  v8::Isolate* isolate = CcTest::isolate();
-  HandleScope handle_scope(isolate);
-  LocalContext env;
-
-  v8::CFunction typed_array_callback =
-      v8::CFunctionBuilder().Fn(FastCallback1TypedArray).Build();
-  v8::CFunction js_array_callback =
-      v8::CFunctionBuilder().Fn(FastCallback2JSArray).Build();
-  const v8::CFunction sequece_overloads[] = {
-      typed_array_callback,
-      js_array_callback,
-  };
-
-  Local<v8::FunctionTemplate> sequence_callback_templ =
-      v8::FunctionTemplate::NewWithCFunctionOverloads(
-          isolate, SequenceSlowCallback, v8::Number::New(isolate, 42),
-          v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kThrow,
-          v8::SideEffectType::kHasSideEffect, {sequece_overloads, 2});
-
-  v8::Local<v8::ObjectTemplate> object_template =
-      v8::ObjectTemplate::New(isolate);
-  object_template->SetInternalFieldCount(kV8WrapperObjectIndex + 1);
-  object_template->Set(isolate, "api_func", sequence_callback_templ);
-
-  std::unique_ptr<Trivial> rcv(new Trivial(42));
-  v8::Local<v8::Object> object =
-      object_template->NewInstance(env.local()).ToLocalChecked();
-  object->SetAlignedPointerInInternalField(kV8WrapperObjectIndex, rcv.get());
-
-  CHECK(
-      (env)->Global()->Set(env.local(), v8_str("receiver"), object).FromJust());
-  USE(CompileRun(
-      "function func(num, arr) { return receiver.api_func(num, arr); }"
-      "%PrepareFunctionForOptimization(func);"
-      "func(3, [1,2,3]);"
-      "%OptimizeFunctionOnNextCall(func);"
-      "func(3, [1,2,3]);"));
-  CHECK_EQ(3, rcv->x());
-
-  USE(
-      CompileRun("const ta = new Int32Array([1, 2, 3, 4]);"
-                 "func(4, ta);"));
-  CHECK_EQ(4, rcv->x());
-#endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-}
-
 TEST(FastApiOverloadResolution) {
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   if (i::v8_flags.jitless) return;
@@ -29927,22 +29824,15 @@ TEST(FastApiOverloadResolution) {
   i::v8_flags.always_turbofan = false;
   i::FlagList::EnforceFlagImplications();
 
-  v8::CFunction typed_array_callback =
-      v8::CFunctionBuilder().Fn(FastCallback1TypedArray).Build();
   v8::CFunction js_array_callback =
       v8::CFunctionBuilder().Fn(FastCallback2JSArray).Build();
-
-  // Check that a general runtime overload resolution is possible.
-  CHECK_EQ(v8::CFunction::OverloadResolution::kAtRuntime,
-           typed_array_callback.GetOverloadResolution(&js_array_callback));
 
   v8::CFunction swapped_params_callback =
       v8::CFunctionBuilder().Fn(FastCallback3SwappedParams).Build();
 
   // Check that difference in > 1 position is not possible.
-  CHECK_EQ(
-      v8::CFunction::OverloadResolution::kImpossible,
-      typed_array_callback.GetOverloadResolution(&swapped_params_callback));
+  CHECK_EQ(v8::CFunction::OverloadResolution::kImpossible,
+           js_array_callback.GetOverloadResolution(&swapped_params_callback));
 
   v8::CFunction scalar_callback =
       v8::CFunctionBuilder().Fn(FastCallback4Scalar).Build();
@@ -29950,7 +29840,7 @@ TEST(FastApiOverloadResolution) {
   // Check that resolving when there is a scalar at the difference position
   // is not possible.
   CHECK_EQ(v8::CFunction::OverloadResolution::kImpossible,
-           typed_array_callback.GetOverloadResolution(&scalar_callback));
+           js_array_callback.GetOverloadResolution(&scalar_callback));
 
   v8::CFunction diff_arity_callback =
       v8::CFunctionBuilder().Fn(FastCallback5DifferentArity).Build();
@@ -29958,7 +29848,7 @@ TEST(FastApiOverloadResolution) {
   // Check that overload resolution between different number of arguments
   // is possible.
   CHECK_EQ(v8::CFunction::OverloadResolution::kAtCompileTime,
-           typed_array_callback.GetOverloadResolution(&diff_arity_callback));
+           js_array_callback.GetOverloadResolution(&diff_arity_callback));
 
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
 }
