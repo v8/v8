@@ -1593,8 +1593,18 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // Super property access. lookup_start_object is a JSReceiver or
       // null. It can't be a number, a string etc. So trying to build the
       // checks in the "else if" branch doesn't make sense.
+
       access_builder.BuildCheckMaps(lookup_start_object, &effect, control,
                                     access_info.lookup_start_object_maps());
+
+      if (HasOnlyStringWrapperMaps(broker(),
+                                   access_info.lookup_start_object_maps())) {
+        // In order to be able to use StringWrapperLength, we need a TypeGuard
+        // when all input maps are StringWrapper maps.
+        lookup_start_object = effect =
+            graph()->NewNode(common()->TypeGuard(Type::StringWrapper()),
+                             lookup_start_object, effect, control);
+      }
 
     } else if (!access_builder.TryBuildStringCheck(
                    broker(), access_info.lookup_start_object_maps(), &receiver,
@@ -2977,8 +2987,8 @@ JSNativeContextSpecialization::BuildPropertyLoad(
     DCHECK_EQ(receiver, lookup_start_object);
     value = graph()->NewNode(simplified()->StringLength(), receiver);
   } else if (access_info.IsStringWrapperLength()) {
-    DCHECK_EQ(receiver, lookup_start_object);
-    value = graph()->NewNode(simplified()->StringWrapperLength(), receiver);
+    value = graph()->NewNode(simplified()->StringWrapperLength(),
+                             lookup_start_object);
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant() ||
            access_info.IsDictionaryProtoDataConstant());
