@@ -213,8 +213,8 @@ class CompactOperationPrinter_DeoptimizeIf extends CompactOperationPrinter {
     this.negated = options[0] == "negated";
   }
 
-  public override Print(n: number, input: InputPrinter): string {
-    return `DeoptimizeIf(${this.negated ? "!" : ""}${input(0)}, ${input(1)})`;
+  public override Print(id: number, input: InputPrinter): string {
+    return `${id}: DeoptimizeIf(${this.negated ? "!" : ""}${input(0)}, ${input(1)})`;
   }
 
   public PrintInLine(): string { return ""; }
