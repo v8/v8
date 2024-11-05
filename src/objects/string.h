@@ -608,6 +608,7 @@ V8_OBJECT class String : public Name {
   friend class CodeStubAssembler;
   friend class StringTableInsertionKey;
   friend class SharedStringTableInsertionKey;
+  friend class SandboxTesting;
   friend class InternalizedStringKey;
 
   friend struct OffsetsForDebug;
@@ -810,6 +811,7 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   friend class IntlBuiltinsAssembler;
   friend class StringBuiltinsAssembler;
   friend class StringFromCharCodeAssembler;
+  friend class SandboxTesting;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedSeqOneByteStringAsserts;
@@ -947,6 +949,7 @@ V8_OBJECT class ConsString : public String {
   friend class CodeStubAssembler;
   friend class ToDirectStringAssembler;
   friend class StringBuiltinsAssembler;
+  friend class SandboxTesting;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedConsStringAsserts;

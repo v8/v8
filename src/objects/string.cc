@@ -594,8 +594,8 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
     return false;
   }
 
-#ifdef V8_COMPRESS_POINTERS
-  // Small strings may not be in-place externalizable.
+#if V8_COMPRESS_POINTERS && !V8_ENABLE_SANDBOX
+  // In this configuration, small strings may not be in-place externalizable.
   if (this->Size() < static_cast<int>(sizeof(UncachedExternalString))) {
     return false;
   }
@@ -815,9 +815,10 @@ void String::WriteToFlat(Tagged<String> source, sinkchar* sink, uint32_t start,
   DisallowGarbageCollection no_gc;
   if (length == 0) return;
   while (true) {
-    DCHECK_LT(0, length);
-    DCHECK_LE(0, start);
+    DCHECK_GT(length, 0);
     DCHECK_LE(length, source->length());
+    DCHECK_LT(start, source->length());
+    DCHECK_LE(start + length, source->length());
     switch (StringShape(source).representation_and_encoding_tag()) {
       case kOneByteStringTag | kExternalStringTag:
         CopyChars(sink, Cast<ExternalOneByteString>(source)->GetChars() + start,
@@ -845,18 +846,28 @@ void String::WriteToFlat(Tagged<String> source, sinkchar* sink, uint32_t start,
       case kTwoByteStringTag | kConsStringTag: {
         Tagged<ConsString> cons_string = Cast<ConsString>(source);
         Tagged<String> first = cons_string->first();
-        int boundary = first->length();
-        int first_length = boundary - start;
-        int second_length = start + length - boundary;
+        uint32_t boundary = first->length();
+        // Here we explicity use signed ints as the values can become negative.
+        // The sum of {first_length} and {second_length} is always {length},
+        // but the values can become negative, in which case no characters of
+        // the respective string are needed.
+        int32_t first_length = boundary - start;
+        int32_t second_length = length - first_length;
+        DCHECK_EQ(static_cast<uint32_t>(first_length + second_length), length);
         if (second_length >= first_length) {
+          DCHECK_GT(second_length, 0);
           // Right hand side is longer.  Recurse over left.
           if (first_length > 0) {
+            DCHECK_LT(first_length, length);
+            DCHECK_LT(second_length, length);
+
             WriteToFlat(first, sink, start, first_length, access_guard);
             if (start == 0 && cons_string->second() == first) {
+              DCHECK_LE(boundary * 2, length);
               CopyChars(sink + boundary, sink, boundary);
               return;
             }
-            sink += boundary - start;
+            sink += first_length;
             start = 0;
             length -= first_length;
           } else {
@@ -864,22 +875,28 @@ void String::WriteToFlat(Tagged<String> source, sinkchar* sink, uint32_t start,
           }
           source = cons_string->second();
         } else {
+          DCHECK_GT(first_length, 0);
           // Left hand side is longer.  Recurse over right.
           if (second_length > 0) {
+            DCHECK_LT(first_length, length);
+            DCHECK_LT(second_length, length);
+
+            uint32_t second_start = first_length;
+            DCHECK_EQ(second_start + second_length, length);
             Tagged<String> second = cons_string->second();
             // When repeatedly appending to a string, we get a cons string that
             // is unbalanced to the left, a list, essentially.  We inline the
             // common case of sequential one-byte right child.
             if (second_length == 1) {
-              sink[boundary - start] =
+              sink[second_start] =
                   static_cast<sinkchar>(second->Get(0, access_guard));
             } else if (IsSeqOneByteString(second)) {
               CopyChars(
-                  sink + boundary - start,
+                  sink + second_start,
                   Cast<SeqOneByteString>(second)->GetChars(no_gc, access_guard),
                   second_length);
             } else {
-              WriteToFlat(second, sink + boundary - start, 0, second_length,
+              WriteToFlat(second, sink + second_start, 0, second_length,
                           access_guard);
             }
             length -= second_length;
