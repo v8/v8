@@ -608,6 +608,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(maglev_cse, true, "common subexpression elimination")
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
+DEFINE_STRING(maglev_print_filter, "*",
+              "filter for maglev's tracing/printing options")
 DEFINE_BOOL(maglev_assert, false, "insert extra assertion in maglev code")
 DEFINE_DEBUG_BOOL(maglev_assert_stack_size, true,
                   "insert stack size checks before every IR node")

@@ -375,6 +375,14 @@ class MaglevGraphBuilder {
            v8_flags.maglev_licm;
   }
 
+  bool TopLevelFunctionPassMaglevPrintFilter() {
+    if (parent_) {
+      return parent_->TopLevelFunctionPassMaglevPrintFilter();
+    }
+    return compilation_unit_->shared_function_info().object()->PassesFilter(
+        v8_flags.maglev_print_filter);
+  }
+
   void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs) {
     phi->RecordUseReprHint(reprs, iterator_.current_offset());
   }

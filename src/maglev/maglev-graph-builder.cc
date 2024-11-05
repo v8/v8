@@ -7486,6 +7486,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
 
   if (v8_flags.maglev_print_inlined &&
+      TopLevelFunctionPassMaglevPrintFilter() &&
       (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
        v8_flags.print_maglev_graphs)) {
     std::cout << "== Inlining " << Brief(*shared.object()) << std::endl;
