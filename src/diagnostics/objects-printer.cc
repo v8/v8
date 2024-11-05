@@ -2350,7 +2350,7 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
 void ContextSidePropertyCell::ContextSidePropertyCellPrint(std::ostream& os) {
   PrintHeader(os, "ContextSidePropertyCell");
   os << "\n - dependent code: " << dependent_code();
-  os << "\n - cell_type: " << context_side_property_raw();
+  os << "\n - cell_type: " << context_side_property_raw(kAcquireLoad);
   os << "\n";
 }
 

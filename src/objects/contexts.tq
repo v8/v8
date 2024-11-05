@@ -284,7 +284,7 @@ builtin StoreScriptContextSlotBaseline(
 }
 
 namespace runtime {
-extern runtime InvalidateDependentCodeForConstTrackingLet(Context, Object):
+extern runtime InvalidateDependentCodeForScriptContextSlot(Context, Object):
     JSAny;
 }  // namespace runtime
 
@@ -345,7 +345,7 @@ macro StoreScriptContextAndUpdateSlotProperty(
 
   if (property == kContextSidePropertyConst) {
     if (Is<ContextSidePropertyCell>(maybeCell)) {
-      runtime::InvalidateDependentCodeForConstTrackingLet(c, maybeCell);
+      runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
     }
     if (IsScriptContextMutableHeapNumberFlag()) {
       // It can transition to Smi, MutableHeapNumber or Other.
@@ -376,7 +376,7 @@ macro StoreScriptContextAndUpdateSlotProperty(
       c.elements[index] = newValue;
     } else {
       if (Is<ContextSidePropertyCell>(maybeCell)) {
-        runtime::InvalidateDependentCodeForConstTrackingLet(c, maybeCell);
+        runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
       }
       // It can transition to a MutableHeapNumber or Other.
       if (Is<HeapNumber>(newValue)) {
@@ -400,7 +400,7 @@ macro StoreScriptContextAndUpdateSlotProperty(
       oldNumber.value = newNumber.value;
     } else {
       if (Is<ContextSidePropertyCell>(maybeCell)) {
-        runtime::InvalidateDependentCodeForConstTrackingLet(c, maybeCell);
+        runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
       }
       // It can only transition to Other.
       sideDataFixedArray.objects[sideDataIndex] =

@@ -748,14 +748,14 @@ RUNTIME_FUNCTION(Runtime_SharedValueBarrierSlow) {
   return *shared_value;
 }
 
-RUNTIME_FUNCTION(Runtime_InvalidateDependentCodeForConstTrackingLet) {
+RUNTIME_FUNCTION(Runtime_InvalidateDependentCodeForScriptContextSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   auto const_tracking_let_cell =
       Cast<ContextSidePropertyCell>(args.at<HeapObject>(0));
   DependentCode::DeoptimizeDependencyGroups(
       isolate, *const_tracking_let_cell,
-      DependentCode::kConstTrackingLetChangedGroup);
+      DependentCode::kScriptContextSlotPropertyChangedGroup);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

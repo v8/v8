@@ -2220,7 +2220,7 @@ Handle<ContextSidePropertyCell> Factory::NewContextSidePropertyCell(
       AllocateRawWithImmortalMap(ContextSidePropertyCell::kSize, allocation,
                                  *global_context_side_property_cell_map()));
   DisallowGarbageCollection no_gc;
-  cell->set_context_side_property_raw(Smi::FromInt(property));
+  cell->set_context_side_property_raw(Smi::FromInt(property), kReleaseStore);
   cell->set_dependent_code(
       DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
       SKIP_WRITE_BARRIER);
