@@ -2331,6 +2331,14 @@ inline std::ostream& operator<<(std::ostream& os,
 
 using FileAndLine = std::pair<const char*, int>;
 
+// The state kInProgress (= an optimization request for this function is
+// currently being serviced) currently means that no other tiering action can
+// happen. Define this constant so we can static_assert it at related code
+// sites.
+static constexpr bool kTieringStateInProgressBlocksTierup = true;
+
+#ifndef V8_ENABLE_LEAPTIERING
+
 #define TIERING_STATE_LIST(V)           \
   V(None, 0b000)                        \
   V(InProgress, 0b001)                  \
@@ -2345,12 +2353,6 @@ enum class TieringState : int32_t {
 #undef V
       kLastTieringState = kRequestTurbofan_Concurrent,
 };
-
-// The state kInProgress (= an optimization request for this function is
-// currently being serviced) currently means that no other tiering action can
-// happen. Define this constant so we can static_assert it at related code
-// sites.
-static constexpr bool kTieringStateInProgressBlocksTierup = true;
 
 // To efficiently check whether a marker is kNone or kInProgress using a single
 // mask, we expect the kNone to be 0 and kInProgress to be 1 so that we can
@@ -2391,6 +2393,8 @@ inline std::ostream& operator<<(std::ostream& os, TieringState marker) {
 }
 
 #undef TIERING_STATE_LIST
+
+#endif  // !V8_ENABLE_LEAPTIERING
 
 // State machine:
 // S(tate)0: kPending

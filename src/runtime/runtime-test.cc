@@ -328,7 +328,7 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
 
   if (function->HasAvailableCodeKind(isolate, target_kind) ||
       function->HasAvailableHigherTierCodeThan(isolate, target_kind) ||
-      IsInProgress(function->tiering_state())) {
+      function->tiering_in_progress()) {
     DCHECK(function->HasAttachedOptimizedCode(isolate) ||
            function->ChecksTieringState(isolate));
     return false;
@@ -379,7 +379,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 
   TraceManualRecompile(*function, target_kind, concurrency_mode);
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
-  function->MarkForOptimization(isolate, target_kind, concurrency_mode);
+  function->RequestOptimization(isolate, target_kind, concurrency_mode);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -906,22 +906,28 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   auto function = Cast<JSFunction>(function_object);
   status |= static_cast<int>(OptimizationStatus::kIsFunction);
 
-  switch (function->tiering_state()) {
-    case TieringState::kRequestTurbofan_Synchronous:
-      status |= static_cast<int>(OptimizationStatus::kMarkedForOptimization);
-      break;
-    case TieringState::kRequestTurbofan_Concurrent:
+  if (function->has_feedback_vector()) {
+    if (function->tiering_in_progress()) {
+      status |= static_cast<int>(OptimizationStatus::kOptimizingConcurrently);
+    } else if (function->GetRequestedOptimizationIfAny(
+                   isolate, ConcurrencyMode::kConcurrent) == CodeKind::MAGLEV) {
+      status |= static_cast<int>(
+          OptimizationStatus::kMarkedForConcurrentMaglevOptimization);
+    } else if (function->GetRequestedOptimizationIfAny(
+                   isolate, ConcurrencyMode::kSynchronous) ==
+               CodeKind::MAGLEV) {
+      status |=
+          static_cast<int>(OptimizationStatus::kMarkedForMaglevOptimization);
+    } else if (function->GetRequestedOptimizationIfAny(
+                   isolate, ConcurrencyMode::kConcurrent) ==
+               CodeKind::TURBOFAN_JS) {
       status |= static_cast<int>(
           OptimizationStatus::kMarkedForConcurrentOptimization);
-      break;
-    case TieringState::kInProgress:
-      status |= static_cast<int>(OptimizationStatus::kOptimizingConcurrently);
-      break;
-    case TieringState::kNone:
-    case TieringState::kRequestMaglev_Synchronous:
-    case TieringState::kRequestMaglev_Concurrent:
-      // TODO(v8:7700): Maglev support.
-      break;
+    } else if (function->GetRequestedOptimizationIfAny(
+                   isolate, ConcurrencyMode::kSynchronous) ==
+               CodeKind::TURBOFAN_JS) {
+      status |= static_cast<int>(OptimizationStatus::kMarkedForOptimization);
+    }
   }
 
   if (function->HasAttachedOptimizedCode(isolate)) {

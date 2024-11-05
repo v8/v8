@@ -1057,6 +1057,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                            Register slot_address);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       JumpMode jump_mode = JumpMode::kJump);
+#ifndef V8_ENABLE_LEAPTIERING
   Condition CheckFeedbackVectorFlagsNeedsProcessing(Register feedback_vector,
                                                     CodeKind current_code_kind);
   void CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
@@ -1071,6 +1072,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
     OptimizeCodeOrTailCallOptimizedCodeSlot(
         feedback_vector, kJSFunctionRegister, JumpMode::kJump);
   }
+#endif  // !V8_ENABLE_LEAPTIERING
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE;
