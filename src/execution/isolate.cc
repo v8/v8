@@ -2410,7 +2410,8 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // out to user code that could throw.
         UNREACHABLE();
       }
-      case StackFrame::WASM_TO_JS: {
+      case StackFrame::WASM_TO_JS:
+      case StackFrame::WASM_TO_JS_FUNCTION: {
         HandleStackSwitch(iter);
         break;
       }
