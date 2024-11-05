@@ -13329,7 +13329,6 @@ UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
 
   i::v8_flags.shared_string_table = true;
   i::v8_flags.harmony_struct = true;
-  i::FlagList::EnforceFlagImplications();
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
