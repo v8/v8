@@ -6448,6 +6448,131 @@ TEST(RunWasmTurbofan_I8x32UConvertI16x16) {
   RunIntToIntNarrowingRevecTest<int16_t, uint8_t>(
       kExprI8x16UConvertI16x8, compiler::IrOpcode::kI8x32UConvertI16x16);
 }
+
+#define RunExtendIntToF32x4RevecTest(format, sign, convert_opcode,             \
+                                     convert_sign, param_type, extract_type,   \
+                                     convert_type)                             \
+  TEST(RunWasmTurbofan_Extend##format##sign##ConvertF32x8##convert_sign) {     \
+    SKIP_TEST_IF_NO_TURBOSHAFT;                                                \
+    EXPERIMENTAL_FLAG_SCOPE(revectorize);                                      \
+    if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2))     \
+      return;                                                                  \
+    WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);     \
+    param_type* memory =                                                       \
+        r.builder().AddMemoryElems<param_type>(48 / sizeof(param_type));       \
+    uint8_t param1 = 0;                                                        \
+    uint8_t param2 = 1;                                                        \
+    uint8_t input = r.AllocateLocal(kWasmS128);                                \
+    uint8_t output1 = r.AllocateLocal(kWasmS128);                              \
+    uint8_t output2 = r.AllocateLocal(kWasmS128);                              \
+    constexpr uint8_t offset = 16;                                             \
+    {                                                                          \
+      TSSimd256VerifyScope ts_scope(                                           \
+          r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<                \
+                        compiler::turboshaft::Simd256UnaryOp,                  \
+                        compiler::turboshaft::Simd256UnaryOp::Kind::           \
+                            kF32x8##convert_sign##ConvertI32x8>);              \
+      r.Build(                                                                 \
+          {WASM_LOCAL_SET(input, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),  \
+           WASM_LOCAL_SET(                                                     \
+               output1,                                                        \
+               WASM_SIMD_F32x4_SPLAT(WASM_UNOP(                                \
+                   convert_opcode, WASM_SIMD_##format##_EXTRACT_LANE##sign(    \
+                                       0, WASM_LOCAL_GET(input))))),           \
+           WASM_LOCAL_SET(                                                     \
+               output1, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            1, WASM_LOCAL_GET(output1),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          1, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output1, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            2, WASM_LOCAL_GET(output1),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          2, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output1, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            3, WASM_LOCAL_GET(output1),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          3, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output2,                                                        \
+               WASM_SIMD_F32x4_SPLAT(WASM_UNOP(                                \
+                   convert_opcode, WASM_SIMD_##format##_EXTRACT_LANE##sign(    \
+                                       4, WASM_LOCAL_GET(input))))),           \
+           WASM_LOCAL_SET(                                                     \
+               output2, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            1, WASM_LOCAL_GET(output2),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          5, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output2, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            2, WASM_LOCAL_GET(output2),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          6, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output2, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            3, WASM_LOCAL_GET(output2),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          7, WASM_LOCAL_GET(input))))),        \
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2),                         \
+                               WASM_LOCAL_GET(output1)),                       \
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),          \
+                                      WASM_LOCAL_GET(output2)),                \
+           WASM_ONE});                                                         \
+    }                                                                          \
+                                                                               \
+    constexpr uint32_t lanes = kSimd128Size / sizeof(param_type);              \
+    auto values = compiler::ValueHelper::GetVector<param_type>();              \
+    float* output = (float*)(memory + lanes);                                  \
+    for (uint32_t i = 0; i + lanes <= values.size(); i++) {                    \
+      for (uint32_t j = 0; j < lanes; j++) {                                   \
+        r.builder().WriteMemory(&memory[j], values[i + j]);                    \
+      }                                                                        \
+      r.Call(0, 16);                                                           \
+                                                                               \
+      /* Only lane0 to lane7 are processed*/                                   \
+      for (uint32_t j = 0; j < 7; j++) {                                       \
+        float expected = static_cast<float>(static_cast<convert_type>(         \
+            static_cast<extract_type>(values[i + j])));                        \
+        CHECK_EQ(output[j], expected);                                         \
+      }                                                                        \
+    }                                                                          \
+  }
+
+// clang-format off
+RunExtendIntToF32x4RevecTest(I8x16, _U, kExprF32UConvertI32, U, uint8_t,
+                           uint32_t, uint32_t)
+
+RunExtendIntToF32x4RevecTest(I8x16, _U, kExprF32SConvertI32, S, uint8_t,
+                           uint32_t, int32_t)
+
+RunExtendIntToF32x4RevecTest(I8x16, , kExprF32UConvertI32, U, int8_t,
+                           int32_t, uint32_t)
+
+RunExtendIntToF32x4RevecTest(I8x16, , kExprF32SConvertI32, S, int8_t,
+                           int32_t, int32_t)
+
+RunExtendIntToF32x4RevecTest(I16x8, _U, kExprF32UConvertI32, U, uint16_t,
+                           uint32_t, uint32_t)
+
+RunExtendIntToF32x4RevecTest(I16x8, _U, kExprF32SConvertI32, S, uint16_t,
+                           uint32_t, int32_t)
+
+RunExtendIntToF32x4RevecTest(I16x8, , kExprF32UConvertI32, U, int16_t,
+                           int32_t, uint32_t)
+
+RunExtendIntToF32x4RevecTest(I16x8, , kExprF32SConvertI32, S, int16_t,
+                           int32_t, int32_t)
+// clang-format on
+
+#undef RunExtendIntToF32x4RevecTest
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S

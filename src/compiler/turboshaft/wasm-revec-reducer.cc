@@ -297,6 +297,23 @@ PackNode* SLPTree::NewForcePackNode(const NodeGroup& node_group,
   return pnode;
 }
 
+BundlePackNode* SLPTree::NewBundlePackNode(const NodeGroup& node_group,
+                                           OpIndex base, int8_t offset,
+                                           uint8_t lane_size,
+                                           bool is_sign_extract,
+                                           bool is_sign_convert) {
+  Operation& op = graph_.Get(node_group[0]);
+  TRACE("PackNode %s(#%d:, #%d)\n", GetSimdOpcodeName(op).c_str(),
+        node_group[0].id(), node_group[1].id());
+  BundlePackNode* pnode = phase_zone_->New<BundlePackNode>(
+      phase_zone_, node_group, base, offset, lane_size, is_sign_extract,
+      is_sign_convert);
+  for (OpIndex node : node_group) {
+    node_to_packnode_[node] = pnode;
+  }
+  return pnode;
+}
+
 PackNode* SLPTree::NewCommutativePackNodeAndRecurs(const NodeGroup& node_group,
                                                    unsigned depth) {
   PackNode* pnode = NewPackNode(node_group);
@@ -429,6 +446,171 @@ ShufflePackNode* SLPTree::X64TryMatch256Shuffle(const NodeGroup& node_group,
   return nullptr;
 }
 #endif  // V8_TARGET_ARCH_X64
+
+// Try to match i8x16/i16x8 to f32x4 conversion pattern.
+// The following wasm snippet is an example for load i8x16,
+// extend to i32x4 and convert to f32x4
+//  (f32x4.replace_lane 3
+//     (f32x4.replace_lane 2
+//       (f32x4.replace_lane 1
+//         (f32x4.splat
+//           (f32.convert_i32_u
+//             (i8x16.extract_lane_u 0
+//               (local.tee 7
+//                 (v128.load align=1
+//                   (local.get 0))))))
+//         (f32.convert_i32_u
+//           (i8x16.extract_lane_u 1
+//             (local.get 7))))
+//       (f32.convert_i32_u
+//         (i8x16.extract_lane_u 2
+//           (local.get 7))))
+//     (f32.convert_i32_u
+//       (i8x16.extract_lane_u 3
+//         (local.get 7))))
+std::optional<SLPTree::ExtendIntToF32x4Info>
+SLPTree::TryGetExtendIntToF32x4Info(OpIndex index) {
+  OpIndex current = index;
+  LaneExtendInfo lane_extend_info[4];
+
+  // Get information for lane 1 to lane 3
+  for (int lane_index = 3; lane_index > 0; lane_index--) {
+    const Simd128ReplaceLaneOp* replace_lane =
+        graph_.Get(current)
+            .TryCast<turboshaft::Opmask::kSimd128ReplaceLaneF32x4>();
+    if (!replace_lane) {
+      TRACE("Mismatch in replace lane\n");
+      return {};
+    }
+    const ChangeOp* change =
+        graph_.Get(replace_lane->new_lane()).TryCast<ChangeOp>();
+    if (!change) {
+      TRACE("Mismatch in type convert\n");
+      return {};
+    }
+    const Simd128ExtractLaneOp* extract_lane =
+        graph_.Get(change->input()).TryCast<Simd128ExtractLaneOp>();
+    if (!extract_lane) {
+      TRACE("Mismatch in extract lane\n");
+      return {};
+    }
+    lane_extend_info[lane_index].replace_lane_index = replace_lane->lane;
+    lane_extend_info[lane_index].change_kind = change->kind;
+    lane_extend_info[lane_index].extract_from = extract_lane->input();
+    lane_extend_info[lane_index].extract_kind = extract_lane->kind;
+    lane_extend_info[lane_index].extract_lane_index = extract_lane->lane;
+
+    current = replace_lane->into();
+  }
+
+  // Get information for lane 0(splat)
+  const Simd128SplatOp* splat = graph_.Get(current).TryCast<Simd128SplatOp>();
+  if (!splat) {
+    TRACE("Mismatch in splat\n");
+    return {};
+  }
+  const ChangeOp* change = graph_.Get(splat->input()).TryCast<ChangeOp>();
+  if (!change) {
+    TRACE("Mismatch in splat type convert\n");
+    return {};
+  }
+  const Simd128ExtractLaneOp* extract_lane =
+      graph_.Get(change->input()).TryCast<Simd128ExtractLaneOp>();
+  if (!extract_lane) {
+    TRACE("Mismatch in splat extract lane\n");
+    return {};
+  }
+  lane_extend_info[0].replace_lane_index = 0;
+  lane_extend_info[0].change_kind = change->kind;
+  lane_extend_info[0].extract_from = extract_lane->input();
+  lane_extend_info[0].extract_kind = extract_lane->kind;
+  lane_extend_info[0].extract_lane_index = extract_lane->lane;
+
+  // Pattern matching for f32x4.convert_i32x4(i32x4.extract_lane)
+  for (int i = 0; i < 4; i++) {
+    if (lane_extend_info[i].replace_lane_index != i) {
+      return {};
+    }
+    if (lane_extend_info[i].change_kind != lane_extend_info[0].change_kind ||
+        (lane_extend_info[i].change_kind != ChangeOp::Kind::kSignedToFloat &&
+         lane_extend_info[i].change_kind != ChangeOp::Kind::kUnsignedToFloat)) {
+      return {};
+    }
+    if (lane_extend_info[i].extract_from != lane_extend_info[0].extract_from) {
+      return {};
+    }
+    if (lane_extend_info[i].extract_kind != lane_extend_info[0].extract_kind ||
+        (lane_extend_info[i].extract_kind !=
+             Simd128ExtractLaneOp::Kind::kI8x16S &&
+         lane_extend_info[i].extract_kind !=
+             Simd128ExtractLaneOp::Kind::kI8x16U &&
+         lane_extend_info[i].extract_kind !=
+             Simd128ExtractLaneOp::Kind::kI16x8S &&
+         lane_extend_info[i].extract_kind !=
+             Simd128ExtractLaneOp::Kind::kI16x8U)) {
+      return {};
+    }
+    if (lane_extend_info[i].extract_lane_index !=
+        lane_extend_info[0].extract_lane_index + i) {
+      return {};
+    }
+  }
+
+  ExtendIntToF32x4Info info;
+  info.extend_from = lane_extend_info[0].extract_from;
+  info.start_lane = lane_extend_info[0].extract_lane_index;
+  if (lane_extend_info[0].extract_kind == Simd128ExtractLaneOp::Kind::kI8x16S ||
+      lane_extend_info[0].extract_kind == Simd128ExtractLaneOp::Kind::kI8x16U) {
+    info.lane_size = 1;
+  } else {
+    info.lane_size = 2;
+  }
+  info.is_sign_extract =
+      lane_extend_info[0].extract_kind == Simd128ExtractLaneOp::Kind::kI8x16S ||
+      lane_extend_info[0].extract_kind == Simd128ExtractLaneOp::Kind::kI16x8S;
+  info.is_sign_convert =
+      lane_extend_info[0].change_kind == ChangeOp::Kind::kSignedToFloat;
+
+  return info;
+}
+
+bool SLPTree::TryMatchExtendIntToF32x4(const NodeGroup& node_group,
+                                       ExtendIntToF32x4Info* info) {
+  OpIndex node0 = node_group[0];
+  OpIndex node1 = node_group[1];
+  std::optional<ExtendIntToF32x4Info> info0 = TryGetExtendIntToF32x4Info(node0);
+  std::optional<ExtendIntToF32x4Info> info1 = TryGetExtendIntToF32x4Info(node1);
+  if (!info0.has_value() || !info1.has_value()) {
+    return false;
+  }
+
+  if (info0.value().extend_from != info1.value().extend_from ||
+      info0.value().is_sign_extract != info1.value().is_sign_extract ||
+      info0.value().lane_size != info1.value().lane_size ||
+      info0.value().is_sign_convert != info1.value().is_sign_convert) {
+    return false;
+  }
+
+  uint32_t min_lane_index =
+      std::min(info0.value().start_lane, info1.value().start_lane);
+  if (std::abs(info0.value().start_lane - info1.value().start_lane) != 4) {
+    return false;
+  }
+  if (info0.value().lane_size == 1) {
+    if (min_lane_index != 0 && min_lane_index != 8) {
+      return false;
+    }
+  } else {
+    DCHECK_EQ(info0.value().lane_size, 2);
+    if (min_lane_index != 0) {
+      return false;
+    }
+  }
+
+  *info = info0.value();
+  info->start_lane = min_lane_index;
+  return true;
+}
 
 void SLPTree::DeleteTree() { node_to_packnode_.clear(); }
 
@@ -893,6 +1075,18 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         // (128loadzero64+shuffle)x2 -> s256load8x8u
         return nullptr;
       }
+    }
+
+    case Opcode::kSimd128ReplaceLane: {
+      ExtendIntToF32x4Info info;
+      if (TryMatchExtendIntToF32x4(node_group, &info)) {
+        TRACE("Match extend i8x4/i16x4 to f32x4\n");
+        PackNode* p = NewBundlePackNode(
+            node_group, info.extend_from, info.start_lane, info.lane_size,
+            info.is_sign_extract, info.is_sign_convert);
+        return p;
+      }
+      return nullptr;
     }
 
     default:

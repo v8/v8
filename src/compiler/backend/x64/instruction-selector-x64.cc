@@ -6682,14 +6682,6 @@ void InstructionSelectorT<Adapter>::VisitF32x4UConvertI32x4(node_t node) {
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x8UConvertI32x8(node_t node) {
-  X64OperandGeneratorT<Adapter> g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kX64F32x8UConvertI32x8, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
-}
-
 #define VISIT_SIMD_QFMOP(Opcode)                                   \
   template <typename Adapter>                                      \
   void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
@@ -6836,6 +6828,35 @@ void InstructionSelectorT<TurbofanAdapter>::VisitExtractF128(node_t node) {
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x8UConvertI32x8(node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+
+  node_t value = this->input_at(node, 0);
+
+  // F32x8SConvertI32x8 is more efficient than F32x8UConvertI32x8 on x64.
+  bool can_use_sign_convert = false;
+  if constexpr (Adapter::IsTurboshaft) {
+    if (this->Get(value)
+            .template Is<turboshaft::Opmask::kSimd256I32x8UConvertI16x8>()) {
+      can_use_sign_convert = true;
+    }
+  } else {
+    if (value->opcode() == IrOpcode::kI32x8UConvertI16x8) {
+      can_use_sign_convert = true;
+    }
+  }
+
+  if (can_use_sign_convert) {
+    Emit(kX64F32x8SConvertI32x8, g.DefineAsRegister(node),
+         g.UseRegister(this->input_at(node, 0)));
+  } else {
+    Emit(kX64F32x8UConvertI32x8, g.DefineSameAsFirst(node),
+         g.UseRegister(this->input_at(node, 0)));
+  }
+}
+
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitExtractF128(node_t node) {
   X64OperandGeneratorT<TurboshaftAdapter> g(this);
