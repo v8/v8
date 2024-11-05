@@ -535,6 +535,7 @@ def build_config_content(cpu, icu):
         ("arch", arch),
         ("asan", "false"),
         ("atomic_object_field_writes", "false"),
+        ("cet_shadow_stack", "false"),
         ("cfi", "false"),
         ("clang_coverage", "false"),
         ("clang", "true"),
