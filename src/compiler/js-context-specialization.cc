@@ -238,6 +238,8 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
 Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
   DCHECK(v8_flags.const_tracking_let);
   DCHECK_EQ(IrOpcode::kJSStoreScriptContext, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
 
   const ContextAccess& access = ContextAccessOf(node->op());
   size_t depth = access.depth();
@@ -255,14 +257,14 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
     // code for invalidating the side data.
     const Operator* op =
         jsgraph_->javascript()->StoreContext(access.depth(), access.index());
-    NodeProperties::ChangeOp(node, op);
+    Node* new_store = effect = jsgraph_->graph()->NewNode(
+        op, NodeProperties::GetValueInput(node, 0), context, effect, control);
+    ReplaceWithValue(node, new_store, effect, control);
     return Changed(node);
   }
 
   // The value might be a constant. Generate code which checks the side data and
   // potentially invalidates the constness.
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
 
   // Generate code to walk up the contexts the remaining depth.
   for (size_t i = 0; i < depth; ++i) {
@@ -278,9 +280,10 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
   // If we're still here (not deopted) the side data implied that the value was
   // already not a constant, so we can just store into it.
   const Operator* op = jsgraph_->javascript()->StoreContext(0, access.index());
-  Node* new_store = jsgraph_->graph()->NewNode(
+  Node* new_store = effect = jsgraph_->graph()->NewNode(
       op, NodeProperties::GetValueInput(node, 0), context, effect, control);
-  return Replace(new_store);
+  ReplaceWithValue(node, new_store, effect, control);
+  return Changed(node);
 }
 
 OptionalContextRef GetModuleContext(JSHeapBroker* broker, Node* node,

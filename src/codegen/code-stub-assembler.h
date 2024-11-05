@@ -2861,6 +2861,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         ExternalReference::address_of_shared_string_table_flag());
   }
 
+  TNode<BoolT> IsScriptContextMutableHeapNumberFlag() {
+    return LoadRuntimeFlag(
+        ExternalReference::script_context_mutable_heap_number_flag());
+  }
+
   // True iff |object| is a Smi or a HeapNumber or a BigInt.
   TNode<BoolT> IsNumeric(TNode<Object> object);
 

@@ -3339,8 +3339,9 @@ void CheckConstTrackingLetCellTagged::GenerateCode(
   Register value = ToRegister(value_input());
   __ LoadTaggedField(scratch, context, Context::OffsetOfElementAt(index_));
   __ CmpTagged(value, scratch);
-  __ JumpIf(kEqual, &done, Label::kNear);
+  __ JumpIf(kEqual, &done);
 
+  // TODO(victorgomes): Wouldn't make sense for this to be in DeferredCode?
   __ GenerateCheckConstTrackingLetCellFooter(context, scratch, index_, &done);
 
   __ EmitEagerDeopt(this, DeoptimizeReason::kConstTrackingLet);

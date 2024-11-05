@@ -1257,7 +1257,7 @@ const Operator* JSOperatorBuilder::StoreScriptContext(size_t depth,
       IrOpcode::kJSStoreScriptContext,           // opcode
       Operator::kNoRead | Operator::kNoThrow,    // flags
       "JSStoreScriptContext",                    // name
-      1, 1, 1, 0, 1, 0,                          // counts
+      1, 1, 1, 0, 1, 1,                          // counts
       access);                                   // parameter
 }
 

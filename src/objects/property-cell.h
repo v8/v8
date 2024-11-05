@@ -116,7 +116,16 @@ class ContextSidePropertyCell
   }
   static Tagged<Smi> Other() { return Smi::FromInt(Property::kOther); }
 
+  static Property FromSmi(Tagged<Smi> smi) {
+    int value = smi.value();
+    DCHECK_GE(value, 0);
+    DCHECK_LE(value, kMutableHeapNumber);
+    return static_cast<Property>(value);
+  }
+
   static inline bool IsNotConst(Tagged<Object> object);
+
+  inline Property context_side_property() const;
 
   // [context_side_property_raw]: details of the context slot property.
   DECL_ACCESSORS(context_side_property_raw, Tagged<Smi>)

@@ -517,6 +517,12 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
       } else if (state() == NO_FEEDBACK) {
         TraceIC("LoadGlobalIC", name);
       }
+      if (v8_flags.script_context_mutable_heap_number) {
+        return handle(
+            *Context::LoadScriptContextElement(
+                script_context, lookup_result.slot_index, result, isolate()),
+            isolate());
+      }
       return result;
     }
   }
@@ -1732,13 +1738,6 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
                             name));
     }
 
-    if (lookup_result.mode == VariableMode::kLet &&
-        v8_flags.const_tracking_let) {
-      Context::UpdateConstTrackingLetSideData(handle(script_context, isolate()),
-                                              lookup_result.slot_index, value,
-                                              isolate());
-    }
-
     bool use_ic = (state() != NO_FEEDBACK) && v8_flags.use_ic;
     if (use_ic) {
       if (nexus()->ConfigureLexicalVarMode(
@@ -1754,7 +1753,14 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     } else if (state() == NO_FEEDBACK) {
       TraceIC("StoreGlobalIC", name);
     }
-    script_context->set(lookup_result.slot_index, *value);
+    if (v8_flags.script_context_mutable_heap_number ||
+        v8_flags.const_tracking_let) {
+      Context::StoreScriptContextAndUpdateSlotProperty(
+          handle(script_context, isolate()), lookup_result.slot_index, value,
+          isolate());
+    } else {
+      script_context->set(lookup_result.slot_index, *value);
+    }
     return value;
   }
 
@@ -3057,10 +3063,11 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
       }
     }
     if (v8_flags.const_tracking_let) {
-      Context::UpdateConstTrackingLetSideData(
+      Context::StoreScriptContextAndUpdateSlotProperty(
           script_context, lookup_result.slot_index, value, isolate);
+    } else {
+      script_context->set(lookup_result.slot_index, *value);
     }
-    script_context->set(lookup_result.slot_index, *value);
     return *value;
   }
 

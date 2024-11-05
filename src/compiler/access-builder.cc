@@ -1543,6 +1543,16 @@ FieldAccess AccessBuilder::ForWasmDispatchTableLength() {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+// static
+FieldAccess AccessBuilder::ForContextSideProperty() {
+  FieldAccess access = {
+      kTaggedBase,         ContextSidePropertyCell::kPropertyDetailsRawOffset,
+      MaybeHandle<Name>(), OptionalMapRef(),
+      Type::SignedSmall(), MachineType::TaggedSigned(),
+      kNoWriteBarrier,     "ContextSidePropertyDetails"};
+  return access;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
