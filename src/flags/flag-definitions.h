@@ -3285,9 +3285,9 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, cppheap_concurrent_marking)
 
-DEFINE_BOOL(single_threaded_gc_in_background, false,
+DEFINE_BOOL(single_threaded_gc_in_background, true,
             "disable the use of background gc tasks when in background")
-DEFINE_BOOL(parallel_pause_for_gc_in_background, false,
+DEFINE_BOOL(parallel_pause_for_gc_in_background, true,
             "Use parallel threads in the atomic pause for background GCs")
 DEFINE_BOOL(incremental_marking_for_gc_in_background, true,
             "Use parallel threads in the atomic pause for background GCs")
