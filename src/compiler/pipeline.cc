@@ -2883,38 +2883,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 
     CHECK_NULL(data.osr_helper_ptr());
 
-#if V8_TARGET_ARCH_ARM
-    // TODO(nicohartmann@): Remove this once orderfile issue is resolved.
-    const bool recreate_turbofan = (builtin == Builtin::kArrayPrototypeSlice);
-    if (recreate_turbofan) {
-      turboshaft_pipeline.RecreateTurbofanGraph(&data, &linkage);
-
-      // First run code generation on a copy of the pipeline, in order to be
-      // able to repeat it for jump optimization. The first run has to happen on
-      // a temporary pipeline to avoid deletion of zones on the main pipeline.
-      TFPipelineData second_data(
-          &zone_stats, &info, isolate, isolate->allocator(), data.graph(),
-          data.jsgraph(), data.schedule(), data.source_positions(),
-          data.node_origins(), data.jump_optimization_info(), options,
-          profile_data);
-      PipelineJobScope second_scope(&second_data,
-                                    isolate->counters()->runtime_call_stats());
-      second_data.set_verify_graph(v8_flags.verify_csa);
-      PipelineImpl second_pipeline(&second_data);
-      second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
-
-      if (v8_flags.turbo_profiling) {
-        info.profiler_data()->SetHash(initial_graph_hash);
-      }
-
-      if (jump_opt.is_optimizable()) {
-        jump_opt.set_optimizing();
-        return pipeline.GenerateCode(call_descriptor);
-      } else {
-        return second_pipeline.FinalizeCode();
-      }
-    }
-#endif  // V8_TARGET_ARCH_ARM
     return turboshaft_pipeline.GenerateCode(&linkage, data.osr_helper_ptr(),
                                             jump_optimization_info,
                                             profile_data, initial_graph_hash);
