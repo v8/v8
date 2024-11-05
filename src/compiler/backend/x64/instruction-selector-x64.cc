@@ -1624,6 +1624,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitSimd256LoadTransform(
     case Simd256LoadTransformOp::TransformKind::k8x16U:
       opcode = kX64S256Load8x16U;
       break;
+    case Simd256LoadTransformOp::TransformKind::k8x8U:
+      opcode = kX64S256Load8x8U;
+      break;
     case Simd256LoadTransformOp::TransformKind::k16x8S:
       opcode = kX64S256Load16x8S;
       break;

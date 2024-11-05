@@ -407,6 +407,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S128Load32x2U:
     case kX64S256Load8x16S:
     case kX64S256Load8x16U:
+    case kX64S256Load8x8U:
     case kX64S256Load16x8S:
     case kX64S256Load16x8U:
     case kX64S256Load32x4S:
