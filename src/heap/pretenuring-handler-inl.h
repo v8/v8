@@ -7,19 +7,18 @@
 
 #include "src/base/sanitizer/msan.h"
 #include "src/heap/heap-layout-inl.h"
-#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/allocation-site.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // static
 void PretenuringHandler::UpdateAllocationSite(
-    Heap* heap, Tagged<Map> map, Tagged<HeapObject> object,
+    Heap* heap, Tagged<Map> map, Tagged<HeapObject> object, int object_size,
     PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback,
             &heap->pretenuring_handler()->global_pretenuring_feedback_);
@@ -36,7 +35,7 @@ void PretenuringHandler::UpdateAllocationSite(
     return;
   }
   Tagged<AllocationMemento> memento_candidate =
-      FindAllocationMemento<kForGC>(heap, map, object);
+      FindAllocationMemento<kForGC>(heap, map, object, object_size);
   if (memento_candidate.is_null()) {
     return;
   }
@@ -53,21 +52,33 @@ void PretenuringHandler::UpdateAllocationSite(
 template <PretenuringHandler::FindMementoMode mode>
 Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
     Heap* heap, Tagged<Map> map, Tagged<HeapObject> object) {
+  return FindAllocationMemento<mode>(heap, map, object,
+                                     object->SizeFromMap(map));
+}
+
+// static
+template <PretenuringHandler::FindMementoMode mode>
+Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
+    Heap* heap, Tagged<Map> map, Tagged<HeapObject> object, int object_size) {
+  DCHECK_EQ(object_size, object->SizeFromMap(map));
   Address object_address = object.address();
   Address memento_address =
-      object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object->SizeFromMap(map));
+      object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   Address last_memento_word_address = memento_address + kTaggedSize;
   // If the memento would be on another page, bail out immediately.
   if (!PageMetadata::OnSamePage(object_address, last_memento_word_address)) {
     return AllocationMemento();
   }
 
-  MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
-  PageMetadata* object_page = PageMetadata::cast(object_chunk->Metadata());
   // If the page is being swept, treat it as if the memento was already swept
   // and bail out.
-  if (mode != FindMementoMode::kForGC && !object_page->SweepingDone())
-    return AllocationMemento();
+  if constexpr (mode != FindMementoMode::kForGC) {
+    MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
+    PageMetadata* object_page = PageMetadata::cast(object_chunk->Metadata());
+    if (!object_page->SweepingDone()) {
+      return AllocationMemento();
+    }
+  }
 
   Tagged<HeapObject> candidate = HeapObject::FromAddress(memento_address);
   ObjectSlot candidate_map_slot = candidate->map_slot();
@@ -82,7 +93,9 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
 
   // Bail out if the memento is below the age mark, which can happen when
   // mementos survived because a page got moved within new space.
+  MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
   if (object_chunk->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
+    PageMetadata* object_page = PageMetadata::cast(object_chunk->Metadata());
     Address age_mark =
         reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
     if (!object_page->Contains(age_mark)) {
@@ -123,7 +136,6 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
   UNREACHABLE();
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_PRETENURING_HANDLER_INL_H_

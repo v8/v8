@@ -77,10 +77,12 @@ template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename T, typename TBodyDescriptor>
 size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
     Tagged<Map> map, Tagged<T> object, MaybeObjectSize maybe_object_size) {
-  PretenuringHandler::UpdateAllocationSite(isolate_->heap(), map, object,
-                                           local_pretenuring_feedback_);
-  return Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(
-      map, object, maybe_object_size);
+  const int object_size =
+      static_cast<int>(Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(
+          map, object, maybe_object_size));
+  PretenuringHandler::UpdateAllocationSite(
+      isolate_->heap(), map, object, object_size, local_pretenuring_feedback_);
+  return object_size;
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
