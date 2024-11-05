@@ -121,7 +121,7 @@ struct CppHeapPointerT : UntaggedT {
 };
 #endif  // !V8_COMPRESS_POINTERS
 
-struct Float16T : Word32T {
+struct Float16RawBitsT : Word32T {
   static constexpr MachineType kMachineType = MachineType::Uint16();
 };
 
