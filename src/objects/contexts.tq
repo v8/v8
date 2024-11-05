@@ -250,6 +250,17 @@ macro StoreContextElementAndUpdateSideData(
   StoreScriptContextAndUpdateSlotProperty(c, i, o);
 }
 
+builtin AllocateIfMutableHeapNumberScriptContextSlot(
+    n: Object, c: Object, i: Smi): JSAny {
+  const number = UnsafeCast<HeapNumber>(n);
+  const context = UnsafeCast<Context>(c);
+  const index = SmiUntag(i);
+  if (IsMutableHeapNumber(context, index, number)) {
+    return AllocateHeapNumberWithValue(number.value);
+  }
+  return number;
+}
+
 builtin StoreCurrentScriptContextSlotBaseline(o: Object, i: Smi): JSAny {
   const context = internal::LoadContextFromBaseline();
   const index = SmiUntag(i);
