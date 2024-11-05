@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4e8de165cdb7365a2c87f8597cad04ef20ec006a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '439e6fc9a98ba1efd416fa9b0bd6a24fe451c663',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c61bf9c942c84d2c42d4ce4fd5cf751fa36c7fd7',
   'buildtools/linux64': {
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '37c0cf910022b2d75816b0f9f77c53d69a0b2d9f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'bc7f9bfff573e59be4acee8f285e86550da039ef',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
