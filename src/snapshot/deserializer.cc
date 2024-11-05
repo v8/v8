@@ -171,7 +171,7 @@ class SlotAccessorForRootSlots {
 template <typename IsolateT>
 class SlotAccessorForHandle {
  public:
-  SlotAccessorForHandle(Handle<HeapObject>* handle, IsolateT* isolate)
+  SlotAccessorForHandle(DirectHandle<HeapObject>* handle, IsolateT* isolate)
       : handle_(handle), isolate_(isolate) {}
 
   MaybeObjectSlot slot() const { UNREACHABLE(); }
@@ -188,10 +188,10 @@ class SlotAccessorForHandle {
             int slot_offset, WriteBarrierMode mode) {
     DCHECK_EQ(slot_offset, 0);
     DCHECK_EQ(ref_type, HeapObjectReferenceType::STRONG);
-    *handle_ = handle(value, isolate_);
+    *handle_ = direct_handle(value, isolate_);
     return 1;
   }
-  int Write(Handle<HeapObject> value, HeapObjectReferenceType ref_type,
+  int Write(DirectHandle<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset, WriteBarrierMode mode) {
     DCHECK_EQ(slot_offset, 0);
     DCHECK_EQ(ref_type, HeapObjectReferenceType::STRONG);
@@ -207,7 +207,7 @@ class SlotAccessorForHandle {
   }
 
  private:
-  Handle<HeapObject>* handle_;
+  DirectHandle<HeapObject>* handle_;
   IsolateT* isolate_;
 };
 
@@ -226,10 +226,9 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
-                                             Handle<HeapObject> heap_object,
-                                             ReferenceDescriptor descr,
-                                             WriteBarrierMode mode) {
+int Deserializer<IsolateT>::WriteHeapPointer(
+    SlotAccessor slot_accessor, DirectHandle<HeapObject> heap_object,
+    ReferenceDescriptor descr, WriteBarrierMode mode) {
   if (descr.is_indirect_pointer) {
     return slot_accessor.WriteIndirectPointerTo(*heap_object, mode);
   } else if (descr.is_protected_pointer) {
@@ -313,12 +312,20 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
                                      bool deserializing_user_code,
                                      bool can_rehash)
     : isolate_(isolate),
+      attached_objects_(isolate),
       source_(payload),
       magic_number_(magic_number),
+      new_maps_(isolate),
+      new_allocation_sites_(isolate),
+      new_code_objects_(isolate),
+      accessor_infos_(isolate),
+      function_template_infos_(isolate),
+      new_scripts_(isolate),
       new_descriptor_arrays_(isolate->heap()),
       deserializing_user_code_(deserializing_user_code),
       should_rehash_((v8_flags.rehash_snapshot && can_rehash) ||
-                     deserializing_user_code) {
+                     deserializing_user_code),
+      to_rehash_(isolate) {
   DCHECK_NOT_NULL(isolate);
   isolate->RegisterDeserializerStarted();
 
@@ -711,8 +718,8 @@ Handle<HeapObject> Deserializer<IsolateT>::GetBackReferencedObject(
 }
 
 template <typename IsolateT>
-Handle<HeapObject> Deserializer<IsolateT>::ReadObject() {
-  Handle<HeapObject> ret;
+DirectHandle<HeapObject> Deserializer<IsolateT>::ReadObject() {
+  DirectHandle<HeapObject> ret;
   CHECK_EQ(ReadSingleBytecodeData(
                source_.Get(), SlotAccessorForHandle<IsolateT>(&ret, isolate())),
            1);
@@ -743,7 +750,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // then you're probably serializing the meta-map, in which case you want to
   // use the kNewContextlessMetaMap/kNewContextfulMetaMap bytecode.
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
-  Handle<Map> map = Cast<Map>(ReadObject());
+  DirectHandle<Map> map = Cast<Map>(ReadObject());
 
   AllocationType allocation = SpaceToAllocation(space);
 
@@ -1092,7 +1099,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadBackref(uint8_t data,
                                         SlotAccessor slot_accessor) {
   uint32_t index = source_.GetUint30();
-  Handle<HeapObject> heap_object = GetBackReferencedObject(index);
+  DirectHandle<HeapObject> heap_object = GetBackReferencedObject(index);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sBackref [%u]\n", depth_, "", index);
     // Don't print the backref object, since it might still be being
@@ -1252,7 +1259,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadAttachedReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
   int index = source_.GetUint30();
-  Handle<HeapObject> heap_object = attached_objects_[index];
+  DirectHandle<HeapObject> heap_object = attached_objects_[index];
   if (v8_flags.trace_deserialization) {
     PrintF("%*sAttachedReference [%u] : ", depth_, "", index);
     ShortPrint(*heap_object);
@@ -1478,7 +1485,7 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
            parameter_count);
   }
 
-  Handle<Code> code = Cast<Code>(ReadObject());
+  DirectHandle<Code> code = Cast<Code>(ReadObject());
 
   JSDispatchHandle handle;
   auto it = js_dispatch_entries_map_.find(entry_id);
@@ -1542,7 +1549,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadHotObject(uint8_t data,
                                           SlotAccessor slot_accessor) {
   int index = HotObject::Decode(data);
-  Handle<HeapObject> hot_object = hot_objects_.Get(index);
+  DirectHandle<HeapObject> hot_object = hot_objects_.Get(index);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sHotObject [%u] : ", depth_, "", index);
     ShortPrint(*hot_object);

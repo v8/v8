@@ -200,7 +200,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
       &shared_heap_snapshot_data, ExtractRehashability(blob));
 }
 
-MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
+MaybeDirectHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
     DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();

@@ -102,12 +102,12 @@ void SourceCodeCache::Iterate(RootVisitor* v) {
 }
 
 bool SourceCodeCache::Lookup(Isolate* isolate, base::Vector<const char> name,
-                             Handle<SharedFunctionInfo>* handle) {
+                             DirectHandle<SharedFunctionInfo>* handle) {
   for (int i = 0; i < cache_->length(); i += 2) {
     Tagged<SeqOneByteString> str = Cast<SeqOneByteString>(cache_->get(i));
     if (str->IsOneByteEqualTo(name)) {
-      *handle = Handle<SharedFunctionInfo>(
-          Cast<SharedFunctionInfo>(cache_->get(i + 1)), isolate);
+      *handle =
+          direct_handle(Cast<SharedFunctionInfo>(cache_->get(i + 1)), isolate);
       return true;
     }
   }
@@ -193,12 +193,12 @@ class Genesis {
   Builtins* builtins() const { return isolate_->builtins(); }
   Heap* heap() const { return isolate_->heap(); }
 
-  Handle<NativeContext> result() { return result_; }
+  DirectHandle<NativeContext> result() { return result_; }
 
-  Handle<JSGlobalProxy> global_proxy() { return global_proxy_; }
+  DirectHandle<JSGlobalProxy> global_proxy() { return global_proxy_; }
 
  private:
-  Handle<NativeContext> native_context() { return native_context_; }
+  DirectHandle<NativeContext> native_context() { return native_context_; }
 
   // Creates some basic objects. Used for creating a context from scratch.
   void CreateRoots();
@@ -206,7 +206,7 @@ class Genesis {
   Handle<JSFunction> CreateEmptyFunction();
   // Returns the %ThrowTypeError% intrinsic function.
   // See ES#sec-%throwtypeerror% for details.
-  Handle<JSFunction> GetThrowTypeErrorIntrinsic();
+  DirectHandle<JSFunction> GetThrowTypeErrorIntrinsic();
 
   void CreateSloppyModeFunctionMaps(Handle<JSFunction> empty);
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
@@ -328,12 +328,12 @@ class Genesis {
   static bool CompileExtension(Isolate* isolate, v8::Extension* extension);
 
   Isolate* isolate_;
-  Handle<NativeContext> result_;
-  Handle<NativeContext> native_context_;
-  Handle<JSGlobalProxy> global_proxy_;
+  DirectHandle<NativeContext> result_;
+  DirectHandle<NativeContext> native_context_;
+  DirectHandle<JSGlobalProxy> global_proxy_;
 
   // %ThrowTypeError%. See ES#sec-%throwtypeerror% for details.
-  Handle<JSFunction> restricted_properties_thrower_;
+  DirectHandle<JSFunction> restricted_properties_thrower_;
 
   BootstrapperActive active_;
   friend class Bootstrapper;
@@ -344,14 +344,14 @@ void Bootstrapper::Iterate(RootVisitor* v) {
   v->Synchronize(VisitorSynchronization::kExtensions);
 }
 
-Handle<NativeContext> Bootstrapper::CreateEnvironment(
+DirectHandle<NativeContext> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
     DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
   HandleScope scope(isolate_);
-  Handle<NativeContext> env;
+  DirectHandle<NativeContext> env;
   {
     Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
                     context_snapshot_index, embedder_fields_deserializer,
@@ -366,11 +366,11 @@ Handle<NativeContext> Bootstrapper::CreateEnvironment(
   return scope.CloseAndEscape(env);
 }
 
-Handle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
+DirectHandle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template) {
   HandleScope scope(isolate_);
-  Handle<JSGlobalProxy> global_proxy;
+  DirectHandle<JSGlobalProxy> global_proxy;
   {
     Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template);
     global_proxy = genesis.global_proxy();
@@ -822,7 +822,7 @@ void Genesis::CreateSloppyModeFunctionMaps(Handle<JSFunction> empty) {
   native_context()->set_sloppy_function_with_name_map(*map);
 }
 
-Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
+DirectHandle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
   if (!restricted_properties_thrower_.is_null()) {
     return restricted_properties_thrower_;
   }
@@ -5149,7 +5149,7 @@ class TryCallScope {
 bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<SharedFunctionInfo> function_info;
+  DirectHandle<SharedFunctionInfo> function_info;
 
   Handle<String> source =
       isolate->factory()
@@ -5168,7 +5168,7 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
     Handle<String> script_name =
         factory->NewStringFromUtf8(name).ToHandleChecked();
     ScriptCompiler::CompilationDetails compilation_details;
-    MaybeHandle<SharedFunctionInfo> maybe_function_info =
+    MaybeDirectHandle<SharedFunctionInfo> maybe_function_info =
         Compiler::GetSharedFunctionInfoForScriptWithExtension(
             isolate, source, ScriptDetails(script_name), extension,
             ScriptCompiler::kNoCompileOptions, EXTENSION_CODE,
@@ -6587,7 +6587,7 @@ void Genesis::InitializeMapCaches() {
   }
 }
 
-bool Bootstrapper::InstallExtensions(Handle<NativeContext> native_context,
+bool Bootstrapper::InstallExtensions(DirectHandle<NativeContext> native_context,
                                      v8::ExtensionConfiguration* extensions) {
   // Don't install extensions into the snapshot.
   if (isolate_->serializer_enabled()) return true;
@@ -7042,7 +7042,7 @@ Genesis::Genesis(Isolate* isolate,
   // Also create a context from scratch to expose natives, if required by flag.
   DCHECK(native_context_.is_null());
   if (isolate->initialized_from_snapshot()) {
-    Handle<Context> context;
+    DirectHandle<Context> context;
     if (Snapshot::NewContextFromSnapshot(isolate, global_proxy,
                                          context_snapshot_index,
                                          embedder_fields_deserializer)

@@ -2573,14 +2573,14 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
 
   auto str = Utils::OpenHandle(*(source->source_string));
 
-  i::Handle<i::SharedFunctionInfo> result;
+  i::DirectHandle<i::SharedFunctionInfo> result;
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileScript");
   i::ScriptDetails script_details = GetScriptDetails(
       i_isolate, source->resource_name, source->resource_line_offset,
       source->resource_column_offset, source->source_map_url,
       source->host_defined_options, source->resource_options);
 
-  i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info;
+  i::MaybeDirectHandle<i::SharedFunctionInfo> maybe_function_info;
   if (options & kConsumeCodeCache) {
     if (source->consume_cache_task) {
       // Take ownership of the internal deserialization task and clear it off
@@ -2812,7 +2812,7 @@ ScriptCompiler::StartConsumingCodeCacheOnBackground(
 }
 
 namespace {
-i::MaybeHandle<i::SharedFunctionInfo> CompileStreamedSource(
+i::MaybeDirectHandle<i::SharedFunctionInfo> CompileStreamedSource(
     i::Isolate* i_isolate, ScriptCompiler::StreamedSource* v8_source,
     Local<String> full_source_string, const ScriptOrigin& origin) {
   auto str = Utils::OpenHandle(*full_source_string);
@@ -2835,8 +2835,8 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.ScriptCompiler");
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileStreamedScript");
-  i::Handle<i::SharedFunctionInfo> sfi;
-  i::MaybeHandle<i::SharedFunctionInfo> maybe_sfi =
+  i::DirectHandle<i::SharedFunctionInfo> sfi;
+  i::MaybeDirectHandle<i::SharedFunctionInfo> maybe_sfi =
       CompileStreamedSource(i_isolate, v8_source, full_source_string, origin);
   has_exception = !maybe_sfi.ToHandle(&sfi);
   if (has_exception) i_isolate->ReportPendingMessages();
@@ -2855,8 +2855,8 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.ScriptCompiler");
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileStreamedModule");
-  i::Handle<i::SharedFunctionInfo> sfi;
-  i::MaybeHandle<i::SharedFunctionInfo> maybe_sfi =
+  i::DirectHandle<i::SharedFunctionInfo> sfi;
+  i::MaybeDirectHandle<i::SharedFunctionInfo> maybe_sfi =
       CompileStreamedSource(i_isolate, v8_source, full_source_string, origin);
   has_exception = !maybe_sfi.ToHandle(&sfi);
   if (has_exception) i_isolate->ReportPendingMessages();
@@ -6732,7 +6732,7 @@ struct InvokeBootstrapper;
 
 template <>
 struct InvokeBootstrapper<i::NativeContext> {
-  i::Handle<i::NativeContext> Invoke(
+  i::DirectHandle<i::NativeContext> Invoke(
       i::Isolate* i_isolate,
       i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
@@ -6747,7 +6747,7 @@ struct InvokeBootstrapper<i::NativeContext> {
 
 template <>
 struct InvokeBootstrapper<i::JSGlobalProxy> {
-  i::Handle<i::JSGlobalProxy> Invoke(
+  i::DirectHandle<i::JSGlobalProxy> Invoke(
       i::Isolate* i_isolate,
       i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
@@ -6762,13 +6762,13 @@ struct InvokeBootstrapper<i::JSGlobalProxy> {
 };
 
 template <typename ObjectType>
-static i::Handle<ObjectType> CreateEnvironment(
+static i::DirectHandle<ObjectType> CreateEnvironment(
     i::Isolate* i_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> maybe_global_template,
     v8::MaybeLocal<Value> maybe_global_proxy, size_t context_snapshot_index,
     i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
-  i::Handle<ObjectType> result;
+  i::DirectHandle<ObjectType> result;
 
   {
     ENTER_V8_FOR_NEW_CONTEXT(i_isolate);
@@ -6884,7 +6884,7 @@ Local<Context> NewContext(
   i::HandleScope scope(i_isolate);
   ExtensionConfiguration no_extensions;
   if (extensions == nullptr) extensions = &no_extensions;
-  i::Handle<i::NativeContext> env = CreateEnvironment<i::NativeContext>(
+  i::DirectHandle<i::NativeContext> env = CreateEnvironment<i::NativeContext>(
       i_isolate, extensions, global_template, global_object,
       context_snapshot_index, embedder_fields_deserializer, microtask_queue);
   if (env.is_null()) return Local<Context>();
@@ -6947,9 +6947,10 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
       access_check_info->named_interceptor() != i::Tagged<i::Object>(),
       "v8::Context::NewRemoteContext",
       "Global template needs to have access check handlers");
-  i::Handle<i::JSObject> global_proxy = CreateEnvironment<i::JSGlobalProxy>(
-      i_isolate, nullptr, global_template, global_object, 0,
-      i::DeserializeEmbedderFieldsCallback(), nullptr);
+  i::DirectHandle<i::JSObject> global_proxy =
+      CreateEnvironment<i::JSGlobalProxy>(
+          i_isolate, nullptr, global_template, global_object, 0,
+          i::DeserializeEmbedderFieldsCallback(), nullptr);
   if (global_proxy.is_null()) {
     if (i_isolate->has_exception()) i_isolate->clear_exception();
     return MaybeLocal<Object>();

@@ -988,11 +988,11 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, context,
                                                      UnboundScript);
   i::Handle<i::String> str = Utils::OpenHandle(*source);
-  i::Handle<i::SharedFunctionInfo> result;
+  i::DirectHandle<i::SharedFunctionInfo> result;
   {
     i::AlignedCachedData* cached_data = nullptr;
     ScriptCompiler::CompilationDetails compilation_details;
-    i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
+    i::MaybeDirectHandle<i::SharedFunctionInfo> maybe_function_info =
         i::Compiler::GetSharedFunctionInfoForScriptWithCachedData(
             isolate, str, i::ScriptDetails(), cached_data,
             ScriptCompiler::kNoCompileOptions,

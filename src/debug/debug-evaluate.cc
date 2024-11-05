@@ -29,9 +29,8 @@ namespace v8 {
 namespace internal {
 
 namespace {
-static MaybeHandle<SharedFunctionInfo> GetFunctionInfo(Isolate* isolate,
-                                                       Handle<String> source,
-                                                       REPLMode repl_mode) {
+static MaybeDirectHandle<SharedFunctionInfo> GetFunctionInfo(
+    Isolate* isolate, Handle<String> source, REPLMode repl_mode) {
   ScriptDetails script_details(isolate->factory()->empty_string(),
                                ScriptOriginOptions(true, true));
   script_details.repl_mode = repl_mode;
@@ -46,7 +45,7 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
                                           Handle<String> source,
                                           debug::EvaluateGlobalMode mode,
                                           REPLMode repl_mode) {
-  Handle<SharedFunctionInfo> shared_info;
+  DirectHandle<SharedFunctionInfo> shared_info;
   if (!GetFunctionInfo(isolate, source, repl_mode).ToHandle(&shared_info)) {
     return MaybeHandle<Object>();
   }

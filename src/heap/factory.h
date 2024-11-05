@@ -1084,12 +1084,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Helper class for creating JSFunction objects.
   class V8_EXPORT_PRIVATE JSFunctionBuilder final {
    public:
-    JSFunctionBuilder(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
-                      Handle<Context> context);
+    JSFunctionBuilder(Isolate* isolate, DirectHandle<SharedFunctionInfo> sfi,
+                      DirectHandle<Context> context);
 
     V8_WARN_UNUSED_RESULT Handle<JSFunction> Build();
 
-    JSFunctionBuilder& set_map(Handle<Map> v) {
+    JSFunctionBuilder& set_map(DirectHandle<Map> v) {
       maybe_map_ = v;
       return *this;
     }
@@ -1097,7 +1097,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       allocation_type_ = v;
       return *this;
     }
-    JSFunctionBuilder& set_feedback_cell(Handle<FeedbackCell> v) {
+    JSFunctionBuilder& set_feedback_cell(DirectHandle<FeedbackCell> v) {
       maybe_feedback_cell_ = v;
       return *this;
     }
@@ -1109,10 +1109,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(DirectHandle<Code> code);
 
     Isolate* const isolate_;
-    Handle<SharedFunctionInfo> sfi_;
-    Handle<Context> context_;
-    MaybeHandle<Map> maybe_map_;
-    MaybeHandle<FeedbackCell> maybe_feedback_cell_;
+    DirectHandle<SharedFunctionInfo> sfi_;
+    DirectHandle<Context> context_;
+    MaybeDirectHandle<Map> maybe_map_;
+    MaybeDirectHandle<FeedbackCell> maybe_feedback_cell_;
     AllocationType allocation_type_ = AllocationType::kOld;
 
     friend class Factory;

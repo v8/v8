@@ -1521,7 +1521,7 @@ void Factory::ProcessNewScript(Handle<Script> script,
   if (script_id != Script::kTemporaryScriptId) {
     Handle<WeakArrayList> scripts = script_list();
     scripts = WeakArrayList::Append(isolate(), scripts,
-                                    MaybeObjectHandle::Weak(script),
+                                    MaybeObjectDirectHandle::Weak(script),
                                     AllocationType::kOld);
     isolate()->heap()->set_script_list(*scripts);
   }
@@ -4681,9 +4681,9 @@ Handle<TrustedForeign> Factory::NewTrustedForeign(Address addr) {
   return handle(foreign, isolate());
 }
 
-Factory::JSFunctionBuilder::JSFunctionBuilder(Isolate* isolate,
-                                              Handle<SharedFunctionInfo> sfi,
-                                              Handle<Context> context)
+Factory::JSFunctionBuilder::JSFunctionBuilder(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> sfi,
+    DirectHandle<Context> context)
     : isolate_(isolate), sfi_(sfi), context_(context) {}
 
 Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
@@ -4793,14 +4793,14 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
 void Factory::JSFunctionBuilder::PrepareMap() {
   if (maybe_map_.is_null()) {
     // No specific map requested, use the default.
-    maybe_map_ = handle(
+    maybe_map_ = direct_handle(
         Cast<Map>(context_->native_context()->get(sfi_->function_map_index())),
         isolate_);
   }
 }
 
 void Factory::JSFunctionBuilder::PrepareFeedbackCell() {
-  Handle<FeedbackCell> feedback_cell;
+  DirectHandle<FeedbackCell> feedback_cell;
   if (maybe_feedback_cell_.ToHandle(&feedback_cell)) {
     // Track the newly-created closure.
     feedback_cell->IncrementClosureCount(isolate_);

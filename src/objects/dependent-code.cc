@@ -87,7 +87,7 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
 
   // As the Code object lives outside of the sandbox in trusted space, we need
   // to use its in-sandbox wrapper object here.
-  MaybeObjectHandle code_slot(MakeWeak(code->wrapper()), isolate);
+  MaybeObjectDirectHandle code_slot(MakeWeak(code->wrapper()), isolate);
   entries = Cast<DependentCode>(WeakArrayList::AddToEnd(
       isolate, entries, code_slot, Smi::FromInt(groups)));
   return entries;

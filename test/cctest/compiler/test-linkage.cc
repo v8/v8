@@ -35,7 +35,7 @@ static Handle<JSFunction> Compile(const char* source) {
                                    ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   ScriptCompiler::CompilationDetails compilation_details;
-  Handle<SharedFunctionInfo> shared =
+  DirectHandle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
           isolate, source_code, ScriptDetails(),
           v8::ScriptCompiler::kNoCompileOptions,

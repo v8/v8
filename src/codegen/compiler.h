@@ -195,7 +195,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                  int parameters_end_pos);
 
   // Create a shared function info object for a String source.
-  static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
+  static MaybeDirectHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details,
       ScriptCompiler::CompileOptions compile_options,
@@ -204,7 +204,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       ScriptCompiler::CompilationDetails* compilation_details);
 
   // Create a shared function info object for a String source.
-  static MaybeHandle<SharedFunctionInfo>
+  static MaybeDirectHandle<SharedFunctionInfo>
   GetSharedFunctionInfoForScriptWithExtension(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, v8::Extension* extension,
@@ -215,7 +215,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Create a shared function info object for a String source and serialized
   // cached data. The cached data may be rejected, in which case this function
   // will set cached_data->rejected() to true.
-  static MaybeHandle<SharedFunctionInfo>
+  static MaybeDirectHandle<SharedFunctionInfo>
   GetSharedFunctionInfoForScriptWithCachedData(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, AlignedCachedData* cached_data,
@@ -228,7 +228,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // has deserialized cached data on a background thread. The cached data from
   // the task may be rejected, in which case this function will set
   // deserialize_task->rejected() to true.
-  static MaybeHandle<SharedFunctionInfo>
+  static MaybeDirectHandle<SharedFunctionInfo>
   GetSharedFunctionInfoForScriptWithDeserializeTask(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details,
@@ -238,7 +238,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       NativesFlag is_natives_code,
       ScriptCompiler::CompilationDetails* compilation_details);
 
-  static MaybeHandle<SharedFunctionInfo>
+  static MaybeDirectHandle<SharedFunctionInfo>
   GetSharedFunctionInfoForScriptWithCompileHints(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details,
@@ -254,7 +254,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // from a streamed source. On return, the data held by |streaming_data| will
   // have been released, however the object itself isn't freed and is still
   // owned by the caller.
-  static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForStreamedScript(
+  static MaybeDirectHandle<SharedFunctionInfo>
+  GetSharedFunctionInfoForStreamedScript(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, ScriptStreamingData* streaming_data,
       ScriptCompiler::CompilationDetails* compilation_details);
@@ -262,9 +263,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).
   template <typename IsolateT>
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
-                                                          Handle<Script> script,
-                                                          IsolateT* isolate);
+  static DirectHandle<SharedFunctionInfo> GetSharedFunctionInfo(
+      FunctionLiteral* node, Handle<Script> script, IsolateT* isolate);
 
   static void LogFunctionCompilation(Isolate* isolate,
                                      LogEventListener::CodeTag code_type,

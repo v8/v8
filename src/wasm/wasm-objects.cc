@@ -927,7 +927,7 @@ void WasmMemoryObject::UseInInstance(
                       memory_index_in_instance);
   }
   Handle<WeakArrayList> instances{memory->instances(), isolate};
-  auto weak_instance_object = MaybeObjectHandle::Weak(
+  auto weak_instance_object = MaybeObjectDirectHandle::Weak(
       trusted_instance_data->instance_object(), isolate);
   instances = WeakArrayList::Append(isolate, instances, weak_instance_object);
   memory->set_instances(*instances);
@@ -1523,8 +1523,9 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
       !instance_object.is_null()) {
     Handle<WeakArrayList> weak_instance_list(
         module_object->script()->wasm_weak_instance_list(), isolate);
-    weak_instance_list = WeakArrayList::Append(
-        isolate, weak_instance_list, MaybeObjectHandle::Weak(instance_object));
+    weak_instance_list =
+        WeakArrayList::Append(isolate, weak_instance_list,
+                              MaybeObjectDirectHandle::Weak(instance_object));
     module_object->script()->set_wasm_weak_instance_list(*weak_instance_list);
   }
 

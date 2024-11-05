@@ -2602,7 +2602,7 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     // The one post-hoc fix-up: Add the script to the script list.
     Handle<WeakArrayList> scripts = isolate->factory()->script_list();
     scripts = WeakArrayList::Append(isolate, scripts,
-                                    MaybeObjectHandle::Weak(script));
+                                    MaybeObjectDirectHandle::Weak(script));
     isolate->heap()->SetRootScriptList(*scripts);
 
     // Set the script fields after finalization, to keep this path the same
@@ -3757,9 +3757,11 @@ bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
   return *constructor == *isolate->range_error_function();
 }
 
-MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
-    Handle<String> source, const ScriptDetails& script_details,
-    Isolate* isolate, IsCompiledScope* is_compiled_scope) {
+MaybeDirectHandle<SharedFunctionInfo>
+CompileScriptOnBothBackgroundAndMainThread(Handle<String> source,
+                                           const ScriptDetails& script_details,
+                                           Isolate* isolate,
+                                           IsCompiledScope* is_compiled_scope) {
   // Start a background thread compiling the script.
   StressBackgroundCompileThread background_compile_thread(isolate, source,
                                                           script_details);
@@ -3794,7 +3796,7 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
   background_compile_thread.ParkedJoin(isolate->main_thread_local_isolate());
 
   ScriptCompiler::CompilationDetails compilation_details;
-  MaybeHandle<SharedFunctionInfo> maybe_result =
+  MaybeDirectHandle<SharedFunctionInfo> maybe_result =
       Compiler::GetSharedFunctionInfoForStreamedScript(
           isolate, source, script_details, background_compile_thread.data(),
           &compilation_details);
@@ -3809,7 +3811,7 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
     CHECK_EQ(maybe_result.is_null(), main_thread_maybe_result.is_null());
   }
 
-  Handle<SharedFunctionInfo> result;
+  DirectHandle<SharedFunctionInfo> result;
   if (maybe_result.ToHandle(&result)) {
     // The BackgroundCompileTask's IsCompiledScope will keep the result alive
     // until it dies at the end of this function, after which this new
@@ -3831,7 +3833,7 @@ ScriptCompiler::InMemoryCacheResult CategorizeLookupResult(
 }
 }  // namespace
 
-MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
+MaybeDirectHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, v8::Extension* extension,
     AlignedCachedData* cached_data, BackgroundDeserializeTask* deserialize_task,
@@ -3872,7 +3874,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   // nor put the compilation result back into the cache.
   const bool use_compilation_cache =
       extension == nullptr && script_details.repl_mode == REPLMode::kNo;
-  MaybeHandle<SharedFunctionInfo> maybe_result;
+  MaybeDirectHandle<SharedFunctionInfo> maybe_result;
   MaybeHandle<Script> maybe_script;
   IsCompiledScope is_compiled_scope;
   if (use_compilation_cache) {
@@ -3928,7 +3930,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       }
 
       bool consuming_code_cache_succeeded = false;
-      Handle<SharedFunctionInfo> result;
+      DirectHandle<SharedFunctionInfo> result;
       if (maybe_result.ToHandle(&result)) {
         is_compiled_scope = result->is_compiled_scope(isolate);
         if (is_compiled_scope.is_compiled()) {
@@ -3977,7 +3979,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     }
 
     // Add the result to the isolate cache.
-    Handle<SharedFunctionInfo> result;
+    DirectHandle<SharedFunctionInfo> result;
     if (use_compilation_cache && maybe_result.ToHandle(&result)) {
       DCHECK(is_compiled_scope.is_compiled());
       compilation_cache->PutScript(source, language_mode, result);
@@ -3985,7 +3987,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       isolate->ReportPendingMessages();
     }
   }
-  Handle<SharedFunctionInfo> result;
+  DirectHandle<SharedFunctionInfo> result;
   if (compile_options & ScriptCompiler::CompileOptions::kProduceCompileHints &&
       maybe_result.ToHandle(&result)) {
     Cast<Script>(result->script())->set_produce_compile_hints(true);
@@ -3996,7 +3998,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
 
 }  // namespace
 
-MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
+MaybeDirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details,
     ScriptCompiler::CompileOptions compile_options,
@@ -4007,7 +4009,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       nullptr, compile_options, no_cache_reason, natives, compilation_details);
 }
 
-MaybeHandle<SharedFunctionInfo>
+MaybeDirectHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForScriptWithExtension(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, v8::Extension* extension,
@@ -4019,7 +4021,7 @@ Compiler::GetSharedFunctionInfoForScriptWithExtension(
       natives, compilation_details);
 }
 
-MaybeHandle<SharedFunctionInfo>
+MaybeDirectHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForScriptWithCachedData(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, AlignedCachedData* cached_data,
@@ -4031,7 +4033,7 @@ Compiler::GetSharedFunctionInfoForScriptWithCachedData(
       nullptr, compile_options, no_cache_reason, natives, compilation_details);
 }
 
-MaybeHandle<SharedFunctionInfo>
+MaybeDirectHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForScriptWithDeserializeTask(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details,
@@ -4045,7 +4047,7 @@ Compiler::GetSharedFunctionInfoForScriptWithDeserializeTask(
       compilation_details);
 }
 
-MaybeHandle<SharedFunctionInfo>
+MaybeDirectHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details,
@@ -4080,8 +4082,8 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
 
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
   DCHECK(!script_details.wrapped_arguments.is_null());
-  MaybeHandle<SharedFunctionInfo> maybe_result;
-  Handle<SharedFunctionInfo> result;
+  MaybeDirectHandle<SharedFunctionInfo> maybe_result;
+  DirectHandle<SharedFunctionInfo> result;
   Handle<Script> script;
   IsCompiledScope is_compiled_scope;
   bool can_consume_code_cache =
@@ -4141,7 +4143,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     script = NewScript(isolate, &parse_info, source, script_details,
                        NOT_NATIVES_CODE);
 
-    Handle<SharedFunctionInfo> top_level;
+    DirectHandle<SharedFunctionInfo> top_level;
     maybe_result = v8::internal::CompileToplevel(&parse_info, script,
                                                  maybe_outer_scope_info,
                                                  isolate, &is_compiled_scope);
@@ -4174,7 +4176,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
 }
 
 // static
-MaybeHandle<SharedFunctionInfo>
+MaybeDirectHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, ScriptStreamingData* streaming_data,
@@ -4246,7 +4248,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 
 // static
 template <typename IsolateT>
-Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
+DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, IsolateT* isolate) {
   // If we're parallel compiling functions, we might already have attached a SFI
   // to this literal.
@@ -4295,9 +4297,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   return result;
 }
 
-template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
+template DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, Isolate* isolate);
-template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
+template DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate);
 
 // static

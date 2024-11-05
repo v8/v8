@@ -3731,7 +3731,7 @@ void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
   Handle<WeakArrayList> shared_wasm_memories =
       factory()->shared_wasm_memories();
   shared_wasm_memories = WeakArrayList::Append(
-      this, shared_wasm_memories, MaybeObjectHandle::Weak(memory_object));
+      this, shared_wasm_memories, MaybeObjectDirectHandle::Weak(memory_object));
   heap()->set_shared_wasm_memories(*shared_wasm_memories);
 }
 
@@ -6936,7 +6936,8 @@ void Isolate::AddDetachedContext(Handle<Context> context) {
   HandleScope scope(this);
   Handle<WeakArrayList> detached_contexts = factory()->detached_contexts();
   detached_contexts = WeakArrayList::AddToEnd(
-      this, detached_contexts, MaybeObjectHandle::Weak(context), Smi::zero());
+      this, detached_contexts, MaybeObjectDirectHandle::Weak(context),
+      Smi::zero());
   heap()->set_detached_contexts(*detached_contexts);
 }
 

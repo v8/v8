@@ -461,27 +461,27 @@ TEST(WeakArrayListBasic) {
     index6->set(0, Smi::FromInt(2019));
 
     array = WeakArrayList::AddToEnd(isolate, array,
-                                    MaybeObjectHandle::Weak(index0));
+                                    MaybeObjectDirectHandle::Weak(index0));
     array = WeakArrayList::AddToEnd(
-        isolate, array, MaybeObjectHandle(Smi::FromInt(1), isolate));
+        isolate, array, MaybeObjectDirectHandle(Smi::FromInt(1), isolate));
     CHECK_EQ(array->length(), 2);
 
     array = WeakArrayList::AddToEnd(isolate, array,
-                                    MaybeObjectHandle::Weak(index2));
+                                    MaybeObjectDirectHandle::Weak(index2));
     array = WeakArrayList::AddToEnd(
-        isolate, array, MaybeObjectHandle(Smi::FromInt(3), isolate));
+        isolate, array, MaybeObjectDirectHandle(Smi::FromInt(3), isolate));
     CHECK_EQ(array->length(), 4);
 
     array = WeakArrayList::AddToEnd(isolate, array,
-                                    MaybeObjectHandle::Weak(index4));
+                                    MaybeObjectDirectHandle::Weak(index4));
     array = WeakArrayList::AddToEnd(
-        isolate, array, MaybeObjectHandle(Smi::FromInt(5), isolate));
+        isolate, array, MaybeObjectDirectHandle(Smi::FromInt(5), isolate));
     CHECK_EQ(array->length(), 6);
 
     array = WeakArrayList::AddToEnd(isolate, array,
-                                    MaybeObjectHandle::Weak(index6));
+                                    MaybeObjectDirectHandle::Weak(index6));
     array = WeakArrayList::AddToEnd(
-        isolate, array, MaybeObjectHandle(Smi::FromInt(7), isolate));
+        isolate, array, MaybeObjectDirectHandle(Smi::FromInt(7), isolate));
     CHECK_EQ(array->length(), 8);
 
     CHECK(InCorrectGeneration(*array));
@@ -556,36 +556,36 @@ TEST(WeakArrayListRemove) {
   Handle<FixedArray> elem1 = factory->NewFixedArray(1);
   Handle<FixedArray> elem2 = factory->NewFixedArray(1);
 
-  array =
-      WeakArrayList::AddToEnd(isolate, array, MaybeObjectHandle::Weak(elem0));
-  array =
-      WeakArrayList::AddToEnd(isolate, array, MaybeObjectHandle::Weak(elem1));
-  array =
-      WeakArrayList::AddToEnd(isolate, array, MaybeObjectHandle::Weak(elem2));
+  array = WeakArrayList::AddToEnd(isolate, array,
+                                  MaybeObjectDirectHandle::Weak(elem0));
+  array = WeakArrayList::AddToEnd(isolate, array,
+                                  MaybeObjectDirectHandle::Weak(elem1));
+  array = WeakArrayList::AddToEnd(isolate, array,
+                                  MaybeObjectDirectHandle::Weak(elem2));
 
   CHECK_EQ(array->length(), 3);
   CHECK_EQ(array->get(0), MakeWeak(*elem0));
   CHECK_EQ(array->get(1), MakeWeak(*elem1));
   CHECK_EQ(array->get(2), MakeWeak(*elem2));
 
-  CHECK(array->RemoveOne(MaybeObjectHandle::Weak(elem1)));
+  CHECK(array->RemoveOne(MaybeObjectDirectHandle::Weak(elem1)));
 
   CHECK_EQ(array->length(), 2);
   CHECK_EQ(array->get(0), MakeWeak(*elem0));
   CHECK_EQ(array->get(1), MakeWeak(*elem2));
 
-  CHECK(!array->RemoveOne(MaybeObjectHandle::Weak(elem1)));
+  CHECK(!array->RemoveOne(MaybeObjectDirectHandle::Weak(elem1)));
 
   CHECK_EQ(array->length(), 2);
   CHECK_EQ(array->get(0), MakeWeak(*elem0));
   CHECK_EQ(array->get(1), MakeWeak(*elem2));
 
-  CHECK(array->RemoveOne(MaybeObjectHandle::Weak(elem0)));
+  CHECK(array->RemoveOne(MaybeObjectDirectHandle::Weak(elem0)));
 
   CHECK_EQ(array->length(), 1);
   CHECK_EQ(array->get(0), MakeWeak(*elem2));
 
-  CHECK(array->RemoveOne(MaybeObjectHandle::Weak(elem2)));
+  CHECK(array->RemoveOne(MaybeObjectDirectHandle::Weak(elem2)));
 
   CHECK_EQ(array->length(), 0);
 }
