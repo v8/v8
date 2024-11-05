@@ -2071,8 +2071,8 @@ struct GlobalWasmState {
   // must run first. It contains a barrier which ensures that background threads
   // finished, and that has to happen before the WasmCodeManager gets destroyed.
   WasmCodeManager code_manager;
-  WasmEngine engine;
   WasmImportWrapperCache import_wrapper_cache;
+  WasmEngine engine;
 };
 
 GlobalWasmState* global_wasm_state = nullptr;
