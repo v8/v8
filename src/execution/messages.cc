@@ -68,8 +68,7 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
     HandleScope scope(isolate);
     DirectHandle<Object> data(loc->script()->name(), isolate);
     std::unique_ptr<char[]> data_str;
-    if (IsString(*data))
-      data_str = Cast<String>(data)->ToCString(DISALLOW_NULLS);
+    if (IsString(*data)) data_str = Cast<String>(data)->ToCString();
     PrintF("%s:%i: %s\n", data_str ? data_str.get() : "<unknown>",
            loc->start_pos(), str.get());
   }
@@ -195,7 +194,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
 std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
     Isolate* isolate, DirectHandle<Object> data) {
   HandleScope scope(isolate);
-  return GetMessage(isolate, data)->ToCString(DISALLOW_NULLS);
+  return GetMessage(isolate, data)->ToCString();
 }
 
 namespace {

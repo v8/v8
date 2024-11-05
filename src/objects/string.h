@@ -42,8 +42,6 @@ class SharedStringAccessGuardIfNeeded;
 
 enum InstanceType : uint16_t;
 
-enum AllowNullsFlag { ALLOW_NULLS, DISALLOW_NULLS };
-
 // The characteristics of a string are stored in its map.  Retrieving these
 // few bits of information is moderately expensive, involving two memory
 // loads where the second is dependent on the first.  To improve efficiency
@@ -413,12 +411,10 @@ V8_OBJECT class String : public Name {
   // in length_output if length_output is not a null pointer.  The string
   // should be nearly flat, otherwise the performance of this method may
   // be very slow (quadratic in the length).
-  std::unique_ptr<char[]> ToCString(AllowNullsFlag allow_nulls,
-                                    uint32_t offset, uint32_t length,
+  std::unique_ptr<char[]> ToCString(uint32_t offset, uint32_t length,
                                     uint32_t* length_output = nullptr);
 
   V8_EXPORT_PRIVATE std::unique_ptr<char[]> ToCString(
-      AllowNullsFlag allow_nulls = DISALLOW_NULLS,
       uint32_t* length_output = nullptr);
 
   // Externalization.

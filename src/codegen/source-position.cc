@@ -14,7 +14,7 @@ namespace internal {
 std::ostream& operator<<(std::ostream& out, const SourcePositionInfo& pos) {
   out << "<";
   if (!pos.script.is_null() && IsString(pos.script->name())) {
-    out << Cast<String>(pos.script->name())->ToCString(DISALLOW_NULLS).get();
+    out << Cast<String>(pos.script->name())->ToCString().get();
   } else {
     out << "unknown";
   }
@@ -110,7 +110,7 @@ void SourcePosition::Print(std::ostream& out,
   }
   out << "<";
   if (IsString(source_name)) {
-    out << Cast<String>(source_name)->ToCString(DISALLOW_NULLS).get();
+    out << Cast<String>(source_name)->ToCString().get();
   } else {
     out << "unknown";
   }

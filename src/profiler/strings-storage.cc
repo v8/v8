@@ -84,7 +84,7 @@ const char* StringsStorage::GetSymbol(Tagged<Symbol> sym) {
   Tagged<String> description = Cast<String>(sym->description());
   uint32_t length = std::min(v8_flags.heap_snapshot_string_limit.value(),
                              description->length());
-  auto data = description->ToCString(DISALLOW_NULLS, 0, length, &length);
+  auto data = description->ToCString(0, length, &length);
   if (sym->is_private_name()) {
     return AddOrDisposeString(data.release(), length);
   }
@@ -100,8 +100,7 @@ const char* StringsStorage::GetName(Tagged<Name> name) {
     uint32_t length =
         std::min(v8_flags.heap_snapshot_string_limit.value(), str->length());
     uint32_t actual_length = 0;
-    std::unique_ptr<char[]> data =
-        str->ToCString(DISALLOW_NULLS, 0, length, &actual_length);
+    std::unique_ptr<char[]> data = str->ToCString(0, length, &actual_length);
     return AddOrDisposeString(data.release(), actual_length);
   } else if (IsSymbol(name)) {
     return GetSymbol(Cast<Symbol>(name));
@@ -119,8 +118,7 @@ const char* StringsStorage::GetConsName(const char* prefix, Tagged<Name> name) {
     uint32_t length =
         std::min(v8_flags.heap_snapshot_string_limit.value(), str->length());
     uint32_t actual_length = 0;
-    std::unique_ptr<char[]> data =
-        str->ToCString(DISALLOW_NULLS, 0, length, &actual_length);
+    std::unique_ptr<char[]> data = str->ToCString(0, length, &actual_length);
 
     uint32_t cons_length =
         actual_length + static_cast<uint32_t>(strlen(prefix)) + 1;

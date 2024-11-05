@@ -2681,12 +2681,11 @@ void V8HeapExplorer::SetPropertyReference(HeapEntry* parent_entry,
       IsSymbol(reference_name) || Cast<String>(reference_name)->length() > 0
           ? HeapGraphEdge::kProperty
           : HeapGraphEdge::kInternal;
-  const char* name =
-      name_format_string != nullptr && IsString(reference_name)
-          ? names_->GetFormatted(
-                name_format_string,
-                Cast<String>(reference_name)->ToCString(DISALLOW_NULLS).get())
-          : names_->GetName(reference_name);
+  const char* name = name_format_string != nullptr && IsString(reference_name)
+                         ? names_->GetFormatted(
+                               name_format_string,
+                               Cast<String>(reference_name)->ToCString().get())
+                         : names_->GetName(reference_name);
 
   parent_entry->SetNamedReference(type, name, child_entry, generator_);
   MarkVisitedField(field_offset);

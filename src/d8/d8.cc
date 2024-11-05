@@ -584,9 +584,10 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
 // TODO(leszeks): Also test chunking the data.
 class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
-  explicit DummySourceStream(Local<String> source) : done_(false) {
-    source_buffer_ = Utils::OpenDirectHandle(*source)->ToCString(
-        i::ALLOW_NULLS, &source_length_);
+  DummySourceStream(Isolate* isolate, Local<String> source) : done_(false) {
+    source_length_ = source->Length();
+    source_buffer_ = std::make_unique<uint16_t[]>(source_length_);
+    source->Write(isolate, source_buffer_.get(), 0, source_length_);
   }
 
   size_t GetMoreData(const uint8_t** src) override {
@@ -596,12 +597,12 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
     *src = reinterpret_cast<uint8_t*>(source_buffer_.release());
     done_ = true;
 
-    return source_length_;
+    return source_length_ * 2;
   }
 
  private:
   uint32_t source_length_;
-  std::unique_ptr<char[]> source_buffer_;
+  std::unique_ptr<uint16_t[]> source_buffer_;
   bool done_;
 };
 
@@ -674,8 +675,8 @@ MaybeLocal<T> Shell::CompileString(Isolate* isolate, Local<Context> context,
                                    const ScriptOrigin& origin) {
   if (options.streaming_compile) {
     v8::ScriptCompiler::StreamedSource streamed_source(
-        std::make_unique<DummySourceStream>(source),
-        v8::ScriptCompiler::StreamedSource::UTF8);
+        std::make_unique<DummySourceStream>(isolate, source),
+        v8::ScriptCompiler::StreamedSource::TWO_BYTE);
     std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> streaming_task(
         v8::ScriptCompiler::StartStreaming(isolate, &streamed_source,
                                            std::is_same<T, Module>::value

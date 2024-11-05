@@ -3675,7 +3675,7 @@ class StressBackgroundCompileThread : public ParkingThread {
             base::Thread::Options("StressBackgroundCompileThread", 2 * i::MB)),
         source_(source),
         streamed_source_(std::make_unique<SourceStream>(source, isolate),
-                         v8::ScriptCompiler::StreamedSource::UTF8) {
+                         v8::ScriptCompiler::StreamedSource::TWO_BYTE) {
     ScriptType type = script_details.origin_options.IsModule()
                           ? ScriptType::kModule
                           : ScriptType::kClassic;
@@ -3695,7 +3695,9 @@ class StressBackgroundCompileThread : public ParkingThread {
   class SourceStream : public v8::ScriptCompiler::ExternalSourceStream {
    public:
     SourceStream(DirectHandle<String> source, Isolate* isolate) : done_(false) {
-      source_buffer_ = source->ToCString(ALLOW_NULLS, &source_length_);
+      source_length_ = source->length();
+      source_buffer_ = std::make_unique<uint16_t[]>(source_length_);
+      String::WriteToFlat(*source, source_buffer_.get(), 0, source_length_);
     }
 
     size_t GetMoreData(const uint8_t** src) override {
@@ -3705,12 +3707,12 @@ class StressBackgroundCompileThread : public ParkingThread {
       *src = reinterpret_cast<uint8_t*>(source_buffer_.release());
       done_ = true;
 
-      return source_length_;
+      return source_length_ * 2;
     }
 
    private:
     uint32_t source_length_;
-    std::unique_ptr<char[]> source_buffer_;
+    std::unique_ptr<uint16_t[]> source_buffer_;
     bool done_;
   };
 

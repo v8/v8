@@ -755,8 +755,7 @@ String::FlatContent String::SlowGetFlatContent(
       .value();
 }
 
-std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
-                                          uint32_t offset, uint32_t length,
+std::unique_ptr<char[]> String::ToCString(uint32_t offset, uint32_t length,
                                           uint32_t* length_return) {
   // Compute the size of the UTF-8 string. Start at the specified offset.
   StringCharacterStream stream(this, offset);
@@ -782,7 +781,7 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
   last = unibrow::Utf16::kNoPreviousCharacter;
   while (stream.HasMore() && character_position++ < offset + length) {
     uint16_t character = stream.GetNext();
-    if (allow_nulls == DISALLOW_NULLS && character == 0) {
+    if (character == 0) {
       character = ' ';
     }
     utf8_byte_position +=
@@ -793,9 +792,8 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
   return std::unique_ptr<char[]>(result);
 }
 
-std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
-                                          uint32_t* length_return) {
-  return ToCString(allow_nulls, 0, -1, length_return);
+std::unique_ptr<char[]> String::ToCString(uint32_t* length_return) {
+  return ToCString(0, -1, length_return);
 }
 
 // static
