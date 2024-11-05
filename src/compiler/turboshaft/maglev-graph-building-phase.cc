@@ -2612,8 +2612,7 @@ class GraphBuildingNodeProcessor {
     }
 
     BIND(done);
-
-    SetMap(node, __ StringConcat(Map(node->lhs()), Map(node->rhs())));
+    SetMap(node, __ StringConcat(left, right));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StringConcat* node,
@@ -2635,14 +2634,15 @@ class GraphBuildingNodeProcessor {
       left = V<String>::Cast(left_string_or_wrapper);
     } ELSE {
       left = V<String>::Cast(__ LoadTaggedField(
-          V<JSPrimitiveWrapper>::Cast(left), JSPrimitiveWrapper::kValueOffset));
+          V<JSPrimitiveWrapper>::Cast(left_string_or_wrapper),
+          JSPrimitiveWrapper::kValueOffset));
     }
     IF (__ ObjectIsString(right_string_or_wrapper)) {
       right = V<String>::Cast(right_string_or_wrapper);
     } ELSE {
-      right =
-          V<String>::Cast(__ LoadTaggedField(V<JSPrimitiveWrapper>::Cast(right),
-                                             JSPrimitiveWrapper::kValueOffset));
+      right = V<String>::Cast(__ LoadTaggedField(
+          V<JSPrimitiveWrapper>::Cast(right_string_or_wrapper),
+          JSPrimitiveWrapper::kValueOffset));
     }
 
     return StringConcatHelper(node, left, right);
