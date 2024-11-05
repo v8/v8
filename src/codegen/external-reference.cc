@@ -1069,8 +1069,6 @@ FUNCTION_REFERENCE(re_match_for_call_from_js,
 FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
                    ExperimentalRegExp::MatchForCallFromJs)
 
-FUNCTION_REFERENCE(re_atom_exec_raw, RegExp::AtomExecRaw)
-
 FUNCTION_REFERENCE(re_case_insensitive_compare_unicode,
                    NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
 

@@ -26,13 +26,11 @@ class V8_NODISCARD RegExpStackScope final {
   RegExpStackScope(const RegExpStackScope&) = delete;
   RegExpStackScope& operator=(const RegExpStackScope&) = delete;
 
-  int32_t* ClaimInt32Slots(int count);
-  int32_t* stack_pointer() const;
+  RegExpStack* stack() const { return regexp_stack_; }
 
  private:
   RegExpStack* const regexp_stack_;
   const ptrdiff_t old_sp_top_delta_;
-  int int32_slot_count_ = 0;
 };
 
 class RegExpStack final {
@@ -76,16 +74,6 @@ class RegExpStack final {
   // so users of the stack should check the stack limit during any
   // sequence of pushes longer that this.
   Address* limit_address_address() { return &thread_local_.limit_; }
-
-  // Claim/drop a number of int32_t sized slots, i.e. a vector. `Claim` returns
-  // a pointer to the beginning of the vector.
-  int32_t* ClaimInt32Slots(int count);
-  void DropInt32Slots(int count);
-
-  int available_int32_slots() const {
-    return static_cast<int>(stack_pointer() - begin() - kStackLimitSlackSize) /
-           kInt32Size;
-  }
 
   // Ensures that there is a memory area with at least the specified size.
   // If passing zero, the default/minimum size buffer is allocated.

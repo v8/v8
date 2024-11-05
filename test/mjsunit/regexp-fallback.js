@@ -19,16 +19,10 @@ assertArrayEquals([match], regexp.exec(subject));
 assertArrayEquals([match], regexp.exec(subject));
 
 // Now the same again with String.replace and a replacement function to
-// exercise the RegExpGlobalExecRunner.
+// exercise the RegExpGlobalCache.
 regexp = new RegExp(regexp.source, "g");
 assertEquals("", subject.replace(regexp, function () { return ""; }));
 assertEquals("", subject.replace(regexp, function () { return ""; }));
-
-// Now the same again with String.replace and a replacement string to
-// exercise the global irregexp execution mode.
-regexp = new RegExp(regexp.source, "g");
-assertEquals("", subject.replace(regexp, ""));
-assertEquals("", subject.replace(regexp, ""));
 
 // If an explicit backtrack limit is larger than the default, then we should
 // take the default limit.

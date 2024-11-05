@@ -8599,32 +8599,6 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   return var_string_.value();
 }
 
-TNode<String> ToDirectStringAssembler::ToDirect() {
-  Label flatten_in_runtime(this), unreachable(this, Label::kDeferred),
-      out(this);
-
-  TryToDirect(&flatten_in_runtime);
-  Goto(&out);
-
-  BIND(&flatten_in_runtime);
-  var_string_ = CAST(CallRuntime(Runtime::kFlattenString, NoContextConstant(),
-                                 var_string_.value()));
-#if V8_STATIC_ROOTS_BOOL
-  var_map_ = LoadMap(var_string_.value());
-#else
-  var_instance_type_ = LoadInstanceType(var_string_.value());
-#endif
-
-  TryToDirect(&unreachable);
-  Goto(&out);
-
-  BIND(&unreachable);
-  Unreachable();
-
-  BIND(&out);
-  return var_string_.value();
-}
-
 TNode<BoolT> ToDirectStringAssembler::IsOneByte() {
 #if V8_STATIC_ROOTS_BOOL
   return IsOneByteStringMap(var_map_.value());
@@ -13738,15 +13712,15 @@ template <typename TIndex>
 void CodeStubAssembler::BuildFastLoop(
     const VariableList& vars, TVariable<TIndex>& var_index,
     TNode<TIndex> start_index, TNode<TIndex> end_index,
-    const FastLoopBody<TIndex>& body, TNode<TIndex> increment,
-    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode,
-    IndexAdvanceDirection advance_direction) {
+    const FastLoopBody<TIndex>& body, int increment,
+    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode) {
   // Update the index comparisons below in case we'd ever want to use Smi
   // indexes.
   static_assert(
       !std::is_same<TIndex, Smi>::value,
       "Smi indices are currently not supported because it's not clear whether "
       "the use case allows unsigned comparisons or not");
+  DCHECK_NE(increment, 0);
   var_index = start_index;
   VariableList vars_copy(vars.begin(), vars.end(), zone());
   vars_copy.push_back(&var_index);
@@ -13755,11 +13729,11 @@ void CodeStubAssembler::BuildFastLoop(
 
   auto loop_body = [&]() {
     if (advance_mode == IndexAdvanceMode::kPre) {
-      var_index = IntPtrOrSmiAdd(var_index.value(), increment);
+      Increment(&var_index, increment);
     }
     body(var_index.value());
     if (advance_mode == IndexAdvanceMode::kPost) {
-      var_index = IntPtrOrSmiAdd(var_index.value(), increment);
+      Increment(&var_index, increment);
     }
   };
   // The loops below are generated using the following trick:
@@ -13783,11 +13757,10 @@ void CodeStubAssembler::BuildFastLoop(
     BIND(&loop);
     {
       loop_body();
-      CSA_DCHECK(
-          this,
-          advance_direction == IndexAdvanceDirection::kUp
-              ? UintPtrOrSmiLessThanOrEqual(var_index.value(), end_index)
-              : UintPtrOrSmiLessThanOrEqual(end_index, var_index.value()));
+      CSA_DCHECK(this, increment > 0 ? UintPtrOrSmiLessThanOrEqual(
+                                           var_index.value(), end_index)
+                                     : UintPtrOrSmiLessThanOrEqual(
+                                           end_index, var_index.value()));
       Branch(UintPtrOrSmiNotEqual(var_index.value(), end_index), &loop, &done);
     }
     BIND(&done);
@@ -13795,27 +13768,27 @@ void CodeStubAssembler::BuildFastLoop(
     // Check if there are at least two elements between start_index and
     // end_index.
     DCHECK_EQ(unrolling_mode, LoopUnrollingMode::kYes);
-    switch (advance_direction) {
-      case IndexAdvanceDirection::kUp:
-        CSA_DCHECK(this, UintPtrOrSmiLessThanOrEqual(start_index, end_index));
-        GotoIfNot(UintPtrOrSmiLessThanOrEqual(
-                      IntPtrOrSmiAdd(start_index, increment), end_index),
-                  &done);
-        break;
-      case IndexAdvanceDirection::kDown:
-
-        CSA_DCHECK(this, UintPtrOrSmiLessThanOrEqual(end_index, start_index));
-        GotoIfNot(UintPtrOrSmiLessThanOrEqual(
-                      IntPtrOrSmiSub(end_index, increment), start_index),
-                  &done);
-        break;
+    if (increment > 0) {
+      CSA_DCHECK(this, UintPtrOrSmiLessThanOrEqual(start_index, end_index));
+      GotoIfNot(UintPtrOrSmiLessThanOrEqual(
+                    IntPtrOrSmiAdd(start_index,
+                                   IntPtrOrSmiConstant<TIndex>(increment)),
+                    end_index),
+                &done);
+    } else {
+      CSA_DCHECK(this, UintPtrOrSmiLessThanOrEqual(end_index, start_index));
+      GotoIfNot(
+          UintPtrOrSmiLessThanOrEqual(
+              IntPtrOrSmiSub(end_index, IntPtrOrSmiConstant<TIndex>(increment)),
+              start_index),
+          &done);
     }
 
-    TNode<TIndex> last_index = IntPtrOrSmiSub(end_index, increment);
+    TNode<TIndex> last_index =
+        IntPtrOrSmiSub(end_index, IntPtrOrSmiConstant<TIndex>(increment));
     TNode<BoolT> first_check =
-        advance_direction == IndexAdvanceDirection::kUp
-            ? UintPtrOrSmiLessThan(start_index, last_index)
-            : UintPtrOrSmiGreaterThan(start_index, last_index);
+        increment > 0 ? UintPtrOrSmiLessThan(start_index, last_index)
+                      : UintPtrOrSmiGreaterThan(start_index, last_index);
     int32_t first_check_val;
     if (TryToInt32Constant(first_check, &first_check_val)) {
       if (first_check_val) {
@@ -13833,7 +13806,7 @@ void CodeStubAssembler::BuildFastLoop(
       loop_body();
       loop_body();
       TNode<BoolT> loop_check =
-          advance_direction == IndexAdvanceDirection::kUp
+          increment > 0
               ? UintPtrOrSmiLessThan(var_index.value(), last_index)
               : UintPtrOrSmiGreaterThan(var_index.value(), last_index);
       Branch(loop_check, &loop, &after_loop);
@@ -13847,20 +13820,6 @@ void CodeStubAssembler::BuildFastLoop(
     }
     BIND(&done);
   }
-}
-
-template <typename TIndex>
-void CodeStubAssembler::BuildFastLoop(
-    const VariableList& vars, TVariable<TIndex>& var_index,
-    TNode<TIndex> start_index, TNode<TIndex> end_index,
-    const FastLoopBody<TIndex>& body, int increment,
-    LoopUnrollingMode unrolling_mode, IndexAdvanceMode advance_mode) {
-  DCHECK_NE(increment, 0);
-  BuildFastLoop(vars, var_index, start_index, end_index, body,
-                IntPtrOrSmiConstant<TIndex>(increment), unrolling_mode,
-                advance_mode,
-                increment > 0 ? IndexAdvanceDirection::kUp
-                              : IndexAdvanceDirection::kDown);
 }
 
 // Instantiate BuildFastLoop for IntPtrT, UintPtrT and RawPtrT.

@@ -280,9 +280,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   void PushRegExpBasePointer(Register scratch_pointer, Register scratch);
   void PopRegExpBasePointer(Register scratch_pointer_out, Register scratch);
 
-  void EncodePositionIndependentRegisterOutput(Register scratch_and_out);
-  void DecodePositionIndependentRegisterOutput(Register scratch_and_out);
-
   inline void ReadPositionFromRegister(Register dst, int reg);
 
   Isolate* isolate() const { return masm_.isolate(); }

@@ -299,10 +299,6 @@ template <>
 struct is_subtype<ExternalReference, RawPtrT> {
   static const bool value = true;
 };
-template <>
-struct is_subtype<IntPtrT, RawPtrT> {
-  static const bool value = true;
-};
 
 template <class T, class U>
 struct types_have_common_values {

@@ -669,14 +669,10 @@ static Handle<JSRegExp> CreateJSRegExp(DirectHandle<String> source,
 static ArchRegExpMacroAssembler::Result Execute(
     Tagged<JSRegExp> regexp, Tagged<String> input, int start_offset,
     Address input_start, Address input_end, int* captures) {
-  // For testing, we don't bother to pass in the `captures` size. This is okay
-  // as long as the caller knows what they're doing, and avoids having the
-  // engine write OOB or exiting a global execution loop early.
-  static constexpr int kCapturesSize = 0;
   return static_cast<NativeRegExpMacroAssembler::Result>(
       NativeRegExpMacroAssembler::ExecuteForTesting(
           input, start_offset, reinterpret_cast<uint8_t*>(input_start),
-          reinterpret_cast<uint8_t*>(input_end), captures, kCapturesSize,
+          reinterpret_cast<uint8_t*>(input_end), captures, 0,
           reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent()), regexp));
 }
 
@@ -1276,42 +1272,32 @@ TEST_F(RegExpTest, MacroAssembler) {
       factory->NewStringFromTwoByte(base::Vector<const base::uc16>(str1, 6))
           .ToHandleChecked();
 
-  {
-    Tagged<TrustedByteArray> array_unhandlified = *array;
-    Tagged<String> subject_unhandlified = *f1_16;
-    CHECK_EQ(IrregexpInterpreter::SUCCESS,
-             IrregexpInterpreter::MatchInternal(
-                 isolate(), &array_unhandlified, &subject_unhandlified,
-                 captures, 5, 5, 0, RegExp::CallOrigin::kFromRuntime,
-                 JSRegExp::kNoBacktrackLimit));
-    CHECK_EQ(0, captures[0]);
-    CHECK_EQ(3, captures[1]);
-    CHECK_EQ(1, captures[2]);
-    CHECK_EQ(2, captures[3]);
-    CHECK_EQ(84, captures[4]);
-  }
+  CHECK_EQ(IrregexpInterpreter::SUCCESS,
+           IrregexpInterpreter::MatchInternal(
+               isolate(), *array, *f1_16, captures, 5, 5, 0,
+               RegExp::CallOrigin::kFromRuntime, JSRegExp::kNoBacktrackLimit));
+  CHECK_EQ(0, captures[0]);
+  CHECK_EQ(3, captures[1]);
+  CHECK_EQ(1, captures[2]);
+  CHECK_EQ(2, captures[3]);
+  CHECK_EQ(84, captures[4]);
 
   const base::uc16 str2[] = {'b', 'a', 'r', 'f', 'o', 'o'};
   DirectHandle<String> f2_16 =
       factory->NewStringFromTwoByte(base::Vector<const base::uc16>(str2, 6))
           .ToHandleChecked();
 
-  {
-    Tagged<TrustedByteArray> array_unhandlified = *array;
-    Tagged<String> subject_unhandlified = *f2_16;
-    std::memset(captures, 0, sizeof(captures));
-    CHECK_EQ(IrregexpInterpreter::FAILURE,
-             IrregexpInterpreter::MatchInternal(
-                 isolate(), &array_unhandlified, &subject_unhandlified,
-                 captures, 5, 5, 0, RegExp::CallOrigin::kFromRuntime,
-                 JSRegExp::kNoBacktrackLimit));
-    // Failed matches don't alter output registers.
-    CHECK_EQ(0, captures[0]);
-    CHECK_EQ(0, captures[1]);
-    CHECK_EQ(0, captures[2]);
-    CHECK_EQ(0, captures[3]);
-    CHECK_EQ(0, captures[4]);
-  }
+  std::memset(captures, 0, sizeof(captures));
+  CHECK_EQ(IrregexpInterpreter::FAILURE,
+           IrregexpInterpreter::MatchInternal(
+               isolate(), *array, *f2_16, captures, 5, 5, 0,
+               RegExp::CallOrigin::kFromRuntime, JSRegExp::kNoBacktrackLimit));
+  // Failed matches don't alter output registers.
+  CHECK_EQ(0, captures[0]);
+  CHECK_EQ(0, captures[1]);
+  CHECK_EQ(0, captures[2]);
+  CHECK_EQ(0, captures[3]);
+  CHECK_EQ(0, captures[4]);
 }
 
 #ifndef V8_INTL_SUPPORT

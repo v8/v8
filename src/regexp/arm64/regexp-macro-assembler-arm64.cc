@@ -907,28 +907,6 @@ void RegExpMacroAssemblerARM64::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-void RegExpMacroAssemblerARM64::EncodePositionIndependentRegisterOutput(
-    Register relative_out, Register absolute_in, Register scratch) {
-  DCHECK(!AreAliased(absolute_in, scratch));
-  // pi = memory_top - register_output_vector
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ Mov(scratch, ref);
-  __ Ldr(scratch, MemOperand(scratch));
-  __ Sub(relative_out, scratch, absolute_in);
-}
-
-void RegExpMacroAssemblerARM64::DecodePositionIndependentRegisterOutput(
-    Register absolute_out, Register relative_in, Register scratch) {
-  DCHECK(!AreAliased(relative_in, scratch));
-  // register_output_vector = memory_top - pi
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ Mov(scratch, ref);
-  __ Ldr(scratch, MemOperand(scratch));
-  __ Sub(absolute_out, scratch, relative_in);
-}
-
 Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source,
                                                       RegExpFlags flags) {
   Label return_w0;
@@ -975,9 +953,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source,
   __ Mov(start_offset(), w1);
   __ Mov(input_start(), x2);
   __ Mov(input_end(), x3);
-  // Change the output_offsets_vector to be position-independent since the
-  // stack may grow and thus change location.
-  EncodePositionIndependentRegisterOutput(output_array(), x4, output_array());
+  __ Mov(output_array(), x4);
 
   // Make sure the stack alignment will be respected.
   const int alignment = masm_->ActivationFrameAlignment();
@@ -1126,9 +1102,6 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source,
         __ Add(input_length, start_offset(), w10);
       }
 
-      DecodePositionIndependentRegisterOutput(output_array(), output_array(),
-                                              x10);
-
       // Copy the results to the output array from the cached registers first.
       for (int i = 0; (i < num_saved_registers_) && (i < kNumCachedRegisters);
            i += 2) {
@@ -1206,9 +1179,6 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source,
           __ Cbnz(x11, &loop);
         }
       }
-
-      EncodePositionIndependentRegisterOutput(output_array(), output_array(),
-                                              x10);
     }
 
     if (global()) {

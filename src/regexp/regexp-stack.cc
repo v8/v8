@@ -17,22 +17,8 @@ RegExpStackScope::RegExpStackScope(Isolate* isolate)
 }
 
 RegExpStackScope::~RegExpStackScope() {
-  if (int32_slot_count_ != 0) {
-    regexp_stack_->DropInt32Slots(int32_slot_count_);
-  }
   CHECK_EQ(old_sp_top_delta_, regexp_stack_->sp_top_delta());
   regexp_stack_->ResetIfEmpty();
-}
-
-int32_t* RegExpStackScope::ClaimInt32Slots(int count) {
-  CHECK_EQ(old_sp_top_delta_, regexp_stack_->sp_top_delta());
-  DCHECK_EQ(int32_slot_count_, 0);  // Claim only once.
-  int32_slot_count_ = count;
-  return regexp_stack_->ClaimInt32Slots(count);
-}
-
-int32_t* RegExpStackScope::stack_pointer() const {
-  return reinterpret_cast<int32_t*>(regexp_stack_->stack_pointer());
 }
 
 RegExpStack::RegExpStack() : thread_local_(this) {}
@@ -82,24 +68,6 @@ void RegExpStack::ThreadLocal::FreeAndInvalidate() {
   memory_size_ = 0;
   stack_pointer_ = nullptr;
   limit_ = kMemoryTop;
-}
-
-int32_t* RegExpStack::ClaimInt32Slots(int count) {
-  DCHECK(IsValid());
-  DCHECK_GT(count, 0);
-  while (available_int32_slots() < count) {
-    EnsureCapacity(memory_size() * 2);
-  }
-  thread_local_.stack_pointer_ -= count * kInt32Size;
-  DCHECK_GE(stack_pointer(), begin() + kStackLimitSlackSize);
-  return reinterpret_cast<int32_t*>(stack_pointer());
-}
-
-void RegExpStack::DropInt32Slots(int count) {
-  DCHECK(IsValid());
-  DCHECK_GT(count, 0);
-  thread_local_.stack_pointer_ += count * kInt32Size;
-  DCHECK_LE(stack_pointer(), end());
 }
 
 Address RegExpStack::EnsureCapacity(size_t size) {

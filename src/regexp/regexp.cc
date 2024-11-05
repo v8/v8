@@ -58,14 +58,8 @@ class RegExpImpl final : public AllStatic {
 
   static int AtomExecRaw(Isolate* isolate,
                          DirectHandle<AtomRegExpData> regexp_data,
-                         Handle<String> subject, int index,
-                         int32_t* result_offsets_vector,
-                         int result_offsets_vector_length);
-  static int AtomExecRaw(Isolate* isolate, const String::FlatContent& pattern,
-                         const String::FlatContent& subject, int index,
-                         int32_t* result_offsets_vector,
-                         int result_offsets_vector_length,
-                         const DisallowGarbageCollection& no_gc);
+                         Handle<String> subject, int index, int32_t* output,
+                         int output_size);
 
   static Handle<Object> AtomExec(Isolate* isolate,
                                  DirectHandle<AtomRegExpData> regexp_data,
@@ -90,11 +84,8 @@ class RegExpImpl final : public AllStatic {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> IrregexpExec(
       Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
       Handle<String> subject, int index,
-      Handle<RegExpMatchInfo> last_match_info);
-  V8_WARN_UNUSED_RESULT static std::optional<int> IrregexpExec2(
-      Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
-      Handle<String> subject, int index, int32_t* result_offsets_vector,
-      uint32_t result_offsets_vector_length);
+      Handle<RegExpMatchInfo> last_match_info,
+      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
 
   static bool CompileIrregexp(Isolate* isolate,
                               DirectHandle<IrRegExpData> re_data,
@@ -321,30 +312,20 @@ bool RegExp::EnsureFullyCompiled(Isolate* isolate,
 MaybeHandle<Object> RegExp::ExperimentalOneshotExec(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
     DirectHandle<String> subject, int index,
-    Handle<RegExpMatchInfo> last_match_info) {
+    Handle<RegExpMatchInfo> last_match_info, RegExp::ExecQuirks exec_quirks) {
   DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
   SBXCHECK(Is<IrRegExpData>(*data));
   return ExperimentalRegExp::OneshotExec(isolate, Cast<IrRegExpData>(data),
-                                         subject, index, last_match_info);
-}
-
-// static
-std::optional<int> RegExp::ExperimentalOneshotExec2(
-    Isolate* isolate, DirectHandle<JSRegExp> regexp,
-    DirectHandle<String> subject, int index, int32_t* result_offsets_vector,
-    uint32_t result_offsets_vector_length) {
-  DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
-  SBXCHECK(Is<IrRegExpData>(*data));
-  return ExperimentalRegExp::OneshotExec2(isolate, Cast<IrRegExpData>(data),
-                                          subject, index, result_offsets_vector,
-                                          result_offsets_vector_length);
+                                         subject, index, last_match_info,
+                                         exec_quirks);
 }
 
 // static
 MaybeHandle<Object> RegExp::Exec(Isolate* isolate,
                                  DirectHandle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
-                                 Handle<RegExpMatchInfo> last_match_info) {
+                                 Handle<RegExpMatchInfo> last_match_info,
+                                 ExecQuirks exec_quirks) {
   DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
   switch (data->type_tag()) {
     case RegExpData::Type::ATOM:
@@ -352,29 +333,17 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate,
                                   index, last_match_info);
     case RegExpData::Type::IRREGEXP:
       return RegExpImpl::IrregexpExec(isolate, Cast<IrRegExpData>(data),
-                                      subject, index, last_match_info);
+                                      subject, index, last_match_info,
+                                      exec_quirks);
     case RegExpData::Type::EXPERIMENTAL:
       return ExperimentalRegExp::Exec(isolate, Cast<IrRegExpData>(data),
-                                      subject, index, last_match_info);
+                                      subject, index, last_match_info,
+                                      exec_quirks);
   }
   // This UNREACHABLE() is necessary because we don't return a value here,
   // which causes the compiler to emit potentially unsafe code for the switch
   // above. See the commit message and b/326086002 for more details.
   UNREACHABLE();
-}
-
-// static
-std::optional<int> RegExp::Exec2(Isolate* isolate,
-                                 DirectHandle<JSRegExp> regexp,
-                                 Handle<String> subject, int index,
-                                 int32_t* result_offsets_vector,
-                                 uint32_t result_offsets_vector_length) {
-  DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
-  // TODO(jgruber): Support other types.
-  CHECK_EQ(data->type_tag(), RegExpData::Type::IRREGEXP);
-  return RegExpImpl::IrregexpExec2(isolate, Cast<IrRegExpData>(data), subject,
-                                   index, result_offsets_vector,
-                                   result_offsets_vector_length);
 }
 
 // RegExp Atom implementation: Simple string search using indexOf.
@@ -428,72 +397,40 @@ int AtomExecRawImpl(Isolate* isolate, base::Vector<const SChar> subject,
 // static
 int RegExpImpl::AtomExecRaw(Isolate* isolate,
                             DirectHandle<AtomRegExpData> regexp_data,
-                            Handle<String> subject, int index,
-                            int32_t* result_offsets_vector,
-                            int result_offsets_vector_length) {
-  subject = String::Flatten(isolate, subject);
+                            Handle<String> subject, int index, int32_t* output,
+                            int output_size) {
+  DCHECK_LE(0, index);
+  DCHECK_LE(index, subject->length());
+  CHECK_EQ(output_size % JSRegExp::kAtomRegisterCount, 0);
 
-  DisallowGarbageCollection no_gc;
+  subject = String::Flatten(isolate, subject);
+  DisallowGarbageCollection no_gc;  // ensure vectors stay valid
+
   Tagged<String> needle = regexp_data->pattern(isolate);
+  DCHECK(needle->IsFlat());
+
   String::FlatContent needle_content = needle->GetFlatContent(no_gc);
   String::FlatContent subject_content = subject->GetFlatContent(no_gc);
-  return AtomExecRaw(isolate, needle_content, subject_content, index,
-                     result_offsets_vector, result_offsets_vector_length,
-                     no_gc);
-}
+  DCHECK(needle_content.IsFlat());
+  DCHECK(subject_content.IsFlat());
 
-// static
-int RegExpImpl::AtomExecRaw(Isolate* isolate,
-                            const String::FlatContent& pattern,
-                            const String::FlatContent& subject, int index,
-                            int32_t* result_offsets_vector,
-                            int result_offsets_vector_length,
-                            const DisallowGarbageCollection& no_gc) {
-  DCHECK_GE(index, 0);
-  DCHECK_LE(index, subject.length());
-  CHECK_EQ(result_offsets_vector_length % JSRegExp::kAtomRegisterCount, 0);
-  DCHECK(pattern.IsFlat());
-  DCHECK(subject.IsFlat());
-
-  return pattern.IsOneByte()
-             ? (subject.IsOneByte()
-                    ? AtomExecRawImpl(isolate, subject.ToOneByteVector(),
-                                      pattern.ToOneByteVector(), index,
-                                      result_offsets_vector,
-                                      result_offsets_vector_length, no_gc)
-                    : AtomExecRawImpl(isolate, subject.ToUC16Vector(),
-                                      pattern.ToOneByteVector(), index,
-                                      result_offsets_vector,
-                                      result_offsets_vector_length, no_gc))
-             : (subject.IsOneByte()
-                    ? AtomExecRawImpl(isolate, subject.ToOneByteVector(),
-                                      pattern.ToUC16Vector(), index,
-                                      result_offsets_vector,
-                                      result_offsets_vector_length, no_gc)
-                    : AtomExecRawImpl(isolate, subject.ToUC16Vector(),
-                                      pattern.ToUC16Vector(), index,
-                                      result_offsets_vector,
-                                      result_offsets_vector_length, no_gc));
-}
-
-// static
-intptr_t RegExp::AtomExecRaw(Isolate* isolate,
-                             Address /* AtomRegExpData */ data_address,
-                             Address /* String */ subject_address,
-                             int32_t index, int32_t* result_offsets_vector,
-                             int32_t result_offsets_vector_length) {
-  DisallowGarbageCollection no_gc;
-
-  SBXCHECK(Is<AtomRegExpData>(Tagged<Object>(data_address)));
-  auto data = Cast<AtomRegExpData>(Tagged<Object>(data_address));
-  auto subject = Cast<String>(Tagged<Object>(subject_address));
-
-  Tagged<String> pattern = data->pattern(isolate);
-  String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
-  String::FlatContent subject_content = subject->GetFlatContent(no_gc);
-  return RegExpImpl::AtomExecRaw(isolate, pattern_content, subject_content,
-                                 index, result_offsets_vector,
-                                 result_offsets_vector_length, no_gc);
+  return needle_content.IsOneByte()
+             ? (subject_content.IsOneByte()
+                    ? AtomExecRawImpl(isolate,
+                                      subject_content.ToOneByteVector(),
+                                      needle_content.ToOneByteVector(), index,
+                                      output, output_size, no_gc)
+                    : AtomExecRawImpl(isolate, subject_content.ToUC16Vector(),
+                                      needle_content.ToOneByteVector(), index,
+                                      output, output_size, no_gc))
+             : (subject_content.IsOneByte()
+                    ? AtomExecRawImpl(isolate,
+                                      subject_content.ToOneByteVector(),
+                                      needle_content.ToUC16Vector(), index,
+                                      output, output_size, no_gc)
+                    : AtomExecRawImpl(isolate, subject_content.ToUC16Vector(),
+                                      needle_content.ToUC16Vector(), index,
+                                      output, output_size, no_gc));
 }
 
 Handle<Object> RegExpImpl::AtomExec(Isolate* isolate,
@@ -766,30 +703,26 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
     DCHECK(regexp_data->ShouldProduceBytecode());
 
     do {
-      int result = IrregexpInterpreter::MatchForCallFromRuntime(
-          isolate, regexp_data, subject, output, output_size, index);
+      IrregexpInterpreter::Result result =
+          IrregexpInterpreter::MatchForCallFromRuntime(
+              isolate, regexp_data, subject, output, output_size, index);
       DCHECK_IMPLIES(result == IrregexpInterpreter::EXCEPTION,
                      isolate->has_exception());
 
-      static_assert(IrregexpInterpreter::FAILURE == 0);
-      static_assert(IrregexpInterpreter::SUCCESS == 1);
-      static_assert(IrregexpInterpreter::FALLBACK_TO_EXPERIMENTAL < 0);
-      static_assert(IrregexpInterpreter::EXCEPTION < 0);
-      static_assert(IrregexpInterpreter::RETRY < 0);
-      if (result >= IrregexpInterpreter::FAILURE) {
-        return result;
-      }
-
-      if (result == IrregexpInterpreter::RETRY) {
-        // The string has changed representation, and we must restart the
-        // match. We need to reset the tier up to start over with compilation.
-        if (v8_flags.regexp_tier_up) regexp_data->ResetLastTierUpTick();
-        is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
-        EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
-      } else {
-        DCHECK(result == IrregexpInterpreter::EXCEPTION ||
-               result == IrregexpInterpreter::FALLBACK_TO_EXPERIMENTAL);
-        return result;
+      switch (result) {
+        case IrregexpInterpreter::SUCCESS:
+        case IrregexpInterpreter::EXCEPTION:
+        case IrregexpInterpreter::FAILURE:
+        case IrregexpInterpreter::FALLBACK_TO_EXPERIMENTAL:
+          return result;
+        case IrregexpInterpreter::RETRY:
+          // The string has changed representation, and we must restart the
+          // match.
+          // We need to reset the tier up to start over with compilation.
+          if (v8_flags.regexp_tier_up) regexp_data->ResetLastTierUpTick();
+          is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
+          EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
+          break;
       }
     } while (true);
     UNREACHABLE();
@@ -799,7 +732,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
 MaybeHandle<Object> RegExpImpl::IrregexpExec(
     Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
     Handle<String> subject, int previous_index,
-    Handle<RegExpMatchInfo> last_match_info) {
+    Handle<RegExpMatchInfo> last_match_info, RegExp::ExecQuirks exec_quirks) {
   subject = String::Flatten(isolate, subject);
 
 #ifdef DEBUG
@@ -825,26 +758,34 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
   }
 
   // Prepare space for the return values.
-  int output_register_count =
+  int required_registers =
       RegExpImpl::IrregexpPrepare(isolate, regexp_data, subject);
-  if (output_register_count < 0) {
+  if (required_registers < 0) {
+    // Compiling failed with an exception.
     DCHECK(isolate->has_exception());
     return MaybeHandle<Object>();
   }
 
-  // Output registers are allocated on the regexp stack.
-  RegExpStackScope stack_scope(isolate);
-  int32_t* output_registers =
-      stack_scope.ClaimInt32Slots(output_register_count);
+  int32_t* output_registers = nullptr;
+  if (required_registers > Isolate::kJSRegexpStaticOffsetsVectorSize) {
+    output_registers = NewArray<int32_t>(required_registers);
+  }
+  std::unique_ptr<int32_t[]> auto_release(output_registers);
+  if (output_registers == nullptr) {
+    output_registers = isolate->jsregexp_static_offsets_vector();
+  }
 
   int res =
       RegExpImpl::IrregexpExecRaw(isolate, regexp_data, subject, previous_index,
-                                  output_registers, output_register_count);
+                                  output_registers, required_registers);
 
   if (res == RegExp::RE_SUCCESS) {
+    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+      if (static_cast<uint32_t>(output_registers[0]) >= subject->length()) {
+        return isolate->factory()->null_value();
+      }
+    }
     int capture_count = regexp_data->capture_count();
-    // Reload the register array since the stack may have grown.
-    output_registers = stack_scope.stack_pointer();
     return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
                                     capture_count, output_registers);
   } else if (res == RegExp::RE_FALLBACK_TO_EXPERIMENTAL) {
@@ -859,89 +800,14 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
   }
 }
 
-std::optional<int> RegExpImpl::IrregexpExec2(
-    Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
-    Handle<String> subject, int previous_index, int32_t* result_offsets_vector,
-    uint32_t result_offsets_vector_length) {
-  subject = String::Flatten(isolate, subject);
-
-#ifdef DEBUG
-  if (v8_flags.trace_regexp_bytecodes && regexp_data->ShouldProduceBytecode()) {
-    PrintF("\n\nRegexp match:   /%s/\n\n",
-           regexp_data->source()->ToCString().get());
-    PrintF("\n\nSubject string: '%s'\n\n", subject->ToCString().get());
-  }
-#endif
-
-  const int original_register_count =
-      JSRegExp::RegistersForCaptureCount(regexp_data->capture_count());
-
-  // Maybe force early tier up:
-  if (v8_flags.regexp_tier_up) {
-    if (subject->length() >= JSRegExp::kTierUpForSubjectLengthValue) {
-      // For very long subject strings, the regexp interpreter is currently much
-      // slower than the jitted code execution. If the tier-up strategy is
-      // turned on, we want to avoid this performance penalty so we eagerly
-      // tier-up if the subject string length is equal or greater than the given
-      // heuristic value.
-      regexp_data->MarkTierUpForNextExec();
-      if (v8_flags.trace_regexp_tier_up) {
-        PrintF(
-            "Forcing tier-up for very long strings in "
-            "RegExpImpl::IrregexpExec\n");
-      }
-    } else if (static_cast<uint32_t>(original_register_count) <
-               result_offsets_vector_length) {
-      // Tier up because the interpreter doesn't do global execution.
-      Cast<IrRegExpData>(regexp_data)->MarkTierUpForNextExec();
-      if (v8_flags.trace_regexp_tier_up) {
-        PrintF(
-            "Forcing tier-up of RegExpData object %p for global irregexp "
-            "mode\n",
-            reinterpret_cast<void*>(regexp_data->ptr()));
-      }
-    }
-  }
-
-  int output_register_count =
-      RegExpImpl::IrregexpPrepare(isolate, regexp_data, subject);
-  if (output_register_count < 0) {
-    DCHECK(isolate->has_exception());
-    return {};
-  }
-
-  // TODO(jgruber): Consider changing these into DCHECKs once we're convinced
-  // the conditions hold.
-  CHECK_EQ(original_register_count, output_register_count);
-  CHECK_LE(static_cast<uint32_t>(output_register_count),
-           result_offsets_vector_length);
-
-  RegExpStackScope stack_scope(isolate);
-
-  int res = RegExpImpl::IrregexpExecRaw(isolate, regexp_data, subject,
-                                        previous_index, result_offsets_vector,
-                                        result_offsets_vector_length);
-
-  if (res >= RegExp::RE_SUCCESS) {
-    DCHECK_LE(res * output_register_count, result_offsets_vector_length);
-    return res;
-  } else if (res == RegExp::RE_FALLBACK_TO_EXPERIMENTAL) {
-    return ExperimentalRegExp::OneshotExec2(
-        isolate, regexp_data, subject, previous_index, result_offsets_vector,
-        result_offsets_vector_length);
-  } else if (res == RegExp::RE_EXCEPTION) {
-    DCHECK(isolate->has_exception());
-    return {};
-  } else {
-    DCHECK(res == RegExp::RE_FAILURE);
-    return 0;
-  }
-}
-
 // static
 Handle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
     Isolate* isolate, Handle<RegExpMatchInfo> last_match_info,
     DirectHandle<String> subject, int capture_count, int32_t* match) {
+  // This is the only place where match infos can grow. If, after executing the
+  // regexp, RegExpExecStub finds that the match info is too small, it restarts
+  // execution in RegExpImpl::Exec, which finally grows the match info right
+  // here.
   Handle<RegExpMatchInfo> result =
       RegExpMatchInfo::ReserveCaptures(isolate, last_match_info, capture_count);
   if (*result != *last_match_info) {
@@ -1183,13 +1049,13 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   return result.Succeeded();
 }
 
-RegExpGlobalExecRunner::RegExpGlobalExecRunner(Handle<RegExpData> regexp_data,
-                                               Handle<String> subject,
-                                               Isolate* isolate)
-    : regexp_data_(regexp_data),
+RegExpGlobalCache::RegExpGlobalCache(Handle<RegExpData> regexp_data,
+                                     Handle<String> subject, Isolate* isolate)
+    : register_array_(nullptr),
+      register_array_size_(0),
+      regexp_data_(regexp_data),
       subject_(subject),
-      isolate_(isolate),
-      regexp_stack_scope_(isolate) {
+      isolate_(isolate) {
   DCHECK(IsGlobal(JSRegExp::AsRegExpFlags(regexp_data->flags())));
 
   switch (regexp_data_->type_tag()) {
@@ -1209,6 +1075,7 @@ RegExpGlobalExecRunner::RegExpGlobalExecRunner(Handle<RegExpData> regexp_data,
         // Global loop in interpreted regexp is not implemented.  We choose the
         // size of the offsets vector so that it can only store one match.
         register_array_size_ = registers_per_match_;
+        max_matches_ = 1;
       } else {
         register_array_size_ = std::max(
             {registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize});
@@ -1232,12 +1099,18 @@ RegExpGlobalExecRunner::RegExpGlobalExecRunner(Handle<RegExpData> regexp_data,
     }
   }
 
-  register_array_ = regexp_stack_scope_.ClaimInt32Slots(register_array_size_);
+  max_matches_ = register_array_size_ / registers_per_match_;
+
+  if (register_array_size_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
+    register_array_ = NewArray<int32_t>(register_array_size_);
+  } else {
+    register_array_ = isolate->jsregexp_static_offsets_vector();
+  }
 
   // Set state so that fetching the results the first time triggers a call
   // to the compiled regexp.
-  current_match_index_ = max_matches() - 1;
-  num_matches_ = max_matches();
+  current_match_index_ = max_matches_ - 1;
+  num_matches_ = max_matches_;
   DCHECK_LE(2, registers_per_match_);  // Each match has at least one capture.
   DCHECK_GE(register_array_size_, registers_per_match_);
   int32_t* last_match =
@@ -1246,7 +1119,15 @@ RegExpGlobalExecRunner::RegExpGlobalExecRunner(Handle<RegExpData> regexp_data,
   last_match[1] = 0;
 }
 
-int RegExpGlobalExecRunner::AdvanceZeroLength(int last_index) const {
+RegExpGlobalCache::~RegExpGlobalCache() {
+  // Deallocate the register array if we allocated it in the constructor
+  // (as opposed to using the existing jsregexp_static_offsets_vector).
+  if (register_array_size_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
+    DeleteArray(register_array_);
+  }
+}
+
+int RegExpGlobalCache::AdvanceZeroLength(int last_index) {
   if (IsEitherUnicode(JSRegExp::AsRegExpFlags(regexp_data_->flags())) &&
       static_cast<uint32_t>(last_index + 1) < subject_->length() &&
       unibrow::Utf16::IsLeadSurrogate(subject_->Get(last_index)) &&
@@ -1257,13 +1138,13 @@ int RegExpGlobalExecRunner::AdvanceZeroLength(int last_index) const {
   return last_index + 1;
 }
 
-int32_t* RegExpGlobalExecRunner::FetchNext() {
+int32_t* RegExpGlobalCache::FetchNext() {
   current_match_index_++;
 
   if (current_match_index_ >= num_matches_) {
     // Current batch of results exhausted.
     // Fail if last batch was not even fully filled.
-    if (num_matches_ < max_matches()) {
+    if (num_matches_ < max_matches_) {
       num_matches_ = 0;  // Signal failed match.
       return nullptr;
     }
@@ -1300,8 +1181,6 @@ int32_t* RegExpGlobalExecRunner::FetchNext() {
         num_matches_ = RegExpImpl::IrregexpExecRaw(
             isolate_, Cast<IrRegExpData>(regexp_data_), subject_,
             last_end_index, register_array_, register_array_size_);
-        // Reload the register array since the stack may have grown.
-        register_array_ = regexp_stack_scope_.stack_pointer();
         break;
       }
     }
@@ -1320,10 +1199,10 @@ int32_t* RegExpGlobalExecRunner::FetchNext() {
     // Number of matches can't exceed maximum matches.
     // This check is enough to prevent OOB accesses to register_array_ in the
     // else branch below, since current_match_index < num_matches_ in this
-    // branch, it follows that current_match_index < max_matches(). And since
-    // max_matches() = register_array_size_ / registers_per_match it follows
+    // branch, it follows that current_match_index < max_matches_. And since
+    // max_matches_ = register_array_size_ / registers_per_match it follows
     // that current_match_index * registers_per_match_ < register_array_size_.
-    SBXCHECK_LE(num_matches_, max_matches());
+    SBXCHECK_LE(num_matches_, max_matches_);
 
     current_match_index_ = 0;
     return register_array_;
@@ -1332,7 +1211,7 @@ int32_t* RegExpGlobalExecRunner::FetchNext() {
   }
 }
 
-int32_t* RegExpGlobalExecRunner::LastSuccessfulMatch() const {
+int32_t* RegExpGlobalCache::LastSuccessfulMatch() {
   int index = current_match_index_ * registers_per_match_;
   if (num_matches_ == 0) {
     // After a failed match we shift back by one result.
