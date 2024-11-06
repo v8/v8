@@ -262,9 +262,9 @@ Handle<FeedbackVector> FeedbackVector::New(
   DCHECK_EQ(vector->length(), slot_count);
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
-  DCHECK_EQ(vector->tiering_state(), TieringState::kNone);
   DCHECK_EQ(vector->invocation_count(), 0);
 #ifndef V8_ENABLE_LEAPTIERING
+  DCHECK_EQ(vector->tiering_state(), TieringState::kNone);
   DCHECK(!vector->maybe_has_maglev_code());
   DCHECK(!vector->maybe_has_turbofan_code());
   DCHECK(vector->maybe_optimized_code().IsCleared());
@@ -381,7 +381,13 @@ void FeedbackVector::AddToVectorsForProfilingTools(
   isolate->SetFeedbackVectorsForProfilingTools(*list);
 }
 
-#ifndef V8_ENABLE_LEAPTIERING
+#ifdef V8_ENABLE_LEAPTIERING
+
+void FeedbackVector::set_tiering_in_progress(bool in_progress) {
+  set_flags(TieringInProgressBit::update(flags(), in_progress));
+}
+
+#else
 
 void FeedbackVector::SetOptimizedCode(IsolateForSandbox isolate,
                                       Tagged<Code> code) {
@@ -445,7 +451,28 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
   }
 }
 
-#endif  // !V8_ENABLE_LEAPTIERING
+void FeedbackVector::set_tiering_state(TieringState state) {
+  int32_t new_flags = flags();
+  new_flags = TieringStateBits::update(new_flags, state);
+  set_flags(new_flags);
+}
+
+#endif  // V8_ENABLE_LEAPTIERING
+
+void FeedbackVector::reset_flags() {
+  set_flags(
+#ifdef V8_ENABLE_LEAPTIERING
+      TieringInProgressBit::encode(false) |
+#else
+      TieringStateBits::encode(TieringState::kNone) |
+      LogNextExecutionBit::encode(false) |
+      MaybeHasMaglevCodeBit::encode(false) |
+      MaybeHasTurbofanCodeBit::encode(false) |
+#endif  // V8_ENABLE_LEAPTIERING
+      OsrTieringInProgressBit::encode(false) |
+      MaybeHasMaglevOsrCodeBit::encode(false) |
+      MaybeHasTurbofanOsrCodeBit::encode(false));
+}
 
 void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                                          Tagged<Code> code) {
@@ -457,28 +484,6 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
   }
   Set(slot, MakeWeak(code->wrapper()));
   set_maybe_has_optimized_osr_code(true, code->kind());
-}
-
-void FeedbackVector::reset_tiering_state() {
-  set_tiering_state(TieringState::kNone);
-}
-
-void FeedbackVector::set_tiering_state(TieringState state) {
-  int32_t new_flags = flags();
-  new_flags = TieringStateBits::update(new_flags, state);
-  set_flags(new_flags);
-}
-
-void FeedbackVector::reset_flags() {
-  set_flags(TieringStateBits::encode(TieringState::kNone) |
-            LogNextExecutionBit::encode(false) |
-#ifndef V8_ENABLE_LEAPTIERING
-            MaybeHasMaglevCodeBit::encode(false) |
-            MaybeHasTurbofanCodeBit::encode(false) |
-#endif  // !V8_ENABLE_LEAPTIERING
-            OsrTieringInProgressBit::encode(false) |
-            MaybeHasMaglevOsrCodeBit::encode(false) |
-            MaybeHasTurbofanOsrCodeBit::encode(false));
 }
 
 bool FeedbackVector::osr_tiering_in_progress() {

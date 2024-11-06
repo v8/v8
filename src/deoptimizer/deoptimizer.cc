@@ -1433,7 +1433,8 @@ bool DeoptimizedMaglevvedCodeEarly(Isolate* isolate,
                                    Tagged<JSFunction> function,
                                    Tagged<Code> code) {
   if (!code->is_maglevved()) return false;
-  if (IsRequestTurbofan(function->feedback_vector()->tiering_state())) {
+  if (function->GetRequestedOptimizationIfAny(isolate) ==
+      CodeKind::TURBOFAN_JS) {
     // We request turbofan after consuming the invocation_count_for_turbofan
     // budget which is greater than
     // invocation_count_for_maglev_with_delay.
@@ -1666,7 +1667,12 @@ void Deoptimizer::DoComputeOutputFrames() {
             CachedTieringDecision::kNormal);
       }
     }
-    function_->reset_tiering_state();
+    function_->ResetTieringRequests(isolate_);
+    // This allows us to quickly re-spawn a new compilation request even if
+    // there is already one running. In particular it helps to squeeze in a
+    // maglev compilation when there is a long running turbofan one that was
+    // started right before the deopt.
+    function_->SetTieringInProgress(false);
     function_->SetInterruptBudget(isolate_, CodeKind::INTERPRETED_FUNCTION);
     function_->feedback_vector()->set_was_once_deoptimized();
   }

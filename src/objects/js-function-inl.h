@@ -12,15 +12,18 @@
 // Include other inline headers *after* including js-function.h, such that e.g.
 // the definition of JSFunction is available (and this comment prevents
 // clang-format from merging that include into the following ones).
+#include "src/debug/debug.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
+#include "src/snapshot/embedded/embedded-data.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -48,11 +51,6 @@ Tagged<ClosureFeedbackCellArray> JSFunction::closure_feedback_cell_array()
     const {
   DCHECK(has_closure_feedback_cell_array());
   return Cast<ClosureFeedbackCellArray>(raw_feedback_cell()->value());
-}
-
-void JSFunction::reset_tiering_state() {
-  DCHECK(has_feedback_vector());
-  feedback_vector()->reset_tiering_state();
 }
 
 bool JSFunction::ChecksTieringState(IsolateForSandbox isolate) {
@@ -96,6 +94,8 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
   JSDispatchHandle canonical_handle = raw_feedback_cell()->dispatch_handle();
+  DCHECK_IMPLIES(IsOptimizationRequested(GetIsolate()),
+                 value->kind() >= CodeKind::MAGLEV);
 
   // For specialized code we allocate their own dispatch entry, which is
   // different from the one in the dispatch cell.
@@ -109,19 +109,27 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
   if (has_context_specialized_dispatch_entry) {
     UpdateDispatchEntry(value, mode);
   } else {
+    SBXCHECK_EQ(GetProcessWideJSDispatchTable()->GetParameterCount(handle),
+                value->parameter_count());
     AllocateDispatchHandle(isolate, value->parameter_count(), value, mode);
+  }
+
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
+    GetProcessWideJSDispatchTable()->SetTieringRequest(
+        dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution, isolate);
   }
 #else
   WriteCodePointerField(kCodeOffset, value);
   CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
-#endif  // V8_ENABLE_LEAPTIERING
 
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
     feedback_vector()->set_log_next_execution(true);
   }
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
-void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
+void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode,
+                            bool keep_tiering_request) {
   DisallowGarbageCollection no_gc;
   DCHECK(!value->is_context_specialized());
 
@@ -129,6 +137,12 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
   JSDispatchHandle canonical_handle = raw_feedback_cell()->dispatch_handle();
 
 #ifdef DEBUG
+  if (!keep_tiering_request) {
+    DCHECK_IMPLIES(IsOptimizationRequested(GetIsolate()) &&
+                       !shared()->HasBreakInfo(GetIsolate()) &&
+                       !GetIsolate()->debug()->needs_check_on_function_call(),
+                   value->kind() >= CodeKind::MAGLEV);
+  }
   bool has_context_specialized_dispatch_entry =
       canonical_handle != kNullJSDispatchHandle &&
       dispatch_handle() != canonical_handle;
@@ -145,16 +159,30 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
     // function was specialized before).
     set_dispatch_handle(canonical_handle, mode);
   }
-  UpdateDispatchEntry(value, mode);
+  if (keep_tiering_request) {
+    UpdateDispatchEntryKeepTieringRequest(value, mode);
+  } else {
+    UpdateDispatchEntry(value, mode);
+  }
 
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
+    GetProcessWideJSDispatchTable()->SetTieringRequest(
+        dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution,
+        GetIsolate());
+  }
 #else
   WriteCodePointerField(kCodeOffset, value);
   CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
-#endif  // V8_ENABLE_LEAPTIERING
 
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
     feedback_vector()->set_log_next_execution(true);
   }
+#endif  // V8_ENABLE_LEAPTIERING
+}
+
+inline void JSFunction::UpdateCodeKeepTieringRequests(Tagged<Code> code,
+                                                      WriteBarrierMode mode) {
+  UpdateCode(code, mode, true);
 }
 
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
@@ -224,6 +252,13 @@ void JSFunction::UpdateDispatchEntry(Tagged<Code> new_code,
   GetProcessWideJSDispatchTable()->SetCodeNoWriteBarrier(handle, new_code);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
+void JSFunction::UpdateDispatchEntryKeepTieringRequest(Tagged<Code> new_code,
+                                                       WriteBarrierMode mode) {
+  JSDispatchHandle handle = dispatch_handle();
+  GetProcessWideJSDispatchTable()->SetCodeKeepTieringRequestNoWriteBarrier(
+      handle, new_code);
+  CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
+}
 JSDispatchHandle JSFunction::dispatch_handle() const {
   return Relaxed_ReadField<JSDispatchHandle>(kDispatchHandleOffset);
 }
@@ -256,6 +291,146 @@ void JSFunction::set_shared(Tagged<SharedFunctionInfo> value,
   CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfoOffset, value, mode);
 }
 
+bool JSFunction::tiering_in_progress() const {
+#ifdef V8_ENABLE_LEAPTIERING
+  if (!has_feedback_vector()) return false;
+  DCHECK_IMPLIES(
+      feedback_vector()->tiering_in_progress(),
+      !GetProcessWideJSDispatchTable()->IsTieringRequested(dispatch_handle()));
+  return feedback_vector()->tiering_in_progress();
+#else
+  return IsInProgress(tiering_state());
+#endif
+}
+
+bool JSFunction::IsTieringRequestedOrInProgress(Isolate* isolate) const {
+#ifdef V8_ENABLE_LEAPTIERING
+  if (!has_feedback_vector()) return false;
+  return tiering_in_progress() ||
+         GetProcessWideJSDispatchTable()->IsTieringRequested(dispatch_handle());
+#else
+  return tiering_state() != TieringState::kNone;
+#endif
+}
+
+bool JSFunction::IsLoggingRequested(Isolate* isolate) const {
+#ifdef V8_ENABLE_LEAPTIERING
+  return GetProcessWideJSDispatchTable()->IsTieringRequested(
+      dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution, isolate);
+#else
+  return feedback_vector()->log_next_execution();
+#endif
+}
+
+bool JSFunction::IsOptimizationRequested(Isolate* isolate) const {
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  Address entrypoint = jdt->GetEntrypoint(dispatch_handle());
+  const EmbeddedData& embedded_data = EmbeddedData::FromBlob(isolate);
+#define CASE(name, ...)                                                        \
+  if (entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) {      \
+    DCHECK(jdt->IsTieringRequested(dispatch_handle(), TieringBuiltin::k##name, \
+                                   isolate));                                  \
+    return TieringBuiltin::k##name !=                                          \
+           TieringBuiltin::kFunctionLogNextExecution;                          \
+  }
+  BUILTIN_LIST_BASE_TIERING(CASE)
+#undef CASE
+  return {};
+#else
+  return IsRequestMaglev(tiering_state()) || IsRequestTurbofan(tiering_state());
+#endif
+}
+
+std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
+    Isolate* isolate, ConcurrencyMode mode) const {
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  Address entrypoint = jdt->GetEntrypoint(dispatch_handle());
+  const EmbeddedData& embedded_data = EmbeddedData::FromBlob(isolate);
+  auto builtin = ([&]() -> std::optional<TieringBuiltin> {
+#define CASE(name, ...)                                                        \
+  if (entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) {      \
+    DCHECK(jdt->IsTieringRequested(dispatch_handle(), TieringBuiltin::k##name, \
+                                   isolate));                                  \
+    return TieringBuiltin::k##name;                                            \
+  }
+    BUILTIN_LIST_BASE_TIERING(CASE)
+#undef CASE
+    DCHECK(!jdt->IsTieringRequested(dispatch_handle()));
+    return {};
+  })();
+  if (V8_LIKELY(!builtin)) return {};
+  switch (*builtin) {
+    case TieringBuiltin::kOptimizeMaglevEager:
+      if (mode == ConcurrencyMode::kSynchronous) return CodeKind::MAGLEV;
+      break;
+    case TieringBuiltin::kStartMaglevOptimizationJob:
+      if (mode == ConcurrencyMode::kConcurrent) return CodeKind::MAGLEV;
+      break;
+    case TieringBuiltin::kOptimizeTurbofanEager:
+      if (mode == ConcurrencyMode::kSynchronous) return CodeKind::TURBOFAN_JS;
+      break;
+    case TieringBuiltin::kStartTurbofanOptimizationJob:
+      if (mode == ConcurrencyMode::kConcurrent) return CodeKind::TURBOFAN_JS;
+      break;
+    case TieringBuiltin::kFunctionLogNextExecution:
+      break;
+  }
+#else
+  switch (mode) {
+    case ConcurrencyMode::kConcurrent:
+      if (IsRequestTurbofan_Concurrent(tiering_state())) {
+        return CodeKind::TURBOFAN_JS;
+      }
+      if (IsRequestMaglev_Concurrent(tiering_state())) {
+        return CodeKind::MAGLEV;
+      }
+      break;
+    case ConcurrencyMode::kSynchronous:
+      if (IsRequestTurbofan_Synchronous(tiering_state())) {
+        return CodeKind::TURBOFAN_JS;
+      }
+      if (IsRequestMaglev_Synchronous(tiering_state())) {
+        return CodeKind::MAGLEV;
+      }
+      break;
+  }
+#endif  // !V8_ENABLE_LEAPTIERING
+  return {};
+}
+
+void JSFunction::ResetTieringRequests(Isolate* isolate) {
+#ifdef V8_ENABLE_LEAPTIERING
+  GetProcessWideJSDispatchTable()->ResetTieringRequest(dispatch_handle(),
+                                                       isolate);
+#else
+  if (has_feedback_vector() && !tiering_in_progress()) {
+    feedback_vector()->reset_tiering_state();
+  }
+#endif  // V8_ENABLE_LEAPTIERING
+}
+
+void JSFunction::SetTieringInProgress(bool in_progress,
+                                      BytecodeOffset osr_offset) {
+  if (!has_feedback_vector()) return;
+  if (osr_offset.IsNone()) {
+#ifdef V8_ENABLE_LEAPTIERING
+    feedback_vector()->set_tiering_in_progress(in_progress);
+#else
+    if (in_progress) {
+      feedback_vector()->set_tiering_state(TieringState::kInProgress);
+    } else if (tiering_in_progress()) {
+      feedback_vector()->reset_tiering_state();
+    }
+#endif  // V8_ENABLE_LEAPTIERING
+  } else {
+    feedback_vector()->set_osr_tiering_in_progress(in_progress);
+  }
+}
+
+#ifndef V8_ENABLE_LEAPTIERING
+
 TieringState JSFunction::tiering_state() const {
   if (!has_feedback_vector()) return TieringState::kNone;
   return feedback_vector()->tiering_state();
@@ -268,14 +443,11 @@ void JSFunction::set_tiering_state(IsolateForSandbox isolate,
   feedback_vector()->set_tiering_state(state);
 }
 
+#endif  // !V8_ENABLE_LEAPTIERING
+
 bool JSFunction::osr_tiering_in_progress() {
   DCHECK(has_feedback_vector());
   return feedback_vector()->osr_tiering_in_progress();
-}
-
-void JSFunction::set_osr_tiering_in_progress(bool osr_in_progress) {
-  DCHECK(has_feedback_vector());
-  feedback_vector()->set_osr_tiering_in_progress(osr_in_progress);
 }
 
 DEF_GETTER(JSFunction, has_feedback_vector, bool) {
@@ -416,6 +588,7 @@ void JSFunction::ResetIfCodeFlushed(
   if (kBytecodeCanFlush && NeedsResetDueToFlushedBytecode(isolate)) {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
+    ResetTieringRequests(isolate);
     UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
     raw_feedback_cell()->reset_feedback_vector(gc_notify_updated_slot);
     return;
@@ -425,6 +598,7 @@ void JSFunction::ResetIfCodeFlushed(
                  kBaselineCodeCanFlush);
   if (kBaselineCodeCanFlush && NeedsResetDueToFlushedBaselineCode(isolate)) {
     // Flush baseline code from the closure if required
+    ResetTieringRequests(isolate);
     UpdateCode(*BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   }
 }

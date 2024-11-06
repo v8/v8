@@ -79,23 +79,6 @@ namespace {
 
 constexpr bool IsOSR(BytecodeOffset osr_offset) { return !osr_offset.IsNone(); }
 
-void SetTieringState(IsolateForSandbox isolate, Tagged<JSFunction> function,
-                     BytecodeOffset osr_offset, TieringState value) {
-  if (IsOSR(osr_offset)) {
-    DCHECK(value == TieringState::kInProgress || value == TieringState::kNone);
-    function->set_osr_tiering_in_progress(IsInProgress(value));
-  } else {
-    function->set_tiering_state(isolate, value);
-  }
-}
-
-void ResetTieringState(IsolateForSandbox isolate, Tagged<JSFunction> function,
-                       BytecodeOffset osr_offset) {
-  if (function->has_feedback_vector()) {
-    SetTieringState(isolate, function, osr_offset, TieringState::kNone);
-  }
-}
-
 class CompilerTracer : public AllStatic {
  public:
   static void TraceStartBaselineCompile(
@@ -1004,7 +987,13 @@ class OptimizedCodeCache : public AllStatic {
 #endif  // V8_ENABLE_LEAPTIERING
     }
 
-    if (code.is_null() || code->kind() != code_kind) return {};
+    // Normal tierup should never request a code-kind we already have. In case
+    // of OSR it can happen that we OSR from ignition to turbofan. This is
+    // explicitly allowed here by re-using any larger-kinded than requested
+    // code.
+    DCHECK_IMPLIES(!code.is_null() && code->kind() > code_kind,
+                   IsOSR(osr_offset));
+    if (code.is_null() || code->kind() < code_kind) return {};
 
     DCHECK(!code->marked_for_deoptimization());
     DCHECK(shared->is_compiled());
@@ -1152,6 +1141,10 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
     return false;
   }
 
+  if (V8_LIKELY(!compilation_info->discard_result_for_testing())) {
+    function->SetTieringInProgress(true, compilation_info->osr_offset());
+  }
+
   // The background recompile will own this job.
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.release());
 
@@ -1160,9 +1153,6 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
     ShortPrint(*function);
     PrintF(" for concurrent optimization.\n");
   }
-
-  SetTieringState(isolate, *function, compilation_info->osr_offset(),
-                  TieringState::kInProgress);
 
   DCHECK(compilation_info->shared_info()->HasBytecodeArray());
   return true;
@@ -1310,7 +1300,7 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   isolate->maglev_concurrent_dispatcher()->EnqueueJob(std::move(job));
 
   // Remember that the function is currently being processed.
-  SetTieringState(isolate, *function, osr_offset, TieringState::kInProgress);
+  function->SetTieringInProgress(true, osr_offset);
   function->SetInterruptBudget(isolate, CodeKind::MAGLEV);
 
   return {};
@@ -1330,7 +1320,13 @@ MaybeHandle<Code> GetOrCompileOptimized(
   // Clear the optimization marker on the function so that we don't try to
   // re-optimize.
   if (!IsOSR(osr_offset)) {
-    ResetTieringState(isolate, *function, osr_offset);
+    DCHECK_IMPLIES(code_kind == CodeKind::MAGLEV,
+                   !function->ActiveTierIsMaglev(isolate));
+    DCHECK_IMPLIES(code_kind == CodeKind::TURBOFAN_JS,
+                   !function->ActiveTierIsTurbofan(isolate));
+    function->ResetTieringRequests(isolate);
+    // Always reset the OSR urgency to ensure we reset it on function entry.
+    function->feedback_vector()->reset_osr_urgency();
     int invocation_count =
         function->feedback_vector()->invocation_count(kRelaxedLoad);
     if (!(V8_UNLIKELY(v8_flags.testing_d8_test_runner ||
@@ -1386,7 +1382,6 @@ MaybeHandle<Code> GetOrCompileOptimized(
       if (function->osr_tiering_in_progress()) {
         return {};
       }
-
       function->feedback_vector()->reset_osr_urgency();
     }
   }
@@ -1412,6 +1407,8 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
                                                  CodeKind code_kind) {
   // TODO(v8:7700): Support Maglev.
   if (code_kind == CodeKind::MAGLEV) return;
+
+  if (function->ActiveTierIsTurbofan(isolate)) return;
 
   DCHECK(v8_flags.stress_concurrent_inlining &&
          isolate->concurrent_recompilation_enabled() && IsSynchronous(mode) &&
@@ -2966,7 +2963,8 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   // We should never reach here if the function is already compiled or
   // optimized.
   DCHECK(!function->is_compiled(isolate));
-  DCHECK_IMPLIES(!IsNone(function->tiering_state()),
+  DCHECK_IMPLIES(function->has_feedback_vector() &&
+                     function->IsTieringRequestedOrInProgress(isolate),
                  function->shared()->is_compiled());
   DCHECK_IMPLIES(function->HasAvailableOptimizedCode(isolate),
                  function->shared()->is_compiled());
@@ -2994,6 +2992,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   // TODO(verwaest/mythria): Investigate if allocating feedback vector
   // immediately after a flush would be better.
   JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
+  function->ResetTieringRequests(isolate);
 
   // Optimize now if --always-turbofan is enabled.
 #if V8_ENABLE_WEBASSEMBLY
@@ -3103,7 +3102,7 @@ bool Compiler::CompileBaseline(Isolate* isolate,
 
   Tagged<Code> baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-  function->UpdateCode(baseline_code);
+  function->UpdateCodeKeepTieringRequests(baseline_code);
   return true;
 }
 
@@ -3145,10 +3144,23 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                                 code_kind);
   }
 
+#ifdef DEBUG
+  if (V8_ENABLE_LEAPTIERING_BOOL && mode == ConcurrencyMode::kConcurrent) {
+    DCHECK_IMPLIES(code_kind == CodeKind::MAGLEV,
+                   !function->ActiveTierIsMaglev(isolate));
+    DCHECK_IMPLIES(code_kind == CodeKind::TURBOFAN_JS,
+                   !function->ActiveTierIsTurbofan(isolate));
+  }
+  bool tiering_was_in_progress = function->tiering_in_progress();
+  DCHECK_IMPLIES(tiering_was_in_progress, mode != ConcurrencyMode::kConcurrent);
+#endif  // DEBUG
+
   Handle<Code> code;
   if (GetOrCompileOptimized(isolate, function, mode, code_kind)
           .ToHandle(&code)) {
     function->UpdateMaybeContextSpecializedCode(isolate, *code);
+    DCHECK_IMPLIES(v8_flags.log_function_events,
+                   function->IsLoggingRequested(isolate));
   } else {
 #ifdef V8_ENABLE_LEAPTIERING
     // We can get here from CompileLazy when we have requested optimized code
@@ -3165,11 +3177,14 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(!isolate->has_exception());
   DCHECK(function->is_compiled(isolate));
   DCHECK(function->shared()->HasBytecodeArray());
-  const TieringState tiering_state = function->tiering_state();
-  DCHECK(IsNone(tiering_state) || IsInProgress(tiering_state));
-  DCHECK_IMPLIES(IsInProgress(tiering_state),
+
+  DCHECK_IMPLIES(function->IsTieringRequestedOrInProgress(isolate) &&
+                     !function->IsLoggingRequested(isolate),
+                 function->tiering_in_progress());
+  DCHECK_IMPLIES(!tiering_was_in_progress && function->tiering_in_progress(),
                  function->ChecksTieringState(isolate));
-  DCHECK_IMPLIES(IsInProgress(tiering_state), IsConcurrent(mode));
+  DCHECK_IMPLIES(!tiering_was_in_progress && function->tiering_in_progress(),
+                 IsConcurrent(mode));
 #endif  // DEBUG
 }
 
@@ -4325,7 +4340,7 @@ MaybeHandle<Code> Compiler::CompileOptimizedOSR(Isolate* isolate,
 void Compiler::DisposeTurbofanCompilationJob(Isolate* isolate,
                                              TurbofanCompilationJob* job) {
   DirectHandle<JSFunction> function = job->compilation_info()->closure();
-  ResetTieringState(isolate, *function, job->compilation_info()->osr_offset());
+  function->SetTieringInProgress(false, job->compilation_info()->osr_offset());
 }
 
 // static
@@ -4361,7 +4376,8 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
       job->RecordFunctionCompilation(LogEventListener::CodeTag::kFunction,
                                      isolate);
       if (V8_LIKELY(use_result)) {
-        ResetTieringState(isolate, *function, osr_offset);
+        function->SetTieringInProgress(false,
+                                       job->compilation_info()->osr_offset());
         if (!V8_ENABLE_LEAPTIERING_BOOL || IsOSR(osr_offset)) {
           OptimizedCodeCache::Insert(
               isolate, *compilation_info->closure(),
@@ -4390,11 +4406,21 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
                                   job->prepare_in_ms(), job->execute_in_ms(),
                                   job->finalize_in_ms());
   if (V8_LIKELY(use_result)) {
-    ResetTieringState(isolate, *function, osr_offset);
+    function->SetTieringInProgress(false,
+                                   job->compilation_info()->osr_offset());
     if (!IsOSR(osr_offset)) {
       function->UpdateCode(shared->GetCode(isolate));
     }
   }
+}
+
+// static
+void Compiler::DisposeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
+                                           Isolate* isolate) {
+#ifdef V8_ENABLE_MAGLEV
+  DirectHandle<JSFunction> function = job->function();
+  function->SetTieringInProgress(false, job->osr_offset());
+#endif  // V8_ENABLE_MAGLEV
 }
 
 // static
@@ -4404,6 +4430,9 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
   VMState<COMPILER> state(isolate);
 
   DirectHandle<JSFunction> function = job->function();
+  BytecodeOffset osr_offset = job->osr_offset();
+  function->SetTieringInProgress(false, osr_offset);
+
   if (function->ActiveTierIsTurbofan(isolate) && !job->is_osr()) {
     CompilerTracer::TraceAbortedMaglevCompile(
         isolate, function, BailoutReason::kHigherTierAvailable);
@@ -4415,9 +4444,6 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
   // TODO(v8:7700): Use the result and check if job succeed
   // when all the bytecodes are implemented.
   USE(status);
-
-  BytecodeOffset osr_offset = job->osr_offset();
-  ResetTieringState(isolate, *function, osr_offset);
 
   if (status == CompilationJob::SUCCEEDED) {
     DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
@@ -4492,7 +4518,7 @@ void Compiler::PostInstantiation(Isolate* isolate,
         !function->HasAvailableOptimizedCode(isolate)) {
       CompilerTracer::TraceMarkForAlwaysOpt(isolate, function);
       JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
-      function->MarkForOptimization(isolate, CodeKind::TURBOFAN_JS,
+      function->RequestOptimization(isolate, CodeKind::TURBOFAN_JS,
                                     ConcurrencyMode::kSynchronous);
     }
   }

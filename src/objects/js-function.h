@@ -134,6 +134,10 @@ class JSFunction : public TorqueGeneratedJSFunction<
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void UpdateCode(
       Tagged<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER,
+      bool keep_tiering_request = false);
+  inline void UpdateCodeKeepTieringRequests(
+      Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Returns the raw content of the Code field. When reading from a background
@@ -160,10 +164,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline JSDispatchHandle dispatch_handle(AcquireLoadTag) const;
   inline void set_dispatch_handle(
       JSDispatchHandle handle,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  // Updates the Code in this function's dispatch table entry.
-  inline void UpdateDispatchEntry(
-      Tagged<Code> new_code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 #endif  // V8_ENABLE_LEAPTIERING
 
@@ -214,17 +214,44 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // kinds, e.g. TURBOFAN, ignore the tiering state).
   inline bool ChecksTieringState(IsolateForSandbox isolate);
 
+#ifndef V8_ENABLE_LEAPTIERING
   inline TieringState tiering_state() const;
-  inline void set_tiering_state(IsolateForSandbox isolate, TieringState state);
-  inline void reset_tiering_state();
+#endif  // !V8_ENABLE_LEAPTIERING
 
-  // Mark this function for lazy recompilation. The function will be recompiled
+  // Tiering up a function happens as follows:
+  // 1. RequestOptimization is called
+  //    -> From now on `IsOptimizationRequested` and also
+  //    `IsTieringRequestedOrInProgress` return true.
+  // 2. On the next function invocation the optimization is triggered. While the
+  //    optimization progresses in the background both
+  //    `IsTieringRequestedOrInProgress` and `tiering_in_progress` return
+  //    true. It also means the optimization is no longer requested (i.e.,
+  //    `IsOptimizationRequested` returns false).
+  // 3. Once the compilation job is finalized the functions code is installed
+  //    via `UpdateCode` and any remaining flags cleared by
+  //    `ResetTieringRequests`.
+  // NB: Osr tiering state is tracked separately from these.
+
+  // Mark this function for optimization. The function will be recompiled
   // the next time it is executed.
-  void MarkForOptimization(Isolate* isolate, CodeKind target_kind,
-                           ConcurrencyMode mode);
+  void RequestOptimization(Isolate* isolate, CodeKind target_kind,
+                           ConcurrencyMode mode = ConcurrencyMode::kConcurrent);
+
+  inline bool IsLoggingRequested(Isolate* isolate) const;
+  inline bool IsOptimizationRequested(Isolate* isolate) const;
+  V8_INLINE std::optional<CodeKind> GetRequestedOptimizationIfAny(
+      Isolate* isolate,
+      ConcurrencyMode mode = ConcurrencyMode::kConcurrent) const;
+
+  inline bool tiering_in_progress() const;
+  // NB: Tiering includes Optimization and Logging requests.
+  inline bool IsTieringRequestedOrInProgress(Isolate* isolate) const;
+
+  inline void SetTieringInProgress(
+      bool in_progress, BytecodeOffset osr_offset = BytecodeOffset::None());
+  inline void ResetTieringRequests(Isolate* isolate);
 
   inline bool osr_tiering_in_progress();
-  inline void set_osr_tiering_in_progress(bool osr_in_progress);
 
   // Sets the interrupt budget based on whether the function has a feedback
   // vector and any optimized code.
@@ -393,10 +420,31 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   class BodyDescriptor;
 
+  // Returns the set of code kinds of compilation artifacts (bytecode,
+  // generated code) attached to this JSFunction.
+  // Note that attached code objects that are marked_for_deoptimization are not
+  // included in this set.
+  // Also considers locations outside of this JSFunction. For example the
+  // optimized code cache slot in the feedback vector, and the shared function
+  // info.
+  CodeKinds GetAvailableCodeKinds(IsolateForSandbox isolate) const;
+
  private:
   // JSFunction doesn't have a fixed header size:
   // Hide TorqueGeneratedClass::kHeaderSize to avoid confusion.
   static const int kHeaderSize;
+
+#ifndef V8_ENABLE_LEAPTIERING
+  inline void set_tiering_state(IsolateForSandbox isolate, TieringState state);
+#endif  // !V8_ENABLE_LEAPTIERING
+
+  // Updates the Code in this function's dispatch table entry.
+  inline void UpdateDispatchEntry(
+      Tagged<Code> new_code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void UpdateDispatchEntryKeepTieringRequest(
+      Tagged<Code> new_code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Hide generated accessors; custom accessors are called "shared".
   DECL_ACCESSORS(shared_function_info, Tagged<SharedFunctionInfo>)
@@ -412,11 +460,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // adding a NOT_COMPILED kind and changing this function to simply return the
   // kind if this becomes more convenient in the future.
   CodeKinds GetAttachedCodeKinds(IsolateForSandbox isolate) const;
-
-  // As above, but also considers locations outside of this JSFunction. For
-  // example the optimized code cache slot in the feedback vector, and the
-  // shared function info.
-  CodeKinds GetAvailableCodeKinds(IsolateForSandbox isolate) const;
 
  public:
   static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
