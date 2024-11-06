@@ -3843,12 +3843,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
     wasm_module_for_inlining_ = wasm_module;
   }
 
-  // Bail out if we are not calling an actual Wasm function.
-  // TODO(375314963): Remove this again.
-  Tagged<TrustedObject> implicit_arg =
-      function_data->internal()->implicit_arg();
-  if (!IsWasmTrustedInstanceData(implicit_arg)) return NoChange();
-
   // TODO(mliedtke): We should be able to remove module, signature, native
   // module and function index from the SharedFunctionInfoRef. However, for some
   // reason I may dereference the SharedFunctionInfoRef here but not in
