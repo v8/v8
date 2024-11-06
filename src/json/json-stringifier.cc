@@ -1489,13 +1489,12 @@ bool JsonStringifier::SerializeStringUnchecked_(
 template <typename SrcChar, typename DestChar, bool raw_json>
 bool JsonStringifier::SerializeString_(Tagged<String> string,
                                        const DisallowGarbageCollection& no_gc) {
-  int length = string->length();
   bool required_escaping = false;
   if (!raw_json) Append<uint8_t, DestChar>('"');
   // We might be able to fit the whole escaped string in the current string
   // part, or we might need to allocate.
   base::Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
-  if V8_LIKELY (EscapedLengthIfCurrentPartFits(length)) {
+  if V8_LIKELY (EscapedLengthIfCurrentPartFits(vector.length())) {
     NoExtendBuilder<DestChar> no_extend(
         reinterpret_cast<DestChar*>(part_ptr_) + current_index_,
         &current_index_);
