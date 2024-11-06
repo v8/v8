@@ -49,7 +49,7 @@ crossbench_cbb_builder(
     "perf/crossbench_android",
     "Ubuntu-22.04",
     "x86-64",
-    properties = {"android_sdk": 33},
+    properties = {"android_sdk": 35},
 )
 crossbench_cbb_builder(
     "Crossbench Pytype Try",
