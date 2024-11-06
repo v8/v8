@@ -7124,6 +7124,7 @@ int MacroAssembler::CallCFunctionHelper(
               ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
   }
 
+  // Remove frame bought in PrepareCallCFunction
   int stack_passed_arguments =
       CalculateStackPassedDWords(num_reg_arguments, num_double_arguments);
   if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {

@@ -1277,7 +1277,7 @@ void Assembler::li_constant(Register rd, int32_t imm) {
 void Assembler::break_(uint32_t code, bool break_as_stop) {
   // We need to invalidate breaks that could be stops as well because the
   // simulator expects a char pointer after the stop instruction.
-  // See constants-mips.h for explanation.
+  // See base-constants-riscv.h for explanation.
   DCHECK(
       (break_as_stop && code <= kMaxStopCode && code > kMaxTracepointCode) ||
       (!break_as_stop && (code > kMaxStopCode || code <= kMaxTracepointCode)));

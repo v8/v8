@@ -971,6 +971,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchSetStackPointer: {
       DCHECK(instr->InputAt(0)->IsRegister());
+#ifdef V8_TARGET_ARCH_RISCV64
+      if (masm()->options().enable_simulator_code) {
+        __ RecordComment("-- Set simulator stack limit --");
+        __ LoadStackLimit(kSimulatorBreakArgument,
+                          StackLimitKind::kRealStackLimit);
+        __ break_(kExceptionIsSwitchStackLimit);
+      }
+#endif
       __ Move(sp, i.InputRegister(0));
       break;
     }

@@ -213,6 +213,9 @@ enum SoftwareInterruptCodes {
 //   debugger.
 const uint32_t kMaxTracepointCode = 63;
 const uint32_t kMaxWatchpointCode = 31;
+// Indicate that the stack is being switched, so the simulator must update its
+// stack limit. The new stack limit is passed in t6.
+const uint32_t kExceptionIsSwitchStackLimit = 128;
 const uint32_t kMaxStopCode = 127;
 static_assert(kMaxWatchpointCode < kMaxStopCode);
 static_assert(kMaxTracepointCode < kMaxStopCode);
