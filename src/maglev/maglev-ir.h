@@ -292,7 +292,7 @@ class ExceptionHandlerInfo;
   V(ConstantGapMove)          \
   V(GapMove)
 
-#define NODE_LIST(V)                          \
+#define NON_VALUE_NODE_LIST(V)                \
   V(AssertInt32)                              \
   V(CheckConstTrackingLetCell)                \
   V(CheckConstTrackingLetCellTagged)          \
@@ -350,7 +350,10 @@ class ExceptionHandlerInfo;
   V(TransitionElementsKind)                   \
   V(TransitionElementsKindOrCheckMap)         \
   V(SetContinuationPreservedEmbedderData)     \
-  GAP_MOVE_NODE_LIST(V)                       \
+  GAP_MOVE_NODE_LIST(V)
+
+#define NODE_LIST(V)     \
+  NON_VALUE_NODE_LIST(V) \
   VALUE_NODE_LIST(V)
 
 #define BRANCH_CONTROL_NODE_LIST(V) \
