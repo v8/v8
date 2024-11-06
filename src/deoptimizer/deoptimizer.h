@@ -193,7 +193,8 @@ class Deoptimizer : public Malloced {
   void DoComputeOutputFramesWasmImpl();
   FrameDescription* DoComputeWasmLiftoffFrame(
       TranslatedFrame& frame, wasm::NativeModule* native_module,
-      Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index);
+      Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index,
+      std::stack<intptr_t>& shadow_stack);
 
   void GetWasmStackSlotsCounts(const wasm::FunctionSig* sig,
                                int* parameter_stack_slots,

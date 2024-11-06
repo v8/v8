@@ -8777,12 +8777,17 @@ class LiftoffCompiler {
     }
   }
 
-  void StoreFrameDescriptionForDeopt(FullDecoder* decoder) {
+  void StoreFrameDescriptionForDeopt(
+      FullDecoder* decoder, uint32_t adapt_shadow_stack_pc_offset = 0) {
     DCHECK(v8_flags.wasm_deopt);
     DCHECK(!frame_description_);
+
     frame_description_ = std::make_unique<LiftoffFrameDescriptionForDeopt>(
         LiftoffFrameDescriptionForDeopt{
             decoder->pc_offset(), static_cast<uint32_t>(__ pc_offset()),
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+            adapt_shadow_stack_pc_offset,
+#endif  // V8_ENABLE_CET_SHADOW_STACK
             std::vector<LiftoffVarState>(__ cache_state()->stack_state.begin(),
                                          __ cache_state()->stack_state.end()),
             __ cache_state()->cached_instance_data});
@@ -8813,7 +8818,13 @@ class LiftoffCompiler {
     Label callref;
     __ emit_jump(&callref);
     __ bind(&deopt_point);
-    StoreFrameDescriptionForDeopt(decoder);
+    uint32_t adapt_shadow_stack_pc_offset = __ pc_offset();
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+    if (v8_flags.cet_compatible) {
+      __ CallBuiltin(Builtin::kAdaptShadowStackForDeopt);
+    }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+    StoreFrameDescriptionForDeopt(decoder, adapt_shadow_stack_pc_offset);
     CallBuiltin(Builtin::kWasmLiftoffDeoptFinish, MakeSig(), {},
                 kNoSourcePosition);
     __ MergeStackWith(initial_state, 0, LiftoffAssembler::kForwardJump);
@@ -9080,14 +9091,29 @@ class LiftoffCompiler {
 
   void FinishCall(FullDecoder* decoder, ValueKindSig* sig,
                   compiler::CallDescriptor* call_descriptor) {
+    DefineSafepoint();
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
     if (v8_flags.wasm_deopt &&
         env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
         env_->deopt_location_kind == LocationKindForDeopt::kInlinedCall) {
-      StoreFrameDescriptionForDeopt(decoder);
+      uint32_t adapt_shadow_stack_pc_offset = 0;
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+      if (v8_flags.cet_compatible) {
+        // AdaptShadowStackForDeopt is be called to build shadow stack after
+        // deoptimization. Deoptimizer will directly jump to
+        // `call AdaptShadowStackForDeopt`. But, in any other case, it should be
+        // ignored.
+        Label deopt_point;
+        __ emit_jump(&deopt_point);
+        adapt_shadow_stack_pc_offset = __ pc_offset();
+        __ CallBuiltin(Builtin::kAdaptShadowStackForDeopt);
+        __ bind(&deopt_point);
+      }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+      StoreFrameDescriptionForDeopt(decoder, adapt_shadow_stack_pc_offset);
     }
 
-    DefineSafepoint();
-    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     int pc_offset = __ pc_offset();
     MaybeOSR();
     EmitLandingPad(decoder, pc_offset);

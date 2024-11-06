@@ -2827,9 +2827,6 @@ DEFINE_BOOL(freeze_flags_after_init, true,
 #endif
 DEFINE_BOOL(cet_compatible, V8_CET_SHADOW_STACK_BOOL,
             "Generate Intel CET compatible code")
-#ifdef V8_ENABLE_WEBASSEMBLY
-DEFINE_NEG_IMPLICATION(cet_compatible, wasm_deopt)
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,

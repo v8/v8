@@ -942,7 +942,8 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
 
 FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
     TranslatedFrame& frame, wasm::NativeModule* native_module,
-    Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index) {
+    Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index,
+    std::stack<intptr_t>& shadow_stack) {
   // Given inlined frames where function a calls b, b is considered the topmost
   // because b is on top of the call stack! This is aligned with the names used
   // by the JS deopt.
@@ -1016,6 +1017,16 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   Address signed_pc = PointerAuthentication::SignAndCheckPC(
       isolate(), pc, output_frame->GetTop());
   output_frame->SetPc(signed_pc);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  if (v8_flags.cet_compatible) {
+    if (is_topmost) {
+      shadow_stack.push(pc);
+    } else {
+      shadow_stack.push(wasm_code->instruction_start() +
+                        liftoff_description->adapt_shadow_stack_pc_offset);
+    }
+  }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
   // Sign the previous frame's PC.
   if (is_bottommost) {
@@ -1357,11 +1368,24 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
           (2 + input_->parameter_count()) * kSystemPointerSize -
           WasmLiftoffFrameConstants::kInstanceDataOffset))));
 
+  std::stack<intptr_t> shadow_stack;
   for (int i = 0; i < output_count_; ++i) {
     TranslatedFrame& frame = translated_state_.frames()[i];
-    output_[i] = DoComputeWasmLiftoffFrame(frame, native_module,
-                                           wasm_trusted_instance, i);
+    output_[i] = DoComputeWasmLiftoffFrame(
+        frame, native_module, wasm_trusted_instance, i, shadow_stack);
   }
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  if (v8_flags.cet_compatible) {
+    CHECK_EQ(shadow_stack_count_, 0);
+    shadow_stack_ = new intptr_t[shadow_stack.size()];
+    while (!shadow_stack.empty()) {
+      shadow_stack_[shadow_stack_count_++] = shadow_stack.top();
+      shadow_stack.pop();
+    }
+    CHECK_EQ(shadow_stack_count_, output_count_);
+  }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
   {
     // Mark the cached feedback result produced by the
@@ -1611,7 +1635,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
   if (v8_flags.cet_compatible) {
-    DCHECK_EQ(shadow_stack_count_, 0);
+    CHECK_EQ(shadow_stack_count_, 0);
     shadow_stack_ = new intptr_t[count + 1];
 
     // We should jump to the continuation through AdaptShadowStack to avoid
