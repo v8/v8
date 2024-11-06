@@ -60,7 +60,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.170.0.08051991-gomaip',
+  'reclient_version': 're_client_version:0.171.0.1869ad5c-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:f0f43ce899b4da811f906ab3557c9b4b5418769b',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:f0f43ce899b4da811f906ab3557c9b4b5418769b',
+  'luci_go': 'git_revision:17620695ace472852acc003b74bf240c94a07cbc',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '439e6fc9a98ba1efd416fa9b0bd6a24fe451c663',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '05a9b0ba2cdb203ed0f38509df7574d546cfc80b',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c61bf9c942c84d2c42d4ce4fd5cf751fa36c7fd7',
   'buildtools/linux64': {
@@ -239,7 +239,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '3a454956bcb5a255d7d5def27af1ed3641e9e0bb',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '7df45d048eb77bab09e99c537192132d3d7077aa',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'bc7f9bfff573e59be4acee8f285e86550da039ef',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '03d405a15ff4935ce750b868d3c586578a586b2a',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -307,7 +307,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '8e31ad42561900383e10dbefc1d3e8f38cedfbe9',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '53f8886e48b9c53ebde7d8446c0dca00956e807e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'b1a4d63356fd5c4d54aa91bc24aafe9ca55cb3e4',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'c3b4ce8edddd6d99d90300fd2291d763dca6659c',
   'third_party/llvm-libc/src':
