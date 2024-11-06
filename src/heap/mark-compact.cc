@@ -5706,7 +5706,6 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
 
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* const jdt = GetProcessWideJSDispatchTable();
-  const EmbeddedData& embedded_data = EmbeddedData::FromBlob(heap_->isolate());
   jdt->IterateActiveEntriesIn(
       heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
         Address code_address = jdt->GetCodeAddress(handle);
@@ -5719,20 +5718,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         bool instruction_stream_was_relocated =
             code->instruction_start() != entrypoint_address;
         if (code_object_was_relocated || instruction_stream_was_relocated) {
-          Address old_entrypoint = jdt->GetEntrypoint(handle);
-          // Ensure tiering trampolines are not overwritten here.
-          Address new_entrypoint = ([&]() {
-#define CASE(name, ...)                                                       \
-  if (old_entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) { \
-    return old_entrypoint;                                                    \
-  }
-            BUILTIN_LIST_BASE_TIERING(CASE)
-#undef CASE
-            return code->instruction_start();
-          })();
-          jdt->SetCodeAndEntrypointNoWriteBarrier(handle, code, new_entrypoint);
-          CHECK_IMPLIES(jdt->IsTieringRequested(handle),
-                        old_entrypoint == new_entrypoint);
+          jdt->SetCodeNoWriteBarrier(handle, code);
         }
       });
 #endif  // V8_ENABLE_LEAPTIERING

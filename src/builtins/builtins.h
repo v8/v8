@@ -56,20 +56,6 @@ enum class Builtin : int32_t {
       FirstFromVarArgs(BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME) 0)
 #undef EXTRACT_NAME
 };
-enum class TieringBuiltin : int32_t {
-#define DEF_ENUM(Name, ...) k##Name = static_cast<int32_t>(Builtin::k##Name),
-  BUILTIN_LIST_BASE_TIERING(DEF_ENUM)
-#undef DEF_ENUM
-};
-V8_INLINE bool IsValidTieringBuiltin(TieringBuiltin builtin) {
-#define CASE(Name, ...)                     \
-  if (builtin == TieringBuiltin::k##Name) { \
-    return true;                            \
-  }
-  BUILTIN_LIST_BASE_TIERING(CASE)
-#undef CASE
-  return false;
-}
 
 V8_INLINE constexpr bool operator<(Builtin a, Builtin b) {
   using type = typename std::underlying_type<Builtin>::type;

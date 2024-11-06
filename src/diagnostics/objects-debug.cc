@@ -1290,15 +1290,6 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   if (feedback_cell_handle != kNullJSDispatchHandle) {
     CHECK(!jdt->GetCode(feedback_cell_handle)->is_context_specialized());
   }
-
-  // Verify the entrypoint corresponds to the code or a tiering builtin.
-  Address entrypoint = jdt->GetEntrypoint(handle);
-#define CASE(name, ...) \
-  entrypoint == BUILTIN_CODE(isolate, name)->instruction_start() ||
-  CHECK(BUILTIN_LIST_BASE_TIERING(CASE)
-            entrypoint == code_from_table->instruction_start());
-#undef CASE
-
 #endif  // V8_ENABLE_LEAPTIERING
 
   Handle<JSFunction> function(*this, isolate);

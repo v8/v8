@@ -9,7 +9,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/js-dispatch-table.h"
-#include "src/snapshot/embedded/embedded-data.h"
 
 #ifdef V8_ENABLE_SANDBOX
 
@@ -63,22 +62,6 @@ Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
 
 void JSDispatchTable::SetCodeNoWriteBarrier(JSDispatchHandle handle,
                                             Tagged<Code> new_code) {
-  SetCodeAndEntrypointNoWriteBarrier(handle, new_code,
-                                     new_code->instruction_start());
-}
-
-void JSDispatchTable::SetCodeKeepTieringRequestNoWriteBarrier(
-    JSDispatchHandle handle, Tagged<Code> new_code) {
-  if (IsTieringRequested(handle)) {
-    SetCodeAndEntrypointNoWriteBarrier(handle, new_code, GetEntrypoint(handle));
-  } else {
-    SetCodeAndEntrypointNoWriteBarrier(handle, new_code,
-                                       new_code->instruction_start());
-  }
-}
-
-void JSDispatchTable::SetCodeAndEntrypointNoWriteBarrier(
-    JSDispatchHandle handle, Tagged<Code> new_code, Address new_entrypoint) {
   SBXCHECK(IsCompatibleCode(new_code, GetParameterCount(handle)));
 
   // The object should be in old space to avoid creating old-to-new references.
@@ -86,47 +69,9 @@ void JSDispatchTable::SetCodeAndEntrypointNoWriteBarrier(
 
   uint32_t index = HandleToIndex(handle);
   DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  Address new_entrypoint = new_code->instruction_start();
   CFIMetadataWriteScope write_scope("JSDispatchTable update");
   at(index).SetCodeAndEntrypointPointer(new_code.ptr(), new_entrypoint);
-}
-
-void JSDispatchTable::SetTieringRequest(JSDispatchHandle handle,
-                                        TieringBuiltin builtin,
-                                        Isolate* isolate) {
-  DCHECK(IsValidTieringBuiltin(builtin));
-  uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
-  CFIMetadataWriteScope write_scope("JSDispatchTable update");
-  at(index).SetEntrypointPointer(
-      isolate->builtin_entry_table()[static_cast<uint32_t>(builtin)]);
-}
-
-bool JSDispatchTable::IsTieringRequested(JSDispatchHandle handle) {
-  uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
-  Address entrypoint = at(index).GetEntrypoint();
-  Address code_entrypoint = at(index).GetCode()->instruction_start();
-  return code_entrypoint != entrypoint;
-}
-
-bool JSDispatchTable::IsTieringRequested(JSDispatchHandle handle,
-                                         TieringBuiltin builtin,
-                                         Isolate* isolate) {
-  uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
-  Address entrypoint = at(index).GetEntrypoint();
-  Address code_entrypoint = at(index).GetCode()->instruction_start();
-  if (entrypoint == code_entrypoint) return false;
-  return entrypoint == EmbeddedData::FromBlob(isolate).InstructionStartOf(
-                           static_cast<Builtin>(builtin));
-}
-
-void JSDispatchTable::ResetTieringRequest(JSDispatchHandle handle,
-                                          Isolate* isolate) {
-  uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
-  CFIMetadataWriteScope write_scope("JSDispatchTable update");
-  at(index).SetEntrypointPointer(at(index).GetCode()->instruction_start());
 }
 
 JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
@@ -162,10 +107,6 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
   Address object = (new_object << kObjectPointerShift) & ~kMarkingBit;
   Address new_payload = object | marking_bit | parameter_count;
   encoded_word_.store(new_payload, std::memory_order_relaxed);
-  entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
-}
-
-void JSDispatchEntry::SetEntrypointPointer(Address new_entrypoint) {
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
 }
 

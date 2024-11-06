@@ -216,10 +216,9 @@ class FeedbackVector
   NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_OSR_STATE()
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
-
-#ifndef V8_ENABLE_LEAPTIERING
   static_assert(TieringStateBits::is_valid(TieringState::kLastTieringState));
 
+#ifndef V8_ENABLE_LEAPTIERING
   static constexpr uint32_t kFlagsMaybeHasTurbofanCode =
       FeedbackVector::MaybeHasTurbofanCodeBit::kMask;
   static constexpr uint32_t kFlagsMaybeHasMaglevCode =
@@ -227,6 +226,7 @@ class FeedbackVector
   static constexpr uint32_t kFlagsHasAnyOptimizedCode =
       FeedbackVector::MaybeHasMaglevCodeBit::kMask |
       FeedbackVector::MaybeHasTurbofanCodeBit::kMask;
+#endif  // !V8_ENABLE_LEAPTIERING
   static constexpr uint32_t kFlagsTieringStateIsAnyRequested =
       kNoneOrInProgressMask << FeedbackVector::TieringStateBits::kShift;
   static constexpr uint32_t kFlagsLogNextExecution =
@@ -234,7 +234,6 @@ class FeedbackVector
 
   static constexpr inline uint32_t FlagMaskForNeedsProcessingCheckFrom(
       CodeKind code_kind);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   inline bool is_empty() const;
 
@@ -276,10 +275,10 @@ class FeedbackVector
   // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
   inline void reset_osr_state();
 
-#ifndef V8_ENABLE_LEAPTIERING
   inline bool log_next_execution() const;
   inline void set_log_next_execution(bool value = true);
 
+#ifndef V8_ENABLE_LEAPTIERING
   inline Tagged<Code> optimized_code(IsolateForSandbox isolate) const;
   // Whether maybe_optimized_code contains a cached Code object.
   inline bool has_optimized_code() const;
@@ -305,14 +304,9 @@ class FeedbackVector
   void SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                            Tagged<Code> code);
 
-#ifdef V8_ENABLE_LEAPTIERING
-  inline bool tiering_in_progress() const;
-  void set_tiering_in_progress(bool);
-#else
   inline TieringState tiering_state() const;
-  V8_EXPORT_PRIVATE void set_tiering_state(TieringState state);
-  inline void reset_tiering_state();
-#endif  // !V8_ENABLE_LEAPTIERING
+  void set_tiering_state(TieringState state);
+  void reset_tiering_state();
 
   bool osr_tiering_in_progress();
   void set_osr_tiering_in_progress(bool osr_in_progress);

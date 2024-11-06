@@ -10,7 +10,6 @@
 #include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
-#include "src/runtime/runtime.h"
 #include "src/sandbox/external-entity-table.h"
 
 #ifdef V8_ENABLE_SANDBOX
@@ -21,7 +20,6 @@ namespace internal {
 class Isolate;
 class Counters;
 class Code;
-enum class TieringBuiltin;
 
 /**
  * The entries of a JSDispatchTable.
@@ -46,7 +44,6 @@ struct JSDispatchEntry {
 
   inline void SetCodeAndEntrypointPointer(Address new_object,
                                           Address new_entrypoint);
-  inline void SetEntrypointPointer(Address new_entrypoint);
 
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
@@ -171,19 +168,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   inline void SetCodeNoWriteBarrier(JSDispatchHandle handle,
                                     Tagged<Code> new_code);
 
-  // Execute a tiering builtin instead of the actual code. Leaves the Code
-  // pointer untouched and changes only the entrypoint.
-  inline void SetTieringRequest(JSDispatchHandle handle, TieringBuiltin builtin,
-                                Isolate* isolate);
-  inline void SetCodeKeepTieringRequestNoWriteBarrier(JSDispatchHandle handle,
-                                                      Tagged<Code> new_code);
-  // Resets the entrypoint to the code's entrypoint.
-  inline void ResetTieringRequest(JSDispatchHandle handle, Isolate* isolate);
-  // Check if and/or which tiering builtin is installed.
-  inline bool IsTieringRequested(JSDispatchHandle handle);
-  inline bool IsTieringRequested(JSDispatchHandle handle,
-                                 TieringBuiltin builtin, Isolate* isolate);
-
   // Allocates a new entry in the table and initialize it.
   //
   // This method is atomic and can be called from background threads.
@@ -256,8 +240,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 #endif  // DEBUG
 
   void PrintEntry(JSDispatchHandle handle);
-  void PrintCurrentTieringRequest(JSDispatchHandle handle, Isolate* isolate,
-                                  std::ostream& os);
 
   static constexpr bool kWriteBarrierSetsEntryMarkBit = true;
 
@@ -276,10 +258,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   static inline bool IsCompatibleCode(Tagged<Code> code,
                                       uint16_t parameter_count);
 
-  inline void SetCodeAndEntrypointNoWriteBarrier(JSDispatchHandle handle,
-                                                 Tagged<Code> new_code,
-                                                 Address entrypoint);
-
   static base::LeakyObject<JSDispatchTable> instance_;
   static JSDispatchTable* instance_nocheck() { return instance_.get(); }
 
@@ -293,8 +271,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
     DCHECK_EQ(index, handle >> kJSDispatchHandleShift);
     return handle;
   }
-
-  friend class MarkCompactCollector;
 };
 
 static_assert(sizeof(JSDispatchTable) == JSDispatchTable::kSize);
