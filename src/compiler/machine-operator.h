@@ -131,7 +131,6 @@ enum class LoadTransformation {
   kS256Load64Splat,
   kS256Load8x16S,
   kS256Load8x16U,
-  kS256Load8x8U,
   kS256Load16x8S,
   kS256Load16x8U,
   kS256Load32x4S,

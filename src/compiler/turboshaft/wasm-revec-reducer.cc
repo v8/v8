@@ -370,97 +370,6 @@ ShufflePackNode* SLPTree::NewShufflePackNode(
   return pnode;
 }
 
-ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
-    const NodeGroup& node_group, const uint8_t* shuffle0,
-    const uint8_t* shuffle1) {
-  uint8_t shuffle_copy0[kSimd128Size];
-  uint8_t shuffle_copy1[kSimd128Size];
-
-  V<Simd128> op_idx0 = node_group[0];
-  V<Simd128> op_idx1 = node_group[1];
-  const Simd128ShuffleOp& op0 = graph_.Get(op_idx0).Cast<Simd128ShuffleOp>();
-  const Simd128ShuffleOp& op1 = graph_.Get(op_idx1).Cast<Simd128ShuffleOp>();
-
-  if (op0.left() == op0.right() || op1.left() == op1.right()) {
-    // Here shuffle couldn't be swizzle
-    return nullptr;
-  }
-
-  CopyChars(shuffle_copy0, shuffle0, kSimd128Size);
-  CopyChars(shuffle_copy1, shuffle1, kSimd128Size);
-
-  bool need_swap, is_swizzle;
-
-#define CANONICALIZE_SHUFFLE(n)                                                \
-  wasm::SimdShuffle::CanonicalizeShuffle(false, shuffle_copy##n, &need_swap,   \
-                                         &is_swizzle);                         \
-  if (is_swizzle) {                                                            \
-    /* Here shuffle couldn't be swizzle*/                                      \
-    return nullptr;                                                            \
-  }                                                                            \
-  V<Simd128> shuffle##n##_left_idx = need_swap ? op##n.right() : op##n.left(); \
-  V<Simd128> shuffle##n##_right_idx = need_swap ? op##n.left() : op##n.right();
-
-  CANONICALIZE_SHUFFLE(0);
-  CANONICALIZE_SHUFFLE(1);
-
-#undef CANONICALIZE_SHUFFLE
-  if (shuffle0_left_idx != shuffle1_left_idx) {
-    // Not the same left
-    return nullptr;
-  }
-
-  const Simd128LoadTransformOp* load_transform =
-      graph_.Get(shuffle0_left_idx).TryCast<Simd128LoadTransformOp>();
-
-  if (!load_transform) {
-    // shuffle left is not Simd128LoadTransformOp
-    return nullptr;
-  }
-
-  Simd128ConstantOp* shuffle0_const =
-      graph_.Get(shuffle0_right_idx).TryCast<Simd128ConstantOp>();
-  Simd128ConstantOp* shuffle1_const =
-      graph_.Get(shuffle1_right_idx).TryCast<Simd128ConstantOp>();
-
-  if (!shuffle0_const || !shuffle1_const || !shuffle0_const->IsZero() ||
-      !shuffle1_const->IsZero()) {
-    // Shuffle right is not zero
-    return nullptr;
-  }
-
-  if (load_transform->transform_kind ==
-      Simd128LoadTransformOp::TransformKind::k64Zero) {
-    /*
-      should look like this:
-      shuffle0 = 0,x,x,x,  1,x,x,x  2,x,x,x  3,x,x,x
-      shuffle1 = 4,x,x,x,  5,x,x,x  6,x,x,x  7,x,x,x
-      x >= 16
-    */
-
-    for (int i = 0; i < kSimd128Size / 4; ++i) {
-      if (shuffle_copy0[i * 4] != i || shuffle_copy1[i * 4] != i + 4) {
-        // not match
-        return nullptr;
-      }
-
-      if (shuffle_copy0[i * 4 + 1] < kSimd128Size ||
-          shuffle_copy0[i * 4 + 2] < kSimd128Size ||
-          shuffle_copy0[i * 4 + 3] < kSimd128Size ||
-          shuffle_copy1[i * 4 + 1] < kSimd128Size ||
-          shuffle_copy1[i * 4 + 2] < kSimd128Size ||
-          shuffle_copy1[i * 4 + 3] < kSimd128Size) {
-        // not match
-        return nullptr;
-      }
-    }
-    TRACE("match load extend 8x8->32x8\n");
-    return NewShufflePackNode(
-        node_group, ShufflePackNode::SpecificInfo::Kind::kS256Load8x8U);
-  }
-  return nullptr;
-}
-
 #ifdef V8_TARGET_ARCH_X64
 ShufflePackNode* SLPTree::X64TryMatch256Shuffle(const NodeGroup& node_group,
                                                 const uint8_t* shuffle0,
@@ -1162,7 +1071,9 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
         return nullptr;
 
       } else {
-        return Try256ShuffleMatchLoad8x8U(node_group, shuffle0, shuffle1);
+        // TODO(v8:12716): support pattern
+        // (128loadzero64+shuffle)x2 -> s256load8x8u
+        return nullptr;
       }
     }
 

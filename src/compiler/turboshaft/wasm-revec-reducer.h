@@ -280,7 +280,6 @@ class ShufflePackNode : public PackNode {
     enum class Kind {
       kS256Load32Transform,
       kS256Load64Transform,
-      kS256Load8x8U,
 #ifdef V8_TARGET_ARCH_X64
       kShufd,
       kShufps,
@@ -436,17 +435,6 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 
   ShufflePackNode* NewShufflePackNode(const NodeGroup& node_group,
                                       ShufflePackNode::SpecificInfo::Kind kind);
-
-  // Try match the following pattern:
-  //   1. simd128_load64zero(memargs)
-  //   2. simd128_const[0,0,0,0]
-  //   3. simd128_shuffle(1, 2, shuffle_arg0)
-  //   4. simd128_shuffle(1, 2, shuffle_arg1)
-  // To:
-  //   1. simd256_load8x8u(memargs)
-  ShufflePackNode* Try256ShuffleMatchLoad8x8U(const NodeGroup& node_group,
-                                              const uint8_t* shuffle0,
-                                              const uint8_t* shuffle1);
 
 #ifdef V8_TARGET_ARCH_X64
   // The Simd Shuffle in wasm is a high level representation, and it can map to
@@ -925,33 +913,6 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
                       : Simd256LoadTransformOp::TransformKind::k64Splat;
             og_index = __ Simd256LoadTransform(base, index, load.kind,
                                                transform_kind, 0);
-            pnode->SetRevectorizedNode(og_index);
-            break;
-          }
-          case ShufflePackNode::SpecificInfo::Kind::kS256Load8x8U: {
-            const Simd128ShuffleOp& op0 =
-                __ input_graph()
-                    .Get(pnode -> nodes()[0])
-                    .template Cast<Simd128ShuffleOp>();
-
-            V<Simd128> load_transform_idx =
-                __ input_graph()
-                        .Get(op0.left())
-                        .template Is<Simd128LoadTransformOp>()
-                    ? op0.left()
-                    : op0.right();
-            const Simd128LoadTransformOp& load_transform =
-                __ input_graph()
-                    .Get(load_transform_idx)
-                    .template Cast<Simd128LoadTransformOp>();
-            DCHECK_EQ(load_transform.transform_kind,
-                      Simd128LoadTransformOp::TransformKind::k64Zero);
-            V<WordPtr> base = __ MapToNewGraph(load_transform.base());
-            V<WordPtr> index = __ MapToNewGraph(load_transform.index());
-            og_index = __ Simd256LoadTransform(
-                base, index, load_transform.load_kind,
-                Simd256LoadTransformOp::TransformKind::k8x8U,
-                load_transform.offset);
             pnode->SetRevectorizedNode(og_index);
             break;
           }

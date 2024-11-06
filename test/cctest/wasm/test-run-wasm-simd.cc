@@ -5329,64 +5329,6 @@ TEST(RunWasmTurbofan_I8x32ShuffleS32x8UnpackHigh) {
   }
 }
 
-TEST(RunWasmTurbofan_ShuffleToS256Load8x8U) {
-  SKIP_TEST_IF_NO_TURBOSHAFT;
-  EXPERIMENTAL_FLAG_SCOPE(revectorize);
-  WasmRunner<int8_t> r(TestExecutionTier::kTurbofan);
-  int8_t* memory = r.builder().AddMemoryElems<int8_t>(40);
-
-  constexpr std::array<int8_t, 16> shuffle0 = {16, 1, 2,  3,  17, 5,  6,  7,
-                                               18, 9, 10, 11, 19, 13, 14, 15};
-  constexpr std::array<int8_t, 16> shuffle1 = {4, 17, 18, 19, 5, 21, 22, 23,
-                                               6, 25, 26, 27, 7, 29, 30, 31};
-  uint8_t temp1 = r.AllocateLocal(kWasmS128);
-  std::array<uint8_t, kSimd128Size> all_zero = {0};
-
-  {
-    auto verify_s256load8x8u = [](const compiler::turboshaft::Graph& graph) {
-      for (const compiler::turboshaft::Operation& op : graph.AllOperations()) {
-        if (const compiler::turboshaft::Simd256LoadTransformOp* load_op =
-                op.TryCast<compiler::turboshaft::Simd256LoadTransformOp>()) {
-          if (load_op->transform_kind ==
-              compiler::turboshaft::Simd256LoadTransformOp::TransformKind::
-                  k8x8U) {
-            return true;
-          }
-        }
-      }
-      return false;
-    };
-
-    TSSimd256VerifyScope ts_scope(r.zone(), verify_s256load8x8u);
-    r.Build({WASM_LOCAL_SET(temp1,
-                            WASM_SIMD_LOAD_OP(kExprS128Load64Zero, WASM_ZERO)),
-             WASM_SIMD_STORE_MEM_OFFSET(
-                 8, WASM_ZERO,
-                 WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle0,
-                                            WASM_SIMD_CONSTANT(all_zero),
-                                            WASM_LOCAL_GET(temp1))),
-             WASM_SIMD_STORE_MEM_OFFSET(
-                 24, WASM_ZERO,
-                 WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle1,
-                                            WASM_LOCAL_GET(temp1),
-                                            WASM_SIMD_CONSTANT(all_zero))),
-             WASM_ONE});
-  }
-  std::pair<std::vector<int8_t>, std::vector<int32_t>> test_case = {
-      {0, 1, 2, 3, 4, 5, 6, -1}, {0, 1, 2, 3, 4, 5, 6, 255}};
-  auto input = test_case.first;
-  auto expected_output = test_case.second;
-  for (int i = 0; i < 8; ++i) {
-    r.builder().WriteMemory(&memory[i], input[i]);
-  }
-  r.Call();
-  int32_t* memory_int32_t = reinterpret_cast<int32_t*>(memory);
-  for (int i = 0; i < 8; ++i) {
-    CHECK_EQ(expected_output[i],
-             r.builder().ReadMemory(&memory_int32_t[i + 2]));
-  }
-}
-
 template <typename T>
 void RunLoadSplatRevecTest(WasmOpcode op, WasmOpcode bin_op,
                            compiler::IrOpcode::Value revec_opcode,

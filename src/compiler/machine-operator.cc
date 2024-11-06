@@ -141,8 +141,6 @@ std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
       return os << "kS256Load8x16S";
     case LoadTransformation::kS256Load8x16U:
       return os << "kS256Load8x16U";
-    case LoadTransformation::kS256Load8x8U:
-      return os << "kS256Load8x8U";
     case LoadTransformation::kS256Load16x8S:
       return os << "kS256Load16x8S";
     case LoadTransformation::kS256Load16x8U:
