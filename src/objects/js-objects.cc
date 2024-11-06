@@ -2905,44 +2905,33 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
 
     default: {
       Tagged<Map> map_of_this = map();
-      Heap* heap = GetHeap();
       Tagged<Object> constructor = map_of_this->GetConstructor();
       bool printed = false;
-      if (IsHeapObject(constructor) &&
-          !heap->Contains(Cast<HeapObject>(constructor))) {
-        accumulator->Add("!!!INVALID CONSTRUCTOR!!!");
-      } else {
-        bool is_global_proxy = IsJSGlobalProxy(*this);
-        if (IsJSFunction(constructor)) {
-          Tagged<SharedFunctionInfo> sfi =
-              Cast<JSFunction>(constructor)->shared();
-          if (!HeapLayout::InReadOnlySpace(sfi) && !heap->Contains(sfi)) {
-            accumulator->Add("!!!INVALID SHARED ON CONSTRUCTOR!!!");
-          } else {
-            Tagged<String> constructor_name = sfi->Name();
-            if (constructor_name->length() > 0) {
-              accumulator->Add(is_global_proxy ? "<GlobalObject " : "<");
-              accumulator->Put(constructor_name);
-              accumulator->Add(
-                  " %smap = %p",
-                  map_of_this->is_deprecated() ? "deprecated-" : "",
-                  map_of_this);
-              printed = true;
-            }
-          }
-        } else if (IsFunctionTemplateInfo(constructor)) {
-          accumulator->Add("<RemoteObject>");
+      bool is_global_proxy = IsJSGlobalProxy(*this);
+      if (IsJSFunction(constructor)) {
+        Tagged<SharedFunctionInfo> sfi =
+            Cast<JSFunction>(constructor)->shared();
+        Tagged<String> constructor_name = sfi->Name();
+        if (constructor_name->length() > 0) {
+          accumulator->Add(is_global_proxy ? "<GlobalObject " : "<");
+          accumulator->Put(constructor_name);
+          accumulator->Add(" %smap = %p",
+                           map_of_this->is_deprecated() ? "deprecated-" : "",
+                           map_of_this);
           printed = true;
         }
-        if (!printed) {
-          accumulator->Add("<JS");
-          if (is_global_proxy) {
-            accumulator->Add("GlobalProxy");
-          } else if (IsJSGlobalObject(*this)) {
-            accumulator->Add("GlobalObject");
-          } else {
-            accumulator->Add("Object");
-          }
+      } else if (IsFunctionTemplateInfo(constructor)) {
+        accumulator->Add("<RemoteObject>");
+        printed = true;
+      }
+      if (!printed) {
+        accumulator->Add("<JS");
+        if (is_global_proxy) {
+          accumulator->Add("GlobalProxy");
+        } else if (IsJSGlobalObject(*this)) {
+          accumulator->Add("GlobalObject");
+        } else {
+          accumulator->Add("Object");
         }
       }
       if (IsJSPrimitiveWrapper(*this)) {
