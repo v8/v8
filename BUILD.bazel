@@ -2313,6 +2313,8 @@ filegroup(
         "src/regexp/regexp-nodes.h",
         "src/regexp/regexp-parser.cc",
         "src/regexp/regexp-parser.h",
+        "src/regexp/regexp-result-vector.cc",
+        "src/regexp/regexp-result-vector.h",
         "src/regexp/regexp-stack.cc",
         "src/regexp/regexp-stack.h",
         "src/regexp/regexp-utils.cc",

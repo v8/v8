@@ -437,9 +437,9 @@ Handle<Object> RegExpImpl::AtomExec(Isolate* isolate,
                                     DirectHandle<AtomRegExpData> re_data,
                                     Handle<String> subject, int index,
                                     Handle<RegExpMatchInfo> last_match_info) {
-  static_assert(JSRegExp::kAtomRegisterCount <=
-                Isolate::kJSRegexpStaticOffsetsVectorSize);
-  int32_t* output_registers = isolate->jsregexp_static_offsets_vector();
+  RegExpResultVectorScope result_vector_scope(isolate,
+                                              JSRegExp::kAtomRegisterCount);
+  int32_t* output_registers = result_vector_scope.value();
 
   int res = AtomExecRaw(isolate, re_data, subject, index, output_registers,
                         JSRegExp::kAtomRegisterCount);
@@ -766,14 +766,8 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
     return MaybeHandle<Object>();
   }
 
-  int32_t* output_registers = nullptr;
-  if (required_registers > Isolate::kJSRegexpStaticOffsetsVectorSize) {
-    output_registers = NewArray<int32_t>(required_registers);
-  }
-  std::unique_ptr<int32_t[]> auto_release(output_registers);
-  if (output_registers == nullptr) {
-    output_registers = isolate->jsregexp_static_offsets_vector();
-  }
+  RegExpResultVectorScope result_vector_scope(isolate, required_registers);
+  int32_t* output_registers = result_vector_scope.value();
 
   int res =
       RegExpImpl::IrregexpExecRaw(isolate, regexp_data, subject, previous_index,
@@ -1051,7 +1045,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
 RegExpGlobalCache::RegExpGlobalCache(Handle<RegExpData> regexp_data,
                                      Handle<String> subject, Isolate* isolate)
-    : register_array_(nullptr),
+    : result_vector_scope_(isolate),
+      register_array_(nullptr),
       register_array_size_(0),
       regexp_data_(regexp_data),
       subject_(subject),
@@ -1101,11 +1096,9 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<RegExpData> regexp_data,
 
   max_matches_ = register_array_size_ / registers_per_match_;
 
-  if (register_array_size_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
-    register_array_ = NewArray<int32_t>(register_array_size_);
-  } else {
-    register_array_ = isolate->jsregexp_static_offsets_vector();
-  }
+  // Cache the result vector location.
+
+  register_array_ = result_vector_scope_.Initialize(register_array_size_);
 
   // Set state so that fetching the results the first time triggers a call
   // to the compiled regexp.
@@ -1117,14 +1110,6 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<RegExpData> regexp_data,
       &register_array_[current_match_index_ * registers_per_match_];
   last_match[0] = -1;
   last_match[1] = 0;
-}
-
-RegExpGlobalCache::~RegExpGlobalCache() {
-  // Deallocate the register array if we allocated it in the constructor
-  // (as opposed to using the existing jsregexp_static_offsets_vector).
-  if (register_array_size_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
-    DeleteArray(register_array_);
-  }
 }
 
 int RegExpGlobalCache::AdvanceZeroLength(int last_index) {

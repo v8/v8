@@ -11,6 +11,7 @@
 #include "src/regexp/experimental/experimental-compiler.h"
 #include "src/regexp/experimental/experimental-interpreter.h"
 #include "src/regexp/regexp-parser.h"
+#include "src/regexp/regexp-result-vector.h"
 #include "src/utils/ostreams.h"
 
 namespace v8::internal {
@@ -236,14 +237,8 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
   int capture_count = regexp_data->capture_count();
   int output_register_count = JSRegExp::RegistersForCaptureCount(capture_count);
 
-  int32_t* output_registers;
-  std::unique_ptr<int32_t[]> output_registers_release;
-  if (output_register_count <= Isolate::kJSRegexpStaticOffsetsVectorSize) {
-    output_registers = isolate->jsregexp_static_offsets_vector();
-  } else {
-    output_registers = NewArray<int32_t>(output_register_count);
-    output_registers_release.reset(output_registers);
-  }
+  RegExpResultVectorScope result_vector_scope(isolate, output_register_count);
+  int32_t* output_registers = result_vector_scope.value();
 
   do {
     int num_matches =
@@ -305,14 +300,8 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
   int capture_count = regexp_data->capture_count();
   int output_register_count = JSRegExp::RegistersForCaptureCount(capture_count);
 
-  int32_t* output_registers;
-  std::unique_ptr<int32_t[]> output_registers_release;
-  if (output_register_count <= Isolate::kJSRegexpStaticOffsetsVectorSize) {
-    output_registers = isolate->jsregexp_static_offsets_vector();
-  } else {
-    output_registers = NewArray<int32_t>(output_register_count);
-    output_registers_release.reset(output_registers);
-  }
+  RegExpResultVectorScope result_vector_scope(isolate, output_register_count);
+  int32_t* output_registers = result_vector_scope.value();
 
   do {
     int num_matches =

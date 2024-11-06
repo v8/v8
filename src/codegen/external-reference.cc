@@ -1083,10 +1083,11 @@ ExternalReference ExternalReference::re_word_character_map() {
       NativeRegExpMacroAssembler::word_character_map_address());
 }
 
-ExternalReference ExternalReference::address_of_static_offsets_vector(
+ExternalReference
+ExternalReference::address_of_regexp_static_result_offsets_vector(
     Isolate* isolate) {
   return ExternalReference(
-      reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector()));
+      isolate->address_of_regexp_static_result_offsets_vector());
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_limit_address(

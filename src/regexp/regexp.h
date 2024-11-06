@@ -9,6 +9,7 @@
 #include "src/handles/handles.h"
 #include "src/regexp/regexp-error.h"
 #include "src/regexp/regexp-flags.h"
+#include "src/regexp/regexp-result-vector.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -182,8 +183,6 @@ class RegExpGlobalCache final {
   RegExpGlobalCache(Handle<RegExpData> regexp_data, Handle<String> subject,
                     Isolate* isolate);
 
-  ~RegExpGlobalCache();
-
   // Fetch the next entry in the cache for global regexp match results.
   // This does not set the last match info.  Upon failure, nullptr is
   // returned. The cause can be checked with Result().  The previous result is
@@ -197,6 +196,7 @@ class RegExpGlobalCache final {
  private:
   int AdvanceZeroLength(int last_index);
 
+  RegExpResultVectorScope result_vector_scope_;
   int num_matches_;
   int max_matches_;
   int current_match_index_;
