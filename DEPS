@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '05a9b0ba2cdb203ed0f38509df7574d546cfc80b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd98d17451d93c55c71252b959575f09ad09e0883',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c61bf9c942c84d2c42d4ce4fd5cf751fa36c7fd7',
   'buildtools/linux64': {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'ddc0647304a8ed854b2d84117f095a5f73571d37',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'abed22499d36aa35b3a5c829a88316b0c8280d74',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '7df45d048eb77bab09e99c537192132d3d7077aa',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '31beb497fcf8b1fce1c00dff3baed7ee4361055b',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -513,7 +513,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '78991980f5e06fae378e8cb5f3228cf8c3bb1df3',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '1ffd70268e0ecf41b5aa64e62e4ba10e28a589a5',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
