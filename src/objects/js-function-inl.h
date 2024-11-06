@@ -140,7 +140,8 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode,
   if (!keep_tiering_request) {
     DCHECK_IMPLIES(IsOptimizationRequested(GetIsolate()) &&
                        !shared()->HasBreakInfo(GetIsolate()) &&
-                       !GetIsolate()->debug()->needs_check_on_function_call(),
+                       !GetIsolate()->debug()->needs_check_on_function_call() &&
+                       !v8_flags.stress_maglev,
                    value->kind() >= CodeKind::MAGLEV);
   }
   bool has_context_specialized_dispatch_entry =

@@ -204,31 +204,59 @@ TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
 
 #ifdef V8_ENABLE_LEAPTIERING
 
-TF_BUILTIN(FunctionLogNextExecution, LazyBuiltinsAssembler) {
+void LazyBuiltinsAssembler::TieringBuiltinThenCallFunction(
+    Runtime::FunctionId function_id) {
+  auto dispatch_handle =
+      UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
-  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution, function);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+
+  // Apply the tiering runtime function. This function must update the function
+  // uninstalling the tiering builtin.
+  CallRuntime(function_id, context, function);
+
+  // Ensure if the dispatch handle changed that it still has the same number of
+  // arguments.
+  TNode<JSDispatchHandleT> new_dispatch_handle =
+      LoadObjectField<JSDispatchHandleT>(function,
+                                         JSFunction::kDispatchHandleOffset);
+
+  Label same_handle(this);
+  GotoIf(Word32Equal(dispatch_handle, new_dispatch_handle), &same_handle);
+  CSA_SBXCHECK(
+      this,
+      Word32Equal(LoadParameterCountFromJSDispatchTable(dispatch_handle),
+                  LoadParameterCountFromJSDispatchTable(new_dispatch_handle)));
+  Goto(&same_handle);
+  BIND(&same_handle);
+
+  // Load the code directly from the dispatch table to guarantee the signature
+  // of the code matches with the number of arguments passed when calling into
+  // this trampoline.
+  TNode<Code> code = LoadCodeObjectFromJSDispatchTable(new_dispatch_handle);
+  TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
+}
+
+TF_BUILTIN(FunctionLogNextExecution, LazyBuiltinsAssembler) {
+  TieringBuiltinThenCallFunction(Runtime::kFunctionLogNextExecution);
 }
 
 TF_BUILTIN(StartMaglevOptimizationJob, LazyBuiltinsAssembler) {
-  auto function = Parameter<JSFunction>(Descriptor::kTarget);
-  GenerateTailCallToReturnedCode(Runtime::kStartMaglevOptimizationJob,
-                                 function);
+  TieringBuiltinThenCallFunction(Runtime::kStartMaglevOptimizationJob);
 }
 
 TF_BUILTIN(StartTurbofanOptimizationJob, LazyBuiltinsAssembler) {
-  auto function = Parameter<JSFunction>(Descriptor::kTarget);
-  GenerateTailCallToReturnedCode(Runtime::kStartTurbofanOptimizationJob,
-                                 function);
+  TieringBuiltinThenCallFunction(Runtime::kStartTurbofanOptimizationJob);
 }
 
 TF_BUILTIN(OptimizeMaglevEager, LazyBuiltinsAssembler) {
-  auto function = Parameter<JSFunction>(Descriptor::kTarget);
-  GenerateTailCallToReturnedCode(Runtime::kOptimizeMaglevEager, function);
+  TieringBuiltinThenCallFunction(Runtime::kOptimizeMaglevEager);
 }
 
 TF_BUILTIN(OptimizeTurbofanEager, LazyBuiltinsAssembler) {
-  auto function = Parameter<JSFunction>(Descriptor::kTarget);
-  GenerateTailCallToReturnedCode(Runtime::kOptimizeTurbofanEager, function);
+  TieringBuiltinThenCallFunction(Runtime::kOptimizeTurbofanEager);
 }
 
 #endif  // !V8_ENABLE_LEAPTIERING

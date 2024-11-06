@@ -24,7 +24,11 @@ namespace {
 void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   DCHECK(v8_flags.log_function_events);
   if (!function->has_feedback_vector()) return;
-#ifndef V8_ENABLE_LEAPTIERING
+#ifdef V8_ENABLE_LEAPTIERING
+  DCHECK(function->IsLoggingRequested(isolate));
+  GetProcessWideJSDispatchTable()->ResetTieringRequest(
+      function->dispatch_handle(), isolate);
+#else
   if (!function->feedback_vector()->log_next_execution()) return;
 #endif
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
@@ -41,13 +45,9 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   LOG(isolate, FunctionEvent(
                    event_name.c_str(), Cast<Script>(raw_sfi->script())->id(), 0,
                    raw_sfi->StartPosition(), raw_sfi->EndPosition(), *name));
-#ifdef V8_ENABLE_LEAPTIERING
-  DCHECK(function->IsLoggingRequested(isolate));
-  GetProcessWideJSDispatchTable()->ResetTieringRequest(
-      function->dispatch_handle(), isolate);
-#else
+#ifndef V8_ENABLE_LEAPTIERING
   function->feedback_vector()->set_log_next_execution(false);
-#endif  // V8_ENABLE_LEAPTIERING
+#endif  // !V8_ENABLE_LEAPTIERING
 }
 }  // namespace
 
@@ -144,9 +144,11 @@ RUNTIME_FUNCTION(Runtime_InstallSFICode) {
 
 namespace {
 
-Tagged<Object> CompileOptimized(Handle<JSFunction> function,
-                                ConcurrencyMode mode, CodeKind target_kind,
-                                Isolate* isolate) {
+void CompileOptimized(Handle<JSFunction> function, ConcurrencyMode mode,
+                      CodeKind target_kind, Isolate* isolate) {
+  // Ensure that the tiering request is reset even if compilation fails.
+  function->ResetTieringRequests(isolate);
+
   // As a pre- and post-condition of CompileOptimized, the function *must* be
   // compiled, i.e. the installed InstructionStream object must not be
   // CompileLazy.
@@ -155,11 +157,11 @@ Tagged<Object> CompileOptimized(Handle<JSFunction> function,
   if (V8_UNLIKELY(!is_compiled_scope.is_compiled())) {
     StackLimitCheck check(isolate);
     if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-      return isolate->StackOverflow();
+      return;
     }
     if (!Compiler::Compile(isolate, function, Compiler::KEEP_EXCEPTION,
                            &is_compiled_scope)) {
-      return ReadOnlyRoots(isolate).exception();
+      return;
     }
   }
   DCHECK(is_compiled_scope.is_compiled());
@@ -168,12 +170,11 @@ Tagged<Object> CompileOptimized(Handle<JSFunction> function,
   const int gap =
       IsConcurrent(mode) ? 0 : kStackSpaceRequiredForCompilation * KB;
   StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(gap)) return isolate->StackOverflow();
+  if (check.JsHasOverflowed(gap)) return;
 
   Compiler::CompileOptimized(isolate, function, mode, target_kind);
 
   DCHECK(function->is_compiled(isolate));
-  return function->code(isolate);
 }
 
 }  // namespace
@@ -183,8 +184,9 @@ RUNTIME_FUNCTION(Runtime_StartMaglevOptimizationJob) {
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
   DCHECK(function->IsOptimizationRequested(isolate));
-  return CompileOptimized(function, ConcurrencyMode::kConcurrent,
-                          CodeKind::MAGLEV, isolate);
+  CompileOptimized(function, ConcurrencyMode::kConcurrent, CodeKind::MAGLEV,
+                   isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_StartTurbofanOptimizationJob) {
@@ -192,8 +194,9 @@ RUNTIME_FUNCTION(Runtime_StartTurbofanOptimizationJob) {
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
   DCHECK(function->IsOptimizationRequested(isolate));
-  return CompileOptimized(function, ConcurrencyMode::kConcurrent,
-                          CodeKind::TURBOFAN_JS, isolate);
+  CompileOptimized(function, ConcurrencyMode::kConcurrent,
+                   CodeKind::TURBOFAN_JS, isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevEager) {
@@ -201,8 +204,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevEager) {
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
   DCHECK(function->IsOptimizationRequested(isolate));
-  return CompileOptimized(function, ConcurrencyMode::kSynchronous,
-                          CodeKind::MAGLEV, isolate);
+  CompileOptimized(function, ConcurrencyMode::kSynchronous, CodeKind::MAGLEV,
+                   isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_OptimizeTurbofanEager) {
@@ -210,8 +214,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeTurbofanEager) {
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
   DCHECK(function->IsOptimizationRequested(isolate));
-  return CompileOptimized(function, ConcurrencyMode::kSynchronous,
-                          CodeKind::TURBOFAN_JS, isolate);
+  CompileOptimized(function, ConcurrencyMode::kSynchronous,
+                   CodeKind::TURBOFAN_JS, isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 #else
