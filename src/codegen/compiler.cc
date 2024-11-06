@@ -3313,7 +3313,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
                                  new_feedback_cell, eval_cache_position);
     }
   }
-  DCHECK(is_compiled_scope.is_compiled());
+  CHECK(is_compiled_scope.is_compiled());
 
   return result;
 }

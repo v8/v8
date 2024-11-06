@@ -461,8 +461,9 @@ CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
 
 InfoCellPair CompilationCacheTable::LookupEval(
     DirectHandle<CompilationCacheTable> table, Handle<String> src,
-    Handle<SharedFunctionInfo> outer_info, DirectHandle<Context> native_context,
-    LanguageMode language_mode, int position) {
+    Handle<SharedFunctionInfo> outer_info,
+    DirectHandle<NativeContext> native_context, LanguageMode language_mode,
+    int position) {
   InfoCellPair empty_result;
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
@@ -562,7 +563,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     Handle<SharedFunctionInfo> outer_info,
     DirectHandle<SharedFunctionInfo> value,
-    DirectHandle<Context> native_context,
+    DirectHandle<NativeContext> native_context,
     DirectHandle<FeedbackCell> feedback_cell, int position) {
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);

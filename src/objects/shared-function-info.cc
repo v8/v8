@@ -570,13 +570,11 @@ void SharedFunctionInfo::InitFromFunctionLiteral(IsolateT* isolate,
 
     raw_sfi->set_is_toplevel(is_toplevel);
     DCHECK(IsTheHole(raw_sfi->outer_scope_info()));
-    if (!is_toplevel) {
-      Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
-      if (outer_scope) {
-        raw_sfi->set_outer_scope_info(*outer_scope->scope_info());
-        raw_sfi->set_private_name_lookup_skips_outer_class(
-            lit->scope()->private_name_lookup_skips_outer_class());
-      }
+    Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
+    if (outer_scope && (!is_toplevel || !outer_scope->is_script_scope())) {
+      raw_sfi->set_outer_scope_info(*outer_scope->scope_info());
+      raw_sfi->set_private_name_lookup_skips_outer_class(
+          lit->scope()->private_name_lookup_skips_outer_class());
     }
 
     raw_sfi->set_length(lit->function_length());
