@@ -2158,6 +2158,9 @@ ReduceResult MaglevGraphBuilder::TryFoldInt32UnaryOperation(ValueNode* node) {
       }
       return ReduceResult::Fail();
     case Operation::kNegate:
+      if (cst.value() == 0) {
+        return ReduceResult::Fail();
+      }
       if (cst.value() != INT32_MIN) {
         return GetInt32Constant(-cst.value());
       }
