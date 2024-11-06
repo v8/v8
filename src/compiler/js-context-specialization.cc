@@ -258,7 +258,7 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
     // The value is not a constant any more, so we don't need to generate
     // code for invalidating the side data.
     const Operator* op =
-        jsgraph_->javascript()->StoreContext(access.depth(), access.index());
+        jsgraph_->javascript()->StoreContext(depth, access.index());
     Node* new_store = effect = jsgraph_->graph()->NewNode(
         op, NodeProperties::GetValueInput(node, 0), context, effect, control);
     ReplaceWithValue(node, new_store, effect, control);
