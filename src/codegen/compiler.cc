@@ -3145,7 +3145,7 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   }
 
 #ifdef DEBUG
-  if (mode == ConcurrencyMode::kConcurrent) {
+  if (V8_ENABLE_LEAPTIERING_BOOL && mode == ConcurrencyMode::kConcurrent) {
     DCHECK_IMPLIES(code_kind == CodeKind::MAGLEV,
                    !function->ActiveTierIsMaglev(isolate));
     DCHECK_IMPLIES(code_kind == CodeKind::TURBOFAN_JS,
