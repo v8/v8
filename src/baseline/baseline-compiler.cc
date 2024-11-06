@@ -791,7 +791,6 @@ void BaselineCompiler::VisitLdaCurrentScriptContextSlot() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register context = scratch_scope.AcquireScratch();
   Label done;
-  LoadRegister(context, 0);
   uint32_t index = Index(1);
   __ LoadContext(context);
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
