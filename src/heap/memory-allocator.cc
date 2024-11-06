@@ -28,14 +28,13 @@ namespace internal {
 
 namespace {
 
-void DeleteMemoryChunk(MemoryChunkMetadata* metadata) {
-  MemoryChunk* chunk = metadata->Chunk();
+void DeleteMemoryChunk(MutablePageMetadata* metadata) {
   DCHECK(metadata->reserved_memory()->IsReserved());
-  DCHECK(!chunk->InReadOnlySpace());
+  DCHECK(!metadata->Chunk()->InReadOnlySpace());
   // The Metadata contains a VirtualMemory reservation and the destructor will
   // release the MemoryChunk.
   DiscardSealedMemoryScope discard_scope("Deleting a memory chunk");
-  if (chunk->IsLargePage()) {
+  if (metadata->IsLargePage()) {
     delete reinterpret_cast<LargePageMetadata*>(metadata);
   } else {
     delete reinterpret_cast<PageMetadata*>(metadata);

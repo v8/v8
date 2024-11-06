@@ -42,6 +42,8 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
     active_system_pages_ = nullptr;
   }
 
+  DCHECK_EQ(page_size == PageSize::kLarge, IsLargePage());
+
 #ifdef DEBUG
   ValidateOffsets(this);
 #endif
