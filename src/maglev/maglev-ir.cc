@@ -3390,18 +3390,14 @@ void CheckStringOrStringWrapper::GenerateCode(MaglevAssembler* masm,
   __ JumpIfNotObjectType(object, InstanceType::JS_PRIMITIVE_WRAPPER_TYPE,
                          deopt);
   __ LoadMap(scratch, object);
-  __ Move(scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
-  __ AndInt32(scratch, Map::Bits2::ElementsKindBits::kMask);
+  __ LoadBitField<Map::Bits2::ElementsKindBits>(
+      scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
   static_assert(FAST_STRING_WRAPPER_ELEMENTS + 1 ==
                 SLOW_STRING_WRAPPER_ELEMENTS);
-  __ CompareInt32AndJumpIf(
-      scratch,
-      FAST_STRING_WRAPPER_ELEMENTS << Map::Bits2::ElementsKindBits::kShift,
-      kLessThan, deopt);
-  __ CompareInt32AndJumpIf(
-      scratch,
-      SLOW_STRING_WRAPPER_ELEMENTS << Map::Bits2::ElementsKindBits::kShift,
-      kGreaterThan, deopt);
+  __ CompareInt32AndJumpIf(scratch, FAST_STRING_WRAPPER_ELEMENTS, kLessThan,
+                           deopt);
+  __ CompareInt32AndJumpIf(scratch, SLOW_STRING_WRAPPER_ELEMENTS, kGreaterThan,
+                           deopt);
   __ Jump(&done);
   __ bind(&done);
 }
