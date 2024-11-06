@@ -644,7 +644,7 @@ Tagged<MaybeObject> WeakArrayList::Get(PtrComprCageBase cage_base,
 
 void WeakArrayList::Set(int index, Tagged<MaybeObject> value,
                         WriteBarrierMode mode) {
-  set_objects(index, value, mode);
+  set_objects(index, value, kRelaxedStore, mode);
 }
 
 void WeakArrayList::Set(int index, Tagged<Smi> value) {

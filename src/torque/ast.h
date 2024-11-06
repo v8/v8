@@ -956,8 +956,7 @@ struct ClassFieldExpression {
   std::vector<ConditionalAnnotation> conditions;
   bool custom_weak_marking;
   bool const_qualified;
-  FieldSynchronization read_synchronization;
-  FieldSynchronization write_synchronization;
+  FieldSynchronization synchronization;
 };
 
 struct LabelAndTypes {

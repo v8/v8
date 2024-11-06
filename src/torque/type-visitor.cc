@@ -211,7 +211,6 @@ const StructType* TypeVisitor::ComputeType(
             offset.SingleValue(),
             false,
             field.const_qualified,
-            FieldSynchronization::kNone,
             FieldSynchronization::kNone};
     auto optional_size = SizeOf(f.name_and_type.type);
     struct_type->RegisterField(f);
@@ -447,8 +446,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          class_offset.SingleValue(),
          field_expression.custom_weak_marking,
          field_expression.const_qualified,
-         field_expression.read_synchronization,
-         field_expression.write_synchronization});
+         field_expression.synchronization});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {
       // Validate that a value at any index in a packed array is aligned

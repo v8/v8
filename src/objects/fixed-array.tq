@@ -69,7 +69,7 @@ extern class ArrayList extends HeapObject {
 extern class WeakArrayList extends HeapObject {
   const capacity: Smi;
   length: Smi;
-  @cppRelaxedLoad objects[capacity]: MaybeObject;
+  @cppRelaxedLoad @cppRelaxedStore objects[capacity]: MaybeObject;
 }
 
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(

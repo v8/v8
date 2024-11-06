@@ -2129,17 +2129,22 @@ std::optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
        ANNOTATION_CPP_RELEASE_STORE, ANNOTATION_CPP_ACQUIRE_LOAD,
        ANNOTATION_CUSTOM_WEAK_MARKING},
       {ANNOTATION_IF, ANNOTATION_IFNOT});
-  FieldSynchronization write_synchronization = FieldSynchronization::kNone;
+  FieldSynchronization synchronization = FieldSynchronization::kNone;
   if (annotations.Contains(ANNOTATION_CPP_RELEASE_STORE)) {
-    write_synchronization = FieldSynchronization::kAcquireRelease;
+    synchronization = FieldSynchronization::kAcquireRelease;
   } else if (annotations.Contains(ANNOTATION_CPP_RELAXED_STORE)) {
-    write_synchronization = FieldSynchronization::kRelaxed;
+    synchronization = FieldSynchronization::kRelaxed;
   }
-  FieldSynchronization read_synchronization = FieldSynchronization::kNone;
-  if (annotations.Contains(ANNOTATION_CPP_ACQUIRE_LOAD)) {
-    read_synchronization = FieldSynchronization::kAcquireRelease;
-  } else if (annotations.Contains(ANNOTATION_CPP_RELAXED_LOAD)) {
-    read_synchronization = FieldSynchronization::kRelaxed;
+  {
+    FieldSynchronization read_synchronization = FieldSynchronization::kNone;
+    if (annotations.Contains(ANNOTATION_CPP_ACQUIRE_LOAD)) {
+      read_synchronization = FieldSynchronization::kAcquireRelease;
+    } else if (annotations.Contains(ANNOTATION_CPP_RELAXED_LOAD)) {
+      read_synchronization = FieldSynchronization::kRelaxed;
+    }
+    if (read_synchronization != synchronization) {
+      Error("Incompatible read/write synchronization annotations for a field.");
+    }
   }
   std::vector<ConditionalAnnotation> conditions;
   std::optional<std::string> if_condition =
@@ -2200,8 +2205,7 @@ std::optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
                                           std::move(conditions),
                                           custom_weak_marking,
                                           const_qualified,
-                                          read_synchronization,
-                                          write_synchronization}};
+                                          synchronization}};
 }
 
 std::optional<ParseResult> MakeStructField(ParseResultIterator* child_results) {
