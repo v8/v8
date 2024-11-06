@@ -1235,8 +1235,8 @@ Response V8DebuggerAgentImpl::getScriptSource(
                      });
     if (cachedScriptIt != m_cachedScripts.end()) {
       *scriptSource = cachedScriptIt->source;
-      *bytecode = protocol::Binary::fromSpan(cachedScriptIt->bytecode.data(),
-                                             cachedScriptIt->bytecode.size());
+      *bytecode = protocol::Binary::fromSpan(v8::MemorySpan<const uint8_t>(
+          cachedScriptIt->bytecode.begin(), cachedScriptIt->bytecode.size()));
       return Response::Success();
     }
     return Response::ServerError("No script for id: " + scriptId.utf8());
@@ -1248,7 +1248,7 @@ Response V8DebuggerAgentImpl::getScriptSource(
     if (span.size() > kWasmBytecodeMaxLength) {
       return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
     }
-    *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
+    *bytecode = protocol::Binary::fromSpan(span);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return Response::Success();
@@ -1417,7 +1417,7 @@ Response V8DebuggerAgentImpl::getWasmBytecode(const String16& scriptId,
   if (span.size() > kWasmBytecodeMaxLength) {
     return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
   }
-  *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
+  *bytecode = protocol::Binary::fromSpan(span);
   return Response::Success();
 #else
   return Response::ServerError("WebAssembly is disabled");
