@@ -145,6 +145,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       [[fallthrough]];
     }
     case ExecutionTier::kTurbofan: {
+      DCHECK_EQ(kNotDebugging, for_debugging_);
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
@@ -156,13 +157,10 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       if (use_turboshaft) {
         result = compiler::turboshaft::ExecuteTurboshaftWasmCompilation(
             env, data, detected);
-        if (result.succeeded()) return result;
-        // Else fall back to turbofan.
+      } else {
+        result = compiler::ExecuteTurbofanWasmCompilation(env, data, counters,
+                                                          detected);
       }
-
-      result = compiler::ExecuteTurbofanWasmCompilation(env, data, counters,
-                                                        detected);
-      result.for_debugging = for_debugging_;
       break;
     }
   }
