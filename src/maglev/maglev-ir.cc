@@ -27,6 +27,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/property-cell.h"
 #include "src/roots/static-roots.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-assembler-inl.h"
@@ -2323,6 +2324,76 @@ void AbstractLoadTaggedField<T>::GenerateCode(MaglevAssembler* masm,
     __ LoadTaggedFieldWithoutDecompressing(ToRegister(result()), object,
                                            offset());
   }
+}
+
+void LoadTaggedFieldForScriptContextSlot::SetValueLocationConstraints() {
+  UseRegister(context());
+  set_temporaries_needed(2);
+  set_double_temporaries_needed(1);
+  DefineAsRegister(this);
+}
+
+void LoadTaggedFieldForScriptContextSlot::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register script_context = ToRegister(context());
+  Register value = ToRegister(result());
+  Register scratch = temps.Acquire();
+  ZoneLabelRef done(masm);
+  __ AssertObjectType(script_context, SCRIPT_CONTEXT_TYPE,
+                      AbortReason::kUnexpectedInstanceType);
+
+  // Be sure to not clobber script_context.
+  if (value == script_context) {
+    Register tmp = temps.Acquire();
+    __ Move(tmp, script_context);
+    script_context = tmp;
+  }
+
+  // Load value from context.
+  __ LoadTaggedField(value, script_context, offset());
+
+  // Check side table if HeapNumber.
+  __ JumpIfSmi(value, *done);
+  __ CompareMapWithRoot(value, RootIndex::kHeapNumberMap, scratch);
+  __ JumpToDeferredIf(
+      kEqual,
+      [](MaglevAssembler* masm, Register script_context, Register result_reg,
+         Register scratch, LoadTaggedFieldForScriptContextSlot* node,
+         ZoneLabelRef done) {
+        Label property_loaded;
+        // Load side table.
+        // TODO(victorgomes): Should we hoist the side_table?
+        __ LoadTaggedField(scratch, script_context,
+                           Context::OffsetOfElementAt(
+                               Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
+        __ LoadTaggedField(
+            scratch, scratch,
+            FixedArray::OffsetOfElementAt(node->index() -
+                                          Context::MIN_CONTEXT_EXTENDED_SLOTS));
+
+        __ JumpIfSmi(scratch, &property_loaded);
+        __ AssertObjectType(scratch, CONTEXT_SIDE_PROPERTY_CELL_TYPE,
+                            AbortReason::kUnexpectedInstanceType);
+        __ LoadTaggedField(scratch, scratch,
+                           ContextSidePropertyCell::kPropertyDetailsRawOffset);
+        __ bind(&property_loaded);
+
+        __ CompareTaggedAndJumpIf(scratch,
+                                  ContextSidePropertyCell::MutableHeapNumber(),
+                                  kNotEqual, *done);
+
+        MaglevAssembler::TemporaryRegisterScope temps(masm);
+        DoubleRegister double_value = temps.AcquireDouble();
+        __ LoadHeapNumberValue(double_value, result_reg);
+        __ AllocateHeapNumber(node->register_snapshot(), result_reg,
+                              double_value);
+
+        __ Jump(*done);
+      },
+      script_context, value, scratch, this, done);
+
+  __ bind(*done);
 }
 
 void LoadTaggedFieldByFieldIndex::SetValueLocationConstraints() {
@@ -7190,6 +7261,11 @@ void AbstractLoadTaggedField<T>::PrintParams(
     }
   }
   os << ")";
+}
+
+void LoadTaggedFieldForScriptContextSlot::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
 void LoadDoubleField::PrintParams(std::ostream& os,

@@ -1164,15 +1164,18 @@ class MaglevGraphBuilder {
   bool TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode* context, int slot_index,
       ContextSlotMutability slot_mutability);
+  ValueNode* TrySpecializeLoadScriptContextSlot(ValueNode* context, int index);
   ValueNode* LoadAndCacheContextSlot(ValueNode* context, int offset,
-                                     ContextSlotMutability slot_mutability);
+                                     ContextSlotMutability slot_mutability,
+                                     ContextKind context_kind);
   void StoreAndCacheContextSlot(ValueNode* context, int offset,
                                 ValueNode* value);
   ValueNode* TryGetParentContext(ValueNode* node);
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth);
   void EscapeContext();
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
-                            ContextSlotMutability slot_mutability);
+                            ContextSlotMutability slot_mutability,
+                            ContextKind context_kind);
   void BuildStoreContextSlotHelper(ValueNode* context, size_t depth,
                                    int slot_index, ValueNode* value,
                                    bool update_side_data);

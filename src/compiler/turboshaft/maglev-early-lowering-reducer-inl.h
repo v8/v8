@@ -147,6 +147,30 @@ class MaglevEarlyLoweringReducer : public Next {
     return result;
   }
 
+  V<Object> LoadHeapNumberFromScriptContext(V<Context> script_context,
+                                            int index,
+                                            V<HeapNumber> heap_number) {
+    V<FixedArray> side_table = __ template LoadTaggedField<FixedArray>(
+        script_context,
+        Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
+    V<Object> data = __ LoadTaggedField(
+        side_table, FixedArray::OffsetOfElementAt(
+                        index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
+    ScopedVar<Object> property(this, data);
+    IF_NOT (__ IsSmi(data)) {
+      property = __ LoadTaggedField(
+          data, ContextSidePropertyCell::kPropertyDetailsRawOffset);
+    }
+    ScopedVar<HeapNumber> result(this, heap_number);
+    IF (__ TaggedEqual(
+            property,
+            __ SmiConstant(ContextSidePropertyCell::kMutableHeapNumber))) {
+      result = __ AllocateHeapNumberWithValue(
+          __ LoadHeapNumberValue(heap_number), isolate_->factory());
+    }
+    return result;
+  }
+
   void CheckDerivedConstructResult(V<Object> construct_result,
                                    V<FrameState> frame_state,
                                    V<NativeContext> native_context,

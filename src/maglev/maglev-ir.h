@@ -194,6 +194,7 @@ class ExceptionHandlerInfo;
   V(LoadTaggedField)                                \
   V(LoadTaggedFieldForProperty)                     \
   V(LoadTaggedFieldForContextSlot)                  \
+  V(LoadTaggedFieldForScriptContextSlot)            \
   V(LoadDoubleField)                                \
   V(LoadTaggedFieldByFieldIndex)                    \
   V(LoadFixedArrayElement)                          \
@@ -6951,6 +6952,41 @@ class LoadTaggedFieldForContextSlot
  public:
   explicit LoadTaggedFieldForContextSlot(uint64_t bitfield, const int offset)
       : Base(bitfield, offset) {}
+};
+
+class LoadTaggedFieldForScriptContextSlot
+    : public FixedInputValueNodeT<1, LoadTaggedFieldForScriptContextSlot> {
+  using Base = FixedInputValueNodeT<1, LoadTaggedFieldForScriptContextSlot>;
+
+ public:
+  explicit LoadTaggedFieldForScriptContextSlot(uint64_t bitfield,
+                                               const int index)
+      : Base(bitfield), index_(index) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanRead() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  int offset() const { return Context::OffsetOfElementAt(index_); }
+  int index() const { return index_; }
+
+  using Base::input;
+  static constexpr int kContextIndex = 0;
+  Input& context() { return input(kContextIndex); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  auto options() const { return std::tuple{index()}; }
+
+  using Base::decompresses_tagged_result;
+
+ private:
+  const int index_;
 };
 
 class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {

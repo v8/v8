@@ -54,6 +54,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/objects.h"
+#include "src/objects/property-cell.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -2784,6 +2785,24 @@ class GraphBuildingNodeProcessor {
       maglev_generator_context_node_ = node;
     }
 
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::LoadTaggedFieldForScriptContextSlot* node,
+      const maglev::ProcessingState& state) {
+    V<Context> script_context = V<Context>::Cast(Map(node->context()));
+    V<Object> value = __ LoadTaggedField(script_context, node->offset());
+    ScopedVar<Object, AssemblerT> result(this, value);
+    IF_NOT (__ IsSmi(value)) {
+      V<i::Map> value_map = __ LoadMapField(value);
+      IF (UNLIKELY(__ TaggedEqual(
+              value_map, __ HeapConstant(local_factory_->heap_number_map())))) {
+        V<HeapNumber> heap_number = V<HeapNumber>::Cast(value);
+        result = __ LoadHeapNumberFromScriptContext(script_context,
+                                                    node->index(), heap_number);
+      }
+    }
+    SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadDoubleField* node,

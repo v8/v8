@@ -791,11 +791,11 @@ void BaselineCompiler::VisitLdaCurrentScriptContextSlot() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register context = scratch_scope.AcquireScratch();
   Label done;
-  uint32_t index = Index(1);
+  uint32_t index = Index(0);
   __ LoadContext(context);
-  __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
   __ LoadTaggedField(kInterpreterAccumulatorRegister, context,
                      Context::OffsetOfElementAt(index));
+  __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
   __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
                           HEAP_NUMBER_TYPE, &done, Label::kNear);
   CallBuiltin<Builtin::kAllocateIfMutableHeapNumberScriptContextSlot>(

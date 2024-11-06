@@ -488,7 +488,6 @@ Tagged<ContextSidePropertyCell> Context::GetOrCreateContextSidePropertyCell(
   if (!IsContextSidePropertyCell(object)) {
     // If these CHECKs fail, there's a code path which initializes or assigns a
     // top-level `let` variable but doesn't update the side data.
-    CHECK_EQ(object, ContextSidePropertyCell::Const());
     object = *isolate->factory()->NewContextSidePropertyCell(property);
     side_data->set(side_data_index, object);
   }
