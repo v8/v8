@@ -5,6 +5,7 @@
 load("//lib/builders.star", "v8_builder")
 load("//lib/lib.star", "BARRIER", "in_console")
 load("//lib/reclient.star", "RECLIENT")
+load("//lib/siso.star", "SISO")
 
 def integration_builder(**kwargs):
     return v8_builder(disable_resultdb_exports = True, **kwargs)
@@ -73,6 +74,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.DEFAULT,
         notifies = ["sheriffs"],
     ),
 )

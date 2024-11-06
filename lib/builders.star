@@ -7,6 +7,7 @@ load("//lib/description.star", "to_html")
 load("//lib/gclient.star", "gclient_vars_properties")
 load("//lib/lib.star", "BARRIER", "CQ", "add_barrier_properties", "bq_exports", "branch_descriptors", "fix_args", "resolve_parent_triggering", "skip_builder")
 load("//lib/reclient.star", "RECLIENT", "reclient_properties")
+load("//lib/siso.star", "SISO")
 
 def v8_basic_builder(defaults, **kwargs):
     cq_properties = kwargs.pop("cq_properties", None)
@@ -36,6 +37,7 @@ def v8_basic_builder(defaults, **kwargs):
         kwargs["name"],
         scandeps_server,
     ))
+    properties.update(kwargs.pop("use_siso", SISO.NONE))
     properties.update(gclient_vars_properties(kwargs.pop("gclient_vars", [])))
 
     always_isolate_targets = kwargs.pop("always_isolate_targets", [])
