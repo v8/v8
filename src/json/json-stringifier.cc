@@ -122,7 +122,7 @@ class JsonStringifier {
     }
   }
 
-  V8_INLINE bool CurrentPartCanFit(int length) {
+  V8_INLINE bool CurrentPartCanFit(uint32_t length) {
     return part_length_ - current_index_ > length;
   }
 
@@ -130,43 +130,44 @@ class JsonStringifier {
   // serialized without allocating a new string part. The worst case length of
   // an escaped character is 6. Shifting the remaining string length right by 3
   // is a more pessimistic estimate, but faster to calculate.
-  V8_INLINE bool EscapedLengthIfCurrentPartFits(int length) {
+  V8_INLINE bool EscapedLengthIfCurrentPartFits(uint32_t length) {
     if (length > kMaxPartLength) return false;
-    static_assert((kMaxPartLength << 3) <= String::kMaxLength);
+    static_assert(kMaxPartLength <= (String::kMaxLength >> 3));
     // This shift will not overflow because length is already less than the
     // maximum part length.
     return CurrentPartCanFit(length << 3);
   }
 
-  void AppendStringByCopy(Tagged<String> string,
+  void AppendStringByCopy(Tagged<String> string, uint32_t length,
                           const DisallowGarbageCollection& no_gc) {
+    DCHECK_EQ(length, string->length());
     DCHECK(encoding_ == String::TWO_BYTE_ENCODING ||
            (string->IsFlat() &&
             String::IsOneByteRepresentationUnderneath(string)));
-    DCHECK(CurrentPartCanFit(string->length() + 1));
+    DCHECK(CurrentPartCanFit(length + 1));
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       if (String::IsOneByteRepresentationUnderneath(string)) {
         CopyChars<uint8_t, uint8_t>(
             one_byte_ptr_ + current_index_,
-            string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
+            string->GetCharVector<uint8_t>(no_gc).begin(), length);
       } else {
         ChangeEncoding();
         CopyChars<uint16_t, uint16_t>(
             two_byte_ptr_ + current_index_,
-            string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
+            string->GetCharVector<uint16_t>(no_gc).begin(), length);
       }
     } else {
       if (String::IsOneByteRepresentationUnderneath(string)) {
         CopyChars<uint8_t, uint16_t>(
             two_byte_ptr_ + current_index_,
-            string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
+            string->GetCharVector<uint8_t>(no_gc).begin(), length);
       } else {
         CopyChars<uint16_t, uint16_t>(
             two_byte_ptr_ + current_index_,
-            string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
+            string->GetCharVector<uint16_t>(no_gc).begin(), length);
       }
     }
-    current_index_ += string->length();
+    current_index_ += length;
     DCHECK(current_index_ <= part_length_);
   }
 
@@ -179,8 +180,9 @@ class JsonStringifier {
           (string->IsFlat() &&
            String::IsOneByteRepresentationUnderneath(string));
       if (representation_ok) {
-        while (!CurrentPartCanFit(string->length() + 1)) Extend();
-        AppendStringByCopy(string, no_gc);
+        uint32_t length = string->length();
+        while (!CurrentPartCanFit(length + 1)) Extend();
+        AppendStringByCopy(string, length, no_gc);
         return;
       }
     }
@@ -210,7 +212,7 @@ class JsonStringifier {
   V8_NOINLINE void AppendSubstring(const SrcChar* src, size_t from, size_t to) {
     if (from == to) return;
     DCHECK_LT(from, to);
-    int count = static_cast<int>(to - from);
+    uint32_t count = static_cast<uint32_t>(to - from);
     while (!CurrentPartCanFit(count + 1)) Extend();
     AppendSubstringByCopy(src + from, count);
   }
@@ -259,11 +261,9 @@ class JsonStringifier {
   template <typename DestChar>
   class NoExtendBuilder {
    public:
-    NoExtendBuilder(DestChar* start, int* current_index)
+    NoExtendBuilder(DestChar* start, size_t* current_index)
         : current_index_(current_index), start_(start), cursor_(start) {}
-    ~NoExtendBuilder() {
-      *current_index_ += static_cast<int>(cursor_ - start_);
-    }
+    ~NoExtendBuilder() { *current_index_ += cursor_ - start_; }
 
     V8_INLINE void Append(DestChar c) { *(cursor_++) = c; }
     V8_INLINE void AppendCString(const char* s) {
@@ -291,7 +291,7 @@ class JsonStringifier {
     }
 
    private:
-    int* current_index_;
+    size_t* current_index_;
     DestChar* start_;
     DestChar* cursor_;
   };
@@ -400,9 +400,9 @@ class JsonStringifier {
   static const int kCircularErrorMessagePrefixCount = 2;
   static const int kCircularErrorMessagePostfixCount = 1;
 
-  static const int kInitialPartLength = 2048;
-  static const int kMaxPartLength = 16 * 1024;
-  static const int kPartLengthGrowthFactor = 2;
+  static const size_t kInitialPartLength = 2048;
+  static const size_t kMaxPartLength = 16 * 1024;
+  static const size_t kPartLengthGrowthFactor = 2;
 
   Factory* factory() { return isolate_->factory(); }
 
@@ -418,8 +418,8 @@ class JsonStringifier {
   base::uc16* two_byte_ptr_;
   void* part_ptr_;
   int indent_;
-  int part_length_;
-  int current_index_;
+  size_t part_length_;
+  size_t current_index_;
   int stack_nesting_level_;
   bool overflowed_;
   bool need_stack_;
@@ -519,8 +519,7 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<JSAny> object,
   }
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) {
-    if (overflowed_ ||
-        static_cast<uint32_t>(current_index_) > String::kMaxLength) {
+    if (overflowed_ || current_index_ > String::kMaxLength) {
       THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError());
     }
     if (encoding_ == String::ONE_BYTE_ENCODING) {
@@ -1688,7 +1687,7 @@ bool JsonStringifier::SerializeString(Handle<String> object) {
 }
 
 void JsonStringifier::Extend() {
-  if (static_cast<uint32_t>(part_length_) >= String::kMaxLength) {
+  if (part_length_ >= String::kMaxLength) {
     // Set the flag and carry on. Delay throwing the exception till the end.
     current_index_ = 0;
     overflowed_ = true;
@@ -1703,7 +1702,7 @@ void JsonStringifier::Extend() {
     part_ptr_ = one_byte_ptr_;
   } else {
     base::uc16* tmp_ptr = new base::uc16[part_length_];
-    for (int i = 0; i < current_index_; i++) {
+    for (uint32_t i = 0; i < current_index_; i++) {
       tmp_ptr[i] = two_byte_ptr_[i];
     }
     delete[] two_byte_ptr_;
@@ -1715,7 +1714,7 @@ void JsonStringifier::Extend() {
 void JsonStringifier::ChangeEncoding() {
   encoding_ = String::TWO_BYTE_ENCODING;
   two_byte_ptr_ = new base::uc16[part_length_];
-  for (int i = 0; i < current_index_; i++) {
+  for (uint32_t i = 0; i < current_index_; i++) {
     two_byte_ptr_[i] = one_byte_ptr_[i];
   }
   part_ptr_ = two_byte_ptr_;
