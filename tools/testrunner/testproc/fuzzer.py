@@ -46,6 +46,7 @@ EXTRA_FLAGS = [
     (0.1, '--regexp-tier-up-ticks=10'),
     (0.1, '--regexp-tier-up-ticks=100'),
     (0.1, '--shared-string-table'),
+    (0.1, '--shared-heap'),
     (0.1, '--stress-background-compile'),
     (0.1, '--stress-flush-code'),
     (0.1, '--stress-lazy-source-positions'),
