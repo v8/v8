@@ -69,6 +69,7 @@ namespace compiler {
   V(X64S256Load64Splat)                                    \
   V(X64S256Load8x16S)                                      \
   V(X64S256Load8x16U)                                      \
+  V(X64S256Load8x8U)                                       \
   V(X64S256Load16x8S)                                      \
   V(X64S256Load16x8U)                                      \
   V(X64S256Load32x4S)                                      \

@@ -8346,6 +8346,7 @@ struct Simd256Extract128LaneOp
 #define FOREACH_SIMD_256_LOAD_TRANSFORM_OPCODE(V) \
   V(8x16S)                                        \
   V(8x16U)                                        \
+  V(8x8U)                                         \
   V(16x8S)                                        \
   V(16x8U)                                        \
   V(32x4S)                                        \
