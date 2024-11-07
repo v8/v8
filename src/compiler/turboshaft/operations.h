@@ -6071,6 +6071,7 @@ struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{maps}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
@@ -6107,6 +6108,7 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
   }
 
   auto options() const { return std::tuple{maps, flags, feedback}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 // AssumeMaps are inserted after CheckMaps have been lowered, in order to keep
@@ -6135,6 +6137,7 @@ struct AssumeMapOp : FixedArityOperationT<1, AssumeMapOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{maps}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct CheckedClosureOp : FixedArityOperationT<2, CheckedClosureOp> {

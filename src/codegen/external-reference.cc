@@ -1871,13 +1871,13 @@ static constexpr const char* GetNameOfIsolateFieldId(IsolateFieldId id) {
 std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
   os << reinterpret_cast<const void*>(reference.raw());
   if (reference.IsIsolateFieldId()) {
-    os << "<"
+    os << " <"
        << GetNameOfIsolateFieldId(static_cast<IsolateFieldId>(reference.raw()))
        << ">";
   } else {
     const Runtime::Function* fn =
         Runtime::FunctionForEntry(reference.address());
-    if (fn) os << "<" << fn->name << ".entry>";
+    if (fn) os << " <" << fn->name << ".entry>";
   }
   return os;
 }
