@@ -3579,17 +3579,24 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ B(fallthrough, hs);
 
   Label* const jump_table = AddJumpTable(cases);
-  Register table = scope.AcquireX();
-  __ Adr(table, jump_table, MacroAssembler::kAdrFar);
-  __ Ldr(table, MemOperand(table, input, LSL, kSystemPointerSizeLog2));
-  __ Br(table);
+  Register addr = scope.AcquireX();
+  __ Adr(addr, jump_table, MacroAssembler::kAdrFar);
+  Register offset = scope.AcquireX();
+  // Load the 32-bit offset.
+  __ Ldrsw(offset, MemOperand(addr, input, LSL, 2));
+  // The offset is relative to the address of 'jump_table', so add 'offset'
+  // to 'addr' to reconstruct the absolute address.
+  __ Add(addr, addr, offset);
+  __ Br(addr);
 }
 
 void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
-  const size_t jump_table_size = targets.size() * kSystemPointerSize;
+  const size_t jump_table_size = targets.size() * kInt32Size;
   MacroAssembler::BlockPoolsScope no_pool_inbetween(masm(), jump_table_size);
-  for (auto target : targets) {
-    __ dcptr(target);
+  int table_pos = __ pc_offset();
+  // Store 32-bit pc-relative offsets.
+  for (auto* target : targets) {
+    __ dc32(target->pos() - table_pos);
   }
 }
 
