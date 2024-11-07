@@ -1972,7 +1972,8 @@ void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
 
 bool CompileTopLevel(Isolate* isolate, Handle<Script> script,
                      MaybeHandle<SharedFunctionInfo>* result = nullptr) {
-  if (script->compilation_type() == Script::CompilationType::kEval) {
+  if (script->compilation_type() == Script::CompilationType::kEval ||
+      script->is_wrapped()) {
     return false;
   }
   UnoptimizedCompileState compile_state;
