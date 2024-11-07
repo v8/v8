@@ -63,12 +63,6 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
            MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
   }
 
-  // A special case of the ChunkAddress since the ReadOnlyMetadata is inlined in
-  // the MemoryChunk.
-  Address ChunkAddress() const {
-    return MemoryChunk::FromAddress(MetadataAddress())->address();
-  }
-
  private:
   friend class ReadOnlySpace;
 };

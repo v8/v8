@@ -343,7 +343,7 @@ void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPageMetadata* chunk) {
   v8::PageAllocator* allocator = page_allocator(RO_SPACE);
   VirtualMemory* reservation = chunk->reserved_memory();
   if (reservation->IsReserved()) {
-    reservation->FreeReadOnly();
+    reservation->Free();
   } else {
     // Only read-only pages can have a non-initialized reservation object. This
     // happens when the pages are remapped to multiple locations and where the
@@ -351,6 +351,8 @@ void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPageMetadata* chunk) {
     FreeMemoryRegion(allocator, chunk->ChunkAddress(),
                      RoundUp(chunk->size(), allocator->AllocatePageSize()));
   }
+
+  delete chunk;
 }
 
 void MemoryAllocator::PreFreeMemory(MutablePageMetadata* chunk_metadata) {
@@ -467,14 +469,13 @@ ReadOnlyPageMetadata* MemoryAllocator::AllocateReadOnlyPage(
   std::optional<MemoryChunkAllocationResult> chunk_info =
       AllocateUninitializedChunkAt(space, size, NOT_EXECUTABLE, hint,
                                    PageSize::kRegular);
-  if (!chunk_info) return nullptr;
-  Address metadata_address =
-      reinterpret_cast<Address>(chunk_info->chunk) + sizeof(MemoryChunk);
-  ReadOnlyPageMetadata* metadata =
-      new (reinterpret_cast<ReadOnlyPageMetadata*>(metadata_address))
-          ReadOnlyPageMetadata(isolate_->heap(), space, chunk_info->size,
-                               chunk_info->area_start, chunk_info->area_end,
-                               std::move(chunk_info->reservation));
+  if (!chunk_info) {
+    return nullptr;
+  }
+  CHECK_NULL(chunk_info->optional_metadata);
+  ReadOnlyPageMetadata* metadata = new ReadOnlyPageMetadata(
+      isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
+      chunk_info->area_end, std::move(chunk_info->reservation));
 
   new (chunk_info->chunk) MemoryChunk(metadata->InitialFlags(), metadata);
 

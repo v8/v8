@@ -33,13 +33,11 @@ ReadOnlyArtifacts::~ReadOnlyArtifacts() {
   shared_read_only_space_->pages_.resize(0);
 
   for (ReadOnlyPageMetadata* metadata : pages_) {
-#ifdef V8_ENABLE_SANDBOX
-    MemoryChunk::ClearMetadataPointer(metadata);
-#endif
     void* chunk_address = reinterpret_cast<void*>(metadata->ChunkAddress());
     size_t size =
         RoundUp(metadata->size(), page_allocator_->AllocatePageSize());
     CHECK(page_allocator_->FreePages(chunk_address, size));
+    delete metadata;
   }
 }
 
@@ -373,7 +371,9 @@ void ReadOnlySpace::FreeLinearAllocationArea() {
 }
 
 void ReadOnlySpace::EnsurePage() {
-  if (pages_.empty()) EnsureSpaceForAllocation(1);
+  if (pages_.empty()) {
+    EnsureSpaceForAllocation(1);
+  }
   CHECK(!pages_.empty());
   // For all configurations where static roots are supported the read only roots
   // are currently allocated in the first page of the cage.
@@ -390,20 +390,21 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
 
   FreeLinearAllocationArea();
 
-  MemoryChunkMetadata* chunk =
+  ReadOnlyPageMetadata* metadata =
       heap()->memory_allocator()->AllocateReadOnlyPage(this);
+  CHECK_NOT_NULL(metadata);
+
   capacity_ += AreaSize();
 
-  accounting_stats_.IncreaseCapacity(chunk->area_size());
-  AccountCommitted(chunk->size());
-  CHECK_NOT_NULL(chunk);
-  pages_.push_back(static_cast<ReadOnlyPageMetadata*>(chunk));
+  accounting_stats_.IncreaseCapacity(metadata->area_size());
+  AccountCommitted(metadata->size());
+  pages_.push_back(metadata);
 
-  heap()->CreateFillerObjectAt(chunk->area_start(),
-                               static_cast<int>(chunk->area_size()));
+  heap()->CreateFillerObjectAt(metadata->area_start(),
+                               static_cast<int>(metadata->area_size()));
 
-  top_ = chunk->area_start();
-  limit_ = chunk->area_end();
+  top_ = metadata->area_start();
+  limit_ = metadata->area_end();
 }
 
 Tagged<HeapObject> ReadOnlySpace::TryAllocateLinearlyAligned(

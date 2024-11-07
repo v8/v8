@@ -108,8 +108,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   static size_t AllocatableMemoryInCodePage();
   static size_t ObjectStartOffsetInDataPage();
   static size_t AllocatableMemoryInDataPage();
-  static intptr_t ObjectStartOffsetInReadOnlyPage();
-  static size_t AllocatableMemoryInReadOnlyPage();
   static size_t ObjectStartOffsetInMemoryChunk(AllocationSpace space);
   static size_t AllocatableMemoryInMemoryChunk(AllocationSpace space);
 

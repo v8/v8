@@ -32,21 +32,12 @@ size_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
                  ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
 }
 
-intptr_t MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage() {
-  return RoundUp(
-      sizeof(MemoryChunk) +
-          static_cast<size_t>(MemoryChunkLayout::kMemoryChunkMetadataSize),
-      ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
-}
-
 size_t MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(
     AllocationSpace space) {
   if (IsAnyCodeSpace(space)) {
     return ObjectStartOffsetInCodePage();
   }
-  if (space == RO_SPACE) {
-    return ObjectStartOffsetInReadOnlyPage();
-  }
+  // Read-only pages use the same layout as regular pages.
   return ObjectStartOffsetInDataPage();
 }
 
@@ -57,21 +48,12 @@ size_t MemoryChunkLayout::AllocatableMemoryInDataPage() {
   return memory;
 }
 
-size_t MemoryChunkLayout::AllocatableMemoryInReadOnlyPage() {
-  size_t memory =
-      MutablePageMetadata::kPageSize - ObjectStartOffsetInReadOnlyPage();
-  DCHECK_LE(kMaxRegularHeapObjectSize, memory);
-  return memory;
-}
-
 size_t MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
     AllocationSpace space) {
   if (space == CODE_SPACE) {
     return AllocatableMemoryInCodePage();
   }
-  if (space == RO_SPACE) {
-    return AllocatableMemoryInReadOnlyPage();
-  }
+  // Read-only pages use the same layout as regular pages.
   return AllocatableMemoryInDataPage();
 }
 
