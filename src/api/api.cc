@@ -6094,7 +6094,6 @@ static inline int WriteHelper(i::Isolate* i_isolate, const String* string,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   DCHECK(start >= 0 && length >= -1);
   auto str = Utils::OpenHandle(string);
-  str = i::String::Flatten(i_isolate, str);
   int end = start + length;
   if ((length == -1) || (static_cast<uint32_t>(length) > str->length() - start))
     end = str->length();
