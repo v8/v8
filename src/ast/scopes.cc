@@ -2783,7 +2783,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
     // reuse. Also look at the compiled function itself, and reuse its function
     // scope info if it exists.
     for (int i = info->literal()->function_literal_id();
-         i < info->max_info_id() + 1; ++i) {
+         i <= info->max_info_id(); ++i) {
       Tagged<MaybeObject> maybe_info = infos->get(i);
       if (maybe_info.IsWeak()) {
         Tagged<Object> info = maybe_info.GetHeapObjectAssumeWeak();
@@ -2806,7 +2806,22 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
           int id = scope_info->UniqueIdInScript();
           auto it = scope_infos_to_reuse.find(id);
           if (it != scope_infos_to_reuse.end()) {
-            CHECK_EQ(*it->second, scope_info);
+            Tagged<ScopeInfo> duplicate = *it->second;
+            // TODO(verwaest): We should be able to turn on this check, but
+            // that's failing currently.
+            if (v8_flags.verify_scope_info_reuse) {
+              CHECK_EQ(*it->second, scope_info);
+            }
+            while (scope_info != duplicate) {
+              CHECK_EQ(scope_info->scope_type(), duplicate->scope_type());
+              CHECK_EQ(scope_info->ContextLength(), duplicate->ContextLength());
+              if (!scope_info->HasOuterScopeInfo()) {
+                CHECK(!duplicate->HasOuterScopeInfo());
+                break;
+              }
+              scope_info = scope_info->OuterScopeInfo();
+              duplicate = duplicate->OuterScopeInfo();
+            }
             break;
           }
           scope_infos_to_reuse[id] = handle(scope_info, isolate);
