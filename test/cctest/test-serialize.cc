@@ -44,7 +44,6 @@
 #include "src/codegen/script-details.h"
 #include "src/common/assert-scope.h"
 #include "src/debug/debug-coverage.h"
-#include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/parked-scope-inl.h"
@@ -6305,7 +6304,6 @@ UNINITIALIZED_TEST(SharedStrings) {
   isolate_to_serialize->Dispose();
 
   v8_flags.shared_string_table = true;
-  i::FlagList::EnforceFlagImplications();
 
   v8::Isolate* isolate1 = TestSerializer::NewIsolateFromBlob(blobs);
   v8::Isolate* isolate2 = TestSerializer::NewIsolateFromBlob(blobs);

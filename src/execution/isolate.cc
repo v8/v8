@@ -60,7 +60,6 @@
 #include "src/execution/tiering-manager.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
@@ -3984,6 +3983,10 @@ std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
 namespace {
+bool HasFlagThatRequiresSharedHeap() {
+  return v8_flags.shared_string_table || v8_flags.harmony_struct;
+}
+
 IsolateGroup* AcquireGroupForNewIsolate() {
   IsolateGroup* group = IsolateGroup::AcquireGlobal();
   if (group) return group;
@@ -5349,7 +5352,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   Isolate* use_shared_space_isolate = nullptr;
 
-  if (v8_flags.shared_heap) {
+  if (HasFlagThatRequiresSharedHeap()) {
     if (isolate_group_->has_shared_space_isolate()) {
       owns_shareable_data_ = false;
       use_shared_space_isolate = isolate_group_->shared_space_isolate();
