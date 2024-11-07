@@ -34,12 +34,8 @@ a = 3;
 assertUnoptimized(read);
 assertEquals(3, read());
 
-// Write was also deoptimized, because it depends on `a` constness.
-assertUnoptimized(write);
-
-%OptimizeMaglevOnNextCall(write);
+// Write won't deopt, since the value it's writing to is already not a constant.
 write(1);
-// Now it depends on Sminess of the context slot.
 assertOptimized(write);
 
 assertUnoptimized(read);

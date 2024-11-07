@@ -295,6 +295,8 @@ class ExceptionHandlerInfo;
 
 #define NON_VALUE_NODE_LIST(V)                \
   V(AssertInt32)                              \
+  V(CheckConstTrackingLetCell)                \
+  V(CheckConstTrackingLetCellTagged)          \
   V(CheckDynamicValue)                        \
   V(CheckInt32IsSmi)                          \
   V(CheckUint32IsSmi)                         \
@@ -337,7 +339,6 @@ class ExceptionHandlerInfo;
   V(StoreDoubleDataViewElement)               \
   V(StoreTaggedFieldNoWriteBarrier)           \
   V(StoreTaggedFieldWithWriteBarrier)         \
-  V(StoreScriptContextSlotWithWriteBarrier)   \
   V(StoreTrustedPointerFieldWithWriteBarrier) \
   V(HandleNoHeapWritesInterrupt)              \
   V(ReduceInterruptBudgetForLoop)             \
@@ -6414,6 +6415,75 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
                                    kDeoptimizeReasonCount))>;
 };
 
+class CheckConstTrackingLetCell
+    : public FixedInputNodeT<1, CheckConstTrackingLetCell> {
+  using Base = FixedInputNodeT<1, CheckConstTrackingLetCell>;
+
+ public:
+  explicit CheckConstTrackingLetCell(uint64_t bitfield, int index)
+      : Base(bitfield), index_(index) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kContextIndex = 0;
+  Input& context_input() { return input(kContextIndex); }
+
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing() {
+    context_input().node()->SetTaggedResultNeedsDecompress();
+  }
+#endif
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  auto options() const { return std::tuple{index_}; }
+
+  int index() const { return index_; }
+
+ private:
+  int index_;
+};
+
+class CheckConstTrackingLetCellTagged
+    : public FixedInputNodeT<2, CheckConstTrackingLetCellTagged> {
+  using Base = FixedInputNodeT<2, CheckConstTrackingLetCellTagged>;
+
+ public:
+  explicit CheckConstTrackingLetCellTagged(uint64_t bitfield, int index)
+      : Base(bitfield), index_(index) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  static constexpr int kContextIndex = 0;
+  static constexpr int kValueIndex = 1;
+  Input& context_input() { return input(kContextIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing() {
+    context_input().node()->SetTaggedResultNeedsDecompress();
+    value_input().node()->SetTaggedResultNeedsDecompress();
+  }
+#endif
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  auto options() const { return std::tuple{index_}; }
+
+  int index() const { return index_; }
+
+ private:
+  int index_;
+};
+
 class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
   using Base = FixedInputNodeT<0, DebugBreak>;
 
@@ -7684,47 +7754,6 @@ class StoreTaggedFieldWithWriteBarrier
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
 
   const int offset_;
-};
-
-class StoreScriptContextSlotWithWriteBarrier
-    : public FixedInputNodeT<3, StoreScriptContextSlotWithWriteBarrier> {
-  using Base = FixedInputNodeT<3, StoreScriptContextSlotWithWriteBarrier>;
-
- public:
-  explicit StoreScriptContextSlotWithWriteBarrier(uint64_t bitfield, int index)
-      : Base(bitfield), index_(index) {}
-
-  static constexpr OpProperties kProperties = OpProperties::CanWrite() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::EagerDeopt();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged,
-      ValueRepresentation::kTagged};
-
-  int offset() const { return Context::OffsetOfElementAt(index()); }
-  int index() const { return index_; }
-
-  static constexpr int kContextIndex = 0;
-  static constexpr int kOldValueIndex = 1;
-  static constexpr int kNewValueIndex = 2;
-  Input& context_input() { return input(kContextIndex); }
-  Input& old_value_input() { return input(kOldValueIndex); }
-  Input& new_value_input() { return input(kNewValueIndex); }
-
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing() {
-    new_value_input().node()->SetTaggedResultNeedsDecompress();
-    // Don't need to decompress value to store it.
-  }
-#endif
-
-  int MaxCallStackArgs() const;
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  const int index_;
 };
 
 class StoreTrustedPointerFieldWithWriteBarrier
