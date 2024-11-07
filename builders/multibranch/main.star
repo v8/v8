@@ -167,7 +167,6 @@ in_category(
         name = "V8 Linux64 - sticky mark bits - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        first_branch_version = "12.7",
         barrier = BARRIER.TREE_CLOSER,
     ),
     main_multibranch_builder(
@@ -175,7 +174,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"default_targets": ["verify_all_builtins_hashes"]},
         use_remoteexec = RECLIENT.DEFAULT,
-        first_branch_version = "11.7",
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
@@ -190,7 +188,11 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 - PKU",
         parent_builder = "V8 Linux64 - builder",
-        first_branch_version = "11.9",
+    ),
+    main_multibranch_builder(
+        name = "V8 Linux64 - PKU - debug",
+        parent_builder = "V8 Linux64 - debug builder",
+        first_branch_version = "13.2",
     ),
 )
 
