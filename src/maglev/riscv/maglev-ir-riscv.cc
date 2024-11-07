@@ -542,7 +542,6 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, Xor)
       Register rhs = ToRegister(right_input());                  \
       __ opcode(out, lhs, Operand(rhs));                         \
     }                                                            \
-    __ ZeroExtendWord(out, out);                                 \
   }
 DEF_SHIFT_BINOP(Int32ShiftLeft, Sll32)
 DEF_SHIFT_BINOP(Int32ShiftRight, Sra32)
