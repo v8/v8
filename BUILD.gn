@@ -1487,6 +1487,17 @@ config("toolchain") {
       defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
     }
   }
+  if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
+    if (riscv_use_zba) {
+      defines += [ "__riscv_zba" ]
+    }
+    if (riscv_use_zbb) {
+      defines += [ "__riscv_zbb" ]
+    }
+    if (riscv_use_zbs) {
+      defines += [ "__riscv_zbs" ]
+    }
+  }
   if (v8_current_cpu == "riscv64") {
     defines += [ "V8_TARGET_ARCH_RISCV64" ]
     defines += [ "__riscv_xlen=64" ]
