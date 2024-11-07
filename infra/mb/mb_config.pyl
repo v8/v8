@@ -301,6 +301,7 @@
       'v8_linux64_no_sandbox_compile_rel': 'release_x64_no_sandbox',
       'v8_linux64_official_compile_rel': 'official_x64_on_release_branch',
       'v8_linux64_predictable_compile_rel': 'release_x64_predictable',
+      'v8_linux64_pku_compile_dbg': 'debug_x64',
       'v8_linux64_pku_compile_rel': 'release_x64',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
       'v8_linux64_single_generation_compile_dbg': 'debug_x64_single_generation',
