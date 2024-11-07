@@ -3835,8 +3835,7 @@ bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
       if (!extension_ref) return false;
       if (!extension_ref->IsUndefined()) return false;
       ValueNode* extension = LoadAndCacheContextSlot(
-          context, Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
-          kMutable, ContextKind::kDefault);
+          context, Context::EXTENSION_INDEX, kMutable, ContextKind::kDefault);
       AddNewNode<CheckValue>({extension}, broker()->undefined_value());
     }
     CHECK_IMPLIES(!scope_info.HasOuterScopeInfo(), d + 1 == depth);
