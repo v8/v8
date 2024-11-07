@@ -205,9 +205,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7472
-  'intl402/NumberFormat/currency-digits': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12209
   'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
 
@@ -283,8 +280,6 @@
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days': [FAIL],
 
 
-  'staging/Temporal/Duration/old/round': [FAIL],
-  'staging/Temporal/Duration/old/total': [FAIL],
   'staging/Intl402/Temporal/old/dst-math': [FAIL],
 
   # UBSan complain about static_cast<int32_t> from double in AddISODate()
@@ -768,10 +763,7 @@
   'staging/Temporal/Regex/old/plaindatetime': [FAIL],
   'staging/Temporal/Regex/old/plainmonthday': [FAIL],
   'staging/Temporal/Regex/old/plainyearmonth': [FAIL],
-  'staging/Temporal/ZonedDateTime/old/construction-and-properties': [FAIL],
-  'staging/Temporal/ZonedDateTime/old/toPlainDate': [FAIL],
-  'staging/Temporal/ZonedDateTime/old/toString': [FAIL],
-  'staging/Temporal/ZonedDateTime/old/withTimezone': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/construction-and-properties': [FAIL],
 
   'built-ins/Temporal/Duration/compare/relativeto-propertybag-invalid-offset-string': [FAIL],
   'built-ins/Temporal/Duration/compare/relativeto-propertybag-timezone-wrong-type': [FAIL],
@@ -934,8 +926,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/argument-number': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/argument-wrong-type': [FAIL],
   'built-ins/Temporal/ZonedDateTime/timezone-wrong-type': [FAIL],
-  'staging/Temporal/Instant/old/toZonedDateTimeISO': [FAIL],
-  'staging/Temporal/ZonedDateTime/old/property-bags': [FAIL],
 
   'built-ins/Temporal/Duration/compare/relativeto-propertybag-timezone-string-datetime': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-timezone-string-datetime': [FAIL],
@@ -1466,7 +1456,7 @@
 
   # Temporal staging test which use timeZone other than "UTC" or
   # calendar other than "iso8601" which are not supported in no i18n mode.
-  'staging/Temporal/ZonedDateTime/old/construction-and-properties': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/construction-and-properties': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
 }],  # not i18n
@@ -1699,7 +1689,6 @@
   'built-ins/TypedArray/prototype/with/index-validated-against-current-length': [FAIL],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
-  'staging/Temporal/ZonedDateTime/old/round': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -1951,9 +1940,7 @@
   'staging/Intl402/Temporal/old/duration-total': [SKIP],
   'staging/Intl402/Temporal/old/zdt-round': [SKIP],
   'staging/Temporal/removed-methods': [SKIP],
-  'staging/Temporal/ZonedDateTime/old/construction-and-properties': [SKIP],
-  'staging/Temporal/ZonedDateTime/old/toPlainDate': [SKIP],
-  'staging/Temporal/ZonedDateTime/old/toString': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/construction-and-properties': [SKIP],
 }],
 # End roll-watcher patch
 ####
@@ -2462,6 +2449,62 @@
 'staging/source-phase-imports/import-source-source-text-module': [SKIP],
 }],
 # end import test262@3f0a24f4f6a9c84c4f4edc9a19d6c8d74521aaa7
+####
+
+####
+# import test262@ab69bd4dd8184ce6b96a0a02c904d20ee76b10ed
+[ALWAYS, {
+'built-ins/Temporal/Duration/prototype/round/accepts-datetime-strings-for-relative-to': [SKIP],
+'built-ins/Temporal/Duration/prototype/round/does-not-accept-non-string-primitives-for-relative-to': [SKIP],
+'built-ins/Temporal/Duration/prototype/round/rounding-increments': [SKIP],
+'built-ins/Temporal/Duration/prototype/round/rounding-relative-to-date': [SKIP],
+'built-ins/Temporal/Duration/prototype/total/does-not-accept-non-string-primitives-for-relativeTo': [SKIP],
+'built-ins/Temporal/Duration/prototype/total/no-precision-loss-for-small-units': [SKIP],
+'built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-missing': [SKIP],
+'built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/to-zoned-date-time-iso': [SKIP],
+'built-ins/Temporal/PlainYearMonth/prototype/add/subtract-from-last-representable-month': [SKIP],
+'built-ins/Temporal/PlainYearMonth/prototype/subtract/subtract-from-last-representable-month': [SKIP],
+'built-ins/Temporal/ZonedDateTime/from/argument-propertybag-function-object': [SKIP],
+'built-ins/Temporal/ZonedDateTime/from/argument-propertybag-ignores-incorrect-properties': [SKIP],
+'built-ins/Temporal/ZonedDateTime/from/argument-propertybag-monthcode-month': [SKIP],
+'built-ins/Temporal/ZonedDateTime/from/argument-string-basic-and-extended-format': [SKIP],
+'built-ins/Temporal/ZonedDateTime/from/argument-string-decimal-places': [SKIP],
+'built-ins/Temporal/ZonedDateTime/from/argument-string-negative-extended-year': [SKIP],
+'built-ins/Temporal/ZonedDateTime/from/argument-string-optional-parts': [SKIP],
+'built-ins/Temporal/ZonedDateTime/from/argument-string-variant-decimal-separator': [SKIP],
+'built-ins/Temporal/ZonedDateTime/from/overflow-options': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/add/add-duration': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/add/casts-argument': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/add/constrain-when-ambiguous-result': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/add/cross-epoch': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/add/math-order-of-operations-add-constrain': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/add/math-order-of-operations-add-none': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/add/overflow': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/add/symmetrical-wrt-negative-durations-in-time-part': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/round/rounding-increments': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/round/smallestunit': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/subtract/casts-argument': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/subtract/constrain-when-ambiguous-result': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/subtract/math-order-of-operations-subtract-constrain': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/subtract/math-order-of-operations-subtract-none': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/subtract/overflow': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/subtract/subtract-duration-object': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/subtract/symmetrical-wrt-negative-durations': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/toPlainDate/basic': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/with/basic': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/with/incorrectly-spelled-properties-ignored': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/with/overflow-options': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/basic': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/withPlainTime/incorrectly-spelled-properties-ignored': [SKIP],
+'built-ins/Temporal/ZonedDateTime/prototype/withTimeZone/preserves-instant': [SKIP],
+'intl402/NumberFormat/currency-digits-nonstandard-notation': [SKIP],
+'intl402/Temporal/PlainYearMonth/prototype/with/minimum-valid-year-month': [SKIP],
+'intl402/Temporal/ZonedDateTime/prototype/startOfDay/same-date-starts-twice': [SKIP],
+'staging/Temporal/Duration/old/accepts-datetime-strings-or-fields-for-relativeTo': [SKIP],
+'staging/Temporal/Duration/old/balances-up-to-next-unit-after-rounding': [SKIP],
+'staging/Temporal/Duration/old/relativeto-not-required-to-round-fixed-length-units-in-durations-without-variable-units': [SKIP],
+}],
+# end import test262@ab69bd4dd8184ce6b96a0a02c904d20ee76b10ed
 ####
 
 ]
