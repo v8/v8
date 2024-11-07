@@ -103,7 +103,7 @@ class Code : public ExposedTrustedObject {
                                      Tagged<InstructionStream> istream);
 
   inline void initialize_flags(CodeKind kind, bool is_context_specialized,
-                               bool is_turbofanned, int stack_slots);
+                               bool is_turbofanned);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -222,7 +222,7 @@ class Code : public ExposedTrustedObject {
 
   // [stack_slots]: If {uses_safepoint_table()}, the number of stack slots
   // reserved in the code prologue; otherwise 0.
-  inline int stack_slots() const;
+  inline uint32_t stack_slots() const;
 
   inline Tagged<TrustedByteArray> SourcePositionTable(
       Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const;
@@ -431,14 +431,11 @@ class Code : public ExposedTrustedObject {
   V(KindField, CodeKind, 4, _)                \
   V(IsTurbofannedField, bool, 1, _)           \
   V(IsContextSpecializedField, bool, 1, _)    \
-  /* Steal bits from here if needed: */       \
-  V(StackSlotsField, int, 23, _)              \
   V(MarkedForDeoptimizationField, bool, 1, _) \
   V(EmbeddedObjectsClearedField, bool, 1, _)  \
   V(CanHaveWeakObjectsField, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
-  static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 32);
   static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(kFlagsOffset) * kBitsPerByte);
   static_assert(kCodeKindCount <= KindField::kNumValues);
@@ -521,7 +518,7 @@ class GcSafeCode : public HeapObject {
   inline Tagged<Object> raw_instruction_stream() const;
   inline Address constant_pool() const;
   inline Address safepoint_table_address() const;
-  inline int stack_slots() const;
+  inline uint32_t stack_slots() const;
 
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionStart(Isolate* isolate, Address pc) const;

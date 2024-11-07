@@ -1244,7 +1244,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_context_specialized_ = false;
     bool is_turbofanned_ = false;
-    int stack_slots_ = 0;
+    uint32_t stack_slots_ = 0;
     uint16_t parameter_count_ = 0;
   };
 

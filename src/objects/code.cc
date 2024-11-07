@@ -202,9 +202,6 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (CodeKindIsOptimizedJSFunction(kind)) {
-    os << "stack_slots = " << code->stack_slots() << "\n";
-  }
   os << "compiler = "
      << (code->is_turbofanned()       ? "turbofan"
          : code->is_maglevved()       ? "maglev"

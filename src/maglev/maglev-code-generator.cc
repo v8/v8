@@ -1721,8 +1721,7 @@ MaglevCodeGenerator::MaglevCodeGenerator(
     Graph* graph)
     : local_isolate_(isolate),
       safepoint_table_builder_(compilation_info->zone(),
-                               graph->tagged_stack_slots(),
-                               graph->untagged_stack_slots()),
+                               graph->tagged_stack_slots()),
       frame_translation_builder_(compilation_info->zone()),
       code_gen_state_(compilation_info, &safepoint_table_builder_),
       masm_(isolate->GetMainThreadIsolateUnsafe(), compilation_info->zone(),
@@ -1929,7 +1928,7 @@ void MaglevCodeGenerator::EmitMetadata() {
   // Final alignment before starting on the metadata section.
   masm()->Align(InstructionStream::kMetadataAlignment);
 
-  safepoint_table_builder_.Emit(masm());
+  safepoint_table_builder_.Emit(masm(), stack_slot_count_with_fixed_frame());
 
   // Exception handler table.
   handler_table_offset_ = HandlerTable::EmitReturnTableStart(masm());

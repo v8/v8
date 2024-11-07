@@ -2188,11 +2188,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   // Determine spill slot area count.
   uint32_t tagged_slot_count = maglev_safepoint_entry.num_tagged_slots();
   uint32_t spill_slot_count =
-      tagged_slot_count + maglev_safepoint_entry.num_untagged_slots();
-  DCHECK_EQ(code->stack_slots(),
-            StandardFrameConstants::kFixedSlotCount +
-                maglev_safepoint_entry.num_tagged_slots() +
-                maglev_safepoint_entry.num_untagged_slots());
+      code->stack_slots() - StandardFrameConstants::kFixedSlotCount;
 
   // Visit the outgoing parameters if they are tagged.
   DCHECK(code->has_tagged_outgoing_params());

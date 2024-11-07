@@ -173,7 +173,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         builtin_,
         is_context_specialized_,
         is_turbofanned_,
-        stack_slots_,
         parameter_count_,
         code_desc_.instruction_size(),
         code_desc_.metadata_size(),
@@ -236,6 +235,9 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 #endif
     }
   }
+
+  // TODO(leszeks): Remove stack_slots_, it's already in the instruction stream.
+  DCHECK_EQ(stack_slots_, code->stack_slots());
 
 #ifdef ENABLE_DISASSEMBLER
   if (V8_UNLIKELY(profiler_data_ && v8_flags.turbo_profiling_verbose)) {
@@ -2897,7 +2899,6 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(DirectHandle<Code> code,
       code->builtin_id(),
       code->is_context_specialized(),
       code->is_turbofanned(),
-      code->stack_slots(),
       code->parameter_count(),
       code->instruction_size(),
       code->metadata_size(),

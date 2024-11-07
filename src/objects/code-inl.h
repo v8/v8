@@ -45,7 +45,7 @@ GCSAFE_CODE_FWD_ACCESSOR(bool, is_turbofanned)
 GCSAFE_CODE_FWD_ACCESSOR(bool, has_tagged_outgoing_params)
 GCSAFE_CODE_FWD_ACCESSOR(bool, marked_for_deoptimization)
 GCSAFE_CODE_FWD_ACCESSOR(Tagged<Object>, raw_instruction_stream)
-GCSAFE_CODE_FWD_ACCESSOR(int, stack_slots)
+GCSAFE_CODE_FWD_ACCESSOR(uint32_t, stack_slots)
 GCSAFE_CODE_FWD_ACCESSOR(uint16_t, wasm_js_tagged_parameter_count)
 GCSAFE_CODE_FWD_ACCESSOR(uint16_t, wasm_js_first_tagged_parameter)
 GCSAFE_CODE_FWD_ACCESSOR(Address, constant_pool)
@@ -473,10 +473,14 @@ bool Code::uses_safepoint_table() const {
   return is_turbofanned() || is_maglevved() || is_wasm_code();
 }
 
-int Code::stack_slots() const {
-  const int slots = StackSlotsField::decode(flags(kRelaxedLoad));
-  DCHECK_IMPLIES(!uses_safepoint_table(), slots == 0);
-  return slots;
+uint32_t Code::stack_slots() const {
+  DCHECK_IMPLIES(safepoint_table_size() > 0, uses_safepoint_table());
+  if (safepoint_table_size() == 0) return 0;
+  DCHECK(safepoint_table_size() >=
+         static_cast<int>(sizeof(SafepointTableStackSlotsField_t)));
+  static_assert(kSafepointTableStackSlotsOffset == 0);
+  return base::Memory<SafepointTableStackSlotsField_t>(
+      safepoint_table_address() + kSafepointTableStackSlotsOffset);
 }
 
 bool Code::marked_for_deoptimization() const {
@@ -800,17 +804,13 @@ void Code::clear_padding() {
 RELAXED_UINT32_ACCESSORS(Code, flags, kFlagsOffset)
 
 void Code::initialize_flags(CodeKind kind, bool is_context_specialized,
-                            bool is_turbofanned, int stack_slots) {
-  CHECK(StackSlotsField::is_valid(stack_slots));
+                            bool is_turbofanned) {
   DCHECK(!CodeKindIsInterpretedJSFunction(kind));
   uint32_t value = KindField::encode(kind) |
                    IsContextSpecializedField::encode(is_context_specialized) |
-                   IsTurbofannedField::encode(is_turbofanned) |
-                   StackSlotsField::encode(stack_slots);
+                   IsTurbofannedField::encode(is_turbofanned);
   static_assert(FIELD_SIZE(kFlagsOffset) == kInt32Size);
   set_flags(value, kRelaxedStore);
-  DCHECK_IMPLIES(stack_slots != 0, uses_safepoint_table());
-  DCHECK_IMPLIES(!uses_safepoint_table(), stack_slots == 0);
 }
 
 // Ensure builtin_id field fits into int16_t, so that we can rely on sign
