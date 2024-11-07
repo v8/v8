@@ -459,30 +459,6 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   return instance_object;
 }
 
-void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
-                                  Zone* zone, const FunctionSig* sig,
-                                  const uint8_t* start, const uint8_t* end) {
-  WasmDetectedFeatures unused_detected_features;
-  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
-  FunctionBody body(sig, 0, start, end, kIsShared);
-  std::vector<compiler::WasmLoopInfo> loops;
-  BuildTFGraph(zone->allocator(), WasmEnabledFeatures::All(), nullptr, builder,
-               &unused_detected_features, body, &loops, nullptr, nullptr, 0,
-               nullptr, kRegularFunction);
-  builder->LowerInt64(kCalledFromWasm);
-}
-
-void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       CompilationEnv* env, const FunctionSig* sig,
-                       compiler::SourcePositionTable* source_position_table,
-                       const uint8_t* start, const uint8_t* end) {
-  compiler::WasmGraphBuilder builder(
-      env, zone, jsgraph, sig, source_position_table,
-      compiler::WasmGraphBuilder::kInstanceParameterMode, nullptr /* isolate */,
-      env->enabled_features);
-  TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
-}
-
 // This struct is just a type tag for Zone::NewArray<T>(size_t) call.
 struct WasmFunctionCompilerBuffer {};
 

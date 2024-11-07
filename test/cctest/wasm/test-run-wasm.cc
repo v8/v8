@@ -2112,53 +2112,6 @@ WASM_EXEC_TEST(Infinite_Loop_not_taken2_brif) {
   CHECK_EQ(45, r.Call(1));
 }
 
-static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-  HandleScope scope(isolate);
-  // TODO(ahaas): Enable this test for externref opcodes when code generation
-  // for them is implemented.
-  if (WasmOpcodes::IsExternRefOpcode(opcode)) return;
-  // Enable all optional operators.
-  compiler::CommonOperatorBuilder common(&zone);
-  compiler::MachineOperatorBuilder machine(
-      &zone, MachineType::PointerRepresentation(),
-      compiler::MachineOperatorBuilder::kAllOptionalOps);
-  compiler::Graph graph(&zone);
-  compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
-                            &machine);
-  const FunctionSig* sig = WasmOpcodes::Signature(opcode);
-  CompilationEnv env = CompilationEnv::NoModuleAllFeaturesForTesting();
-
-  if (sig->parameter_count() == 1) {
-    uint8_t code[] = {WASM_NO_LOCALS, kExprLocalGet, 0,
-                      static_cast<uint8_t>(opcode), WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
-                      code + arraysize(code));
-  } else {
-    CHECK_EQ(2, sig->parameter_count());
-    uint8_t code[] = {WASM_NO_LOCALS,
-                      kExprLocalGet,
-                      0,
-                      kExprLocalGet,
-                      1,
-                      static_cast<uint8_t>(opcode),
-                      WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
-                      code + arraysize(code));
-  }
-}
-
-TEST(Build_Wasm_SimpleExprs) {
-// Test that the decoder can build a graph for all supported simple expressions.
-#define GRAPH_BUILD_TEST(name, ...) \
-  TestBuildGraphForSimpleExpression(kExpr##name);
-
-  FOREACH_SIMPLE_OPCODE(GRAPH_BUILD_TEST);
-
-#undef GRAPH_BUILD_TEST
-}
-
 WASM_EXEC_TEST(Int32LoadInt8_signext) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   const int kNumElems = kWasmPageSize;

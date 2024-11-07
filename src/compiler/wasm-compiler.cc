@@ -168,6 +168,13 @@ WasmGraphBuilder::WasmGraphBuilder(
                                    V8_STATIC_ROOTS_BOOL
                                ? NullCheckStrategy::kTrapHandler
                                : NullCheckStrategy::kExplicit) {
+  // This code is only used
+  // - if `--no-turboshaft-wasm` is passed,
+  // - for compiling certain wrappers (wasm-to-fast API, C-wasm-entry), and
+  // - for inlining js-to-wasm wrappers into Turbofan-compile JS functions.
+  CHECK(!v8_flags.turboshaft_wasm ||
+        parameter_mode != ParameterMode::kInstanceParameterMode);
+
   // There are two kinds of isolate-specific code: JS-to-JS wrappers (passing
   // kNoSpecialParameterMode) and JS-to-Wasm wrappers (passing
   // kJSFunctionAbiMode).

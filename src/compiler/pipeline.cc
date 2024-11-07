@@ -3276,6 +3276,9 @@ void Pipeline::GenerateCodeForWasmFunction(
     CallDescriptor* call_descriptor,
     ZoneVector<WasmInliningPosition>* inlining_positions,
     wasm::WasmDetectedFeatures* detected) {
+  // This code is only used if `--no-turboshaft-wasm` is passed.
+  CHECK(!v8_flags.turboshaft_wasm);
+
   auto* wasm_engine = wasm::GetWasmEngine();
   const wasm::WasmModule* module = env->module;
   base::TimeTicks start_time;
