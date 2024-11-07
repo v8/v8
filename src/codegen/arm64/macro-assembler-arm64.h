@@ -35,6 +35,10 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+class JumpTableAssembler;
+}
+
 #define LS_MACRO_LIST(V)                                     \
   V(Ldrb, Register&, rt, LDRB_w)                             \
   V(Strb, Register&, rt, STRB_w)                             \
@@ -2428,6 +2432,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                 uint8_t* pc);
 
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
+
+  friend class wasm::JumpTableAssembler;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
