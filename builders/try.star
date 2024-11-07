@@ -6,6 +6,7 @@ load("//lib/builders.star", "presubmit_builder", "try_builder", "v8_builder")
 load("//lib/gclient.star", "GCLIENT_VARS")
 load("//lib/lib.star", "CQ")
 load("//lib/reclient.star", "RECLIENT", "RECLIENT_JOBS")
+load("//lib/siso.star", "SISO")
 
 presubmit_builder(
     "v8_presubmit",
@@ -220,6 +221,7 @@ try_builder(
     execution_timeout = 4400,
     build_numbers = True,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+    use_siso = SISO.CHROMIUM_UNTRUSTED,
     disable_resultdb_exports = True,
 )
 
@@ -232,6 +234,7 @@ try_builder(
     build_numbers = True,
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
     reclient_jobs = RECLIENT_JOBS.J500,
+    use_siso = SISO.CHROMIUM_UNTRUSTED,
     disable_resultdb_exports = True,
 )
 
