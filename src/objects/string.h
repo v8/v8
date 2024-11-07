@@ -406,11 +406,13 @@ V8_OBJECT class String : public Name {
   // Returns true if the |str| is a valid ECMAScript identifier.
   static bool IsIdentifier(Isolate* isolate, Handle<String> str);
 
-  // Return a UTF8 representation of the string.  The string is null
-  // terminated but may optionally contain nulls.  Length is returned
-  // in length_output if length_output is not a null pointer.  The string
-  // should be nearly flat, otherwise the performance of this method may
-  // be very slow (quadratic in the length).
+  // Return a UTF8 representation of this string.
+  //
+  // The output string is null terminated and any null characters in the source
+  // string are replaced with spaces. The length of the output buffer is
+  // returned in length_output if that is not a null pointer. This string
+  // should be nearly flat, otherwise the performance of this method may be
+  // very slow (quadratic in the length).
   std::unique_ptr<char[]> ToCString(uint32_t offset, uint32_t length,
                                     uint32_t* length_output = nullptr);
 

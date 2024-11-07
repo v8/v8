@@ -590,6 +590,7 @@ namespace internal {
   F(IsEfficiencyModeEnabled, 0, 1)            \
   F(IsInPlaceInternalizableString, 1, 1)      \
   F(IsInternalizedString, 1, 1)               \
+  F(StringToCString, 1, 1)                    \
   F(IsMaglevEnabled, 0, 1)                    \
   F(IsSameHeapObject, 2, 1)                   \
   F(IsSharedString, 1, 1)                     \

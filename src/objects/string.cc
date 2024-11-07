@@ -757,43 +757,63 @@ String::FlatContent String::SlowGetFlatContent(
 
 std::unique_ptr<char[]> String::ToCString(uint32_t offset, uint32_t length,
                                           uint32_t* length_return) {
-  // Compute the size of the UTF-8 string. Start at the specified offset.
+  DCHECK_LE(length, this->length());
+  DCHECK_LE(offset, this->length() - length);
+
   StringCharacterStream stream(this, offset);
-  uint32_t character_position = offset;
-  uint32_t utf8_bytes = 0;
-  uint32_t last = unibrow::Utf16::kNoPreviousCharacter;
-  while (stream.HasMore() && character_position++ < offset + length) {
+
+  // First, compute the required size of the output buffer.
+  size_t utf8_bytes = 0;
+  uint32_t remaining_chars = length;
+  uint16_t last = unibrow::Utf16::kNoPreviousCharacter;
+  while (stream.HasMore() && remaining_chars-- != 0) {
     uint16_t character = stream.GetNext();
     utf8_bytes += unibrow::Utf8::Length(character, last);
     last = character;
   }
 
+  // TODO(saelo): migrate this API to use size_t for length_return.
   if (length_return) {
-    *length_return = utf8_bytes;
+    *length_return = base::checked_cast<uint32_t>(utf8_bytes);
   }
 
-  char* result = NewArray<char>(utf8_bytes + 1);
+  // Second, allocate the output buffer.
+  size_t capacity = utf8_bytes + 1;
+  char* result = NewArray<char>(capacity);
 
-  // Convert the UTF-16 string to a UTF-8 buffer. Start at the specified offset.
+  // Third, encode the string into the output buffer.
   stream.Reset(this, offset);
-  character_position = offset;
-  int utf8_byte_position = 0;
+  size_t pos = 0;
+  remaining_chars = length;
   last = unibrow::Utf16::kNoPreviousCharacter;
-  while (stream.HasMore() && character_position++ < offset + length) {
+  while (stream.HasMore() && remaining_chars-- != 0) {
     uint16_t character = stream.GetNext();
     if (character == 0) {
       character = ' ';
     }
-    utf8_byte_position +=
-        unibrow::Utf8::Encode(result + utf8_byte_position, character, last);
+
+    // Ensure that there's sufficient space for this character and the null
+    // terminator. This should normally always be the case, unless there is
+    // in-sandbox memory corruption.
+    // Alternatively, we could also over-allocate the output buffer by three
+    // bytes (the maximum we can write OOB) or consider allocating it inside
+    // the sandbox, but it's not clear if that would be worth the effort as the
+    // performance overhead of this check appears to be negligible in practice.
+    SBXCHECK_LE(unibrow::Utf8::Length(character, last) + 1, capacity - pos);
+
+    pos += unibrow::Utf8::Encode(result + pos, character, last);
+
     last = character;
   }
-  result[utf8_byte_position] = 0;
+
+  DCHECK_LT(pos, capacity);
+  result[pos++] = 0;
+
   return std::unique_ptr<char[]>(result);
 }
 
 std::unique_ptr<char[]> String::ToCString(uint32_t* length_return) {
-  return ToCString(0, -1, length_return);
+  return ToCString(0, length(), length_return);
 }
 
 // static
