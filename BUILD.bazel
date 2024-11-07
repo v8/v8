@@ -1756,7 +1756,6 @@ filegroup(
         "src/heap/memory-chunk.cc",
         "src/heap/memory-chunk.h",
         "src/heap/memory-chunk-inl.h",
-        "src/heap/memory-chunk-layout.cc",
         "src/heap/memory-chunk-layout.h",
         "src/heap/memory-measurement.cc",
         "src/heap/memory-measurement.h",
