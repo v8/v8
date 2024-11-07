@@ -1311,6 +1311,7 @@ filegroup(
         "src/base/sanitizer/lsan-virtual-address-space.h",
         "src/base/sanitizer/msan.h",
         "src/base/sanitizer/tsan.h",
+        "src/base/sanitizer/ubsan.h",
         "src/baseline/baseline.cc",
         "src/baseline/baseline.h",
         "src/baseline/baseline-assembler.h",

@@ -6584,6 +6584,7 @@ v8_component("v8_libbase") {
     "src/base/sanitizer/lsan.h",
     "src/base/sanitizer/msan.h",
     "src/base/sanitizer/tsan.h",
+    "src/base/sanitizer/ubsan.h",
     "src/base/small-map.h",
     "src/base/small-vector.h",
     "src/base/string-format.h",
