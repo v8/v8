@@ -193,6 +193,7 @@ in_category(
         name = "V8 Linux64 - PKU - debug",
         parent_builder = "V8 Linux64 - debug builder",
         first_branch_version = "13.2",
+        barrier = BARRIER.NONE,
     ),
 )
 
