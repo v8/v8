@@ -2624,8 +2624,6 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StringWrapperConcat* node,
                                 const maglev::ProcessingState& state) {
-    ThrowingScope throwing_scope(this, node);
-
     V<HeapObject> left_string_or_wrapper = Map(node->lhs());
     V<HeapObject> right_string_or_wrapper = Map(node->rhs());
 
