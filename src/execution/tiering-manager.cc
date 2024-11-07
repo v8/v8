@@ -144,7 +144,7 @@ void TieringManager::Optimize(Tagged<JSFunction> function,
                               OptimizationDecision d) {
   DCHECK(d.should_optimize());
   TraceRecompile(isolate_, function, d);
-  function->RequestOptimization(isolate_, d.code_kind, d.concurrency_mode);
+  function->MarkForOptimization(isolate_, d.code_kind, d.concurrency_mode);
 }
 
 void TieringManager::MarkForTurboFanOptimization(Tagged<JSFunction> function) {
@@ -168,6 +168,15 @@ bool FirstTimeTierUpToSparkplug(Isolate* isolate, Tagged<JSFunction> function) {
               CachedTieringDecision::kPending);
 }
 
+bool TieringOrTieredUpToOptimizedTier(Tagged<FeedbackVector> vector) {
+  return !IsNone(vector->tiering_state()) ||
+#ifndef V8_ENABLE_LEAPTIERING
+         vector->maybe_has_maglev_code() || vector->maybe_has_turbofan_code() ||
+#endif  // !V8_ENABLE_LEAPTIERING
+         vector->maybe_has_maglev_osr_code() ||
+         vector->maybe_has_turbofan_osr_code();
+}
+
 bool TiersUpToMaglev(CodeKind code_kind) {
   return V8_LIKELY(maglev::IsMaglevEnabled()) &&
          CodeKindIsUnoptimizedJSFunction(code_kind);
@@ -177,21 +186,21 @@ bool TiersUpToMaglev(std::optional<CodeKind> code_kind) {
   return code_kind.has_value() && TiersUpToMaglev(code_kind.value());
 }
 
-int InterruptBudgetFor(Isolate* isolate, std::optional<CodeKind> code_kind,
-                       Tagged<JSFunction> function,
+int InterruptBudgetFor(std::optional<CodeKind> code_kind,
+                       TieringState tiering_state,
                        CachedTieringDecision cached_tiering_decision,
                        int bytecode_length) {
-  const std::optional<CodeKind> existing_request =
-      function->GetRequestedOptimizationIfAny(isolate);
-  if (existing_request == CodeKind::TURBOFAN_JS ||
+  if (IsRequestTurbofan(tiering_state) ||
       (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN_JS)) {
     return v8_flags.invocation_count_for_osr * bytecode_length;
   }
-  if (maglev::IsMaglevOsrEnabled() && existing_request == CodeKind::MAGLEV) {
+  // TODO(olivf) In case we are currently executing below Maglev and have
+  // CodeKind::MAGLEV waiting we should also OSR. But currently we cannot know
+  // if this helper is called from Maglev code or below.
+  if (maglev::IsMaglevOsrEnabled() && IsRequestMaglev(tiering_state)) {
     return v8_flags.invocation_count_for_maglev_osr * bytecode_length;
   }
-  if (TiersUpToMaglev(code_kind) &&
-      !function->IsTieringRequestedOrInProgress(isolate)) {
+  if (TiersUpToMaglev(code_kind) && tiering_state == TieringState::kNone) {
     if (v8_flags.profile_guided_optimization) {
       switch (cached_tiering_decision) {
         case CachedTieringDecision::kDelayMaglev:
@@ -236,10 +245,10 @@ int TieringManager::InterruptBudgetFor(
     return INT_MAX / 2;
   }
   return ::i::InterruptBudgetFor(
-      isolate,
       override_active_tier ? override_active_tier
                            : function->GetActiveTier(isolate),
-      function, function->shared()->cached_tiering_decision(), bytecode_length);
+      function->tiering_state(), function->shared()->cached_tiering_decision(),
+      bytecode_length);
 }
 
 namespace {
@@ -285,16 +294,16 @@ void TieringManager::RequestOsrAtNextOpportunity(Tagged<JSFunction> function) {
 
 void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
                                         CodeKind current_code_kind) {
-  const bool tiering_in_progress = function->tiering_in_progress();
+  const TieringState tiering_state =
+      function->feedback_vector()->tiering_state();
   const bool osr_in_progress =
       function->feedback_vector()->osr_tiering_in_progress();
   // Attenzione! Update this constant in case the condition below changes.
   static_assert(kTieringStateInProgressBlocksTierup);
-  if (V8_UNLIKELY(tiering_in_progress) || V8_UNLIKELY(osr_in_progress)) {
+  if (V8_UNLIKELY(IsInProgress(tiering_state)) ||
+      V8_UNLIKELY(osr_in_progress)) {
     if (v8_flags.concurrent_recompilation_front_running &&
-        ((tiering_in_progress && function->ActiveTierIsMaglev(isolate_)) ||
-         (osr_in_progress &&
-          function->feedback_vector()->maybe_has_optimized_osr_code()))) {
+        IsRequestTurbofan(tiering_state)) {
       // TODO(olivf): In the case of Maglev we tried a queue with two
       // priorities, but it seems not actually beneficial. More
       // investigation is needed.
@@ -323,15 +332,14 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
   }
 
   const bool maglev_osr = maglev::IsMaglevOsrEnabled();
-  const CodeKinds available_kinds = function->GetAvailableCodeKinds(isolate_);
-  const bool waiting_for_tierup =
-      (current_code_kind < CodeKind::TURBOFAN_JS &&
-       (available_kinds & CodeKindFlag::TURBOFAN_JS)) ||
-      (maglev_osr && current_code_kind < CodeKind::MAGLEV &&
-       (available_kinds & CodeKindFlag::MAGLEV));
   // Baseline OSR uses a separate mechanism and must not be considered here,
   // therefore we limit to kOptimizedJSFunctionCodeKindsMask.
-  if (function->IsOptimizationRequested(isolate_) || waiting_for_tierup) {
+  if (IsRequestTurbofan(tiering_state) ||
+      (maglev_osr && IsRequestMaglev(tiering_state)) ||
+      (current_code_kind < CodeKind::TURBOFAN_JS &&
+       function->HasAvailableCodeKind(isolate_, CodeKind::TURBOFAN_JS)) ||
+      (maglev_osr && current_code_kind < CodeKind::MAGLEV &&
+       function->HasAvailableCodeKind(isolate_, CodeKind::MAGLEV))) {
     if (V8_UNLIKELY(maglev_osr && current_code_kind == CodeKind::MAGLEV &&
                     (!v8_flags.osr_from_maglev ||
                      isolate_->EfficiencyModeEnabledForTiering() ||
@@ -348,27 +356,25 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
     return;
   }
 
-  const std::optional<CodeKind> existing_request =
-      function->GetRequestedOptimizationIfAny(isolate_);
-  DCHECK(existing_request != CodeKind::TURBOFAN_JS);
+  DCHECK(!IsRequestTurbofan(tiering_state));
   DCHECK(!function->HasAvailableCodeKind(isolate_, CodeKind::TURBOFAN_JS));
   OptimizationDecision d =
       ShouldOptimize(function->feedback_vector(), current_code_kind);
   // We might be stuck in a baseline frame that wants to tier up to Maglev, but
   // is in a loop, and can't OSR, because Maglev doesn't have OSR. Allow it to
   // skip over Maglev by re-checking ShouldOptimize as if we were in Maglev.
-  if (V8_UNLIKELY(!isolate_->EfficiencyModeEnabledForTiering() && !maglev_osr &&
-                  d.should_optimize() && d.code_kind == CodeKind::MAGLEV)) {
+  if (!isolate_->EfficiencyModeEnabledForTiering() && !maglev_osr &&
+      d.should_optimize() && d.code_kind == CodeKind::MAGLEV) {
     bool is_marked_for_maglev_optimization =
-        existing_request == CodeKind::MAGLEV ||
-        (available_kinds & CodeKindFlag::MAGLEV);
+        IsRequestMaglev(tiering_state) ||
+        function->HasAvailableCodeKind(isolate_, CodeKind::MAGLEV);
     if (is_marked_for_maglev_optimization) {
       d = ShouldOptimize(function->feedback_vector(), CodeKind::MAGLEV);
     }
   }
 
-  if (V8_UNLIKELY(isolate_->EfficiencyModeEnabledForTiering() &&
-                  d.code_kind != CodeKind::TURBOFAN_JS)) {
+  if (isolate_->EfficiencyModeEnabledForTiering() &&
+      d.code_kind != CodeKind::TURBOFAN_JS) {
     d.concurrency_mode = ConcurrencyMode::kSynchronous;
   }
 
@@ -466,10 +472,9 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
     if (v8_flags.profile_guided_optimization &&
         shared->cached_tiering_decision() <=
             CachedTieringDecision::kEarlySparkplug) {
-      DCHECK_LT(v8_flags.invocation_count_for_early_optimization,
-                FeedbackVector::kInvocationCountBeforeStableDeoptSentinel);
-      if (vector->invocation_count_before_stable() <
-          v8_flags.invocation_count_for_early_optimization) {
+      if (TieringOrTieredUpToOptimizedTier(vector)) {
+        shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);
+      } else {
         // Record how many invocation count were consumed before the last IC
         // change.
         int new_invocation_count_before_stable;
@@ -492,17 +497,15 @@ void TieringManager::NotifyICChanged(Tagged<FeedbackVector> vector) {
           new_invocation_count_before_stable =
               std::ceil(static_cast<float>(total_consumed_budget) / bytecodes);
         }
-        if (new_invocation_count_before_stable >=
+        DCHECK_LT(v8_flags.invocation_count_for_early_optimization,
+                  FeedbackVector::kInvocationCountBeforeStableDeoptSentinel);
+        if (new_invocation_count_before_stable >
             v8_flags.invocation_count_for_early_optimization) {
-          vector->set_invocation_count_before_stable(
-              v8_flags.invocation_count_for_early_optimization, kRelaxedStore);
           shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);
         } else {
           vector->set_invocation_count_before_stable(
               new_invocation_count_before_stable, kRelaxedStore);
         }
-      } else {
-        shared->set_cached_tiering_decision(CachedTieringDecision::kNormal);
       }
     }
     if (!v8_flags.profile_guided_optimization ||
@@ -530,8 +533,8 @@ void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,
   IsCompiledScope is_compiled_scope(
       function->shared()->is_compiled_scope(isolate_));
 
-  // Remember whether the function had a vector at this point. This is
-  // relevant later since the configuration 'Ignition without a vector' can be
+  // Remember whether the function had a vector at this point. This is relevant
+  // later since the configuration 'Ignition without a vector' can be
   // considered a tier on its own. We begin tiering up to tiers higher than
   // Sparkplug only when reaching this point *with* a feedback vector.
   const bool had_feedback_vector = function->has_feedback_vector();
@@ -550,18 +553,17 @@ void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,
   if (!had_feedback_vector) {
     if (compile_sparkplug && function->shared()->cached_tiering_decision() ==
                                  CachedTieringDecision::kPending) {
-      // Mark the function as compiled with sparkplug before the feedback
-      // vector is created to initialize the interrupt budget for the next
-      // tier.
+      // Mark the function as compiled with sparkplug before the feedback vector
+      // is created to initialize the interrupt budget for the next tier.
       function->shared()->set_cached_tiering_decision(
           CachedTieringDecision::kEarlySparkplug);
     }
     JSFunction::CreateAndAttachFeedbackVector(isolate_, function,
                                               &is_compiled_scope);
     DCHECK(is_compiled_scope.is_compiled());
-    // Also initialize the invocation count here. This is only really needed
-    // for OSR. When we OSR functions with lazy feedback allocation we want to
-    // have a non zero invocation count so we can inline functions.
+    // Also initialize the invocation count here. This is only really needed for
+    // OSR. When we OSR functions with lazy feedback allocation we want to have
+    // a non zero invocation count so we can inline functions.
     function->feedback_vector()->set_invocation_count(1, kRelaxedStore);
   }
 

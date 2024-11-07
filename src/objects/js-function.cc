@@ -191,7 +191,6 @@ bool JSFunction::CanDiscardCompiled(IsolateForSandbox isolate) const {
 
 namespace {
 
-#ifndef V8_ENABLE_LEAPTIERING
 constexpr TieringState TieringStateFor(CodeKind target_kind,
                                        ConcurrencyMode mode) {
   DCHECK(target_kind == CodeKind::MAGLEV ||
@@ -203,11 +202,10 @@ constexpr TieringState TieringStateFor(CodeKind target_kind,
                     ? TieringState::kRequestTurbofan_Concurrent
                     : TieringState::kRequestTurbofan_Synchronous);
 }
-#endif  // !V8_ENABLE_LEAPTIERING
 
 }  // namespace
 
-void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
+void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
                                      ConcurrencyMode mode) {
   if (!isolate->concurrent_recompilation_enabled() ||
       isolate->bootstrapper()->IsActive()) {
@@ -223,7 +221,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
          !shared()->optimization_disabled());
 
   if (IsConcurrent(mode)) {
-    if (tiering_in_progress()) {
+    if (IsInProgress(tiering_state())) {
       if (v8_flags.trace_concurrent_recompilation) {
         PrintF("  ** Not marking ");
         ShortPrint(*this);
@@ -239,47 +237,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     }
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
-  switch (target_kind) {
-    case CodeKind::MAGLEV:
-      switch (mode) {
-        case ConcurrencyMode::kConcurrent:
-          DCHECK(!HasAvailableCodeKind(isolate, CodeKind::MAGLEV));
-          DCHECK(!HasAvailableCodeKind(isolate, CodeKind::TURBOFAN_JS));
-          DCHECK(!IsOptimizationRequested(isolate));
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kStartMaglevOptimizationJob,
-                                 isolate);
-          break;
-        case ConcurrencyMode::kSynchronous:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kOptimizeMaglevEager, isolate);
-          break;
-      }
-      break;
-    case CodeKind::TURBOFAN_JS:
-      switch (mode) {
-        case ConcurrencyMode::kConcurrent:
-          DCHECK(!IsOptimizationRequested(isolate));
-          DCHECK(!HasAvailableCodeKind(isolate, CodeKind::TURBOFAN_JS));
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kStartTurbofanOptimizationJob,
-                                 isolate);
-          break;
-        case ConcurrencyMode::kSynchronous:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kOptimizeTurbofanEager,
-                                 isolate);
-          break;
-      }
-      break;
-    default:
-      UNREACHABLE();
-  }
-#else
   set_tiering_state(isolate, TieringStateFor(target_kind, mode));
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void JSFunction::SetInterruptBudget(
@@ -663,21 +621,19 @@ void JSFunction::CreateAndAttachFeedbackVector(
   DCHECK_EQ(function->raw_feedback_cell()->value(), *feedback_vector);
   function->SetInterruptBudget(isolate);
 
-#ifndef V8_ENABLE_LEAPTIERING
   DCHECK_EQ(v8_flags.log_function_events,
             feedback_vector->log_next_execution());
-#endif
 
   if (v8_flags.profile_guided_optimization &&
       v8_flags.profile_guided_optimization_for_empty_feedback_vector &&
       function->feedback_vector()->length() == 0) {
     if (function->shared()->cached_tiering_decision() ==
         CachedTieringDecision::kEarlyMaglev) {
-      function->RequestOptimization(isolate, CodeKind::MAGLEV,
+      function->MarkForOptimization(isolate, CodeKind::MAGLEV,
                                     ConcurrencyMode::kConcurrent);
     } else if (function->shared()->cached_tiering_decision() ==
                CachedTieringDecision::kEarlyTurbofan) {
-      function->RequestOptimization(isolate, CodeKind::TURBOFAN_JS,
+      function->MarkForOptimization(isolate, CodeKind::TURBOFAN_JS,
                                     ConcurrencyMode::kConcurrent);
     }
   }

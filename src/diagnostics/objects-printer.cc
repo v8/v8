@@ -1586,10 +1586,8 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
   }
 
   os << "\n - shared function info: " << Brief(shared_function_info());
-#ifdef V8_ENABLE_LEAPTIERING
-  os << "\n - tiering_in_progress: " << tiering_in_progress();
-#else
   os << "\n - tiering state: " << tiering_state();
+#ifndef V8_ENABLE_LEAPTIERING
   if (has_optimized_code()) {
     os << "\n - optimized code: "
        << Brief(optimized_code(GetIsolateForSandbox(*this)));
@@ -1599,7 +1597,6 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
   os << "\n - maybe has maglev code: " << maybe_has_maglev_code();
   os << "\n - maybe has turbofan code: " << maybe_has_turbofan_code();
 #endif  // !V8_ENABLE_LEAPTIERING
-  os << "\n - osr_tiering_in_progress: " << osr_tiering_in_progress();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - closure feedback cell array: ";
   closure_feedback_cell_array()->ClosureFeedbackCellArrayPrint(os);
@@ -2205,15 +2202,6 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
     os << "\n - canonical feedback cell dispatch_handle: 0x" << std::hex
        << raw_feedback_cell()->dispatch_handle() << std::dec;
   }
-  if (IsTieringRequestedOrInProgress(GetIsolate())) {
-    os << "\n - tiering request ";
-    if (tiering_in_progress()) {
-      os << "in_progress ";
-    }
-    GetProcessWideJSDispatchTable()->PrintCurrentTieringRequest(
-        dispatch_handle(), GetIsolate(), os);
-  }
-
 #endif  // V8_ENABLE_LEAPTIERING
   if (code(isolate)->kind() == CodeKind::FOR_TESTING) {
     os << "\n - FOR_TESTING";

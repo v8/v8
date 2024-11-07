@@ -140,10 +140,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static void FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                            Isolate* isolate);
 
-  // Dispose a Maglev compile job.
-  static void DisposeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
-                                          Isolate* isolate);
-
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
   // offer this chance, optimized closure instantiation will not call this.

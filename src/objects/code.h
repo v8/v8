@@ -198,7 +198,6 @@ class Code : public ExposedTrustedObject {
 
   // Tells whether the code checks the tiering state in the function's feedback
   // vector.
-  // TODO(olivfi, 42204201): Remove this once leaptiering is enabled everywhere.
   inline bool checks_tiering_state() const;
 
   // Tells whether the outgoing parameters of this code are tagged pointers.

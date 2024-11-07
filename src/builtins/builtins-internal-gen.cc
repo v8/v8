@@ -1453,7 +1453,7 @@ void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
 }
 #endif  // V8_TARGET_ARCH_X64
 
-#if defined(V8_ENABLE_MAGLEV) && !defined(V8_ENABLE_LEAPTIERING)
+#ifdef V8_ENABLE_MAGLEV
 void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
     MacroAssembler* masm) {
   using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
@@ -1465,19 +1465,16 @@ void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
   masm->Trap();
 }
 #else
-void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
-    MacroAssembler* masm) {
-  masm->Trap();
-}
-#endif  // V8_ENABLE_MAGLEV && !V8_ENABLE_LEAPTIERING
-
-#ifndef V8_ENABLE_MAGLEV
 // static
 void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
                                                       bool save_new_target) {
   masm->Trap();
 }
-#endif  // !V8_ENABLE_MAGLEV
+void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
+    MacroAssembler* masm) {
+  masm->Trap();
+}
+#endif  // V8_ENABLE_MAGLEV
 
 void Builtins::Generate_MaglevFunctionEntryStackCheck_WithoutNewTarget(
     MacroAssembler* masm) {

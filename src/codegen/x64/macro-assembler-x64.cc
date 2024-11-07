@@ -1243,8 +1243,6 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
-#ifndef V8_ENABLE_LEAPTIERING
-
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
 Condition MacroAssembler::CheckFeedbackVectorFlagsNeedsProcessing(
@@ -1271,6 +1269,20 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(feedback_vector, closure));
 
+#ifdef V8_ENABLE_LEAPTIERING
+  // In the leaptiering case, we don't load optimized code from the feedback
+  // vector so only need to call CompileOptimized or FunctionLogNextExecution
+  // here. See also CheckFeedbackVectorFlagsNeedsProcessing above.
+  Label needs_logging;
+  testw(FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset),
+        Immediate(FeedbackVector::kFlagsTieringStateIsAnyRequested));
+  j(zero, &needs_logging);
+
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized, jump_mode);
+
+  bind(&needs_logging);
+  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution, jump_mode);
+#else
   Label maybe_has_optimized_code, maybe_needs_logging;
   // Check if optimized code is available.
   testw(FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset),
@@ -1293,9 +1305,8 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   TailCallOptimizedCodeSlot(this, optimized_code_entry, closure, r9,
                             WriteBarrierDescriptor::SlotAddressRegister(),
                             jump_mode);
+#endif  // V8_ENABLE_LEAPTIERING
 }
-
-#endif  // !V8_ENABLE_LEAPTIERING
 
 int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion) const {

@@ -80,18 +80,6 @@ void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
   i::PrintF("* entrypoint 0x%lx\n", GetEntrypoint(handle));
 }
 
-void JSDispatchTable::PrintCurrentTieringRequest(JSDispatchHandle handle,
-                                                 Isolate* isolate,
-                                                 std::ostream& os) {
-#define CASE(name, ...)                                               \
-  if (IsTieringRequested(handle, TieringBuiltin::k##name, isolate)) { \
-    os << #name;                                                      \
-    return;                                                           \
-  }
-  BUILTIN_LIST_BASE_TIERING(CASE)
-#undef CASE
-}
-
 // Static
 base::LeakyObject<JSDispatchTable> JSDispatchTable::instance_;
 
