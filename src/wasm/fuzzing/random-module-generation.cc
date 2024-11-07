@@ -1085,9 +1085,12 @@ class BodyGen {
       } else if (call_kind == kCallIndirect) {
         // This will not trap because table[func_index] always contains function
         // func_index.
-        builder_->EmitI32Const(func_index);
+        uint32_t table_index = choose_function_table_index(data);
+        builder_->builder()->IsTable64(table_index)
+            ? builder_->EmitI64Const(func_index)
+            : builder_->EmitI32Const(func_index);
         builder_->EmitWithU32V(kExprReturnCallIndirect, sig_index);
-        builder_->EmitByte(choose_function_table_index(data));  // Table index.
+        builder_->EmitByte(table_index);
       } else {
         GenerateRef(HeapType(sig_index), data);
         builder_->EmitWithU32V(kExprReturnCallRef, sig_index);
@@ -1100,9 +1103,12 @@ class BodyGen {
       } else if (call_kind == kCallIndirect) {
         // This will not trap because table[func_index] always contains function
         // func_index.
-        builder_->EmitI32Const(func_index);
+        uint32_t table_index = choose_function_table_index(data);
+        builder_->builder()->IsTable64(table_index)
+            ? builder_->EmitI64Const(func_index)
+            : builder_->EmitI32Const(func_index);
         builder_->EmitWithU32V(kExprCallIndirect, sig_index);
-        builder_->EmitByte(choose_function_table_index(data));  // Table index.
+        builder_->EmitByte(table_index);
       } else {
         GenerateRef(HeapType(sig_index), data);
         builder_->EmitWithU32V(kExprCallRef, sig_index);
@@ -1440,14 +1446,10 @@ class BodyGen {
     return true;
   }
 
-  template <ValueKind wanted_kind>
-  void table_op(std::vector<ValueType> types, DataRange* data,
+  void table_op(uint32_t index, std::vector<ValueType> types, DataRange* data,
                 WasmOpcode opcode) {
     DCHECK(opcode == kExprTableSet || opcode == kExprTableSize ||
            opcode == kExprTableGrow || opcode == kExprTableFill);
-    int num_tables = builder_->builder()->NumTables();
-    DCHECK_GT(num_tables, 0);
-    int index = data->get<uint8_t>() % num_tables;
     for (size_t i = 0; i < types.size(); i++) {
       // When passing the reftype by default kWasmFuncRef is used.
       // Then the type is changed according to its table type.
@@ -1462,11 +1464,32 @@ class BodyGen {
       builder_->EmitWithPrefix(opcode);
     }
     builder_->EmitU32V(index);
+
+    // The `table_size` and `table_grow` should return an I32. However, the Wasm
+    // instruction for table64 returns an I64, so it should be converted.
+    if ((opcode == kExprTableSize || opcode == kExprTableGrow) &&
+        builder_->builder()->IsTable64(index)) {
+      builder_->Emit(kExprI32ConvertI64);
+    }
+  }
+
+  ValueType table_address_type(int table_index) {
+    return builder_->builder()->IsTable64(table_index) ? kWasmI64 : kWasmI32;
+  }
+
+  std::pair<int, ValueType> select_random_table(DataRange* data) {
+    int num_tables = builder_->builder()->NumTables();
+    DCHECK_GT(num_tables, 0);
+    int index = data->get<uint8_t>() % num_tables;
+    ValueType address_type = table_address_type(index);
+
+    return {index, address_type};
   }
 
   bool table_get(HeapType type, DataRange* data, Nullability nullable) {
     ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
     int table_count = builder_->builder()->NumTables();
+    DCHECK_GT(table_count, 0);
     ZoneVector<uint32_t> table(builder_->builder()->zone());
     for (int i = 0; i < table_count; i++) {
       if (builder_->builder()->GetTableType(i) == needed_type) {
@@ -1476,23 +1499,36 @@ class BodyGen {
     if (table.empty()) {
       return false;
     }
-    int index = data->get<uint8_t>() % static_cast<int>(table.size());
-    Generate(kWasmI32, data);
+    int table_index =
+        table[data->get<uint8_t>() % static_cast<int>(table.size())];
+    ValueType address_type = table_address_type(table_index);
+    Generate(address_type, data);
     builder_->Emit(kExprTableGet);
-    builder_->EmitU32V(table[index]);
+    builder_->EmitU32V(table_index);
     return true;
   }
 
   void table_set(DataRange* data) {
-    table_op<kVoid>({kWasmI32, kWasmFuncRef}, data, kExprTableSet);
+    auto [table_index, address_type] = select_random_table(data);
+    table_op(table_index, {address_type, kWasmFuncRef}, data, kExprTableSet);
   }
-  void table_size(DataRange* data) { table_op<kI32>({}, data, kExprTableSize); }
+
+  void table_size(DataRange* data) {
+    auto [table_index, _] = select_random_table(data);
+    table_op(table_index, {}, data, kExprTableSize);
+  }
+
   void table_grow(DataRange* data) {
-    table_op<kI32>({kWasmFuncRef, kWasmI32}, data, kExprTableGrow);
+    auto [table_index, address_type] = select_random_table(data);
+    table_op(table_index, {kWasmFuncRef, address_type}, data, kExprTableGrow);
   }
+
   void table_fill(DataRange* data) {
-    table_op<kVoid>({kWasmI32, kWasmFuncRef, kWasmI32}, data, kExprTableFill);
+    auto [table_index, address_type] = select_random_table(data);
+    table_op(table_index, {address_type, kWasmFuncRef, address_type}, data,
+             kExprTableFill);
   }
+
   void table_copy(DataRange* data) {
     ValueType needed_type = data->get<bool>() ? kWasmFuncRef : kWasmExternRef;
     int table_count = builder_->builder()->NumTables();
@@ -1507,9 +1543,13 @@ class BodyGen {
     }
     int first_index = data->get<uint8_t>() % static_cast<int>(table.size());
     int second_index = data->get<uint8_t>() % static_cast<int>(table.size());
-    Generate(kWasmI32, data);
-    Generate(kWasmI32, data);
-    Generate(kWasmI32, data);
+    ValueType first_addrtype = table_address_type(first_index);
+    ValueType second_addrtype = table_address_type(second_index);
+    ValueType result_addrtype =
+        first_addrtype == kWasmI32 ? kWasmI32 : second_addrtype;
+    Generate(first_addrtype, data);
+    Generate(second_addrtype, data);
+    Generate(result_addrtype, data);
     builder_->EmitWithPrefix(kExprTableCopy);
     builder_->EmitU32V(table[first_index]);
     builder_->EmitU32V(table[second_index]);
@@ -3478,9 +3518,9 @@ class ModuleGen {
   // Generates and adds random number of memories.
   void GenerateRandomMemories() {
     int random_uint8_t = module_range_->get<uint8_t>();
-    static_assert(
-        kMaxMemories <= 5,
-        "Too many memories. Use more random bits to chose their types!");
+    static_assert(kMaxMemories <= 5,
+                  "Too many memories. Use more random bits to choose their "
+                  "address type!");
     // Use the lower 3 bits to get the number of memories.
     int num_memories = 1 + ((random_uint8_t & 7) % kMaxMemories);
     // Use the unused upper 5 bits to decide about each memory's type.
@@ -3759,6 +3799,10 @@ class ModuleGen {
   void GenerateRandomTables(const std::vector<ModuleTypeIndex>& array_types,
                             const std::vector<ModuleTypeIndex>& struct_types) {
     int num_tables = module_range_->get<uint8_t>() % kMaxTables + 1;
+    int are_table64 = module_range_->get<uint8_t>();
+    static_assert(
+        kMaxTables <= 8,
+        "Too many tables. Use more random bits to choose their address type.");
     for (int i = 0; i < num_tables; i++) {
       uint32_t min_size = i == 0
                               ? num_functions_
@@ -3778,20 +3822,27 @@ class ModuleGen {
                     kExcludePackedTypes, kIncludeAllGenerics);
       bool use_initializer =
           !type.is_defaultable() || module_range_->get<bool>();
+      AddressType address_type =
+          (are_table64 & 1) ? AddressType::kI32 : AddressType::kI64;
+      are_table64 >>= 1;
       uint32_t table_index =
           use_initializer
               ? builder_->AddTable(
                     type, min_size, max_size,
                     GenerateInitExpr(zone_, *module_range_, builder_, type,
-                                     struct_types, array_types, 0))
-              : builder_->AddTable(type, min_size, max_size);
+                                     struct_types, array_types, 0),
+                    address_type)
+              : builder_->AddTable(type, min_size, max_size, address_type);
       if (type.is_reference_to(HeapType::kFunc)) {
         // For function tables, initialize them with functions from the program.
         // Currently, the fuzzer assumes that every funcref/(ref func) table
         // contains the functions in the program in the order they are defined.
         // TODO(11954): Consider generalizing this.
+        WasmInitExpr init_expr = builder_->IsTable64(table_index)
+                                     ? WasmInitExpr(static_cast<int64_t>(0))
+                                     : WasmInitExpr(static_cast<int32_t>(0));
         WasmModuleBuilder::WasmElemSegment segment(zone_, type, table_index,
-                                                   WasmInitExpr(0));
+                                                   init_expr);
         for (int entry_index = 0; entry_index < static_cast<int>(min_size);
              entry_index++) {
           segment.entries.emplace_back(

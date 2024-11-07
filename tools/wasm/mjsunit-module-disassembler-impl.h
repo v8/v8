@@ -1314,6 +1314,7 @@ class MjsunitModuleDis {
             out_ << "undefined, ";
           }
           names()->PrintValueType(out_, table.type, kEmitObjects);
+          if (table.is_table64()) out_ << ", true";
           break;
         }
         case kExternalGlobal: {
@@ -1497,7 +1498,11 @@ class MjsunitModuleDis {
       const WasmTable& table = module_->tables[i];
       out_ << "let ";
       names()->PrintTableName(out_, i);
-      out_ << " = builder.addTable(";
+      if (table.is_table64()) {
+        out_ << " = builder.addTable64(";
+      } else {
+        out_ << " = builder.addTable(";
+      }
       names()->PrintValueType(out_, table.type, kEmitObjects);
       out_ << ", " << table.initial_size << ", ";
       if (table.has_maximum_size) {

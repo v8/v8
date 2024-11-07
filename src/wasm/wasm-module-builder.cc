@@ -533,41 +533,24 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size) {
 }
 
 uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
-                                     uint32_t max_size) {
+                                     uint32_t max_size,
+                                     AddressType address_type) {
   tables_.push_back({.type = type,
                      .min_size = min_size,
                      .max_size = max_size,
-                     .has_maximum = true});
+                     .has_maximum = true,
+                     .address_type = address_type});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
 uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
-                                     uint32_t max_size, WasmInitExpr init) {
+                                     uint32_t max_size, WasmInitExpr init,
+                                     AddressType address_type) {
   tables_.push_back({.type = type,
                      .min_size = min_size,
                      .max_size = max_size,
                      .has_maximum = true,
-                     .init = {init}});
-  return static_cast<uint32_t>(tables_.size() - 1);
-}
-
-uint32_t WasmModuleBuilder::AddTable64(ValueType type, uint32_t min_size,
-                                       uint32_t max_size) {
-  tables_.push_back({.type = type,
-                     .min_size = min_size,
-                     .max_size = max_size,
-                     .has_maximum = true,
-                     .address_type = AddressType::kI64});
-  return static_cast<uint32_t>(tables_.size() - 1);
-}
-
-uint32_t WasmModuleBuilder::AddTable64(ValueType type, uint32_t min_size,
-                                       uint32_t max_size, WasmInitExpr init) {
-  tables_.push_back({.type = type,
-                     .min_size = min_size,
-                     .max_size = max_size,
-                     .has_maximum = true,
-                     .address_type = AddressType::kI64,
+                     .address_type = address_type,
                      .init = {init}});
   return static_cast<uint32_t>(tables_.size() - 1);
 }

@@ -319,6 +319,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     // offset would also be mistyped.
     bool IsValidOffsetKind(WasmInitExpr::Operator kind) {
       return kind == WasmInitExpr::kI32Const ||
+             kind == WasmInitExpr::kI64Const ||
              kind == WasmInitExpr::kGlobalGet ||
              kind == WasmInitExpr::kRefNullConst;
     }
@@ -360,12 +361,11 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ModuleTypeIndex AddArrayType(ArrayType* type, bool is_final,
                                ModuleTypeIndex supertype = kNoSuperType);
   uint32_t AddTable(ValueType type, uint32_t min_size);
-  uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
   uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
-                    WasmInitExpr init);
-  uint32_t AddTable64(ValueType type, uint32_t min_size, uint32_t max_size);
-  uint32_t AddTable64(ValueType type, uint32_t min_size, uint32_t max_size,
-                      WasmInitExpr init);
+                    AddressType address_type = AddressType::kI32);
+  uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size,
+                    WasmInitExpr init,
+                    AddressType address_type = AddressType::kI32);
   uint32_t AddMemory(uint32_t min_pages);
   uint32_t AddMemory(uint32_t min_pages, uint32_t max_pages);
   uint32_t AddMemory64(uint32_t min_pages, uint32_t max_pages);
@@ -465,6 +465,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   int NumDataSegments() { return static_cast<int>(data_segments_.size()); }
 
   bool IsMemory64(uint32_t index) { return memories_[index].is_memory64(); }
+
+  bool IsTable64(uint32_t index) { return tables_[index].is_table64(); }
 
   const FunctionSig* GetTagType(int index) {
     return types_[tags_[index].index].function_sig;
