@@ -36,11 +36,10 @@ class ExperimentalRegExp final : public AllStatic {
                                     int32_t output_register_count,
                                     RegExp::CallOrigin call_origin,
                                     Isolate* isolate, Address regexp_data);
-  static MaybeHandle<Object> Exec(
-      Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
-      Handle<String> subject, int index,
-      Handle<RegExpMatchInfo> last_match_info,
-      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
+  static MaybeHandle<Object> Exec(Isolate* isolate,
+                                  DirectHandle<IrRegExpData> regexp_data,
+                                  Handle<String> subject, int index,
+                                  Handle<RegExpMatchInfo> last_match_info);
   static int32_t ExecRaw(Isolate* isolate, RegExp::CallOrigin call_origin,
                          Tagged<IrRegExpData> regexp_data,
                          Tagged<String> subject, int32_t* output_registers,
@@ -51,8 +50,13 @@ class ExperimentalRegExp final : public AllStatic {
   static MaybeHandle<Object> OneshotExec(
       Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
       DirectHandle<String> subject, int index,
-      Handle<RegExpMatchInfo> last_match_info,
-      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
+      Handle<RegExpMatchInfo> last_match_info);
+  static std::optional<int> OneshotExec2(Isolate* isolate,
+                                         DirectHandle<IrRegExpData> regexp_data,
+                                         DirectHandle<String> subject,
+                                         int index,
+                                         int32_t* result_offsets_vector,
+                                         uint32_t result_offsets_vector_length);
   static int32_t OneshotExecRaw(Isolate* isolate,
                                 DirectHandle<IrRegExpData> regexp_data,
                                 DirectHandle<String> subject,

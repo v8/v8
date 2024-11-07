@@ -37,6 +37,7 @@
 #include "src/regexp/experimental/experimental.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
+#include "src/regexp/regexp-result-vector.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-search.h"
 #include "src/strings/unicode-inl.h"
@@ -1068,6 +1069,11 @@ FUNCTION_REFERENCE(re_match_for_call_from_js,
 
 FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
                    ExperimentalRegExp::MatchForCallFromJs)
+
+FUNCTION_REFERENCE(re_atom_exec_raw, RegExp::AtomExecRaw)
+
+FUNCTION_REFERENCE(allocate_regexp_result_vector, RegExpResultVector::Allocate)
+FUNCTION_REFERENCE(free_regexp_result_vector, RegExpResultVector::Free)
 
 FUNCTION_REFERENCE(re_case_insensitive_compare_unicode,
                    NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)

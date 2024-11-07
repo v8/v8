@@ -31,6 +31,12 @@ class RegExpResultVectorScope final {
   int32_t* if_static_ = nullptr;
 };
 
+class RegExpResultVector final : public AllStatic {
+ public:
+  static int32_t* Allocate(uint32_t size);
+  static void Free(int32_t* vector);
+};
+
 }  // namespace internal
 }  // namespace v8
 

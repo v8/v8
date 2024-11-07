@@ -1144,7 +1144,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   BIND(&out);
 }
 
-const TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(
+TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(
     const TNode<Context> context, const TNode<String> string) {
   const TNode<String> dollar_string = HeapConstantNoHole(
       isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
@@ -1171,7 +1171,7 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
   // TODO(jgruber): Possibly extend this in the future to handle more complex
   // cases without runtime calls.
 
-  const TNode<Smi> dollar_index = IndexOfDollarChar(context, replace_string);
+  TNode<Smi> dollar_index = IndexOfDollarChar(context, replace_string);
   Branch(SmiIsNegative(dollar_index), &out, &runtime);
 
   BIND(&runtime);
