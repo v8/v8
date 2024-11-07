@@ -7,8 +7,12 @@ load("//lib/lib.star", "BARRIER", "in_console")
 load("//lib/reclient.star", "RECLIENT")
 load("//lib/siso.star", "SISO")
 
-def integration_builder(**kwargs):
-    return v8_builder(disable_resultdb_exports = True, **kwargs)
+def integration_builder(use_siso = SISO.CHROMIUM_TRUSTED, **kwargs):
+    return v8_builder(
+        disable_resultdb_exports = True,
+        use_siso = use_siso,
+        **kwargs
+    )
 
 in_category = in_console("integration")
 
@@ -74,7 +78,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
         use_remoteexec = RECLIENT.DEFAULT,
-        use_siso = SISO.DEFAULT,
         notifies = ["sheriffs"],
     ),
 )
@@ -195,6 +198,7 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"v8_tot": True, "builder_group": "client.v8.fyi"},
         use_remoteexec = RECLIENT.DEFAULT,
+        use_siso = SISO.NONE,
         notifies = ["sheriffs"],
     ),
 )
@@ -208,6 +212,7 @@ in_category(
         executable = "recipe:v8/pgo_builder",
         dimensions = {"host_class": "multibot", "os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"compilators": ["x64"]},
+        use_siso = SISO.NONE,
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
 )

@@ -17,7 +17,7 @@ def siso_properties(project):
     }
 
 SISO = struct(
-    DEFAULT = siso_properties("rbe-chromium-trusted"),
-    DEFAULT_UNTRUSTED = siso_properties("rbe-chromium-untrusted"),
+    CHROMIUM_TRUSTED = siso_properties("rbe-chromium-trusted"),
+    CHROMIUM_UNTRUSTED = siso_properties("rbe-chromium-untrusted"),
     NONE = {},
 )
