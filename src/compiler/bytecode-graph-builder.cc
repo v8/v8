@@ -1688,9 +1688,9 @@ void BytecodeGraphBuilder::VisitLdaContextSlot() {
 }
 
 void BytecodeGraphBuilder::VisitLdaScriptContextSlot() {
-  const Operator* op = javascript()->LoadContext(
+  const Operator* op = javascript()->LoadScriptContext(
       bytecode_iterator().GetUnsignedImmediateOperand(2),
-      bytecode_iterator().GetIndexOperand(1), false);
+      bytecode_iterator().GetIndexOperand(1));
   Node* node = NewNode(op);
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
@@ -1717,8 +1717,8 @@ void BytecodeGraphBuilder::VisitLdaCurrentContextSlot() {
 }
 
 void BytecodeGraphBuilder::VisitLdaCurrentScriptContextSlot() {
-  const Operator* op = javascript()->LoadContext(
-      0, bytecode_iterator().GetIndexOperand(0), false);
+  const Operator* op = javascript()->LoadScriptContext(
+      0, bytecode_iterator().GetIndexOperand(0));
   Node* node = NewNode(op);
   environment()->BindAccumulator(node);
 }

@@ -1065,6 +1065,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* HasContextExtension(size_t depth);
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
+  const Operator* LoadScriptContext(size_t depth, size_t index);
   const Operator* StoreContext(size_t depth, size_t index);
   const Operator* StoreScriptContext(size_t depth, size_t index);
 

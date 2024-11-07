@@ -1770,6 +1770,18 @@ Type Typer::Visitor::TypeJSLoadContext(Node* node) {
   }
 }
 
+Type Typer::Visitor::TypeJSLoadScriptContext(Node* node) {
+  ContextAccess const& access = ContextAccessOf(node->op());
+  switch (access.index()) {
+    case Context::PREVIOUS_INDEX:
+    case Context::SCOPE_INFO_INDEX:
+    case Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX:
+      return Type::OtherInternal();
+    default:
+      return Type::Any();
+  }
+}
+
 Type Typer::Visitor::TypeJSStoreContext(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeJSStoreScriptContext(Node* node) { UNREACHABLE(); }

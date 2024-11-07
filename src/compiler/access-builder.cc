@@ -1136,6 +1136,18 @@ FieldAccess AccessBuilder::ForContextSlotKnownPointer(size_t index) {
 }
 
 // static
+FieldAccess AccessBuilder::ForContextSlotSmi(size_t index) {
+  int offset = Context::OffsetOfElementAt(static_cast<int>(index));
+  DCHECK_EQ(offset,
+            Context::SlotOffset(static_cast<int>(index)) + kHeapObjectTag);
+  FieldAccess access = {kTaggedBase,         offset,
+                        Handle<Name>(),      OptionalMapRef(),
+                        Type::SignedSmall(), MachineType::TaggedSigned(),
+                        kNoWriteBarrier,     "Smi"};
+  return access;
+}
+
+// static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
   ElementAccess access = {kTaggedBase, OFFSET_OF_DATA_START(FixedArray),
                           Type::Any(), MachineType::AnyTagged(),
