@@ -1168,21 +1168,22 @@ class MaglevGraphBuilder {
   ValueNode* LoadAndCacheContextSlot(ValueNode* context, int offset,
                                      ContextSlotMutability slot_mutability,
                                      ContextKind context_kind);
-  void StoreAndCacheContextSlot(ValueNode* context, int offset,
-                                ValueNode* value);
+  Node* BuildNonSpecializedStoreScriptContextSlot(ValueNode* context, int index,
+                                                  ValueNode* value);
+  std::pair<ReduceResult, Node*> TrySpecializeStorScriptContextSlot(
+      ValueNode* context, int index, ValueNode* value);
+  ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
+                                        ValueNode* value,
+                                        ContextKind context_kind);
   ValueNode* TryGetParentContext(ValueNode* node);
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth);
   void EscapeContext();
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
                             ContextSlotMutability slot_mutability,
                             ContextKind context_kind);
-  void BuildStoreContextSlotHelper(ValueNode* context, size_t depth,
-                                   int slot_index, ValueNode* value,
-                                   bool update_side_data);
-  void BuildStoreContextSlot(ValueNode* context, size_t depth, int slot_index,
-                             ValueNode* value);
-  void BuildStoreScriptContextSlot(ValueNode* context, size_t depth,
-                                   int slot_index, ValueNode* value);
+  ReduceResult BuildStoreContextSlot(ValueNode* context, size_t depth,
+                                     int slot_index, ValueNode* value,
+                                     ContextKind context_kind);
 
   void BuildStoreMap(ValueNode* object, compiler::MapRef map,
                      StoreMap::Kind kind);
@@ -2137,11 +2138,6 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildConvertHoleToUndefined(ValueNode* node);
   ReduceResult BuildCheckNotHole(ValueNode* node);
-
-  // Checks whether we're invalidating the constness of a const tracking let
-  // variable, and if yes, deopts.
-  void BuildCheckConstTrackingLetCell(ValueNode* context, ValueNode* value,
-                                      int index);
 
   template <bool flip = false>
   ValueNode* BuildToBoolean(ValueNode* node);

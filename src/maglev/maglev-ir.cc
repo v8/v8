@@ -177,6 +177,7 @@ bool IsStoreToNonEscapedObject(const NodeBase* node) {
     case Opcode::kStoreMap:
     case Opcode::kStoreTaggedFieldWithWriteBarrier:
     case Opcode::kStoreTaggedFieldNoWriteBarrier:
+    case Opcode::kStoreScriptContextSlotWithWriteBarrier:
     case Opcode::kStoreFloat64:
       DCHECK_GT(node->input_count(), 0);
       if (InlinedAllocation* alloc =
@@ -3370,53 +3371,118 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                            NegateCondition(ToCondition(condition())), fail);
 }
 
-void CheckConstTrackingLetCell::SetValueLocationConstraints() {
-  UseRegister(context_input());
+int StoreScriptContextSlotWithWriteBarrier::MaxCallStackArgs() const {
+  return WriteBarrierDescriptor::GetStackParameterCount();
+}
+
+void StoreScriptContextSlotWithWriteBarrier::SetValueLocationConstraints() {
+  UseFixed(context_input(), WriteBarrierDescriptor::ObjectRegister());
+  UseRegister(old_value_input());
+  UseRegister(new_value_input());
   set_temporaries_needed(1);
+  set_double_temporaries_needed(1);
 }
 
-void CheckConstTrackingLetCell::GenerateCode(MaglevAssembler* masm,
-                                             const ProcessingState& state) {
-  __ RecordComment("CheckConstTrackingLetCell");
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Label done;
-
-  Register context = ToRegister(context_input());
-  Register scratch = temps.Acquire();
-
-  __ GenerateCheckConstTrackingLetCellFooter(context, scratch, index_, &done);
-
-  __ EmitEagerDeopt(this, DeoptimizeReason::kConstTrackingLet);
-  __ bind(&done);
-}
-
-void CheckConstTrackingLetCellTagged::SetValueLocationConstraints() {
-  UseRegister(context_input());
-  UseRegister(value_input());
-  set_temporaries_needed(1);
-}
-
-void CheckConstTrackingLetCellTagged::GenerateCode(
+void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  __ RecordComment("CheckConstTrackingLetCellTagged");
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Label done;
+  __ RecordComment("StoreScriptContextSlotWithWriteBarrier");
+  ZoneLabelRef done(masm);
+  ZoneLabelRef do_normal_store(masm);
 
-  Register context = ToRegister(context_input());
+  // TODO(leszeks): Consider making this an arbitrary register and push/popping
+  // in the deferred path.
+  Register context = WriteBarrierDescriptor::ObjectRegister();
+  Register old_value = ToRegister(old_value_input());
+  Register new_value = ToRegister(new_value_input());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
 
-  // If we're storing the same value which is already in the context slot, jump
-  // to done.
-  Register value = ToRegister(value_input());
-  __ LoadTaggedField(scratch, context, Context::OffsetOfElementAt(index_));
-  __ CmpTagged(value, scratch);
-  __ JumpIf(kEqual, &done);
+  __ AssertObjectType(context, SCRIPT_CONTEXT_TYPE,
+                      AbortReason::kUnexpectedInstanceType);
 
-  // TODO(victorgomes): Wouldn't make sense for this to be in DeferredCode?
-  __ GenerateCheckConstTrackingLetCellFooter(context, scratch, index_, &done);
+  __ CompareTaggedAndJumpIf(old_value, new_value, kEqual, *done);
 
-  __ EmitEagerDeopt(this, DeoptimizeReason::kConstTrackingLet);
-  __ bind(&done);
+  // Load property.
+  // TODO(victorgomes): Should we hoist the side_table?
+  __ LoadTaggedField(
+      scratch, context,
+      Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
+  __ LoadTaggedField(scratch, scratch,
+                     FixedArray::OffsetOfElementAt(
+                         index() - Context::MIN_CONTEXT_EXTENDED_SLOTS));
+
+  __ CompareTaggedAndJumpIf(
+      scratch, ContextSidePropertyCell::Other(), kNotEqual,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, Register context, Register old_value,
+             Register new_value, Register property,
+             StoreScriptContextSlotWithWriteBarrier* node, ZoneLabelRef done,
+             ZoneLabelRef do_normal_store) {
+            Label check_smi;
+            Label new_value_should_be_a_number;
+            __ CompareRootAndEmitEagerDeoptIf(
+                property, RootIndex::kUndefinedValue, kEqual,
+                DeoptimizeReason::kWrongValue, node);
+            __ JumpIfSmi(property, &check_smi);
+            __ AssertObjectType(property, CONTEXT_SIDE_PROPERTY_CELL_TYPE,
+                                AbortReason::kUnexpectedInstanceType);
+            __ LoadTaggedField(
+                property, property,
+                ContextSidePropertyCell::kPropertyDetailsRawOffset);
+            __ bind(&check_smi);
+
+            // Check for const case.
+            __ CompareTaggedAndJumpIf(
+                property, ContextSidePropertyCell::Const(), kEqual,
+                __ GetDeoptLabel(node, DeoptimizeReason::kWrongValue));
+
+            if (v8_flags.script_context_mutable_heap_number) {
+              // Check for smi case
+              __ CompareTaggedAndJumpIf(
+                  property, ContextSidePropertyCell::SmiMarker(), kNotEqual,
+                  &new_value_should_be_a_number);
+              __ EmitEagerDeoptIfNotSmi(node, new_value,
+                                        DeoptimizeReason::kWrongValue);
+              __ Jump(*do_normal_store);
+
+              // Check mutable heap number case.
+              MaglevAssembler::TemporaryRegisterScope temps(masm);
+              DoubleRegister double_scratch = temps.AcquireDouble();
+              __ bind(&new_value_should_be_a_number);
+              Label new_value_is_not_smi;
+              __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
+              __ Int32ToDouble(double_scratch, new_value);
+              __ StoreFloat64(
+                  FieldMemOperand(old_value, offsetof(HeapNumber, value_)),
+                  double_scratch);
+              __ Jump(*done);
+
+              __ bind(&new_value_is_not_smi);
+              __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap,
+                                    property);
+              __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue,
+                                  node);
+
+              __ LoadHeapNumberValue(double_scratch, new_value);
+              __ StoreFloat64(
+                  FieldMemOperand(old_value, offsetof(HeapNumber, value_)),
+                  double_scratch);
+              __ Jump(*done);
+            } else {
+              __ Jump(*do_normal_store);
+            }
+          },
+          context, old_value, new_value, scratch, this, done, do_normal_store));
+
+  __ bind(*do_normal_store);
+  __ StoreTaggedFieldWithWriteBarrier(
+      context, offset(), new_value, register_snapshot(),
+      new_value_input().node()->decompresses_tagged_result()
+          ? MaglevAssembler::kValueIsDecompressed
+          : MaglevAssembler::kValueIsCompressed,
+      MaglevAssembler::kValueCanBeSmi);
+
+  __ bind(*done);
 }
 
 void CheckString::SetValueLocationConstraints() {
@@ -7217,12 +7283,7 @@ void CheckInt32Condition::PrintParams(
   os << "(" << condition() << ", " << reason() << ")";
 }
 
-void CheckConstTrackingLetCell::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << index_ << ")";
-}
-
-void CheckConstTrackingLetCellTagged::PrintParams(
+void StoreScriptContextSlotWithWriteBarrier::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << index_ << ")";
 }

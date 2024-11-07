@@ -2415,24 +2415,6 @@ class GraphBuildingNodeProcessor {
     SetMap(node, Map(node->object_input()));
     return maglev::ProcessResult::kContinue;
   }
-
-  maglev::ProcessResult Process(maglev::CheckConstTrackingLetCellTagged* node,
-                                const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    __ CheckConstTrackingLetCellTagged(
-        Map(node->context_input()), Map(node->value_input()), node->index(),
-        frame_state, node->eager_deopt_info()->feedback_to_update());
-    return maglev::ProcessResult::kContinue;
-  }
-  maglev::ProcessResult Process(maglev::CheckConstTrackingLetCell* node,
-                                const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    __ CheckConstTrackingLetCell(
-        Map(node->context_input()), node->index(), frame_state,
-        node->eager_deopt_info()->feedback_to_update());
-    return maglev::ProcessResult::kContinue;
-  }
-
   maglev::ProcessResult Process(maglev::CheckInt32Condition* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -2859,6 +2841,32 @@ class GraphBuildingNodeProcessor {
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
              WriteBarrierKind::kFullWriteBarrier, node->offset(),
              node->initializing_or_transitioning());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::StoreScriptContextSlotWithWriteBarrier* node,
+      const maglev::ProcessingState& state) {
+    Label<> done(this);
+    V<Context> context = V<i::Context>::Cast(Map(node->context_input()));
+    V<Object> old_value = Map(node->old_value_input());
+    V<Object> new_value = Map(node->new_value_input());
+    IF_NOT (__ TaggedEqual(old_value, new_value)) {
+      V<Object> side_data =
+          __ LoadScriptContextSideData(context, node->index());
+      IF_NOT (UNLIKELY(__ TaggedEqual(
+                  side_data,
+                  __ SmiConstant(ContextSidePropertyCell::kOther)))) {
+        GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+        __ StoreScriptContextSlowPath(
+            context, old_value, new_value, side_data, frame_state,
+            node->eager_deopt_info()->feedback_to_update(), done);
+      }
+      __ Store(context, new_value, StoreOp::Kind::TaggedBase(),
+               MemoryRepresentation::AnyTagged(),
+               WriteBarrierKind::kFullWriteBarrier, node->offset(), false);
+    }
+    GOTO(done);
+    BIND(done);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreDoubleField* node,
