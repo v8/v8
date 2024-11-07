@@ -1384,7 +1384,8 @@ void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
                                           intptr_t pc_delta) {
   Instr instr = instr_at(pc);
   Instr instr1 = instr_at(pc + 1 * kInstrSize);
-  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode));
+  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode) ||
+         RelocInfo::IsNearBuiltinEntry(rmode));
   if (IsAuipc(instr) && IsJalr(instr1)) {
     int32_t imm;
     imm = BrachlongOffset(instr, instr1);

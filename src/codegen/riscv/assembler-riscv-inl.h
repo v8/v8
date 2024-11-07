@@ -61,7 +61,7 @@ void WritableRelocInfo::apply(intptr_t delta) {
     // Absolute code pointer inside code object moves with the code object.
     Assembler::RelocateInternalReference(rmode_, pc_, delta);
   } else {
-    DCHECK(IsRelativeCodeTarget(rmode_));
+    DCHECK(IsRelativeCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_));
     Assembler::RelocateRelativeReference(rmode_, pc_, delta);
   }
 }
