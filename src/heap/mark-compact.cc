@@ -4972,7 +4972,12 @@ void MarkCompactCollector::Evacuate() {
       MemoryChunk* chunk = p->Chunk();
       if (chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION)) {
         chunk->ClearFlagNonExecutable(MemoryChunk::PAGE_NEW_OLD_PROMOTION);
-        DCHECK_EQ(OLD_SPACE, p->owner_identity());
+        // The in-sandbox page flags may be corrupted, so we currently need
+        // this check here to make sure that this doesn't lead to further
+        // confusion about the state of MemoryChunkMetadata objects.
+        // TODO(377724745): if we move (some of) the flags into the trusted
+        // MemoryChunkMetadata object, then this wouldn't be necessary.
+        SBXCHECK_EQ(OLD_SPACE, p->owner_identity());
         sweeper_->AddPage(OLD_SPACE, p);
       } else if (v8_flags.minor_ms) {
         // Sweep non-promoted pages to add them back to the free list.
