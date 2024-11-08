@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7f070f914c6c4ecb176f1615d1aa00654110f3a7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '29b0738ce05b9f9b259c74fcbb5ab2489ac28d55',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c61bf9c942c84d2c42d4ce4fd5cf751fa36c7fd7',
   'buildtools/linux64': {
@@ -239,7 +239,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e9b26871112a27b1545498458d0535eab7515011',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd4afd6ca8d059d55d99bdf81f6e79170ca36dadf',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -309,7 +309,7 @@ deps = {
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '3fdba6f55038d5c1df4cc9664a7fcea751add8fa',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '93a837d8362bd085666f825f56d007658a5ec62f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '5b01ea4a6f3b666b7d190e7cb7c31db2ed4d94ce',
   'third_party/llvm-libc/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '846cb08622fe64a8825f320e8d8f2dce91e786c4',
   'third_party/llvm-build/Release+Asserts': {
