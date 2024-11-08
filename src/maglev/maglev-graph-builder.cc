@@ -5463,8 +5463,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     }
     case compiler::PropertyAccessInfo::kStringWrapperLength: {
       // TODO(dmercadier): update KnownNodeInfo.
-      ValueNode* string =
-          BuildLoadTaggedField(receiver, JSPrimitiveWrapper::kValueOffset);
+      ValueNode* string = BuildLoadTaggedField(
+          lookup_start_object, JSPrimitiveWrapper::kValueOffset);
       return AddNewNode<StringLength>({string});
     }
   }
