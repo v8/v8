@@ -176,7 +176,7 @@ in_category(
         notifies = ["v8-infra-cc"],
     ),
     integration_builder(
-        name = "Android V8 FYI Release (Nexus 5X)",
+        name = "Android V8 FYI Release",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         executable = "recipe:chromium_integration",
