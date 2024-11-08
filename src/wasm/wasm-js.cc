@@ -702,14 +702,6 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   RecordCompilationMethod(i_isolate, kAsyncCompilation);
 
-  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
-  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
-    i::DirectHandle<i::String> error =
-        i::wasm::ErrorStringForCodegen(i_isolate, native_context);
-    thrower.CompileError("%s", error->ToCString().get());
-    return;
-  }
-
   Local<Context> context = isolate->GetCurrentContext();
   ASSIGN(Promise::Resolver, promise_resolver, Promise::Resolver::New(context));
   Local<Promise> promise = promise_resolver->GetPromise();
@@ -718,6 +710,15 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   std::shared_ptr<i::wasm::CompilationResultResolver> resolver(
       new AsyncCompilationResolver(isolate, context, promise_resolver));
+
+  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
+  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
+    i::DirectHandle<i::String> error =
+        i::wasm::ErrorStringForCodegen(i_isolate, native_context);
+    thrower.CompileError("%s", error->ToCString().get());
+    resolver->OnCompilationFailed(thrower.Reify());
+    return;
+  }
 
   bool is_shared = false;
   auto bytes = GetFirstArgumentAsBytes(info, i::wasm::max_module_size(),
