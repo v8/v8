@@ -2412,46 +2412,6 @@
 ####
 
 ####
-# import test262@3f0a24f4f6a9c84c4f4edc9a19d6c8d74521aaa7
-[ALWAYS, {
-'language/expressions/dynamic-import/catch/nested-arrow-import-catch-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-arrow-import-catch-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-arrow-function-await-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-arrow-function-await-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-arrow-function-return-await-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-arrow-function-return-await-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-function-await-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-function-await-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-function-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-function-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-function-return-await-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-function-return-await-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-gen-await-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-gen-await-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-gen-return-await-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-async-gen-return-await-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-block-import-catch-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-block-import-catch-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-block-labeled-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-block-labeled-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-do-while-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-do-while-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-else-import-catch-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-else-import-catch-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-function-import-catch-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-function-import-catch-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-if-import-catch-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-if-import-catch-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/nested-while-import-catch-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/nested-while-import-catch-import-source-specifier-tostring': [SKIP],
-'language/expressions/dynamic-import/catch/top-level-import-catch-import-source-source-text-module': [SKIP],
-'language/expressions/dynamic-import/catch/top-level-import-catch-import-source-specifier-tostring': [SKIP],
-'staging/source-phase-imports/import-source-source-text-module': [SKIP],
-}],
-# end import test262@3f0a24f4f6a9c84c4f4edc9a19d6c8d74521aaa7
-####
-
-####
 # import test262@ab69bd4dd8184ce6b96a0a02c904d20ee76b10ed
 [ALWAYS, {
 'built-ins/Temporal/Duration/prototype/round/accepts-datetime-strings-for-relative-to': [SKIP],

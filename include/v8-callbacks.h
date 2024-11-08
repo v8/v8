@@ -391,7 +391,7 @@ using HostImportModuleDynamicallyCallback = MaybeLocal<Promise> (*)(
  * JavaScript. The embedder must resolve this promise according to the phase
  * requested:
  * - For ModuleImportPhase::kSource, the promise must be resolved with a
- *   compiled ModuleSource object, or rejected with a ReferenceError if the
+ *   compiled ModuleSource object, or rejected with a SyntaxError if the
  *   module does not support source representation.
  * - For ModuleImportPhase::kEvaluation, the promise must be resolved with a
  *   ModuleNamespace object of a module that has been compiled, instantiated,

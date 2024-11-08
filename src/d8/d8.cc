@@ -1194,7 +1194,7 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
       // GetModuleSource() must always return a throw completion whose [[Value]]
       // is a ReferenceError.
       ThrowException(
-          isolate, v8::Exception::ReferenceError(String::NewFromUtf8Literal(
+          isolate, v8::Exception::SyntaxError(String::NewFromUtf8Literal(
                        isolate, "Module source can not be imported for type")));
       return MaybeLocal<Object>();
   }
