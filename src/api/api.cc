@@ -6715,10 +6715,16 @@ bool v8::V8::IsSandboxConfiguredSecurely() {
   Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
                   "v8::V8::IsSandoxConfiguredSecurely",
                   "The sandbox must be initialized first");
-  // The sandbox is (only) configured insecurely if it is a partially reserved
-  // sandbox, since in that case unrelated memory mappings may end up inside
-  // the sandbox address space where they could be corrupted by an attacker.
-  return !i::GetProcessWideSandbox()->is_partially_reserved();
+  // The sandbox is configured insecurely if either
+  // * It is only partially reserved since in that case unrelated memory
+  //   mappings may end up inside the sandbox address space where they could be
+  //   corrupted by an attacker, or
+  // * The first four GB of the address space were not reserved since in that
+  //   case, Smi<->HeapObject confusions (treating a 32-bit Smi as a pointer)
+  //   can also cause memory accesses to unrelated mappings.
+  auto sandbox = i::GetProcessWideSandbox();
+  return !sandbox->is_partially_reserved() &&
+         sandbox->smi_address_range_is_inaccessible();
 }
 #endif  // V8_ENABLE_SANDBOX
 
