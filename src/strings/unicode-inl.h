@@ -176,7 +176,7 @@ unsigned Utf8::Encode(char* str, uchar c, int previous, bool replace_invalid) {
 }
 
 uchar Utf8::ValueOf(const uint8_t* bytes, size_t length, size_t* cursor) {
-  if (length <= 0) return kBadChar;
+  if (length == 0) return kBadChar;
   uint8_t first = bytes[0];
   // Characters between 0000 and 007F are encoded as a single character
   if (V8_LIKELY(first <= kMaxOneByteChar)) {

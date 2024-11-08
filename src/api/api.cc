@@ -8940,7 +8940,7 @@ CompiledWasmModule WasmModuleObject::GetCompiledModule() {
   auto obj = i::Cast<i::WasmModuleObject>(Utils::OpenDirectHandle(this));
   auto url = i::direct_handle(i::Cast<i::String>(obj->script()->name()),
                               obj->GetIsolate());
-  uint32_t length;
+  size_t length;
   std::unique_ptr<char[]> cstring = url->ToCString(&length);
   return CompiledWasmModule(std::move(obj->shared_native_module()),
                             cstring.get(), length);

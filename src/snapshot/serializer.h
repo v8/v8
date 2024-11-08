@@ -62,7 +62,7 @@ class CodeAddressMap : public CodeEventLogger {
       }
     }
 
-    void Insert(Address code_address, const char* name, int name_size) {
+    void Insert(Address code_address, const char* name, size_t name_size) {
       base::HashMap::Entry* entry = FindOrCreateEntry(code_address);
       if (entry->value == nullptr) {
         entry->value = CopyName(name, name_size);
@@ -95,9 +95,9 @@ class CodeAddressMap : public CodeEventLogger {
     }
 
    private:
-    static char* CopyName(const char* name, int name_size) {
+    static char* CopyName(const char* name, size_t name_size) {
       char* result = NewArray<char>(name_size + 1);
-      for (int i = 0; i < name_size; ++i) {
+      for (size_t i = 0; i < name_size; ++i) {
         char c = name[i];
         if (c == '\0') c = ' ';
         result[i] = c;
@@ -125,14 +125,14 @@ class CodeAddressMap : public CodeEventLogger {
 
   void LogRecordedBuffer(Tagged<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo>, const char* name,
-                         int length) override {
+                         size_t length) override {
     DisallowGarbageCollection no_gc;
     address_to_name_map_.Insert(code.address(), name, length);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
-                         int length) override {
+                         size_t length) override {
     UNREACHABLE();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

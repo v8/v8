@@ -601,10 +601,10 @@ class FakeCodeEventLogger : public i::CodeEventLogger {
  private:
   void LogRecordedBuffer(i::Tagged<i::AbstractCode> code,
                          i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
-                         const char* name, int length) override {}
+                         const char* name, size_t length) override {}
 #if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
-                         int length) override {}
+                         size_t length) override {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

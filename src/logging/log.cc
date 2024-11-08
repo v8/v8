@@ -191,12 +191,12 @@ class CodeEventLogger::NameBuffer {
 
   void AppendString(Tagged<String> str) {
     if (str.is_null()) return;
-    uint32_t length = 0;
+    size_t length = 0;
     std::unique_ptr<char[]> c_str = str->ToCString(&length);
     AppendBytes(c_str.get(), length);
   }
 
-  void AppendBytes(const char* bytes, int size) {
+  void AppendBytes(const char* bytes, size_t size) {
     size = std::min(size, kUtf8BufferSize - utf8_pos_);
     MemCopy(utf8_buffer_ + utf8_pos_, bytes, size);
     utf8_pos_ += size;
@@ -214,8 +214,8 @@ class CodeEventLogger::NameBuffer {
   }
 
   void AppendInt(int n) {
-    int space = kUtf8BufferSize - utf8_pos_;
-    if (space <= 0) return;
+    if (utf8_pos_ >= kUtf8BufferSize) return;
+    size_t space = kUtf8BufferSize - utf8_pos_;
     base::Vector<char> buffer(utf8_buffer_ + utf8_pos_, space);
     int size = SNPrintF(buffer, "%d", n);
     if (size > 0 && utf8_pos_ + size <= kUtf8BufferSize) {
@@ -224,8 +224,8 @@ class CodeEventLogger::NameBuffer {
   }
 
   void AppendHex(uint32_t n) {
-    int space = kUtf8BufferSize - utf8_pos_;
-    if (space <= 0) return;
+    if (utf8_pos_ >= kUtf8BufferSize) return;
+    size_t space = kUtf8BufferSize - utf8_pos_;
     base::Vector<char> buffer(utf8_buffer_ + utf8_pos_, space);
     int size = SNPrintF(buffer, "%x", n);
     if (size > 0 && utf8_pos_ + size <= kUtf8BufferSize) {
@@ -234,13 +234,13 @@ class CodeEventLogger::NameBuffer {
   }
 
   const char* get() { return utf8_buffer_; }
-  int size() const { return utf8_pos_; }
+  size_t size() const { return utf8_pos_; }
 
  private:
-  static const int kUtf8BufferSize = 4096;
-  static const int kUtf16BufferSize = kUtf8BufferSize;
+  static const size_t kUtf8BufferSize = 4096;
+  static const size_t kUtf16BufferSize = kUtf8BufferSize;
 
-  int utf8_pos_;
+  size_t utf8_pos_;
   char utf8_buffer_[kUtf8BufferSize];
 };
 
@@ -365,13 +365,13 @@ class LinuxPerfBasicLogger : public CodeEventLogger {
  private:
   void LogRecordedBuffer(Tagged<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
-                         const char* name, int length) override;
+                         const char* name, size_t length) override;
 #if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
-                         int length) override;
+                         size_t length) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  void WriteLogRecordedBuffer(uintptr_t address, int size, const char* name,
-                              int name_length);
+  void WriteLogRecordedBuffer(uintptr_t address, size_t size, const char* name,
+                              size_t name_length);
 
   static base::LazyRecursiveMutex& GetFileMutex();
 
@@ -434,9 +434,9 @@ LinuxPerfBasicLogger::~LinuxPerfBasicLogger() {
   }
 }
 
-void LinuxPerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address, int size,
-                                                  const char* name,
-                                                  int name_length) {
+void LinuxPerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address,
+                                                  size_t size, const char* name,
+                                                  size_t name_length) {
   // Linux perf expects hex literals without a leading 0x, while some
   // implementations of printf might prepend one when using the %p format
   // for pointers, leading to wrongly formatted JIT symbols maps. On the other
@@ -444,18 +444,19 @@ void LinuxPerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address, int size,
   //
   // Instead, we use V8PRIxPTR format string and cast pointer to uintpr_t,
   // so that we have control over the exact output format.
+  int int_name_length = static_cast<int>(name_length);
 #ifdef V8_OS_ANDROID
-  base::OS::FPrint(perf_output_handle_, "0x%" V8PRIxPTR " 0x%x %.*s\n", address,
-                   size, name_length, name);
+  base::OS::FPrint(perf_output_handle_, "0x%" V8PRIxPTR " 0x%zx %.*s\n",
+                   address, size, int_name_length, name);
 #else
-  base::OS::FPrint(perf_output_handle_, "%" V8PRIxPTR " %x %.*s\n", address,
-                   size, name_length, name);
+  base::OS::FPrint(perf_output_handle_, "%" V8PRIxPTR " %zx %.*s\n", address,
+                   size, int_name_length, name);
 #endif
 }
 
 void LinuxPerfBasicLogger::LogRecordedBuffer(Tagged<AbstractCode> code,
                                              MaybeHandle<SharedFunctionInfo>,
-                                             const char* name, int length) {
+                                             const char* name, size_t length) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base(isolate_);
   if (v8_flags.perf_basic_prof_only_functions &&
@@ -470,7 +471,7 @@ void LinuxPerfBasicLogger::LogRecordedBuffer(Tagged<AbstractCode> code,
 
 #if V8_ENABLE_WEBASSEMBLY
 void LinuxPerfBasicLogger::LogRecordedBuffer(const wasm::WasmCode* code,
-                                             const char* name, int length) {
+                                             const char* name, size_t length) {
   WriteLogRecordedBuffer(static_cast<uintptr_t>(code->instruction_start()),
                          code->instructions().length(), name, length);
 }
@@ -683,10 +684,10 @@ class LowLevelLogger : public CodeEventLogger {
  private:
   void LogRecordedBuffer(Tagged<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
-                         const char* name, int length) override;
+                         const char* name, size_t length) override;
 #if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
-                         int length) override;
+                         size_t length) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Low-level profiling event structures.
@@ -711,7 +712,7 @@ class LowLevelLogger : public CodeEventLogger {
   static const char kLogExt[];
 
   void LogCodeInfo();
-  void LogWriteBytes(const char* bytes, int size);
+  void LogWriteBytes(const char* bytes, size_t size);
 
   template <typename T>
   void LogWriteStruct(const T& s) {
@@ -771,11 +772,11 @@ void LowLevelLogger::LogCodeInfo() {
 
 void LowLevelLogger::LogRecordedBuffer(Tagged<AbstractCode> code,
                                        MaybeHandle<SharedFunctionInfo>,
-                                       const char* name, int length) {
+                                       const char* name, size_t length) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base(isolate_);
   CodeCreateStruct event;
-  event.name_size = length;
+  event.name_size = static_cast<uint32_t>(length);
   event.code_address = code->InstructionStart(cage_base);
   event.code_size = code->InstructionSize(cage_base);
   LogWriteStruct(event);
@@ -787,9 +788,9 @@ void LowLevelLogger::LogRecordedBuffer(Tagged<AbstractCode> code,
 
 #if V8_ENABLE_WEBASSEMBLY
 void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
-                                       const char* name, int length) {
+                                       const char* name, size_t length) {
   CodeCreateStruct event;
-  event.name_size = length;
+  event.name_size = static_cast<uint32_t>(length);
   event.code_address = code->instruction_start();
   event.code_size = code->instructions().length();
   LogWriteStruct(event);
@@ -815,9 +816,9 @@ void LowLevelLogger::BytecodeMoveEvent(Tagged<BytecodeArray> from,
   LogWriteStruct(event);
 }
 
-void LowLevelLogger::LogWriteBytes(const char* bytes, int size) {
+void LowLevelLogger::LogWriteBytes(const char* bytes, size_t size) {
   size_t rv = fwrite(bytes, 1, size, ll_output_handle_);
-  DCHECK(static_cast<size_t>(size) == rv);
+  DCHECK_EQ(size, rv);
   USE(rv);
 }
 
@@ -849,10 +850,10 @@ class JitLogger : public CodeEventLogger {
  private:
   void LogRecordedBuffer(Tagged<AbstractCode> code,
                          MaybeHandle<SharedFunctionInfo> maybe_shared,
-                         const char* name, int length) override;
+                         const char* name, size_t length) override;
 #if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
-                         int length) override;
+                         size_t length) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   JitCodeEventHandler code_event_handler_;
@@ -866,7 +867,7 @@ JitLogger::JitLogger(Isolate* isolate, JitCodeEventHandler code_event_handler)
 
 void JitLogger::LogRecordedBuffer(Tagged<AbstractCode> code,
                                   MaybeHandle<SharedFunctionInfo> maybe_shared,
-                                  const char* name, int length) {
+                                  const char* name, size_t length) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base(isolate_);
   JitCodeEvent event;
@@ -890,7 +891,7 @@ void JitLogger::LogRecordedBuffer(Tagged<AbstractCode> code,
 
 #if V8_ENABLE_WEBASSEMBLY
 void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
-                                  int length) {
+                                  size_t length) {
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_ADDED;
   event.code_type = JitCodeEvent::WASM_CODE;

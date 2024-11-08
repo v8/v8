@@ -2077,7 +2077,7 @@ RUNTIME_FUNCTION(Runtime_StringToCString) {
   }
   Handle<String> string = args.at<String>(0);
 
-  uint32_t output_length;
+  size_t output_length;
   auto bytes = string->ToCString(&output_length);
 
   Handle<JSArrayBuffer> result =

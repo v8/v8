@@ -465,10 +465,10 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public LogEventListener {
 
   virtual void LogRecordedBuffer(Tagged<AbstractCode> code,
                                  MaybeHandle<SharedFunctionInfo> maybe_shared,
-                                 const char* name, int length) = 0;
+                                 const char* name, size_t length) = 0;
 #if V8_ENABLE_WEBASSEMBLY
   virtual void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
-                                 int length) = 0;
+                                 size_t length) = 0;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   std::unique_ptr<NameBuffer> name_buffer_;

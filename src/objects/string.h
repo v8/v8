@@ -405,10 +405,10 @@ V8_OBJECT class String : public Name {
   // should be nearly flat, otherwise the performance of this method may be
   // very slow (quadratic in the length).
   std::unique_ptr<char[]> ToCString(uint32_t offset, uint32_t length,
-                                    uint32_t* length_output = nullptr);
+                                    size_t* length_output = nullptr);
 
   V8_EXPORT_PRIVATE std::unique_ptr<char[]> ToCString(
-      uint32_t* length_output = nullptr);
+      size_t* length_output = nullptr);
 
   // Externalization.
   template <typename T>

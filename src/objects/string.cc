@@ -756,7 +756,7 @@ String::FlatContent String::SlowGetFlatContent(
 }
 
 std::unique_ptr<char[]> String::ToCString(uint32_t offset, uint32_t length,
-                                          uint32_t* length_return) {
+                                          size_t* length_return) {
   DCHECK_LE(length, this->length());
   DCHECK_LE(offset, this->length() - length);
 
@@ -771,10 +771,8 @@ std::unique_ptr<char[]> String::ToCString(uint32_t offset, uint32_t length,
     utf8_bytes += unibrow::Utf8::Length(character, last);
     last = character;
   }
-
-  // TODO(saelo): migrate this API to use size_t for length_return.
   if (length_return) {
-    *length_return = base::checked_cast<uint32_t>(utf8_bytes);
+    *length_return = utf8_bytes;
   }
 
   // Second, allocate the output buffer.
@@ -812,7 +810,7 @@ std::unique_ptr<char[]> String::ToCString(uint32_t offset, uint32_t length,
   return std::unique_ptr<char[]>(result);
 }
 
-std::unique_ptr<char[]> String::ToCString(uint32_t* length_return) {
+std::unique_ptr<char[]> String::ToCString(size_t* length_return) {
   return ToCString(0, length(), length_return);
 }
 
