@@ -955,7 +955,24 @@ void JSAtomicsMutex::UnlockAsyncLockedMutex(
           async_locked_waiter_wrapper->foreign_address<kWaiterQueueForeignTag>(
               IsolateForSandbox(requester)));
   LockAsyncWaiterQueueNode::RemoveFromAsyncWaiterQueueList(waiter_node);
-  Unlock(requester);
+  if (IsCurrentThreadOwner()) {
+    Unlock(requester);
+    return;
+  }
+  // If this is reached, the lock was already released by this thread.
+  // This can happen if waitAsync is called without awaiting or due to
+  // promise prototype tampering. Setting Promise.prototype.then to a
+  // non callable will cause the `waiting_for_callback_promise` (defined in
+  // LockOrEnqueuePromise) reactions to be called even if the async callback
+  // is not resolved; as a consequence, the following code will try to unlock
+  // the mutex twice:
+  //
+  // let mutex = new Atomics.Mutex();
+  // let cv = new Atomics.Condition();
+  // Promise.prototype.then = undefined;
+  // Atomics.Mutex.lockAsync(mutex, async function() {
+  //   await Atomics.Condition.waitAsync(cv, mutex);
+  // }
 }
 
 bool JSAtomicsMutex::DequeueTimedOutAsyncWaiter(
