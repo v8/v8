@@ -699,28 +699,6 @@ void RegExpMacroAssemblerMIPS::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-void RegExpMacroAssemblerMIPS::EncodePositionIndependentRegisterOutput(
-    Register relative_out, Register absolute_in, Register scratch) {
-  DCHECK(!AreAliased(absolute_in, scratch));
-  // pi = memory_top - register_output_vector
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ li(scratch, ref);
-  __ Ld(scratch, MemOperand(scratch, 0));
-  __ Dsubu(relative_out, scratch, absolute_in);
-}
-
-void RegExpMacroAssemblerMIPS::DecodePositionIndependentRegisterOutput(
-    Register absolute_out, Register relative_in, Register scratch) {
-  DCHECK(!AreAliased(relative_in, scratch));
-  // register_output_vector = memory_top - pi
-  ExternalReference ref =
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ li(scratch, ref);
-  __ Ld(scratch, MemOperand(scratch, 0));
-  __ Dsubu(absolute_out, scratch, relative_in);
-}
-
 Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source,
                                                      RegExpFlags flags) {
   Label return_v0;
@@ -783,12 +761,6 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source,
     static_assert(kRegExpStackBasePointerOffset ==
                   kBacktrackCountOffset - kSystemPointerSize);
     __ push(a0);  // The regexp stack base ptr.
-
-    // Change the output_offsets_vector to be position-independent since the
-    // stack may grow and thus change location.
-    __ Ld(s7, MemOperand(frame_pointer(), kRegisterOutputOffset));
-    EncodePositionIndependentRegisterOutput(s7, s7, a1);
-    __ Sd(s7, MemOperand(frame_pointer(), kRegisterOutputOffset));
 
     // Initialize backtrack stack pointer. It must not be clobbered from here
     // on. Note the backtrack_stackpointer is callee-saved.
@@ -895,7 +867,6 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source,
         // Copy captures to output.
         __ Ld(a1, MemOperand(frame_pointer(), kInputStartOffset));
         __ Ld(a0, MemOperand(frame_pointer(), kRegisterOutputOffset));
-        DecodePositionIndependentRegisterOutput(a0, a0, a2);
         __ Ld(a2, MemOperand(frame_pointer(), kStartIndexOffset));
         __ Dsubu(a1, end_of_input_address(), a1);
         // a1 is length of input in bytes.
@@ -936,12 +907,9 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source,
 
       if (global()) {
         // Restart matching if the regular expression is flagged as global.
-        // First persist the updated register output pointer.
-        EncodePositionIndependentRegisterOutput(a0, a0, a1);
-        __ Sd(a0, MemOperand(frame_pointer(), kRegisterOutputOffset));
-        // Then the rest:
         __ Ld(a0, MemOperand(frame_pointer(), kSuccessfulCapturesOffset));
         __ Ld(a1, MemOperand(frame_pointer(), kNumOutputRegistersOffset));
+        __ Ld(a2, MemOperand(frame_pointer(), kRegisterOutputOffset));
         // Increment success counter.
         __ Daddu(a0, a0, 1);
         __ Sd(a0, MemOperand(frame_pointer(), kSuccessfulCapturesOffset));
@@ -953,6 +921,9 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source,
         __ Branch(&return_v0, lt, a1, Operand(num_saved_registers_));
 
         __ Sd(a1, MemOperand(frame_pointer(), kNumOutputRegistersOffset));
+        // Advance the location for output.
+        __ Daddu(a2, a2, num_saved_registers_ * kIntSize);
+        __ Sd(a2, MemOperand(frame_pointer(), kRegisterOutputOffset));
 
         // Restore the original regexp stack pointer value (effectively, pop the
         // stored base pointer).

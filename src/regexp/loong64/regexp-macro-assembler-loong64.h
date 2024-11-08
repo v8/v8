@@ -221,13 +221,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerLOONG64
   void PushRegExpBasePointer(Register stack_pointer, Register scratch);
   void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 
-  void EncodePositionIndependentRegisterOutput(Register relative_out,
-                                               Register absolute_in,
-                                               Register scratch);
-  void DecodePositionIndependentRegisterOutput(Register absolute_out,
-                                               Register relative_in,
-                                               Register scratch);
-
   Isolate* isolate() const { return masm_->isolate(); }
 
   const std::unique_ptr<MacroAssembler> masm_;
