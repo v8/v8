@@ -368,6 +368,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                     AddressType address_type = AddressType::kI32);
   uint32_t AddMemory(uint32_t min_pages);
   uint32_t AddMemory(uint32_t min_pages, uint32_t max_pages);
+  uint32_t AddMemory64(uint32_t min_pages);
   uint32_t AddMemory64(uint32_t min_pages, uint32_t max_pages);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(base::Vector<const char> name, ImportExportKindCode kind,

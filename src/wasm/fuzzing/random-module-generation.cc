@@ -39,7 +39,6 @@ constexpr int kMaxExceptions = 4;
 constexpr int kMaxTableSize = 32;
 constexpr int kMaxTables = 4;
 constexpr int kMaxMemories = 4;
-constexpr int kMaxMemorySize = 32;
 constexpr int kMaxArraySize = 20;
 constexpr int kMaxPassiveDataSegments = 2;
 constexpr uint32_t kMaxRecursionDepth = 64;
@@ -3517,18 +3516,32 @@ class ModuleGen {
 
   // Generates and adds random number of memories.
   void GenerateRandomMemories() {
-    int random_uint8_t = module_range_->get<uint8_t>();
-    static_assert(kMaxMemories <= 5,
-                  "Too many memories. Use more random bits to choose their "
-                  "address type!");
-    // Use the lower 3 bits to get the number of memories.
-    int num_memories = 1 + ((random_uint8_t & 7) % kMaxMemories);
-    // Use the unused upper 5 bits to decide about each memory's type.
-    random_uint8_t >>= 3;
+    int num_memories = 1 + (module_range_->get<uint8_t>() % kMaxMemories);
     for (int i = 0; i < num_memories; i++) {
-      (random_uint8_t & 1) ? builder_->AddMemory64(0, kMaxMemorySize)
-                           : builder_->AddMemory(0, kMaxMemorySize);
-      random_uint8_t >>= 1;
+      uint8_t random_byte = module_range_->get<uint8_t>();
+      bool mem64 = random_byte & 1;
+      bool has_maximum = random_byte & 2;
+      static_assert(kV8MaxWasmMemory64Pages <= kMaxUInt32);
+      uint32_t max_supported_pages =
+          mem64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
+      uint32_t min_pages =
+          module_range_->get<uint32_t>() % (max_supported_pages + 1);
+      if (has_maximum) {
+        uint32_t max_pages =
+            std::max(min_pages, module_range_->get<uint32_t>() %
+                                    (max_supported_pages + 1));
+        if (mem64) {
+          builder_->AddMemory64(min_pages, max_pages);
+        } else {
+          builder_->AddMemory(min_pages, max_pages);
+        }
+      } else {
+        if (mem64) {
+          builder_->AddMemory64(min_pages);
+        } else {
+          builder_->AddMemory(min_pages);
+        }
+      }
     }
   }
 

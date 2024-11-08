@@ -566,6 +566,12 @@ uint32_t WasmModuleBuilder::AddMemory(uint32_t min_pages, uint32_t max_pages) {
   return static_cast<uint32_t>(memories_.size() - 1);
 }
 
+uint32_t WasmModuleBuilder::AddMemory64(uint32_t min_pages) {
+  memories_.push_back(
+      {.min_pages = min_pages, .address_type = AddressType::kI64});
+  return static_cast<uint32_t>(memories_.size() - 1);
+}
+
 uint32_t WasmModuleBuilder::AddMemory64(uint32_t min_pages,
                                         uint32_t max_pages) {
   memories_.push_back({.min_pages = min_pages,
