@@ -102,6 +102,7 @@ UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
   if (v8_flags.single_generation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
   Isolate* i_isolate1 = test.i_main_isolate();
@@ -146,6 +147,7 @@ UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
 
 UNINITIALIZED_TEST(InPlaceInternalization) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
   ManualGCScope manual_gc_scope(test.i_main_isolate());
@@ -212,6 +214,7 @@ UNINITIALIZED_TEST(YoungInternalization) {
   if (v8_flags.single_generation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
   IsolateParkOnDisposeWrapper isolate_wrapper(test.NewClientIsolate(),
@@ -430,6 +433,7 @@ IndirectHandle<FixedArray> CreateSharedOneByteStrings(
 
 void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   constexpr int kThreads = 4;
   constexpr int kStrings = 4096;
@@ -510,6 +514,7 @@ class ConcurrentStringTableLookupThread final
 
 UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   constexpr int kTotalThreads = 4;
   constexpr int kInternalizationThreads = 1;
@@ -657,6 +662,7 @@ class ExternalResourceFactory {
 
 UNINITIALIZED_TEST(StringShare) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ManualGCScope manual_gc_scope;
   ExternalResourceFactory resource_factory;
@@ -812,6 +818,8 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
+
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -861,6 +869,7 @@ UNINITIALIZED_TEST(PromotionScavenge) {
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -902,6 +911,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
   if (v8_flags.stress_concurrent_allocation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -952,6 +962,8 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
   if (v8_flags.stress_concurrent_allocation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
+
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -1011,6 +1023,8 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
   }
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
+
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -1075,6 +1089,8 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
   if (v8_flags.stress_concurrent_allocation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
+
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -1133,6 +1149,7 @@ void TriggerGCWithTransitions(Heap* heap) {
 
 UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   constexpr int kStrings = 4096;
   constexpr int kLOStrings = 16;
@@ -1178,6 +1195,7 @@ UNINITIALIZED_TEST(ShareExternalString) {
   if (v8_flags.single_generation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1232,6 +1250,7 @@ UNINITIALIZED_TEST(ExternalizeSharedString) {
   if (v8_flags.single_generation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1273,6 +1292,7 @@ UNINITIALIZED_TEST(ExternalizeSharedString) {
 
 UNINITIALIZED_TEST(ExternalizedSharedStringsTransitionDuringGC) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1326,6 +1346,7 @@ UNINITIALIZED_TEST(ExternalizeInternalizedString) {
   if (v8_flags.single_generation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1387,6 +1408,7 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   if (v8_flags.single_generation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1472,6 +1494,7 @@ UNINITIALIZED_TEST(ExternalizeAndInternalizeMissSharedString) {
   if (v8_flags.single_generation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1507,6 +1530,7 @@ UNINITIALIZED_TEST(InternalizeHitAndExternalizeSharedString) {
   if (v8_flags.single_generation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1561,6 +1585,7 @@ UNINITIALIZED_TEST(InternalizeMissAndExternalizeSharedString) {
   if (v8_flags.single_generation) return;
 
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1704,6 +1729,7 @@ void CheckStringAndResource(
 
 void TestConcurrentExternalization(bool share_resources) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1781,6 +1807,7 @@ UNINITIALIZED_TEST(ConcurrentExternalizationWithSharedResources) {
 void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
                                                   bool transition_with_stack) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -1905,6 +1932,7 @@ UNINITIALIZED_TEST(ExternalizationWithDeadStringsAndSharedResources) {
 void TestConcurrentExternalizationAndInternalization(
     TestHitOrMiss hit_or_miss) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ExternalResourceFactory resource_factory;
   MultiClientIsolateTest test;
@@ -2001,6 +2029,7 @@ UNINITIALIZED_TEST(ConcurrentExternalizationAndInternalizationHit) {
 
 UNINITIALIZED_TEST(SharedStringInGlobalHandle) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -2078,6 +2107,7 @@ class WorkerIsolateThread : public v8::base::Thread {
 
 UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
   ManualGCScope manual_gc_scope(test.i_main_isolate());
@@ -2165,6 +2195,8 @@ UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
+
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -2203,6 +2235,8 @@ UNINITIALIZED_TEST(
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
+
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -2357,6 +2391,8 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
+
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -2510,6 +2546,7 @@ UNINITIALIZED_TEST(Regress1424955) {
   // atomic pause is finished.
   if (v8_flags.verify_heap) return;
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ManualGCScope manual_gc_scope;
 
@@ -2588,6 +2625,7 @@ class ProtectExternalStringTableAddStringClientIsolateThread
 
 UNINITIALIZED_TEST(ProtectExternalStringTableAddString) {
   v8_flags.shared_string_table = true;
+  i::FlagList::EnforceFlagImplications();
 
   ManualGCScope manual_gc_scope;
 

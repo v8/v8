@@ -1026,6 +1026,7 @@ DEFINE_WEAK_IMPLICATION(trace_baseline, trace_baseline_batch_compilation)
 // Internalize into a shared string table in the shared isolate
 DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
 DEFINE_IMPLICATION(harmony_struct, shared_string_table)
+DEFINE_IMPLICATION(shared_string_table, shared_heap)
 DEFINE_EXPERIMENTAL_FEATURE(
     always_use_string_forwarding_table,
     "use string forwarding table instead of thin strings for all strings")
@@ -3296,6 +3297,9 @@ DEFINE_BOOL(update_allocation_limits_after_loading, false,
             "force recomputation of allocation limites when leaving the "
             "loading RAIL mode (either on a RAIL mode change or incremental "
             "marking start).")
+
+DEFINE_EXPERIMENTAL_FEATURE(shared_heap,
+                            "Enables a shared heap between isolates.")
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")

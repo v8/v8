@@ -1156,7 +1156,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
 
   {
     // Allows handle derefs for all threads/isolates from this thread.
-    AllowHandleDereferenceAllThreads allow_all_handle_derefs;
+    AllowHandleUsageOnAllThreads allow_all_handle_derefs;
     safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
       local_heap->InvokeGCEpilogueCallbacksInSafepoint(
           GCCallbacksInSafepoint::GCType::kLocal);
@@ -2342,7 +2342,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   if (isolate_->is_shared_space_isolate()) {
     // Allows handle derefs for all threads/isolates from this thread.
-    AllowHandleDereferenceAllThreads allow_all_handle_derefs;
+    AllowHandleUsageOnAllThreads allow_all_handle_derefs;
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       Relocatable::PostGarbageCollectionProcessing(client);
     });
@@ -2396,6 +2396,9 @@ void Heap::PerformHeapVerification() {
   HeapVerifier::VerifyHeapIfEnabled(this);
 
   if (isolate()->is_shared_space_isolate()) {
+    // Allow handle creation for client isolates even if they are parked. This
+    // is because some object verification methods create handles.
+    AllowHandleUsageOnAllThreads allow_handle_creation;
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       HeapVerifier::VerifyHeapIfEnabled(client->heap());
     });

@@ -272,9 +272,14 @@ HandleType<T> HandleScope::CloseAndEscape(HandleType<T> handle_value) {
 
 Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
-  DCHECK(isolate->main_thread_local_heap()->IsRunning());
-  DCHECK_WITH_MSG(isolate->thread_id() == ThreadId::Current(),
-                  "main-thread handle can only be created on the main thread.");
+#ifdef DEBUG
+  if (!AllowHandleUsageOnAllThreads::IsAllowed()) {
+    DCHECK(isolate->main_thread_local_heap()->IsRunning());
+    DCHECK_WITH_MSG(
+        isolate->thread_id() == ThreadId::Current(),
+        "main-thread handle can only be created on the main thread.");
+  }
+#endif
   HandleScopeData* data = isolate->handle_scope_data();
   Address* result = data->next;
   if (V8_UNLIKELY(result == data->limit)) {

@@ -100,7 +100,7 @@ bool HandleBase::IsDereferenceAllowed() const {
 
   // Deref is explicitly allowed from any thread. Used for running internal GC
   // epilogue callbacks in the safepoint after a GC.
-  if (AllowHandleDereferenceAllThreads::IsAllowed()) return true;
+  if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
 
   LocalHeap* local_heap = isolate->CurrentLocalHeap();
 
@@ -143,7 +143,7 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
 
   // Deref is explicitly allowed from any thread. Used for running internal GC
   // epilogue callbacks in the safepoint after a GC.
-  if (AllowHandleDereferenceAllThreads::IsAllowed()) return true;
+  if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
 
   LocalHeap* local_heap = isolate->CurrentLocalHeap();
 
