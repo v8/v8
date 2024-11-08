@@ -1786,8 +1786,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                lookup_start_object, this_effect, this_control);
         } else if (HasOnlyStringWrapperMaps(broker(),
                                             lookup_start_object_maps)) {
-          DCHECK_EQ(receiver, lookup_start_object);
-          this_lookup_start_object = this_receiver = this_effect =
+          this_lookup_start_object = this_effect =
               graph()->NewNode(common()->TypeGuard(Type::StringWrapper()),
                                lookup_start_object, this_effect, this_control);
         }
