@@ -1402,9 +1402,7 @@ i::Handle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
   // not know undefined.
   if (type.heap_representation() == i::wasm::HeapType::kExtern) {
     return isolate->factory()->undefined_value();
-  } else if (type.heap_representation() == i::wasm::HeapType::kNoExtern ||
-             type.heap_representation() == i::wasm::HeapType::kExn ||
-             type.heap_representation() == i::wasm::HeapType::kNoExn) {
+  } else if (!type.use_wasm_null()) {
     return isolate->factory()->null_value();
   }
   return isolate->factory()->wasm_null();

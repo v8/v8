@@ -658,9 +658,11 @@ class ValueTypeBase {
   constexpr bool is_uninhabited() const {
     return is_bottom() ||
            (is_non_nullable() && (is_reference_to(HeapType::kNone) ||
+                                  is_reference_to(HeapType::kNoExn) ||
                                   is_reference_to(HeapType::kNoExtern) ||
                                   is_reference_to(HeapType::kNoFunc) ||
                                   is_reference_to(HeapType::kNoneShared) ||
+                                  is_reference_to(HeapType::kNoExnShared) ||
                                   is_reference_to(HeapType::kNoExternShared) ||
                                   is_reference_to(HeapType::kNoFuncShared)));
   }

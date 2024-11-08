@@ -90,6 +90,7 @@ namespace internal {
     "Should not return after throwing a wasm trap")                            \
   V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedValue, "Unexpected value")                                      \
+  V(kUninhabitableType, "Uninhabitable type")                                  \
   V(kUnsupportedModuleOperation, "Unsupported module operation")               \
   V(kUnsupportedNonPrimitiveCompare, "Unsupported non-primitive compare")      \
   V(kWrongAddressOrValuePassedToRecordWrite,                                   \

@@ -2811,6 +2811,16 @@ class LiftoffCompiler {
 
   void ReturnImpl(FullDecoder* decoder) {
     if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionExit(decoder);
+    // A function returning an uninhabitable type can't ever actually reach
+    // a {ret} instruction (it can only return by throwing or trapping). So
+    // if we do get here, there must have been a bug. Crash to flush it out.
+    base::Vector<const ValueType> returns = decoder->sig_->returns();
+    if (V8_UNLIKELY(std::any_of(
+            returns.begin(), returns.end(),
+            [](const ValueType type) { return type.is_uninhabited(); }))) {
+      __ Abort(AbortReason::kUninhabitableType);
+      return;
+    }
     if (dynamic_tiering()) {
       TierupCheck(decoder, decoder->position(),
                   __ pc_offset() + kTierUpCostForFunctionEntry);
