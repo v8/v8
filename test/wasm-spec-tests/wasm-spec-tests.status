@@ -14,7 +14,6 @@
 
   # TODO(https://crbug.com/364917766): Failing tests after spec test update,
   # probably from rebasing on the wasm-3.0 branch.
-  'proposals/js-promise-integration/instance': [FAIL],
   'proposals/js-promise-integration/relaxed-simd/i16x8_relaxed_q15mulr_s': [FAIL],
   'proposals/js-promise-integration/relaxed-simd/i32x4_relaxed_trunc': [FAIL],
   'proposals/js-promise-integration/relaxed-simd/i8x16_relaxed_swizzle': [FAIL],
@@ -22,9 +21,6 @@
   'proposals/js-promise-integration/relaxed-simd/relaxed_laneselect': [FAIL],
   'proposals/js-promise-integration/relaxed-simd/relaxed_madd_nmadd': [FAIL],
   'proposals/js-promise-integration/relaxed-simd/relaxed_min_max': [FAIL],
-  'proposals/js-promise-integration/throw': [FAIL],
-  'proposals/js-promise-integration/throw_ref': [FAIL],
-  'proposals/js-promise-integration/try_table': [FAIL],
 
   # The function-references spec tests haven't been updated to the final
   # binary encoding. We don't care, because the GC tests are up to date and

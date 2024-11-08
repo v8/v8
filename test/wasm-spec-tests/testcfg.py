@@ -49,8 +49,14 @@ proposal_flags = [
         'flags': ['--experimental-wasm-exnref', '--turboshaft-wasm']
     },
     {
-        'name': 'js-promise-integration',
-        'flags': ['--experimental-wasm-jspi']
+        'name':
+            'js-promise-integration',
+        'flags': [
+            '--experimental-wasm-jspi',
+            # The jspi repository is rebased on the upstream 'wasm-3.0'
+            # branch, which contains exnref.
+            '--experimental-wasm-exnref'
+        ]
     }
 ]
 
