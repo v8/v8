@@ -188,12 +188,13 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 - PKU",
         parent_builder = "V8 Linux64 - builder",
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - PKU - debug",
         parent_builder = "V8 Linux64 - debug builder",
         first_branch_version = "13.2",
-        barrier = BARRIER.NONE,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
 )
 
