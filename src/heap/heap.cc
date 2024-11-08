@@ -490,7 +490,7 @@ bool Heap::IsOldGenerationExpansionAllowed(
 }
 
 bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) const {
-  size_t new_space_capacity = NewSpaceTargetCapacity();
+  size_t new_space_capacity = NewSpaceCapacity();
   size_t new_lo_space_capacity = new_lo_space_ ? new_lo_space_->Size() : 0;
 
   // Over-estimate the new space size using capacity to allow some slack.
@@ -5262,24 +5262,37 @@ size_t Heap::OldGenerationConsumedBytes() const {
 }
 
 size_t Heap::YoungGenerationSizeOfObjects() const {
+  DCHECK_NOT_NULL(new_space());
+  DCHECK_NOT_NULL(new_lo_space());
   if (v8_flags.sticky_mark_bits) {
-    DCHECK_NOT_NULL(new_lo_space());
     return sticky_space()->young_objects_size() +
            new_lo_space()->SizeOfObjects();
   }
-  if (!new_space()) return 0;
   DCHECK_NOT_NULL(new_lo_space());
   return new_space()->SizeOfObjects() + new_lo_space()->SizeOfObjects();
 }
 
 size_t Heap::YoungGenerationWastedBytes() const {
-  if (!new_space()) return 0;
+  DCHECK_NOT_NULL(new_space());
   DCHECK(v8_flags.minor_ms);
   return paged_new_space()->paged_space()->Waste();
 }
 
 size_t Heap::YoungGenerationConsumedBytes() const {
-  return YoungGenerationSizeOfObjects() + YoungGenerationWastedBytes();
+  if (!new_space()) {
+    return 0;
+  }
+  DCHECK_NOT_NULL(new_lo_space());
+  if (v8_flags.minor_ms) {
+    return YoungGenerationSizeOfObjects() + YoungGenerationWastedBytes();
+  }
+  // When using Scavenger, memory is compacted. Thus wasted space is always 0.
+  // The diff between `new_space()->SizeOfObjects()` and
+  // `new_space()->ActualCapacity()` is less than one page. Using capacity
+  // here is also easier for concurrency since this method is reachable from
+  // background old allocations.
+  return semi_space_new_space()->ActualCapacity() +
+         new_lo_space()->SizeOfObjects();
 }
 
 size_t Heap::EmbedderSizeOfObjects() const {
@@ -5322,7 +5335,8 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
   if (!v8_flags.external_memory_accounted_in_global_limit) {
     size_now += AllocatedExternalMemorySinceMarkCompact();
   }
-  if (v8_flags.minor_ms && incremental_marking()->IsMajorMarking()) {
+  if (v8_flags.separate_gc_phases && incremental_marking()->IsMajorMarking()) {
+    // No interleaved GCs, so we count young gen as part of old gen.
     size_now += YoungGenerationConsumedBytes();
   }
 
