@@ -12,8 +12,7 @@
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
 
-  # TODO(https://crbug.com/364917766): Failing tests after spec test update,
-  # probably from rebasing on the wasm-3.0 branch.
+  # TODO(https://crbug.com/378077852): Merge updated `wasm-3.0` branch into JSPI.
   'proposals/js-promise-integration/relaxed-simd/i16x8_relaxed_q15mulr_s': [FAIL],
   'proposals/js-promise-integration/relaxed-simd/i32x4_relaxed_trunc': [FAIL],
   'proposals/js-promise-integration/relaxed-simd/i8x16_relaxed_swizzle': [FAIL],
