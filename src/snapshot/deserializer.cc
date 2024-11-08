@@ -36,8 +36,10 @@
 #include "src/snapshot/snapshot-data.h"
 #include "src/utils/memcopy.h"
 
-namespace v8 {
-namespace internal {
+// Has to be the last include (doesn't have include guards)
+#include "src/objects/object-macros.h"
+
+namespace v8::internal {
 
 #ifdef V8_COMPRESS_POINTERS
 #define PRIxTAGGED PRIx32
@@ -1655,5 +1657,6 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Deserializer<Isolate>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Deserializer<LocalIsolate>;
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
+
+#include "src/objects/object-macros-undef.h"
