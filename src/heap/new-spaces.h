@@ -339,7 +339,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   // Return the capacity of pages currently used for allocations. This is
   // a capped overapproximation of the size of objects.
-  size_t ActualCapacity() const {
+  size_t CurrentCapacitySafe() const {
     return (to_space_.current_capacity_safe() / PageMetadata::kPageSize) *
            MemoryChunkLayout::AllocatableMemoryInDataPage();
   }

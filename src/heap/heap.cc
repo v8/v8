@@ -5290,10 +5290,10 @@ size_t Heap::YoungGenerationConsumedBytes() const {
   }
   // When using Scavenger, memory is compacted. Thus wasted space is always 0.
   // The diff between `new_space()->SizeOfObjects()` and
-  // `new_space()->ActualCapacity()` is less than one page. Using capacity
+  // `new_space()->CurrentCapacitySafe()` is less than one page. Using capacity
   // here is also easier for concurrency since this method is reachable from
   // background old allocations.
-  return semi_space_new_space()->ActualCapacity() +
+  return semi_space_new_space()->CurrentCapacitySafe() +
          new_lo_space()->SizeOfObjects();
 }
 
