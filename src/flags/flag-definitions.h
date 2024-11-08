@@ -676,7 +676,7 @@ DEFINE_BOOL(script_context_mutable_heap_number, false,
             "Use mutable heap numbers in script contexts")
 DEFINE_WEAK_IMPLICATION(future, script_context_mutable_heap_number)
 
-DEFINE_BOOL(empty_context_extension_dep, false,
+DEFINE_BOOL(empty_context_extension_dep, true,
             "Use compilation dependency to avoid dynamic checks for "
             "non-empty context extensions")
 
