@@ -3945,7 +3945,6 @@ v8_header_set("v8_internal_headers") {
     "src/objects/arguments-inl.h",
     "src/objects/arguments.h",
     "src/objects/backing-store.h",
-    "src/objects/bigint-inl.h",
     "src/objects/bigint.h",
     "src/objects/call-site-info-inl.h",
     "src/objects/call-site-info.h",

@@ -1934,7 +1934,6 @@ filegroup(
         "src/objects/backing-store.h",
         "src/objects/bigint.cc",
         "src/objects/bigint.h",
-        "src/objects/bigint-inl.h",
         "src/objects/bytecode-array.cc",
         "src/objects/bytecode-array.h",
         "src/objects/bytecode-array-inl.h",

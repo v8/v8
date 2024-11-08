@@ -350,7 +350,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.
   Handle<FreshlyAllocatedBigInt> NewBigInt(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length,

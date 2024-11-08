@@ -9651,8 +9651,12 @@ int BigInt::WordCount() const {
 
 void BigInt::ToWordsArray(int* sign_bit, int* word_count,
                           uint64_t* words) const {
-  return Utils::OpenDirectHandle(this)->ToWordsArray64(sign_bit, word_count,
-                                                       words);
+  // TODO(saelo): consider migrating the public API to also use uint32_t or
+  // size_t for length and count values.
+  uint32_t unsigned_word_count = *word_count;
+  Utils::OpenDirectHandle(this)->ToWordsArray64(sign_bit, &unsigned_word_count,
+                                                words);
+  *word_count = base::checked_cast<int>(unsigned_word_count);
 }
 
 void Isolate::HandleExternalMemoryInterrupt() {

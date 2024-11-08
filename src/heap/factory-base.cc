@@ -1087,8 +1087,8 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
 
 template <typename Impl>
 Handle<FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
-    int length, AllocationType allocation) {
-  if (length < 0 || length > BigInt::kMaxLength) {
+    uint32_t length, AllocationType allocation) {
+  if (length > BigInt::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
   }
