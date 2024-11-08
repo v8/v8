@@ -1924,7 +1924,9 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
     if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
     }
-  } else if (v8_flags.idle_gc_on_context_disposal) {
+  } else if (v8_flags.idle_gc_on_context_disposal &&
+             !v8_flags.single_generation) {
+    DCHECK_NOT_NULL(new_space());
     IdleTaskOnContextDispose::TryPostJob(this);
   }
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
