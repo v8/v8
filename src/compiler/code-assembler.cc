@@ -203,6 +203,13 @@ bool CodeAssembler::IsFloat64RoundTruncateSupported() const {
   return raw_assembler()->machine()->Float64RoundTruncate().IsSupported();
 }
 
+bool CodeAssembler::IsTruncateFloat64ToFloat16RawBitsSupported() const {
+  return raw_assembler()
+      ->machine()
+      ->TruncateFloat64ToFloat16RawBits()
+      .IsSupported();
+}
+
 bool CodeAssembler::IsInt32AbsWithOverflowSupported() const {
   return raw_assembler()->machine()->Int32AbsWithOverflow().IsSupported();
 }

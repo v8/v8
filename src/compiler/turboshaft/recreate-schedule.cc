@@ -737,6 +737,14 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         UNIMPLEMENTED();
       }
       break;
+    case Kind::kJSFloat16TruncateWithBitcast:
+      if (op.from == FloatRepresentation::Float64() &&
+          op.to == WordRepresentation::Word32()) {
+        o = machine.TruncateFloat64ToFloat16RawBits().placeholder();
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
     case Kind::kSignedToFloat:
       if (op.from == WordRepresentation::Word32() &&
           op.to == FloatRepresentation::Float64()) {

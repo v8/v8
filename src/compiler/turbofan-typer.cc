@@ -217,7 +217,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(ChangeInt64ToFloat64)
       DECLARE_IMPOSSIBLE_CASE(ChangeUint32ToFloat64)
       DECLARE_IMPOSSIBLE_CASE(TruncateFloat64ToFloat32)
-      DECLARE_IMPOSSIBLE_CASE(TruncateFloat64ToFloat16)
+      DECLARE_IMPOSSIBLE_CASE(TruncateFloat64ToFloat16RawBits)
       DECLARE_IMPOSSIBLE_CASE(TruncateInt64ToInt32)
       DECLARE_IMPOSSIBLE_CASE(RoundFloat64ToInt32)
       DECLARE_IMPOSSIBLE_CASE(RoundInt32ToFloat32)

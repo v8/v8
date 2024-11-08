@@ -2394,9 +2394,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
-    case kSSEFloat64ToFloat16: {
-      __ Cvtpd2ph(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                  i.TempRegister(0));
+    case kSSEFloat64ToFloat16RawBits: {
+      XMMRegister tmp_dst = i.TempDoubleRegister(0);
+      __ Cvtpd2ph(tmp_dst, i.InputDoubleRegister(0), i.TempRegister(1));
+      __ Pextrw(i.OutputRegister(), tmp_dst, static_cast<uint8_t>(0));
       break;
     }
     case kSSEFloat64ToFloat32:

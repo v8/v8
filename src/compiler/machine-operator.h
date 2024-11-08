@@ -411,7 +411,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord64Select = 1u << 28,
     kLoadStorePairs = 1u << 29,
     kFloat16 = 1u << 30,
-    kTruncateFloat64ToFloat16 = 1u << 31,
+    kTruncateFloat64ToFloat16RawBits = 1u << 31,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
@@ -421,7 +421,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kInt32AbsWithOverflow | kInt64AbsWithOverflow | kWord32Rol |
         kWord64Rol | kWord64RolLowerable | kSatConversionIsSafe |
         kFloat32Select | kFloat64Select | kWord32Select | kWord64Select |
-        kLoadStorePairs | kFloat16 | kTruncateFloat64ToFloat16
+        kLoadStorePairs | kFloat16 | kTruncateFloat64ToFloat16RawBits
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -665,7 +665,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // These operators truncate or round numbers, both changing the representation
   // of the number and mapping multiple input values onto the same output value.
   const Operator* TruncateFloat64ToFloat32();
-  const OptionalOperator TruncateFloat64ToFloat16();
+  const OptionalOperator TruncateFloat64ToFloat16RawBits();
   const Operator* TruncateInt64ToInt32();
   const Operator* RoundFloat64ToInt32();
   const Operator* RoundInt32ToFloat32();

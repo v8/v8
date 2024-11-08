@@ -3609,7 +3609,6 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   V(BitcastInt32ToFloat32, kArm64Float64MoveU64)              \
   V(BitcastInt64ToFloat64, kArm64Float64MoveU64)              \
   V(TruncateFloat64ToFloat32, kArm64Float64ToFloat32)         \
-  V(TruncateFloat64ToFloat16, kArm64Float64ToFloat16)         \
   V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)          \
   V(TruncateFloat64ToUint32, kArm64Float64ToUint32)           \
   V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32)   \
@@ -4295,6 +4294,17 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(
   }
 
   Emit(kArm64Float64ToInt64, output_count, outputs, 1, inputs);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
+    node_t node) {
+  Arm64OperandGeneratorT<Adapter> g(this);
+  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
+  Emit(kArm64Float64ToFloat16RawBits, arraysize(outputs), outputs,
+       arraysize(inputs), inputs, arraysize(temps), temps);
 }
 
 template <typename Adapter>
@@ -8518,7 +8528,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
                MachineOperatorBuilder::kLoadStorePairs;
   if (CpuFeatures::IsSupported(FP16)) {
     flags |= MachineOperatorBuilder::kFloat16 |
-             MachineOperatorBuilder::kTruncateFloat64ToFloat16;
+             MachineOperatorBuilder::kTruncateFloat64ToFloat16RawBits;
   }
   return flags;
 }

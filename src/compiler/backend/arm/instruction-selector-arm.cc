@@ -2450,7 +2450,8 @@ RRR_OP_T_LIST(RRR_VISITOR)
 #undef RRR_OP_T_LIST
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16(node_t node) {
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
+    node_t node) {
   UNIMPLEMENTED();
 }
 

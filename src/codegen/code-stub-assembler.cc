@@ -6590,12 +6590,26 @@ TNode<Smi> CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
 
 TNode<Float16RawBitsT> CodeStubAssembler::TruncateFloat64ToFloat16(
     TNode<Float64T> value) {
+  TVARIABLE(Float16RawBitsT, float16_out);
+  Label truncate_op_supported(this), truncate_op_fallback(this),
+      return_out(this);
+  // See Float64Ceil for the reason there is a branch for the static constant
+  // (PGO profiles).
+  Branch(UniqueInt32Constant(IsTruncateFloat64ToFloat16RawBitsSupported()),
+         &truncate_op_supported, &truncate_op_fallback);
+
+  BIND(&truncate_op_supported);
+  {
+    float16_out = TruncateFloat64ToFloat16RawBits(value);
+    Goto(&return_out);
+  }
+
   // This is a verbatim CSA implementation of DoubleToFloat16.
   //
   // The 64-bit and 32-bit paths are implemented separately, but the algorithm
   // is the same in both cases. The 32-bit version requires manual pairwise
   // operations.
-
+  BIND(&truncate_op_fallback);
   if (Is64()) {
     TVARIABLE(Uint16T, out);
     TNode<Int64T> signed_in = BitcastFloat64ToInt64(value);
@@ -6670,7 +6684,7 @@ TNode<Float16RawBitsT> CodeStubAssembler::TruncateFloat64ToFloat16(
     }
 
     BIND(&done);
-    return ReinterpretCast<Float16RawBitsT>(
+    float16_out = ReinterpretCast<Float16RawBitsT>(
         Word32Or(TruncateWord64ToWord32(Word64Shr(sign, Int64Constant(48))),
                  out.value()));
   } else {
@@ -6761,9 +6775,13 @@ TNode<Float16RawBitsT> CodeStubAssembler::TruncateFloat64ToFloat16(
     }
 
     BIND(&done);
-    return ReinterpretCast<Float16RawBitsT>(
+    float16_out = ReinterpretCast<Float16RawBitsT>(
         Word32Or(Word32Shr(sign, Int32Constant(16)), out.value()));
   }
+  Goto(&return_out);
+
+  BIND(&return_out);
+  return float16_out.value();
 }
 
 TNode<Uint32T> CodeStubAssembler::BitcastFloat16ToUint32(

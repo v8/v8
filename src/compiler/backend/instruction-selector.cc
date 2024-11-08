@@ -4814,6 +4814,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           DCHECK_EQ(change.from, Rep::Float64());
           DCHECK_EQ(change.to, Rep::Word32());
           return VisitTruncateFloat64ToWord32(node);
+        case ChangeOp::Kind::kJSFloat16TruncateWithBitcast:
+          DCHECK_EQ(Rep::Float64(), change.from);
+          DCHECK_EQ(Rep::Word32(), change.to);
+          return VisitTruncateFloat64ToFloat16RawBits(node);
         case ChangeOp::Kind::kSignedToFloat:
           if (change.from == Rep::Word32()) {
             if (change.to == Rep::Float32()) {

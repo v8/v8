@@ -1290,37 +1290,37 @@ struct FixedArityOperationT : OperationT<Derived> {
   }
 };
 
-#define SUPPORTED_OPERATIONS_LIST(V)               \
-  V(float32_round_down, Float32RoundDown)          \
-  V(float64_round_down, Float64RoundDown)          \
-  V(float32_round_up, Float32RoundUp)              \
-  V(float64_round_up, Float64RoundUp)              \
-  V(float32_round_to_zero, Float32RoundTruncate)   \
-  V(float64_round_to_zero, Float64RoundTruncate)   \
-  V(float32_round_ties_even, Float32RoundTiesEven) \
-  V(float64_round_ties_even, Float64RoundTiesEven) \
-  V(float64_round_ties_away, Float64RoundTiesAway) \
-  V(int32_div_is_safe, Int32DivIsSafe)             \
-  V(uint32_div_is_safe, Uint32DivIsSafe)           \
-  V(word32_shift_is_safe, Word32ShiftIsSafe)       \
-  V(word32_ctz, Word32Ctz)                         \
-  V(word64_ctz, Word64Ctz)                         \
-  V(word64_ctz_lowerable, Word64CtzLowerable)      \
-  V(word32_popcnt, Word32Popcnt)                   \
-  V(word64_popcnt, Word64Popcnt)                   \
-  V(word32_reverse_bits, Word32ReverseBits)        \
-  V(word64_reverse_bits, Word64ReverseBits)        \
-  V(float32_select, Float32Select)                 \
-  V(float64_select, Float64Select)                 \
-  V(int32_abs_with_overflow, Int32AbsWithOverflow) \
-  V(int64_abs_with_overflow, Int64AbsWithOverflow) \
-  V(word32_rol, Word32Rol)                         \
-  V(word64_rol, Word64Rol)                         \
-  V(word64_rol_lowerable, Word64RolLowerable)      \
-  V(sat_conversion_is_safe, SatConversionIsSafe)   \
-  V(word32_select, Word32Select)                   \
-  V(word64_select, Word64Select)                   \
-  V(float64_to_float16, TruncateFloat64ToFloat16)  \
+#define SUPPORTED_OPERATIONS_LIST(V)                              \
+  V(float32_round_down, Float32RoundDown)                         \
+  V(float64_round_down, Float64RoundDown)                         \
+  V(float32_round_up, Float32RoundUp)                             \
+  V(float64_round_up, Float64RoundUp)                             \
+  V(float32_round_to_zero, Float32RoundTruncate)                  \
+  V(float64_round_to_zero, Float64RoundTruncate)                  \
+  V(float32_round_ties_even, Float32RoundTiesEven)                \
+  V(float64_round_ties_even, Float64RoundTiesEven)                \
+  V(float64_round_ties_away, Float64RoundTiesAway)                \
+  V(int32_div_is_safe, Int32DivIsSafe)                            \
+  V(uint32_div_is_safe, Uint32DivIsSafe)                          \
+  V(word32_shift_is_safe, Word32ShiftIsSafe)                      \
+  V(word32_ctz, Word32Ctz)                                        \
+  V(word64_ctz, Word64Ctz)                                        \
+  V(word64_ctz_lowerable, Word64CtzLowerable)                     \
+  V(word32_popcnt, Word32Popcnt)                                  \
+  V(word64_popcnt, Word64Popcnt)                                  \
+  V(word32_reverse_bits, Word32ReverseBits)                       \
+  V(word64_reverse_bits, Word64ReverseBits)                       \
+  V(float32_select, Float32Select)                                \
+  V(float64_select, Float64Select)                                \
+  V(int32_abs_with_overflow, Int32AbsWithOverflow)                \
+  V(int64_abs_with_overflow, Int64AbsWithOverflow)                \
+  V(word32_rol, Word32Rol)                                        \
+  V(word64_rol, Word64Rol)                                        \
+  V(word64_rol_lowerable, Word64RolLowerable)                     \
+  V(sat_conversion_is_safe, SatConversionIsSafe)                  \
+  V(word32_select, Word32Select)                                  \
+  V(word64_select, Word64Select)                                  \
+  V(float64_to_float16_raw_bits, TruncateFloat64ToFloat16RawBits) \
   V(float16, Float16)
 
 class V8_EXPORT_PRIVATE SupportedOperations {
@@ -2140,6 +2140,9 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
     // JS semantics float64 to word32 truncation
     // https://tc39.es/ecma262/#sec-touint32
     kJSFloatTruncate,
+    // convert float64 to float16, then bitcast word32. Used for storing into
+    // Float16Array and Math.fround16.
+    kJSFloat16TruncateWithBitcast,
     // convert (un)signed integer to floating-point value
     kSignedToFloat,
     kUnsignedToFloat,
@@ -2193,6 +2196,8 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
         return assumption == Assumption::kReversible &&
                reverse_kind == Kind::kUnsignedToFloat;
       case Kind::kJSFloatTruncate:
+        return false;
+      case Kind::kJSFloat16TruncateWithBitcast:
         return false;
       case Kind::kSignedToFloat:
         if (from == RegisterRepresentation::Word32() &&

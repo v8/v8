@@ -3337,7 +3337,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                    wasm_f16x8_uconvert_i16x8)
       HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF32x4Zero, float16,
                                    wasm_f16x8_demote_f32x4_zero)
-      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF64x2Zero, float64_to_float16,
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF64x2Zero,
+                                   float64_to_float16_raw_bits,
                                    wasm_f16x8_demote_f64x2_zero)
       HANDLE_UNARY_OPTIONAL_OPCODE(F32x4PromoteLowF16x8, float16,
                                    wasm_f32x4_promote_low_f16x8)

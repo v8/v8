@@ -818,7 +818,7 @@
   V(ChangeUint32ToFloat64)               \
   V(ChangeUint32ToUint64)                \
   V(TruncateFloat64ToFloat32)            \
-  V(TruncateFloat64ToFloat16)            \
+  V(TruncateFloat64ToFloat16RawBits)     \
   V(TruncateInt64ToInt32)                \
   V(RoundFloat64ToInt32)                 \
   V(RoundInt32ToFloat32)                 \

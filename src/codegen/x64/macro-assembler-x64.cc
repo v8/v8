@@ -1689,6 +1689,7 @@ void MacroAssembler::Cvttsd2siq(Register dst, Operand src) {
 void MacroAssembler::Cvtpd2ph(XMMRegister dst, XMMRegister src, Register tmp) {
   ASM_CODE_COMMENT(this);
   CpuFeatureScope f16c_scope(this, F16C);
+  CpuFeatureScope avx_scope(this, AVX);
   Register tmp2 = kScratchRegister;
   DCHECK_NE(tmp, tmp2);
   DCHECK_NE(dst, src);

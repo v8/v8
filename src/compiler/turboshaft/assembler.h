@@ -2473,6 +2473,8 @@ class TurboshaftAssemblerOpInterface
                 Float64)
   DECL_CHANGE_V(TruncateFloat64ToFloat32, kFloatConversion, kNoAssumption,
                 Float64, Float32)
+  DECL_CHANGE_V(TruncateFloat64ToFloat16RawBits, kJSFloat16TruncateWithBitcast,
+                kNoAssumption, Float64, Word32)
   DECL_CHANGE_V(ChangeFloat32ToFloat64, kFloatConversion, kNoAssumption,
                 Float32, Float64)
   DECL_CHANGE_V(JSTruncateFloat64ToWord32, kJSFloatTruncate, kNoAssumption,

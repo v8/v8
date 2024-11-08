@@ -3823,10 +3823,11 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16(node_t node) {
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
+    node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kSSEFloat64ToFloat16, g.DefineAsRegister(node),
+  InstructionOperand temps[] = {g.TempDoubleRegister(), g.TempRegister()};
+  Emit(kSSEFloat64ToFloat16RawBits, g.DefineAsRegister(node),
        g.UseUniqueRegister(this->input_at(node, 0)), arraysize(temps), temps);
 }
 
@@ -7775,8 +7776,10 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   if (CpuFeatures::IsSupported(F16C)) {
-    flags |= MachineOperatorBuilder::kFloat16 |
-             MachineOperatorBuilder::kTruncateFloat64ToFloat16;
+    flags |= MachineOperatorBuilder::kFloat16;
+    if (CpuFeatures::IsSupported(AVX)) {
+      flags |= MachineOperatorBuilder::kTruncateFloat64ToFloat16RawBits;
+    }
   }
   return flags;
 }
