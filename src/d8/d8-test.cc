@@ -862,13 +862,6 @@ class FastCApiObject {
   }
 
   template <typename IntegerT>
-  static bool IsInRange(double arg) {
-    return !std::isnan(arg) &&
-           arg <= static_cast<double>(std::numeric_limits<IntegerT>::max()) &&
-           arg >= static_cast<double>(std::numeric_limits<IntegerT>::min());
-  }
-
-  template <typename IntegerT>
   static void ClampCompareSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
@@ -886,9 +879,10 @@ class FastCApiObject {
     if (info.Length() > 2 && info[2]->IsNumber()) {
       checked_arg_dbl = info[2].As<Number>()->Value();
     }
-    bool in_range = info[0]->IsBoolean() && info[0]->BooleanValue(isolate) &&
-                    IsInRange<IntegerT>(real_arg) &&
-                    IsInRange<IntegerT>(checked_arg_dbl);
+    bool in_range =
+        info[0]->IsBoolean() && info[0]->BooleanValue(isolate) &&
+        base::IsValueInRangeForNumericType<IntegerT>(real_arg) &&
+        base::IsValueInRangeForNumericType<IntegerT>(checked_arg_dbl);
 
     IntegerT checked_arg = std::numeric_limits<IntegerT>::max();
     if (in_range) {
@@ -1160,7 +1154,7 @@ class FastCApiObject {
 
   template <typename T>
   static bool Convert(double value, T* out_result) {
-    if (!IsInRange<T>(value)) return false;
+    if (!base::IsValueInRangeForNumericType<T>(value)) return false;
     *out_result = static_cast<T>(value);
     return true;
   }
