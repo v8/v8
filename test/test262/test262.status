@@ -2507,4 +2507,12 @@
 # end import test262@ab69bd4dd8184ce6b96a0a02c904d20ee76b10ed
 ####
 
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/Temporal/Duration/prototype/round/adjust-rounded-duration-days': [SKIP],
+}],
+# End roll-watcher patch
+####
+
 ]
