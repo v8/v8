@@ -2546,7 +2546,7 @@ DEFINE_BOOL(log_maps, false, "Log map creation")
 DEFINE_BOOL(log_maps_details, true, "Also log map details")
 DEFINE_IMPLICATION(log_maps, log_code)
 DEFINE_BOOL_READONLY(
-    move_prototype_transitions_first, false,
+    move_prototype_transitions_first, true,
     "Always move prototype transitions to the front of the tree")
 
 // parser.cc
