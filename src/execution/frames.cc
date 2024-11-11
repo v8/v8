@@ -1436,7 +1436,8 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
 
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
-  accumulator->Add("builtin exit frame: ");
+  accumulator->Add("BuiltinExitFrame [builtin: %s] ",
+                   Builtins::name(function->shared()->builtin_id()));
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver);
 
@@ -1459,7 +1460,7 @@ void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
 
   accumulator->PrintSecurityTokenIfChanged(*function);
   PrintIndex(accumulator, mode, index);
-  accumulator->Add("api callback exit frame: ");
+  accumulator->Add("ApiCallbackExitFrame ");
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(*function, receiver);
 
