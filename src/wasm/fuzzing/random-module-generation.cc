@@ -4475,7 +4475,7 @@ void EmitDeoptAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
                               const FunctionSig* target_sig,
                               ModuleTypeIndex target_sig_index,
                               uint32_t global_index, uint32_t table_index,
-                              DataRange* data) {
+                              bool use_table64, DataRange* data) {
   base::Vector<const ValueType> return_types = f->signature()->returns();
   // Split the return types randomly and generate some values before the
   // deopting call and some afterwards. (This makes sure that we have deopts
@@ -4487,6 +4487,9 @@ void EmitDeoptAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
   }
   gen_body.Generate(target_sig->parameters(), data);
   f->EmitWithU32V(kExprGlobalGet, global_index);
+  if (use_table64) {
+    f->Emit(kExprI64UConvertI32);
+  }
   // Tail calls can only be emitted if the return types match.
   bool same_returns = HasSameReturns(target_sig, f->signature());
   size_t option_count = (same_returns + 1) * 2;
@@ -4527,7 +4530,7 @@ void EmitDeoptAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
 template <WasmModuleGenerationOptions options>
 void EmitCallAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
                              WasmFunctionBuilder* callee, uint32_t table_index,
-                             DataRange* data) {
+                             bool use_table64, DataRange* data) {
   const FunctionSig* callee_sig = callee->signature();
   uint32_t callee_index =
       callee->func_index() + gen_body.NumImportedFunctions();
@@ -4554,7 +4557,8 @@ void EmitCallAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
     case 2:
       // Note that this assumes that the declared function index is the same as
       // the index of the function in the table.
-      f->EmitI32Const(callee->func_index());
+      use_table64 ? f->EmitI64Const(callee->func_index())
+                  : f->EmitI32Const(callee->func_index());
       f->EmitWithU32V(kExprCallIndirect, callee->sig_index());
       f->EmitByte(table_index);
       break;
@@ -4568,7 +4572,8 @@ void EmitCallAndReturnValues(BodyGen<options> gen_body, WasmFunctionBuilder* f,
     case 5:
       // Note that this assumes that the declared function index is the same as
       // the index of the function in the table.
-      f->EmitI32Const(callee->func_index());
+      use_table64 ? f->EmitI64Const(callee->func_index())
+                  : f->EmitI32Const(callee->func_index());
       f->EmitWithU32V(kExprReturnCallIndirect, callee->sig_index());
       f->EmitByte(table_index);
       break;
@@ -4699,10 +4704,14 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
   }
 
   uint32_t num_entries = num_call_targets + num_inlinees;
+  bool use_table64 = range.get<bool>();
+  AddressType address_type =
+      use_table64 ? AddressType::kI64 : AddressType::kI32;
   uint32_t table_index =
-      builder.AddTable(kWasmFuncRef, num_entries, num_entries);
-  WasmModuleBuilder::WasmElemSegment segment(zone, kWasmFuncRef, table_index,
-                                             WasmInitExpr(0));
+      builder.AddTable(kWasmFuncRef, num_entries, num_entries, address_type);
+  WasmModuleBuilder::WasmElemSegment segment(
+      zone, kWasmFuncRef, table_index,
+      use_table64 ? WasmInitExpr(int64_t{0}) : WasmInitExpr(0));
   for (uint32_t i = 0; i < num_entries; i++) {
     segment.entries.emplace_back(
         WasmModuleBuilder::WasmElemSegment::Entry::kRefFuncEntry,
@@ -4733,12 +4742,13 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     if (i == 0) {
       // For the inner-most inlinee, emit the deopt point (e.g. a call_ref).
       EmitDeoptAndReturnValues(gen_body, f, target_sig, target_sig_index,
-                               global_index, table_index, &function_range);
+                               global_index, table_index, use_table64,
+                               &function_range);
     } else {
       // All other inlinees call the previous inlinee.
       uint32_t callee_declared_index = declared_func_index - 1;
       EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
-                              table_index, &function_range);
+                              use_table64, table_index, &function_range);
     }
     // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
     // always generated.
@@ -4771,12 +4781,13 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     if (num_inlinees == 0) {
       // If we don't have any inlinees, directly emit the deopt point.
       EmitDeoptAndReturnValues(gen_body, f, target_sig, target_sig_index,
-                               global_index, table_index, &function_range);
+                               global_index, table_index, use_table64,
+                               &function_range);
     } else {
       // Otherwise call the "outer-most" inlinee.
       uint32_t callee_declared_index = declared_func_index - 1;
       EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
-                              table_index, &function_range);
+                              table_index, use_table64, &function_range);
     }
 
     // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
