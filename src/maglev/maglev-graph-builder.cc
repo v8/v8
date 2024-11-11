@@ -3105,16 +3105,14 @@ Node* MaglevGraphBuilder::BuildNonSpecializedStoreScriptContextSlot(
       {context, old_value, value}, index);
 }
 
-std::pair<ReduceResult, Node*>
-MaglevGraphBuilder::TrySpecializeStorScriptContextSlot(ValueNode* context,
-                                                       int index,
-                                                       ValueNode* value) {
+ReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
+    ValueNode* context, int index, ValueNode* value, Node** store) {
+  DCHECK_NOT_NULL(store);
   DCHECK(v8_flags.script_context_mutable_heap_number ||
          v8_flags.const_tracking_let);
   if (!context->Is<Constant>()) {
-    return std::make_pair(
-        ReduceResult::Done(),
-        BuildNonSpecializedStoreScriptContextSlot(context, index, value));
+    *store = BuildNonSpecializedStoreScriptContextSlot(context, index, value);
+    return ReduceResult::Done();
   }
 
   compiler::ContextRef context_ref =
@@ -3126,41 +3124,42 @@ MaglevGraphBuilder::TrySpecializeStorScriptContextSlot(ValueNode* context,
     compiler::OptionalObjectRef constant = context_ref.get(broker(), index);
     if (!constant.has_value() ||
         (constant->IsString() && !constant->IsInternalizedString())) {
-      return std::make_pair(
-          ReduceResult::Done(),
-          BuildNonSpecializedStoreScriptContextSlot(context, index, value));
+      *store = BuildNonSpecializedStoreScriptContextSlot(context, index, value);
+      return ReduceResult::Done();
     }
     broker()->dependencies()->DependOnScriptContextSlotProperty(
         context_ref, index, property, broker());
-    return std::make_pair(BuildCheckValue(value, *constant), nullptr);
+    return BuildCheckValue(value, *constant);
   }
 
   if (!v8_flags.script_context_mutable_heap_number) {
-    return std::make_pair(ReduceResult::Done(),
-                          BuildStoreTaggedField(context, value, offset,
-                                                StoreTaggedMode::kDefault));
+    *store = BuildStoreTaggedField(context, value, offset,
+                                   StoreTaggedMode::kDefault);
+    return ReduceResult::Done();
   }
 
   switch (property) {
     case ContextSidePropertyCell::kConst:
       UNREACHABLE();
     case ContextSidePropertyCell::kSmi:
+      RETURN_IF_ABORT(BuildCheckSmi(value));
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           context_ref, index, property, broker());
-      return std::make_pair(ReduceResult::Done(),
-                            BuildStoreTaggedField(context, value, offset,
-                                                  StoreTaggedMode::kDefault));
+      *store = BuildStoreTaggedField(context, value, offset,
+                                     StoreTaggedMode::kDefault);
+      break;
     case ContextSidePropertyCell::kMutableHeapNumber:
+      BuildCheckNumber(value);
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           context_ref, index, property, broker());
-      return std::make_pair(
-          ReduceResult::Done(),
-          AddNewNode<StoreDoubleField>({context, value}, offset));
+      *store = AddNewNode<StoreDoubleField>({context, value}, offset);
+      break;
     case ContextSidePropertyCell::kOther:
-      return std::make_pair(ReduceResult::Done(),
-                            BuildStoreTaggedField(context, value, offset,
-                                                  StoreTaggedMode::kDefault));
+      *store = BuildStoreTaggedField(context, value, offset,
+                                     StoreTaggedMode::kDefault);
+      break;
   }
+  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
@@ -3170,15 +3169,18 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
       known_node_aspects().loaded_context_constants.count({context, offset}),
       0);
 
-  Node* store;
+  Node* store = nullptr;
   if ((v8_flags.script_context_mutable_heap_number ||
        v8_flags.const_tracking_let) &&
       context_kind == ContextKind::kScriptContext) {
-    auto result_store =
-        TrySpecializeStorScriptContextSlot(context, index, value);
-    if (!result_store.second) return result_store.first;
-    DCHECK(result_store.first.IsDone());
-    store = result_store.second;
+    ReduceResult result =
+        TrySpecializeStoreScriptContextSlot(context, index, value, &store);
+    RETURN_IF_ABORT(result);
+    if (!store) {
+      // If we didn't need to emit any store, there is nothing to cache.
+      DCHECK(result.IsDone());
+      return result;
+    }
   } else {
     store = BuildStoreTaggedField(context, value, offset,
                                   StoreTaggedMode::kDefault);

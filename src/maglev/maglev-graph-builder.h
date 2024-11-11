@@ -1170,8 +1170,9 @@ class MaglevGraphBuilder {
                                      ContextKind context_kind);
   Node* BuildNonSpecializedStoreScriptContextSlot(ValueNode* context, int index,
                                                   ValueNode* value);
-  std::pair<ReduceResult, Node*> TrySpecializeStorScriptContextSlot(
-      ValueNode* context, int index, ValueNode* value);
+  ReduceResult TrySpecializeStoreScriptContextSlot(ValueNode* context,
+                                                   int index, ValueNode* value,
+                                                   Node** store);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
                                         ValueNode* value,
                                         ContextKind context_kind);
