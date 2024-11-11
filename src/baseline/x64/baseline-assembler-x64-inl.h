@@ -424,7 +424,8 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 }
 
 void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
-                                       uint32_t depth) {
+                                       uint32_t depth,
+                                       CompressionMode compression_mode) {
   // [context] is coming from interpreter frame so it is already decompressed
   // when pointer compression is enabled. In order to make use of complex
   // addressing mode, any intermediate context pointer is loaded in compressed
@@ -441,6 +442,10 @@ void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
     }
     LoadTaggedField(kInterpreterAccumulatorRegister, tagged,
                     Context::OffsetOfElementAt(index));
+    if (COMPRESS_POINTERS_BOOL &&
+        compression_mode == CompressionMode::kForceDecompression) {
+      __ addq(tagged.reg(), kPtrComprCageBaseRegister);
+    }
   }
 }
 

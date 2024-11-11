@@ -766,7 +766,8 @@ void BaselineCompiler::VisitLdaScriptContextSlot() {
   LoadRegister(context, 0);
   uint32_t index = Index(1);
   uint32_t depth = Uint(2);
-  __ LdaContextSlot(context, index, depth);
+  __ LdaContextSlot(context, index, depth,
+                    BaselineAssembler::CompressionMode::kForceDecompression);
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
   __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
                           HEAP_NUMBER_TYPE, &done, Label::kNear);
