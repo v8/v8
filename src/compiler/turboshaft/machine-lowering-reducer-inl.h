@@ -2309,7 +2309,8 @@ class MachineLoweringReducer : public Next {
     return __ CallBuiltin_StringSubstring(isolate_, string, s, e);
   }
 
-  V<String> REDUCE(StringConcat)(V<String> left, V<String> right) {
+  V<String> REDUCE(StringConcat)(V<Smi> length, V<String> left,
+                                 V<String> right) {
     // TODO(nicohartmann@): Port StringBuilder once it is stable.
     return __ CallBuiltin_StringAdd_CheckNone(isolate_, __ NoContextConstant(),
                                               left, right);

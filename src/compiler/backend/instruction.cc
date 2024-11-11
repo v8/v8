@@ -1357,16 +1357,19 @@ std::ostream& operator<<(std::ostream& os, StateValueKind kind) {
       return os << "Plain";
     case StateValueKind::kOptimizedOut:
       return os << "OptimizedOut";
-    case StateValueKind::kNested:
-      return os << "Nested";
+    case StateValueKind::kNestedObject:
+      return os << "NestedObject";
     case StateValueKind::kDuplicate:
       return os << "Duplicate";
+    case StateValueKind::kStringConcat:
+      return os << "StringConcat";
   }
 }
 
 void StateValueDescriptor::Print(std::ostream& os) const {
   os << "kind=" << kind_ << ", type=" << type_;
-  if (kind_ == StateValueKind::kDuplicate || kind_ == StateValueKind::kNested) {
+  if (kind_ == StateValueKind::kDuplicate ||
+      kind_ == StateValueKind::kNestedObject) {
     os << ", id=" << id_;
   } else if (kind_ == StateValueKind::kArgumentsElements) {
     os << ", args_type=" << args_type_;

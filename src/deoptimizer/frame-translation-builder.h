@@ -63,6 +63,7 @@ class FrameTranslationBuilder {
   void BeginCapturedObject(int length);
   void AddUpdateFeedback(int vector_literal, int slot);
   void DuplicateObject(int object_index);
+  void StringConcat();
   void StoreRegister(TranslationOpcode opcode, Register reg);
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);

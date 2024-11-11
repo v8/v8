@@ -22,7 +22,10 @@ struct FrameStateData {
     kDematerializedObjectReference,  // 1 Operand: id
     kArgumentsElements,              // 1 Operand: type
     kArgumentsLength,
-    kRestLength
+    kRestLength,
+    kDematerializedStringConcat
+    // TODO: add DematerializedStringConcatReference. Or reuse
+    // DematerializedObjectReference for this?
   };
 
   class Builder {
@@ -51,6 +54,10 @@ struct FrameStateData {
       instructions_.push_back(Instr::kDematerializedObject);
       int_operands_.push_back(id);
       int_operands_.push_back(field_count);
+    }
+
+    void AddDematerializedStringConcat() {
+      instructions_.push_back(Instr::kDematerializedStringConcat);
     }
 
     void AddArgumentsElements(CreateArgumentsType type) {
@@ -123,6 +130,10 @@ struct FrameStateData {
       instructions += 1;
       *id = int_operands[0];
       int_operands += 1;
+    }
+    void ConsumeDematerializedStringConcat() {
+      DCHECK_EQ(instructions[0], Instr::kDematerializedStringConcat);
+      instructions += 1;
     }
     void ConsumeArgumentsElements(CreateArgumentsType* type) {
       DCHECK_EQ(instructions[0], Instr::kArgumentsElements);

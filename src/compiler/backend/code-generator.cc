@@ -1202,7 +1202,7 @@ DeoptimizationEntry const& CodeGenerator::GetDeoptimizationEntry(
 void CodeGenerator::TranslateStateValueDescriptor(
     StateValueDescriptor* desc, StateValueList* nested,
     InstructionOperandIterator* iter) {
-  if (desc->IsNested()) {
+  if (desc->IsNestedObject()) {
     translations_.BeginCapturedObject(static_cast<int>(nested->size()));
     for (auto field : *nested) {
       TranslateStateValueDescriptor(field.desc, field.nested, iter);
@@ -1218,6 +1218,11 @@ void CodeGenerator::TranslateStateValueDescriptor(
   } else if (desc->IsPlain()) {
     InstructionOperand* op = iter->Advance();
     AddTranslationForOperand(iter->instruction(), op, desc->type());
+  } else if (desc->IsStringConcat()) {
+    translations_.StringConcat();
+    for (auto field : *nested) {
+      TranslateStateValueDescriptor(field.desc, field.nested, iter);
+    }
   } else {
     DCHECK(desc->IsOptimizedOut());
     translations_.StoreOptimizedOut();

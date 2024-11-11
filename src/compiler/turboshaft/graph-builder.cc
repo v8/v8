@@ -1786,8 +1786,8 @@ OpIndex GraphBuilder::Process(
                                 Map(node->InputAt(2)));
 
     case IrOpcode::kStringConcat:
-      // We don't need node->InputAt(0) here.
-      return __ StringConcat(Map(node->InputAt(1)), Map(node->InputAt(2)));
+      return __ StringConcat(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                             Map(node->InputAt(2)));
 
     case IrOpcode::kStringEqual:
       return __ StringEqual(Map(node->InputAt(0)), Map(node->InputAt(1)));

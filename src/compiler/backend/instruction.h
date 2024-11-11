@@ -1302,8 +1302,9 @@ enum class StateValueKind : uint8_t {
   kRestLength,
   kPlain,
   kOptimizedOut,
-  kNested,
-  kDuplicate
+  kNestedObject,
+  kDuplicate,
+  kStringConcat
 };
 
 std::ostream& operator<<(std::ostream& os, StateValueKind kind);
@@ -1335,7 +1336,7 @@ class StateValueDescriptor {
                                 MachineType::AnyTagged());
   }
   static StateValueDescriptor Recursive(size_t id) {
-    StateValueDescriptor descr(StateValueKind::kNested,
+    StateValueDescriptor descr(StateValueKind::kNestedObject,
                                MachineType::AnyTagged());
     descr.id_ = id;
     return descr;
@@ -1344,6 +1345,11 @@ class StateValueDescriptor {
     StateValueDescriptor descr(StateValueKind::kDuplicate,
                                MachineType::AnyTagged());
     descr.id_ = id;
+    return descr;
+  }
+  static StateValueDescriptor StringConcat() {
+    StateValueDescriptor descr(StateValueKind::kStringConcat,
+                               MachineType::AnyTagged());
     return descr;
   }
 
@@ -1356,12 +1362,17 @@ class StateValueDescriptor {
   bool IsRestLength() const { return kind_ == StateValueKind::kRestLength; }
   bool IsPlain() const { return kind_ == StateValueKind::kPlain; }
   bool IsOptimizedOut() const { return kind_ == StateValueKind::kOptimizedOut; }
-  bool IsNested() const { return kind_ == StateValueKind::kNested; }
+  bool IsNestedObject() const { return kind_ == StateValueKind::kNestedObject; }
+  bool IsNested() const {
+    return kind_ == StateValueKind::kNestedObject ||
+           kind_ == StateValueKind::kStringConcat;
+  }
   bool IsDuplicate() const { return kind_ == StateValueKind::kDuplicate; }
+  bool IsStringConcat() const { return kind_ == StateValueKind::kStringConcat; }
   MachineType type() const { return type_; }
   size_t id() const {
     DCHECK(kind_ == StateValueKind::kDuplicate ||
-           kind_ == StateValueKind::kNested);
+           kind_ == StateValueKind::kNestedObject);
     return id_;
   }
   ArgumentsStateType arguments_type() const {
@@ -1444,6 +1455,12 @@ class StateValueList {
 
   StateValueList* PushRecursiveField(Zone* zone, size_t id) {
     fields_.push_back(StateValueDescriptor::Recursive(id));
+    StateValueList* nested = zone->New<StateValueList>(zone);
+    nested_.push_back(nested);
+    return nested;
+  }
+  StateValueList* PushStringConcat(Zone* zone) {
+    fields_.push_back(StateValueDescriptor::StringConcat());
     StateValueList* nested = zone->New<StateValueList>(zone);
     nested_.push_back(nested);
     return nested;

@@ -383,6 +383,11 @@ void FrameTranslationBuilder::DuplicateObject(int object_index) {
   Add(opcode, SignedOperand(object_index));
 }
 
+void FrameTranslationBuilder::StringConcat() {
+  auto opcode = TranslationOpcode::STRING_CONCAT;
+  Add(opcode);
+}
+
 void FrameTranslationBuilder::StoreRegister(TranslationOpcode opcode,
                                             Register reg) {
   static_assert(Register::kNumRegisters - 1 <= base::kDataMask);

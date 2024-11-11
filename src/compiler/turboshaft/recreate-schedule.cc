@@ -1429,6 +1429,10 @@ std::pair<Node*, MachineType> ScheduleBuilder::BuildDeoptInput(
       // For now, kRestLength is only generated when using the Maglev frontend,
       // which doesn't use recreate-schedule.
       [[fallthrough]];
+    case Instr::kDematerializedStringConcat:
+      // Escaped StringConcat are not supported by the Turbofan instruction
+      // selector.
+      [[fallthrough]];
     case Instr::kUnusedRegister:
       UNREACHABLE();
   }

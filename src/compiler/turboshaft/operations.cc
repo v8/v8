@@ -757,6 +757,11 @@ void FrameStateOp::PrintOptions(std::ostream& os) const {
         os << '$' << id;
         break;
       }
+      case FrameStateData::Instr::kDematerializedStringConcat: {
+        it.ConsumeDematerializedStringConcat();
+        os << "DematerializedStringConcat";
+        break;
+      }
       case FrameStateData::Instr::kArgumentsElements: {
         CreateArgumentsType type;
         it.ConsumeArgumentsElements(&type);
@@ -811,6 +816,10 @@ void FrameStateOp::Validate(const Graph& graph) const {
       case FrameStateData::Instr::kDematerializedObjectReference: {
         uint32_t id;
         it.ConsumeDematerializedObjectReference(&id);
+        break;
+      }
+      case FrameStateData::Instr::kDematerializedStringConcat: {
+        it.ConsumeDematerializedStringConcat();
         break;
       }
       case FrameStateData::Instr::kArgumentsElements: {

@@ -875,4 +875,12 @@ DEFINE_STRONG_ORDERING_COMPARISON(OptionalOpIndex, OpIndex,
 
 }  // namespace v8::internal::compiler::turboshaft
 
+template <>
+struct std::hash<v8::internal::compiler::turboshaft::OpIndex> {
+  std::size_t operator()(
+      const v8::internal::compiler::turboshaft::OpIndex& index) const {
+    return index.hash();
+  }
+};
+
 #endif  // V8_COMPILER_TURBOSHAFT_INDEX_H_

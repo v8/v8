@@ -5634,7 +5634,7 @@ struct StringSubstringOp : FixedArityOperationT<3, StringSubstringOp> {
   auto options() const { return std::tuple{}; }
 };
 
-struct StringConcatOp : FixedArityOperationT<2, StringConcatOp> {
+struct StringConcatOp : FixedArityOperationT<3, StringConcatOp> {
   static constexpr OpEffects effects =
       OpEffects()
           // String content is immutable, the allocated result does not have
@@ -5649,13 +5649,16 @@ struct StringConcatOp : FixedArityOperationT<2, StringConcatOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Tagged(),
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  V<String> left() const { return Base::input<String>(0); }
-  V<String> right() const { return Base::input<String>(1); }
+  V<Smi> length() const { return Base::input<Smi>(0); }
+  V<String> left() const { return Base::input<String>(1); }
+  V<String> right() const { return Base::input<String>(2); }
 
-  StringConcatOp(V<String> left, V<String> right) : Base(left, right) {}
+  StringConcatOp(V<Smi> length, V<String> left, V<String> right)
+      : Base(length, left, right) {}
 
   void Validate(const Graph& graph) const {}
 

@@ -355,6 +355,12 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       break;
     }
 
+    case TranslationOpcode::STRING_CONCAT: {
+      DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 0);
+      os << "{string_concat}";
+      break;
+    }
+
     case TranslationOpcode::UPDATE_FEEDBACK: {
       DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
       int literal_index = iterator.NextOperand();
@@ -380,6 +386,14 @@ TranslatedValue TranslatedValue::NewDeferredObject(TranslatedState* container,
 TranslatedValue TranslatedValue::NewDuplicateObject(TranslatedState* container,
                                                     int id) {
   TranslatedValue slot(container, kDuplicatedObject);
+  slot.materialization_info_ = {id, -1};
+  return slot;
+}
+
+// static
+TranslatedValue TranslatedValue::NewStringConcat(TranslatedState* container,
+                                                 int id) {
+  TranslatedValue slot(container, kCapturedStringConcat);
   slot.materialization_info_ = {id, -1};
   return slot;
 }
@@ -533,6 +547,11 @@ int TranslatedValue::object_length() const {
 
 int TranslatedValue::object_index() const {
   DCHECK(kind() == kCapturedObject || kind() == kDuplicatedObject);
+  return materialization_info_.id_;
+}
+
+int TranslatedValue::string_concat_index() const {
+  DCHECK_EQ(kind(), kCapturedStringConcat);
   return materialization_info_.id_;
 }
 
@@ -718,6 +737,11 @@ Handle<Object> TranslatedValue::GetValue() {
     return container_->InitializeObjectAt(this);
   }
 
+  if (kind() == TranslatedValue::kCapturedStringConcat) {
+    // We need to materialize the string concatenation.
+    return container_->ResolveStringConcat(this);
+  }
+
   double number = 0;
   Handle<HeapObject> heap_object;
   switch (kind()) {
@@ -777,6 +801,9 @@ bool TranslatedValue::IsMaterializableByDebugger() const {
 int TranslatedValue::GetChildrenCount() const {
   if (kind() == kCapturedObject) {
     return object_length();
+  } else if (kind() == kCapturedStringConcat) {
+    static constexpr int kLeft = 1, kRight = 1;
+    return kLeft + kRight;
   } else {
     return 0;
   }
@@ -1185,6 +1212,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::ARGUMENTS_LENGTH:
     case TranslationOpcode::REST_LENGTH:
     case TranslationOpcode::CAPTURED_OBJECT:
+    case TranslationOpcode::STRING_CONCAT:
     case TranslationOpcode::REGISTER:
     case TranslationOpcode::INT32_REGISTER:
     case TranslationOpcode::INT64_REGISTER:
@@ -1375,6 +1403,20 @@ int TranslatedState::CreateNextTranslatedValue(
       object_positions_.push_back({frame_index, value_index});
       TranslatedValue translated_value =
           TranslatedValue::NewDeferredObject(this, field_count, object_index);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
+    case TranslationOpcode::STRING_CONCAT: {
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "string concatenation");
+      }
+
+      int string_concat_index =
+          static_cast<int>(string_concat_positions_.size());
+      string_concat_positions_.push_back({frame_index, value_index});
+      TranslatedValue translated_value =
+          TranslatedValue::NewStringConcat(this, string_concat_index);
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -1954,6 +1996,39 @@ TranslatedValue* TranslatedState::GetValueByObjectIndex(int object_index) {
   return &(frames_[pos.frame_index_].values_[pos.value_index_]);
 }
 
+Handle<HeapObject> TranslatedState::ResolveStringConcat(TranslatedValue* slot) {
+  CHECK_EQ(TranslatedValue::kUninitialized, slot->materialization_state());
+
+  int index = slot->string_concat_index();
+  TranslatedState::ObjectPosition pos = string_concat_positions_[index];
+  int value_index = pos.value_index_;
+
+  TranslatedFrame* frame = &(frames_[pos.frame_index_]);
+  DCHECK_EQ(slot, &(frame->values_[value_index]));
+
+  // TODO(dmercadier): try to avoid the recursive GetValue call.
+  value_index++;
+  TranslatedValue* left_slot = &(frame->values_[value_index]);
+  Handle<Object> left = left_slot->GetValue();
+
+  // Skipping the left input that we've just processed. Note that we can't just
+  // do `value_index++`, because the left input could itself be a dematerialized
+  // string concatenation, in which case it will occupy multiple slots.
+  SkipSlots(1, frame, &value_index);
+
+  TranslatedValue* right_slot = &(frame->values_[value_index]);
+  Handle<Object> right = right_slot->GetValue();
+
+  Handle<String> result =
+      isolate()
+          ->factory()
+          ->NewConsString(Cast<String>(left), Cast<String>(right))
+          .ToHandleChecked();
+
+  slot->set_initialized_storage(result);
+  return result;
+}
+
 Handle<HeapObject> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
   DisallowGarbageCollection no_gc;
 
@@ -2124,7 +2199,8 @@ void TranslatedState::SkipSlots(int slots_to_skip, TranslatedFrame* frame,
     (*value_index)++;
     slots_to_skip--;
 
-    if (slot->kind() == TranslatedValue::kCapturedObject) {
+    if (slot->kind() == TranslatedValue::kCapturedObject ||
+        slot->kind() == TranslatedValue::kCapturedStringConcat) {
       slots_to_skip += slot->GetChildrenCount();
     }
   }

@@ -87,12 +87,13 @@ class TranslatedValue {
     kDouble,
     kHoleyDouble,
     kSimd128,
-    kCapturedObject,   // Object captured by the escape analysis.
-                       // The number of nested objects can be obtained
-                       // with the DeferredObjectLength() method
-                       // (the values of the nested objects follow
-                       // this value in the depth-first order.)
-    kDuplicatedObject  // Duplicated object of a deferred object.
+    kCapturedObject,    // Object captured by the escape analysis.
+                        // The number of nested objects can be obtained
+                        // with the DeferredObjectLength() method
+                        // (the values of the nested objects follow
+                        // this value in the depth-first order.)
+    kDuplicatedObject,  // Duplicated object of a deferred object.
+    kCapturedStringConcat
   };
 
   enum MaterializationState : uint8_t {
@@ -115,6 +116,7 @@ class TranslatedValue {
   static TranslatedValue NewDeferredObject(TranslatedState* container,
                                            int length, int object_index);
   static TranslatedValue NewDuplicateObject(TranslatedState* container, int id);
+  static TranslatedValue NewStringConcat(TranslatedState* container, int id);
   static TranslatedValue NewFloat(TranslatedState* container, Float32 value);
   static TranslatedValue NewDouble(TranslatedState* container, Float64 value);
   static TranslatedValue NewHoleyDouble(TranslatedState* container,
@@ -194,6 +196,8 @@ class TranslatedValue {
   Simd128 simd_value() const;
   int object_length() const;
   int object_index() const;
+  // TODO(dmercadier): use object_index instead of string_concat_index.
+  int string_concat_index() const;
 };
 
 class TranslatedFrame {
@@ -539,6 +543,8 @@ class TranslatedState {
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
       DirectHandle<Map> map, const DisallowGarbageCollection& no_gc);
 
+  Handle<HeapObject> ResolveStringConcat(TranslatedValue* slot);
+
   void ReadUpdateFeedback(DeoptTranslationIterator* iterator,
                           Tagged<DeoptimizationLiteralArray> literal_array,
                           FILE* trace_file);
@@ -568,6 +574,7 @@ class TranslatedState {
     int value_index_;
   };
   std::deque<ObjectPosition> object_positions_;
+  std::deque<ObjectPosition> string_concat_positions_;
   Handle<FeedbackVector> feedback_vector_handle_;
   Tagged<FeedbackVector> feedback_vector_;
   FeedbackSlot feedback_slot_;

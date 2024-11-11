@@ -2595,7 +2595,7 @@ class GraphBuildingNodeProcessor {
     }
 
     BIND(done);
-    SetMap(node, __ StringConcat(left, right));
+    SetMap(node, __ StringConcat(__ TagSmi(len), left, right));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StringConcat* node,

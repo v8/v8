@@ -1135,6 +1135,19 @@ size_t AddOperandToStateValueDescriptor(
       values->PushDuplicate(id);
       return 0;
     }
+    case FrameStateData::Instr::kDematerializedStringConcat: {
+      DCHECK(v8_flags.turboshaft_string_concat_escape_analysis);
+      it->ConsumeDematerializedStringConcat();
+      StateValueList* nested = values->PushStringConcat(zone);
+      static constexpr int kLeft = 1, kRight = 1;
+      static constexpr int kInputCount = kLeft + kRight;
+      size_t entries = 0;
+      for (uint32_t i = 0; i < kInputCount; i++) {
+        entries += AddOperandToStateValueDescriptor(
+            selector, nested, inputs, g, deduplicator, it, kind, zone);
+      }
+      return entries;
+    }
     case FrameStateData::Instr::kArgumentsElements: {
       CreateArgumentsType type;
       it->ConsumeArgumentsElements(&type);
