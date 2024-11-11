@@ -46,21 +46,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   static constexpr int kMemoryChunkAlignment = sizeof(size_t);
 #define FIELD(Type, Name) \
   k##Name##Offset, k##Name##End = k##Name##Offset + sizeof(Type) - 1
-  enum Header {
-    FIELD(uintptr_t, Flags),
-#ifdef V8_ENABLE_SANDBOX
-    FIELD(uint32_t, MetadataIndex),
-#else
-    FIELD(MemoryChunkMetadata*, Metadata),
-#endif
-    kEndOfMetadataPointer,
-    kMemoryChunkHeaderSize =
-        kEndOfMetadataPointer +
-        ((kEndOfMetadataPointer % kMemoryChunkAlignment) == 0
-             ? 0
-             : kMemoryChunkAlignment -
-                   (kEndOfMetadataPointer % kMemoryChunkAlignment)),
-  };
+
   // Note that the order of the fields is performance sensitive. Often accessed
   // fields should be on the same cache line.
   enum Metadata {
@@ -101,6 +87,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
              : kMemoryChunkAlignment -
                    (kEndOfMarkingBitmap % kMemoryChunkAlignment)),
   };
+
 #undef FIELD
 
   // Code pages have padding on the first page for code alignment, so the
@@ -118,7 +105,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   }
 
   static constexpr size_t ObjectStartOffsetInDataPage() {
-    return RoundUp(int{kMemoryChunkHeaderSize},
+    return RoundUp(sizeof(MemoryChunk),
                    ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
   }
 
@@ -154,8 +141,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     static_assert(kMaxRegularCodeObjectSize <= kMaxRegularHeapObjectSize);
     return kMaxRegularCodeObjectSize;
   }
-
-  static_assert(kMemoryChunkHeaderSize % alignof(size_t) == 0);
 };
 
 }  // namespace v8::internal

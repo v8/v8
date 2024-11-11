@@ -4549,7 +4549,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     TNode<IntPtrT> header = MemoryChunkFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), header,
-             IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
+             IntPtrConstant(MemoryChunk::FlagsOffset())));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
                         IntPtrConstant(0));
   }
@@ -4558,7 +4558,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     TNode<IntPtrT> header = MemoryChunkFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), header,
-             IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
+             IntPtrConstant(MemoryChunk::FlagsOffset())));
     return WordEqual(WordAnd(flags, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 

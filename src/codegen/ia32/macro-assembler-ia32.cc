@@ -2217,9 +2217,9 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   DCHECK(cc == zero || cc == not_zero);
   MemoryChunkHeaderFromObject(object, scratch);
   if (mask < (1 << kBitsPerByte)) {
-    test_b(Operand(scratch, MemoryChunkLayout::kFlagsOffset), Immediate(mask));
+    test_b(Operand(scratch, MemoryChunk::FlagsOffset()), Immediate(mask));
   } else {
-    test(Operand(scratch, MemoryChunkLayout::kFlagsOffset), Immediate(mask));
+    test(Operand(scratch, MemoryChunk::FlagsOffset()), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
 }

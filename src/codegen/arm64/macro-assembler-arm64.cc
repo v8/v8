@@ -3751,7 +3751,7 @@ void MacroAssembler::CheckPageFlag(const Register& object, int mask,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
   And(scratch, object, ~MemoryChunk::GetAlignmentMaskForAssembler());
-  Ldr(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
+  Ldr(scratch, MemOperand(scratch, MemoryChunk::FlagsOffset()));
   if (cc == ne) {
     TestAndBranchIfAnySet(scratch, mask, condition_met);
   } else {

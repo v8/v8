@@ -34,9 +34,8 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
 
   if (page_size == PageSize::kRegular) {
     active_system_pages_ = new ActiveSystemPages;
-    active_system_pages_->Init(MemoryChunkLayout::kMemoryChunkHeaderSize,
-                               MemoryAllocator::GetCommitPageSizeBits(),
-                               size());
+    active_system_pages_->Init(
+        sizeof(MemoryChunk), MemoryAllocator::GetCommitPageSizeBits(), size());
   } else {
     // We do not track active system pages for large pages.
     active_system_pages_ = nullptr;

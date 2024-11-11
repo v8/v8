@@ -18,6 +18,10 @@
 namespace v8 {
 namespace internal {
 
+namespace debug_helper_internal {
+class ReadStringVisitor;
+}  // namespace  debug_helper_internal
+
 class Heap;
 class MemoryChunkMetadata;
 class ReadOnlyPageMetadata;
@@ -141,7 +145,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);
-
   static constexpr MainThreadFlags kIsOnlyOldOrMajorGCInProgressMask =
       MainThreadFlags(CONTAINS_ONLY_OLD) |
       MainThreadFlags(IS_MAJOR_GC_IN_PROGRESS);
@@ -342,15 +345,11 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 #endif
 
  private:
-  // Flags that are only mutable from the main thread when no concurrent
-  // component (e.g. marker, sweeper, compilation, allocation) is running.
-  MainThreadFlags main_thread_flags_;
-
-#ifdef V8_ENABLE_SANDBOX
-  uint32_t metadata_index_;
-#else
-  MemoryChunkMetadata* metadata_;
-#endif
+  // Keep offsets and masks private to only expose them with matching friend
+  // declarations.
+  static constexpr intptr_t FlagsOffset() {
+    return offsetof(MemoryChunk, main_thread_flags_);
+  }
 
   static constexpr intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
@@ -360,6 +359,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 #ifndef V8_EXTERNAL_CODE_SPACE
 #error The global metadata pointer table requires a single external code space.
 #endif
+
+  static constexpr intptr_t MetadataIndexOffset() {
+    return offsetof(MemoryChunk, metadata_index_);
+  }
 
   static constexpr size_t kPagesInMainCage =
       kPtrComprCageReservationSize / kRegularPageSize;
@@ -391,14 +394,34 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return reinterpret_cast<Address>(metadata_pointer_table_);
   }
 
-  // For access to the kMetadataPointerTableSizeMask;
-  friend class CodeStubAssembler;
-  friend class MacroAssembler;
-  // For access to the MetadataTableAddress;
+  // For MetadataIndexOffset().
+  friend class debug_helper_internal::ReadStringVisitor;
+  // For MetadataTableAddress().
   friend class ExternalReference;
   friend class TestDebugHelper;
 
-#endif  // V8_ENABLE_SANDBOX
+#else  // !V8_ENABLE_SANDBOX
+
+  static constexpr intptr_t MetadataOffset() {
+    return offsetof(MemoryChunk, metadata_);
+  }
+
+#endif  // !V8_ENABLE_SANDBOX
+
+  // Flags that are only mutable from the main thread when no concurrent
+  // component (e.g. marker, sweeper, compilation, allocation) is running.
+  MainThreadFlags main_thread_flags_;
+
+#ifdef V8_ENABLE_SANDBOX
+  uint32_t metadata_index_;
+#else
+  MemoryChunkMetadata* metadata_;
+#endif
+
+  // For kMetadataPointerTableSizeMask, FlagsOffset(), MetadataIndexOffset(),
+  // MetadataOffset().
+  friend class CodeStubAssembler;
+  friend class MacroAssembler;
 
   friend class MemoryChunkValidator;
 };

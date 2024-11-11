@@ -4573,10 +4573,10 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   DCHECK(cc == zero || cc == not_zero);
   MemoryChunkHeaderFromObject(object, scratch);
   if (mask < (1 << kBitsPerByte)) {
-    testb(Operand(scratch, MemoryChunkLayout::kFlagsOffset),
+    testb(Operand(scratch, MemoryChunk::FlagsOffset()),
           Immediate(static_cast<uint8_t>(mask)));
   } else {
-    testl(Operand(scratch, MemoryChunkLayout::kFlagsOffset), Immediate(mask));
+    testl(Operand(scratch, MemoryChunk::FlagsOffset()), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
 }
@@ -4606,14 +4606,14 @@ void MacroAssembler::CheckMarkBit(Register object, Register scratch0,
   // Computing cell.
   MemoryChunkHeaderFromObject(object, scratch0);
 #ifdef V8_ENABLE_SANDBOX
-  movl(scratch0, Operand(scratch0, MemoryChunkLayout::kMetadataIndexOffset));
+  movl(scratch0, Operand(scratch0, MemoryChunk::MetadataIndexOffset()));
   andl(scratch0, Immediate(MemoryChunk::kMetadataPointerTableSizeMask));
   shll(scratch0, Immediate(kSystemPointerSizeLog2));
   LoadAddress(scratch1,
               ExternalReference::memory_chunk_metadata_table_address());
   movq(scratch0, Operand(scratch1, scratch0, times_1, 0));
 #else   // !V8_ENABLE_SANDBOX
-  movq(scratch0, Operand(scratch0, MemoryChunkLayout::kMetadataOffset));
+  movq(scratch0, Operand(scratch0, MemoryChunk::MetadataOffset()));
 #endif  // !V8_ENABLE_SANDBOX
   if (v8_flags.debug_code) {
     Push(object);

@@ -1105,8 +1105,8 @@ void Sweeper::RawSweep(PageMetadata* p,
     // Only decrement counter when we discard unused system pages.
     active_system_pages_after_sweeping = ActiveSystemPages();
     active_system_pages_after_sweeping->Init(
-        MemoryChunkLayout::kMemoryChunkHeaderSize,
-        MemoryAllocator::GetCommitPageSizeBits(), PageMetadata::kPageSize);
+        sizeof(MemoryChunk), MemoryAllocator::GetCommitPageSizeBits(),
+        PageMetadata::kPageSize);
   }
 
   // Phase 2: Free the non-live memory and clean-up the regular remembered set
@@ -1512,8 +1512,8 @@ void Sweeper::SweepEmptyNewSpacePage(PageMetadata* page) {
     // Only decrement counter when we discard unused system pages.
     ActiveSystemPages active_system_pages_after_sweeping;
     active_system_pages_after_sweeping.Init(
-        MemoryChunkLayout::kMemoryChunkHeaderSize,
-        MemoryAllocator::GetCommitPageSizeBits(), PageMetadata::kPageSize);
+        sizeof(MemoryChunk), MemoryAllocator::GetCommitPageSizeBits(),
+        PageMetadata::kPageSize);
     // Decrement accounted memory for discarded memory.
     paged_space->ReduceActiveSystemPages(page,
                                          active_system_pages_after_sweeping);

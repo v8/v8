@@ -61,17 +61,6 @@ void MemoryChunkMetadata::SynchronizedHeapStore() {
 #endif
 
 class MemoryChunkValidator {
-  // Computed offsets should match the compiler generated ones.
-  static_assert(MemoryChunkLayout::kFlagsOffset ==
-                offsetof(MemoryChunk, main_thread_flags_));
-#ifdef V8_ENABLE_SANDBOX
-  static_assert(MemoryChunkLayout::kMetadataIndexOffset ==
-                offsetof(MemoryChunk, metadata_index_));
-#else
-  static_assert(MemoryChunkLayout::kMetadataOffset ==
-                offsetof(MemoryChunk, metadata_));
-#endif
-
   static_assert(MemoryChunkLayout::kSizeOffset ==
                 offsetof(MemoryChunkMetadata, size_));
   static_assert(MemoryChunkLayout::kHeapOffset ==

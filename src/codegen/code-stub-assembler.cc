@@ -5245,7 +5245,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     TNode<IntPtrT> object_word = BitcastTaggedToWord(to_elements);
     TNode<IntPtrT> object_page_header = MemoryChunkFromAddress(object_word);
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
-        object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
+        object_page_header, IntPtrConstant(MemoryChunk::FlagsOffset()));
     CSA_DCHECK(
         this,
         WordNotEqual(
@@ -5649,9 +5649,9 @@ void CodeStubAssembler::JumpIfPointersFromHereAreInteresting(
   Label finished(this);
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
   TNode<IntPtrT> object_page_header = MemoryChunkFromAddress(object_word);
-  TNode<IntPtrT> page_flags = UncheckedCast<IntPtrT>(
-      Load(MachineType::IntPtr(), object_page_header,
-           IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
+  TNode<IntPtrT> page_flags =
+      UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), object_page_header,
+                                  IntPtrConstant(MemoryChunk::FlagsOffset())));
   Branch(
       WordEqual(WordAnd(page_flags,
                         IntPtrConstant(
@@ -8339,7 +8339,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadMemoryChunkFlags(
   TNode<IntPtrT> page_header = MemoryChunkFromAddress(object_word);
   return UncheckedCast<IntPtrT>(
       Load(MachineType::Pointer(), page_header,
-           IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
+           IntPtrConstant(MemoryChunk::FlagsOffset())));
 }
 
 template <typename TIndex>
@@ -13548,7 +13548,7 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   TNode<IntPtrT> object_page_header = MemoryChunkFromAddress(object_word);
   {
     TNode<IntPtrT> page_flags = Load<IntPtrT>(
-        object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
+        object_page_header, IntPtrConstant(MemoryChunk::FlagsOffset()));
     if (v8_flags.sticky_mark_bits) {
       // Pages with only old objects contain no mementos.
       GotoIfNot(
@@ -13625,7 +13625,7 @@ TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::memory_chunk_metadata_table_address());
   TNode<Uint32T> index = Load<Uint32T>(
-      address, IntPtrConstant(MemoryChunkLayout::kMetadataIndexOffset));
+      address, IntPtrConstant(MemoryChunk::MetadataIndexOffset()));
   index = Word32And(
       index, UniqueUint32Constant(MemoryChunk::kMetadataPointerTableSizeMask));
   TNode<IntPtrT> offset = ChangeInt32ToIntPtr(
@@ -13638,8 +13638,7 @@ TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
   CSA_CHECK(this, WordEqual(metadata_chunk, address));
   return metadata;
 #else
-  return Load<IntPtrT>(address,
-                       IntPtrConstant(MemoryChunkLayout::kMetadataOffset));
+  return Load<IntPtrT>(address, IntPtrConstant(MemoryChunk::MetadataOffset()));
 #endif
 }
 

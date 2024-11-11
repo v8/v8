@@ -42,7 +42,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     kInProgress,
   };
 
-  static const size_t kHeaderSize = MemoryChunkLayout::kMemoryChunkHeaderSize;
+  static const size_t kHeaderSize = sizeof(MemoryChunk);
 
   static const intptr_t kOldToNewSlotSetOffset =
       MemoryChunkLayout::kSlotSetOffset;
