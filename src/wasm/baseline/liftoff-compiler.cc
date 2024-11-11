@@ -3592,8 +3592,12 @@ class LiftoffCompiler {
                                uintptr_t* offset) {
     if (!index_slot.is_const()) return false;
 
-    // Potentially zero extend index (which is a 32-bit constant).
-    const uintptr_t index = static_cast<uint32_t>(index_slot.i32_const());
+    // memory64: Sign-extend to restore the original index value.
+    // memory32: Zero-extend the 32 bit value.
+    const uintptr_t index =
+        memory->is_memory64()
+            ? static_cast<uintptr_t>(intptr_t{index_slot.i32_const()})
+            : uintptr_t{static_cast<uint32_t>(index_slot.i32_const())};
     const uintptr_t effective_offset = index + *offset;
 
     if (effective_offset < index  // overflow
