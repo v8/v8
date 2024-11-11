@@ -558,7 +558,7 @@ class V8_EXPORT String : public Name {
     ~Utf8Value();
     char* operator*() { return str_; }
     const char* operator*() const { return str_; }
-    int length() const { return length_; }
+    size_t length() const { return length_; }
 
     // Disallow copying and assigning.
     Utf8Value(const Utf8Value&) = delete;
@@ -588,7 +588,7 @@ class V8_EXPORT String : public Name {
     ~Value();
     uint16_t* operator*() { return str_; }
     const uint16_t* operator*() const { return str_; }
-    int length() const { return length_; }
+    uint32_t length() const { return length_; }
 
     // Disallow copying and assigning.
     Value(const Value&) = delete;
@@ -625,7 +625,7 @@ class V8_EXPORT String : public Name {
 #endif
       return data16_;
     }
-    int length() const { return length_; }
+    uint32_t length() const { return length_; }
     bool is_one_byte() const { return is_one_byte_; }
 
     // Disallow copying and assigning.
@@ -640,7 +640,7 @@ class V8_EXPORT String : public Name {
       const uint8_t* data8_;
       const uint16_t* data16_;
     };
-    int length_;
+    uint32_t length_;
     bool is_one_byte_;
     // Avoid exposing the internal DisallowGarbageCollection scope.
     alignas(internal::Internals::

@@ -2823,7 +2823,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& info,
     }
 
     v8::String::Utf8Value str(info.GetIsolate(), str_obj);
-    int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
+    size_t n = fwrite(*str, sizeof(**str), str.length(), file);
     if (n != str.length()) {
       printf("Error in fwrite\n");
       base::OS::ExitProcess(1);

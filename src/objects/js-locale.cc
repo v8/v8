@@ -269,7 +269,8 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   }
 
   v8::String::Utf8Value bcp47_tag(v8_isolate, v8::Utils::ToLocal(tag));
-  builder->setLanguageTag({*bcp47_tag, bcp47_tag.length()});
+  builder->setLanguageTag(
+      {*bcp47_tag, static_cast<int32_t>(bcp47_tag.length())});
   DCHECK_LT(0, bcp47_tag.length());
   DCHECK_NOT_NULL(*bcp47_tag);
   // 2. If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError
