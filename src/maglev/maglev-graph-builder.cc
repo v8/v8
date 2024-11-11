@@ -3124,7 +3124,8 @@ MaglevGraphBuilder::TrySpecializeStorScriptContextSlot(ValueNode* context,
   int offset = Context::OffsetOfElementAt(index);
   if (property == ContextSidePropertyCell::kConst) {
     compiler::OptionalObjectRef constant = context_ref.get(broker(), index);
-    if (!constant.has_value()) {
+    if (!constant.has_value() ||
+        (constant->IsString() && !constant->IsInternalizedString())) {
       return std::make_pair(
           ReduceResult::Done(),
           BuildNonSpecializedStoreScriptContextSlot(context, index, value));
