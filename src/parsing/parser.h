@@ -380,8 +380,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Block* IgnoreCompletion(Statement* statement);
 
-  Scope* NewHiddenCatchScope();
-
   bool HasCheckedSyntax() {
     return scope()->GetDeclarationScope()->has_checked_syntax();
   }

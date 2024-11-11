@@ -695,7 +695,6 @@ int ScopeInfo::ContextLength() const {
 // Needs to be kept in sync with Scope::UniqueIdInScript and
 // SharedFunctionInfo::UniqueIdInScript.
 int ScopeInfo::UniqueIdInScript() const {
-  DCHECK(!IsHiddenCatchScope());
   // Script scopes start "before" the script to avoid clashing with a scope that
   // starts on character 0.
   if (is_script_scope() || scope_type() == EVAL_SCOPE ||
@@ -804,10 +803,6 @@ bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {
 
 bool ScopeInfo::IsReplModeScope() const {
   return scope_type() == REPL_MODE_SCOPE;
-}
-
-bool ScopeInfo::IsHiddenCatchScope() const {
-  return IsHiddenBit::decode(Flags()) && scope_type() == CATCH_SCOPE;
 }
 
 bool ScopeInfo::IsWrappedFunctionScope() const {

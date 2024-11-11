@@ -2574,7 +2574,6 @@ void ModuleScope::AllocateModuleVariables() {
 // Needs to be kept in sync with ScopeInfo::UniqueIdInScript and
 // SharedFunctionInfo::UniqueIdInScript.
 int Scope::UniqueIdInScript() const {
-  DCHECK(!is_hidden_catch_scope());
   // Script scopes start "before" the script to avoid clashing with a scope that
   // starts on character 0.
   if (is_script_scope() || scope_type() == EVAL_SCOPE ||
@@ -2652,9 +2651,7 @@ void Scope::AllocateScopeInfosRecursively(
   DCHECK(scope_info_.is_null());
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
 
-  auto it = is_hidden_catch_scope()
-                ? scope_infos_to_reuse.end()
-                : scope_infos_to_reuse.find(UniqueIdInScript());
+  auto it = scope_infos_to_reuse.find(UniqueIdInScript());
   if (it != scope_infos_to_reuse.end()) {
     scope_info_ = it->second;
     CHECK(NeedsContext());
@@ -2662,7 +2659,6 @@ void Scope::AllocateScopeInfosRecursively(
     // next outer scope that needs a context.
     next_outer_scope = scope_info_;
     DCHECK(!scope_info_.is_null());
-    DCHECK(!is_hidden_catch_scope());
     CHECK_EQ(scope_info_->scope_type(), scope_type_);
     CHECK_EQ(scope_info_->ContextLength(), num_heap_slots_);
 #ifdef DEBUG
@@ -2672,9 +2668,8 @@ void Scope::AllocateScopeInfosRecursively(
   } else if (NeedsScopeInfo()) {
     scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
 #ifdef DEBUG
-    // Mark this ID as being used. Skip hidden scopes because they are
-    // synthetic, unreusable, but hard to make unique.
-    if (v8_flags.reuse_scope_infos && !is_hidden_catch_scope()) {
+    // Mark this ID as being used.
+    if (v8_flags.reuse_scope_infos) {
       scope_infos_to_reuse[UniqueIdInScript()] = {};
       DCHECK_EQ(UniqueIdInScript(), scope_info_->UniqueIdInScript());
     }
@@ -2687,12 +2682,9 @@ void Scope::AllocateScopeInfosRecursively(
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
 #ifdef DEBUG
-    if (!scope->is_hidden_catch_scope()) {
-      DCHECK_GT(scope->UniqueIdInScript(), UniqueIdInScript());
-      DCHECK_IMPLIES(
-          scope->sibling_ && !scope->sibling_->is_hidden_catch_scope(),
-          scope->sibling_->UniqueIdInScript() != scope->UniqueIdInScript());
-    }
+    DCHECK_GT(scope->UniqueIdInScript(), UniqueIdInScript());
+    DCHECK_IMPLIES(scope->sibling_, scope->sibling_->UniqueIdInScript() !=
+                                        scope->UniqueIdInScript());
 #endif
     if (!scope->is_function_scope() ||
         scope->AsDeclarationScope()->ShouldEagerCompile()) {

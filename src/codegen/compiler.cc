@@ -2205,7 +2205,6 @@ class ConstantPoolPointerForwarder {
   template <typename TArray>
   void VisitScopeInfo(Tagged<TArray> constant_pool, int i,
                       Tagged<ScopeInfo> scope_info) {
-    if (scope_info->IsHiddenCatchScope()) return;
     auto it = scope_infos_to_update_.find(scope_info->UniqueIdInScript());
     // Try to replace the scope info itself with an already existing version.
     if (it != scope_infos_to_update_.end()) {
