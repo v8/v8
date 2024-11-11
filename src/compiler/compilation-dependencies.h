@@ -88,6 +88,10 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
       ContextRef script_context, size_t index,
       ContextSidePropertyCell::Property property, JSHeapBroker* broker);
 
+  // Record the assumption that respective contexts do not have context
+  // extension, if true.
+  bool DependOnEmptyContextExtension(ScopeInfoRef scope_info);
+
   // Return the validity of the given protector and, if true, record the
   // assumption that the protector remains valid.
   bool DependOnProtector(PropertyCellRef cell);

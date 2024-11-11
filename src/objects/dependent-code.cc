@@ -23,6 +23,8 @@ Tagged<DependentCode> DependentCode::GetDependentCode(
     return Cast<AllocationSite>(object)->dependent_code();
   } else if (IsContextSidePropertyCell(object)) {
     return Cast<ContextSidePropertyCell>(object)->dependent_code();
+  } else if (IsScopeInfo(object)) {
+    return Cast<ScopeInfo>(object)->dependent_code();
   }
   UNREACHABLE();
 }
@@ -37,6 +39,8 @@ void DependentCode::SetDependentCode(Handle<HeapObject> object,
     Cast<AllocationSite>(object)->set_dependent_code(*dep);
   } else if (IsContextSidePropertyCell(*object)) {
     Cast<ContextSidePropertyCell>(object)->set_dependent_code(*dep);
+  } else if (IsScopeInfo(*object)) {
+    Cast<ScopeInfo>(object)->set_dependent_code(*dep);
   } else {
     UNREACHABLE();
   }
@@ -205,6 +209,8 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-transition-changed";
     case kScriptContextSlotPropertyChangedGroup:
       return "script-context-slot-property-changed";
+    case kEmptyContextExtensionGroup:
+      return "empty-context-extension";
   }
   UNREACHABLE();
 }

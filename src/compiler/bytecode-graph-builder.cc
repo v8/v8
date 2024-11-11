@@ -12,6 +12,7 @@
 #include "src/common/assert-scope.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-type-hint-lowering.h"
@@ -1856,7 +1857,10 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     DCHECK_NE(scope_info.scope_type(), ScopeType::SCRIPT_SCOPE);
     DCHECK_NE(scope_info.scope_type(), ScopeType::REPL_MODE_SCOPE);
 
-    if (scope_info.HasContextExtensionSlot()) {
+    if (scope_info.HasContextExtensionSlot() &&
+        !broker()->dependencies()->DependOnEmptyContextExtension(scope_info)) {
+      // Using EmptyContextExtension dependency is not possible for this
+      // scope_info, so generate dynamic checks.
       slow_environment = CheckContextExtensionAtDepth(slow_environment, d);
     }
     DCHECK_IMPLIES(!scope_info.HasOuterScopeInfo(), d + 1 == depth);
@@ -1865,9 +1869,11 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     }
   }
 
-  // There should have been at least one slow path generated, otherwise we could
-  // have already skipped the lookup in the bytecode.
-  DCHECK_NOT_NULL(slow_environment);
+  // There should have been at least one slow path generated, otherwise we
+  // could have already skipped the lookup in the bytecode. The only exception
+  // is if we replaced all the dynamic checks with code dependencies.
+  DCHECK_IMPLIES(!v8_flags.empty_context_extension_dep,
+                 slow_environment != nullptr);
   return slow_environment;
 }
 
@@ -1917,6 +1923,10 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
     // TODO(victorgomes): Emit LoadScriptContext if ContextKind::kScriptContext.
     const Operator* op = javascript()->LoadContext(depth, slot_index, false);
     environment()->BindAccumulator(NewNode(op));
+  }
+  if (!slow_environment) {
+    // The slow path was fully replaced by a set of compilation dependencies.
+    return;
   }
 
   // Add a merge to the fast environment.
@@ -1973,6 +1983,10 @@ void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
     uint32_t feedback_slot_index = bytecode_iterator().GetIndexOperand(1);
     Node* node = BuildLoadGlobal(name, feedback_slot_index, typeof_mode);
     environment()->BindAccumulator(node, Environment::kAttachFrameState);
+  }
+  if (!slow_environment) {
+    // The slow path was fully replaced by a set of compilation dependencies.
+    return;
   }
 
   // Add a merge to the fast environment.

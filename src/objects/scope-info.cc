@@ -61,6 +61,10 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
             Cast<Oddball>(other_entry)->kind()) {
           return false;
         }
+      } else if (IsDependentCode(entry)) {
+        DCHECK(IsDependentCode(other_entry));
+        // Ignore the dependent code field since all the code have to be
+        // deoptimized anyway in case of a live-edit.
       } else {
         UNREACHABLE();
       }
@@ -175,24 +179,34 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                             scope->AsModuleScope()->module());
   }
 
-// Make sure the Fields enum agrees with Torque-generated offsets.
+  // Make sure the Fields enum agrees with Torque-generated offsets.
   static_assert(OffsetOfElementAt(kFlags) == kFlagsOffset);
   static_assert(OffsetOfElementAt(kParameterCount) == kParameterCountOffset);
   static_assert(OffsetOfElementAt(kContextLocalCount) ==
                 kContextLocalCountOffset);
 
+  FunctionKind function_kind = FunctionKind::kNormalFunction;
+  bool sloppy_eval_can_extend_vars = false;
+  if (scope->is_declaration_scope()) {
+    function_kind = scope->AsDeclarationScope()->function_kind();
+    sloppy_eval_can_extend_vars =
+        scope->AsDeclarationScope()->sloppy_eval_can_extend_vars();
+  }
+  DCHECK_IMPLIES(sloppy_eval_can_extend_vars, scope->HasContextExtensionSlot());
+
   const int local_names_container_size =
       has_inlined_local_names ? context_local_count : 1;
 
-  const int length = kVariablePartIndex + local_names_container_size +
-                     context_local_count +
-                     (should_save_class_variable_index ? 1 : 0) +
-                     (has_function_name ? kFunctionNameEntries : 0) +
-                     (has_inferred_function_name ? 1 : 0) +
-                     (has_outer_scope_info ? 1 : 0) +
-                     (scope->is_module_scope()
-                          ? 2 + kModuleVariableEntryLength * module_vars_count
-                          : 0);
+  const int has_dependent_code = sloppy_eval_can_extend_vars;
+  const int length =
+      kVariablePartIndex + local_names_container_size + context_local_count +
+      (should_save_class_variable_index ? 1 : 0) +
+      (has_function_name ? kFunctionNameEntries : 0) +
+      (has_inferred_function_name ? 1 : 0) + (has_outer_scope_info ? 1 : 0) +
+      (scope->is_module_scope()
+           ? 2 + kModuleVariableEntryLength * module_vars_count
+           : 0) +
+      (has_dependent_code ? 1 : 0);
 
   // Create hash table if local names are not inlined.
   Handle<NameToIndexHashTable> local_names_hashtable;
@@ -211,19 +225,12 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 
     bool has_simple_parameters = false;
     bool is_asm_module = false;
-    bool sloppy_eval_can_extend_vars = false;
     if (scope->is_function_scope()) {
       DeclarationScope* function_scope = scope->AsDeclarationScope();
       has_simple_parameters = function_scope->has_simple_parameters();
 #if V8_ENABLE_WEBASSEMBLY
       is_asm_module = function_scope->is_asm_module();
 #endif  // V8_ENABLE_WEBASSEMBLY
-    }
-    FunctionKind function_kind = FunctionKind::kNormalFunction;
-    if (scope->is_declaration_scope()) {
-      function_kind = scope->AsDeclarationScope()->function_kind();
-      sloppy_eval_can_extend_vars =
-          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars();
     }
 
     // Encode the flags.
@@ -250,7 +257,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
         IsHiddenBit::encode(scope->is_hidden()) |
         IsWrappedFunctionBit::encode(scope->is_wrapped_function());
-    scope_info->set_flags(flags);
+    scope_info->set_flags(flags, kRelaxedStore);
 
     scope_info->set_parameter_count(parameter_count);
     scope_info->set_context_local_count(context_local_count);
@@ -394,7 +401,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     }
 
     // If present, add the outer scope info.
-    DCHECK(index == scope_info->OuterScopeInfoIndex());
+    DCHECK_EQ(index, scope_info->OuterScopeInfoIndex());
     if (has_outer_scope_info) {
       scope_info->set(index++, *outer_scope.ToHandleChecked(), mode);
     }
@@ -407,9 +414,16 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       // The variable entries themselves have already been written above.
       index += kModuleVariableEntryLength * module_vars_count;
     }
+
+    DCHECK_EQ(index, scope_info->DependentCodeIndex());
+    if (has_dependent_code) {
+      ReadOnlyRoots roots(isolate);
+      scope_info->set(index++, DependentCode::empty_dependent_code(roots));
+    }
   }
 
   DCHECK_EQ(index, scope_info_handle->length());
+  DCHECK_EQ(length, scope_info_handle->length());
   DCHECK_EQ(parameter_count, scope_info_handle->ParameterCount());
   DCHECK_EQ(scope->num_heap_slots(), scope_info_handle->ContextLength());
 
@@ -452,7 +466,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(true) | IsHiddenBit::encode(false) |
       IsWrappedFunctionBit::encode(false);
-  scope_info->set_flags(flags);
+  scope_info->set_flags(flags, kRelaxedStore);
 
   scope_info->set_parameter_count(0);
   scope_info->set_context_local_count(0);
@@ -463,12 +477,14 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   int index = kVariablePartIndex;
   DCHECK_EQ(index, scope_info->FunctionVariableInfoIndex());
   DCHECK_EQ(index, scope_info->InferredFunctionNameIndex());
-  DCHECK(index == scope_info->OuterScopeInfoIndex());
+  DCHECK_EQ(index, scope_info->OuterScopeInfoIndex());
   if (has_outer_scope_info) {
     Tagged<ScopeInfo> outer = *outer_scope.ToHandleChecked();
     scope_info->set(index++, outer);
   }
+  DCHECK_EQ(index, scope_info->DependentCodeIndex());
   DCHECK_EQ(index, scope_info->length());
+  DCHECK_EQ(length, scope_info->length());
   DCHECK_EQ(0, scope_info->ParameterCount());
   DCHECK_EQ(scope_info->ContextHeaderLength(), scope_info->ContextLength());
   return scope_info;
@@ -546,7 +562,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
                                          has_const_tracking_let_side_data) |
       IsHiddenBit::encode(false) | IsWrappedFunctionBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
-  raw_scope_info->set_flags(flags);
+  raw_scope_info->set_flags(flags, kRelaxedStore);
   raw_scope_info->set_parameter_count(parameter_count);
   raw_scope_info->set_context_local_count(context_local_count);
   raw_scope_info->set_position_info_start(0);
@@ -581,7 +597,9 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
     raw_scope_info->set(index++, roots.empty_string());
   }
   DCHECK_EQ(index, raw_scope_info->OuterScopeInfoIndex());
+  DCHECK_EQ(index, raw_scope_info->DependentCodeIndex());
   DCHECK_EQ(index, raw_scope_info->length());
+  DCHECK_EQ(length, raw_scope_info->length());
   DCHECK_EQ(raw_scope_info->ParameterCount(), parameter_count);
   if (is_empty_function || is_native_context) {
     DCHECK_EQ(raw_scope_info->ContextLength(), 0);
@@ -715,6 +733,14 @@ bool ScopeInfo::HasContextExtensionSlot() const {
   return HasContextExtensionSlotBit::decode(Flags());
 }
 
+bool ScopeInfo::SomeContextHasExtension() const {
+  return SomeContextHasExtensionBit::decode(Flags());
+}
+
+void ScopeInfo::mark_some_context_has_extension() {
+  set_flags(SomeContextHasExtensionBit::update(Flags(), true), kRelaxedStore);
+}
+
 int ScopeInfo::ContextHeaderLength() const {
   return HasContextExtensionSlot() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
                                    : Context::MIN_CONTEXT_SLOTS;
@@ -794,7 +820,7 @@ bool ScopeInfo::IsDebugEvaluateScope() const {
 void ScopeInfo::SetIsDebugEvaluateScope() {
   CHECK(!this->IsEmpty());
   DCHECK_EQ(scope_type(), WITH_SCOPE);
-  set_flags(Flags() | IsDebugEvaluateScopeBit::encode(true));
+  set_flags(Flags() | IsDebugEvaluateScopeBit::encode(true), kRelaxedStore);
 }
 
 bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {
@@ -1097,17 +1123,21 @@ void ScopeInfo::ModuleVariable(int i, Tagged<String>* name, int* index,
   }
 }
 
+int ScopeInfo::DependentCodeIndex() const {
+  return ConvertOffsetToIndex(DependentCodeOffset());
+}
+
 uint32_t ScopeInfo::Hash() {
   // Hash ScopeInfo based on its start and end position.
   // Note: Ideally we'd also have the script ID. But since we only use the
   // hash in a debug-evaluate cache, we don't worry too much about collisions.
   if (HasPositionInfo()) {
-    return static_cast<uint32_t>(
-        base::hash_combine(flags(), StartPosition(), EndPosition()));
+    return static_cast<uint32_t>(base::hash_combine(
+        flags(kRelaxedLoad), StartPosition(), EndPosition()));
   }
 
   return static_cast<uint32_t>(
-      base::hash_combine(flags(), context_local_count()));
+      base::hash_combine(flags(kRelaxedLoad), context_local_count()));
 }
 
 std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {

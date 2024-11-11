@@ -422,10 +422,18 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     DCHECK((context->IsBlockContext() &&
             context->scope_info()->is_declaration_scope()) ||
            context->IsFunctionContext());
+    DCHECK(context->scope_info()->SloppyEvalCanExtendVars());
     object =
         isolate->factory()->NewJSObject(isolate->context_extension_function());
-
     context->set_extension(*object);
+    {
+      Tagged<ScopeInfo> scope_info = context->scope_info();
+      if (!scope_info->SomeContextHasExtension()) {
+        scope_info->mark_some_context_has_extension();
+        DependentCode::DeoptimizeDependencyGroups(
+            isolate, scope_info, DependentCode::kEmptyContextExtensionGroup);
+      }
+    }
   } else {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,

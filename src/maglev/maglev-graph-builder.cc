@@ -3819,7 +3819,10 @@ bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
   for (uint32_t d = 0; d < depth; d++) {
     CHECK_NE(scope_info.scope_type(), ScopeType::SCRIPT_SCOPE);
     CHECK_NE(scope_info.scope_type(), ScopeType::REPL_MODE_SCOPE);
-    if (scope_info.HasContextExtensionSlot()) {
+    if (scope_info.HasContextExtensionSlot() &&
+        !broker()->dependencies()->DependOnEmptyContextExtension(scope_info)) {
+      // Using EmptyContextExtension dependency is not possible for this
+      // scope_info, so generate dynamic checks.
       ValueNode* context = GetContextAtDepth(GetContext(), d);
       // Only support known contexts so that we can check that there's no
       // extension at compile time. Otherwise we could end up in a deopt loop
@@ -3830,8 +3833,9 @@ bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
       compiler::OptionalObjectRef extension_ref =
           context_ref.get(broker(), Context::EXTENSION_INDEX);
       // The extension may be concurrently installed while we're checking the
-      // context, in which case it may still be uninitialized. This still means
-      // an extension is about to appear, so we should block this optimization.
+      // context, in which case it may still be uninitialized. This still
+      // means an extension is about to appear, so we should block this
+      // optimization.
       if (!extension_ref) return false;
       if (!extension_ref->IsUndefined()) return false;
       ValueNode* extension = LoadAndCacheContextSlot(

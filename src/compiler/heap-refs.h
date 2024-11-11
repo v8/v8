@@ -1079,7 +1079,9 @@ class ScopeInfoRef : public HeapObjectRef {
   bool HasContext() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
+  bool SomeContextHasExtension() const;
   bool ClassScopeHasPrivateBrand() const;
+  bool SloppyEvalCanExtendVars() const;
   ScopeType scope_type() const;
 
   ScopeInfoRef OuterScopeInfo(JSHeapBroker* broker) const;

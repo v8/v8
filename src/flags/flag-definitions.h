@@ -675,6 +675,10 @@ DEFINE_BOOL(const_tracking_let, true,
 DEFINE_EXPERIMENTAL_FEATURE(script_context_mutable_heap_number,
                             "Use mutable heap numbers in script contexts")
 
+DEFINE_BOOL(empty_context_extension_dep, false,
+            "Use compilation dependency to avoid dynamic checks for "
+            "non-empty context extensions")
+
 DEFINE_UINT(max_opt, 999,
             "Set the maximal optimisation tier: "
             "> 3 == any, 0 == ignition/interpreter, 1 == sparkplug/baseline, "

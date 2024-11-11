@@ -948,7 +948,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
               VariableAllocationInfo::NONE);
     DCHECK_EQ(ScopeInfo::FunctionVariableBits::decode(flags),
               VariableAllocationInfo::NONE);
-    Cast<ScopeInfo>(obj)->set_flags(flags);
+    Cast<ScopeInfo>(obj)->set_flags(flags, kRelaxedStore);
     Cast<ScopeInfo>(obj)->set_context_local_count(0);
     Cast<ScopeInfo>(obj)->set_parameter_count(0);
     Cast<ScopeInfo>(obj)->set_position_info_start(0);
