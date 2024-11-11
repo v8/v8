@@ -83,10 +83,10 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:f0f43ce899b4da811f906ab3557c9b4b5418769b',
+  'siso_version': 'git_revision:aa31236f9e208039b6196cbae4318d56d4c30e3d',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:aa31236f9e208039b6196cbae4318d56d4c30e3d',
+  'luci_go': 'git_revision:a52658ecc54d0fa4ad0065918588c890982634b2',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
