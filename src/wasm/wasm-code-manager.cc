@@ -1864,11 +1864,13 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
                              code_table_[slot_index]->instruction_start(),
                              writable_jump_tables.write_scope());
       } else if (lazy_compile_table_) {
-        Address lazy_compile_target =
-            lazy_compile_table_->instruction_start() +
-            JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
+        // Use the main jump table as the target so that we don't have to add a
+        // landing pad instruction to the lazy compile table entries.
+        Address main_jump_table_target =
+            main_jump_table_->instruction_start() +
+            JumpTableAssembler::JumpSlotIndexToOffset(slot_index);
         PatchJumpTableLocked(new_code_space_data, slot_index,
-                             lazy_compile_target,
+                             main_jump_table_target,
                              writable_jump_tables.write_scope());
       }
     }
