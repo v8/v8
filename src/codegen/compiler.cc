@@ -2139,10 +2139,6 @@ class ConstantPoolPointerForwarder {
   // also may need to be reattached.
   void UpdateScopeInfo(Tagged<SharedFunctionInfo> sfi) {
     if (!v8_flags.reuse_scope_infos) return;
-    // This should not be called on already existing SFIs. Their scope infos are
-    // already correct.
-    DCHECK_NE(MakeWeak(sfi),
-              old_script_->infos()->get(sfi->function_literal_id()));
     if (InstallOwnScopeInfo(sfi)) return;
     if (!sfi->HasOuterScopeInfo()) return;
 
