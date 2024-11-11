@@ -2223,6 +2223,7 @@ namespace internal {
   V(PromiseFulfillReactionJob)                       \
   V(PromiseRejectReactionJob)                        \
   V(PromiseRace)                                     \
+  V(PromiseTry)                                      \
   V(ResolvePromise)
 
 #define IGNORE_BUILTIN(...)

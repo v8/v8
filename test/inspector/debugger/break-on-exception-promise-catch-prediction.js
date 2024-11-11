@@ -40,6 +40,10 @@ function rejectBindAfterDelay() {
   return new Promise((pass, reject) => setTimeout(reject.bind(null, new Error('fail')), 0));
 }
 
+function throwInPromiseTryCallback() {
+  return Promise.try(() => { throw new Error('fail'); });
+}
+
 async function throwFromAsync() {
   throw new Error('fail');
 }
@@ -465,6 +469,7 @@ const advancedThrowFunctions = [
     rejectAfterFulfillInPromiseConstructor,
     rejectAfterDelayAfterFulfillInPromiseConstructor,
     throwAfterFulfillInPromiseConstructor,
+    throwInPromiseTryCallback
 ];
 const basicCatchFunctions = [dontHandleAsync, awaitAndCreateInTry];
 const advancedCatchFunctions = [
