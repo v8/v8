@@ -586,8 +586,8 @@ class ManagedConfig(RawConfig):
         return 1
     # Special handling for "mkgrokdump": if it was built, run it.
     if ("mkgrokdump" in self.targets and self.mode == "release" and
-        (host_arch == "x86_64" and self.arch == "x64") or
-        (host_arch == "arm64" and self.arch == "arm64")):
+        ((host_arch == "x86_64" and self.arch == "x64") or
+         (host_arch == "arm64" and self.arch == "arm64"))):
       mkgrokdump_bin = self.path / "mkgrokdump"
       _call(f"{mkgrokdump_bin} > tools/v8heapconst.py")
     return super().run_tests()
