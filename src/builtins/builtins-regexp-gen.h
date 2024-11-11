@@ -68,11 +68,14 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
       TNode<RawPtrT> result_offsets_vector);
 
   // Low level logic around the actual call into pattern matching code.
-  TNode<HeapObject> RegExpExecInternal(TNode<Context> context,
-                                       TNode<JSRegExp> regexp,
-                                       TNode<String> string,
-                                       TNode<Number> last_index,
-                                       TNode<RegExpMatchInfo> match_info);
+  //
+  // TODO(jgruber): Callers that either 1. don't need the RegExpMatchInfo, or
+  // 2. need multiple matches, should switch to the new API which passes
+  // results via an offsets vector and allows returning multiple matches per
+  // call. See RegExpExecInternal_Batched.
+  TNode<HeapObject> RegExpExecInternal_Single(
+      TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
+      TNode<Number> last_index, TNode<RegExpMatchInfo> match_info);
 
   // This is the new API which makes it possible to use the global irregexp
   // execution mode from within CSA.

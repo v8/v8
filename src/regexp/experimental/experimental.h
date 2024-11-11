@@ -40,6 +40,11 @@ class ExperimentalRegExp final : public AllStatic {
                                   DirectHandle<IrRegExpData> regexp_data,
                                   Handle<String> subject, int index,
                                   Handle<RegExpMatchInfo> last_match_info);
+  static std::optional<int> Exec2(Isolate* isolate,
+                                  DirectHandle<IrRegExpData> regexp_data,
+                                  Handle<String> subject, int index,
+                                  int32_t* result_offsets_vector,
+                                  uint32_t result_offsets_vector_length);
   static int32_t ExecRaw(Isolate* isolate, RegExp::CallOrigin call_origin,
                          Tagged<IrRegExpData> regexp_data,
                          Tagged<String> subject, int32_t* output_registers,

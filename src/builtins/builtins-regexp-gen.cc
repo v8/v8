@@ -559,302 +559,56 @@ RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
   return var_match_info.value();
 }
 
-TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
+TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
     TNode<Number> last_index, TNode<RegExpMatchInfo> match_info) {
-  ToDirectStringAssembler to_direct(state(), string);
-
-  TVARIABLE(HeapObject, var_result);
-  TVARIABLE(RawPtrT, var_result_offsets_vector,
-            UncheckedCast<RawPtrT>(IntPtrConstant(0)));
-  TVARIABLE(BoolT, var_result_offsets_vector_is_dynamic, Int32FalseConstant());
-  Label out(this), atom(this), runtime(this, Label::kDeferred),
-      retry_experimental(this, Label::kDeferred);
-
-  // External constants.
-  TNode<ExternalReference> isolate_address =
-      ExternalConstant(ExternalReference::isolate_address());
-
-  // At this point, last_index is definitely a canonicalized non-negative
-  // number, which implies that any non-Smi last_index is greater than
-  // the maximal string length. If lastIndex > string.length then the matcher
-  // must fail.
-
-  Label if_failure(this);
-
-  CSA_DCHECK(this, IsNumberNormalized(last_index));
-  CSA_DCHECK(this, IsNumberPositive(last_index));
-  GotoIf(TaggedIsNotSmi(last_index), &if_failure);
-
-  TNode<IntPtrT> int_string_length = LoadStringLengthAsWord(string);
-  TNode<IntPtrT> int_last_index = PositiveSmiUntag(CAST(last_index));
-
-  GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &if_failure);
-
-  // Since the RegExp has been compiled, data contains a fixed array.
+  Label out(this);
+  TVARIABLE(HeapObject, var_result, NullConstant());
   TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
       regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
+  TNode<Smi> register_count_per_match =
+      RegistersForCaptureCount(LoadCaptureCount(data));
+  // Allocate space for one match.
+  TNode<Smi> result_offsets_vector_length = register_count_per_match;
+  TNode<RawPtrT> result_offsets_vector;
+  TNode<BoolT> result_offsets_vector_is_dynamic;
+  std::tie(result_offsets_vector, result_offsets_vector_is_dynamic) =
+      LoadOrAllocateRegExpResultVector(result_offsets_vector_length);
 
-  // Dispatch on the type of the RegExp.
-  // Since the type tag is in trusted space, it is safe to interpret
-  // RegExpData as IrRegExpData/AtomRegExpData in the respective branches
-  // without checks.
-  {
-    Label next(this), unreachable(this, Label::kDeferred);
-    TNode<Int32T> tag =
-        SmiToInt32(LoadObjectField<Smi>(data, RegExpData::kTypeTagOffset));
-
-    int32_t values[] = {
-        static_cast<uint8_t>(RegExpData::Type::IRREGEXP),
-        static_cast<uint8_t>(RegExpData::Type::ATOM),
-        static_cast<uint8_t>(RegExpData::Type::EXPERIMENTAL),
-    };
-    Label* labels[] = {&next, &atom, &next};
-
-    static_assert(arraysize(values) == arraysize(labels));
-    Switch(tag, &unreachable, values, labels, arraysize(values));
-
-    BIND(&unreachable);
-    Unreachable();
-
-    BIND(&next);
-  }
-
-  // Unpack the string if possible.
-
-  to_direct.TryToDirect(&runtime);
-
-  // Load the irregexp code or bytecode object and offsets into the subject
-  // string. Both depend on whether the string is one- or two-byte.
-
-  TVARIABLE(RawPtrT, var_string_start);
-  TVARIABLE(RawPtrT, var_string_end);
-#ifdef V8_ENABLE_SANDBOX
-  using kVarCodeT = IndirectPointerHandleT;
-#else
-  using kVarCodeT = Object;
-#endif
-  TVARIABLE(kVarCodeT, var_code);
-  TVARIABLE(Object, var_bytecode);
+  // Exception handling is necessary to free any allocated memory.
+  TVARIABLE(Object, var_exception);
+  Label if_exception(this, Label::kDeferred);
 
   {
-    TNode<RawPtrT> direct_string_data = to_direct.PointerToData(&runtime);
+    compiler::ScopedExceptionHandler handler(this, &if_exception,
+                                             &var_exception);
 
-    Label next(this), if_isonebyte(this), if_istwobyte(this, Label::kDeferred);
-    Branch(to_direct.IsOneByte(), &if_isonebyte, &if_istwobyte);
+    TNode<UintPtrT> num_matches = RegExpExecInternal2(
+        context, regexp, string, last_index, result_offsets_vector,
+        SmiToInt32(result_offsets_vector_length));
 
-    BIND(&if_isonebyte);
-    {
-      GetStringPointers(direct_string_data, to_direct.offset(), int_last_index,
-                        int_string_length, String::ONE_BYTE_ENCODING,
-                        &var_string_start, &var_string_end);
-      var_code =
-          LoadObjectField<kVarCodeT>(data, IrRegExpData::kLatin1CodeOffset);
-      var_bytecode = LoadObjectField(data, IrRegExpData::kLatin1BytecodeOffset);
-      Goto(&next);
-    }
+    GotoIf(IntPtrEqual(num_matches, IntPtrConstant(0)), &out);
 
-    BIND(&if_istwobyte);
-    {
-      GetStringPointers(direct_string_data, to_direct.offset(), int_last_index,
-                        int_string_length, String::TWO_BYTE_ENCODING,
-                        &var_string_start, &var_string_end);
-      var_code =
-          LoadObjectField<kVarCodeT>(data, IrRegExpData::kUc16CodeOffset);
-      var_bytecode = LoadObjectField(data, IrRegExpData::kUc16BytecodeOffset);
-      Goto(&next);
-    }
-
-    BIND(&next);
-  }
-
-  // Check that the irregexp code has been generated for the actual string
-  // encoding.
-
-#ifdef V8_ENABLE_SANDBOX
-  GotoIf(
-      Word32Equal(var_code.value(), Int32Constant(kNullIndirectPointerHandle)),
-      &runtime);
-#else
-  GotoIf(TaggedIsSmi(var_code.value()), &runtime);
-#endif
-
-  TNode<Smi> capture_count = LoadCaptureCount(data);
-  TNode<Smi> register_count = RegistersForCaptureCount(capture_count);
-  {
-    TNode<RawPtrT> result_offsets_vector;
-    TNode<BoolT> result_offsets_vector_is_dynamic;
-    std::tie(result_offsets_vector, result_offsets_vector_is_dynamic) =
-        LoadOrAllocateRegExpResultVector(register_count);
-    var_result_offsets_vector = result_offsets_vector;
-    var_result_offsets_vector_is_dynamic = result_offsets_vector_is_dynamic;
-  }
-
-  Label if_success(this), if_exception(this, Label::kDeferred);
-
-  {
-    IncrementCounter(isolate()->counters()->regexp_entry_native(), 1);
-
-    // Set up args for the final call into generated Irregexp code.
-
-    MachineType type_int32 = MachineType::Int32();
-    MachineType type_tagged = MachineType::AnyTagged();
-    MachineType type_ptr = MachineType::Pointer();
-
-    // Result: A NativeRegExpMacroAssembler::Result return code.
-    MachineType retval_type = type_int32;
-
-    // Argument 0: Original subject string.
-    MachineType arg0_type = type_tagged;
-    TNode<String> arg0 = string;
-
-    // Argument 1: Previous index.
-    MachineType arg1_type = type_int32;
-    TNode<Int32T> arg1 = TruncateIntPtrToInt32(int_last_index);
-
-    // Argument 2: Start of string data. This argument is ignored in the
-    // interpreter.
-    MachineType arg2_type = type_ptr;
-    TNode<RawPtrT> arg2 = var_string_start.value();
-
-    // Argument 3: End of string data. This argument is ignored in the
-    // interpreter.
-    MachineType arg3_type = type_ptr;
-    TNode<RawPtrT> arg3 = var_string_end.value();
-
-    // Argument 4: result offsets vector.
-    MachineType arg4_type = type_ptr;
-    TNode<RawPtrT> arg4 = var_result_offsets_vector.value();
-
-    // Argument 5: Number of capture registers.
-    // Setting this to the number of registers required to store all captures
-    // forces global regexps to behave as non-global.
-    MachineType arg5_type = type_int32;
-    TNode<Int32T> arg5 = SmiToInt32(register_count);
-
-    // Argument 6: Indicate that this is a direct call from JavaScript.
-    MachineType arg6_type = type_int32;
-    TNode<Int32T> arg6 = Int32Constant(RegExp::CallOrigin::kFromJs);
-
-    // Argument 7: Pass current isolate address.
-    MachineType arg7_type = type_ptr;
-    TNode<ExternalReference> arg7 = isolate_address;
-
-    // Argument 8: Regular expression data object. This argument is ignored in
-    // native irregexp code.
-    MachineType arg8_type = type_tagged;
-    TNode<IrRegExpData> arg8 = CAST(data);
-
-#ifdef V8_ENABLE_SANDBOX
-    TNode<RawPtrT> code_entry = LoadCodeEntryFromIndirectPointerHandle(
-        var_code.value(), kRegExpEntrypointTag);
-#else
-    TNode<Code> code = CAST(var_code.value());
-    TNode<RawPtrT> code_entry =
-        LoadCodeInstructionStart(code, kRegExpEntrypointTag);
-#endif
-
-    // AIX uses function descriptors on CFunction calls. code_entry in this case
-    // may also point to a Regex interpreter entry trampoline which does not
-    // have a function descriptor. This method is ineffective on other platforms
-    // and is equivalent to CallCFunction.
-    TNode<Int32T> result =
-        UncheckedCast<Int32T>(CallCFunctionWithoutFunctionDescriptor(
-            code_entry, retval_type, std::make_pair(arg0_type, arg0),
-            std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2),
-            std::make_pair(arg3_type, arg3), std::make_pair(arg4_type, arg4),
-            std::make_pair(arg5_type, arg5), std::make_pair(arg6_type, arg6),
-            std::make_pair(arg7_type, arg7), std::make_pair(arg8_type, arg8)));
-
-    // Check the result.
-    // We expect exactly one result since we force the called regexp to behave
-    // as non-global.
-    TNode<IntPtrT> int_result = ChangeInt32ToIntPtr(result);
-    GotoIf(
-        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpSuccess)),
-        &if_success);
-    GotoIf(
-        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpFailure)),
-        &if_failure);
-    GotoIf(IntPtrEqual(int_result,
-                       IntPtrConstant(RegExp::kInternalRegExpException)),
-           &if_exception);
-    GotoIf(IntPtrEqual(
-               int_result,
-               IntPtrConstant(RegExp::kInternalRegExpFallbackToExperimental)),
-           &retry_experimental);
-
-    CSA_DCHECK(this, IntPtrEqual(int_result,
-                                 IntPtrConstant(RegExp::kInternalRegExpRetry)));
-    Goto(&runtime);
-  }
-
-  BIND(&if_success);
-  {
+    CSA_DCHECK(this, IntPtrEqual(num_matches, IntPtrConstant(1)));
+    CSA_DCHECK(this, TaggedEqual(context, LoadNativeContext(context)));
+    TNode<RegExpMatchInfo> last_match_info = CAST(
+        LoadContextElement(context, Context::REGEXP_LAST_MATCH_INFO_INDEX));
     var_result = InitializeMatchInfoFromRegisters(
-        context, match_info, register_count, string,
-        var_result_offsets_vector.value());
-    FreeRegExpResultVector(var_result_offsets_vector.value(),
-                           var_result_offsets_vector_is_dynamic.value());
-    Goto(&out);
-  }
-
-  BIND(&if_failure);
-  {
-    FreeRegExpResultVector(var_result_offsets_vector.value(),
-                           var_result_offsets_vector_is_dynamic.value());
-    var_result = NullConstant();
+        context, last_match_info, register_count_per_match, string,
+        result_offsets_vector);
     Goto(&out);
   }
 
   BIND(&if_exception);
-  {
-    FreeRegExpResultVector(var_result_offsets_vector.value(),
-                           var_result_offsets_vector_is_dynamic.value());
-// A stack overflow was detected in RegExp code.
-#ifdef DEBUG
-    TNode<ExternalReference> exception_address =
-        ExternalConstant(ExternalReference::Create(
-            IsolateAddressId::kExceptionAddress, isolate()));
-    TNode<Object> exception = LoadFullTagged(exception_address);
-    CSA_DCHECK(this, IsTheHole(exception));
-#endif  // DEBUG
-    CallRuntime(Runtime::kThrowStackOverflow, context);
-    Unreachable();
-  }
-
-  BIND(&retry_experimental);
-  {
-    FreeRegExpResultVector(var_result_offsets_vector.value(),
-                           var_result_offsets_vector_is_dynamic.value());
-    var_result =
-        CAST(CallRuntime(Runtime::kRegExpExperimentalOneshotExec, context,
-                         regexp, string, last_index, match_info));
-    Goto(&out);
-  }
-
-  BIND(&runtime);
-  {
-    FreeRegExpResultVector(var_result_offsets_vector.value(),
-                           var_result_offsets_vector_is_dynamic.value());
-    var_result = CAST(CallRuntime(Runtime::kRegExpExec, context, regexp, string,
-                                  last_index, match_info));
-    Goto(&out);
-  }
-
-  BIND(&atom);
-  {
-    FreeRegExpResultVector(var_result_offsets_vector.value(),
-                           var_result_offsets_vector_is_dynamic.value());
-    // TODO(jgruber): A call with 4 args stresses register allocation, this
-    // should probably just be inlined.
-    var_result = CAST(CallBuiltin(Builtin::kRegExpExecAtom, context, regexp,
-                                  string, last_index, match_info));
-    Goto(&out);
-  }
+  FreeRegExpResultVector(result_offsets_vector,
+                         result_offsets_vector_is_dynamic);
+  CallRuntime(Runtime::kReThrow, context, var_exception.value());
+  Unreachable();
 
   BIND(&out);
-  return var_result.value();
+  FreeRegExpResultVector(result_offsets_vector,
+                         result_offsets_vector_is_dynamic);
+  return var_result.value();  // RegExpMatchInfo | Null.
 }
 
 TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(

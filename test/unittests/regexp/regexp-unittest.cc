@@ -2371,8 +2371,8 @@ struct RegExpExecData {
 };
 
 i::Handle<i::Object> RegExpExec(const RegExpExecData* d) {
-  return i::RegExp::Exec(d->isolate, d->regexp, d->subject, 0,
-                         d->isolate->regexp_last_match_info())
+  return i::RegExp::Exec_Single(d->isolate, d->regexp, d->subject, 0,
+                                d->isolate->regexp_last_match_info())
       .ToHandleChecked();
 }
 

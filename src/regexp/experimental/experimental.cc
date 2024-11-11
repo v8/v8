@@ -264,6 +264,54 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
   UNREACHABLE();
 }
 
+// static
+std::optional<int> ExperimentalRegExp::Exec2(
+    Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
+    Handle<String> subject, int index, int32_t* result_offsets_vector,
+    uint32_t result_offsets_vector_length) {
+  DCHECK(v8_flags.enable_experimental_regexp_engine);
+  DCHECK_EQ(regexp_data->type_tag(), RegExpData::Type::EXPERIMENTAL);
+#ifdef VERIFY_HEAP
+  if (v8_flags.verify_heap) regexp_data->IrRegExpDataVerify(isolate);
+#endif
+
+  if (!IsCompiled(regexp_data, isolate) && !Compile(isolate, regexp_data)) {
+    DCHECK(isolate->has_exception());
+    return {};
+  }
+
+  DCHECK(IsCompiled(regexp_data, isolate));
+
+  subject = String::Flatten(isolate, subject);
+
+  DCHECK_GE(result_offsets_vector_length,
+            JSRegExp::RegistersForCaptureCount(regexp_data->capture_count()));
+
+  do {
+    int num_matches =
+        ExecRaw(isolate, RegExp::kFromRuntime, *regexp_data, *subject,
+                result_offsets_vector, result_offsets_vector_length, index);
+
+    if (num_matches > 0) {
+      DCHECK_LE(num_matches * JSRegExp::RegistersForCaptureCount(
+                                  regexp_data->capture_count()),
+                result_offsets_vector_length);
+      return num_matches;
+    } else if (num_matches == 0) {
+      return num_matches;
+    } else {
+      DCHECK_LT(num_matches, 0);
+      if (num_matches == RegExp::kInternalRegExpRetry) {
+        // Re-run execution.
+        continue;
+      }
+      DCHECK(isolate->has_exception());
+      return {};
+    }
+  } while (true);
+  UNREACHABLE();
+}
+
 int32_t ExperimentalRegExp::OneshotExecRaw(
     Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
     DirectHandle<String> subject, int32_t* output_registers,

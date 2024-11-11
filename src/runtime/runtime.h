@@ -426,8 +426,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_REGEXP(F, I)                              \
   F(RegExpBuildIndices, 3, 1)                                        \
   F(RegExpGrowRegExpMatchInfo, 2, 1)                                 \
-  F(RegExpExec, 4, 1)                                                \
-  F(RegExpExperimentalOneshotExec, 4, 1)                             \
   F(RegExpExecMultiple, 3, 1)                                        \
   F(RegExpInitializeAndCompile, 3, 1)                                \
   F(RegExpMatchGlobalAtom, 3, 1)                                     \

@@ -912,17 +912,6 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
 namespace {
 
-MaybeHandle<Object> RegExpExec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
-                               Handle<String> subject, int32_t index,
-                               Handle<RegExpMatchInfo> last_match_info) {
-  // Due to the way the JS calls are constructed this must be less than the
-  // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CHECK_LE(0, index);
-  CHECK_GE(subject->length(), index);
-  isolate->counters()->regexp_entry_runtime()->Increment();
-  return RegExp::Exec(isolate, regexp, subject, index, last_match_info);
-}
-
 std::optional<int> RegExpExec2(Isolate* isolate, DirectHandle<JSRegExp> regexp,
                                Handle<String> subject, int32_t index,
                                int32_t* result_offsets_vector,
@@ -934,19 +923,6 @@ std::optional<int> RegExpExec2(Isolate* isolate, DirectHandle<JSRegExp> regexp,
   isolate->counters()->regexp_entry_runtime()->Increment();
   return RegExp::Exec2(isolate, regexp, subject, index, result_offsets_vector,
                        result_offsets_vector_length);
-}
-
-MaybeHandle<Object> ExperimentalOneshotExec(
-    Isolate* isolate, DirectHandle<JSRegExp> regexp,
-    DirectHandle<String> subject, int32_t index,
-    Handle<RegExpMatchInfo> last_match_info) {
-  // Due to the way the JS calls are constructed this must be less than the
-  // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CHECK_LE(0, index);
-  CHECK_GE(subject->length(), index);
-  isolate->counters()->regexp_entry_runtime()->Increment();
-  return RegExp::ExperimentalOneshotExec(isolate, regexp, subject, index,
-                                         last_match_info);
 }
 
 std::optional<int> ExperimentalOneshotExec2(
@@ -967,18 +943,6 @@ std::optional<int> ExperimentalOneshotExec2(
 }
 
 }  // namespace
-
-RUNTIME_FUNCTION(Runtime_RegExpExec) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
-  Handle<String> subject = args.at<String>(1);
-  int32_t index = 0;
-  CHECK(Object::ToInt32(args[2], &index));
-  Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, RegExpExec(isolate, regexp, subject, index, last_match_info));
-}
 
 RUNTIME_FUNCTION(Runtime_RegExpExec2) {
   HandleScope scope(isolate);
@@ -1020,19 +984,6 @@ RUNTIME_FUNCTION(Runtime_RegExpGrowRegExpMatchInfo) {
   }
 
   return *result;
-}
-
-RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
-  DirectHandle<String> subject = args.at<String>(1);
-  int32_t index = 0;
-  CHECK(Object::ToInt32(args[2], &index));
-  Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, ExperimentalOneshotExec(isolate, regexp, subject, index,
-                                       last_match_info));
 }
 
 RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec2) {
@@ -1508,7 +1459,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     if (last_index <= static_cast<uint32_t>(string->length())) {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, match_indices_obj,
-          RegExp::Exec(isolate, regexp, string, last_index, last_match_info));
+          RegExp::Exec_Single(isolate, regexp, string, last_index,
+                              last_match_info));
     }
 
     if (IsNull(*match_indices_obj, isolate)) {
@@ -1650,7 +1602,8 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   if (last_index <= static_cast<uint32_t>(subject->length())) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, match_indices_obj,
-        RegExp::Exec(isolate, regexp, subject, last_index, last_match_info));
+        RegExp::Exec_Single(isolate, regexp, subject, last_index,
+                            last_match_info));
   }
 
   if (IsNull(*match_indices_obj, isolate)) {
