@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_TRUSTED_OBJECT_INL_H_
 #define V8_OBJECTS_TRUSTED_OBJECT_INL_H_
 
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/trusted-object.h"
 #include "src/sandbox/sandbox.h"

@@ -1389,6 +1389,8 @@ extern macro EmptyFixedArrayConstant(): EmptyFixedArray;
 extern macro PromiseCapabilityMapConstant(): Map;
 extern macro SeqOneByteStringMapConstant(): Map;
 extern macro SeqTwoByteStringMapConstant(): Map;
+extern macro ConsOneByteStringMapConstant(): Map;
+extern macro ConsTwoByteStringMapConstant(): Map;
 
 const kFixedArrayMap: Map = FixedArrayMapConstant();
 const kFixedDoubleArrayMap: Map = FixedDoubleArrayMapConstant();
@@ -1400,6 +1402,8 @@ const kPromiseCapabilityMap: Map = PromiseCapabilityMapConstant();
 const kSeqOneByteStringMap: Map = SeqOneByteStringMapConstant();
 // The map of a non-internalized internal SeqTwoByteString.
 const kSeqTwoByteStringMap: Map = SeqTwoByteStringMapConstant();
+const kConsOneByteStringMap: Map = ConsOneByteStringMapConstant();
+const kConsTwoByteStringMap: Map = ConsTwoByteStringMapConstant();
 
 macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
   return UintPtrGreaterThanOrEqual(
@@ -1818,6 +1822,7 @@ transitioning macro GetInterestingMethod(
   }
 }
 
+extern macro IsOneByteStringMap(Map): bool;
 extern macro IsOneByteStringInstanceType(InstanceType): bool;
 
 // After converting an index to an integer, calculate a relative index:

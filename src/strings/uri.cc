@@ -507,7 +507,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
 MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
   DirectHandle<String> result;
   string = String::Flatten(isolate, string);
-  return String::IsOneByteRepresentationUnderneath(*string)
+  return string->IsOneByteRepresentation()
              ? EscapePrivate<uint8_t>(isolate, string)
              : EscapePrivate<base::uc16>(isolate, string);
 }
@@ -515,7 +515,7 @@ MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
 MaybeHandle<String> Uri::Unescape(Isolate* isolate, Handle<String> string) {
   DirectHandle<String> result;
   string = String::Flatten(isolate, string);
-  return String::IsOneByteRepresentationUnderneath(*string)
+  return string->IsOneByteRepresentation()
              ? UnescapePrivate<uint8_t>(isolate, string)
              : UnescapePrivate<base::uc16>(isolate, string);
 }

@@ -1207,7 +1207,7 @@ builtin WasmStringEqual(a: String, b: String): int32 {
 }
 
 builtin WasmStringIsUSVSequence(str: String): int32 {
-  if (IsOneByteStringInstanceType(str.instanceType)) return 1;
+  if (IsOneByteStringMap(str.map)) return 1;
   const length = runtime::WasmStringMeasureUtf8(LoadContextFromFrame(), str);
   if (NumberToInt32(length) < 0) return 0;
   return 1;

@@ -17,31 +17,8 @@ extern class String extends Name {
     return this.StringInstanceType().is_not_internalized;
   }
 
-  // Keep this in sync with the C++ String::IsOneByteRepresentationUnderneath.
-  macro IsOneByteRepresentationUnderneath(): bool {
-    let string = this;
-    while (true) {
-      typeswitch (string) {
-        case (cons: ConsString): {
-          dcheck(cons.IsFlat());
-          string = cons.first;
-        }
-        case (thin: ThinString): {
-          // Internalized strings can't change representation.
-          dcheck(
-              thin.StringInstanceType().is_one_byte ==
-              thin.actual.StringInstanceType().is_one_byte);
-          return thin.StringInstanceType().is_one_byte;
-        }
-        case (slice: SlicedString): {
-          string = slice.parent;
-        }
-        case (String): {
-          return string.StringInstanceType().is_one_byte;
-        }
-      }
-    }
-    VerifiedUnreachable();
+  macro IsOneByteRepresentation(): bool {
+    return IsOneByteStringMap(this.map);
   }
 
   const length: int32;
@@ -69,10 +46,6 @@ extern class ConsString extends String {
   // Corresponds to String::IsFlat() in the C++ runtime.
   macro IsFlat(): bool {
     return this.second.length == 0;
-  }
-
-  macro IsOneByteRepresentation(): bool {
-    return this.StringInstanceType().is_one_byte;
   }
 
   first: String;
@@ -240,7 +213,7 @@ builtin StringSlowFlatten(cons: ConsString): String {
   }
 
   let flat: String;
-  if (cons.IsOneByteRepresentation()) {
+  if (cons.map == kConsOneByteStringMap) {
     const allocated = AllocateNonEmptySeqOneByteString(Unsigned(cons.length));
     StringWriteToFlatOneByte(
         cons, (&allocated.chars).GCUnsafeStartPointer(), 0, cons.length);

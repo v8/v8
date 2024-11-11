@@ -474,12 +474,7 @@ class NfaInterpreter {
         isolate_->StackOverflow();
         return RegExp::kInternalRegExpException;
       } else if (check.InterruptRequested()) {
-        // TODO(mbid): Is this really equivalent to whether the string is
-        // one-byte or two-byte? A comment at the declaration of
-        // IsOneByteRepresentationUnderneath says that this might fail for
-        // external strings.
-        const bool was_one_byte =
-            String::IsOneByteRepresentationUnderneath(input_object_);
+        const bool was_one_byte = input_object_->IsOneByteRepresentation();
 
         Tagged<Object> result;
         {
@@ -493,8 +488,7 @@ class NfaInterpreter {
         // If we changed between a LATIN1 and a UC16 string, we need to restart
         // regexp matching with the appropriate template instantiation of
         // RawMatch.
-        if (String::IsOneByteRepresentationUnderneath(*input_handle) !=
-            was_one_byte) {
+        if (input_handle->IsOneByteRepresentation() != was_one_byte) {
           return RegExp::kInternalRegExpRetry;
         }
 

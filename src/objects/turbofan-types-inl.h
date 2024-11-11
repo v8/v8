@@ -7,6 +7,7 @@
 
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/turbofan-types.h"
 
 // Has to be the last include (doesn't have include guards):

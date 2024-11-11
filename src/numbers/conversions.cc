@@ -340,7 +340,7 @@ class StringToIntHelper {
   bool IsOneByte() const {
     if (raw_two_byte_subject_ != nullptr) return false;
     return raw_one_byte_subject_ != nullptr ||
-           String::IsOneByteRepresentationUnderneath(*subject_);
+           subject_->IsOneByteRepresentation();
   }
 
   base::Vector<const uint8_t> GetOneByteVector(
@@ -1360,7 +1360,7 @@ std::optional<double> TryStringToInt(LocalIsolate* isolate,
     return std::nullopt;
   }
 
-  if (String::IsOneByteRepresentationUnderneath(*object)) {
+  if (object->IsOneByteRepresentation()) {
     uint8_t buffer[kMaxLengthForConversion];
     SharedStringAccessGuardIfNeeded access_guard(isolate);
     String::WriteToFlat(*object, buffer, 0, length, access_guard);

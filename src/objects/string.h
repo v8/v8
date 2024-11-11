@@ -235,18 +235,9 @@ V8_OBJECT class String : public Name {
   inline void set_length(uint32_t hash);
   inline void set_length(uint32_t hash, ReleaseStoreTag);
 
-  // Returns whether this string has only one-byte chars, i.e. all of them can
-  // be one-byte encoded.  This might be the case even if the string is
-  // two-byte.  Such strings may appear when the embedder prefers
-  // two-byte external representations even for one-byte data.
+  // Returns whether this string is stored with one-byte chars.
   inline bool IsOneByteRepresentation() const;
   inline bool IsTwoByteRepresentation() const;
-
-  // Cons and slices have an encoding flag that may not represent the actual
-  // encoding of the underlying string.  This is taken into account here.
-  // This function is static because that helps it get inlined.
-  // Requires: string.IsFlat()
-  static inline bool IsOneByteRepresentationUnderneath(Tagged<String> string);
 
   // Get and set individual two byte chars in the string.
   inline void Set(uint32_t index, uint16_t value);
