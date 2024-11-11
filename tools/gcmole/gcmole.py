@@ -810,7 +810,7 @@ def verify_clang_plugin(parser, options):
 
 def prepare_gcmole_files(options):
   cmd = [
-      "ninja", "-C", options.v8_build_dir, "v8_gcmole_files",
+      "autoninja", "-C", options.v8_build_dir, "v8_gcmole_files",
       "v8_dump_build_config"
   ]
   cmd = list(map(str, cmd))
