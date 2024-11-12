@@ -2725,6 +2725,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         std::numeric_limits<int>::max())) {
         V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
             imm.table_imm.table->address_type, index.op);
+
+        DCHECK(!shared_);
+        constexpr bool kNotShared = false;
+        // Load the instance here even though it's only used below, in the hope
+        // that load elimination can use it when fetching the target next.
+        V<WasmTrustedInstanceData> instance = trusted_instance_data(kNotShared);
+
         // We are only interested in the target here for comparison against
         // the inlined call target below.
         // In particular, we don't need a dynamic type or null check: If the
@@ -2732,7 +2739,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // we know already from the static check on the inlinee (see below) that
         // the inlined code has the right signature.
         constexpr bool kNeedsTypeOrNullCheck = false;
-        auto [target, _implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
+        auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
         size_t return_count = imm.sig->return_count();
@@ -2747,10 +2754,44 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
           case_blocks.push_back(__ NewBlock());
         }
+        // Block for the slowpath, i.e., the not-inlined call or deopt.
+        TSBlock* no_inline_block = case_blocks.back();
+        // Block for merging results after the inlined code.
         TSBlock* merge = __ NewBlock();
-        __ Goto(case_blocks[0]);
 
+        // Always create a frame state, but rely on DCE to remove it in case we
+        // end up not using deopts. This allows us to share the frame state
+        // between a deopt due to wrong instance and deopt due to wrong target.
+        V<FrameState> frame_state =
+            CreateFrameState(decoder, imm.sig, &index, args);
         bool use_deopt_slowpath = deopts_enabled_;
+        DCHECK_IMPLIES(use_deopt_slowpath, frame_state.valid());
+        if (use_deopt_slowpath &&
+            inlining_decisions_->has_non_inlineable_targets()[feedback_slot_]) {
+          if (v8_flags.trace_wasm_inlining) {
+            PrintF(
+                "[function %d%s: Not emitting deopt slow-path for "
+                "call_indirect #%d as feedback contains non-inlineable "
+                "targets]\n",
+                func_index_, mode_ == kRegular ? "" : " (inlined)",
+                feedback_slot_);
+          }
+          use_deopt_slowpath = false;
+        }
+
+        // Wasm functions are semantically closures over the instance, but
+        // when we inline a target in the following, we implicitly assume the
+        // inlinee instance is the same as the caller's instance.
+        // Directly jump to the non-inlined slowpath if that's violated.
+        // Note that for `call_ref` this isn't necessary, because the funcref
+        // equality check already captures both code and instance equality.
+        constexpr BranchHint kUnlikelyCrossInstanceCall = BranchHint::kTrue;
+        // Note that the `implicit_arg` can never be a `WasmImportData`,
+        // since we don't inline imported functions right now.
+        __ Branch({__ TaggedEqual(implicit_arg, instance),
+                   kUnlikelyCrossInstanceCall},
+                  case_blocks[0], no_inline_block);
+
         for (size_t i = 0; i < feedback_cases.size(); i++) {
           __ Bind(case_blocks[i]);
           InliningTree* tree = feedback_cases[i];
@@ -2783,34 +2824,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
           bool is_last_feedback_case = (i == feedback_cases.size() - 1);
           if (use_deopt_slowpath && is_last_feedback_case) {
-            if (inlining_decisions_
-                    ->has_non_inlineable_targets()[feedback_slot_]) {
-              if (v8_flags.trace_wasm_inlining) {
-                PrintF(
-                    "[function %d%s: Not emitting deopt slow-path for "
-                    "call_indirect #%d as feedback contains non-inlineable "
-                    "targets]\n",
-                    func_index_, mode_ == kRegular ? "" : " (inlined)",
-                    feedback_slot_);
-              }
-              use_deopt_slowpath = false;
-            }
-          }
-          bool emit_deopt = use_deopt_slowpath && is_last_feedback_case;
-          if (emit_deopt) {
-            const FunctionSig* sig =
-                decoder->module_->functions[inlined_index].sig;
-            V<FrameState> frame_state =
-                CreateFrameState(decoder, sig, &index, args);
-            if (frame_state.valid()) {
               DeoptIfNot(decoder, __ WasmCodePtrEqual(target, inlined_target),
                          frame_state);
             } else {
-              emit_deopt = false;
-              use_deopt_slowpath = false;
-            }
-          }
-          if (!emit_deopt) {
             TSBlock* inline_block = __ NewBlock();
             BranchHint hint =
                 is_last_feedback_case ? BranchHint::kTrue : BranchHint::kNone;
@@ -2844,9 +2860,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           }
         }
 
-        if (!use_deopt_slowpath) {
-          TSBlock* no_inline_block = case_blocks.back();
-          __ Bind(no_inline_block);
+        __ Bind(no_inline_block);
+        if (use_deopt_slowpath) {
+          // We need this unconditional deopt only for the "instance check",
+          // as the last "target check" already uses a `DeoptIfNot` node.
+          Deopt(decoder, frame_state);
+        } else {
           auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
               decoder, index_wordptr, imm);
           SmallZoneVector<Value, 4> indirect_returns(return_count,
@@ -2888,6 +2907,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         std::numeric_limits<int>::max())) {
         V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
             imm.table_imm.table->address_type, index.op);
+
+        DCHECK(!shared_);
+        constexpr bool kNotShared = false;
+        // Load the instance here even though it's only used below, in the hope
+        // that load elimination can use it when fetching the target next.
+        V<WasmTrustedInstanceData> instance = trusted_instance_data(kNotShared);
+
         // We are only interested in the target here for comparison against
         // the inlined call target below.
         // In particular, we don't need a dynamic type or null check: If the
@@ -2895,7 +2921,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // we know already from the static check on the inlinee (see below) that
         // the inlined code has the right signature.
         constexpr bool kNeedsTypeOrNullCheck = false;
-        auto [target, _implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
+        auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
         base::Vector<InliningTree*> feedback_cases =
@@ -2906,7 +2932,21 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
           case_blocks.push_back(__ NewBlock());
         }
-        __ Goto(case_blocks[0]);
+        // Block for the slowpath, i.e., the not-inlined call.
+        TSBlock* no_inline_block = case_blocks.back();
+
+        // Wasm functions are semantically closures over the instance, but
+        // when we inline a target in the following, we implicitly assume the
+        // inlinee instance is the same as the caller's instance.
+        // Directly jump to the non-inlined slowpath if that's violated.
+        // Note that for `call_ref` this isn't necessary, because the funcref
+        // equality check already captures both code and instance equality.
+        constexpr BranchHint kUnlikelyCrossInstanceCall = BranchHint::kTrue;
+        // Note that the `implicit_arg` can never be a `WasmImportData`,
+        // since we don't inline imported functions right now.
+        __ Branch({__ TaggedEqual(implicit_arg, instance),
+                   kUnlikelyCrossInstanceCall},
+                  case_blocks[0], no_inline_block);
 
         for (size_t i = 0; i < feedback_cases.size(); i++) {
           __ Bind(case_blocks[i]);
@@ -2955,7 +2995,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           DCHECK_NULL(__ current_block());
         }
 
-        TSBlock* no_inline_block = case_blocks.back();
         __ Bind(no_inline_block);
       }  // should_inline
     }    // v8_flags.wasm_inlining_call_indirect
@@ -2986,14 +3025,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     if (should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
-      // These will be shared if we are in a shared function already, and
-      // non-shared otherwise.
-      V<FixedArray> maybe_shared_func_refs =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), FuncRefs,
-                                        MemoryRepresentation::TaggedPointer());
-      V<FixedArray> shared_func_refs =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(true), FuncRefs,
-                                        MemoryRepresentation::TaggedPointer());
+      DCHECK(!shared_);
+      constexpr bool kNotShared = false;
+      V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          trusted_instance_data(kNotShared), FuncRefs,
+          MemoryRepresentation::TaggedPointer());
 
       size_t return_count = sig->return_count();
       base::Vector<InliningTree*> feedback_cases =
@@ -3023,11 +3059,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           continue;
         }
         uint32_t inlined_index = tree->function_index();
-        ModuleTypeIndex sig_index =
-            decoder->module_->functions[inlined_index].sig_index;
-        bool shared = decoder->module_->type(sig_index).is_shared;
-        V<Object> inlined_func_ref = __ LoadFixedArrayElement(
-            shared ? shared_func_refs : maybe_shared_func_refs, inlined_index);
+        DCHECK(!decoder->module_->function_is_shared(inlined_index));
+        V<Object> inlined_func_ref =
+            __ LoadFixedArrayElement(func_refs, inlined_index);
 
         bool is_last_feedback_case = (i == feedback_cases.size() - 1);
         if (use_deopt_slowpath && is_last_feedback_case) {
@@ -3127,14 +3161,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     if (should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
-      // These will be shared if we are in a shared function already, and
-      // non-shared otherwise.
-      V<FixedArray> maybe_shared_func_refs =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), FuncRefs,
-                                        MemoryRepresentation::TaggedPointer());
-      V<FixedArray> shared_func_refs =
-          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(true), FuncRefs,
-                                        MemoryRepresentation::TaggedPointer());
+      DCHECK(!shared_);
+      constexpr bool kNotShared = false;
+      V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          trusted_instance_data(kNotShared), FuncRefs,
+          MemoryRepresentation::TaggedPointer());
+
       base::Vector<InliningTree*> feedback_cases =
           inlining_decisions_->function_calls()[feedback_slot_];
       constexpr int kSlowpathCase = 1;
@@ -3155,11 +3187,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           continue;
         }
         uint32_t inlined_index = tree->function_index();
-        ModuleTypeIndex sig_index =
-            decoder->module_->functions[inlined_index].sig_index;
-        bool shared = decoder->module_->type(sig_index).is_shared;
-        V<Object> inlined_func_ref = __ LoadFixedArrayElement(
-            shared ? shared_func_refs : maybe_shared_func_refs, inlined_index);
+        DCHECK(!decoder->module_->function_is_shared(inlined_index));
+        V<Object> inlined_func_ref =
+            __ LoadFixedArrayElement(func_refs, inlined_index);
 
         TSBlock* inline_block = __ NewBlock();
         bool is_last_case = (i == feedback_cases.size() - 1);
@@ -5878,7 +5908,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       Value* val = decoder->stack_value(i);
       builder.AddInput(val->type.machine_type(), val->op);
     }
-    // Add the call_ref stack values.
+    // Add the call_ref or call_indirect stack values.
     if (args != nullptr) {
       for (const Value& arg :
            base::VectorOf(args, callee_sig->parameter_count())) {
@@ -5929,9 +5959,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
                   V<FrameState> frame_state) {
     CHECK(deopts_enabled_);
+    DCHECK(frame_state.valid());
     __ DeoptimizeIfNot(deopt_condition, frame_state,
                        DeoptimizeReason::kWrongCallTarget,
                        compiler::FeedbackSource());
+  }
+
+  void Deopt(FullDecoder* decoder, V<FrameState> frame_state) {
+    CHECK(deopts_enabled_);
+    DCHECK(frame_state.valid());
+    __ Deoptimize(frame_state, DeoptimizeReason::kWrongCallTarget,
+                  compiler::FeedbackSource());
   }
 
   uint32_t GetLiftoffFrameSize(const FullDecoder* decoder) {
@@ -8333,6 +8371,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
  private:
   bool should_inline(FullDecoder* decoder, int feedback_slot, int size) {
     if (!v8_flags.wasm_inlining) return false;
+    // TODO(42204563,41480394,335082212): Do not inline if the current function
+    // is shared (which also implies the target cannot be shared either).
+    if (shared_) return false;
 
     // Configuration without Liftoff and feedback, e.g., for testing.
     if (!v8_flags.liftoff) {
@@ -8353,7 +8394,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // to be inlined.
       for (InliningTree* tree :
            inlining_decisions_->function_calls()[feedback_slot]) {
-        if (tree && tree->is_inlined()) return true;
+        if (tree && tree->is_inlined()) {
+          DCHECK(!decoder->module_->function_is_shared(tree->function_index()));
+          return true;
+        }
       }
       return false;
     }
