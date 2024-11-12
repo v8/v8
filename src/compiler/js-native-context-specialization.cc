@@ -777,7 +777,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
     // Check that {constructor} is actually {receiver}.
     constructor = access_builder.BuildCheckValue(constructor, &effect, control,
-                                                 receiver->object());
+                                                 *receiver);
 
     // Monomorphic property access.
     access_builder.BuildCheckMaps(constructor, &effect, control,

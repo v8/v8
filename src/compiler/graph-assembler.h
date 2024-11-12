@@ -1028,6 +1028,9 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<Boolean> ObjectIsCallable(TNode<Object> value);
   TNode<Boolean> ObjectIsSmi(TNode<Object> value);
   TNode<Boolean> ObjectIsUndetectable(TNode<Object> value);
+  Node* BooleanNot(Node* cond);
+  Node* CheckSmi(Node* value, const FeedbackSource& feedback = {});
+  Node* CheckNumber(Node* value, const FeedbackSource& feedback = {});
   Node* CheckIf(Node* cond, DeoptimizeReason reason,
                 const FeedbackSource& feedback = {});
   Node* Assert(Node* cond, const char* condition_string = "",

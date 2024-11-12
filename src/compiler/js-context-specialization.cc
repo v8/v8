@@ -4,15 +4,18 @@
 
 #include "src/compiler/js-context-specialization.h"
 
+#include "src/base/logging.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/const-tracking-let-helpers.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/objects/contexts-inl.h"
@@ -108,6 +111,24 @@ Reduction JSContextSpecialization::SimplifyJSStoreContext(Node* node,
 
   const Operator* op =
       jsgraph_->javascript()->StoreContext(new_depth, access.index());
+  NodeProperties::ReplaceContextInput(node, new_context);
+  NodeProperties::ChangeOp(node, op);
+  return Changed(node);
+}
+
+Reduction JSContextSpecialization::SimplifyJSStoreScriptContext(
+    Node* node, Node* new_context, size_t new_depth) {
+  DCHECK_EQ(IrOpcode::kJSStoreScriptContext, node->opcode());
+  const ContextAccess& access = ContextAccessOf(node->op());
+  DCHECK_LE(new_depth, access.depth());
+
+  if (new_depth == access.depth() &&
+      new_context == NodeProperties::GetContextInput(node)) {
+    return NoChange();
+  }
+
+  const Operator* op =
+      jsgraph_->javascript()->StoreScriptContext(new_depth, access.index());
   NodeProperties::ReplaceContextInput(node, new_context);
   NodeProperties::ChangeOp(node, op);
   return Changed(node);
@@ -338,52 +359,104 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
 Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
   DCHECK(v8_flags.const_tracking_let);
   DCHECK_EQ(IrOpcode::kJSStoreScriptContext, node->opcode());
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
 
   const ContextAccess& access = ContextAccessOf(node->op());
   size_t depth = access.depth();
-  int side_data_index = ConstTrackingLetSideDataIndexForAccess(access.index());
 
   // First walk up the context chain in the graph until we reduce the depth to 0
   // or hit a node that does not have a CreateXYZContext operator.
   Node* context = NodeProperties::GetOuterContext(node, &depth);
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
 
-  OptionalContextRef maybe_context =
+  OptionalContextRef maybe_concrete =
       GetSpecializationContext(broker(), context, &depth, outer());
-  if (IsConstTrackingLetVariableSurelyNotConstant(maybe_context, depth,
-                                                  side_data_index, broker())) {
-    // The value is not a constant any more, so we don't need to generate
-    // code for invalidating the side data.
-    const Operator* op =
-        jsgraph_->javascript()->StoreContext(depth, access.index());
-    Node* new_store = effect = jsgraph_->graph()->NewNode(
-        op, NodeProperties::GetValueInput(node, 0), context, effect, control);
-    ReplaceWithValue(node, new_store, effect, control);
+  if (!maybe_concrete.has_value()) {
+    // We do not have a concrete context object, so we can only partially reduce
+    // the load by folding-in the outer context node.
+    return SimplifyJSStoreScriptContext(node, context, depth);
+  }
+
+  // Now walk up the concrete context chain for the remaining depth.
+  ContextRef concrete = maybe_concrete.value();
+  concrete = concrete.previous(broker(), &depth);
+  if (depth > 0) {
+    TRACE_BROKER_MISSING(broker(), "previous value for context " << concrete);
+    return SimplifyJSStoreScriptContext(
+        node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
+  }
+  DCHECK(concrete.object()->IsScriptContext());
+  auto property =
+      concrete.object()->GetScriptContextSideProperty(access.index());
+  PropertyAccessBuilder access_builder(jsgraph(), broker());
+  if (property == ContextSidePropertyCell::kConst) {
+    compiler::OptionalObjectRef constant =
+        concrete.get(broker(), static_cast<int>(access.index()));
+    if (!constant.has_value() ||
+        (constant->IsString() && !constant->IsInternalizedString())) {
+      return SimplifyJSStoreScriptContext(
+          node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
+    }
+    broker()->dependencies()->DependOnScriptContextSlotProperty(
+        concrete, access.index(), property, broker());
+    access_builder.BuildCheckValue(value, &effect, control, *constant);
+    ReplaceWithValue(node, effect, effect, control);
     return Changed(node);
   }
 
-  // The value might be a constant. Generate code which checks the side data and
-  // potentially invalidates the constness.
-
-  // Generate code to walk up the contexts the remaining depth.
-  for (size_t i = 0; i < depth; ++i) {
-    context = effect = jsgraph_->graph()->NewNode(
-        jsgraph_->simplified()->LoadField(
-            AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX)),
-        context, effect, control);
+  if (!v8_flags.script_context_mutable_heap_number) {
+    // Do a normal context store.
+    Node* store = jsgraph()->graph()->NewNode(
+        jsgraph()->simplified()->StoreField(
+            AccessBuilder::ForContextSlot(access.index())),
+        jsgraph()->ConstantNoHole(concrete, broker()), value, effect, control);
+    ReplaceWithValue(node, store, store, control);
+    return Changed(node);
   }
 
-  GenerateCheckConstTrackingLetSideData(context, &effect, &control,
-                                        side_data_index, jsgraph_);
-
-  // If we're still here (not deopted) the side data implied that the value was
-  // already not a constant, so we can just store into it.
-  const Operator* op = jsgraph_->javascript()->StoreContext(0, access.index());
-  Node* new_store = effect = jsgraph_->graph()->NewNode(
-      op, NodeProperties::GetValueInput(node, 0), context, effect, control);
-  ReplaceWithValue(node, new_store, effect, control);
-  return Changed(node);
+  switch (property) {
+    case ContextSidePropertyCell::kConst:
+      UNREACHABLE();
+    case ContextSidePropertyCell::kSmi: {
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          concrete, access.index(), property, broker());
+      Node* smi_value = access_builder.BuildCheckSmi(value, &effect, control);
+      Node* smi_store = jsgraph()->graph()->NewNode(
+          jsgraph()->simplified()->StoreField(
+              AccessBuilder::ForContextSlotSmi(access.index())),
+          jsgraph()->ConstantNoHole(concrete, broker()), smi_value, effect,
+          control);
+      ReplaceWithValue(node, smi_store, smi_store, control);
+      return Changed(node);
+    }
+    case ContextSidePropertyCell::kMutableHeapNumber: {
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          concrete, access.index(), property, broker());
+      Node* mutable_heap_number = effect = jsgraph()->graph()->NewNode(
+          jsgraph()->simplified()->LoadField(
+              AccessBuilder::ForContextSlot(access.index())),
+          jsgraph()->ConstantNoHole(concrete, broker()), effect, control);
+      Node* input_number =
+          access_builder.BuildCheckNumber(value, &effect, control);
+      Node* double_store = jsgraph()->graph()->NewNode(
+          jsgraph()->simplified()->StoreField(
+              AccessBuilder::ForHeapNumberValue()),
+          mutable_heap_number, input_number, effect, control);
+      ReplaceWithValue(node, double_store, double_store, control);
+      return Changed(node);
+    }
+    case ContextSidePropertyCell::kOther: {
+      // Do a normal context store.
+      Node* store = jsgraph()->graph()->NewNode(
+          jsgraph()->simplified()->StoreField(
+              AccessBuilder::ForContextSlot(access.index())),
+          jsgraph()->ConstantNoHole(concrete, broker()), value, effect,
+          control);
+      ReplaceWithValue(node, store, store, control);
+      return Changed(node);
+    }
+  }
 }
 
 OptionalContextRef GetModuleContext(JSHeapBroker* broker, Node* node,

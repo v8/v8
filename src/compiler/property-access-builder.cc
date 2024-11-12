@@ -122,17 +122,34 @@ void PropertyAccessBuilder::BuildCheckMaps(Node* object, Effect* effect,
 }
 
 Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Effect* effect,
-                                             Control control,
-                                             Handle<HeapObject> value) {
-  HeapObjectMatcher m(receiver);
-  if (m.Is(value)) return receiver;
-  Node* expected = jsgraph()->HeapConstantNoHole(value);
+                                             Control control, ObjectRef value) {
+  if (value.IsHeapObject()) {
+    HeapObjectMatcher m(receiver);
+    if (m.Is(value.AsHeapObject().object())) return receiver;
+  }
+  Node* expected = jsgraph()->ConstantNoHole(value, broker());
   Node* check =
       graph()->NewNode(simplified()->ReferenceEqual(), receiver, expected);
   *effect =
       graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongValue),
                        check, *effect, control);
   return expected;
+}
+
+Node* PropertyAccessBuilder::BuildCheckSmi(Node* value, Effect* effect,
+                                           Control control,
+                                           FeedbackSource feedback_source) {
+  Node* smi_value = *effect = graph()->NewNode(
+      simplified()->CheckSmi(feedback_source), value, *effect, control);
+  return smi_value;
+}
+
+Node* PropertyAccessBuilder::BuildCheckNumber(Node* value, Effect* effect,
+                                              Control control,
+                                              FeedbackSource feedback_source) {
+  Node* number = *effect = graph()->NewNode(
+      simplified()->CheckNumber(feedback_source), value, *effect, control);
+  return number;
 }
 
 Node* PropertyAccessBuilder::ResolveHolder(

@@ -26,7 +26,9 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turbofan-types.h"
 #include "src/compiler/type-cache.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/protectors.h"
+#include "src/objects/casting.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module-inl.h"
@@ -1683,6 +1685,91 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   return Changed(node);
 }
 
+Reduction JSTypedLowering::ReduceJSStoreScriptContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreScriptContext, node->opcode());
+  ContextAccess const& access = ContextAccessOf(node->op());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
+                        BranchSemantics::kJS);
+  gasm.InitializeEffectControl(effect, control);
+
+  TNode<Context> context =
+      TNode<Context>::UncheckedCast(NodeProperties::GetContextInput(node));
+  for (size_t i = 0; i < access.depth(); ++i) {
+    context = gasm.LoadField<Context>(
+        AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX),
+        context);
+  }
+
+  TNode<Object> old_value = gasm.LoadField<Object>(
+      AccessBuilder::ForContextSlot(access.index()), context);
+  TNode<Object> new_value =
+      TNode<Object>::UncheckedCast(NodeProperties::GetValueInput(node, 0));
+
+  gasm.IfNot(gasm.ReferenceEqual(old_value, new_value)).Then([&] {
+    size_t side_data_index =
+        access.index() - Context::MIN_CONTEXT_EXTENDED_SLOTS;
+    TNode<FixedArray> side_data = gasm.LoadField<FixedArray>(
+        AccessBuilder::ForContextSlot(
+            Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX),
+        context);
+    TNode<Object> data = gasm.LoadField<Object>(
+        AccessBuilder::ForFixedArraySlot(side_data_index), side_data);
+
+    TNode<Boolean> is_other = gasm.ReferenceEqual(
+        data, TNode<Object>::UncheckedCast(
+                  gasm.SmiConstant(ContextSidePropertyCell::kOther)));
+    gasm.If(is_other)
+        .Then([&] {
+          gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
+                          context, new_value);
+        })
+        .Else([&] {
+          gasm.CheckIf(gasm.BooleanNot(gasm.IsUndefined(data)),
+                       DeoptimizeReason::kWrongValue);
+          TNode<Object> property =
+              gasm.SelectIf<Object>(gasm.ObjectIsSmi(data))
+                  .Then([&] { return data; })
+                  .Else([&] {
+                    return gasm.LoadField<Object>(
+                        AccessBuilder::ForContextSideProperty(),
+                        TNode<HeapObject>::UncheckedCast(data));
+                  })
+                  .Value();
+          TNode<Boolean> is_const = gasm.ReferenceEqual(
+              property, TNode<Object>::UncheckedCast(
+                            gasm.SmiConstant(ContextSidePropertyCell::kConst)));
+          gasm.CheckIf(gasm.BooleanNot(is_const),
+                       DeoptimizeReason::kWrongValue);
+          if (v8_flags.script_context_mutable_heap_number) {
+            TNode<Boolean> is_smi_marker = gasm.ReferenceEqual(
+                property, TNode<Object>::UncheckedCast(
+                              gasm.SmiConstant(ContextSidePropertyCell::kSmi)));
+            gasm.If(is_smi_marker)
+                .Then([&] {
+                  Node* smi_value = gasm.CheckSmi(new_value);
+                  gasm.StoreField(
+                      AccessBuilder::ForContextSlotSmi(access.index()), context,
+                      smi_value);
+                })
+                .Else([&] {
+                  // It must be a mutable heap number in this case.
+                  Node* number_value = gasm.CheckNumber(new_value);
+                  gasm.StoreField(AccessBuilder::ForHeapNumberValue(),
+                                  old_value, number_value);
+                });
+          } else {
+            gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
+                            context, new_value);
+          }
+        })
+        .ExpectTrue();
+  });
+  ReplaceWithValue(node, gasm.effect(), gasm.effect(), gasm.control());
+  return Changed(node);
+}
+
 Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadModule ||
          node->opcode() == IrOpcode::kJSStoreModule);
@@ -2707,6 +2794,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadScriptContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
+    case IrOpcode::kJSStoreScriptContext:
+      return ReduceJSStoreScriptContext(node);
     case IrOpcode::kJSLoadModule:
       return ReduceJSLoadModule(node);
     case IrOpcode::kJSStoreModule:

@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/codegen/machine-type.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node.h"
 #include "src/handles/handles.h"
@@ -43,7 +44,13 @@ class PropertyAccessBuilder {
                       ZoneVector<MapRef> const& maps);
 
   Node* BuildCheckValue(Node* receiver, Effect* effect, Control control,
-                        Handle<HeapObject> value);
+                        ObjectRef value);
+
+  Node* BuildCheckSmi(Node* value, Effect* effect, Control control,
+                      FeedbackSource feedback_source = FeedbackSource());
+
+  Node* BuildCheckNumber(Node* value, Effect* effect, Control control,
+                         FeedbackSource feedback_source = FeedbackSource());
 
   // Builds the actual load for data-field and data-constant-field
   // properties (without heap-object or map checks).
