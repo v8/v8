@@ -60,7 +60,15 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
 template <PretenuringHandler::FindMementoMode mode>
 Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
     Heap* heap, Tagged<Map> map, Tagged<HeapObject> object, int object_size) {
-  DCHECK_EQ(object_size, object->SizeFromMap(map));
+  // For uses from within the GC, the size here may actually change when e.g.
+  // updating mementos during marking in the young generation collector. This is
+  // not an issue with Scavenger that stops the mutator.
+  DCHECK_IMPLIES(mode != FindMementoMode::kForGC || !v8_flags.minor_ms,
+                 object_size == object->SizeFromMap(map));
+  // For configurations where object size changes, we can check that it only
+  // shinks in case the sizes are not matching.
+  DCHECK_IMPLIES(mode == FindMementoMode::kForGC && v8_flags.minor_ms,
+                 object_size >= object->SizeFromMap(map));
   Address object_address = object.address();
   Address memento_address =
       object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
