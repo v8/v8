@@ -29,6 +29,8 @@ void IsolateGroup::set_current_non_inlined(IsolateGroup* group) {
 }
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
+base::LeakyObject<IsolateGroup> IsolateGroup::default_isolate_group_;
+
 #ifdef V8_COMPRESS_POINTERS
 struct PtrComprCageReservationParams
     : public VirtualMemoryCage::ReservationParams {
@@ -60,14 +62,6 @@ struct PtrComprCageReservationParams
   }
 };
 #endif  // V8_COMPRESS_POINTERS
-
-#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-// static
-IsolateGroup* IsolateGroup::GetProcessWideIsolateGroup() {
-  static ::v8::base::LeakyObject<IsolateGroup> global_isolate_group_;
-  return global_isolate_group_.get();
-}
-#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
 IsolateGroup::IsolateGroup() {}
 IsolateGroup::~IsolateGroup() {
@@ -128,9 +122,9 @@ void IsolateGroup::Initialize(bool process_wide) {
 
 // static
 void IsolateGroup::InitializeOncePerProcess() {
-#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  IsolateGroup* group = GetProcessWideIsolateGroup();
+  IsolateGroup* group = GetDefault();
 
+  DCHECK_NULL(group->page_allocator_);
 #ifdef V8_ENABLE_SANDBOX
   group->Initialize(true, GetProcessWideSandbox());
 #else
@@ -147,7 +141,9 @@ void IsolateGroup::InitializeOncePerProcess() {
   // the code cage base will be set accordingly.
   ExternalCodeCompressionScheme::InitBase(V8HeapCompressionScheme::base());
 #endif  // V8_EXTERNAL_CODE_SPACE
-#endif  // !V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  IsolateGroup::set_current(group);
+#endif
 }
 
 namespace {
@@ -195,17 +191,19 @@ ReadOnlyArtifacts* IsolateGroup::InitializeReadOnlyArtifacts() {
 
 // static
 IsolateGroup* IsolateGroup::New() {
+  if (!CanCreateNewGroups()) {
+    FATAL(
+        "Creation of new isolate groups requires enabling "
+        "multiple pointer compression cages at build-time");
+  }
+
   IsolateGroup* group = new IsolateGroup;
-
-#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  static_assert(!V8_ENABLE_SANDBOX_BOOL);
-  group->Initialize(false);
+#ifdef V8_ENABLE_SANDBOX
+  // TODO(42204573): Support creation of multiple sandboxes.
+  UNREACHABLE();
 #else
-  FATAL(
-      "Creation of new isolate groups requires enabling "
-      "multiple pointer compression cages at build-time");
+  group->Initialize(false);
 #endif
-
   CHECK_NOT_NULL(group->page_allocator_);
   ExternalReferenceTable::InitializeOncePerIsolateGroup(
       group->external_ref_table());
@@ -213,18 +211,8 @@ IsolateGroup* IsolateGroup::New() {
 }
 
 // static
-IsolateGroup* IsolateGroup::AcquireGlobal() {
-#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  return nullptr;
-#else
-  return GetProcessWideIsolateGroup()->Acquire();
-#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-}
-
-// static
-void IsolateGroup::ReleaseGlobal() {
-#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  IsolateGroup *group = GetProcessWideIsolateGroup();
+void IsolateGroup::ReleaseDefault() {
+  IsolateGroup* group = GetDefault();
   CHECK_EQ(group->reference_count_.load(), 1);
   CHECK(!group->has_shared_space_isolate());
   group->page_allocator_ = nullptr;
@@ -236,7 +224,6 @@ void IsolateGroup::ReleaseGlobal() {
   DCHECK(group->reservation_.IsReserved());
   group->reservation_.Free();
 #endif  // V8_COMPRESS_POINTERS
-#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 }
 
 }  // namespace internal

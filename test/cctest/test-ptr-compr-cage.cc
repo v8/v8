@@ -24,11 +24,7 @@ UNINITIALIZED_TEST(PtrComprCageAndIsolateRoot) {
 
 #ifdef V8_COMPRESS_POINTERS
   CHECK_NE(i_isolate1->isolate_root(), i_isolate2->isolate_root());
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   CHECK_EQ(i_isolate1->cage_base(), i_isolate2->cage_base());
-#else
-  CHECK_NE(i_isolate1->cage_base(), i_isolate2->cage_base());
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 #endif  // V8_COMPRESS_POINTERS
 
   isolate1->Dispose();

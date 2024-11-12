@@ -3983,22 +3983,16 @@ class TracingAccountingAllocator : public AccountingAllocator {
 std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
-namespace {
-IsolateGroup* AcquireGroupForNewIsolate() {
-  IsolateGroup* group = IsolateGroup::AcquireGlobal();
-  if (group) return group;
-  return IsolateGroup::New();
-}
-}  // namespace
+// static
+Isolate* Isolate::New() { return New(IsolateGroup::AcquireDefault()); }
 
 // static
-Isolate* Isolate::New() { return Allocate(); }
+Isolate* Isolate::New(IsolateGroup* group) { return Allocate(group); }
 
 // static
-Isolate* Isolate::Allocate() {
+Isolate* Isolate::Allocate(IsolateGroup* group) {
   // v8::V8::Initialize() must be called before creating any isolates.
   DCHECK_NOT_NULL(V8::GetCurrentPlatform());
-  IsolateGroup* group = AcquireGroupForNewIsolate();
   // Allocate Isolate itself on C++ heap, ensuring page alignment.
   void* isolate_ptr = base::AlignedAlloc(sizeof(Isolate), kMinimumOSPageSize);
   // IsolateAllocator manages the virtual memory resources for the Isolate.
