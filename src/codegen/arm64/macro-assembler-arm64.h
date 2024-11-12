@@ -2428,8 +2428,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
 
-  int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
-                                uint8_t* pc);
+  static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
+                                       uint8_t* pc);
 
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
 

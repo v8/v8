@@ -57,7 +57,7 @@ namespace wasm {
 // execute the old code afterwards, which is no problem, since that code remains
 // available until it is garbage collected. Garbage collection itself is a
 // synchronization barrier though.
-class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
+class V8_EXPORT_PRIVATE JumpTableAssembler {
  public:
   // Translate an offset into the continuous jump table to a jump table index.
   static uint32_t SlotOffsetToIndex(uint32_t slot_offset) {
@@ -160,7 +160,7 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
     // We write nops here instead of skipping to avoid partial instructions in
     // the jump table. Partial instructions can cause problems for the
     // disassembler.
-    jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
+    DCHECK_EQ(kJumpTableSlotSize, jtasm.pc_offset());
     FlushInstructionCache(jump_table_slot, kJumpTableSlotSize);
   }
 
@@ -168,10 +168,10 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   // Instantiate a {JumpTableAssembler} for patching.
   JumpTableAssembler(AccountingAllocator* allocator, Address slot_addr,
                      int size = 256)
-      : MacroAssembler(allocator, JumpTableAssemblerOptions(),
-                       CodeObjectRequired::kNo,
-                       ExternalAssemblerBuffer(
-                           reinterpret_cast<uint8_t*>(slot_addr), size)) {}
+      : buffer_start_(slot_addr), pc_(slot_addr) {}
+
+  const Address buffer_start_;
+  Address pc_;
 
   // To allow concurrent patching of the jump table entries, we need to ensure
   // atomicity of the jump table updates. On most architectures, unaligned
@@ -245,16 +245,6 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
       kJumpTableLineSize / kJumpTableSlotSize;
   static_assert(kJumpTableSlotsPerLine >= 1);
 
-  // {JumpTableAssembler} is never used during snapshot generation, and its code
-  // must be independent of the code range of any isolate anyway. Just ensure
-  // that no relocation information is recorded, there is no buffer to store it
-  // since it is instantiated in patching mode in existing code directly.
-  static AssemblerOptions JumpTableAssemblerOptions() {
-    AssemblerOptions options;
-    options.disable_reloc_info_for_patching = true;
-    return options;
-  }
-
   void EmitLazyCompileJumpSlot(uint32_t func_index,
                                Address lazy_compile_target);
 
@@ -268,9 +258,9 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   // becomes available to all execution units that might execute this code.
   static void PatchFarJumpSlot(Address slot, Address target);
 
-  void NopBytes(int bytes);
-
   void SkipUntil(int offset);
+
+  int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 
   template <typename V>
   void emit(V value);

@@ -50,7 +50,9 @@ void JumpTableAssembler::InitializeJumpsToLazyCompileTable(
         lazy_compile_table_start +
         JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
 
+#ifdef DEBUG
     int offset_before_emit = jtasm.pc_offset();
+#endif
     // This function initializes the first jump table with jumps to the lazy
     // compile table. Both get allocated in the constructor of the
     // {NativeModule}, so they both should end up in the initial code space.
@@ -62,18 +64,15 @@ void JumpTableAssembler::InitializeJumpsToLazyCompileTable(
     // or the code space was allocated larger than the maximum near-jump
     // distance.
     CHECK(jtasm.EmitJumpSlot(target));
-    int written_bytes = jtasm.pc_offset() - offset_before_emit;
-    // We write nops here instead of skipping to avoid partial instructions in
-    // the jump table. Partial instructions can cause problems for the
-    // disassembler.
-    jtasm.NopBytes(kJumpTableSlotSize - written_bytes);
+
+    DCHECK_EQ(kJumpTableSlotSize, jtasm.pc_offset() - offset_before_emit);
   }
   FlushInstructionCache(base, jump_table_size);
 }
 
 template <typename T>
 void JumpTableAssembler::emit(T value) {
-  base::WriteUnalignedValue<T>(reinterpret_cast<Address>(pc_), value);
+  base::WriteUnalignedValue<T>(pc_, value);
   pc_ += sizeof(T);
 }
 
@@ -84,7 +83,7 @@ void JumpTableAssembler::emit(T value, RelaxedStoreTag) DISABLE_UBSAN {
   // will still be atomic since they don't cross a qword boundary.
 #if V8_TARGET_ARCH_X64
 #ifdef DEBUG
-  Address write_start = reinterpret_cast<Address>(pc_);
+  Address write_start = pc_;
   Address write_end = write_start + sizeof(T) - 1;
   // Check that the write doesn't cross a qword boundary.
   DCHECK_EQ(write_start >> kSystemPointerSizeLog2,
@@ -108,8 +107,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   };
 
   intptr_t displacement =
-      static_cast<intptr_t>(reinterpret_cast<uint8_t*>(lazy_compile_target) -
-                            (pc_ + kLazyCompileTableSlotSize));
+      lazy_compile_target - (pc_ + kLazyCompileTableSlotSize);
 
   emit<uint8_t>(inst[0]);
   emit<uint32_t>(func_index);
@@ -126,8 +124,8 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   emit<uint32_t>(nop, kRelaxedStore);
 #endif
 
-  intptr_t displacement = static_cast<intptr_t>(
-      reinterpret_cast<uint8_t*>(target) - (pc_ + kIntraSegmentJmpInstrSize));
+  intptr_t displacement =
+      target - (pc_ + MacroAssembler::kIntraSegmentJmpInstrSize);
   if (!is_int32(displacement)) return false;
 
   uint8_t inst[kJumpTableSlotSize] = {
@@ -166,10 +164,6 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   // cores. It's ok if they temporarily jump to the old target.
 }
 
-void JumpTableAssembler::NopBytes(int bytes) {
-  if (bytes) Nop(bytes);
-}
-
 void JumpTableAssembler::SkipUntil(int offset) {
   DCHECK_GE(offset, pc_offset());
   pc_ += offset - pc_offset();
@@ -184,8 +178,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
       0xe9, 0, 0, 0, 0,  // near_jmp displacement
   };
   intptr_t displacement =
-      static_cast<intptr_t>(reinterpret_cast<uint8_t*>(lazy_compile_target) -
-                            (pc_ + kLazyCompileTableSlotSize));
+      lazy_compile_target - (pc_ + kLazyCompileTableSlotSize);
 
   emit<uint8_t>(inst[0]);
   emit<uint32_t>(func_index);
@@ -194,8 +187,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  intptr_t displacement = static_cast<intptr_t>(
-      reinterpret_cast<uint8_t*>(target) - (pc_ + kJumpTableSlotSize));
+  intptr_t displacement = target - (pc_ + kJumpTableSlotSize);
 
   const uint8_t inst[kJumpTableSlotSize] = {
       0xe9, 0, 0, 0, 0,  // near_jmp displacement
@@ -216,10 +208,6 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 // static
 void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   UNREACHABLE();
-}
-
-void JumpTableAssembler::NopBytes(int bytes) {
-  if (bytes) Nop(bytes);
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {
@@ -272,14 +260,6 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   UNREACHABLE();
 }
 
-void JumpTableAssembler::NopBytes(int bytes) {
-  DCHECK_LE(0, bytes);
-  DCHECK_EQ(0, bytes % kInstrSize);
-  for (; bytes > 0; bytes -= kInstrSize) {
-    nop();
-  }
-}
-
 void JumpTableAssembler::SkipUntil(int offset) {
   // On this platform the jump table is not zapped with valid instructions, so
   // skipping over bytes is not allowed.
@@ -300,7 +280,8 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   static_assert(kWasmCompileLazyFuncIndexRegister == x8);
 
   int64_t target_offset = MacroAssembler::CalculateTargetOffset(
-      lazy_compile_target, RelocInfo::NO_INFO, pc_ + 2 * kInstrSize);
+      lazy_compile_target, RelocInfo::NO_INFO,
+      reinterpret_cast<uint8_t*>(pc_ + 2 * kInstrSize));
   DCHECK(MacroAssembler::IsNearCallOffset(target_offset));
 
   emit<uint32_t>(inst[0] | Assembler::ImmMoveWide(func_index_low));
@@ -317,7 +298,8 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
 #endif
 
   int64_t target_offset = MacroAssembler::CalculateTargetOffset(
-      target, RelocInfo::NO_INFO, pc_ + kCodeEntryMarkerSize);
+      target, RelocInfo::NO_INFO,
+      reinterpret_cast<uint8_t*>(pc_ + kCodeEntryMarkerSize));
   if (!MacroAssembler::IsNearCallOffset(target_offset)) {
     return false;
   }
@@ -336,7 +318,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  DCHECK(TmpList()->IncludesAliasOf(x16));
+  DCHECK(MacroAssembler::DefaultTmpList().IncludesAliasOf(x16));
 
   const uint32_t inst[kFarJumpTableSlotSize / 4] = {
       0x58000050,  // ldr x16, #8
@@ -364,14 +346,6 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   // and stores a single machine word. This update will eventually be observed
   // by any concurrent [ldr] on the same address because of the data cache
   // coherence. It's ok if other cores temporarily jump to the old target.
-}
-
-void JumpTableAssembler::NopBytes(int bytes) {
-  DCHECK_LE(0, bytes);
-  DCHECK_EQ(0, bytes % kInstrSize);
-  for (; bytes > 0; bytes -= kInstrSize) {
-    nop();
-  }
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {

@@ -2280,6 +2280,7 @@ void MacroAssembler::JumpHelper(int64_t offset, RelocInfo::Mode rmode,
 // * the 'target' input unmodified if this is a Wasm call, or
 // * the offset of the target from the current PC, in instructions, for any
 //   other type of call.
+// static
 int64_t MacroAssembler::CalculateTargetOffset(Address target,
                                               RelocInfo::Mode rmode,
                                               uint8_t* pc) {
