@@ -14,6 +14,8 @@
 #include "src/base/platform/platform.h"
 #include "src/diagnostics/etw-debug-win.h"
 #include "src/diagnostics/etw-isolate-capture-state-monitor-win.h"
+#include "src/diagnostics/etw-isolate-load-script-data-win.h"
+#include "src/diagnostics/etw-isolate-operations-win.h"
 #include "src/diagnostics/etw-jit-metadata-win.h"
 #include "src/logging/log.h"
 #include "src/objects/shared-function-info.h"
@@ -41,307 +43,12 @@ V8_DECLARE_TRACELOGGING_PROVIDER(g_v8Provider);
 V8_DEFINE_TRACELOGGING_PROVIDER(g_v8Provider);
 
 std::atomic<bool> is_etw_enabled = false;
-constexpr auto kCaptureStateTimeout = base::TimeDelta::FromSeconds(10);
-
-namespace {
-class IsolateLoadScriptData {
- public:
-  explicit IsolateLoadScriptData(Isolate* isolate) : isolate_(isolate) {}
-  explicit IsolateLoadScriptData(IsolateLoadScriptData&& rhs) V8_NOEXCEPT {
-    isolate_ = rhs.isolate_;
-    loaded_scripts_ids_ = std::move(rhs.loaded_scripts_ids_);
-    event_id_ = rhs.event_id_.load();
-  }
-
-  static void AddIsolate(Isolate* isolate);
-  static void RemoveIsolate(Isolate* isolate);
-  static void UpdateAllIsolates(bool etw_enabled, uint32_t options);
-  static bool MaybeAddLoadedScript(Isolate* isolate, int script_id);
-  static void EnableLog(
-      Isolate* isolate, size_t event_id,
-      std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
-      uint32_t options);
-  static void DisableLog(Isolate* isolate, size_t event_id);
-
-  static void EnableLogWithFilterDataOnAllIsolates(const uint8_t* data,
-                                                   size_t size,
-                                                   uint32_t options);
-  static void EnableLogWithFilterData(
-      Isolate* isolate, size_t event_id,
-      const std::string& EnableLogWithFilterData,
-      std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
-      uint32_t options);
-
- private:
-  static IsolateLoadScriptData& GetData(Isolate* isolate);
-
-  struct EnableInterruptData {
-    size_t event_id;
-    std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor;
-    uint32_t options;
-  };
-
-  void EnqueueEnableLog(
-      std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
-      uint32_t options) {
-    size_t event_id = event_id_.fetch_add(1);
-    isolate_->RequestInterrupt(
-        // Executed in the isolate thread.
-        [](v8::Isolate* v8_isolate, void* data) {
-          std::unique_ptr<EnableInterruptData> interrupt_data(
-              reinterpret_cast<EnableInterruptData*>(data));
-          size_t event_id = interrupt_data->event_id;
-          auto weak_monitor = interrupt_data->weak_monitor;
-          uint32_t options = interrupt_data->options;
-          EnableLog(reinterpret_cast<Isolate*>(v8_isolate), event_id,
-                    weak_monitor, options);
-        },
-        new EnableInterruptData{event_id + 1, weak_monitor, options});
-  }
-  void EnqueueDisableLog() {
-    size_t event_id = event_id_.fetch_add(1);
-    isolate_->RequestInterrupt(
-        // Executed in the isolate thread.
-        [](v8::Isolate* v8_isolate, void* data) {
-          DisableLog(reinterpret_cast<Isolate*>(v8_isolate),
-                     reinterpret_cast<size_t>(data));
-        },
-        reinterpret_cast<void*>(event_id + 1));
-  }
-
-  struct EnableWithFilterDataInterruptData {
-    size_t event_id;
-    std::string payload;
-    std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor;
-    uint32_t options;
-  };
-
-  void EnqueueEnableLogWithFilterData(
-      const std::string& etw_filter_payload,
-      std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
-      uint32_t options) {
-    size_t event_id = event_id_.fetch_add(1);
-    isolate_->RequestInterrupt(
-        // Executed in the isolate thread.
-        [](v8::Isolate* v8_isolate, void* data) {
-          std::unique_ptr<EnableWithFilterDataInterruptData> interrupt_data(
-              reinterpret_cast<EnableWithFilterDataInterruptData*>(data));
-          size_t event_id = interrupt_data->event_id;
-          std::string etw_filter_payload = interrupt_data->payload;
-          auto weak_monitor = interrupt_data->weak_monitor;
-          uint32_t options = interrupt_data->options;
-          EnableLogWithFilterData(reinterpret_cast<Isolate*>(v8_isolate),
-                                  event_id, etw_filter_payload, weak_monitor,
-                                  options);
-        },
-        new EnableWithFilterDataInterruptData{event_id + 1, etw_filter_payload,
-                                              weak_monitor, options});
-  }
-
-  bool IsScriptLoaded(int script_id) const {
-    return loaded_scripts_ids_.find(script_id) != loaded_scripts_ids_.end();
-  }
-  void AddLoadedScript(int script_id) { loaded_scripts_ids_.insert(script_id); }
-  void RemoveAllLoadedScripts() { loaded_scripts_ids_.clear(); }
-
-  size_t CurrentEventId() const { return event_id_.load(); }
-
-  Isolate* isolate_ = nullptr;
-  std::unordered_set<int> loaded_scripts_ids_;
-  std::atomic<size_t> event_id_ = 0;
-};
-
-static base::LazyMutex isolates_mutex = LAZY_MUTEX_INITIALIZER;
-using IsolateMapType =
-    std::unordered_map<v8::internal::Isolate*, IsolateLoadScriptData>;
-static base::LazyInstance<IsolateMapType>::type isolate_map =
-    LAZY_INSTANCE_INITIALIZER;
-
-using FilterDataType = std::string;
-// Used when Isolates are created during an ETW tracing session.
-static base::LazyInstance<FilterDataType>::type etw_filter_payload =
-    LAZY_INSTANCE_INITIALIZER;
-
-// static
-IsolateLoadScriptData& IsolateLoadScriptData::GetData(Isolate* isolate) {
-  return isolate_map.Pointer()->at(isolate);
-}
-
-// static
-void IsolateLoadScriptData::AddIsolate(Isolate* isolate) {
-  base::MutexGuard guard(isolates_mutex.Pointer());
-  isolate_map.Pointer()->emplace(isolate, IsolateLoadScriptData(isolate));
-}
-
-// static
-void IsolateLoadScriptData::RemoveIsolate(Isolate* isolate) {
-  base::MutexGuard guard(isolates_mutex.Pointer());
-  isolate_map.Pointer()->erase(isolate);
-}
-
-// static
-void IsolateLoadScriptData::EnableLog(
-    Isolate* isolate, size_t event_id,
-    std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
-    uint32_t options) {
-  {
-    ETWTRACEDBG << "EnableLog called with event_id==" << event_id
-                << " and options==" << options << " taking mutex" << std::endl;
-    base::MutexGuard guard(isolates_mutex.Pointer());
-    auto& data = GetData(isolate);
-    if (event_id > 0 && data.CurrentEventId() != event_id) {
-      // This interrupt was canceled by a newer interrupt.
-      return;
-    }
-
-    // Cause all SourceLoad events to be re-emitted.
-    if (options & kJitCodeEventEnumExisting) {
-      data.RemoveAllLoadedScripts();
-    }
-  }
-
-  ETWTRACEDBG << "Mutex released with event_id==" << event_id << std::endl;
-
-  // This cannot be done while isolate_mutex is locked, as it can call
-  // EventHandler while in the call for all the existing code.
-  isolate->v8_file_logger()->SetEtwCodeEventHandler(options);
-
-  // Notify waiting thread if a monitor was provided.
-  if (auto monitor = weak_monitor.lock()) {
-    ETWTRACEDBG << "monitor->Notify with event_id==" << event_id << std::endl;
-    monitor->Notify();
-  }
-}
-
-// static
-void IsolateLoadScriptData::DisableLog(Isolate* isolate, size_t event_id) {
-  {
-    base::MutexGuard guard(isolates_mutex.Pointer());
-    auto& data = GetData(isolate);
-    if (event_id > 0 && data.CurrentEventId() != event_id) {
-      // This interrupt was canceled by a newer interrupt.
-      return;
-    }
-    data.RemoveAllLoadedScripts();
-  }
-  isolate->v8_file_logger()->ResetEtwCodeEventHandler();
-}
-
-// static
-void IsolateLoadScriptData::EnableLogWithFilterData(
-    Isolate* isolate, size_t event_id, const std::string& etw_filter_payload,
-    std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor,
-    uint32_t options) {
-  {
-    ETWTRACEDBG << "EnableLogWithFilterData called with event_id==" << event_id
-                << " and options==" << options << " taking mutex" << std::endl;
-    base::MutexGuard guard(isolates_mutex.Pointer());
-    auto& data = GetData(isolate);
-    if (event_id > 0 && data.CurrentEventId() != event_id) {
-      // This interrupt was canceled by a newer interrupt.
-      return;
-    }
-  }
-
-  DCHECK(!etw_filter_payload.empty());
-
-  // We should not call back into V8 from the RunFilterETWSessionByURLCallback
-  // callback.
-  DisallowJavascriptExecution no_js(isolate);
-
-  if (isolate->RunFilterETWSessionByURLCallback(etw_filter_payload)) {
-    isolate->v8_file_logger()->SetEtwCodeEventHandler(options);
-  }
-
-  // Notify waiting thread if a monitor was provided.
-  if (auto monitor = weak_monitor.lock()) {
-    ETWTRACEDBG << "monitor->Notify with event_id==" << event_id << std::endl;
-    monitor->Notify();
-  }
-}
-
-// static
-void IsolateLoadScriptData::EnableLogWithFilterDataOnAllIsolates(
-    const uint8_t* data, size_t size, uint32_t options) {
-  base::MutexGuard guard(isolates_mutex.Pointer());
-
-  std::string etw_filter_payload;
-  etw_filter_payload.assign(data, data + size);
-  auto monitor = std::make_shared<EtwIsolateCaptureStateMonitor>(
-      isolates_mutex.Pointer(), isolate_map.Pointer()->size());
-  bool capture_state =
-      (options & kJitCodeEventEnumExisting) == kJitCodeEventEnumExisting;
-  std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor = monitor;
-  std::for_each(isolate_map.Pointer()->begin(), isolate_map.Pointer()->end(),
-                [&etw_filter_payload, weak_monitor, options](auto& pair) {
-                  auto& isolate_data = pair.second;
-                  isolate_data.EnqueueEnableLogWithFilterData(
-                      etw_filter_payload, weak_monitor, options);
-                });
-
-  if (!capture_state) {
-    return;
-  }
-
-  bool timeout = !monitor->WaitFor(kCaptureStateTimeout);
-  ETWTRACEDBG << "EnableLogWithFilterDataOnAllIsolates WaitFor "
-              << (timeout ? "timeout" : "completed") << std::endl;
-}
-
-// static
-void IsolateLoadScriptData::UpdateAllIsolates(bool etw_enabled,
-                                              uint32_t options) {
-  ETWTRACEDBG << "UpdateAllIsolates with etw_enabled==" << etw_enabled
-              << " and options==" << options << " acquiring mutex" << std::endl;
-  base::MutexGuard guard(isolates_mutex.Pointer());
-  ETWTRACEDBG << "UpdateAllIsolates Isolate count=="
-              << isolate_map.Pointer()->size() << std::endl;
-  auto monitor = std::make_shared<EtwIsolateCaptureStateMonitor>(
-      isolates_mutex.Pointer(), isolate_map.Pointer()->size());
-  bool capture_state =
-      (options & kJitCodeEventEnumExisting) == kJitCodeEventEnumExisting;
-  std::weak_ptr<EtwIsolateCaptureStateMonitor> weak_monitor = monitor;
-  std::for_each(
-      isolate_map.Pointer()->begin(), isolate_map.Pointer()->end(),
-      [etw_enabled, weak_monitor, options](auto& pair) {
-        auto& isolate_data = pair.second;
-        if (etw_enabled) {
-          ETWTRACEDBG << "UpdateAllIsolates enqueing enablelog" << std::endl;
-          isolate_data.EnqueueEnableLog(weak_monitor, options);
-        } else {
-          ETWTRACEDBG << "UpdateAllIsolates enqueing disablelog" << std::endl;
-          isolate_data.EnqueueDisableLog();
-        }
-      });
-
-  if (!capture_state) {
-    return;
-  }
-
-  ETWTRACEDBG << "UpdateAllIsolates starting WaitFor" << std::endl;
-  bool timeout = !monitor->WaitFor(kCaptureStateTimeout);
-  ETWTRACEDBG << "UpdateAllIsolates WaitFor "
-              << (timeout ? "timeout" : "completed") << std::endl;
-}
-
-// static
-bool IsolateLoadScriptData::MaybeAddLoadedScript(Isolate* isolate,
-                                                 int script_id) {
-  base::MutexGuard guard(isolates_mutex.Pointer());
-  auto& data = GetData(isolate);
-  if (data.IsScriptLoaded(script_id)) {
-    return false;
-  }
-  data.AddLoadedScript(script_id);
-  return true;
-}
-
-}  // namespace
 
 void MaybeSetHandlerNow(Isolate* isolate) {
   ETWTRACEDBG << "MaybeSetHandlerNow called" << std::endl;
   // Iterating read-only heap before sealed might not be safe.
-  if (is_etw_enabled && !isolate->heap()->read_only_space()->writable()) {
+  if (is_etw_enabled &&
+      !EtwIsolateOperations::Instance()->HeapReadOnlySpaceWritable(isolate)) {
     if (etw_filter_payload.Pointer()->empty()) {
       IsolateLoadScriptData::EnableLog(
           isolate, 0, std::weak_ptr<EtwIsolateCaptureStateMonitor>(),
@@ -399,11 +106,10 @@ void UpdateETWEnabled(bool enabled, uint32_t options) {
 // This callback is invoked by Windows every time the ETW tracing status is
 // changed for this application. As such, V8 needs to track its value for
 // knowing if the event requires us to emit JIT runtime events.
-void WINAPI ETWEnableCallback(LPCGUID /* source_id */, ULONG is_enabled,
-                              UCHAR level, ULONGLONG match_any_keyword,
-                              ULONGLONG match_all_keyword,
-                              PEVENT_FILTER_DESCRIPTOR filter_data,
-                              PVOID /* callback_context */) {
+void WINAPI V8_EXPORT_PRIVATE ETWEnableCallback(
+    LPCGUID /* source_id */, ULONG is_enabled, UCHAR level,
+    ULONGLONG match_any_keyword, ULONGLONG match_all_keyword,
+    PEVENT_FILTER_DESCRIPTOR filter_data, PVOID /* callback_context */) {
   DCHECK(v8_flags.enable_etw_stack_walking);
   ETWTRACEDBG << "ETWEnableCallback called with is_enabled==" << is_enabled
               << std::endl;
@@ -427,8 +133,6 @@ void WINAPI ETWEnableCallback(LPCGUID /* source_id */, ULONG is_enabled,
     UpdateETWEnabled(is_etw_enabled_now, options);
     return;
   }
-
-  if (is_etw_enabled) return;
 
   if (filter_data->Size <= sizeof(EVENT_FILTER_DESCRIPTOR)) {
     return;  // Invalid data
@@ -528,8 +232,9 @@ void EventHandler(const JitCodeEvent* event) {
     script_column = info.column + 1;
   }
 
-  auto code = isolate->heap()->GcSafeTryFindCodeForInnerPointer(
-      Address(event->code_start));
+  auto code =
+      EtwIsolateOperations::Instance()->HeapGcSafeTryFindCodeForInnerPointer(
+          isolate, Address(event->code_start));
   if (code && code.value()->is_builtin()) {
     bool skip_emitting_builtin = true;
     // Skip logging functions with code kind BUILTIN as they are already present

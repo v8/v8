@@ -11,6 +11,7 @@
 
 namespace v8 {
 namespace internal {
+namespace ETWJITInterface {
 
 EtwIsolateCaptureStateMonitor::EtwIsolateCaptureStateMonitor(
     base::Mutex* mutex, size_t pending_isolate_count)
@@ -20,13 +21,16 @@ bool EtwIsolateCaptureStateMonitor::WaitFor(const base::TimeDelta& delta) {
   wait_started_ = base::TimeTicks::Now();
   base::TimeDelta remaining = delta;
 
+  if (pending_isolate_count_ == 0) {
+    return true;
+  }
+
   ETWTRACEDBG << "Waiting for " << pending_isolate_count_
               << " isolates for up to " << remaining.InMilliseconds()
               << std::endl;
   while (isolates_ready_cv_.WaitFor(mutex_, remaining)) {
     ETWTRACEDBG << "WaitFor woke up: " << pending_isolate_count_
                 << " isolates remaining " << std::endl;
-    // If the predicate is satisfied, return true.
     if (pending_isolate_count_ == 0) {
       return true;
     }
@@ -64,5 +68,6 @@ void EtwIsolateCaptureStateMonitor::Notify() {
   ETWTRACEDBG << "Finished notifyOne " << std::endl;
 }
 
+}  // namespace ETWJITInterface
 }  // namespace internal
 }  // namespace v8

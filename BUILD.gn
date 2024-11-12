@@ -38,9 +38,6 @@ declare_args() {
   # Sets -DENABLE_SYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
   v8_enable_system_instrumentation = (is_win || is_mac) && !v8_use_perfetto
 
-  # Sets -DV8_ENABLE_ETW_STACK_WALKING. Enables ETW Stack Walking
-  v8_enable_etw_stack_walking = is_win
-
   # Sets the GUID for the ETW provider
   v8_etw_guid = ""
 
@@ -6261,6 +6258,12 @@ v8_source_set("v8_base_without_compiler") {
         "src/diagnostics/etw-debug-win.h",
         "src/diagnostics/etw-isolate-capture-state-monitor-win.cc",
         "src/diagnostics/etw-isolate-capture-state-monitor-win.h",
+        "src/diagnostics/etw-isolate-load-script-data-win.cc",
+        "src/diagnostics/etw-isolate-load-script-data-win.h",
+        "src/diagnostics/etw-isolate-operations-win.cc",
+        "src/diagnostics/etw-isolate-operations-win.h",
+        "src/diagnostics/etw-jit-metadata-win.cc",
+        "src/diagnostics/etw-jit-metadata-win.h",
         "src/diagnostics/etw-jit-win.cc",
         "src/diagnostics/etw-jit-win.h",
       ]

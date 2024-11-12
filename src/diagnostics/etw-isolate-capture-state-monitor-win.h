@@ -11,8 +11,9 @@
 
 namespace v8 {
 namespace internal {
+namespace ETWJITInterface {
 
-class EtwIsolateCaptureStateMonitor {
+class V8_EXPORT_PRIVATE EtwIsolateCaptureStateMonitor {
  public:
   EtwIsolateCaptureStateMonitor(base::Mutex* mutex,
                                 size_t pending_isolate_count);
@@ -38,6 +39,7 @@ class EtwIsolateCaptureStateMonitor {
   base::TimeTicks wait_started_;
 };
 
+}  // namespace ETWJITInterface
 }  // namespace internal
 }  // namespace v8
 

@@ -185,6 +185,9 @@ declare_args() {
   # (experimental).
   # TODO(sroettger): enable by default once we have bot support for testing.
   v8_enable_memory_sealing = false
+
+  # Sets -DV8_ENABLE_ETW_STACK_WALKING. Enables ETW Stack Walking
+  v8_enable_etw_stack_walking = is_win
 }
 
 if (v8_use_external_startup_data == "") {

@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "include/v8config.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 
@@ -16,7 +17,7 @@ struct JitCodeEvent;
 
 namespace internal {
 namespace ETWJITInterface {
-extern std::atomic<bool> is_etw_enabled;
+extern V8_EXPORT_PRIVATE std::atomic<bool> is_etw_enabled;
 
 void Register();
 void Unregister();

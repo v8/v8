@@ -851,6 +851,15 @@ v8_source_set("v8_unittests_sources") {
 
     sources += [ "avoid-windows-h-includes.cc" ]
   }
+
+  if (is_win) {
+    if (v8_enable_etw_stack_walking) {
+      sources += [
+        "diagnostics/etw-control-unittest.cc",
+        "diagnostics/etw-isolate-capture-state-monitor-win-unittest.cc",
+      ]
+    }
+  }
 }
 
 v8_source_set("inspector_unittests_sources") {

@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class EtwTraceDebug {
+class V8_EXPORT_PRIVATE EtwTraceDebug {
  public:
   static EtwTraceDebug info;
 };
