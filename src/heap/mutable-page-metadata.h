@@ -21,7 +21,22 @@ namespace v8 {
 namespace internal {
 
 class FreeListCategory;
+class SlotSet;
 class Space;
+
+using ActiveSystemPages = ::heap::base::ActiveSystemPages;
+
+enum RememberedSetType {
+  OLD_TO_NEW,
+  OLD_TO_NEW_BACKGROUND,
+  OLD_TO_OLD,
+  OLD_TO_SHARED,
+  OLD_TO_CODE,
+  TRUSTED_TO_TRUSTED,
+  TRUSTED_TO_SHARED_TRUSTED,
+  SURVIVOR_TO_EXTERNAL_POINTER,
+  NUMBER_OF_REMEMBERED_SET_TYPES
+};
 
 // MutablePageMetadata represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
@@ -42,19 +57,17 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     kInProgress,
   };
 
-  static const size_t kHeaderSize = sizeof(MemoryChunk);
-
-  static const intptr_t kOldToNewSlotSetOffset =
-      MemoryChunkLayout::kSlotSetOffset;
-
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = kRegularPageSize;
 
-  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
-                      Address area_start, Address area_end,
-                      VirtualMemory reservation, PageSize page_size);
+  static PageAllocator::Permission GetCodeModificationPermission() {
+    return v8_flags.jitless ? PageAllocator::kReadWrite
+                            : PageAllocator::kReadWriteExecute;
+  }
 
-  MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
+  static inline void MoveExternalBackingStoreBytes(
+      ExternalBackingStoreType type, MutablePageMetadata* from,
+      MutablePageMetadata* to, size_t amount);
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   V8_INLINE static MutablePageMetadata* FromAddress(Address a);
@@ -72,16 +85,18 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return static_cast<const MutablePageMetadata*>(metadata);
   }
 
+  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
+                      Address area_start, Address area_end,
+                      VirtualMemory reservation, PageSize page_size);
+
+  MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
+
   size_t buckets() const { return SlotSet::BucketsForSize(size()); }
 
   V8_INLINE void SetOldGenerationPageFlags(MarkingMode marking_mode);
   void SetYoungGenerationPageFlags(MarkingMode marking_mode) {
     return Chunk()->SetYoungGenerationPageFlags(marking_mode);
   }
-
-  static inline void MoveExternalBackingStoreBytes(
-      ExternalBackingStoreType type, MutablePageMetadata* from,
-      MutablePageMetadata* to, size_t amount);
 
   base::Mutex* mutex() const { return mutex_; }
   base::SharedMutex* shared_mutex() const { return shared_mutex_; }
@@ -185,11 +200,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // (like read-only chunks have).
   inline AllocationSpace owner_identity() const;
 
-  static PageAllocator::Permission GetCodeModificationPermission() {
-    return v8_flags.jitless ? PageAllocator::kReadWrite
-                            : PageAllocator::kReadWriteExecute;
-  }
-
   heap::ListNode<MutablePageMetadata>& list_node() { return list_node_; }
   const heap::ListNode<MutablePageMetadata>& list_node() const {
     return list_node_;
@@ -266,10 +276,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // chunk is about to be freed.
   void ReleaseAllAllocatedMemory();
 
-#ifdef DEBUG
-  static void ValidateOffsets(MutablePageMetadata* chunk);
-#endif
-
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   void set_slot_set(SlotSet* slot_set) {
     if (access_mode == AccessMode::ATOMIC) {
@@ -339,16 +345,28 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   MarkingBitmap marking_bitmap_;
 
  private:
-  friend class ConcurrentMarkingState;
-  friend class MarkingState;
-  friend class AtomicMarkingState;
-  friend class NonAtomicMarkingState;
+  static constexpr intptr_t MarkingBitmapOffset() {
+    return offsetof(MutablePageMetadata, marking_bitmap_);
+  }
+
+  static constexpr intptr_t SlotSetOffset(
+      RememberedSetType remembered_set_type) {
+    return offsetof(MutablePageMetadata, slot_set_) +
+           sizeof(void*) * remembered_set_type;
+  }
+
+  // For ReleaseAllAllocatedMemory().
   friend class MemoryAllocator;
-  friend class MemoryChunkValidator;
-  friend class PagedSpace;
+  // For set_typed_slot_set().
   template <RememberedSetType>
   friend class RememberedSet;
-  friend class YoungGenerationMarkingState;
+  // For MarkingBitmapOffset().
+  friend class CodeStubAssembler;
+  friend class MacroAssembler;
+  friend class MarkingBitmap;
+  friend class TestWithBitmap;
+  // For SlotSetOffset().
+  friend class WriteBarrierCodeStubAssembler;
 };
 
 }  // namespace internal

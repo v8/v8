@@ -13652,7 +13652,7 @@ TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index.
   TNode<IntPtrT> metadata_chunk = MemoryChunkFromAddress(Load<IntPtrT>(
-      metadata, IntPtrConstant(MemoryChunkLayout::kAreaStartOffset)));
+      metadata, IntPtrConstant(MemoryChunkMetadata::AreaStartOffset())));
   CSA_CHECK(this, WordEqual(metadata_chunk, address));
   return metadata;
 #else
@@ -18771,8 +18771,8 @@ TNode<BoolT> CodeStubAssembler::IsMarked(TNode<Object> object) {
 void CodeStubAssembler::GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                                    TNode<IntPtrT>* mask) {
   TNode<IntPtrT> page = PageMetadataFromAddress(object);
-  TNode<IntPtrT> bitmap =
-      IntPtrAdd(page, IntPtrConstant(MemoryChunkLayout::kMarkingBitmapOffset));
+  TNode<IntPtrT> bitmap = IntPtrAdd(
+      page, IntPtrConstant(MutablePageMetadata::MarkingBitmapOffset()));
 
   {
     // Temp variable to calculate cell offset in bitmap.

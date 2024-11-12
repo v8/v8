@@ -14,6 +14,14 @@
 namespace v8 {
 namespace internal {
 
+// This check is here to ensure that the lower 32 bits of any real heap object
+// can't overlap with the lower 32 bits of cleared weak reference value and
+// therefore it's enough to compare only the lower 32 bits of a
+// Tagged<MaybeObject> in order to figure out if it's a cleared weak reference
+// or not.
+static_assert(kClearedWeakHeapObjectLower32 > 0);
+static_assert(kClearedWeakHeapObjectLower32 < sizeof(MemoryChunk));
+
 // static
 constexpr MemoryChunk::MainThreadFlags MemoryChunk::kAllFlagsMask;
 // static

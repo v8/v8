@@ -150,7 +150,7 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
 MarkingBitmap* MarkingBitmap::FromAddress(Address address) {
   Address metadata_address =
       MutablePageMetadata::FromAddress(address)->MetadataAddress();
-  return Cast(metadata_address + MemoryChunkLayout::kMarkingBitmapOffset);
+  return Cast(metadata_address + MutablePageMetadata::MarkingBitmapOffset());
 }
 
 // static

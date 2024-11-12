@@ -191,7 +191,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   TNode<IntPtrT> LoadSlotSet(TNode<IntPtrT> page, Label* slow_path) {
     TNode<IntPtrT> slot_set = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), page,
-             IntPtrConstant(MutablePageMetadata::kOldToNewSlotSetOffset)));
+             IntPtrConstant(MutablePageMetadata::SlotSetOffset(
+                 RememberedSetType::OLD_TO_NEW))));
     GotoIf(WordEqual(slot_set, IntPtrConstant(0)), slow_path);
     return slot_set;
   }

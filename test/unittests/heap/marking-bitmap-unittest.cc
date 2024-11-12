@@ -4,11 +4,18 @@
 
 #include "src/common/globals.h"
 #include "src/heap/marking-inl.h"
-#include "src/heap/spaces.h"
-#include "test/unittests/heap/bitmap-test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8::internal {
+
+class TestWithMarkingBitmap : public ::testing::Test {
+ public:
+  uint8_t* raw_bitmap() { return reinterpret_cast<uint8_t*>(bitmap()); }
+  MarkingBitmap* bitmap() { return &bitmap_; }
+
+ private:
+  MarkingBitmap bitmap_;
+};
 
 constexpr MarkBit::CellType kMarkedCell =
     std::numeric_limits<MarkBit::CellType>::max();
@@ -19,8 +26,8 @@ constexpr MarkBit::CellType kWhiteCell = static_cast<MarkBit::CellType>(0x0);
 constexpr uint8_t kMarkedByte = 0xFF;
 constexpr uint8_t kUnmarkedByte = 0x00;
 
-using NonAtomicBitmapTest = TestWithBitmap;
-using AtomicBitmapTest = TestWithBitmap;
+using NonAtomicBitmapTest = TestWithMarkingBitmap;
+using AtomicBitmapTest = TestWithMarkingBitmap;
 
 TEST_F(NonAtomicBitmapTest, IsZeroInitialized) {
   // We require all tests to start from a zero-initialized bitmap. Manually
@@ -187,6 +194,22 @@ TEST_F(NonAtomicBitmapTest, ClearMultipleRanges) {
                               MarkingBitmap::kBitsPerCell * 2 + 24));
   CHECK(bm->AllBitsClearInRange(MarkingBitmap::kBitsPerCell * 2 + 24,
                                 MarkingBitmap::kBitsPerCell * 3));
+}
+
+TEST_F(NonAtomicBitmapTest, TransitionMarkBit) {
+  auto bitmap = this->bitmap();
+  const int kLocationsSize = 3;
+  int position[kLocationsSize] = {MarkingBitmap::kBitsPerCell - 2,
+                                  MarkingBitmap::kBitsPerCell - 1,
+                                  MarkingBitmap::kBitsPerCell};
+  for (int i = 0; i < kLocationsSize; i++) {
+    MarkBit mark_bit = bitmap->MarkBitFromIndexForTesting(position[i]);
+    CHECK(!mark_bit.template Get<AccessMode::NON_ATOMIC>());
+    CHECK(mark_bit.template Set<AccessMode::NON_ATOMIC>());
+    CHECK(mark_bit.template Get<AccessMode::NON_ATOMIC>());
+    CHECK(mark_bit.Clear());
+    CHECK(!mark_bit.template Get<AccessMode::NON_ATOMIC>());
+  }
 }
 
 }  // namespace v8::internal

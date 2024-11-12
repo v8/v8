@@ -126,14 +126,6 @@ class PageMetadata : public MutablePageMetadata {
   friend class MemoryAllocator;
 };
 
-// Validate our estimates on the header size.
-static_assert(sizeof(MemoryChunkMetadata) <=
-              MemoryChunkLayout::kMemoryChunkMetadataSize);
-static_assert(sizeof(MutablePageMetadata) <=
-              MemoryChunkLayout::kMutablePageMetadataSize);
-static_assert(sizeof(PageMetadata) <=
-              MemoryChunkLayout::kMutablePageMetadataSize);
-
 }  // namespace internal
 
 namespace base {
