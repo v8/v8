@@ -92,7 +92,6 @@ luci.cq_group(
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench End2End Windows x64 Try",
-            experiment_percentage = 50,
         ),
         luci.cq_tryjob_verifier(
             builder = "Crossbench End2End Android x64 Try",
