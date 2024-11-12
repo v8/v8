@@ -1292,10 +1292,15 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
         graph()->zone(), callable.descriptor(),
         callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState, node->op()->properties());
-    rfalse = efalse = if_false =
+    Node* call = rfalse = efalse = if_false =
         graph()->NewNode(common()->Call(call_descriptor),
                          jsgraph()->HeapConstantNoHole(callable.code()),
                          receiver, context, frame_state, efalse, if_false);
+
+    // We preserve the type of {node}. This is generally useful (to  enable
+    // type-based optimizations), and is also required in order to help
+    // verification of TypeGuards.
+    NodeProperties::SetType(call, NodeProperties::GetType(node));
   }
 
   // Update potential {IfException} uses of {node} to point to the above
