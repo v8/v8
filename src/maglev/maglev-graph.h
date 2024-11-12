@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/compiler/const-tracking-let-helpers.h"
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-ir.h"
