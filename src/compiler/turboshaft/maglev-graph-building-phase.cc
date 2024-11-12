@@ -2855,7 +2855,7 @@ class GraphBuildingNodeProcessor {
           __ LoadScriptContextSideData(context, node->index());
       IF_NOT (UNLIKELY(__ TaggedEqual(
                   side_data,
-                  __ SmiConstant(ContextSidePropertyCell::kOther)))) {
+                  __ SmiConstant(ContextSidePropertyCell::Other())))) {
         GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
         __ StoreScriptContextSlowPath(
             context, old_value, new_value, side_data, frame_state,

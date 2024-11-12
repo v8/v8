@@ -173,7 +173,7 @@ class MaglevEarlyLoweringReducer : public Next {
     ScopedVar<HeapNumber> result(this, heap_number);
     IF (__ TaggedEqual(
             property,
-            __ SmiConstant(ContextSidePropertyCell::kMutableHeapNumber))) {
+            __ SmiConstant(ContextSidePropertyCell::MutableHeapNumber()))) {
       result = __ AllocateHeapNumberWithValue(
           __ LoadHeapNumberValue(heap_number), isolate_->factory());
     }
@@ -194,12 +194,12 @@ class MaglevEarlyLoweringReducer : public Next {
     // Check for const case.
     __ DeoptimizeIf(
         __ TaggedEqual(property,
-                       __ SmiConstant(ContextSidePropertyCell::kConst)),
+                       __ SmiConstant(ContextSidePropertyCell::Const())),
         frame_state, DeoptimizeReason::kWrongValue, feedback);
     if (v8_flags.script_context_mutable_heap_number) {
       // Check for smi case
-      IF (__ TaggedEqual(property,
-                         __ SmiConstant(ContextSidePropertyCell::kSmi))) {
+      IF (__ TaggedEqual(
+              property, __ SmiConstant(ContextSidePropertyCell::SmiMarker()))) {
         __ DeoptimizeIfNot(__ IsSmi(new_value), frame_state,
                            DeoptimizeReason::kWrongValue, feedback);
       } ELSE {
