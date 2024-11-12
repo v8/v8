@@ -1542,8 +1542,8 @@ class BodyGen {
     }
     int first_index = data->get<uint8_t>() % static_cast<int>(table.size());
     int second_index = data->get<uint8_t>() % static_cast<int>(table.size());
-    ValueType first_addrtype = table_address_type(first_index);
-    ValueType second_addrtype = table_address_type(second_index);
+    ValueType first_addrtype = table_address_type(table[first_index]);
+    ValueType second_addrtype = table_address_type(table[second_index]);
     ValueType result_addrtype =
         first_addrtype == kWasmI32 ? kWasmI32 : second_addrtype;
     Generate(first_addrtype, data);
