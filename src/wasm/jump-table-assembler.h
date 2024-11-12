@@ -112,24 +112,22 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
     return slot_count * kLazyCompileTableSlotSize;
   }
 
-  static void GenerateLazyCompileTable(AccountingAllocator* allocator,
-                                       Address base, uint32_t num_slots,
+  static void GenerateLazyCompileTable(Address base, uint32_t num_slots,
                                        uint32_t num_imported_functions,
                                        Address wasm_compile_lazy_target);
 
   // Initializes the jump table starting at {base} with jumps to the lazy
   // compile table starting at {lazy_compile_table_start}.
   static void InitializeJumpsToLazyCompileTable(
-      AccountingAllocator* allocator, Address base, uint32_t num_slots,
-      Address lazy_compile_table_start);
+      Address base, uint32_t num_slots, Address lazy_compile_table_start);
 
-  static void GenerateFarJumpTable(AccountingAllocator* allocator, Address base,
-                                   Address* stub_targets, int num_runtime_slots,
+  static void GenerateFarJumpTable(Address base, Address* stub_targets,
+                                   int num_runtime_slots,
                                    int num_function_slots) {
     uint32_t table_size =
         SizeForNumberOfFarJumpSlots(num_runtime_slots, num_function_slots);
     // Assume enough space, so the Assembler does not try to grow the buffer.
-    JumpTableAssembler jtasm(allocator, base, table_size + 256);
+    JumpTableAssembler jtasm(base);
     int offset = 0;
     for (int index = 0; index < num_runtime_slots + num_function_slots;
          ++index) {
@@ -145,11 +143,10 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
     FlushInstructionCache(base, table_size);
   }
 
-  static void PatchJumpTableSlot(AccountingAllocator* allocator,
-                                 Address jump_table_slot,
+  static void PatchJumpTableSlot(Address jump_table_slot,
                                  Address far_jump_table_slot, Address target) {
     // First, try to patch the jump table slot.
-    JumpTableAssembler jtasm(allocator, jump_table_slot);
+    JumpTableAssembler jtasm(jump_table_slot);
     if (!jtasm.EmitJumpSlot(target)) {
       // If that fails, we need to patch the far jump table slot, and then
       // update the jump table slot to jump to this far jump table slot.
@@ -166,8 +163,7 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
 
  private:
   // Instantiate a {JumpTableAssembler} for patching.
-  JumpTableAssembler(AccountingAllocator* allocator, Address slot_addr,
-                     int size = 256)
+  explicit JumpTableAssembler(Address slot_addr)
       : buffer_start_(slot_addr), pc_(slot_addr) {}
 
   const Address buffer_start_;

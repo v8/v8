@@ -1189,12 +1189,10 @@ void NativeModule::InitializeJumpTableForLazyCompilation(
           BuiltinLookup::JumptableIndexForBuiltin(Builtin::kWasmCompileLazy));
 
   JumpTableAssembler::GenerateLazyCompileTable(
-      GetWasmEngine()->allocator(), lazy_compile_table_->instruction_start(),
-      num_wasm_functions, module_->num_imported_functions,
-      compile_lazy_address);
+      lazy_compile_table_->instruction_start(), num_wasm_functions,
+      module_->num_imported_functions, compile_lazy_address);
 
   JumpTableAssembler::InitializeJumpsToLazyCompileTable(
-      GetWasmEngine()->allocator(),
       code_space_data.jump_table->instruction_start(), num_wasm_functions,
       lazy_compile_table_->instruction_start());
 
@@ -1763,8 +1761,7 @@ void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
   Address far_jump_table_slot =
       has_far_jump_slot ? far_jump_table_start + far_jump_table_offset
                         : kNullAddress;
-  JumpTableAssembler::PatchJumpTableSlot(GetWasmEngine()->allocator(),
-                                         jump_table_slot, far_jump_table_slot,
+  JumpTableAssembler::PatchJumpTableSlot(jump_table_slot, far_jump_table_slot,
                                          target);
   DCHECK_LT(slot_index, code_pointer_handles_size_);
   GetProcessWideWasmCodePointerTable()->SetEntrypointWithRwxWriteScope(
@@ -1825,8 +1822,8 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
         far_jump_table->instruction_start(), far_jump_table->instructions_size_,
         ThreadIsolation::JitAllocationType::kWasmFarJumpTable);
     JumpTableAssembler::GenerateFarJumpTable(
-        GetWasmEngine()->allocator(), far_jump_table->instruction_start(),
-        builtin_addresses, BuiltinLookup::BuiltinCount(), num_function_slots);
+        far_jump_table->instruction_start(), builtin_addresses,
+        BuiltinLookup::BuiltinCount(), num_function_slots);
   }
 
   if (is_first_code_space) {
