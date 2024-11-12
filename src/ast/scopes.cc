@@ -2803,6 +2803,13 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
             // that's failing currently.
             if (v8_flags.verify_scope_info_reuse) {
               CHECK_EQ(*it->second, scope_info);
+            } else if (*it->second != scope_info) {
+              if constexpr (std::is_same<IsolateT, Isolate>::value) {
+                isolate->PushStackTraceAndDie(
+                    reinterpret_cast<void*>(it->second->ptr()),
+                    reinterpret_cast<void*>(scope_info->ptr()));
+              }
+              UNREACHABLE();
             }
             while (scope_info != duplicate) {
               CHECK_EQ(scope_info->scope_type(), duplicate->scope_type());
