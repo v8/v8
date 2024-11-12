@@ -5790,7 +5790,9 @@ int Name::GetIdentityHash() {
   return static_cast<int>(Utils::OpenDirectHandle(this)->EnsureHash());
 }
 
-int String::Length() const { return Utils::OpenDirectHandle(this)->length(); }
+int String::Length() const {
+  return static_cast<int>(Utils::OpenDirectHandle(this)->length());
+}
 
 bool String::IsOneByte() const {
   return Utils::OpenDirectHandle(this)->IsOneByteRepresentation();
@@ -5938,6 +5940,11 @@ int String::Utf8Length(Isolate* v8_isolate) const {
     }
   }
   return utf8_length;
+}
+
+size_t String::Utf8LengthV2(Isolate* v8_isolate) const {
+  auto str = Utils::OpenHandle(this);
+  return i::String::Utf8Length(reinterpret_cast<i::Isolate*>(v8_isolate), str);
 }
 
 namespace {
@@ -6117,6 +6124,53 @@ int String::Write(Isolate* v8_isolate, uint16_t* buffer, int start, int length,
                   int options) const {
   return WriteHelper(reinterpret_cast<i::Isolate*>(v8_isolate), this, buffer,
                      start, length, options);
+}
+
+template <typename CharType>
+static inline void WriteHelperV2(i::Isolate* i_isolate, const String* string,
+                                 CharType* buffer, uint32_t offset,
+                                 uint32_t length, int flags) {
+  API_RCS_SCOPE(i_isolate, String, Write);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+
+  DCHECK_LE(length, string->Length());
+  DCHECK_LE(offset, string->Length() - length);
+
+  auto str = Utils::OpenHandle(string);
+  str = i::String::Flatten(i_isolate, str);
+  i::String::WriteToFlat(*str, buffer, offset, length);
+  if (flags & String::WriteFlags::kNullTerminate) {
+    buffer[length] = '\0';
+  }
+}
+
+void String::WriteV2(Isolate* v8_isolate, uint32_t offset, uint32_t length,
+                     uint16_t* buffer, int flags) const {
+  WriteHelperV2(reinterpret_cast<i::Isolate*>(v8_isolate), this, buffer, offset,
+                length, flags);
+}
+
+void String::WriteOneByteV2(Isolate* v8_isolate, uint32_t offset,
+                            uint32_t length, uint8_t* buffer, int flags) const {
+  DCHECK(IsOneByte());
+  WriteHelperV2(reinterpret_cast<i::Isolate*>(v8_isolate), this, buffer, offset,
+                length, flags);
+}
+
+size_t String::WriteUtf8V2(Isolate* v8_isolate, char* buffer, size_t capacity,
+                           int flags) const {
+  auto str = Utils::OpenHandle(this);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  API_RCS_SCOPE(i_isolate, String, WriteUtf8);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::String::Utf8EncodingFlags i_flags;
+  if (flags & String::WriteFlags::kNullTerminate) {
+    i_flags |= i::String::Utf8EncodingFlag::kNullTerminate;
+  }
+  if (flags & String::WriteFlags::kReplaceInvalidUtf8) {
+    i_flags |= i::String::Utf8EncodingFlag::kReplaceInvalid;
+  }
+  return i::String::WriteUtf8(i_isolate, str, buffer, capacity, i_flags);
 }
 
 namespace {
