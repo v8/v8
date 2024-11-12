@@ -501,6 +501,31 @@ V8_OBJECT class String : public Name {
   static void WriteToFlat(Tagged<String> source, sinkchar* sink, uint32_t from,
                           uint32_t to, const SharedStringAccessGuardIfNeeded&);
 
+  // Computes the number of bytes required for the Utf8 encoding of the string.
+  //
+  // Note: if the given string is not already flat, it will be flattened by
+  // this operation to improve the performance of utf8 encoding.
+  static inline size_t Utf8Length(Isolate* isolate, Handle<String> string);
+
+  // Encodes the given string as Utf8 into the provided buffer.
+  //
+  // This operation will write at most {capacity} bytes into the output buffer
+  // but may write fewer bytes. The number of bytes written is returned. If the
+  // result should be null terminated, a null terminator will always be
+  // written, even if not the entire string could be encoded. As such, when
+  // null termination is requested, the capacity must be larger than zero.
+  //
+  // Note: if the given string is not already flat, it will be flattened by
+  // this operation to improve the performance of utf8 encoding.
+  enum class Utf8EncodingFlag {
+    kNoFlags = 0,
+    kNullTerminate = 1u << 0,
+    kReplaceInvalid = 1u << 1,
+  };
+  using Utf8EncodingFlags = base::Flags<Utf8EncodingFlag>;
+  static size_t WriteUtf8(Isolate* isolate, Handle<String> string, char* buffer,
+                          size_t capacity, Utf8EncodingFlags flags);
+
   // Returns true if this string has no unpaired surrogates and false otherwise.
   static inline bool IsWellFormedUnicode(Isolate* isolate,
                                          Handle<String> string);

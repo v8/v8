@@ -921,6 +921,28 @@ Tagged<ConsString> String::VisitFlat(
   }
 }
 
+// static
+size_t String::Utf8Length(Isolate* isolate, Handle<String> string) {
+  string = Flatten(isolate, string);
+
+  DisallowGarbageCollection no_gc;
+  FlatContent content = string->GetFlatContent(no_gc);
+  DCHECK(content.IsFlat());
+  size_t utf8_length = 0;
+  if (content.IsOneByte()) {
+    for (uint8_t c : content.ToOneByteVector()) {
+      utf8_length += unibrow::Utf8::LengthOneByte(c);
+    }
+  } else {
+    uint16_t last_character = unibrow::Utf16::kNoPreviousCharacter;
+    for (uint16_t c : content.ToUC16Vector()) {
+      utf8_length += unibrow::Utf8::Length(c, last_character);
+      last_character = c;
+    }
+  }
+  return utf8_length;
+}
+
 bool String::IsWellFormedUnicode(Isolate* isolate, Handle<String> string) {
   // One-byte strings are definitionally well formed and cannot have unpaired
   // surrogates.

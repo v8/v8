@@ -162,7 +162,8 @@ class V8_EXPORT_PRIVATE Utf8 {
  public:
   using State = Utf8DfaDecoder::State;
 
-  static inline uchar Length(uchar chr, int previous);
+  static inline unsigned LengthOneByte(uint8_t chr);
+  static inline unsigned Length(uchar chr, int previous);
   static inline unsigned EncodeOneByte(char* out, uint8_t c);
   static inline unsigned Encode(char* out, uchar c, int previous,
                                 bool replace_invalid = false);
