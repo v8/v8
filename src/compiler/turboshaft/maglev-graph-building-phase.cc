@@ -2848,8 +2848,8 @@ class GraphBuildingNodeProcessor {
       const maglev::ProcessingState& state) {
     Label<> done(this);
     V<Context> context = V<i::Context>::Cast(Map(node->context_input()));
-    V<Object> old_value = Map(node->old_value_input());
     V<Object> new_value = Map(node->new_value_input());
+    V<Object> old_value = __ LoadTaggedField(context, node->offset());
     IF_NOT (__ TaggedEqual(old_value, new_value)) {
       V<Object> side_data =
           __ LoadScriptContextSideData(context, node->index());

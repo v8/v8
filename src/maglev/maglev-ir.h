@@ -7687,8 +7687,8 @@ class StoreTaggedFieldWithWriteBarrier
 };
 
 class StoreScriptContextSlotWithWriteBarrier
-    : public FixedInputNodeT<3, StoreScriptContextSlotWithWriteBarrier> {
-  using Base = FixedInputNodeT<3, StoreScriptContextSlotWithWriteBarrier>;
+    : public FixedInputNodeT<2, StoreScriptContextSlotWithWriteBarrier> {
+  using Base = FixedInputNodeT<2, StoreScriptContextSlotWithWriteBarrier>;
 
  public:
   explicit StoreScriptContextSlotWithWriteBarrier(uint64_t bitfield, int index)
@@ -7698,17 +7698,14 @@ class StoreScriptContextSlotWithWriteBarrier
                                               OpProperties::DeferredCall() |
                                               OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged,
-      ValueRepresentation::kTagged};
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   int offset() const { return Context::OffsetOfElementAt(index()); }
   int index() const { return index_; }
 
   static constexpr int kContextIndex = 0;
-  static constexpr int kOldValueIndex = 1;
-  static constexpr int kNewValueIndex = 2;
+  static constexpr int kNewValueIndex = 1;
   Input& context_input() { return input(kContextIndex); }
-  Input& old_value_input() { return input(kOldValueIndex); }
   Input& new_value_input() { return input(kNewValueIndex); }
 
 #ifdef V8_COMPRESS_POINTERS

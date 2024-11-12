@@ -1166,8 +1166,6 @@ class MaglevGraphBuilder {
   ValueNode* LoadAndCacheContextSlot(ValueNode* context, int offset,
                                      ContextSlotMutability slot_mutability,
                                      ContextKind context_kind);
-  Node* BuildNonSpecializedStoreScriptContextSlot(ValueNode* context, int index,
-                                                  ValueNode* value);
   ReduceResult TrySpecializeStoreScriptContextSlot(ValueNode* context,
                                                    int index, ValueNode* value,
                                                    Node** store);

@@ -3095,23 +3095,14 @@ bool MaglevGraphBuilder::ContextMayAlias(
   return scope_info->equals(*other);
 }
 
-Node* MaglevGraphBuilder::BuildNonSpecializedStoreScriptContextSlot(
-    ValueNode* context, int index, ValueNode* value) {
-  // Use kDefault here in order to not emit a script context slot property
-  // check.
-  ValueNode* old_value =
-      LoadAndCacheContextSlot(context, index, kMutable, ContextKind::kDefault);
-  return AddNewNode<StoreScriptContextSlotWithWriteBarrier>(
-      {context, old_value, value}, index);
-}
-
 ReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
     ValueNode* context, int index, ValueNode* value, Node** store) {
   DCHECK_NOT_NULL(store);
   DCHECK(v8_flags.script_context_mutable_heap_number ||
          v8_flags.const_tracking_let);
   if (!context->Is<Constant>()) {
-    *store = BuildNonSpecializedStoreScriptContextSlot(context, index, value);
+    *store = AddNewNode<StoreScriptContextSlotWithWriteBarrier>(
+        {context, value}, index);
     return ReduceResult::Done();
   }
 
@@ -3124,7 +3115,8 @@ ReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
     compiler::OptionalObjectRef constant = context_ref.get(broker(), index);
     if (!constant.has_value() ||
         (constant->IsString() && !constant->IsInternalizedString())) {
-      *store = BuildNonSpecializedStoreScriptContextSlot(context, index, value);
+      *store = AddNewNode<StoreScriptContextSlotWithWriteBarrier>(
+          {context, value}, index);
       return ReduceResult::Done();
     }
     broker()->dependencies()->DependOnScriptContextSlotProperty(

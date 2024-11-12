@@ -3381,9 +3381,8 @@ int StoreScriptContextSlotWithWriteBarrier::MaxCallStackArgs() const {
 
 void StoreScriptContextSlotWithWriteBarrier::SetValueLocationConstraints() {
   UseFixed(context_input(), WriteBarrierDescriptor::ObjectRegister());
-  UseRegister(old_value_input());
   UseRegister(new_value_input());
-  set_temporaries_needed(1);
+  set_temporaries_needed(2);
   set_double_temporaries_needed(1);
 }
 
@@ -3396,14 +3395,15 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
   // TODO(leszeks): Consider making this an arbitrary register and push/popping
   // in the deferred path.
   Register context = WriteBarrierDescriptor::ObjectRegister();
-  Register old_value = ToRegister(old_value_input());
   Register new_value = ToRegister(new_value_input());
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
+  Register old_value = temps.Acquire();
 
   __ AssertObjectType(context, SCRIPT_CONTEXT_TYPE,
                       AbortReason::kUnexpectedInstanceType);
 
+  __ LoadTaggedField(old_value, context, offset());
   __ CompareTaggedAndJumpIf(old_value, new_value, kEqual, *done);
 
   // Load property.
