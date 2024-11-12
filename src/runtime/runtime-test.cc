@@ -2089,6 +2089,25 @@ RUNTIME_FUNCTION(Runtime_StringToCString) {
   return *result;
 }
 
+RUNTIME_FUNCTION(Runtime_StringUtf8Value) {
+  HandleScope scope(isolate);
+  if (args.length() != 1 || !IsString(args[0])) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  Handle<String> string = args.at<String>(0);
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::String::Utf8Value value(v8_isolate, v8::Utils::ToLocal(string));
+
+  Handle<JSArrayBuffer> result =
+      isolate->factory()
+          ->NewJSArrayBufferAndBackingStore(value.length(),
+                                            InitializedFlag::kUninitialized)
+          .ToHandleChecked();
+  memcpy(result->backing_store(), *value, value.length());
+  return *result;
+}
+
 RUNTIME_FUNCTION(Runtime_SharedGC) {
   SealHandleScope scope(isolate);
   if (!isolate->has_shared_space()) {
