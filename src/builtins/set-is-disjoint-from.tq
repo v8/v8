@@ -9,6 +9,7 @@ transitioning javascript builtin SetPrototypeIsDisjointFrom(
     js-implicit context: NativeContext, receiver: JSAny)(
     other: JSAny): Boolean {
   const methodName: constexpr string = 'Set.prototype.isDisjointFrom';
+  IncrementUseCounter(context, SmiConstant(kSetMethods));
   const fastIteratorResultMap = GetIteratorResultMap();
 
   // 1. Let O be the this value.

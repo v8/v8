@@ -87,6 +87,7 @@ transitioning builtin ArrayTimSortIntoCopy(
 // https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.toSorted
 transitioning javascript builtin ArrayPrototypeToSorted(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  IncrementUseCounter(context, SmiConstant(kArrayByCopy));
   // 1. If comparefn is not undefined and IsCallable(comparefn) is false, throw
   //    a TypeError exception.
   const comparefnObj: JSAny = arguments[0];

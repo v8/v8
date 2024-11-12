@@ -4,6 +4,9 @@
 
 namespace array {
 
+const kArrayFromAsync: constexpr UseCounterFeature
+    generates 'v8::Isolate::kArrayFromAsync';
+
 extern enum ArrayFromAsyncLabels extends uint31
     constexpr 'ArrayBuiltins::ArrayFromAsyncLabels' {
   kGetIteratorStep,
@@ -806,6 +809,7 @@ extern macro ArrayFromAsyncArrayLikeOnRejectedSharedFunConstant():
 // is available in go/array-from-async-implementation.
 transitioning javascript builtin ArrayFromAsync(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  IncrementUseCounter(context, SmiConstant(kArrayFromAsync));
   // 1. Let C be the this value.
   const c = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
 

@@ -214,7 +214,6 @@ const kRegExpPrototypeUnicodeGetter: constexpr int31
 
 extern macro RegExpBuiltinsAssembler::FastFlagGetter(JSRegExp, constexpr Flag):
     bool;
-extern runtime IncrementUseCounter(Context, Smi): void;
 
 macro FlagGetter(
     implicit context: Context)(receiver: Object, flag: constexpr Flag,
@@ -391,8 +390,6 @@ extern macro RegExpBuiltinsAssembler::AdvanceStringIndexFast(
 extern macro RegExpBuiltinsAssembler::AdvanceStringIndexSlow(
     String, Number, bool): Smi;
 
-type UseCounterFeature extends int31
-    constexpr 'v8::Isolate::UseCounterFeature';
 const kRegExpMatchIsTrueishOnNonJSRegExp: constexpr UseCounterFeature
     generates 'v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp';
 const kRegExpMatchIsFalseishOnJSRegExp: constexpr UseCounterFeature

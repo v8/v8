@@ -8,6 +8,7 @@ namespace collections {
 transitioning javascript builtin SetPrototypeIntersection(
     js-implicit context: NativeContext, receiver: JSAny)(other: JSAny): JSSet {
   const methodName: constexpr string = 'Set.prototype.intersection';
+  IncrementUseCounter(context, SmiConstant(kSetMethods));
   const fastIteratorResultMap = GetIteratorResultMap();
 
   // 1. Let O be the this value.

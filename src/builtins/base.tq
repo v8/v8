@@ -61,12 +61,16 @@ type Uninitialized extends Tagged;
 
 type BuiltinsName extends int31 constexpr 'Builtin';
 
+type UseCounterFeature extends int31
+    constexpr 'v8::Isolate::UseCounterFeature';
+
 extern macro MakeWeak(HeapObject): WeakHeapObject;
 extern macro GetHeapObjectAssumeWeak(MaybeObject): HeapObject labels IfCleared;
 extern macro GetHeapObjectIfStrong(MaybeObject): HeapObject labels IfNotStrong;
 extern macro IsWeakOrCleared(MaybeObject): bool;
 extern macro IsWeakReferenceToObject(MaybeObject, Object): bool;
 extern macro IsStrong(MaybeObject): bool;
+extern runtime IncrementUseCounter(Context, Smi): void;
 
 macro StrongToWeak<T: type>(x: T): Weak<T> {
   return %RawDownCast<Weak<T>>(MakeWeak(x));
