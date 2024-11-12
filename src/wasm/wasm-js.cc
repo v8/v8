@@ -945,7 +945,11 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
     std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-    memcpy(copy.get(), bytes.start(), bytes.length());
+    // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
+    // reports on concurrent modifications of the SAB.
+    base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(copy.get()),
+                         reinterpret_cast<const base::Atomic8*>(bytes.start()),
+                         bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
     maybe_module_obj = i::wasm::GetWasmEngine()->SyncCompile(
