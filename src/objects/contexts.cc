@@ -11,6 +11,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/dependent-code.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/string-set-inl.h"
@@ -566,6 +567,13 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
 
   // If we are assigning the same value, the property won't change.
   if (*old_value == *new_value) {
+    return;
+  }
+  // If both values are HeapNumbers with the same double value, the property
+  // won't change either.
+  if (Is<HeapNumber>(*old_value) && Is<HeapNumber>(*new_value) &&
+      Cast<HeapNumber>(*old_value)->value() ==
+          Cast<HeapNumber>(*new_value)->value()) {
     return;
   }
 

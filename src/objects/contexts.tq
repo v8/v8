@@ -317,6 +317,15 @@ macro StoreScriptContextAndUpdateSlotProperty(
   if (TaggedEqual(oldValue, newValue)) {
     return;
   }
+  // If both values are HeapNumbers with the same double value, the property
+  // won't change either.
+  if (Is<HeapNumber>(oldValue) && Is<HeapNumber>(newValue)) {
+    const oldNumber = Cast<HeapNumber>(oldValue) otherwise unreachable;
+    const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
+    if (oldNumber.value == newNumber.value) {
+      return;
+    }
+  }
 
   // From now on, we know the value is no longer a constant.
 
