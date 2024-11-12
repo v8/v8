@@ -130,19 +130,15 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
       reinterpret_cast<uint8_t*>(target) - (pc_ + kIntraSegmentJmpInstrSize));
   if (!is_int32(displacement)) return false;
 
-  const uint8_t inst[kJumpTableSlotSize] = {
+  uint8_t inst[kJumpTableSlotSize] = {
       0xe9, 0,    0,    0, 0,  // near_jmp displacement
       0xcc, 0xcc, 0xcc,        // int3 * 3
   };
+  int32_t displacement32 = base::checked_cast<int32_t>(displacement);
+  memcpy(&inst[1], &displacement32, sizeof(int32_t));
 
-  // The jump table is updated live, so the writes have to be atomic. These
-  // stores are only guaranteed to be atomic if they don't cross a qword
-  // boundary on AMD.
-  emit<uint8_t>(inst[0], kRelaxedStore);
-  emit<int32_t>(base::checked_cast<int32_t>(displacement), kRelaxedStore);
-  for (int i = 5; i < 8; i++) {
-    emit<uint8_t>(inst[i], kRelaxedStore);
-  }
+  // The jump table is updated live, so the write has to be atomic.
+  emit<uint64_t>(*reinterpret_cast<uint64_t*>(inst), kRelaxedStore);
 
   return true;
 }
