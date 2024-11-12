@@ -779,7 +779,7 @@ class MaglevGraphBuilder {
       }
 
       if (V8_UNLIKELY(merge_state->is_exception_handler())) {
-        DCHECK_EQ(predecessors_[offset], 0);
+        CHECK_EQ(predecessors_[offset], 0);
         // If we have no reference to this block, then the exception handler is
         // dead.
         if (!jump_targets_[offset].has_ref() ||
@@ -812,14 +812,12 @@ class MaglevGraphBuilder {
       // some earlier deopt). Mark this bytecode dead too and return.
       // TODO(leszeks): Merge these two conditions by marking dead states with
       // a sentinel value.
-#ifdef DEBUG
       if (predecessors_[offset] == 1) {
-        DCHECK(bytecode_analysis().IsLoopHeader(offset));
-        DCHECK_NULL(merge_state);
+        CHECK(bytecode_analysis().IsLoopHeader(offset));
+        CHECK_NULL(merge_state);
       } else {
-        DCHECK_EQ(predecessors_[offset], 0);
+        CHECK_EQ(predecessors_[offset], 0);
       }
-#endif
       MarkBytecodeDead();
       return;
     }
