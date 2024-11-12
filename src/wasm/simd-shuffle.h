@@ -217,6 +217,43 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // Packs 16 bytes of shuffle into an array of 4 uint32_t.
   static void Pack16Lanes(uint32_t* dst, const uint8_t* shuffle);
 
+  enum CanonicalShuffle {
+    kUnknown,
+    kIdentity,
+    kS64x2Even,
+    kS64x2Odd,
+    kS64x2ReverseBytes,
+    kS64x2Reverse,
+    kS32x4InterleaveEven,
+    kS32x4InterleaveOdd,
+    kS32x4InterleaveLowHalves,
+    kS32x4InterleaveHighHalves,
+    kS32x4ReverseBytes,
+    kS32x4Reverse,
+    kS32x2Reverse,
+    kS32x4TransposeEven,
+    kS32x4TransposeOdd,
+    kS16x8InterleaveEven,
+    kS16x8InterleaveOdd,
+    kS16x8InterleaveLowHalves,
+    kS16x8InterleaveHighHalves,
+    kS16x8ReverseBytes,
+    kS16x2Reverse,
+    kS16x4Reverse,
+    kS16x8TransposeEven,
+    kS16x8TransposeOdd,
+    kS8x16InterleaveEven,
+    kS8x16InterleaveOdd,
+    kS8x16InterleaveLowHalves,
+    kS8x16InterleaveHighHalves,
+    kS8x16TransposeEven,
+    kS8x16TransposeOdd,
+    kMaxShuffles,
+  };
+
+  using ShuffleArray = std::array<uint8_t, kSimd128Size>;
+  static CanonicalShuffle TryMatchCanonical(const ShuffleArray& shuffle);
+
 #ifdef V8_TARGET_ARCH_X64
   // If matching success, the corresponding instrution should be:
   // vpshufd ymm, ymm, imm8
