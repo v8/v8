@@ -2117,7 +2117,8 @@ void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16(node_t node) {
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
+    node_t node) {
   UNIMPLEMENTED();
 }
 
