@@ -670,67 +670,56 @@ class FastCApiObject {
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType EnforceRangeCompareI32Patch(AnyCType receiver,
-                                              AnyCType in_range,
                                               AnyCType real_arg,
                                               AnyCType checked_arg,
                                               AnyCType options) {
     AnyCType ret;
     ret.bool_value = EnforceRangeCompare<int32_t>(
-        receiver.object_value, in_range.bool_value, real_arg.double_value,
-        checked_arg.int32_value, *options.options_value);
+        receiver.object_value, real_arg.double_value, checked_arg.int32_value,
+        *options.options_value);
     return ret;
   }
   static AnyCType EnforceRangeCompareU32Patch(AnyCType receiver,
-                                              AnyCType in_range,
                                               AnyCType real_arg,
                                               AnyCType checked_arg,
                                               AnyCType options) {
     AnyCType ret;
     ret.bool_value = EnforceRangeCompare<uint32_t>(
-        receiver.object_value, in_range.bool_value, real_arg.double_value,
-        checked_arg.uint32_value, *options.options_value);
+        receiver.object_value, real_arg.double_value, checked_arg.uint32_value,
+        *options.options_value);
     return ret;
   }
   static AnyCType EnforceRangeCompareI64Patch(AnyCType receiver,
-                                              AnyCType in_range,
                                               AnyCType real_arg,
                                               AnyCType checked_arg,
                                               AnyCType options) {
     AnyCType ret;
     ret.bool_value = EnforceRangeCompare<int64_t>(
-        receiver.object_value, in_range.bool_value, real_arg.double_value,
-        checked_arg.int64_value, *options.options_value);
+        receiver.object_value, real_arg.double_value, checked_arg.int64_value,
+        *options.options_value);
     return ret;
   }
   static AnyCType EnforceRangeCompareU64Patch(AnyCType receiver,
-                                              AnyCType in_range,
                                               AnyCType real_arg,
                                               AnyCType checked_arg,
                                               AnyCType options) {
     AnyCType ret;
     ret.bool_value = EnforceRangeCompare<uint64_t>(
-        receiver.object_value, in_range.bool_value, real_arg.double_value,
-        checked_arg.uint64_value, *options.options_value);
+        receiver.object_value, real_arg.double_value, checked_arg.uint64_value,
+        *options.options_value);
     return ret;
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
   template <typename IntegerT>
-  static bool EnforceRangeCompare(Local<Object> receiver, bool in_range,
-                                  double real_arg, IntegerT checked_arg,
+  static bool EnforceRangeCompare(Local<Object> receiver, double real_arg,
+                                  IntegerT checked_arg,
                                   FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_NOT_NULL(self);
     self->fast_call_count_++;
 
-    if (!i::v8_flags.fuzzing) {
-      // Number is in range.
-      CHECK(in_range && "Number range should have been enforced");
-      if (!std::isnan(real_arg)) {
-        CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
-      }
-    }
-    return true;
+    return static_cast<IntegerT>(real_arg) == checked_arg;
   }
 
   template <typename IntegerT>
@@ -746,22 +735,26 @@ class FastCApiObject {
     HandleScope handle_scope(isolate);
 
     double real_arg = 0;
-    if (info.Length() > 1 && info[1]->IsNumber()) {
-      real_arg = info[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
+    if (info.Length() > 0) {
+      real_arg = info[0]->NumberValue(isolate->GetCurrentContext()).FromJust();
     }
+    // Special range checks for int64 and uint64. uint64_max rounds to 2^64 when
+    // converted to double, so 2^64 would be considered within uint64 range even
+    // though it's not. For int64 the same happens with 2^63.
     bool in_range =
-        info[0]->IsBoolean() && info[0]->BooleanValue(isolate) &&
-        !std::isnan(real_arg) &&
+        !std::isnan(real_arg) && real_arg < std::pow(2.0, 64) &&
+        (real_arg < std::pow(2.0, 63) ||
+         std::pow(2.0, 63) <
+             static_cast<double>(std::numeric_limits<IntegerT>::max())) &&
         real_arg <= static_cast<double>(std::numeric_limits<IntegerT>::max()) &&
         real_arg >= static_cast<double>(std::numeric_limits<IntegerT>::min());
     if (in_range) {
-      IntegerT checked_arg = std::numeric_limits<IntegerT>::max();
-      if (info.Length() > 2 && info[2]->IsNumber()) {
+      IntegerT checked_arg = 0;
+      if (info.Length() > 1) {
         checked_arg =
-            info[2]->NumberValue(isolate->GetCurrentContext()).FromJust();
+            info[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
       }
-      CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
-      info.GetReturnValue().Set(false);
+      info.GetReturnValue().Set(static_cast<IntegerT>(real_arg) == checked_arg);
     } else {
       info.GetIsolate()->ThrowError("Argument out of range.");
     }
@@ -1648,7 +1641,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     CFunction enforce_range_compare_i32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<int32_t>)
-            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Patch(FastCApiObject::EnforceRangeCompareI32Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1663,7 +1656,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     CFunction enforce_range_compare_u32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<uint32_t>)
-            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Patch(FastCApiObject::EnforceRangeCompareU32Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1678,7 +1671,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     CFunction enforce_range_compare_i64_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<int64_t>)
-            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Patch(FastCApiObject::EnforceRangeCompareI64Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1693,7 +1686,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     CFunction enforce_range_compare_u64_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<uint64_t>)
-            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Patch(FastCApiObject::EnforceRangeCompareU64Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
