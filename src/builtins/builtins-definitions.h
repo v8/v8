@@ -953,6 +953,8 @@ namespace internal {
   /* RegExp helpers */                                                         \
   TFS(RegExpExecAtom, NeedsContext::kYes, kRegExp, kString, kLastIndex,        \
       kMatchInfo)                                                              \
+  TFS(RegExpExecInternal, NeedsContext::kYes, kRegExp, kString, kLastIndex,    \
+      kMatchInfo)                                                              \
   ASM(RegExpInterpreterTrampoline, RegExpTrampoline)                           \
   ASM(RegExpExperimentalTrampoline, RegExpTrampoline)                          \
                                                                                \

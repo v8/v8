@@ -31,7 +31,7 @@ int32_t* RegExpResultVectorScope::Initialize(int size) {
   int32_t* result;
   if (size > Isolate::kJSRegexpStaticOffsetsVectorSize ||
       static_vector_or_null == nullptr) {
-    result = RegExpResultVector::Allocate(size);
+    result = NewArray<int32_t>(size);
     if_dynamic_.reset(result);
   } else {
     result = static_vector_or_null;
@@ -43,21 +43,6 @@ int32_t* RegExpResultVectorScope::Initialize(int size) {
   // Exactly one of if_static_ and if_dynamic_ is set.
   DCHECK_EQ(if_static_ == nullptr, if_dynamic_.get() != nullptr);
   return result;
-}
-
-// Note this may be called through CallCFunction.
-// static
-int32_t* RegExpResultVector::Allocate(uint32_t size) {
-  DisallowGarbageCollection no_gc;
-  return new int32_t[size];
-}
-
-// Note this may be called through CallCFunction.
-// static
-void RegExpResultVector::Free(int32_t* vector) {
-  DisallowGarbageCollection no_gc;
-  DCHECK_NOT_NULL(vector);
-  delete[] vector;
 }
 
 }  // namespace internal

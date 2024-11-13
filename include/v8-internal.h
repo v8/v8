@@ -973,10 +973,8 @@ class Internals {
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif  // V8_COMPRESS_POINTERS
-  static const int kIsolateRegexpExecVectorArgumentOffset =
-      kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
   static const int kContinuationPreservedEmbedderDataOffset =
-      kIsolateRegexpExecVectorArgumentOffset + kApiSystemPointerSize;
+      kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
       kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
 

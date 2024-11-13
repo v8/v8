@@ -423,23 +423,20 @@ namespace internal {
   F(JSProxyGetTarget, 1, 1)            \
   F(SetPropertyWithReceiver, 4, 1)
 
-#define FOR_EACH_INTRINSIC_REGEXP(F, I)                              \
-  F(RegExpBuildIndices, 3, 1)                                        \
-  F(RegExpGrowRegExpMatchInfo, 2, 1)                                 \
-  F(RegExpExec, 4, 1)                                                \
-  F(RegExpExperimentalOneshotExec, 4, 1)                             \
-  F(RegExpExecMultiple, 3, 1)                                        \
-  F(RegExpInitializeAndCompile, 3, 1)                                \
-  F(RegExpMatchGlobalAtom, 3, 1)                                     \
-  F(RegExpReplaceRT, 3, 1)                                           \
-  F(RegExpSplit, 3, 1)                                               \
-  F(RegExpStringFromFlags, 1, 1)                                     \
-  F(StringReplaceNonGlobalRegExpWithFunction, 3, 1)                  \
-  F(StringSplit, 3, 1)                                               \
-  /* TODO(jgruber): Once all callers are ported, rename all these */ \
-  /* Foo2 functions to Foo and remove the old versions. */           \
-  F(RegExpExec2, 4, 1)                                               \
-  F(RegExpExperimentalOneshotExec2, 4, 1)
+#define FOR_EACH_INTRINSIC_REGEXP(F, I)                          \
+  F(RegExpBuildIndices, 3, 1)                                    \
+  F(RegExpExec, 4, 1)                                            \
+  F(RegExpExecTreatMatchAtEndAsFailure, 4, 1)                    \
+  F(RegExpExperimentalOneshotExec, 4, 1)                         \
+  F(RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure, 4, 1) \
+  F(RegExpExecMultiple, 3, 1)                                    \
+  F(RegExpInitializeAndCompile, 3, 1)                            \
+  F(RegExpMatchGlobalAtom, 3, 1)                                 \
+  F(RegExpReplaceRT, 3, 1)                                       \
+  F(RegExpSplit, 3, 1)                                           \
+  F(RegExpStringFromFlags, 1, 1)                                 \
+  F(StringReplaceNonGlobalRegExpWithFunction, 3, 1)              \
+  F(StringSplit, 3, 1)
 
 #define FOR_EACH_THROWING_INTRINSIC_SCOPES(F, I) \
   F(ThrowConstAssignError, 0, 1)                 \

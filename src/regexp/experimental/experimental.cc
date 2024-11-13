@@ -218,7 +218,7 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
 MaybeHandle<Object> ExperimentalRegExp::Exec(
     Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
     Handle<String> subject, int subject_index,
-    Handle<RegExpMatchInfo> last_match_info) {
+    Handle<RegExpMatchInfo> last_match_info, RegExp::ExecQuirks exec_quirks) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(regexp_data->type_tag(), RegExpData::Type::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
@@ -247,6 +247,11 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
 
     if (num_matches > 0) {
       DCHECK_EQ(num_matches, 1);
+      if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+        if (output_registers[0] >= static_cast<int32_t>(subject->length())) {
+          return isolate->factory()->null_value();
+        }
+      }
       return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
                                       capture_count, output_registers);
     } else if (num_matches == 0) {
@@ -289,7 +294,7 @@ int32_t ExperimentalRegExp::OneshotExecRaw(
 MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
     Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
     DirectHandle<String> subject, int subject_index,
-    Handle<RegExpMatchInfo> last_match_info) {
+    Handle<RegExpMatchInfo> last_match_info, RegExp::ExecQuirks exec_quirks) {
   DCHECK(v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);
 
   int capture_count = regexp_data->capture_count();
@@ -305,6 +310,11 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
 
     if (num_matches > 0) {
       DCHECK_EQ(num_matches, 1);
+      if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+        if (output_registers[0] >= static_cast<int32_t>(subject->length())) {
+          return isolate->factory()->null_value();
+        }
+      }
       return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
                                       capture_count, output_registers);
     } else if (num_matches == 0) {
@@ -317,37 +327,6 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
       }
       DCHECK(isolate->has_exception());
       return MaybeHandle<Object>();
-    }
-  } while (true);
-  UNREACHABLE();
-}
-
-std::optional<int> ExperimentalRegExp::OneshotExec2(
-    Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
-    DirectHandle<String> subject, int subject_index,
-    int32_t* result_offsets_vector, uint32_t result_offsets_vector_length) {
-  DCHECK(v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);
-
-  do {
-    int num_matches =
-        OneshotExecRaw(isolate, regexp_data, subject, result_offsets_vector,
-                       result_offsets_vector_length, subject_index);
-
-    if (num_matches > 0) {
-      DCHECK_LE(num_matches * JSRegExp::RegistersForCaptureCount(
-                                  regexp_data->capture_count()),
-                result_offsets_vector_length);
-      return num_matches;
-    } else if (num_matches == 0) {
-      return num_matches;
-    } else {
-      DCHECK_LT(num_matches, 0);
-      if (num_matches == RegExp::kInternalRegExpRetry) {
-        // Re-run execution.
-        continue;
-      }
-      DCHECK(isolate->has_exception());
-      return {};
     }
   } while (true);
   UNREACHABLE();

@@ -71,7 +71,6 @@ include_rules = [
   "-src/regexp",
   "+src/regexp/regexp.h",
   "+src/regexp/regexp-flags.h",
-  "+src/regexp/regexp-result-vector.h",
   "+src/regexp/regexp-stack.h",
   "+src/regexp/regexp-utils.h",
   "+src/tracing/trace-event-no-perfetto.h",
