@@ -1419,7 +1419,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadLane(Node* node) {
 
   // x64 supports unaligned loads.
   DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
-  if (params.kind == MemoryAccessKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtectedByTrapHandler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   Emit(opcode, 1, outputs, input_count, inputs);
@@ -1557,7 +1557,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   // x64 supports unaligned loads
   DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
   InstructionCode code = opcode;
-  if (params.kind == MemoryAccessKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   VisitLoad(node, node, code);
@@ -1871,7 +1871,7 @@ void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector,
   InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
@@ -1903,7 +1903,7 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
   }
 
   const auto access_mode =
-      acs_kind == MemoryAccessKind::kProtected
+      acs_kind == MemoryAccessKind::kProtectedByTrapHandler
           ? (store.is_store_trap_on_null()
                  ? kMemoryAccessProtectedNullDereference
                  : MemoryAccessMode::kMemoryAccessProtectedMemOutOfBounds)
@@ -2115,7 +2115,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStoreLane(Node* node) {
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   opcode |= AddressingModeField::encode(addressing_mode);
 
-  if (params.kind == MemoryAccessKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtectedByTrapHandler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
@@ -4787,7 +4787,7 @@ void VisitAtomicBinop(InstructionSelectorT<Adapter>* selector,
   InstructionOperand temps[] = {g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
@@ -4811,7 +4811,7 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
   InstructionOperand outputs[] = {g.DefineAsFixed(node, rax)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
@@ -7655,7 +7655,7 @@ void InstructionSelectorT<Adapter>::VisitF64x2PromoteLowF32x4(node_t node) {
     LoadTransformMatcher m(input);
 
     if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
-      if (m.ResolvedValue().kind == MemoryAccessKind::kProtected) {
+      if (m.ResolvedValue().kind == MemoryAccessKind::kProtectedByTrapHandler) {
         code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
       }
       // LoadTransforms cannot be eliminated, so they are visited even if

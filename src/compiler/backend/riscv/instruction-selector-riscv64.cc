@@ -365,7 +365,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStoreLane(Node* node) {
   InstructionCode opcode = kRiscvS128StoreLane;
   opcode |=
       LaneSizeField::encode(ElementSizeInBytes(params.rep) * kBitsPerByte);
-  if (params.kind == MemoryAccessKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtectedByTrapHandler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   RiscvOperandGeneratorT<TurbofanAdapter> g(this);
@@ -413,7 +413,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadLane(Node* node) {
   LoadStoreLaneParams f(params.rep.representation(), params.laneidx);
   InstructionCode opcode = kRiscvS128LoadLane;
   opcode |= LaneSizeField::encode(params.rep.MemSize() * kBitsPerByte);
-  if (params.kind == MemoryAccessKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtectedByTrapHandler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   RiscvOperandGeneratorT<TurbofanAdapter> g(this);
@@ -731,7 +731,8 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
 
   if (store_view.is_store_trap_on_null()) {
     code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-  } else if (store_view.access_kind() == MemoryAccessKind::kProtected) {
+  } else if (store_view.access_kind() ==
+             MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
@@ -2477,7 +2478,7 @@ void VisitAtomicLoad(InstructionSelectorT<TurbofanAdapter>* selector,
       UNREACHABLE();
   }
 
-  if (atomic_load_params.kind() == MemoryAccessKind::kProtected) {
+  if (atomic_load_params.kind() == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
@@ -2573,7 +2574,7 @@ void VisitAtomicStore(InstructionSelectorT<Adapter>* selector,
     }
     code |= AtomicWidthField::encode(width);
 
-    if (store_params.kind() == MemoryAccessKind::kProtected) {
+    if (store_params.kind() == MemoryAccessKind::kProtectedByTrapHandler) {
       code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
     }
     if (g.CanBeImmediate(index, code)) {
@@ -2620,7 +2621,7 @@ void VisitAtomicBinop(InstructionSelectorT<Adapter>* selector,
   temps[3] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, 1, outputs, input_count, inputs, 4, temps);
@@ -3259,7 +3260,7 @@ void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector,
 
   InstructionCode code = opcode | AddressingModeField::encode(kMode_MRI) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
@@ -3293,7 +3294,7 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
   temp[2] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);

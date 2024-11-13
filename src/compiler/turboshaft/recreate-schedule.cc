@@ -1146,7 +1146,7 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
     DCHECK(!op.kind.maybe_unaligned);
     AtomicLoadParameters params(loaded_rep, AtomicMemoryOrder::kSeqCst,
                                 op.kind.with_trap_handler
-                                    ? MemoryAccessKind::kProtected
+                                    ? MemoryAccessKind::kProtectedByTrapHandler
                                     : MemoryAccessKind::kNormal);
     if (op.result_rep == RegisterRepresentation::Word32()) {
       o = machine.Word32AtomicLoad(params);
@@ -1206,7 +1206,7 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
     AtomicStoreParameters params(op.stored_rep.ToMachineType().representation(),
                                  op.write_barrier, AtomicMemoryOrder::kSeqCst,
                                  op.kind.with_trap_handler
-                                     ? MemoryAccessKind::kProtected
+                                     ? MemoryAccessKind::kProtectedByTrapHandler
                                      : MemoryAccessKind::kNormal);
     if (op.stored_rep == MemoryRepresentation::Int64() ||
         op.stored_rep == MemoryRepresentation::Uint64()) {
@@ -1820,7 +1820,7 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128ReplaceLaneOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const Simd128LaneMemoryOp& op) {
   DCHECK_EQ(op.offset, 0);
   MemoryAccessKind access =
-      op.kind.with_trap_handler ? MemoryAccessKind::kProtected
+      op.kind.with_trap_handler ? MemoryAccessKind::kProtectedByTrapHandler
       : op.kind.maybe_unaligned ? MemoryAccessKind::kUnaligned
                                 : MemoryAccessKind::kNormal;
 
@@ -1854,7 +1854,7 @@ Node* ScheduleBuilder::ProcessOperation(const Simd128LaneMemoryOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const Simd128LoadTransformOp& op) {
   DCHECK_EQ(op.offset, 0);
   MemoryAccessKind access =
-      op.load_kind.with_trap_handler ? MemoryAccessKind::kProtected
+      op.load_kind.with_trap_handler ? MemoryAccessKind::kProtectedByTrapHandler
       : op.load_kind.maybe_unaligned ? MemoryAccessKind::kUnaligned
                                      : MemoryAccessKind::kNormal;
   LoadTransformation transformation;
@@ -1890,7 +1890,7 @@ Node* ScheduleBuilder::ProcessOperation(const Simd256Extract128LaneOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const Simd256LoadTransformOp& op) {
   DCHECK_EQ(op.offset, 0);
   MemoryAccessKind access =
-      op.load_kind.with_trap_handler ? MemoryAccessKind::kProtected
+      op.load_kind.with_trap_handler ? MemoryAccessKind::kProtectedByTrapHandler
       : op.load_kind.maybe_unaligned ? MemoryAccessKind::kUnaligned
                                      : MemoryAccessKind::kNormal;
   LoadTransformation transformation;

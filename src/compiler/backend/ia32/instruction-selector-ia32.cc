@@ -954,7 +954,7 @@ void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
     // IA32 supports unaligned loads.
     DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
     // Trap handler is not supported on IA32.
-    DCHECK_NE(params.kind, MemoryAccessKind::kProtected);
+    DCHECK_NE(params.kind, MemoryAccessKind::kProtectedByTrapHandler);
   }
 
   IA32OperandGeneratorT<Adapter> g(this);
@@ -1079,7 +1079,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   // IA32 supports unaligned loads.
   DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
   // Trap handler is not supported on IA32.
-  DCHECK_NE(params.kind, MemoryAccessKind::kProtected);
+  DCHECK_NE(params.kind, MemoryAccessKind::kProtectedByTrapHandler);
 
   VisitLoad(node, node, opcode);
 }
@@ -4465,7 +4465,8 @@ void InstructionSelectorT<Adapter>::VisitF64x2PromoteLowF32x4(node_t node) {
 
     if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
       // Trap handler is not supported on IA32.
-      DCHECK_NE(m.ResolvedValue().kind, MemoryAccessKind::kProtected);
+      DCHECK_NE(m.ResolvedValue().kind,
+                MemoryAccessKind::kProtectedByTrapHandler);
       // LoadTransforms cannot be eliminated, so they are visited even if
       // unused. Mark it as defined so that we don't visit it.
       MarkAsDefined(input);

@@ -710,7 +710,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
     default:
       UNIMPLEMENTED();
   }
-  if (params.kind == MemoryAccessKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtectedByTrapHandler) {
     opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
@@ -1072,7 +1072,8 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
 
   if (store_view.is_store_trap_on_null()) {
     code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-  } else if (store_view.access_kind() == MemoryAccessKind::kProtected) {
+  } else if (store_view.access_kind() ==
+             MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
@@ -3190,7 +3191,7 @@ void VisitAtomicStore(InstructionSelectorT<Adapter>* selector,
     }
   }
 
-  if (store_params.kind() == MemoryAccessKind::kProtected) {
+  if (store_params.kind() == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
@@ -3232,7 +3233,7 @@ void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector,
   temp[2] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
@@ -3266,7 +3267,7 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
   temp[2] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
@@ -3298,7 +3299,7 @@ void VisitAtomicBinop(InstructionSelectorT<Adapter>* selector,
   temps[3] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtected) {
+  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
   selector->Emit(code, 1, outputs, input_count, inputs, 4, temps);

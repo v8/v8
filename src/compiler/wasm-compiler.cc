@@ -3843,7 +3843,7 @@ MemoryAccessKind GetMemoryAccessKind(MachineGraph* mcgraph,
     // are allowed to be unaligned.
     DCHECK(memrep == MachineRepresentation::kWord8 ||
            mcgraph->machine()->UnalignedLoadSupported(memrep));
-    return MemoryAccessKind::kProtected;
+    return MemoryAccessKind::kProtectedByTrapHandler;
   }
   if (memrep != MachineRepresentation::kWord8 &&
       !mcgraph->machine()->UnalignedLoadSupported(memrep)) {
@@ -3873,7 +3873,7 @@ Node* WasmGraphBuilder::LoadLane(const wasm::WasmMemory* memory,
       mcgraph()->machine()->LoadLane(load_kind, memtype, laneidx),
       MemBuffer(memory->index, offset), index, value, effect(), control()));
 
-  if (load_kind == MemoryAccessKind::kProtected) {
+  if (load_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     SetSourcePosition(load, position);
   }
   if (v8_flags.trace_wasm_memory) {
@@ -3914,7 +3914,7 @@ Node* WasmGraphBuilder::LoadTransform(const wasm::WasmMemory* memory,
       mcgraph()->machine()->LoadTransform(load_kind, transformation),
       MemBuffer(memory->index, offset), index, effect(), control()));
 
-  if (load_kind == MemoryAccessKind::kProtected) {
+  if (load_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     SetSourcePosition(load, position);
   }
 
@@ -3950,7 +3950,7 @@ Node* WasmGraphBuilder::LoadMem(const wasm::WasmMemory* memory,
     case MemoryAccessKind::kUnaligned:
       load = gasm_->LoadUnaligned(memtype, mem_start, index);
       break;
-    case MemoryAccessKind::kProtected:
+    case MemoryAccessKind::kProtectedByTrapHandler:
       load = gasm_->ProtectedLoad(memtype, mem_start, index);
       SetSourcePosition(load, position);
       break;
@@ -4001,7 +4001,7 @@ void WasmGraphBuilder::StoreLane(const wasm::WasmMemory* memory,
       mcgraph()->machine()->StoreLane(load_kind, mem_rep, laneidx),
       MemBuffer(memory->index, offset), index, val, effect(), control()));
 
-  if (load_kind == MemoryAccessKind::kProtected) {
+  if (load_kind == MemoryAccessKind::kProtectedByTrapHandler) {
     SetSourcePosition(store, position);
   }
   if (v8_flags.trace_wasm_memory) {
@@ -4037,7 +4037,7 @@ void WasmGraphBuilder::StoreMem(const wasm::WasmMemory* memory,
       gasm_->StoreUnaligned(UnalignedStoreRepresentation{mem_rep}, mem_start,
                             index, val);
       break;
-    case MemoryAccessKind::kProtected: {
+    case MemoryAccessKind::kProtectedByTrapHandler: {
       Node* store = gasm_->ProtectedStore(mem_rep, mem_start, index, val);
       SetSourcePosition(store, position);
       if (mem_rep == MachineRepresentation::kSimd128) {
@@ -5155,7 +5155,7 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
   // MemoryAccessKind::kUnaligned is impossible due to explicit aligment check.
   MemoryAccessKind access_kind =
       bounds_check_result == BoundsCheckResult::kTrapHandler
-          ? MemoryAccessKind::kProtected
+          ? MemoryAccessKind::kProtectedByTrapHandler
           : MemoryAccessKind::kNormal;
 
   if (info.type != AtomicOpInfo::kSpecial) {
@@ -5194,7 +5194,7 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
     Node* result = gasm_->AddNode(
         graph()->NewNode(op, num_actual_inputs + 4, input_nodes));
 
-    if (access_kind == MemoryAccessKind::kProtected) {
+    if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
       SetSourcePosition(result, position);
     }
 

@@ -4116,7 +4116,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // check.
     MemoryAccessKind access_kind =
         bounds_check_result == compiler::BoundsCheckResult::kTrapHandler
-            ? MemoryAccessKind::kProtected
+            ? MemoryAccessKind::kProtectedByTrapHandler
             : MemoryAccessKind::kNormal;
 
     if (info.op_type == kBinop) {
@@ -4148,7 +4148,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           value, info.memory_rep.ToMachineType().representation(), wasm_type);
 #endif
       __ Store(MemBuffer(imm.memory->index, imm.offset), index, value,
-               access_kind == MemoryAccessKind::kProtected
+               access_kind == MemoryAccessKind::kProtectedByTrapHandler
                    ? LoadOp::Kind::Protected().Atomic()
                    : LoadOp::Kind::RawAligned().Atomic(),
                info.memory_rep, compiler::kNoWriteBarrier);
@@ -4168,11 +4168,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       loaded_value_rep = RegisterRepresentation::Word32();
     }
 #endif
-    result->op = __ Load(MemBuffer(imm.memory->index, imm.offset), index,
-                         access_kind == MemoryAccessKind::kProtected
-                             ? LoadOp::Kind::Protected().Atomic()
-                             : LoadOp::Kind::RawAligned().Atomic(),
-                         info.memory_rep, loaded_value_rep);
+    result->op =
+        __ Load(MemBuffer(imm.memory->index, imm.offset), index,
+                access_kind == MemoryAccessKind::kProtectedByTrapHandler
+                    ? LoadOp::Kind::Protected().Atomic()
+                    : LoadOp::Kind::RawAligned().Atomic(),
+                info.memory_rep, loaded_value_rep);
 
 #ifdef V8_TARGET_BIG_ENDIAN
     // Reverse the value bytes after load.

@@ -2350,7 +2350,7 @@ OpIndex GraphBuilder::Process(
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
-        case MemoryAccessKind::kProtected:
+        case MemoryAccessKind::kProtectedByTrapHandler:
           kind = LoadOp::Kind::RawAligned().Atomic().Protected();
           break;
       }
@@ -2377,7 +2377,7 @@ OpIndex GraphBuilder::Process(
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
-        case MemoryAccessKind::kProtected:
+        case MemoryAccessKind::kProtectedByTrapHandler:
           kind = StoreOp::Kind::RawAligned().Atomic().Protected();
           break;
       }

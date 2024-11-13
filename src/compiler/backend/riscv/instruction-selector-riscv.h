@@ -516,7 +516,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitLoadTransform(node_t node) {
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
-  bool is_protected = (params.kind == MemoryAccessKind::kProtected);
+  bool is_protected =
+      (params.kind == MemoryAccessKind::kProtectedByTrapHandler);
   InstructionCode opcode = kArchNop;
   switch (params.transformation) {
     case LoadTransformation::kS128Load8Splat:

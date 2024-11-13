@@ -1721,7 +1721,8 @@ bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(node_t node) {
 #if V8_ENABLE_WEBASSEMBLY
     if (operation.Is<TrapIfOp>()) return true;
     if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
-      return rmw->memory_access_kind == MemoryAccessKind::kProtected;
+      return rmw->memory_access_kind ==
+             MemoryAccessKind::kProtectedByTrapHandler;
     }
     if (const Simd128LoadTransformOp* lt =
             operation.TryCast<Simd128LoadTransformOp>()) {

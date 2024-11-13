@@ -2503,10 +2503,10 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
 
 TEST_F(InstructionSelectorTest, F64x2PromoteLowF32x4WithS128Load64Zero) {
   StreamBuilder m(this, MachineType::Simd128(), MachineType::Int32());
-  Node* const load =
-      m.AddNode(m.machine()->LoadTransform(MemoryAccessKind::kProtected,
-                                           LoadTransformation::kS128Load64Zero),
-                m.Int32Constant(2), m.Parameter(0));
+  Node* const load = m.AddNode(
+      m.machine()->LoadTransform(MemoryAccessKind::kProtectedByTrapHandler,
+                                 LoadTransformation::kS128Load64Zero),
+      m.Int32Constant(2), m.Parameter(0));
   Node* const promote = m.AddNode(m.machine()->F64x2PromoteLowF32x4(), load);
   m.Return(promote);
   Stream s = m.Build();

@@ -3083,7 +3083,7 @@ struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   OpEffects Effects() const {
     OpEffects effects =
         OpEffects().CanWriteMemory().CanDependOnChecks().CanReadMemory();
-    if (memory_access_kind == MemoryAccessKind::kProtected) {
+    if (memory_access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
       effects = effects.CanLeaveCurrentFunction();
     }
     return effects;

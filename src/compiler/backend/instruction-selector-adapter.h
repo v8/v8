@@ -214,7 +214,7 @@ struct TurbofanAdapter {
       *traps_on_null = false;
       return node_->opcode() == IrOpcode::kProtectedLoad ||
              (is_atomic() && AtomicLoadParametersOf(node_->op()).kind() ==
-                                 MemoryAccessKind::kProtected);
+                                 MemoryAccessKind::kProtectedByTrapHandler);
     }
     bool is_atomic() const {
       return node_->opcode() == IrOpcode::kWord32AtomicLoad ||
@@ -284,7 +284,7 @@ struct TurbofanAdapter {
           return MemoryAccessKind::kNormal;
         case IrOpcode::kProtectedStore:
         case IrOpcode::kStoreTrapOnNull:
-          return MemoryAccessKind::kProtected;
+          return MemoryAccessKind::kProtectedByTrapHandler;
         case IrOpcode::kWord32AtomicStore:
         case IrOpcode::kWord64AtomicStore:
           return AtomicStoreParametersOf(node_->op()).kind();
@@ -1004,8 +1004,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       return std::nullopt;
     }
     MemoryAccessKind access_kind() const {
-      return op_->kind.with_trap_handler ? MemoryAccessKind::kProtected
-                                         : MemoryAccessKind::kNormal;
+      return op_->kind.with_trap_handler
+                 ? MemoryAccessKind::kProtectedByTrapHandler
+                 : MemoryAccessKind::kNormal;
     }
     bool is_atomic() const { return op_->kind.is_atomic; }
 
