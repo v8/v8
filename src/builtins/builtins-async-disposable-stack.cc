@@ -54,8 +54,11 @@ BUILTIN(AsyncDisposableStackOnRejected) {
       isolate);
 
   Handle<Object> rejection_error = args.at(1);
+  // (TODO:rezvan): Pass the correct pending message.
+  Handle<Object> message(isolate->pending_message(), isolate);
   DCHECK(isolate->is_catchable_by_javascript(*rejection_error));
-  JSDisposableStackBase::HandleErrorInDisposal(isolate, stack, rejection_error);
+  JSDisposableStackBase::HandleErrorInDisposal(isolate, stack, rejection_error,
+                                               message);
 
   MAYBE_RETURN(JSAsyncDisposableStack::NextDisposeAsyncIteration(isolate, stack,
                                                                  promise),

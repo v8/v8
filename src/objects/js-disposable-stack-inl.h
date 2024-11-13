@@ -33,6 +33,8 @@ BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, needsAwait,
                     JSDisposableStackBase::NeedsAwaitBit)
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, hasAwaited,
                     JSDisposableStackBase::HasAwaitedBit)
+BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, suppressedErrorCreated,
+                    JSDisposableStackBase::SuppressedErrorCreatedBit)
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, length,
                     JSDisposableStackBase::LengthBits)
 
@@ -178,7 +180,7 @@ inline MaybeHandle<Object> JSDisposableStackBase::CheckValueAndGetDisposeMethod(
 
 inline void JSDisposableStackBase::HandleErrorInDisposal(
     Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
-    Handle<Object> current_error) {
+    Handle<Object> current_error, Handle<Object> current_error_message) {
   DCHECK(isolate->is_catchable_by_javascript(*current_error));
 
   Handle<Object> maybe_error(disposable_stack->error(), isolate);
@@ -195,6 +197,7 @@ inline void JSDisposableStackBase::HandleErrorInDisposal(
     //    6. Set completion to ThrowCompletion(error).
     maybe_error = isolate->factory()->NewSuppressedErrorAtDisposal(
         isolate, current_error, maybe_error);
+    disposable_stack->set_suppressedErrorCreated(true);
 
   } else {
     //   ii. Else,
@@ -203,6 +206,7 @@ inline void JSDisposableStackBase::HandleErrorInDisposal(
   }
 
   disposable_stack->set_error(*maybe_error);
+  disposable_stack->set_error_message(*current_error_message);
 }
 
 }  // namespace internal

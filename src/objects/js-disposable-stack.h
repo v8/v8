@@ -55,6 +55,7 @@ class JSDisposableStackBase
   inline void set_state(DisposableStackState value);
   DECL_BOOLEAN_ACCESSORS(needsAwait)
   DECL_BOOLEAN_ACCESSORS(hasAwaited)
+  DECL_BOOLEAN_ACCESSORS(suppressedErrorCreated)
   DECL_INT_ACCESSORS(length)
 
   enum class AsyncDisposableStackContextSlots {
@@ -84,7 +85,7 @@ class JSDisposableStackBase
       Isolate* isolate, Handle<Object> value);
   static void HandleErrorInDisposal(
       Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
-      Handle<Object> current_error);
+      Handle<Object> current_error, Handle<Object> current_error_message);
 
   TQ_OBJECT_CONSTRUCTORS(JSDisposableStackBase)
 };

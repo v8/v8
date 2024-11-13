@@ -2803,7 +2803,9 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
   RegisterAllocationScope allocation_scope(this);
   DisposablesStackScope disposables_stack_scope(this);
   if (has_await_using) {
-    set_catch_prediction(HandlerTable::ASYNC_AWAIT);
+    set_catch_prediction(info()->scope()->is_repl_mode_scope()
+                             ? HandlerTable::UNCAUGHT_ASYNC_AWAIT
+                             : HandlerTable::ASYNC_AWAIT);
   }
 
   BuildTryFinally(

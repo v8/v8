@@ -7,6 +7,7 @@
 #include "include/v8-maybe.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
@@ -27,14 +28,18 @@
 namespace v8 {
 namespace internal {
 
-#define CHECK_EXCEPTION_ON_DISPOSAL(isolate, disposable_stack, return_value) \
-  do {                                                                       \
-    DCHECK(isolate->has_exception());                                        \
-    Handle<Object> current_error(isolate->exception(), isolate);             \
-    if (!isolate->is_catchable_by_javascript(*current_error)) {              \
-      return return_value;                                                   \
-    }                                                                        \
-    HandleErrorInDisposal(isolate, disposable_stack, current_error);         \
+#define CHECK_EXCEPTION_ON_DISPOSAL(isolate, disposable_stack, return_value)   \
+  do {                                                                         \
+    DCHECK(isolate->has_exception());                                          \
+    Handle<Object> current_error(isolate->exception(), isolate);               \
+    Handle<Object> current_error_message(isolate->pending_message(), isolate); \
+    if (!isolate->is_catchable_by_javascript(*current_error)) {                \
+      return return_value;                                                     \
+    }                                                                          \
+    isolate->clear_internal_exception();                                       \
+    isolate->clear_pending_message();                                          \
+    HandleErrorInDisposal(isolate, disposable_stack, current_error,            \
+                          current_error_message);                              \
   } while (false)
 
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposeresources
@@ -57,6 +62,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
 
   if (maybe_continuation_error.ToHandle(&continuation_error)) {
     disposable_stack->set_error(*continuation_error);
+    disposable_stack->set_error_message(isolate->pending_message());
   }
 
   // 3. For each element resource of
@@ -99,9 +105,6 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
     //  e. If method is not undefined, then
     if (!IsUndefined(*method)) {
       //    i. Let result be Completion(Call(method, value)).
-      v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-      try_catch.SetVerbose(false);
-      try_catch.SetCaptureMessage(false);
 
       if (call_type == DisposeMethodCallType::kValueIsReceiver) {
         result = Execution::Call(isolate, method, value, 0, nullptr);
@@ -138,14 +141,12 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
             //        f. Set completion to ThrowCompletion(error).
             //      2. Else,
             //        a. Set completion to result.
-            DCHECK(try_catch.HasCaught());
             CHECK_EXCEPTION_ON_DISPOSAL(isolate, disposable_stack, {});
           } else {
             return resolved_promise;
           }
         }
       } else {
-        DCHECK(try_catch.HasCaught());
         CHECK_EXCEPTION_ON_DISPOSAL(isolate, disposable_stack, {});
       }
     } else {
@@ -180,12 +181,22 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
   disposable_stack->set_state(DisposableStackState::kDisposed);
 
   Handle<Object> existing_error_handle(disposable_stack->error(), isolate);
+  Handle<Object> existing_error_message_handle(
+      disposable_stack->error_message(), isolate);
   disposable_stack->set_error(*(isolate->factory()->uninitialized_value()));
+  disposable_stack->set_error_message(
+      *(isolate->factory()->uninitialized_value()));
 
   // 7. Return ? completion.
   if (!IsUninitialized(*existing_error_handle) &&
       !(existing_error_handle.equals(continuation_error))) {
-    isolate->Throw(*existing_error_handle);
+    if (disposable_stack->suppressedErrorCreated() == true) {
+      // Created SuppressedError is intentionally suppressed here for debug.
+      SuppressDebug while_processing(isolate->debug());
+      isolate->Throw(*existing_error_handle);
+    } else {
+      isolate->ReThrow(*existing_error_handle, *existing_error_message_handle);
+    }
     return MaybeHandle<Object>();
   }
   return isolate->factory()->true_value();
@@ -214,9 +225,6 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
   bool done;
   do {
     done = true;
-    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-    try_catch.SetVerbose(false);
-    try_catch.SetCaptureMessage(false);
 
     // 6. Let result be
     //   DisposeResources(asyncDisposableStack.[[DisposeCapability]],
@@ -287,7 +295,8 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
       if (!isolate->is_catchable_by_javascript(*exception)) {
         return Nothing<bool>();
       }
-      DCHECK(try_catch.HasCaught());
+      isolate->clear_internal_exception();
+      isolate->clear_pending_message();
       JSPromise::Reject(outer_promise, exception);
     }
   } while (!done);

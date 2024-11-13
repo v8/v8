@@ -2007,7 +2007,9 @@ void JSDisposableStackBase::JSDisposableStackBasePrint(std::ostream& os) {
   os << "\n - state: " << state();
   os << "\n - needsAwait: " << needsAwait();
   os << "\n - hasAwaited: " << hasAwaited();
+  os << "\n - suppressedErrorCreated: " << suppressedErrorCreated();
   os << "\n - error: " << error();
+  os << "\n - error_message: " << error_message();
   JSObjectPrintBody(os, *this);
 }
 
@@ -2018,7 +2020,9 @@ void JSAsyncDisposableStack::JSAsyncDisposableStackPrint(std::ostream& os) {
   os << "\n - state: " << state();
   os << "\n - needsAwait: " << needsAwait();
   os << "\n - hasAwaited: " << hasAwaited();
+  os << "\n - suppressedErrorCreated: " << suppressedErrorCreated();
   os << "\n - error: " << error();
+  os << "\n - error_message: " << error_message();
   JSObjectPrintBody(os, *this);
 }
 

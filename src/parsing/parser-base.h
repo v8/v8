@@ -1169,7 +1169,9 @@ class ParserBase {
     // ClassBody. Unless the current scope's ScopeType is ScriptScope, the
     // current position is directly or indirectly within one of the productions
     // listed above since they open a new scope.
-    return scope()->scope_type() != SCRIPT_SCOPE;
+    return ((scope()->scope_type() != SCRIPT_SCOPE &&
+             scope()->scope_type() != EVAL_SCOPE) ||
+            scope()->scope_type() == REPL_MODE_SCOPE);
   }
   bool IfNextUsingKeyword(Token::Value token_after_using) {
     // If the token after `using` is `of` or `in`, `using` is an identifier

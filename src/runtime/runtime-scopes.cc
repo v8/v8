@@ -329,13 +329,16 @@ RUNTIME_FUNCTION(Runtime_HandleExceptionsInDisposeDisposableStack) {
   DirectHandle<JSDisposableStackBase> disposable_stack =
       args.at<JSDisposableStackBase>(0);
   Handle<Object> exception = args.at<Object>(1);
+  // (TODO:rezvan): Clear the pending message and pass in the previous pending
+  // message as an argument.
+  Handle<Object> message(isolate->pending_message(), isolate);
 
   if (!isolate->is_catchable_by_javascript(*exception)) {
     return isolate->Throw(*exception);
   }
 
   JSDisposableStackBase::HandleErrorInDisposal(isolate, disposable_stack,
-                                               exception);
+                                               exception, message);
   return *disposable_stack;
 }
 
