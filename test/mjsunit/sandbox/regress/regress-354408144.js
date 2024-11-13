@@ -72,4 +72,4 @@ let needle = [
 let serialized_sig_ptr = findObject(needle, dummy_tag_ptr);
 setField(serialized_sig_ptr, 0xc /* offset of ref */, kI64);
 
-boom(BigInt(Sandbox.targetPage) - 0x7n, 0x42n);
+boom(0x414141414141n, 0x42n);
