@@ -29,8 +29,6 @@ void IsolateGroup::set_current_non_inlined(IsolateGroup* group) {
 }
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
-base::LeakyObject<IsolateGroup> IsolateGroup::default_isolate_group_;
-
 #ifdef V8_COMPRESS_POINTERS
 struct PtrComprCageReservationParams
     : public VirtualMemoryCage::ReservationParams {
