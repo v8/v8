@@ -357,33 +357,66 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_S390X
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  // Load function index to r7. 6 bytes
-  lgfi(kWasmCompileLazyFuncIndexRegister, Operand(func_index));
-  // Jump to {lazy_compile_target}. 6 bytes or 12 bytes
-  mov(r1, Operand(lazy_compile_target, RelocInfo::CODE_TARGET));
-  b(r1);  // 2 bytes
+  static_assert(kWasmCompileLazyFuncIndexRegister == r7);
+  uint8_t inst[kLazyCompileTableSlotSize] = {
+      0xc0, 0x71, 0x00, 0x00, 0x00, 0x00,           // lgfi r7, 0
+      0xc0, 0x10, 0x00, 0x00, 0x00, 0x00,           // larl r1, 0
+      0xe3, 0x10, 0x10, 0x12, 0x00, 0x04,           // lg r1, 18(r1)
+      0x07, 0xf1,                                   // br r1
+      0xb9, 0x04, 0x00, 0x00,                       // nop (alignment)
+      0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0, 0x0  // lazy_compile_target
+  };
+
+#if V8_TARGET_LITTLE_ENDIAN
+  // We need to emit the value in big endian format.
+  func_index = base::bits::ReverseBytes(func_index);
+#endif
+  memcpy(&inst[2], &func_index, sizeof(int32_t));
+  for (size_t i = 0; i < (kLazyCompileTableSlotSize - sizeof(Address)); i++) {
+    emit<uint8_t>(inst[i]);
+  }
+  emit<Address>(lazy_compile_target);
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  intptr_t relative_target = reinterpret_cast<uint8_t*>(target) - pc_;
+  intptr_t relative_target = target - pc_;
 
   if (!is_int32(relative_target / 2)) {
     return false;
   }
 
-  brcl(al, Operand(relative_target / 2));
-  nop(0);  // make the slot align to 8 bytes
+  uint8_t inst[kJumpTableSlotSize] = {
+      0xc0, 0xf4, 0x00,
+      0x00, 0x00, 0x00,  // brcl(al, Operand(relative_target / 2))
+      0x18, 0x00         // nop (alignment)
+  };
+
+  int32_t relative_target_addr = static_cast<int32_t>(relative_target / 2);
+#if V8_TARGET_LITTLE_ENDIAN
+  // We need to emit the value in big endian format.
+  relative_target_addr = base::bits::ReverseBytes(relative_target_addr);
+#endif
+  memcpy(&inst[2], &relative_target_addr, sizeof(int32_t));
+  for (size_t i = 0; i < kJumpTableSlotSize; i++) {
+    emit<uint8_t>(inst[i], kRelaxedStore);
+  }
+
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  Label target_addr;
-  lgrl(ip, &target_addr);  // 6 bytes
-  b(ip);                   // 8 bytes
+  const uint8_t inst[kFarJumpTableSlotSize] = {
+      0xc0, 0x10, 0x00, 0x00, 0x00, 0x00,           // larl r1, 0
+      0xe3, 0x10, 0x10, 0x10, 0x00, 0x04,           // lg r1, 16(r1)
+      0x07, 0xf1,                                   // br r1
+      0x18, 0x00,                                   // nop (alignment)
+      0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0, 0x0  // target
+  };
 
-  CHECK_EQ(reinterpret_cast<Address>(pc_) & 0x7, 0);  // Alignment
-  bind(&target_addr);
-  dp(target);
+  for (size_t i = 0; i < (kFarJumpTableSlotSize - sizeof(Address)); i++) {
+    emit<uint8_t>(inst[i]);
+  }
+  emit<Address>(target);
 }
 
 // static
@@ -391,14 +424,6 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   Address target_addr = slot + 8;
   reinterpret_cast<std::atomic<Address>*>(target_addr)
       ->store(target, std::memory_order_relaxed);
-}
-
-void JumpTableAssembler::NopBytes(int bytes) {
-  DCHECK_LE(0, bytes);
-  DCHECK_EQ(0, bytes % 2);
-  for (; bytes > 0; bytes -= 2) {
-    nop(0);
-  }
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {
@@ -503,42 +528,76 @@ void JumpTableAssembler::SkipUntil(int offset) {
 #elif V8_TARGET_ARCH_PPC64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  int start = pc_offset();
-  // Load function index to register. max 5 instrs
-  mov(kWasmCompileLazyFuncIndexRegister, Operand(func_index));
-  // Jump to {lazy_compile_target}. max 5 instrs
-  mov(r0, Operand(lazy_compile_target));
-  mtctr(r0);
-  bctr();
-  int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
-  DCHECK_EQ(nop_bytes % kInstrSize, 0);
-  for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
+  static_assert(kWasmCompileLazyFuncIndexRegister == r15);
+  const uint32_t inst[kLazyCompileTableSlotSize / 4] = {
+      0x7c0802a6,  // mflr r0
+      0x48000005,  // b(4, SetLK)
+      0x7d8802a6,  // mflr ip
+      0x7c0803a6,  // mtlr r0
+      0x81ec0018,  // lwz r15, 24(ip)
+      0xe80c0020,  // ld r0, 32(ip)
+      0x7c0903a6,  // mtctr r0
+      0x4e800420,  // bctr
+      0x00000000,  // func_index
+      0x60000000,  // nop (alignment)
+      0x00000000,  // lazy_compile_target_0
+      0x00000000   // lazy_compile_target_1
+  };
+  emit<uint32_t>(inst[0]);
+  emit<uint32_t>(inst[1]);
+  emit<uint32_t>(inst[2]);
+  emit<uint32_t>(inst[3]);
+  emit<uint32_t>(inst[4]);
+  emit<uint32_t>(inst[5]);
+  emit<uint32_t>(inst[6]);
+  emit<uint32_t>(inst[7]);
+  emit<uint32_t>(func_index);
+  emit<uint32_t>(inst[9]);
+  emit<Address>(lazy_compile_target);
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  intptr_t relative_target = reinterpret_cast<uint8_t*>(target) - pc_;
+  intptr_t relative_target = target - pc_;
 
   if (!is_int26(relative_target)) {
     return false;
   }
 
-  b(relative_target, LeaveLK);
+  const uint32_t inst[kJumpTableSlotSize / kInstrSize] = {
+      0x48000000  // b(relative_target, LeaveLK)
+  };
+
+  CHECK((relative_target & (kAAMask | kLKMask)) == 0);
+  emit<uint32_t>(inst[0] | relative_target, kRelaxedStore);
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  uint8_t* start = pc_;
-  mov(ip, Operand(reinterpret_cast<Address>(start + kFarJumpTableSlotSize -
-                                            8)));  // 5 instr
-  LoadU64(ip, MemOperand(ip));
-  mtctr(ip);
-  bctr();
-  uint8_t* end = pc_;
-  int used = end - start;
-  CHECK(used < kFarJumpTableSlotSize - 8);
-  NopBytes(kFarJumpTableSlotSize - 8 - used);
-  CHECK_EQ(reinterpret_cast<Address>(pc_) & 0x7, 0);  // Alignment
-  dp(target);
+  const uint32_t inst[kFarJumpTableSlotSize / 4] = {
+      0x7c0802a6,  // mflr r0
+      0x48000005,  // b(4, SetLK)
+      0x7d8802a6,  // mflr ip
+      0x7c0803a6,  // mtlr r0
+      0xe98c0018,  // ld ip, 24(ip)
+      0x7d8903a6,  // mtctr ip
+      0x4e800420,  // bctr
+      0x60000000,  // nop (alignment)
+      0x00000000,  // target_0
+      0x00000000,  // target_1
+      0x60000000,  // nop
+      0x60000000   // nop
+  };
+  emit<uint32_t>(inst[0]);
+  emit<uint32_t>(inst[1]);
+  emit<uint32_t>(inst[2]);
+  emit<uint32_t>(inst[3]);
+  emit<uint32_t>(inst[4]);
+  emit<uint32_t>(inst[5]);
+  emit<uint32_t>(inst[6]);
+  emit<uint32_t>(inst[7]);
+  emit<Address>(target);
+  emit<uint32_t>(inst[10]);
+  emit<uint32_t>(inst[11]);
 }
 
 // static
@@ -546,14 +605,6 @@ void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   Address target_addr = slot + kFarJumpTableSlotSize - 8;
   reinterpret_cast<std::atomic<Address>*>(target_addr)
       ->store(target, std::memory_order_relaxed);
-}
-
-void JumpTableAssembler::NopBytes(int bytes) {
-  DCHECK_LE(0, bytes);
-  DCHECK_EQ(0, bytes % 4);
-  for (; bytes > 0; bytes -= 4) {
-    nop(0);
-  }
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {
