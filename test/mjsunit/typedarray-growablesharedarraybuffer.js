@@ -3877,7 +3877,7 @@ SortCallbackGrows(ArraySortHelper);
   }
   // Freezing zero-length TAs doesn't throw.
   for (let ctor of ctors) {
-    const gsab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
     const fixedLength = new ctor(gsab, 0, 0);
     const fixedLengthWithOffset = new ctor(
@@ -3888,7 +3888,7 @@ SortCallbackGrows(ArraySortHelper);
 
     Object.freeze(fixedLength);
     Object.freeze(fixedLengthWithOffset);
-    Object.freeze(lengthTrackingWithOffset);
+    assertThrows(() => { Object.freeze(lengthTrackingWithOffset); }, TypeError);
   }
 })();
 

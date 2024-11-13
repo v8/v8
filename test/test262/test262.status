@@ -1241,6 +1241,9 @@
   'language/statements/with/set-mutable-binding-idref-compound-assign-with-proxy-env': [FAIL],
   'language/statements/with/set-mutable-binding-idref-with-proxy-env': [FAIL],
 
+  # https://github.com/tc39/test262/pull/4324
+  'built-ins/Object/freeze/typedarray-backed-by-resizable-buffer': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

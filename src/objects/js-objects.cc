@@ -4422,7 +4422,9 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   if (object->map()->has_named_interceptor() ||
-      object->map()->has_indexed_interceptor()) {
+      object->map()->has_indexed_interceptor() ||
+      (object->HasTypedArrayOrRabGsabTypedArrayElements() &&
+       Cast<JSTypedArray>(*object)->IsVariableLength())) {
     MessageTemplate message = MessageTemplate::kNone;
     switch (attrs) {
       case NONE:
@@ -4547,7 +4549,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   // Both seal and preventExtensions always go through without modifications to
-  // typed array elements. Freeze works only if there are no actual elements.
+  // typed array elements if the typed array is fixed length. Freeze works only
+  // if there are no actual elements.
   if (object->HasTypedArrayOrRabGsabTypedArrayElements()) {
     DCHECK(new_element_dictionary.is_null());
     if (attrs == FROZEN && Cast<JSTypedArray>(*object)->GetLength() > 0) {
