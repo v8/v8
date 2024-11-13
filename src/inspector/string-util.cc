@@ -142,10 +142,10 @@ v8::Local<v8::String> toV8String(v8::Isolate* isolate,
 
 String16 toProtocolString(v8::Isolate* isolate, v8::Local<v8::String> value) {
   if (value.IsEmpty() || value->IsNullOrUndefined()) return String16();
-  std::unique_ptr<UChar[]> buffer(new UChar[value->Length()]);
-  value->Write(isolate, reinterpret_cast<uint16_t*>(buffer.get()), 0,
-               value->Length());
-  return String16(buffer.get(), value->Length());
+  uint32_t length = value->Length();
+  std::unique_ptr<UChar[]> buffer(new UChar[length]);
+  value->WriteV2(isolate, 0, length, reinterpret_cast<uint16_t*>(buffer.get()));
+  return String16(buffer.get(), length);
 }
 
 String16 toProtocolStringWithTypeCheck(v8::Isolate* isolate,

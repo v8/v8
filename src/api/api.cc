@@ -11055,9 +11055,12 @@ String::Utf8Value::Utf8Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj,
   TryCatch try_catch(v8_isolate);
   Local<String> str;
   if (!obj->ToString(context).ToLocal(&str)) return;
-  length_ = str->Utf8Length(v8_isolate);
+  length_ = str->Utf8LengthV2(v8_isolate);
   str_ = i::NewArray<char>(length_ + 1);
-  str->WriteUtf8(v8_isolate, str_, -1, nullptr, options);
+  int flags = String::WriteFlags::kNullTerminate;
+  if (options & REPLACE_INVALID_UTF8)
+    flags |= String::WriteFlags::kReplaceInvalidUtf8;
+  str->WriteUtf8V2(v8_isolate, str_, length_ + 1, flags);
 }
 
 String::Utf8Value::~Utf8Value() { i::DeleteArray(str_); }
@@ -11074,7 +11077,8 @@ String::Value::Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj)
   if (!obj->ToString(context).ToLocal(&str)) return;
   length_ = str->Length();
   str_ = i::NewArray<uint16_t>(length_ + 1);
-  str->Write(v8_isolate, str_);
+  str->WriteV2(v8_isolate, 0, length_, str_,
+               String::WriteFlags::kNullTerminate);
 }
 
 String::Value::~Value() { i::DeleteArray(str_); }

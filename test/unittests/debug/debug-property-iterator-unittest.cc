@@ -45,19 +45,25 @@ TEST_F(DebugPropertyIteratorTest, WalksPrototypeChain) {
   ASSERT_FALSE(iterator->Done());
   EXPECT_TRUE(iterator->is_own());
   char name_buffer[100];
-  iterator->name().As<v8::String>()->WriteUtf8(isolate(), name_buffer);
+  iterator->name().As<v8::String>()->WriteUtf8V2(
+      isolate(), name_buffer, sizeof(name_buffer),
+      String::WriteFlags::kNullTerminate);
   EXPECT_EQ("own_property", std::string(name_buffer));
   ASSERT_TRUE(iterator->Advance().FromMaybe(false));
 
   ASSERT_FALSE(iterator->Done());
   EXPECT_TRUE(iterator->is_own());
-  iterator->name().As<v8::String>()->WriteUtf8(isolate(), name_buffer);
+  iterator->name().As<v8::String>()->WriteUtf8V2(
+      isolate(), name_buffer, sizeof(name_buffer),
+      String::WriteFlags::kNullTerminate);
   EXPECT_EQ("own_property", std::string(name_buffer));
   ASSERT_TRUE(iterator->Advance().FromMaybe(false));
 
   ASSERT_FALSE(iterator->Done());
   EXPECT_FALSE(iterator->is_own());
-  iterator->name().As<v8::String>()->WriteUtf8(isolate(), name_buffer);
+  iterator->name().As<v8::String>()->WriteUtf8V2(
+      isolate(), name_buffer, sizeof(name_buffer),
+      String::WriteFlags::kNullTerminate);
   EXPECT_EQ("prototype_property", std::string(name_buffer));
   ASSERT_TRUE(iterator->Advance().FromMaybe(false));
 
@@ -92,7 +98,9 @@ TEST_F(DebugPropertyIteratorTest, DoestWalksPrototypeChainIfInaccesible) {
   ASSERT_FALSE(iterator->Done());
   EXPECT_TRUE(iterator->is_own());
   char name_buffer[100];
-  iterator->name().As<v8::String>()->WriteUtf8(isolate(), name_buffer);
+  iterator->name().As<v8::String>()->WriteUtf8V2(
+      isolate(), name_buffer, sizeof(name_buffer),
+      String::WriteFlags::kNullTerminate);
   EXPECT_EQ("own_property", std::string(name_buffer));
   ASSERT_TRUE(iterator->Advance().FromMaybe(false));
 
@@ -168,13 +176,17 @@ TEST_F(SharedObjectDebugPropertyIteratorTest, SharedStruct) {
   ASSERT_FALSE(iterator->Done());
   EXPECT_TRUE(iterator->is_own());
   char name_buffer[64];
-  iterator->name().As<v8::String>()->WriteUtf8(isolate(), name_buffer);
+  iterator->name().As<v8::String>()->WriteUtf8V2(
+      isolate(), name_buffer, sizeof(name_buffer),
+      String::WriteFlags::kNullTerminate);
   EXPECT_EQ("field", std::string(name_buffer));
   ASSERT_TRUE(iterator->Advance().FromMaybe(false));
 
   ASSERT_FALSE(iterator->Done());
   EXPECT_TRUE(iterator->is_own());
-  iterator->name().As<v8::String>()->WriteUtf8(isolate(), name_buffer);
+  iterator->name().As<v8::String>()->WriteUtf8V2(
+      isolate(), name_buffer, sizeof(name_buffer),
+      String::WriteFlags::kNullTerminate);
   EXPECT_EQ("another_field", std::string(name_buffer));
   ASSERT_TRUE(iterator->Advance().FromMaybe(false));
 

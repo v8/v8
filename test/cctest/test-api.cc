@@ -434,8 +434,10 @@ THREADED_TEST(HulIgennem) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::Primitive> undef = v8::Undefined(isolate);
   Local<String> undef_str = undef->ToString(env.local()).ToLocalChecked();
-  char* value = i::NewArray<char>(undef_str->Utf8Length(isolate) + 1);
-  undef_str->WriteUtf8(isolate, value);
+  size_t buffer_size = undef_str->Utf8LengthV2(isolate) + 1;
+  char* value = i::NewArray<char>(buffer_size);
+  undef_str->WriteUtf8V2(isolate, value, buffer_size,
+                         String::WriteFlags::kNullTerminate);
   CHECK_EQ(0, strcmp(value, "undefined"));
   i::DeleteArray(value);
 }
@@ -8543,18 +8545,6 @@ static int StrNCmp16(uint16_t* a, uint16_t* b, int n) {
   }
 }
 
-int GetUtf8Length(v8::Isolate* isolate, Local<String> str) {
-  int len = str->Utf8Length(isolate);
-  if (len < 0) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::Handle<i::String> istr(v8::Utils::OpenHandle(*str));
-    i::String::Flatten(i_isolate, istr);
-    len = str->Utf8Length(isolate);
-  }
-  return len;
-}
-
-
 THREADED_TEST(StringWrite) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -8614,111 +8604,120 @@ THREADED_TEST(StringWrite) {
   char buf[100];
   char utf8buf[0xD800 * 3];
   uint16_t wbuf[100];
-  int len;
-  int charlen;
+  size_t len;
 
   memset(utf8buf, 0x1, 1000);
-  len = v8::String::Empty(isolate)->WriteUtf8(isolate, utf8buf, sizeof(utf8buf),
-                                              &charlen);
+  len = v8::String::Empty(isolate)->WriteUtf8V2(
+      isolate, utf8buf, sizeof(utf8buf), String::WriteFlags::kNullTerminate);
   CHECK_EQ(1, len);
-  CHECK_EQ(0, charlen);
   CHECK_EQ(0, strcmp(utf8buf, ""));
 
   memset(utf8buf, 0x1, 1000);
-  len = str2->WriteUtf8(isolate, utf8buf, sizeof(utf8buf), &charlen);
+  len = str2->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf),
+                          String::WriteFlags::kNullTerminate);
   CHECK_EQ(9, len);
-  CHECK_EQ(5, charlen);
   CHECK_EQ(0, strcmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83"));
 
   memset(utf8buf, 0x1, 1000);
-  len = str2->WriteUtf8(isolate, utf8buf, 8, &charlen);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 8);
   CHECK_EQ(8, len);
-  CHECK_EQ(5, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83\x01", 9));
 
   memset(utf8buf, 0x1, 1000);
-  len = str2->WriteUtf8(isolate, utf8buf, 7, &charlen);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 7);
   CHECK_EQ(5, len);
-  CHECK_EQ(4, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\x01", 5));
 
   memset(utf8buf, 0x1, 1000);
-  len = str2->WriteUtf8(isolate, utf8buf, 6, &charlen);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 6);
   CHECK_EQ(5, len);
-  CHECK_EQ(4, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\x01", 5));
 
   memset(utf8buf, 0x1, 1000);
-  len = str2->WriteUtf8(isolate, utf8buf, 5, &charlen);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 5);
   CHECK_EQ(5, len);
-  CHECK_EQ(4, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\x01", 5));
 
   memset(utf8buf, 0x1, 1000);
-  len = str2->WriteUtf8(isolate, utf8buf, 4, &charlen);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 4);
   CHECK_EQ(3, len);
-  CHECK_EQ(3, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\x01", 4));
 
   memset(utf8buf, 0x1, 1000);
-  len = str2->WriteUtf8(isolate, utf8buf, 3, &charlen);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 3);
   CHECK_EQ(3, len);
-  CHECK_EQ(3, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\x01", 4));
 
   memset(utf8buf, 0x1, 1000);
-  len = str2->WriteUtf8(isolate, utf8buf, 2, &charlen);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 2);
   CHECK_EQ(2, len);
-  CHECK_EQ(2, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "ab\x01", 3));
+
+  // always write a null terminator if requested, even if there isn't enough
+  // space for all characters of the string
+  memset(utf8buf, 0x1, 1000);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 4,
+                          String::WriteFlags::kNullTerminate);
+  CHECK_EQ(4, len);
+  CHECK_EQ(0, strcmp(utf8buf, "abc"));
+
+  memset(utf8buf, 0x1, 1000);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 5,
+                          String::WriteFlags::kNullTerminate);
+  CHECK_EQ(4, len);
+  CHECK_EQ(0, strcmp(utf8buf, "abc"));
+
+  memset(utf8buf, 0x1, 1000);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 6,
+                          String::WriteFlags::kNullTerminate);
+  CHECK_EQ(6, len);
+  CHECK_EQ(0, strcmp(utf8buf, "abc\xC3\xB0"));
 
   // allow orphan surrogates by default
   memset(utf8buf, 0x1, 1000);
-  len = orphans_str->WriteUtf8(isolate, utf8buf, sizeof(utf8buf), &charlen);
+  len = orphans_str->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf),
+                                 String::WriteFlags::kNullTerminate);
   CHECK_EQ(13, len);
-  CHECK_EQ(8, charlen);
   CHECK_EQ(0, strcmp(utf8buf, "ab\xED\xA0\x80wx\xED\xB0\x80yz"));
 
   // replace orphan surrogates with Unicode replacement character
   memset(utf8buf, 0x1, 1000);
-  len = orphans_str->WriteUtf8(isolate, utf8buf, sizeof(utf8buf), &charlen,
-                               String::REPLACE_INVALID_UTF8);
+  len = orphans_str->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf),
+                                 String::WriteFlags::kNullTerminate |
+                                     String::WriteFlags::kReplaceInvalidUtf8);
   CHECK_EQ(13, len);
-  CHECK_EQ(8, charlen);
   CHECK_EQ(0, strcmp(utf8buf, "ab\xEF\xBF\xBDwx\xEF\xBF\xBDyz"));
 
   // replace single lead surrogate with Unicode replacement character
   memset(utf8buf, 0x1, 1000);
-  len = lead_str->WriteUtf8(isolate, utf8buf, sizeof(utf8buf), &charlen,
-                            String::REPLACE_INVALID_UTF8);
+  len = lead_str->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf),
+                              String::WriteFlags::kNullTerminate |
+                                  String::WriteFlags::kReplaceInvalidUtf8);
   CHECK_EQ(4, len);
-  CHECK_EQ(1, charlen);
   CHECK_EQ(0, strcmp(utf8buf, "\xEF\xBF\xBD"));
 
   // replace single trail surrogate with Unicode replacement character
   memset(utf8buf, 0x1, 1000);
-  len = trail_str->WriteUtf8(isolate, utf8buf, sizeof(utf8buf), &charlen,
-                             String::REPLACE_INVALID_UTF8);
+  len = trail_str->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf),
+                               String::WriteFlags::kNullTerminate |
+                                   String::WriteFlags::kReplaceInvalidUtf8);
   CHECK_EQ(4, len);
-  CHECK_EQ(1, charlen);
   CHECK_EQ(0, strcmp(utf8buf, "\xEF\xBF\xBD"));
 
   // do not replace / write anything if surrogate pair does not fit the buffer
   // space
   memset(utf8buf, 0x1, 1000);
-  len = pair_str->WriteUtf8(isolate, utf8buf, 3, &charlen,
-                            String::REPLACE_INVALID_UTF8);
+  len = pair_str->WriteUtf8V2(isolate, utf8buf, 3,
+                              String::WriteFlags::kReplaceInvalidUtf8);
   CHECK_EQ(0, len);
-  CHECK_EQ(0, charlen);
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
-  len = GetUtf8Length(isolate, left_tree);
+  len = left_tree->Utf8LengthV2(isolate);
   int utf8_expected =
       (0x80 + (0x800 - 0x80) * 2 + (0xD800 - 0x800) * 3) / kStride;
   CHECK_EQ(utf8_expected, len);
-  len = left_tree->WriteUtf8(isolate, utf8buf, utf8_expected, &charlen);
+  len = left_tree->WriteUtf8V2(isolate, utf8buf, utf8_expected);
   CHECK_EQ(utf8_expected, len);
-  CHECK_EQ(0xD800 / kStride, charlen);
   CHECK_EQ(0xED, static_cast<unsigned char>(utf8buf[utf8_expected - 3]));
   CHECK_EQ(0x9F, static_cast<unsigned char>(utf8buf[utf8_expected - 2]));
   CHECK_EQ(0xC0 - kStride,
@@ -8726,11 +8725,10 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(1, utf8buf[utf8_expected]);
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
-  len = GetUtf8Length(isolate, right_tree);
+  len = right_tree->Utf8LengthV2(isolate);
   CHECK_EQ(utf8_expected, len);
-  len = right_tree->WriteUtf8(isolate, utf8buf, utf8_expected, &charlen);
+  len = right_tree->WriteUtf8V2(isolate, utf8buf, utf8_expected);
   CHECK_EQ(utf8_expected, len);
-  CHECK_EQ(0xD800 / kStride, charlen);
   CHECK_EQ(0xED, static_cast<unsigned char>(utf8buf[0]));
   CHECK_EQ(0x9F, static_cast<unsigned char>(utf8buf[1]));
   CHECK_EQ(0xC0 - kStride, static_cast<unsigned char>(utf8buf[2]));
@@ -8738,87 +8736,68 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf));
-  CHECK_EQ(5, len);
-  len = str->Write(isolate, wbuf);
-  CHECK_EQ(5, len);
+  str->WriteOneByteV2(isolate, 0, str->Length(),
+                      reinterpret_cast<uint8_t*>(buf),
+                      String::WriteFlags::kNullTerminate);
+  str->WriteV2(isolate, 0, str->Length(), wbuf,
+               String::WriteFlags::kNullTerminate);
   CHECK_EQ(0, strcmp("abcde", buf));
   uint16_t answer1[] = {'a', 'b', 'c', 'd', 'e', '\0'};
   CHECK_EQ(0, StrCmp16(answer1, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf), 0, 4);
-  CHECK_EQ(4, len);
-  len = str->Write(isolate, wbuf, 0, 4);
-  CHECK_EQ(4, len);
+  str->WriteOneByteV2(isolate, 0, 4, reinterpret_cast<uint8_t*>(buf));
+  str->WriteV2(isolate, 0, 4, wbuf);
   CHECK_EQ(0, strncmp("abcd\x01", buf, 5));
   uint16_t answer2[] = {'a', 'b', 'c', 'd', 0x101};
   CHECK_EQ(0, StrNCmp16(answer2, wbuf, 5));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf), 0, 5);
-  CHECK_EQ(5, len);
-  len = str->Write(isolate, wbuf, 0, 5);
-  CHECK_EQ(5, len);
+  str->WriteOneByteV2(isolate, 0, 5, reinterpret_cast<uint8_t*>(buf));
+  str->WriteV2(isolate, 0, 5, wbuf);
   CHECK_EQ(0, strncmp("abcde\x01", buf, 6));
   uint16_t answer3[] = {'a', 'b', 'c', 'd', 'e', 0x101};
   CHECK_EQ(0, StrNCmp16(answer3, wbuf, 6));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf), 0, 6);
-  CHECK_EQ(5, len);
-  len = str->Write(isolate, wbuf, 0, 6);
-  CHECK_EQ(5, len);
+  str->WriteOneByteV2(isolate, 0, 5, reinterpret_cast<uint8_t*>(buf),
+                      String::WriteFlags::kNullTerminate);
+  str->WriteV2(isolate, 0, 5, wbuf, String::WriteFlags::kNullTerminate);
   CHECK_EQ(0, strcmp("abcde", buf));
   uint16_t answer4[] = {'a', 'b', 'c', 'd', 'e', '\0'};
   CHECK_EQ(0, StrCmp16(answer4, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf), 4, -1);
-  CHECK_EQ(1, len);
-  len = str->Write(isolate, wbuf, 4, -1);
-  CHECK_EQ(1, len);
+  str->WriteOneByteV2(isolate, 4, 1, reinterpret_cast<uint8_t*>(buf),
+                      String::WriteFlags::kNullTerminate);
+  str->WriteV2(isolate, 4, 1, wbuf, String::WriteFlags::kNullTerminate);
   CHECK_EQ(0, strcmp("e", buf));
   uint16_t answer5[] = {'e', '\0'};
   CHECK_EQ(0, StrCmp16(answer5, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf), 4, 6);
-  CHECK_EQ(1, len);
-  len = str->Write(isolate, wbuf, 4, 6);
-  CHECK_EQ(1, len);
-  CHECK_EQ(0, strcmp("e", buf));
-  CHECK_EQ(0, StrCmp16(answer5, wbuf));
-
-  memset(buf, 0x1, sizeof(buf));
-  memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf), 4, 1);
-  CHECK_EQ(1, len);
-  len = str->Write(isolate, wbuf, 4, 1);
-  CHECK_EQ(1, len);
+  str->WriteOneByteV2(isolate, 4, 1, reinterpret_cast<uint8_t*>(buf));
+  str->WriteV2(isolate, 4, 1, wbuf);
   CHECK_EQ(0, strncmp("e\x01", buf, 2));
   uint16_t answer6[] = {'e', 0x101};
   CHECK_EQ(0, StrNCmp16(answer6, wbuf, 2));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
-  len = str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf), 3, 1);
-  CHECK_EQ(1, len);
-  len = str->Write(isolate, wbuf, 3, 1);
-  CHECK_EQ(1, len);
+  str->WriteOneByteV2(isolate, 3, 1, reinterpret_cast<uint8_t*>(buf));
+  str->WriteV2(isolate, 3, 1, wbuf);
   CHECK_EQ(0, strncmp("d\x01", buf, 2));
   uint16_t answer7[] = {'d', 0x101};
   CHECK_EQ(0, StrNCmp16(answer7, wbuf, 2));
 
   memset(wbuf, 0x1, sizeof(wbuf));
   wbuf[5] = 'X';
-  len = str->Write(isolate, wbuf, 0, 6, String::NO_NULL_TERMINATION);
-  CHECK_EQ(5, len);
+  str->WriteV2(isolate, 0, 5, wbuf);
   CHECK_EQ('X', wbuf[5]);
   uint16_t answer8a[] = {'a', 'b', 'c', 'd', 'e'};
   uint16_t answer8b[] = {'a', 'b', 'c', 'd', 'e', '\0'};
@@ -8829,9 +8808,7 @@ THREADED_TEST(StringWrite) {
 
   memset(buf, 0x1, sizeof(buf));
   buf[5] = 'X';
-  len = str->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf), 0, 6,
-                          String::NO_NULL_TERMINATION);
-  CHECK_EQ(5, len);
+  str->WriteOneByteV2(isolate, 0, 5, reinterpret_cast<uint8_t*>(buf));
   CHECK_EQ('X', buf[5]);
   CHECK_EQ(0, strncmp("abcde", buf, 5));
   CHECK_NE(0, strcmp("abcde", buf));
@@ -8840,11 +8817,8 @@ THREADED_TEST(StringWrite) {
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   utf8buf[8] = 'X';
-  len = str2->WriteUtf8(isolate, utf8buf, sizeof(utf8buf), &charlen,
-                        String::NO_NULL_TERMINATION);
-  CHECK_EQ(8, len);
+  str2->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf));
   CHECK_EQ('X', utf8buf[8]);
-  CHECK_EQ(5, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83", 8));
   CHECK_NE(0, strcmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83"));
   utf8buf[8] = '\0';
@@ -8852,26 +8826,24 @@ THREADED_TEST(StringWrite) {
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   utf8buf[5] = 'X';
-  len = str->WriteUtf8(isolate, utf8buf, sizeof(utf8buf), &charlen,
-                       String::NO_NULL_TERMINATION);
+  len = str->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf));
   CHECK_EQ(5, len);
   CHECK_EQ('X', utf8buf[5]);  // Test that the sixth character is untouched.
-  CHECK_EQ(5, charlen);
   utf8buf[5] = '\0';
   CHECK_EQ(0, strcmp(utf8buf, "abcde"));
 
   memset(buf, 0x1, sizeof(buf));
-  len = str3->WriteOneByte(isolate, reinterpret_cast<uint8_t*>(buf));
-  CHECK_EQ(7, len);
+  str3->WriteOneByteV2(isolate, 0, str3->Length(),
+                       reinterpret_cast<uint8_t*>(buf),
+                       String::WriteFlags::kNullTerminate);
   CHECK_EQ(0, strcmp("abc", buf));
   CHECK_EQ(0, buf[3]);
   CHECK_EQ(0, strcmp("def", buf + 4));
 
-  CHECK_EQ(0, str->WriteOneByte(isolate, nullptr, 0, 0,
-                                String::NO_NULL_TERMINATION));
-  CHECK_EQ(0, str->WriteUtf8(isolate, nullptr, 0, nullptr,
-                             String::NO_NULL_TERMINATION));
-  CHECK_EQ(0, str->Write(isolate, nullptr, 0, 0, String::NO_NULL_TERMINATION));
+  str->WriteOneByteV2(isolate, 0, 0, nullptr);
+  str->WriteV2(isolate, 0, 0, nullptr);
+  len = str->WriteUtf8V2(isolate, nullptr, 0);
+  CHECK_EQ(0, len);
 }
 
 static void Utf16Helper(LocalContext& context, const char* name,
@@ -8887,8 +8859,8 @@ static void Utf16Helper(LocalContext& context, const char* name,
         Local<v8::String>::Cast(a->Get(context.local(), i).ToLocalChecked());
     Local<v8::Number> expected_len = Local<v8::Number>::Cast(
         alens->Get(context.local(), i).ToLocalChecked());
-    int length = GetUtf8Length(context->GetIsolate(), string);
-    CHECK_EQ(static_cast<int>(expected_len->Value()), length);
+    size_t length = string->Utf8LengthV2(context->GetIsolate());
+    CHECK_EQ(expected_len->Value(), length);
   }
 }
 
@@ -8899,8 +8871,9 @@ void TestUtf8DecodingAgainstReference(
     v8::Local<String> str = v8_str(cases[test_ix]);
     CHECK_EQ(unicode_expected[test_ix].size(), str->Length());
 
-    std::unique_ptr<uint16_t[]> buffer(new uint16_t[str->Length()]);
-    str->Write(isolate, buffer.get(), 0, -1, String::NO_NULL_TERMINATION);
+    uint32_t length = str->Length();
+    std::unique_ptr<uint16_t[]> buffer(new uint16_t[length]);
+    str->WriteV2(isolate, 0, length, buffer.get());
 
     for (size_t i = 0; i < unicode_expected[test_ix].size(); ++i) {
       CHECK_EQ(unicode_expected[test_ix][i], buffer[i]);
@@ -15234,10 +15207,9 @@ THREADED_TEST(MorphCompositeStringTest) {
     // This should UTF-8 without flattening, since everything is ASCII.
     Local<String> cons =
         v8_compile("cons")->Run(env.local()).ToLocalChecked().As<String>();
-    CHECK_EQ(128, cons->Utf8Length(isolate));
-    int nchars = -1;
-    CHECK_EQ(129, cons->WriteUtf8(isolate, utf_buffer, -1, &nchars));
-    CHECK_EQ(128, nchars);
+    CHECK_EQ(128, cons->Utf8LengthV2(isolate));
+    CHECK_EQ(129, cons->WriteUtf8V2(isolate, utf_buffer, sizeof(utf_buffer),
+                                    String::WriteFlags::kNullTerminate));
     CHECK_EQ(0, strcmp(
         utf_buffer,
         "Now is the time for all good men to come to the aid of the party"

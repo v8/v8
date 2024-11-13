@@ -25,37 +25,18 @@ namespace {
 class MaybeUtf8 {
  public:
   explicit MaybeUtf8(Isolate* isolate, Handle<String> string) : buf_(data_) {
-    string = String::Flatten(isolate, string);
-    int len;
-    if (string->IsOneByteRepresentation()) {
-      // Technically this allows unescaped latin1 characters but the trace
-      // events mechanism currently does the same and the current consuming
-      // tools are tolerant of it. A more correct approach here would be to
-      // escape non-ascii characters but this is easier and faster.
-      len = string->length();
-      AllocateSufficientSpace(len);
-      if (len > 0) {
-        // Why copy? Well, the trace event mechanism requires null-terminated
-        // strings, the bytes we get from SeqOneByteString are not. buf_ is
-        // guaranteed to be null terminated.
-        DisallowGarbageCollection no_gc;
-        memcpy(buf_, Cast<SeqOneByteString>(string)->GetChars(no_gc), len);
-      }
-    } else {
-      Local<v8::String> local = Utils::ToLocal(string);
-      auto* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-      len = local->Utf8Length(v8_isolate);
-      AllocateSufficientSpace(len);
-      if (len > 0) {
-        local->WriteUtf8(v8_isolate, reinterpret_cast<char*>(buf_));
-      }
-    }
-    buf_[len] = 0;
+    // String::Utf8Length will also flatten the string if necessary.
+    size_t len = String::Utf8Length(isolate, string) + 1;
+    AllocateSufficientSpace(len);
+    size_t written_length =
+        String::WriteUtf8(isolate, string, reinterpret_cast<char*>(buf_), len,
+                          String::Utf8EncodingFlag::kNullTerminate);
+    CHECK_EQ(written_length, len);
   }
   const char* operator*() const { return reinterpret_cast<const char*>(buf_); }
 
  private:
-  void AllocateSufficientSpace(int len) {
+  void AllocateSufficientSpace(size_t len) {
     if (len + 1 > MAX_STACK_LENGTH) {
       allocated_ = std::make_unique<uint8_t[]>(len + 1);
       buf_ = allocated_.get();

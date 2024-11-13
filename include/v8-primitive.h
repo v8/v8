@@ -624,7 +624,7 @@ class V8_EXPORT String : public Name {
 
    private:
     char* str_;
-    int length_;
+    size_t length_;
   };
 
   /**
@@ -654,7 +654,7 @@ class V8_EXPORT String : public Name {
 
    private:
     uint16_t* str_;
-    int length_;
+    uint32_t length_;
   };
 
   /**

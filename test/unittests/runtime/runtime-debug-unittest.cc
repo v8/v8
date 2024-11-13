@@ -31,7 +31,8 @@ TEST_F(RuntimeTest, ReturnsPrototype) {
   result->Get(context(), 0)
       .ToLocalChecked()
       .As<v8::String>()
-      ->WriteUtf8(isolate(), name_buffer);
+      ->WriteUtf8V2(isolate(), name_buffer, sizeof(name_buffer),
+                    v8::String::WriteFlags::kNullTerminate);
   EXPECT_EQ("[[Prototype]]", std::string(name_buffer));
 }
 
