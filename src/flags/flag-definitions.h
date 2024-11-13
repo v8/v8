@@ -672,8 +672,9 @@ DEFINE_BOOL_READONLY(dict_property_const_tracking,
 DEFINE_BOOL(const_tracking_let, true,
             "Use const tracking on top-level `let` variables")
 
-DEFINE_EXPERIMENTAL_FEATURE(script_context_mutable_heap_number,
-                            "Use mutable heap numbers in script contexts")
+DEFINE_BOOL(script_context_mutable_heap_number, false,
+            "Use mutable heap numbers in script contexts")
+DEFINE_WEAK_IMPLICATION(future, script_context_mutable_heap_number)
 
 DEFINE_BOOL(empty_context_extension_dep, false,
             "Use compilation dependency to avoid dynamic checks for "
