@@ -167,13 +167,17 @@ own<ExternType> GetImportExportType(const i::wasm::WasmModule* module,
       const i::wasm::WasmTable& table = module->tables[index];
       own<ValType> elem = ValType::make(V8ValueTypeToWasm(table.type));
       Limits limits(table.initial_size,
-                    table.has_maximum_size ? table.maximum_size : -1);
+                    table.has_maximum_size
+                        ? v8::base::checked_cast<int32_t>(table.maximum_size)
+                        : -1);
       return TableType::make(std::move(elem), limits);
     }
     case i::wasm::kExternalMemory: {
       const i::wasm::WasmMemory& memory = module->memories[index];
       Limits limits(memory.initial_pages,
-                    memory.has_maximum_pages ? memory.maximum_pages : -1);
+                    memory.has_maximum_pages
+                        ? v8::base::checked_cast<int32_t>(memory.maximum_pages)
+                        : -1);
       return MemoryType::make(limits);
     }
     case i::wasm::kExternalGlobal: {

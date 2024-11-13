@@ -439,6 +439,10 @@ class HexDumpModuleDis : public ITracer {
     if (description_.length() != 0) description_ << " ";
     description_ << number;
   }
+  void Description(uint64_t number) override {
+    if (description_.length() != 0) description_ << " ";
+    description_ << number;
+  }
   void Description(ValueType type) override {
     if (description_.length() != 0) description_ << " ";
     names_->PrintValueType(description_, type);

@@ -78,3 +78,26 @@ function exportTable64Grow(builder, table) {
 
   assertEquals(-1n, exports.table64_grow('64 bit', oob_size_b - 1n));
 })();
+
+(function TestJSTable64MaxUint64() {
+  print(arguments.callee.name);
+  let max_uint64 = (1n << 64n) - 1n;
+  let table = new WebAssembly.Table(
+      {initial: 0n, maximum: max_uint64, element: 'anyfunc', address: 'i64'});
+  table.grow(oob_size_b - 1n);
+  assertThrows(() => table.grow(1n), RangeError, /failed to grow table/);
+})();
+
+(function TestJSTable64MaxUint64PlusOne() {
+  print(arguments.callee.name);
+  let max_uint64 = (1n << 64n) - 1n;
+  assertThrows(
+      () => new WebAssembly.Table({
+        initial: 1n,
+        maximum: max_uint64 + 1n,
+        element: 'anyfunc',
+        address: 'i64'
+      }),
+      TypeError,
+      'WebAssembly.Table(): Property \'maximum\' must be in u64 range');
+})();

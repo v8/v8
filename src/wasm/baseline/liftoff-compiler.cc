@@ -8464,10 +8464,11 @@ class LiftoffCompiler {
             ? no_reg
             : pinned.set(__ LoadToRegister(index_slot, pinned).gp());
 
+    static_assert(kV8MaxWasmTableSize <= kMaxUInt32);
     const uint32_t max_table_size =
-        table->has_maximum_size
-            ? std::min(table->maximum_size, uint32_t{kV8MaxWasmTableSize})
-            : uint32_t{kV8MaxWasmTableSize};
+        table->has_maximum_size ? static_cast<uint32_t>(std::min<uint64_t>(
+                                      table->maximum_size, kV8MaxWasmTableSize))
+                                : uint32_t{kV8MaxWasmTableSize};
     const bool statically_oob =
         is_static_index &&
         static_cast<uint32_t>(index_slot.i32_const()) >= max_table_size;

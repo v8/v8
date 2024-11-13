@@ -762,11 +762,11 @@ class ModuleDecoderImpl : public Decoder {
           if (table->shared) module_->has_shared_part = true;
           // Note that we should not throw an error if the declared maximum size
           // is oob. We will instead fail when growing at runtime.
-          // TODO(369904698): Allow true 64-bit maximum values.
+          uint64_t kNoMaximum = kMaxUInt64;
           consume_resizable_limits(
               "table", "elements", v8_flags.wasm_max_table_size,
-              &table->initial_size, table->has_maximum_size,
-              std::numeric_limits<uint32_t>::max(), &table->maximum_size,
+              &table->initial_size, table->has_maximum_size, kNoMaximum,
+              &table->maximum_size,
               table->is_table64() ? k64BitLimits : k32BitLimits);
           break;
         }
@@ -913,10 +913,11 @@ class ModuleDecoderImpl : public Decoder {
       if (table->shared) module_->has_shared_part = true;
       // Note that we should not throw an error if the declared maximum size is
       // oob. We will instead fail when growing at runtime.
+      uint64_t kNoMaximum = kMaxUInt64;
       consume_resizable_limits(
           "table", "elements", v8_flags.wasm_max_table_size,
-          &table->initial_size, table->has_maximum_size,
-          std::numeric_limits<uint32_t>::max(), &table->maximum_size,
+          &table->initial_size, table->has_maximum_size, kNoMaximum,
+          &table->maximum_size,
           table->is_table64() ? k64BitLimits : k32BitLimits);
 
       if (has_initializer) {
@@ -2000,10 +2001,11 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   enum ResizableLimitsType : bool { k32BitLimits, k64BitLimits };
-  void consume_resizable_limits(const char* name, const char* units,
-                                uint32_t max_initial, uint32_t* initial,
-                                bool has_maximum, uint32_t max_maximum,
-                                uint32_t* maximum, ResizableLimitsType type) {
+  void consume_resizable_limits(
+      const char* name, const char* units,
+      // Not: both memories and tables have a 32-bit limit on the initial size.
+      uint32_t max_initial, uint32_t* initial, bool has_maximum,
+      uint64_t max_maximum, uint64_t* maximum, ResizableLimitsType type) {
     const uint8_t* pos = pc();
     // Note that even if we read the values as 64-bit value, all V8 limits are
     // still within uint32_t range.
@@ -2029,7 +2031,7 @@ class ModuleDecoderImpl : public Decoder {
       if (maximum_64 > max_maximum) {
         errorf(pos,
                "maximum %s size (%" PRIu64
-               " %s) is larger than implementation limit (%u %s)",
+               " %s) is larger than implementation limit (%" PRIu64 " %s)",
                name, maximum_64, units, max_maximum, units);
       }
       if (maximum_64 < *initial) {
@@ -2037,7 +2039,7 @@ class ModuleDecoderImpl : public Decoder {
                "maximum %s size (%" PRIu64 " %s) is less than initial (%u %s)",
                name, maximum_64, units, *initial, units);
       }
-      *maximum = static_cast<uint32_t>(maximum_64);
+      *maximum = maximum_64;
       if (tracer_) {
         tracer_->Description(*maximum);
         tracer_->NextLine();

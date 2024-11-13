@@ -572,7 +572,7 @@ std::optional<uint64_t> WasmTableObject::maximum_length_u64() const {
     DCHECK(IsBigInt(max));
 #if DEBUG
     bool lossless;
-    double value = Cast<BigInt>(maximum_length())->AsUint64(&lossless);
+    uint64_t value = Cast<BigInt>(maximum_length())->AsUint64(&lossless);
     DCHECK(lossless);
     return value;
 #else

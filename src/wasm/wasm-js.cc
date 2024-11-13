@@ -1520,9 +1520,10 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   uint32_t initial = static_cast<uint32_t>(*maybe_initial);
 
   // Parse the 'maximum' property of the `descriptor`.
+  uint64_t kNoMaximum = i::kMaxUInt64;
   auto maybe_maybe_maximum = GetOptionalAddressValue(
       &thrower, context, descriptor, v8_str(isolate, "maximum"), address_type,
-      initial, std::numeric_limits<uint32_t>::max());
+      initial, kNoMaximum);
   if (!maybe_maybe_maximum) return js_api_scope.AssertException();
   std::optional<uint64_t> maybe_maximum = *maybe_maybe_maximum;
 

@@ -92,6 +92,30 @@ TEST_F(Table64DecodingTest, TableLimitLEB64) {
   EXPECT_TRUE(table->has_maximum_size);
   EXPECT_EQ(1234u, table->maximum_size);
   EXPECT_TRUE(table->is_table64());
+
+  // 5 bytes LEB maximum, outside 32-bit range (2^32).
+  module = DecodeModule(
+      {SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kMemory64WithMaximum,
+               U64V_1(0), U64V_5(uint64_t{1} << 32))});
+  EXPECT_TRUE(module.ok()) << module.error().message();
+  ASSERT_EQ(1u, module.value()->tables.size());
+  table = &module.value()->tables[0];
+  EXPECT_EQ(0u, table->initial_size);
+  EXPECT_TRUE(table->has_maximum_size);
+  EXPECT_EQ(uint64_t{1} << 32, table->maximum_size);
+  EXPECT_TRUE(table->is_table64());
+
+  // 10 bytes LEB maximum, maximum 64-bit value.
+  module = DecodeModule(
+      {SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, kMemory64WithMaximum,
+               U64V_1(0), U64V_10(kMaxUInt64))});
+  EXPECT_TRUE(module.ok()) << module.error().message();
+  ASSERT_EQ(1u, module.value()->tables.size());
+  table = &module.value()->tables[0];
+  EXPECT_EQ(0u, table->initial_size);
+  EXPECT_TRUE(table->has_maximum_size);
+  EXPECT_EQ(kMaxUInt64, table->maximum_size);
+  EXPECT_TRUE(table->is_table64());
 }
 
 TEST_F(Table64DecodingTest, InvalidTableLimits) {
@@ -136,6 +160,31 @@ TEST_F(Table64DecodingTest, ImportedTable64) {
   EXPECT_TRUE(table->has_maximum_size);
   EXPECT_TRUE(table->is_table64());
   EXPECT_EQ(225u, table->maximum_size);
+
+  // 5 bytes LEB maximum, outside 32-bit range.
+  module = DecodeModule(
+      {SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('m'), ADD_COUNT('t'),
+               kExternalTable, kFuncRefCode, kMemory64WithMaximum, U64V_5(0),
+               U64V_5(uint64_t{1} << 32))});
+  EXPECT_TRUE(module.ok()) << module.error().message();
+  ASSERT_EQ(1u, module.value()->tables.size());
+  table = &module.value()->tables[0];
+  EXPECT_EQ(0u, table->initial_size);
+  EXPECT_TRUE(table->has_maximum_size);
+  EXPECT_TRUE(table->is_table64());
+  EXPECT_EQ(uint64_t{1} << 32, table->maximum_size);
+
+  // 10 bytes LEB maximum, maximum u64.
+  module = DecodeModule({SECTION(
+      Import, ENTRY_COUNT(1), ADD_COUNT('m'), ADD_COUNT('t'), kExternalTable,
+      kFuncRefCode, kMemory64WithMaximum, U64V_5(0), U64V_10(kMaxUInt64))});
+  EXPECT_TRUE(module.ok()) << module.error().message();
+  ASSERT_EQ(1u, module.value()->tables.size());
+  table = &module.value()->tables[0];
+  EXPECT_EQ(0u, table->initial_size);
+  EXPECT_TRUE(table->has_maximum_size);
+  EXPECT_TRUE(table->is_table64());
+  EXPECT_EQ(kMaxUInt64, table->maximum_size);
 }
 
 }  // namespace module_decoder_unittest

@@ -159,6 +159,7 @@ class OffsetsProvider : public ITracer {
   void Description(const char* desc) override {}
   void Description(const char* desc, size_t length) override {}
   void Description(uint32_t number) override {}
+  void Description(uint64_t number) override {}
   void Description(ValueType type) override {}
   void Description(HeapType type) override {}
   void Description(const FunctionSig* sig) override {}

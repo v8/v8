@@ -2137,13 +2137,14 @@ bool InstanceBuilder::ProcessImportedTable(
   if (table.has_maximum_size) {
     std::optional<uint64_t> max_size = table_object->maximum_length_u64();
     if (!max_size) {
-      thrower_->LinkError("table import %d has no maximum length; required: %u",
-                          import_index, table.maximum_size);
+      thrower_->LinkError(
+          "table import %d has no maximum length; required: %" PRIu64,
+          import_index, table.maximum_size);
       return false;
     }
     if (*max_size > table.maximum_size) {
       thrower_->LinkError("table import %d has a larger maximum size %" PRIx64
-                          " than the module's declared maximum %u",
+                          " than the module's declared maximum %" PRIu64,
                           import_index, *max_size, table.maximum_size);
       return false;
     }
@@ -2505,11 +2506,11 @@ bool InstanceBuilder::ProcessImportedMemories(
             ImportName(import_index).c_str(), imported_maximum_pages);
         return false;
       }
-      if (static_cast<uint32_t>(imported_maximum_pages) >
+      if (static_cast<uint64_t>(imported_maximum_pages) >
           memory->maximum_pages) {
         thrower_->LinkError(
             "%s: memory import has a larger maximum size %u than the "
-            "module's declared maximum %u",
+            "module's declared maximum %" PRIu64,
             ImportName(import_index).c_str(), imported_maximum_pages,
             memory->maximum_pages);
         return false;
