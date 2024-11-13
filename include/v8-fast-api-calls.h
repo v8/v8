@@ -271,7 +271,7 @@ class CTypeInfo {
   enum class SequenceType : uint8_t {
     kScalar,
     kIsSequence,  // sequence<T>
-    kIsTypedArray V8_DEPRECATE_SOON(
+    kIsTypedArray V8_DEPRECATED(
         "TypedArrays are not supported directly anymore."),
     // is void
     kIsArrayBuffer  // ArrayBuffer
@@ -326,7 +326,7 @@ class CTypeInfo {
   Flags flags_;
 };
 
-struct V8_DEPRECATE_SOON(
+struct V8_DEPRECATED(
     "With the removal of FastApiTypedArray this type is not needed "
     "anymore.") FastApiTypedArrayBase {
  public:
@@ -339,12 +339,12 @@ struct V8_DEPRECATE_SOON(
   size_t length_ = 0;
 };
 
-struct V8_DEPRECATE_SOON("This API is dead within V8") FastApiArrayBufferView {
+struct V8_DEPRECATED("This API is dead within V8") FastApiArrayBufferView {
   void* data;
   size_t byte_length;
 };
 
-struct V8_DEPRECATE_SOON("This API is dead within V8") FastApiArrayBuffer {
+struct V8_DEPRECATED("This API is dead within V8") FastApiArrayBuffer {
   void* data;
   size_t byte_length;
 };
@@ -457,7 +457,7 @@ class V8_EXPORT CFunction {
   // Returns whether an overload between this and the given CFunction can
   // be resolved at runtime by the RTTI available for the arguments or at
   // compile time for functions with different number of arguments.
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Overload resolution is only based on the parameter count. If the "
       "parameter count is different, overload resolution is possible and "
       "happens at compile time. Otherwise overload resolution is impossible.")
@@ -677,7 +677,7 @@ struct TypeInfoHelper<v8::Local<v8::Array>> {
 };
 
 template <>
-struct V8_DEPRECATE_SOON(
+struct V8_DEPRECATED(
     "TypedArrays are not supported directly anymore. Use Local<Value> instead.")
     TypeInfoHelper<v8::Local<v8::Uint32Array>> {
   static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
