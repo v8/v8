@@ -1355,7 +1355,7 @@ class FeedbackMaker {
   void AddCallRefCandidate(Tagged<WasmFuncRef> funcref, int count) {
     Tagged<WasmInternalFunction> internal_function =
         Cast<WasmFuncRef>(funcref)->internal(isolate_);
-    // Only consider wasm function declared in this instance.
+    // Discard cross-instance calls, as we can only inline same-instance code.
     if (internal_function->implicit_arg() != instance_data_) {
       has_non_inlineable_targets_ = true;
       return;
@@ -1368,7 +1368,16 @@ class FeedbackMaker {
     AddCall(internal_function->function_index(), count);
   }
 
-  void AddCallIndirectCandidate(Tagged<Smi> target_truncated_smi, int count) {
+  void AddCallIndirectCandidate(Tagged<Object> target_truncated_obj,
+                                int count) {
+    // Discard cross-instance calls, as we can only inline same-instance code.
+    bool is_cross_instance_call = IsUndefined(target_truncated_obj);
+    if (is_cross_instance_call) {
+      has_non_inlineable_targets_ = true;
+      return;
+    }
+    Tagged<Smi> target_truncated_smi = Cast<Smi>(target_truncated_obj);
+
     // We need to map a truncated call target back to a function index.
     // Generally there may be multiple jump tables if code spaces are far apart
     // (to ensure that direct calls can always use a near call to the closest
@@ -1494,21 +1503,22 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
 
   // For each entry in {call_targets}, there are two {Object} slots in the
   // {feedback} vector:
+  // +--------------------------+-----------------------+-------------------+
+  // |        Call Type         |   Feedback: Entry 1   |      Entry 2      |
   // +-------------------------+-----------------------+-------------------+
-  // |        Call Type        |   Feedback: Entry 1   |      Entry 2      |
-  // +-------------------------+-----------------------+-------------------+
-  // | direct                  | Smi(count)            | Smi(0), unused    |
-  // +-------------------------+-----------------------+-------------------+
-  // | ref, uninitialized      | Smi(0)                | Smi(0)            |
-  // | ref, monomorphic        | WasmFuncRef(target)   | Smi(count>0)      |
-  // | ref, polymorphic        | FixedArray            | Undefined         |
-  // | ref, megamorphic        | MegamorphicSymbol     | Undefined         |
-  // +-------------------------+-----------------------+-------------------+
-  // | indirect, uninitialized | Smi(0)                | Smi(0)            |
-  // | indirect, monomorphic   | Smi(truncated_target) | Smi(count>0)      |
-  // | indirect, polymorphic   | FixedArray            | Undefined         |
-  // | indirect, megamorphic   | MegamorphicSymbol     | Undefined         |
-  // +-------------------------+-----------------------+-------------------+
+  // | direct                   | Smi(count)            | Smi(0), unused    |
+  // +--------------------------+-----------------------+-------------------+
+  // | ref, uninitialized       | Smi(0)                | Smi(0)            |
+  // | ref, monomorphic         | WasmFuncRef(target)   | Smi(count>0)      |
+  // | ref, polymorphic         | FixedArray            | Undefined         |
+  // | ref, megamorphic         | MegamorphicSymbol     | Undefined         |
+  // +--------------------------+-----------------------+-------------------+
+  // | indirect, uninitialized  | Smi(0)                | Smi(0)            |
+  // | indirect, monomorphic    | Smi(truncated_target) | Smi(count>0)      |
+  // | indirect, wrong instance | Undefined             | Smi(count>0)      |
+  // | indirect, polymorphic    | FixedArray            | Undefined         |
+  // | indirect, megamorphic    | MegamorphicSymbol     | Undefined         |
+  // +--------------------------+-----------------------+-------------------+
   // The FixedArray entries for the polymorphic cases look like the monomorphic
   // entries in the feedback vector itself.
   // See {UpdateCallRefOrIndirectIC} in {wasm.tq} for how this is written.
@@ -1543,11 +1553,11 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallRef);
       int count = Smi::ToInt(second_slot);
       fm.AddCallRefCandidate(Cast<WasmFuncRef>(first_slot), count);
-    } else if (IsSmi(first_slot)) {
+    } else if (IsSmi(first_slot) || IsUndefined(first_slot)) {
       // Monomorphic call_indirect.
       DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
       int count = Smi::ToInt(second_slot);
-      fm.AddCallIndirectCandidate(Cast<Smi>(first_slot), count);
+      fm.AddCallIndirectCandidate(first_slot, count);
     } else if (IsFixedArray(first_slot)) {
       // Polymorphic call_ref or call_indirect.
       Tagged<FixedArray> polymorphic = Cast<FixedArray>(first_slot);
@@ -1563,7 +1573,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       } else {
         DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
         for (int j = 0; j < checked_polymorphic_length; j += 2) {
-          Tagged<Smi> target = Cast<Smi>(polymorphic->get(j));
+          Tagged<Object> target = polymorphic->get(j);
           int count = Smi::ToInt(polymorphic->get(j + 1));
           fm.AddCallIndirectCandidate(target, count);
         }
