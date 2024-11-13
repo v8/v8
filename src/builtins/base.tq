@@ -601,7 +601,6 @@ extern macro ToStringTagSymbolConstant(): PublicSymbol;
 extern macro TrueConstant(): True;
 extern macro UndefinedConstant(): Undefined;
 extern macro ValueOfStringConstant(): String;
-extern macro WasmWrappedObjectSymbolConstant(): Symbol;
 extern macro InvalidDispatchHandleConstant(): DispatchHandle;
 
 const TheHole: TheHole = TheHoleConstant();

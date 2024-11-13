@@ -521,7 +521,6 @@
   V(_, wasm_exception_tag_symbol)                         \
   V(_, wasm_exception_values_symbol)                      \
   V(_, wasm_uncatchable_symbol)                           \
-  V(_, wasm_wrapped_object_symbol)                        \
   V(_, wasm_debug_proxy_cache_symbol)                     \
   V(_, wasm_debug_proxy_names_symbol)
 

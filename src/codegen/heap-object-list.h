@@ -157,8 +157,6 @@
   V(UndefinedValue, undefined_value, Undefined)                              \
   V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)         \
   V(valueOf_string, valueOf_string, ValueOfString)                           \
-  V(wasm_wrapped_object_symbol, wasm_wrapped_object_symbol,                  \
-    WasmWrappedObjectSymbol)                                                 \
   V(zero_string, zero_string, ZeroString)                                    \
   UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(                                   \
       UNIQUE_INSTANCE_TYPE_IMMUTABLE_IMMOVABLE_MAP_ADAPTER, V)
