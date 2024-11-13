@@ -110,6 +110,8 @@ const kMaxPolymorphism:
 const kFixedFrameSizeAboveFp: constexpr int32
     generates 'CommonFrameConstants::kFixedFrameSizeAboveFp';
 
+extern macro WasmCrossInstanceCallSymbolConstant(): Symbol;
+
 extern macro WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
     WasmInstanceObject): WasmTrustedInstanceData;
 
@@ -710,7 +712,7 @@ macro UpdateCallRefOrIndirectIC(
     // Monomorphic miss.
     dcheck(
         Is<WasmFuncRef>(firstSlot) || Is<Smi>(firstSlot) ||
-        IsUndefined(firstSlot));
+        firstSlot == WasmCrossInstanceCallSymbolConstant());
     const newEntries = UnsafeCast<FixedArray>(AllocateFixedArray(
         ElementsKind::PACKED_ELEMENTS, 4, AllocationFlag::kNone));
     newEntries.objects[0] = firstSlot;
@@ -756,12 +758,12 @@ builtin CallIndirectIC(
     vector: FixedArray, vectorIndex: int32, target: WasmCodePointer,
     implicitArg: WasmTrustedInstanceData|WasmImportData): TargetAndImplicitArg {
   // If this is a cross-instance call, don't track the precise target (we can
-  // only correctly inline same-instance calls anyway). Mark it as `Undefined`,
+  // only correctly inline same-instance calls anyway). Instead mark it as such,
   // so that we can prevent a deopt loop, see `TransitiveTypeFeedbackProcessor`.
   const instance = LoadInstanceDataFromFrame();
   const truncatedTargetOrCrossInstance = TaggedEqual(implicitArg, instance) ?
       SmiTag(Signed(Convert<uintptr>(target) & kSmiMaxValue)) :
-      Undefined;
+      WasmCrossInstanceCallSymbolConstant();
   UpdateCallRefOrIndirectIC(
       vector, Convert<intptr>(vectorIndex), truncatedTargetOrCrossInstance);
 

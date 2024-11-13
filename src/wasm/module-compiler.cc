@@ -1339,9 +1339,13 @@ class TransitiveTypeFeedbackProcessor {
   std::set<int> queue_;
 };
 
+bool IsCrossInstanceCall(Tagged<Object> obj, Isolate* const isolate) {
+  return obj == ReadOnlyRoots{isolate}.wasm_cross_instance_call_symbol();
+}
+
 class FeedbackMaker {
  public:
-  FeedbackMaker(IsolateForSandbox isolate,
+  FeedbackMaker(Isolate* const isolate,
                 Tagged<WasmTrustedInstanceData> trusted_instance_data,
                 int func_index, int num_calls)
       : isolate_(isolate),
@@ -1371,8 +1375,7 @@ class FeedbackMaker {
   void AddCallIndirectCandidate(Tagged<Object> target_truncated_obj,
                                 int count) {
     // Discard cross-instance calls, as we can only inline same-instance code.
-    bool is_cross_instance_call = IsUndefined(target_truncated_obj);
-    if (is_cross_instance_call) {
+    if (IsCrossInstanceCall(target_truncated_obj, isolate_)) {
       has_non_inlineable_targets_ = true;
       return;
     }
@@ -1480,7 +1483,7 @@ class FeedbackMaker {
   std::vector<CallSiteFeedback>&& GetResult() && { return std::move(result_); }
 
  private:
-  const IsolateForSandbox isolate_;
+  Isolate* const isolate_;
   const Tagged<WasmTrustedInstanceData> instance_data_;
   std::vector<CallSiteFeedback> result_;
   const int num_imported_functions_;
@@ -1503,24 +1506,25 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
 
   // For each entry in {call_targets}, there are two {Object} slots in the
   // {feedback} vector:
-  // +--------------------------+-----------------------+-------------------+
-  // |        Call Type         |   Feedback: Entry 1   |      Entry 2      |
-  // +-------------------------+-----------------------+-------------------+
-  // | direct                   | Smi(count)            | Smi(0), unused    |
-  // +--------------------------+-----------------------+-------------------+
-  // | ref, uninitialized       | Smi(0)                | Smi(0)            |
-  // | ref, monomorphic         | WasmFuncRef(target)   | Smi(count>0)      |
-  // | ref, polymorphic         | FixedArray            | Undefined         |
-  // | ref, megamorphic         | MegamorphicSymbol     | Undefined         |
-  // +--------------------------+-----------------------+-------------------+
-  // | indirect, uninitialized  | Smi(0)                | Smi(0)            |
-  // | indirect, monomorphic    | Smi(truncated_target) | Smi(count>0)      |
-  // | indirect, wrong instance | Undefined             | Smi(count>0)      |
-  // | indirect, polymorphic    | FixedArray            | Undefined         |
-  // | indirect, megamorphic    | MegamorphicSymbol     | Undefined         |
-  // +--------------------------+-----------------------+-------------------+
+  // +--------------------------+-----------------------------+----------------+
+  // |        Call Type         |      Feedback: Entry 1      |    Entry 2     |
+  // +-------------------------+------------------------------+----------------+
+  // | direct                   | Smi(count)                  | Smi(0), unused |
+  // +--------------------------+-----------------------------+----------------+
+  // | ref, uninitialized       | Smi(0)                      | Smi(0)         |
+  // | ref, monomorphic         | WasmFuncRef(target)         | Smi(count>0)   |
+  // | ref, polymorphic         | FixedArray                  | Undefined      |
+  // | ref, megamorphic         | MegamorphicSymbol           | Undefined      |
+  // +--------------------------+-----------------------------+----------------+
+  // | indirect, uninitialized  | Smi(0)                      | Smi(0)         |
+  // | indirect, monomorphic    | Smi(truncated_target)       | Smi(count>0)   |
+  // | indirect, wrong instance | WasmCrossInstanceCallSymbol | Smi(count>0)   |
+  // | indirect, polymorphic    | FixedArray                  | Undefined      |
+  // | indirect, megamorphic    | MegamorphicSymbol           | Undefined      |
+  // +--------------------------+-----------------------------+----------------+
   // The FixedArray entries for the polymorphic cases look like the monomorphic
-  // entries in the feedback vector itself.
+  // entries in the feedback vector itself, i.e., they can a (truncated) target,
+  // or the wrong instance sentinel (for cross-instance call_indirect).
   // See {UpdateCallRefOrIndirectIC} in {wasm.tq} for how this is written.
   // Since this is combining untrusted data ({feedback} vector on the JS heap)
   // with trusted data ({call_targets}), make sure to avoid an OOB access.
@@ -1553,7 +1557,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallRef);
       int count = Smi::ToInt(second_slot);
       fm.AddCallRefCandidate(Cast<WasmFuncRef>(first_slot), count);
-    } else if (IsSmi(first_slot) || IsUndefined(first_slot)) {
+    } else if (IsSmi(first_slot) || IsCrossInstanceCall(first_slot, isolate_)) {
       // Monomorphic call_indirect.
       DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
       int count = Smi::ToInt(second_slot);
