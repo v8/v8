@@ -1732,14 +1732,14 @@ void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target) {
             code_space_data.jump_table->instructions_size_,
             code_space_data.far_jump_table->instruction_start(),
             code_space_data.far_jump_table->instructions_size_);
-    PatchJumpTableLocked(code_space_data, slot_index, target,
-                         writable_jump_tables.write_scope());
+    PatchJumpTableLocked(writable_jump_tables, code_space_data, slot_index,
+                         target);
   }
 }
 
-void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
-                                        uint32_t slot_index, Address target,
-                                        RwxMemoryWriteScope& write_scope) {
+void NativeModule::PatchJumpTableLocked(WritableJumpTablePair& jump_table_pair,
+                                        const CodeSpaceData& code_space_data,
+                                        uint32_t slot_index, Address target) {
   allocation_mutex_.AssertHeld();
 
   DCHECK_NOT_NULL(code_space_data.jump_table);
@@ -1761,11 +1761,11 @@ void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
   Address far_jump_table_slot =
       has_far_jump_slot ? far_jump_table_start + far_jump_table_offset
                         : kNullAddress;
-  JumpTableAssembler::PatchJumpTableSlot(jump_table_slot, far_jump_table_slot,
-                                         target);
+  JumpTableAssembler::PatchJumpTableSlot(jump_table_pair, jump_table_slot,
+                                         far_jump_table_slot, target);
   DCHECK_LT(slot_index, code_pointer_handles_size_);
   GetProcessWideWasmCodePointerTable()->SetEntrypointWithRwxWriteScope(
-      code_pointer_handles_[slot_index], target, write_scope);
+      code_pointer_handles_[slot_index], target, jump_table_pair.write_scope());
 }
 
 void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
@@ -1821,8 +1821,9 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
     WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
         far_jump_table->instruction_start(), far_jump_table->instructions_size_,
         ThreadIsolation::JitAllocationType::kWasmFarJumpTable);
+
     JumpTableAssembler::GenerateFarJumpTable(
-        far_jump_table->instruction_start(), builtin_addresses,
+        jit_allocation, far_jump_table->instruction_start(), builtin_addresses,
         BuiltinLookup::BuiltinCount(), num_function_slots);
   }
 
@@ -1857,18 +1858,17 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
     for (uint32_t slot_index = 0; slot_index < num_wasm_functions;
          ++slot_index) {
       if (code_table_[slot_index]) {
-        PatchJumpTableLocked(new_code_space_data, slot_index,
-                             code_table_[slot_index]->instruction_start(),
-                             writable_jump_tables.write_scope());
+        PatchJumpTableLocked(writable_jump_tables, new_code_space_data,
+                             slot_index,
+                             code_table_[slot_index]->instruction_start());
       } else if (lazy_compile_table_) {
         // Use the main jump table as the target so that we don't have to add a
         // landing pad instruction to the lazy compile table entries.
         Address main_jump_table_target =
             main_jump_table_->instruction_start() +
             JumpTableAssembler::JumpSlotIndexToOffset(slot_index);
-        PatchJumpTableLocked(new_code_space_data, slot_index,
-                             main_jump_table_target,
-                             writable_jump_tables.write_scope());
+        PatchJumpTableLocked(writable_jump_tables, new_code_space_data,
+                             slot_index, main_jump_table_target);
       }
     }
   }

@@ -121,13 +121,14 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
   static void InitializeJumpsToLazyCompileTable(
       Address base, uint32_t num_slots, Address lazy_compile_table_start);
 
-  static void GenerateFarJumpTable(Address base, Address* stub_targets,
+  static void GenerateFarJumpTable(WritableJitAllocation& jit_allocation,
+                                   Address base, Address* stub_targets,
                                    int num_runtime_slots,
                                    int num_function_slots) {
     uint32_t table_size =
         SizeForNumberOfFarJumpSlots(num_runtime_slots, num_function_slots);
     // Assume enough space, so the Assembler does not try to grow the buffer.
-    JumpTableAssembler jtasm(base);
+    JumpTableAssembler jtasm(jit_allocation, base);
     int offset = 0;
     for (int index = 0; index < num_runtime_slots + num_function_slots;
          ++index) {
@@ -143,15 +144,17 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
     FlushInstructionCache(base, table_size);
   }
 
-  static void PatchJumpTableSlot(Address jump_table_slot,
+  static void PatchJumpTableSlot(WritableJumpTablePair& jump_table_pair,
+                                 Address jump_table_slot,
                                  Address far_jump_table_slot, Address target) {
     // First, try to patch the jump table slot.
-    JumpTableAssembler jtasm(jump_table_slot);
+    JumpTableAssembler jtasm(jump_table_pair.jump_table(), jump_table_slot);
     if (!jtasm.EmitJumpSlot(target)) {
       // If that fails, we need to patch the far jump table slot, and then
       // update the jump table slot to jump to this far jump table slot.
       DCHECK_NE(kNullAddress, far_jump_table_slot);
-      JumpTableAssembler::PatchFarJumpSlot(far_jump_table_slot, target);
+      JumpTableAssembler::PatchFarJumpSlot(jump_table_pair.far_jump_table(),
+                                           far_jump_table_slot, target);
       CHECK(jtasm.EmitJumpSlot(far_jump_table_slot));
     }
     // We write nops here instead of skipping to avoid partial instructions in
@@ -163,7 +166,8 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
 
  private:
   // Instantiate a {JumpTableAssembler} for patching.
-  explicit JumpTableAssembler(Address slot_addr)
+  explicit JumpTableAssembler(WritableJitAllocation& jit_allocation,
+                              Address slot_addr)
       : buffer_start_(slot_addr), pc_(slot_addr) {}
 
   const Address buffer_start_;
@@ -252,7 +256,8 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
 
   // Patch an existing far jump slot, and make sure that this updated eventually
   // becomes available to all execution units that might execute this code.
-  static void PatchFarJumpSlot(Address slot, Address target);
+  static void PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
+                               Address slot, Address target);
 
   void SkipUntil(int offset);
 

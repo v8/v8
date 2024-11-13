@@ -97,12 +97,18 @@ WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
       jump_table_pages_(ThreadIsolation::SplitJitPages(
           far_jump_table_address, far_jump_table_size, jump_table_address,
           jump_table_size)),
-      jump_table_(jump_table_pages_.second.LookupAllocation(
-          jump_table_address, jump_table_size,
-          ThreadIsolation::JitAllocationType::kWasmJumpTable)),
-      far_jump_table_(jump_table_pages_.first.LookupAllocation(
+      writable_jump_table_(jump_table_address, jump_table_size,
+                           ThreadIsolation::JitAllocationType::kWasmJumpTable),
+      writable_far_jump_table_(
           far_jump_table_address, far_jump_table_size,
-          ThreadIsolation::JitAllocationType::kWasmFarJumpTable)) {}
+          ThreadIsolation::JitAllocationType::kWasmFarJumpTable) {
+  CHECK(jump_table_pages_.value().second.Contains(
+      jump_table_address, jump_table_size,
+      ThreadIsolation::JitAllocationType::kWasmJumpTable));
+  CHECK(jump_table_pages_.value().first.Contains(
+      far_jump_table_address, far_jump_table_size,
+      ThreadIsolation::JitAllocationType::kWasmFarJumpTable));
+}
 
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteHeaderSlot(T value) {

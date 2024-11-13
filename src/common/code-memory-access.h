@@ -274,6 +274,8 @@ class V8_EXPORT ThreadIsolation {
                                       JitAllocationType type);
     JitAllocation& LookupAllocation(base::Address addr, size_t size,
                                     JitAllocationType type);
+    bool Contains(base::Address addr, size_t size,
+                  JitAllocationType type) const;
     void UnregisterAllocation(base::Address addr);
     void UnregisterAllocationsExcept(base::Address start, size_t size,
                                      const std::vector<base::Address>& addr);
@@ -470,6 +472,7 @@ class WritableJitAllocation {
 
   friend class ThreadIsolation;
   friend class WritableJitPage;
+  friend class WritableJumpTablePair;
 };
 
 // Similar to the WritableJitAllocation, all writes to free space should go
@@ -536,20 +539,37 @@ class WritableJitPage {
 
 class WritableJumpTablePair {
  public:
-  // TODO(sroettger): add functions to write to the jump tables.
   RwxMemoryWriteScope& write_scope() { return write_scope_; }
+
+  WritableJitAllocation& jump_table() { return writable_jump_table_; }
+  WritableJitAllocation& far_jump_table() { return writable_far_jump_table_; }
+
+  WritableJumpTablePair(const WritableJumpTablePair&) = delete;
+  WritableJumpTablePair& operator=(const WritableJumpTablePair&) = delete;
+
+  V8_EXPORT_PRIVATE static WritableJumpTablePair ForTesting(
+      Address jump_table_address, size_t jump_table_size,
+      Address far_jump_table_address, size_t far_jump_table_size);
 
  private:
   V8_INLINE WritableJumpTablePair(Address jump_table_address,
                                   size_t jump_table_size,
                                   Address far_jump_table_address,
                                   size_t far_jump_table_size);
+
+  // This constructor is only used for testing.
+  struct ForTestingTag {};
+  WritableJumpTablePair(Address jump_table_address, size_t jump_table_size,
+                        Address far_jump_table_address,
+                        size_t far_jump_table_size, ForTestingTag);
+
   RwxMemoryWriteScope write_scope_;
-  std::pair<ThreadIsolation::JitPageReference,
-            ThreadIsolation::JitPageReference>
+  std::optional<std::pair<ThreadIsolation::JitPageReference,
+                          ThreadIsolation::JitPageReference>>
       jump_table_pages_;
-  const ThreadIsolation::JitAllocation& jump_table_;
-  const ThreadIsolation::JitAllocation& far_jump_table_;
+
+  WritableJitAllocation writable_jump_table_;
+  WritableJitAllocation writable_far_jump_table_;
 
   friend class ThreadIsolation;
 };

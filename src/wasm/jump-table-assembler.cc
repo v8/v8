@@ -20,7 +20,7 @@ void JumpTableAssembler::GenerateLazyCompileTable(
       base, RoundUp<kCodeAlignment>(lazy_compile_table_size),
       ThreadIsolation::JitAllocationType::kWasmLazyCompileTable);
   // Assume enough space, so the Assembler does not try to grow the buffer.
-  JumpTableAssembler jtasm(base);
+  JumpTableAssembler jtasm(jit_allocation, base);
   for (uint32_t slot_index = 0; slot_index < num_slots; ++slot_index) {
     DCHECK_EQ(slot_index * kLazyCompileTableSlotSize, jtasm.pc_offset());
     jtasm.EmitLazyCompileJumpSlot(slot_index + num_imported_functions,
@@ -36,7 +36,7 @@ void JumpTableAssembler::InitializeJumpsToLazyCompileTable(
   WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
       base, RoundUp<kCodeAlignment>(jump_table_size),
       ThreadIsolation::JitAllocationType::kWasmJumpTable);
-  JumpTableAssembler jtasm(base);
+  JumpTableAssembler jtasm(jit_allocation, base);
 
   for (uint32_t slot_index = 0; slot_index < num_slots; ++slot_index) {
     // Make sure we write at the correct offset.
@@ -152,7 +152,8 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 }
 
 // static
-void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
+                                          Address slot, Address target) {
   // The slot needs to be pointer-size aligned so we can atomically update it.
   DCHECK(IsAligned(slot, kSystemPointerSize));
   // Offset of the target is at 8 bytes, see {EmitFarJumpSlot}.
@@ -205,7 +206,8 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 }
 
 // static
-void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
+                                          Address slot, Address target) {
   UNREACHABLE();
 }
 
@@ -255,7 +257,8 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 }
 
 // static
-void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
+                                          Address slot, Address target) {
   UNREACHABLE();
 }
 
@@ -333,7 +336,8 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 }
 
 // static
-void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
+                                          Address slot, Address target) {
   // See {EmitFarJumpSlot} for the offset of the target (16 bytes with
   // CFI enabled, 8 bytes otherwise).
   int kTargetOffset = 2 * kInstrSize;

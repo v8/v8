@@ -324,6 +324,14 @@ ThreadIsolation::JitPageReference::LookupAllocation(base::Address addr,
   return it->second;
 }
 
+bool ThreadIsolation::JitPageReference::Contains(base::Address addr,
+                                                 size_t size,
+                                                 JitAllocationType type) const {
+  auto it = jit_page_->allocations_.find(addr);
+  return it != jit_page_->allocations_.end() && it->second.Size() == size &&
+         it->second.Type() == type;
+}
+
 void ThreadIsolation::JitPageReference::UnregisterAllocation(
     base::Address addr) {
   // TODO(sroettger): check that the memory is not in use (scan shadow stacks).
@@ -662,6 +670,27 @@ WritableJitAllocation WritableJitAllocation::ForInstructionStream(
       istream->address(), istream->Size(),
       ThreadIsolation::JitAllocationType::kInstructionStream,
       JitAllocationSource::kLookup);
+}
+
+WritableJumpTablePair::WritableJumpTablePair(
+    Address jump_table_address, size_t jump_table_size,
+    Address far_jump_table_address, size_t far_jump_table_size,
+    WritableJumpTablePair::ForTestingTag)
+    : write_scope_("for testing"),
+      writable_jump_table_(WritableJitAllocation::ForNonExecutableMemory(
+          jump_table_address, jump_table_size,
+          ThreadIsolation::JitAllocationType::kWasmJumpTable)),
+      writable_far_jump_table_(WritableJitAllocation::ForNonExecutableMemory(
+          far_jump_table_address, far_jump_table_size,
+          ThreadIsolation::JitAllocationType::kWasmFarJumpTable)) {}
+
+// static
+WritableJumpTablePair WritableJumpTablePair::ForTesting(
+    Address jump_table_address, size_t jump_table_size,
+    Address far_jump_table_address, size_t far_jump_table_size) {
+  return WritableJumpTablePair(jump_table_address, jump_table_size,
+                               far_jump_table_address, far_jump_table_size,
+                               ForTestingTag{});
 }
 
 template <size_t offset>

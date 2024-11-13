@@ -205,9 +205,12 @@ class JumpTablePatcher : public v8::base::Thread {
 
   void Run() override {
     TRACE("Patcher %p is starting ...\n", this);
-    RwxMemoryWriteScopeForTesting rwx_write_scope;
     Address slot_address =
         slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_);
+    WritableJumpTablePair jump_table_pair = WritableJumpTablePair::ForTesting(
+        slot_start_, JumpTableAssembler::JumpSlotIndexToOffset(slot_index_ + 1),
+        slot_start_,
+        JumpTableAssembler::JumpSlotIndexToOffset(slot_index_ + 1));
     // First, emit code to the two thunks.
     for (Address thunk : thunks_) {
       CompileJumpTableThunk(thunk, slot_address);
@@ -219,9 +222,11 @@ class JumpTablePatcher : public v8::base::Thread {
             " to thunk #%d (" V8PRIxPTR_FMT ")\n",
             this, slot_address, i % 2, thunks_[i % 2]);
       base::MutexGuard jump_table_guard(jump_table_mutex_);
-      JumpTableAssembler::PatchJumpTableSlot(
-          slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_),
-          kNullAddress, thunks_[i % 2]);
+      Address slot_addr =
+          slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_);
+
+      JumpTableAssembler::PatchJumpTableSlot(jump_table_pair, slot_addr,
+                                             kNullAddress, thunks_[i % 2]);
     }
     TRACE("Patcher %p is stopping ...\n", this);
   }
@@ -266,13 +271,17 @@ TEST(JumpTablePatchingStress) {
     std::vector<std::unique_ptr<TestingAssemblerBuffer>> thunk_buffers;
     std::vector<Address> patcher_thunks;
     {
-      RwxMemoryWriteScopeForTesting rwx_write_scope;
+      Address jump_table_address = reinterpret_cast<Address>(buffer->start());
+      WritableJumpTablePair jump_table_pair =
+          WritableJumpTablePair::ForTesting(jump_table_address, buffer->size(),
+                                            jump_table_address, buffer->size());
       // Patch the jump table slot to jump to itself. This will later be patched
       // by the patchers.
       Address slot_addr =
           slot_start + JumpTableAssembler::JumpSlotIndexToOffset(slot);
-      JumpTableAssembler::PatchJumpTableSlot(slot_addr, kNullAddress,
-                                             slot_addr);
+
+      JumpTableAssembler::PatchJumpTableSlot(jump_table_pair, slot_addr,
+                                             kNullAddress, slot_addr);
       // For each patcher, generate two thunks where this patcher can emit code
       // which finally jumps back to {slot} in the jump table.
       for (int i = 0; i < 2 * kNumberOfPatcherThreads; ++i) {

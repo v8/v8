@@ -958,8 +958,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {slot_index} is the index in the declared functions, i.e. function index
   // minus the number of imported functions.
   void PatchJumpTablesLocked(uint32_t slot_index, Address target);
-  void PatchJumpTableLocked(const CodeSpaceData&, uint32_t slot_index,
-                            Address target, RwxMemoryWriteScope& write_scope);
+  void PatchJumpTableLocked(WritableJumpTablePair& jump_table_pair,
+                            const CodeSpaceData&, uint32_t slot_index,
+                            Address target);
 
   // Called by the {WasmCodeAllocator} to register a new code space.
   void AddCodeSpaceLocked(base::AddressRegion);
