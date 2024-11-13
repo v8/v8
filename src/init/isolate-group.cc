@@ -119,6 +119,12 @@ void IsolateGroup::Initialize(bool process_wide) {
 #endif  // V8_ENABLE_SANDBOX
 
 // static
+IsolateGroup* IsolateGroup::GetDefault() {
+  static base::LeakyObject<IsolateGroup> default_isolate_group;
+  return default_isolate_group.get();
+}
+
+// static
 void IsolateGroup::InitializeOncePerProcess() {
   IsolateGroup* group = GetDefault();
 

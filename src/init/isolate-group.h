@@ -177,10 +177,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   // Unless you manually create a new isolate group, all isolates in a process
   // are in the same isolate group and share process-wide resources from
   // that default group.
-  V8_INLINE static IsolateGroup* GetDefault() {
-    static base::LeakyObject<IsolateGroup> default_isolate_group;
-    return default_isolate_group.get();
-  }
+  static IsolateGroup* GetDefault();
 
   // Only used for testing.
   static void ReleaseDefault();
