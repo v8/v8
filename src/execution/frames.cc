@@ -1433,11 +1433,16 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
   DisallowGarbageCollection no_gc;
   Tagged<Object> receiver = this->receiver();
   Tagged<JSFunction> function = this->function();
+  Tagged<SharedFunctionInfo> sfi = function->shared();
 
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
-  accumulator->Add("BuiltinExitFrame [builtin: %s] ",
-                   Builtins::name(function->shared()->builtin_id()));
+  accumulator->Add("BuiltinExitFrame ");
+  if (sfi->HasBuiltinId()) {
+    // API functions have builtin code but not builtin SFIs, so don't print the
+    // builtins for those.
+    accumulator->Add("[builtin: %s] ", Builtins::name(sfi->builtin_id()));
+  }
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver);
 
@@ -1449,7 +1454,7 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
     accumulator->Add(",%o", GetParameter(i));
   }
 
-  accumulator->Add(")\n\n");
+  accumulator->Add(")\n");
 }
 
 void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
