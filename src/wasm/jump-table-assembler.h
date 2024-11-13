@@ -168,8 +168,11 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
   // Instantiate a {JumpTableAssembler} for patching.
   explicit JumpTableAssembler(WritableJitAllocation& jit_allocation,
                               Address slot_addr)
-      : buffer_start_(slot_addr), pc_(slot_addr) {}
+      : jit_allocation_(jit_allocation),
+        buffer_start_(slot_addr),
+        pc_(slot_addr) {}
 
+  WritableJitAllocation& jit_allocation_;
   const Address buffer_start_;
   Address pc_;
 

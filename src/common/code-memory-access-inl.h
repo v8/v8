@@ -212,6 +212,17 @@ V8_INLINE void WritableJitAllocation::WriteValue(Address address, T value) {
   base::Memory<T>(address) = value;
 }
 
+template <typename T>
+V8_INLINE void WritableJitAllocation::WriteValue(Address address, T value,
+                                                 RelaxedStoreTag) {
+  std::optional<RwxMemoryWriteScope> write_scope =
+      WriteScopeForApiEnforcement();
+  DCHECK_GE(address, address_);
+  DCHECK_LT(address - address_, size());
+  reinterpret_cast<std::atomic<T>*>(address)->store(value,
+                                                    std::memory_order_relaxed);
+}
+
 void WritableJitAllocation::CopyCode(size_t dst_offset, const uint8_t* src,
                                      size_t num_bytes) {
   std::optional<RwxMemoryWriteScope> write_scope =

@@ -71,7 +71,7 @@ void JumpTableAssembler::InitializeJumpsToLazyCompileTable(
 
 template <typename T>
 void JumpTableAssembler::emit(T value) {
-  base::WriteUnalignedValue<T>(pc_, value);
+  jit_allocation_.WriteUnalignedValue(pc_, value);
   pc_ += sizeof(T);
 }
 
@@ -89,8 +89,7 @@ void JumpTableAssembler::emit(T value, RelaxedStoreTag) DISABLE_UBSAN {
             write_end >> kSystemPointerSizeLog2);
 #endif
 #endif
-  reinterpret_cast<std::atomic<T>*>(pc_)->store(value,
-                                                std::memory_order_relaxed);
+  jit_allocation_.WriteValue(pc_, value, kRelaxedStore);
   pc_ += sizeof(T);
 }
 
@@ -157,8 +156,7 @@ void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
   // The slot needs to be pointer-size aligned so we can atomically update it.
   DCHECK(IsAligned(slot, kSystemPointerSize));
   // Offset of the target is at 8 bytes, see {EmitFarJumpSlot}.
-  reinterpret_cast<std::atomic<Address>*>(slot + kSystemPointerSize)
-      ->store(target, std::memory_order_relaxed);
+  jit_allocation.WriteValue(slot + kSystemPointerSize, target, kRelaxedStore);
   // The update is atomic because the address is properly aligned.
   // Because of cache coherence, the data update will eventually be seen by all
   // cores. It's ok if they temporarily jump to the old target.
@@ -343,8 +341,7 @@ void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
   int kTargetOffset = 2 * kInstrSize;
   // The slot needs to be pointer-size aligned so we can atomically update it.
   DCHECK(IsAligned(slot + kTargetOffset, kSystemPointerSize));
-  reinterpret_cast<std::atomic<Address>*>(slot + kTargetOffset)
-      ->store(target, std::memory_order_relaxed);
+  jit_allocation.WriteValue(slot + kTargetOffset, target, kRelaxedStore);
   // The data update is guaranteed to be atomic since it's a properly aligned
   // and stores a single machine word. This update will eventually be observed
   // by any concurrent [ldr] on the same address because of the data cache
