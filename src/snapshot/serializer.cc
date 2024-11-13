@@ -164,11 +164,14 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
     obj = handle(Cast<ThinString>(*obj)->actual(), isolate());
   } else if (IsCode(*obj, isolate())) {
     Tagged<Code> code = Cast<Code>(*obj);
+    // The only expected Code objects here are baseline code and builtins.
     if (code->kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
       // TODO(v8:11429,pthier): Handle Baseline code in cases we want to
       // serialize it.
       obj = handle(code->bytecode_or_interpreter_data(), isolate());
+    } else {
+      CHECK(code->is_builtin());
     }
   }
   SerializeObjectImpl(obj, slot_type);

@@ -216,6 +216,31 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     SerializeGeneric(data, slot_type);
     data->set_job(job);
     return;
+  } else if (InstanceTypeChecker::IsScopeInfo(instance_type)) {
+    // TODO(ishell): define a dedicated instance type for DependentCode and
+    // serialize DependentCode objects as an empty_dependent_code instead
+    // of customizing ScopeInfo serialization.
+    static_assert(DEPENDENT_CODE_TYPE == WEAK_ARRAY_LIST_TYPE);
+    Handle<ScopeInfo> scope_info = Cast<ScopeInfo>(obj);
+    Handle<DependentCode> dependent_code;
+    bool restore_dependent_code = false;
+    if (scope_info->SloppyEvalCanExtendVars()) {
+      // If |scope_info| has a dependent code field, serialize it as an empty
+      // dependent code in order to avoid accidental serialization of optimized
+      // code.
+      Tagged<DependentCode> empty_dependent_code =
+          DependentCode::empty_dependent_code(ReadOnlyRoots(isolate()));
+      if (scope_info->dependent_code() != empty_dependent_code) {
+        dependent_code = handle(scope_info->dependent_code(), isolate());
+        restore_dependent_code = true;
+        scope_info->set_dependent_code(empty_dependent_code);
+      }
+    }
+    SerializeGeneric(scope_info, slot_type);
+    if (restore_dependent_code) {
+      scope_info->set_dependent_code(*dependent_code);
+    }
+    return;
   }
 
   // NOTE(mmarchini): If we try to serialize an InterpreterData our process

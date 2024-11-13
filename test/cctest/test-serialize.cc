@@ -3081,6 +3081,72 @@ TEST(CodeSerializerAfterExecute) {
   v8_flags.always_turbofan = prev_always_turbofan_value;
 }
 
+TEST(CodeSerializerEmptyContextDependency) {
+  bool prev_allow_natives_syntax = v8_flags.allow_natives_syntax;
+  v8_flags.allow_natives_syntax = true;
+  bool prev_empty_context_extension_dep = v8_flags.empty_context_extension_dep;
+  v8_flags.empty_context_extension_dep = true;
+
+  const char* js_source = R"(
+    function f() {
+      var foo = 'abc';
+      function g(src) {
+        eval(src);
+        return foo;
+      }
+      return g;
+    };
+    var g = f();
+    %PrepareFunctionForOptimization(g);
+    g('') + 'def';
+    %OptimizeFunctionOnNextCall(g);
+    g('') + 'def';
+  )";
+  v8::ScriptCompiler::CachedData* cache =
+      CompileRunAndProduceCache(js_source, CodeCacheType::kAfterExecute);
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+
+  {
+    v8::Isolate::Scope iscope(isolate2);
+    v8::HandleScope scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::String> source_str = v8_str(js_source);
+    v8::ScriptOrigin origin(v8_str("test"));
+    v8::ScriptCompiler::Source source(source_str, origin, cache);
+    v8::Local<v8::UnboundScript> script;
+    {
+      script = v8::ScriptCompiler::CompileUnboundScript(
+                   isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+                   .ToLocalChecked();
+    }
+    CHECK(!cache->rejected);
+
+    DirectHandle<SharedFunctionInfo> sfi = v8::Utils::OpenDirectHandle(*script);
+    CHECK(sfi->HasBytecodeArray());
+
+    {
+      v8::Local<v8::Value> result = script->BindToCurrentContext()
+                                        ->Run(isolate2->GetCurrentContext())
+                                        .ToLocalChecked();
+      v8::Local<v8::String> result_string =
+          result->ToString(isolate2->GetCurrentContext()).ToLocalChecked();
+      CHECK(
+          result_string->Equals(isolate2->GetCurrentContext(), v8_str("abcdef"))
+              .FromJust());
+    }
+  }
+  isolate2->Dispose();
+
+  // Restore the flags.
+  v8_flags.allow_natives_syntax = prev_allow_natives_syntax;
+  v8_flags.empty_context_extension_dep = prev_empty_context_extension_dep;
+}
+
 TEST(CodeSerializerFlagChange) {
   const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = CompileRunAndProduceCache(js_source);

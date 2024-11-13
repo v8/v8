@@ -192,6 +192,10 @@ enum InstanceType : uint16_t {
   FIRST_TYPE = FIRST_HEAP_OBJECT_TYPE,
   LAST_TYPE = LAST_HEAP_OBJECT_TYPE,
   BIGINT_TYPE = BIG_INT_BASE_TYPE,
+
+  // TODO(ishell): define a dedicated instance type for DependentCode to
+  // simplify CodeSerializer.
+  DEPENDENT_CODE_TYPE = WEAK_ARRAY_LIST_TYPE,
 };
 
 // This constant is defined outside of the InstanceType enum because the

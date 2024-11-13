@@ -3201,7 +3201,10 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   }
 
   os << "\n - scope type: " << scope_type();
-  if (SloppyEvalCanExtendVars()) os << "\n - sloppy eval";
+  if (SloppyEvalCanExtendVars()) {
+    os << "\n - sloppy eval";
+    os << "\n - dependent code: " << Brief(dependent_code());
+  }
   os << "\n - language mode: " << language_mode();
   if (is_declaration_scope()) os << "\n - declaration scope";
   if (HasReceiver()) {
