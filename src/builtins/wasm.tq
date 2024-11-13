@@ -708,7 +708,9 @@ macro UpdateCallRefOrIndirectIC(
     // The "ic::IsMegamorphic(firstSlot)" case doesn't need to do anything.
   } else {
     // Monomorphic miss.
-    dcheck(Is<WasmFuncRef>(firstSlot) || Is<Smi>(firstSlot));
+    dcheck(
+        Is<WasmFuncRef>(firstSlot) || Is<Smi>(firstSlot) ||
+        IsUndefined(firstSlot));
     const newEntries = UnsafeCast<FixedArray>(AllocateFixedArray(
         ElementsKind::PACKED_ELEMENTS, 4, AllocationFlag::kNone));
     newEntries.objects[0] = firstSlot;
@@ -753,19 +755,15 @@ builtin CallRefIC(
 builtin CallIndirectIC(
     vector: FixedArray, vectorIndex: int32, target: WasmCodePointer,
     implicitArg: WasmTrustedInstanceData|WasmImportData): TargetAndImplicitArg {
-  // We increase the call counter for the target, regardless of whether the
-  // instance (in `implicitArg`) matches the current instance or not.
-  // Technically this overcounts feedback of cross-instance, same module
-  // functions, but in practice this is rare enough to not be worth the added
-  // branch here.
-  // Background: For correctness, we can only execute the inlined function's
-  // code if the instance of the (pre-inlining) call target is equal to the
-  // instance of the currently executing caller, see Turboshaft codegen.
-
-  const truncatedTarget =
-      SmiTag(Signed(Convert<uintptr>(target) & kSmiMaxValue));
+  // If this is a cross-instance call, don't track the precise target (we can
+  // only correctly inline same-instance calls anyway). Mark it as `Undefined`,
+  // so that we can prevent a deopt loop, see `TransitiveTypeFeedbackProcessor`.
+  const instance = LoadInstanceDataFromFrame();
+  const truncatedTargetOrCrossInstance = TaggedEqual(implicitArg, instance) ?
+      SmiTag(Signed(Convert<uintptr>(target) & kSmiMaxValue)) :
+      Undefined;
   UpdateCallRefOrIndirectIC(
-      vector, Convert<intptr>(vectorIndex), truncatedTarget);
+      vector, Convert<intptr>(vectorIndex), truncatedTargetOrCrossInstance);
 
   return TargetAndImplicitArg{target: target, implicit_arg: implicitArg};
 }
