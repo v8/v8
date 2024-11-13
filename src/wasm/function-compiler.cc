@@ -108,11 +108,18 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       // The --wasm-tier-mask-for-testing flag can force functions to be
       // compiled with TurboFan, and the --wasm-debug-mask-for-testing can force
       // them to be compiled for debugging, see documentation.
-      if (V8_LIKELY(v8_flags.wasm_tier_mask_for_testing == 0) ||
-          declared_index >= 32 ||
-          ((v8_flags.wasm_tier_mask_for_testing & (1 << declared_index)) ==
-           0) ||
-          v8_flags.liftoff_only) {
+      bool try_liftoff = true;
+      if (V8_UNLIKELY(v8_flags.wasm_tier_mask_for_testing != 0)) {
+        bool must_use_liftoff =
+            v8_flags.liftoff_only ||
+            for_debugging_ != ForDebugging::kNotForDebugging;
+        bool tiering_requested =
+            declared_index < 32 &&
+            (v8_flags.wasm_tier_mask_for_testing & (1 << declared_index));
+        if (!must_use_liftoff && tiering_requested) try_liftoff = false;
+      }
+
+      if (V8_LIKELY(try_liftoff)) {
         auto options = LiftoffOptions{}
                            .set_func_index(func_index_)
                            .set_for_debugging(for_debugging_)
@@ -145,7 +152,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       [[fallthrough]];
     }
     case ExecutionTier::kTurbofan: {
-      DCHECK_EQ(kNotDebugging, for_debugging_);
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
@@ -161,6 +167,12 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
         result = compiler::ExecuteTurbofanWasmCompilation(env, data, counters,
                                                           detected);
       }
+      // In exceptional cases it can happen that compilation requests for
+      // debugging end up being executed by Turbofan, e.g. if Liftoff bails out
+      // because of unsupported features or the --wasm-tier-mask-for-testing is
+      // set. In that case we set the for_debugging field for the TurboFan
+      // result to match the requested for_debugging_.
+      result.for_debugging = for_debugging_;
       break;
     }
   }
