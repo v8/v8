@@ -583,7 +583,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
     compiler::ScopedExceptionHandler handler(this, &if_exception,
                                              &var_exception);
 
-    TNode<UintPtrT> num_matches = RegExpExecInternal2(
+    TNode<UintPtrT> num_matches = RegExpExecInternal(
         context, regexp, string, last_index, result_offsets_vector,
         SmiToInt32(result_offsets_vector_length));
 
@@ -611,7 +611,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
   return var_result.value();  // RegExpMatchInfo | Null.
 }
 
-TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
+TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
     TNode<Number> last_index, TNode<RawPtrT> result_offsets_vector,
     TNode<Int32T> result_offsets_vector_length) {
@@ -851,7 +851,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
     static_assert(
         Internals::IsValidSmi(Isolate::kJSRegexpStaticOffsetsVectorSize));
     TNode<Smi> result_as_smi = CAST(CallRuntime(
-        Runtime::kRegExpExperimentalOneshotExec2, context, regexp, string,
+        Runtime::kRegExpExperimentalOneshotExec, context, regexp, string,
         last_index, SmiFromInt32(result_offsets_vector_length)));
     var_result = UncheckedCast<UintPtrT>(SmiUntag(result_as_smi));
 #ifdef DEBUG
@@ -871,7 +871,7 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
     static_assert(
         Internals::IsValidSmi(Isolate::kJSRegexpStaticOffsetsVectorSize));
     TNode<Smi> result_as_smi = CAST(
-        CallRuntime(Runtime::kRegExpExec2, context, regexp, string, last_index,
+        CallRuntime(Runtime::kRegExpExec, context, regexp, string, last_index,
                     SmiFromInt32(result_offsets_vector_length)));
     var_result = UncheckedCast<UintPtrT>(SmiUntag(result_as_smi));
 #ifdef DEBUG
@@ -884,8 +884,8 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal2(
   BIND(&atom);
   {
     var_result =
-        RegExpExecAtom2(context, CAST(data), string, CAST(last_index),
-                        result_offsets_vector, result_offsets_vector_length);
+        RegExpExecAtom(context, CAST(data), string, CAST(last_index),
+                       result_offsets_vector, result_offsets_vector_length);
     Goto(&out);
   }
 
@@ -1044,7 +1044,7 @@ void RegExpBuiltinsAssembler::BranchIfRegExpResult(const TNode<Context> context,
   }
 }
 
-TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecAtom2(
+TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecAtom(
     TNode<Context> context, TNode<AtomRegExpData> data,
     TNode<String> subject_string, TNode<Smi> last_index,
     TNode<RawPtrT> result_offsets_vector,
@@ -1687,7 +1687,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
 
       BIND(&if_stringisempty);
       {
-        TNode<IntPtrT> num_matches = UncheckedCast<IntPtrT>(RegExpExecInternal2(
+        TNode<IntPtrT> num_matches = UncheckedCast<IntPtrT>(RegExpExecInternal(
             context, regexp, string, SmiZero(), result_offsets_vector,
             result_offsets_vector_length));
 
@@ -1753,7 +1753,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
 
       // Search for the given {regexp}.
 
-      TNode<IntPtrT> num_matches = UncheckedCast<IntPtrT>(RegExpExecInternal2(
+      TNode<IntPtrT> num_matches = UncheckedCast<IntPtrT>(RegExpExecInternal(
           context, regexp, string, next_search_from, result_offsets_vector,
           result_offsets_vector_length));
 
@@ -1982,7 +1982,7 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::RegExpExecInternal_Batched(
     compiler::ScopedExceptionHandler handler(this, &if_exception,
                                              &var_exception);
 
-    var_num_matches_in_batch = UncheckedCast<IntPtrT>(RegExpExecInternal2(
+    var_num_matches_in_batch = UncheckedCast<IntPtrT>(RegExpExecInternal(
         context, regexp, subject, SmiFromInt32(var_last_index.value()),
         result_offsets_vector, SmiToInt32(result_offsets_vector_length)));
 

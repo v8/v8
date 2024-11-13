@@ -97,18 +97,16 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   // TODO(jgruber): Consider changing the irregexp signature s.t. it returns
   // the result_offsets_vector pointer on success. We would then no longer have
   // to reload it.
-  // TODO(jgruber): All callers of RegExpExecInternal should
-  // be ported to this, and the old API should be removed once done.
-  TNode<UintPtrT> RegExpExecInternal2(
+  TNode<UintPtrT> RegExpExecInternal(
       TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
       TNode<Number> last_index, TNode<RawPtrT> result_offsets_vector,
       TNode<Int32T> result_offsets_vector_length);
 
-  TNode<UintPtrT> RegExpExecAtom2(TNode<Context> context,
-                                  TNode<AtomRegExpData> data,
-                                  TNode<String> string, TNode<Smi> last_index,
-                                  TNode<RawPtrT> result_offsets_vector,
-                                  TNode<Int32T> result_offsets_vector_length);
+  TNode<UintPtrT> RegExpExecAtom(TNode<Context> context,
+                                 TNode<AtomRegExpData> data,
+                                 TNode<String> string, TNode<Smi> last_index,
+                                 TNode<RawPtrT> result_offsets_vector,
+                                 TNode<Int32T> result_offsets_vector_length);
 
   // This is a wrapper around using the global irregexp mode, i.e. the mode in
   // which a single call into irregexp may return multiple matches.  The
