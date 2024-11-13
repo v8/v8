@@ -139,8 +139,8 @@ class V8_EXPORT String : public Name {
   /**
    * Returns the number of bytes in the UTF-8 encoded
    * representation of this string.
-   * TODO(saelo): Deprecate this method in favor of the V2 version below.
    */
+  V8_DEPRECATE_SOON("Use Utf8LengthV2 instead.")
   int Utf8Length(Isolate* isolate) const;
 
   /**
@@ -188,7 +188,6 @@ class V8_EXPORT String : public Name {
    *    terminator.  For WriteUtf8: The number of bytes copied to the buffer
    *    including the null terminator (if written).
    */
-  // TODO(saelo): deprecate these APIs in favor of the new ones below.
   enum WriteOptions {
     NO_OPTIONS = 0,
     HINT_MANY_WRITES_EXPECTED = 1,
@@ -201,12 +200,15 @@ class V8_EXPORT String : public Name {
   };
 
   // 16-bit character codes.
+  V8_DEPRECATE_SOON("Use WriteV2 instead.")
   int Write(Isolate* isolate, uint16_t* buffer, int start = 0, int length = -1,
             int options = NO_OPTIONS) const;
   // One byte characters.
+  V8_DEPRECATE_SOON("Use WriteOneByteV2 instead.")
   int WriteOneByte(Isolate* isolate, uint8_t* buffer, int start = 0,
                    int length = -1, int options = NO_OPTIONS) const;
   // UTF-8 encoded characters.
+  V8_DEPRECATE_SOON("Use WriteUtf8V2 instead.")
   int WriteUtf8(Isolate* isolate, char* buffer, int length = -1,
                 int* nchars_ref = nullptr, int options = NO_OPTIONS) const;
 
