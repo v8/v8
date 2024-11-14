@@ -561,7 +561,7 @@ RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
 
 TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
-    TNode<Number> last_index, TNode<RegExpMatchInfo> match_info) {
+    TNode<Number> last_index) {
   Label out(this);
   TVARIABLE(HeapObject, var_result, NullConstant());
   TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
@@ -815,12 +815,11 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     // Check the result.
     TNode<IntPtrT> int_result = ChangeInt32ToIntPtr(result);
     var_result = UncheckedCast<UintPtrT>(int_result);
+    static_assert(RegExp::kInternalRegExpSuccess == 1);
+    static_assert(RegExp::kInternalRegExpFailure == 0);
     GotoIf(IntPtrGreaterThanOrEqual(
-               int_result, IntPtrConstant(RegExp::kInternalRegExpSuccess)),
+               int_result, IntPtrConstant(RegExp::kInternalRegExpFailure)),
            &out);
-    GotoIf(
-        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpFailure)),
-        &out);
     GotoIf(IntPtrEqual(int_result,
                        IntPtrConstant(RegExp::kInternalRegExpException)),
            &if_exception);

@@ -73,9 +73,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   // 2. need multiple matches, should switch to the new API which passes
   // results via an offsets vector and allows returning multiple matches per
   // call. See RegExpExecInternal_Batched.
-  TNode<HeapObject> RegExpExecInternal_Single(
-      TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
-      TNode<Number> last_index, TNode<RegExpMatchInfo> match_info);
+  TNode<HeapObject> RegExpExecInternal_Single(TNode<Context> context,
+                                              TNode<JSRegExp> regexp,
+                                              TNode<String> string,
+                                              TNode<Number> last_index);
 
   // This is the new API which makes it possible to use the global irregexp
   // execution mode from within CSA.

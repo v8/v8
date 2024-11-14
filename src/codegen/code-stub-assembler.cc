@@ -8619,8 +8619,8 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
 }
 
 TNode<String> ToDirectStringAssembler::ToDirect() {
-  Label flatten_in_runtime(this), unreachable(this, Label::kDeferred),
-      out(this);
+  Label flatten_in_runtime(this, Label::kDeferred),
+      unreachable(this, Label::kDeferred), out(this);
 
   TryToDirect(&flatten_in_runtime);
   Goto(&out);

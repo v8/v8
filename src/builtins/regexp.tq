@@ -74,8 +74,7 @@ const kGlobalOrSticky: constexpr int31
     generates 'JSRegExp::kGlobal | JSRegExp::kSticky';
 
 extern macro RegExpBuiltinsAssembler::RegExpExecInternal_Single(
-    implicit context: Context)(JSRegExp, String, Number,
-    RegExpMatchInfo): HeapObject;
+    implicit context: Context)(JSRegExp, String, Number): HeapObject;
 
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
@@ -112,10 +111,7 @@ transitioning macro RegExpPrototypeExecBodyWithoutResult(
     lastIndex = SmiConstant(0);
   }
 
-  const lastMatchInfo: RegExpMatchInfo = GetRegExpLastMatchInfo();
-
-  const matchIndices =
-      RegExpExecInternal_Single(regexp, string, lastIndex, lastMatchInfo);
+  const matchIndices = RegExpExecInternal_Single(regexp, string, lastIndex);
 
   // {match_indices} is either null or the RegExpMatchInfo array.
   // Return early if exec failed, possibly updating last index.
