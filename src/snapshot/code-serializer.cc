@@ -75,7 +75,10 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
                                  source, script->origin_options()));
   DisallowGarbageCollection no_gc;
+
+#ifndef DEBUG
   cs.reference_map()->AddAttachedReference(*source);
+#endif
   AlignedCachedData* cached_data = cs.SerializeSharedFunctionInfo(info);
 
   if (v8_flags.profile_deserialization) {
@@ -658,11 +661,20 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
   } else {
     DirectHandle<Script> script(Cast<Script>(result->script()), isolate);
     // Fix up the source on the script. This should be the only deserialized
-    // script, and the off-thread deserializer should have set its source to
-    // the empty string.
+    // script, and the off-thread deserializer should have set its source to the
+    // empty string. In debug mode the code cache does contain the original
+    // source.
     DCHECK_EQ(data.scripts.size(), 1);
     DCHECK_EQ(*script, *data.scripts[0]);
-    DCHECK_EQ(script->source(), ReadOnlyRoots(isolate).empty_string());
+#ifdef DEBUG
+    if (!Cast<String>(script->source())->Equals(*source)) {
+      isolate->PushStackTraceAndDie(
+          reinterpret_cast<void*>(script->source().ptr()),
+          reinterpret_cast<void*>(source->ptr()));
+    }
+#else
+    CHECK_EQ(script->source(), ReadOnlyRoots(isolate).empty_string());
+#endif
     Script::SetSource(isolate, script, source);
 
     // Fix up the script list to include the newly deserialized script.

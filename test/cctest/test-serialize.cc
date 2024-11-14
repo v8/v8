@@ -1842,7 +1842,8 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   }
 
   CHECK_NE(*orig, *copy);
-  CHECK(Cast<Script>(copy->script())->source() == *copy_source);
+  CHECK(Cast<String>(Cast<Script>(copy->script())->source())
+            ->Equals(*copy_source));
 
   Handle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
@@ -2345,7 +2346,8 @@ TEST(CodeSerializerInternalizedString) {
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
-  CHECK(Cast<Script>(copy->script())->source() == *copy_source);
+  CHECK(Cast<String>(Cast<Script>(copy->script())->source())
+            ->Equals(*copy_source));
 
   Handle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
@@ -2560,8 +2562,13 @@ TEST(CodeSerializerLargeStrings) {
   property = JSReceiver::GetDataProperty(isolate, isolate->global_object(),
                                          f->NewStringFromAsciiChecked("t"));
   CHECK(isolate->heap()->InSpace(Cast<HeapObject>(*property), LO_SPACE));
-  // Make sure we do not serialize too much, e.g. include the source string.
+// Make sure we do not serialize too much.
+#ifdef DEBUG
+  CHECK_LT(cache->length(), 24100000);
+#else
+  // Make sure we don't include the source string.
   CHECK_LT(cache->length(), 13000000);
+#endif
 
   delete cache;
   source_s.Dispose();
