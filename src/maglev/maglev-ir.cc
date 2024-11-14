@@ -3455,7 +3455,9 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
               __ bind(&new_value_should_be_a_number);
               Label new_value_is_not_smi;
               __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
-              __ Int32ToDouble(double_scratch, new_value);
+              Register new_value_int32 = property;
+              __ SmiUntag(new_value_int32, new_value);
+              __ Int32ToDouble(double_scratch, new_value_int32);
               __ StoreFloat64(
                   FieldMemOperand(old_value, offsetof(HeapNumber, value_)),
                   double_scratch);
