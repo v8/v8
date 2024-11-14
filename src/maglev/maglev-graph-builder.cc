@@ -961,6 +961,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(
       loop_effects_ = parent->loop_effects_;
       loop_effects_stack_.push_back(loop_effects_);
     }
+    unobserved_context_slot_stores_ = parent_->unobserved_context_slot_stores_;
   }
 
   CHECK_IMPLIES(compilation_unit_->is_osr(), graph_->is_osr());
@@ -7813,6 +7814,8 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   // Propagate KnownNodeAspects back to the caller.
   current_interpreter_frame_.set_known_node_aspects(
       inner_graph_builder.current_interpreter_frame_.known_node_aspects());
+  unobserved_context_slot_stores_ =
+      inner_graph_builder.unobserved_context_slot_stores_;
 
   // Propagate virtual object lists back to the caller.
   current_interpreter_frame_.set_virtual_objects(
