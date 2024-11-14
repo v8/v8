@@ -420,10 +420,10 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 }
 
 // static
-void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
+                                          Address slot, Address target) {
   Address target_addr = slot + 8;
-  reinterpret_cast<std::atomic<Address>*>(target_addr)
-      ->store(target, std::memory_order_relaxed);
+  jit_allocation.WriteValue(target_addr, target, kRelaxedStore);
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {
@@ -601,10 +601,10 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 }
 
 // static
-void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
+                                          Address slot, Address target) {
   Address target_addr = slot + kFarJumpTableSlotSize - 8;
-  reinterpret_cast<std::atomic<Address>*>(target_addr)
-      ->store(target, std::memory_order_relaxed);
+  jit_allocation.WriteValue(target_addr, target, kRelaxedStore);
 }
 
 void JumpTableAssembler::SkipUntil(int offset) {
