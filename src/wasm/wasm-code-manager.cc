@@ -1764,8 +1764,8 @@ void NativeModule::PatchJumpTableLocked(WritableJumpTablePair& jump_table_pair,
   JumpTableAssembler::PatchJumpTableSlot(jump_table_pair, jump_table_slot,
                                          far_jump_table_slot, target);
   DCHECK_LT(slot_index, code_pointer_handles_size_);
-  GetProcessWideWasmCodePointerTable()->SetEntrypointWithRwxWriteScope(
-      code_pointer_handles_[slot_index], target, jump_table_pair.write_scope());
+  jump_table_pair.SetCodePointerTableEntry(code_pointer_handles_[slot_index],
+                                           target);
 }
 
 void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {

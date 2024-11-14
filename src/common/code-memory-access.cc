@@ -9,6 +9,9 @@
 #include "src/common/code-memory-access-inl.h"
 #include "src/objects/instruction-stream-inl.h"
 #include "src/utils/allocation.h"
+#ifdef V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-pointer-table-inl.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -491,14 +494,6 @@ WritableJitAllocation ThreadIsolation::LookupJitAllocation(
 }
 
 // static
-WritableJumpTablePair ThreadIsolation::LookupJumpTableAllocations(
-    Address jump_table_address, size_t jump_table_size,
-    Address far_jump_table_address, size_t far_jump_table_size) {
-  return WritableJumpTablePair(jump_table_address, jump_table_size,
-                               far_jump_table_address, far_jump_table_size);
-}
-
-// static
 void ThreadIsolation::RegisterJitAllocations(Address start,
                                              const std::vector<size_t>& sizes,
                                              JitAllocationType type) {
@@ -672,6 +667,16 @@ WritableJitAllocation WritableJitAllocation::ForInstructionStream(
       JitAllocationSource::kLookup);
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+
+// static
+WritableJumpTablePair ThreadIsolation::LookupJumpTableAllocations(
+    Address jump_table_address, size_t jump_table_size,
+    Address far_jump_table_address, size_t far_jump_table_size) {
+  return WritableJumpTablePair(jump_table_address, jump_table_size,
+                               far_jump_table_address, far_jump_table_size);
+}
+
 WritableJumpTablePair::WritableJumpTablePair(
     Address jump_table_address, size_t jump_table_size,
     Address far_jump_table_address, size_t far_jump_table_size,
@@ -692,6 +697,17 @@ WritableJumpTablePair WritableJumpTablePair::ForTesting(
                                far_jump_table_address, far_jump_table_size,
                                ForTestingTag{});
 }
+
+void WritableJumpTablePair::SetCodePointerTableEntry(uint32_t index,
+                                                     Address target) {
+  std::optional<RwxMemoryWriteScope> write_scope =
+      writable_jump_table_.WriteScopeForApiEnforcement();
+
+  wasm::GetProcessWideWasmCodePointerTable()->SetEntrypointWithRwxWriteScope(
+      index, target, write_scope_);
+}
+
+#endif
 
 template <size_t offset>
 void WritableFreeSpace::ClearTagged(size_t count) const {

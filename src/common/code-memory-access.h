@@ -182,11 +182,15 @@ class V8_EXPORT ThreadIsolation {
   static WritableJitAllocation LookupJitAllocation(
       Address addr, size_t size, JitAllocationType type,
       bool enforce_write_api = false);
+
+#ifdef V8_ENABLE_WEBASSEMBLY
   // A special case of LookupJitAllocation since in Wasm, we sometimes have to
   // unlock two allocations (jump tables) together.
   static WritableJumpTablePair LookupJumpTableAllocations(
       Address jump_table_address, size_t jump_table_size,
       Address far_jump_table_address, size_t far_jump_table_size);
+#endif
+
   // Unlock a larger region. This allowsV us to lookup allocations in this
   // region more quickly without switching the write permissions all the time.
   static WritableJitPage LookupWritableJitPage(Address addr, size_t size);
@@ -539,12 +543,14 @@ class WritableJitPage {
   ThreadIsolation::JitPageReference page_ref_;
 };
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+
 class WritableJumpTablePair {
  public:
-  RwxMemoryWriteScope& write_scope() { return write_scope_; }
-
   WritableJitAllocation& jump_table() { return writable_jump_table_; }
   WritableJitAllocation& far_jump_table() { return writable_far_jump_table_; }
+
+  void SetCodePointerTableEntry(uint32_t index, Address target);
 
   WritableJumpTablePair(const WritableJumpTablePair&) = delete;
   WritableJumpTablePair& operator=(const WritableJumpTablePair&) = delete;
@@ -575,6 +581,8 @@ class WritableJumpTablePair {
 
   friend class ThreadIsolation;
 };
+
+#endif
 
 template <class T>
 bool operator==(const ThreadIsolation::StlAllocator<T>&,

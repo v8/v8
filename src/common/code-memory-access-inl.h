@@ -87,6 +87,8 @@ WritableJitAllocation::WriteScopeForApiEnforcement() const {
   return {};
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+
 WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
                                              size_t jump_table_size,
                                              Address far_jump_table_address,
@@ -109,6 +111,8 @@ WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
       far_jump_table_address, far_jump_table_size,
       ThreadIsolation::JitAllocationType::kWasmFarJumpTable));
 }
+
+#endif
 
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteHeaderSlot(T value) {
