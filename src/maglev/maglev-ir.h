@@ -7710,7 +7710,7 @@ class StoreScriptContextSlotWithWriteBarrier
 
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
-    new_value_input().node()->SetTaggedResultNeedsDecompress();
+    context_input().node()->SetTaggedResultNeedsDecompress();
     // Don't need to decompress value to store it.
   }
 #endif
