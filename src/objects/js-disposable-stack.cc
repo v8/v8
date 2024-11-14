@@ -92,11 +92,11 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
     //    ii. Set needsAwait to false.
 
     if (hint == DisposeMethodHint::kSyncDispose &&
-        disposable_stack->needsAwait() == true &&
-        disposable_stack->hasAwaited() == false) {
+        disposable_stack->needs_await() == true &&
+        disposable_stack->has_awaited() == false) {
       //  i. Perform ! Await(undefined).
       //  ii. Set needsAwait to false.
-      disposable_stack->set_needsAwait(false);
+      disposable_stack->set_needs_await(false);
 
       return ResolveAPromiseWithValueAndReturnIt(
           isolate, ReadOnlyRoots(isolate).undefined_value_handle());
@@ -123,7 +123,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
           DCHECK_NE(resources_type, DisposableStackResourcesType::kAllSync);
           disposable_stack->set_length(length);
 
-          disposable_stack->set_hasAwaited(true);
+          disposable_stack->set_has_awaited(true);
 
           MaybeHandle<JSReceiver> resolved_promise =
               ResolveAPromiseWithValueAndReturnIt(isolate, result_handle);
@@ -157,16 +157,16 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
       //    iii. NOTE: This can only indicate a case where either null or
       //    undefined was the initialized value of an await using declaration.
       disposable_stack->set_length(length);
-      disposable_stack->set_needsAwait(true);
+      disposable_stack->set_needs_await(true);
     }
   }
 
   // 4. If needsAwait is true and hasAwaited is false, then
   //   a. Perform ! Await(undefined).
-  if (disposable_stack->needsAwait() == true &&
-      disposable_stack->hasAwaited() == false) {
+  if (disposable_stack->needs_await() == true &&
+      disposable_stack->has_awaited() == false) {
     disposable_stack->set_length(length);
-    disposable_stack->set_hasAwaited(true);
+    disposable_stack->set_has_awaited(true);
 
     return ResolveAPromiseWithValueAndReturnIt(
         isolate, ReadOnlyRoots(isolate).undefined_value_handle());
@@ -190,7 +190,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
   // 7. Return ? completion.
   if (!IsUninitialized(*existing_error_handle) &&
       !(existing_error_handle.equals(continuation_error))) {
-    if (disposable_stack->suppressedErrorCreated() == true) {
+    if (disposable_stack->suppressed_error_created() == true) {
       // Created SuppressedError is intentionally suppressed here for debug.
       SuppressDebug while_processing(isolate->debug());
       isolate->Throw(*existing_error_handle);

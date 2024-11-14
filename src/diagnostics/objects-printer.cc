@@ -2005,9 +2005,9 @@ void JSDisposableStackBase::JSDisposableStackBasePrint(std::ostream& os) {
   os << "\n - stack: " << Brief(stack());
   os << "\n - length: " << length();
   os << "\n - state: " << state();
-  os << "\n - needsAwait: " << needsAwait();
-  os << "\n - hasAwaited: " << hasAwaited();
-  os << "\n - suppressedErrorCreated: " << suppressedErrorCreated();
+  os << "\n - needs_await: " << needs_await();
+  os << "\n - has_awaited: " << has_awaited();
+  os << "\n - suppressed_error_created: " << suppressed_error_created();
   os << "\n - error: " << error();
   os << "\n - error_message: " << error_message();
   JSObjectPrintBody(os, *this);
@@ -2018,9 +2018,9 @@ void JSAsyncDisposableStack::JSAsyncDisposableStackPrint(std::ostream& os) {
   os << "\n - stack: " << Brief(stack());
   os << "\n - length: " << length();
   os << "\n - state: " << state();
-  os << "\n - needsAwait: " << needsAwait();
-  os << "\n - hasAwaited: " << hasAwaited();
-  os << "\n - suppressedErrorCreated: " << suppressedErrorCreated();
+  os << "\n - needs_await: " << needs_await();
+  os << "\n - has_awaited: " << has_awaited();
+  os << "\n - suppressed_error_created: " << suppressed_error_created();
   os << "\n - error: " << error();
   os << "\n - error_message: " << error_message();
   JSObjectPrintBody(os, *this);

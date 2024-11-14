@@ -29,11 +29,11 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncDisposableStack)
 
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, state,
                     JSDisposableStackBase::StateBit)
-BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, needsAwait,
+BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, needs_await,
                     JSDisposableStackBase::NeedsAwaitBit)
-BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, hasAwaited,
+BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, has_awaited,
                     JSDisposableStackBase::HasAwaitedBit)
-BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, suppressedErrorCreated,
+BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, suppressed_error_created,
                     JSDisposableStackBase::SuppressedErrorCreatedBit)
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, length,
                     JSDisposableStackBase::LengthBits)
@@ -197,7 +197,7 @@ inline void JSDisposableStackBase::HandleErrorInDisposal(
     //    6. Set completion to ThrowCompletion(error).
     maybe_error = isolate->factory()->NewSuppressedErrorAtDisposal(
         isolate, current_error, maybe_error);
-    disposable_stack->set_suppressedErrorCreated(true);
+    disposable_stack->set_suppressed_error_created(true);
 
   } else {
     //   ii. Else,

@@ -53,9 +53,9 @@ class JSDisposableStackBase
   DEFINE_TORQUE_GENERATED_DISPOSABLE_STACK_STATUS()
   inline DisposableStackState state() const;
   inline void set_state(DisposableStackState value);
-  DECL_BOOLEAN_ACCESSORS(needsAwait)
-  DECL_BOOLEAN_ACCESSORS(hasAwaited)
-  DECL_BOOLEAN_ACCESSORS(suppressedErrorCreated)
+  DECL_BOOLEAN_ACCESSORS(needs_await)
+  DECL_BOOLEAN_ACCESSORS(has_awaited)
+  DECL_BOOLEAN_ACCESSORS(suppressed_error_created)
   DECL_INT_ACCESSORS(length)
 
   enum class AsyncDisposableStackContextSlots {

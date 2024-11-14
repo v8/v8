@@ -2847,10 +2847,13 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
           BuildTryCatch(
               [&]() { BuildAwait(); },
               [&](Register context) {
-                RegisterList args = register_allocator()->NewRegisterList(2);
+                RegisterList args = register_allocator()->NewRegisterList(3);
                 builder()
                     ->MoveRegister(current_disposables_stack_, args[0])
                     .StoreAccumulatorInRegister(args[1])  // exception
+                    .LoadTheHole()
+                    .SetPendingMessage()
+                    .StoreAccumulatorInRegister(args[2])
                     .CallRuntime(
                         Runtime::kHandleExceptionsInDisposeDisposableStack,
                         args);
