@@ -5067,7 +5067,6 @@ int64_t MacroAssembler::CalculateTargetOffset(Address target,
   }
   offset -= reinterpret_cast<int64_t>(pc);
   DCHECK_EQ(offset % kInstrSize, 0);
-  offset = offset / static_cast<int>(kInstrSize);
   return offset;
 }
 

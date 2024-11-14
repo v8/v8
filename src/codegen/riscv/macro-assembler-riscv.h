@@ -279,8 +279,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode, offset);
     GenPCRelativeJump(temp, offset);
   }
-  // Generate a BL immediate instruction with the corresponding relocation info.
-  // As for near_jump, 'offset' is the immediate to encode in the BL
+  // Generate a auipc+jalr instruction with the corresponding relocation info.
+  // As for near_jump, 'offset' is the immediate to encode in the auipc+jalr
   // instruction.
   void near_call(int offset, RelocInfo::Mode rmode) {
     UseScratchRegisterScope temps(this);
@@ -309,8 +309,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   bool CanUseNearCallOrJump(RelocInfo::Mode rmode) {
     return rmode != RelocInfo::EXTERNAL_REFERENCE;
   }
-  int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
-                                uint8_t* pc);
+  static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
+                                       uint8_t* pc);
   void PatchAndJump(Address target);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference);

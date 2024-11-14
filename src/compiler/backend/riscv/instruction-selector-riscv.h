@@ -2236,6 +2236,12 @@ void InstructionSelectorT<Adapter>::VisitF64x2Pmax(node_t node) {
     VisitUniqueRRR(this, kRiscvF64x2Pmax, node);
 }
 
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
 // static
 MachineOperatorBuilder::AlignmentRequirements
 InstructionSelector::AlignmentRequirements() {

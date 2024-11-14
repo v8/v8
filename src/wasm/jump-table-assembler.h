@@ -230,11 +230,16 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
   static constexpr int kJumpTableSlotSize = 8 * kInstrSize;
   static constexpr int kFarJumpTableSlotSize = 6 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 8 * kInstrSize;
-#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
-  static constexpr int kJumpTableLineSize = 6 * kInstrSize;
-  static constexpr int kJumpTableSlotSize = 6 * kInstrSize;
+#elif V8_TARGET_ARCH_RISCV64
+  static constexpr int kJumpTableSlotSize = 2 * kInstrSize;
+  static constexpr int kJumpTableLineSize = kJumpTableSlotSize;
   static constexpr int kFarJumpTableSlotSize = 6 * kInstrSize;
-  static constexpr int kLazyCompileTableSlotSize = 10 * kInstrSize;
+  static constexpr int kLazyCompileTableSlotSize = 3 * kInstrSize;
+#elif V8_TARGET_ARCH_RISCV32
+  static constexpr int kJumpTableSlotSize = 5 * kInstrSize;
+  static constexpr int kJumpTableLineSize = kJumpTableSlotSize;
+  static constexpr int kFarJumpTableSlotSize = kJumpTableSlotSize;
+  static constexpr int kLazyCompileTableSlotSize = 3 * kInstrSize;
 #elif V8_TARGET_ARCH_LOONG64
   static constexpr int kJumpTableLineSize = 1 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 1 * kInstrSize;
