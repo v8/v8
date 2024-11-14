@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 
 #include "../../third_party/inspector_protocol/crdtp/protocol_core.h"
 #include "include/v8-inspector.h"
@@ -116,12 +117,12 @@ struct ProtocolTypeTraits<v8_inspector::protocol::Binary> {
 namespace detail {
 template <>
 struct MaybeTypedef<v8_inspector::String16> {
-  typedef ValueMaybe<v8_inspector::String16> type;
+  typedef std::optional<v8_inspector::String16> type;
 };
 
 template <>
 struct MaybeTypedef<v8_inspector::protocol::Binary> {
-  typedef ValueMaybe<v8_inspector::protocol::Binary> type;
+  typedef std::optional<v8_inspector::protocol::Binary> type;
 };
 
 }  // namespace detail

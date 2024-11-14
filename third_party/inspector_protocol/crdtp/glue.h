@@ -11,7 +11,7 @@
 namespace v8_crdtp {
 namespace glue {
 // =============================================================================
-// glue::detail::PtrMaybe, glue::detail::ValueMaybe, templates for optional
+// glue::detail::PtrMaybe, templates for optional
 // pointers / values which are used in ../lib/Forward_h.template.
 // =============================================================================
 namespace detail {
@@ -39,35 +39,6 @@ class PtrMaybe {
   std::unique_ptr<T> value_;
 };
 
-template <typename T>
-class ValueMaybe {
- public:
-  ValueMaybe() : is_just_(false), value_() {}
-  ValueMaybe(T value) : is_just_(true), value_(std::move(value)) {}
-  ValueMaybe(ValueMaybe&& other) noexcept
-      : is_just_(other.is_just_), value_(std::move(other.value_)) {}
-  void operator=(T value) {
-    value_ = value;
-    is_just_ = true;
-  }
-  const T& fromJust() const {
-    assert(is_just_);
-    return value_;
-  }
-  const T& fromMaybe(const T& default_value) const {
-    return is_just_ ? value_ : default_value;
-  }
-  bool isJust() const { return is_just_; }
-  T takeJust() {
-    assert(is_just_);
-    is_just_ = false;
-    return std::move(value_);
-  }
-
- private:
-  bool is_just_;
-  T value_;
-};
 }  // namespace detail
 }  // namespace glue
 }  // namespace v8_crdtp

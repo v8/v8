@@ -12,7 +12,7 @@
 namespace v8_crdtp {
 
 // =============================================================================
-// detail::PtrMaybe, detail::ValueMaybe, templates for optional
+// detail::PtrMaybe, templates for optional
 // pointers / values which are used in ../lib/Forward_h.template.
 // =============================================================================
 TEST(PtrMaybeTest, SmokeTest) {
@@ -28,17 +28,6 @@ TEST(PtrMaybeTest, SmokeTest) {
   EXPECT_TRUE(example.has_value());
   EXPECT_THAT(*example, testing::IsEmpty());
   EXPECT_THAT(out, testing::ElementsAre(42, 21));
-}
-
-TEST(ValueMaybeTest, SmokeTest) {
-  detail::ValueMaybe<int32_t> example;
-  EXPECT_FALSE(example.has_value());
-  EXPECT_EQ(-1, example.value_or(-1));
-  example = 42;
-  EXPECT_TRUE(example.has_value());
-  EXPECT_EQ(42, example.value());
-  int32_t out = *std::move(example);
-  EXPECT_EQ(out, 42);
 }
 
 }  // namespace v8_crdtp

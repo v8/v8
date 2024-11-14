@@ -12,7 +12,7 @@
 namespace v8_crdtp {
 namespace glue {
 // =============================================================================
-// glue::detail::PtrMaybe, glue::detail::ValueMaybe, templates for optional
+// glue::detail::PtrMaybe, templates for optional
 // pointers / values which are used in ../lib/Forward_h.template.
 // =============================================================================
 TEST(PtrMaybeTest, SmokeTest) {
@@ -28,17 +28,6 @@ TEST(PtrMaybeTest, SmokeTest) {
   std::unique_ptr<std::vector<uint32_t>> out = example.takeJust();
   EXPECT_FALSE(example.isJust());
   EXPECT_THAT(*out, testing::ElementsAre(42, 21));
-}
-
-TEST(PtrValueTest, SmokeTest) {
-  detail::ValueMaybe<int32_t> example;
-  EXPECT_FALSE(example.isJust());
-  EXPECT_EQ(-1, example.fromMaybe(-1));
-  example = 42;
-  EXPECT_TRUE(example.isJust());
-  EXPECT_EQ(42, example.fromJust());
-  int32_t out = example.takeJust();
-  EXPECT_EQ(out, 42);
 }
 }  // namespace glue
 }  // namespace v8_crdtp

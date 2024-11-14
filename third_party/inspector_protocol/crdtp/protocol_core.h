@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -84,7 +85,7 @@ class ContainerSerializer {
     ProtocolTypeTraits<T>::Serialize(value, bytes_);
   }
   template <typename T>
-  void AddField(span<char> field_name, const detail::ValueMaybe<T>& value) {
+  void AddField(span<char> field_name, const std::optional<T>& value) {
     if (!value.has_value()) {
       return;
     }
@@ -214,9 +215,8 @@ struct ProtocolTypeTraits<std::unique_ptr<DeferredMessage>> {
 };
 
 template <typename T>
-struct ProtocolTypeTraits<detail::ValueMaybe<T>> {
-  static bool Deserialize(DeserializerState* state,
-                          detail::ValueMaybe<T>* value) {
+struct ProtocolTypeTraits<std::optional<T>> {
+  static bool Deserialize(DeserializerState* state, std::optional<T>* value) {
     T res;
     if (!ProtocolTypeTraits<T>::Deserialize(state, &res))
       return false;
@@ -224,7 +224,7 @@ struct ProtocolTypeTraits<detail::ValueMaybe<T>> {
     return true;
   }
 
-  static void Serialize(const detail::ValueMaybe<T>& value,
+  static void Serialize(const std::optional<T>& value,
                         std::vector<uint8_t>* bytes) {
     ProtocolTypeTraits<T>::Serialize(value.value(), bytes);
   }
