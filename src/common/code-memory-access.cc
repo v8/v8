@@ -677,17 +677,27 @@ WritableJumpTablePair ThreadIsolation::LookupJumpTableAllocations(
                                far_jump_table_address, far_jump_table_size);
 }
 
+WritableJumpTablePair::~WritableJumpTablePair() {
+#ifdef DEBUG
+  if (jump_table_pages_.has_value()) {
+    // We disabled RWX write access for debugging. But we'll need it in the
+    // destructor again to release the jit page reference.
+    write_scope_.SetWritable();
+  }
+#endif
+}
+
 WritableJumpTablePair::WritableJumpTablePair(
     Address jump_table_address, size_t jump_table_size,
     Address far_jump_table_address, size_t far_jump_table_size,
     WritableJumpTablePair::ForTestingTag)
-    : write_scope_("for testing"),
-      writable_jump_table_(WritableJitAllocation::ForNonExecutableMemory(
+    : writable_jump_table_(WritableJitAllocation::ForNonExecutableMemory(
           jump_table_address, jump_table_size,
           ThreadIsolation::JitAllocationType::kWasmJumpTable)),
       writable_far_jump_table_(WritableJitAllocation::ForNonExecutableMemory(
           far_jump_table_address, far_jump_table_size,
-          ThreadIsolation::JitAllocationType::kWasmFarJumpTable)) {}
+          ThreadIsolation::JitAllocationType::kWasmFarJumpTable)),
+      write_scope_("for testing") {}
 
 // static
 WritableJumpTablePair WritableJumpTablePair::ForTesting(

@@ -117,6 +117,7 @@ class V8_NODISCARD RwxMemoryWriteScope {
  private:
   friend class RwxMemoryWriteScopeForTesting;
   friend class wasm::CodeSpaceWriteScope;
+  friend class WritableJumpTablePair;
 
   // {SetWritable} and {SetExecutable} implicitly enters/exits the scope.
   // These methods are exposed only for the purpose of implementing other
@@ -454,7 +455,8 @@ class WritableJitAllocation {
                                   bool enforce_write_api = false);
   // Used for non-executable memory.
   V8_INLINE WritableJitAllocation(Address addr, size_t size,
-                                  ThreadIsolation::JitAllocationType type);
+                                  ThreadIsolation::JitAllocationType type,
+                                  bool enforce_write_api);
 
   ThreadIsolation::JitPageReference& page_ref() { return page_ref_.value(); }
 
@@ -545,19 +547,21 @@ class WritableJitPage {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 
-class WritableJumpTablePair {
+class V8_EXPORT_PRIVATE WritableJumpTablePair {
  public:
   WritableJitAllocation& jump_table() { return writable_jump_table_; }
   WritableJitAllocation& far_jump_table() { return writable_far_jump_table_; }
 
   void SetCodePointerTableEntry(uint32_t index, Address target);
 
+  ~WritableJumpTablePair();
   WritableJumpTablePair(const WritableJumpTablePair&) = delete;
   WritableJumpTablePair& operator=(const WritableJumpTablePair&) = delete;
 
-  V8_EXPORT_PRIVATE static WritableJumpTablePair ForTesting(
-      Address jump_table_address, size_t jump_table_size,
-      Address far_jump_table_address, size_t far_jump_table_size);
+  static WritableJumpTablePair ForTesting(Address jump_table_address,
+                                          size_t jump_table_size,
+                                          Address far_jump_table_address,
+                                          size_t far_jump_table_size);
 
  private:
   V8_INLINE WritableJumpTablePair(Address jump_table_address,
@@ -571,13 +575,16 @@ class WritableJumpTablePair {
                         Address far_jump_table_address,
                         size_t far_jump_table_size, ForTestingTag);
 
+  // The WritableJitAllocation objects need to come before the write scope since
+  // we rely on the destructors to reset the write permissions in the right
+  // order when enforcing the write API in debug mode.
+  WritableJitAllocation writable_jump_table_;
+  WritableJitAllocation writable_far_jump_table_;
+
   RwxMemoryWriteScope write_scope_;
   std::optional<std::pair<ThreadIsolation::JitPageReference,
                           ThreadIsolation::JitPageReference>>
       jump_table_pages_;
-
-  WritableJitAllocation writable_jump_table_;
-  WritableJitAllocation writable_far_jump_table_;
 
   friend class ThreadIsolation;
 };
