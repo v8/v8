@@ -682,7 +682,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
       DirectHandle<Context> context, size_t index,
       ContextSidePropertyCell::Property property, Isolate* isolate);
 
-  ContextSidePropertyCell::Property GetScriptContextSideProperty(
+  std::optional<ContextSidePropertyCell::Property> GetScriptContextSideProperty(
       size_t index) const;
 
   static DirectHandle<Object> LoadScriptContextElement(

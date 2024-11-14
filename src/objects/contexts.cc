@@ -495,8 +495,8 @@ Tagged<ContextSidePropertyCell> Context::GetOrCreateContextSidePropertyCell(
   return Cast<ContextSidePropertyCell>(object);
 }
 
-ContextSidePropertyCell::Property Context::GetScriptContextSideProperty(
-    size_t index) const {
+std::optional<ContextSidePropertyCell::Property>
+Context::GetScriptContextSideProperty(size_t index) const {
   DCHECK(v8_flags.script_context_mutable_heap_number ||
          v8_flags.const_tracking_let);
   DCHECK(IsScriptContext());
@@ -505,7 +505,7 @@ ContextSidePropertyCell::Property Context::GetScriptContextSideProperty(
   Tagged<FixedArray> side_data =
       Cast<FixedArray>(get(CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
   Tagged<Object> object = side_data->get(side_data_index);
-  if (IsUndefined(object)) return ContextSidePropertyCell::kOther;
+  if (IsUndefined(object)) return {};
   if (IsContextSidePropertyCell(object)) {
     return Cast<ContextSidePropertyCell>(object)->context_side_property();
   }

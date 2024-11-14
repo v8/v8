@@ -3026,7 +3026,9 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadScriptContextSlot(
   compiler::ContextRef context =
       context_node->Cast<Constant>()->ref().AsContext();
   DCHECK(context.object()->IsScriptContext());
-  auto property = context.object()->GetScriptContextSideProperty(index);
+  auto maybe_property = context.object()->GetScriptContextSideProperty(index);
+  auto property =
+      maybe_property ? maybe_property.value() : ContextSidePropertyCell::kOther;
   int offset = Context::OffsetOfElementAt(index);
   switch (property) {
     case ContextSidePropertyCell::kConst: {
@@ -3109,7 +3111,14 @@ ReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
   compiler::ContextRef context_ref =
       context->Cast<Constant>()->ref().AsContext();
   DCHECK(context_ref.object()->IsScriptContext());
-  auto property = context_ref.object()->GetScriptContextSideProperty(index);
+  auto maybe_property =
+      context_ref.object()->GetScriptContextSideProperty(index);
+  if (!maybe_property) {
+    *store = AddNewNode<StoreScriptContextSlotWithWriteBarrier>(
+        {context, value}, index);
+    return ReduceResult::Done();
+  }
+  auto property = maybe_property.value();
   int offset = Context::OffsetOfElementAt(index);
   if (property == ContextSidePropertyCell::kConst) {
     compiler::OptionalObjectRef constant = context_ref.get(broker(), index);
