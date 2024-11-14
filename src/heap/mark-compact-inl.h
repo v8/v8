@@ -58,10 +58,14 @@ void MarkCompactCollector::RecordSlot(MemoryChunk* source_chunk,
     MutablePageMetadata* source_page =
         MutablePageMetadata::cast(source_chunk->Metadata());
     if (target_chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-      RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(
+      // TODO(377724745): currently needed because flags are untrusted.
+      SBXCHECK(!InsideSandbox(target_chunk->address()));
+      RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::ATOMIC>(
           source_page, source_chunk->Offset(slot.address()));
     } else if (source_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
                target_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
+      // TODO(377724745): currently needed because flags are untrusted.
+      SBXCHECK(!InsideSandbox(target_chunk->address()));
       RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::ATOMIC>(
           source_page, source_chunk->Offset(slot.address()));
     } else if (V8_LIKELY(!target_chunk->InWritableSharedSpace()) ||

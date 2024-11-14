@@ -141,7 +141,7 @@ void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseSlotSet(OLD_TO_NEW);
   ReleaseSlotSet(OLD_TO_NEW_BACKGROUND);
   ReleaseSlotSet(OLD_TO_OLD);
-  ReleaseSlotSet(OLD_TO_CODE);
+  ReleaseSlotSet(TRUSTED_TO_CODE);
   ReleaseSlotSet(OLD_TO_SHARED);
   ReleaseSlotSet(TRUSTED_TO_TRUSTED);
   ReleaseSlotSet(TRUSTED_TO_SHARED_TRUSTED);

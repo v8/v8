@@ -1362,7 +1362,9 @@ class RecordMigratedSlotVisitor
         MutablePageMetadata* host_metadata =
             MutablePageMetadata::cast(host_chunk->Metadata());
         if (value_chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-          RememberedSet<OLD_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
+          // TODO(377724745): currently needed because flags are untrusted.
+          SBXCHECK(!InsideSandbox(value_chunk->address()));
+          RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
               host_metadata, host_chunk->Offset(slot));
         } else if (value_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
                    host_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
@@ -1371,6 +1373,8 @@ class RecordMigratedSlotVisitor
           // references we want to use the OLD_TO_OLD remembered set, so here
           // we need to check that both the value chunk and the host chunk are
           // trusted space chunks.
+          // TODO(377724745): currently needed because flags are untrusted.
+          SBXCHECK(!InsideSandbox(value_chunk->address()));
           if (value_chunk->InWritableSharedSpace()) {
             RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
                 AccessMode::NON_ATOMIC>(host_metadata,
@@ -5197,13 +5201,15 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     UpdateUntypedOldToNewPointers<OLD_TO_NEW>();
     UpdateUntypedOldToNewPointers<OLD_TO_NEW_BACKGROUND>();
     UpdateUntypedOldToOldPointers();
-    UpdateUntypedOldToCodePointers();
+    UpdateUntypedTrustedToCodePointers();
     UpdateUntypedTrustedToTrustedPointers();
   }
 
   template <RememberedSetType old_to_new_type>
   void UpdateUntypedOldToNewPointers() {
-    if (!chunk_->slot_set<old_to_new_type, AccessMode::NON_ATOMIC>()) return;
+    if (!chunk_->slot_set<old_to_new_type, AccessMode::NON_ATOMIC>()) {
+      return;
+    }
 
     const PtrComprCageBase cage_base = heap_->isolate();
     // Marking bits are cleared already when the page is already swept. This
@@ -5229,7 +5235,9 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   void UpdateUntypedOldToOldPointers() {
-    if (!chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) return;
+    if (!chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) {
+      return;
+    }
 
     const PtrComprCageBase cage_base = heap_->isolate();
     if (chunk_->Chunk()->executable()) {
@@ -5269,8 +5277,20 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     chunk_->ReleaseSlotSet(OLD_TO_OLD);
   }
 
-  void UpdateUntypedOldToCodePointers() {
-    if (!chunk_->slot_set<OLD_TO_CODE, AccessMode::NON_ATOMIC>()) return;
+  void UpdateUntypedTrustedToCodePointers() {
+    if (!chunk_->slot_set<TRUSTED_TO_CODE, AccessMode::NON_ATOMIC>()) {
+      return;
+    }
+
+#ifdef V8_ENABLE_SANDBOX
+    // When the sandbox is enabled, we must not process the TRUSTED_TO_CODE
+    // remembered set on any chunk that is located inside the sandbox (in which
+    // case the set should be unused). This is because an attacker could either
+    // directly modify the TRUSTED_TO_CODE set on such a chunk, or trick the GC
+    // into populating it with invalid pointers, both of which may lead to
+    // memory corruption inside the (trusted) code space here.
+    SBXCHECK(!InsideSandbox(chunk_->ChunkAddress()));
+#endif
 
     const PtrComprCageBase cage_base = heap_->isolate();
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -5278,7 +5298,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 #else
     const PtrComprCageBase code_cage_base = cage_base;
 #endif
-    RememberedSet<OLD_TO_CODE>::Iterate(
+    RememberedSet<TRUSTED_TO_CODE>::Iterate(
         chunk_,
         [=](MaybeObjectSlot slot) {
           Tagged<HeapObject> host = HeapObject::FromAddress(
@@ -5292,10 +5312,14 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         },
         SlotSet::FREE_EMPTY_BUCKETS);
 
-    chunk_->ReleaseSlotSet(OLD_TO_CODE);
+    chunk_->ReleaseSlotSet(TRUSTED_TO_CODE);
   }
 
   void UpdateUntypedTrustedToTrustedPointers() {
+    if (!chunk_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) {
+      return;
+    }
+
 #ifdef V8_ENABLE_SANDBOX
     // When the sandbox is enabled, we must not process the TRUSTED_TO_TRUSTED
     // remembered set on any chunk that is located inside the sandbox (in which
@@ -5303,9 +5327,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     // directly modify the TRUSTED_TO_TRUSTED set on such a chunk, or trick the
     // GC into populating it with invalid pointers, both of which may lead to
     // memory corruption inside the trusted space here.
-    if (InsideSandbox(chunk_->ChunkAddress())) return;
+    SBXCHECK(!InsideSandbox(chunk_->ChunkAddress()));
 #endif
-    if (!chunk_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) return;
 
     // TODO(saelo) we can probably drop all the cage_bases here once we no
     // longer need to pass them into our slot implementations.
