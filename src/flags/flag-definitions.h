@@ -1032,9 +1032,10 @@ DEFINE_WEAK_IMPLICATION(trace_baseline, trace_baseline_batch_compilation)
 DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
 DEFINE_IMPLICATION(harmony_struct, shared_string_table)
 DEFINE_IMPLICATION(shared_string_table, shared_heap)
-DEFINE_EXPERIMENTAL_FEATURE(
-    always_use_string_forwarding_table,
-    "use string forwarding table instead of thin strings for all strings")
+DEFINE_BOOL_READONLY(always_use_string_forwarding_table, false,
+                     "use string forwarding table instead of thin strings for "
+                     "all strings (experimental)")
+DEFINE_IMPLICATION(always_use_string_forwarding_table, experimental)
 // With --always-use-string-forwarding-table, we can have young generation
 // string entries in the forwarding table, requiring table updates when these
 // strings get promoted to old space. Parallel GCs in client isolates

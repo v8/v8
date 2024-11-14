@@ -631,6 +631,96 @@ const Char* String::GetDirectStringChars(
 }
 
 // static
+Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
+                                   AllocationType allocation) {
+  DCHECK(!cons->IsFlat());
+  DCHECK_NE(cons->second()->length(), 0);  // Equivalent to !IsFlat.
+  DCHECK(!HeapLayout::InAnySharedSpace(*cons));
+
+  bool is_one_byte_representation;
+  uint32_t length;
+
+  {
+    DisallowGarbageCollection no_gc;
+    Tagged<ConsString> raw_cons = *cons;
+
+    // TurboFan can create cons strings with empty first parts. Canonicalize the
+    // cons shape here. Note this case is very rare in practice.
+    if (V8_UNLIKELY(raw_cons->first()->length() == 0)) {
+      Tagged<String> second = raw_cons->second();
+      raw_cons->set_first(second);
+      raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
+      DCHECK(raw_cons->IsFlat());
+      if (StringShape{second}.IsSequential()) {
+        return handle(second, isolate);
+      }
+      // Note that the remaining subtree may still be non-flat and we thus
+      // need to continue below.
+    }
+
+    if (V8_LIKELY(allocation != AllocationType::kSharedOld)) {
+      if (!HeapLayout::InYoungGeneration(raw_cons)) {
+        allocation = AllocationType::kOld;
+      }
+    }
+    length = raw_cons->length();
+    is_one_byte_representation = cons->IsOneByteRepresentation();
+  }
+
+  DCHECK_EQ(length, cons->length());
+  DCHECK_EQ(is_one_byte_representation, cons->IsOneByteRepresentation());
+  DCHECK(AllowGarbageCollection::IsAllowed());
+
+  Handle<SeqString> result;
+  if (is_one_byte_representation) {
+    Handle<SeqOneByteString> flat =
+        isolate->factory()
+            ->NewRawOneByteString(length, allocation)
+            .ToHandleChecked();
+    // When the ConsString had a forwarding index, it is possible that it was
+    // transitioned to a ThinString (and eventually shortcutted to
+    // InternalizedString) during GC.
+    if constexpr (v8_flags.always_use_string_forwarding_table.value()) {
+      if (!IsConsString(*cons)) {
+        DCHECK(IsInternalizedString(*cons) || IsThinString(*cons));
+        return String::Flatten(isolate, cons, allocation);
+      }
+    }
+    DisallowGarbageCollection no_gc;
+    Tagged<ConsString> raw_cons = *cons;
+    WriteToFlat(raw_cons, flat->GetChars(no_gc), 0, length);
+    raw_cons->set_first(*flat);
+    raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
+    result = flat;
+  } else {
+    Handle<SeqTwoByteString> flat =
+        isolate->factory()
+            ->NewRawTwoByteString(length, allocation)
+            .ToHandleChecked();
+    // When the ConsString had a forwarding index, it is possible that it was
+    // transitioned to a ThinString (and eventually shortcutted to
+    // InternalizedString) during GC.
+    if constexpr (v8_flags.always_use_string_forwarding_table.value()) {
+      if (!IsConsString(*cons)) {
+        DCHECK(IsInternalizedString(*cons) || IsThinString(*cons));
+        return String::Flatten(isolate, cons, allocation);
+      }
+    }
+    DisallowGarbageCollection no_gc;
+    Tagged<ConsString> raw_cons = *cons;
+    WriteToFlat(raw_cons, flat->GetChars(no_gc), 0, length);
+    raw_cons->set_first(*flat);
+    raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
+    result = flat;
+  }
+  DCHECK(result->IsFlat());
+  DCHECK(cons->IsFlat());
+  return result;
+}
+
+// Note that RegExpExecInternal currently relies on this to in-place flatten
+// the input `string`.
+// static
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
                                AllocationType allocation) {
   DisallowGarbageCollection no_gc;  // Unhandlified code.
@@ -645,7 +735,12 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
     Tagged<ConsString> cons = Cast<ConsString>(s);
     if (!cons->IsFlat()) {
       AllowGarbageCollection yes_gc;
-      return SlowFlatten(isolate, handle(cons, isolate), allocation);
+      DCHECK_EQ(*string, s);
+      Handle<String> result =
+          SlowFlatten(isolate, Cast<ConsString>(string), allocation);
+      DCHECK(result->IsFlat());
+      DCHECK(string->IsFlat());  // In-place flattened.
+      return result;
     }
     s = cons->first();
     shape = StringShape(s);
@@ -656,6 +751,8 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
     DCHECK(!IsConsString(s));
   }
 
+  DCHECK(s->IsFlat());
+  DCHECK(string->IsFlat());  // In-place flattened.
   return handle(s, isolate);
 }
 

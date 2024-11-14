@@ -841,3 +841,10 @@ assertEquals("\\u2029", new RegExp("\\\u2029").source);
   const pattern = "\\n";
   assertTrue(%ReferenceEqual(pattern, new RegExp(pattern).source));
 }
+
+// Cons strings are flattened:
+{
+  let s = %ConstructConsString("aaaaaaaaaaaaaa", "bbbbbbbbbbbbbb");
+  s = s.replace(/x.z/g, "");  // Prime the regexp.
+  s = s.replace(/x.z/g, "");
+}

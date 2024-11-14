@@ -259,14 +259,18 @@ V8_OBJECT class String : public Name {
   static Handle<Number> ToNumber(Isolate* isolate, Handle<String> subject);
 
   // Flattens the string.  Checks first inline to see if it is
-  // necessary.  Does nothing if the string is not a cons string.
-  // Flattening allocates a sequential string with the same data as
-  // the given string and mutates the cons string to a degenerate
-  // form, where the first component is the new sequential string and
-  // the second component is the empty string.  If allocation fails,
-  // this function returns a failure.  If flattening succeeds, this
-  // function returns the sequential string that is now the first
-  // component of the cons string.
+  // necessary. The given `string` is in-place flattened, i.e. both
+  //
+  //   `t = String::Flatten(s); s->IsFlat()` and
+  //   `t = String::Flatten(s); t->IsFlat()`
+  //
+  // hold. `t` may be an unwrapped but semantically equivalent component of `s`.
+  //
+  // Non-flat ConsStrings are physically flattened by allocating a sequential
+  // string with the same data as the given string. The input `string` is
+  // mutated to a degenerate form, where the first component is the new
+  // sequential string and the second component is the empty string.  This form
+  // is considered flat, i.e. the string is in-place flattened.
   //
   // Degenerate cons strings are handled specially by the garbage
   // collector (see IsShortcutCandidate).
@@ -650,7 +654,7 @@ V8_OBJECT class String : public Name {
       Tagged<ConsString> string, base::Vector<const Char> str,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
-  V8_EXPORT_PRIVATE static Handle<String> SlowFlatten(
+  V8_EXPORT_PRIVATE inline static Handle<String> SlowFlatten(
       Isolate* isolate, Handle<ConsString> cons, AllocationType allocation);
 
   V8_EXPORT_PRIVATE V8_INLINE static std::optional<FlatContent>

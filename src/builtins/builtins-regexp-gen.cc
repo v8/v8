@@ -639,7 +639,14 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &out);
 
-  // Unpack the string if possible.
+  // Unpack the string. Note that due to SlicedString unpacking (which extracts
+  // the parent string and offset), it's not valid to replace `string` with the
+  // result of ToDirect here. Instead, we rely on in-place flattening done by
+  // String::Flatten.
+  // TODO(jgruber): Consider changing ToDirectStringAssembler behavior here
+  // since this aspect is surprising. The result of `ToDirect` could always
+  // equal the input in length and contents. SlicedString unpacking could
+  // happen in `TryToSequential`.
   to_direct.ToDirect();
 
   // Since the RegExp has been compiled, data contains a RegExpData object.
