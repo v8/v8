@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b415ee83cdccbef6b1363062511f80fc01b5433d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd791d11df1f8fdbe48859d2e901a56a7bc8783ed',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c61bf9c942c84d2c42d4ce4fd5cf751fa36c7fd7',
   'buildtools/linux64': {
@@ -235,11 +235,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'c59bf8bf189dcbde868e04efcd53b705ed155231',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '61725eafad52eab7063cca7ae3ca763d2b147583',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1261fbb4d60541cde33d772eee8149c783639ca6',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '6eb5c4f1b6a90f697849675451842ade6761fcb0',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -253,7 +253,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '25f97615141aeee8eb168acb09115c6ff16a35f7',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'eda5c0c3487e86af7a99ec471bf45ad6872c5508',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -311,7 +311,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '5b01ea4a6f3b666b7d190e7cb7c31db2ed4d94ce',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4730a945f4f269ed3fe8623c795e34be5c99c496',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '9e360f42377fe23ddc6d3125d5e494609f3ea55e',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -493,9 +493,9 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c7678ba8af4577e45023b35ae96b6b71efa0acf7',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '7e2e4d7c659e9e9d1080587c75c786fe207f2e71',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a49b7d63c18cd1f32c478039d4e9c11aa623173f',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '77c9715e6bfed2a738c7c7dddcd1f117aac11af0',
   'tools/luci-go': {
       'packages': [
         {
