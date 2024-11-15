@@ -128,9 +128,9 @@ void innerCallFunctionOn(
 
   std::unique_ptr<v8::Global<v8::Value>[]> argv = nullptr;
   int argc = 0;
-  if (optionalArguments.has_value()) {
+  if (optionalArguments) {
     protocol::Array<protocol::Runtime::CallArgument>& arguments =
-        optionalArguments.value();
+        *optionalArguments;
     argc = static_cast<int>(arguments.size());
     argv.reset(new v8::Global<v8::Value>[argc]);
     for (int i = 0; i < argc; ++i) {
@@ -280,22 +280,22 @@ Response getWrapOptions(
     Maybe<bool> returnByValue, Maybe<bool> generatePreview,
     Maybe<protocol::Runtime::SerializationOptions> maybeSerializationOptions,
     v8::Isolate* isolate, std::unique_ptr<WrapOptions>* result) {
-  if (maybeSerializationOptions.has_value()) {
-    auto& serializationOptions = maybeSerializationOptions.value();
-    String16 serializationModeStr = serializationOptions.getSerialization();
+  if (maybeSerializationOptions) {
+    String16 serializationModeStr =
+        maybeSerializationOptions->getSerialization();
     if (serializationModeStr ==
         protocol::Runtime::SerializationOptions::SerializationEnum::Deep) {
       v8::Local<v8::Object> additionalParameters;
       Response response = parseAdditionalSerializationParameters(
-          serializationOptions.getAdditionalParameters(nullptr), isolate,
+          maybeSerializationOptions->getAdditionalParameters(nullptr), isolate,
           &additionalParameters);
       if (!response.IsSuccess()) {
         return response;
       }
-      *result = std::make_unique<WrapOptions>(
-          WrapOptions{WrapMode::kDeep,
-                      {serializationOptions.getMaxDepth(v8::internal::kMaxInt),
-                       v8::Global<v8::Object>(isolate, additionalParameters)}});
+      *result = std::make_unique<WrapOptions>(WrapOptions{
+          WrapMode::kDeep,
+          {maybeSerializationOptions->getMaxDepth(v8::internal::kMaxInt),
+           v8::Global<v8::Object>(isolate, additionalParameters)}});
       return Response::Success();
     }
     if (serializationModeStr ==
@@ -597,7 +597,7 @@ Response V8RuntimeAgentImpl::getProperties(
       nonIndexedPropertiesOnly.value_or(false), *wrapOptions, result,
       exceptionDetails);
   if (!response.IsSuccess()) return response;
-  if (exceptionDetails->isJust()) return Response::Success();
+  if (*exceptionDetails) return Response::Success();
   std::unique_ptr<protocol::Array<InternalPropertyDescriptor>>
       internalPropertiesProtocolArray;
   std::unique_ptr<protocol::Array<PrivatePropertyDescriptor>>
@@ -992,20 +992,21 @@ Response V8RuntimeAgentImpl::getExceptionDetails(
       message, error, scope.objectGroupName(), out_exceptionDetails);
   if (!response.IsSuccess()) return response;
 
-  CHECK(out_exceptionDetails->isJust());
+  CHECK(*out_exceptionDetails);
 
   // When an exception object is present, `createExceptionDetails` assumes
   // the exception is uncaught and will overwrite the text field to "Uncaught".
   // Lets use the normal message text instead.
-  out_exceptionDetails->fromJust()->setText(
-      toProtocolString(m_inspector->isolate(), message->Get()));
+  (*out_exceptionDetails)
+      ->setText(toProtocolString(m_inspector->isolate(), message->Get()));
 
   // Check if the exception has any metadata on the inspector and also attach
   // it.
   std::unique_ptr<protocol::DictionaryValue> data =
       m_inspector->getAssociatedExceptionDataForProtocol(error);
-  if (data)
-    out_exceptionDetails->fromJust()->setExceptionMetaData(std::move(data));
+  if (data) {
+    (*out_exceptionDetails)->setExceptionMetaData(std::move(data));
+  }
   return Response::Success();
 }
 

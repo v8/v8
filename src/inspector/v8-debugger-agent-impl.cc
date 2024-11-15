@@ -878,7 +878,7 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   v8::debug::Location v8Start(start->getLineNumber(),
                               start->getColumnNumber(0));
   v8::debug::Location v8End;
-  if (end.has_value()) {
+  if (end) {
     if (end->getScriptId() != scriptId)
       return Response::ServerError(
           "Locations should contain the same scriptId");
@@ -1493,8 +1493,8 @@ Response V8DebuggerAgentImpl::stepOver(
     Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
-  if (inSkipList.has_value()) {
-    const Response res = processSkipList(inSkipList.value());
+  if (inSkipList) {
+    const Response res = processSkipList(*inSkipList);
     if (res.IsError()) return res;
   } else {
     m_skipList.clear();
@@ -1510,8 +1510,8 @@ Response V8DebuggerAgentImpl::stepInto(
     Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
-  if (inSkipList.has_value()) {
-    const Response res = processSkipList(inSkipList.value());
+  if (inSkipList) {
+    const Response res = processSkipList(*inSkipList);
     if (res.IsError()) return res;
   } else {
     m_skipList.clear();

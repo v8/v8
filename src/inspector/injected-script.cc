@@ -320,7 +320,7 @@ class InjectedScript::ProtocolPromiseHandler {
         session->inspector()->client()->dispatchError(scope.context(), message,
                                                       exception);
       }
-      protocol::PtrMaybe<protocol::Runtime::ExceptionDetails> exceptionDetails;
+      protocol::Maybe<protocol::Runtime::ExceptionDetails> exceptionDetails;
       response = scope.injectedScript()->createExceptionDetails(
           message, exception, m_objectGroup, &exceptionDetails);
       if (!response.IsSuccess()) {
