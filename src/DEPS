@@ -16,6 +16,7 @@ include_rules = [
   "+src/compiler/wasm-compiler.h",
   "-src/flags/flags-impl.h",
   "-src/heap",
+  "+src/heap/memory-chunk-constants.h",
   "+src/heap/memory-chunk-metadata.h",
   "+src/heap/code-range.h",
   "+src/heap/read-only-spaces.h",

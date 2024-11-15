@@ -1749,6 +1749,7 @@ filegroup(
         "src/heap/mutable-page-metadata-inl.h",
         "src/heap/memory-chunk.cc",
         "src/heap/memory-chunk.h",
+        "src/heap/memory-chunk-constants.h",
         "src/heap/memory-chunk-inl.h",
         "src/heap/memory-chunk-layout.h",
         "src/heap/memory-measurement.cc",

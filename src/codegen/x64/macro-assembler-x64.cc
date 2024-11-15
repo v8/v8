@@ -4597,7 +4597,8 @@ void MacroAssembler::CheckMarkBit(Register object, Register scratch0,
   MemoryChunkHeaderFromObject(object, scratch0);
 #ifdef V8_ENABLE_SANDBOX
   movl(scratch0, Operand(scratch0, MemoryChunk::MetadataIndexOffset()));
-  andl(scratch0, Immediate(MemoryChunk::kMetadataPointerTableSizeMask));
+  andl(scratch0,
+       Immediate(MemoryChunkConstants::kMetadataPointerTableSizeMask));
   shll(scratch0, Immediate(kSystemPointerSizeLog2));
   LoadAddress(scratch1,
               ExternalReference::memory_chunk_metadata_table_address());

@@ -14,6 +14,7 @@
 #include "src/codegen/external-reference-table.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/memory-chunk-constants.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/utils/allocation.h"
 
@@ -27,6 +28,7 @@ class LeakyObject;
 namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
+class MemoryChunkMetadata;
 class Sandbox;
 #endif
 class CodeRange;
@@ -163,6 +165,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
 #ifdef V8_ENABLE_SANDBOX
   CodePointerTable* code_pointer_table() { return &code_pointer_table_; }
+
+  MemoryChunkMetadata** metadata_pointer_table() {
+    return metadata_pointer_table_;
+  }
 #endif  // V8_ENABLE_SANDBOX
 
  private:
@@ -226,6 +232,9 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
 #ifdef V8_ENABLE_SANDBOX
   CodePointerTable code_pointer_table_;
+  MemoryChunkMetadata*
+      metadata_pointer_table_[MemoryChunkConstants::kMetadataPointerTableSize] =
+          {nullptr};
 #endif  // V8_ENABLE_SANDBOX
 };
 

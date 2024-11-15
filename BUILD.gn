@@ -3859,6 +3859,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/marking.h",
     "src/heap/memory-allocator.h",
     "src/heap/memory-balancer.h",
+    "src/heap/memory-chunk-constants.h",
     "src/heap/memory-chunk-inl.h",
     "src/heap/memory-chunk-layout.h",
     "src/heap/memory-chunk-metadata-inl.h",

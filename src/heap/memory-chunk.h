@@ -8,6 +8,8 @@
 #include "src/base/build_config.h"
 #include "src/base/hashing.h"
 #include "src/flags/flags.h"
+#include "src/heap/memory-chunk-constants.h"
+#include "src/init/isolate-group.h"
 
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
 #define UNREACHABLE_WITH_STICKY_MARK_BITS() UNREACHABLE()
@@ -364,34 +366,11 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return offsetof(MemoryChunk, metadata_index_);
   }
 
-  static constexpr size_t kPagesInMainCage =
-      kPtrComprCageReservationSize / kRegularPageSize;
-  static constexpr size_t kPagesInCodeCage =
-      kMaximalCodeRangeSize / kRegularPageSize;
-  static constexpr size_t kPagesInTrustedCage =
-      kMaximalTrustedRangeSize / kRegularPageSize;
-
-  static constexpr size_t kMainCageMetadataOffset = 0;
-  static constexpr size_t kTrustedSpaceMetadataOffset =
-      kMainCageMetadataOffset + kPagesInMainCage;
-  static constexpr size_t kCodeRangeMetadataOffset =
-      kTrustedSpaceMetadataOffset + kPagesInTrustedCage;
-
-  static constexpr size_t kMetadataPointerTableSizeLog2 = base::bits::BitWidth(
-      kPagesInMainCage + kPagesInCodeCage + kPagesInTrustedCage);
-  static constexpr size_t kMetadataPointerTableSize =
-      1 << kMetadataPointerTableSizeLog2;
-  static constexpr size_t kMetadataPointerTableSizeMask =
-      kMetadataPointerTableSize - 1;
-
-  static MemoryChunkMetadata*
-      metadata_pointer_table_[kMetadataPointerTableSize];
-
   V8_INLINE static MemoryChunkMetadata* FromIndex(uint32_t index);
   static uint32_t MetadataTableIndex(Address chunk_address);
 
-  V8_INLINE static Address MetadataTableAddress() {
-    return reinterpret_cast<Address>(metadata_pointer_table_);
+  V8_INLINE static MemoryChunkMetadata** MetadataTableAddress() {
+    return IsolateGroup::current()->metadata_pointer_table();
   }
 
   // For MetadataIndexOffset().

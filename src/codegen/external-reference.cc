@@ -343,7 +343,8 @@ ExternalReference ExternalReference::code_pointer_table_address() {
 }
 
 ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
-  return ExternalReference(MemoryChunk::MetadataTableAddress());
+  return ExternalReference(
+      reinterpret_cast<Address>(MemoryChunk::MetadataTableAddress()));
 }
 
 #endif  // V8_ENABLE_SANDBOX

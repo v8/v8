@@ -125,7 +125,7 @@ class TestDebugHelper {
  public:
   static Address MetadataTableAddress() {
 #ifdef V8_ENABLE_SANDBOX
-    return MemoryChunk::MetadataTableAddress();
+    return reinterpret_cast<Address>(MemoryChunk::MetadataTableAddress());
 #else
     return 0;
 #endif
