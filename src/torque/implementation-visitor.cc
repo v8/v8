@@ -735,6 +735,18 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       csa_ccfile() << "  USE(" << var << ");\n";
     }
   }
+
+  if (builtin->use_counter_name()) {
+    DCHECK(!signature.parameter_types.types.empty());
+    DCHECK(signature.parameter_types.types[0] ==
+               TypeOracle::GetNativeContextType() ||
+           signature.parameter_types.types[0] == TypeOracle::GetContextType());
+    csa_ccfile() << "  CodeStubAssembler(state_).CallRuntime("
+                 << "Runtime::kIncrementUseCounter, parameter0, "
+                 << "CodeStubAssembler(state_).SmiConstant("
+                 << *builtin->use_counter_name() << "));\n";
+  }
+
   assembler_ = CfgAssembler(parameter_types);
   const Type* body_result = Visit(*builtin->body());
   if (body_result != TypeOracle::GetNeverType()) {

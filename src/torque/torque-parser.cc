@@ -954,10 +954,13 @@ int GetAnnotationValue(const AnnotationSet& annotations, const char* name,
 
 std::optional<ParseResult> MakeTorqueBuiltinDeclaration(
     ParseResultIterator* child_results) {
-  AnnotationSet annotations(
-      child_results, {ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR}, {ANNOTATION_IF});
+  AnnotationSet annotations(child_results,
+                            {ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR},
+                            {ANNOTATION_IF, ANNOTATION_INCREMENT_USE_COUNTER});
   const bool has_custom_interface_descriptor =
       annotations.Contains(ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR);
+  std::optional<std::string> use_counter_name =
+      annotations.GetStringParam(ANNOTATION_INCREMENT_USE_COUNTER);
   auto transitioning = child_results->NextAs<bool>();
   auto javascript_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -973,13 +976,16 @@ std::optional<ParseResult> MakeTorqueBuiltinDeclaration(
   auto body = child_results->NextAs<std::optional<Statement*>>();
   CallableDeclaration* declaration = MakeNode<TorqueBuiltinDeclaration>(
       transitioning, javascript_linkage, name, args, return_type,
-      has_custom_interface_descriptor, body);
+      has_custom_interface_descriptor, use_counter_name, body);
   Declaration* result = declaration;
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
   } else {
     result = MakeNode<GenericCallableDeclaration>(std::move(generic_parameters),
                                                   declaration);
+  }
+  if (use_counter_name && !body) {
+    ReportError("@incrementUseCounter needs a body.");
   }
   std::vector<Declaration*> results;
   if (std::optional<std::string> condition =
