@@ -57,7 +57,7 @@ class FastCApiObject {
       self = &FastCApiObject::instance();
     }
     self->fast_call_count_++;
-    v8::Isolate* isolate = receiver->GetIsolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     v8::Context::Scope context_scope(context);
