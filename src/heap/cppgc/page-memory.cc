@@ -8,10 +8,15 @@
 #include <cstddef>
 #include <optional>
 
+#include "include/v8config.h"
 #include "src/base/macros.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/platform.h"
+
+#if V8_OS_POSIX
+#include <errno.h>
+#endif
 
 namespace cppgc {
 namespace internal {
@@ -153,8 +158,20 @@ PageMemoryRegion* NormalPageMemoryPool::Take() {
     // Also need to make the pages accessible.
     CHECK(entry.region->allocator().RecommitPages(
         base, size, v8::PageAllocator::kReadWrite));
-    CHECK(entry.region->allocator().SetPermissions(
-        base, size, v8::PageAllocator::kReadWrite));
+    bool ok = entry.region->allocator().SetPermissions(
+        base, size, v8::PageAllocator::kReadWrite);
+    if (!ok) {
+#if V8_OS_POSIX
+      // Changing permissions can return ENOMEM in several cases, including
+      // (since there is PROT_WRITE) when it would exceed the RLIMIT_DATA
+      // resource limit, at least on Linux. Check errno in this case, and
+      // declare that this is an OOM in this case.
+      if (errno == ENOMEM) {
+        GetGlobalOOMHandler()("Cannot change page permissions");
+      }
+#endif
+      CHECK(false);
+    }
   }
 #if DEBUG
   CheckMemoryIsZero(base, size);
