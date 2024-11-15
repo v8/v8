@@ -2312,7 +2312,6 @@ DEFINE_BOOL(
     "After deserializing code cache data on a background thread, merge it into "
     "an existing Script if one is found in the Isolate compilation cache")
 DEFINE_BOOL(verify_code_merge, false, "Verify scope infos after merge")
-DEFINE_BOOL(verify_scope_info_reuse, false, "Verify scope info reuse")
 
 // Fix https://issues.chromium.org/u/1/issues/366783806 before enabling.
 DEFINE_BOOL(

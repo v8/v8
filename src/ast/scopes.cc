@@ -2798,30 +2798,13 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
           int id = scope_info->UniqueIdInScript();
           auto it = scope_infos_to_reuse.find(id);
           if (it != scope_infos_to_reuse.end()) {
-            Tagged<ScopeInfo> duplicate = *it->second;
-            // TODO(verwaest): We should be able to turn on this check, but
-            // that's failing currently.
-            if (v8_flags.verify_scope_info_reuse) {
-              CHECK_EQ(*it->second, scope_info);
-            } else if (*it->second != scope_info) {
-              if constexpr (std::is_same<IsolateT, Isolate>::value) {
-                isolate->PushStackTraceAndDie(
-                    reinterpret_cast<void*>(it->second->ptr()),
-                    reinterpret_cast<void*>(scope_info->ptr()));
-              }
-              UNREACHABLE();
+            if (V8_LIKELY(*it->second == scope_info)) break;
+            if constexpr (std::is_same<IsolateT, Isolate>::value) {
+              isolate->PushStackTraceAndDie(
+                  reinterpret_cast<void*>(it->second->ptr()),
+                  reinterpret_cast<void*>(scope_info->ptr()));
             }
-            while (scope_info != duplicate) {
-              CHECK_EQ(scope_info->scope_type(), duplicate->scope_type());
-              CHECK_EQ(scope_info->ContextLength(), duplicate->ContextLength());
-              if (!scope_info->HasOuterScopeInfo()) {
-                CHECK(!duplicate->HasOuterScopeInfo());
-                break;
-              }
-              scope_info = scope_info->OuterScopeInfo();
-              duplicate = duplicate->OuterScopeInfo();
-            }
-            break;
+            UNREACHABLE();
           }
           scope_infos_to_reuse[id] = handle(scope_info, isolate);
           if (!scope_info->HasOuterScopeInfo()) break;
