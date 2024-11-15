@@ -179,29 +179,39 @@ void SandboxGetObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void SandboxIsValidObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
+  Sandbox* sandbox = GetProcessWideSandbox();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  auto IsLocatedInMappedMemory = [&](Address address) {
+    // Note that IsOutsideAllocatedSpace is imprecise and may return false for
+    // some addresses outside the allocated space. However, it's probably good
+    // enough for our purposes.
+    return !heap->memory_allocator()->IsOutsideAllocatedSpace(address);
+  };
 
   Tagged<HeapObject> obj;
   if (!GetArgumentObjectPassedAsAddress(info, &obj)) {
     return;
   }
 
-  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
-  auto IsLocatedInMappedMemory = [&](Tagged<HeapObject> obj) {
-    // Note that IsOutsideAllocatedSpace is imprecise and may return false for
-    // some addresses outside the allocated space. However, it's probably good
-    // enough for our purposes.
-    return !heap->memory_allocator()->IsOutsideAllocatedSpace(obj.address());
-  };
-
-  bool is_valid = false;
-  if (IsLocatedInMappedMemory(obj)) {
-    Tagged<Map> map = obj->map();
-    if (IsLocatedInMappedMemory(map)) {
-      is_valid = IsMap(map);
+  // Simple heuristic: follow the Map chain three times until we find a MetaMap
+  // (where the map pointer points to itself), or give up.
+  info.GetReturnValue().Set(false);
+  Address current = obj.address();
+  for (int i = 0; i < 3; i++) {
+    if (!IsLocatedInMappedMemory(current)) {
+      return;
     }
+    uint32_t map_word = *reinterpret_cast<uint32_t*>(current);
+    if ((map_word & kHeapObjectTag) != kHeapObjectTag) {
+      return;
+    }
+    Address map_address = sandbox->base() + map_word - kHeapObjectTag;
+    if (map_address == current) {
+      info.GetReturnValue().Set(true);
+      return;
+    }
+    current = map_address;
   }
-
-  info.GetReturnValue().Set(is_valid);
 }
 
 static void SandboxIsWritableImpl(
