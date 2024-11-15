@@ -1813,6 +1813,7 @@ std::ostream& operator<<(std::ostream& os, Object::Conversion kind) {
     case Object::Conversion::kToNumeric:
       return os << "ToNumeric";
   }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
@@ -2043,6 +2044,7 @@ bool HeapObject::NeedsRehashing(InstanceType instance_type) const {
     default:
       return false;
   }
+  UNREACHABLE();
 }
 
 bool HeapObject::CanBeRehashed(PtrComprCageBase cage_base) const {
@@ -2078,6 +2080,7 @@ bool HeapObject::CanBeRehashed(PtrComprCageBase cage_base) const {
     default:
       return false;
   }
+  UNREACHABLE();
 }
 
 template <typename IsolateT>
@@ -6274,6 +6277,7 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
     case PropertyCellType::kInTransition:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
@@ -6369,6 +6373,7 @@ bool PropertyCell::CanTransitionTo(PropertyDetails new_details,
     case PropertyCellType::kInTransition:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 #endif  // DEBUG
 
