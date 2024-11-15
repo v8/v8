@@ -234,6 +234,7 @@ void Assembler::RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
   static_assert(RelocInfoWriter::kMaxSize * 2 <= kGap);
   {
     EnsureSpace space(this);
+    DCHECK(position.IsKnown());
     RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
     RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
   }

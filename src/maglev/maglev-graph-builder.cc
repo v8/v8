@@ -917,6 +917,9 @@ MaglevGraphBuilder::MaglevGraphBuilder(
       loop_effects_stack_(zone()),
       decremented_predecessor_offsets_(zone()),
       loop_headers_to_peel_(bytecode().length(), zone()),
+      current_source_position_(SourcePosition(
+          compilation_unit_->shared_function_info().StartPosition(),
+          inlining_id)),
       call_frequency_(call_frequency),
       // Add an extra jump_target slot for the inline exit if needed.
       jump_targets_(zone()->AllocateArray<BasicBlockRef>(
