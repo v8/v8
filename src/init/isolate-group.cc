@@ -11,6 +11,7 @@
 #include "src/heap/code-range.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/trusted-range.h"
+#include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
@@ -28,6 +29,8 @@ void IsolateGroup::set_current_non_inlined(IsolateGroup* group) {
   current_ = group;
 }
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+
+IsolateGroup* IsolateGroup::default_isolate_group_ = nullptr;
 
 #ifdef V8_COMPRESS_POINTERS
 struct PtrComprCageReservationParams
@@ -119,13 +122,10 @@ void IsolateGroup::Initialize(bool process_wide) {
 #endif  // V8_ENABLE_SANDBOX
 
 // static
-IsolateGroup* IsolateGroup::GetDefault() {
-  static base::LeakyObject<IsolateGroup> default_isolate_group;
-  return default_isolate_group.get();
-}
-
-// static
 void IsolateGroup::InitializeOncePerProcess() {
+  static base::LeakyObject<IsolateGroup> default_isolate_group;
+  default_isolate_group_ = default_isolate_group.get();
+
   IsolateGroup* group = GetDefault();
 
   DCHECK_NULL(group->page_allocator_);
@@ -147,6 +147,10 @@ void IsolateGroup::InitializeOncePerProcess() {
 #endif  // V8_EXTERNAL_CODE_SPACE
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   IsolateGroup::set_current(group);
+#endif
+
+#ifdef V8_ENABLE_SANDBOX
+  group->code_pointer_table()->Initialize();
 #endif
 }
 

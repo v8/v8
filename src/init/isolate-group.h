@@ -169,15 +169,17 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   friend class base::LeakyObject<IsolateGroup>;
   friend class PoolTest;
 
+  // Unless you manually create a new isolate group, all isolates in a process
+  // are in the same isolate group and share process-wide resources from
+  // that default group.
+  static IsolateGroup* default_isolate_group_;
+
   IsolateGroup();
   ~IsolateGroup();
   IsolateGroup(const IsolateGroup&) = delete;
   IsolateGroup& operator=(const IsolateGroup&) = delete;
 
-  // Unless you manually create a new isolate group, all isolates in a process
-  // are in the same isolate group and share process-wide resources from
-  // that default group.
-  static IsolateGroup* GetDefault();
+  V8_INLINE static IsolateGroup* GetDefault() { return default_isolate_group_; }
 
   // Only used for testing.
   static void ReleaseDefault();
