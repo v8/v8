@@ -4259,7 +4259,14 @@ void Script::InitLineEndsInternal(IsolateT* isolate,
 void Script::SetSource(Isolate* isolate, DirectHandle<Script> script,
                        DirectHandle<String> source) {
   script->set_source(*source);
-  if (isolate->NeedsSourcePositions()) InitLineEnds(isolate, script);
+  if (isolate->NeedsSourcePositions()) {
+    InitLineEnds(isolate, script);
+  } else if (script->line_ends() ==
+             ReadOnlyRoots(isolate).empty_fixed_array()) {
+    DCHECK(script->has_line_ends());
+    script->set_line_ends(Smi::zero());
+    DCHECK(!script->has_line_ends());
+  }
 }
 
 template EXPORT_TEMPLATE_DEFINE(
