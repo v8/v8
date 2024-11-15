@@ -217,10 +217,6 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // module. This flag allows this reloc info to be disabled for code that
   // will not survive process destruction.
   bool record_reloc_info_for_serialization = true;
-  // Recording reloc info can be disabled wholesale. This is needed when the
-  // assembler is used on existing code directly (e.g. JumpTableAssembler)
-  // without any buffer to hold reloc information.
-  bool disable_reloc_info_for_patching = false;
   // Enables root-relative access to arbitrary untagged addresses (usually
   // external references). Only valid if code will not survive the process.
   bool enable_root_relative_access = false;
@@ -531,7 +527,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
     DCHECK(!RelocInfo::IsNoInfo(rmode));
-    if (options().disable_reloc_info_for_patching) return false;
     if (RelocInfo::IsOnlyForSerializer(rmode) &&
         !options().record_reloc_info_for_serialization &&
         !v8_flags.debug_code) {
