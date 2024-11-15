@@ -674,6 +674,7 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
 BUILTIN(ArrayBufferPrototypeTransfer) {
   const char kMethodName[] = "ArrayBuffer.prototype.transfer";
   HandleScope scope(isolate);
+  isolate->CountUsage(v8::Isolate::kArrayBufferTransfer);
 
   // 1. Perform ? RequireInternalSlot(arrayBuffer, [[ArrayBufferData]]).
   CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
@@ -687,6 +688,7 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
 BUILTIN(ArrayBufferPrototypeTransferToFixedLength) {
   const char kMethodName[] = "ArrayBuffer.prototype.transferToFixedLength";
   HandleScope scope(isolate);
+  isolate->CountUsage(v8::Isolate::kArrayBufferTransfer);
 
   // 1. Perform ? RequireInternalSlot(arrayBuffer, [[ArrayBufferData]]).
   CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);

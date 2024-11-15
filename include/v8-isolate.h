@@ -556,6 +556,11 @@ class V8_EXPORT Isolate {
     kIteratorMethods = 149,
     kPromiseAny = 150,
     kSetMethods = 151,
+    kArrayFindLast = 152,
+    kArrayGroup = 153,
+    kArrayBufferTransfer = 154,
+    kPromiseWithResolvers = 155,
+    kAtomicsWaitAsync = 156,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to

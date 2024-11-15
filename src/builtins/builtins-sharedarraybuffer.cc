@@ -269,6 +269,7 @@ BUILTIN(AtomicsWaitAsync) {
   Handle<Object> index = args.atOrUndefined(isolate, 2);
   Handle<Object> value = args.atOrUndefined(isolate, 3);
   Handle<Object> timeout = args.atOrUndefined(isolate, 4);
+  isolate->CountUsage(v8::Isolate::kAtomicsWaitAsync);
 
   return DoWait(isolate, FutexEmulation::WaitMode::kAsync, array, index, value,
                 timeout);
