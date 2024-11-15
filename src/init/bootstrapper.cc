@@ -6615,7 +6615,9 @@ bool Genesis::InstallSpecialObjects(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-  SandboxTesting::InstallMemoryCorruptionApiIfEnabled(isolate);
+  if (v8_flags.expose_memory_corruption_api) {
+    SandboxTesting::InstallMemoryCorruptionApi(isolate);
+  }
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
   return true;

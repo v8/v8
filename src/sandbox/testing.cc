@@ -457,13 +457,11 @@ void InstallConstructor(Isolate* isolate, Handle<JSObject> holder,
 }
 }  // namespace
 
-void SandboxTesting::InstallMemoryCorruptionApiIfEnabled(Isolate* isolate) {
+void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
 #ifndef V8_ENABLE_MEMORY_CORRUPTION_API
 #error "This function should not be available in any shipping build "          \
        "where it could potentially be abused to facilitate exploitation."
 #endif
-
-  if (!IsEnabled()) return;
 
   CHECK(GetProcessWideSandbox()->is_initialized());
 

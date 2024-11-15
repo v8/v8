@@ -63,8 +63,7 @@ class SandboxTesting : public AllStatic {
   //
   // This can be used for testing the sandbox, for example to write regression
   // tests for bugs in the sandbox or to develop fuzzers.
-  V8_EXPORT_PRIVATE static void InstallMemoryCorruptionApiIfEnabled(
-      Isolate* isolate);
+  V8_EXPORT_PRIVATE static void InstallMemoryCorruptionApi(Isolate* isolate);
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
   // The current sandbox testing mode.

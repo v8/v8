@@ -2787,36 +2787,49 @@ DEFINE_BOOL(
 //
 #ifdef V8_ENABLE_SANDBOX
 DEFINE_BOOL(sandbox_testing, false,
-            "Enable sandbox testing mode. Useful for demonstrating and "
-            "validating sandbox bypasses. This exposes the memory corruption "
-            "API and enables the sandbox crash filter to filter out crashes "
-            "that do not represent a sandbox bypass")
+            "Enable sandbox testing mode. This exposes the memory corruption "
+            "API (if available) and enables the sandbox crash filter to "
+            "terminate the process (with status zero) if a crash that does not "
+            "represent a sandbox violation is detected.")
 #else
 DEFINE_BOOL_READONLY(
     sandbox_testing, false,
-    "Enable sandbox testing mode. Useful for demonstrating and validating "
-    "sandbox bypasses. This exposes the memory corruption API and enables the "
-    "sandbox crash filter to filter out crashes that do not represent a "
-    "sandbox bypass")
+    "Enable sandbox testing mode. This exposes the memory corruption API (if "
+    "available) and enables the sandbox crash filter to terminate the process "
+    "(with status zero) if a crash that does not represent a sandbox violation "
+    "is detected.")
 #endif
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 // Sandbox fuzzing mode requires the memory corruption API.
 DEFINE_BOOL(sandbox_fuzzing, false,
             "Enable sandbox fuzzing mode. This exposes the memory corruption "
-            "API and enables the sandbox crash filter, causing all crashes "
-            "that are not sandbox violations to be ignored.")
+            "API and enables the sandbox crash filter to terminate the process "
+            "(with non-zero status) if a crash that does not represent a "
+            "sandbox violation is detected.")
 #else
-DEFINE_BOOL_READONLY(
-    sandbox_fuzzing, false,
-    "Enable sandbox fuzzing mode. This exposes the memory corruption API and "
-    "enables the sandbox crash filter, causing all crashes that are not "
-    "sandbox violations to be ignored.")
+DEFINE_BOOL_READONLY(sandbox_fuzzing, false,
+                     "Enable sandbox fuzzing mode. This exposes the memory "
+                     "corruption API and enables the sandbox crash filter to "
+                     "terminate the process (with non-zero status) if a crash "
+                     "that does not represent a sandbox violation is detected.")
 #endif
 
 // Only one of these can be enabled.
 DEFINE_NEG_IMPLICATION(sandbox_fuzzing, sandbox_testing)
 DEFINE_NEG_IMPLICATION(sandbox_testing, sandbox_fuzzing)
+
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+DEFINE_BOOL(expose_memory_corruption_api, false,
+            "Exposes the memory corruption API. Set automatically by "
+            "--sandbox-testing and --sandbox-fuzzing.")
+DEFINE_IMPLICATION(sandbox_fuzzing, expose_memory_corruption_api)
+DEFINE_IMPLICATION(sandbox_testing, expose_memory_corruption_api)
+#else
+DEFINE_BOOL_READONLY(expose_memory_corruption_api, false,
+                     "Exposes the memory corruption API. Set automatically by "
+                     "--sandbox-testing and --sandbox-fuzzing.")
+#endif
 
 #if defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 // FreezeFlags relies on mprotect() method, which does not work by default on
