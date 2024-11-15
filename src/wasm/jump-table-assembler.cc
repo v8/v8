@@ -397,9 +397,8 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   relative_target_addr = base::bits::ReverseBytes(relative_target_addr);
 #endif
   memcpy(&inst[2], &relative_target_addr, sizeof(int32_t));
-  for (size_t i = 0; i < kJumpTableSlotSize; i++) {
-    emit<uint8_t>(inst[i], kRelaxedStore);
-  }
+  // The jump table is updated live, so the write has to be atomic.
+  emit<uint64_t>(*reinterpret_cast<uint64_t*>(inst), kRelaxedStore);
 
   return true;
 }
@@ -631,6 +630,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   };
 
   CHECK((relative_target & (kAAMask | kLKMask)) == 0);
+  // The jump table is updated live, so the write has to be atomic.
   emit<uint32_t>(inst[0] | relative_target, kRelaxedStore);
   return true;
 }
