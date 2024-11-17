@@ -2355,6 +2355,28 @@ class LiftoffCompiler {
     __ PushRegister(result_kind, dst);
   }
 
+  // We do not use EmitBinOp for Swizzle because in the no-avx case, we have the
+  // additional constraint that dst does not alias the mask.
+  void EmitI8x16Swizzle(bool relaxed) {
+    static constexpr RegClass result_rc = reg_class_for(kS128);
+    LiftoffRegister mask = __ PopToRegister();
+    LiftoffRegister src = __ PopToRegister(LiftoffRegList{mask});
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+    LiftoffRegister dst =
+        CpuFeatures::IsSupported(AVX)
+            ? __ GetUnusedRegister(result_rc, {src, mask}, {})
+            : __ GetUnusedRegister(result_rc, {src}, LiftoffRegList{mask});
+#else
+    LiftoffRegister dst = __ GetUnusedRegister(result_rc, {src, mask}, {});
+#endif
+    if (relaxed) {
+      __ emit_i8x16_relaxed_swizzle(dst, src, mask);
+    } else {
+      __ emit_i8x16_swizzle(dst, src, mask);
+    }
+    __ PushRegister(kS128, dst);
+  }
+
   void EmitDivOrRem64CCall(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs, ExternalReference ext_ref,
                            Label* trap_by_zero,
@@ -4407,10 +4429,9 @@ class LiftoffCompiler {
     CHECK(CpuFeatures::SupportsWasmSimd128());
     switch (opcode) {
       case wasm::kExprI8x16Swizzle:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_swizzle);
+        return EmitI8x16Swizzle(false);
       case wasm::kExprI8x16RelaxedSwizzle:
-        return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i8x16_relaxed_swizzle);
+        return EmitI8x16Swizzle(true);
       case wasm::kExprI8x16Popcnt:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_popcnt);
       case wasm::kExprI8x16Splat:
