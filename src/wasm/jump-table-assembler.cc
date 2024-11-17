@@ -651,24 +651,37 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   if (!is_int32(relative_target)) {
     return false;
   }
-  int64_t high_20 = (relative_target + 0x800) >> 12;
-  int64_t low_12 = int64_t(relative_target) << 52 >> 52;
-  const uint32_t inst[kJumpTableSlotSize / kInstrSize] = {
-      (RO_AUIPC | (t6.code() << kRdShift) |
-       int32_t(high_20 << kImm20Shift)),  // auipc t6, high_20
-      (RO_JALR | (zero_reg.code() << kRdShift) | (t6.code() << kRs1Shift) |
-       int32_t(low_12 << kImm12Shift)),  // jalr t6, t6, low_12
-  };
+
+  uint32_t inst[kJumpTableSlotSize / kInstrSize] = {kNopByte, kNopByte};
+  if (is_int21(relative_target)) {
+    inst[0] =
+        (RO_JAL | (zero_reg.code() << kRdShift) |
+         uint32_t(relative_target & 0xff000) |           // bits 19-12
+         uint32_t((relative_target & 0x800) << 9) |      // bit  11
+         uint32_t((relative_target & 0x7fe) << 20) |     // bits 10-1
+         uint32_t((relative_target & 0x100000) << 11));  // bit  20 ),  // jal
+  } else {
+    int64_t high_20 = (relative_target + 0x800) >> 12;
+    int64_t low_12 = int64_t(relative_target) << 52 >> 52;
+    inst[0] = (RO_AUIPC | (t6.code() << kRdShift) |
+               int32_t(high_20 << kImm20Shift));  // auipc t6, high_20
+    inst[1] =
+        (RO_JALR | (zero_reg.code() << kRdShift) | (t6.code() << kRs1Shift) |
+         int32_t(low_12 << kImm12Shift));  // jalr t6, t6, low_12
+  }
 
   // This function is also used for patching existing jump slots and the writes
   // need to be atomic.
   emit<uint64_t>(uint64_t(inst[1]) << 32 | inst[0], kRelaxedStore);
   DCHECK_EQ(relative_target,
-            MacroAssembler::BrachlongOffset(
-                Instruction::At((unsigned char*)pc_ - 2 * kInstrSize)
-                    ->InstructionBits(),
-                Instruction::At((unsigned char*)pc_ - kInstrSize)
-                    ->InstructionBits()));
+            !is_int21(relative_target)
+                ? MacroAssembler::BrachlongOffset(
+                      Instruction::At((unsigned char*)pc_ - 2 * kInstrSize)
+                          ->InstructionBits(),
+                      Instruction::At((unsigned char*)pc_ - kInstrSize)
+                          ->InstructionBits())
+                : Instruction::At((unsigned char*)pc_ - 2 * kInstrSize)
+                      ->Imm20JValue());
   return true;
 }
 
@@ -694,18 +707,17 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 }
 
 // static
-void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
+                                          Address slot, Address target) {
   // See {EmitFarJumpSlot} for the offset of the target (16 bytes with
   // CFI enabled, 8 bytes otherwise).
   int kTargetOffset = kFarJumpTableSlotSize - sizeof(Address);
-  reinterpret_cast<std::atomic<Address>*>(slot + kTargetOffset)
-      ->store(target, std::memory_order_relaxed);
+  jit_allocation.WriteValue(slot + kTargetOffset, target, kRelaxedStore);
   // The data update is guaranteed to be atomic since it's a properly aligned
   // and stores a single machine word. This update will eventually be observed
   // by any concurrent [ldr] on the same address because of the data cache
   // coherence. It's ok if other cores temporarily jump to the old target.
 }
-
 
 void JumpTableAssembler::SkipUntil(int offset) {
   // On this platform the jump table is not zapped with valid instructions, so
@@ -770,7 +782,8 @@ void JumpTableAssembler::EmitFarJumpSlot(Address target) {
 }
 
 // static
-void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+void JumpTableAssembler::PatchFarJumpSlot(WritableJitAllocation& jit_allocation,
+                                          Address slot, Address target) {
   UNREACHABLE();
 }
 
