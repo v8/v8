@@ -2279,9 +2279,78 @@ void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
   }
 }
 
+namespace {
+void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
+  // Check that:
+  //   * There aren't any duplicate scope info. Every scope/context should
+  //     correspond to at most one scope info.
+  //   * All published SFIs refer to the old script (i.e. we chose new vs old
+  //     correctly, and updated new SFIs where needed).
+  //   * All constant pool SFI entries point to an SFI referring to the old
+  //     script (i.e. references were updated correctly).
+  std::unordered_map<int, Tagged<ScopeInfo>> scope_infos;
+  for (int i = 0; i < script->infos()->length(); i++) {
+    Tagged<ScopeInfo> scope_info;
+    if (!script->infos()->get(i).IsWeak()) continue;
+    Tagged<HeapObject> info = script->infos()->get(i).GetHeapObjectAssumeWeak();
+    if (Is<SharedFunctionInfo>(info)) {
+      Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(info);
+      CHECK_EQ(sfi->script(), *script);
+
+      if (sfi->HasBytecodeArray()) {
+        Tagged<BytecodeArray> bytecode = sfi->GetBytecodeArray(isolate);
+        Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
+        for (int i = 0; i < constant_pool->length(); ++i) {
+          Tagged<Object> entry = constant_pool->get(i);
+          if (Is<SharedFunctionInfo>(entry)) {
+            Tagged<SharedFunctionInfo> inner_sfi =
+                Cast<SharedFunctionInfo>(entry);
+            int id = inner_sfi->function_literal_id();
+            CHECK_EQ(MakeWeak(inner_sfi), script->infos()->get(id));
+            CHECK_EQ(inner_sfi->script(), *script);
+          }
+        }
+      }
+
+      if (!sfi->scope_info()->IsEmpty()) {
+        scope_info = sfi->scope_info();
+      } else if (sfi->HasOuterScopeInfo()) {
+        scope_info = sfi->GetOuterScopeInfo();
+      } else {
+        continue;
+      }
+    } else {
+      scope_info = Cast<ScopeInfo>(info);
+    }
+    while (true) {
+      auto it = scope_infos.find(scope_info->UniqueIdInScript());
+      if (it != scope_infos.end()) {
+        if (*it->second != scope_info) {
+          isolate->PushParamsAndDie(reinterpret_cast<void*>(it->second->ptr()),
+                                    reinterpret_cast<void*>(scope_info.ptr()));
+          UNREACHABLE();
+        }
+        break;
+      }
+      scope_infos[scope_info->UniqueIdInScript()] = scope_info;
+      if (!scope_info->HasOuterScopeInfo()) break;
+      scope_info = scope_info->OuterScopeInfo();
+    }
+  }
+}
+}  // namespace
+
 void BackgroundMergeTask::SetUpOnMainThread(
     Isolate* isolate, DirectHandle<Script> cached_script) {
   // Any data sent to the background thread will need to be a persistent handle.
+#ifdef DEBUG
+  VerifyCodeMerge(isolate, cached_script);
+#else
+  if (v8_flags.verify_code_merge) {
+    VerifyCodeMerge(isolate, cached_script);
+  }
+#endif
+
   persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
   state_ = kPendingBackgroundWork;
   cached_script_ = persistent_handles_->NewHandle(*cached_script);
@@ -2350,13 +2419,7 @@ void BackgroundMergeTask::BeginMergeInBackground(
           // Also push the old_sfi to make sure it stays alive / isn't replaced.
           new_compiled_data_for_cached_sfis_.push_back(
               {old_sfi_handle, local_heap->NewPersistentHandle(new_sfi)});
-          // Pick up existing scope infos from the old sfi. The new sfi will be
-          // copied over the old sfi later. This will ensure that we'll keep
-          // using the old sfis. This will also allow us check later whether new
-          // scope infos have appeared that need to be reused.
-          if (!old_sfi->scope_info()->IsEmpty()) {
-            new_sfi->SetScopeInfo(old_sfi->scope_info());
-          } else if (old_sfi->HasOuterScopeInfo()) {
+          if (old_sfi->HasOuterScopeInfo()) {
             new_sfi->scope_info()->set_outer_scope_info(
                 old_sfi->GetOuterScopeInfo());
           }
@@ -2412,66 +2475,6 @@ void BackgroundMergeTask::BeginMergeInBackground(
   state_ = kPendingForegroundWork;
 }
 
-namespace {
-void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
-  // Check that:
-  //   * There aren't any duplicate scope info. Every scope/context should
-  //     correspond to at most one scope info.
-  //   * All published SFIs refer to the old script (i.e. we chose new vs old
-  //     correctly, and updated new SFIs where needed).
-  //   * All constant pool SFI entries point to an SFI referring to the old
-  //     script (i.e. references were updated correctly).
-  std::unordered_map<int, Tagged<ScopeInfo>> scope_infos;
-  for (int i = 0; i < script->infos()->length(); i++) {
-    Tagged<ScopeInfo> scope_info;
-    if (!script->infos()->get(i).IsWeak()) continue;
-    Tagged<HeapObject> info = script->infos()->get(i).GetHeapObjectAssumeWeak();
-    if (Is<SharedFunctionInfo>(info)) {
-      Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(info);
-      CHECK_EQ(sfi->script(), *script);
-
-      if (sfi->HasBytecodeArray()) {
-        Tagged<BytecodeArray> bytecode = sfi->GetBytecodeArray(isolate);
-        Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
-        for (int i = 0; i < constant_pool->length(); ++i) {
-          Tagged<Object> entry = constant_pool->get(i);
-          if (Is<SharedFunctionInfo>(entry)) {
-            Tagged<SharedFunctionInfo> inner_sfi =
-                Cast<SharedFunctionInfo>(entry);
-            int id = inner_sfi->function_literal_id();
-            CHECK_EQ(MakeWeak(inner_sfi), script->infos()->get(id));
-            CHECK_EQ(inner_sfi->script(), *script);
-          }
-        }
-      }
-
-      if (!sfi->scope_info()->IsEmpty()) {
-        scope_info = sfi->scope_info();
-      } else if (sfi->HasOuterScopeInfo()) {
-        scope_info = sfi->GetOuterScopeInfo();
-      } else {
-        continue;
-      }
-    } else {
-      scope_info = Cast<ScopeInfo>(info);
-    }
-    while (true) {
-      auto it = scope_infos.find(scope_info->UniqueIdInScript());
-      if (it != scope_infos.end()) {
-        if (*it->second != scope_info) {
-          isolate->PushParamsAndDie(reinterpret_cast<void*>(it->second->ptr()),
-                                    reinterpret_cast<void*>(scope_info.ptr()));
-          UNREACHABLE();
-        }
-        break;
-      }
-      scope_infos[scope_info->UniqueIdInScript()] = scope_info;
-      if (!scope_info->HasOuterScopeInfo()) break;
-      scope_info = scope_info->OuterScopeInfo();
-    }
-  }
-}
-}  // namespace
 Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
     Isolate* isolate, DirectHandle<Script> new_script) {
   DCHECK_EQ(state_, kPendingForegroundWork);
@@ -2491,8 +2494,8 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       // new_sfi to cached_sfi. The safest way to do so (including a DCHECK that
       // no fields were skipped) is to first copy the script from
       // cached_sfi to new_sfi, and then copy every field using CopyFrom.
-      new_compiled_data.new_sfi->set_script(
-          new_compiled_data.cached_sfi->script(kAcquireLoad), kReleaseStore);
+      new_compiled_data.new_sfi->set_script(sfi->script(kAcquireLoad),
+                                            kReleaseStore);
       sfi->CopyFrom(*new_compiled_data.new_sfi, isolate);
     }
   }

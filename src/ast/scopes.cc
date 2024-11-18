@@ -2690,6 +2690,15 @@ void Scope::AllocateScopeInfosRecursively(
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
       scope->AllocateScopeInfosRecursively(isolate, next_outer_scope,
                                            scope_infos_to_reuse);
+    } else if (v8_flags.reuse_scope_infos) {
+      auto it = scope_infos_to_reuse.find(scope->UniqueIdInScript());
+      if (it != scope_infos_to_reuse.end()) {
+        scope->scope_info_ = it->second;
+#ifdef DEBUG
+        // Consume the scope info
+        it->second = {};
+#endif
+      }
     }
   }
 }
