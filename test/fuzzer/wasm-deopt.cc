@@ -270,10 +270,20 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   }
 
   Handle<WasmModuleObject> module_object = compiled.ToHandleChecked();
-  Handle<WasmInstanceObject> instance =
-      GetWasmEngine()
-          ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
-          .ToHandleChecked();
+  Handle<WasmInstanceObject> instance;
+  if (!GetWasmEngine()
+           ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
+           .ToHandle(&instance)) {
+    DCHECK(thrower.error());
+    // The only reason to fail the second instantiation should be OOM. This can
+    // happen e.g. for memories with a very big initial size especially on 32
+    // bit platforms.
+    if (strstr(thrower.error_msg(), "Out of memory")) {
+      return -1;  // Return -1 to not add this case to the corpus.
+    }
+    FATAL("Second instantiation failed unexpectedly: %s", thrower.error_msg());
+  }
+  DCHECK(!thrower.error());
 
   DirectHandle<WasmExportedFunction> main_function =
       testing::GetExportedFunction(i_isolate, instance, "main")
