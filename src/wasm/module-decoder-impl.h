@@ -568,17 +568,30 @@ class ModuleDecoderImpl : public Decoder {
     if (tracer_) tracer_->Description(TypeKindName(kind));
     switch (kind) {
       case kWasmFunctionTypeCode: {
-        const FunctionSig* sig = consume_sig(&module_->signature_zone);
+        const FunctionSig* sig = consume_sig(&module_->signature_zone, shared);
+        if (sig == nullptr) {
+          CHECK(!ok());
+          return {};
+        }
         return {sig, kNoSuperType, is_final, shared};
       }
       case kWasmStructTypeCode: {
         module_->is_wasm_gc = true;
-        const StructType* type = consume_struct(&module_->signature_zone);
+        const StructType* type =
+            consume_struct(&module_->signature_zone, shared);
+        if (type == nullptr) {
+          CHECK(!ok());
+          return {};
+        }
         return {type, kNoSuperType, is_final, shared};
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
-        const ArrayType* type = consume_array(&module_->signature_zone);
+        const ArrayType* type = consume_array(&module_->signature_zone, shared);
+        if (type == nullptr) {
+          CHECK(!ok());
+          return {};
+        }
         return {type, kNoSuperType, is_final, shared};
       }
       default:
@@ -759,7 +772,18 @@ class ModuleDecoderImpl : public Decoder {
           });
           WasmTable* table = &module_->tables.back();
           consume_table_flags(table);
-          if (table->shared) module_->has_shared_part = true;
+          DCHECK_IMPLIES(table->shared,
+                         v8_flags.experimental_wasm_shared || !ok());
+          if (table->shared && v8_flags.experimental_wasm_shared) {
+            module_->has_shared_part = true;
+            if (!IsShared(type, module_.get())) {
+              errorf(type_position,
+                     "Shared table %i must have shared element type, actual "
+                     "type %s",
+                     i, type.name().c_str());
+              break;
+            }
+          }
           // Note that we should not throw an error if the declared maximum size
           // is oob. We will instead fail when growing at runtime.
           uint64_t kNoMaximum = kMaxUInt64;
@@ -910,7 +934,17 @@ class ModuleDecoderImpl : public Decoder {
       table->type = table_type;
 
       consume_table_flags(table);
-      if (table->shared) module_->has_shared_part = true;
+      DCHECK_IMPLIES(table->shared, v8_flags.experimental_wasm_shared || !ok());
+      if (table->shared && v8_flags.experimental_wasm_shared) {
+        module_->has_shared_part = true;
+        if (!IsShared(table_type, module_.get())) {
+          errorf(
+              type_position,
+              "Shared table %i must have shared element type, actual type %s",
+              i + module_->num_imported_tables, table_type.name().c_str());
+          break;
+        }
+      }
       // Note that we should not throw an error if the declared maximum size is
       // oob. We will instead fail when growing at runtime.
       uint64_t kNoMaximum = kMaxUInt64;
@@ -975,9 +1009,16 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < globals_count; ++i) {
       TRACE("DecodeGlobal[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
       if (tracer_) tracer_->GlobalOffset(pc_offset());
+      const uint8_t* pos = pc_;
       ValueType type = consume_value_type();
       auto [mutability, shared] = consume_global_flags();
-      if (failed()) break;
+      if (failed()) return;
+      if (shared && !IsShared(type, module_.get())) {
+        CHECK(v8_flags.experimental_wasm_shared);
+        errorf(pos, "Shared global %i must have shared type, actual type %s",
+               i + imported_globals, type.name().c_str());
+        return;
+      }
       // Validation that {type} and {shared} are compatible will happen in
       // {consume_init_expr}.
       ConstantExpression init = consume_init_expr(module_.get(), type, shared);
@@ -1719,7 +1760,8 @@ class ModuleDecoderImpl : public Decoder {
     pc_ = start_;
     expect_u8("type form", kWasmFunctionTypeCode);
     WasmFunction function;
-    function.sig = consume_sig(zone);
+    const bool is_shared = false;
+    function.sig = consume_sig(zone, is_shared);
     function.code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
 
     if (!ok()) return FunctionResult{std::move(error_)};
@@ -1737,10 +1779,12 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Decodes a single function signature at {start}.
-  const FunctionSig* DecodeFunctionSignature(Zone* zone, const uint8_t* start) {
+  const FunctionSig* DecodeFunctionSignatureForTesting(Zone* zone,
+                                                       const uint8_t* start) {
     pc_ = start;
     if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
-    const FunctionSig* result = consume_sig(zone);
+    const bool is_shared = false;
+    const FunctionSig* result = consume_sig(zone, is_shared);
     return ok() ? result : nullptr;
   }
 
@@ -2244,7 +2288,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  const FunctionSig* consume_sig(Zone* zone) {
+  const FunctionSig* consume_sig(Zone* zone, bool is_shared) {
     if (tracer_) tracer_->NextLine();
     // Parse parameter types.
     uint32_t param_count =
@@ -2254,7 +2298,17 @@ class ModuleDecoderImpl : public Decoder {
     // storage later.
     base::SmallVector<ValueType, 8> params{param_count};
     for (uint32_t i = 0; i < param_count; ++i) {
-      params[i] = consume_value_type();
+      const uint8_t* pos = pc_;
+      ValueType param_type = consume_value_type();
+      if (is_shared && !IsShared(param_type, module_.get())) {
+        CHECK(v8_flags.experimental_wasm_shared);
+        errorf(pos,
+               "Shared signature types must have shared parameter types, "
+               "actual type %s for parameter %i",
+               param_type.name().c_str(), i);
+        return nullptr;
+      }
+      params[i] = param_type;
       if (tracer_) tracer_->NextLineIfFull();
     }
     if (tracer_) tracer_->NextLineIfNonEmpty();
@@ -2269,7 +2323,17 @@ class ModuleDecoderImpl : public Decoder {
     // Note: Returns come first in the signature storage.
     std::copy_n(params.begin(), param_count, sig_storage + return_count);
     for (uint32_t i = 0; i < return_count; ++i) {
-      sig_storage[i] = consume_value_type();
+      const uint8_t* pos = pc_;
+      ValueType return_type = consume_value_type();
+      if (is_shared && !IsShared(return_type, module_.get())) {
+        CHECK(v8_flags.experimental_wasm_shared || !ok());
+        errorf(pos,
+               "Shared signature types must have shared return types, actual "
+               "type %s for return %i",
+               return_type.name().c_str(), i);
+        return nullptr;
+      }
+      sig_storage[i] = return_type;
       if (tracer_) tracer_->NextLineIfFull();
     }
     if (tracer_) tracer_->NextLineIfNonEmpty();
@@ -2277,14 +2341,24 @@ class ModuleDecoderImpl : public Decoder {
     return zone->New<FunctionSig>(return_count, param_count, sig_storage);
   }
 
-  const StructType* consume_struct(Zone* zone) {
+  const StructType* consume_struct(Zone* zone, bool is_shared) {
     uint32_t field_count =
         consume_count(", field count", kV8MaxWasmStructFields);
     if (failed()) return nullptr;
     ValueType* fields = zone->AllocateArray<ValueType>(field_count);
     bool* mutabilities = zone->AllocateArray<bool>(field_count);
     for (uint32_t i = 0; ok() && i < field_count; ++i) {
-      fields[i] = consume_storage_type();
+      const uint8_t* pos = pc_;
+      ValueType field_type = consume_storage_type();
+      if (is_shared && !IsShared(field_type, module_.get())) {
+        CHECK(v8_flags.experimental_wasm_shared);
+        errorf(pos,
+               "Shared struct type must have shared field types, actual type "
+               "%s for field %i",
+               field_type.name().c_str(), i);
+        return nullptr;
+      }
+      fields[i] = field_type;
       mutabilities[i] = consume_mutability();
       if (tracer_) tracer_->NextLine();
     }
@@ -2296,8 +2370,16 @@ class ModuleDecoderImpl : public Decoder {
     return result;
   }
 
-  const ArrayType* consume_array(Zone* zone) {
+  const ArrayType* consume_array(Zone* zone, bool is_shared) {
+    const uint8_t* pos = pc_;
     ValueType element_type = consume_storage_type();
+    if (is_shared && !IsShared(element_type, module_.get())) {
+      CHECK(v8_flags.experimental_wasm_shared);
+      errorf(pos,
+             "Shared array type must have shared element type, actual type %s",
+             element_type.name().c_str());
+      return nullptr;
+    }
     bool mutability = consume_mutability();
     if (tracer_) tracer_->NextLine();
     if (failed()) return nullptr;

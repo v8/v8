@@ -1314,6 +1314,7 @@ class MjsunitModuleDis {
             out_ << "undefined, ";
           }
           names()->PrintValueType(out_, table.type, kEmitObjects);
+          out_ << ", /*shared*/ " << (table.shared ? "true" : "false");
           if (table.is_table64()) out_ << ", true";
           break;
         }

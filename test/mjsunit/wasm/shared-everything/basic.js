@@ -189,7 +189,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                  [kExprRefFunc, adder.index]);
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-               /ref.func does not have a shared type/);
+               /Shared global 0 must have shared type, actual type \(ref 0\)/);
 })();
 
 (function DataSegmentInFunction() {

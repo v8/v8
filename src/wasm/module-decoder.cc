@@ -192,7 +192,8 @@ Result<const FunctionSig*> DecodeWasmSignatureForTesting(
   WasmDetectedFeatures unused_detected_features;
   ModuleDecoderImpl decoder{enabled_features, bytes, kWasmOrigin,
                             &unused_detected_features};
-  return decoder.toResult(decoder.DecodeFunctionSignature(zone, bytes.begin()));
+  return decoder.toResult(
+      decoder.DecodeFunctionSignatureForTesting(zone, bytes.begin()));
 }
 
 ConstantExpression DecodeWasmInitExprForTesting(
