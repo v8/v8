@@ -252,6 +252,13 @@ bool MaybeEmptyAspectIncludes(const As& as, const Bs& bs,
                                           [](auto x) { return x.empty(); });
 }
 
+template <typename As, typename Bs, typename Function>
+bool MaybeNullAspectIncludes(const As& as, const Bs& bs,
+                             const Function& Compare) {
+  return AspectIncludes<As, Bs, Function>(as, bs, Compare,
+                                          [](auto x) { return x == nullptr; });
+}
+
 bool NodeInfoIncludes(const NodeInfo& before, const NodeInfo& after) {
   if (!NodeTypeIs(after.type(), before.type())) {
     return false;
@@ -332,8 +339,8 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     return false;
   }
 
-  if (!AspectIncludes(loop_header.loaded_context_slots, loaded_context_slots,
-                      SameValue)) {
+  if (!MaybeNullAspectIncludes(loop_header.loaded_context_slots,
+                               loaded_context_slots, SameValue)) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible loaded_context_slots\n";
     }
