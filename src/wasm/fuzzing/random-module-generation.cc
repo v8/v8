@@ -4748,7 +4748,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
       // All other inlinees call the previous inlinee.
       uint32_t callee_declared_index = declared_func_index - 1;
       EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
-                              use_table64, table_index, &function_range);
+                              table_index, use_table64, &function_range);
     }
     // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
     // always generated.
