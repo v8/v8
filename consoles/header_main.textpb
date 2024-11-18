@@ -92,5 +92,4 @@ console_groups {
   console_ids: "v8/clusterfuzz"
   console_ids: "v8/integration"
   console_ids: "v8/experiments"
-  console_ids: "v8/chromium"
 }
