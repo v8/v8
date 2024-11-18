@@ -721,7 +721,7 @@ class FastCApiObject {
     HandleScope handle_scope(isolate);
 
     double real_arg = 0;
-    if (info.Length() > 0) {
+    if (info.Length() > 0 && info[0]->IsNumber()) {
       real_arg = info[0]->NumberValue(isolate->GetCurrentContext()).FromJust();
     }
     // Special range checks for int64 and uint64. uint64_max rounds to 2^64 when
@@ -736,7 +736,7 @@ class FastCApiObject {
         real_arg >= static_cast<double>(std::numeric_limits<IntegerT>::min());
     if (in_range) {
       IntegerT checked_arg = 0;
-      if (info.Length() > 1) {
+      if (info.Length() > 1 && info[1]->IsNumber()) {
         checked_arg =
             info[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
       }
