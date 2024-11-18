@@ -1755,6 +1755,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     }
     if (v8_flags.script_context_mutable_heap_number ||
         v8_flags.const_tracking_let) {
+      AllowGarbageCollection yes_gc;
       Context::StoreScriptContextAndUpdateSlotProperty(
           handle(script_context, isolate()), lookup_result.slot_index, value,
           isolate());
