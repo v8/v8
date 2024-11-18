@@ -2295,9 +2295,9 @@ void VisitWord32Compare(InstructionSelectorT<Adapter>* selector,
                         FlagsContinuationT<Adapter>* cont) {
   if constexpr (Adapter::IsTurboshaft) {
     using namespace turboshaft;  // NOLINT(build/namespaces)
+#ifdef USE_SIMULATOR
     const Operation& lhs = selector->Get(selector->input_at(node, 0));
     const Operation& rhs = selector->Get(selector->input_at(node, 1));
-#ifdef USE_SIMULATOR
     if (lhs.Is<DidntThrowOp>() || rhs.Is<DidntThrowOp>()) {
       VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
     } else

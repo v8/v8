@@ -3742,12 +3742,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvEnableDebugTrace: {
+#ifdef USE_SIMULATOR
       __ Debug(TRACE_ENABLE | LOG_TRACE | LOG_REGS);
       break;
+#else
+      UNREACHABLE();
+#endif
     }
     case kRiscvDisableDebugTrace: {
+#ifdef USE_SIMULATOR
       __ Debug(TRACE_DISABLE | LOG_TRACE | LOG_REGS);
       break;
+#else
+      UNREACHABLE();
+#endif
     }
     default:
 #ifdef DEBUG
