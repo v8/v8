@@ -3033,10 +3033,13 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadScriptContextSlot(
   int offset = Context::OffsetOfElementAt(index);
   switch (property) {
     case ContextSidePropertyCell::kConst: {
+      compiler::OptionalObjectRef constant = context.get(broker(), index);
+      if (!constant.has_value()) {
+        return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
+                                                                   offset);
+      }
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           context, index, property, broker());
-      compiler::OptionalObjectRef constant = context.get(broker(), index);
-      CHECK(constant.has_value());
       return GetConstant(*constant);
     }
     case ContextSidePropertyCell::kSmi: {
