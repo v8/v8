@@ -2869,7 +2869,7 @@ void LiftoffAssembler::emit_i16x8_gt_u(LiftoffRegister dst, LiftoffRegister lhs,
     ref = kScratchDoubleReg;
   }
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxuw, &Assembler::pmaxuw>(
-      this, dst, lhs, rhs);
+      this, dst, lhs, rhs, SSE4_1);
   Pcmpeqw(dst.fp(), ref);
   Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
   Pxor(dst.fp(), kScratchDoubleReg);
@@ -3219,7 +3219,7 @@ void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminsb, &Assembler::pminsb>(
-      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i8x16_min_u(LiftoffRegister dst,
@@ -3233,7 +3233,7 @@ void LiftoffAssembler::emit_i8x16_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxsb, &Assembler::pmaxsb>(
-      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i8x16_max_u(LiftoffRegister dst,
@@ -3363,7 +3363,7 @@ void LiftoffAssembler::emit_i16x8_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminuw, &Assembler::pminuw>(
-      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i16x8_max_s(LiftoffRegister dst,
@@ -3377,7 +3377,7 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxuw, &Assembler::pmaxuw>(
-      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
@@ -3533,35 +3533,35 @@ void LiftoffAssembler::emit_i32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmulld, &Assembler::pmulld>(
-      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i32x4_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminsd, &Assembler::pminsd>(
-      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i32x4_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminud, &Assembler::pminud>(
-      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i32x4_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxsd, &Assembler::pmaxsd>(
-      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxud, &Assembler::pmaxud>(
-      this, dst, lhs, rhs, std::optional<CpuFeature>(SSE4_1));
+      this, dst, lhs, rhs, SSE4_1);
 }
 
 void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
