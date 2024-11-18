@@ -207,9 +207,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
 
   V8_INLINE void VisitDescriptorsForMap(Tagged<Map> map);
 
-  V8_INLINE size_t VisitFixedArrayWithProgressBar(Tagged<Map> map,
-                                                  Tagged<FixedArray> object,
-                                                  ProgressBar& progress_bar);
+  V8_INLINE size_t
+  VisitFixedArrayWithProgressTracker(Tagged<Map> map, Tagged<FixedArray> object,
+                                     MarkingProgressTracker& progress_tracker);
 
   // Methods needed for supporting code flushing.
   bool ShouldFlushCode(Tagged<SharedFunctionInfo> sfi) const;

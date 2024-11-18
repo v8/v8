@@ -5009,7 +5009,7 @@ void MarkCompactCollector::Evacuate() {
         MarkBit::From(object).Clear();
         p->SetLiveBytes(0);
       }
-      p->ProgressBar().ResetIfEnabled();
+      p->MarkingProgressTracker().ResetIfEnabled();
     }
     promoted_large_pages_.clear();
 
@@ -6001,7 +6001,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
       MarkBit::From(object).Clear();
       current->SetLiveBytes(0);
     }
-    current->ProgressBar().ResetIfEnabled();
+    current->MarkingProgressTracker().ResetIfEnabled();
     surviving_object_size += static_cast<size_t>(object->Size(cage_base));
   }
   space->set_objects_size(surviving_object_size);

@@ -1033,7 +1033,7 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
     }
     chunk->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
     chunk->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
-    current->ProgressBar().ResetIfEnabled();
+    current->MarkingProgressTracker().ResetIfEnabled();
     EvacuateExternalPointerReferences(current);
     old_lo_space->PromoteNewLargeObject(current);
     has_promoted_pages = true;

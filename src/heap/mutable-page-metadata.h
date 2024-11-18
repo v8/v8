@@ -179,8 +179,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // Approximate amount of physical memory committed for this chunk.
   V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const;
 
-  class ProgressBar& ProgressBar() { return progress_bar_; }
-  const class ProgressBar& ProgressBar() const { return progress_bar_; }
+  class MarkingProgressTracker& MarkingProgressTracker() {
+    return marking_progress_tracker_;
+  }
+  const class MarkingProgressTracker& MarkingProgressTracker() const {
+    return marking_progress_tracker_;
+  }
 
   inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                  size_t amount);
@@ -305,8 +309,9 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES] = {nullptr};
 
   // Used by the marker to keep track of the scanning progress in large objects
-  // that have a progress bar and are scanned in increments.
-  class ProgressBar progress_bar_;
+  // that have a progress tracker and are scanned in increments and
+  // concurrently.
+  class MarkingProgressTracker marking_progress_tracker_;
 
   // Count of bytes marked black on page. With sticky mark-bits, the counter
   // represents the size of the old objects allocated on the page. This is

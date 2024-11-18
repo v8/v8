@@ -5986,9 +5986,10 @@ TEST(Regress598319) {
   static constexpr size_t kSmallMaxBytesToMark = 100;
   while (!marking->IsMajorMarkingComplete()) {
     marking->AdvanceForTesting(kSmallStepSize, kSmallMaxBytesToMark);
-    ProgressBar& progress_bar = page->ProgressBar();
-    if (progress_bar.IsEnabled() && progress_bar.Value() > 0) {
-      CHECK_NE(progress_bar.Value(), arr.get()->Size());
+    MarkingProgressTracker& progress_tracker = page->MarkingProgressTracker();
+    if (progress_tracker.IsEnabled() &&
+        progress_tracker.GetCurrentChunkForTesting() > 0) {
+      CHECK_NE(progress_tracker.GetCurrentChunkForTesting(), arr.get()->Size());
       {
         // Shift by 1, effectively moving one white object across the progress
         // bar, meaning that we will miss marking it.

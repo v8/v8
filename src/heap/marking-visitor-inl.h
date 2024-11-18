@@ -10,12 +10,12 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-visitor-inl.h"
 #include "src/heap/heap-visitor.h"
+#include "src/heap/marking-progress-tracker.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking.h"
 #include "src/heap/pretenuring-handler-inl.h"
-#include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/descriptor-array.h"
@@ -534,37 +534,61 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
 // ===========================================================================
 
 template <typename ConcreteVisitor>
-size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
-    Tagged<Map> map, Tagged<FixedArray> object, ProgressBar& progress_bar) {
-  const int kProgressBarScanningChunk = kMaxRegularHeapObjectSize;
+size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressTracker(
+    Tagged<Map> map, Tagged<FixedArray> object,
+    MarkingProgressTracker& progress_tracker) {
   static_assert(kMaxRegularHeapObjectSize % kTaggedSize == 0);
+  static constexpr size_t kMaxQueuedWorklistItems = 8u;
   DCHECK(concrete_visitor()->marking_state()->IsMarked(object));
-  const int size = FixedArray::BodyDescriptor::SizeOf(map, object);
-  const size_t current_progress_bar = progress_bar.Value();
-  int start = static_cast<int>(current_progress_bar);
-  if (start == 0) {
+
+  const size_t size = FixedArray::BodyDescriptor::SizeOf(map, object);
+  const size_t chunk = progress_tracker.GetNextChunkToMark();
+  const size_t total_chunks = progress_tracker.TotalNumberOfChunks();
+  size_t start = 0;
+  size_t end = 0;
+  if (chunk == 0) {
+    // We just started marking the fixed array. Push the total number of chunks
+    // to the marking worklist and publish it so that other markers can
+    // participate.
+    if (const auto target_worklist =
+            MarkingHelper::ShouldMarkObject(heap_, object)) {
+      DCHECK_EQ(target_worklist.value(),
+                MarkingHelper::WorklistTarget::kRegular);
+      const size_t scheduled_chunks =
+          std::min(total_chunks, kMaxQueuedWorklistItems);
+      DCHECK_GT(scheduled_chunks, 0);
+      for (size_t i = 1; i < scheduled_chunks; ++i) {
+        local_marking_worklists_->Push(object);
+        // Publish each chunk into a new segment so that other markers would be
+        // able to steal work. This is probabilistic (a single marker can be
+        // fast and steal multiple segments), but it works well in practice.
+        local_marking_worklists_->ShareWork();
+      }
+    }
     concrete_visitor()
         ->template VisitMapPointerIfNeeded<VisitorId::kVisitFixedArray>(object);
     start = FixedArray::BodyDescriptor::kStartOffset;
+    end = std::min(size, MarkingProgressTracker::kChunkSize);
+  } else {
+    start = chunk * MarkingProgressTracker::kChunkSize;
+    end = std::min(size, start + MarkingProgressTracker::kChunkSize);
   }
-  const int end = std::min(size, start + kProgressBarScanningChunk);
-  if (start < end) {
-    VisitPointers(object, Cast<HeapObject>(object)->RawField(start),
-                  Cast<HeapObject>(object)->RawField(end));
-    const bool success = progress_bar.TrySetNewValue(current_progress_bar, end);
-    CHECK(success);
-    if (end < size) {
-      // The object can be pushed back onto the marking worklist only after
-      // progress bar was updated.
-      const auto target_worklist =
-          MarkingHelper::ShouldMarkObject(heap_, object);
-      if (target_worklist) {
-        DCHECK_EQ(target_worklist.value(),
-                  MarkingHelper::WorklistTarget::kRegular);
-        local_marking_worklists_->Push(object);
-      }
+
+  // Repost the task if needed.
+  if (chunk + kMaxQueuedWorklistItems < total_chunks) {
+    if (const auto target_worklist =
+            MarkingHelper::ShouldMarkObject(heap_, object)) {
+      local_marking_worklists_->Push(object);
+      local_marking_worklists_->ShareWork();
     }
   }
+
+  if (start < end) {
+    VisitPointers(object,
+                  Cast<HeapObject>(object)->RawField(static_cast<int>(start)),
+                  Cast<HeapObject>(object)->RawField(static_cast<int>(end)));
+  }
+
   return end - start;
 }
 
@@ -572,10 +596,11 @@ template <typename ConcreteVisitor>
 size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
     Tagged<Map> map, Tagged<FixedArray> object,
     MaybeObjectSize maybe_object_size) {
-  ProgressBar& progress_bar =
-      MutablePageMetadata::FromHeapObject(object)->ProgressBar();
-  return concrete_visitor()->CanUpdateValuesInHeap() && progress_bar.IsEnabled()
-             ? VisitFixedArrayWithProgressBar(map, object, progress_bar)
+  MarkingProgressTracker& progress_tracker =
+      MutablePageMetadata::FromHeapObject(object)->MarkingProgressTracker();
+  return concrete_visitor()->CanUpdateValuesInHeap() &&
+                 progress_tracker.IsEnabled()
+             ? VisitFixedArrayWithProgressTracker(map, object, progress_tracker)
              : Base::VisitFixedArray(map, object, maybe_object_size);
 }
 
