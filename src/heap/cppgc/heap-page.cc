@@ -140,7 +140,7 @@ void BasePage::AllocateSlotSet() {
 
 void BasePage::SlotSetDeleter::operator()(SlotSet* slot_set) const {
   DCHECK_NOT_NULL(slot_set);
-  SlotSet::Delete(slot_set, SlotSet::BucketsForSize(page_size_));
+  SlotSet::Delete(slot_set);
 }
 
 void BasePage::ResetSlotSet() { slot_set_.reset(); }

@@ -39,8 +39,8 @@ class RememberedSetOperations {
                      Callback callback, SlotSet::EmptyBucketMode mode) {
     int slots = 0;
     if (slot_set != nullptr) {
-      slots += slot_set->Iterate<access_mode>(chunk->ChunkAddress(), 0,
-                                              chunk->buckets(), callback, mode);
+      slots += slot_set->Iterate<access_mode>(
+          chunk->ChunkAddress(), 0, chunk->BucketsInSlotSet(), callback, mode);
     }
     return slots;
   }
@@ -62,8 +62,8 @@ class RememberedSetOperations {
       uintptr_t end_offset = chunk->OffsetMaybeOutOfRange(end);
       DCHECK_LE(start_offset, end_offset);
       slot_set->RemoveRange(static_cast<int>(start_offset),
-                            static_cast<int>(end_offset), page->buckets(),
-                            mode);
+                            static_cast<int>(end_offset),
+                            page->BucketsInSlotSet(), mode);
     }
   }
 
@@ -113,8 +113,8 @@ class RememberedSet : public AllStatic {
       chunk->set_slot_set<type, AccessMode::NON_ATOMIC>(&other_slot_set);
       return;
     }
-    slot_set->Merge(&other_slot_set, chunk->buckets());
-    SlotSet::Delete(&other_slot_set, chunk->buckets());
+    slot_set->Merge(&other_slot_set, chunk->BucketsInSlotSet());
+    SlotSet::Delete(&other_slot_set);
   }
 
   // Given a page and a slot set, this function merges the slot set to the set
@@ -217,9 +217,9 @@ class RememberedSet : public AllStatic {
     if (slot_set != nullptr) {
       PossiblyEmptyBuckets* possibly_empty_buckets =
           chunk->possibly_empty_buckets();
-      slots += slot_set->IterateAndTrackEmptyBuckets(chunk->ChunkAddress(), 0,
-                                                     chunk->buckets(), callback,
-                                                     possibly_empty_buckets);
+      slots += slot_set->IterateAndTrackEmptyBuckets(
+          chunk->ChunkAddress(), 0, chunk->BucketsInSlotSet(), callback,
+          possibly_empty_buckets);
       if (!possibly_empty_buckets->IsEmpty()) empty_chunks->Push(chunk);
     }
     return slots;
@@ -229,7 +229,7 @@ class RememberedSet : public AllStatic {
     DCHECK(type == OLD_TO_NEW || type == OLD_TO_NEW_BACKGROUND);
     SlotSet* slot_set = chunk->slot_set<type, AccessMode::NON_ATOMIC>();
     if (slot_set != nullptr &&
-        slot_set->CheckPossiblyEmptyBuckets(chunk->buckets(),
+        slot_set->CheckPossiblyEmptyBuckets(chunk->BucketsInSlotSet(),
                                             chunk->possibly_empty_buckets())) {
       chunk->ReleaseSlotSet(type);
       return true;

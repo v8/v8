@@ -161,11 +161,11 @@ void MutablePageMetadata::ReleaseAllAllocatedMemory() {
 }
 
 SlotSet* MutablePageMetadata::AllocateSlotSet(RememberedSetType type) {
-  SlotSet* new_slot_set = SlotSet::Allocate(buckets());
+  SlotSet* new_slot_set = SlotSet::Allocate(BucketsInSlotSet());
   SlotSet* old_slot_set = base::AsAtomicPointer::AcquireRelease_CompareAndSwap(
       &slot_set_[type], nullptr, new_slot_set);
   if (old_slot_set) {
-    SlotSet::Delete(new_slot_set, buckets());
+    SlotSet::Delete(new_slot_set);
     new_slot_set = old_slot_set;
   }
   DCHECK_NOT_NULL(new_slot_set);
@@ -176,7 +176,7 @@ void MutablePageMetadata::ReleaseSlotSet(RememberedSetType type) {
   SlotSet* slot_set = slot_set_[type];
   if (slot_set) {
     slot_set_[type] = nullptr;
-    SlotSet::Delete(slot_set, buckets());
+    SlotSet::Delete(slot_set);
   }
 }
 

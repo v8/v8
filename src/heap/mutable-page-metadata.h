@@ -91,7 +91,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
 
-  size_t buckets() const { return SlotSet::BucketsForSize(size()); }
+  size_t BucketsInSlotSet() const { return SlotSet::BucketsForSize(size()); }
 
   V8_INLINE void SetOldGenerationPageFlags(MarkingMode marking_mode);
   void SetYoungGenerationPageFlags(MarkingMode marking_mode) {

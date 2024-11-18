@@ -166,9 +166,14 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     // Load address of SlotSet
     TNode<IntPtrT> slot_set = LoadSlotSet(page, &slow_path);
     TNode<IntPtrT> slot_offset = IntPtrSub(slot, chunk);
+    TNode<IntPtrT> num_buckets_address =
+        IntPtrSub(slot_set, IntPtrConstant(SlotSet::kNumBucketsSize));
+    TNode<IntPtrT> num_buckets = UncheckedCast<IntPtrT>(
+        Load(MachineType::Pointer(), num_buckets_address, IntPtrConstant(0)));
 
     // Load bucket
-    TNode<IntPtrT> bucket = LoadBucket(slot_set, slot_offset, &slow_path);
+    TNode<IntPtrT> bucket =
+        LoadBucket(slot_set, slot_offset, num_buckets, &slow_path);
 
     // Update cell
     SetBitInCell(bucket, slot_offset);
@@ -198,9 +203,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<IntPtrT> LoadBucket(TNode<IntPtrT> slot_set, TNode<WordT> slot_offset,
-                            Label* slow_path) {
+                            TNode<IntPtrT> num_buckets, Label* slow_path) {
     TNode<WordT> bucket_index =
         WordShr(slot_offset, SlotSet::kBitsPerBucketLog2 + kTaggedSizeLog2);
+    CSA_CHECK(this, IntPtrLessThan(bucket_index, num_buckets));
     TNode<IntPtrT> bucket = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), slot_set,
              WordShl(bucket_index, kSystemPointerSizeLog2)));
