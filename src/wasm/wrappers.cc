@@ -338,8 +338,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   void BuildCallWasmFromWrapper(Zone* zone, const CanonicalSig* sig,
                                 V<WasmCodePtr> callee,
                                 V<HeapObject> implicit_first_arg,
-                                base::SmallVector<OpIndex, 16> args,
-                                base::SmallVector<OpIndex, 1>& returns) {
+                                const base::Vector<OpIndex> args,
+                                base::Vector<OpIndex> returns) {
     const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
         compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
         compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
@@ -360,8 +360,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   OpIndex BuildCallAndReturn(V<Context> js_context, V<HeapObject> function_data,
-                             base::SmallVector<OpIndex, 16> args,
-                             bool do_conversion, bool set_in_wasm_flag,
+                             base::Vector<OpIndex> args, bool do_conversion,
+                             bool set_in_wasm_flag,
                              uint64_t expected_sig_hash) {
     const int rets_count = static_cast<int>(sig_->return_count());
     base::SmallVector<OpIndex, 1> rets(rets_count);
@@ -381,7 +381,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       auto [target, implicit_arg] =
           BuildFunctionTargetAndImplicitArg(internal, expected_sig_hash);
       BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, implicit_arg,
-                               args, rets);
+                               args, base::VectorOf(rets));
     }
 
     V<Object> jsval;
@@ -483,8 +483,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         OpIndex wasm_param = FromJSFast(params[i + 1], sig_->GetParam(i));
         args[i + 1] = wasm_param;
       }
-      jsval = BuildCallAndReturn(js_context, function_data, args, do_conversion,
-                                 set_in_wasm_flag, signature_hash);
+      jsval =
+          BuildCallAndReturn(js_context, function_data, base::VectorOf(args),
+                             do_conversion, set_in_wasm_flag, signature_hash);
       GOTO(done, jsval);
       __ Bind(slow_path);
     }
@@ -509,8 +510,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       }
     }
 
-    jsval = BuildCallAndReturn(js_context, function_data, args, do_conversion,
-                               set_in_wasm_flag, signature_hash);
+    jsval = BuildCallAndReturn(js_context, function_data, base::VectorOf(args),
+                               do_conversion, set_in_wasm_flag, signature_hash);
     // If both the default and a fast transformation paths are present,
     // get the return value based on the path used.
     if (include_fast_path) {
