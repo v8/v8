@@ -4374,7 +4374,25 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
-  AddNewNode<CheckSmi>({object});
+  switch (object->value_representation()) {
+    case ValueRepresentation::kInt32:
+      if (!SmiValuesAre32Bits()) {
+        AddNewNode<CheckInt32IsSmi>({object});
+      }
+      break;
+    case ValueRepresentation::kUint32:
+      AddNewNode<CheckUint32IsSmi>({object});
+      break;
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64:
+      AddNewNode<CheckHoleyFloat64IsSmi>({object});
+      break;
+    case ValueRepresentation::kTagged:
+      AddNewNode<CheckSmi>({object});
+      break;
+    case ValueRepresentation::kIntPtr:
+      UNREACHABLE();
+  }
   return object;
 }
 
