@@ -95,15 +95,13 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(RISCV_SIMD); }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
-
-#ifdef USE_SIMULATOR
-  supported_ |= SimulatorFeatures();
-#endif  // USE_SIMULATOR
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
   // Probe for additional features at runtime.
 
-#ifndef USE_SIMULATOR
+#ifdef USE_SIMULATOR
+  supported_ |= SimulatorFeatures();
+#else
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
   if (cpu.has_rvv()) supported_ |= 1u << RISCV_SIMD;
@@ -130,9 +128,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
   printf("supports_wasm_simd_128=%d\n", CpuFeatures::SupportsWasmSimd128());
-  printf("RISC-V Extension zba=%d,zbb=%d,zbs=%d,ZICOND=%d\n",
-         CpuFeatures::IsSupported(ZBA), CpuFeatures::IsSupported(ZBB),
-         CpuFeatures::IsSupported(ZBS), CpuFeatures::IsSupported(ZICOND));
+  printf("zba=%d,zbb=%d,zbs=%d\n", CpuFeatures::IsSupported(ZBA),
+         CpuFeatures::IsSupported(ZBB), CpuFeatures::IsSupported(ZBS));
 }
 int ToNumber(Register reg) {
   DCHECK(reg.is_valid());
