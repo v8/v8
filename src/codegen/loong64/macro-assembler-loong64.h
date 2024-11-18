@@ -205,6 +205,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   Condition cond = al, Register rj = zero_reg, \
             const Operand &rk = Operand(zero_reg)
 
+  // We should not use near calls or jumps for calls to external references,
+  // since the code spaces are not guaranteed to be close to each other.
+  bool CanUseNearCallOrJump(RelocInfo::Mode rmode) {
+    return rmode != RelocInfo::EXTERNAL_REFERENCE;
+  }
+
+  static bool IsNearCallOffset(int64_t offset);
+
+  static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
+                                       uint8_t* pc);
+
   void Jump(Register target, COND_ARGS);
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Address target, RelocInfo::Mode rmode, COND_ARGS);

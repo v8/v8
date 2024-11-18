@@ -2893,6 +2893,29 @@ MemOperand MacroAssembler::ExternalReferenceAsOperand(
   return MemOperand(scratch, 0);
 }
 
+bool MacroAssembler::IsNearCallOffset(int64_t offset) {
+  return is_int28(offset);
+}
+
+// The calculated offset is either:
+// * the 'target' input unmodified if this is a Wasm call, or
+// * the offset of the target from the current PC, in instructions, for any
+//   other type of call.
+// static
+int64_t MacroAssembler::CalculateTargetOffset(Address target,
+                                              RelocInfo::Mode rmode,
+                                              uint8_t* pc) {
+  int64_t offset = static_cast<int64_t>(target);
+  if (rmode == RelocInfo::WASM_CALL || rmode == RelocInfo::WASM_STUB_CALL) {
+    // The target of WebAssembly calls is still an index instead of an actual
+    // address at this point, and needs to be encoded as-is.
+    return offset;
+  }
+  offset -= reinterpret_cast<int64_t>(pc);
+  DCHECK_EQ(offset % kInstrSize, 0);
+  return offset;
+}
+
 void MacroAssembler::Jump(Register target, Condition cond, Register rj,
                           const Operand& rk) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
