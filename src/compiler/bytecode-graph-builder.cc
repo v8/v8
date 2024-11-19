@@ -41,9 +41,9 @@ class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(
       JSHeapBroker* broker, Zone* local_zone, NativeContextRef native_context,
-      SharedFunctionInfoRef shared_info, FeedbackCellRef feedback_cell,
-      BytecodeOffset osr_offset, JSGraph* jsgraph,
-      CallFrequency const& invocation_frequency,
+      SharedFunctionInfoRef shared_info, BytecodeArrayRef bytecode,
+      FeedbackCellRef feedback_cell, BytecodeOffset osr_offset,
+      JSGraph* jsgraph, CallFrequency const& invocation_frequency,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
       int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
       TickCounter* tick_counter, ObserveNodeInfo const& observe_node_info);
@@ -1044,8 +1044,8 @@ public GraphDecorator {
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
     JSHeapBroker* broker, Zone* local_zone, NativeContextRef native_context,
-    SharedFunctionInfoRef shared_info, FeedbackCellRef feedback_cell,
-    BytecodeOffset osr_offset, JSGraph* jsgraph,
+    SharedFunctionInfoRef shared_info, BytecodeArrayRef bytecode,
+    FeedbackCellRef feedback_cell, BytecodeOffset osr_offset, JSGraph* jsgraph,
     CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
     int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
@@ -1058,7 +1058,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       jsgraph_(jsgraph),
       native_context_(native_context),
       shared_info_(shared_info),
-      bytecode_array_(shared_info.GetBytecodeArray(broker)),
+      bytecode_array_(bytecode),
       feedback_cell_(feedback_cell),
       feedback_vector_(feedback_cell.feedback_vector(broker).value()),
       invocation_frequency_(invocation_frequency),
@@ -4625,14 +4625,15 @@ void BytecodeGraphBuilder::UpdateSourceAndBytecodePosition(int offset) {
 
 void BuildGraphFromBytecode(
     JSHeapBroker* broker, Zone* local_zone, SharedFunctionInfoRef shared_info,
-    FeedbackCellRef feedback_cell, BytecodeOffset osr_offset, JSGraph* jsgraph,
+    BytecodeArrayRef bytecode, FeedbackCellRef feedback_cell,
+    BytecodeOffset osr_offset, JSGraph* jsgraph,
     CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
     int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
     TickCounter* tick_counter, ObserveNodeInfo const& observe_node_info) {
   BytecodeGraphBuilder builder(
       broker, local_zone, broker->target_native_context(), shared_info,
-      feedback_cell, osr_offset, jsgraph, invocation_frequency,
+      bytecode, feedback_cell, osr_offset, jsgraph, invocation_frequency,
       source_positions, node_origins, inlining_id, code_kind, flags,
       tick_counter, observe_node_info);
   builder.CreateGraph();

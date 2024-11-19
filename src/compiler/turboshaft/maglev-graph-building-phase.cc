@@ -5772,7 +5772,8 @@ void RunMaglevOptimizations(PipelineData* data,
 }
 
 std::optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
-                                                           Zone* temp_zone) {
+                                                           Zone* temp_zone,
+                                                           Linkage* linkage) {
   JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
 
@@ -5781,6 +5782,13 @@ std::optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
           data->isolate(), broker, data->info()->closure(),
           data->info()->osr_offset(),
           data->info()->function_context_specializing());
+
+  // We need to be certain that the parameter count reported by our output
+  // Code object matches what the code we compile expects. Otherwise, this
+  // may lead to effectively signature mismatches during function calls. This
+  // CHECK is a defense-in-depth measure to ensure this doesn't happen.
+  SBXCHECK_EQ(compilation_info->toplevel_compilation_unit()->parameter_count(),
+              linkage->GetIncomingDescriptor()->ParameterSlotCount());
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {
     PrintBytecode(*data, compilation_info.get());

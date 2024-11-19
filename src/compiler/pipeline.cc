@@ -178,7 +178,7 @@ class PipelineImpl final {
   void InitializeHeapBroker();
 
   // Step A.2. Run the graph creation and initial optimization passes.
-  bool CreateGraph();
+  bool CreateGraph(Linkage* linkage);
 
   // Step B. Run the concurrent optimization passes.
   bool OptimizeTurbofanGraph(Linkage* linkage);
@@ -810,11 +810,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
   turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_);
 
   if (V8_UNLIKELY(v8_flags.turboshaft_from_maglev)) {
-    if (!turboshaft_pipeline.CreateGraphWithMaglev()) {
+    if (!turboshaft_pipeline.CreateGraphWithMaglev(linkage_)) {
       return AbortOptimization(BailoutReason::kGraphBuildingFailed);
     }
   } else {
-    if (!pipeline_.CreateGraph()) {
+    if (!pipeline_.CreateGraph(linkage_)) {
       return AbortOptimization(BailoutReason::kGraphBuildingFailed);
     }
 
@@ -919,7 +919,7 @@ auto PipelineImpl::Run(Args&&... args) {
 struct GraphBuilderPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(BytecodeGraphBuilder)
 
-  void Run(TFPipelineData* data, Zone* temp_zone) {
+  void Run(TFPipelineData* data, Zone* temp_zone, Linkage* linkage) {
     BytecodeGraphBuilderFlags flags;
     if (data->info()->analyze_environment_liveness()) {
       flags |= BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness;
@@ -931,15 +931,24 @@ struct GraphBuilderPhase {
     JSHeapBroker* broker = data->broker();
     UnparkedScopeIfNeeded scope(broker);
     JSFunctionRef closure = MakeRef(broker, data->info()->closure());
+    BytecodeArrayRef bytecode = MakeRef(broker, data->info()->bytecode_array());
     CallFrequency frequency(1.0f);
     BuildGraphFromBytecode(
-        broker, temp_zone, closure.shared(broker),
+        broker, temp_zone, closure.shared(broker), bytecode,
         closure.raw_feedback_cell(broker), data->info()->osr_offset(),
         data->jsgraph(), frequency, data->source_positions(),
         data->node_origins(), SourcePosition::kNotInlined,
         data->info()->code_kind(), flags, &data->info()->tick_counter(),
         ObserveNodeInfo{data->observe_node_manager(),
                         data->info()->node_observer()});
+
+    // We need to be certain that the parameter count reported by our output
+    // Code object matches what the code we compile expects. Otherwise, this
+    // may lead to effectively signature mismatches during function calls. This
+    // CHECK is a defense-in-depth measure to ensure this doesn't happen.
+    SBXCHECK_EQ(
+        StartNode(data->jsgraph()->graph()->start()).FormalParameterCount(),
+        linkage->GetIncomingDescriptor()->ParameterSlotCount());
   }
 };
 
@@ -2524,14 +2533,14 @@ void PipelineImpl::InitializeHeapBroker() {
   data->EndPhaseKind();
 }
 
-bool PipelineImpl::CreateGraph() {
+bool PipelineImpl::CreateGraph(Linkage* linkage) {
   DCHECK(!v8_flags.turboshaft_from_maglev);
   TFPipelineData* data = this->data_;
   UnparkedScopeIfNeeded unparked_scope(data->broker());
 
   data->BeginPhaseKind("V8.TFGraphCreation");
 
-  Run<GraphBuilderPhase>();
+  Run<GraphBuilderPhase>(linkage);
   RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
 
   // Perform function context specialization and inlining (if enabled).
@@ -3731,7 +3740,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   {
     LocalIsolateScope local_isolate_scope(data.broker(), info,
                                           isolate->main_thread_local_isolate());
-    if (!pipeline.CreateGraph()) return {};
+    if (!pipeline.CreateGraph(&linkage)) return {};
     // We selectively Unpark inside OptimizeTurbofanGraph.
     if (!pipeline.OptimizeTurbofanGraph(&linkage)) return {};
 

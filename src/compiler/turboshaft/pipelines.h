@@ -123,13 +123,13 @@ class Pipeline {
     }
   }
 
-  bool CreateGraphWithMaglev() {
+  bool CreateGraphWithMaglev(Linkage* linkage) {
     UnparkedScopeIfNeeded unparked_scope(data_->broker());
 
     BeginPhaseKind("V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
     std::optional<BailoutReason> bailout =
-        Run<turboshaft::MaglevGraphBuildingPhase>();
+        Run<turboshaft::MaglevGraphBuildingPhase>(linkage);
     EndPhaseKind();
 
     if (bailout.has_value()) {
