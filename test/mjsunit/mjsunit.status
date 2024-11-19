@@ -1586,6 +1586,7 @@
   'regress/regress-1353555': [SKIP],
   'regress/regress-crbug-1237153': [SKIP],
   'regress/wasm/regress-1067621': [SKIP],
+  'regress/wasm/regress-377942344': [SKIP],
 
   # BUG(v8:9975).
   'es6/typedarray-copywithin': [SKIP],
