@@ -142,6 +142,13 @@ RUNTIME_FUNCTION(Runtime_ConstructDouble) {
   return *isolate->factory()->NewNumber(base::uint64_to_double(result));
 }
 
+RUNTIME_FUNCTION(Runtime_StringIsFlat) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  DirectHandle<String> s = args.at<String>(0);
+  return isolate->heap()->ToBoolean(s->IsFlat());
+}
+
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {
   HandleScope scope(isolate);
   // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
