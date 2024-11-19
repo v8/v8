@@ -1418,15 +1418,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Either points to jsregexp_static_offsets_vector, or nullptr if the static
   // vector is in use.
   int32_t* regexp_static_result_offsets_vector() const {
-    return regexp_static_result_offsets_vector_;
+    return isolate_data()->regexp_static_result_offsets_vector();
   }
   void set_regexp_static_result_offsets_vector(int32_t* value) {
     DCHECK_EQ(value == nullptr,
-              regexp_static_result_offsets_vector_ != nullptr);
-    regexp_static_result_offsets_vector_ = value;
+              regexp_static_result_offsets_vector() != nullptr);
+    isolate_data()->set_regexp_static_result_offsets_vector(value);
   }
   Address address_of_regexp_static_result_offsets_vector() const {
-    return reinterpret_cast<Address>(&regexp_static_result_offsets_vector_);
+    return isolate_data()->regexp_static_result_offsets_vector_address();
   }
 
   // This data structure is only used for an optimization in StringSplit.
@@ -2497,7 +2497,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       regexp_macro_assembler_canonicalize_;
 #endif  // !V8_INTL_SUPPORT
   RegExpStack* regexp_stack_ = nullptr;
-  int32_t* regexp_static_result_offsets_vector_ = nullptr;
   std::vector<int> regexp_indices_;
   DateCache* date_cache_ = nullptr;
   base::RandomNumberGenerator* random_number_generator_ = nullptr;

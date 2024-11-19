@@ -5386,7 +5386,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   define_own_stub_cache_ = new StubCache(this);
   materialized_object_store_ = new MaterializedObjectStore(this);
   regexp_stack_ = new RegExpStack();
-  regexp_static_result_offsets_vector_ = jsregexp_static_offsets_vector();
+  isolate_data()->set_regexp_static_result_offsets_vector(
+      jsregexp_static_offsets_vector());
   date_cache_ = new DateCache();
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);

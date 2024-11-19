@@ -26,13 +26,21 @@ namespace internal {
 class Isolate;
 
 #if V8_HOST_ARCH_64_BIT
-// No padding is currently required for fast_c_call_XXX and wasm64_oob_offset_
-// fields.
-#define ISOLATE_DATA_FAST_C_CALL_PADDING(V)
+// In kSystemPointerSize.
+static constexpr int kFastCCallAlignmentPaddingCount = 5;
 #else
-// Aligns fast_c_call_XXX fields so that they stay in the same CPU cache line.
-#define ISOLATE_DATA_FAST_C_CALL_PADDING(V)               \
-  V(kFastCCallAlignmentPaddingOffset, kSystemPointerSize, \
+static constexpr int kFastCCallAlignmentPaddingCount = 1;
+#endif
+
+#if V8_HOST_ARCH_64_BIT
+#define ISOLATE_DATA_FAST_C_CALL_PADDING(V)              \
+  V(kFastCCallAlignmentPaddingOffset,                    \
+    kFastCCallAlignmentPaddingCount* kSystemPointerSize, \
+    fast_c_call_alignment_padding)
+#else
+#define ISOLATE_DATA_FAST_C_CALL_PADDING(V)              \
+  V(kFastCCallAlignmentPaddingOffset,                    \
+    kFastCCallAlignmentPaddingCount* kSystemPointerSize, \
     fast_c_call_alignment_padding)
 #endif  // V8_HOST_ARCH_64_BIT
 
@@ -100,6 +108,8 @@ struct JSBuiltinDispatchHandleRoot {
   V(StackIsIterable, kUInt8Size, stack_is_iterable)                            \
   V(ErrorMessageParam, kUInt8Size, error_message_param)                        \
   V(TablesAlignmentPadding, 1, tables_alignment_padding)                       \
+  V(RegExpStaticResultOffsetsVector, kSystemPointerSize,                       \
+    regexp_static_result_offsets_vector)                                       \
   /* Tier 0 tables (small but fast access). */                                 \
   V(BuiltinTier0EntryTable, Builtins::kBuiltinTier0Count* kSystemPointerSize,  \
     builtin_tier0_entry_table)                                                 \
@@ -235,7 +245,7 @@ class IsolateData final {
   }
 
 #define V(Offset, Size, Name) \
-  Address Name##_address() { return reinterpret_cast<Address>(&Name##_); }
+  Address Name##_address() const { return reinterpret_cast<Address>(&Name##_); }
   ISOLATE_DATA_FIELDS(V)
 #undef V
 
@@ -250,6 +260,12 @@ class IsolateData final {
   // The value of kPointerCageBaseRegister.
   Address cage_base() const { return cage_base_; }
   StackGuard* stack_guard() { return &stack_guard_; }
+  int32_t* regexp_static_result_offsets_vector() const {
+    return regexp_static_result_offsets_vector_;
+  }
+  void set_regexp_static_result_offsets_vector(int32_t* value) {
+    regexp_static_result_offsets_vector_ = value;
+  }
   Address* builtin_tier0_entry_table() { return builtin_tier0_entry_table_; }
   Address* builtin_tier0_table() { return builtin_tier0_table_; }
   RootsTable& roots() { return roots_table_; }
@@ -376,6 +392,11 @@ class IsolateData final {
   static_assert(FIELD_SIZE(kTablesAlignmentPaddingOffset) > 0);
   uint8_t tables_alignment_padding_[FIELD_SIZE(kTablesAlignmentPaddingOffset)];
 
+  // A pointer to the static offsets vector (used to pass results from the
+  // irregexp engine to the rest of V8), or nullptr if the static offsets
+  // vector is currently in use.
+  int32_t* regexp_static_result_offsets_vector_ = nullptr;
+
   // Tier 0 tables. See also builtin_entry_table_ and builtin_table_.
   Address builtin_tier0_entry_table_[Builtins::kBuiltinTier0Count] = {};
   Address builtin_tier0_table_[Builtins::kBuiltinTier0Count] = {};
@@ -383,10 +404,8 @@ class IsolateData final {
   LinearAllocationArea new_allocation_info_;
   LinearAllocationArea old_allocation_info_;
 
-#if !V8_HOST_ARCH_64_BIT
   // Aligns fast_c_call_XXX fields so that they stay in the same CPU cache line.
-  Address fast_c_call_alignment_padding_;
-#endif
+  Address fast_c_call_alignment_padding_[kFastCCallAlignmentPaddingCount];
 
   // Stores the state of the caller for MacroAssembler::CallCFunction so that
   // the sampling CPU profiler can iterate the stack during such calls. These

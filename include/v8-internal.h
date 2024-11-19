@@ -900,6 +900,7 @@ class Internals {
   static const int kNumberOfBooleanFlags = 6;
   static const int kErrorMessageParamSize = 1;
   static const int kTablesAlignmentPaddingSize = 1;
+  static const int kRegExpStaticResultOffsetsVectorSize = kApiSystemPointerSize;
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
@@ -922,9 +923,9 @@ class Internals {
       kIsolateStackGuardOffset + kStackGuardSize;
   static const int kErrorMessageParamOffset =
       kVariousBooleanFlagsOffset + kNumberOfBooleanFlags;
-  static const int kBuiltinTier0EntryTableOffset = kErrorMessageParamOffset +
-                                                   kErrorMessageParamSize +
-                                                   kTablesAlignmentPaddingSize;
+  static const int kBuiltinTier0EntryTableOffset =
+      kErrorMessageParamOffset + kErrorMessageParamSize +
+      kTablesAlignmentPaddingSize + kRegExpStaticResultOffsetsVectorSize;
   static const int kBuiltinTier0TableOffset =
       kBuiltinTier0EntryTableOffset + kBuiltinTier0EntryTableSize;
   static const int kNewAllocationInfoOffset =
@@ -933,7 +934,8 @@ class Internals {
       kNewAllocationInfoOffset + kLinearAllocationAreaSize;
 
   static const int kFastCCallAlignmentPaddingSize =
-      kApiSystemPointerSize == 8 ? 0 : kApiSystemPointerSize;
+      kApiSystemPointerSize == 8 ? 5 * kApiSystemPointerSize
+                                 : 1 * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerFpOffset =
       kOldAllocationInfoOffset + kLinearAllocationAreaSize +
       kFastCCallAlignmentPaddingSize;
