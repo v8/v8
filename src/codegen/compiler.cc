@@ -1020,8 +1020,11 @@ class OptimizedCodeCache : public AllStatic {
       Tagged<SharedFunctionInfo> shared = function->shared();
       Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate),
                                      isolate);
+      // Bytecode may be different, so just make sure we see the expected
+      // opcode. Otherwise fuzzers will complain.
+      SBXCHECK_LT(osr_offset.ToInt(), bytecode->length());
       interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
-      DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+      SBXCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
       feedback_vector->SetOptimizedOsrCode(isolate, it.GetSlotOperand(2), code);
       return;
     }
