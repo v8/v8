@@ -841,9 +841,6 @@ void GlobalBackingStoreRegistry::BroadcastSharedWasmMemoryGrow(
 
 void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     Isolate* isolate) {
-  // TODO(1445003): Remove the {AlwaysAllocateScope} after finding the root
-  // cause.
-  AlwaysAllocateScope always_allocate_scope{isolate->heap()};
 
   HandleScope scope(isolate);
   DirectHandle<WeakArrayList> shared_wasm_memories =
