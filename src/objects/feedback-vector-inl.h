@@ -58,24 +58,20 @@ void FeedbackMetadata::set(int index, int32_t value) {
   WriteField<int32_t>(offset, value);
 }
 
+#ifndef V8_ENABLE_LEAPTIERING
 // static
 constexpr uint32_t FeedbackVector::FlagMaskForNeedsProcessingCheckFrom(
     CodeKind code_kind) {
   DCHECK(CodeKindCanTierUp(code_kind));
-  // TODO(olivf): investigate whether we can drop
-  // kFlagsTieringStateIsAnyRequested here as well when leaptiering is enabled.
   uint32_t flag_mask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
-                       FeedbackVector::kFlagsLogNextExecution;
-  // When leaptiering is enabled, we don't load optimized code from the
-  // FeedbackVector, so we don't check for these flags.
-#ifndef V8_ENABLE_LEAPTIERING
-  flag_mask |= FeedbackVector::kFlagsMaybeHasTurbofanCode;
+                       FeedbackVector::kFlagsLogNextExecution |
+                       FeedbackVector::kFlagsMaybeHasTurbofanCode;
   if (code_kind != CodeKind::MAGLEV) {
     flag_mask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
   }
-#endif  // !V8_ENABLE_LEAPTIERING
   return flag_mask;
 }
+#endif  // !V8_ENABLE_LEAPTIERING
 
 bool FeedbackMetadata::is_empty() const {
   DCHECK_IMPLIES(slot_count() == 0, create_closure_slot_count() == 0);
@@ -189,18 +185,6 @@ void FeedbackVector::set_maybe_has_optimized_osr_code(bool value,
   }
 }
 
-TieringState FeedbackVector::tiering_state() const {
-  return TieringStateBits::decode(flags());
-}
-
-bool FeedbackVector::log_next_execution() const {
-  return LogNextExecutionBit::decode(flags());
-}
-
-void FeedbackVector::set_log_next_execution(bool value) {
-  set_flags(LogNextExecutionBit::update(flags(), value));
-}
-
 bool FeedbackVector::interrupt_budget_reset_by_ic_change() const {
   return InterruptBudgetResetByIcChangeBit::decode(flags());
 }
@@ -219,7 +203,29 @@ void FeedbackVector::set_was_once_deoptimized() {
                                      kRelaxedStore);
 }
 
-#ifndef V8_ENABLE_LEAPTIERING
+#ifdef V8_ENABLE_LEAPTIERING
+
+bool FeedbackVector::tiering_in_progress() const {
+  return TieringInProgressBit::decode(flags());
+}
+
+#else
+
+TieringState FeedbackVector::tiering_state() const {
+  return TieringStateBits::decode(flags());
+}
+
+void FeedbackVector::reset_tiering_state() {
+  set_tiering_state(TieringState::kNone);
+}
+
+bool FeedbackVector::log_next_execution() const {
+  return LogNextExecutionBit::decode(flags());
+}
+
+void FeedbackVector::set_log_next_execution(bool value) {
+  set_flags(LogNextExecutionBit::update(flags(), value));
+}
 
 Tagged<Code> FeedbackVector::optimized_code(IsolateForSandbox isolate) const {
   Tagged<MaybeObject> slot = maybe_optimized_code();
@@ -264,7 +270,7 @@ void FeedbackVector::set_maybe_has_turbofan_code(bool value) {
   set_flags(MaybeHasTurbofanCodeBit::update(flags(), value));
 }
 
-#endif  // !V8_ENABLE_LEAPTIERING
+#endif  // V8_ENABLE_LEAPTIERING
 
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, FeedbackSlot slot) {

@@ -514,6 +514,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
     BindJumpTarget(code_gen_state()->entry_label());
   }
 
+#ifndef V8_ENABLE_LEAPTIERING
   // Tiering support.
   if (v8_flags.turbofan) {
     using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
@@ -528,6 +529,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
                     CheckFeedbackVectorFlagsNeedsProcessing(feedback_vector,
                                                             CodeKind::MAGLEV));
   }
+#endif  // !V8_ENABLE_LEAPTIERING
 
   EnterFrame(StackFrame::MAGLEV);
   // Save arguments in frame.

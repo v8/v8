@@ -21,6 +21,10 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
 
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       TNode<JSFunction> function);
+#ifdef V8_ENABLE_LEAPTIERING
+  void TieringBuiltinImpl(Runtime::FunctionId);
+
+#else
   void TailCallRuntimeIfStateEquals(TNode<Uint32T> state,
                                     TieringState expected_state,
                                     Runtime::FunctionId function_id,
@@ -28,6 +32,8 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
 
   void MaybeTailCallOptimizedCodeSlot(TNode<JSFunction> function,
                                       TNode<FeedbackVector> feedback_vector);
+#endif  // V8_ENABLE_LEAPTIERING
+
   void CompileLazy(TNode<JSFunction> function);
 };
 

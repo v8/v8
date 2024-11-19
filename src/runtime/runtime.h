@@ -117,10 +117,8 @@ namespace internal {
   F(LogOrTraceOptimizedOSREntry, 0, 1)            \
   F(CompileLazy, 1, 1)                            \
   F(CompileBaseline, 1, 1)                        \
-  F(CompileOptimized, 1, 1)                       \
   F(InstallBaselineCode, 1, 1)                    \
   F(InstallSFICode, 1, 1)                         \
-  F(FunctionLogNextExecution, 1, 1)               \
   F(InstantiateAsmJs, 4, 1)                       \
   F(NotifyDeoptimized, 0, 1)                      \
   F(ObserveNode, 1, 1)                            \
@@ -129,12 +127,28 @@ namespace internal {
   F(CheckTurboshaftTypeOf, 2, 1)
 
 #ifdef V8_ENABLE_LEAPTIERING
-#define FOR_EACH_INTRINSIC_COMPILER(F, I) \
-  FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I)
+
+#define FOR_EACH_INTRINSIC_TIERING(F, I) \
+  F(FunctionLogNextExecution, 1, 1)      \
+  F(OptimizeMaglevEager, 1, 1)           \
+  F(StartMaglevOptimizationJob, 1, 1)    \
+  F(OptimizeTurbofanEager, 1, 1)         \
+  F(StartTurbofanOptimizationJob, 1, 1)
+
+#define FOR_EACH_INTRINSIC_COMPILER(F, I)   \
+  FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I) \
+  FOR_EACH_INTRINSIC_TIERING(F, I)
+
 #else
+
+#define FOR_EACH_INTRINSIC_TIERING(F, I)
+
 #define FOR_EACH_INTRINSIC_COMPILER(F, I) \
+  F(FunctionLogNextExecution, 1, 1)       \
   F(HealOptimizedCodeSlot, 1, 1)          \
+  F(CompileOptimized, 1, 1)               \
   FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I)
+
 #endif  // V8_ENABLE_LEAPTIERING
 
 #define FOR_EACH_INTRINSIC_DATE(F, I) F(DateCurrentTime, 0, 1)
@@ -1070,6 +1084,8 @@ enum class OptimizationStatus {
   kIsLazy = 1 << 18,
   kTopmostFrameIsMaglev = 1 << 19,
   kOptimizeOnNextCallOptimizesToMaglev = 1 << 20,
+  kMarkedForMaglevOptimization = 1 << 21,
+  kMarkedForConcurrentMaglevOptimization = 1 << 22,
 };
 
 // The number of isolates used for testing in d8.

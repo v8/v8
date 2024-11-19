@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_DEFINITIONS_H_
 
 #include "builtins-generated/bytecodes-builtins-list.h"
+#include "src/common/globals.h"
 
 // include generated header
 #include "torque-generated/builtin-definitions.h"
@@ -67,6 +68,33 @@ namespace internal {
   /* size unmodified to avoid unexpected performance implications. */       \
   /* It should be removed. */                                               \
   CPP(DummyBuiltin, kDontAdaptArgumentsSentinel)
+
+#ifdef V8_ENABLE_LEAPTIERING
+
+/* Tiering related builtins
+ *
+ * These builtins are used for tiering. Some special conventions apply. They,
+ * - can be passed to the JSDispatchTable::SetTieringRequest to be executed
+ *   instead of the actual JSFunction's code.
+ * - need to uninstall themselves using JSDispatchTable::ResetTieringRequest.
+ * - need to tail call the actual JSFunction's code.
+ *
+ * Also, there are lifecycle considerations since the tiering requests are
+ * mutually exclusive.
+ *
+ * */
+#define BUILTIN_LIST_BASE_TIERING(TFC)            \
+  TFC(FunctionLogNextExecution, JSTrampoline)     \
+  TFC(StartMaglevOptimizationJob, JSTrampoline)   \
+  TFC(StartTurbofanOptimizationJob, JSTrampoline) \
+  TFC(OptimizeMaglevEager, JSTrampoline)          \
+  TFC(OptimizeTurbofanEager, JSTrampoline)
+
+#else
+
+#define BUILTIN_LIST_BASE_TIERING(TFC)
+
+#endif
 
 #define BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)        \
   /* GC write barriers */                                                      \
@@ -246,6 +274,8 @@ namespace internal {
   TFC(CompileLazyDeoptimizedCode, JSTrampoline)                                \
   TFC(InstantiateAsmJs, JSTrampoline)                                          \
   ASM(NotifyDeoptimized, Void)                                                 \
+                                                                               \
+  BUILTIN_LIST_BASE_TIERING(TFC)                                               \
                                                                                \
   /* Trampolines called when returning from a deoptimization that expects   */ \
   /* to continue in a JavaScript builtin to finish the functionality of a   */ \
