@@ -2691,13 +2691,16 @@ class MachineLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
-  V<Word32> REDUCE(CompareMaps)(V<HeapObject> heap_object,
+  V<Word32> REDUCE(CompareMaps)(V<HeapObject> heap_object, OptionalV<Map> map,
                                 const ZoneRefSet<Map>& maps) {
-    return CompareMapAgainstMultipleMaps(__ LoadMapField(heap_object), maps);
+    if (!map.has_value()) {
+      map = __ LoadMapField(heap_object);
+    }
+    return CompareMapAgainstMultipleMaps(map.value(), maps);
   }
 
   V<None> REDUCE(CheckMaps)(V<HeapObject> heap_object,
-                            V<FrameState> frame_state,
+                            V<FrameState> frame_state, OptionalV<Map> map,
                             const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                             const FeedbackSource& feedback) {
     if (maps.is_empty()) {
@@ -2705,19 +2708,26 @@ class MachineLoweringReducer : public Next {
       return {};
     }
 
+    V<Map> heap_object_map;
+    if (map.has_value()) {
+      heap_object_map = map.value();
+    } else {
+      heap_object_map = __ LoadMapField(heap_object);
+    }
+
     if (flags & CheckMapsFlag::kTryMigrateInstance) {
-      V<Map> heap_object_map = __ LoadMapField(heap_object);
       IF_NOT (LIKELY(CompareMapAgainstMultipleMaps(heap_object_map, maps))) {
         // Reloading the map slightly reduces register pressure, and we are on a
         // slow path here anyway.
-        MigrateInstanceOrDeopt(heap_object, __ LoadMapField(heap_object),
-                               frame_state, feedback);
-        __ DeoptimizeIfNot(__ CompareMaps(heap_object, maps), frame_state,
-                           DeoptimizeReason::kWrongMap, feedback);
+        MigrateInstanceOrDeopt(heap_object, heap_object_map, frame_state,
+                               feedback);
+        heap_object_map = __ LoadMapField(heap_object);
+        __ DeoptimizeIfNot(__ CompareMaps(heap_object, heap_object_map, maps),
+                           frame_state, DeoptimizeReason::kWrongMap, feedback);
       }
     } else {
-      __ DeoptimizeIfNot(__ CompareMaps(heap_object, maps), frame_state,
-                         DeoptimizeReason::kWrongMap, feedback);
+      __ DeoptimizeIfNot(__ CompareMaps(heap_object, heap_object_map, maps),
+                         frame_state, DeoptimizeReason::kWrongMap, feedback);
     }
     // Inserting a AssumeMap so that subsequent optimizations know the map of
     // this object.

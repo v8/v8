@@ -73,6 +73,9 @@ template <>
 struct CopyForDeferredHelper<Register>
     : public CopyForDeferredByValue<Register> {};
 template <>
+struct CopyForDeferredHelper<std::optional<Register>>
+    : public CopyForDeferredByValue<std::optional<Register>> {};
+template <>
 struct CopyForDeferredHelper<DoubleRegister>
     : public CopyForDeferredByValue<DoubleRegister> {};
 // Bytecode offsets are copied by value.

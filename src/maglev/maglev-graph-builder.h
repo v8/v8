@@ -2115,17 +2115,19 @@ class MaglevGraphBuilder {
   void BuildCheckStringOrStringWrapper(ValueNode* object);
   void BuildCheckSymbol(ValueNode* object);
   ReduceResult BuildCheckMaps(ValueNode* object,
-                              base::Vector<const compiler::MapRef> maps);
+                              base::Vector<const compiler::MapRef> maps,
+                              std::optional<ValueNode*> map = {});
   ReduceResult BuildTransitionElementsKindOrCheckMap(
-      ValueNode* object, const ZoneVector<compiler::MapRef>& transition_sources,
+      ValueNode* heap_object, ValueNode* object_map,
+      const ZoneVector<compiler::MapRef>& transition_sources,
       compiler::MapRef transition_target);
   ReduceResult BuildCompareMaps(
-      ValueNode* heap_object, std::optional<ValueNode*> object_map,
+      ValueNode* heap_object, ValueNode* object_map,
       base::Vector<const compiler::MapRef> maps,
       MaglevSubGraphBuilder* sub_graph,
       std::optional<MaglevSubGraphBuilder::Label>& if_not_matched);
   ReduceResult BuildTransitionElementsKindAndCompareMaps(
-      ValueNode* heap_object,
+      ValueNode* heap_object, ValueNode* object_map,
       const ZoneVector<compiler::MapRef>& transition_sources,
       compiler::MapRef transition_target, MaglevSubGraphBuilder* sub_graph,
       std::optional<MaglevSubGraphBuilder::Label>& if_not_matched);

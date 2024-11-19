@@ -1871,13 +1871,13 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kCompareMaps: {
       const ZoneRefSet<v8::internal::Map>& maps =
           CompareMapsParametersOf(node->op());
-      return __ CompareMaps(Map(node->InputAt(0)), maps);
+      return __ CompareMaps(Map(node->InputAt(0)), {}, maps);
     }
 
     case IrOpcode::kCheckMaps: {
       DCHECK(dominating_frame_state.valid());
       const auto& p = CheckMapsParametersOf(node->op());
-      __ CheckMaps(Map(node->InputAt(0)), dominating_frame_state, p.maps(),
+      __ CheckMaps(Map(node->InputAt(0)), dominating_frame_state, {}, p.maps(),
                    p.flags(), p.feedback());
       return OpIndex{};
     }

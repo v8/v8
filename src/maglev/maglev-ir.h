@@ -279,6 +279,7 @@ class ExceptionHandlerInfo;
   V(ToNumberOrNumeric)                              \
   V(ToObject)                                       \
   V(ToString)                                       \
+  V(TransitionElementsKind)                         \
   V(NumberToString)                                 \
   V(UpdateJSArrayLength)                            \
   V(VirtualObject)                                  \
@@ -309,6 +310,7 @@ class ExceptionHandlerInfo;
   V(CheckTypedArrayNotDetached)               \
   V(CheckMaps)                                \
   V(CheckMapsWithMigration)                   \
+  V(CheckMapsWithAlreadyLoadedMap)            \
   V(CheckDetectableCallable)                  \
   V(CheckNotHole)                             \
   V(CheckNumber)                              \
@@ -348,7 +350,6 @@ class ExceptionHandlerInfo;
   V(ThrowSuperAlreadyCalledIfNotHole)         \
   V(ThrowIfNotCallable)                       \
   V(ThrowIfNotSuperConstructor)               \
-  V(TransitionElementsKind)                   \
   V(TransitionElementsKindOrCheckMap)         \
   V(SetContinuationPreservedEmbedderData)     \
   GAP_MOVE_NODE_LIST(V)
@@ -5850,6 +5851,38 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   const compiler::ZoneRefSet<Map> maps_;
 };
 
+class CheckMapsWithAlreadyLoadedMap
+    : public FixedInputNodeT<2, CheckMapsWithAlreadyLoadedMap> {
+  using Base = FixedInputNodeT<2, CheckMapsWithAlreadyLoadedMap>;
+
+ public:
+  explicit CheckMapsWithAlreadyLoadedMap(uint64_t bitfield,
+                                         const compiler::ZoneRefSet<Map>& maps)
+      : Base(bitfield), maps_(maps) {}
+  explicit CheckMapsWithAlreadyLoadedMap(
+      uint64_t bitfield, base::Vector<const compiler::MapRef> maps, Zone* zone)
+      : Base(bitfield), maps_(maps.begin(), maps.end(), zone) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::CanRead();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  const compiler::ZoneRefSet<Map>& maps() const { return maps_; }
+
+  Input& object_input() { return input(0); }
+  Input& map_input() { return input(1); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  auto options() const { return std::tuple{maps_}; }
+
+ private:
+  const compiler::ZoneRefSet<Map> maps_;
+};
+
 class CheckValue : public FixedInputNodeT<1, CheckValue> {
   using Base = FixedInputNodeT<1, CheckValue>;
 
@@ -9565,12 +9598,10 @@ class ThrowIfNotSuperConstructor
 };
 
 class TransitionElementsKind
-    : public FixedInputNodeT<1, TransitionElementsKind> {
-  using Base = FixedInputNodeT<1, TransitionElementsKind>;
+    : public FixedInputValueNodeT<2, TransitionElementsKind> {
+  using Base = FixedInputValueNodeT<2, TransitionElementsKind>;
 
  public:
-  static constexpr int kObjectIndex = 0;
-
   explicit TransitionElementsKind(
       uint64_t bitfield, const ZoneVector<compiler::MapRef>& transition_sources,
       compiler::MapRef transition_target)
@@ -9581,10 +9612,11 @@ class TransitionElementsKind
   // TODO(leszeks): Special case the case where all transitions are fast.
   static constexpr OpProperties kProperties =
       OpProperties::AnySideEffects() | OpProperties::DeferredCall();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
-  Input& object_input() { return input(kObjectIndex); }
+  Input& object_input() { return input(0); }
+  Input& map_input() { return input(1); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -9604,14 +9636,14 @@ class TransitionElementsKind
 };
 
 class TransitionElementsKindOrCheckMap
-    : public FixedInputNodeT<1, TransitionElementsKindOrCheckMap> {
-  using Base = FixedInputNodeT<1, TransitionElementsKindOrCheckMap>;
+    : public FixedInputNodeT<2, TransitionElementsKindOrCheckMap> {
+  using Base = FixedInputNodeT<2, TransitionElementsKindOrCheckMap>;
 
  public:
   explicit TransitionElementsKindOrCheckMap(
       uint64_t bitfield, const ZoneVector<compiler::MapRef>& transition_sources,
-      compiler::MapRef transition_target, CheckType check_type)
-      : Base(CheckTypeBitField::update(bitfield, check_type)),
+      compiler::MapRef transition_target)
+      : Base(bitfield),
         transition_sources_(transition_sources),
         transition_target_(transition_target) {}
 
@@ -9619,12 +9651,11 @@ class TransitionElementsKindOrCheckMap
   static constexpr OpProperties kProperties = OpProperties::AnySideEffects() |
                                               OpProperties::DeferredCall() |
                                               OpProperties::EagerDeopt();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   Input& object_input() { return Node::input(0); }
+  Input& map_input() { return Node::input(1); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -9639,8 +9670,6 @@ class TransitionElementsKindOrCheckMap
   }
 
  private:
-  using CheckTypeBitField = NextBitField<CheckType, 1>;
-
   ZoneVector<compiler::MapRef> transition_sources_;
   const compiler::MapRef transition_target_;
 };

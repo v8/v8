@@ -6058,7 +6058,7 @@ struct TransitionAndStoreArrayElementOp
 V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, TransitionAndStoreArrayElementOp::Kind kind);
 
-struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
+struct CompareMapsOp : OperationT<CompareMapsOp> {
   ZoneRefSet<Map> maps;
 
   static constexpr OpEffects effects = OpEffects().CanReadHeapMemory();
@@ -6073,16 +6073,36 @@ struct CompareMapsOp : FixedArityOperationT<1, CompareMapsOp> {
 
   V<HeapObject> heap_object() const { return Base::input<HeapObject>(0); }
 
-  CompareMapsOp(V<HeapObject> heap_object, ZoneRefSet<Map> maps)
-      : Base(heap_object), maps(std::move(maps)) {}
+  OptionalV<Map> map() const {
+    return input_count > 1 ? input<Map>(1) : OptionalV<Map>::Nullopt();
+  }
+
+  CompareMapsOp(V<HeapObject> heap_object, OptionalV<Map> map,
+                ZoneRefSet<Map> maps)
+      : Base(1 + map.valid()), maps(std::move(maps)) {
+    input(0) = heap_object;
+    if (map.valid()) {
+      input(1) = map.value();
+    }
+  }
 
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{maps}; }
   void PrintOptions(std::ostream& os) const;
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(heap_object()), mapper.Map(map()), maps);
+  }
+
+  static CompareMapsOp& New(Graph* graph, V<HeapObject> heap_object,
+                            OptionalV<Map> map, ZoneRefSet<Map> maps) {
+    return Base::New(graph, 1 + map.valid(), heap_object, map, maps);
+  }
 };
 
-struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
+struct CheckMapsOp : OperationT<CheckMapsOp> {
   CheckMapsFlags flags;
   ZoneRefSet<Map> maps;
   FeedbackSource feedback;
@@ -6102,14 +6122,23 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
 
   V<HeapObject> heap_object() const { return Base::input<HeapObject>(0); }
   V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  OptionalV<Map> map() const {
+    return input_count > 2 ? input<Map>(2) : OptionalV<Map>::Nullopt();
+  }
 
   CheckMapsOp(V<HeapObject> heap_object, V<FrameState> frame_state,
-              ZoneRefSet<Map> maps, CheckMapsFlags flags,
+              OptionalV<Map> map, ZoneRefSet<Map> maps, CheckMapsFlags flags,
               const FeedbackSource& feedback)
-      : Base(heap_object, frame_state),
+      : Base(2 + map.valid()),
         flags(flags),
         maps(std::move(maps)),
-        feedback(feedback) {}
+        feedback(feedback) {
+    input(0) = heap_object;
+    input(1) = frame_state;
+    if (map.valid()) {
+      input(2) = map.value();
+    }
+  }
 
   void Validate(const Graph& graph) const {
     DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
@@ -6117,6 +6146,20 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
 
   auto options() const { return std::tuple{maps, flags, feedback}; }
   void PrintOptions(std::ostream& os) const;
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(heap_object()), mapper.Map(frame_state()),
+              mapper.Map(map()), maps, flags, feedback);
+  }
+
+  static CheckMapsOp& New(Graph* graph, V<HeapObject> heap_object,
+                          V<FrameState> frame_state, OptionalV<Map> map,
+                          ZoneRefSet<Map> maps, CheckMapsFlags flags,
+                          const FeedbackSource& feedback) {
+    return Base::New(graph, 2 + map.valid(), heap_object, frame_state, map,
+                     maps, flags, feedback);
+  }
 };
 
 // AssumeMaps are inserted after CheckMaps have been lowered, in order to keep

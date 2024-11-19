@@ -264,56 +264,43 @@ class MaglevEarlyLoweringReducer : public Next {
   }
 
   void TransitionElementsKindOrCheckMap(
-      V<Object> object, V<FrameState> frame_state, bool check_heap_object,
+      V<Object> object, V<Map> map, V<FrameState> frame_state,
       const ZoneVector<compiler::MapRef>& transition_sources,
       const MapRef transition_target, const FeedbackSource& feedback) {
-    Label<> end(this);
-    Label<> if_smi(this);
+    Label<Map> end(this);
 
-    TransitionElementsKind(object, transition_sources, transition_target,
-                           check_heap_object, if_smi, end);
+    TransitionElementsKind(object, map, transition_sources, transition_target,
+                           end);
 
     __ DeoptimizeIfNot(
-        __ TaggedEqual(__ LoadMapField(object),
-                       __ HeapConstant(transition_target.object())),
+        __ TaggedEqual(map, __ HeapConstant(transition_target.object())),
         frame_state, DeoptimizeReason::kWrongMap, feedback);
-    GOTO(end);
-
-    if (check_heap_object && if_smi.has_incoming_jump()) {
-      BIND(if_smi);
-      __ Deoptimize(frame_state, DeoptimizeReason::kSmi, feedback);
-    } else {
-      DCHECK(!if_smi.has_incoming_jump());
-    }
-
-    BIND(end);
+    GOTO(end, map);
+    BIND(end, result);
+    USE(result);
   }
 
-  void TransitionMultipleElementsKind(
-      V<Object> object, const ZoneVector<compiler::MapRef>& transition_sources,
+  V<Map> TransitionMultipleElementsKind(
+      V<Object> object, V<Map> map,
+      const ZoneVector<compiler::MapRef>& transition_sources,
       const MapRef transition_target) {
-    Label<> end(this);
+    Label<Map> end(this);
 
-    TransitionElementsKind(object, transition_sources, transition_target,
-                           /* check_heap_object */ true, end, end);
-
-    GOTO(end);
-    BIND(end);
+    TransitionElementsKind(object, map, transition_sources, transition_target,
+                           end);
+    GOTO(end, map);
+    BIND(end, result);
+    return result;
   }
 
   void TransitionElementsKind(
-      V<Object> object, const ZoneVector<compiler::MapRef>& transition_sources,
-      const MapRef transition_target, bool check_heap_object, Label<>& if_smi,
-      Label<>& end) {
-    if (check_heap_object) {
-      GOTO_IF(__ ObjectIsSmi(object), if_smi);
-    }
-
+      V<Object> object, V<Map> map,
+      const ZoneVector<compiler::MapRef>& transition_sources,
+      const MapRef transition_target, Label<Map>& end) {
     // Turboshaft's TransitionElementsKind operation loads the map everytime, so
     // we don't call it to have a single map load (in practice,
     // LateLoadElimination should probably eliminate the subsequent map loads,
     // but let's not risk it).
-    V<Map> map = __ LoadMapField(object);
     V<Map> target_map = __ HeapConstant(transition_target.object());
 
     for (const compiler::MapRef transition_source : transition_sources) {
@@ -327,7 +314,7 @@ class MaglevEarlyLoweringReducer : public Next {
               isolate_, __ NoContextConstant(), V<HeapObject>::Cast(object),
               target_map);
         }
-        GOTO(end);
+        GOTO(end, target_map);
       }
     }
   }

@@ -4608,16 +4608,17 @@ class TurboshaftAssemblerOpInterface
         TransitionAndStoreArrayElementOp::Kind::kSignedSmallElement, {}, {});
   }
 
-  V<Word32> CompareMaps(V<HeapObject> heap_object,
+  V<Word32> CompareMaps(V<HeapObject> heap_object, OptionalV<Map> map,
                         const ZoneRefSet<Map>& maps) {
-    return ReduceIfReachableCompareMaps(heap_object, maps);
+    return ReduceIfReachableCompareMaps(heap_object, map, maps);
   }
 
   void CheckMaps(V<HeapObject> heap_object,
-                 V<turboshaft::FrameState> frame_state,
+                 V<turboshaft::FrameState> frame_state, OptionalV<Map> map,
                  const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                  const FeedbackSource& feedback) {
-    ReduceIfReachableCheckMaps(heap_object, frame_state, maps, flags, feedback);
+    ReduceIfReachableCheckMaps(heap_object, frame_state, map, maps, flags,
+                               feedback);
   }
 
   void AssumeMap(V<HeapObject> heap_object, const ZoneRefSet<Map>& maps) {

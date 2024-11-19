@@ -4063,6 +4063,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       NON_VALUE_NODE_LIST(GENERATE_CASE)
 #undef GENERATE_CASE
       UNREACHABLE();
+    case Opcode::kTransitionElementsKind:
     // Unsorted value nodes. TODO(maglev): See which of these should return
     // something else than kUnknown.
     case Opcode::kIdentity:
@@ -4564,7 +4565,8 @@ class KnownMapsMerger {
 }  // namespace
 
 ReduceResult MaglevGraphBuilder::BuildCheckMaps(
-    ValueNode* object, base::Vector<const compiler::MapRef> maps) {
+    ValueNode* object, base::Vector<const compiler::MapRef> maps,
+    std::optional<ValueNode*> map) {
   // TODO(verwaest): Support other objects with possible known stable maps as
   // well.
   if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
@@ -4624,6 +4626,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   if (merger.emit_check_with_migration()) {
     AddNewNode<CheckMapsWithMigration>({object}, merger.intersect_set(),
                                        GetCheckType(known_info->type()));
+  } else if (map) {
+    AddNewNode<CheckMapsWithAlreadyLoadedMap>({object, *map},
+                                              merger.intersect_set());
   } else {
     AddNewNode<CheckMaps>({object}, merger.intersect_set(),
                           GetCheckType(known_info->type()));
@@ -4634,7 +4639,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
 }
 
 ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
-    ValueNode* object, const ZoneVector<compiler::MapRef>& transition_sources,
+    ValueNode* heap_object, ValueNode* object_map,
+    const ZoneVector<compiler::MapRef>& transition_sources,
     compiler::MapRef transition_target) {
   // TODO(marja): Optimizations based on what we know about the intersection of
   // known maps and transition sources or transition target.
@@ -4646,12 +4652,12 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
     CHECK(!transition_source.is_migration_target());
   }
 
-  NodeInfo* known_info = GetOrCreateInfoFor(object);
+  NodeInfo* known_info = GetOrCreateInfoFor(heap_object);
 
   AddNewNode<TransitionElementsKindOrCheckMap>(
-      {object}, transition_sources, transition_target,
-      GetCheckType(known_info->type()));
-  // After this operation, object's map is transition_target (or we deopted).
+      {heap_object, object_map}, transition_sources, transition_target);
+  // After this operation, heap_object's map is transition_target (or we
+  // deopted).
   known_info->SetPossibleMaps(
       PossibleMaps{transition_target}, !transition_target.is_stable(),
       StaticTypeForMap(transition_target, broker()), broker());
@@ -4665,7 +4671,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
 }
 
 ReduceResult MaglevGraphBuilder::BuildCompareMaps(
-    ValueNode* heap_object, std::optional<ValueNode*> object_map_opt,
+    ValueNode* heap_object, ValueNode* object_map,
     base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
     std::optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
   GetOrCreateInfoFor(heap_object);
@@ -4675,14 +4681,6 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
   if (merger.intersect_set().is_empty()) {
     return ReduceResult::DoneWithAbort();
   }
-
-  // TODO(pthier): Avoid relaoding the map. This also applies to CheckMaps,
-  // TransitionElementsKind, etc. We could change those nodes to optionally
-  // take a map as input and returning the map.
-  ValueNode* object_map =
-      object_map_opt.has_value()
-          ? object_map_opt.value()
-          : BuildLoadTaggedField(heap_object, HeapObject::kMapOffset);
 
   // TODO(pthier): Support map packing.
   DCHECK(!V8_MAP_PACKING_BOOL);
@@ -4710,7 +4708,7 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
 }
 
 ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
-    ValueNode* heap_object,
+    ValueNode* heap_object, ValueNode* object_map,
     const ZoneVector<compiler::MapRef>& transition_sources,
     compiler::MapRef transition_target, MaglevSubGraphBuilder* sub_graph,
     std::optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
@@ -4721,16 +4719,14 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindAndCompareMaps(
   // TODO(pthier): Calculate and use the intersection of known maps with
   // (transition_sources union transition_target).
 
-  AddNewNode<TransitionElementsKind>({heap_object}, transition_sources,
-                                     transition_target);
-  ValueNode* object_map =
-      BuildLoadTaggedField(heap_object, HeapObject::kMapOffset);
+  ValueNode* new_map = AddNewNode<TransitionElementsKind>(
+      {heap_object, object_map}, transition_sources, transition_target);
 
   // TODO(pthier): Support map packing.
   DCHECK(!V8_MAP_PACKING_BOOL);
   if_not_matched.emplace(sub_graph, 1);
   sub_graph->GotoIfFalse<BranchIfReferenceEqual>(
-      &*if_not_matched, {object_map, GetConstant(transition_target)});
+      &*if_not_matched, {new_map, GetConstant(transition_target)});
   // After the branch, object's map is transition_target.
   DCHECK(transition_target.IsJSReceiverMap());
   known_info->SetPossibleMaps(
@@ -6356,8 +6352,24 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
           access_info.lookup_start_object_maps().front();
       const ZoneVector<compiler::MapRef>& transition_sources =
           access_info.transition_sources();
+
+      // There are no transitions in heap number maps. If `object` is a SMI, we
+      // would anyway fail the transition and deopt later.
+      DCHECK_NE(transition_target.instance_type(),
+                InstanceType::HEAP_NUMBER_TYPE);
+#ifdef DEBUG
+      for (auto& transition_source : transition_sources) {
+        DCHECK_NE(transition_source.instance_type(),
+                  InstanceType::HEAP_NUMBER_TYPE);
+      }
+#endif  // DEBUG
+
+      BuildCheckHeapObject(object);
+      ValueNode* object_map =
+          BuildLoadTaggedField(object, HeapObject::kMapOffset);
+
       RETURN_IF_ABORT(BuildTransitionElementsKindOrCheckMap(
-          object, transition_sources, transition_target));
+          object, object_map, transition_sources, transition_target));
     } else {
       RETURN_IF_ABORT(BuildCheckMaps(
           object, base::VectorOf(access_info.lookup_start_object_maps())));
@@ -6395,6 +6407,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   std::optional<MaglevSubGraphBuilder::Label> generic_access;
 
   BuildCheckHeapObject(object);
+  ValueNode* object_map = BuildLoadTaggedField(object, HeapObject::kMapOffset);
 
   // TODO(pthier): We could do better here than just emitting code for each map,
   // as many different maps can produce the exact samce code (e.g. TypedArray
@@ -6409,22 +6422,25 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
         compiler::MapRef transition_target =
             access_info.lookup_start_object_maps().front();
         map_check_result = BuildTransitionElementsKindOrCheckMap(
-            object, access_info.transition_sources(), transition_target);
+            object, object_map, access_info.transition_sources(),
+            transition_target);
       } else {
         map_check_result = BuildCheckMaps(
-            object, base::VectorOf(access_info.lookup_start_object_maps()));
+            object, base::VectorOf(access_info.lookup_start_object_maps()),
+            object_map);
       }
     } else {
       if (handle_transitions) {
         compiler::MapRef transition_target =
             access_info.lookup_start_object_maps().front();
         map_check_result = BuildTransitionElementsKindAndCompareMaps(
-            object, access_info.transition_sources(), transition_target,
-            &sub_graph, check_next_map);
+            object, object_map, access_info.transition_sources(),
+            transition_target, &sub_graph, check_next_map);
       } else {
         map_check_result = BuildCompareMaps(
-            object, {}, base::VectorOf(access_info.lookup_start_object_maps()),
-            &sub_graph, check_next_map);
+            object, object_map,
+            base::VectorOf(access_info.lookup_start_object_maps()), &sub_graph,
+            check_next_map);
       }
     }
     if (map_check_result.IsDoneWithAbort()) {

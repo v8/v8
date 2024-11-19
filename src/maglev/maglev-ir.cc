@@ -2037,6 +2037,44 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
+void CheckMapsWithAlreadyLoadedMap::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(map_input());
+}
+
+void CheckMapsWithAlreadyLoadedMap::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  Register map = ToRegister(map_input());
+
+  // We emit an unconditional deopt if we intersect the map sets and the
+  // intersection is empty.
+  DCHECK(!maps().is_empty());
+
+  // CheckMapsWithAlreadyLoadedMap can only be used in contexts where SMIs /
+  // HeapNumbers don't make sense (e.g., if we're loading properties from them).
+  DCHECK(!compiler::AnyMapIsHeapNumber(maps()));
+
+  // Experimentally figured out map limit (with slack) which allows us to use
+  // near jumps in the code below. If --deopt-every-n-times is on, we generate
+  // a bit more code, so disable the near jump optimization.
+  constexpr int kMapCountForNearJumps = kTaggedSize == 4 ? 10 : 5;
+  Label::Distance jump_distance = (maps().size() <= kMapCountForNearJumps &&
+                                   v8_flags.deopt_every_n_times <= 0)
+                                      ? Label::Distance::kNear
+                                      : Label::Distance::kFar;
+
+  Label done;
+  size_t map_count = maps().size();
+  for (size_t i = 0; i < map_count - 1; ++i) {
+    Handle<Map> map_at_i = maps().at(i).object();
+    __ CompareTaggedAndJumpIf(map, map_at_i, kEqual, &done, jump_distance);
+  }
+  Handle<Map> last_map = maps().at(map_count - 1).object();
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap);
+  __ CompareTaggedAndJumpIf(map, last_map, kNotEqual, fail);
+  __ bind(&done);
+}
+
 int MigrateMapIfNeeded::MaxCallStackArgs() const {
   DCHECK_EQ(Runtime::FunctionForId(Runtime::kTryMigrateInstance)->nargs, 1);
   return 1;
@@ -6348,7 +6386,8 @@ template <typename NodeT>
 void GenerateTransitionElementsKind(
     MaglevAssembler* masm, NodeT* node, Register object, Register map,
     base::Vector<const compiler::MapRef> transition_sources,
-    const compiler::MapRef transition_target, ZoneLabelRef done) {
+    const compiler::MapRef transition_target, ZoneLabelRef done,
+    std::optional<Register> result_opt) {
   DCHECK(!compiler::AnyMapIsHeapNumber(transition_sources));
   DCHECK(!IsHeapNumberMap(*transition_target.object()));
 
@@ -6364,7 +6403,7 @@ void GenerateTransitionElementsKind(
             [](MaglevAssembler* masm, Register object, Register map,
                RegisterSnapshot register_snapshot,
                compiler::MapRef transition_target, bool is_simple,
-               ZoneLabelRef done) {
+               ZoneLabelRef done, std::optional<Register> result_opt) {
               if (is_simple) {
                 __ MoveTagged(map, transition_target.object());
                 __ StoreTaggedFieldWithWriteBarrier(
@@ -6378,10 +6417,13 @@ void GenerateTransitionElementsKind(
                 __ CallRuntime(Runtime::kTransitionElementsKind);
                 save_state.DefineSafepoint();
               }
+              if (result_opt) {
+                __ MoveTagged(*result_opt, transition_target.object());
+              }
               __ Jump(*done);
             },
             object, map, node->register_snapshot(), transition_target,
-            is_simple, done));
+            is_simple, done, result_opt));
   }
 }
 
@@ -6393,22 +6435,25 @@ int TransitionElementsKind::MaxCallStackArgs() const {
 
 void TransitionElementsKind::SetValueLocationConstraints() {
   UseRegister(object_input());
-  set_temporaries_needed(1);
+  UseRegister(map_input());
+  DefineAsRegister(this);
 }
 
 void TransitionElementsKind::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register object = ToRegister(object_input());
-  Register map = temps.Acquire();
+  Register map = ToRegister(map_input());
+  Register result_register = ToRegister(result());
 
   ZoneLabelRef done(masm);
 
-  __ JumpIfSmi(object, *done, Label::kNear);
-  __ LoadMapForCompare(map, object);
+  __ AssertNotSmi(object);
   GenerateTransitionElementsKind(masm, this, object, map,
                                  base::VectorOf(transition_sources_),
-                                 transition_target_, done);
+                                 transition_target_, done, result_register);
+  // No transition happened, return the original map.
+  __ Move(result_register, map);
+  __ Jump(*done);
   __ bind(*done);
 }
 
@@ -6418,31 +6463,23 @@ int TransitionElementsKindOrCheckMap::MaxCallStackArgs() const {
 
 void TransitionElementsKindOrCheckMap::SetValueLocationConstraints() {
   UseRegister(object_input());
-  set_temporaries_needed(1);
+  UseRegister(map_input());
 }
 
 void TransitionElementsKindOrCheckMap::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register object = ToRegister(object_input());
+  Register map = ToRegister(map_input());
 
   ZoneLabelRef done(masm);
 
-  if (check_type() == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kWrongMap);
-  }
-
-  Register map = temps.Acquire();
-  __ LoadMapForCompare(map, object);
   __ CompareTaggedAndJumpIf(map, transition_target_.object(), kEqual, *done);
 
   GenerateTransitionElementsKind(masm, this, object, map,
                                  base::VectorOf(transition_sources_),
-                                 transition_target_, done);
-  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap);
-  __ CompareTaggedAndJumpIf(map, transition_target_.object(), kNotEqual, fail);
+                                 transition_target_, done, {});
+  // If we didn't jump to 'done' yet, the transition failed.
+  __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
   __ bind(*done);
 }
 
@@ -7224,6 +7261,21 @@ void BuiltinStringPrototypeCharCodeOrCodePointAt::PrintParams(
 
 void CheckMaps::PrintParams(std::ostream& os,
                             MaglevGraphLabeller* graph_labeller) const {
+  os << "(";
+  bool first = true;
+  for (compiler::MapRef map : maps()) {
+    if (first) {
+      first = false;
+    } else {
+      os << ", ";
+    }
+    os << *map.object();
+  }
+  os << ")";
+}
+
+void CheckMapsWithAlreadyLoadedMap::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(";
   bool first = true;
   for (compiler::MapRef map : maps()) {

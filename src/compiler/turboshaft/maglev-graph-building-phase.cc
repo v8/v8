@@ -2246,7 +2246,7 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
   void CheckMaps(V<Object> receiver_input, V<FrameState> frame_state,
-                 const FeedbackSource& feedback,
+                 OptionalV<Map> map, const FeedbackSource& feedback,
                  const compiler::ZoneRefSet<Map>& maps, bool check_heap_object,
                  bool try_migrate) {
     Label<> done(this);
@@ -2271,7 +2271,7 @@ class GraphBuildingNodeProcessor {
       }
     }
 
-    __ CheckMaps(V<HeapObject>::Cast(receiver_input), frame_state, maps,
+    __ CheckMaps(V<HeapObject>::Cast(receiver_input), frame_state, map, maps,
                  has_migration_targets ? CheckMapsFlag::kTryMigrateInstance
                                        : CheckMapsFlag::kNone,
                  feedback);
@@ -2284,17 +2284,26 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::CheckMaps* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    CheckMaps(Map(node->receiver_input()), frame_state,
+    CheckMaps(Map(node->receiver_input()), frame_state, {},
               node->eager_deopt_info()->feedback_to_update(),
               node->maps().Clone(graph_zone()),
               node->check_type() == maglev::CheckType::kCheckHeapObject,
               /* try_migrate */ false);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckMapsWithAlreadyLoadedMap* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    CheckMaps(Map(node->object_input()), frame_state, Map(node->map_input()),
+              node->eager_deopt_info()->feedback_to_update(),
+              node->maps().Clone(graph_zone()), /*check_heap_object*/ false,
+              /* try_migrate */ false);
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckMapsWithMigration* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    CheckMaps(Map(node->receiver_input()), frame_state,
+    CheckMaps(Map(node->receiver_input()), frame_state, {},
               node->eager_deopt_info()->feedback_to_update(),
               node->maps().Clone(graph_zone()),
               node->check_type() == maglev::CheckType::kCheckHeapObject,
@@ -2491,26 +2500,17 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::TransitionElementsKindOrCheckMap* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    bool check_heap_object;
-    switch (node->check_type()) {
-      case maglev::CheckType::kCheckHeapObject:
-        check_heap_object = true;
-        break;
-      case maglev::CheckType::kOmitHeapObjectCheck:
-        check_heap_object = false;
-        break;
-    }
     __ TransitionElementsKindOrCheckMap(
-        Map(node->object_input()), frame_state, check_heap_object,
+        Map(node->object_input()), Map(node->map_input()), frame_state,
         node->transition_sources(), node->transition_target(),
         node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::TransitionElementsKind* node,
                                 const maglev::ProcessingState& state) {
-    __ TransitionMultipleElementsKind(Map(node->object_input()),
-                                      node->transition_sources(),
-                                      node->transition_target());
+    SetMap(node, __ TransitionMultipleElementsKind(
+                     Map(node->object_input()), Map(node->map_input()),
+                     node->transition_sources(), node->transition_target()));
     return maglev::ProcessResult::kContinue;
   }
 
