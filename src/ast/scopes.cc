@@ -1643,6 +1643,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
 
   // Reset all non-trivial members.
   params_.DropAndClear();
+  num_parameters_ = 0;
   decls_.Clear();
   locals_.Clear();
   inner_scope_ = nullptr;
