@@ -56,9 +56,6 @@ class V8_EXPORT_PRIVATE Stack final {
   // and going to the stack start. Slot values are passed on to `visitor`.
   void IteratePointersUntilMarker(StackVisitor* visitor) const;
 
-  void AddStackSegment(const void* start, const void* top);
-  void ClearStackSegments();
-
   // Iterate just the background stacks, if any.
   void IterateBackgroundStacks(StackVisitor* visitor) const;
 
@@ -206,9 +203,6 @@ class V8_EXPORT_PRIVATE Stack final {
   }
 
   Segment current_segment_;
-
-  // TODO(v8:13493): If inactive stacks are not used anymore, clean this up.
-  std::vector<Segment> inactive_stacks_;
 
   mutable v8::base::Mutex lock_;
   std::map<ThreadId, Segment> background_stacks_;

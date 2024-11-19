@@ -100,6 +100,8 @@ namespace v8::internal::wasm {
   V(WasmAllocateStructWithRtt)                                                 \
   V(WasmOnStackReplace)                                                        \
   V(WasmSuspend)                                                               \
+  V(WasmResume)                                                                \
+  V(WasmReject)                                                                \
   V(WasmStringNewWtf8)                                                         \
   V(WasmStringNewWtf16)                                                        \
   V(WasmStringConst)                                                           \
