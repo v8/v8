@@ -9,6 +9,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/numbers/conversions.h"
 
 namespace v8 {
 namespace internal {
@@ -810,8 +811,8 @@ bool JSInliningHeuristic::CandidateCompare::operator()(
     return kInlineRightFirst;
   }
 
-  int left_score = left.frequency.value() / left.total_size;
-  int right_score = right.frequency.value() / right.total_size;
+  int left_score = FastD2IChecked(left.frequency.value() / left.total_size);
+  int right_score = FastD2IChecked(right.frequency.value() / right.total_size);
 
   if (left_score > right_score) {
     return kInlineLeftFirst;
