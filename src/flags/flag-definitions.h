@@ -815,9 +815,18 @@ DEFINE_UINT(minor_ms_max_page_age, 4,
 DEFINE_UINT(minor_ms_max_new_space_capacity_mb, 72,
             "max new space capacity in MBs when using MinorMS. When pointer "
             "compression is disabled, twice the capacity is used.")
-DEFINE_UINT(scavenger_max_new_space_capacity_mb, 8,
+
+#if defined(ANDROID)
+#define DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB 8
+#else
+#define DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB 32
+#endif
+DEFINE_UINT(scavenger_max_new_space_capacity_mb,
+            DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB,
             "max new space capacity in MBs when using Scavenger. When pointer "
             "compression is disabled, twice the capacity is used.")
+#undef DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB
+
 DEFINE_BOOL(trace_page_promotions, false, "trace page promotion decisions")
 DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
