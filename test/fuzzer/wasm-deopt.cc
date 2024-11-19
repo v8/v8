@@ -183,6 +183,38 @@ std::vector<ExecutionResult> PerformReferenceRun(
   return results;
 }
 
+void ConfigureFlags(v8::Isolate* isolate) {
+  struct FlagConfiguration {
+    explicit FlagConfiguration(v8::Isolate* isolate) {
+      // Disable the NativeModule cache. Different fuzzer iterations should not
+      // interact with each other. Rerunning a fuzzer input (e.g. with
+      // libfuzzer's "-runs=x" argument) should repeatedly test deoptimizations.
+      // When caching the optimized code, only the first run will execute any
+      // deopts.
+      v8_flags.wasm_native_module_cache = false;
+      // We switch it to synchronous mode to avoid the nondeterminism of
+      // background jobs finishing at random times.
+      v8_flags.wasm_sync_tier_up = true;
+      // Enable the experimental features we want to fuzz. (Note that
+      // EnableExperimentalWasmFeatures only enables staged features.)
+      v8_flags.wasm_deopt = true;
+      v8_flags.wasm_inlining_call_indirect = true;
+      // Make inlining more aggressive.
+      v8_flags.wasm_inlining_ignore_call_counts = true;
+      v8_flags.wasm_inlining_budget = v8_flags.wasm_inlining_budget * 5;
+      v8_flags.wasm_inlining_max_size = v8_flags.wasm_inlining_max_size * 5;
+      v8_flags.wasm_inlining_factor = v8_flags.wasm_inlining_factor * 5;
+      // Force new instruction selection.
+      v8_flags.turboshaft_wasm_instruction_selection_staged = true;
+      // Enable other staged or experimental features and enforce flag
+      // implications.
+      EnableExperimentalWasmFeatures(isolate);
+    }
+  };
+
+  static FlagConfiguration config(isolate);
+}
+
 int FuzzIt(base::Vector<const uint8_t> data) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
@@ -196,36 +228,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
 
-  // TODO(mliedtke): Initialization of all the flags should be done in a
-  // "do-once" function.
-
-  // Disable the NativeModule cache. Different fuzzer iterations should not
-  // interact with each other. Rerunning a fuzzer input (e.g. with libfuzzer's
-  // "-runs=x" argument) should repeatedly test deoptimizations. When caching
-  // the optimized code, only the first run will execute any deopts.
-  FlagScope<bool> no_module_cache(&v8_flags.wasm_native_module_cache, false);
-  // We switch it to synchronous mode to avoid the nondeterminism of background
-  // jobs finishing at random times.
-  FlagScope<bool> sync_tier_up_scope(&v8_flags.wasm_sync_tier_up, true);
-  // Enable the experimental features we want to fuzz. (Note that
-  // EnableExperimentalWasmFeatures only enables staged features.)
-  FlagScope<bool> deopt_scope(&v8_flags.wasm_deopt, true);
-  FlagScope<bool> inlining_indirect(&v8_flags.wasm_inlining_call_indirect,
-                                    true);
-  // Make inlining more aggressive.
-  FlagScope<bool> ignore_call_counts_scope(
-      &v8_flags.wasm_inlining_ignore_call_counts, true);
-  FlagScope<size_t> inlining_budget(&v8_flags.wasm_inlining_budget,
-                                    v8_flags.wasm_inlining_budget * 5);
-  FlagScope<size_t> inlining_size(&v8_flags.wasm_inlining_max_size,
-                                  v8_flags.wasm_inlining_max_size * 5);
-  FlagScope<size_t> inlining_factor(&v8_flags.wasm_inlining_factor,
-                                    v8_flags.wasm_inlining_factor * 5);
-  // Force new instruction selection.
-  FlagScope<bool> new_isel(
-      &v8_flags.turboshaft_wasm_instruction_selection_staged, true);
-
-  EnableExperimentalWasmFeatures(isolate);
+  ConfigureFlags(isolate);
 
   v8::TryCatch try_catch(isolate);
   AccountingAllocator allocator;
