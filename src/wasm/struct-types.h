@@ -266,8 +266,9 @@ inline std::ostream& operator<<(std::ostream& out, StructTypeBase type) {
 
 // Support base::hash<StructTypeBase>.
 inline size_t hash_value(const StructTypeBase& type) {
+  // Note: If you update this you probably also want to update
+  // `CanonicalHashing::Add(CanonicalStructType)`.
   return base::Hasher{}
-      .Add(type.field_count())
       .AddRange(type.fields())
       .AddRange(type.mutabilities())
       .hash();
@@ -324,6 +325,8 @@ inline size_t hash_value(const ArrayType& type) {
   return base::Hasher::Combine(type.element_type(), type.mutability());
 }
 inline size_t hash_value(const CanonicalArrayType& type) {
+  // Note: If you update this you probably also want to update
+  // `CanonicalHashing::Add(CanonicalArrayType)`.
   return base::Hasher::Combine(type.element_type(), type.mutability());
 }
 

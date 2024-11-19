@@ -2689,7 +2689,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
 
 bool WasmExportedFunctionData::MatchesSignature(
     wasm::CanonicalTypeIndex other_canonical_type_index) {
-  return wasm::GetWasmEngine()->type_canonicalizer()->IsCanonicalSubtype(
+  return wasm::GetTypeCanonicalizer()->IsCanonicalSubtype(
       sig_index(), other_canonical_type_index);
 }
 

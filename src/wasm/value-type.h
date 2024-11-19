@@ -63,13 +63,12 @@ struct TypeIndex {
 struct ModuleTypeIndex : public TypeIndex {
   inline static constexpr ModuleTypeIndex Invalid();
   // Can't use "=default" because the base class doesn't have operator<=>.
-  bool operator==(const ModuleTypeIndex& other) const {
-    return index == other.index;
-  }
-  auto operator<=>(const ModuleTypeIndex& other) const {
+  bool operator==(ModuleTypeIndex other) const { return index == other.index; }
+  auto operator<=>(ModuleTypeIndex other) const {
     return index <=> other.index;
   }
 };
+ASSERT_TRIVIALLY_COPYABLE(ModuleTypeIndex);
 
 constexpr ModuleTypeIndex ModuleTypeIndex::Invalid() {
   return ModuleTypeIndex{ModuleTypeIndex::kInvalid};
@@ -78,13 +77,14 @@ constexpr ModuleTypeIndex ModuleTypeIndex::Invalid() {
 struct CanonicalTypeIndex : public TypeIndex {
   inline static constexpr CanonicalTypeIndex Invalid();
 
-  bool operator==(const CanonicalTypeIndex& other) const {
+  bool operator==(CanonicalTypeIndex other) const {
     return index == other.index;
   }
-  auto operator<=>(const CanonicalTypeIndex& other) const {
+  auto operator<=>(CanonicalTypeIndex other) const {
     return index <=> other.index;
   }
 };
+ASSERT_TRIVIALLY_COPYABLE(CanonicalTypeIndex);
 
 constexpr CanonicalTypeIndex CanonicalTypeIndex::Invalid() {
   return CanonicalTypeIndex{CanonicalTypeIndex::kInvalid};
@@ -610,8 +610,6 @@ constexpr bool is_defaultable(ValueKind kind) {
 // A ValueType is encoded by two components: a ValueKind and a heap
 // representation (for reference types/rtts). Those are encoded into 32 bits
 // using base::BitField.
-// ValueType encoding includes an additional bit marking the index of a type as
-// relative. This should only be used during type canonicalization.
 // {ValueTypeBase} shouldn't be used directly; code should be using one of
 // the subclasses. To enforce this, the public interface is limited to
 // type index agnostic getters.
@@ -849,7 +847,7 @@ class ValueTypeBase {
   /**************************** Static constants ******************************/
   static constexpr int kKindBits = 5;
   static constexpr int kHeapTypeBits = 20;
-  static constexpr int kLastUsedBit = 25;
+  static constexpr int kLastUsedBit = 24;
 
   static const intptr_t kBitFieldOffset;
 
@@ -908,17 +906,12 @@ class ValueTypeBase {
 
   using KindField = base::BitField<ValueKind, 0, kKindBits>;
   using HeapTypeField = KindField::Next<uint32_t, kHeapTypeBits>;
-  // Marks a type as a canonical type which uses an index relative to its
-  // recursive group start. Used only during type canonicalization.
-  using CanonicalRelativeField = HeapTypeField::Next<bool, 1>;
 
   static_assert(kV8MaxWasmTypes < (1u << kHeapTypeBits),
                 "Type indices fit in kHeapTypeBits");
   // This is implemented defensively against field order changes.
-  static_assert(kLastUsedBit ==
-                    std::max(KindField::kLastUsedBit,
-                             std::max(HeapTypeField::kLastUsedBit,
-                                      CanonicalRelativeField::kLastUsedBit)),
+  static_assert(kLastUsedBit == std::max(KindField::kLastUsedBit,
+                                         HeapTypeField::kLastUsedBit),
                 "kLastUsedBit is consistent");
 
   constexpr explicit ValueTypeBase(uint32_t bit_field)
@@ -1058,13 +1051,6 @@ class CanonicalValueType : public ValueTypeBase {
         KindField::encode(kind) | HeapTypeField::encode(index.index))};
   }
 
-  static constexpr CanonicalValueType WithRelativeIndex(ValueKind kind,
-                                                        uint32_t index) {
-    return CanonicalValueType{
-        ValueTypeBase(KindField::encode(kind) | HeapTypeField::encode(index) |
-                      CanonicalRelativeField::encode(true))};
-  }
-
   static constexpr CanonicalValueType FromRawBitField(uint32_t bit_field) {
     return CanonicalValueType{ValueTypeBase::FromRawBitField(bit_field)};
   }
@@ -1078,10 +1064,6 @@ class CanonicalValueType : public ValueTypeBase {
 
   constexpr CanonicalTypeIndex ref_index() const {
     return CanonicalTypeIndex{ValueTypeBase::ref_index()};
-  }
-
-  constexpr bool is_canonical_relative() const {
-    return has_index() && CanonicalRelativeField::decode(bit_field_);
   }
 };
 ASSERT_TRIVIALLY_COPYABLE(CanonicalValueType);
