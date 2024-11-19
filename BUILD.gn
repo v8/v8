@@ -1479,12 +1479,13 @@ config("toolchain") {
 
   # Under simulator build, compiler will not provide __riscv_xlen. Define here
   if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
+    if (target_is_simulator) {
+      defines += [ "_RISCV_TARGET_SIMULATOR" ]
+    }
     if (riscv_use_rvv || target_is_simulator) {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
       defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
     }
-  }
-  if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
     if (riscv_use_zba) {
       defines += [ "__riscv_zba" ]
     }
