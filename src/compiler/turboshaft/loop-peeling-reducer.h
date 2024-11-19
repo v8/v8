@@ -18,6 +18,15 @@ namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
+#ifdef DEBUG
+#define TRACE(x)                                                             \
+  do {                                                                       \
+    if (v8_flags.turboshaft_trace_peeling) StdoutStream() << x << std::endl; \
+  } while (false)
+#else
+#define TRACE(x)
+#endif
+
 template <class Next>
 class LoopUnrollingReducer;
 
@@ -120,6 +129,7 @@ class LoopPeelingReducer : public Next {
   };
 
   void PeelFirstIteration(const Block* header) {
+    TRACE("LoopPeeling: peeling loop at " << header->index());
     DCHECK_EQ(peeling_, PeelingStatus::kNotPeeling);
     ScopedModification<PeelingStatus> scope(&peeling_,
                                             PeelingStatus::kEmittingPeeledLoop);
@@ -133,24 +143,39 @@ class LoopPeelingReducer : public Next {
     // CloneSubGraphs do), and will end by emitting the backedge, because this
     // time {peeling_} won't be EmittingPeeledLoop, and the backedge Goto will
     // thus be emitted.
+    TRACE("> Emitting peeled iteration");
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
 
     if (__ generating_unreachable_operations()) {
       // While peeling, we realized that the 2nd iteration of the loop is not
       // reachable.
+      TRACE("> Second iteration is not reachable, stopping now");
       return;
     }
 
     // We now emit the regular unpeeled loop.
     peeling_ = PeelingStatus::kEmittingUnpeeledBody;
+    TRACE("> Emitting unpeeled loop body");
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ true,
                      /* is_loop_after_peeling */ true);
   }
 
   bool CanPeelLoop(const Block* header) {
-    if (IsPeeling()) return false;
+    TRACE("LoopPeeling: considering " << header->index());
+    if (IsPeeling()) {
+      TRACE("> Cannot peel because we're already peeling a loop");
+      return false;
+    }
     auto info = loop_finder_.GetLoopInfo(header);
-    return !info.has_inner_loops && info.op_count <= kMaxSizeForPeeling;
+    if (info.has_inner_loops) {
+      TRACE("> Cannot peel because it has inner loops");
+      return false;
+    }
+    if (info.op_count > kMaxSizeForPeeling) {
+      TRACE("> Cannot peel because it contains too many operations");
+      return false;
+    }
+    return true;
   }
 
   bool IsPeeling() const {
@@ -169,6 +194,8 @@ class LoopPeelingReducer : public Next {
   LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph()};
   JSHeapBroker* broker_ = __ data() -> broker();
 };
+
+#undef TRACE
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 

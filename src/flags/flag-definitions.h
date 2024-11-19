@@ -1502,6 +1502,10 @@ DEFINE_BOOL(turboshaft_trace_emitted, false,
             "trace emitted Turboshaft instructions")
 DEFINE_WEAK_IMPLICATION(turboshaft_trace_intermediate_reductions,
                         turboshaft_trace_reduction)
+DEFINE_BOOL(turboshaft_trace_unrolling, false,
+            "trace Turboshaft's loop unrolling reducer")
+DEFINE_BOOL(turboshaft_trace_peeling, false,
+            "trace Turboshaft's loop peeling reducer")
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")
