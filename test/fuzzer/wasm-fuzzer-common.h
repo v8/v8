@@ -10,8 +10,15 @@
 
 #include <memory>
 
-#include "src/wasm/module-decoder.h"
-#include "src/wasm/wasm-module-builder.h"
+#include "src/wasm/wasm-features.h"
+#include "src/wasm/wasm-module.h"
+
+namespace v8::internal {
+class WasmInstanceObject;
+namespace wasm {
+class ZoneBuffer;
+}
+}  // namespace v8::internal
 
 namespace v8::internal::wasm::fuzzing {
 
@@ -40,6 +47,12 @@ Handle<WasmModuleObject> CompileReferenceModule(
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);
+
+// Create a dummy module containing a few wasm-gc types. This can be done to
+// prepulate the TypeCanonicalizer with a few canonical types, so that a
+// module-specific type index ismore likely to be different from its canonical
+// type index.
+Handle<WasmInstanceObject> InstantiateDummyModule(Isolate* isolate, Zone* zone);
 
 // On the first call, enables all staged wasm features and experimental features
 // that are ready for fuzzing. All subsequent calls are no-ops. This avoids race

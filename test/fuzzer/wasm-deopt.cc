@@ -193,14 +193,11 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   v8::Isolate::Scope isolate_scope(isolate);
 
-  // Clear recursive groups: The fuzzer creates random types in every run. These
-  // are saved as recursive groups as part of the type canonicalizer, but types
-  // from previous runs just waste memory.
-  GetTypeCanonicalizer()->EmptyStorageForTesting();
-  TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
-
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
+
+  // TODO(mliedtke): Initialization of all the flags should be done in a
+  // "do-once" function.
 
   // Disable the NativeModule cache. Different fuzzer iterations should not
   // interact with each other. Rerunning a fuzzer input (e.g. with libfuzzer's
@@ -231,9 +228,17 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
-  HandleScope scope(i_isolate);
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
+
+  // Clear recursive groups: The fuzzer creates random types in every run. These
+  // are saved as recursive groups as part of the type canonicalizer, but types
+  // from previous runs just waste memory.
+  GetTypeCanonicalizer()->EmptyStorageForTesting();
+  TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
+  // TODO(mliedtke): Also do this for all the compile fuzzers?
+  Handle<WasmInstanceObject> dummy = InstantiateDummyModule(i_isolate, &zone);
+  USE(dummy);
 
   std::vector<std::string> callees;
   std::vector<std::string> inlinees;

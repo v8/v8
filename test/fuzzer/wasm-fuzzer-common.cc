@@ -294,6 +294,52 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   os.flush();
 }
 
+namespace {
+std::vector<uint8_t> CreateDummyModuleWireBytes(Zone* zone) {
+  // Build a simple module with a few types to pre-populate the type
+  // canonicalizer.
+  WasmModuleBuilder builder(zone);
+  const bool is_final = true;
+  builder.AddRecursiveTypeGroup(0, 2);
+  builder.AddArrayType(zone->New<ArrayType>(kWasmF32, true), is_final);
+  StructType::Builder struct_builder(zone, 2);
+  struct_builder.AddField(kWasmI64, false);
+  struct_builder.AddField(kWasmExternRef, false);
+  builder.AddStructType(struct_builder.Build(), !is_final);
+  FunctionSig::Builder sig_builder(zone, 1, 0);
+  sig_builder.AddReturn(kWasmI32);
+  builder.AddSignature(sig_builder.Get(), is_final);
+  ZoneBuffer buffer{zone};
+  builder.WriteTo(&buffer);
+  return std::vector<uint8_t>(buffer.begin(), buffer.end());
+}
+}  // namespace
+
+Handle<WasmInstanceObject> InstantiateDummyModule(Isolate* isolate,
+                                                  Zone* zone) {
+  testing::SetupIsolateForWasmModule(isolate);
+
+  // Cache (and leak) the wire bytes, so they don't need to be rebuilt on each
+  // run.
+  static const std::vector<uint8_t> wire_bytes =
+      CreateDummyModuleWireBytes(zone);
+
+  ErrorThrower thrower(isolate, "WasmFuzzerCompileDummyModule");
+  Handle<WasmModuleObject> module_object =
+      GetWasmEngine()
+          ->SyncCompile(isolate, WasmEnabledFeatures(),
+                        CompileTimeImportsForFuzzing(), &thrower,
+                        ModuleWireBytes(base::VectorOf(wire_bytes)))
+          .ToHandleChecked();
+
+  Handle<WasmInstanceObject> instance =
+      GetWasmEngine()
+          ->SyncInstantiate(isolate, &thrower, module_object, {}, {})
+          .ToHandleChecked();
+  CHECK_WITH_MSG(!thrower.error(), thrower.error_msg());
+  return instance;
+}
+
 void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
   struct EnableExperimentalWasmFeatures {
     explicit EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
@@ -370,7 +416,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   ZoneBuffer buffer(&zone);
 
   // The first byte specifies some internal configuration, like which function
-  // is compiled with with compiler, and other flags.
+  // is compiled with which compiler, and other flags.
   uint8_t configuration_byte = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
 

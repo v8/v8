@@ -4,6 +4,7 @@
 
 #include "src/base/vector.h"
 #include "src/wasm/fuzzing/random-module-generation.h"
+#include "src/wasm/wasm-module-builder.h"
 #include "src/zone/zone.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
