@@ -39,6 +39,10 @@ class SmallUnsignedOperand : public OperandBase {
 
 class UnsignedOperand : public OperandBase {
  public:
+  explicit UnsignedOperand(int32_t value)
+      : UnsignedOperand(static_cast<uint32_t>(value)) {
+    DCHECK_GE(value, 0);
+  }
   explicit UnsignedOperand(uint32_t value) : OperandBase(value) {}
   void WriteVLQ(ZoneVector<uint8_t>* buffer) {
     base::VLQEncodeUnsigned(
@@ -50,6 +54,8 @@ class UnsignedOperand : public OperandBase {
 class SignedOperand : public OperandBase {
  public:
   explicit SignedOperand(int32_t value) : OperandBase(value) {}
+  // Use UnsignedOperand for unsigned values.
+  explicit SignedOperand(uint32_t value) = delete;
   void WriteVLQ(ZoneVector<uint8_t>* buffer) {
     base::VLQEncode(
         [buffer](uint8_t value) {
@@ -279,7 +285,7 @@ void FrameTranslationBuilder::BeginBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::BUILTIN_CONTINUATION_FRAME;
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
-      SignedOperand(height));
+      UnsignedOperand(height));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -288,7 +294,7 @@ void FrameTranslationBuilder::BeginJSToWasmBuiltinContinuationFrame(
     std::optional<wasm::ValueKind> return_kind) {
   auto opcode = TranslationOpcode::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME;
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
-      SignedOperand(height),
+      UnsignedOperand(height),
       SignedOperand(return_kind ? static_cast<int>(return_kind.value())
                                 : kNoWasmReturnKind));
 }
@@ -297,15 +303,15 @@ void FrameTranslationBuilder::BeginWasmInlinedIntoJSFrame(
     BytecodeOffset bailout_id, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::WASM_INLINED_INTO_JS_FRAME;
   Add(opcode, SignedOperand(bailout_id.ToInt()), SignedOperand(literal_id),
-      SignedOperand(height));
+      UnsignedOperand(height));
 }
 
 void FrameTranslationBuilder::BeginLiftoffFrame(BytecodeOffset bailout_id,
                                                 unsigned height,
                                                 uint32_t wasm_function_index) {
   auto opcode = TranslationOpcode::LIFTOFF_FRAME;
-  Add(opcode, SignedOperand(bailout_id.ToInt()), SignedOperand(height),
-      SignedOperand(wasm_function_index));
+  Add(opcode, SignedOperand(bailout_id.ToInt()), UnsignedOperand(height),
+      UnsignedOperand(wasm_function_index));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -313,7 +319,7 @@ void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   auto opcode = TranslationOpcode::JAVASCRIPT_BUILTIN_CONTINUATION_FRAME;
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
-      SignedOperand(height));
+      UnsignedOperand(height));
 }
 
 void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
@@ -321,13 +327,13 @@ void FrameTranslationBuilder::BeginJavaScriptBuiltinContinuationWithCatchFrame(
   auto opcode =
       TranslationOpcode::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME;
   Add(opcode, SignedOperand(bytecode_offset.ToInt()), SignedOperand(literal_id),
-      SignedOperand(height));
+      UnsignedOperand(height));
 }
 
 void FrameTranslationBuilder::BeginConstructCreateStubFrame(int literal_id,
                                                             unsigned height) {
   auto opcode = TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME;
-  Add(opcode, SignedOperand(literal_id), SignedOperand(height));
+  Add(opcode, SignedOperand(literal_id), UnsignedOperand(height));
 }
 
 void FrameTranslationBuilder::BeginConstructInvokeStubFrame(int literal_id) {
@@ -338,7 +344,7 @@ void FrameTranslationBuilder::BeginConstructInvokeStubFrame(int literal_id) {
 void FrameTranslationBuilder::BeginInlinedExtraArguments(int literal_id,
                                                          unsigned height) {
   auto opcode = TranslationOpcode::INLINED_EXTRA_ARGUMENTS;
-  Add(opcode, SignedOperand(literal_id), SignedOperand(height));
+  Add(opcode, SignedOperand(literal_id), UnsignedOperand(height));
 }
 
 void FrameTranslationBuilder::BeginInterpretedFrame(
@@ -348,12 +354,12 @@ void FrameTranslationBuilder::BeginInterpretedFrame(
     auto opcode = TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN;
     Add(opcode, SignedOperand(bytecode_offset.ToInt()),
         SignedOperand(literal_id), SignedOperand(bytecode_array_id),
-        SignedOperand(height));
+        UnsignedOperand(height));
   } else {
     auto opcode = TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN;
     Add(opcode, SignedOperand(bytecode_offset.ToInt()),
         SignedOperand(literal_id), SignedOperand(bytecode_array_id),
-        SignedOperand(height), SignedOperand(return_value_offset),
+        UnsignedOperand(height), SignedOperand(return_value_offset),
         SignedOperand(return_value_count));
   }
 }

@@ -852,8 +852,8 @@ void TranslatedValue::Handlify() {
 
 TranslatedFrame TranslatedFrame::UnoptimizedJSFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-    Tagged<BytecodeArray> bytecode_array, int height, int return_value_offset,
-    int return_value_count) {
+    Tagged<BytecodeArray> bytecode_array, uint32_t height,
+    int return_value_offset, int return_value_count) {
   TranslatedFrame frame(kUnoptimizedFunction, shared_info, bytecode_array,
                         height, return_value_offset, return_value_count);
   frame.bytecode_offset_ = bytecode_offset;
@@ -861,12 +861,12 @@ TranslatedFrame TranslatedFrame::UnoptimizedJSFrame(
 }
 
 TranslatedFrame TranslatedFrame::InlinedExtraArguments(
-    Tagged<SharedFunctionInfo> shared_info, int height) {
+    Tagged<SharedFunctionInfo> shared_info, uint32_t height) {
   return TranslatedFrame(kInlinedExtraArguments, shared_info, {}, height);
 }
 
 TranslatedFrame TranslatedFrame::ConstructCreateStubFrame(
-    Tagged<SharedFunctionInfo> shared_info, int height) {
+    Tagged<SharedFunctionInfo> shared_info, uint32_t height) {
   return TranslatedFrame(kConstructCreateStub, shared_info, {}, height);
 }
 
@@ -877,7 +877,7 @@ TranslatedFrame TranslatedFrame::ConstructInvokeStubFrame(
 
 TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-    int height) {
+    uint32_t height) {
   TranslatedFrame frame(kBuiltinContinuation, shared_info, {}, height);
   frame.bytecode_offset_ = bytecode_offset;
   return frame;
@@ -886,7 +886,7 @@ TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
 #if V8_ENABLE_WEBASSEMBLY
 TranslatedFrame TranslatedFrame::WasmInlinedIntoJSFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-    int height) {
+    uint32_t height) {
   TranslatedFrame frame(kWasmInlinedIntoJS, shared_info, {}, height);
   frame.bytecode_offset_ = bytecode_offset;
   return frame;
@@ -894,7 +894,7 @@ TranslatedFrame TranslatedFrame::WasmInlinedIntoJSFrame(
 
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-    int height, std::optional<wasm::ValueKind> return_kind) {
+    uint32_t height, std::optional<wasm::ValueKind> return_kind) {
   TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, {}, height);
   frame.bytecode_offset_ = bytecode_offset;
   frame.return_kind_ = return_kind;
@@ -902,7 +902,8 @@ TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
 }
 
 TranslatedFrame TranslatedFrame::LiftoffFrame(BytecodeOffset bytecode_offset,
-                                              int height, int function_index) {
+                                              uint32_t height,
+                                              uint32_t function_index) {
   // WebAssembly functions do not have a SharedFunctionInfo on the stack.
   // The deoptimizer has to recover the function-specific data based on the PC.
   Tagged<SharedFunctionInfo> shared_info;
@@ -915,7 +916,7 @@ TranslatedFrame TranslatedFrame::LiftoffFrame(BytecodeOffset bytecode_offset,
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-    int height) {
+    uint32_t height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuation, shared_info, {},
                         height);
   frame.bytecode_offset_ = bytecode_offset;
@@ -924,7 +925,7 @@ TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
     BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-    int height) {
+    uint32_t height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuationWithCatch, shared_info,
                         {}, height);
   frame.bytecode_offset_ = bytecode_offset;
@@ -1042,7 +1043,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
       Tagged<BytecodeArray> bytecode_array = Cast<BytecodeArray>(
           protected_literal_array->get(iterator->NextOperand()));
-      int height = iterator->NextOperand();
+      uint32_t height = iterator->NextOperandUnsigned();
       int return_value_offset = 0;
       int return_value_count = 0;
       if (opcode == TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN) {
@@ -1054,7 +1055,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file, "  reading input frame %s", name.get());
         int arg_count = bytecode_array->parameter_count();
         PrintF(trace_file,
-               " => bytecode_offset=%d, args=%d, height=%d, retval=%i(#%i); "
+               " => bytecode_offset=%d, args=%d, height=%u, retval=%i(#%i); "
                "inputs:\n",
                bytecode_offset.ToInt(), arg_count, height, return_value_offset,
                return_value_count);
@@ -1067,11 +1068,11 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::INLINED_EXTRA_ARGUMENTS: {
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
-      int height = iterator->NextOperand();
+      uint32_t height = iterator->NextOperandUnsigned();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
         PrintF(trace_file, "  reading inlined arguments frame %s", name.get());
-        PrintF(trace_file, " => height=%d; inputs:\n", height);
+        PrintF(trace_file, " => height=%u; inputs:\n", height);
       }
       return TranslatedFrame::InlinedExtraArguments(shared_info, height);
     }
@@ -1079,7 +1080,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME: {
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
-      int height = iterator->NextOperand();
+      uint32_t height = iterator->NextOperandUnsigned();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
         PrintF(trace_file,
@@ -1106,12 +1107,12 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
-      int height = iterator->NextOperand();
+      uint32_t height = iterator->NextOperandUnsigned();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
         PrintF(trace_file, "  reading builtin continuation frame %s",
                name.get());
-        PrintF(trace_file, " => bytecode_offset=%d, height=%d; inputs:\n",
+        PrintF(trace_file, " => bytecode_offset=%d, height=%u; inputs:\n",
                bytecode_offset.ToInt(), height);
       }
       return TranslatedFrame::BuiltinContinuationFrame(bytecode_offset,
@@ -1123,12 +1124,12 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       BytecodeOffset bailout_id = BytecodeOffset(iterator->NextOperand());
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
-      int height = iterator->NextOperand();
+      uint32_t height = iterator->NextOperandUnsigned();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
         PrintF(trace_file, "  reading Wasm inlined into JS frame %s",
                name.get());
-        PrintF(trace_file, " => bailout_id=%d, height=%d ; inputs:\n",
+        PrintF(trace_file, " => bailout_id=%d, height=%u ; inputs:\n",
                bailout_id.ToInt(), height);
       }
       return TranslatedFrame::WasmInlinedIntoJSFrame(bailout_id, shared_info,
@@ -1139,7 +1140,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       BytecodeOffset bailout_id = BytecodeOffset(iterator->NextOperand());
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
-      int height = iterator->NextOperand();
+      uint32_t height = iterator->NextOperandUnsigned();
       int return_kind_code = iterator->NextOperand();
       std::optional<wasm::ValueKind> return_kind;
       if (return_kind_code != kNoWasmReturnKind) {
@@ -1150,7 +1151,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file, "  reading JS to Wasm builtin continuation frame %s",
                name.get());
         PrintF(trace_file,
-               " => bailout_id=%d, height=%d return_type=%d; inputs:\n",
+               " => bailout_id=%d, height=%u return_type=%d; inputs:\n",
                bailout_id.ToInt(), height,
                return_kind.has_value() ? return_kind.value() : -1);
       }
@@ -1160,12 +1161,12 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
 
     case TranslationOpcode::LIFTOFF_FRAME: {
       BytecodeOffset bailout_id = BytecodeOffset(iterator->NextOperand());
-      int height = iterator->NextOperand();
-      int function_id = iterator->NextOperand();
+      uint32_t height = iterator->NextOperandUnsigned();
+      uint32_t function_id = iterator->NextOperandUnsigned();
       if (trace_file != nullptr) {
         PrintF(trace_file, "  reading input for liftoff frame");
         PrintF(trace_file,
-               " => bailout_id=%d, height=%d, function_id=%d ; inputs:\n",
+               " => bailout_id=%d, height=%u, function_id=%u ; inputs:\n",
                bailout_id.ToInt(), height, function_id);
       }
       return TranslatedFrame::LiftoffFrame(bailout_id, height, function_id);
@@ -1176,12 +1177,12 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
-      int height = iterator->NextOperand();
+      uint32_t height = iterator->NextOperandUnsigned();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
         PrintF(trace_file, "  reading JavaScript builtin continuation frame %s",
                name.get());
-        PrintF(trace_file, " => bytecode_offset=%d, height=%d; inputs:\n",
+        PrintF(trace_file, " => bytecode_offset=%d, height=%u; inputs:\n",
                bytecode_offset.ToInt(), height);
       }
       return TranslatedFrame::JavaScriptBuiltinContinuationFrame(
@@ -1192,13 +1193,13 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
-      int height = iterator->NextOperand();
+      uint32_t height = iterator->NextOperandUnsigned();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
         PrintF(trace_file,
                "  reading JavaScript builtin continuation frame with catch %s",
                name.get());
-        PrintF(trace_file, " => bytecode_offset=%d, height=%d; inputs:\n",
+        PrintF(trace_file, " => bytecode_offset=%d, height=%u; inputs:\n",
                bytecode_offset.ToInt(), height);
       }
       return TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(

@@ -236,7 +236,7 @@ class TranslatedFrame {
   // height, but must undergo additional mutations to arrive at the real stack
   // frame height (e.g.: addition/subtraction of context, accumulator, fixed
   // frame sizes, padding).
-  int height() const { return height_; }
+  uint32_t height() const { return height_; }
 
   int return_value_offset() const { return return_value_offset_; }
   int return_value_count() const { return return_value_count_; }
@@ -321,45 +321,45 @@ class TranslatedFrame {
   // Constructor static methods.
   static TranslatedFrame UnoptimizedJSFrame(
       BytecodeOffset bytecode_offset, Tagged<SharedFunctionInfo> shared_info,
-      Tagged<BytecodeArray> bytecode_array, int height, int return_value_offset,
-      int return_value_count);
+      Tagged<BytecodeArray> bytecode_array, uint32_t height,
+      int return_value_offset, int return_value_count);
   static TranslatedFrame AccessorFrame(Kind kind,
                                        Tagged<SharedFunctionInfo> shared_info);
   static TranslatedFrame InlinedExtraArguments(
-      Tagged<SharedFunctionInfo> shared_info, int height);
+      Tagged<SharedFunctionInfo> shared_info, uint32_t height);
   static TranslatedFrame ConstructCreateStubFrame(
-      Tagged<SharedFunctionInfo> shared_info, int height);
+      Tagged<SharedFunctionInfo> shared_info, uint32_t height);
   static TranslatedFrame ConstructInvokeStubFrame(
       Tagged<SharedFunctionInfo> shared_info);
   static TranslatedFrame BuiltinContinuationFrame(
       BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
-      int height);
+      uint32_t height);
 #if V8_ENABLE_WEBASSEMBLY
   static TranslatedFrame WasmInlinedIntoJSFrame(
       BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
-      int height);
+      uint32_t height);
   static TranslatedFrame JSToWasmBuiltinContinuationFrame(
       BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
-      int height, std::optional<wasm::ValueKind> return_type);
-  static TranslatedFrame LiftoffFrame(BytecodeOffset bailout_id, int height,
-                                      int function_index);
+      uint32_t height, std::optional<wasm::ValueKind> return_type);
+  static TranslatedFrame LiftoffFrame(BytecodeOffset bailout_id,
+                                      uint32_t height, uint32_t function_index);
 #endif  // V8_ENABLE_WEBASSEMBLY
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
       BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
-      int height);
+      uint32_t height);
   static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
       BytecodeOffset bailout_id, Tagged<SharedFunctionInfo> shared_info,
-      int height);
+      uint32_t height);
   static TranslatedFrame InvalidFrame() {
-    return TranslatedFrame(kInvalid, SharedFunctionInfo());
+    return TranslatedFrame(kInvalid, {}, {}, 0);
   }
 
   static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
 
   explicit TranslatedFrame(Kind kind,
-                           Tagged<SharedFunctionInfo> raw_shared_info = {},
-                           Tagged<BytecodeArray> raw_bytecode_array = {},
-                           int height = 0, int return_value_offset = 0,
+                           Tagged<SharedFunctionInfo> raw_shared_info,
+                           Tagged<BytecodeArray> raw_bytecode_array,
+                           uint32_t height, int return_value_offset = 0,
                            int return_value_count = 0)
       : kind_(kind),
         bytecode_offset_(BytecodeOffset::None()),
@@ -388,7 +388,7 @@ class TranslatedFrame {
     IndirectHandle<BytecodeArray> bytecode_array_;
   };
 
-  int height_;
+  uint32_t height_;
   int return_value_offset_;
   int return_value_count_;
 
