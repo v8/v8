@@ -2692,8 +2692,8 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
         // a special marker frame state, otherwise the API call wouldn't
         // be shown in a stack trace.
         if (frames_[i].kind() ==
-                TranslatedFrame::kJavaScriptBuiltinContinuation &&
-            frames_[i].shared_info()->IsDontAdaptArguments()) {
+            TranslatedFrame::kJavaScriptBuiltinContinuation) {
+          DCHECK(frames_[i].shared_info()->IsDontAdaptArguments());
           DCHECK(frames_[i].shared_info()->IsApiFunction());
 
           // The argument count for this special case is always the second
@@ -2701,14 +2701,14 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
           // {1}, as the GenericLazyDeoptContinuation builtin has one explicit
           // argument (the result).
           static constexpr int kTheContext = 1;
-          const int height = frames_[i].height() + kTheContext;
+          const uint32_t height = frames_[i].height() + kTheContext;
           *args_count = frames_[i].ValueAt(height - 1)->GetSmiValue();
           DCHECK_EQ(*args_count, JSParameterCount(1));
-        } else {
-          *args_count = frames_[i]
-                            .shared_info()
-                            ->internal_formal_parameter_count_with_receiver();
+          return &(frames_[i]);
         }
+
+        DCHECK_EQ(frames_[i].kind(), TranslatedFrame::kUnoptimizedFunction);
+        *args_count = frames_[i].bytecode_array()->parameter_count();
         return &(frames_[i]);
       }
     }
