@@ -3509,9 +3509,9 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI64x2Neg(node_t node) {
   IA32OperandGeneratorT<Adapter> g(this);
   // If AVX unsupported, make sure dst != src to avoid a move.
-  InstructionOperand operand0 = IsSupported(AVX)
-                                    ? g.UseRegister(this->input_at(node, 0))
-                                    : g.UseUnique(this->input_at(node, 0));
+  InstructionOperand operand0 =
+      IsSupported(AVX) ? g.UseRegister(this->input_at(node, 0))
+                       : g.UseUniqueRegister(this->input_at(node, 0));
   Emit(kIA32I64x2Neg, g.DefineAsRegister(node), operand0);
 }
 
