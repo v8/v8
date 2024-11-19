@@ -64,22 +64,14 @@ class TypeCanonicalizer {
   TypeCanonicalizer(TypeCanonicalizer&& other) = delete;
   TypeCanonicalizer& operator=(TypeCanonicalizer&& other) = delete;
 
-  // Registers {size} types of {module} as a recursive group, starting at
-  // {start_index}, and possibly canonicalizes it if an identical one has been
-  // found. Modifies {module->isorecursive_canonical_type_ids}.
-  V8_EXPORT_PRIVATE void AddRecursiveGroup(WasmModule* module, uint32_t size,
-                                           uint32_t start_index);
-
-  // Same as above, except it registers the last {size} types in the module.
+  // Register the last {size} types of {module} as a recursive group and
+  // possibly canonicalize it if an identical one has been found.
+  // Modifies {module->isorecursive_canonical_type_ids}.
   V8_EXPORT_PRIVATE void AddRecursiveGroup(WasmModule* module, uint32_t size);
 
   // Same as above, but for a group of size 1 (using the last type in the
   // module).
   V8_EXPORT_PRIVATE void AddRecursiveSingletonGroup(WasmModule* module);
-
-  // Same as above, but receives an explicit start index.
-  V8_EXPORT_PRIVATE void AddRecursiveSingletonGroup(WasmModule* module,
-                                                    uint32_t start_index);
 
   // Adds a module-independent signature as a recursive group, and canonicalizes
   // it if an identical is found. Returns the canonical index of the added

@@ -28,17 +28,13 @@ void TypeCanonicalizer::CheckMaxCanonicalIndex() const {
 }
 
 void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
-  AddRecursiveGroup(module, size,
-                    static_cast<uint32_t>(module->types.size() - size));
-}
-
-void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size,
-                                          uint32_t start_index) {
   if (size == 0) return;
   // If the caller knows statically that {size == 1}, it should have called
   // {AddRecursiveSingletonGroup} directly. For cases where this is not
   // statically determined we add this dispatch here.
-  if (size == 1) return AddRecursiveSingletonGroup(module, start_index);
+  if (size == 1) return AddRecursiveSingletonGroup(module);
+
+  uint32_t start_index = static_cast<uint32_t>(module->types.size() - size);
 
   // Multiple threads could try to register recursive groups concurrently.
   // TODO(manoskouk): Investigate if we can fine-grain the synchronization.
@@ -93,11 +89,6 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size,
 
 void TypeCanonicalizer::AddRecursiveSingletonGroup(WasmModule* module) {
   uint32_t start_index = static_cast<uint32_t>(module->types.size() - 1);
-  return AddRecursiveSingletonGroup(module, start_index);
-}
-
-void TypeCanonicalizer::AddRecursiveSingletonGroup(WasmModule* module,
-                                                   uint32_t start_index) {
   base::MutexGuard guard(&mutex_);
   DCHECK_GT(module->types.size(), start_index);
   CanonicalTypeIndex first_new_canonical_index{
