@@ -4869,13 +4869,12 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
 
     // Iterate over shared heap object cache when the isolate owns this data
     // structure. Isolates which own the shared heap object cache are:
-    //   * Shared isolate
-    //   * Shared space/main isolate
-    //   * All isolates which do not use the shared heap feature.
+    //   * All isolates when not using --shared-string-table.
+    //   * Shared space/main isolate with --shared-string-table.
     //
-    // However, worker/client isolates do not own the shared heap object cache
-    // and should not iterate it.
-    if (isolate_->is_shared_space_isolate() || !isolate_->has_shared_space()) {
+    // Isolates which do not own the shared heap object cache should not iterate
+    // it.
+    if (isolate_->OwnsStringTables()) {
       SerializerDeserializer::IterateSharedHeapObjectCache(isolate_, v);
       v->Synchronize(VisitorSynchronization::kSharedHeapObjectCache);
     }
