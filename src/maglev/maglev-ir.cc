@@ -154,7 +154,7 @@ void Phi::SetUseRequires31BitValue() {
   set_uses_require_31_bit_value();
   auto inputs =
       is_loop_phi() ? merge_state_->predecessors_so_far() : input_count();
-  for (int i = 0; i < inputs; ++i) {
+  for (uint32_t i = 0; i < inputs; ++i) {
     ValueNode* input_node = input(i).node();
     DCHECK(input_node);
     if (auto phi = input_node->TryCast<Phi>()) {

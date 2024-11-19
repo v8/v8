@@ -659,13 +659,12 @@ class MaglevGraphBuilder {
         kill = inline_exit_offset();
       }
       if (kill != -1) {
-        if (!merge_states_[kill]) {
-          predecessors_[kill] -= peelings;
-        } else {
+        if (merge_states_[kill]) {
           for (int i = 0; i < peelings; ++i) {
             merge_states_[kill]->MergeDead(*compilation_unit_);
           }
         }
+        UpdatePredecessorCount(kill, -peelings);
       }
     }
   }
@@ -779,7 +778,7 @@ class MaglevGraphBuilder {
       }
 
       if (V8_UNLIKELY(merge_state->is_exception_handler())) {
-        DCHECK_EQ(predecessors_[offset], 0);
+        DCHECK_EQ(predecessor_count(offset), 0);
         // If we have no reference to this block, then the exception handler is
         // dead.
         if (!jump_targets_[offset].has_ref() ||
@@ -813,11 +812,11 @@ class MaglevGraphBuilder {
       // TODO(leszeks): Merge these two conditions by marking dead states with
       // a sentinel value.
 #ifdef DEBUG
-      if (predecessors_[offset] == 1) {
-        DCHECK(bytecode_analysis().IsLoopHeader(offset));
+      if (predecessor_count(offset) == 1) {
         DCHECK_NULL(merge_state);
+        DCHECK(bytecode_analysis().IsLoopHeader(offset));
       } else {
-        DCHECK_EQ(predecessors_[offset], 0);
+        DCHECK_EQ(predecessor_count(offset), 0);
       }
 #endif
       MarkBytecodeDead();
@@ -1871,7 +1870,7 @@ class MaglevGraphBuilder {
     // only predecessors are this path and the JumpLoop).
     DCHECK_NULL(current_block_);
 
-    if (NumPredecessors(next_block_offset) == 1) {
+    if (predecessor_count(next_block_offset) == 1) {
       if (v8_flags.trace_maglev_graph_building) {
         std::cout << "== New block (single fallthrough) at "
                   << *compilation_unit_->shared_function_info().object()
@@ -2728,10 +2727,11 @@ class MaglevGraphBuilder {
   void CalculatePredecessorCounts() {
     // Add 1 after the end of the bytecode so we can always write to the offset
     // after the last bytecode.
-    size_t array_length = bytecode().length() + 1;
-    predecessors_ = zone()->AllocateArray<uint32_t>(array_length);
-    MemsetUint32(predecessors_, 0, entrypoint_);
-    MemsetUint32(predecessors_ + entrypoint_, 1, array_length - entrypoint_);
+    uint32_t array_length = bytecode().length() + 1;
+    predecessor_count_ = zone()->AllocateArray<uint32_t>(array_length);
+    MemsetUint32(predecessor_count_, 0, entrypoint_);
+    MemsetUint32(predecessor_count_ + entrypoint_, 1,
+                 array_length - entrypoint_);
 
     const int max_peelings = v8_flags.maglev_optimistic_peeled_loops ? 2 : 1;
     // We count jumps from peeled loops to outside of the loop twice.
@@ -2770,36 +2770,36 @@ class MaglevGraphBuilder {
         }
         if (iterator.GetJumpTargetOffset() < entrypoint_) {
           static_assert(kLoopsMustBeEnteredThroughHeader);
-          if (predecessors_[iterator.GetJumpTargetOffset()] == 1) {
+          if (predecessor_count(iterator.GetJumpTargetOffset()) == 1) {
             // We encoutered a JumpLoop whose loop header is not reachable
             // otherwise. This loop is either dead or the JumpLoop will bail
             // with DeoptimizeReason::kOSREarlyExit.
-            predecessors_[iterator.GetJumpTargetOffset()] = 0;
+            InitializePredecessorCount(iterator.GetJumpTargetOffset(), 0);
           }
         } else {
-          predecessors_[iterator.GetJumpTargetOffset()]++;
+          UpdatePredecessorCount(iterator.GetJumpTargetOffset(), 1);
         }
         if (is_loop_peeling_iteration &&
             iterator.GetJumpTargetOffset() >= *peeled_loop_end) {
           // Jumps from within the peeled loop to outside need to be counted
           // twice, once for the peeled and once for the regular loop body.
-          predecessors_[iterator.GetJumpTargetOffset()] += max_peelings;
+          UpdatePredecessorCount(iterator.GetJumpTargetOffset(), max_peelings);
         }
         if (!interpreter::Bytecodes::IsConditionalJump(bytecode)) {
-          predecessors_[iterator.next_offset()]--;
+          UpdatePredecessorCount(iterator.next_offset(), -1);
         }
       } else if (interpreter::Bytecodes::IsSwitch(bytecode)) {
         for (auto offset : iterator.GetJumpTableTargetOffsets()) {
-          predecessors_[offset.target_offset]++;
+          UpdatePredecessorCount(offset.target_offset, 1);
         }
       } else if (interpreter::Bytecodes::Returns(bytecode) ||
                  interpreter::Bytecodes::UnconditionallyThrows(bytecode)) {
-        predecessors_[iterator.next_offset()]--;
+        UpdatePredecessorCount(iterator.next_offset(), -1);
         // Collect inline return jumps in the slot after the last bytecode.
         if (is_inline() && interpreter::Bytecodes::Returns(bytecode)) {
-          predecessors_[array_length - 1]++;
+          UpdatePredecessorCount(array_length - 1, 1);
           if (is_loop_peeling_iteration) {
-            predecessors_[array_length - 1] += max_peelings;
+            UpdatePredecessorCount(array_length - 1, max_peelings);
           }
         }
       }
@@ -2807,11 +2807,9 @@ class MaglevGraphBuilder {
       // will do this automatically I guess if we merge this into that.
     }
     if (!is_inline()) {
-      DCHECK_EQ(0, predecessors_[bytecode().length()]);
+      DCHECK_EQ(0, predecessor_count(bytecode().length()));
     }
   }
-
-  int NumPredecessors(int offset) { return predecessors_[offset]; }
 
   compiler::FeedbackVectorRef feedback() const {
     return compilation_unit_->feedback();
@@ -2891,7 +2889,48 @@ class MaglevGraphBuilder {
   compiler::BytecodeAnalysis bytecode_analysis_;
   interpreter::BytecodeArrayIterator iterator_;
   SourcePositionTableIterator source_position_iterator_;
-  uint32_t* predecessors_;
+
+  // Change the number of predecessors when encountering a dead predecessor.
+  // In case we are in a peeled iteration the decrement is undone after
+  // finishing the peel. This is needed since in the next iteration the
+  // predecessor might not be dead.
+  void DecrementDeadPredecessorAndAccountForPeeling(uint32_t offset) {
+    DCHECK_LE(offset, bytecode().length());
+    DCHECK_GT(predecessor_count_[offset], 0);
+    DCHECK_IMPLIES(merge_states_[offset],
+                   merge_states_[offset]->predecessor_count() ==
+                       predecessor_count_[offset] - 1);
+    predecessor_count_[offset]--;
+    if (in_peeled_iteration()) {
+      decremented_predecessor_offsets_.push_back(offset);
+    } else {
+      DCHECK(decremented_predecessor_offsets_.empty());
+    }
+  }
+  // Set the number of predecessors initially.
+  void InitializePredecessorCount(uint32_t offset, int amount) {
+    DCHECK_LE(offset, bytecode().length());
+    DCHECK_NULL(merge_states_[offset]);
+    predecessor_count_[offset] = amount;
+  }
+  void UpdatePredecessorCount(uint32_t offset, int diff) {
+    DCHECK_LE(offset, bytecode().length());
+    DCHECK_LE(0, static_cast<int64_t>(predecessor_count_[offset]) + diff);
+    DCHECK_IMPLIES(merge_states_[offset],
+                   merge_states_[offset]->predecessor_count() ==
+                       predecessor_count_[offset] + diff);
+    predecessor_count_[offset] += diff;
+  }
+  uint32_t predecessor_count(uint32_t offset) {
+    DCHECK_LE(offset, bytecode().length());
+    DCHECK_IMPLIES(!decremented_predecessor_offsets_.empty(),
+                   in_peeled_iteration());
+    uint32_t actual = predecessor_count_[offset];
+    DCHECK_IMPLIES(merge_states_[offset],
+                   merge_states_[offset]->predecessor_count() == actual);
+    return actual;
+  }
+  uint32_t* predecessor_count_;
 
   int peeled_iteration_count_ = 0;
   bool any_peeled_loop_ = false;

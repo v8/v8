@@ -1185,7 +1185,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
 
   result = Node::New<Phi>(builder->zone(), predecessor_count_, this, owner);
   if (v8_flags.trace_maglev_graph_building) {
-    for (int i = 0; i < predecessor_count_; i++) {
+    for (uint32_t i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
   }
@@ -1248,7 +1248,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
                     unmerged_aspects, unmerged);
     unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                             predecessors_[predecessors_so_far_]);
-    for (int i = predecessors_so_far_; i < predecessor_count_; i++) {
+    for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
       result->change_input(i, unmerged);
     }
     DCHECK_GT(predecessors_so_far_, 0);
@@ -1287,7 +1287,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
   result = Node::New<Phi>(builder->zone(), predecessor_count_, this,
                           interpreter::Register::invalid_value());
   if (v8_flags.trace_maglev_graph_building) {
-    for (int i = 0; i < predecessor_count_; i++) {
+    for (uint32_t i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
   }
@@ -1297,7 +1297,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
 
   // We must have seen the same value so far.
   DCHECK_NOT_NULL(known_node_aspects_);
-  for (int i = 0; i < predecessors_so_far_; i++) {
+  for (uint32_t i = 0; i < predecessors_so_far_; i++) {
     ValueNode* tagged_merged =
         EnsureTagged(builder, *known_node_aspects_, merged, predecessors_[i]);
     result->set_input(i, tagged_merged);
@@ -1307,7 +1307,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
       builder->broker(), builder->local_isolate(), unmerged_aspects, unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
-  for (int i = predecessors_so_far_; i < predecessor_count_; i++) {
+  for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
     result->set_input(i, unmerged);
   }
 
@@ -1359,7 +1359,7 @@ ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
   Phi* result = Node::New<Phi>(zone, predecessor_count_, this, reg);
 
   if (v8_flags.trace_maglev_graph_building) {
-    for (int i = 0; i < predecessor_count_; i++) {
+    for (uint32_t i = 0; i < predecessor_count_; i++) {
       result->initialize_input_null(i);
     }
   }
