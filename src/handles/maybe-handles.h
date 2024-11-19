@@ -134,6 +134,8 @@ class MaybeObjectHandle {
   inline MaybeObjectHandle(Handle<Object> object,
                            HeapObjectReferenceType reference_type);
 
+  friend class MaybeObjectDirectHandle;
+
   HeapObjectReferenceType reference_type_;
   MaybeHandle<Object> handle_;
 };
@@ -250,6 +252,9 @@ class MaybeDirectHandle {
   V8_INLINE MaybeDirectHandle(MaybeIndirectHandle<S> handle)
       : handle_(handle) {}
 
+  V8_INLINE void Assert() const { handle_.Assert(); }
+  V8_INLINE void Check() const { handle_.Check(); }
+
   V8_INLINE DirectHandle<T> ToHandleChecked() const {
     return handle_.ToHandleChecked();
   }
@@ -306,6 +311,7 @@ class MaybeObjectDirectHandle {
   inline DirectHandle<Object> object() const;
 
   inline bool is_identical_to(const MaybeObjectDirectHandle& other) const;
+  inline bool is_identical_to(const MaybeObjectHandle& other) const;
   bool is_null() const { return handle_.is_null(); }
 
  private:

@@ -59,6 +59,11 @@ class HandleBase {
   V8_INLINE bool is_identical_to(const HandleBase& that) const;
 #ifdef V8_ENABLE_DIRECT_HANDLE
   V8_INLINE bool is_identical_to(const DirectHandleBase& that) const;
+#else
+  template <typename T>
+  V8_INLINE bool is_identical_to(const DirectHandle<T>& that) const {
+    return is_identical_to(that.handle_);
+  }
 #endif
   V8_INLINE bool is_null() const { return location_ == nullptr; }
 
@@ -197,8 +202,8 @@ class Handle final : public HandleBase {
   // Location equality.
   bool equals(Handle<T> other) const { return address() == other.address(); }
 
-  // Patches this Handle's value, in-place, with a new value. All handles with
-  // the same location will see this update.
+  // Patches this Handle's value, in-place, with a new value. All indirect
+  // handles with the same location will see this update.
   void PatchValue(Tagged<T> new_value) {
     SLOW_DCHECK(location_ != nullptr && IsDereferenceAllowed());
     *location_ = new_value.ptr();
@@ -217,6 +222,8 @@ class Handle final : public HandleBase {
       return base::hash<Address>()(handle.address());
     }
   };
+
+  using MaybeType = MaybeHandle<T>;
 
  private:
   // Handles of different classes are allowed to access each other's location_.
@@ -564,10 +571,14 @@ class DirectHandle : public DirectHandleBase {
   // Sets this DirectHandle's value. This is equivalent to handle assignment,
   // except for the check that is equivalent to that performed in
   // Handle<T>::PatchValue.
-  void PatchValue(Tagged<T> new_value) {
+  // TODO(42203211): Calls to this method will eventually be replaced by direct
+  // handle assignments, when the migration to direct handles is complete.
+  void SetValue(Tagged<T> new_value) {
     SLOW_DCHECK(obj_ != kTaggedNullAddress && IsDereferenceAllowed());
     obj_ = new_value.ptr();
   }
+
+  using MaybeType = MaybeDirectHandle<T>;
 
  private:
   // DirectHandles of different classes are allowed to access each other's
@@ -832,22 +843,42 @@ class DirectHandle {
   V8_INLINE Tagged<T> operator*() const { return *handle_; }
   V8_INLINE bool is_null() const { return handle_.is_null(); }
   V8_INLINE Address* location() const { return handle_.location(); }
-  V8_INLINE void PatchValue(Tagged<T> new_value) {
+
+  // Sets this Handle's value, in place, with a new value. Notice that, for
+  // efficiency reasons, this is implemented by calling method PatchValue of the
+  // underlying indirect handle. However, it should be considered as equivalent
+  // to a simple handle assignment, i.e., as if affecting only the specific
+  // handle and not all other indirect handles with the same location.
+  // TODO(42203211): Calls to this method will eventually be replaced by direct
+  // handle assignments, when the migration to direct handles is complete.
+  V8_INLINE void SetValue(Tagged<T> new_value) {
     handle_.PatchValue(new_value);
   }
-  V8_INLINE bool equals(DirectHandle<T> other) const {
+
+  template <typename S>
+  V8_INLINE bool equals(Handle<S> other) const {
+    return handle_.equals(other);
+  }
+  template <typename S>
+  V8_INLINE bool equals(DirectHandle<S> other) const {
     return handle_.equals(other.handle_);
   }
-  V8_INLINE bool is_identical_to(DirectHandle<T> other) const {
+  template <typename S>
+  V8_INLINE bool is_identical_to(Handle<S> other) const {
+    return handle_.is_identical_to(other);
+  }
+  template <typename S>
+  V8_INLINE bool is_identical_to(DirectHandle<S> other) const {
     return handle_.is_identical_to(other.handle_);
   }
 
+  using MaybeType = MaybeDirectHandle<T>;
+
  private:
-  // DirectHandles of different classes are allowed to access each other's
-  // handle_.
+  // Handles of various different classes are allowed to access handle_.
+  friend class HandleBase;
   template <typename>
   friend class DirectHandle;
-  // MaybeDirectHandle is allowed to access handle_.
   template <typename>
   friend class MaybeDirectHandle;
   // Casts are allowed to access handle_.
@@ -904,6 +935,13 @@ class DirectHandleVector : public std::vector<DirectHandle<T>> {
       : std::vector<DirectHandle<T>>(init) {}
 };
 #endif  // V8_ENABLE_DIRECT_HANDLE
+
+template <typename T, template <typename> typename HandleType,
+          typename = std::enable_if<
+              std::is_convertible_v<HandleType<T>, DirectHandle<T>>>>
+V8_INLINE DirectHandle<T> direct_handle(HandleType<T> handle) {
+  return handle;
+}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);

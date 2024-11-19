@@ -273,6 +273,16 @@ bool MaybeObjectDirectHandle::is_identical_to(
          this_handle.is_identical_to(other_handle);
 }
 
+bool MaybeObjectDirectHandle::is_identical_to(
+    const MaybeObjectHandle& other) const {
+  DirectHandle<Object> this_handle;
+  Handle<Object> other_handle;
+  return reference_type_ == other.reference_type_ &&
+         handle_.ToHandle(&this_handle) ==
+             other.handle_.ToHandle(&other_handle) &&
+         this_handle.is_identical_to(other_handle);
+}
+
 Tagged<MaybeObject> MaybeObjectDirectHandle::operator*() const {
   if (reference_type_ == HeapObjectReferenceType::WEAK) {
     return MakeWeak(*handle_.ToHandleChecked());

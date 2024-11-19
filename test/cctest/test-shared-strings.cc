@@ -1871,7 +1871,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
     // Patch every third string to empty. The next GC will dispose the external
     // resources.
     if (i % 3 == 0) {
-      input_string.PatchValue(*empty_string);
+      input_string.SetValue(*empty_string);
       shared_strings->set(i, *input_string);
     }
   }

@@ -168,13 +168,13 @@ class IncrementalStringBuilder {
   V8_INLINE DirectHandle<String> accumulator() { return accumulator_; }
 
   V8_INLINE void set_accumulator(DirectHandle<String> string) {
-    accumulator_.PatchValue(*string);
+    accumulator_.SetValue(*string);
   }
 
   V8_INLINE DirectHandle<String> current_part() { return current_part_; }
 
   V8_INLINE void set_current_part(DirectHandle<String> string) {
-    current_part_.PatchValue(*string);
+    current_part_.SetValue(*string);
   }
 
   // Add the current part to the accumulator.
