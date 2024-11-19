@@ -2655,12 +2655,9 @@ void Scope::AllocateScopeInfosRecursively(
   auto it = scope_infos_to_reuse.find(UniqueIdInScript());
   if (it != scope_infos_to_reuse.end()) {
     scope_info_ = it->second;
-    CHECK(NeedsContext());
-    // The ScopeInfo chain mirrors the context chain, so we only link to the
-    // next outer scope that needs a context.
-    next_outer_scope = scope_info_;
     DCHECK(!scope_info_.is_null());
     CHECK_EQ(scope_info_->scope_type(), scope_type_);
+    CHECK_EQ(scope_info_->HasContext(), NeedsContext());
     CHECK_EQ(scope_info_->ContextLength(), num_heap_slots_);
 #ifdef DEBUG
     // Consume the scope info.
@@ -2675,10 +2672,11 @@ void Scope::AllocateScopeInfosRecursively(
       DCHECK_EQ(UniqueIdInScript(), scope_info_->UniqueIdInScript());
     }
 #endif
-    // The ScopeInfo chain mirrors the context chain, so we only link to the
-    // next outer scope that needs a context.
-    if (NeedsContext()) next_outer_scope = scope_info_;
   }
+
+  // The ScopeInfo chain mirrors the context chain, so we only link to the
+  // next outer scope that needs a context.
+  if (NeedsContext()) next_outer_scope = scope_info_;
 
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
@@ -2792,8 +2790,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
         Tagged<ScopeInfo> scope_info;
         if (Is<SharedFunctionInfo>(info)) {
           Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(info);
-          if (!sfi->scope_info()->IsEmpty() &&
-              sfi->scope_info()->HasContext()) {
+          if (!sfi->scope_info()->IsEmpty()) {
             scope_info = sfi->scope_info();
           } else if (sfi->HasOuterScopeInfo()) {
             scope_info = sfi->GetOuterScopeInfo();
