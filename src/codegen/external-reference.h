@@ -157,7 +157,7 @@ enum class IsolateFieldId : uint8_t;
   V(ieee754_log10_function, "base::ieee754::log10")                            \
   V(ieee754_log1p_function, "base::ieee754::log1p")                            \
   V(ieee754_log2_function, "base::ieee754::log2")                              \
-  V(ieee754_pow_function, "base::ieee754::pow")                                \
+  V(ieee754_pow_function, "math::pow")                                         \
   V(ieee754_sin_function, "base::ieee754::sin")                                \
   V(ieee754_sinh_function, "base::ieee754::sinh")                              \
   V(ieee754_tan_function, "base::ieee754::tan")                                \

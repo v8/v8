@@ -1913,6 +1913,8 @@ filegroup(
         "src/numbers/conversions.h",
         "src/numbers/conversions-inl.h",
         "src/numbers/hash-seed-inl.h",
+        "src/numbers/ieee754.cc",
+        "src/numbers/ieee754.h",
         "src/numbers/integer-literal.h",
         "src/numbers/integer-literal-inl.h",
         "src/numbers/math-random.cc",

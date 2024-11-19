@@ -24,6 +24,7 @@
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/numbers/ieee754.h"
 #include "src/objects/scope-info.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
@@ -295,7 +296,7 @@ bool Parser::ShortcutLiteralBinaryExpression(Expression** x, Expression* y,
         return true;
       }
       case Token::kExp:
-        *x = factory()->NewNumberLiteral(base::ieee754::pow(x_val, y_val), pos);
+        *x = factory()->NewNumberLiteral(math::pow(x_val, y_val), pos);
         return true;
       default:
         break;

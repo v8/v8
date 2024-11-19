@@ -27,6 +27,7 @@
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/numbers/hash-seed-inl.h"
+#include "src/numbers/ieee754.h"
 #include "src/numbers/math-random.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
@@ -1148,7 +1149,7 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_tan_function, base::ieee754::tan,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_tanh_function, base::ieee754::tanh,
                              BUILTIN_FP_CALL)
-FUNCTION_REFERENCE_WITH_TYPE(ieee754_pow_function, base::ieee754::pow,
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_pow_function, math::pow,
                              BUILTIN_FP_FP_CALL)
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)

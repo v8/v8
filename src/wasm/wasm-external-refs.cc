@@ -14,6 +14,7 @@
 #include "src/common/assert-scope.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/numbers/conversions.h"
+#include "src/numbers/ieee754.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
 #include "src/wasm/float16.h"
@@ -361,7 +362,7 @@ uint64_t word64_ror_wrapper(uint64_t input, uint32_t shift) {
 void float64_pow_wrapper(Address data) {
   double x = ReadUnalignedValue<double>(data);
   double y = ReadUnalignedValue<double>(data + sizeof(x));
-  WriteUnalignedValue<double>(data, base::ieee754::pow(x, y));
+  WriteUnalignedValue<double>(data, math::pow(x, y));
 }
 
 template <typename T, T (*float_round_op)(T)>

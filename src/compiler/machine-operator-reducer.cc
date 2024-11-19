@@ -23,6 +23,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/turbofan-graph.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/numbers/ieee754.h"
 
 namespace v8 {
 namespace internal {
@@ -826,8 +827,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64Pow: {
       Float64BinopMatcher m(node);
       if (m.IsFoldable()) {
-        return ReplaceFloat64(base::ieee754::pow(m.left().ResolvedValue(),
-                                                 m.right().ResolvedValue()));
+        return ReplaceFloat64(
+            math::pow(m.left().ResolvedValue(), m.right().ResolvedValue()));
       } else if (m.right().Is(0.0)) {  // x ** +-0.0 => 1.0
         return ReplaceFloat64(1.0);
       } else if (m.right().Is(2.0)) {  // x ** 2.0 => x * x

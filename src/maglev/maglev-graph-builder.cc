@@ -44,6 +44,7 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/numbers/conversions.h"
+#include "src/numbers/ieee754.h"
 #include "src/objects/arguments.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
@@ -2387,7 +2388,7 @@ ReduceResult MaglevGraphBuilder::TryFoldFloat64BinaryOperationForToNumber(
       // TODO(v8:7700): Constant fold mod.
       return ReduceResult::Fail();
     case Operation::kExponentiate:
-      return GetNumberConstant(base::ieee754::pow(cst_left.value(), cst_right));
+      return GetNumberConstant(math::pow(cst_left.value(), cst_right));
     default:
       UNREACHABLE();
   }

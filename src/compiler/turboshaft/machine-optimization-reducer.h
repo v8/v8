@@ -38,6 +38,7 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
+#include "src/numbers/ieee754.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
@@ -593,7 +594,7 @@ class MachineOptimizationReducer : public Next {
         case Kind::kDiv:
           return __ Float32Constant(k1 / k2);
         case Kind::kPower:
-          return __ Float32Constant(base::ieee754::pow(k1, k2));
+          return __ Float32Constant(internal::math::pow(k1, k2));
         case Kind::kAtan2:
           return __ Float32Constant(base::ieee754::atan2(k1, k2));
         case Kind::kMod:
@@ -619,7 +620,7 @@ class MachineOptimizationReducer : public Next {
         case Kind::kMod:
           return __ Float64Constant(Modulo(k1, k2));
         case Kind::kPower:
-          return __ Float64Constant(base::ieee754::pow(k1, k2));
+          return __ Float64Constant(math::pow(k1, k2));
         case Kind::kAtan2:
           return __ Float64Constant(base::ieee754::atan2(k1, k2));
       }
