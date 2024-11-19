@@ -3923,7 +3923,12 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
+  template <typename NumberToFloat64Op>
+    requires(std::is_same_v<NumberToFloat64Op,
+                            maglev::CheckedNumberOrOddballToFloat64> ||
+             std::is_same_v<NumberToFloat64Op,
+                            maglev::CheckedNumberOrOddballToHoleyFloat64>)
+  maglev::ProcessResult Process(NumberToFloat64Op* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind;

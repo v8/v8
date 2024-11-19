@@ -256,6 +256,7 @@ class ExceptionHandlerInfo;
   V(CheckedSmiTagFloat64)                           \
   V(CheckedNumberOrOddballToFloat64)                \
   V(UncheckedNumberOrOddballToFloat64)              \
+  V(CheckedNumberOrOddballToHoleyFloat64)           \
   V(CheckedHoleyFloat64ToFloat64)                   \
   V(HoleyFloat64ToMaybeNanFloat64)                  \
   V(HoleyFloat64IsHole)                             \
@@ -1077,6 +1078,10 @@ class OpProperties {
   static constexpr OpProperties TrustedPointer() {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kTagged));
+  }
+  static constexpr OpProperties ForValueRepresentation(
+      ValueRepresentation repr) {
+    return OpProperties(kValueRepresentationBits::encode(repr));
   }
   static constexpr OpProperties ConversionNode() {
     return OpProperties(kIsConversionBit::encode(true));
@@ -3976,30 +3981,31 @@ DEFINE_TRUNCATE_NODE(UnsafeTruncateFloat64ToInt32, HoleyFloat64,
 
 #undef DEFINE_TRUNCATE_NODE
 
-class CheckedNumberOrOddballToFloat64
-    : public FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64> {
-  using Base = FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64>;
+template <typename Derived, ValueRepresentation FloatType>
+  requires(FloatType == ValueRepresentation::kFloat64 ||
+           FloatType == ValueRepresentation::kHoleyFloat64)
+class CheckedNumberOrOddballToFloat64OrHoleyFloat64
+    : public FixedInputValueNodeT<1, Derived> {
+  using Base = FixedInputValueNodeT<1, Derived>;
+  using Base::result;
 
  public:
-  explicit CheckedNumberOrOddballToFloat64(
+  explicit CheckedNumberOrOddballToFloat64OrHoleyFloat64(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
       : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
                                                          conversion_type)) {}
 
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Float64() |
-                                              OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() |
+      OpProperties::ForValueRepresentation(FloatType) |
+      OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   Input& input() { return Node::input(0); }
 
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
   TaggedToFloat64ConversionType conversion_type() const {
-    return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
+    return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
   }
 
   DeoptimizeReason deoptimize_reason() const {
@@ -4008,11 +4014,40 @@ class CheckedNumberOrOddballToFloat64
                : DeoptimizeReason::kNotANumberOrOddball;
   }
 
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
   auto options() const { return std::tuple{conversion_type()}; }
 
  private:
   using TaggedToFloat64ConversionTypeOffset =
-      NextBitField<TaggedToFloat64ConversionType, 2>;
+      Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
+};
+
+class CheckedNumberOrOddballToFloat64
+    : public CheckedNumberOrOddballToFloat64OrHoleyFloat64<
+          CheckedNumberOrOddballToFloat64, ValueRepresentation::kFloat64> {
+  using Base = CheckedNumberOrOddballToFloat64OrHoleyFloat64<
+      CheckedNumberOrOddballToFloat64, ValueRepresentation::kFloat64>;
+
+ public:
+  explicit CheckedNumberOrOddballToFloat64(
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
+      : Base(bitfield, conversion_type) {}
+};
+
+class CheckedNumberOrOddballToHoleyFloat64
+    : public CheckedNumberOrOddballToFloat64OrHoleyFloat64<
+          CheckedNumberOrOddballToHoleyFloat64,
+          ValueRepresentation::kHoleyFloat64> {
+  using Base = CheckedNumberOrOddballToFloat64OrHoleyFloat64<
+      CheckedNumberOrOddballToHoleyFloat64, ValueRepresentation::kHoleyFloat64>;
+
+ public:
+  explicit CheckedNumberOrOddballToHoleyFloat64(
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
+      : Base(bitfield, conversion_type) {}
 };
 
 class UncheckedNumberOrOddballToFloat64

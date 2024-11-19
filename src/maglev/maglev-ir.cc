@@ -1732,13 +1732,20 @@ void TryUnboxNumberOrOddball(MaglevAssembler* masm, DoubleRegister dst,
 }
 
 }  // namespace
-
-void CheckedNumberOrOddballToFloat64::SetValueLocationConstraints() {
+template <typename Derived, ValueRepresentation FloatType>
+  requires(FloatType == ValueRepresentation::kFloat64 ||
+           FloatType == ValueRepresentation::kHoleyFloat64)
+void CheckedNumberOrOddballToFloat64OrHoleyFloat64<
+    Derived, FloatType>::SetValueLocationConstraints() {
   UseAndClobberRegister(input());
   DefineAsRegister(this);
 }
-void CheckedNumberOrOddballToFloat64::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+template <typename Derived, ValueRepresentation FloatType>
+  requires(FloatType == ValueRepresentation::kFloat64 ||
+           FloatType == ValueRepresentation::kHoleyFloat64)
+void CheckedNumberOrOddballToFloat64OrHoleyFloat64<
+    Derived, FloatType>::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
   Register value = ToRegister(input());
   TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
                           conversion_type(),
@@ -7294,8 +7301,11 @@ void StoreScriptContextSlotWithWriteBarrier::PrintParams(
   os << "(" << index_ << ")";
 }
 
-void CheckedNumberOrOddballToFloat64::PrintParams(
-    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+template <typename Derived, ValueRepresentation FloatType>
+  requires(FloatType == ValueRepresentation::kFloat64 ||
+           FloatType == ValueRepresentation::kHoleyFloat64)
+void CheckedNumberOrOddballToFloat64OrHoleyFloat64<Derived, FloatType>::
+    PrintParams(std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << conversion_type() << ")";
 }
 
@@ -7676,6 +7686,11 @@ void MigrateMapIfNeeded::ClearUnstableNodeAspects(
 template class AbstractLoadTaggedField<LoadTaggedField>;
 template class AbstractLoadTaggedField<LoadTaggedFieldForContextSlot>;
 template class AbstractLoadTaggedField<LoadTaggedFieldForProperty>;
+
+template class CheckedNumberOrOddballToFloat64OrHoleyFloat64<
+    CheckedNumberOrOddballToFloat64, ValueRepresentation::kFloat64>;
+template class CheckedNumberOrOddballToFloat64OrHoleyFloat64<
+    CheckedNumberOrOddballToHoleyFloat64, ValueRepresentation::kHoleyFloat64>;
 
 }  // namespace maglev
 }  // namespace internal
