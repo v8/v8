@@ -49,7 +49,7 @@ class LoopPeelingReducer : public Next {
       if (ShouldSkipOptimizationStep()) goto no_change;
       PeelFirstIteration(dst);
       return {};
-    } else if (IsPeeling() && dst == current_loop_header_) {
+    } else if (IsEmittingPeeledIteration() && dst == current_loop_header_) {
       // We skip the backedge of the loop: PeelFirstIeration will instead emit a
       // forward edge to the non-peeled header.
       return {};
@@ -66,8 +66,9 @@ class LoopPeelingReducer : public Next {
     LABEL_BLOCK(no_change) { return Next::ReduceInputGraphCall(ig_idx, call); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    if (IsPeeling() && call.IsStackCheck(__ input_graph(), broker_,
-                                         StackCheckKind::kJSIterationBody)) {
+    if (IsEmittingPeeledIteration() &&
+        call.IsStackCheck(__ input_graph(), broker_,
+                          StackCheckKind::kJSIterationBody)) {
       // We remove the stack check of the peeled iteration.
       return {};
     }
@@ -77,7 +78,7 @@ class LoopPeelingReducer : public Next {
 
   V<None> REDUCE_INPUT_GRAPH(JSStackCheck)(V<None> ig_idx,
                                            const JSStackCheckOp& stack_check) {
-    if (ShouldSkipOptimizationStep() || !IsPeeling()) {
+    if (ShouldSkipOptimizationStep() || !IsEmittingPeeledIteration()) {
       return Next::ReduceInputGraphJSStackCheck(ig_idx, stack_check);
     }
 
@@ -88,7 +89,7 @@ class LoopPeelingReducer : public Next {
 #if V8_ENABLE_WEBASSEMBLY
   V<None> REDUCE_INPUT_GRAPH(WasmStackCheck)(
       V<None> ig_idx, const WasmStackCheckOp& stack_check) {
-    if (ShouldSkipOptimizationStep() || !IsPeeling()) {
+    if (ShouldSkipOptimizationStep() || !IsEmittingPeeledIteration()) {
       return Next::ReduceInputGraphWasmStackCheck(ig_idx, stack_check);
     }
 
@@ -153,6 +154,9 @@ class LoopPeelingReducer : public Next {
   }
 
   bool IsPeeling() const {
+    return IsEmittingPeeledIteration() || IsEmittingUnpeeledBody();
+  }
+  bool IsEmittingPeeledIteration() const {
     return peeling_ == PeelingStatus::kEmittingPeeledLoop;
   }
   bool IsEmittingUnpeeledBody() const {
