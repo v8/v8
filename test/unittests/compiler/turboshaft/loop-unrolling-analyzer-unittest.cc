@@ -458,7 +458,7 @@ TEST_P(LoopUnrollingAnalyzerPartialUnrollTest, PartialUnrollCount) {
     ScopedVar<Word32, AssemblerT> index(&Asm, params.init);
 
     WHILE(EmitCmp(Asm, params.cmp, index, params.max)) {
-      __ WasmStackCheck(WasmStackCheckOp::Kind::kLoop, 0);
+      __ WasmStackCheck(WasmStackCheckOp::Kind::kLoop);
 
       // Advance the {index} a number of times.
       for (uint32_t i = 0; i < params.loop_body_size; ++i) {

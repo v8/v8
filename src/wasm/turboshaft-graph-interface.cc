@@ -994,58 +994,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                   __ NoContextConstant());
     }
     if (mode_ == kRegular || mode_ == kInlinedTailCall) {
-      if (v8_flags.experimental_wasm_growable_stacks) {
-        TSBlock* do_return = __ NewBlock();
-        auto interface_descriptor =
-            compiler::GetWasmCallDescriptor(decoder->zone(), decoder->sig_);
-        if (interface_descriptor->ReturnSlotCount() > 0) {
-          return_values.resize_no_init(return_count -
-                                       interface_descriptor->ReturnSlotCount());
-          OpIndex frame_marker =
-              __ Load(__ FramePointer(), LoadOp::Kind::RawAligned(),
-                      MemoryRepresentation::Uint32(),
-                      WasmFrameConstants::kFrameTypeOffset);
-          auto wasm_segment_start_const = __ Word32Constant(
-              StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START));
-          auto cond = __ Equal(frame_marker, wasm_segment_start_const,
-                               RegisterRepresentation::Word32());
-          TSBlock* call_c_block = __ NewBlock();
-          TSBlock* load_fp_block = __ NewBlock();
-          TSBlock* merge_fp = __ NewBlock();
-          __ Branch({cond, BranchHint::kFalse}, call_c_block, load_fp_block);
-          __ Bind(load_fp_block);
-          OpIndex fp = __ FramePointer();
-          __ Goto(merge_fp);
-          __ Bind(call_c_block);
-          auto sig =
-              FixedSizeSignature<MachineType>::Returns(MachineType::Pointer())
-                  .Params(MachineType::Pointer());
-          OpIndex call_result =
-              CallC(&sig, ExternalReference::wasm_load_old_fp(),
-                    __ ExternalConstant(ExternalReference::isolate_address()));
-          __ Goto(merge_fp);
-          __ Bind(merge_fp);
-          V<WordPtr> old_fp =
-              __ Phi({fp, call_result}, RegisterRepresentation::WordPtr());
-          for (size_t i = 0; i < return_count; i++) {
-            LinkageLocation loc = interface_descriptor->GetReturnLocation(i);
-            if (!loc.IsCallerFrameSlot()) {
-              return_values[i] = stack_base[i].op;
-              continue;
-            }
-            wasm::ValueType return_type = decoder->sig_->GetReturn(i);
-            __ Store(old_fp, stack_base[i].op, StoreOp::Kind::RawAligned(),
-                     MemoryRepresentation::FromMachineType(
-                         return_type.machine_type()),
-                     compiler::kNoWriteBarrier,
-                     FrameSlotToFPOffset(loc.GetLocation()));
-          }
-          return_count -= interface_descriptor->ReturnSlotCount();
-          __ Goto(do_return);
-        }
-        __ Bind(do_return);
-      }
-      __ Return(__ Word32Constant(0), base::VectorOf(return_values));
+      __ Return(__ Word32Constant(0), base::VectorOf(return_values),
+                v8_flags.experimental_wasm_growable_stacks);
     } else {
       // Do not add return values if we are in unreachable code.
       if (__ generating_unreachable_operations()) return;
@@ -7226,11 +7176,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void StackCheck(WasmStackCheckOp::Kind kind, FullDecoder* decoder) {
-    int parameter_slots, return_slots;
-    compiler::BuildLocations(decoder->zone(), decoder->sig_, false,
-                             &parameter_slots, &return_slots);
     if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
-    __ WasmStackCheck(kind, parameter_slots);
+    __ WasmStackCheck(kind);
   }
 
  private:

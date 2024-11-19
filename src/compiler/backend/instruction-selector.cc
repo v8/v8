@@ -2803,9 +2803,16 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitReturn(node_t node) {
   } else {
     value_locations[0] = g.UseRegister(ret.pop_count());
   }
-  for (int i = 0; i < input_count - 1; ++i) {
-    value_locations[i + 1] =
-        g.UseLocation(ret.return_values()[i], linkage()->GetReturnLocation(i));
+  for (int i = 0, return_value_idx = 0; i < input_count - 1; ++i) {
+    LinkageLocation loc = linkage()->GetReturnLocation(i);
+    // Return values passed via frame slots have already been stored
+    // on the stack by the GrowableStacksReducer.
+    if (loc.IsCallerFrameSlot() && ret.spill_caller_frame_slots) {
+      continue;
+    }
+    value_locations[return_value_idx + 1] =
+        g.UseLocation(ret.return_values()[return_value_idx], loc);
+    return_value_idx++;
   }
   Emit(kArchRet, 0, nullptr, input_count, value_locations);
 }

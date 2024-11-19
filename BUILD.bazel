@@ -3509,6 +3509,7 @@ filegroup(
         ":is_v8_enable_webassembly": [
             "src/compiler/int64-lowering.cc",
             "src/compiler/int64-lowering.h",
+            "src/compiler/turboshaft/growable-stacks-reducer.h",
             "src/compiler/turboshaft/int64-lowering-phase.cc",
             "src/compiler/turboshaft/int64-lowering-phase.h",
             "src/compiler/turboshaft/int64-lowering-reducer.h",
