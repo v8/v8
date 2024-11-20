@@ -130,14 +130,6 @@ in_category(
         notify_owners = ["clemensb@chromium.org"],
     ),
     experiment_builder(
-        name = "V8 Linux64 - arm64 - no pointer compression - builder",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"target_arch": "arm", "target_bits": 64},
-        use_remoteexec = RECLIENT.DEFAULT,
-        notifies = ["blamelist"],
-    ),
-    experiment_builder(
         name = "V8 Linux64 - debug - fyi",
         parent_builder = "V8 Linux64 - debug builder",
         execution_timeout = 19800,

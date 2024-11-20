@@ -116,7 +116,7 @@ try_builder(
 
 try_builder(
     name = "v8_linux64_native_arm64_no_pointer_compression_compile_rel",
-    cq_properties = CQ.OPTIONAL,
+    cq_properties = CQ.EXP_100_PERCENT,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
     properties = {"target_arch": "arm", "target_bits": 64},
     use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,

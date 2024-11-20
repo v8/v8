@@ -148,6 +148,19 @@ in_category(
         },
         use_remoteexec = RECLIENT.DEFAULT,
     ),
+    multibranch_builder(
+        name = "V8 Linux64 - arm64 - no pointer compression - builder",
+        triggered_by_gitiles = True,
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {
+            "builder_group": "client.v8.ports",
+            "target_arch": "arm",
+            "target_bits": 64,
+        },
+        first_branch_version = "13.3",
+        use_remoteexec = RECLIENT.DEFAULT,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
+    ),
     multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim",
         triggered_by_gitiles = True,
@@ -183,7 +196,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         tester_notifies = ["V8 Flake Sheriff"],
-        first_branch_version = "10.6",
         use_remoteexec = RECLIENT.DEFAULT,
         disable_resultdb_exports = True,
     ),
@@ -235,7 +247,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         barrier = BARRIER.NONE,
-        first_branch_version = "10.5",
         disable_resultdb_exports = True,
     ),
     multibranch_builder_pair(
@@ -252,7 +263,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         barrier = BARRIER.NONE,
-        first_branch_version = "11.8",
         disable_resultdb_exports = True,
     ),
 )
