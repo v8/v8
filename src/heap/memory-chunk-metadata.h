@@ -84,6 +84,8 @@ class MemoryChunkMetadata {
     return !Chunk()->InReadOnlySpace() || heap_ != nullptr;
   }
 
+  bool IsMutablePageMetadata() const { return owner() != nullptr; }
+
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();
   }

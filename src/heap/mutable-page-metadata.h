@@ -16,6 +16,7 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/slot-set.h"
+#include "src/sandbox/check.h"
 
 namespace v8 {
 namespace internal {
@@ -76,12 +77,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   V8_INLINE static MutablePageMetadata* FromHeapObject(Tagged<HeapObject> o);
 
   static MutablePageMetadata* cast(MemoryChunkMetadata* metadata) {
-    SLOW_DCHECK(!metadata || !metadata->Chunk()->InReadOnlySpace());
+    SBXCHECK(metadata->IsMutablePageMetadata());
     return static_cast<MutablePageMetadata*>(metadata);
   }
 
   static const MutablePageMetadata* cast(const MemoryChunkMetadata* metadata) {
-    SLOW_DCHECK(!metadata->Chunk()->InReadOnlySpace());
+    SBXCHECK(metadata->IsMutablePageMetadata());
     return static_cast<const MutablePageMetadata*>(metadata);
   }
 
