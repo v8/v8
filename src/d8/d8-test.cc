@@ -727,18 +727,16 @@ class FastCApiObject {
     // Special range checks for int64 and uint64. uint64_max rounds to 2^64 when
     // converted to double, so 2^64 would be considered within uint64 range even
     // though it's not. For int64 the same happens with 2^63.
-    bool in_range =
-        !std::isnan(real_arg) && real_arg < std::pow(2.0, 64) &&
-        (real_arg < std::pow(2.0, 63) ||
-         std::pow(2.0, 63) <
-             static_cast<double>(std::numeric_limits<IntegerT>::max())) &&
-        real_arg <= static_cast<double>(std::numeric_limits<IntegerT>::max()) &&
-        real_arg >= static_cast<double>(std::numeric_limits<IntegerT>::min());
+    bool in_range = base::IsValueInRangeForNumericType<IntegerT>(real_arg);
     if (in_range) {
       IntegerT checked_arg = 0;
       if (info.Length() > 1 && info[1]->IsNumber()) {
-        checked_arg =
+        double checked_arg_as_double =
             info[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
+        if (base::IsValueInRangeForNumericType<IntegerT>(
+                checked_arg_as_double)) {
+          checked_arg = static_cast<IntegerT>(checked_arg_as_double);
+        }
       }
       info.GetReturnValue().Set(static_cast<IntegerT>(real_arg) == checked_arg);
     } else {
