@@ -4434,13 +4434,12 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       parsing_result->descriptor.mode = VariableMode::kLet;
       break;
     case Token::kUsing:
-      // using [no LineTerminator here] [lookahead ≠ await] BindingList[?In,
-      // ?Yield, ?Await, ~Pattern] ;
+      // using [no LineTerminator here] BindingList[?In, ?Yield, ?Await,
+      // ~Pattern] ;
       Consume(Token::kUsing);
       DCHECK(v8_flags.js_explicit_resource_management);
       DCHECK_NE(var_context, kStatement);
       DCHECK(is_using_allowed());
-      DCHECK(peek() != Token::kAwait);
       DCHECK(!scanner()->HasLineTerminatorBeforeNext());
       DCHECK(peek() != Token::kLeftBracket && peek() != Token::kLeftBrace);
       parsing_result->descriptor.mode = VariableMode::kUsing;
@@ -5704,8 +5703,7 @@ ParserBase<Impl>::ParseStatementListItem() {
       if (!v8_flags.js_explicit_resource_management) break;
       if (!is_using_allowed()) break;
       if (!(scanner()->HasLineTerminatorAfterNext()) &&
-          PeekAhead() != Token::kAwait && PeekAhead() != Token::kLeftBracket &&
-          PeekAhead() != Token::kLeftBrace) {
+          Token::IsAnyIdentifier(PeekAhead())) {
         return ParseVariableStatement(kStatementListItem, nullptr);
       }
       break;
@@ -5716,8 +5714,6 @@ ParserBase<Impl>::ParseStatementListItem() {
       if (!(scanner()->HasLineTerminatorAfterNext()) &&
           PeekAhead() == Token::kUsing &&
           !(scanner()->HasLineTerminatorAfterNextNext()) &&
-          PeekAheadAhead() != Token::kLeftBracket &&
-          PeekAheadAhead() != Token::kLeftBrace &&
           Token::IsAnyIdentifier(PeekAheadAhead())) {
         return ParseVariableStatement(kStatementListItem, nullptr);
       }
