@@ -2201,6 +2201,14 @@ class GraphBuildingNodeProcessor {
                          node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckUint32IsSmi* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    __ DeoptimizeIfNot(__ Uint32LessThan(Map(node->input()), Smi::kMaxValue),
+                       frame_state, DeoptimizeReason::kNotASmi,
+                       node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckHoleyFloat64IsSmi* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -4423,10 +4431,6 @@ class GraphBuildingNodeProcessor {
 
   // Nodes unused by maglev but still existing.
   maglev::ProcessResult Process(maglev::ExternalConstant*,
-                                const maglev::ProcessingState&) {
-    UNREACHABLE();
-  }
-  maglev::ProcessResult Process(maglev::CheckUint32IsSmi*,
                                 const maglev::ProcessingState&) {
     UNREACHABLE();
   }
