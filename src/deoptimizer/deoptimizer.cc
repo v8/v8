@@ -2101,15 +2101,17 @@ void Deoptimizer::DoComputeInlinedExtraArguments(
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   const int argument_count_without_receiver = translated_frame->height() - 1;
-  const int formal_parameter_count =
-      translated_frame->raw_shared_info()
-          ->internal_formal_parameter_count_without_receiver();
+  const int formal_parameter_count_without_receiver =
+      translated_frame->formal_parameter_count() - 1;
+  SBXCHECK_GE(formal_parameter_count_without_receiver, 0);
   const int extra_argument_count =
-      argument_count_without_receiver - formal_parameter_count;
+      argument_count_without_receiver - formal_parameter_count_without_receiver;
   // The number of pushed arguments is the maximum of the actual argument count
   // and the formal parameter count + the receiver.
-  const int padding = ArgumentPaddingSlots(
-      std::max(argument_count_without_receiver, formal_parameter_count) + 1);
+  const int padding =
+      ArgumentPaddingSlots(std::max(argument_count_without_receiver,
+                                    formal_parameter_count_without_receiver) +
+                           1);
   const int output_frame_size =
       (std::max(0, extra_argument_count) + padding) * kSystemPointerSize;
   if (verbose_tracing_enabled()) {
@@ -2146,7 +2148,8 @@ void Deoptimizer::DoComputeInlinedExtraArguments(
     // frame will do that.
     value_iterator++;  // Skip function.
     value_iterator++;  // Skip receiver.
-    for (int i = 0; i < formal_parameter_count; i++) value_iterator++;
+    for (int i = 0; i < formal_parameter_count_without_receiver; i++)
+      value_iterator++;
     frame_writer.PushStackJSArguments(value_iterator, extra_argument_count);
   }
 }

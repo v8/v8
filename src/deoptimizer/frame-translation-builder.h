@@ -39,7 +39,8 @@ class FrameTranslationBuilder {
   void BeginInterpretedFrame(BytecodeOffset bytecode_offset, int literal_id,
                              int bytecode_array_id, unsigned height,
                              int return_value_offset, int return_value_count);
-  void BeginInlinedExtraArguments(int literal_id, unsigned height);
+  void BeginInlinedExtraArguments(int literal_id, unsigned height,
+                                  uint32_t parameter_count);
   void BeginConstructCreateStubFrame(int literal_id, unsigned height);
   void BeginConstructInvokeStubFrame(int literal_id);
   void BeginBuiltinContinuationFrame(BytecodeOffset bailout_id, int literal_id,

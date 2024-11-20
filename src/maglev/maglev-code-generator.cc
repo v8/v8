@@ -1337,7 +1337,8 @@ class MaglevFrameTranslationBuilder {
                              const VirtualObject::List& virtual_objects) {
     translation_array_builder_->BeginInlinedExtraArguments(
         GetDeoptLiteral(GetSharedFunctionInfo(frame)),
-        static_cast<uint32_t>(frame.arguments().size()));
+        static_cast<uint32_t>(frame.arguments().size()),
+        GetBytecodeArray(frame).parameter_count());
 
     // Closure
     BuildDeoptFrameSingleValue(frame.closure(), current_input_location,

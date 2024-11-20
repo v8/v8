@@ -1290,7 +1290,9 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       break;
     }
     case FrameStateType::kInlinedExtraArguments:
-      translations_.BeginInlinedExtraArguments(shared_info_id, height);
+      translations_.BeginInlinedExtraArguments(
+          shared_info_id, height,
+          descriptor->bytecode_array().ToHandleChecked()->parameter_count());
       break;
     case FrameStateType::kConstructCreateStub:
       translations_.BeginConstructCreateStubFrame(shared_info_id, height);

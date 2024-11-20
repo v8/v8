@@ -861,8 +861,11 @@ TranslatedFrame TranslatedFrame::UnoptimizedJSFrame(
 }
 
 TranslatedFrame TranslatedFrame::InlinedExtraArguments(
-    Tagged<SharedFunctionInfo> shared_info, uint32_t height) {
-  return TranslatedFrame(kInlinedExtraArguments, shared_info, {}, height);
+    Tagged<SharedFunctionInfo> shared_info, uint32_t height,
+    uint32_t formal_parameter_count) {
+  TranslatedFrame frame(kInlinedExtraArguments, shared_info, {}, height);
+  frame.formal_parameter_count_ = formal_parameter_count;
+  return frame;
 }
 
 TranslatedFrame TranslatedFrame::ConstructCreateStubFrame(
@@ -1069,12 +1072,15 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       Tagged<SharedFunctionInfo> shared_info = Cast<SharedFunctionInfo>(
           literal_array.get_on_heap_literals()->get(iterator->NextOperand()));
       uint32_t height = iterator->NextOperandUnsigned();
+      uint32_t parameter_count = iterator->NextOperandUnsigned();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
         PrintF(trace_file, "  reading inlined arguments frame %s", name.get());
-        PrintF(trace_file, " => height=%u; inputs:\n", height);
+        PrintF(trace_file, " => height=%u, parameter_count=%u; inputs:\n",
+               height, parameter_count);
       }
-      return TranslatedFrame::InlinedExtraArguments(shared_info, height);
+      return TranslatedFrame::InlinedExtraArguments(shared_info, height,
+                                                    parameter_count);
     }
 
     case TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME: {

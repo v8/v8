@@ -240,6 +240,10 @@ class TranslatedFrame {
 
   int return_value_offset() const { return return_value_offset_; }
   int return_value_count() const { return return_value_count_; }
+  int formal_parameter_count() const {
+    DCHECK_EQ(kind(), kInlinedExtraArguments);
+    return formal_parameter_count_;
+  }
 
   Tagged<SharedFunctionInfo> raw_shared_info() const {
     CHECK_EQ(handle_state_, kRawPointers);
@@ -326,7 +330,8 @@ class TranslatedFrame {
   static TranslatedFrame AccessorFrame(Kind kind,
                                        Tagged<SharedFunctionInfo> shared_info);
   static TranslatedFrame InlinedExtraArguments(
-      Tagged<SharedFunctionInfo> shared_info, uint32_t height);
+      Tagged<SharedFunctionInfo> shared_info, uint32_t height,
+      uint32_t formal_parameter_count);
   static TranslatedFrame ConstructCreateStubFrame(
       Tagged<SharedFunctionInfo> shared_info, uint32_t height);
   static TranslatedFrame ConstructInvokeStubFrame(
@@ -362,7 +367,6 @@ class TranslatedFrame {
                            uint32_t height, int return_value_offset = 0,
                            int return_value_count = 0)
       : kind_(kind),
-        bytecode_offset_(BytecodeOffset::None()),
         raw_shared_info_(raw_shared_info),
         raw_bytecode_array_(raw_bytecode_array),
         height_(height),
@@ -375,7 +379,7 @@ class TranslatedFrame {
   void Handlify(Isolate* isolate);
 
   Kind kind_;
-  BytecodeOffset bytecode_offset_;
+  BytecodeOffset bytecode_offset_ = BytecodeOffset::None();
 
   // Object references are stored as either raw pointers (before Handlify is
   // called) or handles (afterward).
@@ -391,6 +395,7 @@ class TranslatedFrame {
   uint32_t height_;
   int return_value_offset_;
   int return_value_count_;
+  int formal_parameter_count_ = -1;
 
   enum HandleState { kRawPointers, kHandles } handle_state_;
 

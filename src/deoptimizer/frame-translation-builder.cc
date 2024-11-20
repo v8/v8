@@ -341,10 +341,11 @@ void FrameTranslationBuilder::BeginConstructInvokeStubFrame(int literal_id) {
   Add(opcode, SignedOperand(literal_id));
 }
 
-void FrameTranslationBuilder::BeginInlinedExtraArguments(int literal_id,
-                                                         unsigned height) {
+void FrameTranslationBuilder::BeginInlinedExtraArguments(
+    int literal_id, unsigned height, uint32_t parameter_count) {
   auto opcode = TranslationOpcode::INLINED_EXTRA_ARGUMENTS;
-  Add(opcode, SignedOperand(literal_id), UnsignedOperand(height));
+  Add(opcode, SignedOperand(literal_id), UnsignedOperand(height),
+      UnsignedOperand(parameter_count));
 }
 
 void FrameTranslationBuilder::BeginInterpretedFrame(

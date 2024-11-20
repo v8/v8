@@ -4993,9 +4993,11 @@ class GraphBuildingNodeProcessor {
     int local_count = 0;
     Handle<SharedFunctionInfo> shared_info =
         maglev_frame.unit().shared_function_info().object();
+    Handle<BytecodeArray> bytecode_array =
+        maglev_frame.unit().bytecode().object();
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
         type, parameter_count, max_arguments, local_count, shared_info,
-        kNullMaybeHandle);
+        bytecode_array);
 
     return graph_zone()->New<FrameStateInfo>(maglev_frame.bytecode_position(),
                                              OutputFrameStateCombine::Ignore(),
@@ -5007,12 +5009,14 @@ class GraphBuildingNodeProcessor {
     FrameStateType type = FrameStateType::kConstructInvokeStub;
     Handle<SharedFunctionInfo> shared_info =
         maglev_frame.unit().shared_function_info().object();
+    Handle<BytecodeArray> bytecode_array =
+        maglev_frame.unit().bytecode().object();
     constexpr uint16_t kParameterCount = 1;  // Only 1 parameter: the receiver.
     constexpr uint16_t kMaxArguments = 0;
     constexpr int kLocalCount = 0;
     FrameStateFunctionInfo* info = graph_zone()->New<FrameStateFunctionInfo>(
         type, kParameterCount, kMaxArguments, kLocalCount, shared_info,
-        kNullMaybeHandle);
+        bytecode_array);
 
     return graph_zone()->New<FrameStateInfo>(
         BytecodeOffset::None(), OutputFrameStateCombine::Ignore(), info);
