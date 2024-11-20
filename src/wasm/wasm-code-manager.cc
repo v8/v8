@@ -493,18 +493,22 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   }
 
   if (deopt_data_size_ > 0) {
-    // TODO(mliedtke): It'd be more readable to format this as a table.
     WasmDeoptView view(deopt_data());
     const WasmDeoptData data = view.GetDeoptData();
     os << "Deopt exits (entries = " << data.entry_count
        << ", byte size = " << deopt_data_size_ << ")\n";
-    uint32_t deopt_offset = data.deopt_exit_start_offset;
+    constexpr char pc_offset[] = "pc-offset";
+    constexpr char source_offset[] = " source-offset";
+    constexpr char translation_index[] = " translation-index";
+    os << pc_offset << source_offset << translation_index << '\n';
+    uint32_t code_offset = data.deopt_exit_start_offset;
     for (uint32_t i = 0; i < data.entry_count; ++i) {
       WasmDeoptEntry entry = view.GetDeoptEntry(i);
-      os << std::hex << deopt_offset << std::dec
-         << ": function offset = " << entry.bytecode_offset
-         << ", translation = " << entry.translation_index << '\n';
-      deopt_offset += Deoptimizer::kEagerDeoptExitSize;
+      os << std::setw(sizeof pc_offset - 1) << std::hex << code_offset
+         << std::dec << std::setw(sizeof source_offset - 1)
+         << entry.bytecode_offset << std::setw(sizeof translation_index - 1)
+         << entry.translation_index << '\n';
+      code_offset += Deoptimizer::kEagerDeoptExitSize;
     }
     os << '\n';
   }
