@@ -12106,7 +12106,7 @@ VirtualObject* MaglevGraphBuilder::CreateJSStringIterator(compiler::MapRef map,
 
 InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
     AllocationType allocation_type, VirtualObject* vobject) {
-  DCHECK_LT(vobject->size(), kMaxRegularHeapObjectSize);
+  DCHECK_LE(vobject->size(), kMaxRegularHeapObjectSize);
   if (!current_allocation_block_ ||
       current_allocation_block_->allocation_type() != allocation_type ||
       !v8_flags.inline_new ||
