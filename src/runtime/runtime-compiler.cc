@@ -163,6 +163,7 @@ void CompileOptimized(Handle<JSFunction> function, ConcurrencyMode mode,
                            &is_compiled_scope)) {
       return;
     }
+    JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
   }
   DCHECK(is_compiled_scope.is_compiled());
 
