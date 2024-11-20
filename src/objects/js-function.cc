@@ -245,9 +245,6 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     case CodeKind::MAGLEV:
       switch (mode) {
         case ConcurrencyMode::kConcurrent:
-          DCHECK(!HasAvailableCodeKind(isolate, CodeKind::MAGLEV));
-          DCHECK(!HasAvailableCodeKind(isolate, CodeKind::TURBOFAN_JS));
-          DCHECK(!IsOptimizationRequested(isolate));
           jdt->SetTieringRequest(dispatch_handle(),
                                  TieringBuiltin::kStartMaglevOptimizationJob,
                                  isolate);
@@ -261,8 +258,6 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     case CodeKind::TURBOFAN_JS:
       switch (mode) {
         case ConcurrencyMode::kConcurrent:
-          DCHECK(!IsOptimizationRequested(isolate));
-          DCHECK(!HasAvailableCodeKind(isolate, CodeKind::TURBOFAN_JS));
           jdt->SetTieringRequest(dispatch_handle(),
                                  TieringBuiltin::kStartTurbofanOptimizationJob,
                                  isolate);

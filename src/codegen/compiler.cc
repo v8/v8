@@ -1323,12 +1323,6 @@ MaybeHandle<Code> GetOrCompileOptimized(
   // Clear the optimization marker on the function so that we don't try to
   // re-optimize.
   if (!IsOSR(osr_offset)) {
-#ifdef V8_ENABLE_LEAPTIERING
-    DCHECK_IMPLIES(code_kind == CodeKind::MAGLEV,
-                   !function->ActiveTierIsMaglev(isolate));
-    DCHECK_IMPLIES(code_kind == CodeKind::TURBOFAN_JS,
-                   !function->ActiveTierIsTurbofan(isolate));
-#endif  // !V8_ENABLE_LEAPTIERING
     function->ResetTieringRequests(isolate);
     // Always reset the OSR urgency to ensure we reset it on function entry.
     function->feedback_vector()->reset_osr_urgency();
