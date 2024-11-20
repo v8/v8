@@ -281,11 +281,17 @@ Reduction JSContextSpecialization::ReduceJSLoadScriptContext(Node* node) {
       maybe_property ? maybe_property.value() : ContextSidePropertyCell::kOther;
   switch (property) {
     case ContextSidePropertyCell::kConst: {
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          concrete, access.index(), property, broker());
       OptionalObjectRef maybe_value =
           concrete.get(broker(), static_cast<int>(access.index()));
-      CHECK(maybe_value.has_value());
+      if (!maybe_value.has_value()) {
+        TRACE_BROKER_MISSING(broker(), "slot value " << access.index()
+                                                     << " for context "
+                                                     << concrete);
+        return SimplifyJSLoadScriptContext(
+            node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
+      }
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          concrete, access.index(), property, broker());
       Node* constant = jsgraph_->ConstantNoHole(*maybe_value, broker());
       ReplaceWithValue(node, constant, effect, control);
       return Changed(node);
