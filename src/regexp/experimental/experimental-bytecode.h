@@ -36,8 +36,14 @@
 // RegExpInstruction` below.  Currently we support the following instructions:
 // - CONSUME_RANGE: Check whether the codepoint of the current character is
 //   contained in a non-empty closed interval [min, max] specified in the
-//   instruction payload.  Abort this thread if false, otherwise advance the
-//   input position by 1 and continue with the next instruction.
+//   instruction payload.  If false, advance to the next CONSUME_RANGE in the
+//   current list, or abort this thread if this was the last range.  If true,
+//   advance to the next instruction after the current list of ranges.
+// - RANGE_COUNT: Check that the current character can be accepted by any of the
+//   next n CONSUME_RANGE instructions, where n is specified in the instruction
+//   payload.  Abort this thread if none of these ranges match.  Otherwise,
+//   advance the input position by 1 and continue with the next instruction
+//   after the n ranges.
 // - ACCEPT: Stop this thread and signify the end of a match at the current
 //   input position.
 // - FORK: If executed by a thread t, spawn a new thread t0 whose register
@@ -98,6 +104,7 @@ struct RegExpInstruction {
     ASSERTION,
     CLEAR_REGISTER,
     CONSUME_RANGE,
+    RANGE_COUNT,
     FORK,
     JMP,
     SET_REGISTER_TO_CP,
@@ -148,6 +155,13 @@ struct RegExpInstruction {
     // This is encoded as the empty CONSUME_RANGE of characters 0xFFFF <= c <=
     // 0x0000.
     return ConsumeRange(0xFFFF, 0x0000);
+  }
+
+  static RegExpInstruction RangeCount(int32_t num_ranges) {
+    RegExpInstruction result;
+    result.opcode = RANGE_COUNT;
+    result.payload.num_ranges = num_ranges;
+    return result;
   }
 
   static RegExpInstruction Fork(int32_t alt_index) {
@@ -259,6 +273,8 @@ struct RegExpInstruction {
   union {
     // Payload of CONSUME_RANGE:
     Uc16Range consume_range;
+    // Payload of RANGE_COUNT
+    int32_t num_ranges;
     // Payload of FORK, JMP and FILTER_CHILD, the next/forked program counter
     // (pc):
     int32_t pc;

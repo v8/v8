@@ -33,6 +33,10 @@ std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst) {
       os << "]";
       break;
     }
+    case RegExpInstruction::RANGE_COUNT: {
+      os << "RANGE_COUNT " << inst.payload.num_ranges;
+      break;
+    }
     case RegExpInstruction::ASSERTION:
       os << "ASSERTION ";
       switch (inst.payload.assertion_type) {

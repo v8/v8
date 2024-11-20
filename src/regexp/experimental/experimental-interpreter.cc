@@ -597,9 +597,9 @@ class NfaInterpreter {
   }
 
   // Run an active thread `t` until it executes a CONSUME_RANGE or ACCEPT
-  // instruction, or its PC value was already processed.
-  // - If processing of `t` can't continue because of CONSUME_RANGE, it is
-  //   pushed on `blocked_threads_`.
+  // or RANGE_COUNT instruction, or its PC value was already processed.
+  // - If processing of `t` can't continue because of CONSUME_RANGE or
+  //   RANGE_COUNT, it is pushed on `blocked_threads_`.
   // - If `t` executes ACCEPT, set `best_match` according to `t.match_begin` and
   //   the current input index. All remaining `active_threads_` are discarded.
   int RunActiveThread(InterpreterThread t) {
@@ -621,7 +621,8 @@ class NfaInterpreter {
 
       RegExpInstruction inst = bytecode_[t.pc];
       switch (inst.opcode) {
-        case RegExpInstruction::CONSUME_RANGE: {
+        case RegExpInstruction::CONSUME_RANGE:
+        case RegExpInstruction::RANGE_COUNT: {
           blocked_threads_.Add(t, zone_);
           return RegExp::kInternalRegExpSuccess;
         }
@@ -781,13 +782,34 @@ class NfaInterpreter {
     // need to activate blocked threads in reverse order.
     for (int i = blocked_threads_.length() - 1; i >= 0; --i) {
       InterpreterThread t = blocked_threads_[i];
-      RegExpInstruction inst = bytecode_[t.pc];
-      DCHECK_EQ(inst.opcode, RegExpInstruction::CONSUME_RANGE);
-      RegExpInstruction::Uc16Range range = inst.payload.consume_range;
-      if (input_char >= range.min && input_char <= range.max) {
+      // Number of ranges to check.
+      int32_t ranges = 1;
+      // Consume success.
+      bool has_matched = false;
+
+      if (bytecode_[t.pc].opcode == RegExpInstruction::RANGE_COUNT) {
+        ranges = bytecode_[t.pc].payload.num_ranges;
         ++t.pc;
-        t.consumed_since_last_quantifier =
-            InterpreterThread::ConsumedCharacter::DidConsume;
+      }
+
+      // pc of the instruction after all ranges.
+      int next_pc = t.pc + ranges;
+
+      // Checking all ranges.
+      for (int pc = t.pc; pc < next_pc; ++pc) {
+        RegExpInstruction inst = bytecode_[pc];
+        DCHECK_EQ(inst.opcode, RegExpInstruction::CONSUME_RANGE);
+        RegExpInstruction::Uc16Range range = inst.payload.consume_range;
+        if (input_char >= range.min && input_char <= range.max) {
+          // The current char matches the current range.
+          t.pc = next_pc;
+          t.consumed_since_last_quantifier =
+              InterpreterThread::ConsumedCharacter::DidConsume;
+          has_matched = true;
+          break;
+        }
+      }
+      if (has_matched) {
         active_threads_.Add(t, zone_);
       } else {
         DestroyThread(t);

@@ -290,6 +290,10 @@ class BytecodeAssembler {
     code_.Add(RegExpInstruction::ConsumeAnyChar(), zone_);
   }
 
+  void RangeCount(int32_t num_ranges) {
+    code_.Add(RegExpInstruction::RangeCount(num_ranges), zone_);
+  }
+
   void Fork(Label& target) {
     LabelledInstrImpl(RegExpInstruction::Opcode::FORK, target);
   }
@@ -659,7 +663,10 @@ class CompileVisitor : private RegExpVisitor {
   }
 
   void CompileCharacterRanges(ZoneList<CharacterRange>* ranges, bool negated) {
-    // A character class is compiled as Disjunction over its `CharacterRange`s.
+    // A character class is compiled as disjoint character ranges.
+    // A single range is represented by a single `CONSUME_RANGE` instruction.
+    // Disjoint ranges are represented by a `RANGE_COUNT` instruction followed
+    // by `CONSUME_RANGE` instructions.
     CharacterRange::Canonicalize(ranges);
     if (negated) {
       // The complement of a disjoint, non-adjacent (i.e. `Canonicalize`d)
@@ -671,7 +678,17 @@ class CompileVisitor : private RegExpVisitor {
       ranges = negated;
     }
 
-    CompileDisjunction(ranges->length(), [&](int i) {
+    if (ranges->length() == 0) {
+      assembler_.Fail();
+      return;
+    }
+
+    if (ranges->length() > 1) {
+      // In the case of a multiple ranges, we need a RANGE_COUNT instruction.
+      assembler_.RangeCount(ranges->length());
+    }
+
+    for (int i = 0; i < ranges->length(); ++i) {
       // We don't support utf16 for now, so only ranges that can be specified
       // by (complements of) ranges with base::uc16 bounds.
       static_assert(kMaxSupportedCodepoint <=
@@ -687,7 +704,7 @@ class CompileVisitor : private RegExpVisitor {
           static_cast<base::uc16>(std::min(to, kMaxSupportedCodepoint));
 
       assembler_.ConsumeRange(from_uc16, to_uc16);
-    });
+    }
   }
 
   void* VisitClassRanges(RegExpClassRanges* node, void*) override {
