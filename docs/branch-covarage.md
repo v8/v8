@@ -1,56 +1,38 @@
 Branches build coverage
 ======================
 
-This is a description of V8 infrastructure for Beta and Stable branches.
+This is a description of V8 infrastructure for Beta, Stable and Extended branches.
 
-Builder coverage for Beta/Stable branches is organised in the following consoles that reflect the same schema used for the main branch:
+Builder coverage for Beta/Stable/Extended branches is organized in the following consoles that reflect the same schema used for the main branch:
  - [beta.main](https://ci.chromium.org/p/v8/g/br.beta/console)
+ - [beta.memory](https://ci.chromium.org/p/v8/g/br.beta.memory/console)
  - [beta.ports](https://ci.chromium.org/p/v8/g/br.beta.ports/console)
  - [stable.main](https://ci.chromium.org/p/v8/g/br.stable/console)
+ - [stable.memory](https://ci.chromium.org/p/v8/g/br.stable.memory/console)
  - [stable.ports](https://ci.chromium.org/p/v8/g/br.stable.ports/console)
+ - [extended.main](https://ci.chromium.org/p/v8/g/br.extended/console)
+ - [extended.memory](https://ci.chromium.org/p/v8/g/br.extended.memory/console)
+ - [extended.ports](https://ci.chromium.org/p/v8/g/br.extended.ports/console)
 
-These consoles are the beta/stable branch counterparts of the [main](https://ci.chromium.org/p/v8/g/main/console) and [ports](https://ci.chromium.org/p/v8/g/ports/console) consoles for the main branch.
+These consoles are the beta/stable/extended branch counterparts of the [main](https://ci.chromium.org/p/v8/g/main/console), [memory](https://ci.chromium.org/p/v8/g/memory/console) and [ports](https://ci.chromium.org/p/v8/g/ports/console) consoles for the main branch.
 
 
 Monitoring
 ======================
 
-V8 sheriffs will be notified on any failures in builders under [beta.main](https://ci.chromium.org/p/v8/g/br.beta/console) and [stable.main](https://ci.chromium.org/p/v8/g/br.stable/console) consoles
+V8 sheriffs will be notified on any failures in builders under [beta.main](https://ci.chromium.org/p/v8/g/br.beta/console), [stable.main](https://ci.chromium.org/p/v8/g/br.stable/console) and [extended.main](https://ci.chromium.org/p/v8/g/br.stable/console) consoles
 
-Updating the Beta/Stable branch references
+Updating the Beta/Stable/Extended branch references
 ======================
 
-To update branch references the folowing locations in infra/config files need to be update:
- - [luci-milo.cfg](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/luci-milo.cfg)
-   - consoles[id: "br.beta"]/refs
-   - consoles[id: "br.beta.ports"]/refs
-   - consoles[id: "br.stable"]/refs
-   - consoles[id: "br.stable.ports"]/refs
- - [luci-scheduler.cfg](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/luci-scheduler.cfg)
-   - trigger[id: "v8-trigger-br-beta"]/gitiles/refs
-   - trigger[id: "v8-trigger-br-stable"]/gitiles/refs
+To update branch references, update the [versions](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/definitions.star) and regenerate the lucicfg configs by running `./main.cfg`.
 
 
 Adding new builders
 ======================
 
-To propagate a new builder addition under main/ports consoles you need to:
- - add a builder definition in beta and stable buckets in [cr-buildbucket.cfg](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/cr-buildbucket.cfg)
-   - buckets[name: "luci.v8.ci.br.beta"]
-   - buckets[name: "luci.v8.ci.br.stable"]
-   - use the **same name** for the builder in all buckets
- - create BETA and STABLE jobs and triggers in [luci-scheduler.cfg](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/luci-scheduler.cfg)
-   - trigger[id: "v8-trigger-br-beta"]/triggers: "BETA new_builder_name"
-   - job { id: "BETA new_builder_name" ... }
-   - trigger[id: "v8-trigger-br-stable"]/triggers: "STABLE new_builder_name"
-   - job { id: "STABLE new_builder_name" ... } 
- - add the new builder references under corresponding Beta/Stable consoles in [luci-milo.cfg](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/luci-milo.cfg)
-   - consoles[id: "br.beta..."]
-   - consoles[id: "br.stable..."]
- - additionaly for builders under main console add a reference for notification in [luci-notify.cfg](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/luci-notify.cfg)
- - backmerge mb_config.pyl and builders.pyl file changes to Beta/Stable branch
-
-Developer branches
-======================
-
-On this foundation for branch builder coverage it is possible to cover more than just Beta/Stable branches. Developer branches might require full or partial (no ports) builder coverage. To achieve that, one needs to replicate the Beta/Stable configuration in infra/config branch.
+To propagate a new builder addition under main/memory/ports consoles you need to:
+ - add a builder definition in one of the [multibranch consoles](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/builders/multibranch/) using the `multibranch_builder` abstraction.
+ - specify the `first_branch_version` attribute - typically the current version on main
+ - generate the configurations by running `./main.cfg`
+ - backmerging mb_config.pyl and builders.pyl file changes to the respective branches is only required if the `first_branch_version` was not specified to the current main branch
