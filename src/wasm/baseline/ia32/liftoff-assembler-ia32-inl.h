@@ -413,12 +413,11 @@ Register LiftoffAssembler::LoadOldFramePointer() {
   if (!v8_flags.experimental_wasm_growable_stacks) {
     return ebp;
   }
-  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
   Label done, call_runtime;
-  mov(old_fp.gp(), MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset));
-  cmp(old_fp.gp(),
+  cmp(MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset),
       Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
   j(equal, &call_runtime);
+  LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
   mov(old_fp.gp(), ebp);
   jmp(&done);
 
@@ -441,9 +440,7 @@ Register LiftoffAssembler::LoadOldFramePointer() {
 void LiftoffAssembler::CheckStackShrink() {
   LiftoffRegList regs_to_save;
   for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
-  LiftoffRegister tmp = GetUnusedRegister(RegClass::kGpReg, regs_to_save);
-  mov(tmp.gp(), MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset));
-  cmp(tmp.gp(),
+  cmp(MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset),
       Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
   Label done;
   j(not_equal, &done);

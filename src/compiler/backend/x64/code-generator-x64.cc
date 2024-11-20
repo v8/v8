@@ -7829,10 +7829,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 #if V8_ENABLE_WEBASSEMBLY
   if (call_descriptor->IsWasmFunctionCall() &&
       v8_flags.experimental_wasm_growable_stacks) {
-    __ movq(kScratchRegister,
-            MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset));
     __ cmpq(
-        kScratchRegister,
+        MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
         Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
     Label done;
     __ j(not_equal, &done);
