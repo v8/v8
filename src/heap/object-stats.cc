@@ -860,9 +860,9 @@ bool ObjectStatsCollectorImpl::SameLiveness(Tagged<HeapObject> obj1,
                                             Tagged<HeapObject> obj2) {
   if (obj1.is_null() || obj2.is_null()) return true;
   const auto obj1_marked =
-      HeapLayout::InReadOnlySpace(obj1) || marking_state_->IsMarked(obj1);
+      MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_, obj1);
   const auto obj2_marked =
-      HeapLayout::InReadOnlySpace(obj2) || marking_state_->IsMarked(obj2);
+      MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_, obj2);
   return obj1_marked == obj2_marked;
 }
 
@@ -1108,11 +1108,12 @@ class ObjectStatsVisitor {
                      ObjectStatsCollectorImpl::Phase phase)
       : live_collector_(live_collector),
         dead_collector_(dead_collector),
+        heap_(heap),
         marking_state_(heap->non_atomic_marking_state()),
         phase_(phase) {}
 
   void Visit(Tagged<HeapObject> obj) {
-    if (HeapLayout::InReadOnlySpace(obj) || marking_state_->IsMarked(obj)) {
+    if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_, obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
     } else {
@@ -1124,6 +1125,7 @@ class ObjectStatsVisitor {
  private:
   ObjectStatsCollectorImpl* const live_collector_;
   ObjectStatsCollectorImpl* const dead_collector_;
+  Heap* const heap_;
   NonAtomicMarkingState* const marking_state_;
   ObjectStatsCollectorImpl::Phase phase_;
 };
