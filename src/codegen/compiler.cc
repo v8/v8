@@ -2517,7 +2517,9 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
         forwarder.set_has_shared_function_info_to_forward();
       }
       forwarder.RecordScopeInfos(maybe_old_info);
-    } else {
+    } else if (maybe_new_info.IsWeak() &&
+               Is<SharedFunctionInfo>(
+                   maybe_new_info.GetHeapObjectAssumeWeak())) {
       old_script->infos()->set(i, maybe_new_info);
     }
   }
