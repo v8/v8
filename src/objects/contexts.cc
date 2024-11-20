@@ -777,8 +777,8 @@ static_assert(NativeContext::kSize ==
 
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 void NativeContext::RunPromiseHook(PromiseHookType type,
-                                   Handle<JSPromise> promise,
-                                   Handle<Object> parent) {
+                                   DirectHandle<JSPromise> promise,
+                                   DirectHandle<Object> parent) {
   Isolate* isolate = promise->GetIsolate();
   DCHECK(isolate->HasContextPromiseHooks());
   int contextSlot;
@@ -800,13 +800,14 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
       UNREACHABLE();
   }
 
-  Handle<Object> hook(isolate->native_context()->get(contextSlot), isolate);
+  DirectHandle<Object> hook(isolate->native_context()->get(contextSlot),
+                            isolate);
   if (IsUndefined(*hook)) return;
 
-  int argc = type == PromiseHookType::kInit ? 2 : 1;
-  Handle<Object> argv[2] = {Cast<Object>(promise), parent};
+  size_t argc = type == PromiseHookType::kInit ? 2 : 1;
+  DirectHandle<Object> argv[2] = {Cast<Object>(promise), parent};
 
-  Handle<Object> receiver = isolate->global_proxy();
+  DirectHandle<Object> receiver = isolate->global_proxy();
 
   StackLimitCheck check(isolate);
   bool failed = false;
@@ -814,7 +815,7 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
     isolate->StackOverflow();
     failed = true;
   } else {
-    failed = Execution::Call(isolate, hook, receiver, argc, argv).is_null();
+    failed = Execution::Call(isolate, hook, receiver, {argv, argc}).is_null();
   }
   if (failed) {
     DCHECK(isolate->has_exception());

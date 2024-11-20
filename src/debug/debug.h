@@ -260,7 +260,8 @@ class V8_EXPORT_PRIVATE Debug {
 
   std::optional<Tagged<Object>> OnThrow(Handle<Object> exception)
       V8_WARN_UNUSED_RESULT;
-  void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
+  void OnPromiseReject(DirectHandle<Object> promise,
+                       DirectHandle<Object> value);
   void OnCompileError(DirectHandle<Script> script);
   void OnAfterCompile(DirectHandle<Script> script);
 
@@ -528,7 +529,8 @@ class V8_EXPORT_PRIVATE Debug {
     return thread_local_.suspended_generator_ != Smi::zero();
   }
 
-  void OnException(Handle<Object> exception, MaybeHandle<JSPromise> promise,
+  void OnException(DirectHandle<Object> exception,
+                   MaybeDirectHandle<JSPromise> promise,
                    v8::debug::ExceptionType exception_type);
 
   void ProcessCompileEvent(bool has_compile_error, DirectHandle<Script> script);

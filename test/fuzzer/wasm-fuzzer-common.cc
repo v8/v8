@@ -187,11 +187,11 @@ void ExecuteAgainstReference(Isolate* isolate,
                                ->module()
                                ->functions[func_data->function_index()]
                                .sig;
-  base::OwnedVector<Handle<Object>> compiled_args =
-      testing::MakeDefaultArguments(isolate, sig);
+  auto compiled_args = testing::MakeDefaultArguments(isolate, sig);
   std::unique_ptr<const char[]> exception_ref;
   int32_t result_ref = testing::CallWasmFunctionForTesting(
-      isolate, instance_ref, "main", compiled_args.as_vector(), &exception_ref);
+      isolate, instance_ref, "main", base::VectorOf(compiled_args),
+      &exception_ref);
   bool execute = true;
   // Reached max steps, do not try to execute the test module as it might
   // never terminate.
@@ -248,7 +248,7 @@ void ExecuteAgainstReference(Isolate* isolate,
 
   std::unique_ptr<const char[]> exception;
   int32_t result = testing::CallWasmFunctionForTesting(
-      isolate, instance, "main", compiled_args.as_vector(), &exception);
+      isolate, instance, "main", base::VectorOf(compiled_args), &exception);
 
   if ((exception_ref != nullptr) != (exception != nullptr)) {
     FATAL("Exception mismatch! Expected: <%s>; got: <%s>",

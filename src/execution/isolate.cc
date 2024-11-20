@@ -1730,7 +1730,7 @@ void Isolate::SetFailedAccessCheckCallback(
 }
 
 MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
-    Handle<JSObject> receiver) {
+    DirectHandle<JSObject> receiver) {
   if (!thread_local_top()->failed_access_check_callback_) {
     THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess));
   }
@@ -1763,8 +1763,8 @@ MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
   THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess));
 }
 
-bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
-                        Handle<JSObject> receiver) {
+bool Isolate::MayAccess(DirectHandle<NativeContext> accessing_context,
+                        DirectHandle<JSObject> receiver) {
   DCHECK(IsJSGlobalProxy(*receiver) || IsAccessCheckNeeded(*receiver));
 
   // Check for compatibility between the security tokens in the
@@ -3059,7 +3059,7 @@ bool ReceiverIsForwardingHandler(Isolate* isolate, Handle<JSReceiver> handler) {
 }
 
 bool WalkPromiseTreeInternal(
-    Isolate* isolate, Handle<JSPromise> promise,
+    Isolate* isolate, DirectHandle<JSPromise> promise,
     const std::function<void(Isolate::PromiseHandler)>& callback) {
   if (promise->status() != Promise::kPending) {
     // If a rejection reaches an exception that isn't pending, it will be
@@ -3158,8 +3158,8 @@ bool WalkPromiseTreeInternal(
   if (!caught) {
     // If there is an outer promise, follow that to see if it is caught.
     Handle<Symbol> key = isolate->factory()->promise_handled_by_symbol();
-    Handle<Object> outer_promise_obj =
-        JSObject::GetDataProperty(isolate, promise, key);
+    Handle<Object> outer_promise_obj = JSObject::GetDataProperty(
+        isolate, indirect_handle(promise, isolate), key);
     if (IsJSPromise(*outer_promise_obj)) {
       return WalkPromiseTreeInternal(
           isolate, Cast<JSPromise>(outer_promise_obj), callback);
@@ -3391,11 +3391,11 @@ bool CallsCatchMethod(const StackFrameSummaryIterator& iterator) {
 }  // namespace
 
 bool Isolate::WalkCallStackAndPromiseTree(
-    MaybeHandle<JSPromise> rejected_promise,
+    MaybeDirectHandle<JSPromise> rejected_promise,
     const std::function<void(PromiseHandler)>& callback) {
   bool is_promise_rejection = false;
 
-  Handle<JSPromise> promise;
+  DirectHandle<JSPromise> promise;
   if (rejected_promise.ToHandle(&promise)) {
     is_promise_rejection = true;
     // If the promise has reactions, follow them and assume we are done. If
@@ -3408,7 +3408,8 @@ bool Isolate::WalkCallStackAndPromiseTree(
     } else if (IsSmi(promise->reactions())) {
       // Also check that there is no outer promise
       Handle<Symbol> key = factory()->promise_handled_by_symbol();
-      if (!IsJSPromise(*JSObject::GetDataProperty(this, promise, key))) {
+      if (!IsJSPromise(*JSObject::GetDataProperty(
+              this, indirect_handle(promise, this), key))) {
         // Ignore this promise; set to null
         rejected_promise = MaybeHandle<JSPromise>();
       }
@@ -6608,8 +6609,8 @@ MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
 }
 
 MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
-    Handle<NativeContext> context, Handle<JSObject> error,
-    Handle<JSArray> sites) {
+    DirectHandle<NativeContext> context, DirectHandle<JSObject> error,
+    DirectHandle<JSArray> sites) {
   v8::Local<v8::Context> api_context = Utils::ToLocal(context);
 
   v8::Local<v8::Value> stack;
@@ -6867,8 +6868,8 @@ void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
   promise_reject_callback_ = callback;
 }
 
-void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
-                                  Handle<Object> value,
+void Isolate::ReportPromiseReject(DirectHandle<JSPromise> promise,
+                                  DirectHandle<Object> value,
                                   v8::PromiseRejectEvent event) {
   if (promise_reject_callback_ == nullptr) return;
   promise_reject_callback_(v8::PromiseRejectMessage(

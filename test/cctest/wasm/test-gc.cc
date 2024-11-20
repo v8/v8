@@ -73,13 +73,13 @@ class WasmGCTester {
     builder_.AddExport(base::CStrVector(name), fun);
   }
 
-  MaybeHandle<Object> CallExportedFunction(const char* name, int argc,
-                                           Handle<Object> args[]) {
+  MaybeHandle<Object> CallExportedFunction(
+      const char* name, base::Vector<const DirectHandle<Object>> args) {
     Handle<WasmExportedFunction> func =
         testing::GetExportedFunction(isolate_, instance_object_, name)
             .ToHandleChecked();
     return Execution::Call(isolate_, func,
-                           isolate_->factory()->undefined_value(), argc, args);
+                           isolate_->factory()->undefined_value(), args);
   }
 
   ModuleTypeIndex DefineStruct(std::initializer_list<F> fields,
@@ -2039,15 +2039,16 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   for (const char* producer : {"typed_producer", "untyped_producer"}) {
     MaybeHandle<Object> maybe_result =
-        tester.CallExportedFunction(producer, 0, nullptr);
+        tester.CallExportedFunction(producer, {});
     if (maybe_result.is_null()) {
       FATAL("Calling %s failed: %s", producer,
             *v8::String::Utf8Value(reinterpret_cast<v8::Isolate*>(isolate),
                                    try_catch.Message()->Get()));
     }
     {
-      Handle<Object> args[] = {maybe_result.ToHandleChecked()};
-      maybe_result = tester.CallExportedFunction("consumer", 1, args);
+      DirectHandle<Object> args[] = {maybe_result.ToHandleChecked()};
+      maybe_result =
+          tester.CallExportedFunction("consumer", base::VectorOf(args));
     }
     if (maybe_result.is_null()) {
       FATAL("Calling 'consumer' failed: %s",
@@ -2060,8 +2061,9 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
     // Calling {consumer} with any other object (e.g. the Smi we just got as
     // {result}) should trap.
     {
-      Handle<Object> args[] = {result};
-      maybe_result = tester.CallExportedFunction("consumer", 1, args);
+      DirectHandle<Object> args[] = {result};
+      maybe_result =
+          tester.CallExportedFunction("consumer", base::VectorOf(args));
     }
     CHECK(maybe_result.is_null());
     CHECK(try_catch.HasCaught());

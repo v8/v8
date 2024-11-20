@@ -543,10 +543,10 @@ void InnerTryCallTerminate(const FunctionCallbackInfo<Value>& info) {
           ->Get(isolate->GetCurrentContext(),
                 String::NewFromUtf8(isolate, "loop").ToLocalChecked())
           .ToLocalChecked());
-  i::MaybeHandle<i::Object> exception;
-  i::MaybeHandle<i::Object> result = i::Execution::TryCall(
-      reinterpret_cast<i::Isolate*>(isolate), Utils::OpenHandle((*loop)),
-      Utils::OpenHandle((*global)), 0, nullptr,
+  i::MaybeDirectHandle<i::Object> exception;
+  i::MaybeDirectHandle<i::Object> result = i::Execution::TryCall(
+      reinterpret_cast<i::Isolate*>(isolate), Utils::OpenDirectHandle((*loop)),
+      Utils::OpenDirectHandle((*global)), {},
       i::Execution::MessageHandling::kReport, &exception);
   CHECK(result.is_null());
   CHECK(exception.is_null());

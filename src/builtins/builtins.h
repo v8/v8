@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_H_
 
 #include "src/base/flags.h"
+#include "src/base/vector.h"
 #include "src/builtins/builtins-definitions.h"
 #include "src/common/globals.h"
 #include "src/objects/type-hints.h"
@@ -305,8 +306,10 @@ class Builtins {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> InvokeApiFunction(
       Isolate* isolate, bool is_construct,
-      Handle<FunctionTemplateInfo> function, Handle<Object> receiver, int argc,
-      Handle<Object> args[], Handle<HeapObject> new_target);
+      DirectHandle<FunctionTemplateInfo> function,
+      DirectHandle<Object> receiver,
+      base::Vector<const DirectHandle<Object>> args,
+      DirectHandle<HeapObject> new_target);
 
   static void Generate_Adaptor(MacroAssembler* masm, int formal_parameter_count,
                                Address builtin_address);

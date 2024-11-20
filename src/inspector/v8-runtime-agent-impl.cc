@@ -126,22 +126,19 @@ void innerCallFunctionOn(
     std::unique_ptr<V8RuntimeAgentImpl::CallFunctionOnCallback> callback) {
   V8InspectorImpl* inspector = session->inspector();
 
-  std::unique_ptr<v8::Global<v8::Value>[]> argv = nullptr;
-  int argc = 0;
+  v8::LocalVector<v8::Value> args(inspector->isolate());
   if (optionalArguments) {
     protocol::Array<protocol::Runtime::CallArgument>& arguments =
         *optionalArguments;
-    argc = static_cast<int>(arguments.size());
-    argv.reset(new v8::Global<v8::Value>[argc]);
+    int argc = static_cast<int>(arguments.size());
+    args.resize(argc);
     for (int i = 0; i < argc; ++i) {
-      v8::Local<v8::Value> argumentValue;
       Response response = scope.injectedScript()->resolveCallArgument(
-          arguments[i].get(), &argumentValue);
+          arguments[i].get(), &args[i]);
       if (!response.IsSuccess()) {
         callback->sendFailure(response);
         return;
       }
-      argv[i] = v8::Global<v8::Value>(inspector->isolate(), argumentValue);
     }
   }
 
@@ -189,8 +186,8 @@ void innerCallFunctionOn(
     v8::MicrotasksScope microtasksScope(scope.context(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = v8::debug::CallFunctionOn(
-        scope.context(), functionValue.As<v8::Function>(), recv, argc,
-        argv.get(), throwOnSideEffect);
+        scope.context(), functionValue.As<v8::Function>(), recv,
+        v8::base::VectorOf(args), throwOnSideEffect);
   }
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.

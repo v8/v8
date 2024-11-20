@@ -1556,7 +1556,7 @@ bool InstanceBuilder::ExecuteStartFunction() {
   // Call the JS function.
   Handle<Object> undefined = isolate_->factory()->undefined_value();
   MaybeHandle<Object> retval =
-      Execution::Call(isolate_, start_function_, undefined, 0, nullptr);
+      Execution::Call(isolate_, start_function_, undefined, {});
   hsi->LeaveContext();
   // {start_function_} has to be called only once.
   start_function_ = {};

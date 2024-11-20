@@ -4979,10 +4979,10 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Object, ObjectProtoToString);
   auto self = Utils::OpenHandle(this);
   Local<Value> result;
-  has_exception = !ToLocal<Value>(
-      i::Execution::CallBuiltin(i_isolate, i_isolate->object_to_string(), self,
-                                0, nullptr),
-      &result);
+  has_exception =
+      !ToLocal<Value>(i::Execution::CallBuiltin(
+                          i_isolate, i_isolate->object_to_string(), self, {}),
+                      &result);
   RETURN_ON_FAILED_EXECUTION(String);
   RETURN_ESCAPED(Local<String>::Cast(result));
 }
@@ -5486,27 +5486,11 @@ bool v8::Object::IsUndetectable() const {
 }
 
 namespace {
-#ifdef V8_ENABLE_DIRECT_HANDLE
-// A newly allocated vector is required to convert from an array of direct
-// locals to an array of indirect handles.
-std::vector<i::Handle<i::Object>> PrepareArguments(int argc,
-                                                   Local<Value> argv[]) {
-  std::vector<i::Handle<i::Object>> args(argc);
-  for (int i = 0; i < argc; ++i) {
-    args[i] = Utils::OpenHandle(*argv[i]);
-  }
-  return args;
-}
-#else   // !V8_ENABLE_DIRECT_HANDLE
-// A simple cast is used to convert from an array of indirect locals to an
-// array of indirect handles. A MemorySpan object is returned, as no
-// deallocation is necessary.
-v8::MemorySpan<i::Handle<i::Object>> PrepareArguments(int argc,
-                                                      Local<Value> argv[]) {
-  return {reinterpret_cast<i::Handle<i::Object>*>(argv),
+base::Vector<i::DirectHandle<i::Object>> PrepareArguments(int argc,
+                                                          Local<Value> argv[]) {
+  return {reinterpret_cast<i::DirectHandle<i::Object>*>(argv),
           static_cast<size_t>(argc)};
 }
-#endif  // V8_ENABLE_DIRECT_HANDLE
 }  // namespace
 
 MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
@@ -5524,8 +5508,7 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
-      i::Execution::Call(i_isolate, self, recv_obj, argc, args.data()),
-      &result);
+      i::Execution::Call(i_isolate, self, recv_obj, args), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -5543,8 +5526,8 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   auto args = PrepareArguments(argc, argv);
   Local<Value> result;
-  has_exception = !ToLocal<Value>(
-      i::Execution::New(i_isolate, self, self, argc, args.data()), &result);
+  has_exception =
+      !ToLocal<Value>(i::Execution::New(i_isolate, self, self, args), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -5596,8 +5579,8 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   }
   auto args = PrepareArguments(argc, argv);
   Local<Object> result;
-  has_exception = !ToLocal<Object>(
-      i::Execution::New(i_isolate, self, self, argc, args.data()), &result);
+  has_exception =
+      !ToLocal<Object>(i::Execution::New(i_isolate, self, self, args), &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }
@@ -5620,8 +5603,7 @@ MaybeLocal<v8::Value> Function::Call(v8::Isolate* isolate,
   auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
-      i::Execution::Call(i_isolate, self, recv_obj, argc, args.data()),
-      &result);
+      i::Execution::Call(i_isolate, self, recv_obj, args), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -5788,10 +5770,10 @@ MaybeLocal<String> v8::Function::FunctionProtoToString(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Function, FunctionProtoToString);
   auto self = Utils::OpenHandle(this);
   Local<Value> result;
-  has_exception = !ToLocal<Value>(
-      i::Execution::CallBuiltin(i_isolate, i_isolate->function_to_string(),
-                                self, 0, nullptr),
-      &result);
+  has_exception =
+      !ToLocal<Value>(i::Execution::CallBuiltin(
+                          i_isolate, i_isolate->function_to_string(), self, {}),
+                      &result);
   RETURN_ON_FAILED_EXECUTION(String);
   RETURN_ESCAPED(Local<String>::Cast(result));
 }
@@ -8586,10 +8568,10 @@ MaybeLocal<Value> Map::Get(Local<Context> context, Local<Value> key) {
   PREPARE_FOR_EXECUTION(context, Map, Get);
   auto self = Utils::OpenHandle(this);
   Local<Value> result;
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
   has_exception =
       !ToLocal<Value>(i::Execution::CallBuiltin(i_isolate, i_isolate->map_get(),
-                                                self, arraysize(argv), argv),
+                                                self, base::VectorOf(args)),
                       &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
@@ -8600,10 +8582,10 @@ MaybeLocal<Map> Map::Set(Local<Context> context, Local<Value> key,
   PREPARE_FOR_EXECUTION(context, Map, Set);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key),
-                                 Utils::OpenHandle(*value)};
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key),
+                                       Utils::OpenDirectHandle(*value)};
   has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->map_set(),
-                                             self, arraysize(argv), argv)
+                                             self, base::VectorOf(args))
                        .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Map);
   RETURN_ESCAPED(Local<Map>::Cast(Utils::ToLocal(result)));
@@ -8614,9 +8596,9 @@ Maybe<bool> Map::Has(Local<Context> context, Local<Value> key) {
   ENTER_V8(i_isolate, context, Map, Has, i::HandleScope);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
   has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->map_has(),
-                                             self, arraysize(argv), argv)
+                                             self, base::VectorOf(args))
                        .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(i::IsTrue(*result, i_isolate));
@@ -8627,9 +8609,9 @@ Maybe<bool> Map::Delete(Local<Context> context, Local<Value> key) {
   ENTER_V8(i_isolate, context, Map, Delete, i::HandleScope);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
   has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->map_delete(),
-                                             self, arraysize(argv), argv)
+                                             self, base::VectorOf(args))
                        .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(i::IsTrue(*result, i_isolate));
@@ -8718,9 +8700,9 @@ MaybeLocal<Set> Set::Add(Local<Context> context, Local<Value> key) {
   PREPARE_FOR_EXECUTION(context, Set, Add);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
   has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->set_add(),
-                                             self, arraysize(argv), argv)
+                                             self, base::VectorOf(args))
                        .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Set);
   RETURN_ESCAPED(Local<Set>::Cast(Utils::ToLocal(result)));
@@ -8731,9 +8713,9 @@ Maybe<bool> Set::Has(Local<Context> context, Local<Value> key) {
   ENTER_V8(i_isolate, context, Set, Has, i::HandleScope);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
   has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->set_has(),
-                                             self, arraysize(argv), argv)
+                                             self, base::VectorOf(args))
                        .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(i::IsTrue(*result, i_isolate));
@@ -8744,9 +8726,9 @@ Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
   ENTER_V8(i_isolate, context, Set, Delete, i::HandleScope);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*key)};
   has_exception = !i::Execution::CallBuiltin(i_isolate, i_isolate->set_delete(),
-                                             self, arraysize(argv), argv)
+                                             self, base::VectorOf(args))
                        .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(i::IsTrue(*result, i_isolate));
@@ -8847,15 +8829,15 @@ MaybeLocal<Promise> Promise::Catch(Local<Context> context,
                                    Local<Function> handler) {
   PREPARE_FOR_EXECUTION(context, Promise, Catch);
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::Object> argv[] = {i_isolate->factory()->undefined_value(),
-                                 Utils::OpenHandle(*handler)};
+  i::DirectHandle<i::Object> args[] = {i_isolate->factory()->undefined_value(),
+                                       Utils::OpenDirectHandle(*handler)};
   i::Handle<i::Object> result;
   // Do not call the built-in Promise.prototype.catch!
   // v8::Promise should not call out to a monkeypatched Promise.prototype.then
   // as the implementation of Promise.prototype.catch does.
   has_exception =
       !i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
-                                 arraysize(argv), argv)
+                                 base::VectorOf(args))
            .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Promise);
   RETURN_ESCAPED(Local<Promise>::Cast(Utils::ToLocal(result)));
@@ -8865,11 +8847,11 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
                                   Local<Function> handler) {
   PREPARE_FOR_EXECUTION(context, Promise, Then);
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*handler)};
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*handler)};
   i::Handle<i::Object> result;
   has_exception =
       !i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
-                                 arraysize(argv), argv)
+                                 base::VectorOf(args))
            .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Promise);
   RETURN_ESCAPED(Local<Promise>::Cast(Utils::ToLocal(result)));
@@ -8880,12 +8862,12 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
                                   Local<Function> on_rejected) {
   PREPARE_FOR_EXECUTION(context, Promise, Then);
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*on_fulfilled),
-                                 Utils::OpenHandle(*on_rejected)};
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*on_fulfilled),
+                                       Utils::OpenDirectHandle(*on_rejected)};
   i::Handle<i::Object> result;
   has_exception =
       !i::Execution::CallBuiltin(i_isolate, i_isolate->promise_then(), self,
-                                 arraysize(argv), argv)
+                                 base::VectorOf(args))
            .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Promise);
   RETURN_ESCAPED(Local<Promise>::Cast(Utils::ToLocal(result)));
@@ -12228,10 +12210,10 @@ void InvokeFinalizationRegistryCleanupFromTask(
   Local<v8::Context> api_context = Utils::ToLocal(native_context);
   CallDepthScope<true> call_depth_scope(i_isolate, api_context);
   VMState<OTHER> state(i_isolate);
-  Handle<Object> argv[] = {callback};
+  DirectHandle<Object> args[] = {callback};
   USE(Execution::CallBuiltin(i_isolate,
                              i_isolate->finalization_registry_cleanup_some(),
-                             finalization_registry, arraysize(argv), argv));
+                             finalization_registry, base::VectorOf(args)));
 }
 
 template <>

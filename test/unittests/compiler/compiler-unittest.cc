@@ -234,10 +234,9 @@ TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
           .ToHandleChecked();
   EXPECT_TRUE(IsJSFunction(*fun1));
 
-  Handle<Object> argv[] = {
+  DirectHandle<Object> args[] = {
       isolate->factory()->InternalizeString(base::StaticCharVector("hello"))};
-  Execution::Call(isolate, Cast<JSFunction>(fun1), global, arraysize(argv),
-                  argv)
+  Execution::Call(isolate, Cast<JSFunction>(fun1), global, base::VectorOf(args))
       .Check();
 }
 
@@ -1009,12 +1008,12 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 
     // Execute f to get g's SFI (no g bytecode yet)
     Handle<JSFunction> g = Cast<JSFunction>(
-        Execution::Call(isolate(), f, global, 0, nullptr).ToHandleChecked());
+        Execution::Call(isolate(), f, global, {}).ToHandleChecked());
     CHECK(!g->is_compiled(isolate()));
 
     // Execute g's SFI to initialize g's bytecode, and to get h.
     Handle<JSFunction> h = Cast<JSFunction>(
-        Execution::Call(isolate(), g, global, 0, nullptr).ToHandleChecked());
+        Execution::Call(isolate(), g, global, {}).ToHandleChecked());
     CHECK(g->is_compiled(isolate()));
     CHECK(!h->is_compiled(isolate()));
 
@@ -1106,12 +1105,12 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 
     // Execute f to get g's SFI (no g bytecode yet)
     Handle<JSFunction> g = Cast<JSFunction>(
-        Execution::Call(isolate(), f, global, 0, nullptr).ToHandleChecked());
+        Execution::Call(isolate(), f, global, {}).ToHandleChecked());
     CHECK(!g->is_compiled(isolate()));
 
     // Execute g's SFI to initialize g's bytecode, and to get h.
     Handle<JSFunction> h = Cast<JSFunction>(
-        Execution::Call(isolate(), g, global, 0, nullptr).ToHandleChecked());
+        Execution::Call(isolate(), g, global, {}).ToHandleChecked());
     CHECK(g->is_compiled(isolate()));
     CHECK(!h->is_compiled(isolate()));
 

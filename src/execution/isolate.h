@@ -940,7 +940,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // function an exception is likely to hit. Used in catch prediction.
   // Returns true if the exception is expected to be caught.
   bool WalkCallStackAndPromiseTree(
-      MaybeHandle<JSPromise> rejected_promise,
+      MaybeDirectHandle<JSPromise> rejected_promise,
       const std::function<void(PromiseHandler)>& callback);
 
   class V8_NODISCARD ExceptionScope {
@@ -1006,12 +1006,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns if the given context may access the given global object. If
   // the result is false, the exception is guaranteed to be
   // set.
-  bool MayAccess(Handle<NativeContext> accessing_context,
-                 Handle<JSObject> receiver);
+  bool MayAccess(DirectHandle<NativeContext> accessing_context,
+                 DirectHandle<JSObject> receiver);
 
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReportFailedAccessCheck(
-      Handle<JSObject> receiver);
+      DirectHandle<JSObject> receiver);
 
   // Exception throwing support. The caller should use the result of Throw() as
   // its return value. Returns the Exception sentinel.
@@ -1757,7 +1757,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline void FireBeforeCallEnteredCallback();
 
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
-  void ReportPromiseReject(Handle<JSPromise> promise, Handle<Object> value,
+  void ReportPromiseReject(DirectHandle<JSPromise> promise,
+                           DirectHandle<Object> value,
                            v8::PromiseRejectEvent event);
 
   void SetTerminationOnExternalTryCatch();
@@ -1979,9 +1980,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_OS_WIN64
 
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
-  MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<NativeContext>,
-                                                   Handle<JSObject> Error,
-                                                   Handle<JSArray> sites);
+  MaybeHandle<Object> RunPrepareStackTraceCallback(DirectHandle<NativeContext>,
+                                                   DirectHandle<JSObject> Error,
+                                                   DirectHandle<JSArray> sites);
   bool HasPrepareStackTraceCallback() const;
 
   void SetAddCrashKeyCallback(AddCrashKeyCallback callback);

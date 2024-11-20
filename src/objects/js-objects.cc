@@ -2100,12 +2100,12 @@ MaybeHandle<Object> JSReceiver::ToPrimitive(Isolate* isolate,
       Object::GetMethod(isolate, receiver,
                         isolate->factory()->to_primitive_symbol()));
   if (!IsUndefined(*exotic_to_prim, isolate)) {
-    Handle<Object> hint_string =
+    DirectHandle<Object> hint_string =
         isolate->factory()->ToPrimitiveHintString(hint);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        Execution::Call(isolate, exotic_to_prim, receiver, 1, &hint_string));
+        Execution::Call(isolate, exotic_to_prim, receiver, {&hint_string, 1}));
     if (IsPrimitive(*result)) return result;
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kCannotConvertToPrimitive));
@@ -2138,8 +2138,7 @@ MaybeHandle<Object> JSReceiver::OrdinaryToPrimitive(
     if (IsCallable(*method)) {
       Handle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, result,
-          Execution::Call(isolate, method, receiver, 0, nullptr));
+          isolate, result, Execution::Call(isolate, method, receiver, {}));
       if (IsPrimitive(*result)) return result;
     }
   }

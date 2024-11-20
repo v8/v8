@@ -41,19 +41,19 @@ static const int SMI_MAX = (1 << 30) - 1;
 static const int SMI_MIN = -(1 << 30);
 
 static MaybeHandle<Object> CallFunction(Isolate* isolate,
-                                        Handle<JSFunction> function) {
+                                        DirectHandle<JSFunction> function) {
   return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), 0, nullptr);
+                         isolate->factory()->undefined_value(), {});
 }
 
 template <class... A>
 static MaybeHandle<Object> CallFunction(Isolate* isolate,
-                                        Handle<JSFunction> function,
+                                        DirectHandle<JSFunction> function,
                                         A... args) {
-  Handle<Object> argv[] = {args...};
+  DirectHandle<Object> arguments[] = {args...};
   return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), sizeof...(args),
-                         argv);
+                         isolate->factory()->undefined_value(),
+                         {arguments, sizeof...(args)});
 }
 
 static v8::Local<v8::Value> CompileRun(v8::Isolate* isolate,

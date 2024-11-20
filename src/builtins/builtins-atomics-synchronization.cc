@@ -83,7 +83,7 @@ BUILTIN(AtomicsMutexLock) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         Execution::Call(isolate, run_under_lock,
-                        isolate->factory()->undefined_value(), 0, nullptr));
+                        isolate->factory()->undefined_value(), {}));
   }
 
   return *result;
@@ -116,7 +116,7 @@ BUILTIN(AtomicsMutexTryLock) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, callback_result,
           Execution::Call(isolate, run_under_lock,
-                          isolate->factory()->undefined_value(), 0, nullptr));
+                          isolate->factory()->undefined_value(), {}));
       success = true;
     } else {
       callback_result = isolate->factory()->undefined_value();
@@ -175,7 +175,7 @@ BUILTIN(AtomicsMutexLockWithTimeout) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, callback_result,
           Execution::Call(isolate, run_under_lock,
-                          isolate->factory()->undefined_value(), 0, nullptr));
+                          isolate->factory()->undefined_value(), {}));
       success = true;
     } else {
       callback_result = isolate->factory()->undefined_value();

@@ -377,8 +377,8 @@ void CheckTableCall(Isolate* isolate, DirectHandle<WasmTableObject> table,
   CHECK_EQ(table->current_length(), args_length);
   double expected[] = {args...};
   for (uint32_t i = 0; i < args_length; ++i) {
-    Handle<Object> buffer[] = {isolate->factory()->NewNumber(i)};
-    r->CheckCallApplyViaJS(expected[i], function_index, buffer, 1);
+    DirectHandle<Object> buffer[] = {isolate->factory()->NewNumber(i)};
+    r->CheckCallApplyViaJS(expected[i], function_index, base::VectorOf(buffer));
   }
 }
 }  // namespace

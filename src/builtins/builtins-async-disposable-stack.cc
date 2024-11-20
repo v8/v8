@@ -90,9 +90,9 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   try_catch.SetVerbose(false);
   try_catch.SetCaptureMessage(false);
 
-  MaybeHandle<Object> result = Execution::Call(
-      isolate, sync_method, ReadOnlyRoots(isolate).undefined_value_handle(), 0,
-      nullptr);
+  MaybeHandle<Object> result =
+      Execution::Call(isolate, sync_method,
+                      ReadOnlyRoots(isolate).undefined_value_handle(), {});
 
   Handle<Object> result_handle;
 

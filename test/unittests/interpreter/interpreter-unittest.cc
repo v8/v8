@@ -4888,7 +4888,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate()));
     MaybeHandle<Object> result = Execution::Call(
         i_isolate(), function,
-        ReadOnlyRoots(i_isolate()).undefined_value_handle(), 0, nullptr);
+        ReadOnlyRoots(i_isolate()).undefined_value_handle(), {});
     CHECK(result.is_null());
     CHECK(try_catch.HasCaught());
   }
@@ -4924,7 +4924,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate()));
     MaybeHandle<Object> result = Execution::Call(
         i_isolate(), function,
-        ReadOnlyRoots(i_isolate()).undefined_value_handle(), 0, nullptr);
+        ReadOnlyRoots(i_isolate()).undefined_value_handle(), {});
     CHECK(result.is_null());
     CHECK(try_catch.HasCaught());
   }
@@ -4978,8 +4978,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
   {
     Handle<Object> result =
         Execution::Call(i_isolate(), function,
-                        ReadOnlyRoots(i_isolate()).undefined_value_handle(), 0,
-                        nullptr)
+                        ReadOnlyRoots(i_isolate()).undefined_value_handle(), {})
             .ToHandleChecked();
     CheckStringEqual("Error\n    at <anonymous>:4:17", result);
   }
