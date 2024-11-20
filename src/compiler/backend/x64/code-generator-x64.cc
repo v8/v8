@@ -4948,6 +4948,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case kL32: {
             // I32x4Mul
+            CpuFeatureScope scope(masm(), SSE4_1);
             ASSEMBLE_SIMD_BINOP(pmulld);
             break;
           }
@@ -5429,6 +5430,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL8: {
             // I8x16MinS
+            CpuFeatureScope scope(masm(), SSE4_1);
             ASSEMBLE_SIMD_BINOP(pminsb);
             break;
           }
@@ -5439,6 +5441,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case kL32: {
             // I32x4MinS
+            CpuFeatureScope scope(masm(), SSE4_1);
             ASSEMBLE_SIMD_BINOP(pminsd);
             break;
           }
@@ -5477,6 +5480,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         switch (lane_size) {
           case kL8: {
             // I8x16MaxS
+            CpuFeatureScope scope(masm(), SSE4_1);
             ASSEMBLE_SIMD_BINOP(pmaxsb);
             break;
           }
@@ -5487,6 +5491,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case kL32: {
             // I32x4MaxS
+            CpuFeatureScope scope(masm(), SSE4_1);
             ASSEMBLE_SIMD_BINOP(pmaxsd);
             break;
           }
@@ -5582,11 +5587,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case kL16: {
             // I16x8MinU
+            CpuFeatureScope scope(masm(), SSE4_1);
             ASSEMBLE_SIMD_BINOP(pminuw);
             break;
           }
           case kL32: {
             // I32x4MinU
+            CpuFeatureScope scope(masm(), SSE4_1);
             ASSEMBLE_SIMD_BINOP(pminud);
             break;
           }
@@ -5630,11 +5637,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
           case kL16: {
             // I16x8MaxU
+            CpuFeatureScope scope(masm(), SSE4_1);
             ASSEMBLE_SIMD_BINOP(pmaxuw);
             break;
           }
           case kL32: {
             // I32x4MaxU
+            CpuFeatureScope scope(masm(), SSE4_1);
             ASSEMBLE_SIMD_BINOP(pmaxud);
             break;
           }
@@ -6045,6 +6054,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8UConvertI32x4: {
+      CpuFeatureScope scope(masm(), SSE4_1);
       ASSEMBLE_SIMD_BINOP(packusdw);
       break;
     }
