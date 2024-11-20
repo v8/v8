@@ -254,8 +254,8 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
     if (!compilation_info->broker()->dependencies()->Commit(code)) {
       // Don't `set_maglev_compilation_failed` s.t. we may reattempt
       // compilation.
-      // TODO(v8:7700): Make this more robust, i.e.: don't recompile endlessly,
-      // and possibly attempt to recompile as early as possible.
+      // TODO(v8:7700): Make this more robust, i.e.: don't recompile endlessly.
+      compilation_info->toplevel_function()->SetInterruptBudget(isolate);
       return {};
     }
   }
