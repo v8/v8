@@ -2156,12 +2156,12 @@ class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
   Status FinalizeJobImpl(Isolate* isolate) final;
 
  private:
-  std::unique_ptr<char[]> debug_name_;
+  const std::unique_ptr<char[]> debug_name_;
   OptimizedCompilationInfo info_;
-  CallDescriptor* call_descriptor_;
+  CallDescriptor* const call_descriptor_;
   ZoneStats zone_stats_;
-  std::unique_ptr<Zone> zone_;
-  Graph* graph_;
+  const std::unique_ptr<Zone> zone_;
+  Graph* const graph_;
   TFPipelineData data_;
   PipelineImpl pipeline_;
 };
@@ -2186,6 +2186,8 @@ class WasmTurboshaftWrapperCompilationJob final
               wrapper_info.code_kind),
         sig_(sig),
         wrapper_info_(wrapper_info),
+        call_descriptor_(
+            GetCallDescriptor(&zone_, sig, wrapper_info_.code_kind)),
         zone_stats_(zone_.allocator()),
         turboshaft_data_(
             &zone_stats_,
@@ -2196,20 +2198,7 @@ class WasmTurboshaftWrapperCompilationJob final
         data_(&zone_stats_, &info_, isolate, wasm::GetWasmEngine()->allocator(),
               nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, options,
               nullptr),
-        pipeline_(&data_) {
-    if (wrapper_info_.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
-      call_descriptor_ = compiler::GetWasmCallDescriptor(
-          &zone_, sig, WasmCallKind::kWasmImportWrapper);
-      if (!Is64()) {
-        call_descriptor_ = GetI32WasmCallDescriptor(&zone_, call_descriptor_);
-      }
-    } else {
-      DCHECK_EQ(wrapper_info_.code_kind, CodeKind::JS_TO_WASM_FUNCTION);
-      call_descriptor_ = Linkage::GetJSCallDescriptor(
-          &zone_, false, static_cast<int>(sig->parameter_count()) + 1,
-          CallDescriptor::kNoFlags);
-    }
-  }
+        pipeline_(&data_) {}
 
   WasmTurboshaftWrapperCompilationJob(
       const WasmTurboshaftWrapperCompilationJob&) = delete;
@@ -2223,16 +2212,32 @@ class WasmTurboshaftWrapperCompilationJob final
   Status FinalizeJobImpl(Isolate* isolate) final;
 
  private:
+  static CallDescriptor* GetCallDescriptor(Zone* zone,
+                                           const wasm::CanonicalSig* sig,
+                                           CodeKind code_kind) {
+    if (code_kind == CodeKind::WASM_TO_JS_FUNCTION) {
+      CallDescriptor* call_descriptor = compiler::GetWasmCallDescriptor(
+          zone, sig, WasmCallKind::kWasmImportWrapper);
+      return Is64() ? call_descriptor
+                    : GetI32WasmCallDescriptor(zone, call_descriptor);
+    }
+    DCHECK_EQ(code_kind, CodeKind::JS_TO_WASM_FUNCTION);
+    return Linkage::GetJSCallDescriptor(
+        zone, false, static_cast<int>(sig->parameter_count()) + 1,
+        CallDescriptor::kNoFlags);
+  }
+
   Zone zone_;
-  std::unique_ptr<char[]> debug_name_;
+  const std::unique_ptr<char[]> debug_name_;
   OptimizedCompilationInfo info_;
-  const wasm::CanonicalSig* sig_;
-  wasm::WrapperCompilationInfo wrapper_info_;
-  CallDescriptor* call_descriptor_;  // Incoming call descriptor.
+  const wasm::CanonicalSig* const sig_;
+  const wasm::WrapperCompilationInfo wrapper_info_;
+  CallDescriptor* const call_descriptor_;  // Incoming call descriptor.
   ZoneStats zone_stats_;
   turboshaft::PipelineData turboshaft_data_;
   TFPipelineData data_;
   PipelineImpl pipeline_;
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics_;
 };
 
 // static
@@ -2406,17 +2411,17 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::PrepareJobImpl(
 
 CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
-  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
   if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
-    pipeline_statistics.reset(new TurbofanPipelineStatistics(
+    DCHECK_NULL(pipeline_statistics_);
+    pipeline_statistics_ = std::make_unique<TurbofanPipelineStatistics>(
         &info_, wasm::GetWasmEngine()->GetOrCreateTurboStatistics(),
-        &zone_stats_));
-    pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
+        &zone_stats_);
+    pipeline_statistics_->BeginPhaseKind("V8.WasmStubCodegen");
   }
   TraceWrapperCompilation(&info_, &turboshaft_data_);
   Linkage linkage(call_descriptor_);
 
-  turboshaft_data_.set_pipeline_statistics(pipeline_statistics.get());
+  turboshaft_data_.set_pipeline_statistics(pipeline_statistics_.get());
   turboshaft_data_.SetIsWasmWrapper(sig_);
 
   AccountingAllocator allocator;
