@@ -417,7 +417,13 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
   }
   if (result.is_null()) return {};
 
-  CHECK_EQ(old_map->elements_kind(), (*result)->elements_kind());
+  // TODO(olivf, 370536107): For investigating crashes. Should become a CHECK
+  // again once resolved.
+  if (old_map->elements_kind() != (*result)->elements_kind()) {
+    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(old_map.address()),
+                                  reinterpret_cast<void*>((*result).address()),
+                                  reinterpret_cast<void*>(root_map.address()));
+  }
   CHECK_EQ(old_map->instance_type(), (*result)->instance_type());
   return result;
 }
