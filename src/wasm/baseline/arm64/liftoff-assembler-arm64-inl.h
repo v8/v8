@@ -396,6 +396,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
+    for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
     Mov(WasmHandleStackOverflowDescriptor::GapRegister(), frame_size);
     Add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
@@ -527,6 +528,7 @@ void LiftoffAssembler::CheckStackShrink() {
   B(ne, &done);
   LiftoffRegList regs_to_save;
   for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
+  for (auto reg : kFpReturnRegisters) regs_to_save.set(reg);
   PushRegisters(regs_to_save);
   Mov(kCArgRegs[0], ExternalReference::isolate_address());
   CallCFunction(ExternalReference::wasm_shrink_stack(), 1);

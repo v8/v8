@@ -338,6 +338,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
+    for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
     mov(WasmHandleStackOverflowDescriptor::GapRegister(),
         Immediate(frame_size));
@@ -440,6 +441,7 @@ Register LiftoffAssembler::LoadOldFramePointer() {
 void LiftoffAssembler::CheckStackShrink() {
   LiftoffRegList regs_to_save;
   for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
+  for (auto reg : kFpReturnRegisters) regs_to_save.set(reg);
   cmp(MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset),
       Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
   Label done;

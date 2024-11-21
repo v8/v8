@@ -3749,6 +3749,9 @@ void CodeGenerator::AssembleConstructFrame() {
             WasmHandleStackOverflowDescriptor::FrameBaseRegister());
         for (auto reg : wasm::kGpParamRegisters) regs_to_save.Combine(reg);
         __ PushCPURegList(regs_to_save);
+        CPURegList fp_regs_to_save(kDRegSizeInBits, DoubleRegList{});
+        for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.Combine(reg);
+        __ PushCPURegList(fp_regs_to_save);
         __ Mov(WasmHandleStackOverflowDescriptor::GapRegister(),
                required_slots * kSystemPointerSize);
         __ Add(
@@ -3756,6 +3759,7 @@ void CodeGenerator::AssembleConstructFrame() {
             Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                     CommonFrameConstants::kFixedFrameSizeAboveFp));
         __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ PopCPURegList(fp_regs_to_save);
         __ PopCPURegList(regs_to_save);
       } else {
         __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
@@ -3847,9 +3851,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     CPURegList regs_to_save(kXRegSizeInBits, RegList{});
     for (auto reg : wasm::kGpReturnRegisters) regs_to_save.Combine(reg);
     __ PushCPURegList(regs_to_save);
+    CPURegList fp_regs_to_save(kDRegSizeInBits, DoubleRegList{});
+    for (auto reg : wasm::kFpReturnRegisters) fp_regs_to_save.Combine(reg);
+    __ PushCPURegList(fp_regs_to_save);
     __ Mov(kCArgRegs[0], ExternalReference::isolate_address());
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     __ Mov(fp, kReturnRegister0);
+    __ PopCPURegList(fp_regs_to_save);
     __ PopCPURegList(regs_to_save);
     if (masm()->options().enable_simulator_code) {
       // The next instruction after shrinking stack is leaving the frame.

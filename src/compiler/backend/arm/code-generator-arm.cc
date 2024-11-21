@@ -3843,6 +3843,9 @@ void CodeGenerator::AssembleConstructFrame() {
             WasmHandleStackOverflowDescriptor::FrameBaseRegister());
         for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
         __ stm(db_w, sp, regs_to_save);
+        DoubleRegList fp_regs_to_save;
+        for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
+        __ vstm(db_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
         __ mov(WasmHandleStackOverflowDescriptor::GapRegister(),
                Operand(required_slots * kSystemPointerSize));
         __ add(
@@ -3850,6 +3853,7 @@ void CodeGenerator::AssembleConstructFrame() {
             Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                     CommonFrameConstants::kFixedFrameSizeAboveFp));
         __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ vldm(ia_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
         __ ldm(ia_w, sp, regs_to_save);
       } else {
         __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
@@ -3955,12 +3959,16 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     RegList regs_to_save;
     for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
     __ stm(db_w, sp, regs_to_save);
+    DoubleRegList fp_regs_to_save;
+    for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
+    __ vstm(db_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ PrepareCallCFunction(1);
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     // Restore old FP. We don't need to restore old SP explicitly, because
     // it will be restored from FP in LeaveFrame before return.
     __ mov(fp, kReturnRegister0);
+    __ vldm(ia_w, sp, fp_regs_to_save.first(), fp_regs_to_save.last());
     __ ldm(ia_w, sp, regs_to_save);
     __ bind(&done);
   }

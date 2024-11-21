@@ -4107,6 +4107,11 @@ void CodeGenerator::AssembleConstructFrame() {
         for (Register reg : base::Reversed(regs_to_save)) {
           __ push(reg);
         }
+        __ sub(esp,
+               Immediate(arraysize(wasm::kFpParamRegisters) * kSimd128Size));
+        for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); i++) {
+          __ Movdqu(Operand(esp, kSimd128Size * i), wasm::kFpParamRegisters[i]);
+        }
         __ mov(WasmHandleStackOverflowDescriptor::GapRegister(),
                Immediate(required_slots * kSystemPointerSize));
         __ mov(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), ebp);
@@ -4115,6 +4120,11 @@ void CodeGenerator::AssembleConstructFrame() {
                    call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                    CommonFrameConstants::kFixedFrameSizeAboveFp)));
         __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); i++) {
+          __ Movdqu(wasm::kFpParamRegisters[i], Operand(esp, kSimd128Size * i));
+        }
+        __ add(esp,
+               Immediate(arraysize(wasm::kFpParamRegisters) * kSimd128Size));
         for (Register reg : regs_to_save) {
           __ pop(reg);
         }
@@ -4197,6 +4207,10 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     for (Register reg : base::Reversed(wasm::kGpReturnRegisters)) {
       __ push(reg);
     }
+    __ sub(esp, Immediate(arraysize(wasm::kFpReturnRegisters) * kSimd128Size));
+    for (size_t i = 0; i < arraysize(wasm::kFpReturnRegisters); i++) {
+      __ Movdqu(Operand(esp, kSimd128Size * i), wasm::kFpReturnRegisters[i]);
+    }
     __ PrepareCallCFunction(1, kReturnRegister0);
     __ Move(Operand(esp, 0 * kSystemPointerSize),
             Immediate(ExternalReference::isolate_address()));
@@ -4204,6 +4218,10 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // Restore old ebp. We don't need to restore old esp explicitly, because
     // it will be restored from ebp in LeaveFrame before return.
     __ mov(ebp, kReturnRegister0);
+    for (size_t i = 0; i < arraysize(wasm::kFpReturnRegisters); i++) {
+      __ Movdqu(wasm::kFpReturnRegisters[i], Operand(esp, kSimd128Size * i));
+    }
+    __ add(esp, Immediate(arraysize(wasm::kFpReturnRegisters) * kSimd128Size));
     for (Register reg : wasm::kGpReturnRegisters) {
       __ pop(reg);
     }
