@@ -3357,7 +3357,7 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
       function_entry,
       MemOperand(wrapper_buffer,
                  JSToWasmWrapperFrameConstants::kWrapperBufferCallTarget));
-  __ Call(function_entry);
+  __ CallWasmCodePointer(function_entry);
 
   {
     Register thread_in_wasm_flag_addr = r6;
