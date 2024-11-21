@@ -54,8 +54,6 @@ class StringValue;
 class Value;
 {% endif %}
 
-using {{config.crdtp.namespace}}::detail::PtrMaybe;
-
 template<typename T>
 using Maybe = {{config.crdtp.namespace}}::Maybe<T>;
 

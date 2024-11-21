@@ -11,62 +11,14 @@
 namespace v8_crdtp {
 
 // =============================================================================
-// detail::PtrMaybe, templates for optional
+// Templates for optional
 // pointers / values which are used in ../lib/Forward_h.template.
 // =============================================================================
 
 namespace detail {
 template <typename T>
-class PtrMaybe {
- public:
-  PtrMaybe() = default;
-  PtrMaybe(std::unique_ptr<T> value) : value_(std::move(value)) {}
-  PtrMaybe(PtrMaybe&& other) noexcept : value_(std::move(other.value_)) {}
-  void operator=(std::unique_ptr<T> value) { value_ = std::move(value); }
-
-  // std::optional<>-compatible accessors (preferred).
-  bool has_value() const { return !!value_; }
-  operator bool() const { return has_value(); }
-  const T& value() const& {
-    assert(has_value());
-    return *value_;
-  }
-  T& value() & {
-    assert(has_value());
-    return *value_;
-  }
-  T&& value() && {
-    assert(has_value());
-    return std::move(*value_);
-  }
-  const T& value_or(const T& default_value) const {
-    return has_value() ? *value_ : default_value;
-  }
-  T* operator->() { return &value(); }
-  const T* operator->() const { return &value(); }
-
-  T& operator*() & { return value(); }
-  const T& operator*() const& { return value(); }
-  T&& operator*() && { return std::move(value()); }
-  T* get() const { return value_.get(); }
-
-  // Legacy Maybe<> accessors (deprecated).
-  T* fromJust() const {
-    assert(value_);
-    return value_.get();
-  }
-  T* fromMaybe(T* default_value) const {
-    return value_ ? value_.get() : default_value;
-  }
-  bool isJust() const { return value_ != nullptr; }
-
- private:
-  std::unique_ptr<T> value_;
-};
-
-template <typename T>
 struct MaybeTypedef {
-  typedef PtrMaybe<T> type;
+  typedef std::unique_ptr<T> type;
 };
 
 template <>
