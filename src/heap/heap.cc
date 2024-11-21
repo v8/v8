@@ -4947,10 +4947,7 @@ size_t Heap::OldGenerationToSemiSpaceRatio() {
   static size_t kMaxOldGenSizeToMaxYoungGenSizeRatio =
       V8HeapTrait::kMaxSize /
       (v8_flags.scavenger_max_new_space_capacity_mb * MB);
-  static size_t kOldGenerationToSemiSpaceRatio =
-      kMaxOldGenSizeToMaxYoungGenSizeRatio * kHeapLimitMultiplier /
-      kPointerMultiplier;
-  return kOldGenerationToSemiSpaceRatio;
+  return kMaxOldGenSizeToMaxYoungGenSizeRatio / kPointerMultiplier;
 }
 
 // static
