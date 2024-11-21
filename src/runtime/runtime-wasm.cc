@@ -468,6 +468,7 @@ Tagged<FixedArray> AllocateFeedbackVector(
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   ClearThreadInWasmScope wasm_flag(isolate);
+  DCHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   DCHECK(v8_flags.wasm_inlining);
