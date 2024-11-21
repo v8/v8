@@ -142,13 +142,6 @@ class Pipeline : public AllStatic {
       std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
 #endif
 
-  // Run the pipeline on a machine graph and generate code.
-  static MaybeHandle<Code> GenerateCodeForCodeStub(
-      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-      JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
-      const char* debug_name, Builtin builtin, const AssemblerOptions& options,
-      const ProfileDataFromFile* profile_data);
-
   static MaybeHandle<Code> GenerateCodeForTurboshaftBuiltin(
       turboshaft::PipelineData* turboshaft_data,
       CallDescriptor* call_descriptor, Builtin builtin, const char* debug_name,

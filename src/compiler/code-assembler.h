@@ -417,10 +417,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   CodeAssembler(const CodeAssembler&) = delete;
   CodeAssembler& operator=(const CodeAssembler&) = delete;
 
-  static Handle<Code> GenerateCode(CodeAssemblerState* state,
-                                   const AssemblerOptions& options,
-                                   const ProfileDataFromFile* profile_data);
-
   static void CompileCode(Isolate* isolate,
                           std::unique_ptr<TurbofanCompilationJob> job,
                           int& builtins_installed_count);
@@ -1822,11 +1818,6 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      const CallInterfaceDescriptor& descriptor, CodeKind kind,
                      const char* name, Builtin builtin = Builtin::kNoBuiltinId);
-
-  // Create with JSCall linkage.
-  CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
-                     CodeKind kind, const char* name,
-                     Builtin builtin = Builtin::kNoBuiltinId);
 
   ~CodeAssemblerState();
 

@@ -3206,134 +3206,22 @@ Pipeline::NewBytecodeHandlerCompilationJob(
   }
 }
 
-// TODO(nicohartmann): Move this to turboshaft::Pipeline eventually.
-MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
-    Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-    JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
-    const char* debug_name, Builtin builtin, const AssemblerOptions& options,
-    const ProfileDataFromFile* profile_data) {
-  OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
-                                kind);
-
-  info.set_builtin(builtin);
-
-  // Construct a pipeline for scheduling and code generation.
-  ZoneStats zone_stats(isolate->allocator());
-  NodeOriginTable node_origins(graph);
-  JumpOptimizationInfo jump_opt;
-  bool should_optimize_jumps =
-      isolate->serializer_enabled() && v8_flags.turbo_rewrite_far_jumps &&
-      !v8_flags.turbo_profiling && !v8_flags.dump_builtins_hashes_to_file;
-  JumpOptimizationInfo* jump_optimization_info =
-      should_optimize_jumps ? &jump_opt : nullptr;
-  TFPipelineData data(&zone_stats, &info, isolate, isolate->allocator(), graph,
-                      jsgraph, nullptr, source_positions, &node_origins,
-                      jump_optimization_info, options, profile_data);
-  PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
-  data.set_verify_graph(v8_flags.verify_csa);
-  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
-  if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
-    pipeline_statistics.reset(new TurbofanPipelineStatistics(
-        &info, isolate->GetTurboStatistics(), &zone_stats));
-    pipeline_statistics->BeginPhaseKind("V8.TFStubCodegen");
-  }
-
-  PipelineImpl pipeline(&data);
-
-  // Trace initial graph (if requested).
-  if (info.trace_turbo_json() || info.trace_turbo_graph()) {
-    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
-    tracing_scope.stream()
-        << "---------------------------------------------------\n"
-        << "Begin compiling " << debug_name << " using TurboFan" << std::endl;
-    if (info.trace_turbo_json()) {
-      TurboJsonFile json_of(&info, std::ios_base::trunc);
-      json_of << "{\"function\" : ";
-      JsonPrintFunctionSource(json_of, -1, info.GetDebugName(),
-                              Handle<Script>(), isolate,
-                              Handle<SharedFunctionInfo>());
-      json_of << ",\n\"phases\":[";
-    }
-    pipeline.Run<PrintGraphPhase>("V8.TFMachineCode");
-  }
-
-  // Validate pgo profile.
-  const int initial_graph_hash =
-      ComputeInitialGraphHash(builtin, profile_data, data.graph());
-  profile_data =
-      ValidateProfileData(profile_data, initial_graph_hash, debug_name);
-  data.set_profile_data(profile_data);
-
+// static
+std::unique_ptr<CodeAssemblerCompilationJob>
+CodeAssemblerCompilationJob::NewJobForTesting(
+    Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
+    CodeAssemblerInstaller installer,
+    std::function<compiler::CallDescriptor*(Zone*)> get_call_descriptor,
+    CodeKind code_kind, const char* name) {
+  AssemblerOptions assembler_options = AssemblerOptions::Default(isolate);
   if (v8_flags.turboshaft_csa) {
-    pipeline.ComputeScheduledGraph();
-    DCHECK_NULL(data.frame());
-    DCHECK_NOT_NULL(data.schedule());
-
-    turboshaft::PipelineData turboshaft_data(
-        data.zone_stats(), turboshaft::TurboshaftPipelineKind::kCSA,
-        data.isolate(), data.info(), options, data.start_source_position());
-
-    turboshaft::BuiltinPipeline turboshaft_pipeline(&turboshaft_data);
-    Linkage linkage(call_descriptor);
-    CHECK(turboshaft_pipeline.CreateGraphFromTurbofan(&data, &linkage));
-
-    turboshaft_pipeline.OptimizeBuiltin();
-
-    CHECK_NULL(data.osr_helper_ptr());
-    CHECK(turboshaft_pipeline.GenerateCode(&linkage, data.osr_helper_ptr(),
-                                           jump_optimization_info, profile_data,
-                                           initial_graph_hash));
-    return turboshaft_pipeline.FinalizeCode();
+    return std::make_unique<CodeAssemblerTurboshaftCompilationJob>(
+        isolate, builtin, generator, installer, assembler_options,
+        get_call_descriptor, code_kind, name, nullptr, -1);
   } else {
-    // TODO(nicohartmann): Remove once `--turboshaft-csa` is the default.
-    pipeline.Run<CsaEarlyOptimizationPhase>();
-    pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
-
-    // Optimize memory access and allocation operations.
-    pipeline.Run<MemoryOptimizationPhase>();
-    pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
-
-    pipeline.Run<CsaOptimizationPhase>();
-    pipeline.RunPrintAndVerify(CsaOptimizationPhase::phase_name(), true);
-
-    pipeline.Run<DecompressionOptimizationPhase>();
-    pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
-                               true);
-
-    pipeline.Run<BranchConditionDuplicationPhase>();
-    pipeline.RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(),
-                               true);
-
-    pipeline.Run<VerifyGraphPhase>(true);
-
-    pipeline.ComputeScheduledGraph();
-    DCHECK_NOT_NULL(data.schedule());
-
-    // First run code generation on a copy of the pipeline, in order to be able
-    // to repeat it for jump optimization. The first run has to happen on a
-    // temporary pipeline to avoid deletion of zones on the main pipeline.
-    TFPipelineData second_data(
-        &zone_stats, &info, isolate, isolate->allocator(), data.graph(),
-        data.jsgraph(), data.schedule(), data.source_positions(),
-        data.node_origins(), data.jump_optimization_info(), options,
-        profile_data);
-    PipelineJobScope second_scope(&second_data,
-                                  isolate->counters()->runtime_call_stats());
-    second_data.set_verify_graph(v8_flags.verify_csa);
-    PipelineImpl second_pipeline(&second_data);
-    second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
-
-    if (v8_flags.turbo_profiling) {
-      info.profiler_data()->SetHash(initial_graph_hash);
-    }
-
-    if (jump_opt.is_optimizable()) {
-      jump_opt.set_optimizing();
-      return pipeline.GenerateCode(call_descriptor);
-    } else {
-      return second_pipeline.FinalizeCode();
-    }
+    return std::make_unique<CodeAssemblerTurbofanCompilationJob>(
+        isolate, builtin, generator, installer, assembler_options,
+        get_call_descriptor, code_kind, name, nullptr, -1);
   }
 }
 

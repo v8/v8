@@ -47,8 +47,15 @@ class CodeAssemblerCompilationJob : public TurbofanCompilationJob {
   }
 
  protected:
-  friend class CodeAssemblerTester;
   struct TFDataAndPipeline;
+
+  friend class CodeAssemblerTester;
+  V8_EXPORT_PRIVATE static std::unique_ptr<CodeAssemblerCompilationJob>
+  NewJobForTesting(
+      Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
+      CodeAssemblerInstaller installer,
+      std::function<compiler::CallDescriptor*(Zone*)> get_call_descriptor,
+      CodeKind code_kind, const char* name);
 
   static bool ShouldOptimizeJumps(Isolate* isolate);
 
@@ -58,16 +65,12 @@ class CodeAssemblerCompilationJob : public TurbofanCompilationJob {
   JSGraph* jsgraph() { return code_assembler_state_.jsgraph_; }
 
   Status PrepareJobImpl(Isolate* isolate) final;
-  // ExecuteJobImpl is implemented in subclasses.
+  // ExecuteJobImpl is implemented in subclasses, as pipelines differ between
+  // using Turbofan and Turboshaft.
   Status FinalizeJobImpl(Isolate* isolate) final;
 
   virtual PipelineImpl* EmplacePipeline(Isolate* isolate) = 0;
   virtual Handle<Code> FinalizeCode(Isolate* isolate) = 0;
-
-  void PreparePipeline(Isolate* isolate,
-                       std::function<PipelineImpl*(Isolate*)> emplace_pipeline);
-  void FinalizeAndInstallCode(
-      Isolate* isolate, std::function<Handle<Code>(Isolate*)> finalize_code);
 
   CodeAssemblerGenerator generator_;
   CodeAssemblerInstaller installer_;

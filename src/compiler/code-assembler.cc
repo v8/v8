@@ -61,15 +61,6 @@ CodeAssemblerState::CodeAssemblerState(
           kind, name, builtin) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
-                                       int parameter_count, CodeKind kind,
-                                       const char* name, Builtin builtin)
-    : CodeAssemblerState(
-          isolate, zone,
-          Linkage::GetJSCallDescriptor(zone, false, parameter_count,
-                                       CallDescriptor::kCanUseRoots),
-          kind, name, builtin) {}
-
-CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CallDescriptor* call_descriptor,
                                        CodeKind kind, const char* name,
                                        Builtin builtin)
@@ -165,28 +156,6 @@ void CodeAssembler::CallEpilogue() {
 
 bool CodeAssembler::Word32ShiftIsSafe() const {
   return raw_assembler()->machine()->Word32ShiftIsSafe();
-}
-
-// static
-Handle<Code> CodeAssembler::GenerateCode(
-    CodeAssemblerState* state, const AssemblerOptions& options,
-    const ProfileDataFromFile* profile_data) {
-  DCHECK(!state->code_generated_);
-
-  RawMachineAssembler* rasm = state->raw_assembler_.get();
-
-  Handle<Code> code;
-  Graph* graph = rasm->ExportForOptimization();
-
-  // TODO(syg): Convert tests to stop using this.
-  code = Pipeline::GenerateCodeForCodeStub(
-             rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
-             rasm->source_positions(), state->kind_, state->name_,
-             state->builtin_, options, profile_data)
-             .ToHandleChecked();
-
-  state->code_generated_ = true;
-  return code;
 }
 
 // static
