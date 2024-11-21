@@ -9,3 +9,15 @@
 // for the general case.
 // This file is loaded before each correctness test cases and won't get
 // minimized.
+
+// Mock Math.pow due to precision differences between 32 and 64 bits.
+// https://crbug.com/380147861
+(function() {
+  const origMathPow = Math.pow;
+  const origMathRound = Math.round;
+  const precision = 10000;
+  Math.pow = function(a, b) {
+    let result = origMathPow(a, b);
+    return origMathRound((result + Number.EPSILON) * precision) / precision;
+  }
+})();

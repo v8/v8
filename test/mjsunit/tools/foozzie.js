@@ -108,15 +108,6 @@ testSameOptimized(expected_array, () => {
 // Realm.eval is just eval.
 assertEquals(1477662728716, Realm.eval(Realm.create(), `Date.now()`));
 
-// Test suppressions when Math.pow is optimized.
-function callPow(v) {
-  return Math.pow(v, -0.5);
-}
-%PrepareFunctionForOptimization(callPow);
-const unoptimized = callPow(6996);
-%OptimizeFunctionOnNextCall(callPow);
-assertEquals(unoptimized, callPow(6996));
-
 // Test mocked Atomics.waitAsync.
 let then_called = false;
 Atomics.waitAsync().value.then(() => {then_called = true;});

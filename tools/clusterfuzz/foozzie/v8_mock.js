@@ -21,19 +21,6 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
   }
 })();
 
-// Mock Math.pow. Work around an optimization for -0.5.
-(function() {
-  const origMathPow = Math.pow;
-  Math.pow = function(a, b) {
-    if (b === -0.5) {
-      return 0;
-    } else {
-      return origMathPow(a, b);
-    }
-  }
-})();
-
-
 // Mock Date.
 (function() {
   let index = 0;
