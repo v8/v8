@@ -1440,11 +1440,19 @@ void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
     // We don't use the node after a positive submatch success because it
     // rewinds the position.  Since we returned 0 as the eats_at_least value
     // for this node, we don't need to fill in any data.
+    std::optional<RegExpFlags> old_flags;
     if (action_type() == MODIFY_FLAGS) {
+      // It is not guaranteed that we hit the resetting modify flags node, as
+      // GetQuickCheckDetails doesn't travers the whole graph. Therefore we
+      // reset the flags manually to the previous state after recursing.
+      old_flags = compiler->flags();
       compiler->set_flags(flags());
     }
     on_success()->GetQuickCheckDetails(details, compiler, filled_in,
                                        not_at_start);
+    if (old_flags.has_value()) {
+      compiler->set_flags(*old_flags);
+    }
   }
 }
 
