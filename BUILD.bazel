@@ -3132,6 +3132,7 @@ filegroup(
         "src/compiler/checkpoint-elimination.h",
         "src/compiler/code-assembler.cc",
         "src/compiler/code-assembler.h",
+        "src/compiler/code-assembler-compilation-job.h",
         "src/compiler/common-node-cache.cc",
         "src/compiler/common-node-cache.h",
         "src/compiler/common-operator.cc",
