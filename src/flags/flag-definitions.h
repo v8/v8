@@ -2862,6 +2862,8 @@ DEFINE_BOOL(freeze_flags_after_init, true,
 #endif
 DEFINE_BOOL(cet_compatible, V8_CET_SHADOW_STACK_BOOL,
             "Generate Intel CET compatible code")
+DEFINE_NEG_IMPLICATION(cet_compatible, compact_code_space_with_stack)
+DEFINE_NEG_IMPLICATION(cet_compatible, sparkplug)
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,

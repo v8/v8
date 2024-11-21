@@ -243,6 +243,9 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
         "--stress-concurrent-allocation", "--stress-concurrent-inlining"
     ],
     "dict_property_const_tracking": ["--stress-concurrent-inlining"],
+    "cet_shadow_stack": [
+        "--sparkplug", "--always-sparkplug", "--concurrent-sparkplug"
+    ]
 }
 
 # Flags that lead to a contradiction when a certain extra-flag is present.

@@ -2420,6 +2420,21 @@
 ['variant == stress_wasm_stack_switching and mode == debug', {
   # Very slow.
   'wasm/turboshaft/reduction-shuffle': [SKIP]
-}]
+}],
+
+##############################################################################
+['cet_shadow_stack', {
+  # It does not support multiple stacks yet.
+  'wasm/stack-switching*': [SKIP],
+  'wasm/growable-stacks': [SKIP],
+  'regress/wasm/regress-v8-14471': [SKIP],
+  'regress/wasm/regress-336852356': [SKIP],
+  'regress/wasm/regress-336358915': [SKIP],
+  'regress/wasm/regress-342522151': [SKIP],
+  'regress/wasm/regress-349640002': [SKIP],
+  'regress/wasm/regress-364667545': [SKIP],
+  'regress/wasm/regress-361123483': [SKIP],
+  'regress/wasm/regress-361717714': [SKIP]
+}]  # cet_shadow_stack
 
 ]

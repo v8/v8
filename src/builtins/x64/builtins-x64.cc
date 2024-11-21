@@ -3944,6 +3944,20 @@ void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
       kWasmTrapHandlerFaultAddressRegister,
       Immediate(WasmFrameConstants::kProtectedInstructionReturnAddressOffset));
   __ pushq(kWasmTrapHandlerFaultAddressRegister);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  // This landing pad pushes kWasmTrapHandlerFaultAddressRegister to the stack
+  // as a return address, allowing `Isolate::UnwindAndFindHandler` to locate it.
+  // However, this creates a mismatch in the return address count between the
+  // shadow stack and the real stack. To resolve this, we push a dummy value
+  // onto the shadow stack to maintain the correct count. This should be used
+  // only for unwinding, not for returning.
+  Label push_dummy_on_shadow_stack;
+  __ call(&push_dummy_on_shadow_stack);
+  __ Trap();  // Unreachable.
+  __ bind(&push_dummy_on_shadow_stack);
+  // Remove the return address pushed onto the real stack.
+  __ addq(rsp, Immediate(kSystemPointerSize));
+#endif  // V8_ENABLE_CET_SHADOW_STACK
   __ TailCallBuiltin(Builtin::kWasmTrapHandlerThrowTrap);
 }
 

@@ -87,4 +87,10 @@
   'wpt/jspi/*': [SKIP]
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64)
 
+##############################################################################
+['cet_shadow_stack', {
+  # It does not support multiple stacks yet.
+  'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [SKIP],
+  'wpt/jspi/*': [SKIP]
+}]  # cet_shadow_stack
 ]
