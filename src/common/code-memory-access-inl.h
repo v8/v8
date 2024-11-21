@@ -37,7 +37,7 @@ RwxMemoryWriteScope::~RwxMemoryWriteScope() {
 
 WritableJitAllocation::~WritableJitAllocation() {
 #ifdef DEBUG
-  if (enforce_write_api_ && page_ref_.has_value()) {
+  if (page_ref_.has_value()) {
     // We disabled RWX write access for debugging. But we'll need it in the
     // destructor again to release the jit page reference.
     write_scope_.emplace("~WritableJitAllocation");
@@ -47,7 +47,7 @@ WritableJitAllocation::~WritableJitAllocation() {
 
 WritableJitAllocation::WritableJitAllocation(
     Address addr, size_t size, ThreadIsolation::JitAllocationType type,
-    JitAllocationSource source, bool enforce_write_api)
+    JitAllocationSource source)
     : address_(addr),
       // The order of these is important. We need to create the write scope
       // before we lookup the Jit page, since the latter will take a mutex in
@@ -56,36 +56,29 @@ WritableJitAllocation::WritableJitAllocation(
       page_ref_(ThreadIsolation::LookupJitPage(addr, size)),
       allocation_(source == JitAllocationSource::kRegister
                       ? page_ref_->RegisterAllocation(addr, size, type)
-                      : page_ref_->LookupAllocation(addr, size, type)),
-      enforce_write_api_(enforce_write_api) {
+                      : page_ref_->LookupAllocation(addr, size, type)) {
 #ifdef DEBUG
-  if (enforce_write_api_) {
-    // Reset the write scope for debugging. We'll create fine-grained scopes in
-    // all Write functions of this class instead.
-    write_scope_.reset();
-  }
+  // Reset the write scope for debugging. We'll create fine-grained scopes in
+  // all Write functions of this class instead.
+  write_scope_.reset();
 #endif
 }
 
 WritableJitAllocation::WritableJitAllocation(
-    Address addr, size_t size, ThreadIsolation::JitAllocationType type,
-    bool enforce_write_api)
-    : address_(addr),
-      allocation_(size, type),
-      enforce_write_api_(enforce_write_api) {}
+    Address addr, size_t size, ThreadIsolation::JitAllocationType type)
+    : address_(addr), allocation_(size, type) {}
 
 // static
 WritableJitAllocation WritableJitAllocation::ForNonExecutableMemory(
     Address addr, size_t size, ThreadIsolation::JitAllocationType type) {
-  return WritableJitAllocation(addr, size, type, false);
+  return WritableJitAllocation(addr, size, type);
 }
 
+// static
 std::optional<RwxMemoryWriteScope>
-WritableJitAllocation::WriteScopeForApiEnforcement() const {
+ThreadIsolation::WriteScopeForApiEnforcement() {
 #ifdef DEBUG
-  if (enforce_write_api_) {
-    return std::optional<RwxMemoryWriteScope>("WriteScopeForApiEnforcement");
-  }
+  return std::optional<RwxMemoryWriteScope>("WriteScopeForApiEnforcement");
 #endif
   return {};
 }
@@ -97,11 +90,10 @@ WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
                                              Address far_jump_table_address,
                                              size_t far_jump_table_size)
     : writable_jump_table_(jump_table_address, jump_table_size,
-                           ThreadIsolation::JitAllocationType::kWasmJumpTable,
-                           true),
+                           ThreadIsolation::JitAllocationType::kWasmJumpTable),
       writable_far_jump_table_(
           far_jump_table_address, far_jump_table_size,
-          ThreadIsolation::JitAllocationType::kWasmFarJumpTable, true),
+          ThreadIsolation::JitAllocationType::kWasmFarJumpTable),
       write_scope_("WritableJumpTablePair"),
       // Always split the pages since we are not guaranteed that the jump table
       // and far jump table are on the same JitPage.
@@ -126,8 +118,7 @@ WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
 
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteHeaderSlot(T value) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   // This assert is no strict requirement, it just guards against
   // non-implemented functionality.
   static_assert(!is_taggable_v<T>);
@@ -142,8 +133,7 @@ void WritableJitAllocation::WriteHeaderSlot(T value) {
 
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, ReleaseStoreTag) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   // These asserts are no strict requirements, they just guard against
   // non-implemented functionality.
   static_assert(offset != HeapObject::kMapOffset);
@@ -154,8 +144,7 @@ void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, ReleaseStoreTag) {
 
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   if constexpr (offset == HeapObject::kMapOffset) {
     TaggedField<T, offset>::Relaxed_Store_Map_Word(
         HeapObject::FromAddress(address_), value);
@@ -169,8 +158,7 @@ template <typename T, size_t offset>
 void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
                                                             RelaxedStoreTag) {
   static_assert(offset != HeapObject::kMapOffset);
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   TaggedField<T, offset, TrustedSpaceCompressionScheme>::Relaxed_Store(
       HeapObject::FromAddress(address_), value);
 }
@@ -179,8 +167,7 @@ template <typename T, size_t offset>
 void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
                                                             ReleaseStoreTag) {
   static_assert(offset != HeapObject::kMapOffset);
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   TaggedField<T, offset, TrustedSpaceCompressionScheme>::Release_Store(
       HeapObject::FromAddress(address_), value);
 }
@@ -210,8 +197,7 @@ V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
 template <typename T>
 V8_INLINE void WritableJitAllocation::WriteUnalignedValue(Address address,
                                                           T value) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   DCHECK_GE(address, address_);
   DCHECK_LT(address - address_, size());
   base::WriteUnalignedValue<T>(address, value);
@@ -219,8 +205,7 @@ V8_INLINE void WritableJitAllocation::WriteUnalignedValue(Address address,
 
 template <typename T>
 V8_INLINE void WritableJitAllocation::WriteValue(Address address, T value) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   DCHECK_GE(address, address_);
   DCHECK_LT(address - address_, size());
   base::Memory<T>(address) = value;
@@ -229,8 +214,7 @@ V8_INLINE void WritableJitAllocation::WriteValue(Address address, T value) {
 template <typename T>
 V8_INLINE void WritableJitAllocation::WriteValue(Address address, T value,
                                                  RelaxedStoreTag) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   DCHECK_GE(address, address_);
   DCHECK_LT(address - address_, size());
   reinterpret_cast<std::atomic<T>*>(address)->store(value,
@@ -239,35 +223,40 @@ V8_INLINE void WritableJitAllocation::WriteValue(Address address, T value,
 
 void WritableJitAllocation::CopyCode(size_t dst_offset, const uint8_t* src,
                                      size_t num_bytes) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   CopyBytes(reinterpret_cast<uint8_t*>(address_ + dst_offset), src, num_bytes);
 }
 
 void WritableJitAllocation::CopyData(size_t dst_offset, const uint8_t* src,
                                      size_t num_bytes) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   CopyBytes(reinterpret_cast<uint8_t*>(address_ + dst_offset), src, num_bytes);
 }
 
 void WritableJitAllocation::ClearBytes(size_t offset, size_t len) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   memset(reinterpret_cast<void*>(address_ + offset), 0, len);
 }
 
-WritableJitPage::~WritableJitPage() = default;
+WritableJitPage::~WritableJitPage() {
+#ifdef DEBUG
+  write_scope_.SetWritable();
+#endif
+}
 
 WritableJitPage::WritableJitPage(Address addr, size_t size)
     : write_scope_("WritableJitPage"),
-      page_ref_(ThreadIsolation::LookupJitPage(addr, size)) {}
+      page_ref_(ThreadIsolation::LookupJitPage(addr, size)) {
+#ifdef DEBUG
+  write_scope_.SetExecutable();
+#endif
+}
 
 WritableJitAllocation WritableJitPage::LookupAllocationContaining(
     Address addr) {
   auto pair = page_ref_.AllocationContaining(addr);
   return WritableJitAllocation(pair.first, pair.second.Size(),
-                               pair.second.Type(), false);
+                               pair.second.Type());
 }
 
 V8_INLINE WritableFreeSpace WritableJitPage::FreeRange(Address addr,
@@ -291,6 +280,7 @@ V8_INLINE WritableFreeSpace::WritableFreeSpace(base::Address addr, size_t size,
 template <typename T, size_t offset>
 void WritableFreeSpace::WriteHeaderSlot(Tagged<T> value,
                                         RelaxedStoreTag) const {
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   Tagged<HeapObject> object = HeapObject::FromAddress(address_);
   // TODO(v8:13355): add validation before the write.
   if constexpr (offset == HeapObject::kMapOffset) {

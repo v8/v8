@@ -133,7 +133,7 @@ void InstructionStream::Finalize(Tagged<Code> code,
     WritableJitAllocation writable_allocation =
         ThreadIsolation::LookupJitAllocation(
             address(), InstructionStream::SizeFor(body_size()),
-            ThreadIsolation::JitAllocationType::kInstructionStream, true);
+            ThreadIsolation::JitAllocationType::kInstructionStream);
 
     // Copy code and inline metadata.
     static_assert(InstructionStream::kOnHeapBodyIsContiguous);
