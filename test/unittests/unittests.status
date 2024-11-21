@@ -331,6 +331,8 @@
   # https://crbug.com/v8/14545
   'LogAllTest.LogAll': [SKIP],
   'LogTimerTest.ConsoleTimeEvents': [SKIP],
+  # https://crbug.com/380011691
+  'ResourceConstraints.ConfigureDefaults': [SKIP],
 }],  # 'system == android'
 
 ['clang_coverage and mode == debug', {
