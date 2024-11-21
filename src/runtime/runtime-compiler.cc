@@ -167,6 +167,15 @@ void CompileOptimized(Handle<JSFunction> function, ConcurrencyMode mode,
   }
   DCHECK(is_compiled_scope.is_compiled());
 
+  // If both context-specialized and non-specialized code are marked for
+  // optimization they race for who starts compiling first.
+  // TODO(olivf): Investigate if we could tier both in parallel.
+  if (function->tiering_in_progress()) {
+    static_assert(kTieringStateInProgressBlocksTierup);
+    function->SetInterruptBudget(isolate);
+    return;
+  }
+
   // Concurrent optimization runs on another thread, thus no additional gap.
   const int gap =
       IsConcurrent(mode) ? 0 : kStackSpaceRequiredForCompilation * KB;
