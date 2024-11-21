@@ -2441,15 +2441,12 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   if (total_committed_code_space_.load() >
       critical_committed_code_space_.load()) {
     // Flush Liftoff code and record the flushed code size.
-    if (v8_flags.flush_liftoff_code) {
-      auto [code_size, metadata_size] =
-          wasm::GetWasmEngine()->FlushLiftoffCode();
-      isolate->counters()->wasm_flushed_liftoff_code_size_bytes()->AddSample(
-          static_cast<int>(code_size));
-      isolate->counters()
-          ->wasm_flushed_liftoff_metadata_size_bytes()
-          ->AddSample(static_cast<int>(metadata_size));
-    }
+    auto [code_size, metadata_size] = wasm::GetWasmEngine()->FlushLiftoffCode();
+    isolate->counters()->wasm_flushed_liftoff_code_size_bytes()->AddSample(
+        static_cast<int>(code_size));
+    isolate->counters()->wasm_flushed_liftoff_metadata_size_bytes()->AddSample(
+        static_cast<int>(metadata_size));
+
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
     size_t committed = total_committed_code_space_.load();
