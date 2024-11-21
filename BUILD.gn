@@ -305,7 +305,7 @@ declare_args() {
       (target_is_simulator || arm_control_flow_integrity != "none")
 
   # A temporary flag for development of the WasmCodePointerTable.
-  v8_enable_wasm_code_pointer_table = false
+  v8_enable_wasm_code_pointer_table = v8_enable_webassembly
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
