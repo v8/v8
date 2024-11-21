@@ -282,8 +282,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
   Handle<AsmWasmData> result =
       wasm::GetWasmEngine()
           ->SyncCompileTranslatedAsmJs(
-              isolate, &thrower,
-              wasm::ModuleWireBytes(module_->begin(), module_->end()), script,
+              isolate, &thrower, base::OwnedCopyOf(*module_), script,
               base::VectorOf(*asm_offsets_), uses_bitset,
               shared_info->language_mode())
           .ToHandleChecked();

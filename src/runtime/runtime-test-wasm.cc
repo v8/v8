@@ -718,11 +718,11 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
   }
   // Create and compile the wasm module.
   wasm::ErrorThrower thrower(isolate, "CreateWasmObject");
-  wasm::ModuleWireBytes bytes(base::VectorOf(module_bytes));
+  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(module_bytes);
   wasm::WasmEngine* engine = wasm::GetWasmEngine();
-  MaybeHandle<WasmModuleObject> maybe_module_object =
-      engine->SyncCompile(isolate, wasm::WasmEnabledFeatures(),
-                          wasm::CompileTimeImports(), &thrower, bytes);
+  MaybeHandle<WasmModuleObject> maybe_module_object = engine->SyncCompile(
+      isolate, wasm::WasmEnabledFeatures(), wasm::CompileTimeImports(),
+      &thrower, std::move(bytes));
   CHECK(!thrower.error());
   Handle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
@@ -1072,7 +1072,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
       wasm::GetWasmEngine()->SyncCompile(isolate,
                                          wasm::WasmEnabledFeatures::FromFlags(),
                                          wasm::CompileTimeImports{}, &thrower,
-                                         wasm::ModuleWireBytes{module_bytes});
+                                         base::OwnedCopyOf(module_bytes));
   if (thrower.error()) {
     FATAL(
         "wasm::GenerateRandomWasmModule produced a module which did not "

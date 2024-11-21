@@ -206,7 +206,7 @@ SourcePositionTableBuilder::ToSourcePositionTableVector() {
   if (bytes_.empty()) return base::OwnedVector<uint8_t>();
   DCHECK(!Omit());
 
-  base::OwnedVector<uint8_t> table = base::OwnedVector<uint8_t>::Of(bytes_);
+  base::OwnedVector<uint8_t> table = base::OwnedCopyOf(bytes_);
 
 #ifdef ENABLE_SLOW_DCHECKS
   // Brute force testing: Record all positions and decode

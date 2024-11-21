@@ -493,7 +493,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GetSourcePositionTable() {
 
 base::OwnedVector<uint8_t> CodeGenerator::GetProtectedInstructionsData() {
 #if V8_ENABLE_WEBASSEMBLY
-  return base::OwnedVector<uint8_t>::Of(
+  return base::OwnedCopyOf(
       base::Vector<uint8_t>::cast(base::VectorOf(protected_instructions_)));
 #else
   return {};

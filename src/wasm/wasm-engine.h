@@ -169,13 +169,14 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Synchronously validates the given bytes. Returns whether the bytes
   // represent a valid encoded Wasm module.
   bool SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
-                    CompileTimeImports compile_imports, ModuleWireBytes bytes);
+                    CompileTimeImports compile_imports,
+                    base::Vector<const uint8_t> bytes);
 
   // Synchronously compiles the given bytes that represent a translated
   // asm.js module.
   MaybeHandle<AsmWasmData> SyncCompileTranslatedAsmJs(
-      Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
-      DirectHandle<Script> script,
+      Isolate* isolate, ErrorThrower* thrower,
+      base::OwnedVector<const uint8_t> bytes, DirectHandle<Script> script,
       base::Vector<const uint8_t> asm_js_offset_table_bytes,
       DirectHandle<HeapNumber> uses_bitset, LanguageMode language_mode);
   Handle<WasmModuleObject> FinalizeTranslatedAsmJs(
@@ -184,11 +185,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Synchronously compiles the given bytes that represent an encoded Wasm
   // module.
-  MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
-                                            WasmEnabledFeatures enabled,
-                                            CompileTimeImports compile_imports,
-                                            ErrorThrower* thrower,
-                                            ModuleWireBytes bytes);
+  MaybeHandle<WasmModuleObject> SyncCompile(
+      Isolate* isolate, WasmEnabledFeatures enabled,
+      CompileTimeImports compile_imports, ErrorThrower* thrower,
+      base::OwnedVector<const uint8_t> bytes);
 
   // Synchronously instantiate the given Wasm module with the given imports.
   // If the module represents an asm.js module, then the supplied {memory}
@@ -200,12 +200,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Begin an asynchronous compilation of the given bytes that represent an
   // encoded Wasm module.
-  // The {is_shared} flag indicates if the bytes backing the module could
-  // be shared across threads, i.e. could be concurrently modified.
   void AsyncCompile(Isolate* isolate, WasmEnabledFeatures enabled,
                     CompileTimeImports compile_imports,
                     std::shared_ptr<CompilationResultResolver> resolver,
-                    ModuleWireBytes bytes, bool is_shared,
+                    base::OwnedVector<const uint8_t> bytes,
                     const char* api_method_name_for_errors);
 
   // Begin an asynchronous instantiation of the given Wasm module.
@@ -366,7 +364,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Called by each Isolate to report its live code for a GC cycle. First
   // version reports an externally determined set of live code (might be empty),
   // second version gets live code from the execution stack of that isolate.
-  void ReportLiveCodeForGC(Isolate*, base::Vector<WasmCode*>);
+  void ReportLiveCodeForGC(Isolate*, std::unordered_set<WasmCode*>& live_code);
   void ReportLiveCodeFromStackForGC(Isolate*);
 
   // Add potentially dead code. The occurrence in the set of potentially dead

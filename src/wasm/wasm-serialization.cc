@@ -1089,7 +1089,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
   // Make the copy of the wire bytes early, so we use the same memory for
   // decoding, lookup in the native module cache, and insertion into the cache.
-  auto owned_wire_bytes = base::OwnedVector<uint8_t>::Of(wire_bytes_vec);
+  base::OwnedVector<const uint8_t> owned_wire_bytes =
+      base::OwnedCopyOf(wire_bytes_vec);
 
   WasmDetectedFeatures detected_features;
   ModuleResult decode_result = DecodeWasmModule(

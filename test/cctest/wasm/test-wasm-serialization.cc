@@ -142,9 +142,9 @@ class WasmSerializationTest {
       auto enabled_features =
           WasmEnabledFeatures::FromIsolate(serialization_isolate);
       MaybeHandle<WasmModuleObject> maybe_module_object =
-          GetWasmEngine()->SyncCompile(
-              serialization_isolate, enabled_features, MakeCompileTimeImports(),
-              &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+          GetWasmEngine()->SyncCompile(serialization_isolate, enabled_features,
+                                       MakeCompileTimeImports(), &thrower,
+                                       base::OwnedCopyOf(buffer));
       Handle<WasmModuleObject> module_object =
           maybe_module_object.ToHandleChecked();
       weak_native_module = module_object->shared_native_module();
@@ -299,9 +299,9 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
     ErrorThrower thrower(from_i_isolate, "TestCompiledWasmModulesTransfer");
     auto enabled_features = WasmEnabledFeatures::FromIsolate(from_i_isolate);
     MaybeHandle<WasmModuleObject> maybe_module_object =
-        GetWasmEngine()->SyncCompile(
-            from_i_isolate, enabled_features, CompileTimeImports{}, &thrower,
-            ModuleWireBytes(buffer.begin(), buffer.end()));
+        GetWasmEngine()->SyncCompile(from_i_isolate, enabled_features,
+                                     CompileTimeImports{}, &thrower,
+                                     base::OwnedCopyOf(buffer));
     Handle<WasmModuleObject> module_object =
         maybe_module_object.ToHandleChecked();
     v8::Local<v8::WasmModuleObject> v8_module =
@@ -372,9 +372,9 @@ TEST(SerializeLiftoffModuleFails) {
 
   ErrorThrower thrower(isolate, "Test");
   MaybeHandle<WasmModuleObject> maybe_module_object =
-      GetWasmEngine()->SyncCompile(
-          isolate, WasmEnabledFeatures::All(), CompileTimeImports{}, &thrower,
-          ModuleWireBytes(wire_bytes_buffer.begin(), wire_bytes_buffer.end()));
+      GetWasmEngine()->SyncCompile(isolate, WasmEnabledFeatures::All(),
+                                   CompileTimeImports{}, &thrower,
+                                   base::OwnedCopyOf(wire_bytes_buffer));
   DirectHandle<WasmModuleObject> module_object =
       maybe_module_object.ToHandleChecked();
 
@@ -539,8 +539,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
       Handle<WasmModuleObject> module_object =
           GetWasmEngine()
               ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
-                            &thrower,
-                            ModuleWireBytes(buffer.begin(), buffer.end()))
+                            &thrower, base::OwnedCopyOf(buffer))
               .ToHandleChecked();
       weak_native_module = module_object->shared_native_module();
 
@@ -600,7 +599,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     ErrorThrower thrower(i_isolate, "");
     GetWasmEngine()
         ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
-                      &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
+                      &thrower, base::OwnedCopyOf(buffer))
         .ToHandleChecked();
   }
 
@@ -708,8 +707,7 @@ TEST(SerializeDetectedFeatures) {
       Handle<WasmModuleObject> module_object =
           GetWasmEngine()
               ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
-                            &thrower,
-                            ModuleWireBytes(buffer.begin(), buffer.end()))
+                            &thrower, base::OwnedCopyOf(buffer))
               .ToHandleChecked();
       // Check that "return_call" is in the set of detected features.
       CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::return_call}},

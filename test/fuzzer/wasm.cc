@@ -66,7 +66,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   bool compiles =
       GetWasmEngine()
           ->SyncCompile(i_isolate, enabled_features,
-                        CompileTimeImportsForFuzzing(), &thrower, wire_bytes)
+                        CompileTimeImportsForFuzzing(), &thrower,
+                        base::OwnedCopyOf(wire_bytes.module_bytes()))
           .ToHandle(&module_object);
 
   if (v8_flags.wasm_fuzzer_gen_test) {

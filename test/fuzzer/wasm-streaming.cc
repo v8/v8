@@ -132,7 +132,7 @@ CompilationResult CompileSync(Isolate* isolate,
   CompilationResult result;
   if (!GetWasmEngine()
            ->SyncCompile(isolate, enabled_features, CompileTimeImports{},
-                         &thrower, ModuleWireBytes{data})
+                         &thrower, base::OwnedCopyOf(data))
            .ToHandle(&module_object)) {
     Handle<Object> error = thrower.Reify();
     DirectHandle<String> error_msg =

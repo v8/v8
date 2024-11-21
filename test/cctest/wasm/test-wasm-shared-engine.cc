@@ -53,9 +53,8 @@ class SharedEngineIsolate {
   Handle<WasmInstanceObject> CompileAndInstantiate(ZoneBuffer* buffer) {
     ErrorThrower thrower(isolate(), "CompileAndInstantiate");
     MaybeHandle<WasmInstanceObject> instance =
-        testing::CompileAndInstantiateForTesting(
-            isolate(), &thrower,
-            ModuleWireBytes(buffer->begin(), buffer->end()));
+        testing::CompileAndInstantiateForTesting(isolate(), &thrower,
+                                                 base::VectorOf(*buffer));
     return instance.ToHandleChecked();
   }
 
@@ -161,7 +160,7 @@ Handle<WasmInstanceObject> CompileAndInstantiateAsync(
   GetWasmEngine()->AsyncCompile(
       isolate->isolate(), enabled_features, CompileTimeImports{},
       std::make_unique<MockCompilationResolver>(isolate, &maybe_instance),
-      ModuleWireBytes(buffer->begin(), buffer->end()), true, kAPIMethodName);
+      base::OwnedCopyOf(*buffer), kAPIMethodName);
   while (!IsWasmInstanceObject(*maybe_instance)) PumpMessageLoop(isolate);
   Handle<WasmInstanceObject> instance =
       Cast<WasmInstanceObject>(maybe_instance);

@@ -303,17 +303,11 @@ class OwnedVector {
   // Allocates a new vector containing the specified collection of values.
   // {Iterator} is the common type of {std::begin} and {std::end} called on a
   // {const U&}. This function is only instantiable if that type exists.
-  template <typename U, typename Iterator = typename std::common_type<
-                            decltype(std::begin(std::declval<const U&>())),
-                            decltype(std::end(std::declval<const U&>()))>::type>
-  static OwnedVector<T> Of(const U& collection) {
-    Iterator begin = std::begin(collection);
-    Iterator end = std::end(collection);
-    using non_const_t = typename std::remove_const<T>::type;
-    auto vec =
-        OwnedVector<non_const_t>::NewForOverwrite(std::distance(begin, end));
-    std::copy(begin, end, vec.begin());
-    return vec;
+  template <typename U>
+  static OwnedVector<U> NewByCopying(const U* data, size_t size) {
+    auto result = OwnedVector<U>::NewForOverwrite(size);
+    std::copy(data, data + size, result.begin());
+    return result;
   }
 
   bool operator==(std::nullptr_t) const { return data_ == nullptr; }
@@ -385,6 +379,22 @@ inline constexpr auto VectorOf(Container&& c)
 template <typename T>
 inline constexpr Vector<const T> VectorOf(std::initializer_list<T> list) {
   return VectorOf(list.begin(), list.size());
+}
+
+// Construct an OwnedVector from a start pointer and a size.
+// The data will be copied.
+template <typename T>
+inline OwnedVector<T> OwnedCopyOf(const T* data, size_t size) {
+  return OwnedVector<T>::NewByCopying(data, size);
+}
+
+// Construct an OwnedVector from anything compatible with std::data and
+// std::size (e.g. an array, or a container providing a {data()} and {size()}
+// accessor). The data will be copied.
+template <typename Container>
+inline auto OwnedCopyOf(const Container& c)
+    -> decltype(OwnedCopyOf(std::data(c), std::size(c))) {
+  return OwnedCopyOf(std::data(c), std::size(c));
 }
 
 template <typename T, size_t kSize>

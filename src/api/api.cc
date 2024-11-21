@@ -9012,8 +9012,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
 MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
     Isolate* v8_isolate, MemorySpan<const uint8_t> wire_bytes) {
 #if V8_ENABLE_WEBASSEMBLY
-  const uint8_t* start = wire_bytes.data();
-  size_t length = wire_bytes.size();
+  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     return MaybeLocal<WasmModuleObject>();
@@ -9026,7 +9025,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
     // TODO(14179): Provide an API method that supports compile options.
     maybe_compiled = i::wasm::GetWasmEngine()->SyncCompile(
         i_isolate, enabled_features, i::wasm::CompileTimeImports{}, &thrower,
-        i::wasm::ModuleWireBytes(start, start + length));
+        std::move(bytes));
   }
   CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_exception());
   if (maybe_compiled.is_null()) {

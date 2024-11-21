@@ -654,7 +654,7 @@ class LiftoffCompiler {
   }
 
   base::OwnedVector<uint8_t> GetProtectedInstructionsData() const {
-    return base::OwnedVector<uint8_t>::Of(base::Vector<const uint8_t>::cast(
+    return base::OwnedCopyOf(base::Vector<const uint8_t>::cast(
         base::VectorOf(protected_instructions_)));
   }
 
@@ -1225,8 +1225,7 @@ class LiftoffCompiler {
       base::OwnedVector<uint32_t>& call_targets =
           function_feedback.call_targets;
       if (call_targets.empty()) {
-        call_targets =
-            base::OwnedVector<uint32_t>::Of(encountered_call_instructions_);
+        call_targets = base::OwnedCopyOf(encountered_call_instructions_);
       } else {
         DCHECK_EQ(call_targets.as_vector(),
                   base::VectorOf(encountered_call_instructions_));

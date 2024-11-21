@@ -246,12 +246,12 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   std::vector<std::string> inlinees;
   base::Vector<const uint8_t> buffer =
       GenerateWasmModuleForDeopt(&zone, data, callees, inlinees);
+  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
   testing::SetupIsolateForWasmModule(i_isolate);
-  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   bool valid = GetWasmEngine()->SyncValidate(
-      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), wire_bytes);
+      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), buffer);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, valid);
@@ -260,7 +260,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeHandle<WasmModuleObject> compiled = GetWasmEngine()->SyncCompile(
       i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
-      wire_bytes);
+      base::OwnedCopyOf(buffer));
   if (!valid) {
     FATAL("Generated module should validate, but got: %s\n",
           thrower.error_msg());

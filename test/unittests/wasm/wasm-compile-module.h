@@ -19,21 +19,22 @@ namespace v8::internal::wasm {
 
 class WasmCompileHelper : public AllStatic {
  public:
-  static void SyncCompile(Isolate* isolate, base::Vector<const uint8_t> bytes) {
+  static void SyncCompile(Isolate* isolate,
+                          base::OwnedVector<const uint8_t> bytes) {
     ErrorThrower thrower(isolate, "WasmCompileHelper::SyncCompile");
     GetWasmEngine()->SyncCompile(isolate, WasmEnabledFeatures::All(),
                                  CompileTimeImports{}, &thrower,
-                                 ModuleWireBytes(bytes));
+                                 std::move(bytes));
     ASSERT_FALSE(thrower.error()) << thrower.error_msg();
   }
 
   static void AsyncCompile(Isolate* isolate,
-                           base::Vector<const uint8_t> bytes) {
+                           base::OwnedVector<const uint8_t> bytes) {
     std::shared_ptr<TestResolver> resolver = std::make_shared<TestResolver>();
 
     GetWasmEngine()->AsyncCompile(
         isolate, WasmEnabledFeatures::All(), CompileTimeImports{}, resolver,
-        ModuleWireBytes(bytes), false, "WasmCompileHelper::AsyncCompile");
+        std::move(bytes), "WasmCompileHelper::AsyncCompile");
     while (resolver->pending()) {
       v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                     reinterpret_cast<v8::Isolate*>(isolate));

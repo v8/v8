@@ -201,11 +201,9 @@ GET_FIRST_ARGUMENT_AS(Tag)
 
 #undef GET_FIRST_ARGUMENT_AS
 
-static constexpr i::wasm::ModuleWireBytes kNoWireBytes{nullptr, nullptr};
-
-i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
+base::OwnedVector<const uint8_t> GetFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& info, size_t max_length,
-    ErrorThrower* thrower, bool* is_shared) {
+    ErrorThrower* thrower) {
   const uint8_t* start = nullptr;
   size_t length = 0;
   v8::Local<v8::Value> source = info[0];
@@ -216,7 +214,6 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
 
     start = reinterpret_cast<const uint8_t*>(backing_store->Data());
     length = backing_store->ByteLength();
-    *is_shared = buffer->IsSharedArrayBuffer();
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
     Local<TypedArray> array = Local<TypedArray>::Cast(source);
@@ -227,24 +224,29 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     start = reinterpret_cast<const uint8_t*>(backing_store->Data()) +
             array->ByteOffset();
     length = array->ByteLength();
-    *is_shared = buffer->IsSharedArrayBuffer();
   } else {
     thrower->TypeError("Argument 0 must be a buffer source");
-    return kNoWireBytes;
+    return {};
   }
   DCHECK_IMPLIES(length, start != nullptr);
   if (length == 0) {
     thrower->CompileError("BufferSource argument is empty");
-    return kNoWireBytes;
+    return {};
   }
   if (length > max_length) {
     // The spec requires a CompileError for implementation-defined limits, see
     // https://webassembly.github.io/spec/js-api/index.html#limits.
     thrower->CompileError("buffer source exceeds maximum size of %zu (is %zu)",
                           max_length, length);
-    return kNoWireBytes;
+    return {};
   }
-  return i::wasm::ModuleWireBytes(start, start + length);
+
+  // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
+  // reports in case the buffer is shared and is being modified concurrently.
+  auto result = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+  base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(result.begin()),
+                       reinterpret_cast<const base::Atomic8*>(start), length);
+  return result;
 }
 
 namespace {
@@ -720,10 +722,9 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  bool is_shared = false;
-  auto bytes = GetFirstArgumentAsBytes(info, i::wasm::max_module_size(),
-                                       &thrower, &is_shared);
-  if (bytes == kNoWireBytes) {
+  base::OwnedVector<const uint8_t> bytes =
+      GetFirstArgumentAsBytes(info, i::wasm::max_module_size(), &thrower);
+  if (bytes.empty()) {
     resolver->OnCompilationFailed(thrower.Reify());
     return;
   }
@@ -736,10 +737,10 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     i_isolate->clear_exception();
     return;
   }
-  // Asynchronous compilation handles copying wire bytes if necessary.
+  // Asynchronous compilation handles copying wire bytes.
   i::wasm::GetWasmEngine()->AsyncCompile(
       i_isolate, enabled_features, std::move(compile_imports),
-      std::move(resolver), bytes, is_shared, js_api_scope.api_name());
+      std::move(resolver), std::move(bytes), js_api_scope.api_name());
 }
 
 void WasmStreamingCallbackForTesting(
@@ -750,17 +751,16 @@ void WasmStreamingCallbackForTesting(
   std::shared_ptr<v8::WasmStreaming> streaming =
       v8::WasmStreaming::Unpack(info.GetIsolate(), info.Data());
 
-  bool is_shared = false;
   // We don't check the buffer length up front, to allow d8 to test that the
   // streaming decoder implementation handles overly large inputs correctly.
   size_t unlimited = std::numeric_limits<size_t>::max();
-  i::wasm::ModuleWireBytes bytes =
-      GetFirstArgumentAsBytes(info, unlimited, &thrower, &is_shared);
-  if (bytes == kNoWireBytes) {
+  base::OwnedVector<const uint8_t> bytes =
+      GetFirstArgumentAsBytes(info, unlimited, &thrower);
+  if (bytes.empty()) {
     streaming->Abort(Utils::ToLocal(thrower.Reify()));
     return;
   }
-  streaming->OnBytesReceived(bytes.start(), bytes.length());
+  streaming->OnBytesReceived(bytes.begin(), bytes.size());
   streaming->Finish();
   CHECK(!thrower.error());
 }
@@ -850,10 +850,9 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
 
-  bool is_shared = false;
-  auto bytes = GetFirstArgumentAsBytes(info, i::wasm::max_module_size(),
-                                       &thrower, &is_shared);
-  if (bytes == kNoWireBytes) {
+  base::OwnedVector<const uint8_t> bytes =
+      GetFirstArgumentAsBytes(info, i::wasm::max_module_size(), &thrower);
+  if (bytes.empty()) {
     js_api_scope.AssertException();
     // Propagate anything except wasm exceptions.
     if (!thrower.wasm_error()) return;
@@ -872,20 +871,11 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return_value.Set(v8::False(isolate));
     return;
   }
+
   bool validated = false;
-  if (is_shared) {
-    // Make a copy of the wire bytes to avoid concurrent modification.
-    std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-    memcpy(copy.get(), bytes.start(), bytes.length());
-    i::wasm::ModuleWireBytes bytes_copy(copy.get(),
-                                        copy.get() + bytes.length());
-    validated = i::wasm::GetWasmEngine()->SyncValidate(
-        i_isolate, enabled_features, std::move(compile_imports), bytes_copy);
-  } else {
-    // The wire bytes are not shared, OK to use them directly.
-    validated = i::wasm::GetWasmEngine()->SyncValidate(
-        i_isolate, enabled_features, std::move(compile_imports), bytes);
-  }
+  validated = i::wasm::GetWasmEngine()->SyncValidate(
+      i_isolate, enabled_features, std::move(compile_imports),
+      bytes.as_vector());
 
   return_value.Set(validated);
 }
@@ -928,11 +918,10 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  bool is_shared = false;
-  auto bytes = GetFirstArgumentAsBytes(info, i::wasm::max_module_size(),
-                                       &thrower, &is_shared);
+  base::OwnedVector<const uint8_t> bytes =
+      GetFirstArgumentAsBytes(info, i::wasm::max_module_size(), &thrower);
 
-  if (bytes == kNoWireBytes) return js_api_scope.AssertException();
+  if (bytes.empty()) return js_api_scope.AssertException();
 
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   CompileTimeImports compile_imports =
@@ -942,25 +931,10 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
   i::MaybeHandle<i::WasmModuleObject> maybe_module_obj;
-  if (is_shared) {
-    // Make a copy of the wire bytes to avoid concurrent modification.
-    std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-    // Use relaxed reads (and writes, which is unnecessary here) to avoid TSan
-    // reports on concurrent modifications of the SAB.
-    base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(copy.get()),
-                         reinterpret_cast<const base::Atomic8*>(bytes.start()),
-                         bytes.length());
-    i::wasm::ModuleWireBytes bytes_copy(copy.get(),
-                                        copy.get() + bytes.length());
-    maybe_module_obj = i::wasm::GetWasmEngine()->SyncCompile(
-        i_isolate, enabled_features, std::move(compile_imports), &thrower,
-        bytes_copy);
-  } else {
-    // The wire bytes are not shared, OK to use them directly.
-    maybe_module_obj = i::wasm::GetWasmEngine()->SyncCompile(
-        i_isolate, enabled_features, std::move(compile_imports), &thrower,
-        bytes);
-  }
+
+  maybe_module_obj = i::wasm::GetWasmEngine()->SyncCompile(
+      i_isolate, enabled_features, std::move(compile_imports), &thrower,
+      std::move(bytes));
 
   i::Handle<i::WasmModuleObject> module_obj;
   if (!maybe_module_obj.ToHandle(&module_obj)) return;
@@ -1231,10 +1205,9 @@ void WebAssemblyInstantiateImpl(
     return;
   }
 
-  bool is_shared = false;
-  auto bytes = GetFirstArgumentAsBytes(info, i::wasm::max_module_size(),
-                                       &thrower, &is_shared);
-  if (bytes == kNoWireBytes) {
+  base::OwnedVector<const uint8_t> bytes =
+      GetFirstArgumentAsBytes(info, i::wasm::max_module_size(), &thrower);
+  if (bytes.empty()) {
     resolver->OnInstantiationFailed(thrower.Reify());
     return;
   }
@@ -1269,11 +1242,10 @@ void WebAssemblyInstantiateImpl(
     return;
   }
 
-  // Asynchronous compilation handles copying wire bytes if necessary.
-  i::wasm::GetWasmEngine()->AsyncCompile(i_isolate, enabled_features,
-                                         std::move(compile_imports),
-                                         std::move(compilation_resolver), bytes,
-                                         is_shared, js_api_scope.api_name());
+  i::wasm::GetWasmEngine()->AsyncCompile(
+      i_isolate, enabled_features, std::move(compile_imports),
+      std::move(compilation_resolver), std::move(bytes),
+      js_api_scope.api_name());
 }
 
 namespace {

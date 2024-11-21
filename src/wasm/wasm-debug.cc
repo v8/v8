@@ -284,7 +284,7 @@ class DebugInfoImpl {
     // Insert new code into the cache. Insert before existing elements for LRU.
     cached_debugging_code_.insert(
         cached_debugging_code_.begin(),
-        CachedDebuggingCode{func_index, base::OwnedVector<int>::Of(offsets),
+        CachedDebuggingCode{func_index, base::OwnedCopyOf(offsets),
                             dead_breakpoint, new_code});
     // Increase the ref count (for the cache entry).
     new_code->IncRef();

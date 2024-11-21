@@ -129,7 +129,7 @@ void LazilyGeneratedNames::AddForTesting(int function_index,
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
     base::Vector<const uint8_t> encoded_offsets)
-    : encoded_offsets_(base::OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
+    : encoded_offsets_(base::OwnedCopyOf(encoded_offsets)) {}
 
 AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
 

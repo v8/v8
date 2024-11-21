@@ -122,8 +122,8 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-    MaybeHandle<WasmModuleObject> module = testing::CompileForTesting(
-        isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+    MaybeHandle<WasmModuleObject> module =
+        testing::CompileForTesting(isolate, &thrower, base::VectorOf(buffer));
     CHECK(!module.is_null());
 
     // Lazy function was not invoked and therefore not compiled yet.
@@ -182,8 +182,8 @@ TEST(Run_WasmModule_CompilationHintsNoTiering) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-    MaybeHandle<WasmModuleObject> module = testing::CompileForTesting(
-        isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+    MaybeHandle<WasmModuleObject> module =
+        testing::CompileForTesting(isolate, &thrower, base::VectorOf(buffer));
     CHECK(!module.is_null());
 
     // Synchronous compilation finished and no tiering units were initialized.
@@ -230,8 +230,8 @@ TEST(Run_WasmModule_CompilationHintsTierUp) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-    MaybeHandle<WasmModuleObject> module = testing::CompileForTesting(
-        isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+    MaybeHandle<WasmModuleObject> module =
+        testing::CompileForTesting(isolate, &thrower, base::VectorOf(buffer));
     CHECK(!module.is_null());
 
     // Expect baseline or top tier code.
@@ -293,8 +293,8 @@ TEST(Run_WasmModule_CompilationHintsLazyBaselineEagerTopTier) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-    MaybeHandle<WasmModuleObject> module = testing::CompileForTesting(
-        isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+    MaybeHandle<WasmModuleObject> module =
+        testing::CompileForTesting(isolate, &thrower, base::VectorOf(buffer));
     CHECK(!module.is_null());
 
     NativeModule* native_module = module.ToHandleChecked()->native_module();
@@ -574,8 +574,8 @@ TEST(TestInterruptLoop) {
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
     const Handle<WasmInstanceObject> instance =
-        CompileAndInstantiateForTesting(
-            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
+        CompileAndInstantiateForTesting(isolate, &thrower,
+                                        base::VectorOf(buffer))
             .ToHandleChecked();
 
     DirectHandle<JSArrayBuffer> memory(
@@ -661,8 +661,8 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
 
     ErrorThrower thrower(isolate, "Test");
     Handle<WasmInstanceObject> instance =
-        CompileAndInstantiateForTesting(
-            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
+        CompileAndInstantiateForTesting(isolate, &thrower,
+                                        base::VectorOf(buffer))
             .ToHandleChecked();
 
     // Initial memory size is 16 pages, should trap till index > MemSize on
@@ -711,8 +711,8 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
 
     ErrorThrower thrower(isolate, "Test");
     Handle<WasmInstanceObject> instance =
-        CompileAndInstantiateForTesting(
-            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
+        CompileAndInstantiateForTesting(isolate, &thrower,
+                                        base::VectorOf(buffer))
             .ToHandleChecked();
 
     // Initial memory size is 16 pages, should trap till index > MemSize on
@@ -839,8 +839,7 @@ TEST(InitDataAtTheUpperLimit) {
         'c'         // data bytes
     };
 
-    CompileAndInstantiateForTesting(
-        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
+    CompileAndInstantiateForTesting(isolate, &thrower, base::VectorOf(data));
     if (thrower.error()) {
       Print(*thrower.Reify());
       FATAL("compile or instantiate error");
@@ -875,8 +874,7 @@ TEST(EmptyMemoryNonEmptyDataSegment) {
         'c'         // data bytes
     };
 
-    CompileAndInstantiateForTesting(
-        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
+    CompileAndInstantiateForTesting(isolate, &thrower, base::VectorOf(data));
     // It should not be possible to instantiate this module.
     CHECK(thrower.error());
   }
@@ -908,8 +906,7 @@ TEST(EmptyMemoryEmptyDataSegment) {
         U32V_1(0),  // source size
     };
 
-    CompileAndInstantiateForTesting(
-        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
+    CompileAndInstantiateForTesting(isolate, &thrower, base::VectorOf(data));
     // It should be possible to instantiate this module.
     CHECK(!thrower.error());
   }

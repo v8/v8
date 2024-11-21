@@ -19,18 +19,20 @@
 
 namespace v8::internal::wasm::testing {
 
-MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
-                                                ErrorThrower* thrower,
-                                                ModuleWireBytes bytes) {
+MaybeHandle<WasmModuleObject> CompileForTesting(
+    Isolate* isolate, ErrorThrower* thrower,
+    base::Vector<const uint8_t> bytes) {
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
   MaybeHandle<WasmModuleObject> module = GetWasmEngine()->SyncCompile(
-      isolate, enabled_features, CompileTimeImports{}, thrower, bytes);
+      isolate, enabled_features, CompileTimeImports{}, thrower,
+      base::OwnedCopyOf(bytes));
   DCHECK_EQ(thrower->error(), module.is_null());
   return module;
 }
 
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
-    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes) {
+    Isolate* isolate, ErrorThrower* thrower,
+    base::Vector<const uint8_t> bytes) {
   MaybeHandle<WasmModuleObject> module =
       CompileForTesting(isolate, thrower, bytes);
   if (module.is_null()) return {};
@@ -82,7 +84,8 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
   HandleScope scope(isolate);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   MaybeHandle<WasmInstanceObject> instance = CompileAndInstantiateForTesting(
-      isolate, &thrower, ModuleWireBytes(module_start, module_end));
+      isolate, &thrower,
+      base::VectorOf(module_start, module_end - module_start));
   if (instance.is_null()) {
     return -1;
   }

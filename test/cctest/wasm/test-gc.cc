@@ -114,8 +114,8 @@ class WasmGCTester {
     ZoneBuffer buffer(&zone_);
     builder_.WriteTo(&buffer);
     MaybeHandle<WasmInstanceObject> maybe_instance =
-        testing::CompileAndInstantiateForTesting(
-            isolate_, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+        testing::CompileAndInstantiateForTesting(isolate_, &thrower,
+                                                 base::VectorOf(buffer));
     if (thrower.error()) FATAL("%s", thrower.error_msg());
     instance_object_ = maybe_instance.ToHandleChecked();
     trusted_instance_data_ =

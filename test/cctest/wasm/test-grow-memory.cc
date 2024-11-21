@@ -89,8 +89,8 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
     const Handle<WasmInstanceObject> instance =
-        CompileAndInstantiateForTesting(
-            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
+        CompileAndInstantiateForTesting(isolate, &thrower,
+                                        base::VectorOf(buffer))
             .ToHandleChecked();
     Handle<WasmMemoryObject> memory_object{
         instance->trusted_data(isolate)->memory_object(0), isolate};

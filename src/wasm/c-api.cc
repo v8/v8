@@ -1172,12 +1172,12 @@ Module::~Module() = default;
 auto Module::copy() const -> own<Module> { return impl(this)->copy(); }
 
 auto Module::validate(Store* store_abs, const vec<byte_t>& binary) -> bool {
-  i::wasm::ModuleWireBytes bytes(
-      {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
   i::Isolate* isolate = impl(store_abs)->i_isolate();
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   i::HandleScope scope(isolate);
+  v8::base::Vector<const uint8_t> bytes = v8::base::VectorOf(
+      reinterpret_cast<const uint8_t*>(binary.get()), binary.size());
   i::wasm::WasmEnabledFeatures features =
       i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
   i::wasm::CompileTimeImports imports;
@@ -1191,15 +1191,16 @@ auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope scope(isolate);
   CheckAndHandleInterrupts(isolate);
-  i::wasm::ModuleWireBytes bytes(
-      {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
+  v8::base::OwnedVector<const uint8_t> bytes = v8::base::OwnedCopyOf(
+      reinterpret_cast<const uint8_t*>(binary.get()), binary.size());
   i::wasm::WasmEnabledFeatures features =
       i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
   i::wasm::CompileTimeImports imports;
   i::wasm::ErrorThrower thrower(isolate, "ignored");
   i::Handle<i::WasmModuleObject> module;
   if (!i::wasm::GetWasmEngine()
-           ->SyncCompile(isolate, features, std::move(imports), &thrower, bytes)
+           ->SyncCompile(isolate, features, std::move(imports), &thrower,
+                         std::move(bytes))
            .ToHandle(&module)) {
     thrower.Reset();  // The API provides no way to expose the error.
     return nullptr;

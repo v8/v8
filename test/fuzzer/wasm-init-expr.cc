@@ -226,14 +226,15 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   Zone zone(&allocator, ZONE_NAME);
 
   size_t expression_count = 0;
-  base::Vector<const uint8_t> buffer =
+  base::Vector<const uint8_t> bytes =
       GenerateWasmModuleForInitExpressions(&zone, data, &expression_count);
 
   testing::SetupIsolateForWasmModule(i_isolate);
-  ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
+  ModuleWireBytes wire_bytes(bytes.begin(), bytes.end());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
-  bool valid = GetWasmEngine()->SyncValidate(
-      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), wire_bytes);
+  bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
+                                             CompileTimeImportsForFuzzing(),
+                                             wire_bytes.module_bytes());
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, valid);
@@ -244,7 +245,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(
       i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
-      wire_bytes);
+      base::OwnedCopyOf(bytes));
   CHECK(!compiled_module.is_null());
   CHECK(!thrower.error());
   thrower.Reset();

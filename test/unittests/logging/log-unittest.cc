@@ -297,9 +297,10 @@ namespace {
 
 class SimpleExternalString : public v8::String::ExternalStringResource {
  public:
-  explicit SimpleExternalString(const char* source)
-      : utf_source_(
-            v8::base::OwnedVector<uint16_t>::Of(v8::base::CStrVector(source))) {
+  explicit SimpleExternalString(const char* source) {
+    size_t len = strlen(source);
+    utf_source_ = base::OwnedVector<uint16_t>::NewForOverwrite(len);
+    std::copy(source, source + len, utf_source_.data());
   }
   ~SimpleExternalString() override = default;
   size_t length() const override { return utf_source_.size(); }

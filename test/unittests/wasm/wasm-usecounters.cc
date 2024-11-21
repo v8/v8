@@ -37,14 +37,15 @@ class WasmUseCounterTest
   }
 
   void Compile() {
-    base::Vector<uint8_t> bytes = base::VectorOf(buffer_);
+    base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(buffer_);
     switch (GetParam()) {
       case kSync:
-        return WasmCompileHelper::SyncCompile(isolate(), bytes);
+        return WasmCompileHelper::SyncCompile(isolate(), std::move(bytes));
       case kAsync:
-        return WasmCompileHelper::AsyncCompile(isolate(), bytes);
+        return WasmCompileHelper::AsyncCompile(isolate(), std::move(bytes));
       case kStreaming:
-        return WasmCompileHelper::StreamingCompile(isolate(), bytes);
+        return WasmCompileHelper::StreamingCompile(isolate(),
+                                                   bytes.as_vector());
     }
   }
 

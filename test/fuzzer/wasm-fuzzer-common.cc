@@ -99,7 +99,7 @@ Handle<WasmModuleObject> CompileReferenceModule(
   native_module = GetWasmEngine()->NewNativeModule(
       isolate, enabled_features, detected_features,
       CompileTimeImportsForFuzzing(), module, 0);
-  native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
+  native_module->SetWireBytes(base::OwnedCopyOf(wire_bytes));
   // The module is known to be valid as this point (it was compiled by the
   // caller before).
   module->set_all_functions_validated();
@@ -329,7 +329,7 @@ Handle<WasmInstanceObject> InstantiateDummyModule(Isolate* isolate,
       GetWasmEngine()
           ->SyncCompile(isolate, WasmEnabledFeatures(),
                         CompileTimeImportsForFuzzing(), &thrower,
-                        ModuleWireBytes(base::VectorOf(wire_bytes)))
+                        base::OwnedCopyOf(wire_bytes))
           .ToHandleChecked();
 
   Handle<WasmInstanceObject> instance =
@@ -448,8 +448,9 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
 
-  bool valid = GetWasmEngine()->SyncValidate(
-      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), wire_bytes);
+  bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
+                                             CompileTimeImportsForFuzzing(),
+                                             wire_bytes.module_bytes());
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, valid);
@@ -474,7 +475,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(
       i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
-      wire_bytes);
+      base::OwnedCopyOf(buffer));
   CHECK_EQ(valid, !compiled_module.is_null());
   CHECK_EQ(!valid, thrower.error());
   if (require_valid && !valid) {

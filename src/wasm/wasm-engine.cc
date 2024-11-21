@@ -570,26 +570,25 @@ WasmEngine::~WasmEngine() {
 
 bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
                               CompileTimeImports compile_imports,
-                              ModuleWireBytes bytes) {
+                              base::Vector<const uint8_t> bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
-  if (bytes.length() == 0) return false;
+  if (bytes.empty()) return false;
 
   WasmDetectedFeatures unused_detected_features;
   auto result = DecodeWasmModule(
-      enabled, bytes.module_bytes(), true, kWasmOrigin, isolate->counters(),
+      enabled, bytes, true, kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kSync, &unused_detected_features);
   if (result.failed()) return false;
-  WasmError error =
-      ValidateAndSetBuiltinImports(result.value().get(), bytes.module_bytes(),
-                                   compile_imports, &unused_detected_features);
+  WasmError error = ValidateAndSetBuiltinImports(
+      result.value().get(), bytes, compile_imports, &unused_detected_features);
   return !error.has_error();
 }
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
-    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
-    DirectHandle<Script> script,
+    Isolate* isolate, ErrorThrower* thrower,
+    base::OwnedVector<const uint8_t> bytes, DirectHandle<Script> script,
     base::Vector<const uint8_t> asm_js_offset_table_bytes,
     DirectHandle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -604,7 +603,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
       v8::metrics::Recorder::ContextId::Empty();
   WasmDetectedFeatures detected_features;
   ModuleResult result = DecodeWasmModule(
-      WasmEnabledFeatures::ForAsmjs(), bytes.module_bytes(), false, origin,
+      WasmEnabledFeatures::ForAsmjs(), bytes.as_vector(), false, origin,
       isolate->counters(), isolate->metrics_recorder(), context_id,
       DecodingMethod::kSync, &detected_features);
   if (result.failed()) {
@@ -622,8 +621,8 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   constexpr ProfileInformation* kNoProfileInformation = nullptr;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmEnabledFeatures::ForAsmjs(), detected_features,
-      CompileTimeImports{}, thrower, std::move(result).value(), bytes,
-      compilation_id, context_id, kNoProfileInformation);
+      CompileTimeImports{}, thrower, std::move(result).value(),
+      std::move(bytes), compilation_id, context_id, kNoProfileInformation);
   if (!native_module) return {};
 
   native_module->LogWasmCodes(isolate, *script);
@@ -656,7 +655,7 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
-    ModuleWireBytes bytes) {
+    base::OwnedVector<const uint8_t> bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -668,7 +667,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     // mode the only opportunity of validatiom is during decoding.
     bool validate_module = v8_flags.wasm_jitless;
     ModuleResult result = DecodeWasmModule(
-        enabled_features, bytes.module_bytes(), validate_module, kWasmOrigin,
+        enabled_features, bytes.as_vector(), validate_module, kWasmOrigin,
         isolate->counters(), isolate->metrics_recorder(), context_id,
         DecodingMethod::kSync, &detected_features);
     if (result.failed()) {
@@ -677,7 +676,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     }
     module = std::move(result).value();
     if (WasmError error =
-            ValidateAndSetBuiltinImports(module.get(), bytes.module_bytes(),
+            ValidateAndSetBuiltinImports(module.get(), bytes.as_vector(),
                                          compile_imports, &detected_features)) {
       thrower->CompileError("%s @+%u", error.message().c_str(), error.offset());
       return {};
@@ -687,14 +686,14 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // If experimental PGO via files is enabled, load profile information now.
   std::unique_ptr<ProfileInformation> pgo_info;
   if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
-    pgo_info = LoadProfileFromFile(module.get(), bytes.module_bytes());
+    pgo_info = LoadProfileFromFile(module.get(), bytes.as_vector());
   }
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, enabled_features, detected_features, std::move(compile_imports),
-      thrower, std::move(module), bytes, compilation_id, context_id,
+      thrower, std::move(module), std::move(bytes), compilation_id, context_id,
       pgo_info.get());
   if (!native_module) return {};
 
@@ -775,26 +774,18 @@ void WasmEngine::AsyncInstantiate(
 void WasmEngine::AsyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled,
     CompileTimeImports compile_imports,
-    std::shared_ptr<CompilationResultResolver> resolver, ModuleWireBytes bytes,
-    bool is_shared, const char* api_method_name_for_errors) {
+    std::shared_ptr<CompilationResultResolver> resolver,
+    base::OwnedVector<const uint8_t> bytes,
+    const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.AsyncCompile", "id", compilation_id);
+
   if (!v8_flags.wasm_async_compilation || v8_flags.wasm_jitless) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
     ErrorThrower thrower(isolate, api_method_name_for_errors);
     MaybeHandle<WasmModuleObject> module_object;
-    if (is_shared) {
-      // Make a copy of the wire bytes to avoid concurrent modification.
-      std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-      memcpy(copy.get(), bytes.start(), bytes.length());
-      ModuleWireBytes bytes_copy(copy.get(), copy.get() + bytes.length());
-      module_object = SyncCompile(isolate, enabled, std::move(compile_imports),
-                                  &thrower, bytes_copy);
-    } else {
-      // The wire bytes are not shared, OK to use them directly.
-      module_object = SyncCompile(isolate, enabled, std::move(compile_imports),
-                                  &thrower, bytes);
-    }
+    module_object = SyncCompile(isolate, enabled, std::move(compile_imports),
+                                &thrower, std::move(bytes));
     if (thrower.error()) {
       resolver->OnCompilationFailed(thrower.Reify());
       return;
@@ -813,7 +804,7 @@ void WasmEngine::AsyncCompile(
 
     auto* rng = isolate->random_number_generator();
     base::SmallVector<base::Vector<const uint8_t>, 16> ranges;
-    if (!bytes.module_bytes().empty()) ranges.push_back(bytes.module_bytes());
+    if (!bytes.empty()) ranges.push_back(bytes.as_vector());
     // Split into up to 16 ranges (2^4).
     for (int round = 0; round < 4; ++round) {
       for (auto it = ranges.begin(); it != ranges.end(); ++it) {
@@ -834,13 +825,9 @@ void WasmEngine::AsyncCompile(
     streaming_decoder->Finish();
     return;
   }
-  // Make a copy of the wire bytes in case the user program changes them
-  // during asynchronous compilation.
-  base::OwnedVector<const uint8_t> copy =
-      base::OwnedVector<const uint8_t>::Of(bytes.module_bytes());
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, enabled, std::move(compile_imports), std::move(copy),
+      isolate, enabled, std::move(compile_imports), std::move(bytes),
       isolate->native_context(), api_method_name_for_errors,
       std::move(resolver), compilation_id);
   job->Start();
@@ -1752,7 +1739,7 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
 }
 
 void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
-                                     base::Vector<WasmCode*> live_code) {
+                                     std::unordered_set<WasmCode*>& live_code) {
   TRACE_EVENT0("v8.wasm", "wasm.ReportLiveCodeForGC");
   TRACE_CODE_GC("Isolate %d reporting %zu live code objects.\n", isolate->id(),
                 live_code.size());
@@ -1823,8 +1810,7 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   // are going to release.
   GetWasmCodeManager()->FlushCodeLookupCache(isolate);
 
-  ReportLiveCodeForGC(
-      isolate, base::OwnedVector<WasmCode*>::Of(live_wasm_code).as_vector());
+  ReportLiveCodeForGC(isolate, live_wasm_code);
 }
 
 bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {

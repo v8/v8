@@ -28,8 +28,8 @@ Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
   testing::SetupIsolateForWasmModule(isolate);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   MaybeHandle<WasmInstanceObject> maybe_instance =
-      CompileAndInstantiateForTesting(
-          isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+      CompileAndInstantiateForTesting(isolate, &thrower,
+                                      base::VectorOf(buffer));
   CHECK_WITH_MSG(!thrower.error(), thrower.error_msg());
   return maybe_instance.ToHandleChecked();
 }
