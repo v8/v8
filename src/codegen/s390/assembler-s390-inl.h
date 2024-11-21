@@ -266,11 +266,13 @@ int Assembler::deserialization_special_target_size(
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
+    Address pc, Address target, WritableJitAllocation& jit_allocation,
+    RelocInfo::Mode mode) {
   if (RelocInfo::IsInternalReferenceEncoded(mode)) {
-    set_target_address_at(pc, kNullAddress, target, nullptr, SKIP_ICACHE_FLUSH);
+    set_target_address_at(pc, kNullAddress, target, &jit_allocation,
+                          SKIP_ICACHE_FLUSH);
   } else {
-    Memory<Address>(pc) = target;
+    jit_allocation.WriteUnalignedValue<Address>(pc, target);
   }
 }
 
