@@ -201,8 +201,9 @@ int Assembler::deserialization_special_target_size(Address location) {
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
-  Memory<Address>(pc) = target;
+    Address pc, Address target, WritableJitAllocation& jit_allocation,
+    RelocInfo::Mode mode) {
+  jit_allocation.WriteValue<Address>(pc, target);
 }
 
 bool Assembler::is_constant_pool_load(Address pc) {

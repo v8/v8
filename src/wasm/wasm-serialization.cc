@@ -546,7 +546,7 @@ void NativeModuleSerializer::WriteCode(
         Address orig_target = orig_iter.rinfo()->target_internal_reference();
         Address offset = orig_target - code->instruction_start();
         Assembler::deserialization_set_target_internal_reference_at(
-            iter.rinfo()->pc(), offset, mode);
+            iter.rinfo()->pc(), offset, jit_allocation, mode);
       } break;
       default:
         UNREACHABLE();
@@ -1027,7 +1027,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
         Address offset = iter.rinfo()->target_internal_reference();
         Address target = unit.code->instruction_start() + offset;
         Assembler::deserialization_set_target_internal_reference_at(
-            iter.rinfo()->pc(), target, mode);
+            iter.rinfo()->pc(), target, jit_allocation, mode);
         break;
       }
       default:
