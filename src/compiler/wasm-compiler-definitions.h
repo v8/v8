@@ -87,7 +87,12 @@ base::Vector<const char> GetDebugName(Zone* zone,
                                       const wasm::WasmModule* module,
                                       const wasm::WireBytesStorage* wire_bytes,
                                       int index);
-enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };
+enum WasmCallKind {
+  kWasmFunction,
+  kWasmIndirectFunction,
+  kWasmImportWrapper,
+  kWasmCapiFunction
+};
 
 template <typename T>
 CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* signature,

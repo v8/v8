@@ -1286,7 +1286,7 @@ OpIndex GraphBuilder::Process(
       auto call_descriptor = CallDescriptorOf(op);
       const JSWasmCallParameters* wasm_call_parameters = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->kind() == CallDescriptor::kCallWasmFunction &&
+      if (call_descriptor->IsAnyWasmFunctionCall() &&
           v8_flags.turboshaft_wasm_in_js_inlining) {
         // A JS-to-Wasm call where the wrapper got inlined in TurboFan but the
         // actual Wasm body inlining was either not possible or is going to

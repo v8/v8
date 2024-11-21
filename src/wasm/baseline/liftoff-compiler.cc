@@ -8784,7 +8784,8 @@ class LiftoffCompiler {
         implicit_arg = kReturnRegister1;
       }
 
-      auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
+      auto call_descriptor = compiler::GetWasmCallDescriptor(
+          zone_, imm.sig, compiler::WasmCallKind::kWasmIndirectFunction);
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
       __ PrepareCall(&sig, call_descriptor, &target, implicit_arg);
@@ -8864,8 +8865,8 @@ class LiftoffCompiler {
     for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
-    compiler::CallDescriptor* call_descriptor =
-        compiler::GetWasmCallDescriptor(zone_, type_sig);
+    compiler::CallDescriptor* call_descriptor = compiler::GetWasmCallDescriptor(
+        zone_, type_sig, compiler::WasmCallKind::kWasmIndirectFunction);
     call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
     Register target_reg = no_reg;

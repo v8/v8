@@ -1208,8 +1208,8 @@ void NativeModule::InitializeJumpTableForLazyCompilation(
   for (uint32_t i = 0; i < num_wasm_functions; i++) {
     code_pointer_table->SetEntrypointWithWriteScope(
         code_pointer_handles_[i],
-        lazy_compile_table_->instruction_start() +
-            JumpTableAssembler::LazyCompileSlotIndexToOffset(i),
+        code_space_data.jump_table->instruction_start() +
+            JumpTableAssembler::JumpSlotIndexToOffset(i),
         write_scope);
   }
 }
@@ -1227,10 +1227,14 @@ void NativeModule::UseLazyStubLocked(uint32_t func_index) {
   // Add jump table entry for jump to the lazy compile stub.
   uint32_t slot_index = declared_function_index(module(), func_index);
   DCHECK_NULL(code_table_[slot_index]);
+
+  Address jump_table_target =
+      main_jump_table_->instruction_start() +
+      JumpTableAssembler::JumpSlotIndexToOffset(slot_index);
   Address lazy_compile_target =
       lazy_compile_table_->instruction_start() +
       JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
-  PatchJumpTablesLocked(slot_index, lazy_compile_target);
+  PatchJumpTablesLocked(slot_index, lazy_compile_target, jump_table_target);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCode(
@@ -1499,7 +1503,8 @@ WasmCode* NativeModule::PublishCodeLocked(
       prior_code->DecRefOnLiveCode();
     }
 
-    PatchJumpTablesLocked(slot_idx, code->instruction_start());
+    PatchJumpTablesLocked(slot_idx, code->instruction_start(),
+                          code->instruction_start());
   } else {
     // The code tables does not hold a reference to the code, hence decrement
     // the initial ref count of 1. The code was added to the
@@ -1563,7 +1568,8 @@ void NativeModule::ReinstallDebugCode(WasmCode* code) {
   code_table_[slot_idx] = code;
   code->IncRef();
 
-  PatchJumpTablesLocked(slot_idx, code->instruction_start());
+  PatchJumpTablesLocked(slot_idx, code->instruction_start(),
+                        code->instruction_start());
 }
 
 std::pair<base::Vector<uint8_t>, NativeModule::JumpTablesRef>
@@ -1720,11 +1726,12 @@ void NativeModule::UpdateCodeSize(size_t size, ExecutionTier tier,
   if (tier != ExecutionTier::kLiftoff) turbofan_code_size_.fetch_add(size);
 }
 
-void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target) {
+void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target,
+                                         Address code_pointer_table_target) {
   allocation_mutex_.AssertHeld();
 
   GetProcessWideWasmCodePointerTable()->SetEntrypoint(
-      code_pointer_handles_[slot_index], target);
+      code_pointer_handles_[slot_index], code_pointer_table_target);
 
   for (auto& code_space_data : code_space_data_) {
     // TODO(sroettger): need to unlock both jump tables together
@@ -1768,8 +1775,6 @@ void NativeModule::PatchJumpTableLocked(WritableJumpTablePair& jump_table_pair,
   JumpTableAssembler::PatchJumpTableSlot(jump_table_pair, jump_table_slot,
                                          far_jump_table_slot, target);
   DCHECK_LT(slot_index, code_pointer_handles_size_);
-  jump_table_pair.SetCodePointerTableEntry(code_pointer_handles_[slot_index],
-                                           target);
 }
 
 void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {

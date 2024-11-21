@@ -1664,7 +1664,8 @@ TEST(Regress_1171759) {
 
   builder.AddReturn(wasm::ValueType::For(MachineType::Int32()));
 
-  CallDescriptor* desc = compiler::GetWasmCallDescriptor(&zone, builder.Get());
+  CallDescriptor* desc = compiler::GetWasmCallDescriptor(
+      &zone, builder.Get(), WasmCallKind::kWasmIndirectFunction);
 
   HandleAndZoneScope handles(kCompressGraphZone);
   RawMachineAssembler m(handles.main_isolate(),

@@ -51,7 +51,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 #if V8_ENABLE_WEBASSEMBLY    // ↓ WebAssembly only
     kCallWasmCapiFunction,   // target is a Wasm C API function
     kCallWasmFunction,       // target is a wasm function
-    kCallWasmImportWrapper,  // target is a wasm import wrapper
+    kCallWasmFunctionIndirect,  // target is a wasm function that will be called
+                                // indirectly
+    kCallWasmImportWrapper,     // target is a wasm import wrapper
 #endif                       // ↑ WebAssembly only
     kCallBuiltinPointer,     // target is a builtin pointer
   };
@@ -152,8 +154,21 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Returns {true} if this descriptor is a call to a WebAssembly function.
-  bool IsWasmFunctionCall() const { return kind_ == kCallWasmFunction; }
+  // Returns {true} if this descriptor is a direct call to a WebAssembly
+  // function.
+  bool IsDirectWasmFunctionCall() const { return kind_ == kCallWasmFunction; }
+
+  // Returns {true} if this descriptor is a indirect call to a WebAssembly
+  // function.
+  bool IsIndirectWasmFuctionCall() const {
+    return kind_ == kCallWasmFunctionIndirect;
+  }
+
+  // Returns {true} if this descriptor is either a direct or an indirect call to
+  // a WebAssembly function.
+  bool IsAnyWasmFunctionCall() const {
+    return IsDirectWasmFunctionCall() || IsIndirectWasmFuctionCall();
+  }
 
   // Returns {true} if this descriptor is a call to a WebAssembly function.
   bool IsWasmImportWrapper() const { return kind_ == kCallWasmImportWrapper; }
@@ -167,7 +182,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool RequiresFrameAsIncoming() const {
     if (IsCFunctionCall() || IsJSFunctionCall()) return true;
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmFunctionCall()) return true;
+    if (IsAnyWasmFunctionCall()) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
     if (CalleeSavedRegisters() != kNoCalleeSaved) return true;
     return false;

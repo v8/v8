@@ -2256,7 +2256,7 @@ void WasmDispatchTable::SetForImport(int index,
   SBXCHECK_BOUNDS(index, length());
   DCHECK(IsWasmImportData(implicit_arg) ||
          IsWasmTrustedInstanceData(implicit_arg));
-  DCHECK(kNullAddress != call_target || v8_flags.wasm_jitless);
+  DCHECK(call_target != wasm::kInvalidWasmCodePointer || v8_flags.wasm_jitless);
   const int offset = OffsetOf(index);
   WriteProtectedPointerField(offset + kImplicitArgBias,
                              Cast<TrustedObject>(implicit_arg));

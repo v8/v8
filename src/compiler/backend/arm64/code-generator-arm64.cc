@@ -814,21 +814,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
-    case kArchCallWasmFunction: {
+    case kArchCallWasmFunction:
+    case kArchCallWasmFunctionIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
+        DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Call(wasm_code, constant.rmode());
+      } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
+        __ CallWasmCodePointer(i.InputRegister(0));
       } else {
-        Register target = i.InputRegister(0);
-        __ Call(target);
+        __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallWasm: {
+    case kArchTailCallWasm:
+    case kArchTailCallWasmIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
+        DCHECK_EQ(arch_opcode, kArchTailCallWasm);
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Jump(wasm_code, constant.rmode());
@@ -837,7 +842,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         UseScratchRegisterScope temps(masm());
         temps.Exclude(x17);
         __ Mov(x17, target);
-        __ Jump(x17);
+        if (arch_opcode == kArchTailCallWasmIndirect) {
+          __ CallWasmCodePointer(x17, CallJumpMode::kTailCall);
+        } else {
+          __ Jump(x17);
+        }
       }
       unwinding_info_writer_.MarkBlockWillExit();
       frame_access_state()->ClearSPDelta();
@@ -3654,7 +3663,7 @@ void CodeGenerator::AssembleConstructFrame() {
       static_assert(MacroAssembler::kExtraSlotClaimedByPrologue == 1);
       required_slots -= MacroAssembler::kExtraSlotClaimedByPrologue;
 #if V8_ENABLE_WEBASSEMBLY
-    } else if (call_descriptor->IsWasmFunctionCall() ||
+    } else if (call_descriptor->IsAnyWasmFunctionCall() ||
                call_descriptor->IsWasmCapiFunction() ||
                call_descriptor->IsWasmImportWrapper() ||
                (call_descriptor->IsCFunctionCall() &&
@@ -3824,7 +3833,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (call_descriptor->IsWasmFunctionCall() &&
+  if (call_descriptor->IsAnyWasmFunctionCall() &&
       v8_flags.experimental_wasm_growable_stacks) {
     {
       UseScratchRegisterScope temps{masm()};

@@ -957,7 +957,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Hold the {allocation_mutex_} when calling one of these methods.
   // {slot_index} is the index in the declared functions, i.e. function index
   // minus the number of imported functions.
-  void PatchJumpTablesLocked(uint32_t slot_index, Address target);
+  // The {code_pointer_table_target} will be used to update the code pointer
+  // table. It should usually be the same as target, except for jump to the lazy
+  // compile table which doesn't have the bti instruction on ARM and is thus not
+  // a valid target for indirect branches.
+  void PatchJumpTablesLocked(uint32_t slot_index, Address target,
+                             Address code_pointer_table_target);
   void PatchJumpTableLocked(WritableJumpTablePair& jump_table_pair,
                             const CodeSpaceData&, uint32_t slot_index,
                             Address target);

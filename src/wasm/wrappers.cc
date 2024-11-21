@@ -341,7 +341,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                                 const base::Vector<OpIndex> args,
                                 base::Vector<OpIndex> returns) {
     const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
-        compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
+        compiler::GetWasmCallDescriptor(
+            __ graph_zone(), sig,
+            compiler::WasmCallKind::kWasmIndirectFunction),
         compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
         __ graph_zone());
 
@@ -1286,9 +1288,18 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
             function_data, LoadOp::Kind::TaggedBase().Immutable(),
             WasmFunctionData::kProtectedInternalOffset));
-    return __ Load(internal, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::UintPtr(),
-                   WasmInternalFunction::kCallTargetOffset);
+    V<WasmCodePtr> code_pointer =
+        __ Load(internal, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::WasmCodePointer(),
+                WasmInternalFunction::kCallTargetOffset);
+#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+    return __ Load(
+        __ ExternalConstant(ExternalReference::wasm_code_pointer_table()),
+        __ ChangeUint32ToUintPtr(code_pointer), LoadOp::Kind::RawAligned(),
+        MemoryRepresentation::UintPtr(), 0, kSystemPointerSizeLog2);
+#else
+    return code_pointer;
+#endif
   }
 
   const OpIndex SafeLoad(OpIndex base, int offset, CanonicalValueType type) {

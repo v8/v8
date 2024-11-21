@@ -129,7 +129,8 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
     builder.AddReturn(wasm::ValueType::For(type));
   }
 
-  return compiler::GetWasmCallDescriptor(zone, builder.Get());
+  return compiler::GetWasmCallDescriptor(
+      zone, builder.Get(), compiler::WasmCallKind::kWasmIndirectFunction);
 }
 
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,

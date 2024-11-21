@@ -163,15 +163,15 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
       Cast<WasmInstanceObject>(args[0]);
   Tagged<WasmTrustedInstanceData> trusted_data =
       instance_object->trusted_data(isolate);
-  Address wrapper_start = isolate->builtins()
-                              ->code(Builtin::kWasmToJsWrapperAsm)
-                              ->instruction_start();
+  WasmCodePointer wrapper =
+      wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
+
   int result = 0;
   Tagged<WasmDispatchTable> dispatch_table =
       trusted_data->dispatch_table_for_imports();
   int import_count = dispatch_table->length();
   for (int i = 0; i < import_count; ++i) {
-    if (dispatch_table->target(i) == wrapper_start) {
+    if (dispatch_table->target(i) == wrapper) {
       ++result;
     }
   }
@@ -183,7 +183,7 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
         Cast<WasmDispatchTable>(dispatch_tables->get(table_index));
     int table_size = table->length();
     for (int entry_index = 0; entry_index < table_size; ++entry_index) {
-      if (table->target(entry_index) == wrapper_start) ++result;
+      if (table->target(entry_index) == wrapper) ++result;
     }
   }
   return Smi::FromInt(result);
@@ -198,9 +198,10 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   Tagged<SharedFunctionInfo> sfi = function->shared();
   if (!sfi->HasWasmFunctionData()) return isolate->heap()->ToBoolean(false);
   Tagged<WasmFunctionData> func_data = sfi->wasm_function_data();
-  Address call_target = func_data->internal()->call_target();
+  WasmCodePointer call_target = func_data->internal()->call_target();
 
-  Address wrapper = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+  WasmCodePointer wrapper =
+      wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
   return isolate->heap()->ToBoolean(call_target == wrapper);
 }
 

@@ -56,6 +56,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallWasmFunction:
       os << "WasmFunction";
       break;
+    case CallDescriptor::kCallWasmFunctionIndirect:
+      os << "WasmFunctionIndirect";
+      break;
     case CallDescriptor::kCallWasmImportWrapper:
       os << "WasmImportWrapper";
       break;
@@ -215,6 +218,7 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
       return TypedFrameConstants::kFixedSlotCount;
 #if V8_ENABLE_WEBASSEMBLY
     case kCallWasmFunction:
+    case kCallWasmFunctionIndirect:
     case kCallWasmImportWrapper:
       return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
@@ -637,7 +641,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
 #if V8_ENABLE_WEBASSEMBLY
     case StubCallMode::kCallWasmRuntimeStub:
       kind = CallDescriptor::kCallWasmFunction;
-      target_type = MachineType::WasmCodePointer();
+      target_type = MachineType::Pointer();
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case StubCallMode::kCallBuiltinPointer:
@@ -754,7 +758,7 @@ bool Linkage::ParameterHasSecondaryLocation(int index) const {
            IsTaggedReg(loc, kContextRegister);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (incoming_->IsWasmFunctionCall()) {
+  if (incoming_->IsAnyWasmFunctionCall()) {
     LinkageLocation loc = GetParameterLocation(index);
     return IsTaggedReg(loc, kWasmImplicitArgRegister);
   }
@@ -784,7 +788,7 @@ LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
 #if V8_ENABLE_WEBASSEMBLY
   static const int kWasmInstanceDataSlot =
       3 + StandardFrameConstants::kCPSlotCount;
-  if (incoming_->IsWasmFunctionCall()) {
+  if (incoming_->IsAnyWasmFunctionCall()) {
     DCHECK(IsTaggedReg(loc, kWasmImplicitArgRegister));
     return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceDataSlot,
                                                MachineType::AnyTagged());

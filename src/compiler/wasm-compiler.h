@@ -670,11 +670,12 @@ class WasmGraphBuilder {
   template <typename T>
   Node* BuildWasmCall(const Signature<T>* sig, base::Vector<Node*> args,
                       base::Vector<Node*> rets, wasm::WasmCodePosition position,
-                      Node* implicit_first_arg, Node* frame_state = nullptr);
+                      Node* implicit_first_arg, bool indirect,
+                      Node* frame_state = nullptr);
   Node* BuildWasmReturnCall(const wasm::FunctionSig* sig,
                             base::Vector<Node*> args,
                             wasm::WasmCodePosition position,
-                            Node* implicit_first_arg);
+                            Node* implicit_first_arg, bool indirect = false);
   Node* BuildImportCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                         base::Vector<Node*> rets,
                         wasm::WasmCodePosition position, int func_index,

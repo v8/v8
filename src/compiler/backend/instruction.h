@@ -1032,7 +1032,7 @@ class V8_EXPORT_PRIVATE Instruction final {
   bool IsRet() const { return arch_opcode() == ArchOpcode::kArchRet; }
   bool IsTailCall() const {
 #if V8_ENABLE_WEBASSEMBLY
-    return arch_opcode() <= ArchOpcode::kArchTailCallWasm;
+    return arch_opcode() <= ArchOpcode::kArchTailCallWasmIndirect;
 #else
     return arch_opcode() <= ArchOpcode::kArchTailCallAddress;
 #endif  // V8_ENABLE_WEBASSEMBLY

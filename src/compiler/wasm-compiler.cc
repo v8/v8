@@ -2835,10 +2835,11 @@ Node* WasmGraphBuilder::BuildWasmCall(const Signature<T>* sig,
                                       base::Vector<Node*> args,
                                       base::Vector<Node*> rets,
                                       wasm::WasmCodePosition position,
-                                      Node* implicit_first_arg,
+                                      Node* implicit_first_arg, bool indirect,
                                       Node* frame_state) {
+  WasmCallKind call_kind = indirect ? kWasmIndirectFunction : kWasmFunction;
   CallDescriptor* call_descriptor = GetWasmCallDescriptor(
-      mcgraph()->zone(), sig, kWasmFunction, frame_state != nullptr);
+      mcgraph()->zone(), sig, call_kind, frame_state != nullptr);
   const Operator* op = mcgraph()->common()->Call(call_descriptor);
   Node* call = BuildCallNode(sig->parameter_count(), args, position,
                              implicit_first_arg, op, frame_state);
@@ -2867,9 +2868,11 @@ Node* WasmGraphBuilder::BuildWasmCall(const Signature<T>* sig,
 Node* WasmGraphBuilder::BuildWasmReturnCall(const wasm::FunctionSig* sig,
                                             base::Vector<Node*> args,
                                             wasm::WasmCodePosition position,
-                                            Node* implicit_first_arg) {
+                                            Node* implicit_first_arg,
+                                            bool indirect) {
+  WasmCallKind call_kind = indirect ? kWasmIndirectFunction : kWasmFunction;
   CallDescriptor* call_descriptor =
-      GetWasmCallDescriptor(mcgraph()->zone(), sig);
+      GetWasmCallDescriptor(mcgraph()->zone(), sig, call_kind);
   const Operator* op = mcgraph()->common()->TailCall(call_descriptor);
   Node* call = BuildCallNode(sig->parameter_count(), args, position,
                              implicit_first_arg, op);
@@ -2920,11 +2923,11 @@ Node* WasmGraphBuilder::BuildImportCall(
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, implicit_arg,
+      return BuildWasmCall(sig, args, rets, position, implicit_arg, true,
                            frame_state);
     case kReturnCall:
       DCHECK(rets.empty());
-      return BuildWasmReturnCall(sig, args, position, implicit_arg);
+      return BuildWasmReturnCall(sig, args, position, implicit_arg, true);
   }
 }
 
@@ -2944,7 +2947,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, base::Vector<Node*> args,
   Address code = static_cast<Address>(index);
   args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
 
-  return BuildWasmCall(sig, args, rets, position, GetInstanceData());
+  return BuildWasmCall(sig, args, rets, position, GetInstanceData(), false);
 }
 
 Node* WasmGraphBuilder::CallIndirect(uint32_t table_index,
@@ -3101,9 +3104,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, implicit_arg);
+      return BuildWasmCall(sig, args, rets, position, implicit_arg, true);
     case kReturnCall:
-      return BuildWasmReturnCall(sig, args, position, implicit_arg);
+      return BuildWasmReturnCall(sig, args, position, implicit_arg, true);
   }
 }
 
@@ -3112,9 +3115,10 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
   Node* internal = gasm_->LoadProtectedPointerFromObject(
       function_data, wasm::ObjectAccess::ToTagged(
                          WasmExportedFunctionData::kProtectedInternalOffset));
-  return gasm_->LoadFromObject(
+  Node* code_pointer = gasm_->LoadFromObject(
       MachineType::WasmCodePointer(), internal,
       wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
+  return gasm_->LoadWasmCodePointer(code_pointer);
 }
 
 // TODO(9495): Support CAPI function refs.
@@ -3160,9 +3164,10 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
 
   args[0] = target;
 
-  Node* call = continuation == kCallContinues
-                   ? BuildWasmCall(sig, args, rets, position, implicit_arg)
-                   : BuildWasmReturnCall(sig, args, position, implicit_arg);
+  Node* call =
+      continuation == kCallContinues
+          ? BuildWasmCall(sig, args, rets, position, implicit_arg, true)
+          : BuildWasmReturnCall(sig, args, position, implicit_arg, true);
   return call;
 }
 
@@ -7627,7 +7632,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           internal, wasm::ObjectAccess::ToTagged(
                         WasmInternalFunction::kProtectedImplicitArgOffset));
       BuildWasmCall(wrapper_sig_, base::VectorOf(args), base::VectorOf(rets),
-                    wasm::kNoCodePosition, implicit_arg, frame_state);
+                    wasm::kNoCodePosition, implicit_arg, true, frame_state);
     }
 
     Node* jsval;
@@ -8452,8 +8457,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     args[pos++] = control();
 
     // Call the wasm code.
-    auto call_descriptor =
-        GetWasmCallDescriptor(mcgraph()->zone(), wrapper_sig_);
+    auto call_descriptor = GetWasmCallDescriptor(
+        mcgraph()->zone(), wrapper_sig_, WasmCallKind::kWasmIndirectFunction);
 
     DCHECK_EQ(pos, args.size());
     Node* call = gasm_->Call(call_descriptor, pos, args.begin());

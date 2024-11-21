@@ -62,6 +62,10 @@ class MaybeRegisterRepresentation {
     }
   }
 
+  static constexpr MaybeRegisterRepresentation WasmCodePointer() {
+    return V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ? Word32() : WordPtr();
+  }
+
   static constexpr MaybeRegisterRepresentation Float32() {
     return MaybeRegisterRepresentation(Enum::kFloat32);
   }

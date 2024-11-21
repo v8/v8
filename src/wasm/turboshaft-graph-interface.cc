@@ -2211,7 +2211,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     BIND(value_out_of_range);
     auto [target, implicit_arg] =
         BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
-    BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns);
+    BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns,
+                  compiler::kWasmIndirectFunction);
     __ Unreachable();
     BIND(done);
     if (sig->return_count()) {
@@ -2610,7 +2611,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
       auto [target, implicit_arg] =
           BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
-      BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns);
+      BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns,
+                    compiler::kWasmIndirectFunction);
     } else {
       // Locally defined function.
       if (should_inline(decoder, feedback_slot_,
@@ -2638,7 +2640,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (imm.index < decoder->module_->num_imported_functions) {
       auto [target, implicit_arg] =
           BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
-      BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args);
+      BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args,
+                               compiler::kWasmIndirectFunction);
     } else {
       // Locally defined function.
       if (should_inline(decoder, feedback_slot_,
@@ -2821,7 +2824,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           SmallZoneVector<Value, 4> indirect_returns(return_count,
                                                      decoder->zone_);
           BuildWasmCall(decoder, imm.sig, target, implicit_arg, args,
-                        indirect_returns.data());
+                        indirect_returns.data(),
+                        compiler::kWasmIndirectFunction);
           for (size_t ret = 0; ret < indirect_returns.size(); ret++) {
             case_returns[ret].push_back(indirect_returns[ret].op);
           }
@@ -2843,7 +2847,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         imm.table_imm.table->address_type, index.op);
     auto [target, implicit_arg] =
         BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr, imm);
-    BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns);
+    BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns,
+                  compiler::kWasmIndirectFunction);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
@@ -2954,7 +2959,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         imm.table_imm.table->address_type, index.op);
     auto [target, implicit_arg] =
         BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr, imm);
-    BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args);
+    BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args,
+                             compiler::kWasmIndirectFunction);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
@@ -3080,7 +3086,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                 func_ref.op, func_ref.type, signature_hash);
         SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
         BuildWasmCall(decoder, sig, target, implicit_arg, args,
-                      ref_returns.data());
+                      ref_returns.data(), compiler::kWasmIndirectFunction);
         for (size_t ret = 0; ret < ref_returns.size(); ret++) {
           case_returns[ret].push_back(ref_returns[ret].op);
         }
@@ -3095,7 +3101,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     } else {
       auto [target, implicit_arg] = BuildFunctionReferenceTargetAndImplicitArg(
           func_ref.op, func_ref.type, signature_hash);
-      BuildWasmCall(decoder, sig, target, implicit_arg, args, returns);
+      BuildWasmCall(decoder, sig, target, implicit_arg, args, returns,
+                    compiler::kWasmIndirectFunction);
     }
   }
 
@@ -3166,7 +3173,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     auto [target, implicit_arg] = BuildFunctionReferenceTargetAndImplicitArg(
         func_ref.op, func_ref.type, signature_hash);
-    BuildWasmMaybeReturnCall(decoder, sig, target, implicit_arg, args);
+    BuildWasmMaybeReturnCall(decoder, sig, target, implicit_arg, args,
+                             compiler::kWasmIndirectFunction);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
@@ -7370,13 +7378,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                : result;
   }
 
-  void BuildWasmCall(FullDecoder* decoder, const FunctionSig* sig,
-                     V<CallTarget> callee, V<HeapObject> ref,
-                     const Value args[], Value returns[],
-                     CheckForException check_for_exception =
-                         CheckForException::kCatchInThisFrame) {
+  void BuildWasmCall(
+      FullDecoder* decoder, const FunctionSig* sig, V<CallTarget> callee,
+      V<HeapObject> ref, const Value args[], Value returns[],
+      compiler::WasmCallKind call_kind = compiler::WasmCallKind::kWasmFunction,
+      CheckForException check_for_exception =
+          CheckForException::kCatchInThisFrame) {
     const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
-        compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
+        compiler::GetWasmCallDescriptor(__ graph_zone(), sig, call_kind),
         compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
         __ graph_zone());
 
@@ -7405,12 +7414,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
  private:
-  void BuildWasmMaybeReturnCall(FullDecoder* decoder, const FunctionSig* sig,
-                                V<CallTarget> callee, V<HeapObject> ref,
-                                const Value args[]) {
+  void BuildWasmMaybeReturnCall(
+      FullDecoder* decoder, const FunctionSig* sig, V<CallTarget> callee,
+      V<HeapObject> ref, const Value args[],
+      compiler::WasmCallKind call_kind = compiler::kWasmFunction) {
     if (mode_ == kRegular || mode_ == kInlinedTailCall) {
       const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
-          compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
+          compiler::GetWasmCallDescriptor(__ graph_zone(), sig, call_kind),
           compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
           __ graph_zone());
 
@@ -7431,7 +7441,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // Since an exception in a tail call cannot be caught in this frame, we
       // should only catch exceptions in the generated call if this is a
       // recursively inlined function, and the parent frame provides a handler.
-      BuildWasmCall(decoder, sig, callee, ref, args, returns.data(),
+      BuildWasmCall(decoder, sig, callee, ref, args, returns.data(), call_kind,
                     CheckForException::kCatchInParentFrame);
       for (size_t i = 0; i < return_count; i++) {
         return_phis_->AddInputForPhi(i, returns[i].op);

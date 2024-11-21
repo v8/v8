@@ -1510,8 +1510,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
-    case kArchCallWasmFunction: {
-      if (HasImmediateInput(instr, 0)) {
+    case kArchCallWasmFunction:
+    case kArchCallWasmFunctionIndirect: {
+      if (arch_opcode == kArchCallWasmFunction) {
+        // This should always use immediate inputs since we don't have a
+        // constant pool on this arch.
+        DCHECK(HasImmediateInput(instr, 0));
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
@@ -1520,15 +1524,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ Call(wasm_code, constant.rmode());
         }
       } else {
-        __ call(i.InputRegister(0));
+        DCHECK(!HasImmediateInput(instr, 0));
+        __ CallWasmCodePointer(i.InputRegister(0));
       }
       RecordCallPosition(instr);
       AssemblePlaceHolderForLazyDeopt(instr);
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallWasm: {
-      if (HasImmediateInput(instr, 0)) {
+    case kArchTailCallWasm:
+    case kArchTailCallWasmIndirect: {
+      if (arch_opcode == kArchTailCallWasm) {
+        DCHECK(HasImmediateInput(instr, 0));
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
@@ -1538,7 +1545,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ jmp(kScratchRegister);
         }
       } else {
-        __ jmp(i.InputRegister(0));
+        DCHECK(!HasImmediateInput(instr, 0));
+        __ CallWasmCodePointer(i.InputRegister(0), CallJumpMode::kTailCall);
       }
       unwinding_info_writer_.MarkBlockWillExit();
       frame_access_state()->ClearSPDelta();
@@ -7654,7 +7662,7 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall() ||
+      if (call_descriptor->IsAnyWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
         // For import wrappers and C-API functions, this stack slot is only used
@@ -7827,7 +7835,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (call_descriptor->IsWasmFunctionCall() &&
+  if (call_descriptor->IsAnyWasmFunctionCall() &&
       v8_flags.experimental_wasm_growable_stacks) {
     __ cmpq(
         MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),

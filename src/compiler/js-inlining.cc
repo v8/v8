@@ -555,8 +555,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
       if (subnode->id() < subgraph_min_node_id) continue;
 
       if (subnode->opcode() == IrOpcode::kCall &&
-          CallDescriptorOf(subnode->op())->kind() ==
-              CallDescriptor::kCallWasmFunction) {
+          CallDescriptorOf(subnode->op())->IsAnyWasmFunctionCall()) {
         wasm_fct_call = subnode;
         break;
       }

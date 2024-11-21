@@ -1559,6 +1559,7 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
 #if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
+    case CallDescriptor::kCallWasmFunctionIndirect:
     case CallDescriptor::kCallWasmImportWrapper:
       buffer->instruction_args.push_back(
           (call_address_immediate && this->IsRelocatableWasmConstant(callee))
@@ -2681,7 +2682,12 @@ void InstructionSelectorT<Adapter>::VisitCall(node_t node, block_t handler) {
     case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
+      DCHECK(this->IsRelocatableWasmConstant(call.callee()));
       opcode = EncodeCallDescriptorFlags(kArchCallWasmFunction, flags);
+      break;
+    case CallDescriptor::kCallWasmFunctionIndirect:
+      DCHECK(!this->IsRelocatableWasmConstant(call.callee()));
+      opcode = EncodeCallDescriptorFlags(kArchCallWasmFunctionIndirect, flags);
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
@@ -2743,7 +2749,13 @@ void InstructionSelectorT<Adapter>::VisitTailCall(node_t node) {
 #if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmFunction:
       DCHECK(!caller->IsJSFunctionCall());
+      DCHECK(this->IsRelocatableWasmConstant(call.callee()));
       opcode = kArchTailCallWasm;
+      break;
+    case CallDescriptor::kCallWasmFunctionIndirect:
+      DCHECK(!caller->IsJSFunctionCall());
+      DCHECK(!this->IsRelocatableWasmConstant(call.callee()));
+      opcode = kArchTailCallWasmIndirect;
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
