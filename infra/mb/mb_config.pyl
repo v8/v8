@@ -118,7 +118,6 @@
       # FYI.
       'V8 iOS - sim - builder': 'release_x64_ios_simulator',
       'V8 Linux64 - arm64 - builder': 'release_arm64',
-      'V8 Linux64 - arm64 - no pointer compression - builder': 'release_arm64_no_pointer_compression',
       'V8 Linux64 - arm64 - debug builder': 'debug_arm64',
       'V8 Linux64 - arm64 - sim - no pointer compression - builder':
           'release_simulate_arm64_no_pointer_compression',
@@ -233,6 +232,7 @@
       'V8 Linux - arm64 - sim - builder': 'release_simulate_arm64_gcmole',
       'V8 Linux - arm64 - sim - debug builder': 'debug_simulate_arm64',
       'V8 Linux - arm64 - sim - gc stress - builder': 'debug_simulate_arm64',
+      'V8 Linux64 - arm64 - no pointer compression - builder': 'release_arm64_no_pointer_compression',
       'V8 Linux64 - arm64 - no wasm - debug builder': 'debug_arm64_webassembly_disabled',
       # Mips.
       'V8 Linux - mips64el - sim - builder': 'release_simulate_mips64el',
