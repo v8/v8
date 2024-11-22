@@ -233,11 +233,10 @@ Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   OptionalMapRef object_map = GetStableMapFromObjectType(broker(), object_type);
   if (object_map.has_value()) {
-    for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
-      Node* const map = NodeProperties::GetValueInput(node, i);
-      Type const map_type = NodeProperties::GetType(map);
-      if (map_type.IsHeapConstant() &&
-          map_type.AsHeapConstant()->Ref().equals(*object_map)) {
+    CheckMapsParameters p = CheckMapsParametersOf(node->op());
+    const ZoneRefSet<Map>& maps = p.maps();
+    for (MapRef map : maps) {
+      if (map.equals(*object_map)) {
         if (object_map->CanTransition()) {
           dependencies()->DependOnStableMap(*object_map);
         }
