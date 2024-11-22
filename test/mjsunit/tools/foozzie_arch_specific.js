@@ -9,4 +9,5 @@
 // Test foozzie architecture-specific mocks for differential fuzzing.
 
 // Test suppressions for Math.pow precision differences.
-assertEquals(61180.2064, Math.pow(35, 3.1));
+assertEquals(61180.20635512, Math.pow(35, 3.1));
+assertEquals(1.271734748256e+29, Math.pow(3, 61));
