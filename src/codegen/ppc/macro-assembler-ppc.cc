@@ -5250,7 +5250,7 @@ void MacroAssembler::ResolveWasmCodePointer(Register target) {
   Register scratch = temps.Acquire();
   Move(scratch, global_jump_table);
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == kSystemPointerSize);
-  ShiftLeftU64(target, target, Operand(kSystemPointerSizeLog2));
+  ShiftLeftU32(target, target, Operand(kSystemPointerSizeLog2));
   LoadU64(target, MemOperand(scratch, target));
 #endif
 }
@@ -5262,6 +5262,18 @@ void MacroAssembler::CallWasmCodePointer(Register target,
     Jump(target);
   } else {
     Call(target);
+  }
+}
+
+void MacroAssembler::LoadWasmCodePointer(Register dst, MemOperand src) {
+  if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
+    static_assert(!V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ||
+                  sizeof(WasmCodePointer) == 4);
+    LoadU32(dst, src);
+  } else {
+    static_assert(V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ||
+                  sizeof(WasmCodePointer) == 8);
+    LoadU64(dst, src);
   }
 }
 

@@ -3353,7 +3353,7 @@ void Builtins::Generate_JSToWasmWrapperAsm(MacroAssembler* masm) {
   }
 
   Register function_entry = r3;
-  __ LoadU64(
+  __ LoadWasmCodePointer(
       function_entry,
       MemOperand(wrapper_buffer,
                  JSToWasmWrapperFrameConstants::kWrapperBufferCallTarget));

@@ -1165,6 +1165,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void ResolveWasmCodePointer(Register target);
   void CallWasmCodePointer(Register target,
                            CallJumpMode call_jump_mode = CallJumpMode::kCall);
+  void LoadWasmCodePointer(Register dst, MemOperand src);
 
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
