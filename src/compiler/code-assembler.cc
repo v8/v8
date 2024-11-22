@@ -6,11 +6,15 @@
 
 #include <optional>
 #include <ostream>
+#include <thread>  // NOLINT(build/c++11) (for this_thread::yield())
 
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/constants-table-builder.h"
+#include "src/codegen/compiler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tnode.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
@@ -174,6 +178,7 @@ Handle<Code> CodeAssembler::GenerateCode(
   Handle<Code> code;
   Graph* graph = rasm->ExportForOptimization();
 
+  // TODO(syg): Convert tests to stop using this.
   code = Pipeline::GenerateCodeForCodeStub(
              rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
              rasm->source_positions(), state->kind_, state->name_,
@@ -182,6 +187,64 @@ Handle<Code> CodeAssembler::GenerateCode(
 
   state->code_generated_ = true;
   return code;
+}
+
+// static
+void CodeAssembler::CompileCode(Isolate* isolate,
+                                std::unique_ptr<TurbofanCompilationJob> job,
+                                int& builtins_installed_count) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+  constexpr size_t kTotalZoneSizeLimit = 512UL * MB;
+#else   // !V8_USE_ADDRESS_SANITIZER
+  constexpr size_t kTotalZoneSizeLimit = 2UL * GB;
+#endif  // V8_USE_ADDRESS_SANITIZER
+
+  // This must be called from the main thread.
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
+  DCHECK(job->compilation_info()->code_kind() == CodeKind::BUILTIN ||
+         job->compilation_info()->code_kind() == CodeKind::BYTECODE_HANDLER);
+
+  CHECK_EQ(CompilationJob::SUCCEEDED, job->PrepareJob(isolate));
+
+  if (v8_flags.concurrent_builtin_generation) {
+    constexpr int kIterationsUntilAwait = 2;
+    constexpr int kInstallSpinCount = 8;
+
+    auto* dispatcher = isolate->optimizing_compile_dispatcher();
+
+    int iterations = 0;
+    while (!dispatcher->IsQueueAvailable() ||
+           dispatcher->ComputeOutputQueueTotalZoneSize() >=
+               kTotalZoneSizeLimit) {
+      for (int i = 0; i < kInstallSpinCount; i++) {
+        if (dispatcher->InstallGeneratedBuiltins(builtins_installed_count)) {
+          // Some work was done or the output queue is already empty. See if we
+          // can enqueue the job now.
+          break;
+        }
+        // If we couldn't process the entire output queue because it's
+        // non-contiguous, keep spinning in case the compilation finishes.
+        std::this_thread::yield();
+      }
+
+      // If after going through this loop a few times there are still too many
+      // jobs enqueued or the memory pressure is still too high, wait for
+      // compilation tasks to finish.
+      if (iterations++ > kIterationsUntilAwait) {
+        dispatcher->AwaitCompileTasks();
+      }
+    }
+
+    dispatcher->QueueForOptimization(job.release());
+  } else {
+    // If concurrent generation is disabled, generate on the main thread.
+    CHECK_EQ(CompilationJob::SUCCEEDED,
+             job->ExecuteJob(isolate->counters()->runtime_call_stats(),
+                             isolate->main_thread_local_isolate()));
+    CHECK_EQ(CompilationJob::SUCCEEDED, job->FinalizeJob(isolate));
+    builtins_installed_count++;
+  }
 }
 
 bool CodeAssembler::Is64() const { return raw_assembler()->machine()->Is64(); }
@@ -291,11 +354,27 @@ TNode<Smi> CodeAssembler::SmiConstant(int value) {
   return SmiConstant(Smi::FromInt(value));
 }
 
+void CodeAssembler::CanonicalizeEmbeddedBuiltinsConstantIfNeeded(
+    Handle<HeapObject> object) {
+  // This must be called on the main thread so that the builtins constant
+  // indices are reproducible from run to run of mksnapshot.
+  DCHECK_EQ(ThreadId::Current(), isolate()->thread_id());
+  RootIndex dummy_root;
+  Builtin dummy_builtin;
+  if (isolate()->IsGeneratingEmbeddedBuiltins() &&
+      !isolate()->roots_table().IsRootHandle(object, &dummy_root) &&
+      !isolate()->builtins()->IsBuiltinHandle(object, &dummy_builtin) &&
+      !IsInstructionStream(*object)) {
+    isolate()->builtins_constants_table_builder()->AddObject(object);
+  }
+}
+
 // This emits an untyped heap constant that is never a hole.
 TNode<HeapObject> CodeAssembler::UntypedHeapConstantNoHole(
     Handle<HeapObject> object) {
   // jsgraph()->HeapConstantNoHole does a CHECK that it is in fact a hole
   // value.
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(object);
   return UncheckedCast<HeapObject>(jsgraph()->HeapConstantNoHole(object));
 }
 
@@ -303,18 +382,21 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstantNoHole(
 // Only use this if you really need to and cannot use *NoHole or *Hole.
 TNode<HeapObject> CodeAssembler::UntypedHeapConstantMaybeHole(
     Handle<HeapObject> object) {
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(object);
   return UncheckedCast<HeapObject>(jsgraph()->HeapConstantMaybeHole(object));
 }
 
 // This is used to emit an untyped heap constant that can only be Hole values.
 TNode<HeapObject> CodeAssembler::UntypedHeapConstantHole(
     Handle<HeapObject> object) {
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(object);
   return UncheckedCast<HeapObject>(jsgraph()->HeapConstantHole(object));
 }
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
   Handle<String> internalized_string =
       factory()->InternalizeString(base::OneByteVector(str));
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
   return UncheckedCast<String>(HeapConstantNoHole(internalized_string));
 }
 

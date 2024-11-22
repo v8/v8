@@ -512,7 +512,7 @@ class Pipeline {
     return FinalizeCode();
   }
 
-  MaybeHandle<Code> GenerateCode(
+  [[nodiscard]] bool GenerateCode(
       Linkage* linkage, std::shared_ptr<OsrHelper> osr_helper = {},
       JumpOptimizationInfo* jump_optimization_info = nullptr,
       const ProfileDataFromFile* profile = nullptr, int initial_graph_hash = 0);

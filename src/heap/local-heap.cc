@@ -61,7 +61,10 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       handles_(new LocalHandles),
       persistent_handles_(std::move(persistent_handles)),
       heap_allocator_(this) {
-  DCHECK_IMPLIES(!is_main_thread(), heap_->deserialization_complete());
+  DCHECK_IMPLIES(!is_main_thread(),
+                 (v8_flags.concurrent_builtin_generation &&
+                  heap->isolate()->IsGeneratingEmbeddedBuiltins()) ||
+                     heap_->deserialization_complete());
   if (!is_main_thread()) {
     heap_allocator_.Setup();
     SetUpMarkingBarrier();

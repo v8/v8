@@ -5627,7 +5627,17 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   if (create_heap_objects) {
     builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
 
+    if (v8_flags.concurrent_builtin_generation) {
+      optimizing_compile_dispatcher_ = new OptimizingCompileDispatcher(this);
+      optimizing_compile_dispatcher_->set_finalize(false);
+    }
+
     setup_delegate_->SetupBuiltins(this, true);
+
+    if (v8_flags.concurrent_builtin_generation) {
+      delete optimizing_compile_dispatcher_;
+      optimizing_compile_dispatcher_ = nullptr;
+    }
 
     builtins_constants_table_builder_->Finalize();
     delete builtins_constants_table_builder_;

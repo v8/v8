@@ -3356,31 +3356,16 @@ void BitwiseNotAssemblerTS_Generate(compiler::turboshaft::PipelineData* data,
                                     compiler::turboshaft::Graph& graph,
                                     Zone* zone);
 
-Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
-                                     Bytecode bytecode,
-                                     OperandScale operand_scale,
-                                     Builtin builtin,
-                                     const AssemblerOptions& options) {
-  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-  compiler::CodeAssemblerState state(
-      isolate, &zone, InterpreterDispatchDescriptor{},
-      CodeKind::BYTECODE_HANDLER, debug_name, builtin);
-
-  const auto descriptor_builder = [](Zone* zone) {
-    InterpreterDispatchDescriptor descriptor{};
-    return compiler::Linkage::GetStubCallDescriptor(
-        zone, descriptor, descriptor.GetStackParameterCount(),
-        compiler::CallDescriptor::kNoFlags, compiler::Operator::kNoProperties);
-  };
-  USE(descriptor_builder);
-
-  Handle<Code> code;
+void GenerateBytecodeHandler(compiler::CodeAssemblerState* state,
+                             Bytecode bytecode, OperandScale operand_scale) {
   switch (bytecode) {
-#define CALL_GENERATOR(Name, ...)                     \
-  case Bytecode::k##Name:                             \
-    Name##Assembler::Generate(&state, operand_scale); \
+#define CALL_GENERATOR(Name, ...)                    \
+  case Bytecode::k##Name:                            \
+    Name##Assembler::Generate(state, operand_scale); \
     break;
 #define CALL_GENERATOR_TS(Name, ...)                                       \
+  /* FIXME(348031042): This doesn't compile since the                      \
+   * CodeAssemblerCompilationJob refactor. */                              \
   case Bytecode::k##Name:                                                  \
     code = compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(         \
         isolate, builtin, &Name##AssemblerTS_Generate, descriptor_builder, \
@@ -3391,10 +3376,10 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
 #undef CALL_GENERATOR
 #undef CALL_GENERATOR_TS
     case Bytecode::kIllegal:
-      IllegalAssembler::Generate(&state, operand_scale);
+      IllegalAssembler::Generate(state, operand_scale);
       break;
     case Bytecode::kStar0:
-      Star0Assembler::Generate(&state, operand_scale);
+      Star0Assembler::Generate(state, operand_scale);
       break;
     default:
       // Others (the rest of the short stars, and the rest of the illegal range)
@@ -3402,21 +3387,6 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
       // the jump table point to those handlers.
       UNREACHABLE();
   }
-
-  if (code.is_null()) {
-    code = compiler::CodeAssembler::GenerateCode(
-        &state, options, ProfileDataFromFile::TryRead(debug_name));
-  }
-
-#ifdef ENABLE_DISASSEMBLER
-  if (v8_flags.trace_ignition_codegen) {
-    StdoutStream os;
-    code->Disassemble(Bytecodes::ToString(bytecode), os, isolate);
-    os << std::flush;
-  }
-#endif  // ENABLE_DISASSEMBLER
-
-  return code;
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
