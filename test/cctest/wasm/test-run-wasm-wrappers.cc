@@ -48,11 +48,10 @@ Handle<Object> SmiHandle(Isolate* isolate, int value) {
 }
 
 void SmiCall(Isolate* isolate, Handle<WasmExportedFunction> exported_function,
-             base::Vector<const DirectHandle<Object>> args,
-             int expected_result) {
+             int argc, Handle<Object>* argv, int expected_result) {
   Handle<Object> receiver = isolate->factory()->undefined_value();
   DirectHandle<Object> result =
-      Execution::Call(isolate, exported_function, receiver, args)
+      Execution::Call(isolate, exported_function, receiver, argc, argv)
           .ToHandleChecked();
   CHECK(IsSmi(*result));
   CHECK_EQ(expected_result, Smi::ToInt(*result));
@@ -105,9 +104,8 @@ TEST(WrapperBudget) {
     static_assert(kGenericWrapperBudget > 0);
 
     // Call the exported Wasm function.
-    DirectHandle<Object> params[] = {SmiHandle(isolate, 6),
-                                     SmiHandle(isolate, 7)};
-    SmiCall(isolate, main_export, base::VectorOf(params), 42);
+    Handle<Object> params[2] = {SmiHandle(isolate, 6), SmiHandle(isolate, 7)};
+    SmiCall(isolate, main_export, 2, params, 42);
 
     // Check that the budget has now a value of (kGenericWrapperBudget - 1).
     CHECK_EQ(Smi::ToInt(main_function_data->wrapper_budget()->value()),
@@ -168,8 +166,8 @@ TEST(WrapperReplacement) {
           direct_handle(main_function_data->wrapper_code(isolate), isolate);
       CHECK(IsGeneric(*wrapper_before_call));
       // Call the function.
-      DirectHandle<Object> params[] = {SmiHandle(isolate, i)};
-      SmiCall(isolate, main_export, base::VectorOf(params), i);
+      Handle<Object> params[1] = {SmiHandle(isolate, i)};
+      SmiCall(isolate, main_export, 1, params, i);
       // Verify that the budget has now a value of (i - 1).
       CHECK_EQ(Smi::ToInt(main_function_data->wrapper_budget()->value()),
                i - 1);
@@ -260,9 +258,9 @@ TEST(EagerWrapperReplacement) {
 
     // Call the add function to trigger the tier up.
     {
-      DirectHandle<Object> params[] = {SmiHandle(isolate, 10),
-                                       SmiHandle(isolate, 11)};
-      SmiCall(isolate, add_export, base::VectorOf(params), 21);
+      Handle<Object> params[2] = {SmiHandle(isolate, 10),
+                                  SmiHandle(isolate, 11)};
+      SmiCall(isolate, add_export, 2, params, 21);
       // Verify that the generic-wrapper budgets for all functions are correct.
       CHECK_EQ(Smi::ToInt(add_function_data->wrapper_budget()->value()), 0);
       CHECK_EQ(Smi::ToInt(mult_function_data->wrapper_budget()->value()),
@@ -278,9 +276,8 @@ TEST(EagerWrapperReplacement) {
 
     // Call the mult function to verify that the compiled wrapper is used.
     {
-      DirectHandle<Object> params[] = {SmiHandle(isolate, 6),
-                                       SmiHandle(isolate, 7)};
-      SmiCall(isolate, mult_export, base::VectorOf(params), 42);
+      Handle<Object> params[2] = {SmiHandle(isolate, 6), SmiHandle(isolate, 7)};
+      SmiCall(isolate, mult_export, 2, params, 42);
       // Verify that mult's budget is still intact, which means that the call
       // didn't go through the generic wrapper.
       CHECK_EQ(Smi::ToInt(mult_function_data->wrapper_budget()->value()),
@@ -289,8 +286,8 @@ TEST(EagerWrapperReplacement) {
 
     // Call the id function to verify that the generic wrapper is used.
     {
-      DirectHandle<Object> params[] = {SmiHandle(isolate, 6)};
-      SmiCall(isolate, id_export, base::VectorOf(params), 6);
+      Handle<Object> params[1] = {SmiHandle(isolate, 6)};
+      SmiCall(isolate, id_export, 1, params, 6);
       // Verify that id's budget decreased by 1, which means that the call
       // used the generic wrapper.
       CHECK_EQ(Smi::ToInt(id_function_data->wrapper_budget()->value()),
@@ -362,8 +359,8 @@ TEST(WrapperReplacement_IndirectExport) {
     indirect_function_data->wrapper_budget()->set_value(Smi::FromInt(1));
 
     // Call the Wasm function.
-    DirectHandle<Object> params[] = {SmiHandle(isolate, 6)};
-    SmiCall(isolate, indirect_function, base::VectorOf(params), 6);
+    Handle<Object> params[1] = {SmiHandle(isolate, 6)};
+    SmiCall(isolate, indirect_function, 1, params, 6);
 
     // Verify that the budget is now exhausted and the generic wrapper has been
     // replaced by a specific one.
@@ -429,7 +426,7 @@ TEST(JSToWasmWrapperGarbageCollection) {
     main_function_data->wrapper_budget()->set_value(Smi::FromInt(1));
 
     // Call the Wasm function.
-    SmiCall(isolate, main_function, {}, 1);
+    SmiCall(isolate, main_function, 0, nullptr, 1);
 
     // There should be exactly one compiled wrapper now.
     CHECK_EQ(1, NumCompiledJSToWasmWrappers());

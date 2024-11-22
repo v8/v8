@@ -2473,13 +2473,12 @@ std::optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
   return {};
 }
 
-void Debug::OnPromiseReject(DirectHandle<Object> promise,
-                            DirectHandle<Object> value) {
+void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (in_debug_scope() || ignore_events()) return;
-  MaybeDirectHandle<JSPromise> maybe_promise;
+  MaybeHandle<JSPromise> maybe_promise;
   if (IsJSPromise(*promise)) {
-    DirectHandle<JSPromise> js_promise = Cast<JSPromise>(promise);
+    Handle<JSPromise> js_promise = Cast<JSPromise>(promise);
     if (js_promise->is_silent()) {
       return;
     }
@@ -2499,8 +2498,8 @@ bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
   return true;
 }
 
-void Debug::OnException(DirectHandle<Object> exception,
-                        MaybeDirectHandle<JSPromise> promise,
+void Debug::OnException(Handle<Object> exception,
+                        MaybeHandle<JSPromise> promise,
                         v8::debug::ExceptionType exception_type) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Do not trigger exception event on stack overflow. We cannot perform
@@ -2590,7 +2589,7 @@ void Debug::OnException(DirectHandle<Object> exception,
   DisableBreak no_recursive_break(this);
 
   {
-    DirectHandle<Object> promise_object;
+    Handle<Object> promise_object;
     if (!promise.ToHandle(&promise_object)) {
       promise_object = isolate_->factory()->undefined_value();
     }

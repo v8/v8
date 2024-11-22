@@ -40,10 +40,10 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
                                           module.ToHandleChecked(), {}, {});
 }
 
-DirectHandleVector<Object> MakeDefaultArguments(Isolate* isolate,
-                                                const FunctionSig* sig) {
+base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
+                                                       const FunctionSig* sig) {
   size_t param_count = sig->parameter_count();
-  DirectHandleVector<Object> arguments(isolate, param_count);
+  auto arguments = base::OwnedVector<Handle<Object>>::New(param_count);
 
   for (size_t i = 0; i < param_count; ++i) {
     switch (sig->GetParam(i).kind()) {
@@ -53,8 +53,7 @@ DirectHandleVector<Object> MakeDefaultArguments(Isolate* isolate,
       case kS128:
         // Argument here for kS128 does not matter as we should error out before
         // hitting this case.
-        arguments[i] =
-            direct_handle(Smi::FromInt(static_cast<int>(i)), isolate);
+        arguments[i] = handle(Smi::FromInt(static_cast<int>(i)), isolate);
         break;
       case kI64:
         arguments[i] = BigInt::FromInt64(isolate, static_cast<int64_t>(i));
@@ -110,10 +109,11 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
   return Cast<WasmExportedFunction>(desc.value());
 }
 
-int32_t CallWasmFunctionForTesting(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name,
-    base::Vector<const DirectHandle<Object>> args,
-    std::unique_ptr<const char[]>* exception) {
+int32_t CallWasmFunctionForTesting(Isolate* isolate,
+                                   Handle<WasmInstanceObject> instance,
+                                   const char* name,
+                                   base::Vector<Handle<Object>> args,
+                                   std::unique_ptr<const char[]>* exception) {
   DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
   MaybeHandle<WasmExportedFunction> maybe_export =
       GetExportedFunction(isolate, instance, name);
@@ -124,8 +124,8 @@ int32_t CallWasmFunctionForTesting(
 
   // Call the JS function.
   Handle<Object> undefined = isolate->factory()->undefined_value();
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, exported_function, undefined, args);
+  MaybeHandle<Object> retval = Execution::Call(
+      isolate, exported_function, undefined, args.length(), args.begin());
 
   // The result should be a number.
   if (retval.is_null()) {

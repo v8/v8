@@ -22,14 +22,12 @@ namespace interpreter {
 
 template <class... A>
 static MaybeHandle<Object> CallInterpreter(Isolate* isolate,
-                                           DirectHandle<JSFunction> function,
-                                           DirectHandle<Object> receiver,
-                                           A... args) {
+                                           Handle<JSFunction> function,
+                                           Handle<Object> receiver, A... args) {
   // Pad the array with an empty handle to ensure that argv size is at least 1.
   // It avoids MSVC error C2466.
-  DirectHandle<Object> arguments[] = {args..., DirectHandle<Object>()};
-  return Execution::Call(isolate, function, receiver,
-                         {arguments, sizeof...(args)});
+  Handle<Object> argv[] = {args..., Handle<Object>()};
+  return Execution::Call(isolate, function, receiver, sizeof...(args), argv);
 }
 
 template <class... A>

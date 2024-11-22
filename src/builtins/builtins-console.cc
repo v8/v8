@@ -87,22 +87,22 @@ bool Formatter(Isolate* isolate, BuiltinArguments& args, int index) {
       if (IsSymbol(*current)) {
         current = isolate->factory()->nan_value();
       } else {
-        DirectHandle<Object> params[] = {
-            current, isolate->factory()->NewNumberFromInt(10)};
+        Handle<Object> params[] = {current,
+                                   isolate->factory()->NewNumberFromInt(10)};
         auto builtin = specifier == 'f' ? isolate->global_parse_float_fun()
                                         : isolate->global_parse_int_fun();
         if (!Execution::CallBuiltin(isolate, builtin,
                                     isolate->factory()->undefined_value(),
-                                    base::VectorOf(params))
+                                    arraysize(params), params)
                  .ToHandle(&current)) {
           return false;
         }
       }
     } else if (specifier == 's') {
-      DirectHandle<Object> params[] = {current};
+      Handle<Object> params[] = {current};
       if (!Execution::CallBuiltin(isolate, isolate->string_function(),
                                   isolate->factory()->undefined_value(),
-                                  base::VectorOf(params))
+                                  arraysize(params), params)
                .ToHandle(&current)) {
         return false;
       }

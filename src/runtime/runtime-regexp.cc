@@ -1648,26 +1648,29 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kTooManyArguments));
   }
-  DirectHandleVector<Object> arguments(isolate, argc);
+  // TODO(42203211): This vector ends up in InvokeParams which is potentially
+  // used by generated code. It will be replaced, when generated code starts
+  // using direct handles.
+  base::ScopedVector<IndirectHandle<Object>> argv(argc);
 
   int cursor = 0;
   for (int j = 0; j < m; j++) {
     bool ok;
-    DirectHandle<String> capture =
+    Handle<String> capture =
         RegExpUtils::GenericCaptureGetter(isolate, match_indices, j, &ok);
     if (ok) {
-      arguments[cursor++] = capture;
+      argv[cursor++] = capture;
     } else {
-      arguments[cursor++] = factory->undefined_value();
+      argv[cursor++] = factory->undefined_value();
     }
   }
 
-  arguments[cursor++] = direct_handle(Smi::FromInt(index), isolate);
-  arguments[cursor++] = subject;
+  argv[cursor++] = handle(Smi::FromInt(index), isolate);
+  argv[cursor++] = subject;
 
   if (has_named_captures) {
-    arguments[cursor++] = ConstructNamedCaptureGroupsObject(
-        isolate, capture_map, [&arguments](int ix) { return *arguments[ix]; });
+    argv[cursor++] = ConstructNamedCaptureGroupsObject(
+        isolate, capture_map, [&argv](int ix) { return *argv[ix]; });
   }
 
   DCHECK_EQ(cursor, argc);
@@ -1675,8 +1678,8 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   Handle<Object> replacement_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, replacement_obj,
-      Execution::Call(isolate, replace_obj, factory->undefined_value(),
-                      base::VectorOf(arguments)));
+      Execution::Call(isolate, replace_obj, factory->undefined_value(), argc,
+                      argv.begin()));
 
   Handle<String> replacement;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1757,12 +1760,12 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   Handle<JSReceiver> splitter;
   {
     constexpr int argc = 2;
-    std::array<DirectHandle<Object>, argc> args = {recv, new_flags};
+    std::array<Handle<Object>, argc> argv = {recv, new_flags};
 
     Handle<Object> splitter_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, splitter_obj,
-        Execution::New(isolate, ctor, base::VectorOf(args)));
+        Execution::New(isolate, ctor, argc, argv.data()));
 
     splitter = Cast<JSReceiver>(splitter_obj);
   }
@@ -2017,16 +2020,16 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
             isolate, NewRangeError(MessageTemplate::kTooManyArguments));
       }
 
-      DirectHandleVector<Object> args(isolate, argc);
+      base::ScopedVector<IndirectHandle<Object>> argv(argc);
 
       int cursor = 0;
       for (uint32_t j = 0; j < captures_length; j++) {
-        args[cursor++] = captures[j];
+        argv[cursor++] = captures[j];
       }
 
-      args[cursor++] = direct_handle(Smi::FromInt(position), isolate);
-      args[cursor++] = string;
-      if (has_named_captures) args[cursor++] = groups_obj;
+      argv[cursor++] = handle(Smi::FromInt(position), isolate);
+      argv[cursor++] = string;
+      if (has_named_captures) argv[cursor++] = groups_obj;
 
       DCHECK_EQ(cursor, argc);
 
@@ -2034,7 +2037,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, replacement_obj,
           Execution::Call(isolate, replace_obj, factory->undefined_value(),
-                          base::VectorOf(args)));
+                          argc, argv.begin()));
 
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, replacement, Object::ToString(isolate, replacement_obj));

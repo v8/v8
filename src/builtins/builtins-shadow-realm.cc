@@ -180,7 +180,8 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
       // 18a. a. Set result to Completion(Evaluation of body).
       // 19. If result.[[Type]] is normal and result.[[Value]] is empty, then
       // 19a. Set result to NormalCompletion(undefined).
-      result = Execution::Call(isolate, function, eval_global_proxy, {});
+      result =
+          Execution::Call(isolate, function, eval_global_proxy, 0, nullptr);
 
       // 20. Suspend evalContext and remove it from the execution context stack.
       // 21. Resume the context that is now on the top of the execution context

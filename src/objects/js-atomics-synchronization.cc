@@ -33,13 +33,13 @@ MaybeHandle<JSReceiver> PerformPromiseThen(
   if (!maybe_reject_handler.is_null()) {
     reject_handler = maybe_reject_handler.ToHandleChecked();
   }
-  DirectHandle<Object> args[] = {fulfill_handler, reject_handler};
+  Handle<Object> argv[] = {fulfill_handler, reject_handler};
 
   Handle<Object> then_result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, then_result,
       Execution::CallBuiltin(isolate, isolate->promise_then(), promise,
-                             base::VectorOf(args)));
+                             arraysize(argv), argv));
 
   return Cast<JSReceiver>(then_result);
 }

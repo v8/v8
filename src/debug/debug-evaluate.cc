@@ -186,7 +186,8 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   Handle<Object> result;
   bool success = false;
   if (throw_on_side_effect) isolate->debug()->StartSideEffectCheckMode();
-  success = Execution::Call(isolate, eval_fun, receiver, {}).ToHandle(&result);
+  success = Execution::Call(isolate, eval_fun, receiver, 0, nullptr)
+                .ToHandle(&result);
   if (throw_on_side_effect) isolate->debug()->StopSideEffectCheckMode();
   if (!success) DCHECK(isolate->has_exception());
   return success ? result : MaybeHandle<Object>();

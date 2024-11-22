@@ -91,7 +91,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        Execution::Call(isolate, function, target_global_proxy, {}));
+        Execution::Call(isolate, function, target_global_proxy, 0, nullptr));
     function = Cast<JSFunction>(result);
     function->shared()->set_name_should_print_as_anonymous(true);
   }

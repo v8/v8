@@ -1027,10 +1027,10 @@ MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<JSAny> object,
   if (!IsUndefined(*inst_of_handler, isolate)) {
     // Call the {inst_of_handler} on the {callable}.
     Handle<Object> result;
-    DirectHandle<Object> args[] = {object};
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               Execution::Call(isolate, inst_of_handler,
-                                               callable, base::VectorOf(args)));
+    Handle<Object> args[] = {object};
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        Execution::Call(isolate, inst_of_handler, callable, 1, args));
     return isolate->factory()->ToBoolean(
         Object::BooleanValue(*result, isolate));
   }
@@ -1287,10 +1287,10 @@ MaybeHandle<JSAny> JSProxy::GetProperty(Isolate* isolate,
   }
   // 8. Let trapResult be ? Call(trap, handler, «target, P, Receiver»).
   Handle<Object> trap_result;
-  DirectHandle<Object> args[] = {target, name, receiver};
+  Handle<Object> args[] = {target, name, receiver};
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
+      Execution::Call(isolate, trap, handler, arraysize(args), args));
 
   MaybeHandle<JSAny> result =
       JSProxy::CheckGetSetTrapResult(isolate, name, target, trap_result, kGet);
@@ -1408,11 +1408,11 @@ MaybeHandle<JSPrototype> JSProxy::GetPrototype(DirectHandle<JSProxy> proxy) {
     return JSReceiver::GetPrototype(isolate, target);
   }
   // 7. Let handlerProto be ? Call(trap, handler, «target»).
-  DirectHandle<Object> args[] = {target};
+  Handle<Object> argv[] = {target};
   Handle<Object> handler_proto_result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, handler_proto_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
+      Execution::Call(isolate, trap, handler, arraysize(argv), argv));
   // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError.
   Handle<JSPrototype> handler_proto;
   if (!TryCast(handler_proto_result, &handler_proto)) {
@@ -1491,8 +1491,8 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
   if (IsFunctionTemplateInfo(*getter)) {
     SaveAndSwitchContext save(isolate, holder->GetCreationContext().value());
     return Cast<JSAny>(Builtins::InvokeApiFunction(
-        isolate, false, Cast<FunctionTemplateInfo>(getter), receiver, {},
-        isolate->factory()->undefined_value()));
+        isolate, false, Cast<FunctionTemplateInfo>(getter), receiver, 0,
+        nullptr, isolate->factory()->undefined_value()));
   } else if (IsCallable(*getter)) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return Object::GetPropertyWithDefinedGetter(receiver,
@@ -1552,12 +1552,12 @@ Maybe<bool> Object::SetPropertyWithAccessor(
   Handle<Object> setter(Cast<AccessorPair>(*structure)->setter(), isolate);
   if (IsFunctionTemplateInfo(*setter)) {
     SaveAndSwitchContext save(isolate, holder->GetCreationContext().value());
-    DirectHandle<Object> args[] = {value};
+    Handle<Object> argv[] = {value};
     RETURN_ON_EXCEPTION_VALUE(
         isolate,
         Builtins::InvokeApiFunction(
             isolate, false, Cast<FunctionTemplateInfo>(setter), receiver,
-            base::VectorOf(args), isolate->factory()->undefined_value()),
+            arraysize(argv), argv, isolate->factory()->undefined_value()),
         Nothing<bool>());
     return Just(true);
   } else if (IsCallable(*setter)) {
@@ -1589,7 +1589,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithDefinedGetter(
     return kNullMaybeHandle;
   }
 
-  return Cast<JSAny>(Execution::Call(isolate, getter, receiver, {}));
+  return Cast<JSAny>(Execution::Call(isolate, getter, receiver, 0, nullptr));
 }
 
 Maybe<bool> Object::SetPropertyWithDefinedSetter(
@@ -1597,9 +1597,10 @@ Maybe<bool> Object::SetPropertyWithDefinedSetter(
     Maybe<ShouldThrow> should_throw) {
   Isolate* isolate = setter->GetIsolate();
 
-  DirectHandle<Object> args[] = {value};
+  Handle<Object> argv[] = {value};
   RETURN_ON_EXCEPTION_VALUE(
-      isolate, Execution::Call(isolate, setter, receiver, base::VectorOf(args)),
+      isolate,
+      Execution::Call(isolate, setter, receiver, arraysize(argv), argv),
       Nothing<bool>());
   return Just(true);
 }
@@ -2816,10 +2817,10 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, DirectHandle<JSProxy> proxy,
   }
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, P»)).
   Handle<Object> trap_result_obj;
-  DirectHandle<Object> args[] = {target, name};
+  Handle<Object> args[] = {target, name};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result_obj,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
   bool boolean_trap_result = Object::BooleanValue(*trap_result_obj, isolate);
   // 9. If booleanTrapResult is false, then:
@@ -2889,10 +2890,10 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy, Handle<Name> name,
   }
 
   Handle<Object> trap_result;
-  DirectHandle<Object> args[] = {target, name, value, receiver};
+  Handle<Object> args[] = {target, name, value, receiver};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
   if (!Object::BooleanValue(*trap_result, isolate)) {
     RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
@@ -2938,10 +2939,10 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(DirectHandle<JSProxy> proxy,
   }
 
   Handle<Object> trap_result;
-  DirectHandle<Object> args[] = {target, name};
+  Handle<Object> args[] = {target, name};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
   if (!Object::BooleanValue(*trap_result, isolate)) {
     RETURN_FAILURE(isolate, should_throw,
@@ -3260,10 +3261,10 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
   // Do not leak private property names.
   DCHECK(!property_name->IsPrivate());
   Handle<Object> trap_result_obj;
-  DirectHandle<Object> args[] = {target, property_name, desc_obj};
+  Handle<Object> args[] = {target, property_name, desc_obj};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result_obj,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
   // 10. If booleanTrapResult is false, return false.
   if (!Object::BooleanValue(*trap_result_obj, isolate)) {
@@ -3419,11 +3420,11 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   }
   // 8. Let trapResultObj be ? Call(trap, handler, «target, P»).
   Handle<JSAny> trap_result_obj;
-  DirectHandle<Object> args[] = {target, name};
+  Handle<Object> args[] = {target, name};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result_obj,
       Cast<JSAny>(
-          Execution::Call(isolate, trap, handler, base::VectorOf(args))),
+          Execution::Call(isolate, trap, handler, arraysize(args), args)),
       Nothing<bool>());
   // 9. If Type(trapResultObj) is neither Object nor Undefined, throw a
   //    TypeError exception.
@@ -3536,10 +3537,10 @@ Maybe<bool> JSProxy::PreventExtensions(DirectHandle<JSProxy> proxy,
   }
 
   Handle<Object> trap_result;
-  DirectHandle<Object> args[] = {target};
+  Handle<Object> args[] = {target};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
   if (!Object::BooleanValue(*trap_result, isolate)) {
     RETURN_FAILURE(
@@ -3581,10 +3582,10 @@ Maybe<bool> JSProxy::IsExtensible(DirectHandle<JSProxy> proxy) {
   }
 
   Handle<Object> trap_result;
-  DirectHandle<Object> args[] = {target};
+  Handle<Object> args[] = {target};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
 
   // Enforce the invariant.
@@ -4696,11 +4697,11 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
                                     should_throw);
   }
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, V»)).
-  DirectHandle<Object> args[] = {target, value};
+  Handle<Object> argv[] = {target, value};
   Handle<Object> trap_result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
+      Execution::Call(isolate, trap, handler, arraysize(argv), argv),
       Nothing<bool>());
   bool bool_trap_result = Object::BooleanValue(*trap_result, isolate);
   // 9. If booleanTrapResult is false, return false.
@@ -4909,8 +4910,7 @@ static void MoveMessageToPromise(Isolate* isolate, Handle<JSPromise> promise) {
 
 // static
 Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
-                                 DirectHandle<Object> reason,
-                                 bool debug_event) {
+                                 Handle<Object> reason, bool debug_event) {
   Isolate* const isolate = promise->GetIsolate();
   DCHECK(
       !reinterpret_cast<v8::Isolate*>(isolate)->GetCurrentContext().IsEmpty());

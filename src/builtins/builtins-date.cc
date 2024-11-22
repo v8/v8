@@ -857,7 +857,7 @@ BUILTIN(DatePrototypeToJson) {
           isolate, NewTypeError(MessageTemplate::kCalledNonCallable, name));
     }
     RETURN_RESULT_OR_FAILURE(
-        isolate, Execution::Call(isolate, function, receiver_obj, {}));
+        isolate, Execution::Call(isolate, function, receiver_obj, 0, nullptr));
   }
 }
 

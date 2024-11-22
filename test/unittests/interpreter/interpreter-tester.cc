@@ -13,9 +13,9 @@ namespace internal {
 namespace interpreter {
 
 MaybeHandle<Object> CallInterpreter(Isolate* isolate,
-                                    DirectHandle<JSFunction> function) {
+                                    Handle<JSFunction> function) {
   return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), {});
+                         isolate->factory()->undefined_value(), 0, nullptr);
 }
 
 InterpreterTester::InterpreterTester(

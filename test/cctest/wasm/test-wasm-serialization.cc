@@ -95,8 +95,7 @@ class WasmSerializationTest {
                               Handle<JSReceiver>::null(),
                               MaybeHandle<JSArrayBuffer>())
             .ToHandleChecked();
-    DirectHandle<Object> params[] = {
-        direct_handle(Smi::FromInt(41), CcTest::i_isolate())};
+    Handle<Object> params[1] = {handle(Smi::FromInt(41), CcTest::i_isolate())};
     int32_t result = testing::CallWasmFunctionForTesting(
         CcTest::i_isolate(), instance, kFunctionName,
         base::ArrayVector(params));
@@ -647,7 +646,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
                               Handle<JSReceiver>::null(),
                               MaybeHandle<JSArrayBuffer>())
             .ToHandleChecked();
-    DirectHandle<Object> params[] = {direct_handle(Smi::FromInt(1), i_isolate)};
+    Handle<Object> params[1] = {handle(Smi::FromInt(1), i_isolate)};
     int32_t result = testing::CallWasmFunctionForTesting(
         i_isolate, instance, "call_indirect", base::ArrayVector(params));
     CHECK_EQ(42, result);
@@ -731,8 +730,9 @@ TEST(SerializeDetectedFeatures) {
       const auto start_time = std::chrono::steady_clock::now();
       const auto end_time = start_time + std::chrono::seconds(60);
       while (true) {
-        int32_t result =
-            testing::CallWasmFunctionForTesting(i_isolate, instance, "a", {});
+        int32_t result = testing::CallWasmFunctionForTesting(
+            i_isolate, instance, "a",
+            base::VectorOf<Handle<Object>>(nullptr, 0));
         CHECK_EQ(11, result);
         serialized_module = v8_module_object->GetCompiledModule().Serialize();
         if (serialized_module.size != 0) break;
@@ -787,8 +787,8 @@ TEST(SerializeDetectedFeatures) {
                               Handle<JSReceiver>::null(),
                               MaybeHandle<JSArrayBuffer>())
             .ToHandleChecked();
-    int32_t result =
-        testing::CallWasmFunctionForTesting(i_isolate, instance, "b", {});
+    int32_t result = testing::CallWasmFunctionForTesting(
+        i_isolate, instance, "b", base::VectorOf<Handle<Object>>(nullptr, 0));
     CHECK_EQ(11, result);
   }
 }

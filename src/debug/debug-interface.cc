@@ -1170,14 +1170,14 @@ v8::Local<GeneratorObject> GeneratorObject::Cast(v8::Local<v8::Value> value) {
 
 MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  Local<Function> function, Local<Value> recv,
-                                 base::Vector<Local<Value>> args,
+                                 int argc, Global<Value> argv[],
                                  bool throw_on_side_effect) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, context, Value);
   auto self = Utils::OpenHandle(*function);
   auto recv_obj = Utils::OpenHandle(*recv);
   static_assert(sizeof(v8::Global<v8::Value>) == sizeof(i::Handle<i::Object>));
-  auto arguments = reinterpret_cast<i::DirectHandle<i::Object>*>(args.data());
+  auto args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   // Disable breaks in side-effect free mode.
   i::DisableBreak disable_break_scope(isolate->debug(), throw_on_side_effect);
   if (throw_on_side_effect) {
@@ -1185,8 +1185,7 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
   }
   Local<Value> result;
   has_exception = !ToLocal<Value>(
-      i::Execution::Call(isolate, self, recv_obj, {arguments, args.size()}),
-      &result);
+      i::Execution::Call(isolate, self, recv_obj, argc, args), &result);
   if (throw_on_side_effect) {
     isolate->debug()->StopSideEffectCheckMode();
   }

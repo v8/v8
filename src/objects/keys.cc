@@ -1245,10 +1245,10 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
   }
   // 7. Let trapResultArray be Call(trap, handler, «target»).
   Handle<Object> trap_result_array;
-  DirectHandle<Object> args[] = {target};
+  Handle<Object> args[] = {target};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, trap_result_array,
-      Execution::Call(isolate_, trap, handler, base::VectorOf(args)),
+      Execution::Call(isolate_, trap, handler, arraysize(args), args),
       Nothing<bool>());
   // 8. Let trapResult be ? CreateListFromArrayLike(trapResultArray,
   //    «String, Symbol»).

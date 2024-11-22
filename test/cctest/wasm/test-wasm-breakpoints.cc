@@ -324,7 +324,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, {});
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -342,7 +342,7 @@ WASM_COMPILED_EXEC_TEST(WasmNonBreakablePosition) {
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, {});
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK_EQ(1024, GetIntReturnValue(retval));
 }
 
@@ -366,7 +366,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, {});
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -406,7 +406,8 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
                             });
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
-  CHECK(!Execution::Call(isolate, main_fun_wrapper, global, {}).is_null());
+  CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr)
+             .is_null());
 }
 
 WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
@@ -450,10 +451,8 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
       });
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
-  DirectHandle<Object> args[]{direct_handle(Smi::FromInt(7), isolate)};
-  CHECK(
-      !Execution::Call(isolate, main_fun_wrapper, global, base::VectorOf(args))
-           .is_null());
+  Handle<Object> args[]{handle(Smi::FromInt(7), isolate)};
+  CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 1, args).is_null());
 }
 
 WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
@@ -483,7 +482,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, {});
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -511,7 +510,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, {});
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -541,7 +540,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, {});
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -573,7 +572,7 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, {});
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
   CHECK_EQ(kReturn, GetIntReturnValue(retval));
 }
 

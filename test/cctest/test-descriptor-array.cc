@@ -42,9 +42,9 @@ template <typename... Args>
 MaybeHandle<Object> Call(Isolate* isolate, Handle<JSFunction> function,
                          Args... args) {
   const int nof_args = sizeof...(Args);
-  DirectHandle<Object> call_args[] = {args...};
+  Handle<Object> call_args[] = {args...};
   Handle<Object> receiver = isolate->factory()->undefined_value();
-  return Execution::Call(isolate, function, receiver, {call_args, nof_args});
+  return Execution::Call(isolate, function, receiver, nof_args, call_args);
 }
 
 void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,

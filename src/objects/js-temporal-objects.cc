@@ -1720,21 +1720,21 @@ MaybeHandle<FixedArray> GetPossibleInstantsFor(Isolate* isolate,
   }
   Handle<Object> possible_instants;
   {
-    DirectHandle<Object> args[] = {date_time};
+    Handle<Object> argv[] = {date_time};
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, possible_instants,
-        Execution::Call(isolate, function, time_zone, base::VectorOf(args)));
+        Execution::Call(isolate, function, time_zone, arraysize(argv), argv));
   }
 
   // Step 4-6 of GetPossibleInstantsFor is implemented inside
   // temporal_instant_fixed_array_from_iterable.
   {
-    DirectHandle<Object> args[] = {possible_instants};
+    Handle<Object> argv[] = {possible_instants};
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, possible_instants,
         Execution::CallBuiltin(
             isolate, isolate->temporal_instant_fixed_array_from_iterable(),
-            possible_instants, base::VectorOf(args)));
+            possible_instants, arraysize(argv), argv));
   }
   DCHECK(IsFixedArray(*possible_instants));
   // 7. Return list.
@@ -2128,11 +2128,10 @@ MaybeHandle<T> FromFields(Isolate* isolate, Handle<JSReceiver> calendar,
     THROW_NEW_ERROR(
         isolate, NewTypeError(MessageTemplate::kCalledNonCallable, property));
   }
-  DirectHandle<Object> args[] = {fields, options};
+  Handle<Object> argv[] = {fields, options};
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, function, calendar, base::VectorOf(args)));
+      isolate, result, Execution::Call(isolate, function, calendar, 2, argv));
   if ((!IsHeapObject(*result)) ||
       Cast<HeapObject>(*result)->map()->instance_type() != type) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
@@ -4053,18 +4052,18 @@ MaybeHandle<FixedArray> CalendarFields(Isolate* isolate,
   // 3. If fields is not undefined, then
   if (!IsUndefined(*fields)) {
     // a. Set fieldsArray to ? Call(fields, calendar, « fieldsArray »).
-    DirectHandle<Object> args[] = {fields_array};
+    Handle<Object> argv[] = {fields_array};
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, fields_array,
-        Execution::Call(isolate, fields, calendar, base::VectorOf(args)));
+        Execution::Call(isolate, fields, calendar, 1, argv));
   }
   // 4. Return ? IterableToListOfType(fieldsArray, « String »).
-  DirectHandle<Object> args[] = {fields_array};
+  Handle<Object> argv[] = {fields_array};
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, fields_array,
       Execution::CallBuiltin(isolate,
                              isolate->string_fixed_array_from_iterable(),
-                             fields_array, base::VectorOf(args)));
+                             fields_array, 1, argv));
   DCHECK(IsFixedArray(*fields_array));
   return Cast<FixedArray>(fields_array);
 }
@@ -4099,11 +4098,11 @@ MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
   DCHECK(IsJSReceiver(*options) || IsUndefined(*options));
 
   // 3. Let addedDate be ? Call(dateAdd, calendar, « date, duration, options »).
-  DirectHandle<Object> args[] = {date, duration, options};
+  Handle<Object> argv[] = {date, duration, options};
   Handle<Object> added_date;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, added_date,
-      Execution::Call(isolate, date_add, calendar, base::VectorOf(args)));
+      Execution::Call(isolate, date_add, calendar, arraysize(argv), argv));
   // 4. Perform ? RequireInternalSlot(addedDate, [[InitializedTemporalDate]]).
   if (!IsJSTemporalPlainDate(*added_date)) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());
@@ -4134,11 +4133,11 @@ MaybeHandle<JSTemporalDuration> CalendarDateUntil(
                           isolate->factory()->dateUntil_string()));
   }
   // 3. Let duration be ? Call(dateUntil, calendar, « one, two, options »).
-  DirectHandle<Object> args[] = {one, two, options};
+  Handle<Object> argv[] = {one, two, options};
   Handle<Object> duration;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, duration,
-      Execution::Call(isolate, date_until, calendar, base::VectorOf(args)));
+      Execution::Call(isolate, date_until, calendar, arraysize(argv), argv));
   // 4. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
   if (!IsJSTemporalDuration(*duration)) {
@@ -4275,11 +4274,11 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
   Handle<Object> offset_nanoseconds_obj;
   // 3. Let offsetNanoseconds be ? Call(getOffsetNanosecondsFor, timeZone, «
   // instant »).
-  DirectHandle<Object> args[] = {instant};
+  Handle<Object> argv[] = {instant};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, offset_nanoseconds_obj,
-      Execution::Call(isolate, get_offset_nanoseconds_for, time_zone_obj,
-                      base::VectorOf(args)),
+      Execution::Call(isolate, get_offset_nanoseconds_for, time_zone_obj, 1,
+                      argv),
       Nothing<int64_t>());
 
   // 4. If Type(offsetNanoseconds) is not Number, throw a TypeError exception.
@@ -4343,10 +4342,10 @@ MaybeHandle<Object> InvokeCalendarMethod(Isolate* isolate,
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kCalledNonCallable, name));
   }
-  DirectHandle<Object> args[] = {date_like};
+  Handle<Object> argv[] = {date_like};
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
-      Execution::Call(isolate, function, calendar, base::VectorOf(args)));
+      Execution::Call(isolate, function, calendar, arraysize(argv), argv));
   return result;
 }
 
@@ -11514,11 +11513,11 @@ MaybeHandle<JSReceiver> CalendarMergeFields(
     return DefaultMergeFields(isolate, fields, additional_fields);
   }
   // 3. Return ? Call(mergeFields, calendar, « fields, additionalFields »).
-  DirectHandle<Object> args[] = {fields, additional_fields};
+  Handle<Object> argv[] = {fields, additional_fields};
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
-      Execution::Call(isolate, merge_fields, calendar, base::VectorOf(args)));
+      Execution::Call(isolate, merge_fields, calendar, 2, argv));
   // 4. If Type(result) is not Object, throw a TypeError exception.
   if (!IsJSReceiver(*result)) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR());

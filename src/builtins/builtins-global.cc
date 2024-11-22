@@ -108,7 +108,8 @@ BUILTIN(GlobalEval) {
           handle(target->native_context(), isolate), source,
           NO_PARSE_RESTRICTION, kNoSourcePosition));
   RETURN_RESULT_OR_FAILURE(
-      isolate, Execution::Call(isolate, function, target_global_proxy, {}));
+      isolate,
+      Execution::Call(isolate, function, target_global_proxy, 0, nullptr));
 }
 
 }  // namespace internal

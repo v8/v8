@@ -62,7 +62,7 @@ class SourceTextModule
       Isolate* isolate, Handle<SourceTextModule> module);
   static void AsyncModuleExecutionRejected(
       Isolate* isolate, DirectHandle<SourceTextModule> module,
-      DirectHandle<Object> exception);
+      Handle<Object> exception);
 
   // Get the namespace object for [module_request] of [module].  If it doesn't
   // exist yet, it is created.
@@ -217,7 +217,7 @@ class SourceTextModule
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> ExecuteModule(
       Isolate* isolate, DirectHandle<SourceTextModule> module,
-      MaybeDirectHandle<Object>* exception_out);
+      MaybeHandle<Object>* exception_out);
 
   // Implementation of spec ExecuteAsyncModule. Return Nothing if the execution
   // is been terminated.

@@ -329,22 +329,22 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
                                    GetStackFrames(isolate, elems));
 
         constexpr int argc = 2;
-        std::array<DirectHandle<Object>, argc> args;
+        std::array<Handle<Object>, argc> argv;
         if (V8_UNLIKELY(IsJSGlobalObject(*error))) {
           // Pass global proxy instead of global object.
-          args[0] = direct_handle(Cast<JSGlobalObject>(*error)->global_proxy(),
-                                  isolate);
+          argv[0] =
+              handle(Cast<JSGlobalObject>(*error)->global_proxy(), isolate);
         } else {
-          args[0] = error;
+          argv[0] = error;
         }
-        args[1] = sites;
+        argv[1] = sites;
 
         Handle<Object> result;
 
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, result,
-            Execution::Call(isolate, prepare_stack_trace, global_error,
-                            base::VectorOf(args)));
+            Execution::Call(isolate, prepare_stack_trace, global_error, argc,
+                            argv.data()));
         return result;
       }
     }

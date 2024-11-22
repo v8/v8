@@ -74,14 +74,17 @@ RUNTIME_FUNCTION(Runtime_Call) {
   HandleScope scope(isolate);
   DCHECK_LE(2, args.length());
   int const argc = args.length() - 2;
-  DirectHandle<Object> target = args.at(0);
-  DirectHandle<Object> receiver = args.at(1);
-  DirectHandleVector<Object> arguments(isolate, argc);
+  Handle<Object> target = args.at(0);
+  Handle<Object> receiver = args.at(1);
+  // TODO(42203211): This vector ends up in InvokeParams which is potentially
+  // used by generated code. It will be replaced, when generated code starts
+  // using direct handles.
+  base::ScopedVector<IndirectHandle<Object>> argv(argc);
   for (int i = 0; i < argc; ++i) {
-    arguments[i] = args.at(2 + i);
+    argv[i] = args.at(2 + i);
   }
-  RETURN_RESULT_OR_FAILURE(isolate, Execution::Call(isolate, target, receiver,
-                                                    base::VectorOf(arguments)));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Execution::Call(isolate, target, receiver, argc, argv.begin()));
 }
 
 

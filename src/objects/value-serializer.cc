@@ -1973,13 +1973,13 @@ MaybeHandle<JSMap> ValueDeserializer::ReadJSMap() {
       break;
     }
 
-    DirectHandle<Object> args[2];
-    if (!ReadObject().ToHandle(&args[0]) || !ReadObject().ToHandle(&args[1])) {
+    Handle<Object> argv[2];
+    if (!ReadObject().ToHandle(&argv[0]) || !ReadObject().ToHandle(&argv[1])) {
       return MaybeHandle<JSMap>();
     }
 
     AllowJavascriptExecution allow_js(isolate_);
-    if (Execution::Call(isolate_, map_set, map, base::VectorOf(args))
+    if (Execution::Call(isolate_, map_set, map, arraysize(argv), argv)
             .is_null()) {
       return MaybeHandle<JSMap>();
     }
@@ -2013,11 +2013,11 @@ MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
       break;
     }
 
-    DirectHandle<Object> args[1];
-    if (!ReadObject().ToHandle(&args[0])) return MaybeHandle<JSSet>();
+    Handle<Object> argv[1];
+    if (!ReadObject().ToHandle(&argv[0])) return MaybeHandle<JSSet>();
 
     AllowJavascriptExecution allow_js(isolate_);
-    if (Execution::Call(isolate_, set_add, set, base::VectorOf(args))
+    if (Execution::Call(isolate_, set_add, set, arraysize(argv), argv)
             .is_null()) {
       return MaybeHandle<JSSet>();
     }

@@ -143,13 +143,14 @@ std::vector<ExecutionResult> PerformReferenceRun(
           ->SyncInstantiate(isolate, &thrower, module_object, {}, {})
           .ToHandleChecked();
 
+  auto arguments = base::OwnedVector<Handle<Object>>::New(1);
+
   NearHeapLimitCallbackScope near_heap_limit(isolate);
   for (uint32_t i = 0; i < callees.size(); ++i) {
-    DirectHandle<Object> arguments[] = {
-        direct_handle(Smi::FromInt(i), isolate)};
+    arguments[0] = handle(Smi::FromInt(i), isolate);
     std::unique_ptr<const char[]> exception;
     int32_t result = testing::CallWasmFunctionForTesting(
-        isolate, instance, "main", base::VectorOf(arguments), &exception);
+        isolate, instance, "main", arguments.as_vector(), &exception);
     // Reached max steps, do not try to execute the test module as it might
     // never terminate.
     if (max_steps < 0) break;
@@ -309,11 +310,11 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   int deopt_count_previous_iteration = deopt_count_begin;
   size_t num_callees = reference_results.size();
   for (uint32_t i = 0; i < num_callees; ++i) {
-    DirectHandle<Object> arguments[] = {
-        direct_handle(Smi::FromInt(i), i_isolate)};
+    auto arguments = base::OwnedVector<Handle<Object>>::New(1);
+    arguments[0] = handle(Smi::FromInt(i), i_isolate);
     std::unique_ptr<const char[]> exception;
     int32_t result_value = testing::CallWasmFunctionForTesting(
-        i_isolate, instance, "main", base::VectorOf(arguments), &exception);
+        i_isolate, instance, "main", arguments.as_vector(), &exception);
     ExecutionResult actual_result;
     if (exception) {
       actual_result = exception.get();

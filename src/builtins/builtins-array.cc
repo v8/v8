@@ -1457,11 +1457,11 @@ Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     storage = NumberDictionary::New(isolate, estimate_nof);
   } else {
     DCHECK(IsConstructor(*species));
-    DirectHandle<Object> length(Smi::zero(), isolate);
-    DirectHandle<JSReceiver> storage_object;
+    Handle<Object> length(Smi::zero(), isolate);
+    Handle<JSReceiver> storage_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,
-        Execution::New(isolate, species, species, {&length, 1}));
+        Execution::New(isolate, species, species, 1, &length));
     storage = storage_object;
   }
 

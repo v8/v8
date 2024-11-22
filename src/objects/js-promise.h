@@ -61,8 +61,7 @@ class JSPromise
   V8_EXPORT_PRIVATE static Handle<Object> Fulfill(
       DirectHandle<JSPromise> promise, DirectHandle<Object> value);
   // ES section #sec-rejectpromise
-  static Handle<Object> Reject(Handle<JSPromise> promise,
-                               DirectHandle<Object> reason,
+  static Handle<Object> Reject(Handle<JSPromise> promise, Handle<Object> reason,
                                bool debug_event = true);
   // ES section #sec-promise-resolve-functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Resolve(

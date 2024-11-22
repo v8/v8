@@ -1467,7 +1467,7 @@ MaybeHandle<Object> Runtime::GetPrivateMember(Isolate* isolate,
       }
       DCHECK(IsJSFunction(pair->getter()));
       Handle<JSFunction> getter(Cast<JSFunction>(pair->getter()), isolate);
-      return Execution::Call(isolate, getter, receiver, {});
+      return Execution::Call(isolate, getter, receiver, 0, nullptr);
     }
   }
 }
@@ -1501,10 +1501,9 @@ MaybeHandle<Object> Runtime::SetPrivateMember(Isolate* isolate,
             NewError(MessageTemplate::kInvalidPrivateSetterAccess, desc));
       }
       DCHECK(IsJSFunction(pair->setter()));
-      DirectHandle<Object> args[] = {value};
-      DirectHandle<JSFunction> setter(Cast<JSFunction>(pair->setter()),
-                                      isolate);
-      return Execution::Call(isolate, setter, receiver, base::VectorOf(args));
+      Handle<Object> argv[] = {value};
+      Handle<JSFunction> setter(Cast<JSFunction>(pair->setter()), isolate);
+      return Execution::Call(isolate, setter, receiver, arraysize(argv), argv);
     }
   }
 }

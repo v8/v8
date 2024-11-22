@@ -637,10 +637,10 @@ MaybeHandle<JSAny> JsonStringifier::ApplyToJsonFunction(Handle<JSAny> object,
 
   // Call toJSON function.
   if (IsSmi(*key)) key = factory()->NumberToString(key);
-  DirectHandle<Object> args[] = {key};
-  ASSIGN_RETURN_ON_EXCEPTION(isolate_, object,
-                             Cast<JSAny>(Execution::Call(
-                                 isolate_, fun, object, base::VectorOf(args))));
+  Handle<Object> argv[] = {key};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, object,
+      Cast<JSAny>(Execution::Call(isolate_, fun, object, 1, argv)));
   return scope.CloseAndEscape(object);
 }
 
@@ -649,12 +649,12 @@ MaybeHandle<JSAny> JsonStringifier::ApplyReplacerFunction(
     DirectHandle<Object> initial_holder) {
   HandleScope scope(isolate_);
   if (IsSmi(*key)) key = factory()->NumberToString(key);
-  DirectHandle<Object> args[] = {key, value};
+  Handle<Object> argv[] = {key, value};
   Handle<JSReceiver> holder = CurrentHolder(value, initial_holder);
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate_, value,
-      Cast<JSAny>(Execution::Call(isolate_, replacer_function_, holder,
-                                  base::VectorOf(args))));
+      Cast<JSAny>(
+          Execution::Call(isolate_, replacer_function_, holder, 2, argv)));
   return scope.CloseAndEscape(value);
 }
 

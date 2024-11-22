@@ -56,8 +56,8 @@ Tagged<JSReceiver> GetCompatibleReceiver(Isolate* isolate,
 // - argv is the array arguments. The receiver is stored at argv[-1].
 template <bool is_construct>
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
-    Isolate* isolate, DirectHandle<HeapObject> new_target,
-    DirectHandle<FunctionTemplateInfo> fun_data, DirectHandle<Object> receiver,
+    Isolate* isolate, Handle<HeapObject> new_target,
+    DirectHandle<FunctionTemplateInfo> fun_data, Handle<Object> receiver,
     Address* argv, int argc) {
   Handle<JSReceiver> js_receiver;
   Tagged<JSReceiver> raw_holder;
@@ -67,26 +67,25 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       v8::Local<ObjectTemplate> templ =
           ObjectTemplate::New(reinterpret_cast<v8::Isolate*>(isolate),
                               ToApiHandle<v8::FunctionTemplate>(fun_data));
-      FunctionTemplateInfo::SetInstanceTemplate(
-          isolate, fun_data, Utils::OpenDirectHandle(*templ));
+      FunctionTemplateInfo::SetInstanceTemplate(isolate, fun_data,
+                                                Utils::OpenHandle(*templ));
     }
     Handle<ObjectTemplateInfo> instance_template(
         Cast<ObjectTemplateInfo>(fun_data->GetInstanceTemplate()), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
-        ApiNatives::InstantiateObject(
-            isolate, instance_template,
-            indirect_handle(Cast<JSReceiver>(new_target), isolate)));
+        ApiNatives::InstantiateObject(isolate, instance_template,
+                                      Cast<JSReceiver>(new_target)));
     argv[BuiltinArguments::kReceiverArgsIndex] = js_receiver->ptr();
     raw_holder = *js_receiver;
   } else {
     DCHECK(IsJSReceiver(*receiver));
-    js_receiver = indirect_handle(Cast<JSReceiver>(receiver), isolate);
+    js_receiver = Cast<JSReceiver>(receiver);
 
     if (!fun_data->accept_any_receiver() && IsAccessCheckNeeded(*js_receiver)) {
       // Proxies never need access checks.
       DCHECK(IsJSObject(*js_receiver));
-      DirectHandle<JSObject> js_object = Cast<JSObject>(js_receiver);
+      Handle<JSObject> js_object = Cast<JSObject>(js_receiver);
       if (!isolate->MayAccess(isolate->native_context(), js_object)) {
         RETURN_ON_EXCEPTION(isolate,
                             isolate->ReportFailedAccessCheck(js_object));
@@ -168,24 +167,21 @@ class RelocatableArguments : public Relocatable {
 }  // namespace
 
 MaybeHandle<Object> Builtins::InvokeApiFunction(
-    Isolate* isolate, bool is_construct,
-    DirectHandle<FunctionTemplateInfo> function, DirectHandle<Object> receiver,
-    base::Vector<const DirectHandle<Object>> args,
-    DirectHandle<HeapObject> new_target) {
+    Isolate* isolate, bool is_construct, Handle<FunctionTemplateInfo> function,
+    Handle<Object> receiver, int argc, Handle<Object> args[],
+    Handle<HeapObject> new_target) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kInvokeApiFunction);
 
   // Do proper receiver conversion for non-strict mode api functions.
   if (!is_construct && !IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, receiver,
-        Object::ConvertReceiver(isolate, indirect_handle(receiver, isolate)));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               Object::ConvertReceiver(isolate, receiver));
   }
 
   // We assume that all lazy accessor pairs have been instantiated when setting
   // a break point on any API function.
   DCHECK(!Cast<FunctionTemplateInfo>(function)->BreakAtEntry(isolate));
 
-  int argc = static_cast<int>(args.size());
   base::SmallVector<Address, 32> argv(argc + 1);
   argv[0] = (*receiver).ptr();
   for (int i = 0; i < argc; ++i) {

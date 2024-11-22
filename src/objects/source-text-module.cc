@@ -456,7 +456,7 @@ bool SourceTextModule::RunInitializationCode(
   function->set_context(*context);
 
   MaybeHandle<Object> maybe_generator =
-      Execution::Call(isolate, function, receiver, {});
+      Execution::Call(isolate, function, receiver, 0, {});
   Handle<Object> generator;
   if (!maybe_generator.ToHandle(&generator)) {
     DCHECK(isolate->has_exception());
@@ -967,7 +967,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
     } else {  // c. Else,
       // i. Let result be m.ExecuteModule().
       Handle<Object> unused_result;
-      MaybeDirectHandle<Object> exception;
+      MaybeHandle<Object> exception;
       // ii. If result is an abrupt completion, then
       if (!ExecuteModule(isolate, m, &exception).ToHandle(&unused_result)) {
         // 1. Perform AsyncModuleExecutionRejected(m, result.[[Value]]).
@@ -1002,7 +1002,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
 // ES#sec-async-module-execution-rejected
 void SourceTextModule::AsyncModuleExecutionRejected(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
-    DirectHandle<Object> exception) {
+    Handle<Object> exception) {
   // 1. If module.[[Status]] is EVALUATED, then
   if (module->status() == kErrored) {
     // a. Assert: module.[[EvaluationError]] is not empty.
@@ -1096,9 +1096,9 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
 
   // 8. Perform ! PerformPromiseThen(capability.[[Promise]],
   //                                 onFulfilled, onRejected).
-  DirectHandle<Object> args[] = {on_fulfilled, on_rejected};
+  Handle<Object> argv[] = {on_fulfilled, on_rejected};
   if (V8_UNLIKELY(Execution::CallBuiltin(isolate, isolate->promise_then(),
-                                         capability, base::VectorOf(args))
+                                         capability, arraysize(argv), argv)
                       .is_null())) {
     // TODO(349961173): We assume the builtin call can only fail with a
     // termination exception. If this check fails in the wild investigate why
@@ -1136,13 +1136,13 @@ MaybeHandle<Object> SourceTextModule::InnerExecuteAsyncModule(
   async_function_object->set_promise(*capability);
   Handle<JSFunction> resume(
       isolate->native_context()->async_module_evaluate_internal(), isolate);
-  return Execution::TryCall(isolate, resume, async_function_object, {},
+  return Execution::TryCall(isolate, resume, async_function_object, 0, nullptr,
                             Execution::MessageHandling::kKeepPending, nullptr);
 }
 
 MaybeHandle<Object> SourceTextModule::ExecuteModule(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
-    MaybeDirectHandle<Object>* exception_out) {
+    MaybeHandle<Object>* exception_out) {
   // Synchronous modules have an associated JSGeneratorObject.
   Handle<JSGeneratorObject> generator(Cast<JSGeneratorObject>(module->code()),
                                       isolate);
@@ -1150,7 +1150,7 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
       isolate->native_context()->generator_next_internal(), isolate);
   Handle<Object> result;
 
-  if (!Execution::TryCall(isolate, resume, generator, {},
+  if (!Execution::TryCall(isolate, resume, generator, 0, nullptr,
                           Execution::MessageHandling::kKeepPending,
                           exception_out)
            .ToHandle(&result)) {
@@ -1329,7 +1329,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
     }
   } else {  // 13. Else,
     // a. Perform ? module.ExecuteModule().
-    MaybeDirectHandle<Object> exception;
+    MaybeHandle<Object> exception;
     Handle<Object> result;
     if (!ExecuteModule(isolate, module, &exception).ToHandle(&result)) {
       if (!isolate->is_execution_terminating()) {
