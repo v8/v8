@@ -152,7 +152,8 @@ namespace v8::internal::wasm {
   V(WasmAllocateInYoungGeneration)               \
   V(WasmAllocateInOldGeneration)                 \
   V(WasmAllocateZeroedFixedArray)                \
-  V(WasmSuspend)
+  V(WasmSuspend)                                 \
+  V(WasmTrap)
 
 #define WASM_BUILTIN_LIST(V, VTRAP)            \
   WASM_BUILTINS_WITH_JUMP_TABLE_SLOT(V, VTRAP) \

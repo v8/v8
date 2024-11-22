@@ -287,6 +287,7 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   int message_id = args.smi_value_at(0);
