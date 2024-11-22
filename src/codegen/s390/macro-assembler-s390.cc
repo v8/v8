@@ -2208,7 +2208,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   mov(r2, Operand(num_arguments));
   Move(r3, ExternalReference::Create(f));
-  CallBuiltin(Builtins::RuntimeCEntry(f->result_size));
+  bool switch_to_central_stack = options().is_wasm;
+  CallBuiltin(Builtins::RuntimeCEntry(f->result_size, switch_to_central_stack));
 }
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
