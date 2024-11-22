@@ -471,13 +471,14 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   uint32_t source_frame_size =
       graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
-  if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
+  if (V8_ENABLE_SANDBOX_BOOL ||
+      (v8_flags.maglev_assert_stack_size && v8_flags.debug_code)) {
     movq(kScratchRegister, rbp);
     subq(kScratchRegister, rsp);
     cmpq(kScratchRegister,
          Immediate(source_frame_size * kSystemPointerSize +
                    StandardFrameConstants::kFixedFrameSizeFromFp));
-    Assert(equal, AbortReason::kOsrUnexpectedStackSize);
+    SbxCheck(equal, AbortReason::kOsrUnexpectedStackSize);
   }
 
   uint32_t target_frame_size =

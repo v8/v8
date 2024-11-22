@@ -2246,11 +2246,14 @@ class OnStackReplacementDescriptor
     : public StaticCallInterfaceDescriptor<OnStackReplacementDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
-  DEFINE_PARAMETERS(kMaybeTargetCode)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())  // kMaybeTargetCode
+  DEFINE_PARAMETERS(kMaybeTargetCode, kExpectedParameterCount)
+  DEFINE_PARAMETER_TYPES(
+      MachineType::AnyTagged(),     // kMaybeTargetCode
+      MachineType::TaggedSigned())  // kExpectedParameterCount
   DECLARE_DESCRIPTOR(OnStackReplacementDescriptor)
 
   static constexpr inline Register MaybeTargetCodeRegister();
+  static constexpr inline Register ExpectedParameterCountRegister();
 
   static constexpr inline auto registers();
 };

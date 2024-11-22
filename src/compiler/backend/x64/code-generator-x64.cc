@@ -7693,6 +7693,16 @@ void CodeGenerator::AssembleConstructFrame() {
     // remaining stack slots.
     __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
+#ifdef V8_ENABLE_SANDBOX_BOOL
+    uint32_t expected_frame_size =
+        static_cast<uint32_t>(osr_helper()->UnoptimizedFrameSlots()) *
+            kSystemPointerSize +
+        StandardFrameConstants::kFixedFrameSizeFromFp;
+    __ leaq(kScratchRegister, Operand(rsp, expected_frame_size));
+    __ cmpq(kScratchRegister, rbp);
+    __ SbxCheck(equal, AbortReason::kOsrUnexpectedStackSize);
+#endif  // V8_ENABLE_SANDBOX_BOOL
+
     required_slots -= static_cast<int>(osr_helper()->UnoptimizedFrameSlots());
   }
 

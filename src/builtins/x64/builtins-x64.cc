@@ -2968,7 +2968,8 @@ enum class OsrSourceTier {
 };
 
 void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
-                        Register maybe_target_code) {
+                        Register maybe_target_code,
+                        Register expected_param_count) {
   Label jump_to_optimized_code;
   {
     // If maybe_target_code is not null, no need to call into runtime. A
@@ -2981,7 +2982,11 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    // Preserve arguments
+    __ Push(expected_param_count);
     __ CallRuntime(Runtime::kCompileOptimizedOSR);
+    DCHECK_EQ(maybe_target_code, rax);
+    __ Pop(expected_param_count);
   }
 
   // If the code object is null, just return to the caller.
@@ -2990,7 +2995,6 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   __ ret(0);
 
   __ bind(&jump_to_optimized_code);
-  DCHECK_EQ(maybe_target_code, rax);  // Already in the right spot.
 
   if (source == OsrSourceTier::kMaglev) {
     // Maglev doesn't enter OSR'd code itself, since OSR depends on the
@@ -2999,6 +3003,9 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ ret(0);
     return;
   }
+
+  const Register scratch(rcx);
+  CHECK(!AreAliased(maybe_target_code, expected_param_count, scratch));
 
   // OSR entry tracing.
   {
@@ -3011,9 +3018,12 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(rax);  // Preserve the code object.
+      // Preserve arguments
+      __ Push(maybe_target_code);
+      __ Push(expected_param_count);
       __ CallRuntime(Runtime::kLogOrTraceOptimizedOSREntry, 0);
-      __ Pop(rax);
+      __ Pop(expected_param_count);
+      __ Pop(maybe_target_code);
     }
 
     __ bind(&next);
@@ -3025,50 +3035,51 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ leave();
   }
 
-  // Load deoptimization data from the code object.
-  const Register deopt_data(rbx);
+  // Check the target has a matching parameter count. This ensures that the OSR
+  // code will correctly tear down our frame when leaving.
+  __ movzxwq(scratch,
+             FieldOperand(maybe_target_code, Code::kParameterCountOffset));
+  __ SmiUntag(expected_param_count);
+  __ cmpq(scratch, expected_param_count);
+  __ SbxCheck(Condition::equal, AbortReason::kOsrUnexpectedStackSize);
+
   __ LoadProtectedPointerField(
-      deopt_data,
-      FieldOperand(rax, Code::kDeoptimizationDataOrInterpreterDataOffset));
+      scratch, FieldOperand(maybe_target_code,
+                            Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ SmiUntagField(
-      rbx,
-      FieldOperand(deopt_data, TrustedFixedArray::OffsetOfElementAt(
-                                   DeoptimizationData::kOsrPcOffsetIndex)));
+      scratch,
+      FieldOperand(scratch, TrustedFixedArray::OffsetOfElementAt(
+                                DeoptimizationData::kOsrPcOffsetIndex)));
 
-  __ LoadCodeInstructionStart(rax, rax, kJSEntrypointTag);
+  __ LoadCodeInstructionStart(maybe_target_code, maybe_target_code,
+                              kJSEntrypointTag);
 
   // Compute the target address = code_entry + osr_offset
-  __ addq(rax, rbx);
+  __ addq(maybe_target_code, scratch);
 
-  Generate_OSREntry(masm, rax);
+  Generate_OSREntry(masm, maybe_target_code);
 }
 
 }  // namespace
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   using D = OnStackReplacementDescriptor;
-  static_assert(D::kParameterCount == 1);
+  static_assert(D::kParameterCount == 2);
   OnStackReplacement(masm, OsrSourceTier::kInterpreter,
-                     D::MaybeTargetCodeRegister());
+                     D::MaybeTargetCodeRegister(),
+                     D::ExpectedParameterCountRegister());
 }
 
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
   using D = OnStackReplacementDescriptor;
-  static_assert(D::kParameterCount == 1);
+  static_assert(D::kParameterCount == 2);
   __ movq(kContextRegister,
           MemOperand(rbp, BaselineFrameConstants::kContextOffset));
   OnStackReplacement(masm, OsrSourceTier::kBaseline,
-                     D::MaybeTargetCodeRegister());
-}
-
-void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
-  using D =
-      i::CallInterfaceDescriptorFor<Builtin::kMaglevOnStackReplacement>::type;
-  static_assert(D::kParameterCount == 1);
-  OnStackReplacement(masm, OsrSourceTier::kMaglev,
-                     D::MaybeTargetCodeRegister());
+                     D::MaybeTargetCodeRegister(),
+                     D::ExpectedParameterCountRegister());
 }
 
 #ifdef V8_ENABLE_MAGLEV

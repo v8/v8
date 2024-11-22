@@ -523,6 +523,12 @@ constexpr Register OnStackReplacementDescriptor::MaybeTargetCodeRegister() {
 }
 
 // static
+constexpr Register
+OnStackReplacementDescriptor::ExpectedParameterCountRegister() {
+  return registers()[1];
+}
+
+// static
 constexpr auto VoidDescriptor::registers() { return RegisterArray(); }
 
 // static

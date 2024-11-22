@@ -1457,13 +1457,15 @@ void InterpreterAssembler::OnStackReplacement(
 
   BIND(&osr_to_opt);
   {
-    TNode<Uint32T> length =
-        LoadAndUntagBytecodeArrayLength(BytecodeArrayTaggedPointer());
+    TNode<BytecodeArray> bytecode = BytecodeArrayTaggedPointer();
+    TNode<Uint32T> length = LoadAndUntagBytecodeArrayLength(bytecode);
     TNode<Uint32T> weight =
         Uint32Mul(length, Uint32Constant(v8_flags.osr_to_tierup));
     DecreaseInterruptBudget(Signed(weight), kDisableStackCheck);
+    TNode<Smi> expected_param_count =
+        SmiFromInt32(LoadBytecodeArrayParameterCount(bytecode));
     CallBuiltin(Builtin::kInterpreterOnStackReplacement, context,
-                maybe_target_code.value());
+                maybe_target_code.value(), expected_param_count);
     UpdateInterruptBudget(Int32Mul(Signed(weight), Int32Constant(-1)));
     JumpBackward(relative_jump);
   }

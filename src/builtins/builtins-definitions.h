@@ -262,7 +262,6 @@ namespace internal {
   ASM(InterpreterOnStackReplacement_ToBaseline, Void)                          \
                                                                                \
   /* Maglev Compiler */                                                        \
-  ASM(MaglevOnStackReplacement, OnStackReplacement)                            \
   ASM(MaglevFunctionEntryStackCheck_WithoutNewTarget, Void)                    \
   ASM(MaglevFunctionEntryStackCheck_WithNewTarget, Void)                       \
   ASM(MaglevOptimizeCodeOrTailCallOptimizedCodeSlot,                           \
