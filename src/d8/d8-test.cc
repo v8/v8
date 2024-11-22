@@ -705,6 +705,9 @@ class FastCApiObject {
     CHECK_NOT_NULL(self);
     self->fast_call_count_++;
 
+    if (!base::IsValueInRangeForNumericType<IntegerT>(real_arg)) {
+      return false;
+    }
     return static_cast<IntegerT>(real_arg) == checked_arg;
   }
 
