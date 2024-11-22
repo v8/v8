@@ -4,6 +4,7 @@
 
 #include "src/wasm/canonical-types.h"
 
+#include "src/base/functional.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
