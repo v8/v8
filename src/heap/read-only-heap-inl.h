@@ -22,28 +22,20 @@ ReadOnlyHeap* ReadOnlyHeap::GetSharedReadOnlyHeap() {
 
 // static
 ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged<HeapObject> object) {
-#ifdef V8_SHARED_RO_HEAP
   ReadOnlyHeap* shared_ro_heap = GetSharedReadOnlyHeap();
   if (shared_ro_heap && shared_ro_heap->roots_init_complete()) {
     return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
   }
   return ReadOnlyRoots(GetHeapFromWritableObject(object));
-#else
-  return GetReadOnlyRoots(object);
-#endif  // V8_SHARED_RO_HEAP
 }
 
 // static
 ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(Tagged<HeapObject> object) {
-#ifdef V8_SHARED_RO_HEAP
   ReadOnlyHeap* shared_ro_heap = GetSharedReadOnlyHeap();
   // If this check fails in code that runs during initialization use
   // EarlyGetReadOnlyRoots instead.
   DCHECK(shared_ro_heap && shared_ro_heap->roots_init_complete());
   return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
-#else
-  return ReadOnlyRoots(GetHeapFromWritableObject(object));
-#endif  // V8_SHARED_RO_HEAP
 }
 
 }  // namespace internal

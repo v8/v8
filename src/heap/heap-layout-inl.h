@@ -68,11 +68,9 @@ bool HeapLayout::InWritableSharedSpace(Tagged<HeapObject> object) {
 
 // static
 bool HeapLayout::InAnySharedSpace(Tagged<HeapObject> object) {
-#ifdef V8_SHARED_RO_HEAP
   if (HeapLayout::InReadOnlySpace(object)) {
-    return V8_SHARED_RO_HEAP_BOOL;
+    return true;
   }
-#endif  // V8_SHARED_RO_HEAP
   return HeapLayout::InWritableSharedSpace(object);
 }
 

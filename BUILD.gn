@@ -259,10 +259,6 @@ declare_args() {
   # specific hook).
   v8_check_header_includes = false
 
-  # Enable sharing read-only space across isolates.
-  # Sets -DV8_SHARED_RO_HEAP.
-  v8_enable_shared_ro_heap = ""
-
   # Enable lazy source positions by default.
   v8_enable_lazy_source_positions = true
 
@@ -597,9 +593,6 @@ if (v8_enable_short_builtin_calls &&
   # guaranteed to be close enough to embedded builtins.
   v8_enable_short_builtin_calls = false
 }
-if (v8_enable_shared_ro_heap == "") {
-  v8_enable_shared_ro_heap = true
-}
 
 if (v8_enable_sandbox == "") {
   # TODO(saelo, v8:11880) remove dependency on v8_enable_external_code_space
@@ -622,15 +615,13 @@ if (v8_enable_static_roots == "") {
   # without external code space allocate read only roots at a further
   # location relative to the cage base.
   v8_enable_static_roots =
-      v8_enable_pointer_compression && v8_enable_shared_ro_heap &&
-      v8_enable_external_code_space && v8_enable_webassembly &&
-      v8_enable_i18n_support
+      v8_enable_pointer_compression && v8_enable_external_code_space &&
+      v8_enable_webassembly && v8_enable_i18n_support
 }
 
 assert(!v8_enable_static_roots ||
-           (v8_enable_pointer_compression && v8_enable_shared_ro_heap &&
-                v8_enable_external_code_space && v8_enable_webassembly &&
-                v8_enable_i18n_support),
+           (v8_enable_pointer_compression && v8_enable_external_code_space &&
+                v8_enable_webassembly && v8_enable_i18n_support),
        "Trying to enable static roots in a configuration that is not supported")
 
 assert(
@@ -1214,9 +1205,6 @@ config("features") {
   }
   if (v8_use_siphash) {
     defines += [ "V8_USE_SIPHASH" ]
-  }
-  if (v8_enable_shared_ro_heap) {
-    defines += [ "V8_SHARED_RO_HEAP" ]
   }
   if (v8_win64_unwinding_info) {
     defines += [ "V8_WIN64_UNWINDING_INFO" ]
@@ -2811,7 +2799,7 @@ action("v8_dump_build_config") {
     mips_use_msa_var = mips_use_msa
   }
 
-  js_shared_memory = v8_enable_shared_ro_heap && !v8_disable_write_barriers
+  js_shared_memory = !v8_disable_write_barriers
   simd_mips = mips_arch_variant_var == "r6" && mips_use_msa
   simulator_run = target_cpu != v8_target_cpu
   use_sanitizer = is_asan || is_cfi || is_msan || is_tsan || is_ubsan
@@ -2870,7 +2858,6 @@ action("v8_dump_build_config") {
     "pointer_compression_shared_cage=$v8_enable_pointer_compression_shared_cage",
     "runtime_call_stats=$v8_enable_runtime_call_stats",
     "sandbox=$v8_enable_sandbox",
-    "shared_ro_heap=$v8_enable_shared_ro_heap",
     "simd_mips=$simd_mips",
     "simulator_run=$simulator_run",
     "single_generation=$v8_enable_single_generation",
@@ -2921,7 +2908,6 @@ generated_file("v8_generate_features_json") {
     v8_enable_pointer_compression_shared_cage =
         v8_enable_pointer_compression_shared_cage
     v8_enable_sandbox = v8_enable_sandbox
-    v8_enable_shared_ro_heap = v8_enable_shared_ro_heap
     v8_enable_short_builtin_calls = v8_enable_short_builtin_calls
     v8_enable_v8_checks = v8_enable_v8_checks
     v8_enable_webassembly = v8_enable_webassembly

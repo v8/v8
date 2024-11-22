@@ -5738,7 +5738,6 @@ void Heap::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
 }
 
 void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
-  CHECK(V8_SHARED_RO_HEAP_BOOL);
   if (read_only_space_) {
     read_only_space_->TearDown(memory_allocator());
     delete read_only_space_;

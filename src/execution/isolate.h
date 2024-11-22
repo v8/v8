@@ -763,7 +763,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   ReadOnlyArtifacts* read_only_artifacts() const {
     ReadOnlyArtifacts* artifacts = isolate_group()->read_only_artifacts();
-    DCHECK_IMPLIES(ReadOnlyHeap::IsReadOnlySpaceShared(), artifacts != nullptr);
+    DCHECK_NOT_NULL(artifacts);
     return artifacts;
   }
 
@@ -1271,8 +1271,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // only possible if we have just one sole read only heap. In case we extend
   // support to other build configurations we need a table of dispatch entries
   // per isolate. See https://crrev.com/c/5783686 on how to do that.
-  static constexpr bool kBuiltinDispatchHandlesAreStatic =
-      ReadOnlyHeap::IsReadOnlySpaceShared();
+  static constexpr bool kBuiltinDispatchHandlesAreStatic = true;
 
   static V8_INLINE JSDispatchHandle
   builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx idx) {

@@ -542,14 +542,6 @@ v8_config(
         ],
         "//conditions:default": [],
     }) + select({
-        # Shared RO heap is unconfigurable in bazel. However, we
-        # still have to make sure that the flag is disabled when
-        # v8_enable_pointer_compression_shared_cage is set to false.
-        ":is_v8_enable_pointer_compression_shared_cage": [
-            "V8_SHARED_RO_HEAP",
-        ],
-        "//conditions:default": [],
-    }) + select({
         ":is_v8_enable_short_builtin_calls": [
             "V8_SHORT_BUILTIN_CALLS",
         ],

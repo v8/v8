@@ -43,7 +43,7 @@ class ReadOnlyPageMetadata : public MemoryChunkMetadata {
   // Returns the address for a given offset in this page.
   Address OffsetToAddress(size_t offset) const {
     Address address_in_page = ChunkAddress() + offset;
-    if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
+    if (COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
       // Pointer compression with multiple pointer cages and shared
       // ReadOnlyPages means that the area_start and area_end cannot be defined
       // since they are stored within the pages which can be mapped at multiple

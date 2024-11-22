@@ -412,7 +412,7 @@ void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
   CHECK(!current_chunk_.has_value());
   CHECK(!chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
   CHECK(!chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
-  if (V8_SHARED_RO_HEAP_BOOL && chunk->InReadOnlySpace()) {
+  if (chunk->InReadOnlySpace()) {
     CHECK_NULL(chunk_metadata->owner());
   } else {
     CHECK_EQ(chunk_metadata->heap(), heap());

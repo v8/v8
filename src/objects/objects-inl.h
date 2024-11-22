@@ -1786,7 +1786,7 @@ bool IsShared(Tagged<Object> obj) {
 
   // RO objects are shared when the RO space is shared.
   if (HeapLayout::InReadOnlySpace(object)) {
-    return ReadOnlyHeap::IsReadOnlySpaceShared();
+    return true;
   }
 
   // Check if this object is already shared.
@@ -1826,7 +1826,6 @@ bool IsShared(Tagged<Object> obj) {
 MaybeHandle<Object> Object::Share(Isolate* isolate, Handle<Object> value,
                                   ShouldThrow throw_if_cannot_be_shared) {
   // Sharing values requires the RO space be shared.
-  DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
   if (IsShared(*value)) return value;
   return ShareSlow(isolate, Cast<HeapObject>(value), throw_if_cannot_be_shared);
 }

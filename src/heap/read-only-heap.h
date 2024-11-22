@@ -47,9 +47,8 @@ class ReadOnlyHeap final {
   // deserializer is provided). Then attaches the read-only heap to the isolate.
   // If the deserializer is not provided, then the read-only heap will be only
   // finish initializing when initial heap object creation in the Isolate is
-  // completed, which is signalled by calling OnCreateHeapObjectsComplete. When
-  // V8_SHARED_RO_HEAP is enabled, a lock will be held until that method is
-  // called.
+  // completed, which is signalled by calling OnCreateHeapObjectsComplete.
+  // A lock will be held until that method is called.
   // TODO(v8:7464): Ideally we'd create this without needing a heap.
   static void SetUp(Isolate* isolate, SnapshotData* read_only_snapshot_data,
                     bool can_rehash);
@@ -58,8 +57,8 @@ class ReadOnlyHeap final {
 
   // Indicates that the isolate has been set up and all read-only space objects
   // have been created and will not be written to. This should only be called if
-  // a deserializer was not previously provided to Setup. When V8_SHARED_RO_HEAP
-  // is enabled, this releases the ReadOnlyHeap creation lock.
+  // a deserializer was not previously provided to Setup. This releases the
+  // ReadOnlyHeap creation lock.
   V8_EXPORT_PRIVATE void OnCreateHeapObjectsComplete(Isolate* isolate);
   // Indicates that all objects reachable by the read only roots table have been
   // set up.
@@ -92,11 +91,6 @@ class ReadOnlyHeap final {
     return &js_dispatch_table_space_;
   }
 #endif
-
-  static constexpr bool IsReadOnlySpaceShared() {
-    // TODO(dbezhetskov): inline me.
-    return V8_SHARED_RO_HEAP_BOOL;
-  }
 
   void InitializeIsolateRoots(Isolate* isolate);
   void InitializeFromIsolateRoots(Isolate* isolate);

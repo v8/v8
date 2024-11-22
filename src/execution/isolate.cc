@@ -4039,12 +4039,8 @@ void Isolate::Delete(Isolate* isolate) {
 
 void Isolate::SetUpFromReadOnlyArtifacts(ReadOnlyArtifacts* artifacts,
                                          ReadOnlyHeap* ro_heap) {
-  if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
-    DCHECK_NOT_NULL(artifacts);
-    InitializeNextUniqueSfiId(artifacts->initial_next_unique_sfi_id());
-  } else {
-    DCHECK_NULL(artifacts);
-  }
+  DCHECK_NOT_NULL(artifacts);
+  InitializeNextUniqueSfiId(artifacts->initial_next_unique_sfi_id());
   DCHECK_NOT_NULL(ro_heap);
   DCHECK_IMPLIES(read_only_heap_ != nullptr, read_only_heap_ == ro_heap);
   read_only_heap_ = ro_heap;
@@ -5218,9 +5214,6 @@ VirtualMemoryCage* Isolate::GetPtrComprCodeCageForTesting() {
 
 void Isolate::VerifyStaticRoots() {
 #if V8_STATIC_ROOTS_BOOL
-  static_assert(ReadOnlyHeap::IsReadOnlySpaceShared(),
-                "Static read only roots are only supported when there is one "
-                "shared read only space per cage");
 #define STATIC_ROOTS_FAILED_MSG                                            \
   "Read-only heap layout changed. Run `tools/dev/gen-static-roots.py` to " \
   "update static-roots.h."

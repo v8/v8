@@ -46,54 +46,42 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
                          bool can_rehash) {
   DCHECK_NOT_NULL(isolate);
 
-  if (IsReadOnlySpaceShared()) {
-    ReadOnlyHeap* ro_heap;
-    IsolateGroup* group = isolate->isolate_group();
-    if (read_only_snapshot_data != nullptr) {
-      bool read_only_heap_created = false;
-      base::MutexGuard guard(group->read_only_heap_creation_mutex());
-      ReadOnlyArtifacts* artifacts = group->read_only_artifacts();
-      if (!artifacts) {
-        artifacts = group->InitializeReadOnlyArtifacts();
-        artifacts->InitializeChecksum(read_only_snapshot_data);
-        ro_heap = CreateInitialHeapForBootstrapping(isolate, artifacts);
-        ro_heap->DeserializeIntoIsolate(isolate, read_only_snapshot_data,
-                                        can_rehash);
-        artifacts->set_initial_next_unique_sfi_id(
-            isolate->next_unique_sfi_id());
-        read_only_heap_created = true;
-      } else {
-        ro_heap = artifacts->read_only_heap();
-        isolate->SetUpFromReadOnlyArtifacts(artifacts, ro_heap);
-#ifdef V8_COMPRESS_POINTERS
-        isolate->external_pointer_table().SetUpFromReadOnlyArtifacts(
-            isolate->heap()->read_only_external_pointer_space(), artifacts);
-#endif  // V8_COMPRESS_POINTERS
-      }
-      artifacts->VerifyChecksum(read_only_snapshot_data,
-                                read_only_heap_created);
-      ro_heap->InitializeIsolateRoots(isolate);
-    } else {
-      // This path should only be taken in mksnapshot, should only be run once
-      // before tearing down the Isolate that holds this ReadOnlyArtifacts and
-      // is not thread-safe.
-      ReadOnlyArtifacts* artifacts = group->read_only_artifacts();
-      CHECK(!artifacts);
+  ReadOnlyHeap* ro_heap;
+  IsolateGroup* group = isolate->isolate_group();
+  if (read_only_snapshot_data != nullptr) {
+    bool read_only_heap_created = false;
+    base::MutexGuard guard(group->read_only_heap_creation_mutex());
+    ReadOnlyArtifacts* artifacts = group->read_only_artifacts();
+    if (!artifacts) {
       artifacts = group->InitializeReadOnlyArtifacts();
+      artifacts->InitializeChecksum(read_only_snapshot_data);
       ro_heap = CreateInitialHeapForBootstrapping(isolate, artifacts);
-
-      // Ensure the first read-only page ends up first in the cage.
-      ro_heap->read_only_space()->EnsurePage();
-      artifacts->VerifyChecksum(read_only_snapshot_data, true);
-    }
-  } else {
-    ReadOnlyHeap* ro_heap =
-        new ReadOnlyHeap(new ReadOnlySpace(isolate->heap()));
-    isolate->SetUpFromReadOnlyArtifacts(nullptr, ro_heap);
-    if (read_only_snapshot_data != nullptr) {
       ro_heap->DeserializeIntoIsolate(isolate, read_only_snapshot_data,
                                       can_rehash);
+      artifacts->set_initial_next_unique_sfi_id(isolate->next_unique_sfi_id());
+      read_only_heap_created = true;
+    } else {
+      ro_heap = artifacts->read_only_heap();
+      isolate->SetUpFromReadOnlyArtifacts(artifacts, ro_heap);
+#ifdef V8_COMPRESS_POINTERS
+      isolate->external_pointer_table().SetUpFromReadOnlyArtifacts(
+          isolate->heap()->read_only_external_pointer_space(), artifacts);
+#endif  // V8_COMPRESS_POINTERS
     }
+    artifacts->VerifyChecksum(read_only_snapshot_data, read_only_heap_created);
+    ro_heap->InitializeIsolateRoots(isolate);
+  } else {
+    // This path should only be taken in mksnapshot, should only be run once
+    // before tearing down the Isolate that holds this ReadOnlyArtifacts and
+    // is not thread-safe.
+    ReadOnlyArtifacts* artifacts = group->read_only_artifacts();
+    CHECK(!artifacts);
+    artifacts = group->InitializeReadOnlyArtifacts();
+    ro_heap = CreateInitialHeapForBootstrapping(isolate, artifacts);
+
+    // Ensure the first read-only page ends up first in the cage.
+    ro_heap->read_only_space()->EnsurePage();
+    artifacts->VerifyChecksum(read_only_snapshot_data, true);
   }
 }
 
@@ -134,7 +122,7 @@ void ReadOnlyHeap::DeserializeIntoIsolate(Isolate* isolate,
 void ReadOnlyHeap::OnCreateRootsComplete(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
   DCHECK(!roots_init_complete_);
-  if (IsReadOnlySpaceShared()) InitializeFromIsolateRoots(isolate);
+  InitializeFromIsolateRoots(isolate);
   roots_init_complete_ = true;
 }
 
@@ -160,8 +148,6 @@ void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
 // static
 ReadOnlyHeap* ReadOnlyHeap::CreateInitialHeapForBootstrapping(
     Isolate* isolate, ReadOnlyArtifacts* artifacts) {
-  DCHECK(IsReadOnlySpaceShared());
-
   std::unique_ptr<ReadOnlyHeap> ro_heap;
   ReadOnlySpace* ro_space = new ReadOnlySpace(isolate->heap());
   std::unique_ptr<ReadOnlyHeap> shared_ro_heap(new ReadOnlyHeap(ro_space));
@@ -192,20 +178,16 @@ void ReadOnlyHeap::InitializeFromIsolateRoots(Isolate* isolate) {
 void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
   DCHECK(roots_init_complete_);
   read_only_space_->ShrinkPages();
-  if (IsReadOnlySpaceShared()) {
-    ReadOnlyArtifacts* artifacts =
-        isolate->isolate_group()->read_only_artifacts();
-    read_only_space()->DetachPagesAndAddToArtifacts(artifacts);
-    artifacts->ReinstallReadOnlySpace(isolate);
+  ReadOnlyArtifacts* artifacts =
+      isolate->isolate_group()->read_only_artifacts();
+  read_only_space()->DetachPagesAndAddToArtifacts(artifacts);
+  artifacts->ReinstallReadOnlySpace(isolate);
 
-    read_only_space_ = artifacts->shared_read_only_space();
+  read_only_space_ = artifacts->shared_read_only_space();
 
 #ifdef DEBUG
-    artifacts->VerifyHeapAndSpaceRelationships(isolate);
+  artifacts->VerifyHeapAndSpaceRelationships(isolate);
 #endif
-  } else {
-    read_only_space_->Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
-  }
 }
 
 ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
@@ -234,16 +216,13 @@ void ReadOnlyHeap::PopulateReadOnlySpaceStatistics(
   statistics->read_only_space_size_ = 0;
   statistics->read_only_space_used_size_ = 0;
   statistics->read_only_space_physical_size_ = 0;
-  if (IsReadOnlySpaceShared()) {
-    ReadOnlyArtifacts* artifacts =
-        IsolateGroup::current()->read_only_artifacts();
-    if (artifacts) {
-      SharedReadOnlySpace* ro_space = artifacts->shared_read_only_space();
-      statistics->read_only_space_size_ = ro_space->CommittedMemory();
-      statistics->read_only_space_used_size_ = ro_space->Size();
-      statistics->read_only_space_physical_size_ =
-          ro_space->CommittedPhysicalMemory();
-    }
+  ReadOnlyArtifacts* artifacts = IsolateGroup::current()->read_only_artifacts();
+  if (artifacts) {
+    SharedReadOnlySpace* ro_space = artifacts->shared_read_only_space();
+    statistics->read_only_space_size_ = ro_space->CommittedMemory();
+    statistics->read_only_space_used_size_ = ro_space->Size();
+    statistics->read_only_space_physical_size_ =
+        ro_space->CommittedPhysicalMemory();
   }
 }
 

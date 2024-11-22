@@ -116,7 +116,7 @@ namespace internal {
 #define COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL false
 #endif
 
-#if defined(V8_SHARED_RO_HEAP) && !defined(V8_DISABLE_WRITE_BARRIERS)
+#ifndef V8_DISABLE_WRITE_BARRIERS
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL true
 #else
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false

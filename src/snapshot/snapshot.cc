@@ -361,9 +361,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     Snapshot::SerializerFlags flags(
         Snapshot::kAllowUnknownExternalReferencesForTesting |
         Snapshot::kAllowActiveIsolateForTesting |
-        ((isolate->has_shared_space() || ReadOnlyHeap::IsReadOnlySpaceShared())
-             ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
-             : 0));
+        Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting);
     std::vector<Tagged<Context>> contexts{*default_context};
     std::vector<SerializeEmbedderFieldsCallback> callbacks{
         SerializeEmbedderFieldsCallback()};
@@ -460,12 +458,8 @@ v8::StartupData Snapshot::Create(
     // The shared heap snapshot can be empty, no problem.
     // DCHECK_NE(shared_heap_serializer.TotalAllocationSize(), 0);
     int per_isolate_allocation_size = startup_serializer.TotalAllocationSize();
-    int per_process_allocation_size = 0;
-    if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
-      per_process_allocation_size += read_only_serializer.TotalAllocationSize();
-    } else {
-      per_isolate_allocation_size += read_only_serializer.TotalAllocationSize();
-    }
+    int per_process_allocation_size =
+        read_only_serializer.TotalAllocationSize();
     // TODO(jgruber): At snapshot-generation time we don't know whether the
     // shared heap snapshot will actually be shared at runtime, or if it will
     // be deserialized into each isolate. Conservatively account to per-isolate

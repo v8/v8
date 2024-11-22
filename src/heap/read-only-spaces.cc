@@ -137,8 +137,6 @@ void ReadOnlySpace::TearDown(MemoryAllocator* memory_allocator) {
 }
 
 void ReadOnlySpace::DetachPagesAndAddToArtifacts(ReadOnlyArtifacts* artifacts) {
-  DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
-
   Heap* heap = ReadOnlySpace::heap();
   // ReadOnlySpace pages are directly shared between all heaps in
   // the isolate group and so must be unregistered from
@@ -212,9 +210,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
       if (ro_mode == SealMode::kDetachFromHeapAndUnregisterMemory) {
         memory_allocator->UnregisterReadOnlyPage(p);
       }
-      if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
-        p->MakeHeaderRelocatable();
-      }
+      p->MakeHeaderRelocatable();
     }
   }
 
@@ -281,11 +277,7 @@ void ReadOnlySpace::Verify(Isolate* isolate,
   bool allocation_pointer_found_in_space = top_ == limit_;
 
   for (MemoryChunkMetadata* page : pages_) {
-    if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
-      CHECK_NULL(page->owner());
-    } else {
-      CHECK_EQ(page->owner(), this);
-    }
+    CHECK_NULL(page->owner());
 
     visitor->VerifyPage(page);
 
@@ -529,7 +521,6 @@ void ReadOnlySpace::ShrinkPages() {
 SharedReadOnlySpace::SharedReadOnlySpace(Heap* heap,
                                          ReadOnlyArtifacts* artifacts)
     : SharedReadOnlySpace(heap) {
-  DCHECK(V8_SHARED_RO_HEAP_BOOL);
   accounting_stats_ = artifacts->accounting_stats();
   pages_ = artifacts->pages();
 }

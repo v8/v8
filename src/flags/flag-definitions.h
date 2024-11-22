@@ -385,12 +385,6 @@ DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #define V8_LAZY_SOURCE_POSITIONS_BOOL false
 #endif
 
-#ifdef V8_SHARED_RO_HEAP
-#define V8_SHARED_RO_HEAP_BOOL true
-#else
-#define V8_SHARED_RO_HEAP_BOOL false
-#endif
-
 DEFINE_BOOL(stress_snapshot, false,
             "disables sharing of the read-only heap for testing")
 // Incremental marking is incompatible with the stress_snapshot mode;

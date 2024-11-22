@@ -201,7 +201,6 @@ class ObjectPostProcessor final {
 
   void Finalize() {
 #ifdef V8_ENABLE_SANDBOX
-    DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
     std::vector<ReadOnlyArtifacts::ExternalPointerRegistryEntry> registry;
     registry.reserve(external_pointer_slots_.size());
     for (auto& slot : external_pointer_slots_) {

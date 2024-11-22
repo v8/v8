@@ -18573,9 +18573,6 @@ void CodeStubAssembler::SharedValueBarrier(
 
   // Fast path: Smis are trivially shared.
   GotoIf(TaggedIsSmi(value), &done);
-  // Fast path: Shared memory features imply shared RO space, so RO objects are
-  // trivially shared.
-  CSA_DCHECK(this, BoolConstant(ReadOnlyHeap::IsReadOnlySpaceShared()));
   TNode<IntPtrT> page_flags = LoadMemoryChunkFlags(CAST(value));
   GotoIf(WordNotEqual(
              WordAnd(page_flags, IntPtrConstant(MemoryChunk::READ_ONLY_HEAP)),

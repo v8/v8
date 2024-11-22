@@ -10284,14 +10284,6 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
 
   heap_statistics->total_available_size_ = heap->Available();
 
-  if (!i::ReadOnlyHeap::IsReadOnlySpaceShared()) {
-    i::ReadOnlySpace* ro_space = heap->read_only_space();
-    heap_statistics->used_heap_size_ += ro_space->Size();
-    heap_statistics->total_physical_size_ +=
-        ro_space->CommittedPhysicalMemory();
-    heap_statistics->total_heap_size_ += ro_space->CommittedMemory();
-  }
-
   // TODO(dinfuehr): Right now used <= committed physical does not hold. Fix
   // this and add DCHECK.
   DCHECK_LE(heap_statistics->used_heap_size_,
@@ -10346,19 +10338,12 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
   space_statistics->space_name_ = i::ToString(allocation_space);
 
   if (allocation_space == i::RO_SPACE) {
-    if (i::ReadOnlyHeap::IsReadOnlySpaceShared()) {
-      // RO_SPACE memory is accounted for elsewhere when ReadOnlyHeap is shared.
-      space_statistics->space_size_ = 0;
-      space_statistics->space_used_size_ = 0;
-      space_statistics->space_available_size_ = 0;
-      space_statistics->physical_space_size_ = 0;
-    } else {
-      i::ReadOnlySpace* space = heap->read_only_space();
-      space_statistics->space_size_ = space->CommittedMemory();
-      space_statistics->space_used_size_ = space->Size();
-      space_statistics->space_available_size_ = 0;
-      space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
-    }
+    // RO_SPACE memory is shared across all isolates and accounted for
+    // elsewhere.
+    space_statistics->space_size_ = 0;
+    space_statistics->space_used_size_ = 0;
+    space_statistics->space_available_size_ = 0;
+    space_statistics->physical_space_size_ = 0;
   } else {
     i::Space* space = heap->space(static_cast<int>(index));
     space_statistics->space_size_ = space ? space->CommittedMemory() : 0;
