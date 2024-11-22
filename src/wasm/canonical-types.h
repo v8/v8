@@ -171,17 +171,17 @@ class TypeCanonicalizer {
   // Define the range of a recursion group; for use in {CanonicalHashing} and
   // {CanonicalEquality}.
   struct RecursionGroupRange {
-    const CanonicalTypeIndex start;
-    const CanonicalTypeIndex end;
+    const CanonicalTypeIndex first;
+    const CanonicalTypeIndex last;
 
     bool Contains(CanonicalTypeIndex index) const {
-      return base::IsInRange(index.index, start.index, end.index);
+      return base::IsInRange(index.index, first.index, last.index);
     }
 
     CanonicalTypeIndex RelativeIndex(CanonicalTypeIndex index) const {
       return Contains(index)
                  // Make the value_type relative within the recursion group.
-                 ? CanonicalTypeIndex{index.index - start.index}
+                 ? CanonicalTypeIndex{index.index - first.index}
                  : index;
     }
 
@@ -313,25 +313,25 @@ class TypeCanonicalizer {
   };
 
   struct CanonicalGroup {
-    CanonicalGroup(Zone* zone, size_t size, CanonicalTypeIndex start)
-        : types(zone->AllocateVector<CanonicalType>(size)), start(start) {
+    CanonicalGroup(Zone* zone, size_t size, CanonicalTypeIndex first)
+        : types(zone->AllocateVector<CanonicalType>(size)), first(first) {
       // size >= 2; otherwise a `CanonicalSingletonGroup` should have been used.
       DCHECK_LE(2, size);
     }
 
     bool operator==(const CanonicalGroup& other) const {
-      CanonicalTypeIndex end{start.index +
-                             static_cast<uint32_t>(types.size() - 1)};
-      CanonicalTypeIndex other_end{
-          other.start.index + static_cast<uint32_t>(other.types.size() - 1)};
-      CanonicalEquality equality{{start, end}, {other.start, other_end}};
+      CanonicalTypeIndex last{first.index +
+                              static_cast<uint32_t>(types.size() - 1)};
+      CanonicalTypeIndex other_last{
+          other.first.index + static_cast<uint32_t>(other.types.size() - 1)};
+      CanonicalEquality equality{{first, last}, {other.first, other_last}};
       return equality.EqualTypes(types, other.types);
     }
 
     size_t hash_value() const {
-      CanonicalTypeIndex end{start.index + static_cast<uint32_t>(types.size()) -
-                             1};
-      CanonicalHashing hasher{{start, end}};
+      CanonicalTypeIndex last{first.index +
+                              static_cast<uint32_t>(types.size()) - 1};
+      CanonicalHashing hasher{{first, last}};
       for (CanonicalType t : types) {
         hasher.Add(t);
       }
@@ -340,7 +340,7 @@ class TypeCanonicalizer {
 
     // The storage of this vector is the TypeCanonicalizer's zone_.
     const base::Vector<CanonicalType> types;
-    const CanonicalTypeIndex start;
+    const CanonicalTypeIndex first;
   };
 
   struct CanonicalSingletonGroup {

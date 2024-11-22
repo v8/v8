@@ -83,7 +83,7 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
       [=](auto& entry) { return entry.index == first_new_canonical_index; }));
   DCHECK(std::none_of(
       canonical_groups_.begin(), canonical_groups_.end(),
-      [=](auto& entry) { return entry.start == first_new_canonical_index; }));
+      [=](auto& entry) { return entry.first == first_new_canonical_index; }));
   canonical_groups_.emplace(group);
 }
 
@@ -157,7 +157,7 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(CanonicalType type) {
       [=](auto& entry) { return entry.index == new_canonical_index; }));
   DCHECK(std::none_of(
       canonical_groups_.begin(), canonical_groups_.end(),
-      [=](auto& entry) { return entry.start == new_canonical_index; }));
+      [=](auto& entry) { return entry.first == new_canonical_index; }));
   canonical_singleton_groups_.emplace(group);
   canonical_supertypes_.push_back(type.supertype);
   if (type.kind == CanonicalType::kFunction) {
@@ -311,7 +311,7 @@ CanonicalTypeIndex TypeCanonicalizer::FindCanonicalGroup(
   DCHECK_LT(1, group.types.size());
   auto it = canonical_groups_.find(group);
   return it == canonical_groups_.end() ? CanonicalTypeIndex::Invalid()
-                                       : it->start;
+                                       : it->first;
 }
 
 // Returns the canonical index of the given group if it already exists.
