@@ -1027,6 +1027,11 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       // https://crbug.com/369652671
       RESET_WHEN_CORRECTNESS_FUZZING(stress_lazy_compilation),
 
+      // https://crbug.com/380327159
+      RESET_WHEN_CORRECTNESS_FUZZING(turbo_stats),
+      RESET_WHEN_CORRECTNESS_FUZZING(turbo_stats_nvp),
+      RESET_WHEN_CORRECTNESS_FUZZING(turbo_stats_wasm),
+
       // https://crbug.com/369974230
       RESET_WHEN_FUZZING(expose_async_hooks),
 
