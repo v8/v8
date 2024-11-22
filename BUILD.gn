@@ -326,8 +326,8 @@ declare_args() {
   # Sets -DV8_ENABLE_SANDBOX.
   v8_enable_sandbox = ""
 
-  # Explicitly disable leaptiering (on builds where it would otherwise be enabled).
-  v8_disable_leaptiering = ""
+  # Enable leaptiering
+  v8_enable_leaptiering = ""
 
   # Enable the memory corruption API. Useful for testing the sandbox.
   # The memory corruption API is only exposed to JavaScript if sandbox testing
@@ -603,9 +603,8 @@ if (v8_enable_sandbox == "") {
   v8_enable_sandbox = v8_enable_pointer_compression_shared_cage &&
                       v8_enable_external_code_space && target_os != "fuchsia"
 }
-
-if (v8_disable_leaptiering == "") {
-  v8_disable_leaptiering = false
+if (v8_enable_leaptiering == "") {
+  v8_enable_leaptiering = v8_enable_sandbox
 }
 
 if (v8_enable_static_roots == "") {
@@ -701,6 +700,9 @@ assert(!v8_enable_sandbox || v8_enable_pointer_compression_shared_cage,
 
 assert(!v8_enable_sandbox || v8_enable_external_code_space,
        "The sandbox requires the external code space")
+
+assert(v8_enable_leaptiering || !v8_enable_sandbox,
+       "the sandbox requires leaptiering to be enabled")
 
 assert(!v8_enable_memory_corruption_api || v8_enable_sandbox,
        "The Memory Corruption API requires the sandbox")
@@ -1357,8 +1359,8 @@ config("features") {
   if (v8_enable_experimental_tsa_builtins) {
     defines += [ "V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS" ]
   }
-  if (v8_disable_leaptiering) {
-    defines += [ "V8_DISABLE_LEAPTIERING" ]
+  if (v8_enable_leaptiering) {
+    defines += [ "V8_ENABLE_LEAPTIERING" ]
   }
   if (v8_wasm_random_fuzzers) {
     defines += [ "V8_WASM_RANDOM_FUZZERS" ]
@@ -2799,8 +2801,6 @@ action("v8_dump_build_config") {
   simulator_run = target_cpu != v8_target_cpu
   use_sanitizer = is_asan || is_cfi || is_msan || is_tsan || is_ubsan
 
-  use_leaptiering = v8_enable_sandbox && !v8_disable_leaptiering
-
   # This lists all build-time switches consumed by the test framework. All
   # switches can be used automatically in the status files as is - no
   # further files need to be modified.
@@ -2872,7 +2872,7 @@ action("v8_dump_build_config") {
     "verify_predictable=$v8_enable_verify_predictable",
     "wasm_random_fuzzers=$v8_wasm_random_fuzzers",
     "memory_corruption_api=$v8_enable_memory_corruption_api",
-    "leaptiering=$use_leaptiering",
+    "leaptiering=$v8_enable_leaptiering",
 
     # Please add new switches also in `build_config_content` in `bazel/defs.bzl`
     # so that the switches also work for tests triggered by bazel.
