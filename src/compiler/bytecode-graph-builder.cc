@@ -2936,7 +2936,8 @@ void BytecodeGraphBuilder::VisitReThrow() {
   BuildLoopExitsForFunctionExit(bytecode_analysis().GetInLivenessFor(
       bytecode_iterator().current_offset()));
   Node* value = environment()->LookupAccumulator();
-  NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
+  Node* rethrow = NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
+  environment()->RecordAfterState(rethrow, Environment::kAttachFrameState);
   Node* control = NewNode(common()->Throw());
   MergeControlToLeaveFunction(control);
 }
