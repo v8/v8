@@ -39,9 +39,9 @@
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/diagnostics/etw-jit-win.h"
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 namespace v8 {
 namespace internal {
@@ -107,12 +107,12 @@ void V8::InitializePlatform(v8::Platform* platform) {
   platform_ = platform;
   v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
   v8::tracing::TracingCategoryObserver::SetUp();
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (v8_flags.enable_etw_stack_walking) {
-    // TODO(sartang@microsoft.com): Move to platform specific diagnostics object
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (v8_flags.enable_etw_stack_walking ||
+      v8_flags.enable_etw_by_custom_filter_only) {
     v8::internal::ETWJITInterface::Register();
   }
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
   // Initialization needs to happen on platform-level, as this sets up some
   // cppgc internals that are needed to allow gracefully failing during cppgc
@@ -270,7 +270,8 @@ void V8::DisposePlatform() {
   AdvanceStartupState(V8StartupState::kPlatformDisposing);
   CHECK(platform_);
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (v8_flags.enable_etw_stack_walking) {
+  if (v8_flags.enable_etw_stack_walking ||
+      v8_flags.enable_etw_by_custom_filter_only) {
     v8::internal::ETWJITInterface::Unregister();
   }
 #endif

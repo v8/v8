@@ -142,7 +142,7 @@ class IsolateRegistry {
   absl::flat_hash_map<Isolate*, std::unique_ptr<PerfettoLogger>> isolates_;
 };
 
-void WriteJsCode(const CodeTraceContext& ctx,
+void WriteJsCode(Isolate* isolate, const CodeTraceContext& ctx,
                  Tagged<AbstractCode> abstract_code, V8JsCode& code_proto) {
   if (IsBytecodeArray(abstract_code)) {
     Tagged<BytecodeArray> bytecode = abstract_code->GetBytecodeArray();
@@ -164,7 +164,7 @@ void WriteJsCode(const CodeTraceContext& ctx,
   switch (code->kind()) {
     case CodeKind::BUILTIN:
       if (code->builtin_id() == Builtin::kInterpreterEntryTrampoline) {
-        DCHECK(v8_flags.interpreted_frames_native_stack);
+        DCHECK(isolate->interpreted_frames_native_stack());
         DCHECK(code->has_instruction_stream());
         tier = V8JsCode::TIER_IGNITION;
         break;
@@ -347,7 +347,7 @@ void PerfettoLogger::CodeCreateEvent(CodeTag tag,
             isolate_, info,
             ctx.InternJsScript(isolate_, Cast<Script>(info->script())), line,
             column));
-        WriteJsCode(ctx, *abstract_code, *code_proto);
+        WriteJsCode(&isolate_, ctx, *abstract_code, *code_proto);
       });
 }
 #if V8_ENABLE_WEBASSEMBLY

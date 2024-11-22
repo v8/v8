@@ -27,7 +27,8 @@ void EtwIsolateOperations::ResetEtwCodeEventHandler(Isolate* isolate) {
 }
 
 // virtual
-bool EtwIsolateOperations::RunFilterETWSessionByURLCallback(
+FilterETWSessionByURLResult
+EtwIsolateOperations::RunFilterETWSessionByURLCallback(
     Isolate* isolate, const std::string& payload) {
   // We should not call back into V8 from the RunFilterETWSessionByURLCallback
   // callback.

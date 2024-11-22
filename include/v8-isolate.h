@@ -704,7 +704,10 @@ class V8_EXPORT Isolate {
   /**
    * This specifies the callback called when an ETW tracing session starts.
    */
+  V8_DEPRECATE_SOON("Use SetFilterETWSessionByURL2Callback instead")
   void SetFilterETWSessionByURLCallback(FilterETWSessionByURLCallback callback);
+  void SetFilterETWSessionByURL2Callback(
+      FilterETWSessionByURL2Callback callback);
 #endif  // V8_OS_WIN
 
   /**

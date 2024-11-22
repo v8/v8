@@ -42,14 +42,17 @@ namespace ETWJITInterface {
 V8_DECLARE_TRACELOGGING_PROVIDER(g_v8Provider);
 V8_DEFINE_TRACELOGGING_PROVIDER(g_v8Provider);
 
-std::atomic<bool> is_etw_enabled = false;
+std::atomic<bool> has_active_etw_tracing_session_or_custom_filter = false;
 
 void MaybeSetHandlerNow(Isolate* isolate) {
+  DCHECK(v8_flags.enable_etw_stack_walking ||
+         v8_flags.enable_etw_by_custom_filter_only);
   ETWTRACEDBG << "MaybeSetHandlerNow called" << std::endl;
   // Iterating read-only heap before sealed might not be safe.
-  if (is_etw_enabled &&
+  if (has_active_etw_tracing_session_or_custom_filter &&
       !EtwIsolateOperations::Instance()->HeapReadOnlySpaceWritable(isolate)) {
     if (etw_filter_payload.Pointer()->empty()) {
+      DCHECK(v8_flags.enable_etw_stack_walking);
       IsolateLoadScriptData::EnableLog(
           isolate, 0, std::weak_ptr<EtwIsolateCaptureStateMonitor>(),
           kJitCodeEventDefault);
@@ -97,8 +100,9 @@ std::wstring GetScriptMethodName(const JitCodeEvent* event) {
 }
 
 void UpdateETWEnabled(bool enabled, uint32_t options) {
-  DCHECK(v8_flags.enable_etw_stack_walking);
-  is_etw_enabled = enabled;
+  DCHECK(v8_flags.enable_etw_stack_walking ||
+         v8_flags.enable_etw_by_custom_filter_only);
+  has_active_etw_tracing_session_or_custom_filter = enabled;
 
   IsolateLoadScriptData::UpdateAllIsolates(enabled, options);
 }
@@ -110,7 +114,6 @@ void WINAPI V8_EXPORT_PRIVATE ETWEnableCallback(
     LPCGUID /* source_id */, ULONG is_enabled, UCHAR level,
     ULONGLONG match_any_keyword, ULONGLONG match_all_keyword,
     PEVENT_FILTER_DESCRIPTOR filter_data, PVOID /* callback_context */) {
-  DCHECK(v8_flags.enable_etw_stack_walking);
   ETWTRACEDBG << "ETWEnableCallback called with is_enabled==" << is_enabled
               << std::endl;
 
@@ -126,13 +129,37 @@ void WINAPI V8_EXPORT_PRIVATE ETWEnableCallback(
 
   FilterDataType* etw_filter = etw_filter_payload.Pointer();
 
-  if (!is_etw_enabled_now || !filter_data ||
-      filter_data->Type != EVENT_FILTER_TYPE_SCHEMATIZED) {
+  if (!is_etw_enabled_now) {
+    // Disable the current tracing session.
+    ETWTRACEDBG << "Disabling" << std::endl;
+    etw_filter->clear();
+    UpdateETWEnabled(false, options);
+    return;
+  }
+
+  DCHECK(is_etw_enabled_now);
+
+  // Ignore the callback if ETW tracing is not fully enabled and we are not
+  // passing a custom filter.
+  if (!v8_flags.enable_etw_stack_walking &&
+      (!filter_data || filter_data->Type != EVENT_FILTER_TYPE_SCHEMATIZED)) {
+    return;
+  }
+
+  if (v8_flags.enable_etw_stack_walking &&
+      (!filter_data || filter_data->Type != EVENT_FILTER_TYPE_SCHEMATIZED)) {
     etw_filter->clear();
     ETWTRACEDBG << "Enabling without filter" << std::endl;
     UpdateETWEnabled(is_etw_enabled_now, options);
     return;
   }
+
+  // Ignore the callback if the --enable-etw-by-custom-filter-only flag is not
+  // enabled.
+  if (!v8_flags.enable_etw_by_custom_filter_only) return;
+
+  // Validate custom filter data configured in a WPR profile and passed to the
+  // callback.
 
   if (filter_data->Size <= sizeof(EVENT_FILTER_DESCRIPTOR)) {
     return;  // Invalid data
@@ -150,7 +177,7 @@ void WINAPI V8_EXPORT_PRIVATE ETWEnableCallback(
   const size_t payload_size =
       filter_event_header->Size - sizeof(EVENT_FILTER_HEADER);
   etw_filter->assign(payload_start, payload_start + payload_size);
-  is_etw_enabled = is_etw_enabled_now;
+  has_active_etw_tracing_session_or_custom_filter = true;
 
   ETWTRACEDBG << "Enabling with filter data" << std::endl;
   IsolateLoadScriptData::EnableLogWithFilterDataOnAllIsolates(
@@ -179,7 +206,10 @@ void RemoveIsolate(Isolate* isolate) {
 }
 
 void EventHandler(const JitCodeEvent* event) {
-  if (!is_etw_enabled) return;
+  v8::Isolate* script_context = event->isolate;
+  Isolate* isolate = reinterpret_cast<Isolate*>(script_context);
+  if (!isolate->IsETWTracingEnabled()) return;
+
   if (event->code_type != v8::JitCodeEvent::CodeType::JIT_CODE) return;
   if (event->type != v8::JitCodeEvent::EventType::CODE_ADDED) return;
 
@@ -187,9 +217,6 @@ void EventHandler(const JitCodeEvent* event) {
 
   // No heap allocations after this point.
   DisallowGarbageCollection no_gc;
-
-  v8::Isolate* script_context = event->isolate;
-  Isolate* isolate = reinterpret_cast<Isolate*>(script_context);
 
   int script_id = 0;
   uint32_t script_line = -1;
@@ -251,7 +278,7 @@ void EventHandler(const JitCodeEvent* event) {
       DCHECK_IMPLIES(
           code.value()->is_builtin(),
           code.value()->builtin_id() == Builtin::kInterpreterEntryTrampoline &&
-              v8_flags.interpreted_frames_native_stack);
+              isolate->interpreted_frames_native_stack());
     } else {
       DCHECK(code.value()->is_builtin());
     }

@@ -24,8 +24,8 @@ class V8_EXPORT_PRIVATE EtwIsolateOperations {
   virtual void SetEtwCodeEventHandler(Isolate* isolate, uint32_t options);
   virtual void ResetEtwCodeEventHandler(Isolate* isolate);
 
-  virtual bool RunFilterETWSessionByURLCallback(Isolate* isolate,
-                                                const std::string& payload);
+  virtual FilterETWSessionByURLResult RunFilterETWSessionByURLCallback(
+      Isolate* isolate, const std::string& payload);
   virtual void RequestInterrupt(Isolate* isolate, InterruptCallback callback,
                                 void* data);
   virtual bool HeapReadOnlySpaceWritable(Isolate* isolate);

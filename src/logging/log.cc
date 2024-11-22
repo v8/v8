@@ -61,11 +61,9 @@
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if V8_OS_WIN
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/diagnostics/etw-jit-win.h"
-#endif
-#endif  // V8_OS_WIN
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 namespace v8 {
 namespace internal {
@@ -135,9 +133,8 @@ const char* ComputeMarker(Tagged<SharedFunctionInfo> shared,
   // We record interpreter trampoline builtin copies as having the
   // "interpreted" marker.
   if (v8_flags.interpreted_frames_native_stack && kind == CodeKind::BUILTIN &&
-      code->has_instruction_stream(cage_base)) {
-    DCHECK_EQ(code->builtin_id(cage_base),
-              Builtin::kInterpreterEntryTrampoline);
+      code->has_instruction_stream(cage_base) &&
+      code->builtin_id(cage_base) == Builtin::kInterpreterEntryTrampoline) {
     kind = CodeKind::INTERPRETED_FUNCTION;
   }
   if (shared->optimization_disabled() &&
@@ -1045,13 +1042,13 @@ class SamplingThread : public base::Thread {
   const int interval_microseconds_;
 };
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 class ETWJitLogger : public JitLogger {
  public:
   explicit ETWJitLogger(Isolate* isolate)
       : JitLogger(isolate, i::ETWJITInterface::EventHandler) {}
 };
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 // The Profiler samples pc and sp values for the main thread.
 // Each sample is appended to a circular buffer.
@@ -2144,7 +2141,7 @@ EnumerateCompiledFunctions(Heap* heap) {
   return compiled_funcs;
 }
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 static std::vector<Handle<SharedFunctionInfo>> EnumerateInterpretedFunctions(
     Heap* heap) {
   HeapObjectIterator iterator(heap);
@@ -2186,7 +2183,7 @@ void ExistingCodeLogger::LogInterpretedFunctions() {
     Compiler::InstallInterpreterTrampolineCopy(isolate_, sfi, log_tag);
   }
 }
-#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 void V8FileLogger::LogCodeObjects() { existing_code_logger_.LogCodeObjects(); }
 
@@ -2355,9 +2352,10 @@ void V8FileLogger::LateSetup(Isolate* isolate) {
 #endif
 }
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 void V8FileLogger::SetEtwCodeEventHandler(uint32_t options) {
-  DCHECK(v8_flags.enable_etw_stack_walking);
+  DCHECK(v8_flags.enable_etw_stack_walking ||
+         v8_flags.enable_etw_by_custom_filter_only);
   isolate_->UpdateLogObjectRelocation();
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
@@ -2382,20 +2380,21 @@ void V8FileLogger::SetEtwCodeEventHandler(uint32_t options) {
     LogBuiltins();
     LogCodeObjects();
     LogCompiledFunctions(false);
-    if (v8_flags.interpreted_frames_native_stack) {
+    if (isolate_->interpreted_frames_native_stack()) {
       LogInterpretedFunctions();
     }
   }
 }
 
 void V8FileLogger::ResetEtwCodeEventHandler() {
-  DCHECK(v8_flags.enable_etw_stack_walking);
+  DCHECK(v8_flags.enable_etw_stack_walking ||
+         v8_flags.enable_etw_by_custom_filter_only);
   if (etw_jit_logger_) {
     CHECK(logger()->RemoveListener(etw_jit_logger_.get()));
     etw_jit_logger_.reset();
   }
 }
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 void V8FileLogger::SetCodeEventHandler(uint32_t options,
                                        JitCodeEventHandler event_handler) {

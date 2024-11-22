@@ -70,9 +70,9 @@ class Profiler;
 class SourcePosition;
 class Ticker;
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 class ETWJitLogger;
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 #undef LOG
 #define LOG(isolate, Call)                                             \
@@ -102,9 +102,9 @@ class ExistingCodeLogger {
       LogEventListener::CodeTag tag = LogEventListener::CodeTag::kFunction);
   void LogCodeObject(Tagged<AbstractCode> object);
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
   void LogInterpretedFunctions();
-#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
  private:
   Isolate* isolate_;
@@ -135,10 +135,10 @@ class V8FileLogger : public LogEventListener {
   // Sets the current code event handler.
   void SetCodeEventHandler(uint32_t options, JitCodeEventHandler event_handler);
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
   void SetEtwCodeEventHandler(uint32_t options);
   void ResetEtwCodeEventHandler();
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
   sampler::Sampler* sampler();
   V8_EXPORT_PRIVATE std::string file_name() const;
@@ -266,18 +266,18 @@ class V8FileLogger : public LogEventListener {
 
   bool is_listening_to_code_events() override {
     return
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
         etw_jit_logger_ != nullptr ||
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
         is_logging() || jit_logger_ != nullptr;
   }
 
   bool allows_code_compaction() override {
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
     return etw_jit_logger_ == nullptr;
-#else
+#else   // V8_ENABLE_ETW_STACK_WALKING
     return true;
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
   }
 
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
@@ -296,9 +296,9 @@ class V8FileLogger : public LogEventListener {
   // Converts tag to a corresponding NATIVE_... if the script is native.
   V8_INLINE static CodeTag ToNativeByScript(CodeTag tag, Tagged<Script> script);
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
   void LogInterpretedFunctions();
-#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
  private:
   Logger* logger() const;
@@ -367,9 +367,9 @@ class V8FileLogger : public LogEventListener {
 #ifdef ENABLE_GDB_JIT_INTERFACE
   std::unique_ptr<JitLogger> gdb_jit_logger_;
 #endif
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
   std::unique_ptr<ETWJitLogger> etw_jit_logger_;
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
   std::set<int> logged_source_code_;
   uint32_t next_source_info_id_ = 0;
 

@@ -801,8 +801,9 @@ Tagged<InterpreterData> SharedFunctionInfo::interpreter_data(
 }
 
 void SharedFunctionInfo::set_interpreter_data(
-    Tagged<InterpreterData> interpreter_data, WriteBarrierMode mode) {
-  DCHECK(v8_flags.interpreted_frames_native_stack);
+    Isolate* isolate, Tagged<InterpreterData> interpreter_data,
+    WriteBarrierMode mode) {
+  DCHECK(isolate->interpreted_frames_native_stack());
   DCHECK(!HasBaselineCode());
   SetTrustedData(interpreter_data, mode);
 }

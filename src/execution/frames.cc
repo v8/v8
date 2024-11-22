@@ -453,7 +453,7 @@ std::optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
        builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
        builtin == Builtin::kBaselineOrInterpreterEnterAtNextBytecode)) {
     return true;
-  } else if (v8_flags.interpreted_frames_native_stack) {
+  } else if (isolate->interpreted_frames_native_stack()) {
     intptr_t marker = Memory<intptr_t>(
         state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
     MSAN_MEMORY_IS_INITIALIZED(

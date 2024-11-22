@@ -3223,18 +3223,25 @@ DEFINE_BOOL(interpreted_frames_native_stack, false,
             "Show interpreted frames on the native stack (useful for external "
             "profilers).")
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 DEFINE_BOOL(enable_etw_stack_walking, false,
             "Enable etw stack walking for windows")
 DEFINE_WEAK_IMPLICATION(future, enable_etw_stack_walking)
 DEFINE_BOOL(etw_trace_debug, false,
             "Enable etw debug logging (only on debug builds)")
-#else
+DEFINE_BOOL(enable_etw_by_custom_filter_only, true,
+            "Enable etw stack walking for windows, but only if explicitly "
+            "specified in a WPR profile")
+#else   // V8_ENABLE_ETW_STACK_WALKING
 DEFINE_BOOL_READONLY(enable_etw_stack_walking, false,
                      "Enable etw stack walking for windows")
 DEFINE_BOOL_READONLY(etw_trace_debug, false,
                      "Enable etw debug logging (only on debug builds)")
-#endif
+DEFINE_BOOL_READONLY(
+    enable_etw_by_custom_filter_only, false,
+    "Enable etw stack walking for windows, but only if explicitly "
+    "specified in a WPR profile")
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 DEFINE_BOOL(print_builtin_size, false, "print code size for builtins")
 

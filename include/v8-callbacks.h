@@ -485,14 +485,26 @@ using PrepareStackTraceCallback = MaybeLocal<Value> (*)(Local<Context> context,
  * with a list of regular expressions that should match the document URL
  * in order to enable ETW tracing:
  *   {
- *     "version": "1.0",
+ *     "version": "2.0",
  *     "filtered_urls": [
  *         "https:\/\/.*\.chromium\.org\/.*", "https://v8.dev/";, "..."
- *     ]
+ *     ],
+ *     "trace_interpreter_frames": true
  *  }
  */
+
 using FilterETWSessionByURLCallback =
     bool (*)(Local<Context> context, const std::string& etw_filter_payload);
+
+struct FilterETWSessionByURLResult {
+  // If true, enable ETW tracing for the current isolate.
+  bool enable_etw_tracing;
+
+  // If true, also enables ETW tracing for interpreter stack frames.
+  bool trace_interpreter_frames;
+};
+using FilterETWSessionByURL2Callback = FilterETWSessionByURLResult (*)(
+    Local<Context> context, const std::string& etw_filter_payload);
 #endif  // V8_OS_WIN
 
 }  // namespace v8

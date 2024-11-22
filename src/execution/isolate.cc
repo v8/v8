@@ -158,9 +158,9 @@
 #endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/diagnostics/etw-jit-win.h"
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 #if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
@@ -4070,7 +4070,13 @@ Isolate::Isolate(IsolateGroup* isolate_group)
       next_unique_sfi_id_(0),
       next_module_async_evaluation_ordinal_(
           SourceTextModule::kFirstAsyncEvaluationOrdinal),
-      cancelable_task_manager_(new CancelableTaskManager()) {
+      cancelable_task_manager_(new CancelableTaskManager())
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+      ,
+      etw_tracing_enabled_(false),
+      etw_trace_interpreted_frames_(v8_flags.interpreted_frames_native_stack)
+#endif  // V8_ENABLE_ETW_STACK_WALKING
+{
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();
 
@@ -4434,11 +4440,12 @@ void Isolate::Deinit() {
   FILE* logfile = v8_file_logger_->TearDownAndGetLogFile();
   if (logfile != nullptr) base::Fclose(logfile);
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (v8_flags.enable_etw_stack_walking) {
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (v8_flags.enable_etw_stack_walking ||
+      v8_flags.enable_etw_by_custom_filter_only) {
     ETWJITInterface::RemoveIsolate(this);
   }
-#endif  // defined(V8_OS_WIN)
+#endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->RemoveIsolate(this);
@@ -5594,11 +5601,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   wasm::GetWasmEngine()->AddIsolate(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (v8_flags.enable_etw_stack_walking) {
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (v8_flags.enable_etw_stack_walking ||
+      v8_flags.enable_etw_by_custom_filter_only) {
     ETWJITInterface::AddIsolate(this);
   }
-#endif  // defined(V8_OS_WIN)
+#endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
 
   if (setup_delegate_ == nullptr) {
     setup_delegate_ = new SetupIsolateDelegate;
@@ -5784,11 +5792,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   DCHECK_IMPLIES(heap()->new_lo_space(), heap()->new_lo_space()->Size() == 0);
   DCHECK_EQ(heap()->gc_count(), 0);
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (v8_flags.enable_etw_stack_walking) {
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (v8_flags.enable_etw_stack_walking ||
+      v8_flags.enable_etw_by_custom_filter_only) {
     ETWJITInterface::MaybeSetHandlerNow(this);
   }
-#endif  // defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
 
 #if defined(V8_USE_PERFETTO)
   PerfettoLogger::RegisterIsolate(this);
@@ -6679,19 +6688,38 @@ bool Isolate::HasPrepareStackTraceCallback() const {
   return prepare_stack_trace_callback_ != nullptr;
 }
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 void Isolate::SetFilterETWSessionByURLCallback(
     FilterETWSessionByURLCallback callback) {
   filter_etw_session_by_url_callback_ = callback;
 }
-
-bool Isolate::RunFilterETWSessionByURLCallback(
-    const std::string& etw_filter_payload) {
-  if (!filter_etw_session_by_url_callback_) return true;
-  v8::Local<v8::Context> context = Utils::ToLocal(native_context());
-  return filter_etw_session_by_url_callback_(context, etw_filter_payload);
+void Isolate::SetFilterETWSessionByURL2Callback(
+    FilterETWSessionByURL2Callback callback) {
+  filter_etw_session_by_url2_callback_ = callback;
 }
-#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+
+FilterETWSessionByURLResult Isolate::RunFilterETWSessionByURLCallback(
+    const std::string& etw_filter_payload) {
+  if (context().is_null()) {
+    // No context to retrieve the current URL.
+    return {false, false};
+  }
+  v8::Local<v8::Context> context = Utils::ToLocal(native_context());
+
+  if (filter_etw_session_by_url2_callback_) {
+    return filter_etw_session_by_url2_callback_(context, etw_filter_payload);
+  } else if (filter_etw_session_by_url_callback_) {
+    bool enable_etw_tracing =
+        filter_etw_session_by_url_callback_(context, etw_filter_payload);
+    return {enable_etw_tracing, v8_flags.interpreted_frames_native_stack};
+  }
+
+  // If no callback is installed, by default enable etw tracing but disable
+  // tracing of interpreter stack frames.
+  return {true, v8_flags.interpreted_frames_native_stack};
+}
+
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
   add_crash_key_callback_ = callback;

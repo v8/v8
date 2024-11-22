@@ -251,7 +251,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // bytecode array stored within the InterpreterData, which is the important
   // information. On deserialization we'll create our code objects again, if
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
-  if (V8_UNLIKELY(v8_flags.interpreted_frames_native_stack) &&
+  if (V8_UNLIKELY(isolate()->interpreted_frames_native_stack()) &&
       IsInterpreterData(*obj)) {
     obj = handle(Cast<InterpreterData>(*obj)->bytecode_array(), isolate());
   }
@@ -315,7 +315,7 @@ void CreateInterpreterDataForDeserializedCode(
       sfi->baseline_code(kAcquireLoad)
           ->set_bytecode_or_interpreter_data(*interpreter_data);
     } else {
-      sfi->set_interpreter_data(*interpreter_data);
+      sfi->set_interpreter_data(isolate, *interpreter_data);
     }
 
     if (!log_code_creation) continue;
@@ -373,7 +373,7 @@ void FinalizeDeserialization(Isolate* isolate,
 
   const bool log_code_creation = isolate->IsLoggingCodeCreation();
 
-  if (V8_UNLIKELY(v8_flags.interpreted_frames_native_stack)) {
+  if (V8_UNLIKELY(isolate->interpreted_frames_native_stack())) {
     CreateInterpreterDataForDeserializedCode(isolate, result,
                                              log_code_creation);
   }

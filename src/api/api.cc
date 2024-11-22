@@ -173,9 +173,9 @@
 #endif  // V8_OS_WIN64
 #endif  // V8_OS_WIN
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/diagnostics/etw-jit-win.h"
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 // Has to be the last include (doesn't have include guards):
 #include "src/api/api-macros.h"
@@ -2128,7 +2128,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   i::AggregatingHistogramTimerScope histogram_timer(
       i_isolate->counters()->compile_lazy());
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
   // In case ETW has been activated, tasks to log existing code are
   // created. But in case the task runner does not run those before
   // starting to execute code (as it happens in d8, that will run
@@ -2137,10 +2137,11 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   //
   // To avoid this, on running scripts check first if JIT code log is
   // pending and generate immediately.
-  if (i::v8_flags.enable_etw_stack_walking) {
+  if (i::v8_flags.enable_etw_stack_walking ||
+      i::v8_flags.enable_etw_by_custom_filter_only) {
     i::ETWJITInterface::MaybeSetHandlerNow(i_isolate);
   }
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
   auto fun = i::Cast<i::JSFunction>(Utils::OpenHandle(this));
   i::Handle<i::Object> receiver = i_isolate->global_proxy();
   // TODO(cbruni, chromium:1244145): Remove once migrated to the context.
@@ -10928,13 +10929,19 @@ std::string Isolate::GetDefaultLocale() {
 #endif
 }
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 void Isolate::SetFilterETWSessionByURLCallback(
     FilterETWSessionByURLCallback callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->SetFilterETWSessionByURLCallback(callback);
 }
-#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+
+void Isolate::SetFilterETWSessionByURL2Callback(
+    FilterETWSessionByURL2Callback callback) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->SetFilterETWSessionByURL2Callback(callback);
+}
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 bool v8::Object::IsCodeLike(v8::Isolate* v8_isolate) const {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);

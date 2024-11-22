@@ -17,7 +17,8 @@ struct JitCodeEvent;
 
 namespace internal {
 namespace ETWJITInterface {
-extern V8_EXPORT_PRIVATE std::atomic<bool> is_etw_enabled;
+extern V8_EXPORT_PRIVATE std::atomic<bool>
+    has_active_etw_tracing_session_or_custom_filter;
 
 void Register();
 void Unregister();

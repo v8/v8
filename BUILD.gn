@@ -1281,6 +1281,7 @@ config("features") {
     defines += [ "V8_ENABLE_SYSTEM_INSTRUMENTATION" ]
   }
   if (v8_enable_etw_stack_walking) {
+    assert(is_win)
     defines += [ "V8_ENABLE_ETW_STACK_WALKING" ]
   }
   if (v8_etw_guid != "") {

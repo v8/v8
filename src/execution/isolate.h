@@ -2012,11 +2012,32 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     }
   }
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
   // Specifies the callback called when an ETW tracing session starts.
+
+  // Deprecated - to be deleted.
   void SetFilterETWSessionByURLCallback(FilterETWSessionByURLCallback callback);
-  bool RunFilterETWSessionByURLCallback(const std::string& payload);
-#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+
+  void SetFilterETWSessionByURL2Callback(
+      FilterETWSessionByURL2Callback callback);
+  FilterETWSessionByURLResult RunFilterETWSessionByURLCallback(
+      const std::string& payload);
+
+  bool IsETWTracingEnabled() const { return etw_tracing_enabled_; }
+  void SetETWTracingEnabled(bool enabled) { etw_tracing_enabled_ = enabled; }
+
+  void set_etw_trace_interpreted_frames() {
+    etw_trace_interpreted_frames_ = true;
+  }
+  bool interpreted_frames_native_stack() const {
+    return v8_flags.interpreted_frames_native_stack ||
+           etw_trace_interpreted_frames_;
+  }
+#else   // V8_ENABLE_ETW_STACK_WALKING
+  bool interpreted_frames_native_stack() const {
+    return v8_flags.interpreted_frames_native_stack;
+  }
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
   void SetIsLoading(bool is_loading);
 
@@ -2741,9 +2762,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   PrepareStackTraceCallback prepare_stack_trace_callback_ = nullptr;
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
   FilterETWSessionByURLCallback filter_etw_session_by_url_callback_ = nullptr;
-#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
+  FilterETWSessionByURL2Callback filter_etw_session_by_url2_callback_ = nullptr;
+  bool etw_tracing_enabled_;
+  bool etw_trace_interpreted_frames_;
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
   // TODO(kenton@cloudflare.com): This mutex can be removed if
   // thread_data_table_ is always accessed under the isolate lock. I do not

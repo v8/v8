@@ -659,7 +659,7 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
 void Compiler::InstallInterpreterTrampolineCopy(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     LogEventListener::CodeTag log_tag) {
-  DCHECK(v8_flags.interpreted_frames_native_stack);
+  DCHECK(isolate->interpreted_frames_native_stack());
   if (!IsBytecodeArray(shared_info->GetTrustedData(isolate))) {
     DCHECK(!shared_info->HasInterpreterData(isolate));
     return;
@@ -678,7 +678,7 @@ void Compiler::InstallInterpreterTrampolineCopy(
         ->set_bytecode_or_interpreter_data(*interpreter_data);
   } else {
     // IsBytecodeArray
-    shared_info->set_interpreter_data(*interpreter_data);
+    shared_info->set_interpreter_data(isolate, *interpreter_data);
   }
 
   DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
@@ -1493,7 +1493,7 @@ void FinalizeUnoptimizedCompilation(
       log_tag = LogEventListener::CodeTag::kFunction;
     }
     log_tag = V8FileLogger::ToNativeByScript(log_tag, *script);
-    if (v8_flags.interpreted_frames_native_stack &&
+    if (isolate->interpreted_frames_native_stack() &&
         isolate->logger()->is_listening_to_code_events()) {
       Compiler::InstallInterpreterTrampolineCopy(isolate, shared_info, log_tag);
     }

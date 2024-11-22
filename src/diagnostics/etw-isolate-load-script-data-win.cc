@@ -132,6 +132,7 @@ void IsolateLoadScriptData::EnableLog(
   // This cannot be done while isolate_mutex is locked, as it can call
   // EventHandler while in the call for all the existing code.
   EtwIsolateOperations::Instance()->SetEtwCodeEventHandler(isolate, options);
+  isolate->SetETWTracingEnabled(true);
 
   // Notify waiting thread if a monitor was provided.
   if (auto monitor = weak_monitor.lock()) {
@@ -180,6 +181,7 @@ void IsolateLoadScriptData::DisableLog(Isolate* isolate, size_t event_id) {
     data.RemoveAllLoadedScripts();
   }
   EtwIsolateOperations::Instance()->ResetEtwCodeEventHandler(isolate);
+  isolate->SetETWTracingEnabled(false);
 }
 
 // static
@@ -201,13 +203,19 @@ void IsolateLoadScriptData::EnableLogWithFilterData(
       return;
     }
 
-    filter_did_match =
+    FilterETWSessionByURLResult filter_etw_session_by_url_result =
         EtwIsolateOperations::Instance()->RunFilterETWSessionByURLCallback(
             isolate, etw_filter_payload);
+    filter_did_match = filter_etw_session_by_url_result.enable_etw_tracing;
+    if (filter_did_match) {
+      if (filter_etw_session_by_url_result.trace_interpreter_frames) {
+        isolate->set_etw_trace_interpreted_frames();
+      }
 
-    // Cause all SourceLoad events to be re-emitted.
-    if (filter_did_match && options & kJitCodeEventEnumExisting) {
-      data.RemoveAllLoadedScripts();
+      // Cause all SourceLoad events to be re-emitted.
+      if (options & kJitCodeEventEnumExisting) {
+        data.RemoveAllLoadedScripts();
+      }
     }
   }
 
@@ -215,6 +223,7 @@ void IsolateLoadScriptData::EnableLogWithFilterData(
     ETWTRACEDBG << "Filter was matched with event_id==" << event_id
                 << std::endl;
     EtwIsolateOperations::Instance()->SetEtwCodeEventHandler(isolate, options);
+    isolate->SetETWTracingEnabled(true);
   }
 
   // Notify waiting thread if a monitor was provided.
