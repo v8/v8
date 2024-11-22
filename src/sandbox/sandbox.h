@@ -59,6 +59,13 @@ class V8_EXPORT_PRIVATE Sandbox {
   Sandbox(const Sandbox&) = delete;
   Sandbox& operator=(Sandbox&) = delete;
 
+  /*
+   * Currently, if not enough virtual memory can be reserved for the sandbox,
+   * we will fall back to a partially-reserved sandbox. This constant can be
+   * used to determine if this fall-back is enabled.
+   * */
+  static constexpr bool kFallbackToPartiallyReservedSandboxAllowed = true;
+
   /**
    * Initializes this sandbox.
    *

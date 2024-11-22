@@ -128,6 +128,7 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
 
   // Fall back to creating a (smaller) partially reserved sandbox.
   while (!success && reservation_size > kSandboxMinimumReservationSize) {
+    static_assert(kFallbackToPartiallyReservedSandboxAllowed);
     reservation_size /= 2;
     DCHECK_GE(reservation_size, kSandboxMinimumReservationSize);
     success = InitializeAsPartiallyReservedSandbox(vas, kSandboxSize,
