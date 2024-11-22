@@ -39,9 +39,6 @@ class RwxMemoryWriteScopeForTesting;
 namespace wasm {
 class CodeSpaceWriteScope;
 }
-class WritableJitPage;
-class WritableJitAllocation;
-class WritableJumpTablePair;
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 
@@ -120,7 +117,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
  private:
   friend class RwxMemoryWriteScopeForTesting;
   friend class wasm::CodeSpaceWriteScope;
-  friend class WritableJitPage;
   friend class WritableJumpTablePair;
 
   // {SetWritable} and {SetExecutable} implicitly enters/exits the scope.
@@ -129,6 +125,10 @@ class V8_NODISCARD RwxMemoryWriteScope {
   V8_INLINE static void SetWritable();
   V8_INLINE static void SetExecutable();
 };
+
+class WritableJitPage;
+class WritableJitAllocation;
+class WritableJumpTablePair;
 
 // The ThreadIsolation API is used to protect executable memory using per-thread
 // memory permissions and perform validation for any writes into it.
@@ -163,12 +163,13 @@ class V8_EXPORT ThreadIsolation {
   // Register a new JIT allocation for tracking and return a writable reference
   // to it. All writes should go through the returned WritableJitAllocation
   // object since it will perform additional validation required for CFI.
-  static WritableJitAllocation RegisterJitAllocation(Address addr, size_t size,
-                                                     JitAllocationType type);
+  static WritableJitAllocation RegisterJitAllocation(
+      Address addr, size_t size, JitAllocationType type,
+      bool enforce_write_api = false);
   // TODO(sroettger): remove this overwrite and use RegisterJitAllocation
   // instead.
-  static WritableJitAllocation RegisterInstructionStreamAllocation(Address addr,
-                                                                   size_t size);
+  static WritableJitAllocation RegisterInstructionStreamAllocation(
+      Address addr, size_t size, bool enforce_write_api = false);
   // Register multiple consecutive allocations together.
   static void RegisterJitAllocations(Address start,
                                      const std::vector<size_t>& sizes,
@@ -177,8 +178,11 @@ class V8_EXPORT ThreadIsolation {
   // Get writable reference to a previously registered allocation. All writes to
   // executable memory need to go through one of these Writable* objects since
   // this is where we perform CFI validation.
-  static WritableJitAllocation LookupJitAllocation(Address addr, size_t size,
-                                                   JitAllocationType type);
+  // If enforce_write_api is set, all writes to JIT memory need to go through
+  // this object.
+  static WritableJitAllocation LookupJitAllocation(
+      Address addr, size_t size, JitAllocationType type,
+      bool enforce_write_api = false);
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   // A special case of LookupJitAllocation since in Wasm, we sometimes have to
@@ -375,18 +379,11 @@ class V8_EXPORT ThreadIsolation {
   static std::pair<JitPageReference, JitPageReference> SplitJitPages(
       Address addr1, size_t size1, Address addr2, size_t size2);
 
-  // In DEBUG mode, we only make RWX memory writable during the write operations
-  // themselves to ensure that all writes go through this object.
-  // This function returns a write scope that can be used for these writes.
-  static V8_INLINE std::optional<RwxMemoryWriteScope>
-  WriteScopeForApiEnforcement();
-
   template <class T>
   friend struct StlAllocator;
   friend class WritableJitPage;
   friend class WritableJitAllocation;
   friend class WritableJumpTablePair;
-  friend class WritableFreeSpace;
 };
 
 // A scope class that temporarily makes the JitAllocation writable. All writes
@@ -454,25 +451,36 @@ class WritableJitAllocation {
   };
   V8_INLINE WritableJitAllocation(Address addr, size_t size,
                                   ThreadIsolation::JitAllocationType type,
-                                  JitAllocationSource source);
+                                  JitAllocationSource source,
+                                  bool enforce_write_api = false);
   // Used for non-executable memory.
   V8_INLINE WritableJitAllocation(Address addr, size_t size,
-                                  ThreadIsolation::JitAllocationType type);
+                                  ThreadIsolation::JitAllocationType type,
+                                  bool enforce_write_api);
 
   ThreadIsolation::JitPageReference& page_ref() { return page_ref_.value(); }
 
+  // In DEBUG mode, we only make RWX memory writable during the write operations
+  // themselves to ensure that all writes go through this object.
+  // This function returns a write scope that can be used for these writes.
+  V8_INLINE std::optional<RwxMemoryWriteScope> WriteScopeForApiEnforcement()
+      const;
+
   const Address address_;
+  // TODO(sroettger): we can move the memory write scopes into the Write*
+  // functions in debug builds. This would allow us to ensure that all writes
+  // go through this object.
   // The scope and page reference are optional in case we're creating a
   // WritableJitAllocation for off-heap memory. See ForNonExecutableMemory
   // above.
   std::optional<RwxMemoryWriteScope> write_scope_;
   std::optional<ThreadIsolation::JitPageReference> page_ref_;
   const ThreadIsolation::JitAllocation allocation_;
+  bool enforce_write_api_ = false;
 
   friend class ThreadIsolation;
   friend class WritableJitPage;
   friend class WritableJumpTablePair;
-  friend class WritableFreeSpace;
 };
 
 // Similar to the WritableJitAllocation, all writes to free space should go
