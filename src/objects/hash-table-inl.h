@@ -243,11 +243,12 @@ void HashTable<Derived, Shape>::SetCapacity(int capacity) {
   set(kCapacityIndex, Smi::FromInt(capacity));
 }
 
-bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key, int32_t hash) {
+bool ObjectHashSet::Has(Isolate* isolate, DirectHandle<Object> key,
+                        int32_t hash) {
   return FindEntry(isolate, ReadOnlyRoots(isolate), key, hash).is_found();
 }
 
-bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
+bool ObjectHashSet::Has(Isolate* isolate, DirectHandle<Object> key) {
   Tagged<Object> hash = Object::GetHash(*key);
   if (!IsSmi(hash)) return false;
   return FindEntry(isolate, ReadOnlyRoots(isolate), key, Smi::ToInt(hash))
@@ -301,7 +302,7 @@ uint32_t ObjectHashTableShape::HashForObject(ReadOnlyRoots roots,
 template <typename IsolateT>
 Handle<NameToIndexHashTable> NameToIndexHashTable::Add(
     IsolateT* isolate, Handle<NameToIndexHashTable> table,
-    IndirectHandle<Name> key, int32_t index) {
+    DirectHandle<Name> key, int32_t index) {
   DCHECK_GE(index, 0);
   // Validate that the key is absent.
   SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());

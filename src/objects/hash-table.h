@@ -45,7 +45,7 @@ namespace internal {
 //     static uint32_t HashForObject(ReadOnlyRoots roots,
 //                                   Tagged<Object> object);
 //     // Convert key to an object.
-//     static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
+//     static inline DirectHandle<Object> AsHandle(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
 //     // of the backing storage.
 //     static const int kPrefixSize = ..;
@@ -218,9 +218,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   }
 
   // Ensure enough space for n additional elements.
-  template <typename IsolateT>
-  V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
-      IsolateT* isolate, Handle<Derived> table, int n = 1,
+  template <typename IsolateT, template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Derived>, DirectHandle<Derived>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<Derived> EnsureCapacity(
+      IsolateT* isolate, HandleType<Derived> table, int n = 1,
       AllocationType allocation = AllocationType::kYoung);
 
   // Returns true if this table has sufficient capacity for adding n elements.
@@ -253,8 +255,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
                                        int at_least_room_for);
 
   // Shrink the hash table.
-  V8_WARN_UNUSED_RESULT static Handle<Derived> Shrink(
-      Isolate* isolate, Handle<Derived> table, int additionalCapacity = 0);
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Derived>, DirectHandle<Derived>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<Derived> Shrink(
+      Isolate* isolate, HandleType<Derived> table, int additionalCapacity = 0);
 
   // Rehashes this hash-table into the new table.
   void Rehash(PtrComprCageBase cage_base, Tagged<Derived> new_table);
@@ -301,7 +306,15 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
                                             AllocationType);                 \
   extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
   HashTable<DERIVED, SHAPE>::EnsureCapacity(LocalIsolate*, Handle<DERIVED>,  \
-                                            int, AllocationType);
+                                            int, AllocationType);            \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)                 \
+      DirectHandle<DERIVED>                                                  \
+      HashTable<DERIVED, SHAPE>::EnsureCapacity(                             \
+          Isolate*, DirectHandle<DERIVED>, int, AllocationType);             \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)                 \
+      DirectHandle<DERIVED>                                                  \
+      HashTable<DERIVED, SHAPE>::EnsureCapacity(                             \
+          LocalIsolate*, DirectHandle<DERIVED>, int, AllocationType);
 
 // HashTableKey is an abstract superclass for virtual key behavior.
 class HashTableKey {
@@ -326,13 +339,13 @@ class HashTableKey {
   uint32_t hash_ = 0;
 };
 
-class ObjectHashTableShape : public BaseShape<Handle<Object>> {
+class ObjectHashTableShape : public BaseShape<DirectHandle<Object>> {
  public:
   static inline bool IsMatch(DirectHandle<Object> key, Tagged<Object> other);
   static inline uint32_t Hash(ReadOnlyRoots roots, DirectHandle<Object> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
-  static inline Handle<Object> AsHandle(Handle<Object> key);
+  static inline DirectHandle<Object> AsHandle(DirectHandle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntryValueIndex = 1;
   static const int kEntrySize = 2;
@@ -345,9 +358,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
  public:
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
-  Tagged<Object> Lookup(Handle<Object> key);
-  Tagged<Object> Lookup(Handle<Object> key, int32_t hash);
-  Tagged<Object> Lookup(PtrComprCageBase cage_base, Handle<Object> key,
+  Tagged<Object> Lookup(DirectHandle<Object> key);
+  Tagged<Object> Lookup(DirectHandle<Object> key, int32_t hash);
+  Tagged<Object> Lookup(PtrComprCageBase cage_base, DirectHandle<Object> key,
                         int32_t hash);
 
   // Returns the value at entry.
@@ -357,17 +370,17 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
   static void FillEntriesWithHoles(Handle<Derived>);
 
   // Adds (or overwrites) the value associated with the given key.
-  static Handle<Derived> Put(Handle<Derived> table, Handle<Object> key,
-                             Handle<Object> value);
+  static Handle<Derived> Put(Handle<Derived> table, DirectHandle<Object> key,
+                             DirectHandle<Object> value);
   static Handle<Derived> Put(Isolate* isolate, Handle<Derived> table,
-                             Handle<Object> key, DirectHandle<Object> value,
-                             int32_t hash);
+                             DirectHandle<Object> key,
+                             DirectHandle<Object> value, int32_t hash);
 
   // Returns an ObjectHashTable (possibly |table|) where |key| has been removed.
   static Handle<Derived> Remove(Isolate* isolate, Handle<Derived> table,
-                                Handle<Object> key, bool* was_present);
+                                DirectHandle<Object> key, bool* was_present);
   static Handle<Derived> Remove(Isolate* isolate, Handle<Derived> table,
-                                Handle<Object> key, bool* was_present,
+                                DirectHandle<Object> key, bool* was_present,
                                 int32_t hash);
 
   // Returns the index to the value of an entry.
@@ -439,18 +452,18 @@ class ObjectMultiHashTableBase
 
   // Returns the values associated with the given key. Return an std::array of
   // holes if not found.
-  std::array<Tagged<Object>, N> Lookup(Handle<Object> key);
+  std::array<Tagged<Object>, N> Lookup(DirectHandle<Object> key);
   std::array<Tagged<Object>, N> Lookup(PtrComprCageBase cage_base,
-                                       Handle<Object> key);
+                                       DirectHandle<Object> key);
 
   // Adds or overwrites the values associated with the given key.
   static Handle<Derived> Put(Isolate* isolate, Handle<Derived> table,
-                             Handle<Object> key,
-                             const std::array<Handle<Object>, N>& values);
+                             DirectHandle<Object> key,
+                             const std::array<DirectHandle<Object>, N>& values);
 
  private:
   void SetEntryValues(InternalIndex entry,
-                      const std::array<Handle<Object>, N>& values);
+                      const std::array<DirectHandle<Object>, N>& values);
 
   static constexpr inline int EntryToValueIndexStart(InternalIndex entry) {
     return HashTable<Derived, ObjectMultiHashTableShape<N>>::EntryToIndex(
@@ -475,19 +488,19 @@ class V8_EXPORT_PRIVATE ObjectHashSet
     : public HashTable<ObjectHashSet, ObjectHashSetShape> {
  public:
   static Handle<ObjectHashSet> Add(Isolate* isolate, Handle<ObjectHashSet> set,
-                                   Handle<Object> key);
+                                   DirectHandle<Object> key);
 
-  inline bool Has(Isolate* isolate, Handle<Object> key, int32_t hash);
-  inline bool Has(Isolate* isolate, Handle<Object> key);
+  inline bool Has(Isolate* isolate, DirectHandle<Object> key, int32_t hash);
+  inline bool Has(Isolate* isolate, DirectHandle<Object> key);
 };
 
-class NameToIndexShape : public BaseShape<Handle<Name>> {
+class NameToIndexShape : public BaseShape<DirectHandle<Name>> {
  public:
   static inline bool IsMatch(DirectHandle<Name> key, Tagged<Object> other);
   static inline uint32_t Hash(ReadOnlyRoots roots, DirectHandle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
-  static inline Handle<Object> AsHandle(Handle<Name> key);
+  static inline DirectHandle<Object> AsHandle(DirectHandle<Name> key);
   static const int kPrefixSize = 0;
   static const int kEntryValueIndex = 1;
   static const int kEntrySize = 2;
@@ -500,7 +513,7 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
   static const int kEntryValueIndex = NameToIndexShape::kEntryValueIndex;
 
   inline static Handle<Map> GetMap(ReadOnlyRoots roots);
-  int Lookup(Handle<Name> key);
+  int Lookup(DirectHandle<Name> key);
 
   // Returns the value at entry.
   Tagged<Object> ValueAt(InternalIndex entry);
@@ -509,7 +522,7 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
   template <typename IsolateT>
   static Handle<NameToIndexHashTable> Add(IsolateT* isolate,
                                           Handle<NameToIndexHashTable> table,
-                                          IndirectHandle<Name> key,
+                                          DirectHandle<Name> key,
                                           int32_t value);
 
   // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
@@ -524,7 +537,7 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
   }
 };
 
-class RegisteredSymbolTableShape : public BaseShape<Handle<String>> {
+class RegisteredSymbolTableShape : public BaseShape<DirectHandle<String>> {
  public:
   static inline bool IsMatch(DirectHandle<String> key, Tagged<Object> other);
   static inline uint32_t Hash(ReadOnlyRoots roots, DirectHandle<String> key);
@@ -548,7 +561,7 @@ class RegisteredSymbolTable
 
   static Handle<RegisteredSymbolTable> Add(Isolate* isolate,
                                            Handle<RegisteredSymbolTable> table,
-                                           IndirectHandle<String> key,
+                                           DirectHandle<String> key,
                                            DirectHandle<Symbol>);
 
   DECL_PRINTER(RegisteredSymbolTable)
