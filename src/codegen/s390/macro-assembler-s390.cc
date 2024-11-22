@@ -2842,12 +2842,6 @@ void MacroAssembler::mov(Register dst, const Operand& src) {
       lgfi(dst, Operand(value));
       return;
     }
-  } else if (src.rmode() == RelocInfo::WASM_CANONICAL_SIG_ID) {
-    CHECK(is_int32(value));
-    // If this is changed then also change `uint32_constant_at` and
-    // `set_uint32_constant_at`.
-    lgfi(dst, Operand(value));
-    return;
   }
 
   iihf(dst, Operand(hi_32));

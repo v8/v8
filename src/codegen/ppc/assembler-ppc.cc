@@ -1344,17 +1344,6 @@ void Assembler::mov(Register dst, const Operand& src) {
   bool relocatable = src.must_output_reloc_info(this);
   bool canOptimize;
 
-  if (src.rmode_ == RelocInfo::WASM_CANONICAL_SIG_ID) {
-    if (relocatable) {
-      RecordRelocInfo(src.rmode_);
-    }
-    CHECK(is_int32(value));
-    // If this is changed then also change `uint32_constant_at` and
-    // `set_uint32_constant_at`.
-    bitwise_mov32(dst, value);
-    return;
-  }
-
   canOptimize =
       !(relocatable ||
         (is_trampoline_pool_blocked() &&

@@ -334,33 +334,16 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 }
 
 uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
-  Opcode op1 =
-      Instruction::S390OpcodeValue(reinterpret_cast<const uint8_t*>(pc));
-  // Set by MacroAssembler::mov.
-  CHECK(op1 == LGFI);
-  SixByteInstr instr_1 =
-      Instruction::InstructionBits(reinterpret_cast<const uint8_t*>(pc));
-  return static_cast<uint32_t>((instr_1 << 32) >> 32);
+  return static_cast<uint32_t>(Assembler::target_address_at(pc, constant_pool));
 }
 
 void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
                                        uint32_t new_constant,
                                        WritableJitAllocation* jit_allocation,
                                        ICacheFlushMode icache_flush_mode) {
-  Opcode op1 =
-      Instruction::S390OpcodeValue(reinterpret_cast<const uint8_t*>(pc));
-  // Set by MacroAssembler::mov.
-  CHECK(op1 == LGFI);
-  SixByteInstr instr_1 =
-      Instruction::InstructionBits(reinterpret_cast<const uint8_t*>(pc));
-  instr_1 >>= 32;  // Zero out the lower 32-bits
-  instr_1 <<= 32;
-  instr_1 |= new_constant;
-  Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<uint8_t*>(pc),
-                                                instr_1, jit_allocation);
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    FlushInstructionCache(pc, 6);
-  }
+  Assembler::set_target_address_at(pc, constant_pool,
+                                   static_cast<Address>(new_constant),
+                                   jit_allocation, icache_flush_mode);
 }
 
 }  // namespace internal

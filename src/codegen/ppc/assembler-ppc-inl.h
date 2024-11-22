@@ -482,43 +482,16 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 }
 
 uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
-  Instr instr1 = instr_at(pc);
-  Instr instr2 = instr_at(pc + kInstrSize);
-  // Set by Assembler::mov.
-  CHECK(IsLis(instr1) && IsOri(instr2));
-  return static_cast<uint32_t>(((instr1 & kImm16Mask) << 16) |
-                               (instr2 & kImm16Mask));
+  return static_cast<uint32_t>(Assembler::target_address_at(pc, constant_pool));
 }
 
 void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
                                        uint32_t new_constant,
                                        WritableJitAllocation* jit_allocation,
                                        ICacheFlushMode icache_flush_mode) {
-  Instr instr1 = instr_at(pc);
-  Instr instr2 = instr_at(pc + kInstrSize);
-  // Set by Assembler::mov.
-  CHECK(IsLis(instr1) && IsOri(instr2));
-
-  uint32_t* p = reinterpret_cast<uint32_t*>(pc);
-  uint32_t lo_word = new_constant & kImm16Mask;
-  uint32_t hi_word = new_constant >> 16;
-  instr1 &= ~kImm16Mask;
-  instr1 |= hi_word;
-  instr2 &= ~kImm16Mask;
-  instr2 |= lo_word;
-
-  if (jit_allocation) {
-    jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(&p[0]),
-                                        instr1);
-    jit_allocation->WriteUnalignedValue(reinterpret_cast<Address>(&p[1]),
-                                        instr2);
-  } else {
-    *p = instr1;
-    *(p + 1) = instr2;
-  }
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    FlushInstructionCache(p, 2 * kInstrSize);
-  }
+  Assembler::set_target_address_at(pc, constant_pool,
+                                   static_cast<Address>(new_constant),
+                                   jit_allocation, icache_flush_mode);
 }
 }  // namespace internal
 }  // namespace v8
