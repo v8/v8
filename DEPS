@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '36b29f5bebfeeb8e53baee026cfe79299fb7d1f3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5571776ee3c7d57e2455886ef5f53a0777f0bb96',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1760ff6d7267dd97ae1968c7bee9ce04a2a8489d',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '616e80b90c555cd68cec017bfc270194aa585d80',
   'buildtools/linux64': {
     'packages': [
       {
@@ -235,7 +235,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '5cce3fbd23e14b8e12c8b842ab9af00448582142',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'e6b4b24ab5ffc4076e8031dd60ae5e0b187deb8d',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
@@ -311,7 +311,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '5b01ea4a6f3b666b7d190e7cb7c31db2ed4d94ce',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '6e37a150e092c665cb7bb799e6b967f222b65d75',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'e2cafc7ab52d3cec1d0311bc83588868a62a83f0',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
