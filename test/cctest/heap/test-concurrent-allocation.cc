@@ -512,7 +512,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
         istream->address(), istream->Size(),
-        ThreadIsolation::JitAllocationType::kInstructionStream, true);
+        ThreadIsolation::JitAllocationType::kInstructionStream);
     for (WritableRelocIterator it(jit_allocation, istream,
                                   code_->constant_pool(), mode_mask);
          !it.done(); it.next()) {

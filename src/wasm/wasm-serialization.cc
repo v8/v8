@@ -965,7 +965,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
   WritableJitAllocation jit_allocation = ThreadIsolation::RegisterJitAllocation(
       reinterpret_cast<Address>(unit.code->instructions().begin()),
       unit.code->instructions().size(),
-      ThreadIsolation::JitAllocationType::kWasmCode, false);
+      ThreadIsolation::JitAllocationType::kWasmCode);
 
   jit_allocation.CopyCode(0, unit.src_code_buffer.begin(),
                           unit.src_code_buffer.size());

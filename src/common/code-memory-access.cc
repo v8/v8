@@ -472,25 +472,23 @@ bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
 
 // static
 WritableJitAllocation ThreadIsolation::RegisterJitAllocation(
-    Address obj, size_t size, JitAllocationType type, bool enforce_write_api) {
+    Address obj, size_t size, JitAllocationType type) {
   return WritableJitAllocation(
-      obj, size, type, WritableJitAllocation::JitAllocationSource::kRegister,
-      enforce_write_api);
+      obj, size, type, WritableJitAllocation::JitAllocationSource::kRegister);
 }
 
 // static
 WritableJitAllocation ThreadIsolation::RegisterInstructionStreamAllocation(
-    Address addr, size_t size, bool enforce_write_api) {
-  return RegisterJitAllocation(
-      addr, size, JitAllocationType::kInstructionStream, enforce_write_api);
+    Address addr, size_t size) {
+  return RegisterJitAllocation(addr, size,
+                               JitAllocationType::kInstructionStream);
 }
 
 // static
 WritableJitAllocation ThreadIsolation::LookupJitAllocation(
-    Address addr, size_t size, JitAllocationType type, bool enforce_write_api) {
+    Address addr, size_t size, JitAllocationType type) {
   return WritableJitAllocation(
-      addr, size, type, WritableJitAllocation::JitAllocationSource::kLookup,
-      enforce_write_api);
+      addr, size, type, WritableJitAllocation::JitAllocationSource::kLookup);
 }
 
 // static
@@ -679,11 +677,9 @@ WritableJumpTablePair ThreadIsolation::LookupJumpTableAllocations(
 
 WritableJumpTablePair::~WritableJumpTablePair() {
 #ifdef DEBUG
-  if (jump_table_pages_.has_value()) {
-    // We disabled RWX write access for debugging. But we'll need it in the
-    // destructor again to release the jit page reference.
-    write_scope_.SetWritable();
-  }
+  // We disabled RWX write access for debugging. But we'll need it in the
+  // destructor again to release the jit page reference.
+  write_scope_.SetWritable();
 #endif
 }
 
@@ -697,7 +693,11 @@ WritableJumpTablePair::WritableJumpTablePair(
       writable_far_jump_table_(WritableJitAllocation::ForNonExecutableMemory(
           far_jump_table_address, far_jump_table_size,
           ThreadIsolation::JitAllocationType::kWasmFarJumpTable)),
-      write_scope_("for testing") {}
+      write_scope_("for testing") {
+#ifdef DEBUG
+  write_scope_.SetExecutable();
+#endif
+}
 
 // static
 WritableJumpTablePair WritableJumpTablePair::ForTesting(
@@ -710,8 +710,7 @@ WritableJumpTablePair WritableJumpTablePair::ForTesting(
 
 void WritableJumpTablePair::SetCodePointerTableEntry(uint32_t index,
                                                      Address target) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      writable_jump_table_.WriteScopeForApiEnforcement();
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
 
   wasm::GetProcessWideWasmCodePointerTable()->SetEntrypointWithRwxWriteScope(
       index, target, write_scope_);
@@ -721,6 +720,7 @@ void WritableJumpTablePair::SetCodePointerTableEntry(uint32_t index,
 
 template <size_t offset>
 void WritableFreeSpace::ClearTagged(size_t count) const {
+  auto write_scope = ThreadIsolation::WriteScopeForApiEnforcement();
   base::Address start = address_ + offset;
   // TODO(v8:13355): add validation before the write.
   MemsetTagged(ObjectSlot(start), Tagged<Object>(kClearedFreeMemoryValue),
