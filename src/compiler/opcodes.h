@@ -544,6 +544,7 @@
   V(TransitionAndStoreNonNumberElement) \
   V(TransitionAndStoreNumberElement)    \
   V(TransitionElementsKind)             \
+  V(TransitionElementsKindOrCheckMap)   \
   V(TypeOf)                             \
   V(Unsigned32Divide)                   \
   V(VerifyType)                         \

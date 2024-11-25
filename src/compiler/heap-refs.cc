@@ -558,6 +558,7 @@ class MapData : public HeapObjectData {
 
   InstanceType instance_type() const { return instance_type_; }
   int instance_size() const { return instance_size_; }
+  uint32_t bit_field2() const { return bit_field2_; }
   uint32_t bit_field3() const { return bit_field3_; }
   int in_object_properties() const {
     CHECK(InstanceTypeChecker::IsJSObject(instance_type()));
@@ -575,6 +576,7 @@ class MapData : public HeapObjectData {
 
   InstanceType instance_type_;
   int instance_size_;
+  uint32_t bit_field2_;
   uint32_t bit_field3_;
   int unused_property_fields_;
   bool is_abandoned_prototype_map_;
@@ -879,6 +881,8 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage,
   // on {instance_type} being serialized.
   instance_type_ = object->instance_type();
   instance_size_ = object->instance_size();
+
+  bit_field2_ = object->bit_field2();
 
   // Both bit_field3 (and below bit_field) are special fields: Even though most
   // of the individual bits inside of the bitfield could be read / written
@@ -1600,7 +1604,7 @@ FixedArrayRef JSBoundFunctionRef::bound_arguments(JSHeapBroker* broker) const {
 // Immutable after initialization.
 HEAP_ACCESSOR_C(JSDataView, size_t, byte_length)
 
-HEAP_ACCESSOR_B(Map, bit_field2, elements_kind, Map::Bits2::ElementsKindBits)
+BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::Bits2::ElementsKindBits)
 HEAP_ACCESSOR_B(Map, bit_field3, is_dictionary_map,
                 Map::Bits3::IsDictionaryMapBit)
 HEAP_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::Bits3::IsDeprecatedBit)

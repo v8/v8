@@ -101,6 +101,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
     case IrOpcode::kSpeculativeNumberLessThan:
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       return ReduceSpeculativeNumberComparison(node);
+    case IrOpcode::kTransitionElementsKindOrCheckMap:
+      return ReduceTransitionElementsKindOrCheckMap(node);
     default:
       break;
   }
@@ -222,27 +224,51 @@ Reduction TypedOptimization::ReduceCheckNotTaggedHole(Node* node) {
   return NoChange();
 }
 
+namespace {
+// The CheckMaps(o, ...map...) can be eliminated if map is stable,
+// o has type Constant(object) and map == object->map, and either
+//  (1) map cannot transition further, or
+//  (2) we can add a code dependency on the stability of map
+//      (to guard the Constant type information).
+bool CheckMapsHelper(OptionalMapRef object_map, ZoneRefSet<Map> maps,
+                     CompilationDependencies* dependencies) {
+  if (object_map.has_value()) {
+    for (MapRef map : maps) {
+      if (map.equals(*object_map)) {
+        if (object_map->CanTransition()) {
+          dependencies->DependOnStableMap(*object_map);
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+}  // namespace
+
 Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
-  // The CheckMaps(o, ...map...) can be eliminated if map is stable,
-  // o has type Constant(object) and map == object->map, and either
-  //  (1) map cannot transition further, or
-  //  (2) we can add a code dependency on the stability of map
-  //      (to guard the Constant type information).
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Type const object_type = NodeProperties::GetType(object);
   Node* const effect = NodeProperties::GetEffectInput(node);
   OptionalMapRef object_map = GetStableMapFromObjectType(broker(), object_type);
-  if (object_map.has_value()) {
-    CheckMapsParameters p = CheckMapsParametersOf(node->op());
-    const ZoneRefSet<Map>& maps = p.maps();
-    for (MapRef map : maps) {
-      if (map.equals(*object_map)) {
-        if (object_map->CanTransition()) {
-          dependencies()->DependOnStableMap(*object_map);
-        }
-        return Replace(effect);
-      }
-    }
+  CheckMapsParameters p = CheckMapsParametersOf(node->op());
+  if (CheckMapsHelper(object_map, p.maps(), dependencies())) {
+    return Replace(effect);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceTransitionElementsKindOrCheckMap(
+    Node* node) {
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Type const object_type = NodeProperties::GetType(object);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  OptionalMapRef object_map = GetStableMapFromObjectType(broker(), object_type);
+  ElementsTransitionWithMultipleSources p =
+      ElementsTransitionWithMultipleSourcesOf(node->op());
+  if (CheckMapsHelper(object_map, ZoneRefSet<Map>(p.target()),
+                      dependencies())) {
+    return Replace(effect);
   }
   return NoChange();
 }

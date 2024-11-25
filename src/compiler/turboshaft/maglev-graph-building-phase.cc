@@ -53,6 +53,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
+#include "src/objects/map.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-cell.h"
 #include "src/zone/zone-containers.h"
@@ -2508,10 +2509,13 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::TransitionElementsKindOrCheckMap* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    ZoneRefSet<i::Map> sources(node->transition_sources().begin(),
+                               node->transition_sources().end(), graph_zone());
     __ TransitionElementsKindOrCheckMap(
         Map(node->object_input()), Map(node->map_input()), frame_state,
-        node->transition_sources(), node->transition_target(),
-        node->eager_deopt_info()->feedback_to_update());
+        ElementsTransitionWithMultipleSources(
+            sources, node->transition_target(),
+            node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::TransitionElementsKind* node,

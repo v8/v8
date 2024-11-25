@@ -263,23 +263,6 @@ class MaglevEarlyLoweringReducer : public Next {
     return length_tagged;
   }
 
-  void TransitionElementsKindOrCheckMap(
-      V<Object> object, V<Map> map, V<FrameState> frame_state,
-      const ZoneVector<compiler::MapRef>& transition_sources,
-      const MapRef transition_target, const FeedbackSource& feedback) {
-    Label<Map> end(this);
-
-    TransitionElementsKind(object, map, transition_sources, transition_target,
-                           end);
-
-    __ DeoptimizeIfNot(
-        __ TaggedEqual(map, __ HeapConstant(transition_target.object())),
-        frame_state, DeoptimizeReason::kWrongMap, feedback);
-    GOTO(end, map);
-    BIND(end, result);
-    USE(result);
-  }
-
   V<Map> TransitionMultipleElementsKind(
       V<Object> object, V<Map> map,
       const ZoneVector<compiler::MapRef>& transition_sources,

@@ -272,6 +272,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(NewConsString)                              \
   V(TransitionAndStoreArrayElement)             \
   V(TransitionElementsKind)                     \
+  V(TransitionElementsKindOrCheckMap)           \
   V(DebugPrint)                                 \
   V(CheckTurboshaftTypeOf)                      \
   V(Word32SignHint)
@@ -6635,6 +6636,30 @@ struct TransitionElementsKindOp
   auto options() const { return std::tuple{transition}; }
 };
 
+struct TransitionElementsKindOrCheckMapOp
+    : FixedArityOperationT<3, TransitionElementsKindOrCheckMapOp> {
+  ElementsTransitionWithMultipleSources transition;
+
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<HeapObject> object() const { return Base::input<HeapObject>(0); }
+
+  TransitionElementsKindOrCheckMapOp(
+      V<HeapObject> object, V<Map> map, V<FrameState> frame_state,
+      const ElementsTransitionWithMultipleSources& transition)
+      : Base(object, map, frame_state), transition(transition) {}
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{transition}; }
+};
+
 struct FindOrderedHashEntryOp
     : FixedArityOperationT<2, FindOrderedHashEntryOp> {
   enum class Kind : uint8_t {
@@ -9214,6 +9239,9 @@ constexpr size_t input_count(RegisterRepresentation) { return 0; }
 constexpr size_t input_count(MemoryRepresentation) { return 0; }
 constexpr size_t input_count(OpEffects) { return 0; }
 inline size_t input_count(const ElementsTransition) { return 0; }
+inline size_t input_count(const ElementsTransitionWithMultipleSources) {
+  return 0;
+}
 inline size_t input_count(const FeedbackSource) { return 0; }
 inline size_t input_count(const ZoneRefSet<Map>) { return 0; }
 inline size_t input_count(ConstantOp::Storage) { return 0; }

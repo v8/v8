@@ -360,9 +360,19 @@ bool operator==(ElementsTransition const& lhs, ElementsTransition const& rhs) {
          lhs.target() == rhs.target();
 }
 
+bool operator==(const ElementsTransitionWithMultipleSources& lhs,
+                const ElementsTransitionWithMultipleSources& rhs) {
+  if (lhs.target() != rhs.target()) return false;
+  return lhs.sources() == rhs.sources();
+}
+
 size_t hash_value(ElementsTransition transition) {
   return base::hash_combine(static_cast<uint8_t>(transition.mode()),
                             transition.source(), transition.target());
+}
+
+size_t hash_value(ElementsTransitionWithMultipleSources transition) {
+  return base::hash_combine(transition.target(), transition.sources());
 }
 
 std::ostream& operator<<(std::ostream& os, ElementsTransition transition) {
@@ -379,9 +389,30 @@ std::ostream& operator<<(std::ostream& os, ElementsTransition transition) {
   UNREACHABLE();
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         ElementsTransitionWithMultipleSources transition) {
+  os << "transition from (";
+  bool first = true;
+  for (MapRef source : transition.sources()) {
+    if (!first) {
+      os << ", ";
+    }
+    first = false;
+    os << Brief(*source.object());
+  }
+  os << ") to " << Brief(*transition.target().object());
+  return os;
+}
+
 ElementsTransition const& ElementsTransitionOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kTransitionElementsKind, op->opcode());
   return OpParameter<ElementsTransition>(op);
+}
+
+ElementsTransitionWithMultipleSources const&
+ElementsTransitionWithMultipleSourcesOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kTransitionElementsKindOrCheckMap, op->opcode());
+  return OpParameter<ElementsTransitionWithMultipleSources>(op);
 }
 
 namespace {
@@ -1958,6 +1989,16 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
       "TransitionElementsKind",                       // name
       1, 1, 1, 0, 1, 0,                               // counts
       transition);                                    // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::TransitionElementsKindOrCheckMap(
+    ElementsTransitionWithMultipleSources transition) {
+  return zone()->New<Operator1<ElementsTransitionWithMultipleSources>>(  // --
+      IrOpcode::kTransitionElementsKindOrCheckMap,  // opcode
+      Operator::kNoThrow,                           // flags
+      "TransitionElementsKindOrCheckMap",           // name
+      1, 1, 1, 0, 1, 0,                             // counts
+      transition);                                  // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::ArgumentsLength() {

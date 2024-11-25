@@ -4685,6 +4685,12 @@ class TurboshaftAssemblerOpInterface
                               const ElementsTransition& transition) {
     ReduceIfReachableTransitionElementsKind(object, transition);
   }
+  void TransitionElementsKindOrCheckMap(
+      V<HeapObject> object, V<Map> map, V<turboshaft::FrameState> frame_state,
+      const ElementsTransitionWithMultipleSources& transition) {
+    ReduceIfReachableTransitionElementsKindOrCheckMap(object, map, frame_state,
+                                                      transition);
+  }
 
   OpIndex FindOrderedHashEntry(V<Object> data_structure, OpIndex key,
                                FindOrderedHashEntryOp::Kind kind) {

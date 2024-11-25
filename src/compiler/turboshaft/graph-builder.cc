@@ -2230,7 +2230,15 @@ OpIndex GraphBuilder::Process(
       __ TransitionElementsKind(Map(node->InputAt(0)),
                                 ElementsTransitionOf(node->op()));
       return OpIndex::Invalid();
-
+    case IrOpcode::kTransitionElementsKindOrCheckMap: {
+      DCHECK(dominating_frame_state.valid());
+      V<HeapObject> receiver = Map(node->InputAt(0));
+      V<i::Map> map = __ LoadMapField(receiver);
+      __ TransitionElementsKindOrCheckMap(
+          receiver, map, dominating_frame_state,
+          ElementsTransitionWithMultipleSourcesOf(node->op()));
+      return OpIndex::Invalid();
+    }
     case IrOpcode::kAssertType: {
       compiler::Type type = OpParameter<compiler::Type>(node->op());
       CHECK(type.CanBeAsserted());

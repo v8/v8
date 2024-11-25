@@ -444,6 +444,15 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
         }
         break;
       }
+      case IrOpcode::kTransitionElementsKindOrCheckMap: {
+        Node* const object = GetValueInput(effect, 0);
+        if (IsSame(receiver, object)) {
+          *maps_out = ZoneRefSet<Map>{
+              ElementsTransitionWithMultipleSourcesOf(effect->op()).target()};
+          return result;
+        }
+        break;
+      }
       case IrOpcode::kJSCreate: {
         if (IsSame(receiver, effect)) {
           OptionalMapRef initial_map = GetJSCreateMap(broker, receiver);

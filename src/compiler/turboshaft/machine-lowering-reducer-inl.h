@@ -3156,6 +3156,50 @@ class MachineLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
+  V<None> REDUCE(TransitionElementsKindOrCheckMap)(
+      V<HeapObject> object, V<Map> map, V<FrameState> frame_state,
+      const ElementsTransitionWithMultipleSources& transition) {
+    Label<> done(this);
+
+    const MapRef target = transition.target();
+    V<Map> target_map = __ HeapConstant(target.object());
+
+    IF (LIKELY(__ TaggedEqual(map, target_map))) {
+      GOTO(done);
+    }
+
+    const ZoneRefSet<Map>& transition_sources = transition.sources();
+    for (const MapRef transition_source : transition_sources) {
+      bool is_simple = IsSimpleMapChangeTransition(
+          transition_source.elements_kind(), target.elements_kind());
+
+      IF (__ TaggedEqual(map, __ HeapConstant(transition_source.object()))) {
+        if (is_simple) {
+          // In-place migration of {object}, just store the {target_map}.
+          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+        } else {
+          // Instance migration, call out to the runtime for {object}.
+          __ CallRuntime_TransitionElementsKind(
+              isolate_, __ NoContextConstant(), object, target_map);
+        }
+        GOTO(done);
+      }
+    }
+    // Successful transitions jumped to `done`. If we didn't jump, we know the
+    // map is not the target map.
+    __ Deoptimize(frame_state, DeoptimizeReason::kWrongMap,
+                  transition.feedback());
+
+    BIND(done);
+
+    // Inserting a AssumeMap so that subsequent optimizations know the map of
+    // this object.
+    ZoneRefSet<Map> maps({target}, __ graph_zone());
+    __ AssumeMap(object, maps);
+
+    return V<None>::Invalid();
+  }
+
   OpIndex REDUCE(FindOrderedHashEntry)(V<Object> data_structure, OpIndex key,
                                        FindOrderedHashEntryOp::Kind kind) {
     switch (kind) {

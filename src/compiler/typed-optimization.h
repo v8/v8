@@ -67,6 +67,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceSpeculativeNumberPow(Node* node);
   Reduction ReduceSpeculativeNumberBinop(Node* node);
   Reduction ReduceSpeculativeNumberComparison(Node* node);
+  Reduction ReduceTransitionElementsKindOrCheckMap(Node* node);
 
   Reduction TryReduceStringComparisonOfStringFromSingleCharCode(
       Node* comparison, Node* from_char_code, Type constant_type,

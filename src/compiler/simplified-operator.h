@@ -538,13 +538,38 @@ class ElementsTransition final {
   MapRef const target_;
 };
 
+class ElementsTransitionWithMultipleSources final {
+ public:
+  ElementsTransitionWithMultipleSources(
+      ZoneRefSet<Map> sources, MapRef target,
+      const FeedbackSource& feedback = FeedbackSource())
+      : sources_(sources), target_(target), feedback_(feedback) {}
+
+  const ZoneRefSet<Map>& sources() const { return sources_; }
+  MapRef target() const { return target_; }
+  const FeedbackSource& feedback() const { return feedback_; }
+
+ private:
+  ZoneRefSet<Map> sources_;
+  const MapRef target_;
+  FeedbackSource feedback_;
+};
+
 bool operator==(ElementsTransition const&, ElementsTransition const&);
+bool operator==(ElementsTransitionWithMultipleSources const&,
+                ElementsTransitionWithMultipleSources const&);
 
 size_t hash_value(ElementsTransition);
+size_t hash_value(ElementsTransitionWithMultipleSources);
 
 std::ostream& operator<<(std::ostream&, ElementsTransition);
+std::ostream& operator<<(std::ostream&, ElementsTransitionWithMultipleSources);
 
 ElementsTransition const& ElementsTransitionOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
+ElementsTransitionWithMultipleSources const&
+ElementsTransitionWithMultipleSourcesOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
 // Parameters for TransitionAndStoreElement, or
@@ -1092,6 +1117,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   // transition-elements-kind object, from-map, to-map
   const Operator* TransitionElementsKind(ElementsTransition transition);
+  const Operator* TransitionElementsKindOrCheckMap(
+      ElementsTransitionWithMultipleSources transition);
 
   const Operator* Allocate(Type type,
                            AllocationType allocation = AllocationType::kYoung);

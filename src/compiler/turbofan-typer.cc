@@ -1149,6 +1149,10 @@ Type Typer::Visitor::TypeMaybeGrowFastElements(Node* node) {
 
 Type Typer::Visitor::TypeTransitionElementsKind(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeTransitionElementsKindOrCheckMap(Node* node) {
+  UNREACHABLE();
+}
+
 Type Typer::Visitor::TypeCheckpoint(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeBeginRegion(Node* node) { UNREACHABLE(); }

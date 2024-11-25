@@ -2323,33 +2323,22 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   if (access_infos.size() == 1) {
     ElementAccessInfo access_info = access_infos.front();
 
-    // Perform possible elements kind transitions.
-    MapRef transition_target = access_info.lookup_start_object_maps().front();
-    for (MapRef transition_source : access_info.transition_sources()) {
+    if (!access_info.transition_sources().empty()) {
       DCHECK_EQ(access_info.lookup_start_object_maps().size(), 1);
-      effect = graph()->NewNode(
-          simplified()->TransitionElementsKind(ElementsTransition(
-              IsSimpleMapChangeTransition(transition_source.elements_kind(),
-                                          transition_target.elements_kind())
-                  ? ElementsTransition::kFastTransition
-                  : ElementsTransition::kSlowTransition,
-              transition_source, transition_target)),
-          receiver, effect, control);
+      // Perform possible elements kind transitions.
+      MapRef transition_target = access_info.lookup_start_object_maps().front();
+      ZoneRefSet<Map> sources(access_info.transition_sources().begin(),
+                              access_info.transition_sources().end(),
+                              graph()->zone());
+      effect = graph()->NewNode(simplified()->TransitionElementsKindOrCheckMap(
+                                    ElementsTransitionWithMultipleSources(
+                                        sources, transition_target)),
+                                receiver, effect, control);
+    } else {
+      // Perform map check on the {receiver}.
+      access_builder.BuildCheckMaps(receiver, &effect, control,
+                                    access_info.lookup_start_object_maps());
     }
-
-    // TODO(turbofan): The effect/control linearization will not find a
-    // FrameState after the StoreField or Call that is generated for the
-    // elements kind transition above. This is because those operators
-    // don't have the kNoWrite flag on it, even though they are not
-    // observable by JavaScript.
-    Node* frame_state =
-        NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
-    effect =
-        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
-
-    // Perform map check on the {receiver}.
-    access_builder.BuildCheckMaps(receiver, &effect, control,
-                                  access_info.lookup_start_object_maps());
 
     // Access the actual element.
     ValueEffectControl continuation =
