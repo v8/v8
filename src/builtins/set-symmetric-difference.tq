@@ -5,10 +5,10 @@
 namespace collections {
 
 // https://tc39.es/proposal-set-methods/#sec-set.prototype.symmetricdifference
+@incrementUseCounter('v8::Isolate::kSetMethods')
 transitioning javascript builtin SetPrototypeSymmetricDifference(
     js-implicit context: NativeContext, receiver: JSAny)(other: JSAny): JSSet {
   const methodName: constexpr string = 'Set.prototype.symmetricDifference';
-  IncrementUseCounter(context, SmiConstant(kSetMethods));
   const fastIteratorResultMap = GetIteratorResultMap();
 
   // 1. Let O be the this value.

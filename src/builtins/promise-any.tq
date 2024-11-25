@@ -5,8 +5,6 @@
 #include 'src/builtins/builtins-promise-gen.h'
 
 namespace promise {
-const kPromiseAny: constexpr UseCounterFeature
-    generates 'v8::Isolate::kPromiseAny';
 type PromiseAnyRejectElementContext extends FunctionContext;
 extern enum PromiseAnyRejectElementContextSlots extends intptr
     constexpr 'PromiseBuiltins::PromiseAnyRejectElementContextSlots' {
@@ -338,9 +336,9 @@ Reject(JSAny) {
 }
 
 // https://tc39.es/ecma262/#sec-promise.any
+@incrementUseCounter('v8::Isolate::kPromiseAny')
 transitioning javascript builtin PromiseAny(
     js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
-  IncrementUseCounter(context, SmiConstant(kPromiseAny));
   const nativeContext = LoadNativeContext(context);
 
   // 1. Let C be the this value.

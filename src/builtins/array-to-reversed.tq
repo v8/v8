@@ -4,9 +4,6 @@
 
 namespace array {
 
-const kArrayByCopy: constexpr UseCounterFeature
-    generates 'v8::Isolate::kArrayByCopy';
-
 macro FastPackedDoubleArrayToReversed(
     implicit context: Context)(elements: FixedDoubleArray,
     length: Smi): JSArray {
@@ -152,10 +149,10 @@ transitioning builtin GenericArrayToReversed(
 }
 
 // https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.toReversed
+@incrementUseCounter('v8::Isolate::kArrayByCopy')
 transitioning javascript builtin ArrayPrototypeToReversed(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {
-    IncrementUseCounter(context, SmiConstant(kArrayByCopy));
     return TryFastArrayToReversed(receiver) otherwise Slow;
   } label Slow {
     return GenericArrayToReversed(receiver);

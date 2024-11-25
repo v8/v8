@@ -6,9 +6,6 @@
 
 namespace iterator {
 
-const kIteratorMethods: constexpr UseCounterFeature
-    generates 'v8::Isolate::kIteratorMethods';
-
 // Iterator helpers are specced as generators but implemented as direct
 // iterators. As such generator states need to be tracked manually. To save
 // space, this is done by assigning sentinel values to underlying_object.
@@ -196,11 +193,11 @@ macro NewJSIteratorMapHelper(
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.map
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeMap(
     js-implicit context: NativeContext, receiver: JSAny)(
     mapper: JSAny): JSIteratorMapHelper {
   const methodName: constexpr string = 'Iterator.prototype.map';
-  IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
   // 1. Let O be the this value.
   // 2. If O is not an Object, throw a TypeError exception.
@@ -292,11 +289,11 @@ macro NewJSIteratorFilterHelper(
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.filter
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeFilter(
     js-implicit context: NativeContext, receiver: JSAny)(
     predicate: JSAny): JSIteratorFilterHelper {
   const methodName: constexpr string = 'Iterator.prototype.filter';
-  IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
   // 1. Let O be the this value.
   // 2. If O is not an Object, throw a TypeError exception.
@@ -394,12 +391,12 @@ macro NewJSIteratorTakeHelper(
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.take
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeTake(
     js-implicit context: NativeContext, receiver: JSAny)(
     limit: JSAny): JSIteratorTakeHelper {
   try {
     const methodName: constexpr string = 'Iterator.prototype.take';
-    IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
     // 1. Let O be the this value.
     // 2. If O is not an Object, throw a TypeError exception.
@@ -499,12 +496,12 @@ macro NewJSIteratorDropHelper(
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.drop
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeDrop(
     js-implicit context: NativeContext, receiver: JSAny)(
     limit: JSAny): JSIteratorDropHelper {
   try {
     const methodName: constexpr string = 'Iterator.prototype.drop';
-    IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
     // 1. Let O be the this value.
     // 2. If O is not an Object, throw a TypeError exception.
@@ -608,10 +605,10 @@ macro NewJSIteratorFlatMapHelper(
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.flatmap
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeFlatMap(
     js-implicit context: NativeContext, receiver: JSAny)(
     mapper: JSAny): JSIteratorFlatMapHelper {
-  IncrementUseCounter(context, SmiConstant(kIteratorMethods));
   // 1. Let O be the this value.
   // 2. If O is not an Object, throw a TypeError exception.
   const o = Cast<JSReceiver>(receiver)
@@ -731,10 +728,10 @@ transitioning builtin IteratorFlatMapHelperNext(
 // --- reduce helper
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.reduce
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeReduce(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const methodName: constexpr string = 'Iterator.prototype.reduce';
-  IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
   // 1. Let O be the this value.
   // 2. If O is not an Object, throw a TypeError exception.
@@ -810,10 +807,10 @@ transitioning javascript builtin IteratorPrototypeReduce(
 // --- toArray helper
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.toarray
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeToArray(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   const methodName: constexpr string = 'Iterator.prototype.toArray';
-  IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
   // 1. Let O be the this value.
   // 2. If O is not an Object, throw a TypeError exception.
@@ -852,10 +849,10 @@ transitioning javascript builtin IteratorPrototypeToArray(
 // --- forEach helper
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.foreach
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeForEach(
     js-implicit context: NativeContext, receiver: JSAny)(fn: JSAny): JSAny {
   const methodName: constexpr string = 'Iterator.prototype.forEach';
-  IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
   // 1. Let O be the this value.
   // 2. If O is not an Object, throw a TypeError exception.
@@ -908,11 +905,11 @@ transitioning javascript builtin IteratorPrototypeForEach(
 // --- some helper
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.some
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeSome(
     js-implicit context: NativeContext, receiver: JSAny)(
     predicate: JSAny): JSAny {
   const methodName: constexpr string = 'Iterator.prototype.some';
-  IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
   // 1. Let O be the this value.
   // 2. If O is not an Object, throw a TypeError exception.
@@ -973,11 +970,11 @@ transitioning javascript builtin IteratorPrototypeSome(
 // --- every helper
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.every
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeEvery(
     js-implicit context: NativeContext, receiver: JSAny)(
     predicate: JSAny): JSAny {
   const methodName: constexpr string = 'Iterator.prototype.every';
-  IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
   // 1. Let O be the this value.
   // 2. If O is not an Object, throw a TypeError exception.
@@ -1038,11 +1035,11 @@ transitioning javascript builtin IteratorPrototypeEvery(
 // --- find helper
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.find
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
 transitioning javascript builtin IteratorPrototypeFind(
     js-implicit context: NativeContext, receiver: JSAny)(
     predicate: JSAny): JSAny {
   const methodName: constexpr string = 'Iterator.prototype.find';
-  IncrementUseCounter(context, SmiConstant(kIteratorMethods));
 
   // 1. Let O be the this value.
   // 2. If O is not an Object, throw a TypeError exception.

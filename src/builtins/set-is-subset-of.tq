@@ -5,11 +5,11 @@
 namespace collections {
 
 // https://tc39.es/proposal-set-methods/#sec-set.prototype.issubsetof
+@incrementUseCounter('v8::Isolate::kSetMethods')
 transitioning javascript builtin SetPrototypeIsSubsetOf(
     js-implicit context: NativeContext, receiver: JSAny)(
     other: JSAny): Boolean {
   const methodName: constexpr string = 'Set.prototype.isSubsetOf';
-  IncrementUseCounter(context, SmiConstant(kSetMethods));
 
   // 1. Let O be the this value.
   // 2. Perform ? RequireInternalSlot(O, [[SetData]]).

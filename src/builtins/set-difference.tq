@@ -3,14 +3,11 @@
 // found in the LICENSE file.
 
 namespace collections {
-const kSetMethods: constexpr UseCounterFeature
-    generates 'v8::Isolate::kSetMethods';
-
 // https://tc39.es/proposal-set-methods/#sec-set.prototype.difference
+@incrementUseCounter('v8::Isolate::kSetMethods')
 transitioning javascript builtin SetPrototypeDifference(
     js-implicit context: NativeContext, receiver: JSAny)(other: JSAny): JSSet {
   const methodName: constexpr string = 'Set.prototype.difference';
-  IncrementUseCounter(context, SmiConstant(kSetMethods));
   const fastIteratorResultMap = GetIteratorResultMap();
 
   // 1. Let O be the this value.

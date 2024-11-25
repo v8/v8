@@ -167,9 +167,9 @@ transitioning macro GenericArrayToSpliced(
 }
 
 // https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.toSpliced
+@incrementUseCounter('v8::Isolate::kArrayByCopy')
 transitioning javascript builtin ArrayPrototypeToSpliced(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
-  IncrementUseCounter(context, SmiConstant(kArrayByCopy));
   const start = arguments[0];
   const deleteCount = arguments[1];
 
