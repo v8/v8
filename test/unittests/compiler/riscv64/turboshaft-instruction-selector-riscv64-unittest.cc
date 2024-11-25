@@ -160,12 +160,12 @@ const MachInst2 kAddSubInstructions[] = {
 // IntArithTest instructions, one node.
 // ----------------------------------------------------------------------------
 
-const MachInst1 kAddSubOneInstructions[] = {
-    // {TSBinop::kInt32Neg, "Int32Neg", kRiscvSub32,
-    //  MachineType::Int32()},
-    // {TSBinop::kInt64Neg, "Int64Neg", kRiscvSub64,
-    //  MachineType::Int64()}
-};
+// const MachInst1 kAddSubOneInstructions[] = {
+//     {TSBinop::kInt32Neg, "Int32Neg", kRiscvSub32,
+//      MachineType::Int32()},
+//     {TSBinop::kInt64Neg, "Int64Neg", kRiscvSub64,
+//      MachineType::Int64()}
+// };
 
 // ----------------------------------------------------------------------------
 // Arithmetic compare instructions.
@@ -231,35 +231,35 @@ const Conversion kConversionInstructions[] = {
     //  MachineType::Int32()}
 };
 
-const Conversion kFloat64RoundInstructions[] = {
-    // {{TSBinop::kFloat64RoundUp, "Float64RoundUp", kRiscvCeilWD,
-    //   MachineType::Int32()},
-    //  MachineType::Float64()},
-    // {{TSBinop::kFloat64RoundDown, "Float64RoundDown", kRiscvFloorWD,
-    //   MachineType::Int32()},
-    //  MachineType::Float64()},
-    // {{TSBinop::kFloat64RoundTiesEven, "Float64RoundTiesEven",
-    //   kRiscvRoundWD, MachineType::Int32()},
-    //  MachineType::Float64()},
-    // {{TSBinop::kFloat64RoundTruncate, "Float64RoundTruncate",
-    //   kRiscvTruncWD, MachineType::Int32()},
-    //  MachineType::Float64()}
-};
+// const Conversion kFloat64RoundInstructions[] = {
+// {{TSBinop::kFloat64RoundUp, "Float64RoundUp", kRiscvCeilWD,
+//   MachineType::Int32()},
+//  MachineType::Float64()},
+// {{TSBinop::kFloat64RoundDown, "Float64RoundDown", kRiscvFloorWD,
+//   MachineType::Int32()},
+//  MachineType::Float64()},
+// {{TSBinop::kFloat64RoundTiesEven, "Float64RoundTiesEven",
+//   kRiscvRoundWD, MachineType::Int32()},
+//  MachineType::Float64()},
+// {{TSBinop::kFloat64RoundTruncate, "Float64RoundTruncate",
+//   kRiscvTruncWD, MachineType::Int32()},
+//  MachineType::Float64()}
+// };
 
-const Conversion kFloat32RoundInstructions[] = {
-    // {{TSBinop::kFloat32RoundUp, "Float32RoundUp", kRiscvCeilWS,
-    //   MachineType::Int32()},
-    //  MachineType::Float32()},
-    // {{TSBinop::kFloat32RoundDown, "Float32RoundDown", kRiscvFloorWS,
-    //   MachineType::Int32()},
-    //  MachineType::Float32()},
-    // {{TSBinop::kFloat32RoundTiesEven, "Float32RoundTiesEven",
-    //   kRiscvRoundWS, MachineType::Int32()},
-    //  MachineType::Float32()},
-    // {{TSBinop::kFloat32RoundTruncate, "Float32RoundTruncate",
-    //   kRiscvTruncWS, MachineType::Int32()},
-    //  MachineType::Float32()}
-};
+// const Conversion kFloat32RoundInstructions[] = {
+// {{TSBinop::kFloat32RoundUp, "Float32RoundUp", kRiscvCeilWS,
+//   MachineType::Int32()},
+//  MachineType::Float32()},
+// {{TSBinop::kFloat32RoundDown, "Float32RoundDown", kRiscvFloorWS,
+//   MachineType::Int32()},
+//  MachineType::Float32()},
+// {{TSBinop::kFloat32RoundTiesEven, "Float32RoundTiesEven",
+//   kRiscvRoundWS, MachineType::Int32()},
+//  MachineType::Float32()},
+// {{TSBinop::kFloat32RoundTruncate, "Float32RoundTruncate",
+//   kRiscvTruncWS, MachineType::Int32()},
+//  MachineType::Float32()}
+// };
 
 // RISCV64 instructions that clear the top 32 bits of the destination.
 const MachInst2 kCanElideChangeUint32ToUint64[] = {

@@ -436,7 +436,7 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {
   VU.set(kScratchReg, E8, m1);
-  if (dst == lhs) {
+  if (dst == lhs || dst == rhs) {
     vrgather_vv(kSimd128ScratchReg, lhs.fp().toV(), rhs.fp().toV());
     vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
   } else {
@@ -2323,21 +2323,13 @@ void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
 void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
-  if (target == no_reg) {
-    pop(t6);
-    Call(t6);
-  } else {
-    Call(target);
-  }
+  DCHECK(target.is_valid());
+  CallWasmCodePointer(target);
 }
 
 void LiftoffAssembler::TailCallIndirect(Register target) {
-  if (target == no_reg) {
-    Pop(t6);
-    Jump(t6);
-  } else {
-    Jump(target);
-  }
+  DCHECK(target.is_valid());
+  CallWasmCodePointer(target, CallJumpMode::kTailCall);
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {

@@ -100,8 +100,8 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
         source_frame_size * kSystemPointerSize +
         StandardFrameConstants::kFixedFrameSizeFromFp;
     AddWord(scratch, sp, Operand(expected_osr_stack_size));
-    MacroAssembler::Assert(eq, AbortReason::kOsrUnexpectedStackSize, scratch,
-                           Operand(fp));
+    MacroAssembler::SbxCheck(eq, AbortReason::kOsrUnexpectedStackSize, scratch,
+                             Operand(fp));
   }
 
   uint32_t target_frame_size =

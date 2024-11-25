@@ -119,15 +119,24 @@ Tagged_t Assembler::target_compressed_address_at(Address pc,
   return static_cast<Tagged_t>(target_address_at(pc, constant_pool));
 }
 
-Address RelocInfo::wasm_indirect_call_target() const {
+WasmCodePointer RelocInfo::wasm_indirect_call_target() const {
   DCHECK(rmode_ == WASM_INDIRECT_CALL_TARGET);
+#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+  return Assembler::uint32_constant_at(pc_, constant_pool_);
+#else
   return Assembler::target_address_at(pc_, constant_pool_);
+#endif
 }
 void WritableRelocInfo::set_wasm_indirect_call_target(
-    Address target, ICacheFlushMode icache_flush_mode) {
+    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::WASM_INDIRECT_CALL_TARGET);
+#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+  Assembler::set_uint32_constant_at(pc_, constant_pool_, target,
+                                    &jit_allocation_, icache_flush_mode);
+#else
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    &jit_allocation_, icache_flush_mode);
+#endif
 }
 
 Handle<Object> Assembler::code_target_object_handle_at(Address pc,
@@ -164,14 +173,9 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
-  if (RelocInfo::IsInternalReferenceEncoded(mode)) {
-    DCHECK(IsLui(instr_at(pc)));
-    set_target_internal_reference_encoded_at(pc, target);
-  } else {
-    DCHECK(RelocInfo::IsInternalReference(mode));
-    Memory<Address>(pc) = target;
-  }
+    Address pc, Address target, WritableJitAllocation& jit_allocation,
+    RelocInfo::Mode mode) {
+  jit_allocation.WriteUnalignedValue<Address>(pc, target);
 }
 
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
