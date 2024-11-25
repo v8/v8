@@ -138,10 +138,17 @@ std::vector<ExecutionResult> PerformReferenceRun(
   thrower.Reset();
   CHECK(!isolate->has_exception());
 
-  Handle<WasmInstanceObject> instance =
-      GetWasmEngine()
-          ->SyncInstantiate(isolate, &thrower, module_object, {}, {})
-          .ToHandleChecked();
+  Handle<WasmInstanceObject> instance;
+  if (!GetWasmEngine()
+           ->SyncInstantiate(isolate, &thrower, module_object, {}, {})
+           .ToHandle(&instance)) {
+    CHECK(thrower.error());
+    // The only reason to fail the second instantiation should be OOM. This can
+    // happen e.g. for memories with a very big initial size especially on 32
+    // bit platforms.
+    CHECK(strstr(thrower.error_msg(), "Out of memory"));
+    return {};
+  }
 
   auto arguments = base::OwnedVector<Handle<Object>>::New(1);
 
