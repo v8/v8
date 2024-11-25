@@ -247,8 +247,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   GetTypeCanonicalizer()->EmptyStorageForTesting();
   TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
   // TODO(mliedtke): Also do this for all the compile fuzzers?
-  Handle<WasmInstanceObject> dummy = InstantiateDummyModule(i_isolate, &zone);
-  USE(dummy);
+  AddDummyTypesToTypeCanonicalizer(i_isolate, &zone);
 
   std::vector<std::string> callees;
   std::vector<std::string> inlinees;

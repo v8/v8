@@ -48,11 +48,11 @@ Handle<WasmModuleObject> CompileReferenceModule(
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);
 
-// Create a dummy module containing a few wasm-gc types. This can be done to
+// Validate a module containing a few wasm-gc types. This can be done to
 // prepulate the TypeCanonicalizer with a few canonical types, so that a
-// module-specific type index ismore likely to be different from its canonical
+// module-specific type index is more likely to be different from its canonical
 // type index.
-Handle<WasmInstanceObject> InstantiateDummyModule(Isolate* isolate, Zone* zone);
+void AddDummyTypesToTypeCanonicalizer(Isolate* isolate, Zone* zone);
 
 // On the first call, enables all staged wasm features and experimental features
 // that are ready for fuzzing. All subsequent calls are no-ops. This avoids race

@@ -315,29 +315,20 @@ std::vector<uint8_t> CreateDummyModuleWireBytes(Zone* zone) {
 }
 }  // namespace
 
-Handle<WasmInstanceObject> InstantiateDummyModule(Isolate* isolate,
-                                                  Zone* zone) {
+void AddDummyTypesToTypeCanonicalizer(Isolate* isolate, Zone* zone) {
+  const size_t type_count = GetTypeCanonicalizer()->GetCurrentNumberOfTypes();
   testing::SetupIsolateForWasmModule(isolate);
-
   // Cache (and leak) the wire bytes, so they don't need to be rebuilt on each
   // run.
   static const std::vector<uint8_t> wire_bytes =
       CreateDummyModuleWireBytes(zone);
-
-  ErrorThrower thrower(isolate, "WasmFuzzerCompileDummyModule");
-  Handle<WasmModuleObject> module_object =
-      GetWasmEngine()
-          ->SyncCompile(isolate, WasmEnabledFeatures(),
-                        CompileTimeImportsForFuzzing(), &thrower,
-                        base::OwnedCopyOf(wire_bytes))
-          .ToHandleChecked();
-
-  Handle<WasmInstanceObject> instance =
-      GetWasmEngine()
-          ->SyncInstantiate(isolate, &thrower, module_object, {}, {})
-          .ToHandleChecked();
-  CHECK_WITH_MSG(!thrower.error(), thrower.error_msg());
-  return instance;
+  const bool is_valid = GetWasmEngine()->SyncValidate(
+      isolate, WasmEnabledFeatures(), CompileTimeImportsForFuzzing(),
+      base::VectorOf(wire_bytes));
+  CHECK(is_valid);
+  // As the tpyes are reset on each run by the fuzzer, the validation should
+  // have added new types to the TypeCanonicalizer.
+  CHECK_GT(GetTypeCanonicalizer()->GetCurrentNumberOfTypes(), type_count);
 }
 
 void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {

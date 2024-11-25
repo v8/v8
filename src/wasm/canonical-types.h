@@ -101,7 +101,7 @@ class TypeCanonicalizer {
 
   size_t EstimateCurrentMemoryConsumption() const;
 
-  size_t GetCurrentNumberOfTypes() const;
+  V8_EXPORT_PRIVATE size_t GetCurrentNumberOfTypes() const;
 
   // Prepares wasm for the provided canonical type index. This reserves enough
   // space in the canonical rtts and the JSToWasm wrappers on the isolate roots.
