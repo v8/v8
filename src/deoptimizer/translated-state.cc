@@ -2534,9 +2534,10 @@ void TranslatedState::InitializeJSObjectAt(
     // should be fully initialized by now).
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
-#ifdef V8_ENABLE_SANDBOX
+    InstanceType instance_type = map->instance_type();
+    USE(instance_type);
 #ifdef V8_ENABLE_LEAPTIERING
-    if (InstanceTypeChecker::IsJSFunction(map->instance_type()) &&
+    if (InstanceTypeChecker::IsJSFunction(instance_type) &&
         offset == JSFunction::kDispatchHandleOffset) {
       // The JSDispatchHandle will be materialized as a number, but we need
       // the raw value here. TODO(saelo): can we implement "proper" support
@@ -2546,23 +2547,12 @@ void TranslatedState::InitializeJSObjectAt(
       JSDispatchHandle handle = Object::NumberValue(Cast<Number>(*field_value));
       object_storage->WriteField<JSDispatchHandle>(
           JSFunction::kDispatchHandleOffset, handle);
-#else
-    if (InstanceTypeChecker::IsJSFunction(map->instance_type()) &&
-        offset == JSFunction::kCodeOffset) {
-      // We're materializing a JSFunction's reference to a Code object. This is
-      // an indirect pointer, so need special handling. TODO(saelo) generalize
-      // this, for example by introducing a new kStoreIndirectPointer marker
-      // value.
-      DirectHandle<HeapObject> field_value = slot->storage();
-      CHECK(IsCode(*field_value));
-      Tagged<Code> value = Cast<Code>(*field_value);
-      object_storage->RawIndirectPointerField(offset, kCodeIndirectPointerTag)
-          .Relaxed_Store(value);
-      INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
-                                     kCodeIndirectPointerTag, value);
+      continue;
+    }
 #endif  // V8_ENABLE_LEAPTIERING
-    } else if (InstanceTypeChecker::IsJSRegExp(map->instance_type()) &&
-               offset == JSRegExp::kDataOffset) {
+#ifdef V8_ENABLE_SANDBOX
+    if (InstanceTypeChecker::IsJSRegExp(instance_type) &&
+        offset == JSRegExp::kDataOffset) {
       DirectHandle<HeapObject> field_value = slot->storage();
       // If the value comes from the DeoptimizationLiteralArray, it is a
       // RegExpDataWrapper as we can't store TrustedSpace values in a FixedArray
@@ -2579,21 +2569,22 @@ void TranslatedState::InitializeJSObjectAt(
           .Relaxed_Store(value);
       INDIRECT_POINTER_WRITE_BARRIER(*object_storage, offset,
                                      kRegExpDataIndirectPointerTag, value);
-    } else if (marker == kStoreHeapObject) {
-#else
-    if (marker == kStoreHeapObject) {
+      continue;
+    }
 #endif  // V8_ENABLE_SANDBOX
+    if (marker == kStoreHeapObject) {
       DirectHandle<HeapObject> field_value = slot->storage();
       WRITE_FIELD(*object_storage, offset, *field_value);
       WRITE_BARRIER(*object_storage, offset, *field_value);
-    } else {
-      CHECK_EQ(kStoreTagged, marker);
-      DirectHandle<Object> field_value = slot->GetValue();
-      DCHECK_IMPLIES(IsHeapNumber(*field_value),
-                     !IsSmiDouble(Object::NumberValue(*field_value)));
-      WRITE_FIELD(*object_storage, offset, *field_value);
-      WRITE_BARRIER(*object_storage, offset, *field_value);
+      continue;
     }
+
+    CHECK_EQ(kStoreTagged, marker);
+    DirectHandle<Object> field_value = slot->GetValue();
+    DCHECK_IMPLIES(IsHeapNumber(*field_value),
+                   !IsSmiDouble(Object::NumberValue(*field_value)));
+    WRITE_FIELD(*object_storage, offset, *field_value);
+    WRITE_BARRIER(*object_storage, offset, *field_value);
   }
   object_storage->set_map(isolate(), *map, kReleaseStore);
 }

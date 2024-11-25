@@ -987,8 +987,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<RawPtrT> LoadCodeEntryFromIndirectPointerHandle(
       TNode<IndirectPointerHandleT> handle, CodeEntrypointTag tag);
 
-  TNode<UintPtrT> ComputeJSDispatchTableEntryOffset(
-      TNode<JSDispatchHandleT> handle);
 #endif
 
   TNode<JSDispatchHandleT> InvalidDispatchHandleConstant();
@@ -4096,11 +4094,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #ifdef V8_ENABLE_LEAPTIERING
   // Load a builtin's handle into the JSDispatchTable.
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
   TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(
       JSBuiltinDispatchHandleRoot::Idx dispatch_root_idx);
-  inline TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(RootIndex idx) {
-    return LoadBuiltinDispatchHandle(JSBuiltinDispatchHandleRoot::to_idx(idx));
-  }
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
+  TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(RootIndex idx);
 
   // Load the Code object of a JSDispatchTable entry.
   TNode<Code> LoadCodeObjectFromJSDispatchTable(
@@ -4108,6 +4106,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the parameter count of a JSDispatchTable entry.
   TNode<Uint16T> LoadParameterCountFromJSDispatchTable(
       TNode<JSDispatchHandleT> dispatch_handle);
+
+  TNode<UintPtrT> ComputeJSDispatchTableEntryOffset(
+      TNode<JSDispatchHandleT> handle);
 #endif
 
   // Indicate that this code must support a dynamic parameter count.

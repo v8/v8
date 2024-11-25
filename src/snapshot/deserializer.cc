@@ -1497,8 +1497,7 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
     DCHECK_EQ(*code, jdt->GetCode(handle));
   } else {
     JSDispatchTable::Space* space =
-        IsolateForSandbox(isolate()).GetJSDispatchTableSpaceFor(
-            host->address());
+        isolate()->GetJSDispatchTableSpaceFor(host->address());
     handle = jdt->AllocateAndInitializeEntry(space, parameter_count);
     js_dispatch_entries_map_[entry_id] = handle;
     jdt->SetCodeNoWriteBarrier(handle, *code);

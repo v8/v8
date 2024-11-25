@@ -10,7 +10,7 @@
 #include "src/objects/code-inl.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
 
 namespace v8 {
 namespace internal {
@@ -35,9 +35,13 @@ JSDispatchHandle JSDispatchTable::PreAllocateEntries(
       // Pre-allocated entries should be consecutive.
       DCHECK_EQ(IndexToHandle(idx), IndexToHandle(HandleToIndex(first) + i));
     }
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
     if (ensure_static_handles) {
       CHECK_EQ(IndexToHandle(idx), GetStaticHandleForReadOnlySegmentEntry(i));
     }
+#else
+    CHECK(!ensure_static_handles);
+#endif
   }
   return first;
 }
@@ -98,4 +102,4 @@ base::LeakyObject<JSDispatchTable> JSDispatchTable::instance_;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_ENABLE_LEAPTIERING

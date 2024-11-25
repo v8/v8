@@ -461,6 +461,7 @@ enum class IsolateFieldId : uint8_t;
     "TypedArrayAndRabGsabTypedArrayElementsKindSizes")                         \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
   EXTERNAL_REFERENCE_LIST_SANDBOX(V)                                           \
+  EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)                                       \
   EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)
 
 #ifdef V8_INTL_SUPPORT
@@ -480,11 +481,17 @@ enum class IsolateFieldId : uint8_t;
   V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")      \
   V(code_pointer_table_address,                                   \
     "IsolateGroup::current()->code_pointer_table()")              \
-  V(js_dispatch_table_address, "GetProcessWideJSDispatchTable()") \
   V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()")
 #else
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_LEAPTIERING
+#define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V) \
+  V(js_dispatch_table_address, "GetProcessWideJSDispatchTable()")
+#else
+#define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)
+#endif  // V8_ENABLE_LEAPTIERING
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
 #define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)            \

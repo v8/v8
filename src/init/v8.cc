@@ -200,8 +200,6 @@ void V8::Initialize() {
   GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
 
-  JSDispatchTable::Initialize();
-
   // Enable sandbox testing mode if requested.
   //
   // This will install the sandbox crash filter to ignore all crashes that do
@@ -217,6 +215,10 @@ void V8::Initialize() {
     SandboxTesting::Enable(mode);
   }
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable::Initialize();
+#endif  // V8_ENABLE_LEAPTIERING
 
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) {

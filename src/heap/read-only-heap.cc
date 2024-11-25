@@ -34,8 +34,10 @@ ReadOnlyHeap::~ReadOnlyHeap() {
       &code_pointer_space_);
 #endif
 #ifdef V8_ENABLE_LEAPTIERING
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
   GetProcessWideJSDispatchTable()->DetachSpaceFromReadOnlySegment(
       &js_dispatch_table_space_);
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
   GetProcessWideJSDispatchTable()->TearDownSpace(&js_dispatch_table_space_);
 #endif
 }
@@ -202,11 +204,12 @@ ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
   // allocated black. Target code objects in the read-only dispatch table are
   // read-only code objects.
   js_dispatch_table_space_.set_allocate_black(true);
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
   GetProcessWideJSDispatchTable()->AttachSpaceToReadOnlySegment(
       &js_dispatch_table_space_);
   GetProcessWideJSDispatchTable()->PreAllocateEntries(
-      &js_dispatch_table_space_, JSBuiltinDispatchHandleRoot::kCount,
-      Isolate::kBuiltinDispatchHandlesAreStatic);
+      &js_dispatch_table_space_, JSBuiltinDispatchHandleRoot::kCount, true);
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
 #endif  // V8_ENABLE_LEAPTIERING
 }
 

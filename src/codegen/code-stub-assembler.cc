@@ -1884,7 +1884,51 @@ TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
       object, field_offset, kCodeIndirectPointerTag));
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+
+TNode<UintPtrT> CodeStubAssembler::ComputeJSDispatchTableEntryOffset(
+    TNode<JSDispatchHandleT> handle) {
+  TNode<Uint32T> index =
+      Word32Shr(handle, Uint32Constant(kJSDispatchHandleShift));
+  // We're using a 32-bit shift here to reduce code size, but for that we need
+  // to be sure that the offset will always fit into a 32-bit integer.
+  static_assert(kJSDispatchTableReservationSize <= 4ULL * GB);
+  TNode<UintPtrT> offset = ChangeUint32ToWord(
+      Word32Shl(index, Uint32Constant(kJSDispatchTableEntrySizeLog2)));
+  return offset;
+}
+
+TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
+    TNode<JSDispatchHandleT> handle) {
+  TNode<RawPtrT> table =
+      ExternalConstant(ExternalReference::js_dispatch_table_address());
+  TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
+  offset =
+      UintPtrAdd(offset, UintPtrConstant(JSDispatchEntry::kCodeObjectOffset));
+  TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
+  // The LSB is used as marking bit by the js dispatch table, so here we have
+  // to set it using a bitwise OR as it may or may not be set.
+  value = UncheckedCast<UintPtrT>(WordOr(
+      WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
+      UintPtrConstant(kHeapObjectTag)));
+  return CAST(BitcastWordToTagged(value));
+}
+
+TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
+    TNode<JSDispatchHandleT> handle) {
+  TNode<RawPtrT> table =
+      ExternalConstant(ExternalReference::js_dispatch_table_address());
+  TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
+  offset =
+      UintPtrAdd(offset, UintPtrConstant(JSDispatchEntry::kCodeObjectOffset));
+  static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
+  return Load<Uint16T>(table, offset);
+}
+
+#endif  // V8_ENABLE_LEAPTIERING
+
 #ifdef V8_ENABLE_SANDBOX
+
 TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
   TNode<IndirectPointerHandleT> handle =
@@ -1914,35 +1958,6 @@ TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
     return ResolveTrustedPointerHandle(handle, tag);
   }
 }
-
-#ifdef V8_ENABLE_LEAPTIERING
-TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
-    TNode<JSDispatchHandleT> handle) {
-  TNode<RawPtrT> table =
-      ExternalConstant(ExternalReference::js_dispatch_table_address());
-  TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
-  offset =
-      UintPtrAdd(offset, UintPtrConstant(JSDispatchEntry::kCodeObjectOffset));
-  TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
-  // The LSB is used as marking bit by the js dispatch table, so here we have
-  // to set it using a bitwise OR as it may or may not be set.
-  value = UncheckedCast<UintPtrT>(WordOr(
-      WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
-      UintPtrConstant(kHeapObjectTag)));
-  return CAST(BitcastWordToTagged(value));
-}
-
-TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
-    TNode<JSDispatchHandleT> handle) {
-  TNode<RawPtrT> table =
-      ExternalConstant(ExternalReference::js_dispatch_table_address());
-  TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
-  offset =
-      UintPtrAdd(offset, UintPtrConstant(JSDispatchEntry::kCodeObjectOffset));
-  static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
-  return Load<Uint16T>(table, offset);
-}
-#endif  // V8_ENABLE_LEAPTIERING
 
 TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
     TNode<IndirectPointerHandleT> handle) {
@@ -1975,18 +1990,6 @@ TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
   value = UncheckedCast<UintPtrT>(
       WordAnd(value, UintPtrConstant(~(tag | kTrustedPointerTableMarkBit))));
   return CAST(BitcastWordToTagged(value));
-}
-
-TNode<UintPtrT> CodeStubAssembler::ComputeJSDispatchTableEntryOffset(
-    TNode<JSDispatchHandleT> handle) {
-  TNode<Uint32T> index =
-      Word32Shr(handle, Uint32Constant(kJSDispatchHandleShift));
-  // We're using a 32-bit shift here to reduce code size, but for that we need
-  // to be sure that the offset will always fit into a 32-bit integer.
-  static_assert(kJSDispatchTableReservationSize <= 4ULL * GB);
-  TNode<UintPtrT> offset = ChangeUint32ToWord(
-      Word32Shl(index, Uint32Constant(kJSDispatchTableEntrySizeLog2)));
-  return offset;
 }
 
 TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
@@ -17107,13 +17110,30 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
 }
 
 #ifdef V8_ENABLE_LEAPTIERING
+
+TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
+    RootIndex idx) {
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
+  return LoadBuiltinDispatchHandle(JSBuiltinDispatchHandleRoot::to_idx(idx));
+#else
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(
+      IntPtrConstant(JSBuiltinDispatchHandleRoot::to_idx(idx)),
+      UINT32_ELEMENTS);
+  TNode<ExternalReference> table =
+      IsolateField(IsolateFieldId::kBuiltinDispatchTable);
+  return Load<JSDispatchHandleT>(table, offset);
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
+}
+
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
 TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
     JSBuiltinDispatchHandleRoot::Idx dispatch_root_idx) {
-  static_assert(Isolate::kBuiltinDispatchHandlesAreStatic);
   DCHECK_LT(dispatch_root_idx, JSBuiltinDispatchHandleRoot::Idx::kCount);
   return ReinterpretCast<JSDispatchHandleT>(
       Uint32Constant(isolate()->builtin_dispatch_handle(dispatch_root_idx)));
 }
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
+
 #endif  // V8_ENABLE_LEAPTIERING
 
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(

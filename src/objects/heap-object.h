@@ -409,7 +409,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // These are references to entries in the JSDispatchTable, which contain the
   // current code for a function.
   inline void AllocateAndInstallJSDispatchHandle(
-      size_t offset, IsolateForSandbox isolate, uint16_t parameter_count,
+      size_t offset, Isolate* isolate, uint16_t parameter_count,
       Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 

@@ -87,10 +87,12 @@ class ReadOnlyHeap final {
 
 #ifdef V8_ENABLE_SANDBOX
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
+#endif  // V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* js_dispatch_table_space() {
     return &js_dispatch_table_space_;
   }
-#endif
+#endif  // V8_ENABLE_LEAPTIERING
 
   void InitializeIsolateRoots(Isolate* isolate);
   void InitializeFromIsolateRoots(Isolate* isolate);
@@ -122,8 +124,10 @@ class ReadOnlyHeap final {
   // The read-only heap has its own code pointer space. Entries in this space
   // are never deallocated.
   CodePointerTable::Space code_pointer_space_;
-  JSDispatchTable::Space js_dispatch_table_space_;
 #endif  // V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable::Space js_dispatch_table_space_;
+#endif  // V8_ENABLE_LEAPTIERING
 
 #ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   V8_EXPORT_PRIVATE static ReadOnlyHeap* shared_ro_heap_;

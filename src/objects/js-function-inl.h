@@ -224,7 +224,7 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
 }
 
 #ifdef V8_ENABLE_LEAPTIERING
-void JSFunction::AllocateDispatchHandle(IsolateForSandbox isolate,
+void JSFunction::AllocateDispatchHandle(Isolate* isolate,
                                         uint16_t parameter_count,
                                         Tagged<Code> code,
                                         WriteBarrierMode mode) {

@@ -3027,7 +3027,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE);
     JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
-    Tagged<Code> compile_lazy = *BUILTIN_CODE(heap_->isolate(), CompileLazy);
+    Tagged<Code> compile_lazy =
+        heap_->isolate()->builtins()->code(Builtin::kCompileLazy);
     jdt->Sweep(heap_->js_dispatch_table_space(), isolate->counters(),
                [&](JSDispatchEntry& entry) {
                  Tagged<Code> code = entry.GetCode();
@@ -5681,7 +5682,7 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
 }
 
 void MarkCompactCollector::UpdatePointersInPointerTables() {
-#ifdef V8_ENABLE_SANDBOX
+#if defined(V8_ENABLE_SANDBOX) || defined(V8_ENABLE_LEAPTIERING)
   // Process an entry of a pointer table, returning either the relocated object
   // or a null pointer if the object wasn't relocated.
   auto process_entry = [&](Address content) -> Tagged<ExposedTrustedObject> {
@@ -5693,7 +5694,9 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
     DCHECK(IsExposedTrustedObject(relocated_object));
     return Cast<ExposedTrustedObject>(relocated_object);
   };
+#endif  // defined(V8_ENABLE_SANDBOX) || defined(V8_ENABLE_LEAPTIERING)
 
+#ifdef V8_ENABLE_SANDBOX
   TrustedPointerTable* const tpt = &heap_->isolate()->trusted_pointer_table();
   tpt->IterateActiveEntriesIn(
       heap_->trusted_pointer_space(),

@@ -84,6 +84,8 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
 #endif
     build_flags_["V8_ENABLE_SANDBOX"] = V8_ENABLE_SANDBOX_BOOL;
     build_flags_["V8_ENABLE_LEAPTIERING"] = V8_ENABLE_LEAPTIERING_BOOL;
+    build_flags_["V8_ENABLE_LEAPTIERING_TAGGED_SIZE_8_BYTES"] =
+        V8_ENABLE_LEAPTIERING_BOOL && build_flags_["TAGGED_SIZE_8_BYTES"];
     build_flags_["DEBUG"] = DEBUG_BOOL;
 #ifdef V8_ENABLE_DRUMBRAKE
     build_flags_["V8_ENABLE_DRUMBRAKE"] = true;

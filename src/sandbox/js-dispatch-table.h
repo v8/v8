@@ -13,7 +13,7 @@
 #include "src/runtime/runtime.h"
 #include "src/sandbox/external-entity-table.h"
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
 
 namespace v8 {
 namespace internal {
@@ -204,10 +204,12 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
   // Can be used to statically predict the handles if the pre allocated entries
   // are in the overall first read only segment of the whole table.
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
   static JSDispatchHandle GetStaticHandleForReadOnlySegmentEntry(int index) {
     return static_cast<JSDispatchHandle>(kInternalNullEntryIndex + 1 + index)
            << kJSDispatchHandleShift;
   }
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
   static bool InReadOnlySegment(JSDispatchHandle handle) {
     return HandleToIndex(handle) <= kEndOfInternalReadOnlySegment;
   }
@@ -308,6 +310,6 @@ V8_EXPORT_PRIVATE inline JSDispatchTable* GetProcessWideJSDispatchTable() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_ENABLE_LEAPTIERING
 
 #endif  // V8_SANDBOX_JS_DISPATCH_TABLE_H_

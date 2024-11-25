@@ -136,6 +136,16 @@ namespace internal {
 
 #ifdef V8_ENABLE_LEAPTIERING
 #define V8_ENABLE_LEAPTIERING_BOOL true
+
+// If we have predictable and shared builtin objects, then dispatch handles of
+// builtins are stored in the read only segment of the JSDispatchTable.
+// Otherwise, we need a table of per-isolate dispatch handles of builtins.
+#ifdef V8_STATIC_ROOTS
+#define V8_STATIC_DISPATCH_HANDLES_BOOL true
+#else
+#define V8_STATIC_DISPATCH_HANDLES_BOOL false
+#endif  // !V8_STATIC_ROOTS
+
 #else
 #define V8_ENABLE_LEAPTIERING_BOOL false
 #endif

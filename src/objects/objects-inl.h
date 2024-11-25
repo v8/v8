@@ -1110,14 +1110,14 @@ void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
 }
 
 void HeapObject::AllocateAndInstallJSDispatchHandle(size_t offset,
-                                                    IsolateForSandbox isolate,
+                                                    Isolate* isolate,
                                                     uint16_t parameter_count,
                                                     Tagged<Code> code,
                                                     WriteBarrierMode mode) {
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
   JSDispatchTable::Space* space =
-      isolate.GetJSDispatchTableSpaceFor(field_address(offset));
+      isolate->GetJSDispatchTableSpaceFor(field_address(offset));
   JSDispatchHandle handle =
       jdt->AllocateAndInitializeEntry(space, parameter_count, code);
 

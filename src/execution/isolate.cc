@@ -7501,10 +7501,18 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
   // should be allowed to proceed until the table is initialized.
   base::MutexGuard guard(read_only_dispatch_entries_mutex_.Pointer());
   auto jdt = GetProcessWideJSDispatchTable();
-  if (jdt->PreAllocatedEntryNeedsInitialization(
+
+  bool needs_initialization =
+      !V8_STATIC_DISPATCH_HANDLES_BOOL ||
+      jdt->PreAllocatedEntryNeedsInitialization(
           read_only_heap_->js_dispatch_table_space(),
-          builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst))) {
-    JSDispatchTable::UnsealReadOnlySegmentScope unseal_scope(jdt);
+          builtin_dispatch_handle(JSBuiltinDispatchHandleRoot::Idx::kFirst));
+
+  if (needs_initialization) {
+    std::optional<JSDispatchTable::UnsealReadOnlySegmentScope> unseal_scope;
+    if (V8_STATIC_DISPATCH_HANDLES_BOOL) {
+      unseal_scope.emplace(jdt);
+    }
     for (JSBuiltinDispatchHandleRoot::Idx idx =
              JSBuiltinDispatchHandleRoot::kFirst;
          idx < JSBuiltinDispatchHandleRoot::kCount;
@@ -7514,13 +7522,21 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
       DCHECK(Builtins::IsIsolateIndependent(builtin));
       Tagged<Code> code = builtins_.code(builtin);
       DCHECK(code->entrypoint_tag() == CodeEntrypointTag::kJSEntrypointTag);
-      JSDispatchHandle handle = builtin_dispatch_handle(builtin);
       // TODO(olivf, 40931165): It might be more robust to get the static
       // parameter count of this builtin.
       int parameter_count = code->parameter_count();
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
+      JSDispatchHandle handle = builtin_dispatch_handle(builtin);
       jdt->InitializePreAllocatedEntry(
           read_only_heap_->js_dispatch_table_space(), handle, code,
           parameter_count);
+#else
+      CHECK_LT(idx, JSBuiltinDispatchHandleRoot::kTableSize);
+      isolate_data_.builtin_dispatch_table()[idx] =
+          jdt->AllocateAndInitializeEntry(
+              read_only_heap_->js_dispatch_table_space(), parameter_count,
+              code);
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
     }
   }
 #endif

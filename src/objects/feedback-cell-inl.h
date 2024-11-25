@@ -55,7 +55,7 @@ void FeedbackCell::clear_interrupt_budget() {
 }
 
 #ifdef V8_ENABLE_LEAPTIERING
-void FeedbackCell::allocate_dispatch_handle(IsolateForSandbox isolate,
+void FeedbackCell::allocate_dispatch_handle(Isolate* isolate,
                                             uint16_t parameter_count,
                                             Tagged<Code> code,
                                             WriteBarrierMode mode) {

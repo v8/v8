@@ -16,8 +16,6 @@
 #include "src/common/globals.h"
 #include "src/common/segmented-table.h"
 
-#ifdef V8_COMPRESS_POINTERS
-
 namespace v8 {
 namespace internal {
 
@@ -284,7 +282,5 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_COMPRESS_POINTERS
 
 #endif  // V8_SANDBOX_EXTERNAL_ENTITY_TABLE_H_
