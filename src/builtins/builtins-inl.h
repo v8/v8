@@ -255,16 +255,31 @@ constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
 
 // static
 constexpr int Builtins::GetFormalParameterCount(Builtin builtin) {
+  CHECK(HasJSLinkage(builtin));
+
+  // TODO(saelo): consider merging GetFormalParameterCount and
+  // GetStackParameterCount into a single function.
+  if (Builtins::KindOf(builtin) == TSJ || Builtins::KindOf(builtin) == TFJ) {
+    return Builtins::GetStackParameterCount(builtin);
+  } else if (Builtins::KindOf(builtin) == ASM ||
+             Builtins::KindOf(builtin) == TFC) {
+    // At the moment, all ASM builtins are varargs builtins. This is verified
+    // in CheckFormalParameterCount.
+    return kDontAdaptArgumentsSentinel;
+  } else if (Builtins::KindOf(builtin) == CPP) {
 #define CPP_BUILTIN(Name, Argc) \
   case Builtin::k##Name:        \
     return Argc;
 
-  switch (builtin) {
-    BUILTIN_LIST_C(CPP_BUILTIN)
-    default:
-      UNREACHABLE();
-  }
+    switch (builtin) {
+      BUILTIN_LIST_C(CPP_BUILTIN)
+      default:
+        UNREACHABLE();
+    }
 #undef CPP_BUILTIN
+  } else {
+    UNREACHABLE();
+  }
 }
 
 #ifdef V8_ENABLE_WEBASSEMBLY

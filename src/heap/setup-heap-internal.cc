@@ -1478,7 +1478,7 @@ void Heap::CreateInitialMutableObjects() {
 
     info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAsyncIteratorPrototypeAsyncDisposeResolveClosure,
-        1);
+        0);
     set_async_iterator_prototype_async_dispose_resolve_closure_shared_fun(
         *info);
   }

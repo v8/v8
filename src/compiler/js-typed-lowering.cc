@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/ast/modules.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -1866,6 +1867,12 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   // -- 6 + n + 1: argc (Int32)
   // -----------------------------------
 
+  // These SBXCHECKs are a defense-in-depth measure to ensure that we always
+  // generate valid calls here (with matching signatures).
+  SBXCHECK(Builtins::IsCpp(builtin));
+  SBXCHECK_GE(arity + kJSArgcReceiverSlots,
+              Builtins::GetFormalParameterCount(builtin));
+
   // The logic contained here is mirrored in Builtins::Generate_Adaptor.
   // Keep these in sync.
 
@@ -1890,7 +1897,6 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
 
   // CPP builtins are implemented in C++, and we can inline it.
   // CPP builtins create a builtin exit frame.
-  DCHECK(Builtins::IsCpp(builtin));
   const bool has_builtin_exit_frame = true;
 
   Node* stub =
@@ -2140,10 +2146,16 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       // Patch {node} to a direct CEntry call.
       ReduceBuiltin(jsgraph(), node, shared->builtin_id(), arity, flags);
     } else if (shared->HasBuiltinId()) {
-      DCHECK(Builtins::HasJSLinkage(shared->builtin_id()));
+      Builtin builtin = shared->builtin_id();
+      DCHECK(Builtins::HasJSLinkage(builtin));
+
+      // This SBXCHECK is a defense-in-depth measure to ensure that we always
+      // generate valid calls here (with matching signatures).
+      SBXCHECK_GE(arity + kJSArgcReceiverSlots,
+                  Builtins::GetFormalParameterCount(builtin));
+
       // Patch {node} to a direct code object call.
-      Callable callable =
-          Builtins::CallableFor(isolate(), shared->builtin_id());
+      Callable callable = Builtins::CallableFor(isolate(), builtin);
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
       auto call_descriptor = Linkage::GetStubCallDescriptor(

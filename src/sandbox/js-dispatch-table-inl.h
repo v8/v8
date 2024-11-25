@@ -5,6 +5,7 @@
 #ifndef V8_SANDBOX_JS_DISPATCH_TABLE_INL_H_
 #define V8_SANDBOX_JS_DISPATCH_TABLE_INL_H_
 
+#include "src/builtins/builtins-inl.h"
 #include "src/common/code-memory-access-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/external-entity-table-inl.h"
@@ -284,6 +285,9 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
     return false;
   }
   if (code->parameter_count() == parameter_count) {
+    DCHECK_IMPLIES(code->is_builtin(),
+                   parameter_count ==
+                       Builtins::GetFormalParameterCount(code->builtin_id()));
     // Dispatch entry and code have the same signature. This is correct.
     return true;
   }

@@ -1210,8 +1210,8 @@ namespace internal {
   IF_WASM(TFC, WasmToJsWrapperCSA, WasmToJSWrapper)                            \
   IF_WASM(TFC, WasmToJsWrapperInvalidSig, WasmToJSWrapper)                     \
   IF_WASM(ASM, WasmSuspend, WasmSuspend)                                       \
-  IF_WASM(ASM, WasmResume, WasmDummyWithJSLinkage)                             \
-  IF_WASM(ASM, WasmReject, WasmDummyWithJSLinkage)                             \
+  IF_WASM(ASM, WasmResume, JSTrampoline)                                       \
+  IF_WASM(ASM, WasmReject, JSTrampoline)                                       \
   IF_WASM(ASM, WasmTrapHandlerLandingPad, WasmDummy)                           \
   IF_WASM(ASM, WasmCompileLazy, WasmDummy)                                     \
   IF_WASM(ASM, WasmLiftoffFrameSetup, WasmDummy)                               \
