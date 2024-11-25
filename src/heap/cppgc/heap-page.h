@@ -226,7 +226,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   Address PayloadEnd();
   ConstAddress PayloadEnd() const;
 
-  static size_t PayloadSize();
+  static constexpr inline size_t PayloadSize();
 
   bool PayloadContains(ConstAddress address) const {
     return (PayloadStart() <= address) && (address < PayloadEnd());
@@ -363,6 +363,11 @@ SlotSet& BasePage::GetOrAllocateSlotSet() {
   return *slot_set_;
 }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
+
+// static
+constexpr inline size_t NormalPage::PayloadSize() {
+  return kPageSize - RoundUp(sizeof(NormalPage), kAllocationGranularity);
+}
 
 }  // namespace internal
 }  // namespace cppgc
