@@ -92,6 +92,7 @@ Address AllocateJumpTableThunk(
 }
 
 void CompileJumpTableThunk(Address thunk, Address jump_target) {
+  RwxMemoryWriteScopeForTesting write_scope;
   MacroAssembler masm(CcTest::i_isolate()->allocator(), AssemblerOptions{},
                       CodeObjectRequired::kNo,
                       ExternalAssemblerBuffer(reinterpret_cast<void*>(thunk),
@@ -209,15 +210,15 @@ class JumpTablePatcher : public v8::base::Thread {
     TRACE("Patcher %p is starting ...\n", this);
     Address slot_address =
         slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_);
-    WritableJumpTablePair jump_table_pair = WritableJumpTablePair::ForTesting(
-        slot_start_, JumpTableAssembler::JumpSlotIndexToOffset(slot_index_ + 1),
-        slot_start_,
-        JumpTableAssembler::JumpSlotIndexToOffset(slot_index_ + 1));
     // First, emit code to the two thunks.
     for (Address thunk : thunks_) {
       CompileJumpTableThunk(thunk, slot_address);
     }
     // Then, repeatedly patch the jump table to jump to one of the two thunks.
+    WritableJumpTablePair jump_table_pair = WritableJumpTablePair::ForTesting(
+        slot_start_, JumpTableAssembler::JumpSlotIndexToOffset(slot_index_ + 1),
+        slot_start_,
+        JumpTableAssembler::JumpSlotIndexToOffset(slot_index_ + 1));
     constexpr int kNumberOfPatchIterations = 64;
     for (int i = 0; i < kNumberOfPatchIterations; ++i) {
       TRACE("  patcher %p patch slot " V8PRIxPTR_FMT
@@ -274,6 +275,7 @@ TEST(JumpTablePatchingStress) {
     std::vector<Address> patcher_thunks;
     {
       Address jump_table_address = reinterpret_cast<Address>(buffer->start());
+
       WritableJumpTablePair jump_table_pair =
           WritableJumpTablePair::ForTesting(jump_table_address, buffer->size(),
                                             jump_table_address, buffer->size());
@@ -284,17 +286,21 @@ TEST(JumpTablePatchingStress) {
 
       JumpTableAssembler::PatchJumpTableSlot(jump_table_pair, slot_addr,
                                              kNullAddress, slot_addr);
-      // For each patcher, generate two thunks where this patcher can emit code
-      // which finally jumps back to {slot} in the jump table.
-      for (int i = 0; i < 2 * kNumberOfPatcherThreads; ++i) {
-        Address thunk =
-            AllocateJumpTableThunk(slot_start + slot_offset, thunk_slot_buffer,
-                                   &used_thunk_slots, &thunk_buffers);
+    }
+
+    // For each patcher, generate two thunks where this patcher can emit code
+    // which finally jumps back to {slot} in the jump table.
+    for (int i = 0; i < 2 * kNumberOfPatcherThreads; ++i) {
+      Address thunk =
+          AllocateJumpTableThunk(slot_start + slot_offset, thunk_slot_buffer,
+                                 &used_thunk_slots, &thunk_buffers);
+      {
+        RwxMemoryWriteScopeForTesting write_scope;
         ZapCode(thunk, kThunkBufferSize);
-        patcher_thunks.push_back(thunk);
-        TRACE("  generated jump thunk: " V8PRIxPTR_FMT "\n",
-              patcher_thunks.back());
       }
+      patcher_thunks.push_back(thunk);
+      TRACE("  generated jump thunk: " V8PRIxPTR_FMT "\n",
+            patcher_thunks.back());
     }
 
     // Start multiple runner threads that execute the jump table slot
