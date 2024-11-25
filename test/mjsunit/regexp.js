@@ -420,7 +420,7 @@ for (var i = 0; i < 100000; i++) {
 try {
   RegExp(long).exec("a");
 } catch (e) {
-  assertTrue(String(e).indexOf("Stack overflow") >= 0, "overflow");
+  assertTrue(String(e).indexOf("too large") >= 0, "too large");
 }
 
 

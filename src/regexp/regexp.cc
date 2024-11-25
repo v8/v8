@@ -962,6 +962,9 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   }
 
   data->node = compiler.PreprocessRegExp(data, is_one_byte);
+  if (data->error != RegExpError::kNone) {
+    return false;
+  }
   data->error = AnalyzeRegExp(isolate, is_one_byte, flags, data->node);
   if (data->error != RegExpError::kNone) {
     return false;

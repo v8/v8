@@ -4078,6 +4078,11 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
   }
 
   if (node == nullptr) node = zone()->New<EndNode>(EndNode::BACKTRACK, zone());
+  // We can run out of registers during preprocessing. Indicate an error in case
+  // we do.
+  if (reg_exp_too_big_) {
+    data->error = RegExpError::kTooLarge;
+  }
   return node;
 }
 
