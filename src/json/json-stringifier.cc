@@ -24,8 +24,6 @@
 namespace v8 {
 namespace internal {
 
-static constexpr char kJsonStringifierZoneName[] = "json-stringifier-zone";
-
 class JsonStringifier {
  public:
   explicit JsonStringifier(Isolate* isolate);
@@ -373,6 +371,9 @@ class JsonStringifier {
   bool TrySerializeSimplePropertyKey(Tagged<String> string,
                                      const DisallowGarbageCollection& no_gc);
 
+  template <typename Char>
+  V8_INLINE static bool DoNotEscape(Char c);
+
   V8_INLINE void NewLine();
   V8_NOINLINE void NewLineOutline();
   V8_INLINE void Indent() { indent_++; }
@@ -423,15 +424,21 @@ class JsonStringifier {
 
   SimplePropertyKeyCache key_cache_;
   uint8_t one_byte_array_[kInitialPartLength];
+
+  static const int kJsonEscapeTableEntrySize = 8;
+  static const char* const JsonEscapeTable;
+  static const bool JsonDoNotEscapeFlagTable[];
 };
 
-namespace {
-
-constexpr int kJsonEscapeTableEntrySize = 8;
+MaybeHandle<Object> JsonStringify(Isolate* isolate, Handle<JSAny> object,
+                                  Handle<JSAny> replacer, Handle<Object> gap) {
+  JsonStringifier stringifier(isolate);
+  return stringifier.Stringify(object, replacer, gap);
+}
 
 // Translation table to escape Latin1 characters.
 // Table entries start at a multiple of 8 and are null-terminated.
-constexpr const char* const JsonEscapeTable =
+const char* const JsonStringifier::JsonEscapeTable =
     "\\u0000\0 \\u0001\0 \\u0002\0 \\u0003\0 "
     "\\u0004\0 \\u0005\0 \\u0006\0 \\u0007\0 "
     "\\b\0     \\t\0     \\n\0     \\u000b\0 "
@@ -457,7 +464,7 @@ constexpr const char* const JsonEscapeTable =
     "X\0      Y\0      Z\0      [\0      "
     "\\\\\0     ]\0      ^\0      _\0      ";
 
-constexpr bool JsonDoNotEscapeFlagTable[] = {
+const bool JsonStringifier::JsonDoNotEscapeFlagTable[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -470,45 +477,6 @@ constexpr bool JsonDoNotEscapeFlagTable[] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 };
-
-template <typename Char>
-constexpr bool DoNotEscape(Char c);
-
-template <>
-constexpr bool DoNotEscape(uint8_t c) {
-  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
-  return JsonDoNotEscapeFlagTable[c];
-}
-
-template <>
-constexpr bool DoNotEscape(uint16_t c) {
-  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
-  return (c >= 0x20 && c <= 0x21) ||
-         (c >= 0x23 && c != 0x5C && (c < 0xD800 || c > 0xDFFF));
-}
-
-bool CanFastSerializeJSArray(Isolate* isolate, Tagged<JSArray> object) {
-  // If the no elements protector is intact, Array.prototype and
-  // Object.prototype are guaranteed to not have elements in any native context.
-  if (!Protectors::IsNoElementsIntact(isolate)) return false;
-  Tagged<Map> map = object->map(isolate);
-  Tagged<NativeContext> native_context = map->map(isolate)->native_context();
-  Tagged<HeapObject> proto = map->prototype();
-  return native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) == proto;
-}
-
-V8_INLINE bool CanFastSerializeJSObject(Tagged<JSObject> raw_object,
-                                        Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  if (IsCustomElementsReceiverMap(raw_object->map())) return false;
-  if (!raw_object->HasFastProperties()) return false;
-  auto roots = ReadOnlyRoots(isolate);
-  auto elements = raw_object->elements();
-  return elements == roots.empty_fixed_array() ||
-         elements == roots.empty_slow_element_dictionary();
-}
-
-}  // namespace
 
 JsonStringifier::JsonStringifier(Isolate* isolate)
     : isolate_(isolate),
@@ -1062,6 +1030,20 @@ JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
   return SUCCESS;
 }
 
+namespace {
+
+bool CanTreatHoleAsUndefined(Isolate* isolate, Tagged<JSArray> object) {
+  // If the no elements protector is intact, Array.prototype and
+  // Object.prototype are guaranteed to not have elements in any native context.
+  if (!Protectors::IsNoElementsIntact(isolate)) return false;
+  Tagged<Map> map = object->map(isolate);
+  Tagged<NativeContext> native_context = map->map(isolate)->native_context();
+  Tagged<HeapObject> proto = map->prototype();
+  return native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) == proto;
+}
+
+}  // namespace
+
 JsonStringifier::Result JsonStringifier::SerializeJSArray(
     Handle<JSArray> object, Handle<Object> key) {
   uint32_t length = 0;
@@ -1133,7 +1115,7 @@ JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
 
   constexpr bool is_holey = IsHoleyElementsKind(kind);
   bool bailout_on_hole =
-      is_holey ? !CanFastSerializeJSArray(isolate_, *array) : true;
+      is_holey ? !CanTreatHoleAsUndefined(isolate_, *array) : true;
 
   uint32_t i = 0;
   while (true) {
@@ -1181,7 +1163,7 @@ JsonStringifier::SerializeFixedArrayWithPossibleTransitions(
         Cast<FixedArray>(array->elements())->get(i);
     if (is_holey && IsTheHole(current_element)) {
       if (should_check_treat_hole_as_undefined) {
-        if (!CanFastSerializeJSArray(isolate_, *array)) {
+        if (!CanTreatHoleAsUndefined(isolate_, *array)) {
           *slow_path_index = i;
           return UNCHANGED;
         }
@@ -1265,13 +1247,27 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
   return SUCCESS;
 }
 
+namespace {
+V8_INLINE bool CanFastSerializeJSObject(PtrComprCageBase cage_base,
+                                        Tagged<JSObject> raw_object,
+                                        Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  if (IsCustomElementsReceiverMap(raw_object->map(cage_base))) return false;
+  if (!raw_object->HasFastProperties(cage_base)) return false;
+  auto roots = ReadOnlyRoots(isolate);
+  auto elements = raw_object->elements(cage_base);
+  return elements == roots.empty_fixed_array() ||
+         elements == roots.empty_slow_element_dictionary();
+}
+}  // namespace
+
 JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Handle<JSObject> object, Handle<Object> key) {
   PtrComprCageBase cage_base(isolate_);
   HandleScope handle_scope(isolate_);
 
   if (!property_list_.is_null() ||
-      !CanFastSerializeJSObject(*object, isolate_)) {
+      !CanFastSerializeJSObject(cage_base, *object, isolate_)) {
     if (!need_stack_) {
       need_stack_ = true;
       return NEED_STACK;
@@ -1612,6 +1608,19 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(
   return true;
 }
 
+template <>
+bool JsonStringifier::DoNotEscape(uint8_t c) {
+  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
+  return JsonDoNotEscapeFlagTable[c];
+}
+
+template <>
+bool JsonStringifier::DoNotEscape(uint16_t c) {
+  // https://tc39.github.io/ecma262/#table-json-single-character-escapes
+  return (c >= 0x20 && c <= 0x21) ||
+         (c >= 0x23 && c != 0x5C && (c < 0xD800 || c > 0xDFFF));
+}
+
 void JsonStringifier::NewLine() {
   if (gap_ == nullptr) return;
   NewLineOutline();
@@ -1705,1003 +1714,6 @@ void JsonStringifier::ChangeEncoding() {
   part_ptr_ = two_byte_ptr_;
   if (one_byte_ptr_ != one_byte_array_) delete[] one_byte_ptr_;
   one_byte_ptr_ = nullptr;
-}
-
-template <typename Char>
-class OutBuffer {
- public:
-  explicit OutBuffer(Zone* zone) : zone_(zone), segments_(1, zone_) {
-    Extend();
-  }
-  template <typename SrcChar>
-    requires(sizeof(Char) >= sizeof(SrcChar))
-  V8_INLINE void AppendCharacter(SrcChar c) {
-    DCHECK_GT(SegmentFreeChars(), 0);
-    *cur_++ = c;
-    if (cur_ == segment_end_) {
-      Extend();
-    }
-  }
-  template <typename SrcChar>
-    requires(sizeof(Char) >= sizeof(SrcChar))
-  void Append(const SrcChar* chars, int length) {
-    DCHECK_GT(SegmentFreeChars(), 0);
-    if (length <= SegmentFreeChars()) {
-      CopyChars(cur_, chars, length);
-      cur_ += length;
-    } else {
-      int cur_length = SegmentFreeChars();
-      CopyChars(cur_, chars, cur_length);
-      chars += cur_length;
-      int remaining_length = length - cur_length;
-      while (remaining_length > 0) {
-        Extend();
-        int copy_length = std::min(remaining_length, kSegmentLength);
-        CopyChars(cur_, chars, copy_length);
-        chars += copy_length;
-        cur_ += copy_length;
-        remaining_length -= copy_length;
-      }
-    }
-    if (SegmentFreeChars() <= 0) Extend();
-  }
-  int length() const {
-    return (segments_.length() - 1) * kSegmentLength + CurSegmentLength();
-  }
-  template <typename Dst>
-  void CopyTo(Dst* dst) {
-    // Copy full segments.
-    for (int i = 0; i < segments_.length() - 1; i++) {
-      CopyChars(dst, segments_[i].begin(), kSegmentLength);
-      dst += kSegmentLength;
-    }
-    // Copy last (partially filled) segment.
-    base::Vector<Char> segment = segments_.last();
-    CopyChars(dst, segment.begin(), CurSegmentLength());
-  }
-
- private:
-  static constexpr int kSegmentLength = 2048;
-  void Extend() {
-    segments_.Add(zone_->AllocateVector<Char>(kSegmentLength), zone_);
-    cur_ = segments_.last().begin();
-    segment_end_ = segments_.last().end();
-  }
-  V8_INLINE int SegmentFreeChars() const {
-    return static_cast<int>(segment_end_ - cur_);
-  }
-  V8_INLINE int CurSegmentLength() const {
-    return static_cast<int>(cur_ - segments_.last().begin());
-  }
-  Zone* zone_;
-  ZoneList<base::Vector<Char>> segments_;
-  Char* cur_;
-  Char* segment_end_;
-};
-
-struct ContinuationRecord {
-  enum Type {
-    kObject,
-    kArray,
-    kResumeFromOther,  // Resume after encoding change or array serialization.
-                       // Either object, array or string.
-                       // |index| is ignored for this type.
-    kObjectKey         // For encoding changes triggered by object keys.
-                       // This is required (instead of simply resuming with the
-                       // object/index that triggered the change), to avoid
-                       // re-serializing '{' if the first property key triggered
-                       // the change.
-                       // |index| is used to indicate comma requirement
-                       // (0 = no comma, otherwise add comma).
-  };
-  Type type;
-  Tagged<JSAny> object;
-  uint32_t index;
-};
-
-enum FastJsonStringifierResult {
-  SUCCESS,
-  UNCHANGED,
-  UNDEFINED,
-  CHANGE_ENCODING,
-  SLOW_PATH,
-  EXCEPTION
-};
-
-template <typename Char>
-class FastJsonStringifier {
- public:
-  explicit FastJsonStringifier(Isolate* isolate);
-
-  int ResultLength() const { return buffer_.length(); }
-  template <typename DstChar>
-  void CopyResultTo(DstChar* out_buffer) {
-    buffer_.CopyTo(out_buffer);
-  }
-  V8_INLINE FastJsonStringifierResult
-  SerializeObject(Tagged<JSAny> object, const DisallowGarbageCollection& no_gc);
-
-  template <typename OldChar>
-    requires(sizeof(OldChar) < sizeof(Char))
-  FastJsonStringifierResult ResumeFrom(
-      FastJsonStringifier<OldChar>& old_stringifier,
-      const DisallowGarbageCollection& no_gc);
-
- private:
-  static constexpr bool is_one_byte = sizeof(Char) == sizeof(uint8_t);
-
-  V8_INLINE void Separator(bool comma) {
-    if (comma) AppendCharacter(',');
-  }
-  V8_INLINE void SerializeSmi(Tagged<Smi> object);
-  void SerializeDouble(double number);
-  V8_INLINE FastJsonStringifierResult SerializeObjectKey(
-      Tagged<String> key, bool comma, const DisallowGarbageCollection& no_gc);
-  template <typename StringT>
-  V8_INLINE FastJsonStringifierResult SerializeObjectKey(
-      Tagged<String> key, bool comma, const DisallowGarbageCollection& no_gc);
-  template <typename StringT, bool deferred_key>
-  V8_INLINE FastJsonStringifierResult
-  SerializeString(Tagged<HeapObject> str, bool comma, Tagged<String> key,
-                  const DisallowGarbageCollection& no_gc);
-
-  template <bool deferred_key>
-  V8_INLINE FastJsonStringifierResult TrySerializeSimpleObject(
-      Tagged<JSAny> object, bool comma = false, Tagged<String> key = {});
-  FastJsonStringifierResult SerializeObject(Tagged<JSAny> object,
-                                            uint32_t obj_cont_idx,
-                                            uint32_t array_cont_idx);
-  V8_INLINE FastJsonStringifierResult
-  SerializeJSObject(Tagged<JSObject> obj, uint32_t start_idx,
-                    const DisallowGarbageCollection& no_gc);
-  FastJsonStringifierResult SerializeJSArray(Tagged<JSArray> array,
-                                             uint32_t start_idx);
-  template <ElementsKind kind>
-  V8_INLINE FastJsonStringifierResult SerializeFixedArrayWithInterruptCheck(
-      Tagged<JSArray> array, uint32_t length, uint32_t start_index,
-      uint32_t* bailout_idx = nullptr);
-  template <ElementsKind kind>
-  V8_INLINE FastJsonStringifierResult SerializeFixedArray(Tagged<JSArray> array,
-                                                          uint32_t length,
-                                                          uint32_t start_index);
-  template <ElementsKind kind, typename T>
-  V8_INLINE FastJsonStringifierResult SerializeFixedArrayElement(
-      Tagged<T> elements, uint32_t i, Tagged<JSArray> array);
-
-  FastJsonStringifierResult HandleInterruptAndCheckCycle();
-  bool CheckCycle();
-
-  template <typename SrcChar>
-  V8_INLINE void AppendCharacter(SrcChar c) {
-    buffer_.AppendCharacter(c);
-  }
-
-  template <int N>
-  V8_INLINE void AppendCStringLiteral(const char (&literal)[N]) {
-    // Note that the literal contains the zero char.
-    constexpr int length = N - 1;
-    static_assert(length > 0);
-    if constexpr (length == 1) return AppendCharacter(literal[0]);
-    const uint8_t* chars = reinterpret_cast<const uint8_t*>(literal);
-    buffer_.Append(chars, length);
-  }
-
-  V8_INLINE void AppendCString(const char* chars) {
-    buffer_.Append(reinterpret_cast<const unsigned char*>(chars),
-                   static_cast<int>(strlen(chars)));
-  }
-  V8_INLINE void AppendCString(const char* from, const char* to) {
-    buffer_.Append(reinterpret_cast<const unsigned char*>(from),
-                   static_cast<int>(to - from));
-  }
-
-  V8_INLINE FastJsonStringifierResult
-  AppendStringChecked(Tagged<String> string);
-  template <typename SrcChar>
-  V8_INLINE FastJsonStringifierResult
-  AppendStringChecked(Tagged<String> string, const SrcChar* chars,
-                      uint32_t length, const DisallowGarbageCollection& no_gc);
-
-  static constexpr uint32_t kGlobalInterruptBudget = 200000;
-  static constexpr uint32_t kArrayInterruptLength = 4000;
-
-  Isolate* isolate_;
-  Zone zone_;
-  OutBuffer<Char> buffer_;
-  std::vector<ContinuationRecord> stack_;
-
-  template <typename>
-  friend class FastJsonStringifier;
-};
-
-namespace {
-
-V8_INLINE bool CanFastSerializeJSArrayFastPath(Tagged<JSArray> object,
-                                               Isolate* isolate) {
-  Tagged<Map> map = object->map();
-  if (map->may_have_interesting_properties()) return false;
-  Tagged<NativeContext> native_context = map->map()->native_context();
-  Tagged<HeapObject> proto = map->prototype();
-  if (native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) != proto) {
-    return false;
-  }
-  return !proto->map()->may_have_interesting_properties();
-}
-
-V8_INLINE bool CanFastSerializeJSObjectFastPath(Tagged<JSObject> object,
-                                                Tagged<Map> map,
-                                                Isolate* isolate) {
-  if (IsCustomElementsReceiverMap(map)) return false;
-  if (!object->HasFastProperties()) return false;
-  auto roots = ReadOnlyRoots(isolate);
-  auto elements = object->elements();
-  if (elements != roots.empty_fixed_array() &&
-      elements != roots.empty_slow_element_dictionary()) {
-    return false;
-  }
-  if (map->may_have_interesting_properties()) return false;
-  Tagged<NativeContext> native_context = map->map()->native_context();
-  Tagged<HeapObject> proto = map->prototype();
-  if (native_context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX) != proto) {
-    return false;
-  }
-  return !proto->map()->may_have_interesting_properties();
-}
-
-}  // namespace
-
-template <typename Char>
-FastJsonStringifier<Char>::FastJsonStringifier(Isolate* isolate)
-    : isolate_(isolate),
-      zone_(isolate->allocator(), kJsonStringifierZoneName),
-      buffer_(&zone_) {}
-
-template <typename Char>
-void FastJsonStringifier<Char>::SerializeSmi(Tagged<Smi> object) {
-  static_assert(Smi::kMaxValue <= 2147483647);
-  static_assert(Smi::kMinValue >= -2147483648);
-  // sizeof(string) includes \0.
-  static constexpr int kBufferSize = sizeof("-2147483648");
-  char chars[kBufferSize];
-  base::Vector<char> buffer(chars, kBufferSize);
-  AppendCString(IntToCString(object.value(), buffer));
-}
-
-template <typename Char>
-void FastJsonStringifier<Char>::SerializeDouble(double number) {
-  if (std::isinf(number) || std::isnan(number)) {
-    AppendCStringLiteral("null");
-    return;
-  }
-  static constexpr int kBufferSize = 100;
-  char chars[kBufferSize];
-  base::Vector<char> buffer(chars, kBufferSize);
-  AppendCString(DoubleToCString(number, buffer));
-}
-
-template <typename Char>
-FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObjectKey(
-    Tagged<String> key, bool comma, const DisallowGarbageCollection& no_gc) {
-#if V8_STATIC_ROOTS_BOOL
-  // This is slightly faster than the switch over instance types.
-  ReadOnlyRoots roots(isolate_);
-  Tagged<Map> map = key->map();
-  if (map == roots.internalized_one_byte_string_map()) {
-    return SerializeObjectKey<SeqOneByteString>(key, comma, no_gc);
-  } else if (map == roots.external_internalized_one_byte_string_map() ||
-             map ==
-                 roots.uncached_external_internalized_one_byte_string_map()) {
-    return SerializeObjectKey<ExternalOneByteString>(key, comma, no_gc);
-  } else {
-    if constexpr (is_one_byte) {
-      if (InstanceTypeChecker::IsTwoByteString(map)) {
-        return CHANGE_ENCODING;
-      }
-    } else {
-      if (map == roots.internalized_two_byte_string_map()) {
-        return SerializeObjectKey<SeqTwoByteString>(key, comma, no_gc);
-      } else if (
-          map == roots.external_internalized_two_byte_string_map() ||
-          map == roots.uncached_external_internalized_two_byte_string_map()) {
-        return SerializeObjectKey<ExternalTwoByteString>(key, comma, no_gc);
-      }
-    }
-  }
-#else
-  InstanceType instance_type = key->map()->instance_type();
-  switch (instance_type) {
-    case INTERNALIZED_ONE_BYTE_STRING_TYPE:
-      return SerializeObjectKey<SeqOneByteString>(key, comma, no_gc);
-    case EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
-      return SerializeObjectKey<ExternalOneByteString>(key, comma, no_gc);
-    case INTERNALIZED_TWO_BYTE_STRING_TYPE:
-      return SerializeObjectKey<SeqTwoByteString>(key, comma, no_gc);
-    case EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
-      return SerializeObjectKey<ExternalTwoByteString>(key, comma, no_gc);
-    default:
-      UNREACHABLE();
-  }
-#endif
-  UNREACHABLE();
-}
-
-template <typename Char>
-template <typename StringT>
-FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObjectKey(
-    Tagged<String> obj, bool comma, const DisallowGarbageCollection& no_gc) {
-  using StringChar = StringT::Char;
-  if constexpr (is_one_byte && sizeof(StringChar) == 2) {
-    return CHANGE_ENCODING;
-  } else {
-    Tagged<StringT> string = Cast<StringT>(obj);
-    const StringChar* chars;
-    if constexpr (requires { string->GetChars(no_gc); }) {
-      chars = string->GetChars(no_gc);
-    } else {
-      chars = string->GetChars();
-    }
-    const uint32_t length = string->length();
-    Separator(comma);
-    AppendCharacter('"');
-    AppendStringChecked(string, chars, length, no_gc);
-    AppendCharacter('"');
-    AppendCharacter(':');
-    return SUCCESS;
-  }
-}
-
-template <typename Char>
-template <typename StringT, bool deferred_key>
-FastJsonStringifierResult FastJsonStringifier<Char>::SerializeString(
-    Tagged<HeapObject> obj, bool comma, Tagged<String> key,
-    const DisallowGarbageCollection& no_gc) {
-  using StringChar = StringT::Char;
-  if constexpr (is_one_byte && sizeof(StringChar) == 2) {
-    return CHANGE_ENCODING;
-  } else {
-    Tagged<StringT> string = Cast<StringT>(obj);
-    const StringChar* chars;
-    if constexpr (requires { string->GetChars(no_gc); }) {
-      chars = string->GetChars(no_gc);
-    } else {
-      chars = string->GetChars();
-    }
-    const uint32_t length = string->length();
-    if constexpr (deferred_key) SerializeObjectKey(key, comma, no_gc);
-    AppendCharacter('"');
-    AppendStringChecked(string, chars, length, no_gc);
-    AppendCharacter('"');
-    return SUCCESS;
-  }
-}
-
-template <typename Char>
-template <bool deferred_key>
-FastJsonStringifierResult FastJsonStringifier<Char>::TrySerializeSimpleObject(
-    Tagged<JSAny> object, bool comma, Tagged<String> key) {
-  DisallowGarbageCollection no_gc;
-  // GCMole doesn't handle kNoGC interrupts correctly.
-  DisableGCMole no_gc_mole;
-
-  if (IsSmi(object)) {
-    if constexpr (deferred_key) {
-      FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
-      if (V8_UNLIKELY(result != SUCCESS)) return result;
-    }
-    SerializeSmi(Cast<Smi>(object));
-    return SUCCESS;
-  }
-  Tagged<HeapObject> obj = Cast<HeapObject>(object);
-  Tagged<Map> map = obj->map();
-  InstanceType instance_type = map->instance_type();
-  switch (instance_type) {
-    case INTERNALIZED_ONE_BYTE_STRING_TYPE:
-    case SEQ_ONE_BYTE_STRING_TYPE:
-      return SerializeString<SeqOneByteString, deferred_key>(obj, comma, key,
-                                                             no_gc);
-    case EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
-    case EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-      return SerializeString<ExternalOneByteString, deferred_key>(obj, comma,
-                                                                  key, no_gc);
-    case THIN_ONE_BYTE_STRING_TYPE:
-      return SerializeString<SeqOneByteString, deferred_key>(
-          Cast<ThinString>(obj)->actual(), comma, key, no_gc);
-    case INTERNALIZED_TWO_BYTE_STRING_TYPE:
-    case SEQ_TWO_BYTE_STRING_TYPE:
-      return SerializeString<SeqTwoByteString, deferred_key>(obj, comma, key,
-                                                             no_gc);
-    case EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
-    case EXTERNAL_TWO_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE:
-      return SerializeString<ExternalTwoByteString, deferred_key>(obj, comma,
-                                                                  key, no_gc);
-    case THIN_TWO_BYTE_STRING_TYPE:
-      return SerializeString<SeqTwoByteString, deferred_key>(
-          Cast<ThinString>(obj)->actual(), comma, key, no_gc);
-    case HEAP_NUMBER_TYPE:
-      if constexpr (deferred_key) {
-        FastJsonStringifierResult result =
-            SerializeObjectKey(key, comma, no_gc);
-        if (V8_UNLIKELY(result != SUCCESS)) return result;
-      }
-      SerializeDouble(Cast<HeapNumber>(obj)->value());
-      return SUCCESS;
-    case ODDBALL_TYPE:
-      switch (Cast<Oddball>(obj)->kind()) {
-        case Oddball::kFalse:
-          if constexpr (deferred_key) {
-            FastJsonStringifierResult result =
-                SerializeObjectKey(key, comma, no_gc);
-            if (V8_UNLIKELY(result != SUCCESS)) return result;
-          }
-          AppendCStringLiteral("false");
-          return SUCCESS;
-        case Oddball::kTrue:
-          if constexpr (deferred_key) {
-            FastJsonStringifierResult result =
-                SerializeObjectKey(key, comma, no_gc);
-            if (V8_UNLIKELY(result != SUCCESS)) return result;
-          }
-          AppendCStringLiteral("true");
-          return SUCCESS;
-        case Oddball::kNull:
-          if constexpr (deferred_key) {
-            FastJsonStringifierResult result =
-                SerializeObjectKey(key, comma, no_gc);
-            if (V8_UNLIKELY(result != SUCCESS)) return result;
-          }
-          AppendCStringLiteral("null");
-          return SUCCESS;
-        default:
-          return UNDEFINED;
-      }
-    case SYMBOL_TYPE:
-      return UNDEFINED;
-    case JS_OBJECT_TYPE:
-    case JS_ARRAY_TYPE:
-      return UNCHANGED;
-    default:
-      return SLOW_PATH;
-  }
-
-  UNREACHABLE();
-}
-
-template <typename Char>
-FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
-    Tagged<JSObject> obj, uint32_t start_idx,
-    const DisallowGarbageCollection& no_gc) {
-  Tagged<Map> map = obj->map();
-  if (V8_UNLIKELY(!CanFastSerializeJSObjectFastPath(obj, map, isolate_))) {
-    return SLOW_PATH;
-  }
-  if (map->NumberOfOwnDescriptors() == 0) {
-    AppendCStringLiteral("{}");
-    return SUCCESS;
-  }
-  size_t length = map->NumberOfOwnDescriptors();
-  if (start_idx < length) {
-    bool comma = true;
-    if (start_idx == 0) {
-      AppendCharacter('{');
-      comma = false;
-    }
-    Tagged<DescriptorArray> descriptors = map->instance_descriptors();
-    InternalIndex::Range range{start_idx, length};
-    for (InternalIndex i : range) {
-      PropertyDetails details = PropertyDetails::Empty();
-      Tagged<Name> name = descriptors->GetKey(i);
-      if (V8_UNLIKELY(IsSymbol(name))) {
-        continue;
-      }
-      DCHECK(IsInternalizedString(name));
-      details = descriptors->GetDetails(i);
-      if (V8_UNLIKELY(details.IsDontEnum())) {
-        continue;
-      }
-      if (V8_UNLIKELY(details.location() != PropertyLocation::kField)) {
-        return SLOW_PATH;
-      }
-      DCHECK_EQ(PropertyKind::kData, details.kind());
-      FieldIndex field_index = FieldIndex::ForDetails(map, details);
-      Tagged<JSAny> property = obj->RawFastPropertyAt(field_index);
-      Tagged<String> key_name = Cast<String>(name);
-      FastJsonStringifierResult result =
-          TrySerializeSimpleObject<true>(property, comma, key_name);
-      switch (result) {
-        case SUCCESS:
-          comma = true;
-          break;
-        case UNDEFINED:
-          break;
-        case UNCHANGED:
-          stack_.emplace_back(ContinuationRecord::kObject, obj,
-                              i.as_uint32() + 1);
-          // property can be an object or array. We don't need to distinguish
-          // as index is 0 anyways.
-          stack_.emplace_back(ContinuationRecord::kObject, property, 0);
-          result = SerializeObjectKey(key_name, comma, no_gc);
-          if (V8_UNLIKELY(result != SUCCESS)) {
-            stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
-                                comma);
-            return result;
-          }
-          return result;
-        case CHANGE_ENCODING:
-          stack_.emplace_back(ContinuationRecord::kObject, obj,
-                              i.as_uint32() + 1);
-          stack_.emplace_back(ContinuationRecord::kResumeFromOther, property,
-                              0);
-          result = SerializeObjectKey(key_name, comma, no_gc);
-          if (V8_UNLIKELY(result != SUCCESS)) {
-            stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
-                                comma);
-            return result;
-          }
-          DCHECK(IsString(property));
-          return result;
-        case SLOW_PATH:
-        case EXCEPTION:
-          return result;
-      }
-    }
-  }
-  AppendCharacter('}');
-  return SUCCESS;
-}
-
-template <typename Char>
-FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSArray(
-    Tagged<JSArray> array, uint32_t start_idx) {
-  if (V8_UNLIKELY(!CanFastSerializeJSArrayFastPath(array, isolate_))) {
-    return SLOW_PATH;
-  }
-  uint32_t length = 0;
-  CHECK(Object::ToArrayLength(array->length(), &length));
-  if (length == 0) {
-    AppendCStringLiteral("[]");
-    return SUCCESS;
-  }
-  FastJsonStringifierResult result = SUCCESS;
-  if (start_idx < length) {
-    if (start_idx == 0) {
-      AppendCharacter('[');
-    }
-    switch (array->GetElementsKind()) {
-#define CASE(kind)                                                        \
-  case kind:                                                              \
-    if constexpr (IsHoleyElementsKind(kind)) {                            \
-      if (V8_UNLIKELY(!Protectors::IsNoElementsIntact(isolate_))) {       \
-        return SLOW_PATH;                                                 \
-      }                                                                   \
-    }                                                                     \
-    if (V8_UNLIKELY(length > kArrayInterruptLength)) {                    \
-      result = SerializeFixedArrayWithInterruptCheck<kind>(array, length, \
-                                                           start_idx);    \
-    } else {                                                              \
-      result = SerializeFixedArray<kind>(array, length, start_idx);       \
-    }                                                                     \
-    break;
-      CASE(PACKED_SMI_ELEMENTS)
-      CASE(PACKED_ELEMENTS)
-      CASE(PACKED_DOUBLE_ELEMENTS)
-      CASE(HOLEY_SMI_ELEMENTS)
-      CASE(HOLEY_ELEMENTS)
-      CASE(HOLEY_DOUBLE_ELEMENTS)
-#undef CASE
-      default:
-        return SLOW_PATH;
-    }
-  }
-  if (result == SUCCESS) {
-    AppendCharacter(']');
-  }
-  return result;
-}
-
-template <typename Char>
-template <ElementsKind kind>
-FastJsonStringifierResult
-FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
-    Tagged<JSArray> array, uint32_t length, uint32_t start_index,
-    uint32_t* bailout_idx) {
-  using ArrayT = typename std::conditional<IsDoubleElementsKind(kind),
-                                           FixedDoubleArray, FixedArray>::type;
-
-  StackLimitCheck interrupt_check(isolate_);
-  uint32_t limit = std::min(length, kArrayInterruptLength);
-  constexpr uint32_t kMaxAllowedFastPackedLength =
-      std::numeric_limits<uint32_t>::max() - kArrayInterruptLength;
-  static_assert(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
-
-  // GCMole doesn't handle kNoGC interrupts correctly.
-  DisableGCMole no_gc_mole;
-
-  uint32_t i = start_index;
-  while (true) {
-    for (; i < limit; i++) {
-      FastJsonStringifierResult result = SerializeFixedArrayElement<kind>(
-          Cast<ArrayT>(array->elements()), i, array);
-      if (result != SUCCESS) return result;
-    }
-    if (i >= length) return SUCCESS;
-    DCHECK_LT(limit, kMaxAllowedFastPackedLength);
-    limit = std::min(length, limit + kArrayInterruptLength);
-    {
-      if (interrupt_check.InterruptRequested() &&
-          IsException(isolate_->stack_guard()->HandleInterrupts(
-                          StackGuard::InterruptLevel::kNoGC),
-                      isolate_)) {
-        return EXCEPTION;
-      }
-    }
-  }
-  return SUCCESS;
-}
-
-template <typename Char>
-template <ElementsKind kind>
-FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArray(
-    Tagged<JSArray> array, uint32_t limit, uint32_t start_index) {
-  using ArrayT = typename std::conditional<IsDoubleElementsKind(kind),
-                                           FixedDoubleArray, FixedArray>::type;
-
-  for (uint32_t i = start_index; i < limit; i++) {
-    FastJsonStringifierResult result = SerializeFixedArrayElement<kind>(
-        Cast<ArrayT>(array->elements()), i, array);
-    if (result != SUCCESS) return result;
-  }
-  return SUCCESS;
-}
-
-template <typename Char>
-template <ElementsKind kind, typename T>
-FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
-    Tagged<T> elements, uint32_t i, Tagged<JSArray> array) {
-  if constexpr (IsHoleyElementsKind(kind)) {
-    if (elements->is_the_hole(isolate_, i)) {
-      Separator(i > 0);
-      AppendCStringLiteral("null");
-      return SUCCESS;
-    }
-  }
-  DCHECK(!elements->is_the_hole(isolate_, i));
-  Separator(i > 0);
-  if constexpr (IsSmiElementsKind(kind)) {
-    SerializeSmi(Cast<Smi>(elements->get(i)));
-  } else if constexpr (IsDoubleElementsKind(kind)) {
-    SerializeDouble(elements->get_scalar(i));
-  } else {
-    Tagged<JSAny> obj = Cast<JSAny>(elements->get(i));
-    FastJsonStringifierResult result = TrySerializeSimpleObject<false>(obj);
-    switch (result) {
-      case UNDEFINED:
-        AppendCStringLiteral("null");
-        return SUCCESS;
-      case CHANGE_ENCODING:
-        DCHECK(IsString(obj));
-        stack_.emplace_back(ContinuationRecord::kArray, array, i + 1);
-        stack_.emplace_back(ContinuationRecord::kResumeFromOther, obj, 0);
-        return result;
-      case UNCHANGED:
-        stack_.emplace_back(ContinuationRecord::kArray, array, i + 1);
-        stack_.emplace_back(ContinuationRecord::kResumeFromOther, obj, 0);
-        return result;
-      default:
-        return result;
-    }
-  }
-  return SUCCESS;
-}
-
-template <typename Char>
-template <typename OldChar>
-  requires(sizeof(OldChar) < sizeof(Char))
-FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
-    FastJsonStringifier<OldChar>& old_stringifier,
-    const DisallowGarbageCollection& no_gc) {
-  DCHECK_EQ(ResultLength(), 0);
-  DCHECK(stack_.empty());
-  DCHECK(!old_stringifier.stack_.empty());
-
-  stack_ = old_stringifier.stack_;
-  ContinuationRecord cont = stack_.back();
-  stack_.pop_back();
-  DCHECK(cont.type == ContinuationRecord::kResumeFromOther ||
-         cont.type == ContinuationRecord::kObjectKey);
-  Tagged<JSAny> object = cont.object;
-  FastJsonStringifierResult result;
-  DCHECK(IsString(object));
-  if (cont.type == ContinuationRecord::kObjectKey) {
-    result = SerializeObjectKey(Cast<String>(object), cont.index, no_gc);
-    DCHECK_EQ(result, SUCCESS);
-    DCHECK(!stack_.empty());
-    cont = stack_.back();
-    stack_.pop_back();
-  }
-  if (cont.type == ContinuationRecord::kResumeFromOther) {
-    DCHECK_EQ(cont.type, ContinuationRecord::kResumeFromOther);
-    object = cont.object;
-    result = TrySerializeSimpleObject<false>(object);
-    DCHECK_EQ(result, SUCCESS);
-  }
-  if (!stack_.empty()) {
-    cont = stack_.back();
-    DCHECK(cont.type == ContinuationRecord::kObject ||
-           cont.type == ContinuationRecord::kArray);
-    stack_.pop_back();
-    uint32_t obj_cont_idx =
-        cont.type == ContinuationRecord::kObject ? cont.index : 0;
-    uint32_t array_cont_idx =
-        cont.type == ContinuationRecord::kArray ? cont.index : 0;
-    return SerializeObject(cont.object, obj_cont_idx, array_cont_idx);
-  }
-  return result;
-}
-
-template <typename Char>
-FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
-    Tagged<JSAny> object, const DisallowGarbageCollection& no_gc) {
-  FastJsonStringifierResult result = TrySerializeSimpleObject<false>(object);
-  if constexpr (is_one_byte) {
-    if (result == CHANGE_ENCODING) {
-      DCHECK(IsString(object));
-      stack_.emplace_back(ContinuationRecord::kResumeFromOther, object, 0);
-      return result;
-    }
-  } else {
-    DCHECK_NE(result, CHANGE_ENCODING);
-  }
-  if (result != UNCHANGED) {
-    return result;
-  }
-  return SerializeObject(object, 0, 0);
-}
-
-template <typename Char>
-FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
-    Tagged<JSAny> object, uint32_t obj_cont_idx, uint32_t array_cont_idx) {
-  DisallowGarbageCollection no_gc;
-  // GCMole doesn't handle kNoGC interrupts correctly.
-  DisableGCMole no_gc_mole;
-
-  uint32_t interrupt_budget = kGlobalInterruptBudget;
-
-  FastJsonStringifierResult result;
-  while (true) {
-    if (--interrupt_budget == 0) {
-      result = HandleInterruptAndCheckCycle();
-      if (result != SUCCESS) return result;
-      interrupt_budget = kGlobalInterruptBudget;
-    }
-    Tagged<HeapObject> obj = Cast<HeapObject>(object);
-    Tagged<Map> map = obj->map();
-    InstanceType instance_type = map->instance_type();
-    switch (instance_type) {
-      case JS_OBJECT_TYPE: {
-        result = SerializeJSObject(Cast<JSObject>(obj), obj_cont_idx, no_gc);
-        break;
-      }
-      case JS_ARRAY_TYPE: {
-        result = SerializeJSArray(Cast<JSArray>(obj), array_cont_idx);
-        break;
-      }
-      default:
-        return SLOW_PATH;
-    }
-    static_assert(SUCCESS == 0);
-    static_assert(UNCHANGED == 1);
-    if (V8_UNLIKELY(result > UNCHANGED)) return result;
-    if (stack_.empty()) return SUCCESS;
-    ContinuationRecord cont = stack_.back();
-    object = cont.object;
-    obj_cont_idx = cont.type == ContinuationRecord::kObject ? cont.index : 0;
-    array_cont_idx = cont.type == ContinuationRecord::kArray ? cont.index : 0;
-    stack_.pop_back();
-  }
-}
-
-template <typename Char>
-FastJsonStringifierResult
-FastJsonStringifier<Char>::HandleInterruptAndCheckCycle() {
-  StackLimitCheck interrupt_check(isolate_);
-  if (interrupt_check.InterruptRequested() &&
-      IsException(isolate_->stack_guard()->HandleInterrupts(
-                      StackGuard::InterruptLevel::kNoGC),
-                  isolate_)) {
-    return EXCEPTION;
-  }
-
-  if (CheckCycle()) {
-    // TODO(pthier): Construct exception message on fast-path and avoid falling
-    // back to slow path just to handle the exception.
-    return SLOW_PATH;
-  }
-
-  return SUCCESS;
-}
-
-template <typename Char>
-bool FastJsonStringifier<Char>::CheckCycle() {
-  std::unordered_set<Address> set;
-  for (uint32_t i = 0; i < stack_.size(); i++) {
-    ContinuationRecord rec = stack_[i];
-    if (rec.type == ContinuationRecord::kObjectKey) continue;
-    Tagged<JSAny> obj = rec.object;
-    if (set.find(obj.ptr()) != set.end()) {
-      return true;
-    }
-    set.insert(obj.ptr());
-  }
-  return false;
-}
-
-template <typename Char>
-FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
-    Tagged<String> string) {
-  DisallowGarbageCollection no_gc;
-  DCHECK_EQ(string->map()->instance_type(), INTERNALIZED_ONE_BYTE_STRING_TYPE);
-  return AppendStringChecked(string,
-                             Cast<SeqOneByteString>(string)->GetChars(no_gc),
-                             string->length(), no_gc);
-}
-
-template <typename Char>
-template <typename SrcChar>
-FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
-    Tagged<String> string, const SrcChar* chars, uint32_t length,
-    const DisallowGarbageCollection& no_gc) {
-  int escape_char_idx = -1;
-  // TODO(pthier): Add SIMD version.
-  for (uint32_t i = 0; i < length; i++) {
-    SrcChar c = chars[i];
-    if (V8_LIKELY(DoNotEscape(c))) continue;
-    if constexpr (!is_one_byte) {
-      if (sizeof(SrcChar) != 1 &&
-          base::IsInRange(c, static_cast<SrcChar>(0xD800),
-                          static_cast<SrcChar>(0xDFFF))) {
-        // The current character is a surrogate.
-        buffer_.Append(chars + escape_char_idx + 1, i - (escape_char_idx + 1));
-        if (c <= 0xDBFF) {
-          // The current character is a leading surrogate.
-          if (i + 1 < length) {
-            // There is a next character.
-            SrcChar next = chars[i + 1];
-            if (base::IsInRange(next, static_cast<SrcChar>(0xDC00),
-                                static_cast<SrcChar>(0xDFFF))) {
-              // The next character is a trailing surrogate, meaning this is a
-              // surrogate pair.
-              AppendCharacter(c);
-              AppendCharacter(next);
-              i++;
-            } else {
-              // The next character is not a trailing surrogate. Thus, the
-              // current character is a lone leading surrogate.
-              AppendCStringLiteral("\\u");
-              char* const hex = DoubleToRadixCString(c, 16);
-              AppendCString(hex);
-              DeleteArray(hex);
-            }
-          } else {
-            // There is no next character. Thus, the current character is a lone
-            // leading surrogate.
-            AppendCStringLiteral("\\u");
-            char* const hex = DoubleToRadixCString(c, 16);
-            AppendCString(hex);
-            DeleteArray(hex);
-          }
-        } else {
-          // The current character is a lone trailing surrogate. (If it had been
-          // preceded by a leading surrogate, we would've ended up in the other
-          // branch earlier on, and the current character would've been handled
-          // as part of the surrogate pair already.)
-          AppendCStringLiteral("\\u");
-          char* const hex = DoubleToRadixCString(c, 16);
-          AppendCString(hex);
-          DeleteArray(hex);
-        }
-        escape_char_idx = i;
-      } else {
-        buffer_.Append(chars + escape_char_idx + 1, i - (escape_char_idx + 1));
-        DCHECK_LT(c, 0x60);
-        AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
-        escape_char_idx = i;
-      }
-    } else {
-      buffer_.Append(chars + escape_char_idx + 1, i - (escape_char_idx + 1));
-      AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
-      escape_char_idx = i;
-    }
-  }
-  if (static_cast<uint32_t>(escape_char_idx + 1) < length) {
-    buffer_.Append(chars + escape_char_idx + 1, length - (escape_char_idx + 1));
-  }
-  return SUCCESS;
-}
-
-namespace {
-
-bool CanUseFastStringifier(Handle<JSAny> replacer, Handle<Object> gap) {
-  // TODO(pthier): Support gap on fast-path.
-  return IsUndefined(*replacer) && IsUndefined(*gap);
-}
-
-MaybeHandle<Object> FastJsonStringify(Isolate* isolate, Handle<JSAny> object) {
-  DisallowGarbageCollection no_gc;
-
-  FastJsonStringifier<uint8_t> one_byte_stringifier(isolate);
-  std::optional<FastJsonStringifier<base::uc16>> two_byte_stringifier;
-  FastJsonStringifierResult result =
-      one_byte_stringifier.SerializeObject(*object, no_gc);
-  bool result_is_one_byte = true;
-
-  if (result == CHANGE_ENCODING) {
-    two_byte_stringifier.emplace(isolate);
-    result = two_byte_stringifier->ResumeFrom(one_byte_stringifier, no_gc);
-    DCHECK_NE(result, CHANGE_ENCODING);
-    result_is_one_byte = false;
-  }
-
-  if (V8_LIKELY(result == SUCCESS)) {
-    if (result_is_one_byte) {
-      const int length = one_byte_stringifier.ResultLength();
-      Handle<SeqOneByteString> ret;
-      {
-        AllowGarbageCollection allow_gc;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, ret, isolate->factory()->NewRawOneByteString(length));
-      }
-      one_byte_stringifier.CopyResultTo(ret->GetChars(no_gc));
-      return ret;
-    } else {
-      DCHECK(two_byte_stringifier.has_value());
-      const int one_byte_length = one_byte_stringifier.ResultLength();
-      const int two_byte_length = two_byte_stringifier->ResultLength();
-      const int total_length = one_byte_length + two_byte_length;
-      Handle<SeqTwoByteString> ret;
-      {
-        AllowGarbageCollection allow_gc;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, ret,
-            isolate->factory()->NewRawTwoByteString(total_length));
-      }
-      base::uc16* chars = ret->GetChars(no_gc);
-      if (one_byte_length > 0) {
-        one_byte_stringifier.CopyResultTo(chars);
-      }
-      DCHECK_GT(two_byte_length, 0);
-      two_byte_stringifier->CopyResultTo(chars + one_byte_length);
-      return ret;
-    }
-  } else if (result == UNDEFINED) {
-    return isolate->factory()->undefined_value();
-  } else if (result == SLOW_PATH) {
-    // TODO(pthier): Resume instead of restarting.
-    AllowGarbageCollection allow_gc;
-    JsonStringifier stringifier(isolate);
-    Handle<JSAny> undefined = isolate->factory()->undefined_value();
-    return stringifier.Stringify(object, undefined, undefined);
-  }
-  DCHECK(result == EXCEPTION);
-  CHECK(isolate->has_exception());
-  return MaybeHandle<Object>();
-}
-
-}  // namespace
-
-MaybeHandle<Object> JsonStringify(Isolate* isolate, Handle<JSAny> object,
-                                  Handle<JSAny> replacer, Handle<Object> gap) {
-  if (CanUseFastStringifier(replacer, gap)) {
-    return FastJsonStringify(isolate, object);
-  } else {
-    JsonStringifier stringifier(isolate);
-    return stringifier.Stringify(object, replacer, gap);
-  }
 }
 
 }  // namespace internal

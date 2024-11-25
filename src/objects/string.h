@@ -1148,7 +1148,6 @@ struct ObjectTraits<ExternalString> {
 V8_OBJECT class ExternalOneByteString : public ExternalString {
  public:
   static const bool kHasOneByteEncoding = true;
-  using Char = uint8_t;
 
   using Resource = v8::String::ExternalOneByteStringResource;
 
@@ -1186,7 +1185,6 @@ static_assert(sizeof(ExternalOneByteString) == sizeof(ExternalString));
 V8_OBJECT class ExternalTwoByteString : public ExternalString {
  public:
   static const bool kHasOneByteEncoding = false;
-  using Char = uint16_t;
 
   using Resource = v8::String::ExternalStringResource;
 
