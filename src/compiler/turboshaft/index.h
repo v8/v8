@@ -528,7 +528,7 @@ using NumberOrString = UnionOf<Number, String>;
 using PlainPrimitive = UnionOf<NumberOrString, BooleanOrNullOrUndefined>;
 using StringOrNull = UnionOf<String, Null>;
 using NumberOrUndefined = UnionOf<Number, Undefined>;
-
+using AnyFixedArray = UnionOf<FixedArray, FixedDoubleArray>;
 using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
 using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
 using WasmCodePtr =

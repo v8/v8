@@ -5241,9 +5241,9 @@ struct DoubleArrayMinMaxOp : FixedArityOperationT<1, DoubleArrayMinMaxOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex array() const { return Base::input(0); }
+  V<JSArray> array() const { return Base::input<JSArray>(0); }
 
-  DoubleArrayMinMaxOp(OpIndex array, Kind kind) : Base(array), kind(kind) {}
+  DoubleArrayMinMaxOp(V<JSArray> array, Kind kind) : Base(array), kind(kind) {}
   void Validate(const Graph& graph) const {
   }
 
@@ -6039,12 +6039,13 @@ struct TransitionAndStoreArrayElementOp
                   RegisterRepresentation::WordPtr(), value_representation()});
   }
 
-  OpIndex array() const { return Base::input(0); }
-  OpIndex index() const { return Base::input(1); }
-  OpIndex value() const { return Base::input(2); }
+  V<JSArray> array() const { return Base::input<JSArray>(0); }
+  V<WordPtr> index() const { return Base::input<WordPtr>(1); }
+  V<Any> value() const { return Base::input<Any>(2); }
 
-  TransitionAndStoreArrayElementOp(OpIndex array, OpIndex index, OpIndex value,
-                                   Kind kind, MaybeIndirectHandle<Map> fast_map,
+  TransitionAndStoreArrayElementOp(V<JSArray> array, V<WordPtr> index,
+                                   V<Any> value, Kind kind,
+                                   MaybeIndirectHandle<Map> fast_map,
                                    MaybeIndirectHandle<Map> double_map)
       : Base(array, index, value),
         kind(kind),
@@ -6349,14 +6350,13 @@ struct SameValueOp : FixedArityOperationT<2, SameValueOp> {
                           MaybeRegisterRepresentation::Tagged()>();
   }
 
-  OpIndex left() const { return Base::input(0); }
-  OpIndex right() const { return Base::input(1); }
+  V<Object> left() const { return Base::input<Object>(0); }
+  V<Object> right() const { return Base::input<Object>(1); }
 
-  SameValueOp(OpIndex left, OpIndex right, Mode mode)
+  SameValueOp(V<Object> left, V<Object> right, Mode mode)
       : Base(left, right), mode(mode) {}
 
-  void Validate(const Graph& graph) const {
-  }
+  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{mode}; }
 };
@@ -6691,9 +6691,9 @@ struct FindOrderedHashEntryOp
   }
 
   OpIndex data_structure() const { return Base::input(0); }
-  OpIndex key() const { return Base::input(1); }
+  V<Word32> key() const { return Base::input<Word32>(1); }
 
-  FindOrderedHashEntryOp(OpIndex data_structure, OpIndex key, Kind kind)
+  FindOrderedHashEntryOp(OpIndex data_structure, V<Word32> key, Kind kind)
       : Base(data_structure, key), kind(kind) {}
 
   void Validate(const Graph& graph) const {
