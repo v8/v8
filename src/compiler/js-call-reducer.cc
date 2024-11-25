@@ -3877,58 +3877,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-// Given a FunctionTemplateInfo, checks whether the fast API call can be
-// optimized, applying the initial step of the overload resolution algorithm:
-// Given an overload set function_template_info.c_signatures, and a list of
-// arguments of size arg_count:
-// 1. Remove from the set all entries whose type list is not of length
-//    arg_count.
-// Returns an array with the indexes of the remaining entries in S, which
-// represents the set of "optimizable" function overloads.
-
-FastApiCallFunction GetFastApiCallTarget(
-    JSHeapBroker* broker, FunctionTemplateInfoRef function_template_info,
-    size_t arg_count) {
-  if (!v8_flags.turbo_fast_api_calls) return {0, nullptr};
-
-  static constexpr int kReceiver = 1;
-
-  ZoneVector<Address> functions = function_template_info.c_functions(broker);
-  ZoneVector<const CFunctionInfo*> signatures =
-      function_template_info.c_signatures(broker);
-  const size_t overloads_count = signatures.size();
-
-  // Only considers entries whose type list length matches arg_count.
-  for (size_t i = 0; i < overloads_count; i++) {
-    const CFunctionInfo* c_signature = signatures[i];
-    const size_t len = c_signature->ArgumentCount() - kReceiver;
-    bool optimize_to_fast_call = (len == arg_count);
-
-    optimize_to_fast_call =
-        optimize_to_fast_call &&
-        fast_api_call::CanOptimizeFastSignature(c_signature);
-
-    if (optimize_to_fast_call) {
-      // TODO(nicohartmann@): {Flags::kEnforceRangeBit} is currently only
-      // supported on 64 bit architectures. We should support this on 32 bit
-      // architectures.
-#if defined(V8_TARGET_ARCH_32_BIT)
-      for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
-        const uint8_t flags =
-            static_cast<uint8_t>(c_signature->ArgumentInfo(i).GetFlags());
-        if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
-          // Bailout
-          return {0, nullptr};
-        }
-      }
-#endif
-      return {functions[i], c_signature};
-    }
-  }
-
-  return {0, nullptr};
-}
-
 Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
                                                SharedFunctionInfoRef shared) {
   JSCallNode n(node);
@@ -4109,8 +4057,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   }
 
   // Handles overloaded functions.
-  FastApiCallFunction c_function =
-      GetFastApiCallTarget(broker(), function_template_info, argc);
+  FastApiCallFunction c_function = fast_api_call::GetFastApiCallTarget(
+      broker(), function_template_info, argc);
 
   if (c_function.address) {
     FastApiCallReducerAssembler a(this, node, function_template_info,

@@ -1305,6 +1305,69 @@ class FastCApiObject {
     info.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, a + b));
   }
 
+  static int attribute_value;
+
+  static void AttributeGetterSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    FastCApiObject* self = UnwrapObject(info.This());
+    self->slow_call_count_++;
+    info.GetReturnValue().Set(attribute_value);
+  }
+
+  static int AttributeGetterFastCallback(Local<Object> receiver,
+                                         FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
+    self->fast_call_count_++;
+    return attribute_value;
+  }
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType AttributeGetterFastCallbackPatch(AnyCType receiver,
+                                                   AnyCType options) {
+    AnyCType ret;
+    ret.int32_value = AttributeGetterFastCallback(receiver.object_value,
+                                                  *options.options_value);
+    return ret;
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+  static void AttributeSetterSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    FastCApiObject* self = UnwrapObject(info.This());
+    self->slow_call_count_++;
+    if (info.Length() < 1 || !info[0]->IsNumber()) {
+      info.GetIsolate()->ThrowError(
+          "The attribute requires a number as a new value");
+      return;
+    }
+    double double_val =
+        info[0]->NumberValue(info.GetIsolate()->GetCurrentContext()).FromJust();
+    if (!base::IsValueInRangeForNumericType<int>(double_val)) {
+      info.GetIsolate()->ThrowError(
+          "New value of attribute is not within int32 range");
+      return;
+    }
+    attribute_value = static_cast<int>(double_val);
+  }
+
+  static void AttributeSetterFastCallback(Local<Object> receiver, int32_t value,
+                                          FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS();
+    self->fast_call_count_++;
+    attribute_value = value;
+  }
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static void AttributeSetterFastCallbackPatch(AnyCType receiver,
+                                               AnyCType value,
+                                               AnyCType options) {
+    AttributeSetterFastCallback(receiver.object_value, value.int32_value,
+                                *options.options_value);
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
   static void FastCallCount(const FunctionCallbackInfo<Value>& info) {
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW_SLOW();
@@ -1370,6 +1433,8 @@ class FastCApiObject {
   bool supports_fp_params_ = false;
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 };
+
+int FastCApiObject::attribute_value = 0;
 
 #undef CHECK_SELF_OR_THROW_SLOW
 #undef CHECK_SELF_OR_THROW_FAST
@@ -1437,6 +1502,25 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow,
                               SideEffectType::kHasSideEffect, &add_all_c_func));
+
+    CFunction fast_setter = CFunction::Make(
+        FastCApiObject::AttributeSetterFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::AttributeSetterFastCallback));
+    CFunction fast_getter = CFunction::Make(
+        FastCApiObject::AttributeGetterFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::AttributeGetterFastCallback));
+
+    api_obj_ctor->PrototypeTemplate()->SetAccessorProperty(
+        String::NewFromUtf8(isolate, "fast_attribute").ToLocalChecked(),
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AttributeGetterSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &fast_getter),
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AttributeSetterSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &fast_setter),
+        v8::PropertyAttribute::None);
 
     CFunction add_all_seq_c_func = CFunction::Make(
         FastCApiObject::AddAllSequenceFastCallback V8_IF_USE_SIMULATOR(

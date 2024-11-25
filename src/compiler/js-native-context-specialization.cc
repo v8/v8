@@ -16,6 +16,7 @@
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/fast-api-calls.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
@@ -1462,7 +1463,7 @@ Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
 
   value = InlineApiCall(lookup_start_object, lookup_start_object, frame_state,
                         nullptr /*value*/, &effect, &control,
-                        function_template_info);
+                        function_template_info, source);
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
@@ -2845,7 +2846,8 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
                                  access_info.api_holder().value(), broker())
                            : receiver;
     value = InlineApiCall(receiver, api_holder, frame_state, nullptr, effect,
-                          control, constant.AsFunctionTemplateInfo());
+                          control, constant.AsFunctionTemplateInfo(),
+                          FeedbackSource());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -2880,7 +2882,7 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
                                  access_info.api_holder().value(), broker())
                            : receiver;
     InlineApiCall(receiver, api_holder, frame_state, value, effect, control,
-                  constant.AsFunctionTemplateInfo());
+                  constant.AsFunctionTemplateInfo(), FeedbackSource());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -2893,10 +2895,66 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
   }
 }
 
+namespace {
+CallDescriptor* PushRegularApiCallInputs(
+    JSGraph* jsgraph, JSHeapBroker* broker, Node* receiver, Node* api_holder,
+    Node* frame_state, Node* value, Node** effect, Node** control,
+    FunctionTemplateInfoRef function_template_info, Node** inputs,
+    int& cursor) {
+  // Only setters have a value.
+  int const argc = value == nullptr ? 0 : 1;
+
+  // The builtin always expects the receiver as the first param on the stack.
+  bool no_profiling = broker->dependencies()->DependOnNoProfilingProtector();
+  Callable call_api_callback = Builtins::CallableFor(
+      jsgraph->isolate(), no_profiling
+                              ? Builtin::kCallApiCallbackOptimizedNoProfiling
+                              : Builtin::kCallApiCallbackOptimized);
+
+  Node* func_templ =
+      jsgraph->HeapConstantNoHole(function_template_info.object());
+  ApiFunction function(function_template_info.callback(broker));
+  Node* function_reference = jsgraph->graph()->NewNode(
+      jsgraph->common()->ExternalConstant(ExternalReference::Create(
+          jsgraph->isolate(), &function, ExternalReference::DIRECT_API_CALL,
+          function_template_info.c_functions(broker).data(),
+          function_template_info.c_signatures(broker).data(),
+          static_cast<uint32_t>(
+              function_template_info.c_functions(broker).size()))));
+  Node* code = jsgraph->HeapConstantNoHole(call_api_callback.code());
+
+  // Add CallApiCallbackStub's register argument as well.
+  Node* context =
+      jsgraph->ConstantNoHole(broker->target_native_context(), broker);
+  inputs[cursor++] = code;
+  inputs[cursor++] = function_reference;
+  inputs[cursor++] = jsgraph->ConstantNoHole(argc);
+  inputs[cursor++] = func_templ;
+  inputs[cursor++] = api_holder;
+  inputs[cursor++] = receiver;
+  if (value) {
+    inputs[cursor++] = value;
+  }
+  inputs[cursor++] = context;
+  inputs[cursor++] = frame_state;
+  inputs[cursor++] = *effect;
+  inputs[cursor++] = *control;
+
+  CallInterfaceDescriptor call_interface_descriptor =
+      call_api_callback.descriptor();
+  return Linkage::GetStubCallDescriptor(
+      jsgraph->zone(), call_interface_descriptor,
+      call_interface_descriptor.GetStackParameterCount() + argc +
+          1 /* implicit receiver */,
+      CallDescriptor::kNeedsFrameState);
+}
+}  // namespace
+
 Node* JSNativeContextSpecialization::InlineApiCall(
     Node* receiver, Node* api_holder, Node* frame_state, Node* value,
     Node** effect, Node** control,
-    FunctionTemplateInfoRef function_template_info) {
+    FunctionTemplateInfoRef function_template_info,
+    const FeedbackSource& feedback) {
   compiler::OptionalObjectRef maybe_callback_data =
       function_template_info.callback_data(broker());
   // Check if the function has an associated C++ code to execute.
@@ -2910,45 +2968,44 @@ Node* JSNativeContextSpecialization::InlineApiCall(
 
   // Only setters have a value.
   int const argc = value == nullptr ? 0 : 1;
-  // The builtin always expects the receiver as the first param on the stack.
-  bool no_profiling = broker()->dependencies()->DependOnNoProfilingProtector();
-  Callable call_api_callback = Builtins::CallableFor(
-      isolate(), no_profiling ? Builtin::kCallApiCallbackOptimizedNoProfiling
-                              : Builtin::kCallApiCallbackOptimized);
-  CallInterfaceDescriptor call_interface_descriptor =
-      call_api_callback.descriptor();
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), call_interface_descriptor,
-      call_interface_descriptor.GetStackParameterCount() + argc +
-          1 /* implicit receiver */,
-      CallDescriptor::kNeedsFrameState);
 
-  Node* func_templ =
-      jsgraph()->HeapConstantNoHole(function_template_info.object());
-  ApiFunction function(function_template_info.callback(broker()));
-  Node* function_reference =
-      graph()->NewNode(common()->ExternalConstant(ExternalReference::Create(
-          &function, ExternalReference::DIRECT_API_CALL)));
-  Node* code = jsgraph()->HeapConstantNoHole(call_api_callback.code());
+  // Handles overloaded functions.
+  FastApiCallFunction c_function = fast_api_call::GetFastApiCallTarget(
+      broker(), function_template_info, argc);
 
-  // Add CallApiCallbackStub's register argument as well.
-  Node* context = jsgraph()->ConstantNoHole(native_context(), broker());
-  Node* inputs[11] = {
-      code,       function_reference, jsgraph()->ConstantNoHole(argc),
-      func_templ, api_holder,         receiver};
-  int index = 6 + argc;
-  inputs[index++] = context;
-  inputs[index++] = frame_state;
-  inputs[index++] = *effect;
-  inputs[index++] = *control;
-  // This needs to stay here because of the edge case described in
-  // http://crbug.com/675648.
-  if (value != nullptr) {
-    inputs[6] = value;
+  if (c_function.address) {
+    const int input_count = 14;
+    Node* inputs[input_count];
+
+    int cursor = 0;
+    inputs[cursor++] = receiver;
+    if (value) {
+      inputs[cursor++] = value;
+    }
+    inputs[cursor++] =
+        jsgraph()->ConstantNoHole(maybe_callback_data.value(), broker());
+
+    auto call_descriptor = PushRegularApiCallInputs(
+        jsgraph(), broker(), receiver, api_holder, frame_state, value, effect,
+        control, function_template_info, inputs, cursor);
+
+    // The input_count is constant, but getters have less parameters than
+    // setters.
+    DCHECK_LE(cursor, input_count);
+
+    return *effect = *control = graph()->NewNode(
+               simplified()->FastApiCall(c_function, feedback, call_descriptor),
+               cursor, inputs);
   }
 
+  Node* inputs[11];
+  int cursor = 0;
+  CallDescriptor* call_descriptor = PushRegularApiCallInputs(
+      jsgraph(), broker(), receiver, api_holder, frame_state, value, effect,
+      control, function_template_info, inputs, cursor);
+
   return *effect = *control =
-             graph()->NewNode(common()->Call(call_descriptor), index, inputs);
+             graph()->NewNode(common()->Call(call_descriptor), cursor, inputs);
 }
 
 std::optional<JSNativeContextSpecialization::ValueEffectControl>

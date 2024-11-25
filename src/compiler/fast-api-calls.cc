@@ -379,6 +379,46 @@ Node* BuildFastApiCall(Isolate* isolate, Graph* graph,
   return builder.Build(c_function, data_argument);
 }
 
+FastApiCallFunction GetFastApiCallTarget(
+    JSHeapBroker* broker, FunctionTemplateInfoRef function_template_info,
+    size_t arg_count) {
+  if (!v8_flags.turbo_fast_api_calls) return {0, nullptr};
+
+  static constexpr int kReceiver = 1;
+
+  const ZoneVector<const CFunctionInfo*>& signatures =
+      function_template_info.c_signatures(broker);
+  const size_t overloads_count = signatures.size();
+
+  // Only considers entries whose type list length matches arg_count.
+  for (size_t i = 0; i < overloads_count; i++) {
+    const CFunctionInfo* c_signature = signatures[i];
+    const size_t len = c_signature->ArgumentCount() - kReceiver;
+    bool optimize_to_fast_call =
+        (len == arg_count) &&
+        fast_api_call::CanOptimizeFastSignature(c_signature);
+
+    if (optimize_to_fast_call) {
+      // TODO(nicohartmann@): {Flags::kEnforceRangeBit} is currently only
+      // supported on 64 bit architectures. We should support this on 32 bit
+      // architectures.
+#if defined(V8_TARGET_ARCH_32_BIT)
+      for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
+        const uint8_t flags =
+            static_cast<uint8_t>(c_signature->ArgumentInfo(i).GetFlags());
+        if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
+          // Bailout
+          return {0, nullptr};
+        }
+      }
+#endif
+      return {function_template_info.c_functions(broker)[i], c_signature};
+    }
+  }
+
+  return {0, nullptr};
+}
+
 }  // namespace fast_api_call
 }  // namespace compiler
 }  // namespace internal

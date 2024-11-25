@@ -758,6 +758,7 @@
   # These tests rely on TurboFan being enabled.
   'compiler/call-with-arraylike-or-spread*': [SKIP],
   'compiler/fast-api-calls': [SKIP],
+  'compiler/fast-api-attributes': [SKIP],
   'compiler/fast-api-interface-types': [SKIP],
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
@@ -2359,6 +2360,7 @@
   'regress/regress-1049982-2': [FAIL],
   # Maglev doesn't support fast API calls.
   'compiler/fast-api-annotations': [FAIL],
+  'compiler/fast-api-attributes': [FAIL],
   'compiler/fast-api-calls': [FAIL],
   'compiler/fast-api-calls-8args': [FAIL],
   'compiler/fast-api-calls-string': [FAIL],

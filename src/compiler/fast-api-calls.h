@@ -55,6 +55,10 @@ Node* BuildFastApiCall(Isolate* isolate, Graph* graph,
                        const InitializeOptions& initialize_options,
                        const GenerateSlowApiCall& generate_slow_api_call);
 
+FastApiCallFunction GetFastApiCallTarget(
+    JSHeapBroker* broker, FunctionTemplateInfoRef function_template_info,
+    size_t arg_count);
+
 }  // namespace fast_api_call
 }  // namespace compiler
 }  // namespace internal
