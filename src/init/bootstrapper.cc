@@ -4907,15 +4907,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(
         isolate_, finalization_registry_prototype, "unregister",
         Builtin::kFinalizationRegistryUnregister, 1, kDontAdapt);
-
-    // The cleanupSome function is created but not exposed, as it is used
-    // internally by InvokeFinalizationRegistryCleanupFromTask.
-    //
-    // It is exposed by v8_flags.harmony_weak_refs_with_cleanup_some.
-    DirectHandle<JSFunction> cleanup_some_fun = SimpleCreateFunction(
-        isolate_, factory->InternalizeUtf8String("cleanupSome"),
-        Builtin::kFinalizationRegistryPrototypeCleanupSome, 0, kDontAdapt);
-    native_context()->set_finalization_registry_cleanup_some(*cleanup_some_fun);
   }
 
   {  // -- W e a k R e f
@@ -5837,21 +5828,6 @@ void Genesis::InitializeGlobal_sharedarraybuffer() {
 
   JSObject::AddProperty(isolate_, global, "SharedArrayBuffer",
                         isolate()->shared_array_buffer_fun(), DONT_ENUM);
-}
-
-void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
-  if (!v8_flags.harmony_weak_refs_with_cleanup_some) return;
-
-  DirectHandle<JSFunction> finalization_registry_fun =
-      isolate()->js_finalization_registry_fun();
-  Handle<JSObject> finalization_registry_prototype(
-      Cast<JSObject>(finalization_registry_fun->instance_prototype()),
-      isolate());
-
-  JSObject::AddProperty(isolate(), finalization_registry_prototype,
-                        factory()->InternalizeUtf8String("cleanupSome"),
-                        isolate()->finalization_registry_cleanup_some(),
-                        DONT_ENUM);
 }
 
 void Genesis::InitializeGlobal_js_explicit_resource_management() {

@@ -5672,6 +5672,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/js-segments.cc",
     "src/objects/js-struct.cc",
     "src/objects/js-temporal-objects.cc",
+    "src/objects/js-weak-refs.cc",
     "src/objects/keys.cc",
     "src/objects/literal-objects.cc",
     "src/objects/lookup-cache.cc",

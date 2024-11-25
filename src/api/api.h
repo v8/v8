@@ -533,8 +533,7 @@ void InvokeFunctionCallbackOptimized(
 
 void InvokeFinalizationRegistryCleanupFromTask(
     Handle<NativeContext> native_context,
-    Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<Object> callback);
+    Handle<JSFinalizationRegistry> finalization_registry);
 
 template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

@@ -17731,21 +17731,6 @@ TNode<String> CodeStubAssembler::TaggedToDirectString(TNode<Object> value,
   return CAST(value);
 }
 
-void CodeStubAssembler::RemoveFinalizationRegistryCellFromUnregisterTokenMap(
-    TNode<JSFinalizationRegistry> finalization_registry,
-    TNode<WeakCell> weak_cell) {
-  const TNode<ExternalReference> remove_cell = ExternalConstant(
-      ExternalReference::
-          js_finalization_registry_remove_cell_from_unregister_token_map());
-  const TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address());
-
-  CallCFunction(remove_cell, MachineType::Pointer(),
-                std::make_pair(MachineType::Pointer(), isolate_ptr),
-                std::make_pair(MachineType::AnyTagged(), finalization_registry),
-                std::make_pair(MachineType::AnyTagged(), weak_cell));
-}
-
 PrototypeCheckAssembler::PrototypeCheckAssembler(
     compiler::CodeAssemblerState* state, Flags flags,
     TNode<NativeContext> native_context, TNode<Map> initial_prototype_map,

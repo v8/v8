@@ -381,8 +381,6 @@ enum ContextLookupFlags {
   V(MAP_GET_INDEX, JSFunction, map_get)                                        \
   V(MAP_HAS_INDEX, JSFunction, map_has)                                        \
   V(MAP_SET_INDEX, JSFunction, map_set)                                        \
-  V(FINALIZATION_REGISTRY_CLEANUP_SOME, JSFunction,                            \
-    finalization_registry_cleanup_some)                                        \
   V(FUNCTION_HAS_INSTANCE_INDEX, JSFunction, function_has_instance)            \
   V(FUNCTION_TO_STRING_INDEX, JSFunction, function_to_string)                  \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                            \

@@ -436,8 +436,6 @@
   'harmony/weakrefs/cleanup': [SKIP],
   'harmony/weakrefs/cleanup-is-not-a-microtask': [SKIP],
   'harmony/weakrefs/cleanup-on-detached-realm': [SKIP],
-  'harmony/weakrefs/cleanupsome': [SKIP],
-  'harmony/weakrefs/cleanupsome-after-unregister': [SKIP],
   'harmony/weakrefs/finalizationregistry-and-weakref': [SKIP],
   'harmony/weakrefs/finalizationregistry-independent-lifetime': [SKIP],
   'harmony/weakrefs/finalizationregistry-independent-lifetime-multiple': [SKIP],

@@ -116,28 +116,9 @@ void NullifyWeakCell(DirectHandle<WeakCell> weak_cell, Isolate* isolate) {
 Tagged<Object> PopClearedCellHoldings(
     DirectHandle<JSFinalizationRegistry> finalization_registry,
     Isolate* isolate) {
-  // PopClearedCell is implemented in Torque. Reproduce that implementation here
-  // for testing.
-  DirectHandle<WeakCell> weak_cell(
-      Cast<WeakCell>(finalization_registry->cleared_cells()), isolate);
-  DCHECK(IsUndefined(weak_cell->prev(), isolate));
-  finalization_registry->set_cleared_cells(weak_cell->next());
-  weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
-
-  if (IsWeakCell(finalization_registry->cleared_cells())) {
-    Tagged<WeakCell> cleared_cells_head =
-        Cast<WeakCell>(finalization_registry->cleared_cells());
-    DCHECK_EQ(cleared_cells_head->prev(), *weak_cell);
-    cleared_cells_head->set_prev(ReadOnlyRoots(isolate).undefined_value());
-  } else {
-    DCHECK(IsUndefined(finalization_registry->cleared_cells(), isolate));
-  }
-
-  if (!IsUndefined(weak_cell->unregister_token(), isolate)) {
-    JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
-        isolate, finalization_registry->ptr(), weak_cell->ptr());
-  }
-
+  bool may_need_key_map_shrink = false;
+  Tagged<WeakCell> weak_cell =
+      finalization_registry->PopClearedCell(isolate, &may_need_key_map_shrink);
   return weak_cell->holdings();
 }
 

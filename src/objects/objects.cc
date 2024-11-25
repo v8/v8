@@ -6509,58 +6509,6 @@ Address Smi::LexicographicCompare(Isolate* isolate, Tagged<Smi> x,
   return Smi::FromInt(tie).ptr();
 }
 
-void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
-    Isolate* isolate, Address raw_finalization_registry,
-    Address raw_weak_cell) {
-  DisallowGarbageCollection no_gc;
-  Tagged<JSFinalizationRegistry> finalization_registry =
-      Cast<JSFinalizationRegistry>(Tagged<Object>(raw_finalization_registry));
-  Tagged<WeakCell> weak_cell = Cast<WeakCell>(Tagged<Object>(raw_weak_cell));
-  DCHECK(!IsUndefined(weak_cell->unregister_token(), isolate));
-  Tagged<Undefined> undefined = ReadOnlyRoots(isolate).undefined_value();
-
-  // Remove weak_cell from the linked list of other WeakCells with the same
-  // unregister token and remove its unregister token from key_map if necessary
-  // without shrinking it. Since shrinking may allocate, it is performed by the
-  // caller after looping, or on exception.
-  if (IsUndefined(weak_cell->key_list_prev(), isolate)) {
-    Tagged<SimpleNumberDictionary> key_map =
-        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
-    Tagged<HeapObject> unregister_token = weak_cell->unregister_token();
-    uint32_t key = Smi::ToInt(Object::GetHash(unregister_token));
-    InternalIndex entry = key_map->FindEntry(isolate, key);
-    DCHECK(entry.is_found());
-
-    if (IsUndefined(weak_cell->key_list_next(), isolate)) {
-      // weak_cell is the only one associated with its key; remove the key
-      // from the hash table.
-      key_map->ClearEntry(entry);
-      key_map->ElementRemoved();
-    } else {
-      // weak_cell is the list head for its key; we need to change the value
-      // of the key in the hash table.
-      Tagged<WeakCell> next = Cast<WeakCell>(weak_cell->key_list_next());
-      DCHECK_EQ(next->key_list_prev(), weak_cell);
-      next->set_key_list_prev(undefined);
-      key_map->ValueAtPut(entry, next);
-    }
-  } else {
-    // weak_cell is somewhere in the middle of its key list.
-    Tagged<WeakCell> prev = Cast<WeakCell>(weak_cell->key_list_prev());
-    prev->set_key_list_next(weak_cell->key_list_next());
-    if (!IsUndefined(weak_cell->key_list_next())) {
-      Tagged<WeakCell> next = Cast<WeakCell>(weak_cell->key_list_next());
-      next->set_key_list_prev(weak_cell->key_list_prev());
-    }
-  }
-
-  // weak_cell is now removed from the unregister token map, so clear its
-  // unregister token-related fields.
-  weak_cell->set_unregister_token(undefined);
-  weak_cell->set_key_list_prev(undefined);
-  weak_cell->set_key_list_next(undefined);
-}
-
 // static
 bool MapWord::IsMapOrForwarded(Tagged<Map> map) {
   MapWord map_word = map->map_word(kRelaxedLoad);

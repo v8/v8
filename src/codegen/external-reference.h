@@ -437,8 +437,6 @@ enum class IsolateFieldId : uint8_t;
           "tsan_relaxed_load_function_32_bits")                                \
   IF_TSAN(V, tsan_relaxed_load_function_64_bits,                               \
           "tsan_relaxed_load_function_64_bits")                                \
-  V(js_finalization_registry_remove_cell_from_unregister_token_map,            \
-    "JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap")                \
   V(re_case_insensitive_compare_unicode,                                       \
     "RegExpMacroAssembler::CaseInsensitiveCompareUnicode()")                   \
   V(re_case_insensitive_compare_non_unicode,                                   \

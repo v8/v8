@@ -2052,6 +2052,7 @@ filegroup(
         "src/objects/js-temporal-objects.cc",
         "src/objects/js-temporal-objects.h",
         "src/objects/js-temporal-objects-inl.h",
+        "src/objects/js-weak-refs.cc",
         "src/objects/js-weak-refs.h",
         "src/objects/js-weak-refs-inl.h",
         "src/objects/keys.cc",

@@ -12189,8 +12189,7 @@ void InvokeFunctionCallbackOptimized(
 
 void InvokeFinalizationRegistryCleanupFromTask(
     Handle<NativeContext> native_context,
-    Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<Object> callback) {
+    Handle<JSFinalizationRegistry> finalization_registry) {
   i::Isolate* i_isolate = finalization_registry->native_context()->GetIsolate();
   RCS_SCOPE(i_isolate,
             RuntimeCallCounterId::kFinalizationRegistryCleanupFromTask);
@@ -12202,10 +12201,7 @@ void InvokeFinalizationRegistryCleanupFromTask(
   Local<v8::Context> api_context = Utils::ToLocal(native_context);
   CallDepthScope<true> call_depth_scope(i_isolate, api_context);
   VMState<OTHER> state(i_isolate);
-  Handle<Object> argv[] = {callback};
-  USE(Execution::CallBuiltin(i_isolate,
-                             i_isolate->finalization_registry_cleanup_some(),
-                             finalization_registry, arraysize(argv), argv));
+  JSFinalizationRegistry::Cleanup(i_isolate, finalization_registry);
 }
 
 template <>

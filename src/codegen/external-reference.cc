@@ -1839,10 +1839,6 @@ static int EnterContextWrapper(HandleScopeImplementer* hsi,
 
 FUNCTION_REFERENCE(call_enter_context_function, EnterContextWrapper)
 
-FUNCTION_REFERENCE(
-    js_finalization_registry_remove_cell_from_unregister_token_map,
-    JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap)
-
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.raw() == rhs.raw();
 }
