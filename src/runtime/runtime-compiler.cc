@@ -189,7 +189,7 @@ void CompileOptimized(Handle<JSFunction> function, ConcurrencyMode mode,
 
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_StartMaglevOptimizationJob) {
+RUNTIME_FUNCTION(Runtime_StartMaglevOptimizeJob) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
@@ -199,7 +199,7 @@ RUNTIME_FUNCTION(Runtime_StartMaglevOptimizationJob) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_StartTurbofanOptimizationJob) {
+RUNTIME_FUNCTION(Runtime_StartTurbofanOptimizeJob) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);

@@ -244,12 +244,12 @@ TF_BUILTIN(FunctionLogNextExecution, LazyBuiltinsAssembler) {
   TieringBuiltinImpl(Runtime::kFunctionLogNextExecution);
 }
 
-TF_BUILTIN(StartMaglevOptimizationJob, LazyBuiltinsAssembler) {
-  TieringBuiltinImpl(Runtime::kStartMaglevOptimizationJob);
+TF_BUILTIN(StartMaglevOptimizeJob, LazyBuiltinsAssembler) {
+  TieringBuiltinImpl(Runtime::kStartMaglevOptimizeJob);
 }
 
-TF_BUILTIN(StartTurbofanOptimizationJob, LazyBuiltinsAssembler) {
-  TieringBuiltinImpl(Runtime::kStartTurbofanOptimizationJob);
+TF_BUILTIN(StartTurbofanOptimizeJob, LazyBuiltinsAssembler) {
+  TieringBuiltinImpl(Runtime::kStartTurbofanOptimizeJob);
 }
 
 TF_BUILTIN(OptimizeMaglevEager, LazyBuiltinsAssembler) {

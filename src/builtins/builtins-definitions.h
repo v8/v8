@@ -82,12 +82,15 @@ namespace internal {
  * Also, there are lifecycle considerations since the tiering requests are
  * mutually exclusive.
  *
+ * For RCS the optimizing builtins should include the work `Optimize` in their
+ * name (see tools/callstats_groups.py).
+ *
  * */
-#define BUILTIN_LIST_BASE_TIERING(TFC)            \
-  TFC(FunctionLogNextExecution, JSTrampoline)     \
-  TFC(StartMaglevOptimizationJob, JSTrampoline)   \
-  TFC(StartTurbofanOptimizationJob, JSTrampoline) \
-  TFC(OptimizeMaglevEager, JSTrampoline)          \
+#define BUILTIN_LIST_BASE_TIERING(TFC)        \
+  TFC(FunctionLogNextExecution, JSTrampoline) \
+  TFC(StartMaglevOptimizeJob, JSTrampoline)   \
+  TFC(StartTurbofanOptimizeJob, JSTrampoline) \
+  TFC(OptimizeMaglevEager, JSTrampoline)      \
   TFC(OptimizeTurbofanEager, JSTrampoline)
 
 #else

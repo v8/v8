@@ -246,7 +246,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
       switch (mode) {
         case ConcurrencyMode::kConcurrent:
           jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kStartMaglevOptimizationJob,
+                                 TieringBuiltin::kStartMaglevOptimizeJob,
                                  isolate);
           break;
         case ConcurrencyMode::kSynchronous:
@@ -259,7 +259,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
       switch (mode) {
         case ConcurrencyMode::kConcurrent:
           jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kStartTurbofanOptimizationJob,
+                                 TieringBuiltin::kStartTurbofanOptimizeJob,
                                  isolate);
           break;
         case ConcurrencyMode::kSynchronous:

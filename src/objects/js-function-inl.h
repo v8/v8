@@ -291,10 +291,10 @@ bool JSFunction::tiering_in_progress() const {
   DCHECK_IMPLIES(
       feedback_vector()->tiering_in_progress(),
       !GetProcessWideJSDispatchTable()->IsTieringRequested(
-          dispatch_handle(), TieringBuiltin::kStartTurbofanOptimizationJob,
+          dispatch_handle(), TieringBuiltin::kStartTurbofanOptimizeJob,
           GetIsolate()) &&
           !GetProcessWideJSDispatchTable()->IsTieringRequested(
-              dispatch_handle(), TieringBuiltin::kStartMaglevOptimizationJob,
+              dispatch_handle(), TieringBuiltin::kStartMaglevOptimizeJob,
               GetIsolate()));
   return feedback_vector()->tiering_in_progress();
 #else
@@ -364,13 +364,13 @@ std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
     case TieringBuiltin::kOptimizeMaglevEager:
       if (mode == ConcurrencyMode::kSynchronous) return CodeKind::MAGLEV;
       break;
-    case TieringBuiltin::kStartMaglevOptimizationJob:
+    case TieringBuiltin::kStartMaglevOptimizeJob:
       if (mode == ConcurrencyMode::kConcurrent) return CodeKind::MAGLEV;
       break;
     case TieringBuiltin::kOptimizeTurbofanEager:
       if (mode == ConcurrencyMode::kSynchronous) return CodeKind::TURBOFAN_JS;
       break;
-    case TieringBuiltin::kStartTurbofanOptimizationJob:
+    case TieringBuiltin::kStartTurbofanOptimizeJob:
       if (mode == ConcurrencyMode::kConcurrent) return CodeKind::TURBOFAN_JS;
       break;
     case TieringBuiltin::kFunctionLogNextExecution:

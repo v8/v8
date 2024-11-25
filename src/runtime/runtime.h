@@ -131,9 +131,9 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_TIERING(F, I) \
   F(FunctionLogNextExecution, 1, 1)      \
   F(OptimizeMaglevEager, 1, 1)           \
-  F(StartMaglevOptimizationJob, 1, 1)    \
+  F(StartMaglevOptimizeJob, 1, 1)        \
   F(OptimizeTurbofanEager, 1, 1)         \
-  F(StartTurbofanOptimizationJob, 1, 1)
+  F(StartTurbofanOptimizeJob, 1, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F, I)   \
   FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I) \
