@@ -5358,10 +5358,10 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
 }
 
 bool Heap::ShouldOptimizeForLoadTime() const {
-  return isolate()->is_loading() && !AllocationLimitOvershotByLargeMargin() &&
-         MonotonicallyIncreasingTimeInMs() <
-             (load_start_time_ms_.load(std::memory_order_relaxed) +
-              kMaxLoadTimeMs);
+  double load_start_time = load_start_time_ms_.load(std::memory_order_relaxed);
+  return load_start_time != kLoadTimeNotLoading &&
+         !AllocationLimitOvershotByLargeMargin() &&
+         MonotonicallyIncreasingTimeInMs() < load_start_time + kMaxLoadTimeMs;
 }
 
 // This predicate is called when an old generation space cannot allocated from
@@ -7428,11 +7428,13 @@ void Heap::NotifyLoadingStarted() {
   if (v8_flags.update_allocation_limits_after_loading) {
     update_allocation_limits_after_loading_ = true;
   }
-  load_start_time_ms_.store(MonotonicallyIncreasingTimeInMs(),
-                            std::memory_order_relaxed);
+  double now_ms = MonotonicallyIncreasingTimeInMs();
+  DCHECK_NE(now_ms, kLoadTimeNotLoading);
+  load_start_time_ms_.store(now_ms, std::memory_order_relaxed);
 }
 
 void Heap::NotifyLoadingEnded() {
+  load_start_time_ms_.store(kLoadTimeNotLoading, std::memory_order_relaxed);
   RecomputeLimitsAfterLoadingIfNeeded();
   if (auto* job = incremental_marking()->incremental_marking_job()) {
     // The task will start incremental marking (if needed not already started)

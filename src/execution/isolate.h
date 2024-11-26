@@ -2001,8 +2001,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetIsLoading(bool is_loading);
 
-  bool is_loading() const { return is_loading_.load(); }
-
   void set_code_coverage_mode(debug::CoverageMode coverage_mode) {
     code_coverage_mode_.store(coverage_mode, std::memory_order_relaxed);
   }
@@ -2483,7 +2481,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   DateCache* date_cache_ = nullptr;
   base::RandomNumberGenerator* random_number_generator_ = nullptr;
   base::RandomNumberGenerator* fuzzer_rng_ = nullptr;
-  std::atomic<bool> is_loading_{false};
   v8::Isolate::AtomicsWaitCallback atomics_wait_callback_ = nullptr;
   void* atomics_wait_callback_data_ = nullptr;
   PromiseHook promise_hook_ = nullptr;

@@ -2385,8 +2385,11 @@ class Heap final {
 
   std::unique_ptr<MemoryBalancer> mb_;
 
-  // Time that the embedder started loading resources.
-  std::atomic<double> load_start_time_ms_{0};
+  // A sentinel meaning that the embedder isn't currently loading resources.
+  static constexpr double kLoadTimeNotLoading = -1.0;
+
+  // Time that the embedder started loading resources, or kLoadTimeNotLoading.
+  std::atomic<double> load_start_time_ms_{kLoadTimeNotLoading};
 
   bool update_allocation_limits_after_loading_ = false;
   // Full GC may trigger during loading due to overshooting allocation limits.

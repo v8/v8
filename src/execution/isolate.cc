@@ -6995,7 +6995,6 @@ void Isolate::DetachGlobal(Handle<Context> env) {
 }
 
 void Isolate::SetIsLoading(bool is_loading) {
-  is_loading_.store(is_loading);
   if (is_loading) {
     heap()->NotifyLoadingStarted();
   } else {
