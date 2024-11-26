@@ -269,7 +269,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Address pc, Address target, WritableJitAllocation& jit_allocation,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   inline Handle<HeapObject> compressed_embedded_object_handle_at(

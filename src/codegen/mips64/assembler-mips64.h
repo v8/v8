@@ -282,7 +282,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Address pc, Address target, WritableJitAllocation& jit_allocation,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Read/modify the uint32 constant used at pc.
@@ -1592,8 +1592,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       OffsetAccessType access_type = OffsetAccessType::SINGLE_ACCESS,
       int second_access_add_to_offset = 4);
 
-  inline static void set_target_internal_reference_encoded_at(Address pc,
-                                                              Address target);
+  inline static void set_target_internal_reference_encoded_at(
+      Address pc, Address target, WritableJitAllocation& jit_allocation);
 
   int64_t buffer_space() const { return reloc_info_writer.pos() - pc_; }
 

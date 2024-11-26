@@ -101,8 +101,8 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
-void Assembler::set_target_internal_reference_encoded_at(Address pc,
-                                                         Address target) {
+void Assembler::set_target_internal_reference_encoded_at(
+    Address pc, Address target, WritableJitAllocation& jit_allocation) {
   // Encoded internal references are j/jal instructions.
   Instr instr = Assembler::instr_at(pc + 0 * kInstrSize);
 
@@ -112,19 +112,20 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
   uint64_t imm26 = imm28 >> 2;
   DCHECK(is_uint26(imm26));
 
-  instr_at_put(pc, instr | (imm26 & kImm26Mask));
+  instr_at_put(pc, instr | (imm26 & kImm26Mask), &jit_allocation);
   // Currently used only by deserializer, and all code will be flushed
   // after complete deserialization, no need to flush on each reference.
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
+    Address pc, Address target, WritableJitAllocation& jit_allocation,
+    RelocInfo::Mode mode) {
   if (mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
     DCHECK(IsJ(instr_at(pc)));
-    set_target_internal_reference_encoded_at(pc, target);
+    set_target_internal_reference_encoded_at(pc, target, jit_allocation);
   } else {
     DCHECK(mode == RelocInfo::INTERNAL_REFERENCE);
-    Memory<Address>(pc) = target;
+    jit_allocation.WriteUnalignedValue<Address>(pc, target);
   }
 }
 
