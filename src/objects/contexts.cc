@@ -571,10 +571,12 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
   }
   // If both values are HeapNumbers with the same double value, the property
   // won't change either.
-  if (Is<HeapNumber>(*old_value) && Is<HeapNumber>(*new_value) &&
-      Cast<HeapNumber>(*old_value)->value() ==
-          Cast<HeapNumber>(*new_value)->value()) {
-    return;
+  if (Is<HeapNumber>(*old_value) && Is<HeapNumber>(*new_value)) {
+    double old_number = Cast<HeapNumber>(*old_value)->value();
+    double new_number = Cast<HeapNumber>(*new_value)->value();
+    if (old_number == new_number && old_number != 0) {
+      return;
+    }
   }
 
   // From now on, we know the value is no longer a constant.
