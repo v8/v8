@@ -1305,13 +1305,11 @@ class FastCApiObject {
     info.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, a + b));
   }
 
-  static int attribute_value;
-
   static void AttributeGetterSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
     FastCApiObject* self = UnwrapObject(info.This());
     self->slow_call_count_++;
-    info.GetReturnValue().Set(attribute_value);
+    info.GetReturnValue().Set(self->attribute_value_);
   }
 
   static int AttributeGetterFastCallback(Local<Object> receiver,
@@ -1319,7 +1317,7 @@ class FastCApiObject {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
     self->fast_call_count_++;
-    return attribute_value;
+    return self->attribute_value_;
   }
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1348,7 +1346,7 @@ class FastCApiObject {
           "New value of attribute is not within int32 range");
       return;
     }
-    attribute_value = static_cast<int>(double_val);
+    self->attribute_value_ = static_cast<int>(double_val);
   }
 
   static void AttributeSetterFastCallback(Local<Object> receiver, int32_t value,
@@ -1356,7 +1354,7 @@ class FastCApiObject {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_SELF_OR_THROW_FAST_OPTIONS();
     self->fast_call_count_++;
-    attribute_value = value;
+    self->attribute_value_ = value;
   }
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1427,14 +1425,13 @@ class FastCApiObject {
   }
 
   int fast_call_count_ = 0, slow_call_count_ = 0;
+  int attribute_value_ = 0;
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   bool supports_fp_params_ = true;
 #else   // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   bool supports_fp_params_ = false;
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 };
-
-int FastCApiObject::attribute_value = 0;
 
 #undef CHECK_SELF_OR_THROW_SLOW
 #undef CHECK_SELF_OR_THROW_FAST
