@@ -5320,9 +5320,9 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
 }
 
 template <typename Derived, typename Shape>
-template <typename IsolateT>
-Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
-    IsolateT* isolate, Handle<Derived> table, int n,
+template <typename IsolateT, template <typename> typename HandleType, typename>
+HandleType<Derived> HashTable<Derived, Shape>::EnsureCapacity(
+    IsolateT* isolate, HandleType<Derived> table, int n,
     AllocationType allocation) {
   if (table->HasSufficientCapacityToAdd(n)) return table;
 
@@ -5332,7 +5332,7 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   bool should_pretenure = allocation == AllocationType::kOld ||
                           ((capacity > kMinCapacityForPretenure) &&
                            !HeapLayout::InYoungGeneration(*table));
-  Handle<Derived> new_table = HashTable::New(
+  HandleType<Derived> new_table = HashTable::New(
       isolate, new_nof,
       should_pretenure ? AllocationType::kOld : AllocationType::kYoung);
 
@@ -5382,9 +5382,10 @@ int HashTable<Derived, Shape>::ComputeCapacityWithShrink(
 
 // static
 template <typename Derived, typename Shape>
-Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
-                                                  Handle<Derived> table,
-                                                  int additional_capacity) {
+template <template <typename> typename HandleType, typename>
+HandleType<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
+                                                      HandleType<Derived> table,
+                                                      int additional_capacity) {
   int new_capacity = ComputeCapacityWithShrink(
       table->Capacity(), table->NumberOfElements() + additional_capacity);
   if (new_capacity == table->Capacity()) return table;
@@ -5392,7 +5393,7 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
 
   bool pretenure = (new_capacity > kMinCapacityForPretenure) &&
                    !HeapLayout::InYoungGeneration(*table);
-  Handle<Derived> new_table =
+  HandleType<Derived> new_table =
       HashTable::New(isolate, new_capacity,
                      pretenure ? AllocationType::kOld : AllocationType::kYoung,
                      USE_CUSTOM_MINIMUM_CAPACITY);
@@ -5465,7 +5466,7 @@ bool StringSet::Has(Isolate* isolate, DirectHandle<String> name) {
 
 Handle<RegisteredSymbolTable> RegisteredSymbolTable::Add(
     Isolate* isolate, Handle<RegisteredSymbolTable> table,
-    IndirectHandle<String> key, DirectHandle<Symbol> symbol) {
+    DirectHandle<String> key, DirectHandle<Symbol> symbol) {
   // Validate that the key is absent.
   SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());
 
@@ -5808,7 +5809,7 @@ void ObjectHashTableBase<Derived, Shape>::FillEntriesWithHoles(
 
 template <typename Derived, typename Shape>
 Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
-    PtrComprCageBase cage_base, Handle<Object> key, int32_t hash) {
+    PtrComprCageBase cage_base, DirectHandle<Object> key, int32_t hash) {
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots = this->GetReadOnlyRoots();
   DCHECK(this->IsKey(roots, *key));
@@ -5820,7 +5821,7 @@ Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
 
 // The implementation should be in sync with
 // CodeStubAssembler::NameToIndexHashTableLookup.
-int NameToIndexHashTable::Lookup(Handle<Name> key) {
+int NameToIndexHashTable::Lookup(DirectHandle<Name> key) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base = GetPtrComprCageBase(this);
   ReadOnlyRoots roots = this->GetReadOnlyRoots();
@@ -5831,7 +5832,8 @@ int NameToIndexHashTable::Lookup(Handle<Name> key) {
 }
 
 template <typename Derived, typename Shape>
-Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
+Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
+    DirectHandle<Object> key) {
   DisallowGarbageCollection no_gc;
 
   PtrComprCageBase cage_base = GetPtrComprCageBase(this);
@@ -5847,8 +5849,8 @@ Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
 }
 
 template <typename Derived, typename Shape>
-Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key,
-                                                           int32_t hash) {
+Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
+    DirectHandle<Object> key, int32_t hash) {
   return Lookup(GetPtrComprCageBase(this), key, hash);
 }
 
@@ -5877,9 +5879,9 @@ int NameToIndexHashTable::IndexAt(InternalIndex entry) {
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Handle<Derived> table,
-                                                         Handle<Object> key,
-                                                         Handle<Object> value) {
+Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(
+    Handle<Derived> table, DirectHandle<Object> key,
+    DirectHandle<Object> value) {
   Isolate* isolate = Heap::FromWritableHeapObject(*table)->isolate();
   DCHECK(table->IsKey(ReadOnlyRoots(isolate), *key));
   DCHECK(!IsTheHole(*value, ReadOnlyRoots(isolate)));
@@ -5919,7 +5921,7 @@ void RehashObjectHashTableAndGCIfNeeded(Isolate* isolate, Handle<T> table) {
 
 template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(
-    Isolate* isolate, Handle<Derived> table, Handle<Object> key,
+    Isolate* isolate, Handle<Derived> table, DirectHandle<Object> key,
     DirectHandle<Object> value, int32_t hash) {
   ReadOnlyRoots roots(isolate);
   DCHECK(table->IsKey(roots, *key));
@@ -5943,7 +5945,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(
 
 template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
-    Isolate* isolate, Handle<Derived> table, Handle<Object> key,
+    Isolate* isolate, Handle<Derived> table, DirectHandle<Object> key,
     bool* was_present) {
   DCHECK(table->IsKey(table->GetReadOnlyRoots(), *key));
 
@@ -5958,7 +5960,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
 
 template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
-    Isolate* isolate, Handle<Derived> table, Handle<Object> key,
+    Isolate* isolate, Handle<Derived> table, DirectHandle<Object> key,
     bool* was_present, int32_t hash) {
   ReadOnlyRoots roots = table->GetReadOnlyRoots();
   DCHECK(table->IsKey(roots, *key));
@@ -5994,13 +5996,13 @@ void ObjectHashTableBase<Derived, Shape>::RemoveEntry(InternalIndex entry) {
 
 template <typename Derived, int N>
 std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
-    Handle<Object> key) {
+    DirectHandle<Object> key) {
   return Lookup(GetPtrComprCageBase(this), key);
 }
 
 template <typename Derived, int N>
 std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
-    PtrComprCageBase cage_base, Handle<Object> key) {
+    PtrComprCageBase cage_base, DirectHandle<Object> key) {
   DisallowGarbageCollection no_gc;
 
   ReadOnlyRoots roots = this->GetReadOnlyRoots();
@@ -6030,8 +6032,8 @@ std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
 // static
 template <typename Derived, int N>
 Handle<Derived> ObjectMultiHashTableBase<Derived, N>::Put(
-    Isolate* isolate, Handle<Derived> table, Handle<Object> key,
-    const std::array<Handle<Object>, N>& values) {
+    Isolate* isolate, Handle<Derived> table, DirectHandle<Object> key,
+    const std::array<DirectHandle<Object>, N>& values) {
   ReadOnlyRoots roots(isolate);
   DCHECK(table->IsKey(roots, *key));
 
@@ -6056,7 +6058,7 @@ Handle<Derived> ObjectMultiHashTableBase<Derived, N>::Put(
 
 template <typename Derived, int N>
 void ObjectMultiHashTableBase<Derived, N>::SetEntryValues(
-    InternalIndex entry, const std::array<Handle<Object>, N>& values) {
+    InternalIndex entry, const std::array<DirectHandle<Object>, N>& values) {
   int start_index = EntryToValueIndexStart(entry);
   for (int i = 0; i < N; i++) {
     this->set(start_index + i, *values[i]);
@@ -6065,7 +6067,7 @@ void ObjectMultiHashTableBase<Derived, N>::SetEntryValues(
 
 Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
                                          Handle<ObjectHashSet> set,
-                                         Handle<Object> key) {
+                                         DirectHandle<Object> key) {
   int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
   if (!set->Has(isolate, key, hash)) {
     set = EnsureCapacity(isolate, set);
@@ -6575,23 +6577,34 @@ bool MapWord::IsMapOrForwarded(Tagged<Map> map) {
 // Please note this list is compiler dependent.
 // Keep this at the end of this file
 
-#define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                            \
-  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                  \
-      HashTable<DERIVED, SHAPE>;                                            \
-                                                                            \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
-  HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,             \
-                                 MinimumCapacity);                          \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
-  HashTable<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,        \
-                                 MinimumCapacity);                          \
-                                                                            \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
-  HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, Handle<DERIVED>, int, \
-                                            AllocationType);                \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
-  HashTable<DERIVED, SHAPE>::EnsureCapacity(LocalIsolate*, Handle<DERIVED>, \
-                                            int, AllocationType);
+#define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                             \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                   \
+      HashTable<DERIVED, SHAPE>;                                             \
+                                                                             \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>         \
+  HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,              \
+                                 MinimumCapacity);                           \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>         \
+  HashTable<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,         \
+                                 MinimumCapacity);                           \
+                                                                             \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>         \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, Handle<DERIVED>, int,  \
+                                            AllocationType);                 \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>         \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(LocalIsolate*, Handle<DERIVED>,  \
+                                            int, AllocationType);            \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) DirectHandle<DERIVED>   \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, DirectHandle<DERIVED>, \
+                                            int, AllocationType);            \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) DirectHandle<DERIVED>   \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(                                 \
+      LocalIsolate*, DirectHandle<DERIVED>, int, AllocationType);            \
+                                                                             \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>         \
+  HashTable<DERIVED, SHAPE>::Shrink(Isolate*, Handle<DERIVED>, int);         \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) DirectHandle<DERIVED>   \
+  HashTable<DERIVED, SHAPE>::Shrink(Isolate*, DirectHandle<DERIVED>, int);
 
 #define EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(DERIVED, SHAPE) \
   EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                   \
