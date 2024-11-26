@@ -3215,6 +3215,8 @@ DEFINE_BOOL_READONLY(etw_trace_debug, false,
                      "Enable etw debug logging (only on debug builds)")
 #endif
 
+DEFINE_BOOL(print_builtin_size, false, "print code size for builtins")
+
 //
 // Disassembler only flags
 //
@@ -3240,7 +3242,6 @@ DEFINE_STRING(print_builtin_code_filter, "*",
               "filter for printing builtin code")
 DEFINE_BOOL(print_regexp_code, false, "print generated regexp code")
 DEFINE_BOOL(print_regexp_bytecode, false, "print generated regexp bytecode")
-DEFINE_BOOL(print_builtin_size, false, "print code size for builtins")
 
 #ifdef ENABLE_DISASSEMBLER
 DEFINE_BOOL(print_all_code, false, "enable all flags related to printing code")
