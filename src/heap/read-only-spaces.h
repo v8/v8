@@ -16,9 +16,7 @@
 #include "src/heap/allocation-stats.h"
 #include "src/heap/base-space.h"
 #include "src/heap/heap-verifier.h"
-#include "src/heap/list.h"
 #include "src/heap/memory-chunk-metadata.h"
-#include "src/heap/mutable-page-metadata.h"
 
 namespace v8 {
 namespace internal {
@@ -90,13 +88,8 @@ class ReadOnlyArtifacts final {
 
   std::vector<ReadOnlyPageMetadata*>& pages() { return pages_; }
 
-  void set_accounting_stats(const AllocationStats& stats) { stats_ = stats; }
   const AllocationStats& accounting_stats() const { return stats_; }
 
-  void set_shared_read_only_space(
-      std::unique_ptr<SharedReadOnlySpace> shared_space) {
-    shared_read_only_space_ = std::move(shared_space);
-  }
   SharedReadOnlySpace* shared_read_only_space() {
     return shared_read_only_space_.get();
   }
@@ -205,6 +198,7 @@ class ReadOnlySpace : public BaseSpace {
 
   bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
+
 #ifdef VERIFY_HEAP
   void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
 #ifdef DEBUG
@@ -212,17 +206,12 @@ class ReadOnlySpace : public BaseSpace {
 #endif  // DEBUG
 #endif  // VERIFY_HEAP
 
-  // Return size of allocatable area on a page in this space.
-  int AreaSize() const { return static_cast<int>(area_size_); }
-
   Address FirstPageAddress() const { return pages_.front()->ChunkAddress(); }
 
   // Ensure the read only space has at least one allocated page
   void EnsurePage();
 
  protected:
-  friend class ReadOnlyArtifacts;
-
   void SetPermissionsForPages(MemoryAllocator* memory_allocator,
                               PageAllocator::Permission access);
 
@@ -233,15 +222,10 @@ class ReadOnlySpace : public BaseSpace {
 
   std::vector<ReadOnlyPageMetadata*> pages_;
 
-  Address top_;
-  Address limit_;
+  Address top_ = kNullAddress;
+  Address limit_ = kNullAddress;
 
  private:
-  // Unseal the space after it has been sealed, by making it writable.
-  void Unseal();
-
-  void DetachFromHeap() { heap_ = nullptr; }
-
   AllocationResult AllocateRawUnaligned(int size_in_bytes);
   AllocationResult AllocateRawAligned(int size_in_bytes,
                                       AllocationAlignment alignment);
@@ -258,8 +242,7 @@ class ReadOnlySpace : public BaseSpace {
   void EnsureSpaceForAllocation(int size_in_bytes);
   void FreeLinearAllocationArea();
 
-  size_t capacity_;
-  const size_t area_size_;
+  size_t capacity_ = 0;
 
   friend class Heap;
   friend class ReadOnlyHeapImageDeserializer;
@@ -267,24 +250,16 @@ class ReadOnlySpace : public BaseSpace {
 
 class SharedReadOnlySpace : public ReadOnlySpace {
  public:
-  explicit SharedReadOnlySpace(Heap* heap) : ReadOnlySpace(heap) {
-    is_marked_read_only_ = true;
-  }
-
-  SharedReadOnlySpace(
-      Heap* heap, std::vector<ReadOnlyPageMetadata*>&& new_pages,
-      std::vector<std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping>>&&
-          mappings,
-      AllocationStats&& new_stats);
   SharedReadOnlySpace(Heap* heap, ReadOnlyArtifacts* artifacts);
+
   SharedReadOnlySpace(const SharedReadOnlySpace&) = delete;
 
   void TearDown(MemoryAllocator* memory_allocator) override;
 
-  // Holds any shared memory mapping that must be freed when the space is
-  // deallocated.
-  std::vector<std::unique_ptr<v8::PageAllocator::SharedMemoryMapping>>
-      shared_memory_mappings_;
+ private:
+  explicit SharedReadOnlySpace(Heap* heap) : ReadOnlySpace(heap) {
+    is_marked_read_only_ = true;
+  }
 };
 
 }  // namespace internal

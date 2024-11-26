@@ -21,16 +21,14 @@
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/snapshot-data.h"
-#include "src/snapshot/snapshot-source-sink.h"
 #include "src/snapshot/snapshot-utils.h"
 
 namespace v8 {
 namespace internal {
 
 ReadOnlyArtifacts::~ReadOnlyArtifacts() {
-  // This particular SharedReadOnlySpace should not destroy its own pages as
-  // TearDown requires MemoryAllocator which itself is tied to an Isolate.
-  shared_read_only_space_->pages_.resize(0);
+  // SharedReadOnlySpace is aware that it doesn't actually own the pages.
+  shared_read_only_space_->TearDown(nullptr);
 
   for (ReadOnlyPageMetadata* metadata : pages_) {
     void* chunk_address = reinterpret_cast<void*>(metadata->ChunkAddress());
@@ -46,9 +44,9 @@ void ReadOnlyArtifacts::Initialize(Isolate* isolate,
                                    const AllocationStats& stats) {
   page_allocator_ = isolate->isolate_group()->page_allocator();
   pages_ = std::move(pages);
-  set_accounting_stats(stats);
-  set_shared_read_only_space(
-      std::make_unique<SharedReadOnlySpace>(isolate->heap(), this));
+  stats_ = stats;
+  shared_read_only_space_ =
+      std::make_unique<SharedReadOnlySpace>(isolate->heap(), this);
 }
 
 void ReadOnlyArtifacts::ReinstallReadOnlySpace(Isolate* isolate) {
@@ -108,12 +106,7 @@ void ReadOnlyArtifacts::VerifyChecksum(SnapshotData* read_only_snapshot_data,
 // -----------------------------------------------------------------------------
 // ReadOnlySpace implementation
 
-ReadOnlySpace::ReadOnlySpace(Heap* heap)
-    : BaseSpace(heap, RO_SPACE),
-      top_(kNullAddress),
-      limit_(kNullAddress),
-      capacity_(0),
-      area_size_(MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE)) {}
+ReadOnlySpace::ReadOnlySpace(Heap* heap) : BaseSpace(heap, RO_SPACE) {}
 
 // Needs to be defined in the cc file to force the vtable to be emitted in
 // component builds.
@@ -121,10 +114,8 @@ ReadOnlySpace::~ReadOnlySpace() = default;
 
 void SharedReadOnlySpace::TearDown(MemoryAllocator* memory_allocator) {
   // SharedReadOnlySpaces do not tear down their own pages since they are either
-  // freed down by the ReadOnlyArtifacts that contains them or in the case of
-  // pointer compression, they are freed when the SharedMemoryMappings are
-  // freed.
-  pages_.resize(0);
+  // freed down by the ReadOnlyArtifacts that contains them.
+  pages_.clear();
   accounting_stats_.Clear();
 }
 
@@ -132,7 +123,7 @@ void ReadOnlySpace::TearDown(MemoryAllocator* memory_allocator) {
   for (ReadOnlyPageMetadata* chunk : pages_) {
     memory_allocator->FreeReadOnlyPage(chunk);
   }
-  pages_.resize(0);
+  pages_.clear();
   accounting_stats_.Clear();
 }
 
@@ -205,7 +196,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
   auto* memory_allocator = heap()->memory_allocator();
 
   if (ro_mode != SealMode::kDoNotDetachFromHeap) {
-    DetachFromHeap();
+    heap_ = nullptr;
     for (ReadOnlyPageMetadata* p : pages_) {
       if (ro_mode == SealMode::kDetachFromHeapAndUnregisterMemory) {
         memory_allocator->UnregisterReadOnlyPage(p);
@@ -215,15 +206,6 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
   }
 
   SetPermissionsForPages(memory_allocator, PageAllocator::kRead);
-}
-
-void ReadOnlySpace::Unseal() {
-  DCHECK(is_marked_read_only_);
-  if (!pages_.empty()) {
-    SetPermissionsForPages(heap()->memory_allocator(),
-                           PageAllocator::kReadWrite);
-  }
-  is_marked_read_only_ = false;
 }
 
 bool ReadOnlySpace::ContainsSlow(Address addr) const {
@@ -373,6 +355,15 @@ void ReadOnlySpace::EnsurePage() {
                 heap_->isolate()->cage_base() == pages_.back()->ChunkAddress());
 }
 
+namespace {
+
+constexpr inline int ReadOnlyAreaSize() {
+  return static_cast<int>(
+      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE));
+}
+
+}  // namespace
+
 void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
   if (top_ + size_in_bytes <= limit_) {
     return;
@@ -386,7 +377,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
       heap()->memory_allocator()->AllocateReadOnlyPage(this);
   CHECK_NOT_NULL(metadata);
 
-  capacity_ += AreaSize();
+  capacity_ += ReadOnlyAreaSize();
 
   accounting_stats_.IncreaseCapacity(metadata->area_size());
   AccountCommitted(metadata->size());
@@ -535,7 +526,7 @@ size_t ReadOnlySpace::IndexOf(const MemoryChunkMetadata* chunk) const {
 size_t ReadOnlySpace::AllocateNextPage() {
   ReadOnlyPageMetadata* page =
       heap_->memory_allocator()->AllocateReadOnlyPage(this);
-  capacity_ += AreaSize();
+  capacity_ += ReadOnlyAreaSize();
   AccountCommitted(page->size());
   pages_.push_back(page);
   return pages_.size() - 1;
@@ -552,7 +543,7 @@ size_t ReadOnlySpace::AllocateNextPageAt(Address pos) {
   // the shared cage before us, stealing our required page (i.e.,
   // ReadOnlyHeap::SetUp was called too late).
   CHECK_EQ(pos, page->ChunkAddress());
-  capacity_ += AreaSize();
+  capacity_ += ReadOnlyAreaSize();
   AccountCommitted(page->size());
   pages_.push_back(page);
   return pages_.size() - 1;
