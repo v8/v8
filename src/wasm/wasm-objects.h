@@ -112,8 +112,6 @@ enum class OnResume : int { kContinue, kThrow };
 //      - target = entrypoint for the function
 class ImportedFunctionEntry {
  public:
-  inline ImportedFunctionEntry(Isolate*, DirectHandle<WasmInstanceObject>,
-                               int index);
   inline ImportedFunctionEntry(Handle<WasmTrustedInstanceData>, int index);
 
   // Initialize this entry as a Wasm to JS call. This accepts the isolate as a

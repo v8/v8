@@ -330,12 +330,6 @@ const wasm::WasmModule* WasmInstanceObject::module() const {
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(
-    Isolate* isolate, DirectHandle<WasmInstanceObject> instance_object,
-    int index)
-    : ImportedFunctionEntry(
-          handle(instance_object->trusted_data(isolate), isolate), index) {}
-
-ImportedFunctionEntry::ImportedFunctionEntry(
     Handle<WasmTrustedInstanceData> instance_data, int index)
     : instance_data_(instance_data), index_(index) {
   DCHECK_GE(index, 0);
