@@ -27,21 +27,17 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
                                          VirtualMemory reservation,
                                          PageSize page_size)
     : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation)),
-      mutex_(new base::Mutex()),
-      shared_mutex_(new base::SharedMutex()),
-      page_protection_change_mutex_(new base::Mutex()) {
+                          std::move(reservation)) {
   DCHECK_NE(space->identity(), RO_SPACE);
 
   if (page_size == PageSize::kRegular) {
-    active_system_pages_ = new ActiveSystemPages;
+    active_system_pages_ = std::make_unique<ActiveSystemPages>();
     active_system_pages_->Init(
         sizeof(MemoryChunk), MemoryAllocator::GetCommitPageSizeBits(), size());
-  } else {
-    // We do not track active system pages for large pages.
-    active_system_pages_ = nullptr;
   }
 
+  // We do not track active system pages for large pages and use this fact for
+  // `IsLargePage()`.
   DCHECK_EQ(page_size == PageSize::kLarge, IsLargePage());
 
   // TODO(sroettger): The following fields are accessed most often (AFAICT) and
@@ -119,23 +115,8 @@ size_t MutablePageMetadata::CommittedPhysicalMemory() const {
 
 void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
   DCHECK(SweepingDone());
-  if (mutex_ != nullptr) {
-    delete mutex_;
-    mutex_ = nullptr;
-  }
-  if (shared_mutex_) {
-    delete shared_mutex_;
-    shared_mutex_ = nullptr;
-  }
-  if (page_protection_change_mutex_ != nullptr) {
-    delete page_protection_change_mutex_;
-    page_protection_change_mutex_ = nullptr;
-  }
 
-  if (active_system_pages_ != nullptr) {
-    delete active_system_pages_;
-    active_system_pages_ = nullptr;
-  }
+  active_system_pages_.reset();
 
   possibly_empty_buckets_.Release();
   ReleaseSlotSet(OLD_TO_NEW);

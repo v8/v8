@@ -99,8 +99,10 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return Chunk()->SetYoungGenerationPageFlags(marking_mode);
   }
 
-  base::Mutex* mutex() const { return mutex_; }
-  base::SharedMutex* shared_mutex() const { return shared_mutex_; }
+  base::Mutex& mutex() { return mutex_; }
+  const base::Mutex& mutex() const { return mutex_; }
+  base::SharedMutex& shared_mutex() { return shared_mutex_; }
+  const base::SharedMutex& shared_mutex() const { return shared_mutex_; }
 
   void set_concurrent_sweeping_state(ConcurrentSweepingState state) {
     concurrent_sweeping_ = state;
@@ -180,10 +182,10 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // Approximate amount of physical memory committed for this chunk.
   V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const;
 
-  class MarkingProgressTracker& MarkingProgressTracker() {
+  MarkingProgressTracker& marking_progress_tracker() {
     return marking_progress_tracker_;
   }
-  const class MarkingProgressTracker& MarkingProgressTracker() const {
+  const MarkingProgressTracker& marking_progress_tracker() const {
     return marking_progress_tracker_;
   }
 
@@ -276,7 +278,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     // The active_system_pages_ will be nullptr for large pages, so we uses
     // that here instead of (for example) adding another enum member. See also
     // the constructor where this field is set.
-    return active_system_pages_ == nullptr;
+    return active_system_pages_.get() == nullptr;
   }
 
  protected:
@@ -315,7 +317,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // Used by the marker to keep track of the scanning progress in large objects
   // that have a progress tracker and are scanned in increments and
   // concurrently.
-  class MarkingProgressTracker marking_progress_tracker_;
+  MarkingProgressTracker marking_progress_tracker_;
 
   // Count of bytes marked black on page. With sticky mark-bits, the counter
   // represents the size of the old objects allocated on the page. This is
@@ -323,10 +325,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // approximate allocated size on the space (before it gets refined due to
   // right/left-trimming or slack tracking).
   std::atomic<intptr_t> live_byte_count_{0};
-
-  base::Mutex* mutex_;
-  base::SharedMutex* shared_mutex_;
-  base::Mutex* page_protection_change_mutex_;
 
   std::atomic<ConcurrentSweepingState> concurrent_sweeping_{
       ConcurrentSweepingState::kDone};
@@ -341,7 +339,8 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
 
-  ActiveSystemPages* active_system_pages_;
+  // This also serves as indicator for whether a page is large. See constructor.
+  std::unique_ptr<ActiveSystemPages> active_system_pages_;
 
   // Counts overall allocated LAB size on the page since the last GC. Used
   // only for new space pages.
@@ -352,6 +351,14 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   size_t age_in_new_space_ = 0;
 
   MarkingBitmap marking_bitmap_;
+
+  // Possibly platform-dependent fields should go last. We depend on the marking
+  // bitmap offset from generated code and assume that it's stable across 64-bit
+  // platforms. In theory, there could be a difference between Linux and Android
+  // in terms of Mutex size.
+
+  base::Mutex mutex_;
+  base::SharedMutex shared_mutex_;
 
  private:
   static constexpr intptr_t MarkingBitmapOffset() {

@@ -101,7 +101,9 @@ class PageMetadata : public MutablePageMetadata {
   void AllocateFreeListCategories();
   void ReleaseFreeListCategories();
 
-  ActiveSystemPages* active_system_pages() { return active_system_pages_; }
+  ActiveSystemPages* active_system_pages() {
+    return active_system_pages_.get();
+  }
 
   template <RememberedSetType remembered_set>
   void ClearTypedSlotsInFreeMemory(const TypedSlotSet::FreeRangesMap& ranges) {

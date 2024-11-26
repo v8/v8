@@ -5986,7 +5986,7 @@ TEST(Regress598319) {
   static constexpr size_t kSmallMaxBytesToMark = 100;
   while (!marking->IsMajorMarkingComplete()) {
     marking->AdvanceForTesting(kSmallStepSize, kSmallMaxBytesToMark);
-    MarkingProgressTracker& progress_tracker = page->MarkingProgressTracker();
+    MarkingProgressTracker& progress_tracker = page->marking_progress_tracker();
     if (progress_tracker.IsEnabled() &&
         progress_tracker.GetCurrentChunkForTesting() > 0) {
       CHECK_NE(progress_tracker.GetCurrentChunkForTesting(), arr.get()->Size());

@@ -330,6 +330,10 @@ class V8_NODISCARD LockGuard final {
                    mutex_ != nullptr);
     if (has_mutex()) mutex_->Lock();
   }
+  explicit LockGuard(Mutex& mutex) : mutex_(&mutex) {
+    // `mutex_` is guaranteed to be non-null here.
+    mutex_->Lock();
+  }
   LockGuard(const LockGuard&) = delete;
   LockGuard& operator=(const LockGuard&) = delete;
   LockGuard(LockGuard&& other) V8_NOEXCEPT : mutex_(other.mutex_) {
