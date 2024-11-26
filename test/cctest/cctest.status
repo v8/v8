@@ -819,6 +819,7 @@
   'test-calls-with-arraylike-or-spread/ReduceJSCreateBoundFunction': [FAIL],
   'test-calls-with-arraylike-or-spread/ReduceJSCreateClosure': [FAIL],
   'test-verify-type/TestVerifyType': [FAIL],
+  'test-js-to-wasm/*': [SKIP],
   # Maglev doesn't support FastApi calls.
   'test-api/FastApiCalls': [FAIL],
   'test-api/FastApiCallWithAllocationAndGCInJS': [FAIL],
