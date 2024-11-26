@@ -1435,7 +1435,7 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
   Tagged<JSFunction> function = this->function();
   Tagged<SharedFunctionInfo> sfi = function->shared();
 
-  accumulator->PrintSecurityTokenIfChanged(function);
+  accumulator->PrintSecurityTokenIfChanged(isolate(), function);
   PrintIndex(accumulator, mode, index);
   accumulator->Add("BuiltinExitFrame ");
   if (sfi->HasBuiltinId()) {
@@ -1444,7 +1444,7 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
     accumulator->Add("[builtin: %s] ", Builtins::name(sfi->builtin_id()));
   }
   if (IsConstructor()) accumulator->Add("new ");
-  accumulator->PrintFunction(function, receiver);
+  accumulator->PrintFunction(isolate(), function, receiver);
 
   accumulator->Add("(this=%o", receiver);
 
@@ -1463,11 +1463,11 @@ void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
   DisallowGarbageCollection no_gc;
   Tagged<Object> receiver = this->receiver();
 
-  accumulator->PrintSecurityTokenIfChanged(*function);
+  accumulator->PrintSecurityTokenIfChanged(isolate(), *function);
   PrintIndex(accumulator, mode, index);
   accumulator->Add("ApiCallbackExitFrame ");
   if (IsConstructor()) accumulator->Add("new ");
-  accumulator->PrintFunction(*function, receiver);
+  accumulator->PrintFunction(isolate(), *function, receiver);
 
   accumulator->Add("(this=%o", receiver);
 
@@ -4032,11 +4032,11 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
   Tagged<Object> receiver = this->receiver();
   Tagged<JSFunction> function = this->function();
 
-  accumulator->PrintSecurityTokenIfChanged(function);
+  accumulator->PrintSecurityTokenIfChanged(isolate(), function);
   PrintIndex(accumulator, mode, index);
   PrintFrameKind(accumulator);
   if (IsConstructor()) accumulator->Add("new ");
-  accumulator->PrintFunction(function, receiver);
+  accumulator->PrintFunction(isolate(), function, receiver);
   accumulator->Add(" [%p]", function);
 
   // Get scope information for nicer output, if possible. If code is nullptr, or
