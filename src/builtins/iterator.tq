@@ -344,9 +344,7 @@ transitioning javascript builtin AsyncIteratorPrototypeAsyncDispose(
       // d. IfAbruptRejectPromise(resultWrapper, promiseCapability).
       const promiseFun = *NativeContextSlot(
           ContextSlot::PROMISE_FUNCTION_INDEX);
-      const constructor = SpeciesConstructor(capability, promiseFun);
-      const resultWrapper = promise::PromiseResolve(constructor, result);
-
+      const resultWrapper = promise::PromiseResolve(promiseFun, result);
 
       // e. Let unwrap be a new Abstract Closure that performs the following
       // steps when called: i. Return undefined.
