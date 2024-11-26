@@ -2800,10 +2800,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitReturn(node_t node) {
   const ReturnOp& ret = schedule()->Get(node).Cast<ReturnOp>();
 
   OperandGenerator g(this);
+  const size_t return_count = linkage()->GetIncomingDescriptor()->ReturnCount();
   const int input_count =
-      linkage()->GetIncomingDescriptor()->ReturnCount() == 0
-          ? 1
-          : (1 + static_cast<int>(ret.return_values().size()));
+      return_count == 0 ? 1
+                        : (1 + static_cast<int>(ret.return_values().size()));
   DCHECK_GE(input_count, 1);
 
   auto value_locations =
@@ -2815,7 +2815,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitReturn(node_t node) {
   } else {
     value_locations[0] = g.UseRegister(ret.pop_count());
   }
-  for (int i = 0, return_value_idx = 0; i < input_count - 1; ++i) {
+  for (size_t i = 0, return_value_idx = 0; i < return_count; ++i) {
     LinkageLocation loc = linkage()->GetReturnLocation(i);
     // Return values passed via frame slots have already been stored
     // on the stack by the GrowableStacksReducer.
