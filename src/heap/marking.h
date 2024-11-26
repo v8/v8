@@ -69,7 +69,7 @@ inline bool MarkBit::Set<AccessMode::NON_ATOMIC>() {
 
 template <>
 inline bool MarkBit::Set<AccessMode::ATOMIC>() {
-  return base::AsAtomicWord::SetBits(cell_, mask_, mask_);
+  return base::AsAtomicWord::Relaxed_SetBits(cell_, mask_, mask_);
 }
 
 template <>
@@ -79,7 +79,7 @@ inline bool MarkBit::Get<AccessMode::NON_ATOMIC>() const {
 
 template <>
 inline bool MarkBit::Get<AccessMode::ATOMIC>() const {
-  return (base::AsAtomicWord::Acquire_Load(cell_) & mask_) != 0;
+  return (base::AsAtomicWord::Relaxed_Load(cell_) & mask_) != 0;
 }
 
 inline bool MarkBit::Clear() {

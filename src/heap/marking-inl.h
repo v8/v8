@@ -24,7 +24,7 @@ inline void MarkingBitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::ATOMIC>(
     uint32_t cell_index, MarkBit::CellType mask) {
-  base::AsAtomicWord::SetBits(cells() + cell_index, mask, mask);
+  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask, mask);
 }
 
 template <>
@@ -36,8 +36,8 @@ inline void MarkingBitmap::ClearBitsInCell<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::ClearBitsInCell<AccessMode::ATOMIC>(
     uint32_t cell_index, MarkBit::CellType mask) {
-  base::AsAtomicWord::SetBits(cells() + cell_index,
-                              static_cast<MarkBit::CellType>(0u), mask);
+  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index,
+                                      static_cast<MarkBit::CellType>(0u), mask);
 }
 
 template <>

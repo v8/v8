@@ -299,7 +299,7 @@ class BasicSlotSet {
     template <AccessMode access_mode = AccessMode::ATOMIC>
     void SetCellBits(int cell_index, uint32_t mask) {
       if constexpr (access_mode == AccessMode::ATOMIC) {
-        v8::base::AsAtomic32::SetBits(cell(cell_index), mask, mask);
+        v8::base::AsAtomic32::Release_SetBits(cell(cell_index), mask, mask);
       } else {
         uint32_t* c = cell(cell_index);
         *c = (*c & ~mask) | mask;
@@ -309,7 +309,7 @@ class BasicSlotSet {
     template <AccessMode access_mode = AccessMode::ATOMIC>
     void ClearCellBits(int cell_index, uint32_t mask) {
       if constexpr (access_mode == AccessMode::ATOMIC) {
-        v8::base::AsAtomic32::SetBits(cell(cell_index), 0u, mask);
+        v8::base::AsAtomic32::Release_SetBits(cell(cell_index), 0u, mask);
       } else {
         *cell(cell_index) &= ~mask;
       }
