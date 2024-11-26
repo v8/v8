@@ -2520,15 +2520,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
 // static
 Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
   DCHECK(!heap->using_initial_limit());
-#if defined(V8_USE_PERFETTO)
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                "OldGenerationConsumedBytes",
-                heap->OldGenerationConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "GlobalConsumedBytes",
-                heap->GlobalConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ExternalMemoryBytes",
-                heap->external_memory());
-#endif
+  heap->tracer()->RecordGCSizeCounters();
   const HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
   double v8_gc_speed =
       heap->tracer()->OldGenerationSpeedInBytesPerMillisecond();
@@ -5571,14 +5563,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
     return IncrementalMarkingLimit::kNoLimit;
   }
 
-#if defined(V8_USE_PERFETTO)
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                "OldGenerationConsumedBytes", OldGenerationConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "GlobalConsumedBytes",
-                GlobalConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ExternalMemoryBytes",
-                external_memory());
-#endif
+  tracer()->RecordGCSizeCounters();
   size_t old_generation_space_available = OldGenerationSpaceAvailable();
   size_t global_memory_available = GlobalMemoryAvailable();
 

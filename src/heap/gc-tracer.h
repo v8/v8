@@ -431,6 +431,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode);
 
+  void RecordGCSizeCounters() const;
+
   void RecordEmbedderMarkingSpeed(size_t bytes, base::TimeDelta duration);
 
   // Returns the average time between scheduling and invocation of an

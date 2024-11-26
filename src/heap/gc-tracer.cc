@@ -1428,6 +1428,22 @@ void GCTracer::RecordGCSumCounters() {
       TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCMarkCompactorMarkingSummary",
       TRACE_EVENT_SCOPE_THREAD, "duration", marking_duration.InMillisecondsF(),
       "background_duration", marking_background_duration.InMillisecondsF());
+  TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCSpeedSummary",
+                       TRACE_EVENT_SCOPE_THREAD, "old_generation_speed",
+                       OldGenerationSpeedInBytesPerMillisecond(),
+                       "embedder_speed", EmbedderSpeedInBytesPerMillisecond());
+}
+
+void GCTracer::RecordGCSizeCounters() const {
+#if defined(V8_USE_PERFETTO)
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                "OldGenerationConsumedBytes",
+                heap_->OldGenerationConsumedBytes());
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "GlobalConsumedBytes",
+                heap_->GlobalConsumedBytes());
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ExternalMemoryBytes",
+                heap_->external_memory());
+#endif
 }
 
 namespace {
