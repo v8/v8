@@ -2740,7 +2740,7 @@ class MaglevGraphBuilder {
     bool is_loop_peeling_iteration = false;
     std::optional<int> peeled_loop_end;
     interpreter::BytecodeArrayIterator iterator(bytecode().object());
-    for (iterator.SetOffset(entrypoint_); !iterator.done();
+    for (iterator.AdvanceTo(entrypoint_); !iterator.done();
          iterator.Advance()) {
       interpreter::Bytecode bytecode = iterator.current_bytecode();
       if (allow_loop_peeling_ &&

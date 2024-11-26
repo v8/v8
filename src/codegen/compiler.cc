@@ -973,7 +973,8 @@ class OptimizedCodeCache : public AllStatic {
       Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate),
                                      isolate);
       interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
-      DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+      // Bytecode may be different, so make sure we're at a valid OSR entry.
+      SBXCHECK(it.CurrentBytecodeIsValidOSREntry());
       std::optional<Tagged<Code>> maybe_code =
           feedback_vector->GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
       if (maybe_code.has_value()) code = maybe_code.value();
@@ -1020,11 +1021,9 @@ class OptimizedCodeCache : public AllStatic {
       Tagged<SharedFunctionInfo> shared = function->shared();
       Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate),
                                      isolate);
-      // Bytecode may be different, so just make sure we see the expected
-      // opcode. Otherwise fuzzers will complain.
-      SBXCHECK_LT(osr_offset.ToInt(), bytecode->length());
       interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
-      SBXCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+      // Bytecode may be different, so make sure we're at a valid OSR entry.
+      SBXCHECK(it.CurrentBytecodeIsValidOSREntry());
       feedback_vector->SetOptimizedOsrCode(isolate, it.GetSlotOperand(2), code);
       return;
     }

@@ -974,15 +974,22 @@ MaglevGraphBuilder::MaglevGraphBuilder(
            graph_->is_osr());
   if (compilation_unit_->is_osr()) {
     CHECK(!is_inline());
-#ifdef DEBUG
+
+    // Make sure that we're at a valid OSR entrypoint.
+    //
+    // This is also a defense-in-depth check to make sure that we're not
+    // compiling invalid bytecode if the OSR offset is wrong (e.g. because it
+    // belongs to different bytecode).
+    //
     // OSR'ing into the middle of a loop is currently not supported. There
     // should not be any issue with OSR'ing outside of loops, just we currently
     // dont do it...
-    iterator_.SetOffset(compilation_unit_->osr_offset().ToInt());
-    DCHECK_EQ(iterator_.current_bytecode(), interpreter::Bytecode::kJumpLoop);
-    DCHECK_EQ(entrypoint_, iterator_.GetJumpTargetOffset());
-    iterator_.SetOffset(entrypoint_);
-#endif
+    interpreter::BytecodeArrayIterator it(bytecode().object());
+    it.AdvanceTo(compilation_unit_->osr_offset().ToInt());
+    CHECK(it.CurrentBytecodeIsValidOSREntry());
+    CHECK_EQ(entrypoint_, it.GetJumpTargetOffset());
+
+    iterator_.AdvanceTo(entrypoint_);
 
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "- Non-standard entrypoint @" << entrypoint_

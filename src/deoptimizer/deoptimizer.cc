@@ -1735,7 +1735,7 @@ bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
       bytecode_array, deopt_exit_offset.ToInt()));
 
   interpreter::BytecodeArrayIterator it(bytecode_array, osr_offset.ToInt());
-  DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+  CHECK(it.CurrentBytecodeIsValidOSREntry());
 
   for (; !it.done(); it.Advance()) {
     const int current_offset = it.current_offset();
