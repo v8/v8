@@ -220,6 +220,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   friend class V8HeapExplorer;
   friend class CodeStubAssembler;
   friend class StringBuiltinsAssembler;
+  friend class SandboxTesting;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
   friend class compiler::WasmGraphBuilder;
