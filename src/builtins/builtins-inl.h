@@ -254,7 +254,7 @@ constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
 }
 
 // static
-constexpr int Builtins::GetFormalParameterCount(Builtin builtin) {
+int Builtins::GetFormalParameterCount(Builtin builtin) {
   CHECK(HasJSLinkage(builtin));
 
   // TODO(saelo): consider merging GetFormalParameterCount and

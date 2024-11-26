@@ -229,7 +229,7 @@ class Builtins {
   // values is pushed to the stack to match the target builtin expectations.
   // In case the builtin does not require arguments adaptation it returns
   // kDontAdaptArgumentsSentinel.
-  static constexpr inline int GetFormalParameterCount(Builtin builtin);
+  static inline int GetFormalParameterCount(Builtin builtin);
 
   // Checks that the formal parameter count specified in CPP macro matches
   // the value set in SharedFunctionInfo.
