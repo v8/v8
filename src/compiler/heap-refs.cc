@@ -154,7 +154,7 @@ class HeapObjectData : public ObjectData {
  private:
   std::optional<bool> TryGetBooleanValueImpl(JSHeapBroker* broker) const;
 
-  ObjectData* const map_;
+  ObjectData* map_;
 };
 
 class PropertyCellData : public HeapObjectData {
@@ -773,9 +773,14 @@ bool JSFunctionRef::IsConsistentWithHeapState(JSHeapBroker* broker) const {
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
                                IndirectHandle<HeapObject> object,
                                ObjectDataKind kind)
-    : ObjectData(broker, storage, object, kind),
-      map_(broker->GetOrCreateData(
-          object->map(broker->cage_base(), kAcquireLoad), kAssumeMemoryFence)) {
+    : ObjectData(broker, storage, object, kind), map_(nullptr) {
+  // At this point, this object may already be in the RefsMap. GetOrCreateData
+  // will lookup objects in there. If (e.g. due to in-sandbox corruption) the
+  // object graph is such that we end up retrieving ourselves from the RefsMap
+  // in the recursive GetOrCreateData call, then we'll see uninitialized data
+  // for the map_ field. To avoid this, initialize it to nullptr first.
+  map_ = broker->GetOrCreateData(object->map(broker->cage_base(), kAcquireLoad),
+                                 kAssumeMemoryFence);
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
                 kind == kBackgroundSerializedHeapObject);
 }
