@@ -6,9 +6,7 @@
 #define V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 
 #include "src/common/globals.h"
-#include "src/heap/marking-progress-tracker.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/slot-set.h"
 #include "src/objects/instruction-stream.h"
 
 namespace v8::internal {
