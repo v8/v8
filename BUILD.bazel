@@ -671,6 +671,7 @@ filegroup(
         "include/v8-embedder-state-scope.h",
         "include/v8-exception.h",
         "include/v8-extension.h",
+        "include/v8-external-memory-accounter.h",
         "include/v8-external.h",
         "include/v8-fast-api-calls.h",
         "include/v8-forward.h",

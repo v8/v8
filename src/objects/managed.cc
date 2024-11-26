@@ -19,8 +19,8 @@ void ManagedObjectFinalizerSecondPass(const v8::WeakCallbackInfo<void>& data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   isolate->UnregisterManagedPtrDestructor(destructor);
   destructor->destructor_(destructor->shared_ptr_ptr_);
-  destructor->external_memory_accounter_.Decrease(isolate,
-                                                  destructor->estimated_size_);
+  destructor->external_memory_accounter_.Decrease(
+      reinterpret_cast<v8::Isolate*>(isolate), destructor->estimated_size_);
 #ifdef V8_ENABLE_SANDBOX
   destructor->ZapExternalPointerTableEntry();
 #endif  // V8_ENABLE_SANDBOX

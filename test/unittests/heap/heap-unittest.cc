@@ -179,8 +179,9 @@ TEST_F(HeapTest, ExternalLimitDefault) {
 }
 
 TEST_F(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling) {
-  v8_isolate()->AdjustAmountOfExternalAllocatedMemory(+10 * MB);
-  v8_isolate()->AdjustAmountOfExternalAllocatedMemory(-10 * MB);
+  v8::ExternalMemoryAccounter accounter;
+  accounter.Increase(v8_isolate(), 10 * MB);
+  accounter.Decrease(v8_isolate(), 10 * MB);
   Heap* heap = i_isolate()->heap();
   EXPECT_GE(heap->external_memory_soft_limit(), kExternalAllocationSoftLimit);
 }

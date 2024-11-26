@@ -19,6 +19,7 @@
 #include "include/v8-date.h"
 #include "include/v8-embedder-state-scope.h"
 #include "include/v8-extension.h"
+#include "include/v8-external-memory-accounter.h"
 #include "include/v8-fast-api-calls.h"
 #include "include/v8-function.h"
 #include "include/v8-json.h"
@@ -9728,6 +9729,29 @@ void BigInt::ToWordsArray(int* sign_bit, int* word_count,
   *word_count = base::checked_cast<int>(unsigned_word_count);
 }
 
+int64_t Isolate::AdjustAmountOfExternalAllocatedMemoryImpl(
+    int64_t change_in_bytes) {
+  // Try to check for unreasonably large or small values from the embedder.
+  static constexpr int64_t kMaxReasonableBytes = int64_t(1) << 60;
+  static constexpr int64_t kMinReasonableBytes = -kMaxReasonableBytes;
+  static_assert(kMaxReasonableBytes >= i::JSArrayBuffer::kMaxByteLength);
+  CHECK(kMinReasonableBytes <= change_in_bytes &&
+        change_in_bytes < kMaxReasonableBytes);
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  const uint64_t amount =
+      i_isolate->heap()->UpdateExternalMemory(change_in_bytes);
+
+  if (change_in_bytes <= 0) {
+    return amount;
+  }
+
+  if (amount > i_isolate->heap()->external_memory_limit_for_interrupt()) {
+    HandleExternalMemoryInterrupt();
+  }
+  return amount;
+}
+
 void Isolate::HandleExternalMemoryInterrupt() {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
   if (heap->gc_state() != i::Heap::NOT_IN_GC) return;
@@ -10437,25 +10461,7 @@ void Isolate::GetStackSample(const RegisterState& state, void** frames,
 
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
-  // Try to check for unreasonably large or small values from the embedder.
-  static constexpr int64_t kMaxReasonableBytes = int64_t(1) << 60;
-  static constexpr int64_t kMinReasonableBytes = -kMaxReasonableBytes;
-  static_assert(kMaxReasonableBytes >= i::JSArrayBuffer::kMaxByteLength);
-  CHECK(kMinReasonableBytes <= change_in_bytes &&
-        change_in_bytes < kMaxReasonableBytes);
-
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  const uint64_t amount =
-      i_isolate->heap()->UpdateExternalMemory(change_in_bytes);
-
-  if (change_in_bytes <= 0) {
-    return amount;
-  }
-
-  if (amount > i_isolate->heap()->external_memory_limit_for_interrupt()) {
-    HandleExternalMemoryInterrupt();
-  }
-  return amount;
+  return AdjustAmountOfExternalAllocatedMemoryImpl(change_in_bytes);
 }
 
 void Isolate::SetEventLogger(LogEventCallback that) {
@@ -12336,24 +12342,26 @@ bool V8_EXPORT ValidateCallbackInfo(const PropertyCallbackInfo<void>& info) {
   return ValidatePropertyCallbackInfo(info);
 }
 
-ExternalMemoryAccounterBase::~ExternalMemoryAccounterBase() {
-#ifdef DEBUG
+}  // namespace internal
+
+ExternalMemoryAccounter::~ExternalMemoryAccounter() {
+#ifdef V8_ENABLE_MEMORY_ACCOUNTING_CHECKS
   DCHECK_EQ(amount_of_external_memory_, 0U);
 #endif
 }
 
-ExternalMemoryAccounterBase::ExternalMemoryAccounterBase(
-    ExternalMemoryAccounterBase&& other) V8_NOEXCEPT {
-#if DEBUG
+ExternalMemoryAccounter::ExternalMemoryAccounter(
+    ExternalMemoryAccounter&& other) {
+#if V8_ENABLE_MEMORY_ACCOUNTING_CHECKS
   amount_of_external_memory_ =
       std::exchange(other.amount_of_external_memory_, 0U);
   isolate_ = std::exchange(other.isolate_, nullptr);
 #endif
 }
 
-ExternalMemoryAccounterBase& ExternalMemoryAccounterBase::operator=(
-    ExternalMemoryAccounterBase&& other) V8_NOEXCEPT {
-#if DEBUG
+ExternalMemoryAccounter& ExternalMemoryAccounter::operator=(
+    ExternalMemoryAccounter&& other) {
+#if V8_ENABLE_MEMORY_ACCOUNTING_CHECKS
   if (this == &other) {
     return *this;
   }
@@ -12365,33 +12373,32 @@ ExternalMemoryAccounterBase& ExternalMemoryAccounterBase::operator=(
   return *this;
 }
 
-void ExternalMemoryAccounterBase::Increase(Isolate* isolate, size_t size) {
-#ifdef DEBUG
+void ExternalMemoryAccounter::Increase(Isolate* isolate, size_t size) {
+#ifdef V8_ENABLE_MEMORY_ACCOUNTING_CHECKS
   DCHECK(isolate == isolate_ || isolate_ == nullptr);
   isolate_ = isolate;
   amount_of_external_memory_ += size;
 #endif
-  reinterpret_cast<v8::Isolate*>(isolate)
-      ->AdjustAmountOfExternalAllocatedMemory(static_cast<int64_t>(size));
+  isolate->AdjustAmountOfExternalAllocatedMemoryImpl(
+      static_cast<int64_t>(size));
 }
 
-void ExternalMemoryAccounterBase::Update(Isolate* isolate, int64_t delta) {
-#ifdef DEBUG
+void ExternalMemoryAccounter::Update(Isolate* isolate, int64_t delta) {
+#ifdef V8_ENABLE_MEMORY_ACCOUNTING_CHECKS
   DCHECK(isolate == isolate_ || isolate_ == nullptr);
   DCHECK_GE(static_cast<int64_t>(amount_of_external_memory_), -delta);
   isolate_ = isolate;
   amount_of_external_memory_ += delta;
 #endif
-  reinterpret_cast<v8::Isolate*>(isolate)
-      ->AdjustAmountOfExternalAllocatedMemory(delta);
+  isolate->AdjustAmountOfExternalAllocatedMemoryImpl(delta);
 }
 
-void ExternalMemoryAccounterBase::Decrease(Isolate* isolate, size_t size) {
-  DisallowGarbageCollection no_gc;
+void ExternalMemoryAccounter::Decrease(Isolate* isolate, size_t size) {
+  internal::DisallowGarbageCollection no_gc;
   if (size == 0) {
     return;
   }
-#ifdef DEBUG
+#ifdef V8_ENABLE_MEMORY_ACCOUNTING_CHECKS
   DCHECK_EQ(isolate, isolate_);
   DCHECK_GE(amount_of_external_memory_, size);
   amount_of_external_memory_ -= size;
@@ -12400,7 +12407,12 @@ void ExternalMemoryAccounterBase::Decrease(Isolate* isolate, size_t size) {
   i_isolate->heap()->UpdateExternalMemory(-static_cast<int64_t>(size));
 }
 
-}  // namespace internal
+int64_t
+ExternalMemoryAccounter::GetTotalAmountOfExternalAllocatedMemoryForTesting(
+    const Isolate* isolate) {
+  const i::Isolate* i_isolate = reinterpret_cast<const i::Isolate*>(isolate);
+  return i_isolate->heap()->external_memory();
+}
 
 template <>
 bool V8_EXPORT V8_WARN_UNUSED_RESULT

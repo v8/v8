@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "include/v8-external-memory-accounter.h"
 #include "include/v8config.h"
 #include "src/api/api.h"
 #include "src/base/logging.h"
@@ -115,7 +116,7 @@ class ArrayBufferSweeper final {
   // finishes.
   int64_t young_bytes_adjustment_while_sweeping_{0};
   int64_t old_bytes_adjustment_while_sweeping_{0};
-  V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounterBase external_memory_accounter_;
+  V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 };
 
 }  // namespace internal

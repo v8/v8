@@ -889,18 +889,13 @@ class V8_EXPORT Isolate {
                       size_t frames_limit, SampleInfo* sample_info);
 
   /**
-   * Adjusts the amount of registered external memory. Used to give V8 an
-   * indication of the amount of externally allocated memory that is kept alive
-   * by JavaScript objects. V8 uses this to decide when to perform global
-   * garbage collections. Registering externally allocated memory will trigger
-   * global garbage collections more often than it would otherwise in an attempt
-   * to garbage collect the JavaScript objects that keep the externally
-   * allocated memory alive.
+   * Adjusts the amount of registered external memory.
    *
    * \param change_in_bytes the change in externally allocated memory that is
    *   kept alive by JavaScript objects.
    * \returns the adjusted value.
    */
+  V8_DEPRECATE_SOON("Use ExternalMemoryAccounter instead.")
   int64_t AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes);
 
   /**
@@ -1755,9 +1750,11 @@ class V8_EXPORT Isolate {
  private:
   template <class K, class V, class Traits>
   friend class PersistentValueMapBase;
+  friend class ExternalMemoryAccounter;
 
   internal::ValueHelper::InternalRepresentationType GetDataFromSnapshotOnce(
       size_t index);
+  int64_t AdjustAmountOfExternalAllocatedMemoryImpl(int64_t change_in_bytes);
   void HandleExternalMemoryInterrupt();
 };
 

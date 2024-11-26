@@ -30,7 +30,8 @@ Handle<Managed<CppType>> Managed<CppType>::From(
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       detail::Destructor<CppType>);
-  destructor->external_memory_accounter_.Increase(isolate, estimated_size);
+  destructor->external_memory_accounter_.Increase(
+      reinterpret_cast<v8::Isolate*>(isolate), estimated_size);
   Handle<Managed<CppType>> handle =
       Cast<Managed<CppType>>(isolate->factory()->NewForeign<kTag>(
           reinterpret_cast<Address>(destructor), allocation_type));
@@ -51,7 +52,8 @@ Handle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
       detail::Destructor<CppType>);
-  destructor->external_memory_accounter_.Increase(isolate, estimated_size);
+  destructor->external_memory_accounter_.Increase(
+      reinterpret_cast<v8::Isolate*>(isolate), estimated_size);
   Handle<TrustedManaged<CppType>> handle =
       Cast<TrustedManaged<CppType>>(isolate->factory()->NewTrustedForeign(
           reinterpret_cast<Address>(destructor)));

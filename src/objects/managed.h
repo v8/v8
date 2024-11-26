@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "include/v8-external-memory-accounter.h"
 #include "src/api/api.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
@@ -68,7 +69,7 @@ struct ManagedPtrDestructor
   void* shared_ptr_ptr_ = nullptr;
   void (*destructor_)(void* shared_ptr) = nullptr;
   Address* global_handle_location_ = nullptr;
-  V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounterBase external_memory_accounter_;
+  V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 
   ManagedPtrDestructor(size_t estimated_size, void* shared_ptr_ptr,
                        void (*destructor)(void*))

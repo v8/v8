@@ -14270,17 +14270,27 @@ TEST(ExternalAllocatedMemory) {
   v8::Local<Context> env(Context::New(isolate));
   CHECK(!env.IsEmpty());
   const int64_t kSize = 1024*1024;
-  int64_t baseline = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  int64_t baseline = v8::ExternalMemoryAccounter::
+      GetTotalAmountOfExternalAllocatedMemoryForTesting(isolate);
+  v8::ExternalMemoryAccounter accounter;
+  accounter.Increase(isolate, kSize);
   CHECK_EQ(baseline + kSize,
-           isolate->AdjustAmountOfExternalAllocatedMemory(kSize));
+           v8::ExternalMemoryAccounter::
+               GetTotalAmountOfExternalAllocatedMemoryForTesting(isolate));
+  accounter.Decrease(isolate, kSize);
   CHECK_EQ(baseline,
-           isolate->AdjustAmountOfExternalAllocatedMemory(-kSize));
+           v8::ExternalMemoryAccounter::
+               GetTotalAmountOfExternalAllocatedMemoryForTesting(isolate));
   const int64_t kTriggerGCSize =
       CcTest::i_isolate()->heap()->external_memory_hard_limit() + 1;
+  accounter.Increase(isolate, kTriggerGCSize);
   CHECK_EQ(baseline + kTriggerGCSize,
-           isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize));
+           v8::ExternalMemoryAccounter::
+               GetTotalAmountOfExternalAllocatedMemoryForTesting(isolate));
+  accounter.Decrease(isolate, kTriggerGCSize);
   CHECK_EQ(baseline,
-           isolate->AdjustAmountOfExternalAllocatedMemory(-kTriggerGCSize));
+           v8::ExternalMemoryAccounter::
+               GetTotalAmountOfExternalAllocatedMemoryForTesting(isolate));
 }
 
 
@@ -14291,7 +14301,9 @@ TEST(Regress51719) {
   const int64_t kTriggerGCSize =
       CcTest::i_isolate()->heap()->external_memory_hard_limit() + 1;
   v8::Isolate* isolate = CcTest::isolate();
-  isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize);
+  v8::ExternalMemoryAccounter accounter;
+  accounter.Increase(isolate, kTriggerGCSize);
+  accounter.Decrease(isolate, kTriggerGCSize);
 }
 
 // Regression test for issue 54, object templates with embedder fields

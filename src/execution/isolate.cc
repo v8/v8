@@ -3671,7 +3671,8 @@ void Isolate::ReleaseSharedPtrs() {
     ManagedPtrDestructor* n = nullptr;
     managed_ptr_destructors_head_ = nullptr;
     for (; l != nullptr; l = n) {
-      l->external_memory_accounter_.Decrease(this, l->estimated_size_);
+      l->external_memory_accounter_.Decrease(
+          reinterpret_cast<v8::Isolate*>(this), l->estimated_size_);
       l->destructor_(l->shared_ptr_ptr_);
       n = l->next_;
       delete l;

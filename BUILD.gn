@@ -151,6 +151,9 @@ declare_args() {
   # Sets -DV8_ENABLE_CHECKS.
   v8_enable_v8_checks = ""
 
+  # Sets -DV8_ENABLE_MEMORY_ACCOUNTING_CHECKS
+  v8_enable_memory_accounting_checks = ""
+
   # Sets -DV8_TRACE_UNOPTIMIZED.
   v8_enable_trace_unoptimized = ""
   v8_enable_trace_ignition = false
@@ -477,6 +480,10 @@ if (v8_enable_test_features == "") {
 }
 if (v8_enable_v8_checks == "") {
   v8_enable_v8_checks = v8_enable_debugging_features
+}
+if (v8_enable_memory_accounting_checks == "") {
+  v8_enable_memory_accounting_checks =
+      v8_enable_debugging_features || v8_dcheck_always_on
 }
 if (v8_enable_heap_snapshot_verify == "") {
   v8_enable_heap_snapshot_verify =
@@ -904,6 +911,7 @@ external_v8_defines = [
   "V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT=${v8_array_buffer_view_internal_field_count}",
   "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}",
   "V8_ENABLE_CHECKS",
+  "V8_ENABLE_MEMORY_ACCOUNTING_CHECKS",
   "V8_COMPRESS_POINTERS",
   "V8_COMPRESS_POINTERS_IN_SHARED_CAGE",
   "V8_31BIT_SMIS_ON_64BIT_ARCH",
@@ -935,6 +943,9 @@ enabled_external_v8_defines = [
 
 if (v8_enable_v8_checks) {
   enabled_external_v8_defines += [ "V8_ENABLE_CHECKS" ]
+}
+if (v8_enable_memory_accounting_checks) {
+  enabled_external_v8_defines += [ "V8_ENABLE_MEMORY_ACCOUNTING_CHECKS" ]
 }
 if (v8_enable_pointer_compression) {
   enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS" ]
@@ -2910,6 +2921,7 @@ generated_file("v8_generate_features_json") {
     v8_enable_sandbox = v8_enable_sandbox
     v8_enable_short_builtin_calls = v8_enable_short_builtin_calls
     v8_enable_v8_checks = v8_enable_v8_checks
+    v8_enable_memory_accounting_checks = v8_enable_memory_accounting_checks
     v8_enable_webassembly = v8_enable_webassembly
     v8_enable_zone_compression = v8_enable_zone_compression
     v8_imminent_deprecation_warnings = v8_imminent_deprecation_warnings
@@ -3222,6 +3234,7 @@ v8_header_set("v8_headers") {
     "include/v8-embedder-state-scope.h",
     "include/v8-exception.h",
     "include/v8-extension.h",
+    "include/v8-external-memory-accounter.h",
     "include/v8-external.h",
     "include/v8-fast-api-calls.h",
     "include/v8-forward.h",

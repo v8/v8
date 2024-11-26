@@ -573,11 +573,11 @@ TEST(ArrayBuffer_NewBackingStore_EmptyDeleter) {
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(buffer, size,
                                        v8::BackingStore::EmptyDeleter, nullptr);
-  uint64_t external_memory_before =
-      isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  uint64_t external_memory_before = v8::ExternalMemoryAccounter::
+      GetTotalAmountOfExternalAllocatedMemoryForTesting(isolate);
   v8::ArrayBuffer::New(isolate, std::move(backing_store));
-  uint64_t external_memory_after =
-      isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  uint64_t external_memory_after = v8::ExternalMemoryAccounter::
+      GetTotalAmountOfExternalAllocatedMemoryForTesting(isolate);
   // The ArrayBuffer constructor does not increase the external memory counter.
   // The counter may decrease however if the allocation triggers GC.
   CHECK_GE(external_memory_before, external_memory_after);
@@ -593,11 +593,11 @@ TEST(SharedArrayBuffer_NewBackingStore_EmptyDeleter) {
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::SharedArrayBuffer::NewBackingStore(
           buffer, size, v8::BackingStore::EmptyDeleter, nullptr);
-  uint64_t external_memory_before =
-      isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  uint64_t external_memory_before = v8::ExternalMemoryAccounter::
+      GetTotalAmountOfExternalAllocatedMemoryForTesting(isolate);
   v8::SharedArrayBuffer::New(isolate, std::move(backing_store));
-  uint64_t external_memory_after =
-      isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  uint64_t external_memory_after = v8::ExternalMemoryAccounter::
+      GetTotalAmountOfExternalAllocatedMemoryForTesting(isolate);
   // The SharedArrayBuffer constructor does not increase the external memory
   // counter. The counter may decrease however if the allocation triggers GC.
   CHECK_GE(external_memory_before, external_memory_after);

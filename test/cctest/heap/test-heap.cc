@@ -6299,7 +6299,8 @@ TEST(Regress618958) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   bool isolate_is_locked = true;
-  CcTest::isolate()->AdjustAmountOfExternalAllocatedMemory(100 * MB);
+  v8::ExternalMemoryAccounter accounter;
+  accounter.Increase(CcTest::isolate(), 100 * MB);
   int mark_sweep_count_before = heap->ms_count();
   heap->MemoryPressureNotification(MemoryPressureLevel::kCritical,
                                    isolate_is_locked);
@@ -6310,6 +6311,7 @@ TEST(Regress618958) {
   CHECK(mark_sweeps_performed == 2 ||
         (mark_sweeps_performed == 1 &&
          !heap->incremental_marking()->IsStopped()));
+  accounter.Decrease(CcTest::isolate(), 100 * MB);
 }
 
 TEST(YoungGenerationLargeObjectAllocationScavenge) {
