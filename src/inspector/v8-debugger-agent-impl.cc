@@ -460,7 +460,7 @@ void V8DebuggerAgentImpl::enableImpl() {
   }
 }
 
-Response V8DebuggerAgentImpl::enable(Maybe<double> maxScriptsCacheSize,
+Response V8DebuggerAgentImpl::enable(std::optional<double> maxScriptsCacheSize,
                                      String16* outDebuggerId) {
   if (m_enableState == kStopping)
     return Response::ServerError("Debugger is stopping");
@@ -615,10 +615,11 @@ class Matcher {
 }  // namespace
 
 Response V8DebuggerAgentImpl::setBreakpointByUrl(
-    int lineNumber, Maybe<String16> optionalURL,
-    Maybe<String16> optionalURLRegex, Maybe<String16> optionalScriptHash,
-    Maybe<int> optionalColumnNumber, Maybe<String16> optionalCondition,
-    String16* outBreakpointId,
+    int lineNumber, std::optional<String16> optionalURL,
+    std::optional<String16> optionalURLRegex,
+    std::optional<String16> optionalScriptHash,
+    std::optional<int> optionalColumnNumber,
+    std::optional<String16> optionalCondition, String16* outBreakpointId,
     std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
 
@@ -716,7 +717,7 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
 
 Response V8DebuggerAgentImpl::setBreakpoint(
     std::unique_ptr<protocol::Debugger::Location> location,
-    Maybe<String16> optionalCondition, String16* outBreakpointId,
+    std::optional<String16> optionalCondition, String16* outBreakpointId,
     std::unique_ptr<protocol::Debugger::Location>* actualLocation) {
   String16 breakpointId = generateBreakpointId(
       BreakpointType::kByScriptId, location->getScriptId(),
@@ -739,7 +740,7 @@ Response V8DebuggerAgentImpl::setBreakpoint(
 }
 
 Response V8DebuggerAgentImpl::setBreakpointOnFunctionCall(
-    const String16& functionObjectId, Maybe<String16> optionalCondition,
+    const String16& functionObjectId, std::optional<String16> optionalCondition,
     String16* outBreakpointId) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
 
@@ -866,7 +867,8 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(
 
 Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     std::unique_ptr<protocol::Debugger::Location> start,
-    Maybe<protocol::Debugger::Location> end, Maybe<bool> restrictToFunction,
+    std::unique_ptr<protocol::Debugger::Location> end,
+    std::optional<bool> restrictToFunction,
     std::unique_ptr<protocol::Array<protocol::Debugger::BreakLocation>>*
         locations) {
   String16 scriptId = start->getScriptId();
@@ -931,7 +933,7 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
 
 Response V8DebuggerAgentImpl::continueToLocation(
     std::unique_ptr<protocol::Debugger::Location> location,
-    Maybe<String16> targetCallFrames) {
+    std::optional<String16> targetCallFrames) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   ScriptsMap::iterator it = m_scripts.find(location->getScriptId());
@@ -1107,7 +1109,8 @@ void V8DebuggerAgentImpl::setBreakpointImpl(const String16& breakpointId,
 
 Response V8DebuggerAgentImpl::searchInContent(
     const String16& scriptId, const String16& query,
-    Maybe<bool> optionalCaseSensitive, Maybe<bool> optionalIsRegex,
+    std::optional<bool> optionalCaseSensitive,
+    std::optional<bool> optionalIsRegex,
     std::unique_ptr<Array<protocol::Debugger::SearchMatch>>* results) {
   v8::HandleScope handles(m_isolate);
   ScriptsMap::iterator it = m_scripts.find(scriptId);
@@ -1142,13 +1145,15 @@ const char* buildStatus(v8::debug::LiveEditResult::Status status) {
 }  // namespace
 
 Response V8DebuggerAgentImpl::setScriptSource(
-    const String16& scriptId, const String16& newContent, Maybe<bool> dryRun,
-    Maybe<bool> allowTopFrameEditing,
-    Maybe<protocol::Array<protocol::Debugger::CallFrame>>* newCallFrames,
-    Maybe<bool>* stackChanged,
-    Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
-    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId, String16* status,
-    Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) {
+    const String16& scriptId, const String16& newContent,
+    std::optional<bool> dryRun, std::optional<bool> allowTopFrameEditing,
+    std::unique_ptr<protocol::Array<protocol::Debugger::CallFrame>>*
+        newCallFrames,
+    std::optional<bool>* stackChanged,
+    std::unique_ptr<protocol::Runtime::StackTrace>* asyncStackTrace,
+    std::unique_ptr<protocol::Runtime::StackTraceId>* asyncStackTraceId,
+    String16* status,
+    std::unique_ptr<protocol::Runtime::ExceptionDetails>* optOutCompileError) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
 
   ScriptsMap::iterator it = m_scripts.find(scriptId);
@@ -1195,10 +1200,10 @@ Response V8DebuggerAgentImpl::setScriptSource(
 }
 
 Response V8DebuggerAgentImpl::restartFrame(
-    const String16& callFrameId, Maybe<String16> mode,
+    const String16& callFrameId, std::optional<String16> mode,
     std::unique_ptr<Array<CallFrame>>* newCallFrames,
-    Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
-    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) {
+    std::unique_ptr<protocol::Runtime::StackTrace>* asyncStackTrace,
+    std::unique_ptr<protocol::Runtime::StackTraceId>* asyncStackTraceId) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   if (!mode.has_value()) {
     return Response::ServerError(
@@ -1224,7 +1229,7 @@ Response V8DebuggerAgentImpl::restartFrame(
 
 Response V8DebuggerAgentImpl::getScriptSource(
     const String16& scriptId, String16* scriptSource,
-    Maybe<protocol::Binary>* bytecode) {
+    std::optional<protocol::Binary>* bytecode) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
   ScriptsMap::iterator it = m_scripts.find(scriptId);
   if (it == m_scripts.end()) {
@@ -1318,7 +1323,7 @@ class DisassemblyCollectorImpl final : public v8::debug::DisassemblyCollector {
 };
 
 Response V8DebuggerAgentImpl::disassembleWasmModule(
-    const String16& in_scriptId, Maybe<String16>* out_streamId,
+    const String16& in_scriptId, std::optional<String16>* out_streamId,
     int* out_totalNumberOfLines,
     std::unique_ptr<protocol::Array<int>>* out_functionBodyOffsets,
     std::unique_ptr<protocol::Debugger::WasmDisassemblyChunk>* out_chunk) {
@@ -1479,7 +1484,7 @@ Response V8DebuggerAgentImpl::pause() {
   return Response::Success();
 }
 
-Response V8DebuggerAgentImpl::resume(Maybe<bool> terminateOnResume) {
+Response V8DebuggerAgentImpl::resume(std::optional<bool> terminateOnResume) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
 
@@ -1490,7 +1495,8 @@ Response V8DebuggerAgentImpl::resume(Maybe<bool> terminateOnResume) {
 }
 
 Response V8DebuggerAgentImpl::stepOver(
-    Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
+    std::unique_ptr<protocol::Array<protocol::Debugger::LocationRange>>
+        inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
   if (inSkipList) {
@@ -1506,8 +1512,9 @@ Response V8DebuggerAgentImpl::stepOver(
 }
 
 Response V8DebuggerAgentImpl::stepInto(
-    Maybe<bool> inBreakOnAsyncCall,
-    Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
+    std::optional<bool> inBreakOnAsyncCall,
+    std::unique_ptr<protocol::Array<protocol::Debugger::LocationRange>>
+        inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
   if (inSkipList) {
@@ -1566,11 +1573,12 @@ void V8DebuggerAgentImpl::setPauseOnExceptionsImpl(int pauseState) {
 
 Response V8DebuggerAgentImpl::evaluateOnCallFrame(
     const String16& callFrameId, const String16& expression,
-    Maybe<String16> objectGroup, Maybe<bool> includeCommandLineAPI,
-    Maybe<bool> silent, Maybe<bool> returnByValue, Maybe<bool> generatePreview,
-    Maybe<bool> throwOnSideEffect, Maybe<double> timeout,
+    std::optional<String16> objectGroup,
+    std::optional<bool> includeCommandLineAPI, std::optional<bool> silent,
+    std::optional<bool> returnByValue, std::optional<bool> generatePreview,
+    std::optional<bool> throwOnSideEffect, std::optional<double> timeout,
     std::unique_ptr<RemoteObject>* result,
-    Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
+    std::unique_ptr<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   InjectedScript::CallFrameScope scope(m_session, callFrameId);
   Response response = scope.initialize();
@@ -1679,7 +1687,7 @@ Response V8DebuggerAgentImpl::setAsyncCallStackDepth(int depth) {
 
 Response V8DebuggerAgentImpl::setBlackboxPatterns(
     std::unique_ptr<protocol::Array<String16>> patterns,
-    Maybe<bool> skipAnonymous) {
+    std::optional<bool> skipAnonymous) {
   m_skipAnonymousScripts = skipAnonymous.value_or(false);
   m_state->setBoolean(DebuggerAgentState::skipAnonymousScripts,
                       m_skipAnonymousScripts);
@@ -1950,7 +1958,7 @@ void V8DebuggerAgentImpl::didParseSource(
   String16 scriptURL = script->sourceURL();
   String16 embedderName = script->embedderName();
   String16 scriptLanguage = getScriptLanguage(*script);
-  Maybe<int> codeOffset;
+  std::optional<int> codeOffset;
   std::unique_ptr<Array<protocol::Debugger::DebugSymbols>> debugSymbols;
 #if V8_ENABLE_WEBASSEMBLY
   if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly) {
@@ -1973,9 +1981,7 @@ void V8DebuggerAgentImpl::didParseSource(
   // script is changing.
   scriptRef->resetBlackboxedStateCache();
 
-  Maybe<String16> sourceMapURLParam = scriptRef->sourceMappingURL();
-  Maybe<protocol::DictionaryValue> executionContextAuxDataParam(
-      std::move(executionContextAuxData));
+  std::optional<String16> sourceMapURLParam = scriptRef->sourceMappingURL();
   const bool* isLiveEditParam = isLiveEdit ? &isLiveEdit : nullptr;
   const bool* hasSourceURLParam =
       hasSourceURLComment ? &hasSourceURLComment : nullptr;
@@ -1991,7 +1997,7 @@ void V8DebuggerAgentImpl::didParseSource(
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
-        scriptRef->hash(), std::move(executionContextAuxDataParam),
+        scriptRef->hash(), std::move(executionContextAuxData),
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
         scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
         std::move(scriptLanguage), embedderName);
@@ -2001,11 +2007,10 @@ void V8DebuggerAgentImpl::didParseSource(
   m_frontend.scriptParsed(
       scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
       scriptRef->endLine(), scriptRef->endColumn(), contextId,
-      scriptRef->hash(), std::move(executionContextAuxDataParam),
-      isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
-      isModuleParam, scriptRef->length(), std::move(stackTrace),
-      std::move(codeOffset), std::move(scriptLanguage), std::move(debugSymbols),
-      embedderName);
+      scriptRef->hash(), std::move(executionContextAuxData), isLiveEditParam,
+      std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
+      scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
+      std::move(scriptLanguage), std::move(debugSymbols), embedderName);
 
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;
   if (!scriptURL.isEmpty()) {
