@@ -1247,8 +1247,8 @@ class ParserBase {
   // Returns the receiver variable that we're referencing.
   V8_INLINE void UseThis() {
     Scope* scope = this->scope();
-    if (scope->is_reparsed()) return;
     DeclarationScope* closure_scope = scope->GetClosureScope();
+    if (closure_scope->is_reparsed()) return;
     DeclarationScope* receiver_scope = closure_scope->GetReceiverScope();
     Variable* var = receiver_scope->receiver();
     var->set_is_used();
