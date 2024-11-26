@@ -267,7 +267,10 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     live_byte_count_.fetch_add(diff, std::memory_order_relaxed);
   }
 
+  template <AccessMode mode = AccessMode::NON_ATOMIC>
   void ClearLiveness();
+
+  bool IsLivenessClear() const;
 
   bool IsLargePage() {
     // The active_system_pages_ will be nullptr for large pages, so we uses
