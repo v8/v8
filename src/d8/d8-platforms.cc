@@ -171,14 +171,15 @@ class DelayedTasksPlatform final : public Platform {
   void PostTaskOnWorkerThreadImpl(TaskPriority priority,
                                   std::unique_ptr<Task> task,
                                   const SourceLocation& location) override {
-    platform_->CallOnWorkerThread(MakeDelayedTask(std::move(task)), location);
+    platform_->PostTaskOnWorkerThread(
+        priority, MakeDelayedTask(std::move(task)), location);
   }
 
   void PostDelayedTaskOnWorkerThreadImpl(
       TaskPriority priority, std::unique_ptr<Task> task,
       double delay_in_seconds, const SourceLocation& location) override {
-    platform_->CallDelayedOnWorkerThread(MakeDelayedTask(std::move(task)),
-                                         delay_in_seconds, location);
+    platform_->PostDelayedTaskOnWorkerThread(
+        priority, MakeDelayedTask(std::move(task)), delay_in_seconds, location);
   }
 
   bool IdleTasksEnabled(Isolate* isolate) override {

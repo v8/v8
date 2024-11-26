@@ -430,14 +430,14 @@ std::shared_ptr<v8::TaskRunner> TestPlatform::GetForegroundTaskRunner(
 void TestPlatform::PostTaskOnWorkerThreadImpl(
     v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
     const v8::SourceLocation& location) {
-  CcTest::default_platform()->CallOnWorkerThread(std::move(task));
+  CcTest::default_platform()->PostTaskOnWorkerThread(priority, std::move(task));
 }
 
 void TestPlatform::PostDelayedTaskOnWorkerThreadImpl(
     v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
     double delay_in_seconds, const v8::SourceLocation& location) {
-  CcTest::default_platform()->CallDelayedOnWorkerThread(std::move(task),
-                                                        delay_in_seconds);
+  CcTest::default_platform()->PostDelayedTaskOnWorkerThread(
+      priority, std::move(task), delay_in_seconds);
 }
 
 std::unique_ptr<v8::JobHandle> TestPlatform::CreateJobImpl(

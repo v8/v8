@@ -5795,8 +5795,8 @@ class StressConcurrentAllocationTask : public CancelableTask {
   static void Schedule(Isolate* isolate) {
     auto task = std::make_unique<StressConcurrentAllocationTask>(isolate);
     const double kDelayInSeconds = 0.1;
-    V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(std::move(task),
-                                                        kDelayInSeconds);
+    V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
+        TaskPriority::kUserVisible, std::move(task), kDelayInSeconds);
   }
 
  private:

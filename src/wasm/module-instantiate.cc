@@ -1021,7 +1021,8 @@ class WriteOutPGOTask : public v8::Task {
 
   static void Schedule(std::weak_ptr<NativeModule> native_module) {
     // Write out PGO info every 10 seconds.
-    V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+    V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
+        TaskPriority::kUserVisible,
         std::make_unique<WriteOutPGOTask>(std::move(native_module)), 10.0);
   }
 

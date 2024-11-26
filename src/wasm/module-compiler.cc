@@ -2975,7 +2975,8 @@ void AsyncCompileJob::StartBackgroundTask() {
   // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
   // tasks. This is used to make timing deterministic.
   if (v8_flags.wasm_num_compilation_tasks > 0) {
-    V8::GetCurrentPlatform()->CallBlockingTaskOnWorkerThread(std::move(task));
+    V8::GetCurrentPlatform()->PostTaskOnWorkerThread(
+        TaskPriority::kUserBlocking, std::move(task));
   } else {
     foreground_task_runner_->PostTask(std::move(task));
   }
@@ -4115,7 +4116,8 @@ void CompilationStateImpl::TriggerOutstandingCallbacks() {
       // Trigger a task after the given timeout; that task will only trigger
       // caching if no new code was added until then. Otherwise, it will
       // re-schedule itself.
-      V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+      V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
+          TaskPriority::kUserVisible,
           std::make_unique<TriggerCodeCachingAfterTimeoutTask>(
               native_module_weak_),
           1e-3 * v8_flags.wasm_caching_timeout_ms);
@@ -4187,7 +4189,8 @@ void CompilationStateImpl::TriggerCachingAfterTimeout() {
     int ms_remaining =
         static_cast<int>(time_until_caching.InMillisecondsRoundedUp());
     DCHECK_LE(1, ms_remaining);
-    V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+    V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
+        TaskPriority::kUserVisible,
         std::make_unique<TriggerCodeCachingAfterTimeoutTask>(
             native_module_weak_),
         ms_remaining);
