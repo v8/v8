@@ -7600,6 +7600,15 @@ TNode<BoolT> CodeStubAssembler::IsJSReceiverInstanceType(
                                  Int32Constant(FIRST_JS_RECEIVER_TYPE));
 }
 
+TNode<BoolT> CodeStubAssembler::IsSeqOneByteStringMap(TNode<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  return Word32Equal(TruncateIntPtrToInt32(BitcastTaggedToWord(map)),
+                     Int32Constant(StaticReadOnlyRoot::kSeqOneByteStringMap));
+#else
+  return IsSeqOneByteStringInstanceType(LoadMapInstanceType(map));
+#endif
+}
+
 TNode<BoolT> CodeStubAssembler::IsSequentialStringMap(TNode<Map> map) {
 #if V8_STATIC_ROOTS_BOOL
   // Both sequential string maps are allocated at the start of the read only
@@ -8022,7 +8031,11 @@ TNode<Word32T> CodeStubAssembler::IsStringWrapper(TNode<HeapObject> object) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsSeqOneByteString(TNode<HeapObject> object) {
-  return IsSeqOneByteStringInstanceType(LoadInstanceType(object));
+  return IsSeqOneByteStringMap(LoadMap(object));
+}
+
+TNode<BoolT> CodeStubAssembler::IsSequentialString(TNode<HeapObject> object) {
+  return IsSequentialStringMap(LoadMap(object));
 }
 
 TNode<BoolT> CodeStubAssembler::IsSymbolInstanceType(

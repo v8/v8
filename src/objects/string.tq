@@ -159,10 +159,15 @@ macro AllocateNonEmptySeqTwoByteString<Iterator: type>(
   };
 }
 
+@export
 macro AllocateNonEmptySeqOneByteString(length: uint32): SeqOneByteString {
+  dcheck(length > 0);
   return AllocateNonEmptySeqOneByteString(length, UninitializedIterator{});
 }
+
+@export
 macro AllocateNonEmptySeqTwoByteString(length: uint32): SeqTwoByteString {
+  dcheck(length > 0);
   return AllocateNonEmptySeqTwoByteString(length, UninitializedIterator{});
 }
 
@@ -194,22 +199,17 @@ extern macro StringWriteToFlatOneByte(
     String, RawPtr<char8>, int32, int32): void;
 extern macro StringWriteToFlatTwoByte(
     String, RawPtr<char16>, int32, int32): void;
+extern macro IsSequentialString(String): bool;
 
 // Corresponds to String::SlowFlatten in the C++ runtime.
 builtin StringSlowFlatten(cons: ConsString): String {
-  // TurboFan can create cons strings with empty first parts.
-  let cons = cons;
-  while (cons.first.length == 0) {
-    // We do not want to call this function recursively. Therefore we call
-    // String::Flatten only in those cases where String::SlowFlatten is not
-    // called again.
-    try {
-      const second = Cast<ConsString>(cons.second) otherwise FoundFlatString;
-      if (second.IsFlat()) goto FoundFlatString;
-      cons = second;
-    } label FoundFlatString {
-      return Flatten(cons.second);
-    }
+  // TurboFan can create cons strings with empty first parts. Canonicalize the
+  // cons shape here. Note this case is very rare in practice.
+  if (cons.first.length == 0) {
+    const second = cons.second;
+    cons.first = second;
+    cons.second = kEmptyString;
+    if (IsSequentialString(second)) return second;
   }
 
   let flat: String;

@@ -2806,7 +2806,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsString(TNode<HeapObject> object);
   TNode<Word32T> IsStringWrapper(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
+  TNode<BoolT> IsSequentialString(TNode<HeapObject> object);
 
+  TNode<BoolT> IsSeqOneByteStringMap(TNode<Map> map);
   TNode<BoolT> IsSequentialStringMap(TNode<Map> map);
   TNode<BoolT> IsExternalStringMap(TNode<Map> map);
   TNode<BoolT> IsUncachedExternalStringMap(TNode<Map> map);

@@ -630,6 +630,9 @@ const Char* String::GetDirectStringChars(
                    no_gc, access_guard);
 }
 
+// Note this function is reimplemented by StringSlowFlatten in string.tq.
+// Keep them in sync.
+//
 // static
 Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
                                    AllocationType allocation) {
