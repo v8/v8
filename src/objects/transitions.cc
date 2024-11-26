@@ -398,6 +398,16 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
                  IsUndefined(map->GetBackPointer()));
   DCHECK(IsMap(Cast<HeapObject>(*prototype)->map()));
+
+  // Only the main thread should write to transition arrays.
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
+  // It's OK to read the transition array without holding the
+  // full_transition_array_access lock in read mode, since this is only called
+  // in the main thread, and the main thread is the only writer. In addition, we
+  // shouldn't GC while holding the lock, because it will cause a deadlock if a
+  // background thread is waiting for the shared mutex outside of a safepoint.
+
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
   if (map->is_prototype_map()) return false;
@@ -411,34 +421,22 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   int capacity = cache->length() - header;
   int transitions = TransitionArray::NumberOfPrototypeTransitions(*cache) + 1;
 
-  // We're not using a MutexGuard for {full_transition_array_access}, because
-  // we'll need to release it before growing the transition array (if needed),
-  // in order to avoid deadlock if a background thread is waiting for the shared
-  // mutex outside of a safepoint. And after growing the array, we'll need to
-  // re-lock it.
-  base::SharedMutex* transition_array_mutex =
-      isolate->full_transition_array_access();
-
-  transition_array_mutex->LockExclusive();
   if (transitions > capacity) {
     // Grow the array if compacting it doesn't free space.
-    if (!TransitionArray::CompactPrototypeTransitionArray(isolate, *cache)) {
-      transition_array_mutex->UnlockExclusive();
+    bool compacted;
+    {
+      base::SharedMutexGuard<base::kExclusive> lock(
+          isolate->full_transition_array_access());
+      DisallowGarbageCollection no_gc;
+      compacted =
+          TransitionArray::CompactPrototypeTransitionArray(isolate, *cache);
+    }
+    if (!compacted) {
       if (capacity == TransitionArray::kMaxCachedPrototypeTransitions)
         return false;
 
-      // GrowPrototypeTransitionArray can allocate, so it shouldn't hold the
-      // exclusive lock on {full_transition_array_access} mutex, since
-      // background threads could be waiting for the shared lock (outside of a
-      // safe point). This is not an issue, because GrowPrototypeTransitionArray
-      // doesn't actually modify in place the array, but instead return a new
-      // array.
-      transition_array_mutex->LockShared();
       cache = TransitionArray::GrowPrototypeTransitionArray(
           cache, 2 * transitions, isolate);
-      transition_array_mutex->UnlockShared();
-
-      transition_array_mutex->LockExclusive();
       SetPrototypeTransitions(isolate, map, cache);
     }
   }
@@ -451,10 +449,13 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   int last = TransitionArray::NumberOfPrototypeTransitions(*cache);
   int entry = header + last;
 
-  cache->set(entry, MakeWeak(*target_map));
-  TransitionArray::SetNumberOfPrototypeTransitions(*cache, last + 1);
-
-  transition_array_mutex->UnlockExclusive();
+  {
+    base::SharedMutexGuard<base::kExclusive> lock(
+        isolate->full_transition_array_access());
+    DisallowGarbageCollection no_gc;
+    cache->set(entry, MakeWeak(*target_map));
+    TransitionArray::SetNumberOfPrototypeTransitions(*cache, last + 1);
+  }
   return true;
 }
 

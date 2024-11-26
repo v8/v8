@@ -41,13 +41,13 @@ Tagged<TransitionArray> TransitionsAccessor::transitions() {
 }
 
 bool TransitionArray::HasPrototypeTransitions() {
-  return get(kPrototypeTransitionsIndex) != Smi::zero();
+  return get(kPrototypeTransitionsIndex, kAcquireLoad) != Smi::zero();
 }
 
 Tagged<WeakFixedArray> TransitionArray::GetPrototypeTransitions() {
   DCHECK(HasPrototypeTransitions());  // Callers must check first.
   Tagged<Object> prototype_transitions =
-      get(kPrototypeTransitionsIndex).GetHeapObjectAssumeStrong();
+      get(kPrototypeTransitionsIndex, kAcquireLoad).GetHeapObjectAssumeStrong();
   return Cast<WeakFixedArray>(prototype_transitions);
 }
 
@@ -113,7 +113,7 @@ HeapObjectSlot TransitionArray::GetKeySlot(int transition_number) {
 void TransitionArray::SetPrototypeTransitions(
     Tagged<WeakFixedArray> transitions) {
   DCHECK(IsWeakFixedArray(transitions));
-  WeakFixedArray::set(kPrototypeTransitionsIndex, transitions);
+  WeakFixedArray::set(kPrototypeTransitionsIndex, transitions, kReleaseStore);
 }
 
 int TransitionArray::NumberOfPrototypeTransitions(
