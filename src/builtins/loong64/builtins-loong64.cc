@@ -3964,11 +3964,11 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
           MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
   {
     DEFINE_SCOPED(call_target);
-    __ Ld_d(
+    __ LoadWasmCodePointer(
         call_target,
         MemOperand(wrapper_buffer,
                    JSToWasmWrapperFrameConstants::kWrapperBufferCallTarget));
-    __ Call(call_target);
+    __ CallWasmCodePointer(call_target);
   }
 
   regs.ResetExcept();
