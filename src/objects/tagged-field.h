@@ -236,6 +236,8 @@ class TaggedField : public AllStatic {
 
   static inline Tagged_t Release_CompareAndSwap(Tagged<HeapObject> host,
                                                 PtrType old, PtrType value);
+  static inline Tagged_t Relaxed_CompareAndSwap(Tagged<HeapObject> host,
+                                                PtrType old, PtrType value);
   static inline PtrType SeqCst_CompareAndSwap(Tagged<HeapObject> host,
                                               int offset, PtrType old,
                                               PtrType value);

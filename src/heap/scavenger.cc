@@ -153,7 +153,7 @@ class IterateAndScavengePromotedObjectsVisitor final
         std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
             std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
         "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
-    scavenger_->PageMemoryFence(target);
+    scavenger_->SynchronizePageAccess(target);
 
     if (Heap::InFromPage(target)) {
       SlotCallbackResult result = scavenger_->ScavengeObject(slot, target);

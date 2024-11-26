@@ -1497,6 +1497,12 @@ void HeapObjectLayout::set_map_word_forwarded(Tagged<HeapObject> target_object,
   Tagged<HeapObject>(this)->set_map_word_forwarded(target_object, tag);
 }
 
+void HeapObjectLayout::set_map_word_forwarded(Tagged<HeapObject> target_object,
+                                              RelaxedStoreTag tag) {
+  // TODO(leszeks): Support MapWord members and access via that instead.
+  Tagged<HeapObject>(this)->set_map_word_forwarded(target_object, tag);
+}
+
 void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
                                         ReleaseStoreTag) {
   MapField::Release_Store_Map_Word(
@@ -1506,6 +1512,14 @@ void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
 bool HeapObject::release_compare_and_swap_map_word_forwarded(
     MapWord old_map_word, Tagged<HeapObject> new_target_object) {
   Tagged_t result = MapField::Release_CompareAndSwap(
+      *this, old_map_word,
+      MapWord::FromForwardingAddress(*this, new_target_object));
+  return result == static_cast<Tagged_t>(old_map_word.ptr());
+}
+
+bool HeapObject::relaxed_compare_and_swap_map_word_forwarded(
+    MapWord old_map_word, Tagged<HeapObject> new_target_object) {
+  Tagged_t result = MapField::Relaxed_CompareAndSwap(
       *this, old_map_word,
       MapWord::FromForwardingAddress(*this, new_target_object));
   return result == static_cast<Tagged_t>(old_map_word.ptr());

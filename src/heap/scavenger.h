@@ -120,7 +120,7 @@ class Scavenger {
 
   inline Heap* heap() { return heap_; }
 
-  inline void PageMemoryFence(Tagged<MaybeObject> object);
+  inline void SynchronizePageAccess(Tagged<MaybeObject> object) const;
 
   void AddPageToSweeperIfNecessary(MutablePageMetadata* page);
 

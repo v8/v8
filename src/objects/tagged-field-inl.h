@@ -374,6 +374,18 @@ TaggedField<T, kFieldOffset, CompressionScheme>::Release_CompareAndSwap(
 
 // static
 template <typename T, int kFieldOffset, typename CompressionScheme>
+Tagged_t
+TaggedField<T, kFieldOffset, CompressionScheme>::Relaxed_CompareAndSwap(
+    Tagged<HeapObject> host, PtrType old, PtrType value) {
+  Tagged_t old_value = full_to_tagged(old.ptr());
+  Tagged_t new_value = full_to_tagged(value.ptr());
+  Tagged_t result = AsAtomicTagged::Relaxed_CompareAndSwap(
+      location(host), old_value, new_value);
+  return result;
+}
+
+// static
+template <typename T, int kFieldOffset, typename CompressionScheme>
 typename TaggedField<T, kFieldOffset, CompressionScheme>::PtrType
 TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Load(
     Tagged<HeapObject> host, int offset) {

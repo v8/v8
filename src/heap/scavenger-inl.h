@@ -80,7 +80,7 @@ size_t Scavenger::PromotionList::Size() const {
          large_object_promotion_list_.Size();
 }
 
-void Scavenger::PageMemoryFence(Tagged<MaybeObject> object) {
+void Scavenger::SynchronizePageAccess(Tagged<MaybeObject> object) const {
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race
   // with  page initialization.
@@ -94,17 +94,23 @@ void Scavenger::PageMemoryFence(Tagged<MaybeObject> object) {
 bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
                               Tagged<HeapObject> target, int size,
                               PromotionHeapChoice promotion_heap_choice) {
-  // Copy the content of source to target.
-  target->set_map_word(map, kRelaxedStore);
-  heap()->CopyBlock(target.address() + kTaggedSize,
-                    source.address() + kTaggedSize, size - kTaggedSize);
-
-  // This release CAS is paired with the load acquire in ScavengeObject.
-  if (!source->release_compare_and_swap_map_word_forwarded(
+  // This CAS can be relaxed because we do not access the object body if the
+  // object was already copied by another thread. We only access the page header
+  // of such objects and this is safe because of the memory fence after page
+  // header initialization.
+  if (!source->relaxed_compare_and_swap_map_word_forwarded(
           MapWord::FromMap(map), target)) {
     // Other task migrated the object.
     return false;
   }
+
+  // Copy the content of source to target. Note that we do this on purpose
+  // *after* the CAS. This avoids copying of the object in the (unlikely)
+  // failure case. It also helps us to ensure that we do not rely on non-relaxed
+  // memory ordering for the CAS above.
+  target->set_map_word(map, kRelaxedStore);
+  heap()->CopyBlock(target.address() + kTaggedSize,
+                    source.address() + kTaggedSize, size - kTaggedSize);
 
   if (V8_UNLIKELY(is_logging_)) {
     heap()->OnMoveEvent(source, target, size);
@@ -139,8 +145,9 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
         MigrateObject(map, object, target, object_size, kPromoteIntoLocalHeap);
     if (!self_success) {
       allocator_.FreeLast(NEW_SPACE, target, object_size);
-      MapWord map_word = object->map_word(kAcquireLoad);
+      MapWord map_word = object->map_word(kRelaxedLoad);
       UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(object));
+      SynchronizePageAccess(*slot);
       DCHECK(!Heap::InFromPage(*slot));
       return Heap::InToPage(*slot)
                  ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
@@ -183,8 +190,9 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
                               : SHARED_SPACE,
                           target, object_size);
 
-      MapWord map_word = object->map_word(kAcquireLoad);
+      MapWord map_word = object->map_word(kRelaxedLoad);
       UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(object));
+      SynchronizePageAccess(*slot);
       DCHECK(!Heap::InFromPage(*slot));
       return Heap::InToPage(*slot)
                  ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
@@ -215,7 +223,7 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
   if (NEW_LO_SPACE ==
       MutablePageMetadata::FromHeapObject(object)->owner_identity()) {
     DCHECK(MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace());
-    if (object->release_compare_and_swap_map_word_forwarded(
+    if (object->relaxed_compare_and_swap_map_word_forwarded(
             MapWord::FromMap(map), object)) {
       local_surviving_new_large_objects_.insert({object, map});
       promoted_size_ += object_size;
@@ -317,23 +325,24 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(
     UpdateHeapObjectReferenceSlot(slot, first);
 
     if (!HeapLayout::InYoungGeneration(first)) {
-      object->set_map_word_forwarded(first, kReleaseStore);
+      object->set_map_word_forwarded(first, kRelaxedStore);
       return REMOVE_SLOT;
     }
 
-    MapWord first_word = first->map_word(kAcquireLoad);
+    MapWord first_word = first->map_word(kRelaxedLoad);
     if (first_word.IsForwardingAddress()) {
       Tagged<HeapObject> target = first_word.ToForwardingAddress(first);
 
       UpdateHeapObjectReferenceSlot(slot, target);
-      object->set_map_word_forwarded(target, kReleaseStore);
+      SynchronizePageAccess(target);
+      object->set_map_word_forwarded(target, kRelaxedStore);
       return HeapLayout::InYoungGeneration(target) ? KEEP_SLOT : REMOVE_SLOT;
     }
     Tagged<Map> first_map = first_word.ToMap();
     SlotCallbackResult result = EvacuateObjectDefault(
         first_map, slot, first, first->SizeFromMap(first_map),
         Map::ObjectFieldsFrom(first_map->visitor_id()));
-    object->set_map_word_forwarded(slot.ToHeapObject(), kReleaseStore);
+    object->set_map_word_forwarded(slot.ToHeapObject(), kRelaxedStore);
     return result;
   }
   DCHECK_EQ(ObjectFields::kMaybePointers,
@@ -401,16 +410,18 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(Heap::InFromPage(object));
 
-  // Synchronized load that consumes the publishing CAS of MigrateObject. We
-  // need memory ordering in order to read the page header of the forwarded
-  // object (using Heap::InYoungGeneration).
-  MapWord first_word = object->map_word(kAcquireLoad);
+  // Check whether object was already successfully forwarded by the CAS in
+  // MigrateObject. No memory ordering required because we only access the page
+  // header of a relocated object. Page header initialization uses a memory
+  // fence.
+  MapWord first_word = object->map_word(kRelaxedLoad);
 
   // If the first word is a forwarding address, the object has already been
   // copied.
   if (first_word.IsForwardingAddress()) {
     Tagged<HeapObject> dest = first_word.ToForwardingAddress(object);
     UpdateHeapObjectReferenceSlot(p, dest);
+    SynchronizePageAccess(dest);
     DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
                    Heap::InToPage(dest) || Heap::IsLargeObject(dest));
 
