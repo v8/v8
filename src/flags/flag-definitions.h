@@ -727,6 +727,7 @@ DEFINE_BOOL(jitless, V8_LITE_MODE_BOOL,
 // Jitless V8 has a few implications:
 // Field type tracking is only used by TurboFan.
 DEFINE_NEG_IMPLICATION(jitless, track_field_types)
+DEFINE_NEG_IMPLICATION(jitless, script_context_mutable_heap_number)
 // No code generation at runtime.
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 DEFINE_NEG_IMPLICATION(jitless, turbofan)
@@ -758,6 +759,8 @@ DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, validate_asm)
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Field type tracking is only used by TurboFan, so can be disabled.
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, track_field_types)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers,
+                       script_context_mutable_heap_number)
 
 DEFINE_BOOL(memory_protection_keys, true,
             "protect code memory with PKU if available")

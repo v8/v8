@@ -110,13 +110,15 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         kIncompatibleFlagsForNoTurbofan + [
             "--track-field-types", "--sparkplug", "--concurrent-sparkplug",
             "--always-sparkplug", "--regexp-tier-up",
-            "--no-regexp-interpret-all", "--interpreted-frames-native-stack"
+            "--no-regexp-interpret-all", "--interpreted-frames-native-stack",
+            "--script-context-mutable-heap-number",
         ],
     "nooptimization": [
         "--turbofan", "--always-turbofan", "--turboshaft",
         "--turboshaft-future", "--maglev", "--no-liftoff", "--wasm-tier-up",
         "--wasm-dynamic-tiering", "--validate-asm", "--track-field-types",
-        "--stress-concurrent-inlining"
+        "--stress-concurrent-inlining",
+        "--script-context-mutable-heap-number",
     ],
     "slow_path": ["--no-force-slow-path"],
     "stress_concurrent_allocation": [
