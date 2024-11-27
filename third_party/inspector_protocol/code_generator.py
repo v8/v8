@@ -544,6 +544,12 @@ class Protocol(object):
       return wrap_array_definition(self.resolve_type(prop["items"]))
     return self.type_definitions[prop["type"]]
 
+  def optional_type(self, prop):
+    type = self.resolve_type(prop)
+    template = ("std::optional<{}>"
+                if type.get('is_primitive', False) else "std::unique_ptr<{}>")
+    return template.format(type.get("raw_type"))
+
   def generate_command(self, domain, command):
     if not self.config.protocol.options:
       return domain in self.generate_domains

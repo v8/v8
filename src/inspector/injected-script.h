@@ -52,7 +52,6 @@ class V8InspectorImpl;
 class V8InspectorSessionImpl;
 class ValueMirror;
 
-using protocol::Maybe;
 using protocol::Response;
 
 class EvaluateCallback {

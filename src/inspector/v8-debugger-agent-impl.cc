@@ -34,7 +34,6 @@
 namespace v8_inspector {
 
 using protocol::Array;
-using protocol::Maybe;
 using protocol::Debugger::BreakpointId;
 using protocol::Debugger::CallFrame;
 using protocol::Debugger::Scope;

@@ -54,7 +54,6 @@ class V8InspectorImpl;
 class V8InspectorSessionImpl;
 
 using protocol::Response;
-using protocol::Maybe;
 
 class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
  public:

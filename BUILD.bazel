@@ -4011,7 +4011,6 @@ filegroup(
         "third_party/inspector_protocol/crdtp/glue.h",
         "third_party/inspector_protocol/crdtp/json.cc",
         "third_party/inspector_protocol/crdtp/json.h",
-        "third_party/inspector_protocol/crdtp/maybe.h",
         "third_party/inspector_protocol/crdtp/parser_handler.h",
         "third_party/inspector_protocol/crdtp/protocol_core.cc",
         "third_party/inspector_protocol/crdtp/protocol_core.h",

@@ -114,19 +114,6 @@ struct ProtocolTypeTraits<v8_inspector::protocol::Binary> {
                         std::vector<uint8_t>* bytes);
 };
 
-namespace detail {
-template <>
-struct MaybeTypedef<v8_inspector::String16> {
-  typedef std::optional<v8_inspector::String16> type;
-};
-
-template <>
-struct MaybeTypedef<v8_inspector::protocol::Binary> {
-  typedef std::optional<v8_inspector::protocol::Binary> type;
-};
-
-}  // namespace detail
-
 }  // namespace v8_crdtp
 
 #endif  // V8_INSPECTOR_STRING_UTIL_H_

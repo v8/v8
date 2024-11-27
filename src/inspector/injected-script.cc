@@ -65,7 +65,6 @@ bool isResolvableNumberLike(String16 query) {
 }  // namespace
 
 using protocol::Array;
-using protocol::Maybe;
 using protocol::Runtime::InternalPropertyDescriptor;
 using protocol::Runtime::PrivatePropertyDescriptor;
 using protocol::Runtime::PropertyDescriptor;

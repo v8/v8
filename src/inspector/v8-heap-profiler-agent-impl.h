@@ -19,7 +19,6 @@ namespace v8_inspector {
 
 class V8InspectorSessionImpl;
 
-using protocol::Maybe;
 using protocol::Response;
 
 class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {

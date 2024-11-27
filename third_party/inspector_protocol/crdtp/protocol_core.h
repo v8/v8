@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "cbor.h"
-#include "maybe.h"
 #include "serializable.h"
 #include "span.h"
 #include "status.h"
