@@ -128,12 +128,6 @@ namespace internal {
 #define V8_STATIC_ROOTS_GENERATION_BOOL false
 #endif
 
-#ifdef V8_ENABLE_SANDBOX
-#define V8_ENABLE_SANDBOX_BOOL true
-#else
-#define V8_ENABLE_SANDBOX_BOOL false
-#endif
-
 #ifdef V8_ENABLE_LEAPTIERING
 #define V8_ENABLE_LEAPTIERING_BOOL true
 
@@ -148,6 +142,16 @@ namespace internal {
 
 #else
 #define V8_ENABLE_LEAPTIERING_BOOL false
+#endif
+
+#ifdef V8_ENABLE_SANDBOX
+#define V8_ENABLE_SANDBOX_BOOL true
+static_assert(V8_ENABLE_LEAPTIERING_BOOL);
+#define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE 1
+#define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL true
+#else
+#define V8_ENABLE_SANDBOX_BOOL false
+#define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL false
 #endif
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY

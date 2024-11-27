@@ -470,7 +470,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
     return GetJSCallNewTargetParamIndex(parameter_count) + 1;
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   // A special {Parameter} index for JSCalls that represents the dispatch
   // handle.
   static constexpr int GetJSCallDispatchHandleParamIndex(int parameter_count) {
@@ -480,7 +480,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 
   // A special {Parameter} index for JSCalls that represents the context.
   static constexpr int GetJSCallContextParamIndex(int parameter_count) {
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     return GetJSCallDispatchHandleParamIndex(parameter_count) + 1;
 #else
     return GetJSCallArgCountParamIndex(parameter_count) + 1;

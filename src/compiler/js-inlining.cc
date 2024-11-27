@@ -140,7 +140,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
           // The projection is requesting the inlinee function context.
           Replace(use, context);
         } else {
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
           // Using the dispatch handle here isn't currently supported.
           DCHECK_NE(index, start.DispatchHandleOutputIndex());
 #endif

@@ -8082,7 +8082,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[pos++] = undefined_node;  // new target
         args[pos++] =
             Int32Constant(JSParameterCount(wasm_count));  // argument count
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
         args[pos++] = Int32Constant(kPlaceholderDispatchHandle);
 #endif
 

@@ -555,9 +555,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     int pushed_count = std::max(expected_arity, wasm_count);
     // 5 extra arguments: receiver, new target, arg count, dispatch handle and
     // context.
-    bool has_dispatch_handle = kind == ImportCallKind::kUseCallBuiltin
-                                   ? false
-                                   : V8_ENABLE_LEAPTIERING_BOOL;
+    bool has_dispatch_handle =
+        kind == ImportCallKind::kUseCallBuiltin
+            ? false
+            : V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL;
     base::SmallVector<OpIndex, 16> args(pushed_count + 4 +
                                         (has_dispatch_handle ? 1 : 0));
     // Position of the first wasm argument in the JS arguments.
@@ -595,7 +596,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         args[pos++] = undefined_node;  // new target
         args[pos++] =
             __ Word32Constant(JSParameterCount(wasm_count));  // argument count
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
         args[pos++] = __ Word32Constant(kPlaceholderDispatchHandle);
 #endif
         args[pos++] = LoadContextFromJSFunction(callable_node);

@@ -83,7 +83,7 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
   auto arg_count =
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kJSDispatchHandle);
 #else
@@ -1646,9 +1646,12 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto arg_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
+#elif defined(V8_ENABLE_LEAPTIERING)
+  TNode<JSDispatchHandleT> dispatch_handle = ReinterpretCast<JSDispatchHandleT>(
+      LoadJSFunctionDispatchHandle(function));
 #else
   auto dispatch_handle = InvalidDispatchHandleConstant();
 #endif

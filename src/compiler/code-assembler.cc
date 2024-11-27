@@ -1425,7 +1425,7 @@ Node* CodeAssembler::CallJSStubImpl(
     inputs.Add(*new_target);
   }
   inputs.Add(arity);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   if (dispatch_handle) {
     inputs.Add(*dispatch_handle);
   }
@@ -1495,7 +1495,7 @@ void CodeAssembler::TailCallJSCode(TNode<Code> code, TNode<Context> context,
       CallDescriptor::kFixedTargetRegister, Operator::kNoProperties,
       StubCallMode::kCallCodeObject);
 
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   Node* nodes[] = {code,      function,        new_target,
                    arg_count, dispatch_handle, context};
 #else

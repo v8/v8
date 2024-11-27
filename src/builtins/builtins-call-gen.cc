@@ -875,7 +875,7 @@ TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
 #else

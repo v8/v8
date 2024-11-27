@@ -21,7 +21,7 @@ void LazyBuiltinsAssembler::GenerateTailCallToJSCode(
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
 #else
@@ -206,8 +206,10 @@ TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
 
 void LazyBuiltinsAssembler::TieringBuiltinImpl(
     Runtime::FunctionId function_id) {
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
+#endif
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
@@ -223,6 +225,7 @@ void LazyBuiltinsAssembler::TieringBuiltinImpl(
       LoadObjectField<JSDispatchHandleT>(function,
                                          JSFunction::kDispatchHandleOffset);
 
+#ifdef V8_ENABLE_SANDBOX
   Label parameter_count_checked(this);
   GotoIf(Word32Equal(dispatch_handle, new_dispatch_handle),
          &parameter_count_checked);
@@ -232,12 +235,14 @@ void LazyBuiltinsAssembler::TieringBuiltinImpl(
                   LoadParameterCountFromJSDispatchTable(new_dispatch_handle)));
   Goto(&parameter_count_checked);
   BIND(&parameter_count_checked);
+#endif
 
   // Load the code directly from the dispatch table to guarantee the signature
   // of the code matches with the number of arguments passed when calling into
   // this trampoline.
   TNode<Code> code = LoadCodeObjectFromJSDispatchTable(new_dispatch_handle);
-  TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
+  TailCallJSCode(code, context, function, new_target, argc,
+                 new_dispatch_handle);
 }
 
 TF_BUILTIN(FunctionLogNextExecution, LazyBuiltinsAssembler) {

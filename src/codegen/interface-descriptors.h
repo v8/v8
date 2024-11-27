@@ -876,7 +876,7 @@ class NewHeapNumberDescriptor
 // code that can be installed on a JSFunction. Target, new.target, argc,
 // context and potentially the dispatch entry are passed in registers while
 // receiver and the rest of the JS arguments are passed on the stack.
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
 class JSTrampolineDescriptor
     : public StaticJSCallInterfaceDescriptor<JSTrampolineDescriptor> {
  public:

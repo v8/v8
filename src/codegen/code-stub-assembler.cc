@@ -2033,6 +2033,7 @@ void CodeStubAssembler::SetSupportsDynamicParameterCount(
   dynamic_parameter_count =
       LoadParameterCountFromJSDispatchTable(dispatch_handle);
 #else
+  // TODO(olivf): Remove once leaptiering is supported everywhere.
   TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(callee);
   dynamic_parameter_count =
       LoadSharedFunctionInfoFormalParameterCountWithReceiver(shared);

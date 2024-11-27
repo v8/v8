@@ -1378,7 +1378,7 @@ class MaglevFrameTranslationBuilder {
     int height = frame.parameters().length();
 
     constexpr int kExtraFixedJSFrameParameters =
-        V8_ENABLE_LEAPTIERING_BOOL ? 4 : 3;
+        V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 4 : 3;
     if (frame.is_javascript()) {
       translation_array_builder_->BeginJavaScriptBuiltinContinuationFrame(
           bailout_id, literal_id, height + kExtraFixedJSFrameParameters);
@@ -1408,7 +1408,7 @@ class MaglevFrameTranslationBuilder {
                     .GetRegisterParameterCount(),
                 kExtraFixedJSFrameParameters);
       static_assert(kExtraFixedJSFrameParameters ==
-                    3 + (V8_ENABLE_LEAPTIERING_BOOL ? 1 : 0));
+                    3 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0));
       // kJavaScriptCallTargetRegister
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(frame.javascript_target()));
@@ -1418,7 +1418,7 @@ class MaglevFrameTranslationBuilder {
       // kJavaScriptCallArgCountRegister
       translation_array_builder_->StoreLiteral(GetDeoptLiteral(
           Smi::FromInt(Builtins::GetStackParameterCount(frame.builtin_id()))));
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       // kJavaScriptCallDispatchHandleRegister
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(Smi::FromInt(kInvalidDispatchHandle)));

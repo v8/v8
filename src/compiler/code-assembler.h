@@ -1414,7 +1414,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     DCHECK(Builtins::HasJSLinkage(id));
     Callable callable = Builtins::CallableFor(isolate(), id);
     TNode<Code> target = HeapConstantNoHole(callable.code());
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     TailCallStub(callable.descriptor(), target, context, function, new_target,
                  arg_count, dispatch_handle);
 #else

@@ -1122,7 +1122,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
       masm, shared_function_info, kInterpreterBytecodeArrayRegister,
       kScratchRegister, &is_baseline, &compile_lazy);
 
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_ENABLE_SANDBOX
   // Validate the parameter count. This protects against an attacker swapping
   // the bytecode (or the dispatch handle) such that the parameter count of the
   // dispatch entry doesn't match the one of the BytecodeArray.
@@ -1130,12 +1130,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // if we could store the BytecodeArray directly in the dispatch entry and
   // load it from there. Then we can easily guarantee that the parameter count
   // of the entry matches the parameter count of the bytecode.
+  static_assert(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   __ LoadParameterCountFromJSDispatchTable(r8, dispatch_handle);
   __ cmpw(r8, FieldOperand(kInterpreterBytecodeArrayRegister,
                            BytecodeArray::kParameterSizeOffset));
   __ SbxCheck(equal, AbortReason::kJSSignatureMismatch);
-#endif  // V8_ENABLE_LEAPTIERING
+#endif  // V8_ENABLE_SANDBOX
 
   Label push_stack_frame;
   Register feedback_vector = rbx;
@@ -2662,7 +2663,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ movzxwq(
       rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(rdi, no_reg, rbx, rax, InvokeType::kJump);
-#endif
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 namespace {

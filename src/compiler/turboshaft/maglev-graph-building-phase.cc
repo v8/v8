@@ -1316,7 +1316,7 @@ class GraphBuildingNodeProcessor {
       arguments.push_back(callee);
       arguments.push_back(Map(node->new_target()));
       arguments.push_back(__ Word32Constant(actual_parameter_count));
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       arguments.push_back(__ Word32Constant(kPlaceholderDispatchHandle));
 #endif
       arguments.push_back(Map(node->receiver()));
@@ -1348,7 +1348,7 @@ class GraphBuildingNodeProcessor {
       }
       arguments.push_back(Map(node->new_target()));
       arguments.push_back(__ Word32Constant(actual_parameter_count));
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       arguments.push_back(__ Word32Constant(kPlaceholderDispatchHandle));
 #endif
 
@@ -4638,13 +4638,13 @@ class GraphBuildingNodeProcessor {
     // Extra fixed JS frame parameters. These are at the end since JS builtins
     // push their parameters in reverse order.
     constexpr int kExtraFixedJSFrameParameters =
-        V8_ENABLE_LEAPTIERING_BOOL ? 4 : 3;
+        V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 4 : 3;
     if (frame.is_javascript()) {
       DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(frame.builtin_id())
                     .GetRegisterParameterCount(),
                 kExtraFixedJSFrameParameters);
       static_assert(kExtraFixedJSFrameParameters ==
-                    3 + (V8_ENABLE_LEAPTIERING_BOOL ? 1 : 0));
+                    3 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0));
       // kJavaScriptCallTargetRegister
       builder.AddInput(MachineType::AnyTagged(),
                        __ HeapConstant(frame.javascript_target().object()));
@@ -4656,7 +4656,7 @@ class GraphBuildingNodeProcessor {
           MachineType::AnyTagged(),
           __ SmiConstant(Smi::FromInt(
               Builtins::GetStackParameterCount(frame.builtin_id()))));
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       // kJavaScriptCallDispatchHandleRegister
       builder.AddInput(MachineType::AnyTagged(),
                        __ SmiConstant(Smi::FromInt(kInvalidDispatchHandle)));
@@ -5035,7 +5035,7 @@ class GraphBuildingNodeProcessor {
         static_cast<uint16_t>(maglev_frame.parameters().length());
     if (maglev_frame.is_javascript()) {
       constexpr int kExtraFixedJSFrameParameters =
-          V8_ENABLE_LEAPTIERING_BOOL ? 4 : 3;
+          V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 4 : 3;
       DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(maglev_frame.builtin_id())
                     .GetRegisterParameterCount(),
                 kExtraFixedJSFrameParameters);

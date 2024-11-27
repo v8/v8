@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
 #define DEFINE_TFJ_PARAMETER_INDICES(...)     \
   enum ParameterIndices {                     \
     kJSTarget = kJSCallClosureParameterIndex, \

@@ -764,7 +764,8 @@ class StartNode final : public CommonNodeWrapperBase {
   // The receiver is counted as part of formal parameters.
   static constexpr int kReceiverOutputCount = 1;
   // These outputs are in addition to formal parameters.
-  static constexpr int kExtraOutputCount = 4 + V8_ENABLE_LEAPTIERING_BOOL;
+  static constexpr int kExtraOutputCount =
+      4 + V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL;
 
   // Takes the formal parameter count of the current function (including
   // receiver) and returns the number of value outputs of the start node.
@@ -772,7 +773,8 @@ class StartNode final : public CommonNodeWrapperBase {
     constexpr int kClosure = 1;
     constexpr int kNewTarget = 1;
     constexpr int kArgCount = 1;
-    constexpr int kDispatchHandle = V8_ENABLE_LEAPTIERING_BOOL ? 1 : 0;
+    constexpr int kDispatchHandle =
+        V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0;
     constexpr int kContext = 1;
     static_assert(kClosure + kNewTarget + kArgCount + kDispatchHandle +
                       kContext ==
@@ -782,7 +784,7 @@ class StartNode final : public CommonNodeWrapperBase {
     DCHECK_EQ(-1, Linkage::kJSCallClosureParamIndex);
     DCHECK_EQ(argc + 0, Linkage::GetJSCallNewTargetParamIndex(argc));
     DCHECK_EQ(argc + 1, Linkage::GetJSCallArgCountParamIndex(argc));
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     DCHECK_EQ(argc + 2, Linkage::GetJSCallDispatchHandleParamIndex(argc));
     DCHECK_EQ(argc + 3, Linkage::GetJSCallContextParamIndex(argc));
 #else
@@ -814,7 +816,7 @@ class StartNode final : public CommonNodeWrapperBase {
   int ArgCountParameterIndex() const {
     return Linkage::GetJSCallArgCountParamIndex(FormalParameterCount());
   }
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   int DispatchHandleOutputIndex() const {
     return Linkage::GetJSCallDispatchHandleParamIndex(FormalParameterCount());
   }

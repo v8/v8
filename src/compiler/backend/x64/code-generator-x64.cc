@@ -1417,6 +1417,8 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
 
+  if (!V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL) return;
+
   // We currently don't check this for JS builtins as those are sometimes
   // called directly (e.g. from other builtins) and not through the dispatch
   // table. This is fine as builtin functions don't use the dispatch handle,

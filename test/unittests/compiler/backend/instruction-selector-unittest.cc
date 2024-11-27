@@ -373,7 +373,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
 
   // Build the call.
   Node* argc = m.Int32Constant(1);
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   Node* dispatch_handle = m.Int32Constant(-1);
   Node* nodes[] = {function_node, receiver,        m.UndefinedConstant(),
                    argc,          dispatch_handle, context,

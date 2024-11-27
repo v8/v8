@@ -502,7 +502,8 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
   const size_t context_count = 1;
   const size_t new_target_count = 1;
   const size_t num_args_count = 1;
-  const size_t dispatch_handle_count = V8_ENABLE_LEAPTIERING_BOOL ? 1 : 0;
+  const size_t dispatch_handle_count =
+      V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0;
   const size_t parameter_count = js_parameter_count + new_target_count +
                                  num_args_count + dispatch_handle_count +
                                  context_count;
@@ -534,7 +535,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
   locations.AddParam(
       regloc(kJavaScriptCallArgCountRegister, MachineType::Int32()));
 
-#ifdef V8_ENABLE_LEAPTIERING
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   // Add dispatch handle.
   locations.AddParam(
       regloc(kJavaScriptCallDispatchHandleRegister, MachineType::Int32()));
