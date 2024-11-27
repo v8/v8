@@ -546,12 +546,8 @@ int TranslatedValue::object_length() const {
 }
 
 int TranslatedValue::object_index() const {
-  DCHECK(kind() == kCapturedObject || kind() == kDuplicatedObject);
-  return materialization_info_.id_;
-}
-
-int TranslatedValue::string_concat_index() const {
-  DCHECK_EQ(kind(), kCapturedStringConcat);
+  DCHECK(kind() == kCapturedObject || kind() == kDuplicatedObject ||
+         kind() == kCapturedStringConcat);
   return materialization_info_.id_;
 }
 
@@ -1415,15 +1411,14 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::STRING_CONCAT: {
+      int object_index = static_cast<int>(object_positions_.size());
       if (trace_file != nullptr) {
-        PrintF(trace_file, "string concatenation");
+        PrintF(trace_file, "string concatenation #%d", object_index);
       }
 
-      int string_concat_index =
-          static_cast<int>(string_concat_positions_.size());
-      string_concat_positions_.push_back({frame_index, value_index});
+      object_positions_.push_back({frame_index, value_index});
       TranslatedValue translated_value =
-          TranslatedValue::NewStringConcat(this, string_concat_index);
+          TranslatedValue::NewStringConcat(this, object_index);
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -2006,12 +2001,12 @@ TranslatedValue* TranslatedState::GetValueByObjectIndex(int object_index) {
 Handle<HeapObject> TranslatedState::ResolveStringConcat(TranslatedValue* slot) {
   CHECK_EQ(TranslatedValue::kUninitialized, slot->materialization_state());
 
-  int index = slot->string_concat_index();
-  TranslatedState::ObjectPosition pos = string_concat_positions_[index];
+  int index = slot->object_index();
+  TranslatedState::ObjectPosition pos = object_positions_[index];
   int value_index = pos.value_index_;
 
   TranslatedFrame* frame = &(frames_[pos.frame_index_]);
-  DCHECK_EQ(slot, &(frame->values_[value_index]));
+  CHECK_EQ(slot, &(frame->values_[value_index]));
 
   // TODO(dmercadier): try to avoid the recursive GetValue call.
   value_index++;
@@ -2646,7 +2641,8 @@ TranslatedValue* TranslatedState::ResolveCapturedObject(TranslatedValue* slot) {
   while (slot->kind() == TranslatedValue::kDuplicatedObject) {
     slot = GetValueByObjectIndex(slot->object_index());
   }
-  CHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  CHECK(slot->kind() == TranslatedValue::kCapturedObject ||
+        slot->kind() == TranslatedValue::kCapturedStringConcat);
   return slot;
 }
 

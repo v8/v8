@@ -4955,7 +4955,7 @@ class GraphBuildingNodeProcessor {
     static const uint32_t kNotDuplicated = -1;
 
    private:
-    std::vector<const maglev::VirtualObject*> object_ids_{10};
+    std::vector<const maglev::VirtualObject*> object_ids_;
     uint32_t next_id_ = 0;
   };
 

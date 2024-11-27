@@ -1347,9 +1347,10 @@ class StateValueDescriptor {
     descr.id_ = id;
     return descr;
   }
-  static StateValueDescriptor StringConcat() {
+  static StateValueDescriptor StringConcat(size_t id) {
     StateValueDescriptor descr(StateValueKind::kStringConcat,
                                MachineType::AnyTagged());
+    descr.id_ = id;
     return descr;
   }
 
@@ -1372,7 +1373,8 @@ class StateValueDescriptor {
   MachineType type() const { return type_; }
   size_t id() const {
     DCHECK(kind_ == StateValueKind::kDuplicate ||
-           kind_ == StateValueKind::kNestedObject);
+           kind_ == StateValueKind::kNestedObject ||
+           kind_ == StateValueKind::kStringConcat);
     return id_;
   }
   ArgumentsStateType arguments_type() const {
@@ -1459,8 +1461,8 @@ class StateValueList {
     nested_.push_back(nested);
     return nested;
   }
-  StateValueList* PushStringConcat(Zone* zone) {
-    fields_.push_back(StateValueDescriptor::StringConcat());
+  StateValueList* PushStringConcat(Zone* zone, size_t id) {
+    fields_.push_back(StateValueDescriptor::StringConcat(id));
     StateValueList* nested = zone->New<StateValueList>(zone);
     nested_.push_back(nested);
     return nested;

@@ -93,6 +93,16 @@ class StringEscapeAnalysisReducer : public Next {
       return data.ig_index;
     }
 
+    bool operator==(const ElidedStringPart& other) const {
+      if (kind != other.kind) return false;
+      switch (kind) {
+        case Kind::kElided:
+          return ig_index() == other.ig_index();
+        case Kind::kNotElided:
+          return og_index() == other.og_index();
+      }
+    }
+
    private:
     ElidedStringPart(Kind kind, V<String> index) : data(index), kind(kind) {}
   };
@@ -163,6 +173,7 @@ class StringEscapeAnalysisReducer : public Next {
 
     const FrameStateInfo& info = input_frame_state.data->frame_state_info;
 
+    deduplicator.Reset();
     FrameStateData::Builder builder;
     auto it =
         input_frame_state.data->iterator(input_frame_state.state_values());
@@ -214,19 +225,21 @@ class StringEscapeAnalysisReducer : public Next {
         break;
       }
       case Instr::kDematerializedObject: {
-        uint32_t obj_id;
+        uint32_t old_id;
         uint32_t field_count;
-        it->ConsumeDematerializedObject(&obj_id, &field_count);
-        builder->AddDematerializedObject(obj_id, field_count);
+        it->ConsumeDematerializedObject(&old_id, &field_count);
+        uint32_t new_id = deduplicator.RecordOldId(old_id);
+        builder->AddDematerializedObject(new_id, field_count);
         for (uint32_t i = 0; i < field_count; ++i) {
           BuildFrameStateInput(builder, it);
         }
         break;
       }
       case Instr::kDematerializedObjectReference: {
-        uint32_t obj_id;
-        it->ConsumeDematerializedObjectReference(&obj_id);
-        builder->AddDematerializedObjectReference(obj_id);
+        uint32_t old_id;
+        it->ConsumeDematerializedObjectReference(&old_id);
+        uint32_t new_id = deduplicator.GetNewDuplicatedIdForOldObject(old_id);
+        builder->AddDematerializedObjectReference(new_id);
         break;
       }
       case Instr::kArgumentsElements: {
@@ -253,14 +266,64 @@ class StringEscapeAnalysisReducer : public Next {
     }
   }
 
+  class Deduplicator {
+   public:
+    struct DuplicatedId {
+      uint32_t id;
+      bool duplicated;
+    };
+    DuplicatedId GetDuplicatedIdForElidedString(ElidedStringPart index) {
+      // TODO(dmercadier): do better than a linear search here.
+      for (uint32_t id = 0; id < object_ids_.size(); id++) {
+        if (object_ids_[id] == index) {
+          return {id, true};
+        }
+      }
+      object_ids_.push_back(index);
+      return {next_id_++, false};
+    }
+
+    uint32_t RecordOldId(uint32_t old_id) {
+      uint32_t new_id = next_id_++;
+      if (old_id >= old_to_new_ids_.size()) {
+        old_to_new_ids_.resize(old_id * 2, kUndefinedId);
+      }
+      old_to_new_ids_[old_id] = new_id;
+      return new_id;
+    }
+    uint32_t GetNewDuplicatedIdForOldObject(uint32_t old_id) {
+      DCHECK_LT(old_id, old_to_new_ids_.size());
+      DCHECK_NE(old_to_new_ids_[old_id], kUndefinedId);
+      return old_to_new_ids_[old_id];
+    }
+
+    void Reset() {
+      object_ids_.clear();
+      next_id_ = 0;
+      std::fill(old_to_new_ids_.begin(), old_to_new_ids_.end(), kUndefinedId);
+    }
+
+   private:
+    std::vector<ElidedStringPart> object_ids_;
+    uint32_t next_id_ = 0;
+
+    static constexpr uint32_t kUndefinedId = -1;
+    std::vector<uint32_t> old_to_new_ids_{10, kUndefinedId};
+  };
+
   void BuildMaybeElidedString(FrameStateData::Builder* builder,
                               ElidedStringPart maybe_elided) {
     if (maybe_elided.is_elided()) {
-      // TODO(dmercadier): de-duplicate repeated StringConcat inputs. This is
-      // just an optimization to avoid allocating identical strings, but has no
-      // impact on correcntess (unlike for elided objects, where deduplication
-      // is important for correctness).
-      builder->AddDematerializedStringConcat();
+      typename Deduplicator::DuplicatedId dup_id =
+          deduplicator.GetDuplicatedIdForElidedString(maybe_elided);
+      if (dup_id.duplicated) {
+        // For performance reasons, we de-duplicate repeated StringConcat inputs
+        // in the FrameState. Unlike for elided objects, deduplication has no
+        // impact on correctness.
+        builder->AddDematerializedObjectReference(dup_id.id);
+        return;
+      }
+      builder->AddDematerializedStringConcat(dup_id.id);
       std::pair<ElidedStringPart, ElidedStringPart> inputs =
           elided_strings_.at(maybe_elided.ig_index());
       BuildMaybeElidedString(builder, inputs.first);
@@ -284,6 +347,8 @@ class StringEscapeAnalysisReducer : public Next {
   // that are their left and right sides of the concatenation.
   ZoneAbslFlatHashMap<V<String>, std::pair<ElidedStringPart, ElidedStringPart>>
       elided_strings_{Asm().phase_zone()};
+
+  Deduplicator deduplicator;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

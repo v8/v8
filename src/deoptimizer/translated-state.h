@@ -579,7 +579,6 @@ class TranslatedState {
     int value_index_;
   };
   std::deque<ObjectPosition> object_positions_;
-  std::deque<ObjectPosition> string_concat_positions_;
   Handle<FeedbackVector> feedback_vector_handle_;
   Tagged<FeedbackVector> feedback_vector_;
   FeedbackSlot feedback_slot_;

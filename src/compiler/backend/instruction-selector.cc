@@ -12,6 +12,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
+#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
@@ -903,8 +904,6 @@ class TurboshaftStateObjectDeduplicator {
     object_ids_.push_back(kArgumentsElementsDummy);
   }
 
-  size_t size() const { return object_ids_.size(); }
-
  private:
   ZoneVector<uint32_t> object_ids_;
 };
@@ -992,8 +991,8 @@ struct InstructionSelectorT<Adapter>::CachedStateValues : public ZoneObject {
   StateValueList::Slice values_;
 };
 
-template <typename Adapter>
-class InstructionSelectorT<Adapter>::CachedStateValuesBuilder {
+template <>
+class InstructionSelectorT<TurbofanAdapter>::CachedStateValuesBuilder {
  public:
   explicit CachedStateValuesBuilder(StateValueList* values,
                                     InstructionOperandVector* inputs,
@@ -1010,10 +1009,10 @@ class InstructionSelectorT<Adapter>::CachedStateValuesBuilder {
   // any of the ids in the deduplicator.
   bool CanCache() const { return deduplicator_->size() == deduplicator_start_; }
 
-  InstructionSelectorT<Adapter>::CachedStateValues* Build(Zone* zone) {
+  InstructionSelectorT<TurbofanAdapter>::CachedStateValues* Build(Zone* zone) {
     DCHECK(CanCache());
     DCHECK(values_->nested_count() == nested_start_);
-    return zone->New<InstructionSelectorT<Adapter>::CachedStateValues>(
+    return zone->New<InstructionSelectorT<TurbofanAdapter>::CachedStateValues>(
         zone, values_, values_start_, inputs_, inputs_start_);
   }
 
@@ -1137,16 +1136,27 @@ size_t AddOperandToStateValueDescriptor(
     }
     case FrameStateData::Instr::kDematerializedStringConcat: {
       DCHECK(v8_flags.turboshaft_string_concat_escape_analysis);
-      it->ConsumeDematerializedStringConcat();
-      StateValueList* nested = values->PushStringConcat(zone);
-      static constexpr int kLeft = 1, kRight = 1;
-      static constexpr int kInputCount = kLeft + kRight;
-      size_t entries = 0;
-      for (uint32_t i = 0; i < kInputCount; i++) {
-        entries += AddOperandToStateValueDescriptor(
-            selector, nested, inputs, g, deduplicator, it, kind, zone);
+      uint32_t obj_id;
+      it->ConsumeDematerializedStringConcat(&obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id);
+      if (id == TurboshaftStateObjectDeduplicator::kNotDuplicated) {
+        id = deduplicator->InsertObject(obj_id);
+        StateValueList* nested = values->PushStringConcat(zone, id);
+        static constexpr int kLeft = 1, kRight = 1;
+        static constexpr int kInputCount = kLeft + kRight;
+        size_t entries = 0;
+        for (uint32_t i = 0; i < kInputCount; i++) {
+          entries += AddOperandToStateValueDescriptor(
+              selector, nested, inputs, g, deduplicator, it, kind, zone);
+        }
+        return entries;
+      } else {
+        // Deoptimizer counts duplicate objects for the running id, so we have
+        // to push the input again.
+        deduplicator->InsertObject(obj_id);
+        values->PushDuplicate(id);
+        return 0;
       }
-      return entries;
     }
     case FrameStateData::Instr::kArgumentsElements: {
       CreateArgumentsType type;
