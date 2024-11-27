@@ -647,14 +647,15 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     DisallowGarbageCollection no_gc;
     Tagged<ConsString> raw_cons = *cons;
 
-    // TurboFan can create cons strings with empty first parts. Canonicalize the
-    // cons shape here. Note this case is very rare in practice.
+    // TurboFan can create cons strings with empty first parts. Make sure the
+    // cons shape is canonicalized by the end of this function (either here, if
+    // returning early, or below). Note this case is very rare in practice.
     if (V8_UNLIKELY(raw_cons->first()->length() == 0)) {
       Tagged<String> second = raw_cons->second();
-      raw_cons->set_first(second);
-      raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
-      DCHECK(raw_cons->IsFlat());
       if (StringShape{second}.IsSequential()) {
+        raw_cons->set_first(second);
+        raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
+        DCHECK(raw_cons->IsFlat());
         return handle(second, isolate);
       }
       // Note that the remaining subtree may still be non-flat and we thus

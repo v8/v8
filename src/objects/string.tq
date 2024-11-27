@@ -203,13 +203,16 @@ extern macro IsSequentialString(String): bool;
 
 // Corresponds to String::SlowFlatten in the C++ runtime.
 builtin StringSlowFlatten(cons: ConsString): String {
-  // TurboFan can create cons strings with empty first parts. Canonicalize the
-  // cons shape here. Note this case is very rare in practice.
+  // TurboFan can create cons strings with empty first parts. Make sure the
+  // cons shape is canonicalized by the end of this function (either here, if
+  // returning early, or below). Note this case is very rare in practice.
   if (cons.first.length == 0) {
     const second = cons.second;
-    cons.first = second;
-    cons.second = kEmptyString;
-    if (IsSequentialString(second)) return second;
+    if (IsSequentialString(second)) {
+      cons.first = second;
+      cons.second = kEmptyString;
+      return second;
+    }
   }
 
   let flat: String;
