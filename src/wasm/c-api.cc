@@ -411,7 +411,10 @@ void Engine::operator delete(void* p) { ::operator delete(p); }
 auto Engine::make(own<Config>&& config) -> own<Engine> {
   auto engine = new (std::nothrow) EngineImpl;
   if (!engine) return own<Engine>();
-  engine->platform = v8::platform::NewDefaultPlatform();
+  engine->platform = i::v8_flags.single_threaded
+                         ? v8::platform::NewSingleThreadedDefaultPlatform()
+                         : v8::platform::NewDefaultPlatform(
+                               i::v8_flags.wasm_capi_thread_pool_size);
   v8::V8::InitializePlatform(engine->platform.get());
   v8::V8::Initialize();
 

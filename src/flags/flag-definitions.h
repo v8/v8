@@ -1811,6 +1811,10 @@ DEFINE_SIZE_T(wasm_max_module_size, wasm::kV8MaxWasmModuleSize,
 DEFINE_SIZE_T(wasm_disassembly_max_mb, 1000,
               "maximum size of produced disassembly (in MB, approximate)")
 
+DEFINE_INT(wasm_capi_thread_pool_size, 0,
+           "size of the thread pool used by the wasm C API, with 0 meaning the "
+           "maximum number of threads")
+
 DEFINE_BOOL(trace_wasm, false, "trace wasm function calls")
 // Inlining breaks --trace-wasm, hence disable that if --trace-wasm is enabled.
 // TODO(40898108,mliedtke,manoskouk): We should fix this; now that inlining is
