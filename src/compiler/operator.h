@@ -9,7 +9,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/zone/zone.h"

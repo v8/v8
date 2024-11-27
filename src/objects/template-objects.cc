@@ -4,7 +4,7 @@
 
 #include "src/objects/template-objects.h"
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/js-array.h"

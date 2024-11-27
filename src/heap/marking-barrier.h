@@ -8,7 +8,7 @@
 #include <optional>
 
 #include "include/v8-internal.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/common/globals.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-worklist.h"

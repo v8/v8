@@ -11,7 +11,7 @@
 
 #include <ostream>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/vector.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/register.h"

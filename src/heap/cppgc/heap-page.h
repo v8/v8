@@ -8,7 +8,7 @@
 #include <atomic>
 
 #include "include/cppgc/internal/base-page-handle.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/heap/base/basic-slot-set.h"

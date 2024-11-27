@@ -11,7 +11,7 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/flags.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/marking.h"

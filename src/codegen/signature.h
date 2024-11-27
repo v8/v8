@@ -5,7 +5,7 @@
 #ifndef V8_CODEGEN_SIGNATURE_H_
 #define V8_CODEGEN_SIGNATURE_H_
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/vector.h"
 #include "src/codegen/machine-type.h"
 #include "src/sandbox/check.h"

@@ -12,7 +12,7 @@
 #include <memory>
 #include <type_traits>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 

@@ -12,7 +12,7 @@
 #include <unordered_map>
 
 #include "src/base/bounds.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-module.h"
 

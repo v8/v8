@@ -6,7 +6,7 @@
 #define V8_HANDLES_LOCAL_HANDLES_H_
 
 #include "include/v8-internal.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/macros.h"
 #include "src/handles/handles.h"
 #include "src/heap/local-heap.h"

@@ -10,7 +10,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/local-factory-inl.h"

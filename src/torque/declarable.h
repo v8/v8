@@ -10,7 +10,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/torque/ast.h"
 #include "src/torque/types.h"

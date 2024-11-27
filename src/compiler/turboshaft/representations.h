@@ -8,7 +8,7 @@
 #include <cstdint>
 
 #include "include/v8-internal.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/utils.h"

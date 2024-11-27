@@ -6,7 +6,7 @@
 #define V8_HEAP_MEMORY_CHUNK_H_
 
 #include "src/base/build_config.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/flags/flags.h"
 
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL

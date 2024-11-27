@@ -6,7 +6,7 @@
 
 #include <optional>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"

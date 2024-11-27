@@ -6,7 +6,7 @@
 
 #include <optional>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/codegen/callable.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"

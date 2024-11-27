@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/macros.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"

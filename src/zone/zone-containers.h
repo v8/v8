@@ -20,7 +20,7 @@
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/intrusive-set.h"
 #include "src/base/small-map.h"
 #include "src/base/small-vector.h"

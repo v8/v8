@@ -16,7 +16,7 @@
 #include <set>
 #include <sstream>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"

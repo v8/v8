@@ -11,7 +11,7 @@
 
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"

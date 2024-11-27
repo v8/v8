@@ -6550,7 +6550,7 @@ v8_component("v8_libbase") {
     "src/base/file-utils.h",
     "src/base/flags.h",
     "src/base/free_deleter.h",
-    "src/base/functional.h",
+    "src/base/hashing.h",
     "src/base/hashmap-entry.h",
     "src/base/hashmap.h",
     "src/base/ieee754.cc",

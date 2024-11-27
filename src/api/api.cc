@@ -34,7 +34,7 @@
 #include "src/api/api-arguments.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"

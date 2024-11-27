@@ -12,7 +12,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/vector.h"
 #include "src/codegen/external-reference.h"

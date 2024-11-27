@@ -15,7 +15,7 @@
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/ieee754.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"

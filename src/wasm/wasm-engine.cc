@@ -6,7 +6,7 @@
 
 #include <optional>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
 #include "src/common/assert-scope.h"

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 
 #include <limits>
 #include <set>
@@ -12,21 +12,19 @@
 namespace v8 {
 namespace base {
 
-TEST(FunctionalTest, HashBool) {
+TEST(HashingTest, HashBool) {
   hash<bool> h, h1, h2;
   EXPECT_EQ(h1(true), h2(true));
   EXPECT_EQ(h1(false), h2(false));
   EXPECT_NE(h(true), h(false));
 }
 
-
-TEST(FunctionalTest, HashFloatZero) {
+TEST(HashingTest, HashFloatZero) {
   hash<float> h;
   EXPECT_EQ(h(0.0f), h(-0.0f));
 }
 
-
-TEST(FunctionalTest, HashDoubleZero) {
+TEST(HashingTest, HashDoubleZero) {
   hash<double> h;
   EXPECT_EQ(h(0.0), h(-0.0));
 }
@@ -40,13 +38,13 @@ inline int64_t GetRandomSeedFromFlag(int random_seed) {
 }  // namespace
 
 template <typename T>
-class FunctionalTest : public ::testing::Test {
+class HashingTest : public ::testing::Test {
  public:
-  FunctionalTest()
+  HashingTest()
       : rng_(GetRandomSeedFromFlag(::v8::internal::v8_flags.random_seed)) {}
-  ~FunctionalTest() override = default;
-  FunctionalTest(const FunctionalTest&) = delete;
-  FunctionalTest& operator=(const FunctionalTest&) = delete;
+  ~HashingTest() override = default;
+  HashingTest(const HashingTest&) = delete;
+  HashingTest& operator=(const HashingTest&) = delete;
 
   RandomNumberGenerator* rng() { return &rng_; }
 
@@ -54,7 +52,7 @@ class FunctionalTest : public ::testing::Test {
   RandomNumberGenerator rng_;
 };
 
-using FunctionalTypes =
+using HashingTypes =
     ::testing::Types<signed char, unsigned char,
                      short,                    // NOLINT(runtime/int)
                      unsigned short,           // NOLINT(runtime/int)
@@ -65,9 +63,9 @@ using FunctionalTypes =
                      int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t,
                      int64_t, uint64_t, float, double>;
 
-TYPED_TEST_SUITE(FunctionalTest, FunctionalTypes);
+TYPED_TEST_SUITE(HashingTest, HashingTypes);
 
-TYPED_TEST(FunctionalTest, EqualToImpliesSameHashCode) {
+TYPED_TEST(HashingTest, EqualToImpliesSameHashCode) {
   hash<TypeParam> h;
   std::equal_to<TypeParam> e;
   TypeParam values[32];
@@ -81,8 +79,7 @@ TYPED_TEST(FunctionalTest, EqualToImpliesSameHashCode) {
   }
 }
 
-
-TYPED_TEST(FunctionalTest, HashEqualsHashValue) {
+TYPED_TEST(HashingTest, HashEqualsHashValue) {
   for (int i = 0; i < 128; ++i) {
     TypeParam v;
     this->rng()->NextBytes(&v, sizeof(v));
@@ -91,8 +88,7 @@ TYPED_TEST(FunctionalTest, HashEqualsHashValue) {
   }
 }
 
-
-TYPED_TEST(FunctionalTest, HashIsStateless) {
+TYPED_TEST(HashingTest, HashIsStateless) {
   hash<TypeParam> h1, h2;
   for (int i = 0; i < 128; ++i) {
     TypeParam v;
@@ -101,8 +97,7 @@ TYPED_TEST(FunctionalTest, HashIsStateless) {
   }
 }
 
-
-TYPED_TEST(FunctionalTest, HashIsOkish) {
+TYPED_TEST(HashingTest, HashIsOkish) {
   std::set<TypeParam> vs;
   for (size_t i = 0; i < 128; ++i) {
     TypeParam v;
@@ -117,15 +112,13 @@ TYPED_TEST(FunctionalTest, HashIsOkish) {
   EXPECT_LE(vs.size() / 4u, hs.size());
 }
 
-
-TYPED_TEST(FunctionalTest, HashValueArrayUsesHashRange) {
+TYPED_TEST(HashingTest, HashValueArrayUsesHashRange) {
   TypeParam values[128];
   this->rng()->NextBytes(&values, sizeof(values));
   EXPECT_EQ(hash_range(values, values + arraysize(values)), hash_value(values));
 }
 
-
-TYPED_TEST(FunctionalTest, BitEqualTo) {
+TYPED_TEST(HashingTest, BitEqualTo) {
   bit_equal_to<TypeParam> pred;
   for (size_t i = 0; i < 128; ++i) {
     TypeParam v1, v2;
@@ -137,8 +130,7 @@ TYPED_TEST(FunctionalTest, BitEqualTo) {
   }
 }
 
-
-TYPED_TEST(FunctionalTest, BitEqualToImpliesSameBitHash) {
+TYPED_TEST(HashingTest, BitEqualToImpliesSameBitHash) {
   bit_hash<TypeParam> h;
   bit_equal_to<TypeParam> e;
   TypeParam values[32];
@@ -152,7 +144,6 @@ TYPED_TEST(FunctionalTest, BitEqualToImpliesSameBitHash) {
   }
 }
 
-
 namespace {
 
 struct Foo {
@@ -160,13 +151,11 @@ struct Foo {
   double y;
 };
 
-
 size_t hash_value(Foo const& v) { return hash_combine(v.x, v.y); }
 
 }  // namespace
 
-
-TEST(FunctionalTest, HashUsesArgumentDependentLookup) {
+TEST(HashingTest, HashUsesArgumentDependentLookup) {
   const int kIntValues[] = {std::numeric_limits<int>::min(), -1, 0, 1, 42,
                             std::numeric_limits<int>::max()};
   const double kDoubleValues[] = {
@@ -181,8 +170,7 @@ TEST(FunctionalTest, HashUsesArgumentDependentLookup) {
   }
 }
 
-
-TEST(FunctionalTest, BitEqualToFloat) {
+TEST(HashingTest, BitEqualToFloat) {
   bit_equal_to<float> pred;
   EXPECT_FALSE(pred(0.0f, -0.0f));
   EXPECT_FALSE(pred(-0.0f, 0.0f));
@@ -192,14 +180,12 @@ TEST(FunctionalTest, BitEqualToFloat) {
   EXPECT_PRED2(pred, sNaN, sNaN);
 }
 
-
-TEST(FunctionalTest, BitHashFloatDifferentForZeroAndMinusZero) {
+TEST(HashingTest, BitHashFloatDifferentForZeroAndMinusZero) {
   bit_hash<float> h;
   EXPECT_NE(h(0.0f), h(-0.0f));
 }
 
-
-TEST(FunctionalTest, BitEqualToDouble) {
+TEST(HashingTest, BitEqualToDouble) {
   bit_equal_to<double> pred;
   EXPECT_FALSE(pred(0.0, -0.0));
   EXPECT_FALSE(pred(-0.0, 0.0));
@@ -209,8 +195,7 @@ TEST(FunctionalTest, BitEqualToDouble) {
   EXPECT_PRED2(pred, sNaN, sNaN);
 }
 
-
-TEST(FunctionalTest, BitHashDoubleDifferentForZeroAndMinusZero) {
+TEST(HashingTest, BitHashDoubleDifferentForZeroAndMinusZero) {
   bit_hash<double> h;
   EXPECT_NE(h(0.0), h(-0.0));
 }
