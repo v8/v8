@@ -3068,6 +3068,8 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadScriptContextSlot(
     case ContextSidePropertyCell::kOther:
       return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
                                                                  offset);
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -3177,6 +3179,8 @@ ReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
       *store = BuildStoreTaggedField(context, value, offset,
                                      StoreTaggedMode::kDefault);
       break;
+    default:
+      UNREACHABLE();
   }
   return ReduceResult::Done();
 }

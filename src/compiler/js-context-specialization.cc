@@ -329,6 +329,8 @@ Reduction JSContextSpecialization::ReduceJSLoadScriptContext(Node* node) {
       ReplaceWithValue(node, load, effect, control);
       return Changed(node);
     }
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -468,6 +470,8 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
       ReplaceWithValue(node, store, store, control);
       return Changed(node);
     }
+    default:
+      UNREACHABLE();
   }
 }
 

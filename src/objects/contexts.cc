@@ -670,6 +670,8 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
       // No need to update side data, this is a sink state...
       script_context->set(index, *new_value);
       break;
+    default:
+      UNREACHABLE();
   }
 }
 
