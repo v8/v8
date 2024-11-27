@@ -159,6 +159,15 @@ class StackMemory {
 
   friend class StackPool;
 
+  constexpr static uint32_t stack_switch_source_fp_offset() {
+    return OFFSET_OF(StackMemory, stack_switch_info_) +
+           OFFSET_OF(StackMemory::StackSwitchInfo, source_fp);
+  }
+  constexpr static uint32_t stack_switch_target_sp_offset() {
+    return OFFSET_OF(StackMemory, stack_switch_info_) +
+           OFFSET_OF(StackMemory::StackSwitchInfo, target_sp);
+  }
+
  private:
   // This constructor allocates a new stack segment.
   StackMemory();

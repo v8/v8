@@ -188,8 +188,9 @@ struct JSBuiltinDispatchHandleRoot {
 
 #endif  // V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
 
-#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V) \
-  V(isolate_address, "isolate address", IsolateAddress)
+#define EXTERNAL_REFERENCE_LIST_ISOLATE_FIELDS(V)       \
+  V(isolate_address, "isolate address", IsolateAddress) \
+  V(jslimit_address, "jslimit address", JsLimitAddress)
 
 constexpr uint8_t kNumIsolateFieldIds = 0
 #define PLUS_1(...) +1
@@ -357,6 +358,8 @@ class IsolateData final {
         UNREACHABLE();
       case IsolateFieldId::kIsolateAddress:
         return -kIsolateRootBias;
+      case IsolateFieldId::kJsLimitAddress:
+        return IsolateData::jslimit_offset();
 #define CASE(camel, size, name)  \
   case IsolateFieldId::k##camel: \
     return IsolateData::name##_offset();

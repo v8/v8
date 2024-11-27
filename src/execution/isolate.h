@@ -1340,6 +1340,20 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         isolate_root_bias());
   }
 
+  constexpr static uint32_t central_stack_sp_offset() {
+    return static_cast<uintptr_t>(OFFSET_OF(Isolate, isolate_data_) +
+                                  OFFSET_OF(IsolateData, thread_local_top_) +
+                                  OFFSET_OF(ThreadLocalTop, central_stack_sp_) -
+                                  isolate_root_bias());
+  }
+
+  constexpr static uint32_t central_stack_limit_offset() {
+    return static_cast<uintptr_t>(
+        OFFSET_OF(Isolate, isolate_data_) +
+        OFFSET_OF(IsolateData, thread_local_top_) +
+        OFFSET_OF(ThreadLocalTop, central_stack_limit_) - isolate_root_bias());
+  }
+
   static uint32_t error_message_param_offset() {
     return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
                                  OFFSET_OF(IsolateData, error_message_param_) -

@@ -499,8 +499,9 @@ class WasmLoweringReducer : public Next {
       BIND(external);
       GOTO_IF(__ Word32BitwiseAnd(instance_type, kUncachedExternalStringMask),
               done, string, /*offset*/ 0, kCharWidthBailoutSentinel);
-      V<WordPtr> resource = BuildLoadExternalPointerFromObject(
-          string, AccessBuilder::ForExternalStringResourceData());
+      FieldAccess field_access = AccessBuilder::ForExternalStringResourceData();
+      V<WordPtr> resource = __ LoadExternalPointerFromObject(
+          string, field_access.offset, field_access.external_pointer_tag);
       V<Word32> shifted_offset = __ Word32ShiftLeft(offset, charwidth_shift);
       V<WordPtr> final_offset_external =
           __ WordPtrAdd(resource, __ ChangeInt32ToIntPtr(shifted_offset));
@@ -551,19 +552,6 @@ class WasmLoweringReducer : public Next {
       case wasm::kBottom:
         UNREACHABLE();
     }
-  }
-
-  V<WordPtr> BuildLoadExternalPointerFromObject(V<Object> object,
-                                                FieldAccess access) {
-#ifdef V8_ENABLE_SANDBOX
-    DCHECK_NE(access.external_pointer_tag, kExternalPointerNullTag);
-    V<Word32> handle = __ Load(object, LoadOp::Kind::TaggedBase(),
-                               MemoryRepresentation::Uint32(), access.offset);
-    return __ DecodeExternalPointer(handle, access.external_pointer_tag);
-#else
-    return __ Load(object, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::UintPtr(), access.offset);
-#endif  // V8_ENABLE_SANDBOX
   }
 
   V<Word32> ReduceWasmTypeCheckAbstract(V<Object> object,

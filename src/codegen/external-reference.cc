@@ -285,6 +285,10 @@ ExternalReference ExternalReference::isolate_address() {
   return ExternalReference(IsolateFieldId::kIsolateAddress);
 }
 
+ExternalReference ExternalReference::jslimit_address() {
+  return ExternalReference(IsolateFieldId::kJsLimitAddress);
+}
+
 ExternalReference ExternalReference::handle_scope_implementer_address(
     Isolate* isolate) {
   return ExternalReference(isolate->handle_scope_implementer_address());
