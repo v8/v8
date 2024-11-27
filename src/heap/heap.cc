@@ -1618,9 +1618,13 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
     size_t new_global_allocation_limit) {
   CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
 #if defined(V8_USE_PERFETTO)
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), V8HeapTrait::kName,
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack(V8HeapTrait::kName,
+                                       perfetto::ThreadTrack::Current()),
                 new_old_generation_allocation_limit);
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), GlobalMemoryTrait::kName,
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack(GlobalMemoryTrait::kName,
+                                       perfetto::ThreadTrack::Current()),
                 new_global_allocation_limit);
 #endif
   old_generation_allocation_limit_.store(new_old_generation_allocation_limit,

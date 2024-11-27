@@ -1437,11 +1437,16 @@ void GCTracer::RecordGCSumCounters() {
 void GCTracer::RecordGCSizeCounters() const {
 #if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                "OldGenerationConsumedBytes",
+                perfetto::CounterTrack("OldGenerationConsumedBytes",
+                                       perfetto::ThreadTrack::Current()),
                 heap_->OldGenerationConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "GlobalConsumedBytes",
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack("GlobalConsumedBytes",
+                                       perfetto::ThreadTrack::Current()),
                 heap_->GlobalConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ExternalMemoryBytes",
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack("ExternalMemoryBytes",
+                                       perfetto::ThreadTrack::Current()),
                 heap_->external_memory());
 #endif
 }
