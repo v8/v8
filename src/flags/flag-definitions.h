@@ -671,7 +671,7 @@ DEFINE_BOOL(empty_context_extension_dep, true,
             "Use compilation dependency to avoid dynamic checks for "
             "non-empty context extensions")
 
-DEFINE_BOOL(json_stringify_fast_path, false, "Enable JSON.stringify fast-path")
+DEFINE_BOOL(json_stringify_fast_path, true, "Enable JSON.stringify fast-path")
 
 DEFINE_UINT(max_opt, 999,
             "Set the maximal optimisation tier: "
