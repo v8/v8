@@ -2258,7 +2258,6 @@
   # TODO(b/201757247):
   'array-constructor-feedback': [FAIL],
   'compiler/deopt-pretenure': [FAIL],
-  'compiler/fast-api-sequences-x64': [FAIL],
   'compiler/native-context-specialization-hole-check': [FAIL],
   'compiler/test-literal-map-migration': [FAIL],
   'regress/regress-4121': [FAIL],
