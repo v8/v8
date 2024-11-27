@@ -2053,9 +2053,6 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
     return;
   }
 
-  DCHECK(src->rm() !=
-         at);  // Must not overwrite the register 'base' while loading 'offset'.
-
 #ifdef DEBUG
   // Remember the "(mis)alignment" of 'offset', it will be checked at the end.
   uint32_t misalignment = src->offset() & (kDoubleSize - 1);
@@ -2073,6 +2070,9 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
 
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
+  // Must not overwrite the register 'base' while loading 'offset'.
+  DCHECK(src->rm() != scratch);
+
   if (0 <= src->offset() && src->offset() <= kMaxOffsetForSimpleAdjustment) {
     daddiu(scratch, src->rm(), kMinOffsetForSimpleAdjustment);
     src->offset_ -= kMinOffsetForSimpleAdjustment;
@@ -2082,15 +2082,15 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
     src->offset_ += kMinOffsetForSimpleAdjustment;
   } else if (kArchVariant == kMips64r6) {
     // On r6 take advantage of the daui instruction, e.g.:
-    //    daui   at, base, offset_high
-    //   [dahi   at, 1]                       // When `offset` is close to +2GB.
-    //    lw     reg_lo, offset_low(at)
-    //   [lw     reg_hi, (offset_low+4)(at)]  // If misaligned 64-bit load.
+    //    daui   scratch, base, offset_high
+    //   [dahi   scratch, 1]                  // When `offset` is close to +2GB.
+    //    lw     reg_lo, offset_low(scratch)
+    //   [lw     reg_hi, (offset_low+4)(scratch)]  // If misaligned 64-bit load.
     // or when offset_low+4 overflows int16_t:
-    //    daui   at, base, offset_high
-    //    daddiu at, at, 8
-    //    lw     reg_lo, (offset_low-8)(at)
-    //    lw     reg_hi, (offset_low-4)(at)
+    //    daui   scratch, base, offset_high
+    //    daddiu scratch, scratch, 8
+    //    lw     reg_lo, (offset_low-8)(scratch)
+    //    lw     reg_hi, (offset_low-4)(scratch)
     int16_t offset_low = static_cast<uint16_t>(src->offset());
     int32_t offset_low32 = offset_low;
     int16_t offset_high = static_cast<uint16_t>(src->offset() >> 16);
