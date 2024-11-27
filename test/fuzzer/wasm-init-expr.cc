@@ -267,8 +267,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
         Cast<WasmExportedFunction>(GetExport(i_isolate, instance, buffer));
     Handle<Object> undefined = i_isolate->factory()->undefined_value();
     Handle<Object> function_result =
-        Execution::Call(i_isolate, function, undefined, 0, {})
-            .ToHandleChecked();
+        Execution::Call(i_isolate, function, undefined, {}).ToHandleChecked();
     // Get global value.
     snprintf(buffer, sizeof buffer, "g%zu", i);
     auto global =

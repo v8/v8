@@ -104,12 +104,13 @@ MaybeHandle<JSAny> RegExpUtils::RegExpExec(Isolate* isolate,
 
   if (IsCallable(*exec)) {
     constexpr int argc = 1;
-    std::array<Handle<Object>, argc> argv = {string};
+    std::array<DirectHandle<Object>, argc> args = {string};
 
     Handle<JSAny> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        Cast<JSAny>(Execution::Call(isolate, exec, regexp, argc, argv.data())));
+        Cast<JSAny>(
+            Execution::Call(isolate, exec, regexp, base::VectorOf(args))));
 
     if (!IsJSReceiver(*result) && !IsNull(*result, isolate)) {
       THROW_NEW_ERROR(isolate,
@@ -130,10 +131,10 @@ MaybeHandle<JSAny> RegExpUtils::RegExpExec(Isolate* isolate,
     Handle<JSFunction> regexp_exec = isolate->regexp_exec_function();
 
     constexpr int argc = 1;
-    std::array<Handle<Object>, argc> argv = {string};
+    std::array<DirectHandle<Object>, argc> args = {string};
 
     return Cast<JSAny>(
-        Execution::Call(isolate, regexp_exec, regexp, argc, argv.data()));
+        Execution::Call(isolate, regexp_exec, regexp, base::VectorOf(args)));
   }
 }
 

@@ -532,8 +532,8 @@ void InvokeFunctionCallbackOptimized(
     const v8::FunctionCallbackInfo<v8::Value>& info);
 
 void InvokeFinalizationRegistryCleanupFromTask(
-    Handle<NativeContext> native_context,
-    Handle<JSFinalizationRegistry> finalization_registry);
+    DirectHandle<NativeContext> native_context,
+    DirectHandle<JSFinalizationRegistry> finalization_registry);
 
 template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

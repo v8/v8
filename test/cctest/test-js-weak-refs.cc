@@ -82,9 +82,8 @@ Handle<WeakCell> FinalizationRegistryRegister(
       Object::GetProperty(isolate, finalization_registry,
                           factory->NewStringFromStaticChars("register"))
           .ToHandleChecked());
-  Handle<Object> args[] = {target, held_value, unregister_token};
-  Execution::Call(isolate, regfunc, finalization_registry, arraysize(args),
-                  args)
+  DirectHandle<Object> args[] = {target, held_value, unregister_token};
+  Execution::Call(isolate, regfunc, finalization_registry, base::VectorOf(args))
       .ToHandleChecked();
   CHECK(IsWeakCell(finalization_registry->active_cells()));
   Handle<WeakCell> weak_cell =

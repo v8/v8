@@ -3325,10 +3325,10 @@ namespace {
 template <class... Args>
 MaybeHandle<Object> Call(Isolate* isolate, Handle<JSFunction> function,
                          Args... args) {
-  Handle<Object> argv[] = {args...};
+  DirectHandle<Object> arguments[] = {args...};
   return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), sizeof...(args),
-                         argv);
+                         isolate->factory()->undefined_value(),
+                         base::VectorOf(arguments));
 }
 
 void TestStoreToConstantField(const char* store_func_source,

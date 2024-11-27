@@ -356,8 +356,7 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
     for (Handle<WasmExportedFunction> exported_function : exported_functions) {
       DirectHandle<Object> return_value =
           Execution::Call(i_isolate, exported_function,
-                          ReadOnlyRoots{i_isolate}.undefined_value_handle(), 0,
-                          nullptr)
+                          ReadOnlyRoots{i_isolate}.undefined_value_handle(), {})
               .ToHandleChecked();
       CHECK(IsSmi(*return_value));
       CHECK_EQ(0, Cast<Smi>(*return_value).value());
@@ -1472,8 +1471,7 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
   while (!callback_called) {
     for (Handle<WasmExportedFunction> exported_function : exported_functions) {
       Execution::Call(i_isolate, exported_function,
-                      ReadOnlyRoots{i_isolate}.undefined_value_handle(), 0,
-                      nullptr)
+                      ReadOnlyRoots{i_isolate}.undefined_value_handle(), {})
           .Check();
     }
     tester.RunCompilerTasks();
@@ -1577,7 +1575,7 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallbackWithTimeout) {
       testing::GetExportedFunction(i_isolate, instance, "a").ToHandleChecked();
   Handle<Object> receiver = ReadOnlyRoots{i_isolate}.undefined_value_handle();
   for (int i = 0; i < 100; ++i) {
-    Execution::Call(i_isolate, func_a, receiver, 0, nullptr).Check();
+    Execution::Call(i_isolate, func_a, receiver, {}).Check();
   }
 
   // Ensure that background compilation is being executed.
@@ -1596,7 +1594,7 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallbackWithTimeout) {
       testing::GetExportedFunction(i_isolate, instance, "c").ToHandleChecked()};
   for (int i = 0; i < 100; ++i) {
     for (auto func : func_b_and_c) {
-      Execution::Call(i_isolate, func, receiver, 0, nullptr).Check();
+      Execution::Call(i_isolate, func, receiver, {}).Check();
     }
   }
 
@@ -1670,7 +1668,7 @@ STREAM_TEST(TestHardCachingThreshold) {
       testing::GetExportedFunction(i_isolate, instance, "a").ToHandleChecked();
   Handle<Object> receiver = ReadOnlyRoots{i_isolate}.undefined_value_handle();
   for (int i = 0; i < 100; ++i) {
-    Execution::Call(i_isolate, func_a, receiver, 0, nullptr).Check();
+    Execution::Call(i_isolate, func_a, receiver, {}).Check();
   }
 
   // Ensure that background compilation is being executed.

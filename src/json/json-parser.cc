@@ -261,10 +261,11 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
                                    val_node, Just(kThrowOnError))
         .Check();
   }
-  Handle<Object> argv[] = {name, value, context};
+  DirectHandle<Object> args[] = {name, value, context};
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, result, Execution::Call(isolate_, reviver_, holder, 3, argv));
+      isolate_, result,
+      Execution::Call(isolate_, reviver_, holder, base::VectorOf(args)));
   return outer_scope.CloseAndEscape(result);
 }
 

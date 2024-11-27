@@ -44,7 +44,7 @@ void FinalizationRegistryCleanupTask::RunInternal() {
                                 "V8.FinalizationRegistryCleanupTask");
 
   HandleScope handle_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry;
+  DirectHandle<JSFinalizationRegistry> finalization_registry;
   // There could be no dirty FinalizationRegistries. When a context is disposed
   // by the embedder, its FinalizationRegistries are removed from the dirty
   // list.
@@ -56,8 +56,8 @@ void FinalizationRegistryCleanupTask::RunInternal() {
 
   // Since FinalizationRegistry cleanup callbacks are scheduled by V8, enter the
   // FinalizationRegistry's context.
-  Handle<NativeContext> native_context(finalization_registry->native_context(),
-                                       isolate);
+  DirectHandle<NativeContext> native_context(
+      finalization_registry->native_context(), isolate);
   v8::Context::Scope context_scope(v8::Utils::ToLocal(native_context));
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::TryCatch catcher(v8_isolate);

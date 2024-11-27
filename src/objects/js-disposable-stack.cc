@@ -5,6 +5,7 @@
 #include "src/objects/js-disposable-stack.h"
 
 #include "include/v8-maybe.h"
+#include "include/v8-promise.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/debug/debug.h"
@@ -23,7 +24,6 @@
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/tagged.h"
-#include "v8-promise.h"
 
 namespace v8 {
 namespace internal {
@@ -79,7 +79,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
     Tagged<Object> tagged_value = stack->get(--length);
     Handle<Object> value(tagged_value, isolate);
 
-    Handle<Object> argv[] = {value};
+    DirectHandle<Object> args[] = {value};
 
     auto stack_type_case = static_cast<int>(Cast<Smi>(stack_type).value());
     DisposeMethodCallType call_type =
@@ -107,11 +107,11 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
       //    i. Let result be Completion(Call(method, value)).
 
       if (call_type == DisposeMethodCallType::kValueIsReceiver) {
-        result = Execution::Call(isolate, method, value, 0, nullptr);
+        result = Execution::Call(isolate, method, value, {});
       } else if (call_type == DisposeMethodCallType::kValueIsArgument) {
         result = Execution::Call(
-            isolate, method, ReadOnlyRoots(isolate).undefined_value_handle(), 1,
-            argv);
+            isolate, method, ReadOnlyRoots(isolate).undefined_value_handle(),
+            base::VectorOf(args));
       }
 
       Handle<Object> result_handle;
@@ -206,12 +206,12 @@ MaybeHandle<JSReceiver>
 JSDisposableStackBase::ResolveAPromiseWithValueAndReturnIt(
     Isolate* isolate, Handle<Object> value) {
   Handle<JSFunction> promise_function = isolate->promise_function();
-  Handle<Object> argv[] = {value};
+  DirectHandle<Object> args[] = {value};
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, result,
       Execution::CallBuiltin(isolate, isolate->promise_resolve(),
-                             promise_function, arraysize(argv), argv),
+                             promise_function, base::VectorOf(args)),
       MaybeHandle<JSReceiver>());
   return Cast<JSReceiver>(result);
 }
@@ -269,10 +269,10 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
                 async_disposable_stack_context}
                 .Build();
 
-        Handle<Object> argv[] = {on_fulfilled, on_rejected};
+        DirectHandle<Object> args[] = {on_fulfilled, on_rejected};
         if (Execution::CallBuiltin(isolate, isolate->perform_promise_then(),
                                    Cast<JSPromise>(result_handle),
-                                   arraysize(argv), argv)
+                                   base::VectorOf(args))
                 .is_null()) {
           CHECK_EXCEPTION_ON_DISPOSAL(isolate, async_disposable_stack,
                                       Nothing<bool>());

@@ -3146,10 +3146,11 @@ TEST(NewPromiseCapability) {
     Handle<String> rejected_str =
         isolate->factory()->NewStringFromAsciiChecked("rejectedStr");
 
-    Handle<Object> argv1[] = {resolved_str};
+    DirectHandle<Object> argv1[] = {resolved_str};
     DirectHandle<Object> ret =
-        Execution::Call(isolate, handle(result->resolve(), isolate),
-                        isolate->factory()->undefined_value(), 1, argv1)
+        Execution::Call(isolate, direct_handle(result->resolve(), isolate),
+                        isolate->factory()->undefined_value(),
+                        base::VectorOf(argv1))
             .ToHandleChecked();
 
     DirectHandle<Object> prop1 =
@@ -3157,9 +3158,10 @@ TEST(NewPromiseCapability) {
             .ToHandleChecked();
     CHECK_EQ(*resolved_str, *prop1);
 
-    Handle<Object> argv2[] = {rejected_str};
-    ret = Execution::Call(isolate, handle(result->reject(), isolate),
-                          isolate->factory()->undefined_value(), 1, argv2)
+    DirectHandle<Object> argv2[] = {rejected_str};
+    ret = Execution::Call(isolate, direct_handle(result->reject(), isolate),
+                          isolate->factory()->undefined_value(),
+                          base::VectorOf(argv2))
               .ToHandleChecked();
     DirectHandle<Object> prop2 =
         JSReceiver::GetProperty(isolate, promise, "rejectedReason")

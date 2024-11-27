@@ -787,8 +787,8 @@ class NativeContext : public Context {
   int GetErrorsThrown();
 
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
-  void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
-                      Handle<Object> parent);
+  void RunPromiseHook(PromiseHookType type, DirectHandle<JSPromise> promise,
+                      DirectHandle<Object> parent);
 #endif
 
  private:

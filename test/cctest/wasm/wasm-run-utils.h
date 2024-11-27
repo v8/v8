@@ -424,9 +424,8 @@ class WasmRunnerBase : public InitializedHandleScope {
 
   // TODO(clemensb): Remove, use {CallViaJS} directly.
   void CheckCallApplyViaJS(double expected, uint32_t function_index,
-                           Handle<Object>* buffer, int count) {
-    MaybeHandle<Object> retval =
-        CallViaJS(function_index, base::VectorOf(buffer, count));
+                           base::Vector<const DirectHandle<Object>> args) {
+    MaybeHandle<Object> retval = CallViaJS(function_index, args);
 
     if (retval.is_null()) {
       CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
@@ -441,8 +440,9 @@ class WasmRunnerBase : public InitializedHandleScope {
     }
   }
 
-  MaybeHandle<Object> CallViaJS(uint32_t function_index,
-                                base::Vector<Handle<Object>> parameters) {
+  MaybeHandle<Object> CallViaJS(
+      uint32_t function_index,
+      base::Vector<const DirectHandle<Object>> parameters) {
     Isolate* isolate = main_isolate();
     // Save the original context, because CEntry (for runtime calls) will
     // reset / invalidate it when returning.
@@ -454,11 +454,10 @@ class WasmRunnerBase : public InitializedHandleScope {
     if (jsfuncs_[function_index].is_null()) {
       jsfuncs_[function_index] = builder_.WrapCode(function_index);
     }
-    Handle<JSFunction> jsfunc = jsfuncs_[function_index];
-    Handle<Object> global(isolate->context()->global_object(), isolate);
-    return Execution::TryCall(
-        isolate, jsfunc, global, static_cast<int>(parameters.size()),
-        parameters.data(), Execution::MessageHandling::kReport, nullptr);
+    DirectHandle<JSFunction> jsfunc = jsfuncs_[function_index];
+    DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+    return Execution::TryCall(isolate, jsfunc, global, parameters,
+                              Execution::MessageHandling::kReport, nullptr);
   }
 
  private:
@@ -544,7 +543,8 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   ReturnType Call(ParamTypes... p) {
-    std::array<Handle<Object>, sizeof...(p)> param_objs = {MakeParam(p)...};
+    std::array<DirectHandle<Object>, sizeof...(p)> param_objs = {
+        MakeParam(p)...};
     MaybeHandle<Object> retval =
         CallViaJS(function()->func_index, base::VectorOf(param_objs));
 
@@ -586,7 +586,8 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   void CheckCallViaJSTraps(ParamTypes... p) {
-    std::array<Handle<Object>, sizeof...(p)> param_objs = {MakeParam(p)...};
+    std::array<DirectHandle<Object>, sizeof...(p)> param_objs = {
+        MakeParam(p)...};
     MaybeHandle<Object> retval =
         CallViaJS(function()->func_index, base::VectorOf(param_objs));
     CHECK(retval.is_null());

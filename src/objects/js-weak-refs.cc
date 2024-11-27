@@ -55,7 +55,7 @@ Maybe<bool> JSFinalizationRegistry::Cleanup(
   // (By construction.)
 
   // 2. Let callback be finalizationRegistry.[[CleanupCallback]].
-  Handle<Object> callback(finalization_registry->cleanup(), isolate);
+  DirectHandle<Object> callback(finalization_registry->cleanup(), isolate);
 
   // 3. While finalizationRegistry.[[Cells]] contains a Record cell such that
   //    cell.[[WeakRefTarget]] is empty, an implementation may perform the
@@ -66,16 +66,17 @@ Maybe<bool> JSFinalizationRegistry::Cleanup(
 
     // a. Choose any such cell.
     // b. Remove cell from finalizationRegistry.[[Cells]].
-    Handle<WeakCell> weak_cell(finalization_registry->PopClearedCell(
-                                   isolate, &key_map_may_need_shrink),
-                               isolate);
+    DirectHandle<WeakCell> weak_cell(finalization_registry->PopClearedCell(
+                                         isolate, &key_map_may_need_shrink),
+                                     isolate);
 
     // c. Perform ? HostCallJobCallback(callback, undefined,
     //    « cell.[[HeldValue]] »).
-    Handle<Object> argv[] = {handle(weak_cell->holdings(), isolate)};
+    DirectHandle<Object> args[] = {
+        direct_handle(weak_cell->holdings(), isolate)};
     if (Execution::Call(isolate, callback,
-                        isolate->factory()->undefined_value(), arraysize(argv),
-                        argv)
+                        isolate->factory()->undefined_value(),
+                        base::VectorOf(args))
             .is_null()) {
       if (key_map_may_need_shrink) ShrinkKeyMap(isolate, finalization_registry);
       return Nothing<bool>();
