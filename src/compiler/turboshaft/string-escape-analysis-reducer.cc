@@ -4,6 +4,8 @@
 
 #include "src/compiler/turboshaft/string-escape-analysis-reducer.h"
 
+#include <utility>
+
 namespace v8::internal::compiler::turboshaft {
 
 void StringEscapeAnalyzer::Run() {
@@ -25,6 +27,8 @@ void StringEscapeAnalyzer::ProcessBlock(const Block& block) {
     switch (op.opcode) {
       case Opcode::kFrameState:
         // FrameState uses are not considered as escaping.
+        max_frame_state_input_count_ =
+            std::max<uint32_t>(max_frame_state_input_count_, op.input_count);
         break;
       case Opcode::kStringConcat:
         // The inputs of a StringConcat are only escaping if the StringConcat
@@ -73,6 +77,22 @@ void StringEscapeAnalyzer::RecursivelyMarkAllStringConcatInputsAsEscaping(
 }
 
 void StringEscapeAnalyzer::ReprocessStringConcats() {
+  constexpr uint32_t kMaxOpInputCount = std::numeric_limits<
+      decltype(std::declval<Operation>().input_count)>::max();
+  if (maybe_non_escaping_string_concats_.size() + max_frame_state_input_count_ >
+      kMaxOpInputCount) {
+    // There is a risk that in order to elide some StringConcat, we end up
+    // needing more inputs for a FrameState than the maximum number of possible
+    // inputs. Note that this is a bit of an overapproximation, but it should
+    // still happen very rarely since it would require a huge function with
+    // thousand of local variables and/or parameters. When this happens, we mark
+    // all operations as "escaping", so that the reducer doesn't try to elide
+    // anything.
+    for (V<String> index : maybe_non_escaping_string_concats_) {
+      escaping_operations_[index] = true;
+    }
+  }
+
   for (V<String> index : maybe_non_escaping_string_concats_) {
     if (IsEscaping(index)) {
       RecursivelyMarkAllStringConcatInputsAsEscaping(
