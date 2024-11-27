@@ -3867,7 +3867,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
     // Initialize the compilation progress as if everything was
     // TurboFan-compiled.
     constexpr uint8_t kProgressAfterTurbofanDeserialization =
-        RequiredBaselineTierField::encode(ExecutionTier::kTurbofan) |
+        RequiredBaselineTierField::encode(ExecutionTier::kLiftoff) |
         RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
         ReachedTierField::encode(ExecutionTier::kTurbofan);
     compilation_progress_.assign(module->num_declared_functions,
@@ -4057,6 +4057,10 @@ void CompilationStateImpl::OnFinishedUnits(
       };
       if (v8_flags.wasm_deopt &&
           (is_liftoff || published_code_is_liftoff(code->index()))) {
+        // Setting the reached tier below the baseline tier would create an
+        // inconsistent state and has actually led to crashes before (see
+        // https://crbug.com/379086474).
+        DCHECK_LE(required_baseline_tier, ExecutionTier::kLiftoff);
         compilation_progress_[slot_index] = ReachedTierField::update(
             compilation_progress_[slot_index], ExecutionTier::kLiftoff);
         compilation_unit_queues_.AllowAnotherTopTierJob(code->index());
