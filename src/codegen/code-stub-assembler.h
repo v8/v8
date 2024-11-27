@@ -704,10 +704,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename T>
   TNode<T> Select(TNode<BoolT> condition, const NodeGenerator<T>& true_body,
-                  const NodeGenerator<T>& false_body) {
+                  const NodeGenerator<T>& false_body,
+                  BranchHint branch_hint = BranchHint::kNone) {
     TVARIABLE(T, value);
     Label vtrue(this), vfalse(this), end(this);
-    Branch(condition, &vtrue, &vfalse);
+    Branch(condition, &vtrue, &vfalse, branch_hint);
 
     BIND(&vtrue);
     {

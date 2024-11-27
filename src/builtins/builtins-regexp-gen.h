@@ -73,10 +73,11 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   // 2. need multiple matches, should switch to the new API which passes
   // results via an offsets vector and allows returning multiple matches per
   // call. See RegExpExecInternal_Batched.
-  TNode<HeapObject> RegExpExecInternal_Single(TNode<Context> context,
-                                              TNode<JSRegExp> regexp,
-                                              TNode<String> string,
-                                              TNode<Number> last_index);
+  TNode<RegExpMatchInfo> RegExpExecInternal_Single(TNode<Context> context,
+                                                   TNode<JSRegExp> regexp,
+                                                   TNode<String> string,
+                                                   TNode<Number> last_index,
+                                                   Label* if_not_matched);
 
   // This is the new API which makes it possible to use the global irregexp
   // execution mode from within CSA.
@@ -91,16 +92,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   //   matches, but we return '9', then all matches have been found.
   // - Subtle: The above point requires that all implementations ALWAYS return
   //   the maximum number of matches they can.
-  // - Subtle: The regexp stack may grow, i.e. move, during irregexp execution.
-  //   Since result_offsets_vector is allocated on it, it may also move. Reload
-  //   it after irregexp execution.
-  //
-  // TODO(jgruber): Consider changing the irregexp signature s.t. it returns
-  // the result_offsets_vector pointer on success. We would then no longer have
-  // to reload it.
   TNode<UintPtrT> RegExpExecInternal(
-      TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
-      TNode<Number> last_index, TNode<RawPtrT> result_offsets_vector,
+      TNode<Context> context, TNode<JSRegExp> regexp, TNode<RegExpData> data,
+      TNode<String> string, TNode<Number> last_index,
+      TNode<RawPtrT> result_offsets_vector,
       TNode<Int32T> result_offsets_vector_length);
 
   TNode<UintPtrT> RegExpExecAtom(TNode<Context> context,

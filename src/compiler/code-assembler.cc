@@ -1538,20 +1538,22 @@ void CodeAssembler::Goto(Label* label) {
   raw_assembler()->Goto(label->label_);
 }
 
-void CodeAssembler::GotoIf(TNode<IntegralT> condition, Label* true_label) {
+void CodeAssembler::GotoIf(TNode<IntegralT> condition, Label* true_label,
+                           BranchHint branch_hint) {
   Label false_label(this);
-  Branch(condition, true_label, &false_label);
+  Branch(condition, true_label, &false_label, branch_hint);
   Bind(&false_label);
 }
 
-void CodeAssembler::GotoIfNot(TNode<IntegralT> condition, Label* false_label) {
+void CodeAssembler::GotoIfNot(TNode<IntegralT> condition, Label* false_label,
+                              BranchHint branch_hint) {
   Label true_label(this);
-  Branch(condition, &true_label, false_label);
+  Branch(condition, &true_label, false_label, branch_hint);
   Bind(&true_label);
 }
 
 void CodeAssembler::Branch(TNode<IntegralT> condition, Label* true_label,
-                           Label* false_label) {
+                           Label* false_label, BranchHint branch_hint) {
   int32_t constant;
   if (TryToInt32Constant(condition, &constant)) {
     if ((true_label->is_used() || true_label->is_bound()) &&
@@ -1562,7 +1564,7 @@ void CodeAssembler::Branch(TNode<IntegralT> condition, Label* true_label,
   true_label->MergeVariables();
   false_label->MergeVariables();
   return raw_assembler()->Branch(condition, true_label->label_,
-                                 false_label->label_);
+                                 false_label->label_, branch_hint);
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition,

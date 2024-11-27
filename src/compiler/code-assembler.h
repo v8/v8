@@ -758,10 +758,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Bind(Label* label, AssemblerDebugInfo debug_info);
 #endif  // DEBUG
   void Goto(Label* label);
-  void GotoIf(TNode<IntegralT> condition, Label* true_label);
-  void GotoIfNot(TNode<IntegralT> condition, Label* false_label);
-  void Branch(TNode<IntegralT> condition, Label* true_label,
-              Label* false_label);
+  void GotoIf(TNode<IntegralT> condition, Label* true_label,
+              BranchHint branch_hint = BranchHint::kNone);
+  void GotoIfNot(TNode<IntegralT> condition, Label* false_label,
+                 BranchHint branch_hint = BranchHint::kNone);
+  void Branch(TNode<IntegralT> condition, Label* true_label, Label* false_label,
+              BranchHint branch_hint = BranchHint::kNone);
 
   template <class T>
   TNode<T> Uninitialized() {

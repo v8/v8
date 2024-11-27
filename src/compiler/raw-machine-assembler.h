@@ -1088,7 +1088,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // Control flow.
   void Goto(RawMachineLabel* label);
   void Branch(Node* condition, RawMachineLabel* true_val,
-              RawMachineLabel* false_val);
+              RawMachineLabel* false_val,
+              BranchHint branch_hint = BranchHint::kNone);
   void Switch(Node* index, RawMachineLabel* default_label,
               const int32_t* case_values, RawMachineLabel** case_labels,
               size_t case_count);

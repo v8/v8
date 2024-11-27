@@ -537,11 +537,11 @@ void RawMachineAssembler::Goto(RawMachineLabel* label) {
   current_block_ = nullptr;
 }
 
-
 void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
-                                 RawMachineLabel* false_val) {
+                                 RawMachineLabel* false_val,
+                                 BranchHint branch_hint) {
   DCHECK(current_block_ != schedule()->end());
-  Node* branch = MakeNode(common()->Branch(BranchHint::kNone), 1, &condition);
+  Node* branch = MakeNode(common()->Branch(branch_hint), 1, &condition);
   BasicBlock* true_block = schedule()->NewBasicBlock();
   BasicBlock* false_block = schedule()->NewBasicBlock();
   schedule()->AddBranch(CurrentBlock(), branch, true_block, false_block);

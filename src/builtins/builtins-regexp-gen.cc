@@ -72,7 +72,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   TVARIABLE(JSArray, var_array);
   TVARIABLE(FixedArrayBase, var_elements);
 
-  GotoIf(has_indices, &result_has_indices);
+  GotoIf(has_indices, &result_has_indices, BranchHint::kFalse);
   {
     TNode<Map> map = CAST(LoadContextElement(LoadNativeContext(context),
                                              Context::REGEXP_RESULT_MAP_INDEX));
@@ -127,7 +127,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   }
 
   Label finish_initialization(this);
-  GotoIfNot(has_indices, &finish_initialization);
+  GotoIfNot(has_indices, &finish_initialization, BranchHint::kFalse);
   {
     static_assert(
         std::is_base_of<JSRegExpResult, JSRegExpResultWithIndices>::value,
@@ -280,7 +280,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // index at odd indices.
     TNode<Object> maybe_names =
         LoadObjectField(data, IrRegExpData::kCaptureNameMapOffset);
-    GotoIf(TaggedEqual(maybe_names, SmiZero()), &maybe_build_indices);
+    GotoIf(TaggedEqual(maybe_names, SmiZero()), &maybe_build_indices,
+           BranchHint::kTrue);
 
     // One or more named captures exist, add a property for each one.
 
@@ -375,7 +376,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   // Build indices if needed (i.e. if the /d flag is present) after named
   // capture groups are processed.
   BIND(&maybe_build_indices);
-  GotoIfNot(has_indices, &out);
+  GotoIfNot(has_indices, &out, BranchHint::kFalse);
   {
     const TNode<Object> maybe_names =
         LoadObjectField(result, JSRegExpResultWithIndices::kNamesOffset);
@@ -424,7 +425,7 @@ RegExpBuiltinsAssembler::LoadOrAllocateRegExpResultVector(
   // Too large?
   GotoIf(SmiAbove(register_count,
                   SmiConstant(Isolate::kJSRegexpStaticOffsetsVectorSize)),
-         &if_dynamic);
+         &if_dynamic, BranchHint::kFalse);
 
   auto address_of_regexp_static_result_offsets_vector = ExternalConstant(
       ExternalReference::address_of_regexp_static_result_offsets_vector(
@@ -433,7 +434,8 @@ RegExpBuiltinsAssembler::LoadOrAllocateRegExpResultVector(
       MachineType::Pointer(), address_of_regexp_static_result_offsets_vector));
 
   // Owned by someone else?
-  GotoIf(WordEqual(var_vector.value(), IntPtrConstant(0)), &if_dynamic);
+  GotoIf(WordEqual(var_vector.value(), IntPtrConstant(0)), &if_dynamic,
+         BranchHint::kFalse);
 
   // Take ownership of the static vector. See also:
   // RegExpResultVectorScope::Initialize.
@@ -458,10 +460,10 @@ void RegExpBuiltinsAssembler::FreeRegExpResultVector(
     TNode<RawPtrT> result_vector, TNode<BoolT> is_dynamic) {
   Label if_dynamic(this), out(this);
 
-  GotoIf(is_dynamic, &if_dynamic);
+  GotoIf(is_dynamic, &if_dynamic, BranchHint::kFalse);
 
-  // Was there a vector allocated?
-  GotoIf(WordEqual(result_vector, IntPtrConstant(0)), &out);
+  // The vector must have been allocated.
+  CSA_DCHECK(this, WordNotEqual(result_vector, IntPtrConstant(0)));
 
   // Return ownership of the static vector.
   auto address_of_regexp_static_result_offsets_vector = ExternalConstant(
@@ -505,7 +507,8 @@ RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
   {
     Label next(this);
     TNode<Smi> available_slots = LoadSmiArrayLength(var_match_info.value());
-    GotoIf(SmiLessThanOrEqual(register_count, available_slots), &next);
+    GotoIf(SmiLessThanOrEqual(register_count, available_slots), &next,
+           BranchHint::kTrue);
 
     // Grow.
     var_match_info =
@@ -559,11 +562,11 @@ RegExpBuiltinsAssembler::InitializeMatchInfoFromRegisters(
   return var_match_info.value();
 }
 
-TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
+TNode<RegExpMatchInfo> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
-    TNode<Number> last_index) {
-  Label out(this);
-  TVARIABLE(HeapObject, var_result, NullConstant());
+    TNode<Number> last_index, Label* if_not_matched) {
+  Label out(this), not_matched(this);
+  TVARIABLE(RegExpMatchInfo, var_result);
   TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
       regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
   TNode<Smi> register_count_per_match =
@@ -584,10 +587,10 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
                                              &var_exception);
 
     TNode<UintPtrT> num_matches = RegExpExecInternal(
-        context, regexp, string, last_index, result_offsets_vector,
+        context, regexp, data, string, last_index, result_offsets_vector,
         SmiToInt32(result_offsets_vector_length));
 
-    GotoIf(IntPtrEqual(num_matches, IntPtrConstant(0)), &out);
+    GotoIf(IntPtrEqual(num_matches, IntPtrConstant(0)), &not_matched);
 
     CSA_DCHECK(this, IntPtrEqual(num_matches, IntPtrConstant(1)));
     CSA_DCHECK(this, TaggedEqual(context, LoadNativeContext(context)));
@@ -605,25 +608,31 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal_Single(
   CallRuntime(Runtime::kReThrow, context, var_exception.value());
   Unreachable();
 
+  BIND(&not_matched);
+  FreeRegExpResultVector(result_offsets_vector,
+                         result_offsets_vector_is_dynamic);
+  Goto(if_not_matched);
+
   BIND(&out);
   FreeRegExpResultVector(result_offsets_vector,
                          result_offsets_vector_is_dynamic);
-  return var_result.value();  // RegExpMatchInfo | Null.
+  return var_result.value();
 }
 
 TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
-    TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
-    TNode<Number> last_index, TNode<RawPtrT> result_offsets_vector,
+    TNode<Context> context, TNode<JSRegExp> regexp, TNode<RegExpData> data,
+    TNode<String> string, TNode<Number> last_index,
+    TNode<RawPtrT> result_offsets_vector,
     TNode<Int32T> result_offsets_vector_length) {
+  CSA_DCHECK(this, TaggedEqual(data, LoadTrustedPointerFromObject(
+                                         regexp, JSRegExp::kDataOffset,
+                                         kRegExpDataIndirectPointerTag)));
+
   ToDirectStringAssembler to_direct(state(), string);
 
   TVARIABLE(UintPtrT, var_result, UintPtrConstant(0));
   Label out(this), atom(this), runtime(this, Label::kDeferred),
       retry_experimental(this, Label::kDeferred);
-
-  // External constants.
-  TNode<ExternalReference> isolate_address =
-      ExternalConstant(ExternalReference::isolate_address());
 
   // At this point, last_index is definitely a canonicalized non-negative
   // number, which implies that any non-Smi last_index is greater than
@@ -632,12 +641,13 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   CSA_DCHECK(this, IsNumberNormalized(last_index));
   CSA_DCHECK(this, IsNumberPositive(last_index));
-  GotoIf(TaggedIsNotSmi(last_index), &out);
+  GotoIf(TaggedIsNotSmi(last_index), &out, BranchHint::kFalse);
 
   TNode<IntPtrT> int_string_length = LoadStringLengthAsWord(string);
   TNode<IntPtrT> int_last_index = PositiveSmiUntag(CAST(last_index));
 
-  GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &out);
+  GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &out,
+         BranchHint::kFalse);
 
   // Unpack the string. Note that due to SlicedString unpacking (which extracts
   // the parent string and offset), it's not valid to replace `string` with the
@@ -648,10 +658,6 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
   // equal the input in length and contents. SlicedString unpacking could
   // happen in `TryToSequential`.
   to_direct.ToDirect();
-
-  // Since the RegExp has been compiled, data contains a RegExpData object.
-  TNode<RegExpData> data = CAST(LoadTrustedPointerFromObject(
-      regexp, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag));
 
   // Dispatch on the type of the RegExp.
   // Since the type tag is in trusted space, it is safe to interpret
@@ -783,6 +789,8 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<Int32T> arg6 = Int32Constant(RegExp::CallOrigin::kFromJs);
 
     // Argument 7: Pass current isolate address.
+    TNode<ExternalReference> isolate_address =
+        ExternalConstant(ExternalReference::isolate_address());
     MachineType arg7_type = type_ptr;
     TNode<ExternalReference> arg7 = isolate_address;
 
@@ -820,17 +828,20 @@ TNode<UintPtrT> RegExpBuiltinsAssembler::RegExpExecInternal(
     GotoIf(IntPtrGreaterThanOrEqual(
                int_result, IntPtrConstant(RegExp::kInternalRegExpFailure)),
            &out);
+    // BranchHint::kTrue since the other two states are 1. unlikely and 2. it's
+    // okay to be a bit slower there.
+    GotoIf(
+        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpRetry)),
+        &runtime, BranchHint::kTrue);
     GotoIf(IntPtrEqual(int_result,
                        IntPtrConstant(RegExp::kInternalRegExpException)),
            &if_exception);
-    GotoIf(IntPtrEqual(
-               int_result,
-               IntPtrConstant(RegExp::kInternalRegExpFallbackToExperimental)),
-           &retry_experimental);
 
-    CSA_DCHECK(this, IntPtrEqual(int_result,
-                                 IntPtrConstant(RegExp::kInternalRegExpRetry)));
-    Goto(&runtime);
+    CSA_CHECK(this,
+              IntPtrEqual(int_result,
+                          IntPtrConstant(
+                              RegExp::kInternalRegExpFallbackToExperimental)));
+    Goto(&retry_experimental);
   }
 
   BIND(&if_exception);
@@ -915,7 +926,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
   const TNode<BoolT> has_initialmap = TaggedEqual(map, initial_map);
 
   var_result = has_initialmap;
-  GotoIfNot(has_initialmap, &out);
+  GotoIfNot(has_initialmap, &out, BranchHint::kTrue);
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.
@@ -944,7 +955,8 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(
 
   // This should only be needed for String.p.(split||matchAll), but we are
   // conservative here.
-  GotoIf(IsRegExpSpeciesProtectorCellInvalid(), if_ismodified);
+  GotoIf(IsRegExpSpeciesProtectorCellInvalid(), if_ismodified,
+         BranchHint::kFalse);
 
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> regexp_fun =
@@ -953,12 +965,12 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(
       LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset));
   TNode<BoolT> has_initialmap = TaggedEqual(map, initial_map);
 
-  GotoIfNot(has_initialmap, if_ismodified);
+  GotoIfNot(has_initialmap, if_ismodified, BranchHint::kTrue);
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.
   TNode<Object> last_index = FastLoadLastIndexBeforeSmiCheck(CAST(object));
-  GotoIfNot(TaggedIsPositiveSmi(last_index), if_ismodified);
+  GotoIfNot(TaggedIsPositiveSmi(last_index), if_ismodified, BranchHint::kTrue);
 
   // Verify the prototype.
 
@@ -1036,7 +1048,7 @@ void RegExpBuiltinsAssembler::BranchIfRegExpResult(const TNode<Context> context,
 
   Label maybe_result_with_indices(this);
   Branch(TaggedEqual(map, initial_regexp_result_map), if_isunmodified,
-         &maybe_result_with_indices);
+         &maybe_result_with_indices, BranchHint::kTrue);
   BIND(&maybe_result_with_indices);
   {
     static_assert(
@@ -1567,20 +1579,22 @@ TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
   GotoIfNot(is_unicode, &out);
 
   // Keep this unconditional (even on the fast path) just to be safe.
-  Branch(TaggedIsPositiveSmi(index_plus_one), &if_isunicode, &out);
+  Branch(TaggedIsPositiveSmi(index_plus_one), &if_isunicode, &out,
+         BranchHint::kTrue);
 
   BIND(&if_isunicode);
   {
     TNode<UintPtrT> string_length = Unsigned(LoadStringLengthAsWord(string));
     TNode<UintPtrT> untagged_plus_one =
         Unsigned(SmiUntag(CAST(index_plus_one)));
-    GotoIfNot(UintPtrLessThan(untagged_plus_one, string_length), &out);
+    GotoIfNot(UintPtrLessThan(untagged_plus_one, string_length), &out,
+              BranchHint::kTrue);
 
     TNode<Int32T> lead =
         StringCharCodeAt(string, Unsigned(SmiUntag(CAST(index))));
     GotoIfNot(Word32Equal(Word32And(lead, Int32Constant(0xFC00)),
                           Int32Constant(0xD800)),
-              &out);
+              &out, BranchHint::kFalse);
 
     TNode<Int32T> trail = StringCharCodeAt(string, untagged_plus_one);
     GotoIfNot(Word32Equal(Word32And(trail, Int32Constant(0xFC00)),
@@ -1689,12 +1703,13 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
     // array depending on whether the {regexp} matches.
     {
       Label next(this), if_stringisempty(this, Label::kDeferred);
-      Branch(SmiEqual(string_length, SmiZero()), &if_stringisempty, &next);
+      Branch(SmiEqual(string_length, SmiZero()), &if_stringisempty, &next,
+             BranchHint::kFalse);
 
       BIND(&if_stringisempty);
       {
         TNode<IntPtrT> num_matches = UncheckedCast<IntPtrT>(RegExpExecInternal(
-            context, regexp, string, SmiZero(), result_offsets_vector,
+            context, regexp, data, string, SmiZero(), result_offsets_vector,
             result_offsets_vector_length));
 
         Label if_matched(this), if_not_matched(this);
@@ -1760,8 +1775,8 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       // Search for the given {regexp}.
 
       TNode<IntPtrT> num_matches = UncheckedCast<IntPtrT>(RegExpExecInternal(
-          context, regexp, string, next_search_from, result_offsets_vector,
-          result_offsets_vector_length));
+          context, regexp, data, string, next_search_from,
+          result_offsets_vector, result_offsets_vector_length));
 
       // We're done if no match was found.
       GotoIf(IntPtrEqual(num_matches, IntPtrConstant(0)), &push_suffix_and_out);
@@ -1989,7 +2004,7 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::RegExpExecInternal_Batched(
                                              &var_exception);
 
     var_num_matches_in_batch = UncheckedCast<IntPtrT>(RegExpExecInternal(
-        context, regexp, subject, SmiFromInt32(var_last_index.value()),
+        context, regexp, data, subject, SmiFromInt32(var_last_index.value()),
         result_offsets_vector, SmiToInt32(result_offsets_vector_length)));
 
     GotoIf(IntPtrEqual(var_num_matches_in_batch.value(), IntPtrConstant(0)),
@@ -2046,7 +2061,7 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::RegExpExecInternal_Batched(
 
     GotoIf(
         Word32NotEqual(var_start_of_last_match.value(), var_last_index.value()),
-        &outer_loop);
+        &outer_loop, BranchHint::kTrue);
 
     // For zero-length matches we need to run AdvanceStringIndex.
     var_last_index = SmiToInt32(CAST(AdvanceStringIndex(
