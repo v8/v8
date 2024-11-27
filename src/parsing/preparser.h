@@ -157,6 +157,12 @@ class PreParserExpression {
         ExpressionTypeField::encode(kCallEvalExpression));
   }
 
+  static PreParserExpression ImportCall() {
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kImportCallExpression));
+  }
+
   static PreParserExpression SuperCallReference() {
     return PreParserExpression(
         TypeField::encode(kExpression) |
@@ -229,6 +235,11 @@ class PreParserExpression {
            ExpressionTypeField::decode(code_) == kSuperCallReference;
   }
 
+  bool IsImportCallExpression() const {
+    return TypeField::decode(code_) == kExpression &&
+           ExpressionTypeField::decode(code_) == kImportCallExpression;
+  }
+
   // At the moment PreParser doesn't track these expression types.
   bool IsFunctionLiteral() const { return false; }
   bool IsCallNew() const { return false; }
@@ -277,7 +288,8 @@ class PreParserExpression {
     kCallExpression,
     kCallEvalExpression,
     kSuperCallReference,
-    kAssignment
+    kAssignment,
+    kImportCallExpression,
   };
 
   explicit PreParserExpression(uint32_t expression_code)
@@ -715,13 +727,13 @@ class PreParserFactory {
   PreParserExpression NewImportCallExpression(const PreParserExpression& args,
                                               const ModuleImportPhase phase,
                                               int pos) {
-    return PreParserExpression::Default();
+    return PreParserExpression::ImportCall();
   }
 
   PreParserExpression NewImportCallExpression(
       const PreParserExpression& specifier, const ModuleImportPhase phase,
       const PreParserExpression& import_options, int pos) {
-    return PreParserExpression::Default();
+    return PreParserExpression::ImportCall();
   }
 
  private:

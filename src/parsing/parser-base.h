@@ -4003,6 +4003,9 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   //
   // NewTarget ::
   //   'new' '.' 'target'
+  //
+  // ImportMeta :
+  //    import . meta
 
   // The grammar for new expressions is pretty warped. We can have several 'new'
   // keywords following each other, and then a MemberExpression. When we see '('
@@ -4018,18 +4021,21 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   // new new foo() means new (new foo())
   // new new foo().bar().baz means (new (new foo()).bar()).baz
   // new super.x means new (super.x)
+  // new import.meta.foo means (new (import.meta.foo)())
   Consume(Token::kNew);
   int new_pos = position();
   ExpressionT result;
 
   CheckStackOverflow();
 
-  if (peek() == Token::kImport && PeekAhead() == Token::kLeftParen) {
-    // TODO(42204365): Peek ahead to see if this is an import source call.
-    // It needs to peek ahead for tokens `import . source (`.
-    impl()->ReportMessageAt(scanner()->peek_location(),
-                            MessageTemplate::kImportCallNotNewExpression);
-    return impl()->FailureExpression();
+  if (peek() == Token::kImport) {
+    result = ParseMemberExpression();
+    if (result->IsImportCallExpression()) {
+      // new import() and new import.source() are never allowed.
+      impl()->ReportMessageAt(scanner()->location(),
+                              MessageTemplate::kImportCallNotNewExpression);
+      return impl()->FailureExpression();
+    }
   } else if (peek() == Token::kPeriod) {
     result = ParseNewTargetExpression();
     return ParseMemberExpressionContinuation(result);
