@@ -358,6 +358,8 @@ TestStringify("[null,null,null]", [undefined,,function(){}]);
 
 // Objects with undefined or function properties (including replaced properties)
 // have those properties ignored.
+assertEquals('{"c":42,"d":42}',
+             JSON.stringify({a: undefined, b: undefined, c: 42, d: 42}));
 assertEquals('{}',
              JSON.stringify({a: undefined, b: function(){}, c: 42, d: 42},
                             function(k, v) { if (k == "c") return undefined;
@@ -462,6 +464,9 @@ oddball2.__proto__ = { __proto__: null,
                        toJSON: function () { return oddball3; } }
 TestStringify('"true"', oddball2);
 
+let arr = [];
+arr.toJSON = function() { return 'foo' };
+TestStringify('"foo"', arr);
 
 var falseNum = Object("37");
 falseNum.__proto__ = Number.prototype;
@@ -572,3 +577,14 @@ var __v_2 = {
 };
 assertEquals('[null]', JSON.stringify(Object.defineProperty([], "0", __v_2)));
 assertEquals(1, __v_1);
+
+
+// Test last since we are modifying Object/Array prototypes
+Object.prototype.toJSON = function() {
+  return 'obj proto';
+};
+TestStringify('"obj proto"', {});
+Array.prototype.toJSON = function() {
+  return 'arr proto';
+};
+TestStringify('"arr proto"', []);
