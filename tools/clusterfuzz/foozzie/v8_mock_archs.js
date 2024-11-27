@@ -13,12 +13,13 @@
 // Mock Math.pow due to precision differences between 32 and 64 bits.
 // https://crbug.com/380147861
 // https://crbug.com/380322452
+// https://crbug.com/381129314
 (function() {
   const origMathPow = Math.pow;
   const origNumber = Number;
   const origToExponential = Number.prototype.toExponential;
   Math.pow = function(a, b) {
     let result = origMathPow(a, b);
-    return origNumber(origToExponential.call(result, 12));
+    return origNumber(origToExponential.call(result, 11));
   }
 })();
