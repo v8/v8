@@ -237,8 +237,9 @@ inline std::ostream& operator<<(std::ostream& out, StructType type) {
 
 // Support base::hash<StructType>.
 inline size_t hash_value(const StructType& type) {
+  // Note: If you update this you probably also want to update
+  // `CanonicalHashing::Add(CanonicalStructType)`.
   return base::Hasher{}
-      .Add(type.field_count())
       .AddRange(type.fields())
       .AddRange(type.mutabilities())
       .hash();
@@ -287,6 +288,8 @@ inline constexpr intptr_t ArrayType::kRepOffset = offsetof(ArrayType, rep_);
 
 // Support base::hash<ArrayType>.
 inline size_t hash_value(const ArrayType& type) {
+  // Note: If you update this you probably also want to update
+  // `CanonicalHashing::Add(CanonicalArrayType)`.
   return base::Hasher::Combine(type.element_type(), type.mutability());
 }
 

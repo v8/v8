@@ -71,9 +71,15 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
   // Set up two identical modules.
   for (WasmModule* module : {module1, module2}) {
-    /*  0 */ DefineStruct(module, {mut(ref(2)), immut(refNull(2))});
-    /*  1 */ DefineStruct(module, {mut(ref(2)), immut(ref(2))}, 0);
-    /*  2 */ DefineArray(module, immut(ref(0)));
+    // Three mutually recursive types.
+    /*  0 */ DefineStruct(module, {mut(ref(2)), immut(refNull(2))},
+                          kNoSuperType, false, false, false);
+    /*  1 */ DefineStruct(module, {mut(ref(2)), immut(ref(2))}, 0, false, false,
+                          false);
+    /*  2 */ DefineArray(module, immut(ref(0)), kNoSuperType, false, false,
+                         false);
+    GetTypeCanonicalizer()->AddRecursiveGroup(module, 3);
+
     /*  3 */ DefineArray(module, immut(ref(1)), 2);
     /*  4 */ DefineStruct(module, {mut(ref(2)), immut(ref(3)), immut(kWasmF64)},
                           1);
