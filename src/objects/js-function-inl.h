@@ -288,14 +288,6 @@ void JSFunction::set_shared(Tagged<SharedFunctionInfo> value,
 bool JSFunction::tiering_in_progress() const {
 #ifdef V8_ENABLE_LEAPTIERING
   if (!has_feedback_vector()) return false;
-  DCHECK_IMPLIES(
-      feedback_vector()->tiering_in_progress(),
-      !GetProcessWideJSDispatchTable()->IsTieringRequested(
-          dispatch_handle(), TieringBuiltin::kStartTurbofanOptimizeJob,
-          GetIsolate()) &&
-          !GetProcessWideJSDispatchTable()->IsTieringRequested(
-              dispatch_handle(), TieringBuiltin::kStartMaglevOptimizeJob,
-              GetIsolate()));
   return feedback_vector()->tiering_in_progress();
 #else
   return IsInProgress(tiering_state());
