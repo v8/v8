@@ -1781,7 +1781,7 @@ class Heap final {
   void ShrinkOldGenerationAllocationLimitIfNotConfigured();
 
   double ComputeMutatorUtilization(const char* tag, double mutator_speed,
-                                   double gc_speed);
+                                   std::optional<double> gc_speed);
   bool HasLowYoungGenerationAllocationRate();
   bool HasLowOldGenerationAllocationRate();
   bool HasLowEmbedderAllocationRate();
