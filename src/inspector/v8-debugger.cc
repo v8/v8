@@ -1203,7 +1203,8 @@ void V8Debugger::asyncTaskScheduledForStack(const StringView& taskName,
                                             bool skipTopFrame) {
 #ifdef V8_USE_PERFETTO
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-              "v8::Debugger::AsyncTaskScheduled",
+              "v8::Debugger::AsyncTaskScheduled", "taskName",
+              TRACE_STR_COPY(toString16(taskName).utf8().c_str()),
               perfetto::Flow::ProcessScoped(reinterpret_cast<uintptr_t>(task)));
 #endif  // V8_USE_PERFETTO
   if (!m_maxAsyncCallStackDepth) return;
