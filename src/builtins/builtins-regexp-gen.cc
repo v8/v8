@@ -446,9 +446,11 @@ RegExpBuiltinsAssembler::LoadOrAllocateRegExpResultVector(
 
   BIND(&if_dynamic);
   var_is_dynamic = Int32TrueConstant();
+  auto isolate_ptr = ExternalConstant(ExternalReference::isolate_address());
   var_vector = UncheckedCast<RawPtrT>(CallCFunction(
       ExternalConstant(ExternalReference::allocate_regexp_result_vector()),
       MachineType::Pointer(),
+      std::make_pair(MachineType::Pointer(), isolate_ptr),
       std::make_pair(MachineType::Uint32(), SmiToInt32(register_count))));
   Goto(&out);
 
@@ -480,9 +482,11 @@ void RegExpBuiltinsAssembler::FreeRegExpResultVector(
   Goto(&out);
 
   BIND(&if_dynamic);
+  auto isolate_ptr = ExternalConstant(ExternalReference::isolate_address());
   CallCFunction(
       ExternalConstant(ExternalReference::free_regexp_result_vector()),
       MachineType::Pointer() /* void */,
+      std::make_pair(MachineType::Pointer(), isolate_ptr),
       std::make_pair(MachineType::Pointer(), result_vector));
   Goto(&out);
 

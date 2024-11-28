@@ -4358,6 +4358,12 @@ void Isolate::Deinit() {
   // use those.
   cancelable_task_manager()->CancelAndWait();
 
+  // Delete any remaining RegExpResultVector instances.
+  for (int32_t* v : active_dynamic_regexp_result_vectors_) {
+    delete[] v;
+  }
+  active_dynamic_regexp_result_vectors_.clear();
+
   // Cancel all compiler tasks.
 #ifdef V8_ENABLE_SPARKPLUG
   delete baseline_batch_compiler_;

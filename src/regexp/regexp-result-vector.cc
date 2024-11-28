@@ -18,45 +18,49 @@ RegExpResultVectorScope::RegExpResultVectorScope(Isolate* isolate, int size)
 }
 
 RegExpResultVectorScope::~RegExpResultVectorScope() {
-  if (if_static_ != nullptr) {
+  if (is_dynamic_) {
+    RegExpResultVector::Free(isolate_, value_);
+  } else if (value_ != nullptr) {
     // Return ownership of the static vector.
-    isolate_->set_regexp_static_result_offsets_vector(if_static_);
+    isolate_->set_regexp_static_result_offsets_vector(value_);
+  } else {
+    // The scope was created but Initialize never called. Nothing to do.
   }
 }
 
 int32_t* RegExpResultVectorScope::Initialize(int size) {
-  DCHECK(if_static_ == nullptr && if_dynamic_.get() == nullptr);
+  DCHECK_NULL(value_);
   int32_t* static_vector_or_null =
       isolate_->regexp_static_result_offsets_vector();
-  int32_t* result;
   if (size > Isolate::kJSRegexpStaticOffsetsVectorSize ||
       static_vector_or_null == nullptr) {
-    result = RegExpResultVector::Allocate(size);
-    if_dynamic_.reset(result);
+    is_dynamic_ = true;
+    value_ = RegExpResultVector::Allocate(isolate_, size);
   } else {
-    result = static_vector_or_null;
-    if_static_ = result;
+    value_ = static_vector_or_null;
     // Take ownership of the static vector. See also:
     // RegExpBuiltinsAssembler::TryLoadStaticRegExpResultVector.
     isolate_->set_regexp_static_result_offsets_vector(nullptr);
   }
-  // Exactly one of if_static_ and if_dynamic_ is set.
-  DCHECK_EQ(if_static_ == nullptr, if_dynamic_.get() != nullptr);
-  return result;
+  DCHECK_NOT_NULL(value_);
+  return value_;
 }
 
 // Note this may be called through CallCFunction.
 // static
-int32_t* RegExpResultVector::Allocate(uint32_t size) {
+int32_t* RegExpResultVector::Allocate(Isolate* isolate, uint32_t size) {
   DisallowGarbageCollection no_gc;
-  return new int32_t[size];
+  auto vector = new int32_t[size];
+  isolate->active_dynamic_regexp_result_vectors().insert(vector);
+  return vector;
 }
 
 // Note this may be called through CallCFunction.
 // static
-void RegExpResultVector::Free(int32_t* vector) {
+void RegExpResultVector::Free(Isolate* isolate, int32_t* vector) {
   DisallowGarbageCollection no_gc;
   DCHECK_NOT_NULL(vector);
+  isolate->active_dynamic_regexp_result_vectors().erase(vector);
   delete[] vector;
 }
 

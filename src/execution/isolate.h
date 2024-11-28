@@ -1445,6 +1445,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data()->regexp_static_result_offsets_vector_address();
   }
 
+  std::unordered_set<int32_t*>& active_dynamic_regexp_result_vectors() {
+    return active_dynamic_regexp_result_vectors_;
+  }
+
   // This data structure is only used for an optimization in StringSplit.
   // TODO(jgruber): Consider removing it.
   std::vector<int>* regexp_indices() { return &regexp_indices_; }
@@ -2493,6 +2497,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // !V8_INTL_SUPPORT
   RegExpStack* regexp_stack_ = nullptr;
   std::vector<int> regexp_indices_;
+  // Necessary in order to avoid memory leaks in the presence of
+  // TerminateExecution exceptions.
+  std::unordered_set<int32_t*> active_dynamic_regexp_result_vectors_;
   DateCache* date_cache_ = nullptr;
   base::RandomNumberGenerator* random_number_generator_ = nullptr;
   base::RandomNumberGenerator* fuzzer_rng_ = nullptr;

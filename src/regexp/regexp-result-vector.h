@@ -20,21 +20,20 @@ class RegExpResultVectorScope final {
   int32_t* Initialize(int size);
 
   int32_t* value() const {
-    // Exactly one of if_static_ and if_dynamic_ is set.
-    DCHECK_EQ(if_static_ == nullptr, if_dynamic_.get() != nullptr);
-    return if_static_ != nullptr ? if_static_ : if_dynamic_.get();
+    DCHECK_NOT_NULL(value_);
+    return value_;
   }
 
  private:
   Isolate* const isolate_;
-  std::unique_ptr<int32_t[]> if_dynamic_;
-  int32_t* if_static_ = nullptr;
+  bool is_dynamic_ = false;
+  int32_t* value_ = nullptr;
 };
 
 class RegExpResultVector final : public AllStatic {
  public:
-  static int32_t* Allocate(uint32_t size);
-  static void Free(int32_t* vector);
+  static int32_t* Allocate(Isolate* isolate, uint32_t size);
+  static void Free(Isolate* isolate, int32_t* vector);
 };
 
 }  // namespace internal
