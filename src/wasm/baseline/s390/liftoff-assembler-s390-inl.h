@@ -3138,17 +3138,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
     const std::initializer_list<VarState> args, const LiftoffRegister* rets,
     ValueKind return_kind, ValueKind out_argument_kind, int stack_bytes,
     ExternalReference ext_ref) {
-  int total_size = RoundUp(stack_bytes, 8);
-
-  int size = total_size;
-  constexpr int kStackPageSize = 4 * KB;
-
-  // Reserve space in the stack.
-  while (size > kStackPageSize) {
-    lay(sp, MemOperand(sp, -kStackPageSize));
-    StoreU64(r0, MemOperand(sp));
-    size -= kStackPageSize;
-  }
+  int size = RoundUp(stack_bytes, 8);
 
   lay(sp, MemOperand(sp, -size));
 
@@ -3206,7 +3196,7 @@ void LiftoffAssembler::CallCWithStackBuffer(
         UNREACHABLE();
     }
   }
-  lay(sp, MemOperand(sp, total_size));
+  lay(sp, MemOperand(sp, size));
 }
 
 void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
