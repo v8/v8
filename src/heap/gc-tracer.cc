@@ -177,7 +177,12 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
                nullptr, heap_->isolate()->priority()),
       previous_(current_),
       allocation_time_(startup_time),
-      previous_mark_compact_end_time_(startup_time) {
+      previous_mark_compact_end_time_(startup_time)
+#if defined(V8_USE_PERFETTO)
+      ,
+      parent_track_(perfetto::ThreadTrack::Current())
+#endif
+{
   // All accesses to incremental_marking_scope assume that incremental marking
   // scopes come first.
   static_assert(0 == Scope::FIRST_INCREMENTAL_SCOPE);
@@ -645,6 +650,21 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
     heap_->mb_->UpdateAllocationRate(old_generation_allocated_bytes,
                                      allocation_duration);
   }
+
+#if defined(V8_USE_PERFETTO)
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack("OldGenerationAllocationThroughput",
+                                       parent_track_),
+                OldGenerationAllocationThroughputInBytesPerMillisecond());
+  TRACE_COUNTER(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      perfetto::CounterTrack("EmbedderAllocationThroughput", parent_track_),
+      EmbedderAllocationThroughputInBytesPerMillisecond());
+  TRACE_COUNTER(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      perfetto::CounterTrack("NewSpaceAllocationThroughput", parent_track_),
+      NewSpaceAllocationThroughputInBytesPerMillisecond());
+#endif
 }
 
 void GCTracer::SampleConcurrencyEsimate(size_t concurrency) {
@@ -1436,17 +1456,15 @@ void GCTracer::RecordGCSumCounters() {
 
 void GCTracer::RecordGCSizeCounters() const {
 #if defined(V8_USE_PERFETTO)
+  TRACE_COUNTER(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      perfetto::CounterTrack("OldGenerationConsumedBytes", parent_track_),
+      heap_->OldGenerationConsumedBytes());
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                perfetto::CounterTrack("OldGenerationConsumedBytes",
-                                       perfetto::ThreadTrack::Current()),
-                heap_->OldGenerationConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                perfetto::CounterTrack("GlobalConsumedBytes",
-                                       perfetto::ThreadTrack::Current()),
+                perfetto::CounterTrack("GlobalConsumedBytes", parent_track_),
                 heap_->GlobalConsumedBytes());
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                perfetto::CounterTrack("ExternalMemoryBytes",
-                                       perfetto::ThreadTrack::Current()),
+                perfetto::CounterTrack("ExternalMemoryBytes", parent_track_),
                 heap_->external_memory());
 #endif
 }

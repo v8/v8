@@ -595,6 +595,10 @@ class V8_EXPORT_PRIVATE GCTracer {
   mutable base::Mutex background_scopes_mutex_;
   base::TimeDelta background_scopes_[Scope::NUMBER_OF_SCOPES];
 
+#if defined(V8_USE_PERFETTO)
+  perfetto::ThreadTrack parent_track_;
+#endif
+
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
   FRIEND_TEST(GCTracerTest, BackgroundMinorMSScope);
