@@ -771,11 +771,6 @@ bool SLPTree::TryMatchExtendIntToF32x4(const NodeGroup& node_group,
   return true;
 }
 
-void SLPTree::DeleteTree() {
-  node_to_packnode_.clear();
-  node_to_intersect_packnodes_.clear();
-}
-
 bool CannotSwapProtectedLoads(OpEffects first, OpEffects second) {
   EffectDimensions produces = first.produces;
   // The control flow effects produces by Loads are due to trap handler. We can
@@ -1309,9 +1304,9 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
   return nullptr;
 }
 
-bool WasmRevecAnalyzer::MergeSLPTrees() {
+void WasmRevecAnalyzer::MergeSLPTree(SLPTree& slp_tree) {
   // We ensured the SLP trees are mergable when BuildTreeRec.
-  for (auto entry : slp_tree_->GetIntersectNodeMapping()) {
+  for (const auto& entry : slp_tree.GetIntersectNodeMapping()) {
     auto it = revectorizable_intersect_node_.find(entry.first);
     if (it == revectorizable_intersect_node_.end()) {
       bool result;
@@ -1326,8 +1321,7 @@ bool WasmRevecAnalyzer::MergeSLPTrees() {
                 intersect_pnodes.end());
   }
 
-  revectorizable_node_.merge(slp_tree_->GetNodeMapping());
-  return true;
+  revectorizable_node_.merge(slp_tree.GetNodeMapping());
 }
 
 bool WasmRevecAnalyzer::IsSupportedReduceSeed(const Operation& op) {
@@ -1424,7 +1418,6 @@ void WasmRevecAnalyzer::Run() {
       PrintF("}\n");
     }
   }
-  slp_tree_ = phase_zone_->New<SLPTree>(graph_, this, phase_zone_);
 
   ZoneVector<std::pair<OpIndex, OpIndex>> all_seeds(
       store_seeds_.begin(), store_seeds_.end(), phase_zone_);
@@ -1432,18 +1425,15 @@ void WasmRevecAnalyzer::Run() {
 
   for (auto pair : all_seeds) {
     NodeGroup roots(pair.first, pair.second);
-
-    slp_tree_->DeleteTree();
-    PackNode* root = slp_tree_->BuildTree(roots);
+    SLPTree slp_tree(graph_, this, phase_zone_);
+    PackNode* root = slp_tree.BuildTree(roots);
     if (!root) {
       TRACE("Build tree failed!\n");
       continue;
     }
 
-    slp_tree_->Print("After build tree");
-    if (!MergeSLPTrees()) {
-      TRACE("Failed to merge revectorizable nodes!\n");
-    }
+    slp_tree.Print("After build tree");
+    MergeSLPTree(slp_tree);
   }
 
   // Early exist when no revectorizable node found.
@@ -1453,6 +1443,7 @@ void WasmRevecAnalyzer::Run() {
   use_map_ = phase_zone_->New<SimdUseMap>(graph_, phase_zone_);
   if (!DecideVectorize()) {
     revectorizable_node_.clear();
+    revectorizable_intersect_node_.clear();
   } else {
     should_reduce_ = true;
     Print("Decide to vectorize");
@@ -1495,7 +1486,7 @@ bool WasmRevecAnalyzer::DecideVectorize() {
 #endif  // V8_TARGET_ARCH_X64
 
           for (auto use : use_map_->uses(nodes[i])) {
-            if (!GetPackNode(use) || GetPackNode(use)->IsForcePackNode()) {
+            if (!GetPackNode(use) || GetPackNode(use)->is_force_packing()) {
               TRACE("External use edge: (%d:%s) -> (%d:%s)\n", use.id(),
                     OpcodeName(graph_.Get(use).opcode), nodes[i].id(),
                     OpcodeName(graph_.Get(nodes[i]).opcode));
