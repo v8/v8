@@ -652,7 +652,9 @@ class BodyGen {
 
   template <ValueKind T>
   void try_table_block(DataRange* data) {
-    try_table_block_helper({}, base::VectorOf({ValueType::Primitive(T)}), data);
+    ValueType return_types_arr[1] = {ValueType::Primitive(T)};
+    auto return_types = base::VectorOf(return_types_arr, T == kVoid ? 0 : 1);
+    try_table_block_helper({}, return_types, data);
   }
 
   void any_block(base::Vector<const ValueType> param_types,
@@ -2262,17 +2264,18 @@ class BodyGen {
                     &BodyGen::sequence<kVoid, kVoid, kVoid, kVoid>,
                     &BodyGen::sequence<kVoid, kVoid, kVoid, kVoid, kVoid, kVoid,
                                        kVoid, kVoid>,
-                    &BodyGen::block<kVoid>,           //
-                    &BodyGen::loop<kVoid>,            //
-                    &BodyGen::finite_loop<kVoid>,     //
-                    &BodyGen::if_<kVoid, kIf>,        //
-                    &BodyGen::if_<kVoid, kIfElse>,    //
-                    &BodyGen::br,                     //
-                    &BodyGen::br_if<kVoid>,           //
-                    &BodyGen::br_on_null<kVoid>,      //
-                    &BodyGen::br_on_non_null<kVoid>,  //
-                    &BodyGen::br_table<kVoid>,        //
-                    &BodyGen::return_op,              //
+                    &BodyGen::block<kVoid>,            //
+                    &BodyGen::loop<kVoid>,             //
+                    &BodyGen::finite_loop<kVoid>,      //
+                    &BodyGen::if_<kVoid, kIf>,         //
+                    &BodyGen::if_<kVoid, kIfElse>,     //
+                    &BodyGen::br,                      //
+                    &BodyGen::br_if<kVoid>,            //
+                    &BodyGen::br_on_null<kVoid>,       //
+                    &BodyGen::br_on_non_null<kVoid>,   //
+                    &BodyGen::br_table<kVoid>,         //
+                    &BodyGen::try_table_block<kVoid>,  //
+                    &BodyGen::return_op,               //
 
                     &BodyGen::memop<kExprI32StoreMem, kI32>,
                     &BodyGen::memop<kExprI32StoreMem8, kI32>,
@@ -2411,14 +2414,15 @@ class BodyGen {
         &BodyGen::op_with_prefix<kExprI32SConvertSatF64, kF64>,
         &BodyGen::op_with_prefix<kExprI32UConvertSatF64, kF64>,
 
-        &BodyGen::block<kI32>,           //
-        &BodyGen::loop<kI32>,            //
-        &BodyGen::finite_loop<kI32>,     //
-        &BodyGen::if_<kI32, kIfElse>,    //
-        &BodyGen::br_if<kI32>,           //
-        &BodyGen::br_on_null<kI32>,      //
-        &BodyGen::br_on_non_null<kI32>,  //
-        &BodyGen::br_table<kI32>,        //
+        &BodyGen::block<kI32>,            //
+        &BodyGen::loop<kI32>,             //
+        &BodyGen::finite_loop<kI32>,      //
+        &BodyGen::if_<kI32, kIfElse>,     //
+        &BodyGen::br_if<kI32>,            //
+        &BodyGen::br_on_null<kI32>,       //
+        &BodyGen::br_on_non_null<kI32>,   //
+        &BodyGen::br_table<kI32>,         //
+        &BodyGen::try_table_block<kI32>,  //
 
         &BodyGen::memop<kExprI32LoadMem>,                               //
         &BodyGen::memop<kExprI32LoadMem8S>,                             //
@@ -2561,14 +2565,15 @@ class BodyGen {
         &BodyGen::op_with_prefix<kExprI64SConvertSatF64, kF64>,
         &BodyGen::op_with_prefix<kExprI64UConvertSatF64, kF64>,
 
-        &BodyGen::block<kI64>,           //
-        &BodyGen::loop<kI64>,            //
-        &BodyGen::finite_loop<kI64>,     //
-        &BodyGen::if_<kI64, kIfElse>,    //
-        &BodyGen::br_if<kI64>,           //
-        &BodyGen::br_on_null<kI64>,      //
-        &BodyGen::br_on_non_null<kI64>,  //
-        &BodyGen::br_table<kI64>,        //
+        &BodyGen::block<kI64>,            //
+        &BodyGen::loop<kI64>,             //
+        &BodyGen::finite_loop<kI64>,      //
+        &BodyGen::if_<kI64, kIfElse>,     //
+        &BodyGen::br_if<kI64>,            //
+        &BodyGen::br_on_null<kI64>,       //
+        &BodyGen::br_on_non_null<kI64>,   //
+        &BodyGen::br_table<kI64>,         //
+        &BodyGen::try_table_block<kI64>,  //
 
         &BodyGen::memop<kExprI64LoadMem>,                               //
         &BodyGen::memop<kExprI64LoadMem8S>,                             //
@@ -2669,14 +2674,15 @@ class BodyGen {
         &BodyGen::op<kExprF32ConvertF64, kF64>,
         &BodyGen::op<kExprF32ReinterpretI32, kI32>,
 
-        &BodyGen::block<kF32>,           //
-        &BodyGen::loop<kF32>,            //
-        &BodyGen::finite_loop<kF32>,     //
-        &BodyGen::if_<kF32, kIfElse>,    //
-        &BodyGen::br_if<kF32>,           //
-        &BodyGen::br_on_null<kF32>,      //
-        &BodyGen::br_on_non_null<kF32>,  //
-        &BodyGen::br_table<kF32>,        //
+        &BodyGen::block<kF32>,            //
+        &BodyGen::loop<kF32>,             //
+        &BodyGen::finite_loop<kF32>,      //
+        &BodyGen::if_<kF32, kIfElse>,     //
+        &BodyGen::br_if<kF32>,            //
+        &BodyGen::br_on_null<kF32>,       //
+        &BodyGen::br_on_non_null<kF32>,   //
+        &BodyGen::br_table<kF32>,         //
+        &BodyGen::try_table_block<kF32>,  //
 
         &BodyGen::memop<kExprF32LoadMem>,
 
@@ -2738,14 +2744,15 @@ class BodyGen {
         &BodyGen::op<kExprF64ConvertF32, kF32>,
         &BodyGen::op<kExprF64ReinterpretI64, kI64>,
 
-        &BodyGen::block<kF64>,           //
-        &BodyGen::loop<kF64>,            //
-        &BodyGen::finite_loop<kF64>,     //
-        &BodyGen::if_<kF64, kIfElse>,    //
-        &BodyGen::br_if<kF64>,           //
-        &BodyGen::br_on_null<kF64>,      //
-        &BodyGen::br_on_non_null<kF64>,  //
-        &BodyGen::br_table<kF64>,        //
+        &BodyGen::block<kF64>,            //
+        &BodyGen::loop<kF64>,             //
+        &BodyGen::finite_loop<kF64>,      //
+        &BodyGen::if_<kF64, kIfElse>,     //
+        &BodyGen::br_if<kF64>,            //
+        &BodyGen::br_on_null<kF64>,       //
+        &BodyGen::br_on_non_null<kF64>,   //
+        &BodyGen::br_table<kF64>,         //
+        &BodyGen::try_table_block<kF64>,  //
 
         &BodyGen::memop<kExprF64LoadMem>,
 
