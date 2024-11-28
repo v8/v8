@@ -801,6 +801,8 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["JS_OBJECT_TYPE"] = JS_OBJECT_TYPE;
     types["JS_FUNCTION_TYPE"] = JS_FUNCTION_TYPE;
     types["JS_ARRAY_TYPE"] = JS_ARRAY_TYPE;
+    types["JS_ARRAY_BUFFER_TYPE"] = JS_ARRAY_BUFFER_TYPE;
+    types["JS_TYPED_ARRAY_TYPE"] = JS_TYPED_ARRAY_TYPE;
     types["SEQ_ONE_BYTE_STRING_TYPE"] = SEQ_ONE_BYTE_STRING_TYPE;
     types["SEQ_TWO_BYTE_STRING_TYPE"] = SEQ_TWO_BYTE_STRING_TYPE;
     types["INTERNALIZED_ONE_BYTE_STRING_TYPE"] =
@@ -836,6 +838,11 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSFunction::kSharedFunctionInfoOffset;
     fields[JS_ARRAY_TYPE]["elements"] = JSArray::kElementsOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
+    fields[JS_TYPED_ARRAY_TYPE]["raw_length"] = JSTypedArray::kRawLengthOffset;
+    fields[JS_TYPED_ARRAY_TYPE]["external_pointer"] =
+        JSTypedArray::kExternalPointerOffset;
+    fields[JS_TYPED_ARRAY_TYPE]["base_pointer"] =
+        JSTypedArray::kBasePointerOffset;
     fields[SEQ_ONE_BYTE_STRING_TYPE]["length"] =
         offsetof(SeqOneByteString, length_);
     fields[SEQ_TWO_BYTE_STRING_TYPE]["hash"] =

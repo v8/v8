@@ -157,8 +157,24 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   CHECK(vas->CanAllocateSubspaces());
 
   size_t reservation_size = size;
+  // As a temporary workaround for crbug.com/40070746 we use larger guard
+  // regions at the end of the sandbox.
+  // TODO(40070746): remove this workaround again once we have a proper fix.
+  size_t true_reservation_size = size;
+#if defined(V8_TARGET_OS_ANDROID)
+  // On Android, we often won't have sufficient virtual address space available.
+  const size_t kAdditionalTrailingGuardRegionSize = 0;
+#else
+  // Worst-case, we currently need 8 (max element size) * 32GB (max ArrayBuffer
+  // size) + 4GB (additional offset for TypedArray access).
+  const size_t kTotalTrailingGuardRegionSize = 260ULL * GB;
+  const size_t kAdditionalTrailingGuardRegionSize =
+      kTotalTrailingGuardRegionSize - kSandboxGuardRegionSize;
+#endif
   if (use_guard_regions) {
     reservation_size += 2 * kSandboxGuardRegionSize;
+    true_reservation_size =
+        reservation_size + kAdditionalTrailingGuardRegionSize;
   }
 
   Address hint = RoundDown(vas->RandomPageAddress(), kSandboxAlignment);
@@ -170,8 +186,9 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   // (multiple seconds or even minutes for a 1TB sandbox on macOS 12.X), in
   // turn causing tests to time out. As such, the maximum page permission
   // inside the sandbox should be read + write.
-  address_space_ = vas->AllocateSubspace(
-      hint, reservation_size, kSandboxAlignment, PagePermissions::kReadWrite);
+  address_space_ =
+      vas->AllocateSubspace(hint, true_reservation_size, kSandboxAlignment,
+                            PagePermissions::kReadWrite);
 
   if (!address_space_) return false;
 
@@ -189,7 +206,8 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
     Address back = end_;
     // These must succeed since nothing was allocated in the subspace yet.
     CHECK(address_space_->AllocateGuardRegion(front, kSandboxGuardRegionSize));
-    CHECK(address_space_->AllocateGuardRegion(back, kSandboxGuardRegionSize));
+    CHECK(address_space_->AllocateGuardRegion(
+        back, kSandboxGuardRegionSize + kAdditionalTrailingGuardRegionSize));
   }
 
   // Also try to reserve the first 4GB of the process' address space. This
