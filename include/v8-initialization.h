@@ -209,18 +209,12 @@ class V8_EXPORT V8 {
   /**
    * Returns true if the sandbox is configured securely.
    *
-   * There are currently two reasons why this may return false:
-   *
-   * 1. If V8 cannot create a regular sandbox during initialization, for
-   *    example because not enough virtual address space can be reserved, it
-   *    will instead create a fallback sandbox that still allows it to
-   *    function normally but does not have the same security properties as a
-   *    regular sandbox.
-   *
-   * 2. The Sandbox will also attempt to reserve the first four gigabytes of
-   *    the address space during initialization. This is used to mitigates
-   *    certain issues where a Smi is treated as a pointer and dereferenced,
-   *    causing an access somewhere in the 32-bit address range.
+   * If V8 cannot create a regular sandbox during initialization, for example
+   * because not enough virtual address space can be reserved, it will instead
+   * create a fallback sandbox that still allows it to function normally but
+   * does not have the same security properties as a regular sandbox. This API
+   * can be used to determine if such a fallback sandbox is being used, in
+   * which case it will return false.
    */
   static bool IsSandboxConfiguredSecurely();
 
