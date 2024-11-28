@@ -1262,6 +1262,36 @@ void Serializer::ObjectSerializer::VisitProtectedPointer(
   serializer_->SerializeObject(object, SlotType::kAnySlot);
 }
 
+void Serializer::ObjectSerializer::VisitProtectedPointer(
+    Tagged<TrustedObject> host, ProtectedMaybeObjectSlot slot) {
+  Tagged<MaybeObject> maybe_content = slot.load();
+  // Empty slots (Smi::zero()) and Smi slots can be skipped here.
+  if (maybe_content.IsSmi()) return;
+
+  // If necessary, output any raw data preceding this slot.
+  OutputRawData(slot.address());
+
+  if (maybe_content.IsCleared()) {
+    sink_->Put(kClearedWeakReference, "ClearedWeakReference");
+    bytes_processed_so_far_ += kTaggedSize;
+    return;
+  }
+
+  Tagged<HeapObject> content;
+  HeapObjectReferenceType reference_type;
+  if (maybe_content.GetHeapObject(&content, &reference_type)) {
+    if (reference_type == HeapObjectReferenceType::WEAK) {
+      sink_->Put(kWeakPrefix, "WeakReference");
+    }
+    Handle<HeapObject> object = handle(content, isolate());
+    // Currently we cannot see pending objects here, but we may need to support
+    // them in the future. They should already be supported by the deserializer.
+    CHECK(!serializer_->SerializePendingObject(*object));
+    sink_->Put(kProtectedPointerPrefix, "ProtectedPointer");
+    serializer_->SerializeObject(object, SlotType::kAnySlot);
+  }
+}
+
 void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
 #ifdef V8_ENABLE_LEAPTIERING

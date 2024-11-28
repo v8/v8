@@ -575,6 +575,14 @@ class SlotVerifyingVisitor : public HeapVisitor<SlotVerifyingVisitor> {
     }
   }
 
+  void VisitProtectedPointer(Tagged<TrustedObject> host,
+                             ProtectedMaybeObjectSlot slot) override {
+    if (ShouldHaveBeenRecorded(host, slot.load())) {
+      CHECK_NOT_NULL(protected_);
+      CHECK_GT(protected_->count(slot.address()), 0);
+    }
+  }
+
   void VisitMapPointer(Tagged<HeapObject> object) override {
     VisitPointers(object, object->map_slot(), object->map_slot() + 1);
   }

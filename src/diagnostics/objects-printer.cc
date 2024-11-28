@@ -1497,6 +1497,13 @@ void TrustedWeakFixedArray::TrustedWeakFixedArrayPrint(std::ostream& os) {
   os << "\n";
 }
 
+void ProtectedWeakFixedArray::ProtectedWeakFixedArrayPrint(std::ostream& os) {
+  PrintHeader(os, "ProtectedWeakFixedArray");
+  os << "\n - length: " << length();
+  PrintWeakArrayElements(os, this);
+  os << "\n";
+}
+
 void WeakArrayList::WeakArrayListPrint(std::ostream& os) {
   PrintHeader(os, "WeakArrayList");
   os << "\n - capacity: " << capacity();
@@ -3433,6 +3440,22 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     case WEAK_FIXED_ARRAY_TYPE:
       os << "<WeakFixedArray[" << Cast<WeakFixedArray>(*this)->length() << "]>";
+      break;
+    case TRUSTED_FIXED_ARRAY_TYPE:
+      os << "<TrustedFixedArray[" << Cast<TrustedFixedArray>(*this)->length()
+         << "]>";
+      break;
+    case TRUSTED_WEAK_FIXED_ARRAY_TYPE:
+      os << "<TrustedWeakFixedArray["
+         << Cast<TrustedWeakFixedArray>(*this)->length() << "]>";
+      break;
+    case PROTECTED_FIXED_ARRAY_TYPE:
+      os << "<ProtectedFixedArray["
+         << Cast<ProtectedFixedArray>(*this)->length() << "]>";
+      break;
+    case PROTECTED_WEAK_FIXED_ARRAY_TYPE:
+      os << "<ProtectedWeakFixedArray["
+         << Cast<ProtectedWeakFixedArray>(*this)->length() << "]>";
       break;
     case TRANSITION_ARRAY_TYPE:
       os << "<TransitionArray[" << Cast<TransitionArray>(*this)->length()

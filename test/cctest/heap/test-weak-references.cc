@@ -590,6 +590,46 @@ TEST(WeakArrayListRemove) {
   CHECK_EQ(array->length(), 0);
 }
 
+TEST(ProtectedWeakFixedArray) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  HandleScope handle_scope(isolate);
+
+  Handle<ProtectedWeakFixedArray> array =
+      factory->NewProtectedWeakFixedArray(5);
+
+  Handle<TrustedFixedArray> elem1 = factory->NewTrustedFixedArray(1);
+  Handle<TrustedFixedArray> elem3 = factory->NewTrustedFixedArray(1);
+  array->set(1, MakeWeak(*elem1));
+  array->set(3, MakeWeak(*elem3));
+
+  {
+    HandleScope inner_scope(isolate);
+    Handle<TrustedFixedArray> elem0 = factory->NewTrustedFixedArray(1);
+    Handle<TrustedFixedArray> elem2 = factory->NewTrustedFixedArray(1);
+    Handle<TrustedFixedArray> elem4 = factory->NewTrustedFixedArray(1);
+    array->set(0, MakeWeak(*elem0));
+    array->set(2, MakeWeak(*elem2));
+    array->set(4, MakeWeak(*elem4));
+    heap::InvokeMajorGC(heap);
+    CHECK_EQ(array->get(0).GetHeapObjectAssumeWeak(), *elem0);
+    CHECK_EQ(array->get(1).GetHeapObjectAssumeWeak(), *elem1);
+    CHECK_EQ(array->get(2).GetHeapObjectAssumeWeak(), *elem2);
+    CHECK_EQ(array->get(3).GetHeapObjectAssumeWeak(), *elem3);
+    CHECK_EQ(array->get(4).GetHeapObjectAssumeWeak(), *elem4);
+  }
+
+  heap::InvokeMajorGC(heap);
+  CHECK(array->get(0).IsCleared());
+  CHECK_EQ(array->get(1).GetHeapObjectAssumeWeak(), *elem1);
+  CHECK(array->get(2).IsCleared());
+  CHECK_EQ(array->get(3).GetHeapObjectAssumeWeak(), *elem3);
+  CHECK(array->get(4).IsCleared());
+}
+
 TEST(Regress7768) {
   i::v8_flags.allow_natives_syntax = true;
   i::v8_flags.turbo_inlining = false;

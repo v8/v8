@@ -495,6 +495,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                                      IndirectPointerSlot slot) override;
   void VisitProtectedPointer(Tagged<TrustedObject> host,
                              ProtectedPointerSlot slot) override;
+  void VisitProtectedPointer(Tagged<TrustedObject> host,
+                             ProtectedMaybeObjectSlot slot) override;
   void VisitCppHeapPointer(Tagged<HeapObject> host,
                            CppHeapPointerSlot slot) override;
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,

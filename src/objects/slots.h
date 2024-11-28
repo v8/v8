@@ -175,6 +175,7 @@ class FullMaybeObjectSlot
       : SlotBase(slot.address()) {}
 
   inline Tagged<MaybeObject> operator*() const;
+  inline Tagged<MaybeObject> load() const;
   inline Tagged<MaybeObject> load(PtrComprCageBase cage_base) const;
   inline void store(Tagged<MaybeObject> value) const;
 
