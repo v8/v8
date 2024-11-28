@@ -174,7 +174,7 @@ class MaglevPhiRepresentationSelector {
   // that a different conversion is now needed.
   void UpdateUntaggingOfPhi(Phi* phi, ValueNode* old_untagging);
 
-  enum class NewNodePosition { kBeforeCurrentNode, kEndOfBlock };
+  enum class NewNodePosition { kBeginingOfCurrentBlock, kEndOfBlock };
 
   // Returns a tagged node that represents a tagged version of {phi}.
   // If we are calling EnsurePhiTagged to ensure a Phi input of a Phi is tagged,

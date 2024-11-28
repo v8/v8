@@ -834,7 +834,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     node->change_input(
         input_index,
         EnsurePhiTagged(phi, current_block_,
-                        NewNodePosition::kBeforeCurrentNode, state));
+                        NewNodePosition::kBeginingOfCurrentBlock, state));
     static_assert(StoreTaggedFieldNoWriteBarrier::kObjectIndex ==
                   StoreTaggedFieldWithWriteBarrier::kObjectIndex);
     static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
@@ -864,7 +864,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     node->change_input(
         input_index,
         EnsurePhiTagged(phi, current_block_,
-                        NewNodePosition::kBeforeCurrentNode, state));
+                        NewNodePosition::kBeginingOfCurrentBlock, state));
     static_assert(StoreFixedArrayElementNoWriteBarrier::kElementsIndex ==
                   StoreFixedArrayElementWithWriteBarrier::kElementsIndex);
     static_assert(StoreFixedArrayElementNoWriteBarrier::kIndexIndex ==
@@ -923,7 +923,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     node->change_input(
         input_index,
         EnsurePhiTagged(phi, current_block_,
-                        NewNodePosition::kBeforeCurrentNode, state));
+                        NewNodePosition::kBeginingOfCurrentBlock, state));
   }
   return ProcessResult::kContinue;
 }
@@ -1078,10 +1078,17 @@ ValueNode* MaglevPhiRepresentationSelector::AddNode(
     node->SetEagerDeoptInfo(builder_->zone(), *deopt_frame);
   }
 
-  if (pos == NewNodePosition::kBeforeCurrentNode) {
+  if (pos == NewNodePosition::kBeginingOfCurrentBlock) {
     DCHECK_EQ(block, current_block_);
     DCHECK_NOT_NULL(state);
-    state->node_it()->InsertBefore(node);
+    // If the node iterator is currently on the 1st node of the block, we need
+    // to use `InsertBefore` to insert a new node. Otherwise, we can use
+    // `AddFront`.
+    if (*state->node_it() == current_block_->nodes().begin()) {
+      state->node_it()->InsertBefore(node);
+    } else {
+      current_block_->nodes().AddFront(node);
+    }
   } else {
     block->nodes().Add(node);
   }
