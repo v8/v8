@@ -3005,6 +3005,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
 #else
   if (v8_flags.always_turbofan) {
 #endif  // V8_ENABLE_WEBASSEMBLY
+    DCHECK(!function->tiering_in_progress());
     CompilerTracer::TraceOptimizeForAlwaysOpt(isolate, function,
                                               CodeKindForTopTier());
 
@@ -3187,8 +3188,13 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   DCHECK_IMPLIES(function->IsTieringRequestedOrInProgress(isolate) &&
                      !function->IsLoggingRequested(isolate),
                  function->tiering_in_progress());
-  DCHECK_IMPLIES(!tiering_was_in_progress && function->tiering_in_progress(),
-                 function->ChecksTieringState(isolate));
+  if (!v8_flags.always_turbofan) {
+    // Before a maglev optimization job is started we might have to compile
+    // bytecode. This can trigger a turbofan compilation if always_turbofan is
+    // set. Therefore we need to skip this dcheck in that case.
+    DCHECK_IMPLIES(!tiering_was_in_progress && function->tiering_in_progress(),
+                   function->ChecksTieringState(isolate));
+  }
   DCHECK_IMPLIES(!tiering_was_in_progress && function->tiering_in_progress(),
                  IsConcurrent(mode));
 #endif  // DEBUG
