@@ -783,6 +783,7 @@ bool TranslatedValue::IsMaterializedObject() const {
   switch (kind()) {
     case kCapturedObject:
     case kDuplicatedObject:
+    case kCapturedStringConcat:
       return true;
     default:
       return false;
@@ -1999,6 +2000,10 @@ TranslatedValue* TranslatedState::GetValueByObjectIndex(int object_index) {
 }
 
 Handle<HeapObject> TranslatedState::ResolveStringConcat(TranslatedValue* slot) {
+  if (slot->materialization_state() == TranslatedValue::kFinished) {
+    return slot->storage();
+  }
+
   CHECK_EQ(TranslatedValue::kUninitialized, slot->materialization_state());
 
   int index = slot->object_index();
@@ -2060,6 +2065,9 @@ void TranslatedState::InitializeCapturedObjectAt(
   TranslatedValue* slot = &(frame->values_[value_index]);
   value_index++;
 
+  // Note that we cannot reach this point with kCapturedStringConcats slots,
+  // since they have been already finalized in EnsureObjectAllocatedAt and
+  // EnsureCapturedObjectAllocatedAt.
   CHECK_EQ(TranslatedValue::kFinished, slot->materialization_state());
   CHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
 
@@ -2131,6 +2139,11 @@ void TranslatedState::InitializeCapturedObjectAt(
 
 void TranslatedState::EnsureObjectAllocatedAt(TranslatedValue* slot) {
   slot = ResolveCapturedObject(slot);
+
+  if (slot->kind() == TranslatedValue::kCapturedStringConcat) {
+    ResolveStringConcat(slot);
+    return;
+  }
 
   if (slot->materialization_state() == TranslatedValue::kUninitialized) {
     std::stack<int> worklist;
@@ -2374,8 +2387,11 @@ void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
     if (child_slot->kind() == TranslatedValue::kCapturedObject ||
         child_slot->kind() == TranslatedValue::kDuplicatedObject) {
       child_slot = ResolveCapturedObject(child_slot);
-      if (child_slot->materialization_state() ==
-          TranslatedValue::kUninitialized) {
+
+      if (child_slot->kind() == TranslatedValue::kCapturedStringConcat) {
+        ResolveStringConcat(child_slot);
+      } else if (child_slot->materialization_state() ==
+                 TranslatedValue::kUninitialized) {
         worklist->push(child_slot->object_index());
         child_slot->mark_allocated();
       }
@@ -2797,7 +2813,8 @@ void TranslatedState::UpdateFromPreviouslyMaterializedObjects() {
           &(frames_[pos.frame_index_].values_[pos.value_index_]);
       CHECK(value_info->IsMaterializedObject());
 
-      if (value_info->kind() == TranslatedValue::kCapturedObject) {
+      if (value_info->kind() == TranslatedValue::kCapturedObject ||
+          value_info->kind() == TranslatedValue::kCapturedStringConcat) {
         Handle<Object> object(previously_materialized_objects->get(i),
                               isolate_);
         CHECK(IsHeapObject(*object));
@@ -2813,7 +2830,8 @@ void TranslatedState::VerifyMaterializedObjects() {
   int length = static_cast<int>(object_positions_.size());
   for (int i = 0; i < length; i++) {
     TranslatedValue* slot = GetValueByObjectIndex(i);
-    if (slot->kind() == TranslatedValue::kCapturedObject) {
+    if (slot->kind() == TranslatedValue::kCapturedObject ||
+        slot->kind() == TranslatedValue::kCapturedStringConcat) {
       CHECK_EQ(slot, GetValueByObjectIndex(slot->object_index()));
       if (slot->materialization_state() == TranslatedValue::kFinished) {
         Object::ObjectVerify(*slot->storage(), isolate());

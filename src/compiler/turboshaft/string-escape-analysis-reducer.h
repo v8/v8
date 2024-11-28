@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_STRING_ESCAPE_ANALYSIS_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_STRING_ESCAPE_ANALYSIS_REDUCER_H_
 
+#include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -138,18 +139,15 @@ class StringEscapeAnalysisReducer : public Next {
     }
     if (!v8_flags.turboshaft_string_concat_escape_analysis) goto no_change;
 
-    bool has_elided_concat_input = false;
-    for (OpIndex input : frame_state.inputs()) {
-      if (elided_strings_.contains(input)) {
-        has_elided_concat_input = true;
-        break;
-      }
-    }
-    if (!has_elided_concat_input) goto no_change;
-
-    // This FrameState contains as input a StringConcat that got elided; we
-    // need to reconstruct a FrameState accordingly.
-    return BuildFrameState(frame_state);
+    // Note that we recreate all FrameStates from sratch, regardless of whether
+    // they have an elided StringConcat as input or not, because we need the
+    // Deduplicator to be initialized, in case they are later used as parent to
+    // a FrameState that has an elided StringConcat as input.
+    // TODO(dmercadier): during the analysis, record which FrameStates have
+    // elided StringConcat as input and also record their parents, so that we
+    // don't need to recreate all FrameStates from scratch and to create
+    // Deduplicator objects for each FrameState.
+    return BuildFrameState(frame_state, ig_index);
   }
 
   V<Word32> REDUCE_INPUT_GRAPH(StringLength)(V<Word32> ig_index,
@@ -170,40 +168,109 @@ class StringEscapeAnalysisReducer : public Next {
     }
   }
 
-  V<FrameState> BuildFrameState(const FrameStateOp& input_frame_state) {
+ private:
+  class Deduplicator {
+   public:
+    explicit Deduplicator(Zone* zone)
+        : object_ids_(zone), old_to_new_ids_(zone) {}
+
+    struct DuplicatedId {
+      uint32_t id;
+      bool duplicated;
+    };
+    DuplicatedId GetDuplicatedIdForElidedString(ElidedStringPart index) {
+      // TODO(dmercadier): do better than a linear search here.
+      for (uint32_t id = 0; id < object_ids_.size(); id++) {
+        if (object_ids_[id] == index) {
+          return {id, true};
+        }
+      }
+      object_ids_.push_back(index);
+      return {next_id_++, false};
+    }
+
+    uint32_t RecordOldId(uint32_t old_id) {
+      uint32_t new_id = next_id_++;
+      if (old_id >= old_to_new_ids_.size()) {
+        old_to_new_ids_.resize(old_id + 1, kUndefinedId);
+      }
+      old_to_new_ids_[old_id] = new_id;
+      return new_id;
+    }
+    uint32_t GetNewDuplicatedIdForOldObject(uint32_t old_id) const {
+      DCHECK_LT(old_id, old_to_new_ids_.size());
+      DCHECK_NE(old_to_new_ids_[old_id], kUndefinedId);
+      return old_to_new_ids_[old_id];
+    }
+
+    Deduplicator* clone(Zone* zone) const {
+      return zone->New<Deduplicator>(object_ids_, next_id_, old_to_new_ids_);
+    }
+
+   private:
+    Deduplicator(const ZoneVector<ElidedStringPart>& object_ids,
+                 uint32_t next_id, const ZoneVector<uint32_t>& old_to_new_ids)
+        : object_ids_(object_ids),
+          next_id_(next_id),
+          old_to_new_ids_(old_to_new_ids) {}
+
+    // TODO(dmercadier): consider using a linked list for {object_ids_} so that
+    // we don't ever need to clone it.
+    ZoneVector<ElidedStringPart> object_ids_;
+    uint32_t next_id_ = 0;
+
+    static constexpr uint32_t kUndefinedId = -1;
+    ZoneVector<uint32_t> old_to_new_ids_;
+
+    friend class i::Zone;  // For access to private constructor.
+  };
+
+  V<FrameState> BuildFrameState(const FrameStateOp& input_frame_state,
+                                OpIndex ig_index) {
     DCHECK(v8_flags.turboshaft_string_concat_escape_analysis);
 
     const FrameStateInfo& info = input_frame_state.data->frame_state_info;
 
-    deduplicator.Reset();
     FrameStateData::Builder builder;
     auto it =
         input_frame_state.data->iterator(input_frame_state.state_values());
 
+    Deduplicator* deduplicator;
     if (input_frame_state.inlined) {
-      builder.AddParentFrameState(
-          __ MapToNewGraph(input_frame_state.parent_frame_state()));
+      V<FrameState> parent_ig_index = input_frame_state.parent_frame_state();
+      builder.AddParentFrameState(__ MapToNewGraph(parent_ig_index));
+
+      // The parent FrameState could contain dematerialized objects, and the
+      // current FrameState could reference those. Also, new IDs created for the
+      // current FrameState should not conflict with IDs in the parent frame
+      // state. Thus, we need to initialize the current Deduplicator with the
+      // one from the parent FrameState.
+      deduplicator = deduplicators_[parent_ig_index]->clone(__ phase_zone());
+    } else {
+      deduplicator =
+          __ phase_zone() -> template New<Deduplicator>(__ phase_zone());
     }
+    deduplicators_[ig_index] = deduplicator;
 
     // Closure
-    BuildFrameStateInput(&builder, &it);
+    BuildFrameStateInput(&builder, &it, deduplicator);
 
     // Parameters
     for (int i = 0; i < info.parameter_count(); i++) {
-      BuildFrameStateInput(&builder, &it);
+      BuildFrameStateInput(&builder, &it, deduplicator);
     }
 
     // Context
-    BuildFrameStateInput(&builder, &it);
+    BuildFrameStateInput(&builder, &it, deduplicator);
 
     // Registers/locals
     for (int i = 0; i < info.local_count(); i++) {
-      BuildFrameStateInput(&builder, &it);
+      BuildFrameStateInput(&builder, &it, deduplicator);
     }
 
     // Accumulator
     for (int i = 0; i < info.stack_count(); i++) {
-      BuildFrameStateInput(&builder, &it);
+      BuildFrameStateInput(&builder, &it, deduplicator);
     }
 
     return __ FrameState(builder.Inputs(), builder.inlined(),
@@ -211,7 +278,8 @@ class StringEscapeAnalysisReducer : public Next {
   }
 
   void BuildFrameStateInput(FrameStateData::Builder* builder,
-                            FrameStateData::Iterator* it) {
+                            FrameStateData::Iterator* it,
+                            Deduplicator* deduplicator) {
     switch (it->current_instr()) {
       using Instr = FrameStateData::Instr;
       case Instr::kInput: {
@@ -220,7 +288,8 @@ class StringEscapeAnalysisReducer : public Next {
         it->ConsumeInput(&type, &input);
         if (elided_strings_.contains(input)) {
           DCHECK(type.IsTagged());
-          BuildMaybeElidedString(builder, ElidedStringPart::Elided(input));
+          BuildMaybeElidedString(builder, ElidedStringPart::Elided(input),
+                                 deduplicator);
         } else {
           builder->AddInput(type, __ MapToNewGraph(input));
         }
@@ -230,17 +299,17 @@ class StringEscapeAnalysisReducer : public Next {
         uint32_t old_id;
         uint32_t field_count;
         it->ConsumeDematerializedObject(&old_id, &field_count);
-        uint32_t new_id = deduplicator.RecordOldId(old_id);
+        uint32_t new_id = deduplicator->RecordOldId(old_id);
         builder->AddDematerializedObject(new_id, field_count);
         for (uint32_t i = 0; i < field_count; ++i) {
-          BuildFrameStateInput(builder, it);
+          BuildFrameStateInput(builder, it, deduplicator);
         }
         break;
       }
       case Instr::kDematerializedObjectReference: {
         uint32_t old_id;
         it->ConsumeDematerializedObjectReference(&old_id);
-        uint32_t new_id = deduplicator.GetNewDuplicatedIdForOldObject(old_id);
+        uint32_t new_id = deduplicator->GetNewDuplicatedIdForOldObject(old_id);
         builder->AddDematerializedObjectReference(new_id);
         break;
       }
@@ -268,56 +337,12 @@ class StringEscapeAnalysisReducer : public Next {
     }
   }
 
-  class Deduplicator {
-   public:
-    struct DuplicatedId {
-      uint32_t id;
-      bool duplicated;
-    };
-    DuplicatedId GetDuplicatedIdForElidedString(ElidedStringPart index) {
-      // TODO(dmercadier): do better than a linear search here.
-      for (uint32_t id = 0; id < object_ids_.size(); id++) {
-        if (object_ids_[id] == index) {
-          return {id, true};
-        }
-      }
-      object_ids_.push_back(index);
-      return {next_id_++, false};
-    }
-
-    uint32_t RecordOldId(uint32_t old_id) {
-      uint32_t new_id = next_id_++;
-      if (old_id >= old_to_new_ids_.size()) {
-        old_to_new_ids_.resize(old_id * 2, kUndefinedId);
-      }
-      old_to_new_ids_[old_id] = new_id;
-      return new_id;
-    }
-    uint32_t GetNewDuplicatedIdForOldObject(uint32_t old_id) {
-      DCHECK_LT(old_id, old_to_new_ids_.size());
-      DCHECK_NE(old_to_new_ids_[old_id], kUndefinedId);
-      return old_to_new_ids_[old_id];
-    }
-
-    void Reset() {
-      object_ids_.clear();
-      next_id_ = 0;
-      std::fill(old_to_new_ids_.begin(), old_to_new_ids_.end(), kUndefinedId);
-    }
-
-   private:
-    std::vector<ElidedStringPart> object_ids_;
-    uint32_t next_id_ = 0;
-
-    static constexpr uint32_t kUndefinedId = -1;
-    std::vector<uint32_t> old_to_new_ids_{10, kUndefinedId};
-  };
-
   void BuildMaybeElidedString(FrameStateData::Builder* builder,
-                              ElidedStringPart maybe_elided) {
+                              ElidedStringPart maybe_elided,
+                              Deduplicator* deduplicator) {
     if (maybe_elided.is_elided()) {
       typename Deduplicator::DuplicatedId dup_id =
-          deduplicator.GetDuplicatedIdForElidedString(maybe_elided);
+          deduplicator->GetDuplicatedIdForElidedString(maybe_elided);
       if (dup_id.duplicated) {
         // For performance reasons, we de-duplicate repeated StringConcat inputs
         // in the FrameState. Unlike for elided objects, deduplication has no
@@ -328,14 +353,13 @@ class StringEscapeAnalysisReducer : public Next {
       builder->AddDematerializedStringConcat(dup_id.id);
       std::pair<ElidedStringPart, ElidedStringPart> inputs =
           elided_strings_.at(maybe_elided.ig_index());
-      BuildMaybeElidedString(builder, inputs.first);
-      BuildMaybeElidedString(builder, inputs.second);
+      BuildMaybeElidedString(builder, inputs.first, deduplicator);
+      BuildMaybeElidedString(builder, inputs.second, deduplicator);
     } else {
       builder->AddInput(MachineType::AnyTagged(), maybe_elided.og_index());
     }
   }
 
- private:
   ElidedStringPart GetElidedStringInput(V<String> ig_index) {
     if (elided_strings_.contains(ig_index)) {
       return ElidedStringPart::Elided(ig_index);
@@ -350,7 +374,9 @@ class StringEscapeAnalysisReducer : public Next {
   ZoneAbslFlatHashMap<V<String>, std::pair<ElidedStringPart, ElidedStringPart>>
       elided_strings_{Asm().phase_zone()};
 
-  Deduplicator deduplicator;
+  // Mapping from input-graph FrameState to the corresponding deduplicator.
+  SparseOpIndexSideTable<Deduplicator*> deduplicators_{Asm().phase_zone(),
+                                                       &Asm().input_graph()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
