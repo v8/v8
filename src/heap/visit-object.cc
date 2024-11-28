@@ -110,11 +110,6 @@ class ObjectVisitorForwarder final
     visitor_->VisitProtectedPointer(host, slot);
   }
 
-  void VisitProtectedPointer(Tagged<TrustedObject> host,
-                             ProtectedMaybeObjectSlot slot) override {
-    visitor_->VisitProtectedPointer(host, slot);
-  }
-
   void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                      IndirectPointerSlot slot) override {
     visitor_->VisitTrustedPointerTableEntry(host, slot);

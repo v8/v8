@@ -126,8 +126,6 @@ Tagged<MaybeObject> FullMaybeObjectSlot::operator*() const {
   return Tagged<MaybeObject>(*location());
 }
 
-Tagged<MaybeObject> FullMaybeObjectSlot::load() const { return **this; }
-
 Tagged<MaybeObject> FullMaybeObjectSlot::load(
     PtrComprCageBase cage_base) const {
   return **this;

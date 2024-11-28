@@ -79,7 +79,6 @@ namespace internal {
   V(PreparseData)                             \
   V(PropertyArray)                            \
   V(ProtectedFixedArray)                      \
-  V(ProtectedWeakFixedArray)                  \
   V(RegExpMatchInfo)                          \
   V(ScopeInfo)                                \
   V(ScriptContextTable)                       \
@@ -359,7 +358,6 @@ namespace internal {
         UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB)                        \
   APPLY(V, SharedFunctionInfoWrapper, SHARED_FUNCTION_INFO_WRAPPER)            \
   APPLY(V, ProtectedFixedArray, PROTECTED_FIXED_ARRAY)                         \
-  APPLY(V, ProtectedWeakFixedArray, PROTECTED_WEAK_FIXED_ARRAY)                \
   APPLY(V, TrustedByteArray, TRUSTED_BYTE_ARRAY)                               \
   APPLY(V, TrustedFixedArray, TRUSTED_FIXED_ARRAY)                             \
   APPLY(V, TrustedForeign, TRUSTED_FOREIGN)                                    \

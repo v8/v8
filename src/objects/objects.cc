@@ -1913,9 +1913,6 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_type == PROTECTED_FIXED_ARRAY_TYPE) {
     return UncheckedCast<ProtectedFixedArray>(*this)->AllocatedSize();
   }
-  if (instance_type == PROTECTED_WEAK_FIXED_ARRAY_TYPE) {
-    return UncheckedCast<ProtectedWeakFixedArray>(*this)->AllocatedSize();
-  }
   if (instance_type == TRUSTED_WEAK_FIXED_ARRAY_TYPE) {
     return UncheckedCast<TrustedWeakFixedArray>(*this)->AllocatedSize();
   }

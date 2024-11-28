@@ -161,7 +161,6 @@ class RootVisitor;
   V(Map, trusted_weak_fixed_array_map, TrustedWeakFixedArrayMap)               \
   V(Map, trusted_byte_array_map, TrustedByteArrayMap)                          \
   V(Map, protected_fixed_array_map, ProtectedFixedArrayMap)                    \
-  V(Map, protected_weak_fixed_array_map, ProtectedWeakFixedArrayMap)           \
   V(Map, interpreter_data_map, InterpreterDataMap)                             \
   V(Map, shared_function_info_wrapper_map, SharedFunctionInfoWrapperMap)       \
   V(Map, trusted_foreign_map, TrustedForeignMap)                               \
@@ -257,10 +256,7 @@ class RootVisitor;
   V(TrustedFixedArray, empty_trusted_fixed_array, EmptyTrustedFixedArray) \
   V(TrustedWeakFixedArray, empty_trusted_weak_fixed_array,                \
     EmptyTrustedWeakFixedArray)                                           \
-  V(ProtectedFixedArray, empty_protected_fixed_array,                     \
-    EmptyProtectedFixedArray)                                             \
-  V(ProtectedWeakFixedArray, empty_protected_weak_fixed_array,            \
-    EmptyProtectedWeakFixedArray)
+  V(ProtectedFixedArray, empty_protected_fixed_array, EmptyProtectedFixedArray)
 
 #define BUILTINS_WITH_SFI_LIST_GENERATOR(APPLY, V)                             \
   APPLY(V, ProxyRevoke, proxy_revoke)                                          \

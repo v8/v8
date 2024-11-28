@@ -186,10 +186,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // zeros.
   Handle<TrustedWeakFixedArray> NewTrustedWeakFixedArray(int length);
 
-  // Allocates a protected weak fixed array in trusted space, initialized with
-  // zeros.
-  Handle<ProtectedWeakFixedArray> NewProtectedWeakFixedArray(int length);
-
   // The function returns a pre-allocated empty byte array for length = 0.
   Handle<ByteArray> NewByteArray(
       int length, AllocationType allocation = AllocationType::kYoung);

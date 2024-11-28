@@ -74,8 +74,7 @@ constexpr uint64_t kIndirectPointerTagMaskWithoutFreeEntryBit =
   IF_WASM(V, kWasmTrustedInstanceDataIndirectPointerTag, 11) \
   IF_WASM(V, kWasmInternalFunctionIndirectPointerTag, 12)    \
   IF_WASM(V, kWasmFunctionDataIndirectPointerTag, 13)        \
-  IF_WASM(V, kWasmDispatchTableIndirectPointerTag, 14)       \
-  V(kLastPerIsolateTrustedTag, 14)
+  V(kLastPerIsolateTrustedTag, 13)
 
 #define INDIRECT_POINTER_TAG_LIST(V) \
   SHARED_TRUSTED_POINTER_TAG_LIST(V) \
@@ -202,8 +201,6 @@ IndirectPointerTagFromInstanceType(InstanceType instance_type) {
       // our tag checking mechanism.
       return kRegExpDataIndirectPointerTag;
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_DISPATCH_TABLE_TYPE:
-      return kWasmDispatchTableIndirectPointerTag;
     case WASM_TRUSTED_INSTANCE_DATA_TYPE:
       return kWasmTrustedInstanceDataIndirectPointerTag;
     case WASM_INTERNAL_FUNCTION_TYPE:

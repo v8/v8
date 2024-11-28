@@ -1581,25 +1581,6 @@ class TrustedWeakFixedArray::BodyDescriptor final
   }
 };
 
-class ProtectedWeakFixedArray::BodyDescriptor final
-    : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    Tagged<TrustedObject> host = Cast<TrustedObject>(obj);
-    for (int offset = OFFSET_OF_DATA_START(ProtectedWeakFixedArray);
-         offset < object_size; offset += kTaggedSize) {
-      v->VisitProtectedPointer(host,
-                               host->RawProtectedMaybeObjectField(offset));
-    }
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return UncheckedCast<ProtectedWeakFixedArray>(raw_object)->AllocatedSize();
-  }
-};
-
 #include "torque-generated/objects-body-descriptors-inl.inc"
 
 }  // namespace internal

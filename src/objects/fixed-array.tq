@@ -46,14 +46,6 @@ extern class TrustedWeakFixedArray extends TrustedObject {
 }
 
 @cppObjectLayoutDefinition
-extern class ProtectedWeakFixedArray extends TrustedObject {
-  const length: Smi;
-  // TODO(jkummerow): Define "TrustedMaybeObject" if we ever write Torque
-  // code accessing these values.
-  objects[length]: TrustedObject|Smi;
-}
-
-@cppObjectLayoutDefinition
 extern class ByteArray extends FixedArrayBase {
   values[length]: uint8;
 }

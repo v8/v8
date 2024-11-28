@@ -31,17 +31,6 @@ inline Tagged<ClearedWeakValue> ClearedValue(PtrComprCageBase cage_base) {
   return Tagged<ClearedWeakValue>(value);
 }
 
-inline Tagged<ClearedWeakValue> ClearedTrustedValue() {
-#ifdef V8_COMPRESS_POINTERS
-  return Tagged<ClearedWeakValue>(
-      TrustedSpaceCompressionScheme::DecompressTagged(
-          TrustedSpaceCompressionScheme::base(),
-          kClearedWeakHeapObjectLower32));
-#else
-  return Tagged<ClearedWeakValue>(kClearedWeakHeapObjectLower32);
-#endif
-}
-
 template <typename THeapObjectSlot>
 void UpdateHeapObjectReferenceSlot(THeapObjectSlot slot,
                                    Tagged<HeapObject> value) {

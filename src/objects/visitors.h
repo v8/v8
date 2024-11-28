@@ -199,8 +199,6 @@ class ObjectVisitor {
 
   virtual void VisitProtectedPointer(Tagged<TrustedObject> host,
                                      ProtectedPointerSlot slot) {}
-  virtual void VisitProtectedPointer(Tagged<TrustedObject> host,
-                                     ProtectedMaybeObjectSlot slot) {}
 
   virtual void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                              IndirectPointerSlot slot) {}

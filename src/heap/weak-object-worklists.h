@@ -22,17 +22,14 @@ namespace detail {
 // SlotType will be HeapObjectSlot, which is defined in "globals.h" as an
 // incomplete type. Its definition depends on whether pointer compression
 // is used. It needs to be defined before this type is used.
-template <typename TSlotType>
+template <typename SlotType>
 struct HeapObjectAndSlotPOD {
-  using SlotType = TSlotType;
   Tagged<HeapObject> heap_object;
   SlotType slot;
 };
 }  // namespace detail
 
 using HeapObjectAndSlot = detail::HeapObjectAndSlotPOD<HeapObjectSlot>;
-using TrustedObjectAndSlot =
-    detail::HeapObjectAndSlotPOD<ProtectedMaybeObjectSlot>;
 
 struct HeapObjectAndCode {
   Tagged<HeapObject> heap_object;
@@ -76,7 +73,6 @@ class TransitionArray;
   F(HeapObjectAndSlot, weak_references_non_trivial, WeakReferencesNonTrivial) \
   F(HeapObjectAndSlot, weak_references_non_trivial_unmarked,                  \
     WeakReferencesNonTrivialUnmarked)                                         \
-  F(TrustedObjectAndSlot, weak_references_trusted, WeakReferencesTrusted)     \
   F(HeapObjectAndCode, weak_objects_in_code, WeakObjectsInCode)               \
   F(Tagged<JSWeakRef>, js_weak_refs, JSWeakRefs)                              \
   F(Tagged<WeakCell>, weak_cells, WeakCells)                                  \

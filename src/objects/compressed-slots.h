@@ -101,7 +101,6 @@ class CompressedMaybeObjectSlot
       : SlotBase(slot.address()) {}
 
   inline Tagged<MaybeObject> operator*() const;
-  inline Tagged<MaybeObject> load() const;
   inline Tagged<MaybeObject> load(PtrComprCageBase cage_base) const;
   inline void store(Tagged<MaybeObject> value) const;
 
@@ -150,45 +149,14 @@ class CompressedHeapObjectSlot
 // and so does not provide an operator* with implicit Isolate* calculation.
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using load() and store().
-template <typename CompressionScheme, typename TObject, typename Subclass>
-class OffHeapCompressedObjectSlotBase : public SlotBase<Subclass, Tagged_t> {
- public:
-  using TSlotBase = SlotBase<Subclass, Tagged_t>;
-  using TCompressionScheme = CompressionScheme;
-
-  OffHeapCompressedObjectSlotBase() : TSlotBase(kNullAddress) {}
-  explicit OffHeapCompressedObjectSlotBase(Address ptr) : TSlotBase(ptr) {}
-  explicit OffHeapCompressedObjectSlotBase(const uint32_t* ptr)
-      : TSlotBase(reinterpret_cast<Address>(ptr)) {}
-
-  inline TObject load() const;
-  inline TObject load(PtrComprCageBase cage_base) const;
-  inline void store(TObject value) const;
-
-  inline TObject Relaxed_Load() const;
-  // TODO(saelo): same as in CompressedObjectSlot, consider removing the load
-  // variant with a PtrComprCageBase but instead adding one with an isolate
-  // parameter that simply forwards the the parameterless variant.
-  inline TObject Relaxed_Load(PtrComprCageBase cage_base) const;
-  inline Tagged_t Relaxed_Load_Raw() const;
-  static inline Tagged<Object> RawToTagged(PtrComprCageBase cage_base,
-                                           Tagged_t raw);
-  inline TObject Acquire_Load() const;
-  inline TObject Acquire_Load(PtrComprCageBase cage_base) const;
-  inline void Relaxed_Store(TObject value) const;
-  inline void Release_Store(TObject value) const;
-  inline void Release_CompareAndSwap(TObject old, TObject target) const;
-};
-
 template <typename CompressionScheme>
 class OffHeapCompressedObjectSlot
-    : public OffHeapCompressedObjectSlotBase<
-          CompressionScheme, Tagged<Object>,
-          OffHeapCompressedObjectSlot<CompressionScheme>> {
+    : public SlotBase<OffHeapCompressedObjectSlot<CompressionScheme>,
+                      Tagged_t> {
  public:
-  using TSlotBase = OffHeapCompressedObjectSlotBase<
-      CompressionScheme, Tagged<Object>,
-      OffHeapCompressedObjectSlot<CompressionScheme>>;
+  using TSlotBase =
+      SlotBase<OffHeapCompressedObjectSlot<CompressionScheme>, Tagged_t>;
+  using TCompressionScheme = CompressionScheme;
   using TObject = Tagged<Object>;
   using THeapObjectSlot = OffHeapCompressedObjectSlot<CompressionScheme>;
 
@@ -198,30 +166,22 @@ class OffHeapCompressedObjectSlot
   explicit OffHeapCompressedObjectSlot(Address ptr) : TSlotBase(ptr) {}
   explicit OffHeapCompressedObjectSlot(const uint32_t* ptr)
       : TSlotBase(reinterpret_cast<Address>(ptr)) {}
-  // TODO(jkummerow): Not sure this is useful?
-  template <typename T>
-  explicit OffHeapCompressedObjectSlot(SlotBase<T, Tagged_t> slot)
-      : TSlotBase(slot.address()) {}
-};
 
-template <typename CompressionScheme>
-class OffHeapCompressedMaybeObjectSlot
-    : public OffHeapCompressedObjectSlotBase<
-          CompressionScheme, Tagged<MaybeObject>,
-          OffHeapCompressedMaybeObjectSlot<CompressionScheme>> {
- public:
-  using TSlotBase = OffHeapCompressedObjectSlotBase<
-      CompressionScheme, Tagged<MaybeObject>,
-      OffHeapCompressedMaybeObjectSlot<CompressionScheme>>;
-  using TObject = Tagged<MaybeObject>;
-  using THeapObjectSlot = OffHeapCompressedMaybeObjectSlot<CompressionScheme>;
+  inline Tagged<Object> load() const;
+  inline Tagged<Object> load(PtrComprCageBase cage_base) const;
+  inline void store(Tagged<Object> value) const;
 
-  static constexpr bool kCanBeWeak = true;
-
-  OffHeapCompressedMaybeObjectSlot() : TSlotBase(kNullAddress) {}
-  explicit OffHeapCompressedMaybeObjectSlot(Address ptr) : TSlotBase(ptr) {}
-  explicit OffHeapCompressedMaybeObjectSlot(const uint32_t* ptr)
-      : TSlotBase(reinterpret_cast<Address>(ptr)) {}
+  inline Tagged<Object> Relaxed_Load() const;
+  // TODO(saelo): same as in CompressedObjectSlot, consider removing the load
+  // variant with a PtrComprCageBase but instead adding one with an isolate
+  // parameter that simply forwards the the parameterless variant.
+  inline Tagged<Object> Relaxed_Load(PtrComprCageBase cage_base) const;
+  inline Tagged<Object> Acquire_Load() const;
+  inline Tagged<Object> Acquire_Load(PtrComprCageBase cage_base) const;
+  inline void Relaxed_Store(Tagged<Object> value) const;
+  inline void Release_Store(Tagged<Object> value) const;
+  inline void Release_CompareAndSwap(Tagged<Object> old,
+                                     Tagged<Object> target) const;
 };
 
 #endif  // V8_COMPRESS_POINTERS

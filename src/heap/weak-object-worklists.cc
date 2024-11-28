@@ -103,36 +103,30 @@ void WeakObjects::UpdateDiscoveredEphemerons(
 }
 
 namespace {
-template <typename TSlot>
 void UpdateWeakReferencesHelper(
-    WeakObjects::WeakObjectWorklist<TSlot>& weak_references) {
-  weak_references.Update([](TSlot slot_in, TSlot* slot_out) -> bool {
-    Tagged<HeapObject> heap_obj = slot_in.heap_object;
-    Tagged<HeapObject> forwarded = ForwardingAddress(heap_obj);
+    WeakObjects::WeakObjectWorklist<HeapObjectAndSlot>& weak_references) {
+  weak_references.Update(
+      [](HeapObjectAndSlot slot_in, HeapObjectAndSlot* slot_out) -> bool {
+        Tagged<HeapObject> heap_obj = slot_in.heap_object;
+        Tagged<HeapObject> forwarded = ForwardingAddress(heap_obj);
 
-    if (!forwarded.is_null()) {
-      ptrdiff_t distance_to_slot =
-          slot_in.slot.address() - slot_in.heap_object.ptr();
-      Address new_slot = forwarded.ptr() + distance_to_slot;
-      slot_out->heap_object = forwarded;
-      slot_out->slot = typename TSlot::SlotType(new_slot);
-      return true;
-    }
+        if (!forwarded.is_null()) {
+          ptrdiff_t distance_to_slot =
+              slot_in.slot.address() - slot_in.heap_object.ptr();
+          Address new_slot = forwarded.ptr() + distance_to_slot;
+          slot_out->heap_object = forwarded;
+          slot_out->slot = HeapObjectSlot(new_slot);
+          return true;
+        }
 
-    return false;
-  });
+        return false;
+      });
 }
 }  // anonymous namespace
 
 // static
 void WeakObjects::UpdateWeakReferencesTrivial(
     WeakObjectWorklist<HeapObjectAndSlot>& weak_references) {
-  UpdateWeakReferencesHelper(weak_references);
-}
-
-// static
-void WeakObjects::UpdateWeakReferencesTrusted(
-    WeakObjectWorklist<TrustedObjectAndSlot>& weak_references) {
   UpdateWeakReferencesHelper(weak_references);
 }
 

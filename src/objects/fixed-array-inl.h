@@ -630,21 +630,6 @@ Handle<TrustedWeakFixedArray> TrustedWeakFixedArray::New(IsolateT* isolate,
   return result;
 }
 
-template <class IsolateT>
-Handle<ProtectedWeakFixedArray> ProtectedWeakFixedArray::New(IsolateT* isolate,
-                                                             int capacity) {
-  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
-                  TrustedFixedArray::kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          capacity);
-  }
-  std::optional<DisallowGarbageCollection> no_gc;
-  Handle<ProtectedWeakFixedArray> result = Cast<ProtectedWeakFixedArray>(
-      Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
-  MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
-  return result;
-}
-
 Tagged<MaybeObject> WeakArrayList::Get(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
   return Get(cage_base, index);

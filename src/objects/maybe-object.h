@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 inline Tagged<ClearedWeakValue> ClearedValue(PtrComprCageBase cage_base);
-inline Tagged<ClearedWeakValue> ClearedTrustedValue();
 
 template <typename THeapObjectSlot>
 inline void UpdateHeapObjectReferenceSlot(THeapObjectSlot slot,
