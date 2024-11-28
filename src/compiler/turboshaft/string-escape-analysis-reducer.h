@@ -8,6 +8,7 @@
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
@@ -32,10 +33,20 @@ class StringEscapeAnalyzer {
   StringEscapeAnalyzer(const Graph& graph, Zone* phase_zone)
       : graph_(graph),
         zone_(phase_zone),
-        escaping_operations_(graph.op_id_count(), false, zone_, &graph) {}
+        escaping_operations_and_frame_states_to_reconstruct_(
+            graph.op_id_count(), false, zone_, &graph),
+        maybe_non_escaping_string_concats_(phase_zone),
+        maybe_to_reconstruct_frame_states_(phase_zone) {}
   void Run();
 
-  bool IsEscaping(OpIndex idx) const { return escaping_operations_[idx]; }
+  bool IsEscaping(OpIndex idx) const {
+    DCHECK(!graph_.Get(idx).Is<FrameStateOp>());
+    return escaping_operations_and_frame_states_to_reconstruct_[idx];
+  }
+
+  bool ShouldReconstructFrameState(V<FrameState> idx) {
+    return escaping_operations_and_frame_states_to_reconstruct_[idx];
+  }
 
  private:
   const Graph& graph_;
@@ -46,17 +57,44 @@ class StringEscapeAnalyzer {
   void RecursivelyMarkAllStringConcatInputsAsEscaping(
       const StringConcatOp* concat);
   void ReprocessStringConcats();
+  void ComputeFrameStatesToReconstruct();
 
-  // All operations in {escaping_operations_} are definitely escaping and cannot
-  // be elided.
-  FixedOpIndexSidetable<bool> escaping_operations_;
+  void MarkAsEscaping(OpIndex index) {
+    DCHECK(!graph_.Get(index).Is<FrameStateOp>());
+    escaping_operations_and_frame_states_to_reconstruct_[index] = true;
+  }
+
+  void RecursiveMarkAsShouldReconstruct(V<FrameState> idx) {
+    escaping_operations_and_frame_states_to_reconstruct_[idx] = true;
+    const FrameStateOp* frame_state = &graph_.Get(idx).Cast<FrameStateOp>();
+    while (frame_state->inlined) {
+      V<FrameState> parent = frame_state->parent_frame_state();
+      escaping_operations_and_frame_states_to_reconstruct_[parent] = true;
+      frame_state = &graph_.Get(parent).Cast<FrameStateOp>();
+    }
+  }
+
+  // {escaping_operations_and_frame_states_to_recreate_} is used for 2 things:
+  //   - For FrameState OpIndex, if the stored value is `true`, then the reducer
+  //     should later reconstruct this FrameState (because it either contains an
+  //     elided StringConcat, or because it's the parent of such a FrameState).
+  //   - For other OpIndex, if the value stored is `true`, then the value is
+  //     definitely escaping, and should not be elided (and its inputs shouldn't
+  //     be elided either, etc.).
+  // This could easily be split in 2 variables, but it saves space to use a
+  // single variable for this.
+  FixedOpIndexSidetable<bool>
+      escaping_operations_and_frame_states_to_reconstruct_;
+
   // When we visit a StringConcat for the first time and it's not already in
   // {escaping_operations_}, we can't know for sure yet that it will never be
   // escaping, because of loop phis. So, we store it in
   // {maybe_non_escaping_string_concats_}, which we revisit after having visited
   // the whole graph, and only after this revisit do we know for sure that
   // StringConcat that are not in {escaping_operations_} do not indeed escape.
-  std::vector<V<String>> maybe_non_escaping_string_concats_;
+  ZoneVector<V<String>> maybe_non_escaping_string_concats_;
+
+  ZoneVector<V<FrameState>> maybe_to_reconstruct_frame_states_;
 
   uint32_t max_frame_state_input_count_ = 0;
 };
@@ -139,14 +177,8 @@ class StringEscapeAnalysisReducer : public Next {
     }
     if (!v8_flags.turboshaft_string_concat_escape_analysis) goto no_change;
 
-    // Note that we recreate all FrameStates from sratch, regardless of whether
-    // they have an elided StringConcat as input or not, because we need the
-    // Deduplicator to be initialized, in case they are later used as parent to
-    // a FrameState that has an elided StringConcat as input.
-    // TODO(dmercadier): during the analysis, record which FrameStates have
-    // elided StringConcat as input and also record their parents, so that we
-    // don't need to recreate all FrameStates from scratch and to create
-    // Deduplicator objects for each FrameState.
+    if (!analyzer_.ShouldReconstructFrameState(ig_index)) goto no_change;
+
     return BuildFrameState(frame_state, ig_index);
   }
 
@@ -245,6 +277,7 @@ class StringEscapeAnalysisReducer : public Next {
       // current FrameState should not conflict with IDs in the parent frame
       // state. Thus, we need to initialize the current Deduplicator with the
       // one from the parent FrameState.
+      DCHECK(analyzer_.ShouldReconstructFrameState(parent_ig_index));
       deduplicator = deduplicators_[parent_ig_index]->clone(__ phase_zone());
     } else {
       deduplicator =

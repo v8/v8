@@ -6,6 +6,10 @@
 
 #include <utility>
 
+#include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/index.h"
+#include "src/compiler/turboshaft/operations.h"
+
 namespace v8::internal::compiler::turboshaft {
 
 void StringEscapeAnalyzer::Run() {
@@ -19,16 +23,29 @@ void StringEscapeAnalyzer::Run() {
   // Because of loop phis, some StringConcat could now be escaping even though
   // they weren't escaping on first use.
   ReprocessStringConcats();
+
+  // Now that we know for a fact which StringConcat will be elided, we can
+  // compute which FrameStates will need to be reconstructed in the reducer.
+  ComputeFrameStatesToReconstruct();
 }
 
 void StringEscapeAnalyzer::ProcessBlock(const Block& block) {
-  for (OpIndex index : base::Reversed(graph_.OperationIndices(block))) {
+  for (V<Any> index : base::Reversed(graph_.OperationIndices(block))) {
     const Operation& op = graph_.Get(index);
     switch (op.opcode) {
       case Opcode::kFrameState:
         // FrameState uses are not considered as escaping.
         max_frame_state_input_count_ =
             std::max<uint32_t>(max_frame_state_input_count_, op.input_count);
+        for (V<Any> input_idx : op.inputs()) {
+          if (graph_.Get(input_idx).Is<StringConcatOp>()) {
+            // This FrameState has a StringConcat as input, so we might need to
+            // recreate it in the reducer.
+            maybe_to_reconstruct_frame_states_.push_back(
+                V<FrameState>::Cast(index));
+            break;
+          }
+        }
         break;
       case Opcode::kStringConcat:
         // The inputs of a StringConcat are only escaping if the StringConcat
@@ -52,8 +69,10 @@ void StringEscapeAnalyzer::ProcessBlock(const Block& block) {
 }
 
 void StringEscapeAnalyzer::MarkAllInputsAsEscaping(const Operation& op) {
-  for (OpIndex input : op.inputs()) {
-    escaping_operations_[input] = true;
+  for (V<Any> input : op.inputs()) {
+    if (!graph_.Get(input).Is<FrameStateOp>()) {
+      MarkAsEscaping(input);
+    }
   }
 }
 
@@ -66,10 +85,10 @@ void StringEscapeAnalyzer::RecursivelyMarkAllStringConcatInputsAsEscaping(
     const StringConcatOp* curr = to_mark.back();
     to_mark.pop_back();
 
-    for (OpIndex input_index : curr->inputs()) {
+    for (V<Any> input_index : curr->inputs()) {
       const Operation& input = graph_.Get(input_index);
       if (input.Is<StringConcatOp>() && !IsEscaping(input_index)) {
-        escaping_operations_[input_index] = true;
+        MarkAsEscaping(input_index);
         to_mark.push_back(&input.Cast<StringConcatOp>());
       }
     }
@@ -89,7 +108,7 @@ void StringEscapeAnalyzer::ReprocessStringConcats() {
     // all operations as "escaping", so that the reducer doesn't try to elide
     // anything.
     for (V<String> index : maybe_non_escaping_string_concats_) {
-      escaping_operations_[index] = true;
+      MarkAsEscaping(index);
     }
   }
 
@@ -97,6 +116,19 @@ void StringEscapeAnalyzer::ReprocessStringConcats() {
     if (IsEscaping(index)) {
       RecursivelyMarkAllStringConcatInputsAsEscaping(
           &graph_.Get(index).Cast<StringConcatOp>());
+    }
+  }
+}
+
+void StringEscapeAnalyzer::ComputeFrameStatesToReconstruct() {
+  for (V<FrameState> frame_state_idx : maybe_to_reconstruct_frame_states_) {
+    const FrameStateOp& frame_state =
+        graph_.Get(frame_state_idx).Cast<FrameStateOp>();
+    for (V<Any> input : frame_state.inputs()) {
+      if (graph_.Get(input).Is<StringConcatOp>() && !IsEscaping(input)) {
+        RecursiveMarkAsShouldReconstruct(frame_state_idx);
+        break;
+      }
     }
   }
 }
