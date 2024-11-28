@@ -992,35 +992,6 @@ void Heap::RemoveHeapObjectAllocationTracker(
   }
 }
 
-void UpdateRetainersMapAfterScavenge(
-    UnorderedHeapObjectMap<Tagged<HeapObject>>* map) {
-  // This is only used for Scavenger.
-  DCHECK(!v8_flags.minor_ms);
-
-  UnorderedHeapObjectMap<Tagged<HeapObject>> updated_map;
-
-  for (auto pair : *map) {
-    Tagged<HeapObject> object = pair.first;
-    Tagged<HeapObject> retainer = pair.second;
-
-    if (Heap::InFromPage(object)) {
-      MapWord map_word = object->map_word(kRelaxedLoad);
-      if (!map_word.IsForwardingAddress()) continue;
-      object = map_word.ToForwardingAddress(object);
-    }
-
-    if (Heap::InFromPage(retainer)) {
-      MapWord map_word = retainer->map_word(kRelaxedLoad);
-      if (!map_word.IsForwardingAddress()) continue;
-      retainer = map_word.ToForwardingAddress(retainer);
-    }
-
-    updated_map[object] = retainer;
-  }
-
-  *map = std::move(updated_map);
-}
-
 void Heap::IncrementDeferredCounts(
     base::Vector<const v8::Isolate::UseCounterFeature> features) {
   deferred_counters_.insert(deferred_counters_.end(), features.begin(),
