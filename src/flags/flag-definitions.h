@@ -1524,6 +1524,8 @@ DEFINE_BOOL(turboshaft_trace_unrolling, false,
             "trace Turboshaft's loop unrolling reducer")
 DEFINE_BOOL(turboshaft_trace_peeling, false,
             "trace Turboshaft's loop peeling reducer")
+DEFINE_BOOL(turboshaft_trace_load_elimination, false,
+            "trace Turboshaft's late load elimination")
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")
