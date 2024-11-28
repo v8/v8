@@ -575,6 +575,7 @@ class BodyGen {
                      base::Vector<const ValueType> return_types,
                      base::Vector<CatchCase> catch_cases, size_t i,
                      DataRange* data) {
+    DCHECK(v8_flags.experimental_wasm_exnref);
     if (i == catch_cases.size()) {
       // Base case: emit the try-table itself.
       builder_->Emit(kExprTryTable);
@@ -654,12 +655,18 @@ class BodyGen {
   void try_table_block(DataRange* data) {
     ValueType return_types_arr[1] = {ValueType::Primitive(T)};
     auto return_types = base::VectorOf(return_types_arr, T == kVoid ? 0 : 1);
+    if (!v8_flags.experimental_wasm_exnref) {
+      // Can't generate a try_table block. Just generate something else.
+      any_block({}, return_types, data);
+      return;
+    }
     try_table_block_helper({}, return_types, data);
   }
 
   void any_block(base::Vector<const ValueType> param_types,
                  base::Vector<const ValueType> return_types, DataRange* data) {
-    uint8_t block_type = data->get<uint8_t>() % 6;
+    uint8_t available_cases = v8_flags.experimental_wasm_exnref ? 6 : 5;
+    uint8_t block_type = data->get<uint8_t>() % available_cases;
     switch (block_type) {
       case 0:
         block(param_types, return_types, data);
@@ -3526,7 +3533,7 @@ class ModuleGen {
     int num_memories = 1 + (module_range_->get<uint8_t>() % kMaxMemories);
     for (int i = 0; i < num_memories; i++) {
       uint8_t random_byte = module_range_->get<uint8_t>();
-      bool mem64 = random_byte & 1;
+      bool mem64 = v8_flags.experimental_wasm_memory64 && (random_byte & 1);
       bool has_maximum = random_byte & 2;
       static_assert(kV8MaxWasmMemory64Pages <= kMaxUInt32);
       uint32_t max_supported_pages =
@@ -3842,9 +3849,12 @@ class ModuleGen {
                     kExcludePackedTypes, kIncludeAllGenerics);
       bool use_initializer =
           !type.is_defaultable() || module_range_->get<bool>();
-      AddressType address_type =
-          (are_table64 & 1) ? AddressType::kI32 : AddressType::kI64;
+
+      bool use_table64 =
+          v8_flags.experimental_wasm_memory64 && (are_table64 & 1);
       are_table64 >>= 1;
+      AddressType address_type =
+          use_table64 ? AddressType::kI64 : AddressType::kI32;
       uint32_t table_index =
           use_initializer
               ? builder_->AddTable(
