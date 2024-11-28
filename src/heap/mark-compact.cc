@@ -1344,6 +1344,12 @@ class RecordMigratedSlotVisitor
     RecordMigratedSlot(host, slot.load(), slot.address());
   }
 
+  inline void VisitProtectedPointer(Tagged<TrustedObject> host,
+                                    ProtectedMaybeObjectSlot slot) final {
+    DCHECK(!MapWord::IsPacked(slot.Relaxed_Load().ptr()));
+    RecordMigratedSlot(host, slot.load(), slot.address());
+  }
+
  protected:
   inline void RecordMigratedSlot(Tagged<HeapObject> host,
                                  Tagged<MaybeObject> value, Address slot) {
@@ -2888,6 +2894,7 @@ class MarkCompactCollector::ClearTrivialWeakRefJobItem final
                                                     : ThreadKind::kBackground,
                         trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
     collector_->ClearTrivialWeakReferences();
+    collector_->ClearTrustedWeakReferences();
   }
 
   uint64_t trace_id() const { return trace_id_; }
@@ -3853,22 +3860,24 @@ void MarkCompactCollector::ClearWeakCollections() {
   }
 }
 
-void MarkCompactCollector::ClearTrivialWeakReferences() {
-  HeapObjectAndSlot slot;
-  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue(heap_->isolate());
-  while (local_weak_objects()->weak_references_trivial_local.Pop(&slot)) {
+template <typename TObjectAndSlot, typename TMaybeSlot>
+void MarkCompactCollector::ClearWeakReferences(
+    WeakObjects::WeakObjectWorklist<TObjectAndSlot>::Local& worklist,
+    Tagged<HeapObjectReference> cleared_weak_ref) {
+  TObjectAndSlot slot;
+  while (worklist.Pop(&slot)) {
     Tagged<HeapObject> value;
     // The slot could have been overwritten, so we have to treat it
-    // as MaybeObjectSlot.
-    MaybeObjectSlot location(slot.slot);
-    if ((*location).GetHeapObjectIfWeak(&value)) {
+    // as [Protected]MaybeObjectSlot.
+    TMaybeSlot location(slot.slot);
+    if (location.load().GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsWeakCell(value));
       // Values in RO space have already been filtered, but a non-RO value may
       // have been overwritten by a RO value since marking.
       if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, non_atomic_marking_state_,
                                               value)) {
         // The value of the weak reference is alive.
-        RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
+        RecordSlot(slot.heap_object, slot.slot, value);
       } else {
         DCHECK(MainMarkingVisitor::IsTrivialWeakReferenceValue(slot.heap_object,
                                                                value));
@@ -3879,6 +3888,18 @@ void MarkCompactCollector::ClearTrivialWeakReferences() {
       }
     }
   }
+}
+
+void MarkCompactCollector::ClearTrivialWeakReferences() {
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue(heap_->isolate());
+  ClearWeakReferences<HeapObjectAndSlot, MaybeObjectSlot>(
+      local_weak_objects()->weak_references_trivial_local, cleared_weak_ref);
+}
+
+void MarkCompactCollector::ClearTrustedWeakReferences() {
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedTrustedValue();
+  ClearWeakReferences<TrustedObjectAndSlot, ProtectedMaybeObjectSlot>(
+      local_weak_objects()->weak_references_trusted_local, cleared_weak_ref);
 }
 
 void MarkCompactCollector::FilterNonTrivialWeakReferences() {
@@ -4116,6 +4137,20 @@ Tagged<Object> MakeSlotValue<WriteProtectedSlot<ProtectedPointerSlot>,
     Tagged<HeapObject> heap_object) {
   return heap_object;
 }
+
+template <>
+Tagged<MaybeObject>
+MakeSlotValue<ProtectedMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
+    Tagged<HeapObject> heap_object) {
+  return heap_object;
+}
+
+template <>
+Tagged<MaybeObject>
+MakeSlotValue<ProtectedMaybeObjectSlot, HeapObjectReferenceType::WEAK>(
+    Tagged<HeapObject> heap_object) {
+  return MakeWeak(heap_object);
+}
 #endif
 
 template <>
@@ -4180,11 +4215,12 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
           std::is_same<TSlot, OffHeapObjectSlot>::value ||
           std::is_same<TSlot, InstructionStreamSlot>::value ||
           std::is_same<TSlot, ProtectedPointerSlot>::value ||
+          std::is_same<TSlot, ProtectedMaybeObjectSlot>::value ||
           std::is_same<TSlot, WriteProtectedSlot<ObjectSlot>>::value ||
           std::is_same<TSlot, WriteProtectedSlot<ProtectedPointerSlot>>::value,
       "Only [Full|OffHeap]ObjectSlot, [Full]MaybeObjectSlot, "
-      "InstructionStreamSlot, ProtectedPointerSlot, or WriteProtectedSlot are "
-      "expected here");
+      "InstructionStreamSlot, Protected[Pointer|MaybeObject]Slot, "
+      "or WriteProtectedSlot are expected here");
   MapWord map_word = heap_obj->map_word(cage_base, kRelaxedLoad);
   if (!map_word.IsForwardingAddress()) return;
   DCHECK_IMPLIES((!v8_flags.minor_ms && !Heap::InFromPage(heap_obj)),
@@ -5357,8 +5393,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       RememberedSet<TRUSTED_TO_TRUSTED>::Iterate(
           chunk_,
           [&](MaybeObjectSlot slot) {
-            UpdateStrongSlot(unused_cage_base,
-                             ProtectedPointerSlot(slot.address()));
+            UpdateSlot(unused_cage_base,
+                       ProtectedMaybeObjectSlot(slot.address()));
             // Always keep slot since all slots are dropped at once after
             // iteration.
             return KEEP_SLOT;

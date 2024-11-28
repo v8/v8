@@ -117,7 +117,10 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessWeakHeapObject(
     // Distinguish trivial cases (non involving custom weakness) from
     // non-trivial ones. The latter are maps in host objects of type Map,
     // TransitionArray and DescriptorArray.
-    if (V8_LIKELY(IsTrivialWeakReferenceValue(host, heap_object))) {
+    if constexpr (SlotHoldsTrustedPointerV<THeapObjectSlot>) {
+      local_weak_objects_->weak_references_trusted_local.Push(
+          TrustedObjectAndSlot{host, slot});
+    } else if (V8_LIKELY(IsTrivialWeakReferenceValue(host, heap_object))) {
       local_weak_objects_->weak_references_trivial_local.Push(
           HeapObjectAndSlot{host, slot});
     } else {
@@ -135,12 +138,18 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitPointersImpl(
     Tagged<HeapObject> host, TSlot start, TSlot end) {
   using THeapObjectSlot = typename TSlot::THeapObjectSlot;
   for (TSlot slot = start; slot < end; ++slot) {
-    const std::optional<Tagged<Object>> optional_object =
-        this->GetObjectFilterReadOnlyAndSmiFast(slot);
-    if (!optional_object) {
-      continue;
+    typename TSlot::TObject object;
+    if constexpr (SlotHoldsTrustedPointerV<TSlot>) {
+      // The fast check doesn't support the trusted cage, so skip it.
+      object = slot.load();
+    } else {
+      const std::optional<Tagged<Object>> optional_object =
+          this->GetObjectFilterReadOnlyAndSmiFast(slot);
+      if (!optional_object) {
+        continue;
+      }
+      object = *optional_object;
     }
-    typename TSlot::TObject object = *optional_object;
     Tagged<HeapObject> heap_object;
     if (object.GetHeapObjectIfStrong(&heap_object)) {
       // If the reference changes concurrently from strong to weak, the write

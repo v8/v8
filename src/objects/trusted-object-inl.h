@@ -70,6 +70,11 @@ ProtectedPointerSlot TrustedObject::RawProtectedPointerField(
   return ProtectedPointerSlot(field_address(byte_offset));
 }
 
+ProtectedMaybeObjectSlot TrustedObject::RawProtectedMaybeObjectField(
+    int byte_offset) const {
+  return ProtectedMaybeObjectSlot(field_address(byte_offset));
+}
+
 #ifdef VERIFY_HEAP
 void TrustedObject::VerifyProtectedPointerField(Isolate* isolate, int offset) {
   Object::VerifyPointer(isolate, ReadProtectedPointerField(offset));

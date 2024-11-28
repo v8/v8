@@ -163,6 +163,11 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
     VisitStrongPointerImpl(host, slot);
   }
 
+  V8_INLINE void VisitProtectedPointer(Tagged<TrustedObject> host,
+                                       ProtectedMaybeObjectSlot slot) final {
+    VisitPointersImpl(host, slot, slot + 1);
+  }
+
   void SynchronizePageAccess(Tagged<HeapObject> heap_object) const {
 #ifdef THREAD_SANITIZER
     // This is needed because TSAN does not process the memory fence

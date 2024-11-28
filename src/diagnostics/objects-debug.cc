@@ -841,6 +841,21 @@ void TrustedWeakFixedArray::TrustedWeakFixedArrayVerify(Isolate* isolate) {
   }
 }
 
+void ProtectedWeakFixedArray::ProtectedWeakFixedArrayVerify(Isolate* isolate) {
+  TrustedObjectVerify(isolate);
+  CHECK(IsSmi(length_.load()));
+  for (int i = 0; i < length(); i++) {
+    Tagged<Union<MaybeWeak<TrustedObject>, Smi>> p = get(i);
+    Tagged<HeapObject> heap_object;
+    if (p.GetHeapObject(&heap_object)) {
+      CHECK(IsTrustedObject(heap_object));
+      HeapObject::VerifyHeapPointer(isolate, heap_object);
+    } else {
+      CHECK(p.IsSmi() || p.IsCleared());
+    }
+  }
+}
+
 void ScriptContextTable::ScriptContextTableVerify(Isolate* isolate) {
   CHECK(IsSmi(capacity_.load()));
   CHECK(IsSmi(length_.load()));

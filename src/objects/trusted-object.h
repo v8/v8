@@ -56,6 +56,8 @@ class TrustedObject : public HeapObject {
   inline void ClearProtectedPointerField(int offset, ReleaseStoreTag);
 
   inline ProtectedPointerSlot RawProtectedPointerField(int byte_offset) const;
+  inline ProtectedMaybeObjectSlot RawProtectedMaybeObjectField(
+      int byte_offset) const;
 
 #ifdef VERIFY_HEAP
   inline void VerifyProtectedPointerField(Isolate* isolate, int offset);

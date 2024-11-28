@@ -1106,6 +1106,8 @@ using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
 class ExternalCodeCompressionScheme;
 template <typename CompressionScheme>
 class OffHeapCompressedObjectSlot;
+template <typename CompressionScheme>
+class OffHeapCompressedMaybeObjectSlot;
 class FullObjectSlot;
 class FullMaybeObjectSlot;
 class FullHeapObjectSlot;
@@ -1187,8 +1189,11 @@ struct SlotTraits {
 #ifdef V8_ENABLE_SANDBOX
   using TProtectedPointerSlot =
       OffHeapCompressedObjectSlot<TrustedSpaceCompressionScheme>;
+  using TProtectedMaybeObjectSlot =
+      OffHeapCompressedMaybeObjectSlot<TrustedSpaceCompressionScheme>;
 #else
   using TProtectedPointerSlot = TObjectSlot;
+  using TProtectedMaybeObjectSlot = TMaybeObjectSlot;
 #endif  // V8_ENABLE_SANDBOX
 };
 
@@ -1224,10 +1229,31 @@ using InstructionStreamSlot = SlotTraits::TInstructionStreamSlot;
 // TrustedObject to another TrustedObject as (only) trusted objects cannot
 // directly be manipulated by an attacker.
 using ProtectedPointerSlot = SlotTraits::TProtectedPointerSlot;
+// Same as a ProtectedPointerSlot, but can be weak.
+using ProtectedMaybeObjectSlot = SlotTraits::TProtectedMaybeObjectSlot;
 
 using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 
 using WeakSlotCallbackWithHeap = bool (*)(Heap* heap, FullObjectSlot pointer);
+
+template <typename TSlot>
+struct SlotHoldsTrustedPointerImpl {
+  static constexpr bool value = false;
+};
+#ifdef V8_ENABLE_SANDBOX
+template <>
+struct SlotHoldsTrustedPointerImpl<ProtectedPointerSlot> {
+  static constexpr bool value = true;
+};
+template <>
+struct SlotHoldsTrustedPointerImpl<ProtectedMaybeObjectSlot> {
+  static constexpr bool value = true;
+};
+#endif
+
+template <typename TSlot>
+static constexpr bool SlotHoldsTrustedPointerV =
+    SlotHoldsTrustedPointerImpl<TSlot>::value;
 
 // -----------------------------------------------------------------------------
 // Miscellaneous

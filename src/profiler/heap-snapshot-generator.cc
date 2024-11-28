@@ -1246,6 +1246,15 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     VisitSlotImpl(unused_cage_base, slot);
   }
 
+  void VisitProtectedPointer(Tagged<TrustedObject> host,
+                             ProtectedMaybeObjectSlot slot) override {
+    // TODO(saelo): the cage base doesn't currently matter as it isn't used,
+    // but technically we should either use the trusted cage base here or
+    // remove the cage_base parameter.
+    const PtrComprCageBase unused_cage_base(kNullAddress);
+    VisitSlotImpl(unused_cage_base, slot);
+  }
+
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override {
 #ifdef V8_ENABLE_LEAPTIERING
