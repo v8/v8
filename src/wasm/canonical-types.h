@@ -198,8 +198,8 @@ class TypeCanonicalizer {
       uint32_t supertype_index =
           type.supertype.index - is_relative * recgroup.first.index;
       static_assert(kMaxCanonicalTypes <= kMaxUInt32 >> 2);
-      uint32_t metadata = (supertype_index << 2) | (is_relative << 1) ||
-                          (type.is_final ? 1 : 0);
+      uint32_t metadata =
+          (supertype_index << 2) | (is_relative << 1) | (type.is_final ? 1 : 0);
       hasher.Add(metadata);
       switch (type.kind) {
         case CanonicalType::kFunction:
