@@ -21,7 +21,11 @@
 #include "src/heap/cppgc/remembered-set.h"
 #include "src/heap/cppgc/stats-collector.h"
 
-namespace cppgc::internal {
+namespace cppgc {
+namespace internal {
+
+static_assert(api_constants::kGuardPageSize == kGuardPageSize);
+
 namespace {
 
 Address AlignAddress(Address address, size_t alignment) {
@@ -151,7 +155,8 @@ BasePage::BasePage(HeapBase& heap, BaseSpace& space, PageType type)
       slot_set_(nullptr, SlotSetDeleter{})
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 {
-  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(this) & kPageOffsetMask);
+  DCHECK_EQ(0u, (reinterpret_cast<uintptr_t>(this) - kGuardPageSize) &
+                    kPageOffsetMask);
   DCHECK_EQ(&heap.raw_heap(), space_->raw_heap());
 }
 
@@ -240,6 +245,13 @@ ConstAddress NormalPage::PayloadEnd() const {
   return const_cast<NormalPage*>(this)->PayloadEnd();
 }
 
+// static
+size_t NormalPage::PayloadSize() {
+  const size_t header_size =
+      RoundUp(sizeof(NormalPage), kAllocationGranularity);
+  return kPageSize - 2 * kGuardPageSize - header_size;
+}
+
 LargePage::LargePage(HeapBase& heap, BaseSpace& space, size_t size)
     : BasePage(heap, space, PageType::kLarge), payload_size_(size) {}
 
@@ -314,4 +326,5 @@ ConstAddress LargePage::PayloadEnd() const {
   return const_cast<LargePage*>(this)->PayloadEnd();
 }
 
-}  // namespace cppgc::internal
+}  // namespace internal
+}  // namespace cppgc
