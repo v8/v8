@@ -160,6 +160,7 @@
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
   'tools/processor': [PASS, SLOW],
+  'turboshaft/regress-380487911': [PASS, SLOW, NO_VARIANTS, ['arch != x64', SKIP], ['tsan', SKIP]],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/futex': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],

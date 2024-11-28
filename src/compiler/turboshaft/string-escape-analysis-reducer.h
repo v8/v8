@@ -56,6 +56,8 @@ class StringEscapeAnalyzer {
   // the whole graph, and only after this revisit do we know for sure that
   // StringConcat that are not in {escaping_operations_} do not indeed escape.
   std::vector<V<String>> maybe_non_escaping_string_concats_;
+
+  uint32_t max_frame_state_input_count_ = 0;
 };
 
 template <class Next>
