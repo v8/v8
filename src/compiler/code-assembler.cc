@@ -1539,15 +1539,27 @@ void CodeAssembler::Goto(Label* label) {
 }
 
 void CodeAssembler::GotoIf(TNode<IntegralT> condition, Label* true_label,
-                           BranchHint branch_hint) {
+                           GotoHint goto_hint) {
   Label false_label(this);
+  BranchHint branch_hint = BranchHint::kNone;
+  if (goto_hint == GotoHint::kLabel) {
+    branch_hint = BranchHint::kTrue;
+  } else if (goto_hint == GotoHint::kFallthrough) {
+    branch_hint = BranchHint::kFalse;
+  }
   Branch(condition, true_label, &false_label, branch_hint);
   Bind(&false_label);
 }
 
 void CodeAssembler::GotoIfNot(TNode<IntegralT> condition, Label* false_label,
-                              BranchHint branch_hint) {
+                              GotoHint goto_hint) {
   Label true_label(this);
+  BranchHint branch_hint = BranchHint::kNone;
+  if (goto_hint == GotoHint::kLabel) {
+    branch_hint = BranchHint::kFalse;
+  } else if (goto_hint == GotoHint::kFallthrough) {
+    branch_hint = BranchHint::kTrue;
+  }
   Branch(condition, &true_label, false_label, branch_hint);
   Bind(&true_label);
 }

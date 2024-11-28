@@ -8521,7 +8521,7 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
     static_assert(StringTypeRange::kSeqString.first == 0);
     GotoIf(Uint32LessThanOrEqual(
                map_bits, Int32Constant(StringTypeRange::kSeqString.second)),
-           &out, BranchHint::kTrue);
+           &out, GotoHint::kLabel);
 
     static_assert(StringTypeRange::kSeqString.second + Map::kSize ==
                   StringTypeRange::kExternalString.first);
@@ -8571,7 +8571,7 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
     const TNode<String> string = var_string_.value();
     GotoIfNot(IsEmptyString(LoadObjectField<String>(
                   string, offsetof(ConsString, second_))),
-              if_bailout, BranchHint::kTrue);
+              if_bailout, GotoHint::kFallthrough);
 
     const TNode<String> lhs =
         LoadObjectField<String>(string, offsetof(ConsString, first_));
