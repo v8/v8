@@ -66,6 +66,8 @@ struct TypeIndex {
 
   static constexpr uint32_t kInvalid = ~0u;
   constexpr bool valid() const { return index != kInvalid; }
+
+  size_t hash_value() const { return index; }
 };
 
 struct ModuleTypeIndex : public TypeIndex {
@@ -955,9 +957,12 @@ class ValueType {
 
   static const intptr_t kBitFieldOffset;
 
+  size_t hash_value() const {
+    // Just use the whole encoded bit field, similar to {operator==}.
+    return bit_field_;
+  }
+
  private:
-  // {hash_value} directly reads {bit_field_}.
-  friend size_t hash_value(ValueType type);
   friend class CanonicalValueType;
 
   using KindField = base::BitField<ValueKind, 0, kKindBits>;
@@ -1085,15 +1090,6 @@ static_assert(sizeof(ValueType) <= kUInt32Size,
               "ValueType is small and can be passed by value");
 static_assert(ValueType::kLastUsedBit < 8 * sizeof(ValueType) - kSmiTagSize,
               "ValueType has space to be encoded in a Smi");
-
-inline size_t hash_value(TypeIndex type) {
-  return static_cast<size_t>(type.index);
-}
-
-inline size_t hash_value(ValueType type) {
-  // Just use the whole encoded bit field, similar to {operator==}.
-  return static_cast<size_t>(type.bit_field_);
-}
 
 // Output operator, useful for DCHECKS and others.
 inline std::ostream& operator<<(std::ostream& oss, ValueType type) {

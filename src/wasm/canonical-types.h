@@ -185,20 +185,6 @@ class TypeCanonicalizer {
     bool Contains(CanonicalTypeIndex index) const {
       return base::IsInRange(index.index, start.index, end.index);
     }
-
-    CanonicalTypeIndex RelativeIndex(CanonicalTypeIndex index) const {
-      return Contains(index)
-                 // Make the value_type relative within the recursion group.
-                 ? CanonicalTypeIndex{index.index - start.index}
-                 : index;
-    }
-
-    CanonicalValueType RelativeType(CanonicalValueType type) const {
-      return type.has_index()
-                 ? CanonicalValueType::FromIndex(
-                       type.kind(), RelativeIndex(type.ref_index()))
-                 : type;
-    }
   };
 
   // Support for hashing of recursion groups, where type indexes have to be
@@ -211,10 +197,17 @@ class TypeCanonicalizer {
         : recgroup{recgroup} {}
 
     void Add(CanonicalType type) {
-      CanonicalTypeIndex relative_supertype =
-          recgroup.RelativeIndex(type.supertype);
+      // Add three pieces of information in a single number, for faster hashing:
+      // Whether the type is final, whether the supertype index is relative
+      // within the recgroup, and the supertype index itself.
+      // For relative supertypes add {kMaxCanonicalTypes} to map those to a
+      // separate index space (note that collisions in hashing are OK though).
+      uint32_t is_relative = recgroup.Contains(type.supertype) ? 1 : 0;
+      uint32_t supertype_index =
+          type.supertype.index - is_relative * recgroup.start.index;
+      static_assert(kMaxCanonicalTypes <= kMaxUInt32 >> 2);
       uint32_t metadata =
-          (relative_supertype.index << 1) | (type.is_final ? 1 : 0);
+          (supertype_index << 2) | (is_relative << 1) | (type.is_final ? 1 : 0);
       hasher.Add(metadata);
       switch (type.kind) {
         case CanonicalType::kFunction:
@@ -230,7 +223,18 @@ class TypeCanonicalizer {
     }
 
     void Add(CanonicalValueType value_type) {
-      hasher.Add(recgroup.RelativeType(value_type));
+      if (value_type.has_index() && recgroup.Contains(value_type.ref_index())) {
+        // For relative indexed types add the kind and the relative index to the
+        // hash. Shift the relative index by {kMaxCanonicalTypes} to map it to a
+        // different index space (note that collisions in hashing are OK
+        // though).
+        static_assert(kMaxCanonicalTypes <= kMaxUInt32 / 2);
+        hasher.Add(value_type.kind());
+        hasher.Add((value_type.ref_index().index - recgroup.start.index) +
+                   kMaxCanonicalTypes);
+      } else {
+        hasher.Add(value_type);
+      }
     }
 
     void Add(const CanonicalSig& sig) {
@@ -264,12 +268,24 @@ class TypeCanonicalizer {
                       RecursionGroupRange recgroup2)
         : recgroup1{recgroup1}, recgroup2{recgroup2} {}
 
+    bool EqualTypeIndex(CanonicalTypeIndex index1,
+                        CanonicalTypeIndex index2) const {
+      if (recgroup1.Contains(index1)) {
+        // Compare relative supertypes in the recgroups.
+        if (!recgroup2.Contains(index2)) return false;
+        uint32_t rel_supertype1 = index1.index - recgroup1.start.index;
+        uint32_t rel_supertype2 = index2.index - recgroup2.start.index;
+        if (rel_supertype1 != rel_supertype2) return false;
+      } else {
+        if (recgroup2.Contains(index2)) return false;
+        if (index1 != index2) return false;
+      }
+      return true;
+    }
+
     bool EqualType(const CanonicalType& type1,
                    const CanonicalType& type2) const {
-      if (recgroup1.RelativeIndex(type1.supertype) !=
-          recgroup2.RelativeIndex(type2.supertype)) {
-        return false;
-      }
+      if (!EqualTypeIndex(type1.supertype, type2.supertype)) return false;
       if (type1.is_final != type2.is_final) return false;
       if (type1.is_shared != type2.is_shared) return false;
       switch (type1.kind) {
@@ -293,8 +309,13 @@ class TypeCanonicalizer {
     }
 
     bool EqualValueType(ValueType type1, ValueType type2) const {
-      return recgroup1.RelativeType(CanonicalValueType{type1}) ==
-             recgroup2.RelativeType(CanonicalValueType{type2});
+      if (type1.kind() != type2.kind()) return false;
+      if (type1.has_index() &&
+          !EqualTypeIndex(CanonicalTypeIndex{type1.ref_index()},
+                          CanonicalTypeIndex{type2.ref_index()})) {
+        return false;
+      }
+      return true;
     }
 
     bool EqualSig(const CanonicalSig& sig1, const CanonicalSig& sig2) const {
