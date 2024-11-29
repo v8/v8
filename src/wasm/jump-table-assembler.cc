@@ -716,35 +716,17 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   }
 
   uint32_t inst[kJumpTableSlotSize / kInstrSize] = {kNopByte, kNopByte};
-  if (is_int21(relative_target)) {
-    inst[0] =
-        (RO_JAL | (zero_reg.code() << kRdShift) |
-         uint32_t(relative_target & 0xff000) |           // bits 19-12
-         uint32_t((relative_target & 0x800) << 9) |      // bit  11
-         uint32_t((relative_target & 0x7fe) << 20) |     // bits 10-1
-         uint32_t((relative_target & 0x100000) << 11));  // bit  20 ),  // jal
-  } else {
-    int64_t high_20 = (relative_target + 0x800) >> 12;
-    int64_t low_12 = int64_t(relative_target) << 52 >> 52;
-    inst[0] = (RO_AUIPC | (t6.code() << kRdShift) |
-               int32_t(high_20 << kImm20Shift));  // auipc t6, high_20
-    inst[1] =
-        (RO_JALR | (zero_reg.code() << kRdShift) | (t6.code() << kRs1Shift) |
-         int32_t(low_12 << kImm12Shift));  // jalr t6, t6, low_12
-  }
+  int64_t high_20 = (relative_target + 0x800) >> 12;
+  int64_t low_12 = int64_t(relative_target) << 52 >> 52;
+  inst[0] = (RO_AUIPC | (t6.code() << kRdShift) |
+             int32_t(high_20 << kImm20Shift));  // auipc t6, high_20
+  inst[1] =
+      (RO_JALR | (zero_reg.code() << kRdShift) | (t6.code() << kRs1Shift) |
+       int32_t(low_12 << kImm12Shift));  // jalr t6, t6, low_12
 
   // This function is also used for patching existing jump slots and the writes
   // need to be atomic.
-  emit<uint64_t>(uint64_t(inst[1]) << 32 | inst[0], kRelaxedStore);
-  DCHECK_EQ(relative_target,
-            !is_int21(relative_target)
-                ? MacroAssembler::BrachlongOffset(
-                      Instruction::At((unsigned char*)pc_ - 2 * kInstrSize)
-                          ->InstructionBits(),
-                      Instruction::At((unsigned char*)pc_ - kInstrSize)
-                          ->InstructionBits())
-                : Instruction::At((unsigned char*)pc_ - 2 * kInstrSize)
-                      ->Imm20JValue());
+  emit<uint64_t>(*reinterpret_cast<uint64_t*>(inst), kRelaxedStore);
   return true;
 }
 
