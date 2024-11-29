@@ -322,6 +322,10 @@ class JsonParser final {
   // Hexadecimal and octal numbers are not allowed.
   Handle<Object> ParseJsonNumber();
 
+  // Parses a number either as a double or a Smi. Returns true if it was a
+  // double, false if it was a Smi.
+  bool ParseJsonNumberAsDoubleOrSmi(double* result_double, int* result_smi);
+
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,
   // one of "true", "false", or "null", or an object or array literal.
@@ -409,6 +413,8 @@ class JsonParser final {
 
   SmallVector<Handle<Object>> element_stack_;
   SmallVector<JsonProperty> property_stack_;
+  SmallVector<double> double_elements_;
+  SmallVector<int> smi_elements_;
 
   // Cached pointer to the raw chars in source. In case source is on-heap, we
   // register an UpdatePointers callback. For this reason, chars_, cursor_ and
