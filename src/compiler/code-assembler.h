@@ -474,7 +474,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
               !std::is_convertible<TNode<PreviousType>, TNode<A>>::value,
           "Unnecessary CAST: types are convertible.");
 #ifdef DEBUG
-      if (v8_flags.debug_code) {
+      if (v8_flags.slow_debug_code) {
         TNode<ExternalReference> function = code_assembler_->ExternalConstant(
             ExternalReference::check_object_type());
         code_assembler_->CallCFunction(

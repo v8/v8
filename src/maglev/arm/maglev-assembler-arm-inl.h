@@ -1179,7 +1179,7 @@ inline void MaglevAssembler::Uint32ToDouble(DoubleRegister result,
 inline void MaglevAssembler::Pop(Register dst) { pop(dst); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     TemporaryRegisterScope temps(this);
     Register scratch = temps.AcquireScratch();
     add(scratch, sp,

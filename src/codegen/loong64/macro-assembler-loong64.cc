@@ -162,7 +162,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so offset must be a multiple of kPointerSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     Label ok;
     BlockTrampolinePoolScope block_trampoline_pool(this);
     UseScratchRegisterScope temps(this);
@@ -560,7 +560,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  SlotDescriptor slot) {
   DCHECK(!AreAliased(object, value));
 
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
     Add_d(scratch, object, offset);
@@ -5088,7 +5088,7 @@ void MacroAssembler::DecompressTaggedSigned(Register dst,
                                             const MemOperand& src) {
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src);
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     //  Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     Add_d(dst, dst, ((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32);
   }
@@ -5131,7 +5131,7 @@ void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src);
   dbar(0);
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     Add_d(dst, dst, ((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32);
   }

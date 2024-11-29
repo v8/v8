@@ -812,7 +812,7 @@ class MaglevCodeGeneratingNodeProcessor {
                            state);
     }
 
-    if (v8_flags.debug_code && !std::is_same_v<NodeT, Phi>) {
+    if (v8_flags.slow_debug_code && !std::is_same_v<NodeT, Phi>) {
       // Check that all int32/uint32 inputs are zero extended.
       // Note that we don't do this for Phis, since they are virtual operations
       // whose inputs aren't actual inputs but are injected on incoming

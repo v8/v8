@@ -453,7 +453,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   DCHECK(IsAligned(offset, kTaggedSize));
 
   leaq(slot_address, FieldOperand(object, offset));
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Debug check slot_address");
     Label ok;
     testb(slot_address, Immediate(kTaggedSize - 1));
@@ -469,7 +469,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Zap scratch registers");
     Move(value, kZapValue, RelocInfo::NO_INFO);
     Move(slot_address, kZapValue, RelocInfo::NO_INFO);
@@ -887,7 +887,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     return;
   }
 
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Debug check slot_address");
     Label ok;
     if (slot.contains_indirect_pointer()) {
@@ -973,7 +973,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Zap scratch registers");
     Move(slot_address, kZapValue, RelocInfo::NO_INFO);
     Move(value, kZapValue, RelocInfo::NO_INFO);
@@ -3731,7 +3731,7 @@ void MacroAssembler::AssertSmi(Operand object) {
 }
 
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
-  if (!v8_flags.debug_code) return;
+  if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
   DCHECK_NE(int32_register, kScratchRegister);
   movl(kScratchRegister, Immediate(kMaxUInt32));  // zero-extended
@@ -3740,7 +3740,7 @@ void MacroAssembler::AssertZeroExtended(Register int32_register) {
 }
 
 void MacroAssembler::AssertSignedBitOfSmiIsZero(Register smi_register) {
-  if (!v8_flags.debug_code) return;
+  if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
   DCHECK(COMPRESS_POINTERS_BOOL);
   testl(smi_register, Immediate(int32_t{0x10000000}));
@@ -4605,7 +4605,7 @@ void MacroAssembler::CheckMarkBit(Register object, Register scratch0,
 #else   // !V8_ENABLE_SANDBOX
   movq(scratch0, Operand(scratch0, MemoryChunk::MetadataOffset()));
 #endif  // !V8_ENABLE_SANDBOX
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     Push(object);
     movq(scratch1, Operand(scratch0, MemoryChunkMetadata::AreaStartOffset()));
     MemoryChunkHeaderFromObject(scratch1, scratch1);

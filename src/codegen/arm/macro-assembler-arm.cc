@@ -741,7 +741,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so so offset must be a multiple of kPointerSize.
   DCHECK(IsAligned(offset, kPointerSize));
 
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Verify slot_address");
     Label ok;
     UseScratchRegisterScope temps(this);
@@ -882,7 +882,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  Register value, LinkRegisterStatus lr_status,
                                  SaveFPRegsMode fp_mode, SmiCheck smi_check) {
   DCHECK(!AreAliased(object, value));
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Verify slot_address");
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -924,7 +924,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     pop(lr);
   }
 
-  if (v8_flags.debug_code) Move(slot_address, Operand(kZapValue));
+  if (v8_flags.slow_debug_code) Move(slot_address, Operand(kZapValue));
 
   bind(&done);
 }

@@ -387,7 +387,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so offset must be a multiple of kTaggedSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -696,7 +696,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  SlotDescriptor slot) {
   DCHECK(!AreAliased(object, value));
 
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
     DCHECK(!AreAliased(object, value, temp));
@@ -761,7 +761,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);
   }
-  if (v8_flags.debug_code) li(slot_address, Operand(kZapValue));
+  if (v8_flags.slow_debug_code) li(slot_address, Operand(kZapValue));
 
   bind(&done);
 }
@@ -6275,7 +6275,7 @@ void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
 #ifdef V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
-  if (!v8_flags.debug_code) return;
+  if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
   Assert(Condition::ule, AbortReason::k32BitValueInRegisterIsNotZeroExtended,
          int32_register, Operand(kMaxUInt32));
@@ -7457,7 +7457,7 @@ void MacroAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
   Lwu(destination, field_operand);
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     AddWord(destination, destination,
             Operand(((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32));
@@ -7506,7 +7506,7 @@ void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
   ASM_CODE_COMMENT(this);
   Lwu(dst, src);
   sync();
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     AddWord(dst, dst,
             Operand(((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32));

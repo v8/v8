@@ -152,7 +152,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   DCHECK(IsAligned(offset, kPointerSize));
 
   Daddu(dst, object, Operand(offset - kHeapObjectTag));
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     Label ok;
     And(t8, dst, Operand(kPointerSize - 1));
@@ -167,7 +167,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     li(value, Operand(base::bit_cast<int64_t>(kZapValue + 4)));
     li(dst, Operand(base::bit_cast<int64_t>(kZapValue + 8)));
   }
@@ -257,7 +257,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   DCHECK(!AreAliased(object, address, value, t8));
   DCHECK(!AreAliased(object, address, value, t9));
 
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(!AreAliased(object, value, scratch));
@@ -304,7 +304,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     li(address, Operand(base::bit_cast<int64_t>(kZapValue + 12)));
     li(value, Operand(base::bit_cast<int64_t>(kZapValue + 16)));
     li(slot_address, Operand(base::bit_cast<int64_t>(kZapValue + 20)));

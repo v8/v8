@@ -1246,7 +1246,7 @@ inline void MaglevAssembler::EmitEagerDeoptIfNotEqual(DeoptimizeReason reason,
 }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     movq(kScratchRegister, rbp);
     subq(kScratchRegister, rsp);
     cmpq(kScratchRegister,

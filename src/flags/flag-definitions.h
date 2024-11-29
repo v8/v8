@@ -2254,8 +2254,19 @@ DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
 #ifdef V8_ENABLE_DEBUG_CODE
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
             "generate extra code (assertions) for debugging")
+#if defined(V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT) || \
+    defined(ENABLE_SLOW_DCHECKS)
+#define V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT_BOOL true
+#else
+#define V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT_BOOL false
+#endif
+// slow_debug_code is enabled by default for builds with is_debug or
+// v8_enable_slow_dchecks.
+DEFINE_BOOL(slow_debug_code, V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT_BOOL,
+            "generate slow extra code (assertions) for debugging")
 #else
 DEFINE_BOOL_READONLY(debug_code, false, "")
+DEFINE_BOOL_READONLY(slow_debug_code, false, "")
 #endif
 #ifdef V8_CODE_COMMENTS
 DEFINE_BOOL(code_comments, false,

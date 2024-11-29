@@ -529,7 +529,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     DCHECK(!RelocInfo::IsNoInfo(rmode));
     if (RelocInfo::IsOnlyForSerializer(rmode) &&
         !options().record_reloc_info_for_serialization &&
-        !v8_flags.debug_code) {
+        !v8_flags.debug_code && !v8_flags.slow_debug_code) {
       return false;
     }
     return true;

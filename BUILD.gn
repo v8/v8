@@ -497,7 +497,7 @@ if (v8_enable_snapshot_code_comments) {
   v8_code_comments = v8_enable_debugging_features
 }
 if (v8_enable_debug_code == "") {
-  v8_enable_debug_code = v8_enable_debugging_features
+  v8_enable_debug_code = v8_enable_debugging_features || v8_dcheck_always_on
 }
 if (v8_enable_snapshot_native_code_counters == "") {
   v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
@@ -1189,6 +1189,9 @@ config("features") {
   }
   if (v8_enable_debug_code) {
     defines += [ "V8_ENABLE_DEBUG_CODE" ]
+    if (v8_enable_debugging_features) {
+      defines += [ "V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT" ]
+    }
   }
   if (v8_enable_heap_snapshot_verify) {
     defines += [ "V8_ENABLE_HEAP_SNAPSHOT_VERIFY" ]

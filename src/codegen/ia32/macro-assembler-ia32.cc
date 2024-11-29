@@ -401,7 +401,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   DCHECK(IsAligned(offset, kTaggedSize));
 
   lea(slot_address, FieldOperand(object, offset));
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     Label ok;
     test_b(slot_address, Immediate(kTaggedSize - 1));
     j(zero, &ok, Label::kNear);
@@ -415,7 +415,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     mov(value, Immediate(base::bit_cast<int32_t>(kZapValue)));
     mov(slot_address, Immediate(base::bit_cast<int32_t>(kZapValue)));
   }
@@ -512,7 +512,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     return;
   }
 
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Verify slot_address");
     Label ok;
     cmp(value, Operand(slot_address, 0));
@@ -546,7 +546,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Clobber slot_address and value");
     mov(slot_address, Immediate(base::bit_cast<int32_t>(kZapValue)));
     mov(value, Immediate(base::bit_cast<int32_t>(kZapValue)));

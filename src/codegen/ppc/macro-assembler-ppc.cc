@@ -782,7 +782,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   DCHECK(IsAligned(offset, kTaggedSize));
 
   AddS64(slot_address, object, Operand(offset - kHeapObjectTag), r0);
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     Label ok;
     andi(r0, slot_address, Operand(kTaggedSize - 1));
     beq(&ok, cr0);
@@ -797,7 +797,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     mov(value, Operand(base::bit_cast<intptr_t>(kZapValue + 4)));
     mov(slot_address, Operand(base::bit_cast<intptr_t>(kZapValue + 8)));
   }
@@ -1186,7 +1186,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  SlotDescriptor slot) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(object, value, slot_address));
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     Register value_check = r0;
     // TODO(tpearson): Figure out why ScratchRegisterScope returns a
     // register that is aliased with one of our other in-use registers
@@ -1242,13 +1242,13 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     mtlr(r0);
   }
 
-  if (v8_flags.debug_code) mov(slot_address, Operand(kZapValue));
+  if (v8_flags.slow_debug_code) mov(slot_address, Operand(kZapValue));
 
   bind(&done);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     mov(slot_address, Operand(base::bit_cast<intptr_t>(kZapValue + 12)));
     mov(value, Operand(base::bit_cast<intptr_t>(kZapValue + 16)));
   }
