@@ -533,11 +533,15 @@ void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   TaskInfo* taskInfo = reinterpret_cast<TaskInfo*>(taskExternal->Value());
 
   m_inspector->asyncTaskStarted(taskInfo->Id());
-  v8::Local<v8::Value> result;
-  if (function
-          ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
-          .ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
+  {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                 "V8Console::runTask");
+    v8::Local<v8::Value> result;
+    if (function
+            ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
+            .ToLocal(&result)) {
+      info.GetReturnValue().Set(result);
+    }
   }
   m_inspector->asyncTaskFinished(taskInfo->Id());
 }
