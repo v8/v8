@@ -1682,6 +1682,10 @@ void FeedbackNexus::Print(std::ostream& os) {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
+        if (GetFeedbackExtra().IsCleared()) {
+          os << " <cleared>\n";
+          break;
+        }
         Tagged<Object> handler = GetFeedbackExtra().GetHeapObjectOrSmi();
         if (IsWeakFixedArray(handler) &&
             !Cast<WeakFixedArray>(handler)->get(0).IsCleared()) {
