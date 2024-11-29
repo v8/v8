@@ -4821,7 +4821,7 @@ Maybe<PropertyAttribute> v8::Object::GetPropertyAttributes(
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   }
   auto key_name = i::Cast<i::Name>(key_obj);
-  auto result = i::JSReceiver::GetPropertyAttributes(self, key_name);
+  auto result = i::JSReceiver::GetPropertyAttributes(i_isolate, self, key_name);
   has_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (result.FromJust() == i::ABSENT) {

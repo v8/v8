@@ -107,7 +107,8 @@ v8::Local<v8::Name> DebugPropertyIterator::name() const {
 v8::Maybe<v8::PropertyAttribute> DebugPropertyIterator::attributes() {
   Handle<JSReceiver> receiver =
       PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_);
-  auto result = JSReceiver::GetPropertyAttributes(receiver, raw_name());
+  auto result =
+      JSReceiver::GetPropertyAttributes(isolate_, receiver, raw_name());
   if (result.IsNothing()) return Nothing<v8::PropertyAttribute>();
   // This should almost never happen, however we have seen cases where we do
   // trigger this check. In these rare events, it typically is a

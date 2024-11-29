@@ -272,16 +272,21 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
-  GetPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);
+  GetPropertyAttributes(Isolate* isolate, Handle<JSReceiver> object,
+                        Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
-  GetOwnPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);
+  GetOwnPropertyAttributes(Isolate* isolate, Handle<JSReceiver> object,
+                           Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
-  GetOwnPropertyAttributes(Handle<JSReceiver> object, uint32_t index);
+  GetOwnPropertyAttributes(Isolate* isolate, Handle<JSReceiver> object,
+                           uint32_t index);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
-  GetElementAttributes(Handle<JSReceiver> object, uint32_t index);
+  GetElementAttributes(Isolate* isolate, Handle<JSReceiver> object,
+                       uint32_t index);
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
-  GetOwnElementAttributes(Handle<JSReceiver> object, uint32_t index);
+  GetOwnElementAttributes(Isolate* isolate, Handle<JSReceiver> object,
+                          uint32_t index);
 
   V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);

@@ -300,7 +300,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       Maybe<PropertyAttributes> maybe = Nothing<PropertyAttributes>();
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           IsJSContextExtensionObject(*object)) {
-        maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
+        maybe = JSReceiver::GetOwnPropertyAttributes(isolate, object, name);
       } else {
         // A with context will never bind "this", but debug-eval may look into
         // a with context when resolving "this". Other synthetic variables such

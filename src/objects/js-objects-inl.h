@@ -945,31 +945,28 @@ Maybe<bool> JSReceiver::HasOwnProperty(Isolate* isolate,
   }
 
   Maybe<PropertyAttributes> attributes =
-      JSReceiver::GetOwnPropertyAttributes(object, index);
+      JSReceiver::GetOwnPropertyAttributes(isolate, object, index);
   MAYBE_RETURN(attributes, Nothing<bool>());
   return Just(attributes.FromJust() != ABSENT);
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
-    Handle<JSReceiver> object, Handle<Name> name) {
-  Isolate* isolate = object->GetIsolate();
+    Isolate* isolate, Handle<JSReceiver> object, Handle<Name> name) {
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, object);
   return GetPropertyAttributes(&it);
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
-    Handle<JSReceiver> object, Handle<Name> name) {
-  Isolate* isolate = object->GetIsolate();
+    Isolate* isolate, Handle<JSReceiver> object, Handle<Name> name) {
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
-    Handle<JSReceiver> object, uint32_t index) {
-  LookupIterator it(object->GetIsolate(), object, index, object,
-                    LookupIterator::OWN);
+    Isolate* isolate, Handle<JSReceiver> object, uint32_t index) {
+  LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
 
@@ -980,15 +977,13 @@ Maybe<bool> JSReceiver::HasElement(Isolate* isolate, Handle<JSReceiver> object,
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetElementAttributes(
-    Handle<JSReceiver> object, uint32_t index) {
-  Isolate* isolate = object->GetIsolate();
+    Isolate* isolate, Handle<JSReceiver> object, uint32_t index) {
   LookupIterator it(isolate, object, index, object);
   return GetPropertyAttributes(&it);
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
-    Handle<JSReceiver> object, uint32_t index) {
-  Isolate* isolate = object->GetIsolate();
+    Isolate* isolate, Handle<JSReceiver> object, uint32_t index) {
   LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }

@@ -148,7 +148,7 @@ Maybe<bool> JSReceiver::HasOwnProperty(Isolate* isolate,
   }
 
   Maybe<PropertyAttributes> attributes =
-      JSReceiver::GetOwnPropertyAttributes(object, name);
+      JSReceiver::GetOwnPropertyAttributes(isolate, object, name);
   MAYBE_RETURN(attributes, Nothing<bool>());
   return Just(attributes.FromJust() != ABSENT);
 }
