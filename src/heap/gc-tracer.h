@@ -15,6 +15,7 @@
 #include "src/heap/base/bytes.h"
 #include "src/init/heap-symbols.h"
 #include "src/logging/counters.h"
+#include "src/tracing/trace-event.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
@@ -594,6 +595,10 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   mutable base::Mutex background_scopes_mutex_;
   base::TimeDelta background_scopes_[Scope::NUMBER_OF_SCOPES];
+
+#if defined(V8_USE_PERFETTO)
+  perfetto::ThreadTrack parent_track_;
+#endif
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
