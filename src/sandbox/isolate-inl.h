@@ -38,16 +38,6 @@ ExternalPointerTable::Space* IsolateForSandbox::GetExternalPointerTableSpaceFor(
   return isolate.GetExternalPointerTableSpaceFor(tag, host);
 }
 
-ExternalBufferTable& IsolateForSandbox::GetExternalBufferTableFor(
-    ExternalBufferTag tag) {
-  UNIMPLEMENTED();
-}
-
-ExternalBufferTable::Space* IsolateForSandbox::GetExternalBufferTableSpaceFor(
-    ExternalBufferTag tag, Address host) {
-  UNIMPLEMENTED();
-}
-
 CodePointerTable::Space* IsolateForSandbox::GetCodePointerTableSpaceFor(
     Address owning_slot) {
   return ReadOnlyHeap::Contains(owning_slot)

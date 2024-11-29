@@ -8,7 +8,6 @@
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/objects/slots-inl.h"
-#include "src/sandbox/external-buffer-table-inl.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/sandbox/isolate-inl.h"

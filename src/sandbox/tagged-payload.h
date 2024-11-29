@@ -6,7 +6,6 @@
 #define V8_SANDBOX_TAGGED_PAYLOAD_H_
 
 #include "src/common/globals.h"
-#include "src/sandbox/external-buffer-tag.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 
 namespace v8 {

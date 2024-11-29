@@ -7,7 +7,6 @@
 
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/cppheap-pointer-table.h"
-#include "src/sandbox/external-buffer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/js-dispatch-table.h"
@@ -35,10 +34,6 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
       ExternalPointerTag tag);
   inline ExternalPointerTable::Space* GetExternalPointerTableSpaceFor(
       ExternalPointerTag tag, Address host);
-
-  inline ExternalBufferTable& GetExternalBufferTableFor(ExternalBufferTag tag);
-  inline ExternalBufferTable::Space* GetExternalBufferTableSpaceFor(
-      ExternalBufferTag tag, Address host);
 
   inline CodePointerTable::Space* GetCodePointerTableSpaceFor(
       Address owning_slot);

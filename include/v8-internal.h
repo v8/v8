@@ -404,48 +404,6 @@ constexpr size_t kMaxCppHeapPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
-// See `ExternalPointerHandle` for the main documentation. The difference to
-// `ExternalPointerHandle` is that the handle always refers to a
-// (external pointer, size) tuple. The handles are used in combination with a
-// dedicated external buffer table (EBT).
-using ExternalBufferHandle = uint32_t;
-
-// ExternalBuffer point to buffer located outside the sandbox. When the V8
-// sandbox is enabled, these are stored on heap as ExternalBufferHandles,
-// otherwise they are simply raw pointers.
-#ifdef V8_ENABLE_SANDBOX
-using ExternalBuffer_t = ExternalBufferHandle;
-#else
-using ExternalBuffer_t = Address;
-#endif
-
-#ifdef V8_TARGET_OS_ANDROID
-// The size of the virtual memory reservation for the external buffer table.
-// As with the external pointer table, a maximum table size in combination with
-// shifted indices allows omitting bounds checks.
-constexpr size_t kExternalBufferTableReservationSize = 64 * MB;
-
-// The external buffer handles are stores shifted to the left by this amount
-// to guarantee that they are smaller than the maximum table size.
-constexpr uint32_t kExternalBufferHandleShift = 10;
-#else
-constexpr size_t kExternalBufferTableReservationSize = 128 * MB;
-constexpr uint32_t kExternalBufferHandleShift = 9;
-#endif  // V8_TARGET_OS_ANDROID
-
-// A null handle always references an entry that contains nullptr.
-constexpr ExternalBufferHandle kNullExternalBufferHandle = 0;
-
-// The maximum number of entries in an external buffer table.
-constexpr int kExternalBufferTableEntrySize = 16;
-constexpr int kExternalBufferTableEntrySizeLog2 = 4;
-constexpr size_t kMaxExternalBufferPointers =
-    kExternalBufferTableReservationSize / kExternalBufferTableEntrySize;
-static_assert((1 << (32 - kExternalBufferHandleShift)) ==
-                  kMaxExternalBufferPointers,
-              "kExternalBufferTableReservationSize and "
-              "kExternalBufferHandleShift don't match");
-
 //
 // External Pointers.
 //
@@ -914,7 +872,6 @@ class Internals {
   // ExternalPointerTable and TrustedPointerTable layout guarantees.
   static const int kExternalPointerTableBasePointerOffset = 0;
   static const int kExternalPointerTableSize = 2 * kApiSystemPointerSize;
-  static const int kExternalBufferTableSize = 2 * kApiSystemPointerSize;
   static const int kTrustedPointerTableSize = 2 * kApiSystemPointerSize;
   static const int kTrustedPointerTableBasePointerOffset = 0;
 
