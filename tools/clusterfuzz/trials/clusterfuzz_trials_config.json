@@ -1,4 +1,5 @@
 [
+    {"app_args": "--always-sparkplug", "app_name": "d8", "probability": 0.05},
     {"app_args": "--assert-types", "app_name": "d8", "probability": 0.25, "contradicts": ["--stress-concurrent-inlining", "--stress-concurrent-inlining-attach-code"]},
     {"app_args": "--force-slow-path", "app_name": "d8", "probability": 0.05},
     {"app_args": "--future", "app_name": "d8", "probability": 0.25},
