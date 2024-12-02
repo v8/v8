@@ -7,11 +7,24 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const iterationCount = 100;
+let arrayIndex = 0;
 
 function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
   let builder = new WasmModuleBuilder();
   builder.addMemory(1, 1);
+  let index = builder.addArray(kWasmI32, true);
+  assertEquals(arrayIndex, index);
   let callbackIndex = builder.addImport('env', 'callback', kSig_v_i);
+
+  builder.addFunction("arrayGet",
+      makeSig([kWasmExternRef, kWasmI32], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprAnyConvertExtern,
+      kGCPrefix, kExprRefCast, arrayIndex,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprArrayGet, arrayIndex,
+    ]).exportFunc();
 
   builder.addFunction("triggerDeopt", makeSig([kWasmI32], [returnType]))
     .addLocals(kWasmI32, 1)
@@ -40,8 +53,12 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
 { // Test externref.
   // This needs to be var to trigger the lazy deopt on the callback.
   var globalForExternref = 0;
-  let {triggerDeopt} = createWasmModuleForLazyDeopt(kWasmExternRef,
-    [kExprRefNull, kExternRefCode], () => globalForExternref = 1).exports;
+  let {triggerDeopt, arrayGet} = createWasmModuleForLazyDeopt(kWasmExternRef, [
+      kExprI32Const, 42, // initial value
+      kExprI32Const, 40, // array size
+      kGCPrefix, kExprArrayNew, arrayIndex,
+      kGCPrefix, kExprExternConvertAny,
+    ], () => globalForExternref = 1).exports;
 
   function test(arg0) {
     var result = 0;
@@ -53,9 +70,9 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
   }
 
   %PrepareFunctionForOptimization(test);
-  assertEquals(null, test(0));
+  assertEquals(42, arrayGet(test(0), 10));
   %OptimizeFunctionOnNextCall(test);
-  assertEquals(null, test(0));
+  assertEquals(42, arrayGet(test(0), 10));
 }
 
 { // Test i32.
