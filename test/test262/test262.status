@@ -1712,8 +1712,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   # https://github.com/tc39/test262/pull/4146
-  'built-ins/AbstractModuleSource/prototype': [SKIP],
-  'built-ins/AbstractModuleSource/prototype/Symbol.toStringTag': [SKIP],
   'built-ins/Math/sumPrecise/length': [SKIP],
   'built-ins/Math/sumPrecise/name': [SKIP],
   'built-ins/Math/sumPrecise/not-a-constructor': [SKIP],
