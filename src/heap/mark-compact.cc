@@ -573,13 +573,13 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
         kTargetFragmentationPercentForOptimizeMemory;
     *max_evacuated_bytes = kMaxEvacuatedBytesForOptimizeMemory;
   } else {
-    const std::optional<double> estimated_compaction_speed =
+    const double estimated_compaction_speed =
         heap_->tracer()->CompactionSpeedInBytesPerMillisecond();
-    if (estimated_compaction_speed.has_value()) {
+    if (estimated_compaction_speed != 0) {
       // Estimate the target fragmentation based on traced compaction speed
       // and a goal for a single page.
       const double estimated_ms_per_area =
-          1 + area_size / *estimated_compaction_speed;
+          1 + area_size / estimated_compaction_speed;
       *target_fragmentation_percent = static_cast<int>(
           100 - 100 * kTargetMsPerArea / estimated_ms_per_area);
       if (*target_fragmentation_percent <
@@ -4853,20 +4853,17 @@ void TraceEvacuation(Isolate* isolate, size_t pages_count,
                      size_t wanted_num_tasks, size_t live_bytes,
                      size_t aborted_pages) {
   DCHECK(v8_flags.trace_evacuation);
-  PrintIsolate(isolate,
-               "%8.0f ms: evacuation-summary: parallel=%s pages=%zu "
-               "wanted_tasks=%zu cores=%d live_bytes=%" V8PRIdPTR
-               " compaction_speed=%.f aborted=%zu\n",
-               isolate->time_millis_since_init(),
-               v8_flags.parallel_compaction ? "yes" : "no", pages_count,
-               wanted_num_tasks,
-               V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1,
-               live_bytes,
-               isolate->heap()
-                   ->tracer()
-                   ->CompactionSpeedInBytesPerMillisecond()
-                   .value_or(0),
-               aborted_pages);
+  PrintIsolate(
+      isolate,
+      "%8.0f ms: evacuation-summary: parallel=%s pages=%zu "
+      "wanted_tasks=%zu cores=%d live_bytes=%" V8PRIdPTR
+      " compaction_speed=%.f aborted=%zu\n",
+      isolate->time_millis_since_init(),
+      v8_flags.parallel_compaction ? "yes" : "no", pages_count,
+      wanted_num_tasks, V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1,
+      live_bytes,
+      isolate->heap()->tracer()->CompactionSpeedInBytesPerMillisecond(),
+      aborted_pages);
 }
 
 }  // namespace

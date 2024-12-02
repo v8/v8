@@ -31,7 +31,7 @@ using BytesAndDurationBuffer = v8::base::RingBuffer<BytesAndDuration>;
 // events considered (which uses the order of events in
 // `BytesAndDurationBuffer`). The bounds are in Bytes/ms and can be used to
 // bound non-zero speeds.
-inline std::optional<double> AverageSpeed(
+inline double AverageSpeed(
     const BytesAndDurationBuffer& buffer, const BytesAndDuration& initial,
     std::optional<v8::base::TimeDelta> selected_duration,
     size_t min_non_empty_speed = 0,
@@ -47,8 +47,10 @@ inline std::optional<double> AverageSpeed(
       },
       initial);
   const auto duration = sum.duration;
+  // TODO(v8:14140): The return value should really be an optional double to
+  // indicate no speed.
   if (duration.IsZero()) {
-    return std::nullopt;
+    return 0.0;
   }
   return std::max(
       std::min(static_cast<double>(sum.bytes) / duration.InMillisecondsF(),

@@ -13,8 +13,8 @@ namespace internal {
 
 template <typename Trait>
 double MemoryController<Trait>::GrowingFactor(
-    Heap* heap, size_t max_heap_size, std::optional<double> gc_speed,
-    double mutator_speed, Heap::HeapGrowingMode growing_mode) {
+    Heap* heap, size_t max_heap_size, double gc_speed, double mutator_speed,
+    Heap::HeapGrowingMode growing_mode) {
   const double max_factor = MaxGrowingFactor(max_heap_size);
   double factor = DynamicGrowingFactor(gc_speed, mutator_speed, max_factor);
   switch (growing_mode) {
@@ -36,8 +36,7 @@ double MemoryController<Trait>::GrowingFactor(
         "[%s] factor %.1f based on mu=%.3f, speed_ratio=%.f "
         "(gc=%.f, mutator=%.f)\n",
         Trait::kName, factor, Trait::kTargetMutatorUtilization,
-        gc_speed.value_or(0) / mutator_speed, gc_speed.value_or(0),
-        mutator_speed);
+        gc_speed / mutator_speed, gc_speed, mutator_speed);
   }
   return factor;
 }
@@ -106,13 +105,14 @@ double MemoryController<Trait>::MaxGrowingFactor(size_t max_heap_size) {
 //   F * (R * (1 - MU) - MU) / (R * (1 - MU)) = 1
 //   F = R * (1 - MU) / (R * (1 - MU) - MU)
 template <typename Trait>
-double MemoryController<Trait>::DynamicGrowingFactor(
-    std::optional<double> gc_speed, double mutator_speed, double max_factor) {
+double MemoryController<Trait>::DynamicGrowingFactor(double gc_speed,
+                                                     double mutator_speed,
+                                                     double max_factor) {
   DCHECK_LE(Trait::kMinGrowingFactor, max_factor);
   DCHECK_GE(Trait::kMaxGrowingFactor, max_factor);
-  if (!gc_speed || mutator_speed == 0) return max_factor;
+  if (gc_speed == 0 || mutator_speed == 0) return max_factor;
 
-  const double speed_ratio = *gc_speed / mutator_speed;
+  const double speed_ratio = gc_speed / mutator_speed;
 
   const double a = speed_ratio * (1 - Trait::kTargetMutatorUtilization);
   const double b = speed_ratio * (1 - Trait::kTargetMutatorUtilization) -

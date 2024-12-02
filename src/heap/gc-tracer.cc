@@ -52,8 +52,7 @@ CollectionEpoch next_epoch() {
 
 using BytesAndDuration = ::heap::base::BytesAndDuration;
 
-std::optional<double> BoundedAverageSpeed(
-    const base::RingBuffer<BytesAndDuration>& buffer) {
+double BoundedAverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer) {
   constexpr size_t kMinNonEmptySpeedInBytesPerMs = 1;
   constexpr size_t kMaxSpeedInBytesPerMs = GB;
   return ::heap::base::AverageSpeed(buffer, BytesAndDuration(), std::nullopt,
@@ -872,8 +871,7 @@ void GCTracer::PrintNVP() const {
           incremental_scope(GCTracer::Scope::MC_INCREMENTAL).steps,
           current_scope(Scope::MC_INCREMENTAL),
           YoungGenerationSpeedInBytesPerMillisecond(
-              YoungGenerationSpeedMode::kOnlyAtomicPause)
-              .value_or(0.0),
+              YoungGenerationSpeedMode::kOnlyAtomicPause),
           current_.start_object_size, current_.end_object_size,
           current_.start_holes_size, current_.end_holes_size,
           allocated_since_last_gc, heap_->promoted_objects_size(),
@@ -1160,7 +1158,7 @@ void GCTracer::PrintNVP() const {
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->pool()->NumberOfCommittedChunks(),
-          CompactionSpeedInBytesPerMillisecond().value_or(0.0));
+          CompactionSpeedInBytesPerMillisecond());
       break;
     case Event::Type::START:
       break;
@@ -1250,11 +1248,11 @@ double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   return kConservativeSpeedInBytesPerMillisecond;
 }
 
-std::optional<double> GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
+double GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
   return BoundedAverageSpeed(recorded_embedder_marking_);
 }
 
-std::optional<double> GCTracer::YoungGenerationSpeedInBytesPerMillisecond(
+double GCTracer::YoungGenerationSpeedInBytesPerMillisecond(
     YoungGenerationSpeedMode mode) const {
   switch (mode) {
     case YoungGenerationSpeedMode::kUpToAndIncludingAtomicPause:
@@ -1265,20 +1263,19 @@ std::optional<double> GCTracer::YoungGenerationSpeedInBytesPerMillisecond(
   UNREACHABLE();
 }
 
-std::optional<double> GCTracer::CompactionSpeedInBytesPerMillisecond() const {
+double GCTracer::CompactionSpeedInBytesPerMillisecond() const {
   return BoundedAverageSpeed(recorded_compactions_);
 }
 
-std::optional<double> GCTracer::MarkCompactSpeedInBytesPerMillisecond() const {
+double GCTracer::MarkCompactSpeedInBytesPerMillisecond() const {
   return BoundedAverageSpeed(recorded_mark_compacts_);
 }
 
-std::optional<double>
-GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const {
+double GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const {
   return BoundedAverageSpeed(recorded_incremental_mark_compacts_);
 }
 
-std::optional<double> GCTracer::OldGenerationSpeedInBytesPerMillisecond() {
+double GCTracer::OldGenerationSpeedInBytesPerMillisecond() {
   if (v8_flags.gc_speed_uses_counters) {
     return BoundedAverageSpeed(recorded_major_totals_);
   }
@@ -1289,18 +1286,16 @@ std::optional<double> GCTracer::OldGenerationSpeedInBytesPerMillisecond() {
   // MarkCompact speed is more stable than incremental marking speed, because
   // there might not be many incremental marking steps because of concurrent
   // marking.
-  combined_mark_compact_speed_cache_ =
-      MarkCompactSpeedInBytesPerMillisecond().value_or(0.0);
+  combined_mark_compact_speed_cache_ = MarkCompactSpeedInBytesPerMillisecond();
   if (combined_mark_compact_speed_cache_ > 0)
     return combined_mark_compact_speed_cache_;
   double speed1 = IncrementalMarkingSpeedInBytesPerMillisecond();
-  double speed2 =
-      FinalIncrementalMarkCompactSpeedInBytesPerMillisecond().value_or(0.0);
+  double speed2 = FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
   if (speed1 < kMinimumMarkingSpeed || speed2 < kMinimumMarkingSpeed) {
     // No data for the incremental marking speed.
     // Return the non-incremental mark-compact speed.
     combined_mark_compact_speed_cache_ =
-        MarkCompactSpeedInBytesPerMillisecond().value_or(0.0);
+        MarkCompactSpeedInBytesPerMillisecond();
   } else {
     // Combine the speed of incremental step and the speed of the final step.
     // 1 / (1 / speed1 + 1 / speed2) = speed1 * speed2 / (speed1 + speed2).
@@ -1435,9 +1430,8 @@ void GCTracer::RecordGCSumCounters() {
       "background_duration", marking_background_duration.InMillisecondsF());
   TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCSpeedSummary",
                        TRACE_EVENT_SCOPE_THREAD, "old_generation_speed",
-                       OldGenerationSpeedInBytesPerMillisecond().value_or(0.0),
-                       "embedder_speed",
-                       EmbedderSpeedInBytesPerMillisecond().value_or(0.0));
+                       OldGenerationSpeedInBytesPerMillisecond(),
+                       "embedder_speed", EmbedderSpeedInBytesPerMillisecond());
 }
 
 void GCTracer::RecordGCSizeCounters() const {
