@@ -4611,11 +4611,18 @@ int MacroAssembler::CallCFunctionHelper(
   DCHECK(has_frame());
 
   Label get_pc;
+  UseScratchRegisterScope temps(this);
+  // We're doing a C call, which means non-parameter caller-saved registers
+  // (a0-a7, t0-t8) will be clobbered and so are available to use as scratches.
+  // In the worst-case scenario, we'll need 2 scratch registers. We pick 3
+  // registers minus the `function` register, in case `function` aliases with
+  // any of the registers.
+  temps.Include({t0, t1, t2, function});
+  temps.Exclude(function);
 
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
-
 #if V8_HOST_ARCH_LOONG64
   if (v8_flags.debug_code) {
     int frame_alignment = base::OS::ActivationFrameAlignment();
@@ -4649,9 +4656,9 @@ int MacroAssembler::CallCFunctionHelper(
 
       // Save the frame pointer and PC so that the stack layout remains
       // iterable, even without an ExitFrame which normally exists between JS
-      // and C frames. 't' registers are caller-saved so this is safe as a
-      // scratch register.
-      Register pc_scratch = t1;
+      // and C frames.
+      UseScratchRegisterScope temps(this);
+      Register pc_scratch = temps.Acquire();
       DCHECK(!AreAliased(pc_scratch, function));
       CHECK(root_array_available());
 

@@ -1152,7 +1152,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   // Check the tiering state.
   Label flags_need_processing;
-  Register flags = a5;
+  Register flags = t0;
   __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
       &flags_need_processing);
