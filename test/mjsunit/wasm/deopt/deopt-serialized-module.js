@@ -38,6 +38,9 @@
 // Flags: --no-wasm-native-module-cache
 // Also reduce tiering budget to speed-up the busy wait on dynamic tier up:
 // Flags: --wasm-tiering-budget=100 --expose-gc --allow-natives-syntax
+// This test busy-waits for tier-up to be complete, hence it does not work in
+// predictable more where we only have a single thread.
+// Flags: --no-predictable
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
