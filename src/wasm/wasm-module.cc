@@ -240,14 +240,12 @@ namespace {
 
 // Converts the given {type} into a string representation that can be used in
 // reflective functions. Should be kept in sync with the {GetValueType} helper.
-template <typename T>
-Handle<String> ToValueTypeString(Isolate* isolate, T type) {
+Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
   return isolate->factory()->InternalizeUtf8String(base::VectorOf(type.name()));
 }
 }  // namespace
 
-template <typename T>
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, const Signature<T>* sig,
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
                                     bool for_exception) {
   Factory* factory = isolate->factory();
 
@@ -255,7 +253,7 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const Signature<T>* sig,
   int param_index = 0;
   int param_count = static_cast<int>(sig->parameter_count());
   DirectHandle<FixedArray> param_values = factory->NewFixedArray(param_count);
-  for (T type : sig->parameters()) {
+  for (ValueType type : sig->parameters()) {
     DirectHandle<String> type_value = ToValueTypeString(isolate, type);
     param_values->set(param_index++, *type_value);
   }
@@ -276,7 +274,7 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const Signature<T>* sig,
     int result_count = static_cast<int>(sig->return_count());
     DirectHandle<FixedArray> result_values =
         factory->NewFixedArray(result_count);
-    for (T type : sig->returns()) {
+    for (ValueType type : sig->returns()) {
       DirectHandle<String> type_value = ToValueTypeString(isolate, type);
       result_values->set(result_index++, *type_value);
     }
@@ -287,9 +285,6 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const Signature<T>* sig,
 
   return object;
 }
-
-template Handle<JSObject> GetTypeForFunction(
-    Isolate*, const Signature<CanonicalValueType>*, bool);
 
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type) {

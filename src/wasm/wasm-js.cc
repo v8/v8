@@ -2468,7 +2468,17 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
                                            ->shared()
                                            ->wasm_js_function_data()
                                            ->GetSignature();
-    type = i::wasm::GetTypeForFunction(i_isolate, sig);
+    // As long as WasmJSFunctions cannot use indexed types, their canonical
+    // signatures are bit-compatible with module-specific signatures.
+#if DEBUG
+    for (i::wasm::CanonicalValueType t : sig->all()) {
+      DCHECK(!t.has_index());
+    }
+#endif
+    static_assert(sizeof(i::wasm::ValueType) ==
+                  sizeof(i::wasm::CanonicalValueType));
+    type = i::wasm::GetTypeForFunction(
+        i_isolate, reinterpret_cast<const i::wasm::FunctionSig*>(sig));
   } else {
     thrower.TypeError("Receiver must be a WebAssembly.Function");
     return;
