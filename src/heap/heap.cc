@@ -1860,20 +1860,23 @@ class IdleTaskOnContextDispose : public CancelableIdleTask {
     static constexpr size_t kMinYounGenSize = 1 * MB;
 
     auto* heap = isolate_->heap();
-    const double young_gen_gc_speed =
+    const std::optional<double> young_gen_gc_speed =
         heap->tracer()->YoungGenerationSpeedInBytesPerMillisecond(
             YoungGenerationSpeedMode::kUpToAndIncludingAtomicPause);
+    if (!young_gen_gc_speed) {
+      return;
+    }
     const size_t young_gen_bytes = heap->YoungGenerationSizeOfObjects();
     const base::TimeDelta young_gen_estimate =
         base::TimeDelta::FromMillisecondsD(young_gen_bytes /
-                                           young_gen_gc_speed);
+                                           *young_gen_gc_speed);
     const bool run_young_gen_gc =
         young_gen_estimate < idle_time && young_gen_bytes > kMinYounGenSize;
     if (V8_UNLIKELY(v8_flags.trace_context_disposal)) {
       isolate_->PrintWithTimestamp(
           "[context-disposal/idle task] young generation size: %zuKB (min: "
           "%zuKB), GC speed: %fKB/ms, estimated time: %fms%s\n",
-          young_gen_bytes / KB, kMinYounGenSize / KB, young_gen_gc_speed / KB,
+          young_gen_bytes / KB, kMinYounGenSize / KB, *young_gen_gc_speed / KB,
           young_gen_estimate.InMillisecondsF(),
           run_young_gen_gc ? ", performing young gen GC"
                            : ", not starting young gen GC");
@@ -2497,19 +2500,19 @@ Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
   DCHECK(!heap->using_initial_limit());
   heap->tracer()->RecordGCSizeCounters();
   const HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
-  double v8_gc_speed =
+  std::optional<double> v8_gc_speed =
       heap->tracer()->OldGenerationSpeedInBytesPerMillisecond();
   double v8_mutator_speed =
       heap->tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond();
   double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
       heap, heap->max_old_generation_size(), v8_gc_speed, v8_mutator_speed,
       mode);
-  double embedder_gc_speed =
+  std::optional<double> embedder_gc_speed =
       heap->tracer()->EmbedderSpeedInBytesPerMillisecond();
   double embedder_speed =
       heap->tracer()->EmbedderAllocationThroughputInBytesPerMillisecond();
   double embedder_growing_factor =
-      (embedder_gc_speed > 0 && embedder_speed > 0)
+      (embedder_gc_speed.has_value() && embedder_speed > 0)
           ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
                 heap, heap->max_global_memory_size_, embedder_gc_speed,
                 embedder_speed, mode)
@@ -3721,11 +3724,12 @@ void Heap::DeactivateMajorGCInProgressFlag() {
 
 namespace {
 
-double ComputeMutatorUtilizationImpl(double mutator_speed, double gc_speed) {
+double ComputeMutatorUtilizationImpl(double mutator_speed,
+                                     std::optional<double> gc_speed) {
   constexpr double kMinMutatorUtilization = 0.0;
   constexpr double kConservativeGcSpeedInBytesPerMillisecond = 200000;
   if (mutator_speed == 0) return kMinMutatorUtilization;
-  if (gc_speed == 0) gc_speed = kConservativeGcSpeedInBytesPerMillisecond;
+  if (!gc_speed) gc_speed = kConservativeGcSpeedInBytesPerMillisecond;
   // Derivation:
   // mutator_utilization = mutator_time / (mutator_time + gc_time)
   // mutator_time = 1 / mutator_speed
@@ -3733,19 +3737,19 @@ double ComputeMutatorUtilizationImpl(double mutator_speed, double gc_speed) {
   // mutator_utilization = (1 / mutator_speed) /
   //                       (1 / mutator_speed + 1 / gc_speed)
   // mutator_utilization = gc_speed / (mutator_speed + gc_speed)
-  return gc_speed / (mutator_speed + gc_speed);
+  return *gc_speed / (mutator_speed + *gc_speed);
 }
 
 }  // namespace
 
 double Heap::ComputeMutatorUtilization(const char* tag, double mutator_speed,
-                                       double gc_speed) {
+                                       std::optional<double> gc_speed) {
   double result = ComputeMutatorUtilizationImpl(mutator_speed, gc_speed);
   if (v8_flags.trace_mutator_utilization) {
     isolate()->PrintWithTimestamp(
         "%s mutator utilization = %.3f ("
         "mutator_speed=%.f, gc_speed=%.f)\n",
-        tag, result, mutator_speed, gc_speed);
+        tag, result, mutator_speed, gc_speed.value_or(0));
   }
   return result;
 }

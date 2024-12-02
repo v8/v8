@@ -21,7 +21,7 @@ TEST(BytesAndDurationTest, InitialAsAverage) {
   BytesAndDurationBuffer buffer;
   EXPECT_DOUBLE_EQ(
       100.0 / 2,
-      AverageSpeed(
+      *AverageSpeed(
           buffer,
           BytesAndDuration(100, v8::base::TimeDelta::FromMilliseconds(2)),
           std::nullopt));
@@ -34,7 +34,7 @@ TEST(BytesAndDurationTest, SelectedDuration) {
   buffer.Push(BytesAndDuration(100, v8::base::TimeDelta::FromMilliseconds(8)));
   EXPECT_DOUBLE_EQ(
       100.0 / 2,
-      AverageSpeed(
+      *AverageSpeed(
           buffer,
           BytesAndDuration(100, v8::base::TimeDelta::FromMilliseconds(2)),
           v8::base::TimeDelta::FromMilliseconds(2)));
@@ -42,16 +42,18 @@ TEST(BytesAndDurationTest, SelectedDuration) {
 
 TEST(BytesAndDurationTest, Empty) {
   BytesAndDurationBuffer buffer;
-  EXPECT_DOUBLE_EQ(0.0, AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
+  EXPECT_EQ(std::nullopt,
+            AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
 }
 
 TEST(BytesAndDurationTest, Clear) {
   BytesAndDurationBuffer buffer;
   buffer.Push(BytesAndDuration(100, v8::base::TimeDelta::FromMilliseconds(2)));
   EXPECT_DOUBLE_EQ(100.0 / 2,
-                   AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
+                   *AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
   buffer.Clear();
-  EXPECT_DOUBLE_EQ(0.0, AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
+  EXPECT_EQ(std::nullopt,
+            AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
 }
 
 TEST(BytesAndDurationTest, MaxSpeed) {
@@ -59,8 +61,8 @@ TEST(BytesAndDurationTest, MaxSpeed) {
   static constexpr size_t kMaxBytesPerMs = 1024;
   buffer.Push(BytesAndDuration(kMaxBytesPerMs,
                                v8::base::TimeDelta::FromMillisecondsD(0.5)));
-  const double bounded_speed =
-      AverageSpeed(buffer, BytesAndDuration(), std::nullopt, 0, kMaxBytesPerMs);
+  const double bounded_speed = *AverageSpeed(buffer, BytesAndDuration(),
+                                             std::nullopt, 0, kMaxBytesPerMs);
   EXPECT_DOUBLE_EQ(double{kMaxBytesPerMs}, bounded_speed);
 }
 
@@ -70,7 +72,7 @@ TEST(BytesAndDurationTest, MinSpeed) {
   buffer.Push(BytesAndDuration(kMinBytesPerMs,
                                v8::base::TimeDelta::FromMillisecondsD(2)));
   const double bounded_speed =
-      AverageSpeed(buffer, BytesAndDuration(), std::nullopt, kMinBytesPerMs);
+      *AverageSpeed(buffer, BytesAndDuration(), std::nullopt, kMinBytesPerMs);
   EXPECT_DOUBLE_EQ(double{kMinBytesPerMs}, bounded_speed);
 }
 
@@ -82,15 +84,15 @@ TEST(BytesAndDurationTest, RingBufferAverage) {
     buffer.Push(
         BytesAndDuration(i + 1, v8::base::TimeDelta::FromMillisecondsD(1)));
     EXPECT_DOUBLE_EQ(static_cast<double>(sum) / (i + 1),
-                     AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
+                     *AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
   }
   EXPECT_DOUBLE_EQ(static_cast<double>(sum) / BytesAndDurationBuffer::kSize,
-                   AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
+                   *AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
   // Overflow the ring buffer.
   buffer.Push(BytesAndDuration(100, v8::base::TimeDelta::FromMilliseconds(1)));
   EXPECT_DOUBLE_EQ(
       static_cast<double>(sum + 100 - 1) / BytesAndDurationBuffer::kSize,
-      AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
+      *AverageSpeed(buffer, BytesAndDuration(), std::nullopt));
 }
 
 TEST(SmoothedBytesAndDuration, ZeroDelta) {
