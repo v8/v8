@@ -1597,7 +1597,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
   }
   smi_elements_.resize_no_init(0);
   for (double element : double_elements_) {
-    element_stack_.emplace_back(factory()->NewHeapNumber(element));
+    element_stack_.emplace_back(factory()->NewNumber(element));
   }
   double_elements_.resize_no_init(0);
 
