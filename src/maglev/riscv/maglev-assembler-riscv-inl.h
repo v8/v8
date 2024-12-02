@@ -879,29 +879,27 @@ inline void MaglevAssembler::LoadUnalignedFloat64(DoubleRegister dst,
                                                   Register base,
                                                   Register index) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
   Register address = temps.AcquireScratch();
   Add64(address, base, index);
-  ULoadDouble(dst, MemOperand(address), scratch);
+  ULoadDouble(dst, MemOperand(address));
 }
 inline void MaglevAssembler::LoadUnalignedFloat64AndReverseByteOrder(
     DoubleRegister dst, Register base, Register index) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
   Register address = temps.AcquireScratch();
   Add64(address, base, index);
+  Register scratch = base;  // reuse base as scratch register
   Uld(scratch, MemOperand(address));
-  ByteSwap(scratch, scratch, 8, address);  // reuse address as scratch register
+  ByteSwap(scratch, scratch, 8, address);
   MacroAssembler::Move(dst, scratch);
 }
 inline void MaglevAssembler::StoreUnalignedFloat64(Register base,
                                                    Register index,
                                                    DoubleRegister src) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
   Register address = temps.AcquireScratch();
   Add64(address, base, index);
-  UStoreDouble(src, MemOperand(address), scratch);
+  UStoreDouble(src, MemOperand(address));
 }
 inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
     Register base, Register index, DoubleRegister src) {
