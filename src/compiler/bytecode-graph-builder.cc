@@ -236,7 +236,8 @@ class BytecodeGraphBuilder {
   };
   void BuildNamedStore(NamedStoreMode store_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
-  void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
+  void BuildLdaLookupContextSlot(ContextKind context_kind,
+                                 TypeofMode typeof_mode);
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
   void BuildCallVarArgs(ConvertReceiverMode receiver_mode);
   void BuildCall(ConvertReceiverMode receiver_mode, Node* const* args,
@@ -1921,7 +1922,8 @@ BytecodeGraphBuilder::CheckContextExtensionsSlowPath(uint32_t depth) {
   return slow_environment;
 }
 
-void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
+void BytecodeGraphBuilder::BuildLdaLookupContextSlot(ContextKind context_kind,
+                                                     TypeofMode typeof_mode) {
   uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(2);
 
   // Check if any context in the depth has an extension.
@@ -1931,8 +1933,10 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
   {
     uint32_t slot_index = bytecode_iterator().GetIndexOperand(1);
 
-    // TODO(victorgomes): Emit LoadScriptContext if ContextKind::kScriptContext.
-    const Operator* op = javascript()->LoadContext(depth, slot_index, false);
+    const Operator* op =
+        context_kind == ContextKind::kScriptContext
+            ? javascript()->LoadScriptContext(depth, slot_index)
+            : javascript()->LoadContext(depth, slot_index, false);
     environment()->BindAccumulator(NewNode(op));
   }
   if (!slow_environment) {
@@ -1966,19 +1970,20 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupContextSlot() {
-  BuildLdaLookupContextSlot(TypeofMode::kNotInside);
+  BuildLdaLookupContextSlot(ContextKind::kDefault, TypeofMode::kNotInside);
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupScriptContextSlot() {
-  BuildLdaLookupContextSlot(TypeofMode::kNotInside);
+  BuildLdaLookupContextSlot(ContextKind::kScriptContext,
+                            TypeofMode::kNotInside);
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
-  BuildLdaLookupContextSlot(TypeofMode::kInside);
+  BuildLdaLookupContextSlot(ContextKind::kDefault, TypeofMode::kInside);
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupScriptContextSlotInsideTypeof() {
-  BuildLdaLookupContextSlot(TypeofMode::kInside);
+  BuildLdaLookupContextSlot(ContextKind::kScriptContext, TypeofMode::kInside);
 }
 
 void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
