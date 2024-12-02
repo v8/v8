@@ -3833,16 +3833,18 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
   data.BeginPhaseKind("V8.WasmOptimization");
   turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data);
-#ifdef V8_ENABLE_WASM_SIMD256_REVEC
-  {
-    bool cpu_feature_support = false;
-#ifdef V8_TARGET_ARCH_X64
-    if (CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2)) {
-      cpu_feature_support = true;
-    }
-#endif
-    if (v8_flags.experimental_wasm_revectorize && cpu_feature_support &&
-        detected->has_simd() && !env->enabled_features.has_memory64()) {
+#if defined(V8_ENABLE_WASM_SIMD256_REVEC) && defined(V8_TARGET_ARCH_X64)
+  if (v8_flags.experimental_wasm_revectorize) {
+    bool cpu_feature_support =
+        CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2);
+    // TODO(381696879): This is already tracked in the detected features from
+    // module-decoding, but not in `detected->has_memory64()`. Instead of fixing
+    // this, we just re-compute it here by looking at the declared memories of
+    // the module. In the long term we should completely remove this check.
+    const bool has_memory64 = std::any_of(
+        env->module->memories.begin(), env->module->memories.end(),
+        [](const wasm::WasmMemory& mem) { return mem.is_memory64(); });
+    if (cpu_feature_support && detected->has_simd() && !has_memory64) {
       if (v8_flags.trace_wasm_revectorize) {
         std::cout << "Begin revec function "
                   << data.info()->GetDebugName().get() << std::endl;

@@ -83,11 +83,10 @@ class TSSimd256VerifyScope {
       : expected_(expected) {
     SKIP_TEST_IF_NO_TURBOSHAFT;
 
-    std::function<void(const compiler::turboshaft::Graph&)> handler;
-
-    handler = [=, this](const compiler::turboshaft::Graph& graph) {
-      check_pass_ = raw_handler(graph);
-    };
+    std::function<void(const compiler::turboshaft::Graph&)> handler =
+        [raw_handler, this](const compiler::turboshaft::Graph& graph) {
+          check_pass_ = raw_handler(graph);
+        };
 
     verifier_ =
         std::make_unique<compiler::turboshaft::WasmRevecVerifier>(handler);
@@ -99,11 +98,7 @@ class TSSimd256VerifyScope {
   ~TSSimd256VerifyScope() {
     SKIP_TEST_IF_NO_TURBOSHAFT;
     isolate_->set_wasm_revec_verifier_for_test(nullptr);
-    if (expected_ == ExpectedResult::kPass) {
-      CHECK(check_pass_);
-    } else {
-      CHECK(!check_pass_);
-    }
+    CHECK_EQ(expected_ == ExpectedResult::kPass, check_pass_);
   }
 
   bool check_pass_ = false;
