@@ -20,6 +20,19 @@ void JSDispatchEntry::CheckFieldOffsets() {
                 offsetof(JSDispatchEntry, entrypoint_));
   static_assert(JSDispatchEntry::kCodeObjectOffset ==
                 offsetof(JSDispatchEntry, encoded_word_));
+#if defined(V8_TARGET_ARCH_64_BIT)
+  static_assert(JSDispatchEntry::kParameterCountOffset ==
+                offsetof(JSDispatchEntry, encoded_word_));
+  static_assert(kParameterCountMask == 0xffff);
+  static_assert(kParameterCountSize == 2);
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  static_assert(JSDispatchEntry::kParameterCountOffset ==
+                offsetof(JSDispatchEntry, parameter_count_));
+  static_assert(kParameterCountSize ==
+                sizeof(JSDispatchEntry::parameter_count_));
+#else
+#error "Unsupported Architecture"
+#endif
 }
 
 JSDispatchHandle JSDispatchTable::PreAllocateEntries(
@@ -71,17 +84,15 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
 bool JSDispatchTable::IsMarked(JSDispatchHandle handle) {
   return at(HandleToIndex(handle)).IsMarked();
 }
-
-// Static
-std::atomic<bool> JSDispatchTable::initialized_ = false;
 #endif  // DEBUG
 
 void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
   i::PrintF("JSDispatchEntry @ %p\n", &at(index));
-  i::PrintF("* code 0x%lx\n", GetCode(handle).address());
+  i::PrintF("* code %p\n", reinterpret_cast<void*>(GetCode(handle).address()));
   i::PrintF("* params %d\n", at(HandleToIndex(handle)).GetParameterCount());
-  i::PrintF("* entrypoint 0x%lx\n", GetEntrypoint(handle));
+  i::PrintF("* entrypoint %p\n",
+            reinterpret_cast<void*>(GetEntrypoint(handle)));
 }
 
 void JSDispatchTable::PrintCurrentTieringRequest(JSDispatchHandle handle,
@@ -96,8 +107,15 @@ void JSDispatchTable::PrintCurrentTieringRequest(JSDispatchHandle handle,
 #undef CASE
 }
 
-// Static
-base::LeakyObject<JSDispatchTable> JSDispatchTable::instance_;
+// static
+void JSDispatchTable::Initialize() {
+  static base::LeakyObject<JSDispatchTable> instance;
+  DCHECK_NULL(instance_);
+  instance_ = instance.get();
+  instance_->Base::Initialize();
+}
+
+JSDispatchTable* JSDispatchTable::instance_ = nullptr;
 
 }  // namespace internal
 }  // namespace v8

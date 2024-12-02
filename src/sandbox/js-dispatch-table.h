@@ -73,35 +73,66 @@ struct JSDispatchEntry {
   // Constants for access from generated code.
   // These are static_assert'ed to be correct in CheckFieldOffsets().
   static constexpr uintptr_t kEntrypointOffset = 0;
-  static constexpr uintptr_t kCodeObjectOffset = 8;
+  static constexpr uintptr_t kCodeObjectOffset = kSystemPointerSize;
+  static constexpr size_t kParameterCountSize = 2;
+
+#if defined(V8_TARGET_ARCH_64_BIT)
+  // Freelist entries contain the index of the next free entry in their lower 32
+  // bits and are tagged with this tag.
+  static constexpr Address kFreeEntryTag = 0xffff000000000000ull;
+  static constexpr uintptr_t kParameterCountOffset = kCodeObjectOffset;
   static constexpr uint32_t kObjectPointerShift = 16;
   static constexpr uint32_t kParameterCountMask = 0xffff;
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  static constexpr uintptr_t kParameterCountOffset =
+      kCodeObjectOffset + kSystemPointerSize;
+  static constexpr uint32_t kObjectPointerShift = 0;
+  static constexpr uint32_t kParameterCountMask = 0x0;
+#else
+#error "Unsupported Architecture"
+#endif
+
   static void CheckFieldOffsets();
 
  private:
   friend class JSDispatchTable;
 
-  // Freelist entries contain the index of the next free entry in their lower 32
-  // bits and are tagged with this tag.
-  static constexpr Address kFreeEntryTag = 0xffff000000000000ull;
-
   // The first word contains the pointer to the (executable) entrypoint.
   std::atomic<Address> entrypoint_;
 
-  // The second word of the entry contains (1) the pointer to the code object
-  // associated with this entry, (2) the marking bit of the entry in the LSB of
-  // the object pointer (which must be unused as the address must be aligned),
-  // and (3) the 16-bit parameter count. The parameter count is stored in the
-  // lower 16 bits and therefore the pointer is shifted to the left. The final
-  // format therefore looks as follows:
+  // On 64 bit architectures the second word of the entry contains (1) the
+  // pointer to the code object associated with this entry, (2) the marking bit
+  // of the entry in the LSB of the object pointer (which must be unused as the
+  // address must be aligned), and (3) the 16-bit parameter count. The parameter
+  // count is stored in the lower 16 bits and therefore the pointer is shifted
+  // to the left. The final format therefore looks as follows:
   //
-  // +------------------------+-------------+-----------------+
-  // |     Bits 63 ... 17     |   Bit 16    |  Bits 15 ... 0  |
-  // |   HeapObject pointer   | Marking bit | Parameter count |
-  // +------------------------+-------------+-----------------+
+  // +----------------------+---------------+-------------------+
+  // | Bits 63 ... 17       | Bit 16        | Bits 15 ... 0     |
+  // |  HeapObject pointer  |  Marking bit  |  Parameter count  |
+  // +----------------------+---------------+-------------------+
   //
-  static constexpr Address kMarkingBit = 1 << 16;
+  // On 32 bit architectures only the mark bit is shared with the pointer.
+  //
+  // +----------------------+---------------+
+  // | Bits 32 ... 1        | Bit 0         |
+  // |  HeapObject pointer  |  Marking bit  |
+  // +----------------------+---------------+
+  //
+  // TODO(olivf): Find a better format that allows us to write atomically to the
+  // individual parts and unify with 32 bit. For instance we could try to store
+  // the code pointer in some compressd format, such that it fits into 32 bits.
+
+  static constexpr Address kMarkingBit = 1 << kObjectPointerShift;
   std::atomic<Address> encoded_word_;
+
+#ifdef V8_TARGET_ARCH_32_BIT
+  // TODO(olivf): Investigate if we could shrink the entry size on 32bit
+  // platforms to 12 bytes.
+  std::atomic<uint16_t> parameter_count_;
+  uint16_t padding_;
+  std::atomic<uint32_t> next_free_entry_;
+#endif  // V8_TARGET_ARCH_32_BIT
 };
 
 static_assert(sizeof(JSDispatchEntry) == kJSDispatchTableEntrySize);
@@ -138,7 +169,9 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // Size of a JSDispatchTable, for layout computation in IsolateData.
   static constexpr int kSize = 2 * kSystemPointerSize;
 
+#ifdef V8_ENABLE_SANDBOX
   static_assert(kMaxJSDispatchEntries == kMaxCapacity);
+#endif  // V8_ENABLE_SANDBOX
   static_assert(!kSupportsCompaction);
 
   JSDispatchTable() = default;
@@ -243,13 +276,10 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   Address base_address() const { return base(); }
 
   static JSDispatchTable* instance() {
-    CheckInitialization(false);
-    return instance_nocheck();
+    DCHECK_NOT_NULL(instance_);
+    return instance_;
   }
-  static void Initialize() {
-    CheckInitialization(true);
-    instance_nocheck()->Base::Initialize();
-  }
+  static void Initialize();
 
 #ifdef DEBUG
   bool IsMarked(JSDispatchHandle handle);
@@ -264,17 +294,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   static constexpr bool kWriteBarrierSetsEntryMarkBit = true;
 
  private:
-#ifdef DEBUG
-  static std::atomic<bool> initialized_;
-#endif  // DEBUG
-
-  static void CheckInitialization(bool is_initializing) {
-#ifdef DEBUG
-    DCHECK_NE(is_initializing, initialized_.load());
-    initialized_.store(true);
-#endif  // DEBUG
-  }
-
   static inline bool IsCompatibleCode(Tagged<Code> code,
                                       uint16_t parameter_count);
 
@@ -282,8 +301,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
                                                  Tagged<Code> new_code,
                                                  Address entrypoint);
 
-  static base::LeakyObject<JSDispatchTable> instance_;
-  static JSDispatchTable* instance_nocheck() { return instance_.get(); }
+  static JSDispatchTable* instance_;
 
   static uint32_t HandleToIndex(JSDispatchHandle handle) {
     uint32_t index = handle >> kJSDispatchHandleShift;

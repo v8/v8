@@ -1919,9 +1919,9 @@ TNode<Uint16T> CodeStubAssembler::LoadParameterCountFromJSDispatchTable(
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::js_dispatch_table_address());
   TNode<UintPtrT> offset = ComputeJSDispatchTableEntryOffset(handle);
-  offset =
-      UintPtrAdd(offset, UintPtrConstant(JSDispatchEntry::kCodeObjectOffset));
-  static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
+  offset = UintPtrAdd(offset,
+                      UintPtrConstant(JSDispatchEntry::kParameterCountOffset));
+  static_assert(JSDispatchEntry::kParameterCountSize == 2);
   return Load<Uint16T>(table, offset);
 }
 

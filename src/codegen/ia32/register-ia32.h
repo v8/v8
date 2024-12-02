@@ -138,7 +138,7 @@ constexpr Register kJavaScriptCallArgCountRegister = eax;
 constexpr Register kJavaScriptCallCodeStartRegister = ecx;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = edx;
-// Leaptiering is not currently available on Ia32.
+// DispatchHandle is only needed for the sandbox which is not available on Ia32.
 constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
 
 // The ExtraArg1Register not part of the real JS calling convention and is

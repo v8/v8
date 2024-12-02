@@ -23,10 +23,17 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
   DCHECK_EQ(object & kHeapObjectTag, 0);
   DCHECK_EQ((object << kObjectPointerShift) >> kObjectPointerShift, object);
 
-  Address payload = (object << kObjectPointerShift) | parameter_count;
+  Address payload =
+      (object << kObjectPointerShift) | (parameter_count & kParameterCountMask);
+  DCHECK(!(payload & kMarkingBit));
   if (mark_as_alive) payload |= kMarkingBit;
+#ifdef V8_TARGET_ARCH_32_BIT
+  parameter_count_.store(parameter_count, std::memory_order_relaxed);
+  next_free_entry_.store(0, std::memory_order_relaxed);
+#endif
   encoded_word_.store(payload, std::memory_order_relaxed);
   entrypoint_.store(entrypoint, std::memory_order_relaxed);
+  DCHECK(!IsFreelistEntry());
 }
 
 Address JSDispatchEntry::GetEntrypoint() const {
@@ -53,8 +60,13 @@ uint16_t JSDispatchEntry::GetParameterCount() const {
   // an integer (the parameter count), so we probably want to make sure that
   // we're not getting that from a freed entry.
   CHECK(!IsFreelistEntry());
+#ifdef V8_TARGET_ARCH_32_BIT
+  return parameter_count_.load(std::memory_order_relaxed);
+#else
+  static_assert(kParameterCountMask != 0);
   Address payload = encoded_word_.load(std::memory_order_relaxed);
   return payload & kParameterCountMask;
+#endif
 }
 
 Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
@@ -164,6 +176,7 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
   Address new_payload = object | marking_bit | parameter_count;
   encoded_word_.store(new_payload, std::memory_order_relaxed);
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
+  DCHECK(!IsFreelistEntry());
 }
 
 void JSDispatchEntry::SetEntrypointPointer(Address new_entrypoint) {
@@ -171,18 +184,34 @@ void JSDispatchEntry::SetEntrypointPointer(Address new_entrypoint) {
 }
 
 void JSDispatchEntry::MakeFreelistEntry(uint32_t next_entry_index) {
+#ifdef V8_TARGET_ARCH_64_BIT
   Address payload = kFreeEntryTag | next_entry_index;
   entrypoint_.store(payload, std::memory_order_relaxed);
+#else
+  // Store index + 1 such that we can use 0 for non-free entries.
+  next_free_entry_.store(next_entry_index + 1, std::memory_order_relaxed);
+  entrypoint_.store(kNullAddress, std::memory_order_relaxed);
+#endif
   encoded_word_.store(kNullAddress, std::memory_order_relaxed);
+  DCHECK(IsFreelistEntry());
 }
 
 bool JSDispatchEntry::IsFreelistEntry() const {
+#ifdef V8_TARGET_ARCH_64_BIT
   auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
   return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
+#else
+  return next_free_entry_.load(std::memory_order_relaxed) != 0;
+#endif
 }
 
 uint32_t JSDispatchEntry::GetNextFreelistEntryIndex() const {
+  DCHECK(IsFreelistEntry());
+#ifdef V8_TARGET_ARCH_64_BIT
   return static_cast<uint32_t>(entrypoint_.load(std::memory_order_relaxed));
+#else
+  return next_free_entry_.load(std::memory_order_relaxed) - 1;
+#endif
 }
 
 void JSDispatchEntry::Mark() {

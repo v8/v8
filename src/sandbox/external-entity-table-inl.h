@@ -46,6 +46,8 @@ template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::Initialize() {
   Base::Initialize();
 
+  if (!ExternalEntityTable::kUseContiguousMemory) return;
+
   // Allocate the read-only segment of the table. This segment is always
   // located at offset 0, and contains the null entry (pointing at
   // kNullAddress) at index 0. It may later be temporarily marked read-write,
@@ -91,6 +93,7 @@ void ExternalEntityTable<Entry, size>::TearDownSpace(Space* space) {
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::AttachSpaceToReadOnlySegment(
     Space* space) {
+  CHECK(ExternalEntityTable::kUseContiguousMemory);
   DCHECK(this->is_initialized());
   DCHECK(space->BelongsTo(this));
 
@@ -263,6 +266,8 @@ void ExternalEntityTable<Entry, size>::Extend(Space* space, Segment segment,
   space->mutex_.AssertHeld();
 
   space->segments_.insert(segment);
+  CHECK_IMPLIES(!ExternalEntityTable::kUseContiguousMemory,
+                segment.number() != 0);
   DCHECK_EQ(space->is_internal_read_only_space(), segment.number() == 0);
   DCHECK_EQ(space->is_internal_read_only_space(),
             segment.offset() == kInternalReadOnlySegmentOffset);

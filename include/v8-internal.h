@@ -789,20 +789,31 @@ using JSDispatchHandle = uint32_t;
 
 constexpr JSDispatchHandle kNullJSDispatchHandle = 0;
 
+constexpr int kJSDispatchTableEntrySize = 16;
+constexpr int kJSDispatchTableEntrySizeLog2 = 4;
+
 // The size of the virtual memory reservation for the JSDispatchTable.
 // As with the other tables, a maximum table size in combination with shifted
 // indices allows omitting bounds checks.
 constexpr size_t kJSDispatchTableReservationSize = 128 * MB;
-constexpr uint32_t kJSDispatchHandleShift = 9;
-
 // The maximum number of entries in a JSDispatchTable.
-constexpr int kJSDispatchTableEntrySize = 16;
-constexpr int kJSDispatchTableEntrySizeLog2 = 4;
 constexpr size_t kMaxJSDispatchEntries =
     kJSDispatchTableReservationSize / kJSDispatchTableEntrySize;
+
+#ifdef V8_TARGET_ARCH_64_BIT
+
+constexpr uint32_t kJSDispatchHandleShift = 9;
 static_assert((1 << (32 - kJSDispatchHandleShift)) == kMaxJSDispatchEntries,
               "kJSDispatchTableReservationSize and kJSDispatchEntryHandleShift "
               "don't match");
+
+#elif defined(V8_TARGET_ARCH_32_BIT)
+
+// Since the table is not contiguous on 32 bit platforms the indices can become
+// arbitrarily large and we need the full 32 bit range to hold them.
+constexpr uint32_t kJSDispatchHandleShift = 0;
+
+#endif
 
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.

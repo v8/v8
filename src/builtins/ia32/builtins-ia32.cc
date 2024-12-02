@@ -649,6 +649,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ movd(xmm0, ebx);
 
     // Copy the function arguments from the generator object's register file.
+    // TODO(olivf, 40931165): Load the parameter count from the JSDispatchTable.
     __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
     __ movzx_w(ecx, FieldOperand(
                         ecx, SharedFunctionInfo::kFormalParameterCountOffset));
@@ -909,6 +910,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
                         Label::kNear);
 
 #ifndef V8_JITLESS
+#ifndef V8_ENABLE_LEAPTIERING
   // If feedback vector is valid, check for optimized code and update invocation
   // count. Load the optimization state from the feedback vector and re-use the
   // register.
@@ -921,6 +923,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   // Reload the feedback vector.
   __ movd(feedback_vector, saved_feedback_vector);
+#endif  // !V8_ENABLE_LEAPTIERING
 
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, scratch);
 
@@ -1100,12 +1103,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
 #ifndef V8_JITLESS
+#ifndef V8_ENABLE_LEAPTIERING
   __ bind(&flags_need_processing);
   {
     // Restore actual argument count.
     __ movd(eax, xmm0);
     __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, xmm1);
   }
+#endif  // !V8_ENABLE_LEAPTIERING
 
   __ bind(&compile_lazy);
   // Restore actual argument count.
@@ -1114,6 +1119,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ bind(&is_baseline);
   {
+#ifndef V8_ENABLE_LEAPTIERING
     __ movd(xmm2, ecx);  // Save baseline data.
     // Load the feedback vector from the closure.
     __ mov(feedback_vector,
@@ -1145,6 +1151,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ JumpCodeObject(ecx);
 
     __ bind(&install_baseline_code);
+#endif  // !V8_ENABLE_LEAPTIERING
+
     __ movd(eax, xmm0);  // Recover argument count.
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
@@ -1868,6 +1876,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ AssertFeedbackVector(feedback_vector, scratch);
   feedback_cell = no_reg;
 
+#ifdef V8_ENABLE_LEAPTIERING
+  __ movd(saved_feedback_vector, feedback_vector);
+#else
   // Load the optimization state from the feedback vector and re-use the
   // register.
   Label flags_need_processing;
@@ -1877,6 +1888,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // Reload the feedback vector.
   __ movd(feedback_vector, saved_feedback_vector);
+#endif  // !V8_ENABLE_LEAPTIERING
 
   {
     DCHECK_EQ(arg_count, eax);
@@ -1941,6 +1953,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
+#ifndef V8_ENABLE_LEAPTIERING
   __ bind(&flags_need_processing);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
@@ -1953,6 +1966,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, saved_feedback_vector);
     __ Trap();
   }
+#endif  //! V8_ENABLE_LEAPTIERING
 
   __ bind(&call_stack_guard);
   {

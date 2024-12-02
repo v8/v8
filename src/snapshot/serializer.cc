@@ -1303,7 +1303,7 @@ void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
   // TODO(saelo): we might want to call OutputRawData here, but for that we
   // first need to pass the slot address to this method (e.g. as part of a
   // JSDispatchHandleSlot struct).
-#ifndef V8_COMPRESS_POINTERS
+#if !defined(V8_COMPRESS_POINTERS) && defined(V8_TARGET_ARCH_64_BIT)
   static_assert(kJSDispatchHandleSize + JSFunction::kPaddingOffsetEnd + 1 -
                     JSFunction::kPaddingOffset ==
                 kSystemPointerSize);
