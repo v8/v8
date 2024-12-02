@@ -1639,7 +1639,8 @@ Handle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData() {
   return handle(result, isolate());
 }
 
-Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(int length) {
+Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(
+    int length, wasm::CanonicalValueType table_type) {
   CHECK_LE(length, WasmDispatchTable::kMaxLength);
 
   // TODO(jkummerow): Any chance to get a better estimate?
@@ -1653,9 +1654,13 @@ Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(int length) {
   Tagged<WasmDispatchTable> result = UncheckedCast<WasmDispatchTable>(
       AllocateRawWithImmortalMap(bytes, AllocationType::kTrusted,
                                  read_only_roots().wasm_dispatch_table_map()));
+  DisallowGarbageCollection no_gc;
+  result->init_self_indirect_pointer(isolate());
   result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
   result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
   result->set_protected_offheap_data(*offheap_data);
+  result->set_protected_uses(*empty_protected_weak_fixed_array());
+  result->set_table_type(table_type);
   for (int i = 0; i < length; ++i) {
     result->Clear(i, WasmDispatchTable::kNewEntry);
     result->clear_entry_padding(i);
@@ -1730,17 +1735,19 @@ Handle<WasmImportData> Factory::NewWasmImportData(
     result->set_instance_data(*instance_data.ToHandleChecked());
   }
   result->set_wrapper_budget(v8_flags.wasm_wrapper_tiering_budget);
-  result->set_call_origin(Smi::FromInt(WasmImportData::kInvalidCallOrigin));
+  result->clear_call_origin();
   result->set_sig(sig);
+#if TAGGED_SIZE_8_BYTES
+  result->set_optional_padding(0);
+#endif
   return handle(result, isolate());
 }
 
 Handle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<WasmImportData> import_data) {
-  return NewWasmImportData(handle(import_data->callable(), isolate()),
-                           static_cast<wasm::Suspend>(import_data->suspend()),
-                           handle(import_data->instance_data(), isolate()),
-                           import_data->sig());
+  return NewWasmImportData(
+      handle(import_data->callable(), isolate()), import_data->suspend(),
+      handle(import_data->instance_data(), isolate()), import_data->sig());
 }
 
 Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
@@ -1813,7 +1820,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(import_data, -1, signature_hash);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
-  WasmImportData::SetFuncRefAsCallOrigin(import_data, func_ref);
+  import_data->SetFuncRefAsCallOrigin(*internal);
   Tagged<Map> map = *wasm_js_function_data_map();
   Tagged<WasmJSFunctionData> result =
       Cast<WasmJSFunctionData>(AllocateRawWithImmortalMap(
@@ -1923,7 +1930,8 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(import_data, -1, signature_hash);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
-  WasmImportData::SetFuncRefAsCallOrigin(import_data, func_ref);
+  // We have no generic wrappers for C-API functions, so we don't need to
+  // set any call origin on {import_data}.
 #ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
   internal->set_call_target(
       wasm::GetProcessWideWasmCodePointerTable()

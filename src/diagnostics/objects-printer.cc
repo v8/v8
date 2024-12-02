@@ -2798,6 +2798,9 @@ void WasmDispatchTable::WasmDispatchTablePrint(std::ostream& os) {
   int len = length();
   os << "\n - length: " << len;
   os << "\n - capacity: " << capacity();
+  Tagged<ProtectedWeakFixedArray> uses = protected_uses();
+  os << "\n - uses: " << Brief(uses);
+  os << "\n - table type: " << table_type().name();
   // Only print up to 55 elements; otherwise print the first 50 and "[...]".
   int printed = len > 55 ? 50 : len;
   for (int i = 0; i < printed; ++i) {
@@ -2852,9 +2855,11 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
   } else {
     os << "<empty>";
   }
-  os << "\n - suspend: " << suspend();
+  os << "\n - suspend: " << static_cast<int>(suspend());
   os << "\n - wrapper_budget: " << wrapper_budget();
-  os << "\n - call_origin: " << Brief(call_origin());
+  if (has_call_origin()) {
+    os << "\n - call_origin: " << Brief(call_origin());
+  }
   os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
      << sig()->return_count() << " returns)";
   os << "\n";

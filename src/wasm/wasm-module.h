@@ -800,6 +800,14 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return isorecursive_canonical_type_ids[index.index];
   }
 
+  CanonicalValueType canonical_type(ValueType type) const {
+    if (!type.has_index()) {
+      return CanonicalValueType{type};
+    }
+    return CanonicalValueType::FromIndex(type.kind(),
+                                         canonical_type_id(type.ref_index()));
+  }
+
   bool has_signature(ModuleTypeIndex index) const {
     return index.index < types.size() &&
            types[index.index].kind == TypeDefinition::kFunction;

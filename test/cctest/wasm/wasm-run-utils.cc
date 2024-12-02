@@ -104,7 +104,7 @@ TestingModuleBuilder::TestingModuleBuilder(
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
         .SetCompiledWasmToJs(isolate_, callable, import_wrapper,
-                             resolved.suspend(), sig);
+                             resolved.suspend(), sig, sig_index);
   }
 }
 
@@ -259,6 +259,21 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.has_maximum_size = true;
   table.type = table_type;
 
+  DirectHandle<HeapObject> value =
+      table.type.use_wasm_null()
+          ? Cast<HeapObject>(isolate_->factory()->wasm_null())
+          : Cast<HeapObject>(isolate_->factory()->null_value());
+  CanonicalValueType canonical_type = test_module_->canonical_type(table.type);
+  DirectHandle<WasmTableObject> table_obj = WasmTableObject::New(
+      isolate_, handle(instance_object_->trusted_data(isolate_), isolate_),
+      table.type, canonical_type, table.initial_size, table.has_maximum_size,
+      table.maximum_size, value,
+      // TODO(clemensb): Make this configurable.
+      wasm::AddressType::kI32);
+  Handle<WasmDispatchTable> dispatch_table(
+      table_obj->trusted_dispatch_table(isolate_), isolate_);
+  WasmDispatchTable::AddUse(isolate_, dispatch_table, trusted_instance_data_,
+                            table_index);
   {
     // Allocate the dispatch table.
     DirectHandle<ProtectedFixedArray> old_dispatch_tables{
@@ -266,31 +281,15 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     DCHECK_EQ(table_index, old_dispatch_tables->length());
     DirectHandle<ProtectedFixedArray> new_dispatch_tables =
         isolate_->factory()->NewProtectedFixedArray(table_index + 1);
-    DirectHandle<WasmDispatchTable> new_dispatch_table =
-        WasmDispatchTable::New(isolate_, table.initial_size);
     for (int i = 0; i < old_dispatch_tables->length(); ++i) {
       new_dispatch_tables->set(i, old_dispatch_tables->get(i));
     }
-    new_dispatch_tables->set(table_index, *new_dispatch_table);
+    new_dispatch_tables->set(table_index, *dispatch_table);
     if (table_index == 0) {
-      trusted_instance_data_->set_dispatch_table0(*new_dispatch_table);
+      trusted_instance_data_->set_dispatch_table0(*dispatch_table);
     }
     trusted_instance_data_->set_dispatch_tables(*new_dispatch_tables);
   }
-
-  WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
-      isolate_, trusted_instance_data_, table_index, table_size);
-  DirectHandle<WasmTableObject> table_obj = WasmTableObject::New(
-      isolate_, handle(instance_object_->trusted_data(isolate_), isolate_),
-      table.type, table.initial_size, table.has_maximum_size,
-      table.maximum_size,
-      IsSubtypeOf(table.type, kWasmExternRef, test_module_.get())
-          ? Handle<HeapObject>{isolate_->factory()->null_value()}
-          : Handle<HeapObject>{isolate_->factory()->wasm_null()},
-      // TODO(clemensb): Make this configurable.
-      wasm::AddressType::kI32);
-
-  WasmTableObject::AddUse(isolate_, table_obj, instance_object_, table_index);
 
   if (function_indexes) {
     for (uint32_t i = 0; i < table_size; ++i) {

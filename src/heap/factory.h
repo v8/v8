@@ -722,7 +722,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTrustedInstanceData> NewWasmTrustedInstanceData();
-  Handle<WasmDispatchTable> NewWasmDispatchTable(int length);
+  Handle<WasmDispatchTable> NewWasmDispatchTable(
+      int length, wasm::CanonicalValueType table_type);
   Handle<WasmTypeInfo> NewWasmTypeInfo(
       Address type_address, Handle<Map> opt_parent,
       DirectHandle<WasmTrustedInstanceData> opt_instance,

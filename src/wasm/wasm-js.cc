@@ -1528,9 +1528,11 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!maybe_maybe_maximum) return js_api_scope.AssertException();
   std::optional<uint64_t> maybe_maximum = *maybe_maybe_maximum;
 
+  DCHECK(!type.has_index());  // The JS API can't express type indices.
+  i::wasm::CanonicalValueType canonical_type{type};
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
-      i_isolate, i::Handle<i::WasmTrustedInstanceData>(), type, initial,
-      maybe_maximum.has_value(),
+      i_isolate, i::Handle<i::WasmTrustedInstanceData>(), type, canonical_type,
+      initial, maybe_maximum.has_value(),
       maybe_maximum.value_or(0) /* note: unused if previous param is false */,
       DefaultReferenceValue(i_isolate, type), address_type);
 
@@ -2245,7 +2247,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
       i_isolate->factory()->NewWasmFuncRef(internal, rtt);
   internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));
   if (func_index < num_imported_functions) {
-    i::Cast<i::WasmImportData>(implicit_arg)->set_call_origin(*func_ref);
+    i::Cast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
   }
 
   i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(

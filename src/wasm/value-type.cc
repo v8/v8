@@ -6,8 +6,14 @@
 
 #include "src/codegen/signature.h"
 #include "src/utils/utils.h"
+#include "src/wasm/canonical-types.h"
 
 namespace v8::internal::wasm {
+
+bool CanonicalValueType::IsFunctionType_Slow() const {
+  DCHECK(has_index());
+  return wasm::GetTypeCanonicalizer()->IsFunctionSignature(ref_index());
+}
 
 std::optional<wasm::ValueKind> WasmReturnTypeFromSignature(
     const CanonicalSig* wasm_signature) {

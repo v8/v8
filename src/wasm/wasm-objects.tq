@@ -45,19 +45,19 @@ extern class WasmImportData extends TrustedObject {
   // for tier-up of wasm-to-js wrappers.
   // Use the '.instance_data' macro to read this from torque code.
   protected_instance_data: ProtectedPointer<WasmTrustedInstanceData>;
+  // `call_origin` records which place to patch on wrapper tier-up:
+  // - WasmInternalFunction: a func ref
+  // - WasmDispatchTable: a table; the slot is in the {bit_field}.
+  protected_call_origin:
+      ProtectedPointer<WasmInternalFunction|WasmDispatchTable>;
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
-  suspend: Smi;  // Boolean.
   wrapper_budget: Smi;
-  // `call_origin` is being used to identify which place to patch on wrapper
-  // tier-up.
-  // - negative Smi: import index (-index - 1)
-  // - positive Smi: table index in same instance (index + 1)
-  // - tuple<WasmInstanceObject, Smi>: table index in other instance (index + 1)
-  // - WasmFuncRef: a func ref
-  call_origin: Smi|WasmFuncRef|Tuple2;
   // The signature is needed for the generic wasm-to-js wrapper.
   sig: RawFunctionSigPtr;
+  // See BitFields defined in the C++ class for details.
+  bit_field: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
 }
 
 extern operator '.instance_data' macro LoadInstanceDataFromWasmImportData(
@@ -201,7 +201,7 @@ extern class WasmModuleObject extends JSObject {
   script: Script;
 }
 
-extern class WasmDispatchTable extends TrustedObject;
+extern class WasmDispatchTable extends ExposedTrustedObject;
 
 extern class WasmTableObject extends JSObject {
   // The entries array is at least as big as {current_length()}, but might be
@@ -219,12 +219,14 @@ extern class WasmTableObject extends JSObject {
   // BigInt. Note that the value can in any case be bigger than
   // {wasm::kV8MaxWasmTableSize}.
   maximum_length: Smi|HeapNumber|BigInt|Undefined;
-  // The uses field stores an array of <WasmInstanceObject, index> pairs so we
-  // can update the instance's dispatch table when the table grows.
-  uses: FixedArray;
+  // Stores a (module-specific!) ValueType's {raw_bits()} describing the type
+  // of this table. Used for spec-level type checks and debugging.
+  // For sandbox-related checks, use WasmDispatchTable::table_type instead!
   raw_type: Smi;
+  // This field is not set if the table is not a function table.
+  trusted_dispatch_table: TrustedPointer<WasmDispatchTable>;
   // The instance in which this WasmTableObject is defined.
-  // This field is undefined if the table is defined outside any Wasm module,
+  // This field is not set if the table is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Table).
   trusted_data: TrustedPointer<WasmTrustedInstanceData>;
   address_type: AddressType;
@@ -247,7 +249,7 @@ extern class WasmMemoryObject extends JSObject {
 
 extern class WasmGlobalObject extends JSObject {
   // The instance in which this WasmGlobalObject is defined.
-  // This field is undefined if the global is defined outside any Wasm module,
+  // This field is not set if the global is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Global).
   trusted_data: TrustedPointer<WasmTrustedInstanceData>;
   untagged_buffer: JSArrayBuffer|Undefined;

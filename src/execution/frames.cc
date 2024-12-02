@@ -3441,10 +3441,11 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
   const wasm::WasmModule* module = trusted_instance_data()->module();
   int func_index = function_index();
   int func_code_offset = module->functions[func_index].code.offset();
-  accumulator->Add("], function #%u ('%s'), pc=%p (+0x%x), pos=%d (+%d)\n",
-                   func_index, func_name, reinterpret_cast<void*>(pc()),
-                   static_cast<int>(pc() - instruction_start), pos,
-                   pos - func_code_offset);
+  accumulator->Add(
+      "], function #%u ('%s'), pc=%p (+0x%x), pos=%d (+%d) instance=%p\n",
+      func_index, func_name, reinterpret_cast<void*>(pc()),
+      static_cast<int>(pc() - instruction_start), pos, pos - func_code_offset,
+      reinterpret_cast<void*>(trusted_instance_data()->ptr()));
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 

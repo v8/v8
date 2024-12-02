@@ -117,16 +117,19 @@ class ImportedFunctionEntry {
   // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
   // parameter since it allocates a WasmImportData.
   void SetGenericWasmToJs(Isolate*, DirectHandle<JSReceiver> callable,
-                          wasm::Suspend suspend, const wasm::CanonicalSig* sig);
+                          wasm::Suspend suspend, const wasm::CanonicalSig* sig,
+                          wasm::CanonicalTypeIndex sig_id);
   V8_EXPORT_PRIVATE void SetCompiledWasmToJs(Isolate*,
                                              DirectHandle<JSReceiver> callable,
                                              wasm::WasmCode* wasm_to_js_wrapper,
                                              wasm::Suspend suspend,
-                                             const wasm::CanonicalSig* sig);
+                                             const wasm::CanonicalSig* sig,
+                                             wasm::CanonicalTypeIndex sig_id);
 
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_object,
-                     WasmCodePointer call_target
+                     WasmCodePointer call_target,
+                     wasm::CanonicalTypeIndex sig_id
 #if V8_ENABLE_DRUMBRAKE
                      ,
                      int exported_function_index
@@ -200,10 +203,9 @@ class WasmModuleObject
 };
 
 #if V8_ENABLE_SANDBOX || DEBUG
-// This should be checked before writing an untrusted function reference
-// into a dispatch table (e.g. via WasmTableObject::Set).
+// This should be checked on all code paths that write into WasmDispatchTables.
 bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
-                             const wasm::WasmModule* module, int table_index);
+                             wasm::CanonicalValueType table_type);
 #endif
 
 // Representation of a WebAssembly.Table JavaScript-level object.
@@ -215,24 +217,22 @@ class WasmTableObject
   inline wasm::ValueType type();
 
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
+  DECL_TRUSTED_POINTER_ACCESSORS(trusted_dispatch_table, WasmDispatchTable)
+
+  DECL_VERIFIER(WasmTableObject)
 
   V8_EXPORT_PRIVATE static int Grow(Isolate* isolate,
                                     DirectHandle<WasmTableObject> table,
                                     uint32_t count,
                                     DirectHandle<Object> init_value);
 
+  // TODO(jkummerow): Consider getting rid of {type}, use {canonical_type}
+  // instead.
   V8_EXPORT_PRIVATE static Handle<WasmTableObject> New(
       Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
-      wasm::ValueType type, uint32_t initial, bool has_maximum,
-      uint64_t maximum, DirectHandle<Object> initial_value,
-      wasm::AddressType address_type);
-
-  // Store that a specific instance uses this table, in order to update the
-  // instance's dispatch table when this table grows (and hence needs to
-  // allocate a new dispatch table).
-  V8_EXPORT_PRIVATE static void AddUse(
-      Isolate* isolate, DirectHandle<WasmTableObject> table,
-      Handle<WasmInstanceObject> instance_object, int table_index);
+      wasm::ValueType type, wasm::CanonicalValueType canonical_type,
+      uint32_t initial, bool has_maximum, uint64_t maximum,
+      DirectHandle<Object> initial_value, wasm::AddressType address_type);
 
   inline bool is_in_bounds(uint32_t entry_index);
 
@@ -261,7 +261,7 @@ class WasmTableObject
                                      uint32_t count);
 
   // TODO(wasm): Unify these three methods into one.
-  static void UpdateDispatchTables(
+  static void UpdateDispatchTable(
       Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
       const wasm::WasmFunction* func,
       DirectHandle<WasmTrustedInstanceData> target_instance
@@ -270,15 +270,16 @@ class WasmTableObject
       int target_func_index
 #endif  // V8_ENABLE_DRUMBRAKE
   );
-  static void UpdateDispatchTables(Isolate* isolate,
-                                   DirectHandle<WasmTableObject> table,
-                                   int entry_index,
-                                   DirectHandle<WasmJSFunction> function);
-  static void UpdateDispatchTables(
-      Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
-      DirectHandle<WasmCapiFunction> capi_function);
+  static void UpdateDispatchTable(Isolate* isolate,
+                                  DirectHandle<WasmTableObject> table,
+                                  int entry_index,
+                                  DirectHandle<WasmJSFunction> function);
+  static void UpdateDispatchTable(Isolate* isolate,
+                                  DirectHandle<WasmTableObject> table,
+                                  int entry_index,
+                                  DirectHandle<WasmCapiFunction> capi_function);
 
-  void ClearDispatchTables(int index);
+  void ClearDispatchTable(int index);
 
   V8_EXPORT_PRIVATE static void SetFunctionTablePlaceholder(
       Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
@@ -585,11 +586,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   static_assert(kProtectedFieldOffsets.size() == kProtectedFieldNames.size(),
                 "every protected field offset needs a name");
 
-  static void EnsureMinimumDispatchTableSize(
-      Isolate* isolate,
-      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      int table_index, int minimum_size);
-
   void SetRawMemory(int memory_index, uint8_t* mem_start, size_t mem_size);
 
 #if V8_ENABLE_DRUMBRAKE
@@ -640,15 +636,6 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
       Isolate* isolate,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int function_index);
-
-  // Imports a constructed {WasmJSFunction} into the indirect function table of
-  // this instance. Note that this might trigger wrapper compilation, since a
-  // {WasmJSFunction} is instance-independent and just wraps a JS callable.
-  static void ImportWasmJSFunctionIntoTable(
-      Isolate* isolate,
-      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      int table_index, int entry_index,
-      DirectHandle<WasmJSFunction> js_function);
 
   // Get a raw pointer to the location where the given global is stored.
   // {global} must not be a reference type.
@@ -748,7 +735,7 @@ class WasmDispatchTableData {
 // The dispatch table is referenced from a WasmTableObject and from every
 // WasmTrustedInstanceData which uses the table. It is used from generated code
 // for executing indirect calls.
-class WasmDispatchTable : public TrustedObject {
+class WasmDispatchTable : public ExposedTrustedObject {
  public:
 #if V8_ENABLE_DRUMBRAKE
   static const uint32_t kInvalidFunctionIndex = UINT_MAX;
@@ -762,8 +749,12 @@ class WasmDispatchTable : public TrustedObject {
   static constexpr size_t kCapacityOffset = kLengthOffset + kUInt32Size;
   static constexpr size_t kProtectedOffheapDataOffset =
       kCapacityOffset + kUInt32Size;
-  static constexpr size_t kEntriesOffset =
+  static constexpr size_t kProtectedUsesOffset =
       kProtectedOffheapDataOffset + kTaggedSize;
+  static constexpr size_t kTableTypeOffset = kProtectedUsesOffset + kTaggedSize;
+  static constexpr size_t kPaddingSize = TAGGED_SIZE_8_BYTES ? kUInt32Size : 0;
+  static constexpr size_t kEntriesOffset =
+      kTableTypeOffset + kUInt32Size + kPaddingSize;
 
   // Entries consist of
   // - target (pointer)
@@ -824,6 +815,12 @@ class WasmDispatchTable : public TrustedObject {
                                    TrustedManaged<WasmDispatchTableData>)
   inline WasmDispatchTableData* offheap_data() const;
 
+  // Stores all WasmTrustedInstanceData that refer to this WasmDispatchTable.
+  DECL_PROTECTED_POINTER_ACCESSORS(protected_uses, ProtectedWeakFixedArray)
+
+  // Stores the canonical type of the table.
+  DECL_PRIMITIVE_ACCESSORS(table_type, wasm::CanonicalValueType)
+
   // Accessors.
   // {implicit_arg} will be a WasmImportData, a WasmTrustedInstanceData, or
   // Smi::zero() (if the entry was cleared).
@@ -847,26 +844,37 @@ class WasmDispatchTable : public TrustedObject {
   inline uint32_t function_index(int index) const;
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  // Set an entry for an import. We check signatures statically there, so the
-  // signature is not updated in the dispatch table.
+  // Set an entry for an import.
   // {implicit_arg} has to be a WasmImportData or a WasmTrustedInstanceData.
   void V8_EXPORT_PRIVATE SetForImport(int index,
                                       Tagged<TrustedObject> implicit_arg,
                                       WasmCodePointer call_target,
+                                      wasm::CanonicalTypeIndex sig_id,
                                       wasm::WasmCode* wrapper_if_known,
                                       IsAWrapper contextual_knowledge);
 
   void Clear(int index, NewOrExistingEntry new_or_existing);
   void InstallCompiledWrapper(int index, wasm::WasmCode* wrapper);
 
+  static void V8_EXPORT_PRIVATE
+  AddUse(Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
+         DirectHandle<WasmTrustedInstanceData> instance, int table_index);
+  // Internal helpers for management of the uses list. These could be factored
+  // out into a class similar to WeakArrayList if there are additional use
+  // cases for them.
+  // The first slot in the list is the used length. After that, we store
+  // pairs of <instance, table_index>.
+  static Tagged<ProtectedWeakFixedArray> MaybeGrowUsesList(
+      Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table);
+
   static V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> New(
-      Isolate* isolate, int length);
+      Isolate* isolate, int length, wasm::CanonicalValueType table_type);
   static V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> Grow(
       Isolate*, Handle<WasmDispatchTable>, int new_length);
 
   DECL_PRINTER(WasmDispatchTable)
   DECL_VERIFIER(WasmDispatchTable)
-  OBJECT_CONSTRUCTORS(WasmDispatchTable, TrustedObject);
+  OBJECT_CONSTRUCTORS(WasmDispatchTable, ExposedTrustedObject);
 };
 
 // A Wasm exception that has been thrown out of Wasm code.
@@ -1049,31 +1057,31 @@ class WasmImportData
   DECL_PRINTER(WasmImportData)
 
   DECL_PROTECTED_POINTER_ACCESSORS(instance_data, WasmTrustedInstanceData)
+  DECL_PROTECTED_POINTER_ACCESSORS(call_origin, TrustedObject)
+
+  DECL_PRIMITIVE_ACCESSORS(suspend, wasm::Suspend)
+  DECL_PRIMITIVE_ACCESSORS(table_slot, uint32_t)
 
   static constexpr int kInvalidCallOrigin = 0;
 
-  static void SetImportIndexAsCallOrigin(
-      DirectHandle<WasmImportData> import_data, int entry_index);
+  void SetIndexInTableAsCallOrigin(Tagged<WasmDispatchTable> table,
+                                   int entry_index);
 
-  static bool CallOriginIsImportIndex(Tagged<Smi> call_origin);
-
-  static bool CallOriginIsIndexInTable(Tagged<Smi> call_origin);
-
-  static int CallOriginAsIndex(Tagged<Smi> call_origin);
-
-  static void SetIndexInTableAsCallOrigin(
-      DirectHandle<WasmImportData> import_data, int entry_index);
-
-  static void SetCrossInstanceTableIndexAsCallOrigin(
-      Isolate* isolate, DirectHandle<WasmImportData> import_data,
-      DirectHandle<WasmInstanceObject> instance_object, int entry_index);
-
-  static void SetFuncRefAsCallOrigin(DirectHandle<WasmImportData> import_data,
-                                     DirectHandle<WasmFuncRef> func_ref);
+  void SetFuncRefAsCallOrigin(Tagged<WasmInternalFunction> func);
 
   using BodyDescriptor =
       StackedBodyDescriptor<FixedBodyDescriptorFor<WasmImportData>,
-                            WithProtectedPointer<kProtectedInstanceDataOffset>>;
+                            WithProtectedPointer<kProtectedInstanceDataOffset>,
+                            WithProtectedPointer<kProtectedCallOriginOffset>>;
+
+  // Usage of the {bit_field()}.
+  // "Suspend" is always present.
+  using SuspendField = base::BitField<wasm::Suspend, 0, 1>;
+  // "TableSlot" is populated when {protected_call_origin} is a
+  // {WasmDispatchTable}, and describes the slot in that table.
+  static constexpr int kTableSlotBits = 24;
+  static_assert(wasm::kV8MaxWasmTableSize < (1u << kTableSlotBits));
+  using TableSlotField = SuspendField::Next<uint32_t, kTableSlotBits>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmImportData)
 };

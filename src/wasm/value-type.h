@@ -1072,6 +1072,20 @@ class CanonicalValueType : public ValueTypeBase {
   constexpr CanonicalTypeIndex ref_index() const {
     return CanonicalTypeIndex{ValueTypeBase::ref_index()};
   }
+
+  bool IsFunctionType() const {
+    if (!is_object_reference()) return false;
+    wasm::HeapType::Representation rep = heap_representation();
+    if (rep == wasm::HeapType::kFunc) return true;
+    if (rep == wasm::HeapType::kFuncShared) return true;
+    if (rep == wasm::HeapType::kNoFunc) return true;
+    if (rep == wasm::HeapType::kNoFuncShared) return true;
+    if (!has_index()) return false;
+    return IsFunctionType_Slow();
+  }
+
+ private:
+  bool IsFunctionType_Slow() const;
 };
 ASSERT_TRIVIALLY_COPYABLE(CanonicalValueType);
 
@@ -1142,6 +1156,8 @@ constexpr CanonicalValueType kCanonicalExternRef =
     CanonicalValueType::RefNull(HeapType::kExtern);
 constexpr CanonicalValueType kCanonicalAnyRef =
     CanonicalValueType::RefNull(HeapType::kAny);
+constexpr CanonicalValueType kCanonicalFuncRef =
+    CanonicalValueType::RefNull(HeapType::kFunc);
 
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;

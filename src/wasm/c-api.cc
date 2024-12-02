@@ -2081,13 +2081,16 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
 
   // Get "element".
   i::wasm::ValueType i_type;
+  i::wasm::CanonicalValueType canonical_type;
   switch (type->element()->kind()) {
     case FUNCREF:
       i_type = i::wasm::kWasmFuncRef;
+      canonical_type = i::wasm::kCanonicalFuncRef;
       break;
     case ANYREF:
       // See Engine::make().
       i_type = i::wasm::kWasmExternRef;
+      canonical_type = i::wasm::kCanonicalExternRef;
       break;
     default:
       UNREACHABLE();
@@ -2105,20 +2108,14 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
   }
 
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
-      isolate, i::Handle<i::WasmTrustedInstanceData>(), i_type, minimum,
-      has_maximum, maximum, isolate->factory()->null_value(),
+      isolate, i::Handle<i::WasmTrustedInstanceData>(), i_type, canonical_type,
+      minimum, has_maximum, maximum, isolate->factory()->null_value(),
       i::wasm::AddressType::kI32);
 
   if (ref) {
-    i::DirectHandle<i::FixedArray> entries{table_obj->entries(), isolate};
     i::DirectHandle<i::JSReceiver> init = impl(ref)->v8_object();
-    DCHECK(i::wasm::max_table_init_entries() <= i::kMaxInt);
-    for (int i = 0; i < static_cast<int>(minimum); i++) {
-      // This doesn't call WasmTableObject::Set because the table has
-      // just been created, so it can't be imported by any instances
-      // yet that might require updating.
-      DCHECK_EQ(table_obj->uses()->length(), 0);
-      entries->set(i, *init);
+    for (uint32_t i = 0; i < minimum; i++) {
+      table_obj->Set(isolate, table_obj, i, init);
     }
   }
   return implement<Table>::type::make(store, table_obj);

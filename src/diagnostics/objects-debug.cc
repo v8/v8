@@ -848,6 +848,9 @@ void ProtectedWeakFixedArray::ProtectedWeakFixedArrayVerify(Isolate* isolate) {
     Tagged<Union<MaybeWeak<TrustedObject>, Smi>> p = get(i);
     Tagged<HeapObject> heap_object;
     if (p.GetHeapObject(&heap_object)) {
+      // We could relax this, but for now we assume that strong pointers in a
+      // weak fixed array are unintentional and should be reported.
+      CHECK(p.IsWeak());
       CHECK(IsTrustedObject(heap_object));
       HeapObject::VerifyHeapPointer(isolate, heap_object);
     } else {
@@ -2473,6 +2476,29 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
       // call_target always null with the interpreter.
       CHECK_EQ(arg == Smi::zero(), target(i) == wasm::kInvalidWasmCodePointer);
     }
+  }
+
+  // Check invariants of the "uses" list (which are specific to
+  // WasmDispatchTable, not inherent to any ProtectedWeakFixedArray).
+  Tagged<ProtectedWeakFixedArray> uses = protected_uses();
+  if (uses->length() > 0) {
+    CHECK(IsSmi(uses->get(0)));
+    int capacity = uses->length();
+    CHECK(capacity & 1);  // Capacity is odd: reserved slot + 2*num_entries.
+    int used_length = Cast<Smi>(uses->get(0)).value();
+    CHECK_LE(used_length, capacity);
+    for (int i = 1; i < used_length; i += 2) {
+      CHECK(uses->get(i).IsCleared() ||
+            IsWasmTrustedInstanceData(uses->get(i).GetHeapObjectAssumeWeak()));
+      CHECK(IsSmi(uses->get(i + 1)));
+    }
+  }
+}
+
+void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::WasmTableObjectVerify(*this, isolate);
+  if (has_trusted_dispatch_table()) {
+    CHECK_EQ(trusted_dispatch_table(isolate)->length(), current_length());
   }
 }
 

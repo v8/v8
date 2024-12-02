@@ -1074,7 +1074,10 @@ class WasmTableObject::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset,
-                    kTrustedDataOffset, v);
+                    kTrustedDispatchTableOffset, v);
+    IterateTrustedPointer(obj, kTrustedDispatchTableOffset, v,
+                          IndirectPointerMode::kStrong,
+                          kWasmDispatchTableIndirectPointerTag);
     IterateTrustedPointer(obj, kTrustedDataOffset, v,
                           IndirectPointerMode::kStrong,
                           kWasmTrustedInstanceDataIndirectPointerTag);
@@ -1130,7 +1133,9 @@ class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+    IterateSelfIndirectPointer(obj, kWasmDispatchTableIndirectPointerTag, v);
     IterateProtectedPointer(obj, kProtectedOffheapDataOffset, v);
+    IterateProtectedPointer(obj, kProtectedUsesOffset, v);
     int length = Cast<WasmDispatchTable>(obj)->length(kAcquireLoad);
     for (int i = 0; i < length; ++i) {
       IterateProtectedPointer(obj, OffsetOf(i) + kImplicitArgBias, v);

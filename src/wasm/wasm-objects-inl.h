@@ -337,13 +337,25 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 }
 
 // WasmDispatchTable
-OBJECT_CONSTRUCTORS_IMPL(WasmDispatchTable, TrustedObject)
+OBJECT_CONSTRUCTORS_IMPL(WasmDispatchTable, ExposedTrustedObject)
 
 PROTECTED_POINTER_ACCESSORS(WasmDispatchTable, protected_offheap_data,
                             TrustedManaged<WasmDispatchTableData>,
                             kProtectedOffheapDataOffset)
 WasmDispatchTableData* WasmDispatchTable::offheap_data() const {
   return protected_offheap_data()->get().get();
+}
+
+PROTECTED_POINTER_ACCESSORS(WasmDispatchTable, protected_uses,
+                            ProtectedWeakFixedArray, kProtectedUsesOffset)
+
+wasm::CanonicalValueType WasmDispatchTable::table_type() const {
+  return wasm::CanonicalValueType::FromRawBitField(
+      ReadField<uint32_t>(kTableTypeOffset));
+}
+void WasmDispatchTable::set_table_type(wasm::CanonicalValueType type) {
+  DCHECK(type.IsFunctionType());
+  WriteField(kTableTypeOffset, type.raw_bit_field());
 }
 
 void WasmDispatchTable::clear_entry_padding(int index) {
@@ -415,6 +427,25 @@ struct CastTraits<WasmExportedFunction> {
 PROTECTED_POINTER_ACCESSORS(WasmImportData, instance_data,
                             WasmTrustedInstanceData,
                             kProtectedInstanceDataOffset)
+
+PROTECTED_POINTER_ACCESSORS(WasmImportData, call_origin, TrustedObject,
+                            kProtectedCallOriginOffset)
+
+wasm::Suspend WasmImportData::suspend() const {
+  return SuspendField::decode(bit_field());
+}
+
+void WasmImportData::set_suspend(wasm::Suspend value) {
+  set_bit_field(SuspendField::update(bit_field(), value));
+}
+
+uint32_t WasmImportData::table_slot() const {
+  return TableSlotField::decode(bit_field());
+}
+
+void WasmImportData::set_table_slot(uint32_t value) {
+  set_bit_field(TableSlotField::update(bit_field(), value));
+}
 
 // WasmInternalFunction
 
@@ -538,6 +569,10 @@ TRUSTED_POINTER_ACCESSORS(WasmTypeInfo, trusted_data, WasmTrustedInstanceData,
 TRUSTED_POINTER_ACCESSORS(WasmTableObject, trusted_data,
                           WasmTrustedInstanceData, kTrustedDataOffset,
                           kWasmTrustedInstanceDataIndirectPointerTag)
+
+TRUSTED_POINTER_ACCESSORS(WasmTableObject, trusted_dispatch_table,
+                          WasmDispatchTable, kTrustedDispatchTableOffset,
+                          kWasmDispatchTableIndirectPointerTag)
 
 wasm::ValueType WasmTableObject::type() {
   // Various consumers of ValueKind (e.g. ValueKind::name()) use the raw enum
