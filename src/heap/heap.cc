@@ -1764,6 +1764,16 @@ void Heap::CollectGarbage(AllocationSpace space,
     }
   });
 
+  RecomputeLimits(collector, base::TimeTicks::Now());
+  if ((collector == GarbageCollector::MARK_COMPACTOR) &&
+      is_full_gc_during_loading_) {
+    if (ShouldOptimizeForLoadTime() &&
+        v8_flags.update_allocation_limits_after_loading) {
+      update_allocation_limits_after_loading_ = true;
+    }
+    is_full_gc_during_loading_ = false;
+  }
+
   // Epilogue callbacks. These callbacks may trigger GC themselves and thus
   // cannot be related exactly to garbage collection cycles.
   //
@@ -2355,16 +2365,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   tracer()->StopInSafepoint(atomic_pause_end_time);
 
   ResumeConcurrentThreadsInClients(std::move(paused_clients));
-
-  RecomputeLimits(collector, atomic_pause_end_time);
-  if ((collector == GarbageCollector::MARK_COMPACTOR) &&
-      is_full_gc_during_loading_) {
-    if (ShouldOptimizeForLoadTime() &&
-        v8_flags.update_allocation_limits_after_loading) {
-      update_allocation_limits_after_loading_ = true;
-    }
-    is_full_gc_during_loading_ = false;
-  }
 
   // After every full GC the old generation allocation limit should be
   // configured.
