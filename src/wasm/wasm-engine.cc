@@ -1336,7 +1336,11 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   // Clear the {code_to_log} vector.
   for (auto& [script_id, code_to_log] : isolate_info->code_to_log) {
     for (WasmCode* code : code_to_log.code) {
-      if (!native_modules_with_code_to_log.count(code->native_module())) {
+      if (code->native_module() == nullptr) {
+        // Wrapper code objects have neither Script nor NativeModule.
+        DCHECK_EQ(script_id, -1);
+      } else if (!native_modules_with_code_to_log.count(
+                     code->native_module())) {
         std::shared_ptr<NativeModule> shared_native_module =
             native_modules_[code->native_module()]->weak_ptr.lock();
         if (!shared_native_module) {
