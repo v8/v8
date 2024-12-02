@@ -85,11 +85,6 @@
   /* Staged in v7.8. */                                                        \
   V(type_reflection, "wasm type reflection in JS", false)                      \
                                                                                \
-  /* Memory64 proposal. */                                                     \
-  /* https://github.com/WebAssembly/memory64 */                                \
-  /* V8 side owner: clemensb */                                                \
-  V(memory64, "memory64", false)                                               \
-                                                                               \
   /* Reference-Typed Strings Proposal. */                                      \
   /* https://github.com/WebAssembly/stringref */                               \
   /* V8 side owner: jkummerow */                                               \
@@ -125,7 +120,14 @@
   /* https://github.com/WebAssembly/js-string-builtins */                      \
   /* V8 side owner: jkummerow */                                               \
   /* Shipped in v13.0 */                                                       \
-  V(imported_strings, "imported strings", true)
+  V(imported_strings, "imported strings", true)                                \
+                                                                               \
+  /* Memory64 proposal. */                                                     \
+  /* https://github.com/WebAssembly/memory64 */                                \
+  /* V8 side owner: clemensb */                                                \
+  /* Staged in v11.2 */                                                        \
+  /* Shipped in v13.3 */                                                       \
+  V(memory64, "memory64", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
