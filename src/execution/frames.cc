@@ -2573,7 +2573,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(Isolate* isolate,
                                              int code_offset, FILE* file,
                                              bool print_line_number) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(function);
-  PrintF(file, "%s", CodeKindToMarker(code->kind(cage_base)));
+  PrintF(file, "%s", CodeKindToMarker(code->kind(cage_base), false));
   function->PrintName(file);
   PrintF(file, "+%d", code_offset);
   if (print_line_number) {

@@ -46,7 +46,7 @@ static_assert(kCodeKindCount <= std::numeric_limits<uint8_t>::max());
 
 const char* CodeKindToString(CodeKind kind);
 
-const char* CodeKindToMarker(CodeKind kind);
+const char* CodeKindToMarker(CodeKind kind, bool context_specialized);
 
 inline constexpr bool CodeKindIsInterpretedJSFunction(CodeKind kind) {
   return kind == CodeKind::INTERPRETED_FUNCTION;
