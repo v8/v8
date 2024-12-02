@@ -5225,6 +5225,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   ParseClassLiteralBody(class_info, name, class_token_pos, Token::kRightBrace);
 
+  CheckStrictOctalLiteral(scope()->start_position(), scope()->end_position());
+
   VariableProxy* unresolvable = class_scope->ResolvePrivateNamesPartially();
   if (unresolvable != nullptr) {
     impl()->ReportMessageAt(Scanner::Location(unresolvable->position(),
