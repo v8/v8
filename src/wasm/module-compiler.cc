@@ -1428,6 +1428,12 @@ class FeedbackMaker {
   }
 
   void AddCall(int target, int count) {
+    // If we add too many calls, treat it as megamorphic.
+    if (static_cast<size_t>(cache_usage_) == targets_cache_.size() ||
+        is_megamorphic_) {
+      is_megamorphic_ = true;
+      return;
+    }
     // Keep the cache sorted (using insertion-sort), highest count first.
     int insertion_index = 0;
     while (insertion_index < cache_usage_ &&
@@ -1445,12 +1451,19 @@ class FeedbackMaker {
   }
 
   bool HasTargetCached(int target) {
-    auto end = targets_cache_ + cache_usage_;
-    return std::find(targets_cache_, end, target) != end;
+    auto end = targets_cache_.begin() + cache_usage_;
+    DCHECK_LE(end, targets_cache_.end());
+    return std::find(targets_cache_.begin(), end, target) != end;
   }
 
   void FinalizeCall() {
-    if (cache_usage_ == 0) {
+    if (is_megamorphic_) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF("[function %d: call #%zu: megamorphic]\n", func_index_,
+               result_.size());
+      }
+      result_.push_back(CallSiteFeedback::CreateMegamorphic());
+    } else if (cache_usage_ == 0) {
       result_.emplace_back();
     } else if (cache_usage_ == 1) {
       if (v8_flags.trace_wasm_inlining) {
@@ -1463,6 +1476,7 @@ class FeedbackMaker {
         PrintF("[function %d: call #%zu inlineable (polymorphic %d)]\n",
                func_index_, result_.size(), cache_usage_);
       }
+      DCHECK_LE(cache_usage_, kMaxPolymorphism);
       CallSiteFeedback::PolymorphicCase* polymorphic =
           new CallSiteFeedback::PolymorphicCase[cache_usage_];
       for (int i = 0; i < cache_usage_; i++) {
@@ -1472,11 +1486,15 @@ class FeedbackMaker {
       result_.emplace_back(polymorphic, cache_usage_);
     }
     result_.back().set_has_non_inlineable_targets(has_non_inlineable_targets_);
+    // TODO(mliedtke): Have a better representation that merges these properties
+    // into one object.
     has_non_inlineable_targets_ = false;
+    is_megamorphic_ = false;
     cache_usage_ = 0;
   }
 
   void set_has_non_inlineable_targets() { has_non_inlineable_targets_ = true; }
+  void set_megamorphic() { is_megamorphic_ = true; }
 
   // {GetResult} can only be called on a r-value reference to make it more
   // obvious at call sites that {this} should not be used after this operation.
@@ -1489,9 +1507,12 @@ class FeedbackMaker {
   const int num_imported_functions_;
   const int func_index_;
   int cache_usage_{0};
-  int targets_cache_[kMaxPolymorphism];
-  int counts_cache_[kMaxPolymorphism];
+  std::array<int, kMaxPolymorphism> targets_cache_;
+  std::array<int, kMaxPolymorphism> counts_cache_;
   bool has_non_inlineable_targets_ = false;
+  // If we add more call targets than kMaxPolymorphism while processing the
+  // feedback, treat it as megamorphic.
+  bool is_megamorphic_ = false;
 };
 
 void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
@@ -1584,9 +1605,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       }
     } else if (first_slot == ReadOnlyRoots{isolate_}.megamorphic_symbol()) {
       DCHECK(IsUndefined(second_slot));
-      if (v8_flags.trace_wasm_inlining) {
-        PrintF("[function %d: call #%d: megamorphic]\n", func_index, i / 2);
-      }
+      fm.set_megamorphic();
     } else {
       UNREACHABLE();
     }
@@ -1604,6 +1623,9 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
         const CallSiteFeedback& old_feedback = existing[feedback_index];
         if (old_feedback.has_non_inlineable_targets()) {
           fm.set_has_non_inlineable_targets();
+        }
+        if (old_feedback.is_megamorphic()) {
+          fm.set_megamorphic();
         }
         for (int i = 0; i < old_feedback.num_cases(); ++i) {
           int old_target_function_index = old_feedback.function_index(i);

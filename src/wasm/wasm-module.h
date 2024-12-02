@@ -516,7 +516,18 @@ class CallSiteFeedback {
     int absolute_call_frequency;
   };
 
-  // Regular constructor: uninitialized/unknown, monomorphic, or polymorphic.
+  static CallSiteFeedback CreateMegamorphic() {
+    CallSiteFeedback feedback;
+    feedback.is_megamorphic_ = true;
+    DCHECK(!feedback.is_invalid());
+    DCHECK(!feedback.is_monomorphic());
+    DCHECK(!feedback.is_polymorphic());
+    DCHECK(feedback.is_megamorphic());
+    return feedback;
+  }
+
+  // Regular constructor: uninitialized/unknown, monomorphic, or
+  // polymorphic.
   CallSiteFeedback() : index_or_count_(-1), frequency_or_ool_(0) {}
   CallSiteFeedback(int function_index, int call_count)
       : index_or_count_(function_index), frequency_or_ool_(call_count) {}
@@ -542,6 +553,8 @@ class CallSiteFeedback {
     } else {
       frequency_or_ool_ = other.frequency_or_ool_;
     }
+    has_non_inlineable_targets_ = other.has_non_inlineable_targets_;
+    is_megamorphic_ = other.is_megamorphic_;
     return *this;
   }
   CallSiteFeedback& operator=(CallSiteFeedback&& other) V8_NOEXCEPT {
@@ -550,6 +563,8 @@ class CallSiteFeedback {
       frequency_or_ool_ = other.frequency_or_ool_;
       other.frequency_or_ool_ = 0;
     }
+    has_non_inlineable_targets_ = other.has_non_inlineable_targets_;
+    is_megamorphic_ = other.is_megamorphic_;
     return *this;
   }
 
@@ -559,16 +574,17 @@ class CallSiteFeedback {
 
   int num_cases() const {
     if (is_monomorphic()) return 1;
-    if (is_invalid()) return 0;
+    if (is_invalid() || is_megamorphic()) return 0;
     return -index_or_count_;
   }
   int function_index(int i) const {
-    DCHECK(!is_invalid());
+    DCHECK(!is_invalid() && !is_megamorphic());
     if (is_monomorphic()) return index_or_count_;
     return polymorphic_storage()[i].function_index;
   }
   int call_count(int i) const {
-    if (index_or_count_ >= 0) return static_cast<int>(frequency_or_ool_);
+    DCHECK(!is_invalid() && !is_megamorphic());
+    if (is_monomorphic()) return static_cast<int>(frequency_or_ool_);
     return polymorphic_storage()[i].absolute_call_frequency;
   }
   bool has_non_inlineable_targets() const {
@@ -578,10 +594,12 @@ class CallSiteFeedback {
     has_non_inlineable_targets_ = has_non_inlineable_targets;
   }
 
+  bool is_megamorphic() const { return is_megamorphic_; }
+
  private:
   bool is_monomorphic() const { return index_or_count_ >= 0; }
   bool is_polymorphic() const { return index_or_count_ <= -2; }
-  bool is_invalid() const { return index_or_count_ == -1; }
+  bool is_invalid() const { return index_or_count_ == -1 && !is_megamorphic_; }
   const PolymorphicCase* polymorphic_storage() const {
     DCHECK(is_polymorphic());
     return reinterpret_cast<PolymorphicCase*>(frequency_or_ool_);
@@ -589,6 +607,7 @@ class CallSiteFeedback {
 
   int index_or_count_;
   bool has_non_inlineable_targets_ = false;
+  bool is_megamorphic_ = false;
   intptr_t frequency_or_ool_;
 };
 
