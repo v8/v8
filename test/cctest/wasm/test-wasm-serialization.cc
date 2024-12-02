@@ -576,6 +576,10 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     const auto start_time = std::chrono::steady_clock::now();
     const auto end_time = start_time + std::chrono::seconds(60);
     while (weak_native_module.lock()) {
+      // We need to invoke GC without stack, otherwise the native module may
+      // survive.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          i_isolate->heap());
       v8_isolate->RequestGarbageCollectionForTesting(
           v8::Isolate::kFullGarbageCollection);
       if (std::chrono::steady_clock::now() > end_time) {
@@ -751,6 +755,10 @@ TEST(SerializeDetectedFeatures) {
     const auto start_time = std::chrono::steady_clock::now();
     const auto end_time = start_time + std::chrono::seconds(60);
     while (weak_native_module.lock()) {
+      // We need to invoke GC without stack, otherwise the native module may
+      // survive.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          i_isolate->heap());
       v8_isolate->RequestGarbageCollectionForTesting(
           v8::Isolate::kFullGarbageCollection);
       if (std::chrono::steady_clock::now() > end_time) {
