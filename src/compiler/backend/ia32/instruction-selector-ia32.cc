@@ -1843,23 +1843,15 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
   IF_WASM(V, F64x2NearestInt,                                                  \
           kIA32F64x2Round | MiscField::encode(kRoundToNearest))
 
-#define RRO_FLOAT_OP_T_LIST(V)        \
-  V(Float32Add, kFloat32Add)          \
-  V(Float64Add, kFloat64Add)          \
-  V(Float32Sub, kFloat32Sub)          \
-  V(Float64Sub, kFloat64Sub)          \
-  V(Float32Mul, kFloat32Mul)          \
-  V(Float64Mul, kFloat64Mul)          \
-  V(Float32Div, kFloat32Div)          \
-  V(Float64Div, kFloat64Div)          \
-  IF_WASM(V, F64x2Add, kIA32F64x2Add) \
-  IF_WASM(V, F64x2Sub, kIA32F64x2Sub) \
-  IF_WASM(V, F64x2Mul, kIA32F64x2Mul) \
-  IF_WASM(V, F64x2Div, kIA32F64x2Div) \
-  IF_WASM(V, F64x2Eq, kIA32F64x2Eq)   \
-  IF_WASM(V, F64x2Ne, kIA32F64x2Ne)   \
-  IF_WASM(V, F64x2Lt, kIA32F64x2Lt)   \
-  IF_WASM(V, F64x2Le, kIA32F64x2Le)
+#define RRO_FLOAT_OP_T_LIST(V) \
+  V(Float32Add, kFloat32Add)   \
+  V(Float64Add, kFloat64Add)   \
+  V(Float32Sub, kFloat32Sub)   \
+  V(Float64Sub, kFloat64Sub)   \
+  V(Float32Mul, kFloat32Mul)   \
+  V(Float64Mul, kFloat64Mul)   \
+  V(Float32Div, kFloat32Div)   \
+  V(Float64Div, kFloat64Div)
 
 #define FLOAT_UNOP_T_LIST(V)        \
   V(Float32Abs, kFloat32Abs)        \
@@ -3284,6 +3276,14 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
   V(F32x4Le)                               \
   V(F32x4Min)                              \
   V(F32x4Max)                              \
+  IF_WASM(V, F64x2Add)                     \
+  IF_WASM(V, F64x2Sub)                     \
+  IF_WASM(V, F64x2Mul)                     \
+  IF_WASM(V, F64x2Div)                     \
+  IF_WASM(V, F64x2Eq)                      \
+  IF_WASM(V, F64x2Ne)                      \
+  IF_WASM(V, F64x2Lt)                      \
+  IF_WASM(V, F64x2Le)                      \
   V(I64x2Add)                              \
   V(I64x2Sub)                              \
   V(I64x2Eq)                               \
