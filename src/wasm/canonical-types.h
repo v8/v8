@@ -262,15 +262,15 @@ class TypeCanonicalizer {
 
     bool EqualTypeIndex(CanonicalTypeIndex index1,
                         CanonicalTypeIndex index2) const {
-      if (recgroup1.Contains(index1)) {
-        // Compare relative supertypes in the recgroups.
-        if (!recgroup2.Contains(index2)) return false;
-        uint32_t rel_supertype1 = index1.index - recgroup1.first.index;
-        uint32_t rel_supertype2 = index2.index - recgroup2.first.index;
-        if (rel_supertype1 != rel_supertype2) return false;
-      } else {
-        if (recgroup2.Contains(index2)) return false;
-        if (index1 != index2) return false;
+      const bool relative_index = recgroup1.Contains(index1);
+      if (relative_index != recgroup2.Contains(index2)) return false;
+      if (relative_index) {
+        // Compare relative type indexes within the respective recgroups.
+        uint32_t rel_type1 = index1.index - recgroup1.first.index;
+        uint32_t rel_type2 = index2.index - recgroup2.first.index;
+        if (rel_type1 != rel_type2) return false;
+      } else if (index1 != index2) {
+        return false;
       }
       return true;
     }
@@ -303,8 +303,13 @@ class TypeCanonicalizer {
     bool EqualValueType(CanonicalValueType type1,
                         CanonicalValueType type2) const {
       if (type1.kind() != type2.kind()) return false;
-      if (type1.has_index() &&
-          !EqualTypeIndex(type1.ref_index(), type2.ref_index())) {
+      const bool indexed = type1.has_index();
+      if (indexed != type2.has_index()) return false;
+      if (indexed) return EqualTypeIndex(type1.ref_index(), type2.ref_index());
+      const bool is_ref = type1.is_object_reference();
+      DCHECK_EQ(is_ref, type2.is_object_reference());
+      if (is_ref &&
+          type1.heap_representation() != type2.heap_representation()) {
         return false;
       }
       return true;
