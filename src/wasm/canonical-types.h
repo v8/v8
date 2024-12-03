@@ -399,8 +399,6 @@ class TypeCanonicalizer {
       ModuleTypeIndex recgroup_start,
       CanonicalTypeIndex canonical_recgroup_start);
 
-  CanonicalTypeIndex AddRecursiveGroup(CanonicalType type);
-
   void CheckMaxCanonicalIndex() const;
 
   std::vector<CanonicalTypeIndex> canonical_supertypes_;
