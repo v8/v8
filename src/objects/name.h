@@ -67,8 +67,8 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 
   // Equality operations.
   inline bool Equals(Tagged<Name> other);
-  inline static bool Equals(Isolate* isolate, Handle<Name> one,
-                            Handle<Name> two);
+  inline static bool Equals(Isolate* isolate, DirectHandle<Name> one,
+                            DirectHandle<Name> two);
 
   // Conversion.
   inline bool IsArrayIndex();

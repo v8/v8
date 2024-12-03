@@ -434,7 +434,7 @@ TEST_F(IntlTest, IntlMathematicalValueFromBigInt) {
   };
   for (auto& cas : cases) {
     printf("%s\n", cas.bigint_string);
-    Handle<String> str =
+    Handle<Object> str =
         i_isolate()->factory()->NewStringFromAsciiChecked(cas.bigint_string);
     IntlMathematicalValue x =
         IntlMathematicalValue::From(

@@ -91,7 +91,7 @@ class ErrorUtils : public AllStatic {
     kCurrentMessageProperty
   };
   V8_EXPORT_PRIVATE static MaybeHandle<String> ToString(
-      Isolate* isolate, Handle<Object> recv,
+      Isolate* isolate, DirectHandle<Object> recv,
       ToStringMessageSource message_source =
           ToStringMessageSource::kCurrentMessageProperty);
 
@@ -106,42 +106,43 @@ class ErrorUtils : public AllStatic {
   // Formats a textual stack trace from the given structured stack trace.
   // Note that this can call arbitrary JS code through Error.prepareStackTrace.
   static MaybeHandle<Object> FormatStackTrace(Isolate* isolate,
-                                              Handle<JSObject> error,
+                                              DirectHandle<JSObject> error,
                                               DirectHandle<Object> stack_trace);
 
   static Handle<JSObject> NewIteratorError(Isolate* isolate,
-                                           Handle<Object> source);
-  static Handle<JSObject> NewCalledNonCallableError(Isolate* isolate,
-                                                    Handle<Object> source);
-  static Handle<JSObject> NewConstructedNonConstructable(Isolate* isolate,
-                                                         Handle<Object> source);
+                                           DirectHandle<Object> source);
+  static Handle<JSObject> NewCalledNonCallableError(
+      Isolate* isolate, DirectHandle<Object> source);
+  static Handle<JSObject> NewConstructedNonConstructable(
+      Isolate* isolate, DirectHandle<Object> source);
   // Returns the Exception sentinel.
   static Tagged<Object> ThrowSpreadArgError(Isolate* isolate,
                                             MessageTemplate id,
-                                            Handle<Object> object);
+                                            DirectHandle<Object> object);
   // Returns the Exception sentinel.
   static Tagged<Object> ThrowLoadFromNullOrUndefined(
-      Isolate* isolate, Handle<Object> object, MaybeDirectHandle<Object> key);
+      Isolate* isolate, DirectHandle<Object> object,
+      MaybeDirectHandle<Object> key);
 
   // Returns true if given object has own |error_stack_symbol| property.
   static bool HasErrorStackSymbolOwnProperty(Isolate* isolate,
-                                             Handle<JSObject> object);
+                                             DirectHandle<JSObject> object);
 
   struct StackPropertyLookupResult {
     // The holder of the |error_stack_symbol| or empty handle.
-    MaybeHandle<JSObject> error_stack_symbol_holder;
+    MaybeDirectHandle<JSObject> error_stack_symbol_holder;
     // The value of the |error_stack_symbol| property or |undefined_value|.
     Handle<Object> error_stack;
   };
   // Gets |error_stack_symbol| property value by looking up the prototype chain.
   static StackPropertyLookupResult GetErrorStackProperty(
-      Isolate* isolate, Handle<JSReceiver> maybe_error_object);
+      Isolate* isolate, DirectHandle<JSReceiver> maybe_error_object);
 
   static MaybeHandle<Object> GetFormattedStack(
-      Isolate* isolate, Handle<JSObject> maybe_error_object);
+      Isolate* isolate, DirectHandle<JSObject> maybe_error_object);
   static void SetFormattedStack(Isolate* isolate,
-                                Handle<JSObject> maybe_error_object,
-                                Handle<Object> formatted_stack);
+                                DirectHandle<JSObject> maybe_error_object,
+                                DirectHandle<Object> formatted_stack);
 
   // Collects the stack trace and installs the stack property accessors.
   static MaybeHandle<Object> CaptureStackTrace(Isolate* isolate,

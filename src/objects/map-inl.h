@@ -184,7 +184,7 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
   }
 }
 
-Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
+Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
                            PropertyNormalizationMode mode, const char* reason) {
   const bool kUseCache = true;
   return Normalize(isolate, fast_map, fast_map->elements_kind(), {}, mode,
@@ -358,7 +358,7 @@ int Map::GetInObjectPropertyOffset(int index) const {
 }
 
 Handle<Map> Map::AddMissingTransitionsForTesting(
-    Isolate* isolate, Handle<Map> split_map,
+    Isolate* isolate, DirectHandle<Map> split_map,
     DirectHandle<DescriptorArray> descriptors) {
   return AddMissingTransitions(isolate, split_map, descriptors);
 }
@@ -982,7 +982,7 @@ void Map::SetConstructor(Tagged<Object> constructor, WriteBarrierMode mode) {
   set_constructor_or_back_pointer(constructor, mode);
 }
 
-Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map) {
+Handle<Map> Map::CopyInitialMap(Isolate* isolate, DirectHandle<Map> map) {
   return CopyInitialMap(isolate, map, map->instance_size(),
                         map->GetInObjectProperties(),
                         map->UnusedPropertyFields());

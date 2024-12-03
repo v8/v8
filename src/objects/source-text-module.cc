@@ -125,7 +125,7 @@ int SourceTextModule::ImportIndex(int cell_index) {
 
 void SourceTextModule::CreateIndirectExport(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
-    Handle<String> name, Handle<SourceTextModuleInfoEntry> entry) {
+    DirectHandle<String> name, DirectHandle<SourceTextModuleInfoEntry> entry) {
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   DCHECK(IsTheHole(exports->Lookup(name), isolate));
   exports = ObjectHashTable::Put(exports, name, entry);
@@ -137,12 +137,12 @@ void SourceTextModule::CreateExport(Isolate* isolate,
                                     int cell_index,
                                     DirectHandle<FixedArray> names) {
   DCHECK_LT(0, names->length());
-  Handle<Cell> cell = isolate->factory()->NewCell();
+  DirectHandle<Cell> cell = isolate->factory()->NewCell();
   module->regular_exports()->set(ExportIndex(cell_index), *cell);
 
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   for (int i = 0, n = names->length(); i < n; ++i) {
-    Handle<String> name(Cast<String>(names->get(i)), isolate);
+    DirectHandle<String> name(Cast<String>(names->get(i)), isolate);
     DCHECK(IsTheHole(exports->Lookup(name), isolate));
     exports = ObjectHashTable::Put(exports, name, cell);
   }
@@ -181,7 +181,7 @@ void SourceTextModule::StoreVariable(DirectHandle<SourceTextModule> module,
 
 MaybeHandle<Cell> SourceTextModule::ResolveExport(
     Isolate* isolate, Handle<SourceTextModule> module,
-    Handle<String> module_specifier, Handle<String> export_name,
+    DirectHandle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
   if (IsCell(*object)) {
@@ -271,8 +271,8 @@ MaybeHandle<Cell> SourceTextModule::ResolveImport(
       Handle<Module> requested_module(
           Cast<Module>(module->requested_modules()->get(module_request_index)),
           isolate);
-      Handle<String> module_specifier(Cast<String>(module_request->specifier()),
-                                      isolate);
+      DirectHandle<String> module_specifier(
+          Cast<String>(module_request->specifier()), isolate);
       MaybeHandle<Cell> result =
           Module::ResolveExport(isolate, requested_module, module_specifier,
                                 name, loc, must_resolve, resolve_set);
@@ -286,7 +286,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveImport(
 
 MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
-    Handle<String> module_specifier, Handle<String> export_name,
+    DirectHandle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   if (!export_name->Equals(ReadOnlyRoots(isolate).default_string())) {
     // Go through all star exports looking for the given name.  If multiple star
@@ -344,7 +344,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
 }
 
 bool SourceTextModule::PrepareInstantiate(
-    Isolate* isolate, Handle<SourceTextModule> module,
+    Isolate* isolate, DirectHandle<SourceTextModule> module,
     v8::Local<v8::Context> context,
     v8::Module::ResolveModuleCallback module_callback,
     v8::Module::ResolveSourceCallback source_callback) {
@@ -358,9 +358,9 @@ bool SourceTextModule::PrepareInstantiate(
   for (int i = 0, length = module_requests->length(); i < length; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
-    Handle<String> specifier(module_request->specifier(), isolate);
-    Handle<FixedArray> import_attributes(module_request->import_attributes(),
-                                         isolate);
+    DirectHandle<String> specifier(module_request->specifier(), isolate);
+    DirectHandle<FixedArray> import_attributes(
+        module_request->import_attributes(), isolate);
     switch (module_request->phase()) {
       case ModuleImportPhase::kEvaluation: {
         v8::Local<v8::Module> api_requested_module;
@@ -407,8 +407,8 @@ bool SourceTextModule::PrepareInstantiate(
     if (module_request->phase() != ModuleImportPhase::kEvaluation) {
       continue;
     }
-    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
-                                    isolate);
+    DirectHandle<Module> requested_module(
+        Cast<Module>(requested_modules->get(i)), isolate);
     if (!Module::PrepareInstantiate(isolate, requested_module, context,
                                     module_callback, source_callback)) {
       return false;
@@ -432,9 +432,9 @@ bool SourceTextModule::PrepareInstantiate(
   DirectHandle<FixedArray> special_exports(module_info->special_exports(),
                                            isolate);
   for (int i = 0, n = special_exports->length(); i < n; ++i) {
-    Handle<SourceTextModuleInfoEntry> entry(
+    DirectHandle<SourceTextModuleInfoEntry> entry(
         Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
-    Handle<Object> export_name(entry->export_name(), isolate);
+    DirectHandle<Object> export_name(entry->export_name(), isolate);
     if (IsUndefined(*export_name, isolate)) continue;  // Star export.
     CreateIndirectExport(isolate, module, Cast<String>(export_name), entry);
   }
@@ -446,18 +446,18 @@ bool SourceTextModule::PrepareInstantiate(
 bool SourceTextModule::RunInitializationCode(
     Isolate* isolate, DirectHandle<SourceTextModule> module) {
   DCHECK_EQ(module->status(), kLinking);
-  Handle<JSFunction> function(Cast<JSFunction>(module->code()), isolate);
+  DirectHandle<JSFunction> function(Cast<JSFunction>(module->code()), isolate);
   DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
-  Handle<Object> receiver = isolate->factory()->undefined_value();
+  DirectHandle<Object> receiver = isolate->factory()->undefined_value();
 
   DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(), isolate);
   DirectHandle<Context> context = isolate->factory()->NewModuleContext(
       module, isolate->native_context(), scope_info);
   function->set_context(*context);
 
-  MaybeHandle<Object> maybe_generator =
+  MaybeDirectHandle<Object> maybe_generator =
       Execution::Call(isolate, function, receiver, {});
-  Handle<Object> generator;
+  DirectHandle<Object> generator;
   if (!maybe_generator.ToHandle(&generator)) {
     DCHECK(isolate->has_exception());
     return false;
@@ -620,7 +620,7 @@ bool SourceTextModule::FinishInstantiate(
     Handle<String> name(Cast<String>(entry->import_name()), isolate);
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
-    Handle<Cell> cell;
+    DirectHandle<Cell> cell;
     if (!ResolveImport(isolate, module, name, entry->module_request(), loc,
                        true, &resolve_set)
              .ToHandle(&cell)) {
@@ -639,8 +639,8 @@ bool SourceTextModule::FinishInstantiate(
     if (IsUndefined(*name, isolate)) continue;  // Star export.
     MessageLocation loc(script, entry->beg_pos(), entry->end_pos());
     ResolveSet resolve_set(zone);
-    if (ResolveExport(isolate, module, Handle<String>(), Cast<String>(name),
-                      loc, true, &resolve_set)
+    if (ResolveExport(isolate, module, {}, Cast<String>(name), loc, true,
+                      &resolve_set)
             .is_null()) {
       return false;
     }
@@ -864,7 +864,7 @@ MaybeHandle<Object> SourceTextModule::Evaluate(
     CHECK(try_catch.HasCaught());
     // d. Perform ! Call(capability.[[Reject]], undefined,
     //                   «result.[[Value]]»).
-    JSPromise::Reject(capability, handle(module->exception(), isolate));
+    JSPromise::Reject(capability, direct_handle(module->exception(), isolate));
   } else {  // 10. Else,
     // a. Assert: module.[[Status]] is either EVALUATING-ASYNC or EVALUATED.
     CHECK_GE(module->status(), kEvaluatingAsync);
@@ -921,7 +921,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
 
     //   i. Perform ! Call(module.[[TopLevelCapability]].[[Resolve]], undefined,
     //                     «undefined»).
-    Handle<JSPromise> capability(
+    DirectHandle<JSPromise> capability(
         Cast<JSPromise>(module->top_level_capability()), isolate);
     JSPromise::Resolve(capability, isolate->factory()->undefined_value())
         .ToHandleChecked();
@@ -966,7 +966,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
       MAYBE_RETURN(ExecuteAsyncModule(isolate, m), Nothing<bool>());
     } else {  // c. Else,
       // i. Let result be m.ExecuteModule().
-      Handle<Object> unused_result;
+      DirectHandle<Object> unused_result;
       MaybeDirectHandle<Object> exception;
       // ii. If result is an abrupt completion, then
       if (!ExecuteModule(isolate, m, &exception).ToHandle(&unused_result)) {
@@ -986,7 +986,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
 
           // b. Perform ! Call(m.[[TopLevelCapability]].[[Resolve]], undefined,
           //    « undefined »).
-          Handle<JSPromise> capability(
+          DirectHandle<JSPromise> capability(
               Cast<JSPromise>(m->top_level_capability()), isolate);
           JSPromise::Resolve(capability, isolate->factory()->undefined_value())
               .ToHandleChecked();
@@ -1040,7 +1040,7 @@ void SourceTextModule::AsyncModuleExecutionRejected(
 
     //  b. Perform ! Call(module.[[TopLevelCapability]].[[Reject]],
     //                    undefined, «error»).
-    Handle<JSPromise> capability(
+    DirectHandle<JSPromise> capability(
         Cast<JSPromise>(module->top_level_capability()), isolate);
     JSPromise::Reject(capability, exception);
   }
@@ -1059,9 +1059,9 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   DCHECK(module->has_toplevel_await());
 
   // 3. Let capability be ! NewPromiseCapability(%Promise%).
-  Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
+  DirectHandle<JSPromise> capability = isolate->factory()->NewJSPromise();
 
-  Handle<Context> execute_async_module_context =
+  DirectHandle<Context> execute_async_module_context =
       isolate->factory()->NewBuiltinContext(
           isolate->native_context(),
           ExecuteAsyncModuleContextSlots::kContextLength);
@@ -1073,7 +1073,7 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   //   a. Perform AsyncModuleExecutionFulfilled(module).
   //   b. Return undefined.
   // 5. Let onFulfilled be CreateBuiltinFunction(fulfilledClosure, 0, "", « »).
-  Handle<JSFunction> on_fulfilled =
+  DirectHandle<JSFunction> on_fulfilled =
       Factory::JSFunctionBuilder{
           isolate,
           isolate->factory()
@@ -1086,7 +1086,7 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   //   a. Perform AsyncModuleExecutionRejected(module, error).
   //   b. Return undefined.
   // 7. Let onRejected be CreateBuiltinFunction(rejectedClosure, 0, "", « »).
-  Handle<JSFunction> on_rejected =
+  DirectHandle<JSFunction> on_rejected =
       Factory::JSFunctionBuilder{
           isolate,
           isolate->factory()
@@ -1111,7 +1111,7 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   // Note: In V8 we have broken module.ExecuteModule into
   // ExecuteModule for synchronous module execution and
   // InnerExecuteAsyncModule for asynchronous execution.
-  MaybeHandle<Object> ret =
+  MaybeDirectHandle<Object> ret =
       InnerExecuteAsyncModule(isolate, module, capability);
   if (ret.is_null()) {
     // The evaluation of async module cannot throw a JavaScript observable
@@ -1131,10 +1131,10 @@ MaybeHandle<Object> SourceTextModule::InnerExecuteAsyncModule(
   // If we have an async module, then it has an associated
   // JSAsyncFunctionObject, which we then evaluate with the passed in promise
   // capability.
-  Handle<JSAsyncFunctionObject> async_function_object(
+  DirectHandle<JSAsyncFunctionObject> async_function_object(
       Cast<JSAsyncFunctionObject>(module->code()), isolate);
   async_function_object->set_promise(*capability);
-  Handle<JSFunction> resume(
+  DirectHandle<JSFunction> resume(
       isolate->native_context()->async_module_evaluate_internal(), isolate);
   return Execution::TryCall(isolate, resume, async_function_object, {},
                             Execution::MessageHandling::kKeepPending, nullptr);
@@ -1144,11 +1144,11 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     MaybeDirectHandle<Object>* exception_out) {
   // Synchronous modules have an associated JSGeneratorObject.
-  Handle<JSGeneratorObject> generator(Cast<JSGeneratorObject>(module->code()),
-                                      isolate);
-  Handle<JSFunction> resume(
+  DirectHandle<JSGeneratorObject> generator(
+      Cast<JSGeneratorObject>(module->code()), isolate);
+  DirectHandle<JSFunction> resume(
       isolate->native_context()->generator_next_internal(), isolate);
-  Handle<Object> result;
+  DirectHandle<Object> result;
 
   if (!Execution::TryCall(isolate, resume, generator, {},
                           Execution::MessageHandling::kKeepPending,

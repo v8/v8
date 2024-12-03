@@ -239,9 +239,12 @@ V8_OBJECT class FixedArray
   // Invariant: 0 < new_length <= length()
   V8_EXPORT_PRIVATE void RightTrim(Isolate* isolate, int new_capacity);
   // Right-trims the array, and canonicalizes length 0 to empty_fixed_array.
-  static Handle<FixedArray> RightTrimOrEmpty(Isolate* isolate,
-                                             Handle<FixedArray> array,
-                                             int new_length);
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<FixedArray>, DirectHandle<FixedArray>>>>
+  static HandleType<FixedArray> RightTrimOrEmpty(Isolate* isolate,
+                                                 HandleType<FixedArray> array,
+                                                 int new_length);
 
   // TODO(jgruber): Only needed for FixedArrays used as JSObject elements.
   inline void FillWithHoles(int from, int to);

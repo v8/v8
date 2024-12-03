@@ -83,8 +83,9 @@ Handle<String> Factory::NewStringFromAsciiChecked(const char* str,
       .ToHandleChecked();
 }
 
-Handle<String> Factory::NewSubString(Handle<String> str, uint32_t begin,
-                                     uint32_t end) {
+template <typename T, template <typename> typename HandleType, typename>
+HandleType<String> Factory::NewSubString(HandleType<T> str, uint32_t begin,
+                                         uint32_t end) {
   if (begin == 0 && end == str->length()) return str;
   return NewProperSubString(str, begin, end);
 }

@@ -33,8 +33,8 @@ class JSFunctionOrBoundFunctionOrWrappedFunction
   // https://tc39.es/proposal-shadowrealm/#sec-copynameandlength
   static Maybe<bool> CopyNameAndLength(
       Isolate* isolate,
-      Handle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
-      Handle<JSReceiver> target, Handle<String> prefix, int arg_count);
+      DirectHandle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
+      DirectHandle<JSReceiver> target, Handle<String> prefix, int arg_count);
 
   static_assert(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)
@@ -73,7 +73,7 @@ class JSWrappedFunction
   // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
   static MaybeHandle<Object> Create(
       Isolate* isolate, DirectHandle<NativeContext> creation_context,
-      Handle<JSReceiver> value);
+      DirectHandle<JSReceiver> value);
 
   // Dispatched behavior.
   DECL_PRINTER(JSWrappedFunction)
@@ -335,31 +335,33 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(initial_map, Tagged<Map>)
 
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            Handle<Map> map, Handle<JSPrototype> prototype);
+                            DirectHandle<Map> map,
+                            DirectHandle<JSPrototype> prototype);
   static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
-                            Handle<Map> map, Handle<JSPrototype> prototype,
+                            DirectHandle<Map> map,
+                            DirectHandle<JSPrototype> prototype,
                             DirectHandle<JSFunction> constructor);
 
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
-      Handle<JSFunction> function);
+      DirectHandle<JSFunction> function);
 
   // Creates a map that matches the constructor's initial map, but with
   // [[prototype]] being new.target.prototype. Because new.target can be a
   // JSProxy, this can call back into JavaScript.
   V8_EXPORT_PRIVATE static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedMap(
-      Isolate* isolate, Handle<JSFunction> constructor,
-      Handle<JSReceiver> new_target);
+      Isolate* isolate, DirectHandle<JSFunction> constructor,
+      DirectHandle<JSReceiver> new_target);
 
   // Like GetDerivedMap, but returns a map with a RAB / GSAB ElementsKind.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabTypedArrayMap(
-      Isolate* isolate, Handle<JSFunction> constructor,
-      Handle<JSReceiver> new_target);
+      Isolate* isolate, DirectHandle<JSFunction> constructor,
+      DirectHandle<JSReceiver> new_target);
 
   // Like GetDerivedMap, but can be used for DataViews for retrieving / creating
   // a map with a JS_RAB_GSAB_DATA_VIEW instance type.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabDataViewMap(
-      Isolate* isolate, Handle<JSReceiver> new_target);
+      Isolate* isolate, DirectHandle<JSReceiver> new_target);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
@@ -372,7 +374,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(has_prototype_property, bool)
   DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
   static void SetPrototype(DirectHandle<JSFunction> function,
-                           Handle<Object> value);
+                           DirectHandle<Object> value);
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled(IsolateForSandbox isolate) const;
@@ -388,7 +390,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Calculate the instance size and in-object properties count.
   // {CalculateExpectedNofProperties} can trigger compilation.
   static V8_WARN_UNUSED_RESULT int CalculateExpectedNofProperties(
-      Isolate* isolate, Handle<JSFunction> function);
+      Isolate* isolate, DirectHandle<JSFunction> function);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,
                                           bool has_prototype_slot,
                                           int requested_embedder_fields,
@@ -400,19 +402,19 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_PRINTER(JSFunction)
   DECL_VERIFIER(JSFunction)
 
-  static Handle<String> GetName(Handle<JSFunction> function);
+  static Handle<String> GetName(DirectHandle<JSFunction> function);
 
   // ES6 section 9.2.11 SetFunctionName
   // Because of the way this abstract operation is used in the spec,
   // it should never fail, but in practice it will fail if the generated
   // function name's length exceeds String::kMaxLength.
-  static V8_WARN_UNUSED_RESULT bool SetName(Handle<JSFunction> function,
+  static V8_WARN_UNUSED_RESULT bool SetName(DirectHandle<JSFunction> function,
                                             Handle<Name> name,
                                             DirectHandle<String> prefix);
 
   // The function's name if it is configured, otherwise shared function info
   // debug name.
-  static Handle<String> GetDebugName(Handle<JSFunction> function);
+  static Handle<String> GetDebugName(DirectHandle<JSFunction> function);
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).

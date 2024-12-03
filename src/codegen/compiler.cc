@@ -1312,7 +1312,7 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
 }
 
 MaybeHandle<Code> GetOrCompileOptimized(
-    Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
+    Isolate* isolate, DirectHandle<JSFunction> function, ConcurrencyMode mode,
     CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
     CompileResultBehavior result_behavior = CompileResultBehavior::kDefault) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
@@ -1387,11 +1387,12 @@ MaybeHandle<Code> GetOrCompileOptimized(
   DCHECK(shared->is_compiled());
 
   if (code_kind == CodeKind::TURBOFAN_JS) {
-    return CompileTurbofan(isolate, function, shared, mode, osr_offset,
-                           result_behavior);
+    return CompileTurbofan(isolate, indirect_handle(function, isolate), shared,
+                           mode, osr_offset, result_behavior);
   } else {
     DCHECK_EQ(code_kind, CodeKind::MAGLEV);
-    return CompileMaglev(isolate, function, mode, osr_offset, result_behavior);
+    return CompileMaglev(isolate, indirect_handle(function, isolate), mode,
+                         osr_offset, result_behavior);
   }
 }
 
@@ -1399,10 +1400,9 @@ MaybeHandle<Code> GetOrCompileOptimized(
 // addition to non-concurrent compiles to increase coverage in mjsunit tests
 // (where most interesting compiles are non-concurrent). The result of the
 // compilation is thrown out.
-void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
-                                                 Handle<JSFunction> function,
-                                                 ConcurrencyMode mode,
-                                                 CodeKind code_kind) {
+void SpawnDuplicateConcurrentJobForStressTesting(
+    Isolate* isolate, DirectHandle<JSFunction> function, ConcurrencyMode mode,
+    CodeKind code_kind) {
   // TODO(v8:7700): Support Maglev.
   if (code_kind == CodeKind::MAGLEV) return;
 
@@ -2962,7 +2962,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
 }
 
 // static
-bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
+bool Compiler::Compile(Isolate* isolate, DirectHandle<JSFunction> function,
                        ClearExceptionFlag flag,
                        IsCompiledScope* is_compiled_scope) {
   // We should never reach here if the function is already compiled or

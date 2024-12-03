@@ -302,6 +302,8 @@ class MaybeObjectDirectHandle {
   inline MaybeObjectDirectHandle(Tagged<Smi> object, LocalHeap* local_heap);
   inline explicit MaybeObjectDirectHandle(DirectHandle<Object> object);
 
+  inline MaybeObjectDirectHandle(MaybeObjectHandle obj);
+
   static inline MaybeObjectDirectHandle Weak(Tagged<Object> object,
                                              Isolate* isolate);
   static inline MaybeObjectDirectHandle Weak(DirectHandle<Object> object);

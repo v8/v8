@@ -366,7 +366,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<String> NewSurrogatePairString(uint16_t lead, uint16_t trail);
 
   // Create a new string object which holds a proper substring of a string.
-  Handle<String> NewProperSubString(Handle<String> str, uint32_t begin,
+  Handle<String> NewProperSubString(DirectHandle<String> str, uint32_t begin,
                                     uint32_t end);
   // Same, but always copies (never creates a SlicedString).
   // {str} must be flat, {length} must be non-zero.
@@ -374,8 +374,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                     uint32_t length);
 
   // Create a new string object which holds a substring of a string.
-  inline Handle<String> NewSubString(Handle<String> str, uint32_t begin,
-                                     uint32_t end);
+  template <typename T, template <typename> typename HandleType,
+            typename = std::enable_if_t<
+                std::is_convertible_v<HandleType<T>, HandleType<String>>>>
+  inline HandleType<String> NewSubString(HandleType<T> str, uint32_t begin,
+                                         uint32_t end);
 
   // Creates a new external String object.  There are two String encodings
   // in the system: one-byte and two-byte.  Unlike other String types, it does
@@ -507,27 +510,27 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<AllocationSite> NewAllocationSite(bool with_weak_next);
 
   // Allocates and initializes a new Map.
-  Handle<Map> NewMap(Handle<HeapObject> meta_map_holder, InstanceType type,
-                     int instance_size,
+  Handle<Map> NewMap(DirectHandle<HeapObject> meta_map_holder,
+                     InstanceType type, int instance_size,
                      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
                      int inobject_properties = 0,
                      AllocationType allocation_type = AllocationType::kMap);
 
   Handle<Map> NewMapWithMetaMap(
-      Handle<Map> meta_map, InstanceType type, int instance_size,
+      DirectHandle<Map> meta_map, InstanceType type, int instance_size,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       int inobject_properties = 0,
       AllocationType allocation_type = AllocationType::kMap);
 
   Handle<Map> NewContextfulMap(
-      Handle<JSReceiver> creation_context_holder, InstanceType type,
+      DirectHandle<JSReceiver> creation_context_holder, InstanceType type,
       int instance_size,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       int inobject_properties = 0,
       AllocationType allocation_type = AllocationType::kMap);
 
   Handle<Map> NewContextfulMap(
-      Handle<NativeContext> native_context, InstanceType type,
+      DirectHandle<NativeContext> native_context, InstanceType type,
       int instance_size,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       int inobject_properties = 0,
@@ -614,7 +617,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
   Handle<JSObject> NewJSObject(
-      Handle<JSFunction> constructor,
+      DirectHandle<JSFunction> constructor,
       AllocationType allocation = AllocationType::kYoung,
       NewJSObjectType = NewJSObjectType::kNoAPIWrapper);
   // JSObject without a prototype.
@@ -660,7 +663,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // fast elements, or a NumberDictionary, in which case the resulting
   // object will have dictionary elements.
   Handle<JSObject> NewSlowJSObjectWithPropertiesAndElements(
-      Handle<JSPrototype> prototype, DirectHandle<HeapObject> properties,
+      DirectHandle<JSPrototype> prototype, DirectHandle<HeapObject> properties,
       DirectHandle<FixedArrayBase> elements);
 
   // JS arrays are pretenured when allocated by the parser.
@@ -849,7 +852,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
       DirectHandle<JSReceiver> target_function, DirectHandle<JSAny> bound_this,
       base::Vector<DirectHandle<Object>> bound_args,
-      Handle<JSPrototype> prototype);
+      DirectHandle<JSPrototype> prototype);
 
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(DirectHandle<JSReceiver> target,

@@ -4541,8 +4541,8 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
                                            v8::Local<Name> key,
                                            v8::Local<Value> value) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  auto self = Utils::OpenHandle(this);
-  auto key_obj = Utils::OpenHandle(*key);
+  auto self = Utils::OpenDirectHandle(this);
+  auto key_obj = Utils::OpenDirectHandle(*key);
   auto value_obj = Utils::OpenHandle(*value);
 
   i::PropertyKey lookup_key(i_isolate, key_obj);
@@ -4569,7 +4569,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
                                            uint32_t index,
                                            v8::Local<Value> value) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  auto self = Utils::OpenHandle(this);
+  auto self = Utils::OpenDirectHandle(this);
   auto value_obj = Utils::OpenHandle(*value);
 
   i::PropertyKey lookup_key(i_isolate, index);
@@ -4770,9 +4770,9 @@ Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
 MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
                                   Local<Value> key) {
   PREPARE_FOR_EXECUTION(context, Object, Get);
-  auto self = Utils::OpenHandle(this);
-  auto key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::Object> result;
+  auto self = Utils::OpenDirectHandle(this);
+  auto key_obj = Utils::OpenDirectHandle(*key);
+  i::DirectHandle<i::Object> result;
   has_exception = !i::Runtime::GetObjectProperty(i_isolate, self, key_obj)
                        .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
@@ -4782,13 +4782,13 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
 MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context, Local<Value> key,
                                   MaybeLocal<Object> receiver) {
   PREPARE_FOR_EXECUTION(context, Object, Get);
-  auto self = Utils::OpenHandle(this);
-  auto key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::JSReceiver> receiver_obj;
+  auto self = Utils::OpenDirectHandle(this);
+  auto key_obj = Utils::OpenDirectHandle(*key);
+  i::DirectHandle<i::JSReceiver> receiver_obj;
   if (!receiver.IsEmpty()) {
-    receiver_obj = Utils::OpenHandle(*receiver.ToLocalChecked());
+    receiver_obj = Utils::OpenDirectHandle(*receiver.ToLocalChecked());
   }
-  i::Handle<i::Object> result;
+  i::DirectHandle<i::Object> result;
   has_exception =
       !i::Runtime::GetObjectProperty(i_isolate, self, key_obj, receiver_obj)
            .ToHandle(&result);
@@ -5266,10 +5266,10 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   PREPARE_FOR_EXECUTION(context, Object, GetRealNamedPropertyInPrototypeChain);
   auto self = Utils::OpenHandle(this);
   if (!IsJSObject(*self)) return MaybeLocal<Value>();
-  auto key_obj = Utils::OpenHandle(*key);
+  auto key_obj = Utils::OpenDirectHandle(*key);
   i::PrototypeIterator iter(i_isolate, self);
   if (iter.IsAtEnd()) return MaybeLocal<Value>();
-  i::Handle<i::JSReceiver> proto =
+  i::DirectHandle<i::JSReceiver> proto =
       i::PrototypeIterator::GetCurrent<i::JSReceiver>(iter);
   i::PropertyKey lookup_key(i_isolate, key_obj);
   i::LookupIterator it(i_isolate, self, lookup_key, proto,
@@ -5289,10 +5289,10 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
            GetRealNamedPropertyAttributesInPrototypeChain, i::HandleScope);
   auto self = Utils::OpenHandle(this);
   if (!IsJSObject(*self)) return Nothing<PropertyAttribute>();
-  auto key_obj = Utils::OpenHandle(*key);
+  auto key_obj = Utils::OpenDirectHandle(*key);
   i::PrototypeIterator iter(i_isolate, self);
   if (iter.IsAtEnd()) return Nothing<PropertyAttribute>();
-  i::Handle<i::JSReceiver> proto =
+  i::DirectHandle<i::JSReceiver> proto =
       i::PrototypeIterator::GetCurrent<i::JSReceiver>(iter);
   i::PropertyKey lookup_key(i_isolate, key_obj);
   i::LookupIterator it(i_isolate, self, lookup_key, proto,
@@ -5309,8 +5309,8 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
 MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
                                                    Local<Name> key) {
   PREPARE_FOR_EXECUTION(context, Object, GetRealNamedProperty);
-  auto self = Utils::OpenHandle(this);
-  auto key_obj = Utils::OpenHandle(*key);
+  auto self = Utils::OpenDirectHandle(this);
+  auto key_obj = Utils::OpenDirectHandle(*key);
   i::PropertyKey lookup_key(i_isolate, key_obj);
   i::LookupIterator it(i_isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
@@ -5326,8 +5326,8 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Object, GetRealNamedPropertyAttributes,
            i::HandleScope);
-  auto self = Utils::OpenHandle(this);
-  auto key_obj = Utils::OpenHandle(*key);
+  auto self = Utils::OpenDirectHandle(this);
+  auto key_obj = Utils::OpenDirectHandle(*key);
   i::PropertyKey lookup_key(i_isolate, key_obj);
   i::LookupIterator it(i_isolate, self, lookup_key, self,
                        i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
@@ -5343,22 +5343,23 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
 }
 
 Local<v8::Object> v8::Object::Clone(Isolate* isolate) {
-  auto self = i::Cast<i::JSObject>(Utils::OpenHandle(this));
+  auto self = i::Cast<i::JSObject>(Utils::OpenDirectHandle(this));
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSObject> result = i_isolate->factory()->CopyJSObject(self);
+  i::DirectHandle<i::JSObject> result =
+      i_isolate->factory()->CopyJSObject(self);
   return Utils::ToLocal(result);
 }
 
 Local<v8::Object> v8::Object::Clone() {
-  auto self = i::Cast<i::JSObject>(Utils::OpenHandle(this));
+  auto self = i::Cast<i::JSObject>(Utils::OpenDirectHandle(this));
   return Clone(reinterpret_cast<v8::Isolate*>(self->GetIsolate()));
 }
 
 namespace {
 V8_INLINE MaybeLocal<v8::Context> GetCreationContextImpl(
     i::DirectHandle<i::JSReceiver> object, i::Isolate* i_isolate) {
-  i::Handle<i::NativeContext> context;
+  i::DirectHandle<i::NativeContext> context;
   if (object->GetCreationContext(i_isolate).ToHandle(&context)) {
     return Utils::ToLocal(context);
   }
@@ -5386,7 +5387,7 @@ MaybeLocal<v8::Context> v8::Object::GetCreationContext(
 namespace {
 V8_INLINE Local<v8::Context> GetCreationContextCheckedImpl(
     i::DirectHandle<i::JSReceiver> object, i::Isolate* i_isolate) {
-  i::Handle<i::NativeContext> context;
+  i::DirectHandle<i::NativeContext> context;
   Utils::ApiCheck(object->GetCreationContext(i_isolate).ToHandle(&context),
                   "v8::Object::GetCreationContextChecked",
                   "No creation context available");
@@ -5490,6 +5491,8 @@ bool v8::Object::IsUndetectable() const {
 namespace {
 base::Vector<i::DirectHandle<i::Object>> PrepareArguments(int argc,
                                                           Local<Value> argv[]) {
+  static_assert(sizeof(v8::Local<v8::Value>) ==
+                sizeof(i::DirectHandle<i::Object>));
   return {reinterpret_cast<i::DirectHandle<i::Object>*>(argv),
           static_cast<size_t>(argc)};
 }
@@ -5504,9 +5507,8 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   i::TimerEventScope<i::TimerEventExecute> timer_scope(i_isolate);
   i::NestedTimedHistogramScope execute_timer(i_isolate->counters()->execute(),
                                              i_isolate);
-  auto self = Utils::OpenHandle(this);
-  auto recv_obj = Utils::OpenHandle(*recv);
-  static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  auto self = Utils::OpenDirectHandle(this);
+  auto recv_obj = Utils::OpenDirectHandle(*recv);
   auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
@@ -5524,8 +5526,7 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   i::TimerEventScope<i::TimerEventExecute> timer_scope(i_isolate);
   i::NestedTimedHistogramScope execute_timer(i_isolate->counters()->execute(),
                                              i_isolate);
-  auto self = Utils::OpenHandle(this);
-  static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  auto self = Utils::OpenDirectHandle(this);
   auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception =
@@ -5562,8 +5563,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   i::TimerEventScope<i::TimerEventExecute> timer_scope(i_isolate);
   i::NestedTimedHistogramScope execute_timer(i_isolate->counters()->execute(),
                                              i_isolate);
-  auto self = Utils::OpenHandle(this);
-  static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  auto self = Utils::OpenDirectHandle(this);
   bool should_set_has_no_side_effect =
       side_effect_type == SideEffectType::kHasNoSideEffect &&
       i_isolate->should_check_side_effects();
@@ -5597,11 +5597,10 @@ MaybeLocal<v8::Value> Function::Call(v8::Isolate* isolate,
   i::TimerEventScope<i::TimerEventExecute> timer_scope(i_isolate);
   i::NestedTimedHistogramScope execute_timer(i_isolate->counters()->execute(),
                                              i_isolate);
-  auto self = Utils::OpenHandle(this);
+  auto self = Utils::OpenDirectHandle(this);
   Utils::ApiCheck(!self.is_null(), "v8::Function::Call",
                   "Function to be called is a null pointer");
-  auto recv_obj = Utils::OpenHandle(*recv);
-  static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  auto recv_obj = Utils::OpenDirectHandle(*recv);
   auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
@@ -7916,7 +7915,6 @@ i::Handle<T> ToHandle(i::MaybeHandle<T> h) {
   return h.ToHandleChecked();
 }
 
-#ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
 i::DirectHandle<T> ToHandle(i::DirectHandle<T> h) {
   return h;
@@ -7925,17 +7923,15 @@ template <typename T>
 i::DirectHandle<T> ToHandle(i::MaybeDirectHandle<T> h) {
   return h.ToHandleChecked();
 }
-#endif
 
 template <typename Dictionary>
-void AddPropertiesAndElementsToObject(i::Isolate* i_isolate,
-                                      i::Handle<Dictionary>& properties,
-                                      i::Handle<i::FixedArrayBase>& elements,
-                                      Local<Name>* names, Local<Value>* values,
-                                      size_t length) {
+void AddPropertiesAndElementsToObject(
+    i::Isolate* i_isolate, i::DirectHandle<Dictionary>& properties,
+    i::DirectHandle<i::FixedArrayBase>& elements, Local<Name>* names,
+    Local<Value>* values, size_t length) {
   for (size_t i = 0; i < length; ++i) {
-    auto name = Utils::OpenHandle(*names[i]);
-    auto value = Utils::OpenHandle(*values[i]);
+    auto name = Utils::OpenDirectHandle(*names[i]);
+    auto value = Utils::OpenDirectHandle(*values[i]);
 
     // See if the {name} is a valid array index, in which case we need to
     // add the {name}/{value} pair to the {elements}, otherwise they end
@@ -7973,16 +7969,16 @@ Local<v8::Object> v8::Object::New(Isolate* v8_isolate,
                                   Local<Name>* names, Local<Value>* values,
                                   size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::Handle<i::JSPrototype> proto;
+  i::DirectHandle<i::JSPrototype> proto;
   if (!Utils::ApiCheck(
-          i::TryCast(Utils::OpenHandle(*prototype_or_null), &proto),
+          i::TryCast(Utils::OpenDirectHandle(*prototype_or_null), &proto),
           "v8::Object::New", "prototype must be null or object")) {
     return Local<v8::Object>();
   }
   API_RCS_SCOPE(i_isolate, Object, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
 
-  i::Handle<i::FixedArrayBase> elements =
+  i::DirectHandle<i::FixedArrayBase> elements =
       i_isolate->factory()->empty_fixed_array();
 
   // We assume that this API is mostly used to create objects with named
@@ -7990,20 +7986,20 @@ Local<v8::Object> v8::Object::New(Isolate* v8_isolate,
   // large enough to hold all of them, while we start with no elements
   // (see http://bit.ly/v8-fast-object-create-cpp for the motivation).
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-    i::Handle<i::SwissNameDictionary> properties =
+    i::DirectHandle<i::SwissNameDictionary> properties =
         i_isolate->factory()->NewSwissNameDictionary(static_cast<int>(length));
     AddPropertiesAndElementsToObject(i_isolate, properties, elements, names,
                                      values, length);
-    i::Handle<i::JSObject> obj =
+    i::DirectHandle<i::JSObject> obj =
         i_isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
             proto, properties, elements);
     return Utils::ToLocal(obj);
   } else {
-    i::Handle<i::NameDictionary> properties =
+    i::DirectHandle<i::NameDictionary> properties =
         i::NameDictionary::New(i_isolate, static_cast<int>(length));
     AddPropertiesAndElementsToObject(i_isolate, properties, elements, names,
                                      values, length);
-    i::Handle<i::JSObject> obj =
+    i::DirectHandle<i::JSObject> obj =
         i_isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
             proto, properties, elements);
     return Utils::ToLocal(obj);

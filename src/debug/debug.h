@@ -422,7 +422,7 @@ class V8_EXPORT_PRIVATE Debug {
       AccessorComponent component);
   bool PerformSideEffectCheckForCallback(Handle<FunctionTemplateInfo> function);
   bool PerformSideEffectCheckForInterceptor(
-      Handle<InterceptorInfo> interceptor_info);
+      DirectHandle<InterceptorInfo> interceptor_info);
 
   bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
   bool PerformSideEffectCheckForObject(Handle<Object> object);

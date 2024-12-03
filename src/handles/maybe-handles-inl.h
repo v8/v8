@@ -252,6 +252,9 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(
     DirectHandle<Object> object, HeapObjectReferenceType reference_type)
     : reference_type_(reference_type), handle_(object) {}
 
+MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObjectHandle object)
+    : reference_type_(object.reference_type_), handle_(object.handle_) {}
+
 MaybeObjectDirectHandle MaybeObjectDirectHandle::Weak(
     DirectHandle<Object> object) {
   return MaybeObjectDirectHandle(object, HeapObjectReferenceType::WEAK);

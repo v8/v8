@@ -80,7 +80,8 @@ bool Name::Equals(Tagged<Name> other) {
   return Cast<String>(this)->SlowEquals(Cast<String>(other));
 }
 
-bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
+bool Name::Equals(Isolate* isolate, DirectHandle<Name> one,
+                  DirectHandle<Name> two) {
   if (one.is_identical_to(two)) return true;
   if ((IsInternalizedString(*one) && IsInternalizedString(*two)) ||
       IsSymbol(*one) || IsSymbol(*two)) {

@@ -33,9 +33,12 @@
 namespace v8 {
 namespace internal {
 
-Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
+template <template <typename> typename HandleType, typename>
+HandleType<String> String::SlowShare(Isolate* isolate,
+                                     HandleType<String> source) {
   DCHECK(v8_flags.shared_string_table);
-  Handle<String> flat = Flatten(isolate, source, AllocationType::kSharedOld);
+  HandleType<String> flat =
+      Flatten(isolate, source, AllocationType::kSharedOld);
 
   // Do not recursively call Share, so directly compute the sharing strategy for
   // the flat string, which could already be a copy or an existing string from
@@ -56,18 +59,23 @@ Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
 
   uint32_t length = flat->length();
   if (flat->IsOneByteRepresentation()) {
-    Handle<SeqOneByteString> copy =
+    HandleType<SeqOneByteString> copy =
         isolate->factory()->NewRawSharedOneByteString(length).ToHandleChecked();
     DisallowGarbageCollection no_gc;
     WriteToFlat(*flat, copy->GetChars(no_gc), 0, length);
     return copy;
   }
-  Handle<SeqTwoByteString> copy =
+  HandleType<SeqTwoByteString> copy =
       isolate->factory()->NewRawSharedTwoByteString(length).ToHandleChecked();
   DisallowGarbageCollection no_gc;
   WriteToFlat(*flat, copy->GetChars(no_gc), 0, length);
   return copy;
 }
+
+template V8_EXPORT_PRIVATE DirectHandle<String> String::SlowShare(
+    Isolate* isolate, DirectHandle<String> source);
+template V8_EXPORT_PRIVATE IndirectHandle<String> String::SlowShare(
+    Isolate* isolate, IndirectHandle<String> source);
 
 namespace {
 
@@ -645,10 +653,19 @@ int32_t String::ToArrayIndex(Address addr) {
 }
 
 // static
-Handle<Number> String::ToNumber(Isolate* isolate, Handle<String> subject) {
+template <template <typename> typename HandleType, typename>
+HandleType<Number> String::ToNumber(Isolate* isolate,
+                                    HandleType<String> subject) {
   return isolate->factory()->NewNumber(
       StringToDouble(isolate, subject, ALLOW_NON_DECIMAL_PREFIX));
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    DirectHandle<Number> String::ToNumber(Isolate* isolate,
+                                          DirectHandle<String> subject);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    IndirectHandle<Number> String::ToNumber(Isolate* isolate,
+                                            IndirectHandle<String> subject);
 
 String::FlatContent String::SlowGetFlatContent(
     const DisallowGarbageCollection& no_gc,
@@ -932,8 +949,9 @@ size_t WriteUtf8Impl(base::Vector<const Char> string, char* buffer,
 }  // namespace
 
 // static
-size_t String::WriteUtf8(Isolate* isolate, Handle<String> string, char* buffer,
-                         size_t capacity, Utf8EncodingFlags flags) {
+size_t String::WriteUtf8(Isolate* isolate, DirectHandle<String> string,
+                         char* buffer, size_t capacity,
+                         Utf8EncodingFlags flags) {
   DCHECK_IMPLIES(flags & Utf8EncodingFlag::kNullTerminate, capacity > 0);
   DCHECK_IMPLIES(capacity > 0, buffer != nullptr);
 
@@ -976,7 +994,7 @@ static void CalculateLineEndsImpl(String::LineEndsVector* line_ends,
 
 template <typename IsolateT>
 String::LineEndsVector String::CalculateLineEndsVector(
-    IsolateT* isolate, Handle<String> src, bool include_ending_line) {
+    IsolateT* isolate, DirectHandle<String> src, bool include_ending_line) {
   src = Flatten(isolate, src);
   // Rough estimate of line count based on a roughly estimated average
   // length of packed code. Most scripts have < 32 lines.
@@ -1000,13 +1018,13 @@ String::LineEndsVector String::CalculateLineEndsVector(
 }
 
 template String::LineEndsVector String::CalculateLineEndsVector(
-    Isolate* isolate, Handle<String> src, bool include_ending_line);
+    Isolate* isolate, DirectHandle<String> src, bool include_ending_line);
 template String::LineEndsVector String::CalculateLineEndsVector(
-    LocalIsolate* isolate, Handle<String> src, bool include_ending_line);
+    LocalIsolate* isolate, DirectHandle<String> src, bool include_ending_line);
 
 template <typename IsolateT>
 Handle<FixedArray> String::CalculateLineEnds(IsolateT* isolate,
-                                             Handle<String> src,
+                                             DirectHandle<String> src,
                                              bool include_ending_line) {
   LineEndsVector line_ends =
       CalculateLineEndsVector(isolate, src, include_ending_line);
@@ -1024,10 +1042,10 @@ Handle<FixedArray> String::CalculateLineEnds(IsolateT* isolate,
 }
 
 template Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
-                                                      Handle<String> src,
+                                                      DirectHandle<String> src,
                                                       bool include_ending_line);
 template Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
-                                                      Handle<String> src,
+                                                      DirectHandle<String> src,
                                                       bool include_ending_line);
 
 bool String::SlowEquals(Tagged<String> other) const {
@@ -1095,8 +1113,8 @@ bool String::SlowEquals(
 }
 
 // static
-bool String::SlowEquals(Isolate* isolate, Handle<String> one,
-                        Handle<String> two) {
+bool String::SlowEquals(Isolate* isolate, DirectHandle<String> one,
+                        DirectHandle<String> two) {
   // Fast check: negative check with lengths.
   const uint32_t one_length = one->length();
   if (one_length != two->length()) return false;
@@ -1106,10 +1124,10 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
   // and restart.
   if (IsThinString(*one) || IsThinString(*two)) {
     if (IsThinString(*one)) {
-      one = handle(Cast<ThinString>(*one)->actual(), isolate);
+      one = direct_handle(Cast<ThinString>(*one)->actual(), isolate);
     }
     if (IsThinString(*two)) {
-      two = handle(Cast<ThinString>(*two)->actual(), isolate);
+      two = direct_handle(Cast<ThinString>(*two)->actual(), isolate);
     }
     return String::Equals(isolate, one, two);
   }
@@ -1164,8 +1182,8 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
 }
 
 // static
-ComparisonResult String::Compare(Isolate* isolate, Handle<String> x,
-                                 Handle<String> y) {
+ComparisonResult String::Compare(Isolate* isolate, DirectHandle<String> x,
+                                 DirectHandle<String> y) {
   // A few fast case tests before we flatten.
   if (x.is_identical_to(y)) {
     return ComparisonResult::kEqual;
@@ -1237,19 +1255,20 @@ uint32_t ToValidIndex(Tagged<String> str, Tagged<Object> number) {
 
 }  // namespace
 
-Tagged<Object> String::IndexOf(Isolate* isolate, Handle<Object> receiver,
-                               Handle<Object> search, Handle<Object> position) {
+Tagged<Object> String::IndexOf(Isolate* isolate, DirectHandle<Object> receiver,
+                               DirectHandle<Object> search,
+                               DirectHandle<Object> position) {
   if (IsNullOrUndefined(*receiver, isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "String.prototype.indexOf")));
   }
-  Handle<String> receiver_string;
+  DirectHandle<String> receiver_string;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver_string,
                                      Object::ToString(isolate, receiver));
 
-  Handle<String> search_string;
+  DirectHandle<String> search_string;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
                                      Object::ToString(isolate, search));
 
@@ -1276,8 +1295,8 @@ int SearchString(Isolate* isolate, String::FlatContent receiver_content,
 
 }  // namespace
 
-int String::IndexOf(Isolate* isolate, Handle<String> receiver,
-                    Handle<String> search, uint32_t start_index) {
+int String::IndexOf(Isolate* isolate, DirectHandle<String> receiver,
+                    DirectHandle<String> search, uint32_t start_index) {
   DCHECK_LE(start_index, receiver->length());
 
   uint32_t search_length = search->length();
@@ -1315,7 +1334,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
 
   replacement = String::Flatten(isolate, replacement);
 
-  Handle<String> dollar_string =
+  DirectHandle<String> dollar_string =
       factory->LookupSingleCharacterStringFromCode('$');
   int next_dollar_ix =
       String::IndexOf(isolate, replacement, dollar_string, start_index);
@@ -1387,7 +1406,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         }
 
         bool capture_exists;
-        Handle<String> capture;
+        DirectHandle<String> capture;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, capture, match->GetCapture(scaled_index, &capture_exists));
         if (capture_exists) builder.AppendString(capture);
@@ -1403,7 +1422,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
           break;
         }
 
-        Handle<String> bracket_string =
+        DirectHandle<String> bracket_string =
             factory->LookupSingleCharacterStringFromCode('>');
         const int closing_bracket_ix =
             String::IndexOf(isolate, replacement, bracket_string, peek_ix + 1);
@@ -1415,9 +1434,9 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
           break;
         }
 
-        Handle<String> capture_name =
+        DirectHandle<String> capture_name =
             factory->NewSubString(replacement, peek_ix + 1, closing_bracket_ix);
-        Handle<String> capture;
+        DirectHandle<String> capture;
         CaptureState capture_state;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, capture,
@@ -1499,20 +1518,21 @@ int StringMatchBackwards(base::Vector<const schar> subject,
 
 }  // namespace
 
-Tagged<Object> String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
-                                   Handle<Object> search,
-                                   Handle<Object> position) {
+Tagged<Object> String::LastIndexOf(Isolate* isolate,
+                                   DirectHandle<Object> receiver,
+                                   DirectHandle<Object> search,
+                                   DirectHandle<Object> position) {
   if (IsNullOrUndefined(*receiver, isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "String.prototype.lastIndexOf")));
   }
-  Handle<String> receiver_string;
+  DirectHandle<String> receiver_string;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver_string,
                                      Object::ToString(isolate, receiver));
 
-  Handle<String> search_string;
+  DirectHandle<String> search_string;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
                                      Object::ToString(isolate, search));
 
@@ -1598,7 +1618,7 @@ bool IsIdentifierVector(base::Vector<Char> vec) {
 }  // namespace
 
 // static
-bool String::IsIdentifier(Isolate* isolate, Handle<String> str) {
+bool String::IsIdentifier(Isolate* isolate, DirectHandle<String> str) {
   str = String::Flatten(isolate, str);
   DisallowGarbageCollection no_gc;
   String::FlatContent flat = str->GetFlatContent(no_gc);
@@ -1859,7 +1879,7 @@ int ExternalString::ExternalPayloadSize() const {
   return length() * length_multiplier;
 }
 
-FlatStringReader::FlatStringReader(Isolate* isolate, Handle<String> str)
+FlatStringReader::FlatStringReader(Isolate* isolate, DirectHandle<String> str)
     : Relocatable(isolate), str_(str), length_(str->length()) {
 #if DEBUG
   // Check that this constructor is called only from the main thread.

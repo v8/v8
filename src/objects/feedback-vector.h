@@ -900,11 +900,13 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   inline std::pair<Tagged<MaybeObject>, Tagged<MaybeObject>> GetFeedbackPair()
       const;
 
-  void ConfigureMonomorphic(Handle<Name> name, DirectHandle<Map> receiver_map,
+  void ConfigureMonomorphic(DirectHandle<Name> name,
+                            DirectHandle<Map> receiver_map,
                             const MaybeObjectHandle& handler);
 
   void ConfigurePolymorphic(
-      Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
+      DirectHandle<Name> name,
+      std::vector<MapAndHandler> const& maps_and_handlers);
 
   void ConfigureMegaDOM(const MaybeObjectHandle& handler);
   MaybeObjectHandle ExtractMegaDOMHandler();
@@ -950,7 +952,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   // For CloneObject ICs
   static constexpr int kCloneObjectPolymorphicEntrySize = 2;
-  void ConfigureCloneObject(Handle<Map> source_map,
+  void ConfigureCloneObject(DirectHandle<Map> source_map,
                             const MaybeObjectHandle& handler);
 
 // Bit positions in a smi that encodes lexical environment variable access.

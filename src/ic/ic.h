@@ -83,15 +83,16 @@ class IC {
   // Configure for most states.
   bool ConfigureVectorState(IC::State new_state, DirectHandle<Object> key);
   // Configure the vector for MONOMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, DirectHandle<Map> map,
+  void ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
                             Handle<Object> handler);
-  void ConfigureVectorState(Handle<Name> name, DirectHandle<Map> map,
+  void ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
                             const MaybeObjectHandle& handler);
   // Configure the vector for POLYMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, MapHandlesSpan maps,
+  void ConfigureVectorState(DirectHandle<Name> name, MapHandlesSpan maps,
                             MaybeObjectHandles* handlers);
   void ConfigureVectorState(
-      Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
+      DirectHandle<Name> name,
+      std::vector<MapAndHandler> const& maps_and_handlers);
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, DirectHandle<Object> name);
@@ -102,10 +103,12 @@ class IC {
                                 Handle<Object> key);
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
-  void UpdateMonomorphicIC(const MaybeObjectHandle& handler, Handle<Name> name);
+  void UpdateMonomorphicIC(const MaybeObjectHandle& handler,
+                           DirectHandle<Name> name);
   bool UpdateMegaDOMIC(const MaybeObjectHandle& handler,
                        DirectHandle<Name> name);
-  bool UpdatePolymorphicIC(Handle<Name> name, const MaybeObjectHandle& handler);
+  bool UpdatePolymorphicIC(DirectHandle<Name> name,
+                           const MaybeObjectHandle& handler);
   void UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
                               const MaybeObjectHandle& handler);
 
@@ -114,8 +117,8 @@ class IC {
   void CopyICToMegamorphicCache(DirectHandle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
                                        Tagged<Map> target_map);
-  void SetCache(Handle<Name> name, Handle<Object> handler);
-  void SetCache(Handle<Name> name, const MaybeObjectHandle& handler);
+  void SetCache(DirectHandle<Name> name, Handle<Object> handler);
+  void SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler);
   FeedbackSlotKind kind() const { return kind_; }
   bool IsGlobalIC() const { return IsLoadGlobalIC() || IsStoreGlobalIC(); }
   bool IsLoadIC() const { return IsLoadICKind(kind_); }

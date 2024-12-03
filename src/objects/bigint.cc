@@ -624,7 +624,7 @@ MaybeHandle<BigInt> BigInt::Decrement(Isolate* isolate,
 
 Maybe<ComparisonResult> BigInt::CompareToString(Isolate* isolate,
                                                 DirectHandle<BigInt> x,
-                                                Handle<String> y) {
+                                                DirectHandle<String> y) {
   // a. Let ny be StringToBigInt(y);
   MaybeHandle<BigInt> maybe_ny = StringToBigInt(isolate, y);
   // b. If ny is NaN, return undefined.
@@ -641,7 +641,7 @@ Maybe<ComparisonResult> BigInt::CompareToString(Isolate* isolate,
 }
 
 Maybe<bool> BigInt::EqualToString(Isolate* isolate, DirectHandle<BigInt> x,
-                                  Handle<String> y) {
+                                  DirectHandle<String> y) {
   // a. Let n be StringToBigInt(y).
   MaybeHandle<BigInt> maybe_n = StringToBigInt(isolate, y);
   // b. If n is NaN, return false.
@@ -657,7 +657,7 @@ Maybe<bool> BigInt::EqualToString(Isolate* isolate, DirectHandle<BigInt> x,
   return Just(EqualToBigInt(*x, *n));
 }
 
-bool BigInt::EqualToNumber(DirectHandle<BigInt> x, Handle<Object> y) {
+bool BigInt::EqualToNumber(DirectHandle<BigInt> x, DirectHandle<Object> y) {
   DCHECK(IsNumber(*y));
   // a. If x or y are any of NaN, +∞, or -∞, return false.
   // b. If the mathematical value of x is equal to the mathematical value of y,
@@ -964,7 +964,9 @@ MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
   return MutableBigInt::NewFromDouble(isolate, value);
 }
 
-MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
+template <template <typename> typename HandleType, typename>
+typename HandleType<BigInt>::MaybeType BigInt::FromObject(
+    Isolate* isolate, HandleType<Object> obj) {
   if (IsJSReceiver(*obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, obj,
@@ -980,12 +982,12 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
     return Cast<BigInt>(obj);
   }
   if (IsString(*obj)) {
-    Handle<BigInt> n;
+    HandleType<BigInt> n;
     if (!StringToBigInt(isolate, Cast<String>(obj)).ToHandle(&n)) {
       if (isolate->has_exception()) {
         return MaybeHandle<BigInt>();
       } else {
-        Handle<String> str = Cast<String>(obj);
+        DirectHandle<String> str = Cast<String>(obj);
         constexpr uint32_t kMaxRenderedLength = 1000;
         if (str->length() > kMaxRenderedLength) {
           Factory* factory = isolate->factory();
@@ -1006,6 +1008,11 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
   THROW_NEW_ERROR(isolate,
                   NewTypeError(MessageTemplate::kBigIntFromObject, obj));
 }
+
+template V8_EXPORT_PRIVATE MaybeDirectHandle<BigInt> BigInt::FromObject(
+    Isolate* isolate, DirectHandle<Object> obj);
+template V8_EXPORT_PRIVATE MaybeIndirectHandle<BigInt> BigInt::FromObject(
+    Isolate* isolate, IndirectHandle<Object> obj);
 
 Handle<Number> BigInt::ToNumber(Isolate* isolate, DirectHandle<BigInt> x) {
   if (x->is_zero()) return Handle<Smi>(Smi::zero(), isolate);

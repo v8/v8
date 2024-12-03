@@ -101,8 +101,9 @@ Tagged<Object> ObjectDefineAccessor(Isolate* isolate, Handle<JSAny> object,
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-Tagged<Object> ObjectLookupAccessor(Isolate* isolate, Handle<JSAny> object,
-                                    Handle<Object> key,
+Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
+                                    DirectHandle<JSAny> object,
+                                    DirectHandle<Object> key,
                                     AccessorComponent component) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, object,
                                      Object::ToObject(isolate, object));
@@ -141,7 +142,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate, Handle<JSAny> object,
           }
           return ReadOnlyRoots(isolate).undefined_value();
         }
-        Handle<JSPrototype> prototype;
+        DirectHandle<JSPrototype> prototype;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, prototype, JSProxy::GetPrototype(it.GetHolder<JSProxy>()));
         if (IsNull(*prototype, isolate)) {
@@ -156,7 +157,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate, Handle<JSAny> object,
         return ReadOnlyRoots(isolate).undefined_value();
 
       case LookupIterator::ACCESSOR: {
-        Handle<Object> maybe_pair = it.GetAccessors();
+        DirectHandle<Object> maybe_pair = it.GetAccessors();
         if (IsAccessorPair(*maybe_pair)) {
           Handle<NativeContext> holder_realm(
               it.GetHolder<JSReceiver>()->GetCreationContext().value(),

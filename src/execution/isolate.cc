@@ -1863,18 +1863,18 @@ Tagged<Object> Isolate::StackOverflow() {
   return ReadOnlyRoots(heap()).exception();
 }
 
-Tagged<Object> Isolate::ThrowAt(Handle<JSObject> exception,
+Tagged<Object> Isolate::ThrowAt(DirectHandle<JSObject> exception,
                                 MessageLocation* location) {
-  Handle<Name> key_start_pos = factory()->error_start_pos_symbol();
+  DirectHandle<Name> key_start_pos = factory()->error_start_pos_symbol();
   Object::SetProperty(this, exception, key_start_pos,
-                      handle(Smi::FromInt(location->start_pos()), this),
+                      direct_handle(Smi::FromInt(location->start_pos()), this),
                       StoreOrigin::kMaybeKeyed,
                       Just(ShouldThrow::kThrowOnError))
       .Check();
 
   Handle<Name> key_end_pos = factory()->error_end_pos_symbol();
   Object::SetProperty(this, exception, key_end_pos,
-                      handle(Smi::FromInt(location->end_pos()), this),
+                      direct_handle(Smi::FromInt(location->end_pos()), this),
                       StoreOrigin::kMaybeKeyed,
                       Just(ShouldThrow::kThrowOnError))
       .Check();
@@ -6755,8 +6755,8 @@ void Isolate::SetPromiseHook(PromiseHook hook) {
 }
 
 void Isolate::RunAllPromiseHooks(PromiseHookType type,
-                                 Handle<JSPromise> promise,
-                                 Handle<Object> parent) {
+                                 DirectHandle<JSPromise> promise,
+                                 DirectHandle<Object> parent) {
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   if (HasContextPromiseHooks()) {
     native_context()->RunPromiseHook(type, promise, parent);
@@ -6767,16 +6767,17 @@ void Isolate::RunAllPromiseHooks(PromiseHookType type,
   }
 }
 
-void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
-                             Handle<Object> parent) {
+void Isolate::RunPromiseHook(PromiseHookType type,
+                             DirectHandle<JSPromise> promise,
+                             DirectHandle<Object> parent) {
   if (!HasIsolatePromiseHooks()) return;
   DCHECK(promise_hook_ != nullptr);
   promise_hook_(type, v8::Utils::PromiseToLocal(promise),
                 v8::Utils::ToLocal(parent));
 }
 
-void Isolate::OnAsyncFunctionSuspended(Handle<JSPromise> promise,
-                                       Handle<JSPromise> parent) {
+void Isolate::OnAsyncFunctionSuspended(DirectHandle<JSPromise> promise,
+                                       DirectHandle<JSPromise> parent) {
   DCHECK(!promise->has_async_task_id());
   RunAllPromiseHooks(PromiseHookType::kInit, promise, parent);
   if (HasAsyncEventDelegate()) {
@@ -6829,7 +6830,7 @@ void Isolate::OnPromiseThen(DirectHandle<JSPromise> promise) {
   }
 }
 
-void Isolate::OnPromiseBefore(Handle<JSPromise> promise) {
+void Isolate::OnPromiseBefore(DirectHandle<JSPromise> promise) {
   RunPromiseHook(PromiseHookType::kBefore, promise,
                  factory()->undefined_value());
   if (HasAsyncEventDelegate()) {
@@ -6840,7 +6841,7 @@ void Isolate::OnPromiseBefore(Handle<JSPromise> promise) {
   }
 }
 
-void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
+void Isolate::OnPromiseAfter(DirectHandle<JSPromise> promise) {
   RunPromiseHook(PromiseHookType::kAfter, promise,
                  factory()->undefined_value());
   if (HasAsyncEventDelegate()) {
@@ -6851,7 +6852,7 @@ void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
   }
 }
 
-void Isolate::OnStackTraceCaptured(Handle<StackTraceInfo> stack_trace) {
+void Isolate::OnStackTraceCaptured(DirectHandle<StackTraceInfo> stack_trace) {
   if (HasAsyncEventDelegate()) {
     async_event_delegate_->AsyncEventOccurred(debug::kDebugStackTraceCaptured,
                                               stack_trace->id(), false);

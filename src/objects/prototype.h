@@ -27,7 +27,7 @@ class PrototypeIterator {
  public:
   enum WhereToEnd { END_AT_NULL, END_AT_NON_HIDDEN };
 
-  inline PrototypeIterator(Isolate* isolate, Handle<JSReceiver> receiver,
+  inline PrototypeIterator(Isolate* isolate, DirectHandle<JSReceiver> receiver,
                            WhereToStart where_to_start = kStartAtPrototype,
                            WhereToEnd where_to_end = END_AT_NULL);
 
@@ -55,7 +55,7 @@ class PrototypeIterator {
   }
 
   template <typename T = JSPrototype>
-  static Handle<T> GetCurrent(const PrototypeIterator& iterator) {
+  static DirectHandle<T> GetCurrent(const PrototypeIterator& iterator) {
     DCHECK(!iterator.handle_.is_null());
     DCHECK_EQ(iterator.object_, Tagged<HeapObject>());
     return Cast<T>(iterator.handle_);
@@ -77,7 +77,10 @@ class PrototypeIterator {
  private:
   Isolate* isolate_;
   Tagged<JSPrototype> object_ = {};
-  Handle<JSPrototype> handle_;
+  // TODO(372390038): This handle cannot be migrated to a direct one, because
+  // the PrototypeIterator is used as a field in DebugPropertyIterator, which
+  // can be heap allocated.
+  IndirectHandle<JSPrototype> handle_;
   WhereToEnd where_to_end_;
   bool is_at_end_;
   int seen_proxies_;

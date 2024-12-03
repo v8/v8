@@ -61,8 +61,8 @@ void AlwaysSharedSpaceJSObject::PrepareMapWithEnumerableProperties(
 
 // static
 Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
-    Isolate* isolate, Handle<AlwaysSharedSpaceJSObject> shared_obj,
-    Handle<Object> key, PropertyDescriptor* desc,
+    Isolate* isolate, DirectHandle<AlwaysSharedSpaceJSObject> shared_obj,
+    DirectHandle<Object> key, PropertyDescriptor* desc,
     Maybe<ShouldThrow> should_throw) {
   // Shared objects are designed to have fixed layout, i.e. their maps are
   // effectively immutable. They are constructed seal, but the semantics of
@@ -95,16 +95,17 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
 
 Maybe<bool> AlwaysSharedSpaceJSObject::HasInstance(
     Isolate* isolate, DirectHandle<JSFunction> constructor,
-    Handle<Object> object) {
+    DirectHandle<Object> object) {
   if (!constructor->has_prototype_slot() || !constructor->has_initial_map() ||
       !IsJSReceiver(*object)) {
     return Just(false);
   }
-  Handle<Map> constructor_map(constructor->initial_map(), isolate);
+  DirectHandle<Map> constructor_map(constructor->initial_map(), isolate);
   PrototypeIterator iter(isolate, Cast<JSReceiver>(object), kStartAtReceiver);
-  Handle<Map> current_map;
+  DirectHandle<Map> current_map;
   while (true) {
-    current_map = handle(PrototypeIterator::GetCurrent(iter)->map(), isolate);
+    current_map =
+        direct_handle(PrototypeIterator::GetCurrent(iter)->map(), isolate);
     if (current_map.is_identical_to(constructor_map)) {
       return Just(true);
     }
@@ -162,7 +163,7 @@ MaybeHandle<T> GetSpecialSlotValue(Isolate* isolate, Tagged<Map> instance_map,
 
 // static
 Handle<Map> JSSharedStruct::CreateInstanceMap(
-    Isolate* isolate, const std::vector<Handle<Name>>& field_names,
+    Isolate* isolate, const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names,
     MaybeHandle<String> maybe_registry_key) {
   auto* factory = isolate->factory();
@@ -191,7 +192,6 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
     // slot if present. The registry depends on this for rehashing.
     Handle<String> registry_key;
     if (maybe_registry_key.ToHandle(&registry_key)) {
-      Handle<String> registry_key = maybe_registry_key.ToHandleChecked();
       Descriptor d = Descriptor::DataConstant(
           factory->shared_struct_map_registry_key_symbol(), registry_key,
           ALL_ATTRIBUTES_MASK);
@@ -209,7 +209,8 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
       for (uint32_t index : element_names) {
         PropertyDetails details(PropertyKind::kData, SEALED,
                                 PropertyConstness::kMutable, 0);
-        NumberDictionary::UncheckedAdd<Isolate, AllocationType::kSharedOld>(
+        NumberDictionary::UncheckedAdd<Isolate, DirectHandle,
+                                       AllocationType::kSharedOld>(
             isolate, elements_template, index,
             ReadOnlyRoots(isolate).undefined_value_handle(), details);
       }
@@ -375,7 +376,7 @@ SharedStructTypeRegistry::~SharedStructTypeRegistry() = default;
 
 MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
     Isolate* isolate, InternalIndex entry, DirectHandle<String> key,
-    const std::vector<Handle<Name>>& field_names,
+    const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names) {
   Tagged<Map> existing_map = Cast<Map>(data_->GetKey(isolate, entry));
 
@@ -440,7 +441,7 @@ MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
 
 MaybeHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
     Isolate* isolate, Handle<String> key,
-    const std::vector<Handle<Name>>& field_names,
+    const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names) {
   key = isolate->factory()->InternalizeString(key);
 
@@ -481,7 +482,7 @@ MaybeHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
 
 MaybeHandle<Map> SharedStructTypeRegistry::Register(
     Isolate* isolate, Handle<String> key,
-    const std::vector<Handle<Name>>& field_names,
+    const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names) {
   MaybeHandle<Map> canonical_map =
       RegisterNoThrow(isolate, key, field_names, element_names);

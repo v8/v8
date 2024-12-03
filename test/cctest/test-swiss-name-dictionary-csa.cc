@@ -67,7 +67,7 @@ class CSATestRunner {
 
   void PrintTable();
 
-  Handle<SwissNameDictionary> table;
+  DirectHandle<SwissNameDictionary> table;
 
  private:
   using Label = compiler::CodeAssemblerLabel;
@@ -82,7 +82,7 @@ class CSATestRunner {
 
   // Used to mirror all operations using C++ versions of all operations,
   // yielding a reference to compare against.
-  Handle<SwissNameDictionary> reference_;
+  DirectHandle<SwissNameDictionary> reference_;
 
   // CSA functions execute the corresponding dictionary operation.
   compiler::FunctionTester find_entry_ft_;

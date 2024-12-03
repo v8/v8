@@ -224,7 +224,7 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
   DirectHandleVector<FeedbackCell> cells(isolate);
   cells.reserve(length);
   for (int i = 0; i < length; i++) {
-    Handle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
+    DirectHandle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
 #ifdef V8_ENABLE_LEAPTIERING
     uint16_t parameter_count =
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
@@ -969,7 +969,7 @@ void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
 }
 
 void FeedbackNexus::ConfigureCloneObject(
-    Handle<Map> source_map, const MaybeObjectHandle& handler_handle) {
+    DirectHandle<Map> source_map, const MaybeObjectHandle& handler_handle) {
   // TODO(olivf): Introduce a CloneHandler to deal with all the logic of this
   // state machine which is now spread between Runtime_CloneObjectIC_Miss and
   // this method.
@@ -981,11 +981,11 @@ void FeedbackNexus::ConfigureCloneObject(
   };
   DCHECK(config()->can_write());
   Isolate* isolate = config()->isolate();
-  Handle<HeapObject> feedback;
+  DirectHandle<HeapObject> feedback;
   {
     Tagged<MaybeObject> maybe_feedback = GetFeedback();
     if (maybe_feedback.IsStrongOrWeak()) {
-      feedback = handle(maybe_feedback.GetHeapObject(), isolate);
+      feedback = direct_handle(maybe_feedback.GetHeapObject(), isolate);
     } else {
       DCHECK(maybe_feedback.IsCleared());
     }
@@ -1020,8 +1020,8 @@ void FeedbackNexus::ConfigureCloneObject(
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
         Tagged<MaybeObject> feedback_map = array->get(i);
         if (feedback_map.IsCleared()) break;
-        Handle<Map> cached_map(Cast<Map>(feedback_map.GetHeapObject()),
-                               isolate);
+        DirectHandle<Map> cached_map(Cast<Map>(feedback_map.GetHeapObject()),
+                                     isolate);
         if (cached_map.is_identical_to(source_map) ||
             cached_map->is_deprecated())
           break;
@@ -1107,7 +1107,7 @@ float FeedbackNexus::ComputeCallFrequency() {
   return static_cast<float>(call_count / invocation_count);
 }
 
-void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
+void FeedbackNexus::ConfigureMonomorphic(DirectHandle<Name> name,
                                          DirectHandle<Map> receiver_map,
                                          const MaybeObjectHandle& handler) {
   DCHECK(handler.is_null() || IC::IsHandler(*handler));
@@ -1126,7 +1126,8 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
 }
 
 void FeedbackNexus::ConfigurePolymorphic(
-    Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers) {
+    DirectHandle<Name> name,
+    std::vector<MapAndHandler> const& maps_and_handlers) {
   int receiver_count = static_cast<int>(maps_and_handlers.size());
   DCHECK_GT(receiver_count, 1);
   DirectHandle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);

@@ -369,7 +369,7 @@ class SequentialStringKey final : public StringTableKey {
     }
   }
 
-  Handle<String> GetHandleForInsertion(Isolate* isolate) {
+  DirectHandle<String> GetHandleForInsertion(Isolate* isolate) {
     DCHECK(!internalized_string_.is_null());
     return internalized_string_;
   }
@@ -377,7 +377,7 @@ class SequentialStringKey final : public StringTableKey {
  private:
   base::Vector<const Char> chars_;
   bool convert_;
-  Handle<String> internalized_string_;
+  DirectHandle<String> internalized_string_;
 };
 
 using OneByteStringKey = SequentialStringKey<uint8_t>;
@@ -395,8 +395,8 @@ class SeqSubStringKey final : public StringTableKey {
 #pragma warning(push)
 #pragma warning(disable : 4789)
 #endif
-  SeqSubStringKey(Isolate* isolate, Handle<SeqString> string, int from, int len,
-                  bool convert = false)
+  SeqSubStringKey(Isolate* isolate, DirectHandle<SeqString> string, int from,
+                  int len, bool convert = false)
       : StringTableKey(0, len),
         string_(string),
         from_(from),
@@ -427,7 +427,7 @@ class SeqSubStringKey final : public StringTableKey {
 
   void PrepareForInsertion(Isolate* isolate) {
     if (sizeof(Char) == 1 || (sizeof(Char) == 2 && convert_)) {
-      Handle<SeqOneByteString> result =
+      DirectHandle<SeqOneByteString> result =
           isolate->factory()->AllocateRawOneByteInternalizedString(
               length(), raw_hash_field());
       DisallowGarbageCollection no_gc;
@@ -435,7 +435,7 @@ class SeqSubStringKey final : public StringTableKey {
                 length());
       internalized_string_ = result;
     } else {
-      Handle<SeqTwoByteString> result =
+      DirectHandle<SeqTwoByteString> result =
           isolate->factory()->AllocateRawTwoByteInternalizedString(
               length(), raw_hash_field());
       DisallowGarbageCollection no_gc;
@@ -445,16 +445,16 @@ class SeqSubStringKey final : public StringTableKey {
     }
   }
 
-  Handle<String> GetHandleForInsertion(Isolate* isolate) {
+  DirectHandle<String> GetHandleForInsertion(Isolate* isolate) {
     DCHECK(!internalized_string_.is_null());
     return internalized_string_;
   }
 
  private:
-  Handle<typename CharTraits<Char>::String> string_;
+  DirectHandle<typename CharTraits<Char>::String> string_;
   int from_;
   bool convert_;
-  Handle<String> internalized_string_;
+  DirectHandle<String> internalized_string_;
 };
 
 using SeqOneByteSubStringKey = SeqSubStringKey<SeqOneByteString>;
@@ -469,7 +469,8 @@ bool String::Equals(Tagged<String> other) const {
 }
 
 // static
-bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
+bool String::Equals(Isolate* isolate, DirectHandle<String> one,
+                    DirectHandle<String> two) {
   if (one.is_identical_to(two)) return true;
   if (IsInternalizedString(*one) && IsInternalizedString(*two)) {
     return false;
@@ -632,10 +633,13 @@ const Char* String::GetDirectStringChars(
 
 // Note this function is reimplemented by StringSlowFlatten in string.tq.
 // Keep them in sync.
+// Note: This is an inline method template and exporting it for windows
+// component builds works only without the EXPORT_TEMPLATE_DECLARE macro.
 //
 // static
-Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
-                                   AllocationType allocation) {
+template <template <typename> typename HandleType, typename>
+V8_EXPORT_PRIVATE HandleType<String> String::SlowFlatten(
+    Isolate* isolate, HandleType<ConsString> cons, AllocationType allocation) {
   DCHECK(!cons->IsFlat());
   DCHECK_NE(cons->second()->length(), 0);  // Equivalent to !IsFlat.
   DCHECK(!HeapLayout::InAnySharedSpace(*cons));
@@ -656,7 +660,7 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
         raw_cons->set_first(second);
         raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
         DCHECK(raw_cons->IsFlat());
-        return handle(second, isolate);
+        return HandleType<String>(second, isolate);
       }
       // Note that the remaining subtree may still be non-flat and we thus
       // need to continue below.
@@ -675,9 +679,9 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
   DCHECK_EQ(is_one_byte_representation, cons->IsOneByteRepresentation());
   DCHECK(AllowGarbageCollection::IsAllowed());
 
-  Handle<SeqString> result;
+  HandleType<SeqString> result;
   if (is_one_byte_representation) {
-    Handle<SeqOneByteString> flat =
+    HandleType<SeqOneByteString> flat =
         isolate->factory()
             ->NewRawOneByteString(length, allocation)
             .ToHandleChecked();
@@ -697,7 +701,7 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
     result = flat;
   } else {
-    Handle<SeqTwoByteString> flat =
+    HandleType<SeqTwoByteString> flat =
         isolate->factory()
             ->NewRawTwoByteString(length, allocation)
             .ToHandleChecked();
@@ -725,8 +729,9 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
 // Note that RegExpExecInternal currently relies on this to in-place flatten
 // the input `string`.
 // static
-Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
-                               AllocationType allocation) {
+template <typename T, template <typename> typename HandleType, typename>
+HandleType<String> String::Flatten(Isolate* isolate, HandleType<T> string,
+                                   AllocationType allocation) {
   DisallowGarbageCollection no_gc;  // Unhandlified code.
   Tagged<String> s = *string;
   StringShape shape(s);
@@ -740,7 +745,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
     if (!cons->IsFlat()) {
       AllowGarbageCollection yes_gc;
       DCHECK_EQ(*string, s);
-      Handle<String> result =
+      HandleType<String> result =
           SlowFlatten(isolate, Cast<ConsString>(string), allocation);
       DCHECK(result->IsFlat());
       DCHECK(string->IsFlat());  // In-place flattened.
@@ -757,12 +762,13 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
 
   DCHECK(s->IsFlat());
   DCHECK(string->IsFlat());  // In-place flattened.
-  return handle(s, isolate);
+  return HandleType<String>(s, isolate);
 }
 
 // static
-Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
-                               AllocationType allocation) {
+template <typename T, template <typename> typename HandleType, typename>
+HandleType<String> String::Flatten(LocalIsolate* isolate, HandleType<T> string,
+                                   AllocationType allocation) {
   // We should never pass non-flat strings to String::Flatten when off-thread.
   DCHECK(string->IsFlat());
   return string;
@@ -858,7 +864,8 @@ String::FlatContent String::GetFlatContent(
   return SlowGetFlatContent(no_gc, access_guard);
 }
 
-Handle<String> String::Share(Isolate* isolate, Handle<String> string) {
+template <typename T, template <typename> typename HandleType, typename>
+HandleType<String> String::Share(Isolate* isolate, HandleType<T> string) {
   DCHECK(v8_flags.shared_string_table);
   MaybeDirectHandle<Map> new_map;
   switch (
@@ -1023,7 +1030,7 @@ Tagged<ConsString> String::VisitFlat(
 }
 
 // static
-size_t String::Utf8Length(Isolate* isolate, Handle<String> string) {
+size_t String::Utf8Length(Isolate* isolate, DirectHandle<String> string) {
   string = Flatten(isolate, string);
 
   DisallowGarbageCollection no_gc;
@@ -1044,7 +1051,8 @@ size_t String::Utf8Length(Isolate* isolate, Handle<String> string) {
   return utf8_length;
 }
 
-bool String::IsWellFormedUnicode(Isolate* isolate, Handle<String> string) {
+bool String::IsWellFormedUnicode(Isolate* isolate,
+                                 DirectHandle<String> string) {
   // One-byte strings are definitionally well formed and cannot have unpaired
   // surrogates.
   if (string->IsOneByteRepresentation()) return true;

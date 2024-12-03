@@ -298,7 +298,7 @@ enum class Sign { kNegative, kPositive, kNone };
 // (with StringToBigIntHelper subclass).
 class StringToIntHelper {
  public:
-  StringToIntHelper(Handle<String> subject, int radix)
+  StringToIntHelper(DirectHandle<String> subject, int radix)
       : subject_(subject), radix_(radix) {
     DCHECK(subject->IsFlat());
   }
@@ -311,7 +311,7 @@ class StringToIntHelper {
       : raw_two_byte_subject_(subject), radix_(radix), length_(length) {}
 
   // Used for the StringToBigInt operation.
-  explicit StringToIntHelper(Handle<String> subject) : subject_(subject) {
+  explicit StringToIntHelper(DirectHandle<String> subject) : subject_(subject) {
     DCHECK(subject->IsFlat());
   }
 
@@ -371,7 +371,7 @@ class StringToIntHelper {
   template <class Char>
   void DetectRadixInternal(const Char* current, int length);
 
-  Handle<String> subject_;
+  DirectHandle<String> subject_;
   const uint8_t* raw_one_byte_subject_ = nullptr;
   const base::uc16* raw_two_byte_subject_ = nullptr;
   int radix_ = 0;
@@ -483,7 +483,7 @@ void StringToIntHelper::DetectRadixInternal(const Char* current, int length) {
 
 class NumberParseIntHelper : public StringToIntHelper {
  public:
-  NumberParseIntHelper(Handle<String> string, int radix)
+  NumberParseIntHelper(DirectHandle<String> string, int radix)
       : StringToIntHelper(string, radix) {}
 
   NumberParseIntHelper(const uint8_t* string, int radix, int length)
@@ -795,7 +795,7 @@ double ImplicitOctalStringToDouble(base::Vector<const uint8_t> str) {
   return InternalStringToIntDouble<3>(str.begin(), str.end(), false, false);
 }
 
-double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
+double StringToInt(Isolate* isolate, DirectHandle<String> string, int radix) {
   NumberParseIntHelper helper(string, radix);
   return helper.GetResult();
 }
@@ -806,7 +806,7 @@ class StringToBigIntHelper : public StringToIntHelper {
   enum class Behavior { kStringToBigInt, kLiteral };
 
   // Used for StringToBigInt operation (BigInt constructor and == operator).
-  StringToBigIntHelper(IsolateT* isolate, Handle<String> string)
+  StringToBigIntHelper(IsolateT* isolate, DirectHandle<String> string)
       : StringToIntHelper(string),
         isolate_(isolate),
         behavior_(Behavior::kStringToBigInt) {
@@ -909,7 +909,8 @@ class StringToBigIntHelper : public StringToIntHelper {
   Behavior behavior_;
 };
 
-MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
+                                   DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   StringToBigIntHelper<Isolate> helper(isolate, string);
   return helper.GetResult();
@@ -1316,7 +1317,7 @@ char* DoubleToRadixCString(double value, int radix) {
 }
 
 // ES6 18.2.4 parseFloat(string)
-double StringToDouble(Isolate* isolate, Handle<String> string,
+double StringToDouble(Isolate* isolate, DirectHandle<String> string,
                       ConversionFlag flag, double empty_string_val) {
   DirectHandle<String> flattened = String::Flatten(isolate, string);
   return FlatStringToDouble(*flattened, flag, empty_string_val);

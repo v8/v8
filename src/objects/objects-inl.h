@@ -613,7 +613,7 @@ bool IsPrimitive(Tagged<Object> obj, PtrComprCageBase cage_base) {
 }
 
 // static
-Maybe<bool> Object::IsArray(Handle<Object> object) {
+Maybe<bool> Object::IsArray(DirectHandle<Object> object) {
   if (IsSmi(*object)) return Just(false);
   auto heap_object = Cast<HeapObject>(object);
   if (IsJSArray(*heap_object)) return Just(true);
@@ -776,49 +776,59 @@ bool Object::ToUint32(Tagged<Object> obj, uint32_t* value) {
 }
 
 // static
-MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
-                                         Handle<Object> object,
-                                         const char* method_name) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<JSReceiver>::MaybeType Object::ToObject(
+    Isolate* isolate, HandleType<T> object, const char* method_name) {
   if (IsJSReceiver(*object)) return Cast<JSReceiver>(object);
   return ToObjectImpl(isolate, object, method_name);
 }
 
 // static
-MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
+template <template <typename> typename HandleType, typename>
+typename HandleType<Name>::MaybeType Object::ToName(Isolate* isolate,
+                                                    HandleType<Object> input) {
   if (IsName(*input)) return Cast<Name>(input);
   return ConvertToName(isolate, input);
 }
 
 // static
-MaybeHandle<Object> Object::ToPropertyKey(Isolate* isolate,
-                                          Handle<Object> value) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<Object>::MaybeType Object::ToPropertyKey(
+    Isolate* isolate, HandleType<T> value) {
   if (IsSmi(*value) || IsName(Cast<HeapObject>(*value))) return value;
   return ConvertToPropertyKey(isolate, value);
 }
 
 // static
-MaybeHandle<Object> Object::ToPrimitive(Isolate* isolate, Handle<Object> input,
-                                        ToPrimitiveHint hint) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<Object>::MaybeType Object::ToPrimitive(
+    Isolate* isolate, HandleType<T> input, ToPrimitiveHint hint) {
   if (IsPrimitive(*input)) return input;
   return JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(input), hint);
 }
 
 // static
-MaybeHandle<Number> Object::ToNumber(Isolate* isolate, Handle<Object> input) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<Number>::MaybeType Object::ToNumber(Isolate* isolate,
+                                                        HandleType<T> input) {
   if (IsNumber(*input)) return Cast<Number>(input);  // Shortcut.
-  return ConvertToNumber(isolate, input);
+  return ConvertToNumber(isolate, Cast<Object>(input));
 }
 
 // static
-MaybeHandle<Object> Object::ToNumeric(Isolate* isolate, Handle<Object> input) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<Object>::MaybeType Object::ToNumeric(Isolate* isolate,
+                                                         HandleType<T> input) {
   if (IsNumber(*input) || IsBigInt(*input)) return input;  // Shortcut.
-  return ConvertToNumeric(isolate, input);
+  return ConvertToNumeric(isolate, Cast<Object>(input));
 }
 
 // static
-MaybeHandle<Number> Object::ToInteger(Isolate* isolate, Handle<Object> input) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<Number>::MaybeType Object::ToInteger(Isolate* isolate,
+                                                         HandleType<T> input) {
   if (IsSmi(*input)) return Cast<Smi>(input);
-  return ConvertToInteger(isolate, input);
+  return ConvertToInteger(isolate, Cast<Object>(input));
 }
 
 // static
@@ -836,23 +846,16 @@ MaybeHandle<Number> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
 }
 
 // static
-template <typename T, typename>
-MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<T> input) {
-  // T should be a subtype of Object, which is enforced by the second template
-  // argument.
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<String>::MaybeType Object::ToString(Isolate* isolate,
+                                                        HandleType<T> input) {
   if (IsString(*input)) return Cast<String>(input);
-  return ConvertToString(isolate, input);
-}
-
-template <typename T, typename>
-MaybeDirectHandle<String> Object::ToString(Isolate* isolate,
-                                           DirectHandle<T> input) {
-  if (IsString(*input)) return Cast<String>(input);
-  return ConvertToString(isolate, indirect_handle(input, isolate));
+  return ConvertToString(isolate, Cast<Object>(input));
 }
 
 // static
-MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
+MaybeHandle<Object> Object::ToLength(Isolate* isolate,
+                                     DirectHandle<Object> input) {
   if (IsSmi(*input)) {
     int value = std::max(Smi::ToInt(*input), 0);
     return handle(Smi::FromInt(value), isolate);
@@ -867,21 +870,24 @@ MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
   return ConvertToIndex(isolate, input, error_index);
 }
 
-MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<JSAny> object,
-                                        Handle<Name> name) {
+MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
+                                        DirectHandle<JSAny> object,
+                                        DirectHandle<Name> name) {
   LookupIterator it(isolate, object, name);
   if (!it.IsFound()) return it.factory()->undefined_value();
   return GetProperty(&it);
 }
 
-MaybeHandle<Object> Object::GetElement(Isolate* isolate, Handle<JSAny> object,
+MaybeHandle<Object> Object::GetElement(Isolate* isolate,
+                                       DirectHandle<JSAny> object,
                                        uint32_t index) {
   LookupIterator it(isolate, object, index);
   if (!it.IsFound()) return it.factory()->undefined_value();
   return GetProperty(&it);
 }
 
-MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<JSAny> object,
+MaybeHandle<Object> Object::SetElement(Isolate* isolate,
+                                       DirectHandle<JSAny> object,
                                        uint32_t index, Handle<Object> value,
                                        ShouldThrow should_throw) {
   LookupIterator it(isolate, object, index);
@@ -1637,8 +1643,8 @@ Address HeapObject::GetFieldAddress(int field_offset) const {
 }
 
 // static
-Maybe<bool> Object::GreaterThan(Isolate* isolate, Handle<Object> x,
-                                Handle<Object> y) {
+Maybe<bool> Object::GreaterThan(Isolate* isolate, DirectHandle<Object> x,
+                                DirectHandle<Object> y) {
   Maybe<ComparisonResult> result = Compare(isolate, x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
@@ -1654,8 +1660,8 @@ Maybe<bool> Object::GreaterThan(Isolate* isolate, Handle<Object> x,
 }
 
 // static
-Maybe<bool> Object::GreaterThanOrEqual(Isolate* isolate, Handle<Object> x,
-                                       Handle<Object> y) {
+Maybe<bool> Object::GreaterThanOrEqual(Isolate* isolate, DirectHandle<Object> x,
+                                       DirectHandle<Object> y) {
   Maybe<ComparisonResult> result = Compare(isolate, x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
@@ -1671,8 +1677,8 @@ Maybe<bool> Object::GreaterThanOrEqual(Isolate* isolate, Handle<Object> x,
 }
 
 // static
-Maybe<bool> Object::LessThan(Isolate* isolate, Handle<Object> x,
-                             Handle<Object> y) {
+Maybe<bool> Object::LessThan(Isolate* isolate, DirectHandle<Object> x,
+                             DirectHandle<Object> y) {
   Maybe<ComparisonResult> result = Compare(isolate, x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
@@ -1688,8 +1694,8 @@ Maybe<bool> Object::LessThan(Isolate* isolate, Handle<Object> x,
 }
 
 // static
-Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, Handle<Object> x,
-                                    Handle<Object> y) {
+Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, DirectHandle<Object> x,
+                                    DirectHandle<Object> y) {
   Maybe<ComparisonResult> result = Compare(isolate, x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
@@ -1705,26 +1711,26 @@ Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, Handle<Object> x,
 }
 
 MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
-                                                 Handle<JSAny> object,
-                                                 Handle<Name> name) {
+                                                 DirectHandle<JSAny> object,
+                                                 DirectHandle<Name> name) {
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key);
   return GetProperty(&it);
 }
 
 MaybeHandle<Object> Object::SetPropertyOrElement(
-    Isolate* isolate, Handle<JSAny> object, Handle<Name> name,
-    Handle<Object> value, Maybe<ShouldThrow> should_throw,
+    Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Name> name,
+    DirectHandle<Object> value, Maybe<ShouldThrow> should_throw,
     StoreOrigin store_origin) {
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key);
   MAYBE_RETURN_NULL(SetProperty(&it, value, store_origin, should_throw));
-  return value;
+  return indirect_handle(value, isolate);
 }
 
-MaybeHandle<Object> Object::GetPropertyOrElement(Handle<JSAny> receiver,
-                                                 Handle<Name> name,
-                                                 Handle<JSReceiver> holder) {
+MaybeHandle<Object> Object::GetPropertyOrElement(
+    DirectHandle<JSAny> receiver, DirectHandle<Name> name,
+    DirectHandle<JSReceiver> holder) {
   Isolate* isolate = holder->GetIsolate();
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, receiver, key, holder);
@@ -1837,8 +1843,10 @@ bool IsShared(Tagged<Object> obj) {
 }
 
 // static
-MaybeHandle<Object> Object::Share(Isolate* isolate, Handle<Object> value,
-                                  ShouldThrow throw_if_cannot_be_shared) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<Object>::MaybeType Object::Share(
+    Isolate* isolate, HandleType<T> value,
+    ShouldThrow throw_if_cannot_be_shared) {
   // Sharing values requires the RO space be shared.
   if (IsShared(*value)) return value;
   return ShareSlow(isolate, Cast<HeapObject>(value), throw_if_cannot_be_shared);

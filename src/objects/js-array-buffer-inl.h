@@ -379,14 +379,14 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
   Handle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
   if (V8_UNLIKELY(array->WasDetached())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
-    Handle<String> operation =
+    DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }
 
   if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
-    Handle<String> operation =
+    DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }

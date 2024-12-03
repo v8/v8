@@ -373,7 +373,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
   Tagged<Object> ValueAt(InternalIndex entry);
 
   // Overwrite all keys and values with the hole value.
-  static void FillEntriesWithHoles(Handle<Derived>);
+  static void FillEntriesWithHoles(DirectHandle<Derived>);
 
   // Adds (or overwrites) the value associated with the given key.
   static Handle<Derived> Put(Handle<Derived> table, DirectHandle<Object> key,

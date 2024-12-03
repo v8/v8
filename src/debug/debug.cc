@@ -3276,7 +3276,7 @@ bool Debug::PerformSideEffectCheckForCallback(
 }
 
 bool Debug::PerformSideEffectCheckForInterceptor(
-    Handle<InterceptorInfo> interceptor_info) {
+    DirectHandle<InterceptorInfo> interceptor_info) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
 

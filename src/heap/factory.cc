@@ -1069,8 +1069,8 @@ Handle<String> Factory::NewCopiedSubstring(DirectHandle<String> str,
   }
 }
 
-Handle<String> Factory::NewProperSubString(Handle<String> str, uint32_t begin,
-                                           uint32_t end) {
+Handle<String> Factory::NewProperSubString(DirectHandle<String> str,
+                                           uint32_t begin, uint32_t end) {
 #if VERIFY_HEAP
   if (v8_flags.verify_heap) str->StringVerify(isolate());
 #endif
@@ -1102,12 +1102,12 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, uint32_t begin,
 
   if (IsSlicedString(*str)) {
     auto slice = Cast<SlicedString>(str);
-    str = Handle<String>(slice->parent(), isolate());
+    str = direct_handle(slice->parent(), isolate());
     offset += slice->offset();
   }
   if (IsThinString(*str)) {
     auto thin = Cast<ThinString>(str);
-    str = handle(thin->actual(), isolate());
+    str = direct_handle(thin->actual(), isolate());
   }
 
   DCHECK(IsSeqString(*str) || IsExternalString(*str));
@@ -2366,11 +2366,11 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
   return map;
 }
 
-Handle<Map> Factory::NewMap(Handle<HeapObject> meta_map_holder,
+Handle<Map> Factory::NewMap(DirectHandle<HeapObject> meta_map_holder,
                             InstanceType type, int instance_size,
                             ElementsKind elements_kind, int inobject_properties,
                             AllocationType allocation_type) {
-  auto meta_map_provider = [=] {
+  auto meta_map_provider = [meta_map_holder] {
     // Tie new map to the same native context as given |meta_map_holder| object.
     Tagged<Map> meta_map = meta_map_holder->map();
     DCHECK(IsMapMap(meta_map));
@@ -2382,13 +2382,13 @@ Handle<Map> Factory::NewMap(Handle<HeapObject> meta_map_holder,
   return map;
 }
 
-Handle<Map> Factory::NewMapWithMetaMap(Handle<Map> meta_map, InstanceType type,
-                                       int instance_size,
+Handle<Map> Factory::NewMapWithMetaMap(DirectHandle<Map> meta_map,
+                                       InstanceType type, int instance_size,
                                        ElementsKind elements_kind,
                                        int inobject_properties,
                                        AllocationType allocation_type) {
   DCHECK_EQ(*meta_map, meta_map->map());
-  auto meta_map_provider = [=] {
+  auto meta_map_provider = [meta_map] {
     // Use given meta map.
     return *meta_map;
   };
@@ -2399,10 +2399,10 @@ Handle<Map> Factory::NewMapWithMetaMap(Handle<Map> meta_map, InstanceType type,
 }
 
 Handle<Map> Factory::NewContextfulMap(
-    Handle<JSReceiver> creation_context_holder, InstanceType type,
+    DirectHandle<JSReceiver> creation_context_holder, InstanceType type,
     int instance_size, ElementsKind elements_kind, int inobject_properties,
     AllocationType allocation_type) {
-  auto meta_map_provider = [=] {
+  auto meta_map_provider = [creation_context_holder] {
     // Tie new map to the creation context of given |creation_context_holder|
     // object.
     Tagged<Map> meta_map = creation_context_holder->map()->map();
@@ -2415,14 +2415,13 @@ Handle<Map> Factory::NewContextfulMap(
   return map;
 }
 
-Handle<Map> Factory::NewContextfulMap(Handle<NativeContext> native_context,
-                                      InstanceType type, int instance_size,
-                                      ElementsKind elements_kind,
-                                      int inobject_properties,
-                                      AllocationType allocation_type) {
+Handle<Map> Factory::NewContextfulMap(
+    DirectHandle<NativeContext> native_context, InstanceType type,
+    int instance_size, ElementsKind elements_kind, int inobject_properties,
+    AllocationType allocation_type) {
   DCHECK(InstanceTypeChecker::IsNativeContextSpecific(type) ||
          InstanceTypeChecker::IsMap(type));
-  auto meta_map_provider = [=] {
+  auto meta_map_provider = [native_context] {
     // Tie new map to given native context.
     return native_context->meta_map();
   };
@@ -2437,7 +2436,7 @@ Handle<Map> Factory::NewContextfulMapForCurrentContext(
     int inobject_properties, AllocationType allocation_type) {
   DCHECK(InstanceTypeChecker::IsNativeContextSpecific(type) ||
          InstanceTypeChecker::IsMap(type));
-  auto meta_map_provider = [=, this] {
+  auto meta_map_provider = [this] {
     // Tie new map to current native context.
     return isolate()->raw_native_context()->meta_map();
   };
@@ -2456,7 +2455,7 @@ Handle<Map> Factory::NewContextlessMap(InstanceType type, int instance_size,
          type == JS_GLOBAL_PROXY_TYPE ||  // might be a placeholder object.
          type == JS_SPECIAL_API_OBJECT_TYPE ||  // might be a remote Api object.
          InstanceTypeChecker::IsMap(type));
-  auto meta_map_provider = [=, this] {
+  auto meta_map_provider = [this] {
     // The new map is not tied to any context.
     return ReadOnlyRoots(isolate()).meta_map();
   };
@@ -2554,7 +2553,8 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     DirectHandle<Object> copied_properties;
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       copied_properties = SwissNameDictionary::ShallowCopy(
-          isolate(), handle(source->property_dictionary_swiss(), isolate()));
+          isolate(),
+          direct_handle(source->property_dictionary_swiss(), isolate()));
     } else {
       copied_properties =
           CopyFixedArray(handle(source->property_dictionary(), isolate()));
@@ -2959,7 +2959,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
   return handle(copy, isolate());
 }
 
-Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
+Handle<JSObject> Factory::NewJSObject(DirectHandle<JSFunction> constructor,
                                       AllocationType allocation,
                                       NewJSObjectType new_js_object_type) {
   JSFunction::EnsureHasInitialMap(constructor);
@@ -3161,7 +3161,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(DirectHandle<Map> map) {
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
-    Handle<JSPrototype> prototype, DirectHandle<HeapObject> properties,
+    DirectHandle<JSPrototype> prototype, DirectHandle<HeapObject> properties,
     DirectHandle<FixedArrayBase> elements) {
   DCHECK(IsPropertyDictionary(*properties));
 
@@ -3702,7 +3702,7 @@ Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
 MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
     DirectHandle<JSReceiver> target_function, DirectHandle<JSAny> bound_this,
     base::Vector<DirectHandle<Object>> bound_args,
-    Handle<JSPrototype> prototype) {
+    DirectHandle<JSPrototype> prototype) {
   DCHECK(IsCallable(*target_function));
   static_assert(Code::kMaxArguments <= FixedArray::kMaxLength);
   if (bound_args.length() >= Code::kMaxArguments) {
@@ -3725,9 +3725,10 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
   }
 
   // Setup the map for the JSBoundFunction instance.
-  Handle<Map> map = IsConstructor(*target_function)
-                        ? isolate()->bound_function_with_constructor_map()
-                        : isolate()->bound_function_without_constructor_map();
+  DirectHandle<Map> map =
+      IsConstructor(*target_function)
+          ? isolate()->bound_function_with_constructor_map()
+          : isolate()->bound_function_without_constructor_map();
   if (map->prototype() != *prototype) {
     map = Map::TransitionRootMapToPrototypeForNewObject(isolate(), map,
                                                         prototype);

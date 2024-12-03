@@ -52,7 +52,9 @@ uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
 // The lookup starts at index |index_in_out|. On success |index_in_out| is set
 // to the index after the entry was found (i.e. the start index to continue the
 // search in the presence of duplicate group names).
-int LookupNamedCapture(const std::function<bool(Tagged<String>)>& name_matches,
+template <typename Matcher, typename = std::enable_if<std::is_invocable_r_v<
+                                bool, Matcher, Tagged<String>>>>
+int LookupNamedCapture(Matcher name_matches,
                        Tagged<FixedArray> capture_name_map, int* index_in_out) {
   DCHECK_GE(*index_in_out, 0);
   // TODO(jgruber): Sort capture_name_map and do binary search via
@@ -1073,7 +1075,7 @@ class MatchInfoBackedMatch : public String::Match {
                              : isolate_->factory()->empty_string();
   }
 
-  MaybeHandle<String> GetNamedCapture(Handle<String> name,
+  MaybeHandle<String> GetNamedCapture(DirectHandle<String> name,
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
     int capture_index = 0;
@@ -1159,7 +1161,7 @@ class VectorBackedMatch : public String::Match {
     return Object::ToString(isolate_, capture_obj);
   }
 
-  MaybeHandle<String> GetNamedCapture(Handle<String> name,
+  MaybeHandle<String> GetNamedCapture(DirectHandle<String> name,
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
 

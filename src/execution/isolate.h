@@ -1017,7 +1017,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // its return value. Returns the Exception sentinel.
   Tagged<Object> Throw(Tagged<Object> exception,
                        MessageLocation* location = nullptr);
-  Tagged<Object> ThrowAt(Handle<JSObject> exception, MessageLocation* location);
+  Tagged<Object> ThrowAt(DirectHandle<JSObject> exception,
+                         MessageLocation* location);
   Tagged<Object> ThrowIllegalOperation();
 
   void FatalProcessOutOfHeapMemory(const char* location) {
@@ -1035,12 +1036,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Async function and promise instrumentation support.
-  void OnAsyncFunctionSuspended(Handle<JSPromise> promise,
-                                Handle<JSPromise> parent);
+  void OnAsyncFunctionSuspended(DirectHandle<JSPromise> promise,
+                                DirectHandle<JSPromise> parent);
   void OnPromiseThen(DirectHandle<JSPromise> promise);
-  void OnPromiseBefore(Handle<JSPromise> promise);
-  void OnPromiseAfter(Handle<JSPromise> promise);
-  void OnStackTraceCaptured(Handle<StackTraceInfo> stack_trace);
+  void OnPromiseBefore(DirectHandle<JSPromise> promise);
+  void OnPromiseAfter(DirectHandle<JSPromise> promise);
+  void OnStackTraceCaptured(DirectHandle<StackTraceInfo> stack_trace);
   void OnTerminationDuringRunMicrotasks();
 
   // Re-throw an exception.  This involves no error reporting since error
@@ -1849,10 +1850,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                               AtomicsWaitWakeHandle* stop_handle);
 
   void SetPromiseHook(PromiseHook hook);
-  void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
-                      Handle<Object> parent);
-  void RunAllPromiseHooks(PromiseHookType type, Handle<JSPromise> promise,
-                          Handle<Object> parent);
+  void RunPromiseHook(PromiseHookType type, DirectHandle<JSPromise> promise,
+                      DirectHandle<Object> parent);
+  void RunAllPromiseHooks(PromiseHookType type, DirectHandle<JSPromise> promise,
+                          DirectHandle<Object> parent);
   void UpdatePromiseHookProtector();
   void PromiseHookStateUpdated();
 

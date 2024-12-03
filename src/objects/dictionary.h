@@ -67,12 +67,18 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   static const bool kIsOrderedDictionaryType = false;
 
   // Delete a property from the dictionary.
-  V8_WARN_UNUSED_RESULT static Handle<Derived> DeleteEntry(
-      Isolate* isolate, Handle<Derived> dictionary, InternalIndex entry);
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Derived>, DirectHandle<Derived>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<Derived> DeleteEntry(
+      Isolate* isolate, HandleType<Derived> dictionary, InternalIndex entry);
 
   // Attempt to shrink the dictionary after deletion of key.
-  V8_WARN_UNUSED_RESULT static inline Handle<Derived> Shrink(
-      Isolate* isolate, Handle<Derived> dictionary) {
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Derived>, DirectHandle<Derived>>>>
+  V8_WARN_UNUSED_RESULT static inline HandleType<Derived> Shrink(
+      Isolate* isolate, HandleType<Derived> dictionary) {
     return DerivedHashTable::Shrink(isolate, dictionary);
   }
 
@@ -90,12 +96,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // Garbage collection support.
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
 
-  template <typename IsolateT, AllocationType key_allocation =
-                                   std::is_same<IsolateT, Isolate>::value
-                                       ? AllocationType::kYoung
-                                       : AllocationType::kOld>
-  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
-      IsolateT* isolate, Handle<Derived> dictionary, Key key,
+  template <typename IsolateT, template <typename> typename HandleType,
+            AllocationType key_allocation =
+                std::is_same<IsolateT, Isolate>::value ? AllocationType::kYoung
+                                                       : AllocationType::kOld,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Derived>, DirectHandle<Derived>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<Derived> Add(
+      IsolateT* isolate, HandleType<Derived> dictionary, Key key,
       DirectHandle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
@@ -103,27 +111,30 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // doesn't need to grow.
   // The number of elements stored is not updated. Use
   // |SetInitialNumberOfElements| to update the number in one go.
-  template <typename IsolateT, AllocationType key_allocation =
-                                   std::is_same<IsolateT, Isolate>::value
-                                       ? AllocationType::kYoung
-                                       : AllocationType::kOld>
-  static void UncheckedAdd(IsolateT* isolate, Handle<Derived> dictionary,
+  template <typename IsolateT, template <typename> typename HandleType,
+            AllocationType key_allocation =
+                std::is_same<IsolateT, Isolate>::value ? AllocationType::kYoung
+                                                       : AllocationType::kOld,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Derived>, DirectHandle<Derived>>>>
+  static void UncheckedAdd(IsolateT* isolate, HandleType<Derived> dictionary,
                            Key key, DirectHandle<Object> value,
                            PropertyDetails details);
 
   static Handle<Derived> ShallowCopy(
-      Isolate* isolate, Handle<Derived> dictionary,
+      Isolate* isolate, DirectHandle<Derived> dictionary,
       AllocationType allocation = AllocationType::kYoung);
 
  protected:
   // Generic at put operation.
-  V8_WARN_UNUSED_RESULT static Handle<Derived> AtPut(Isolate* isolate,
-                                                     Handle<Derived> dictionary,
-                                                     Key key,
-                                                     Handle<Object> value,
-                                                     PropertyDetails details);
-  static void UncheckedAtPut(Isolate* isolate, Handle<Derived> dictionary,
-                             Key key, Handle<Object> value,
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Derived>, DirectHandle<Derived>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<Derived> AtPut(
+      Isolate* isolate, HandleType<Derived> dictionary, Key key,
+      DirectHandle<Object> value, PropertyDetails details);
+  static void UncheckedAtPut(Isolate* isolate, DirectHandle<Derived> dictionary,
+                             Key key, DirectHandle<Object> value,
                              PropertyDetails details);
 };
 
@@ -145,17 +156,18 @@ class BaseDictionaryShape : public BaseShape<Key> {
                                   PropertyDetails value);
 };
 
-class BaseNameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
+class BaseNameDictionaryShape : public BaseDictionaryShape<DirectHandle<Name>> {
  public:
   static inline bool IsMatch(DirectHandle<Name> key, Tagged<Object> other);
   static inline uint32_t Hash(ReadOnlyRoots roots, DirectHandle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
   template <AllocationType allocation = AllocationType::kYoung>
-  static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
+  static inline DirectHandle<Object> AsHandle(Isolate* isolate,
+                                              DirectHandle<Name> key);
   template <AllocationType allocation = AllocationType::kOld>
-  static inline Handle<Object> AsHandle(LocalIsolate* isolate,
-                                        Handle<Name> key);
+  static inline DirectHandle<Object> AsHandle(LocalIsolate* isolate,
+                                              DirectHandle<Name> key);
   static const int kEntryValueIndex = 1;
 };
 
@@ -189,24 +201,32 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
 
   // Allocate the next enumeration index. Possibly updates all enumeration
   // indices in the table.
-  static int NextEnumerationIndex(Isolate* isolate, Handle<Derived> dictionary);
+  static int NextEnumerationIndex(Isolate* isolate,
+                                  DirectHandle<Derived> dictionary);
   // Accessors for next enumeration index.
   inline int next_enumeration_index();
   inline void set_next_enumeration_index(int index);
 
   // Return the key indices sorted by its enumeration index.
-  static Handle<FixedArray> IterationIndices(Isolate* isolate,
-                                             Handle<Derived> dictionary);
+  static DirectHandle<FixedArray> IterationIndices(
+      Isolate* isolate, DirectHandle<Derived> dictionary);
 
-  template <typename IsolateT>
-  V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
-      IsolateT* isolate, Handle<Derived> dictionary, Key key,
-      Handle<Object> value, PropertyDetails details,
-      InternalIndex* entry_out = nullptr);
+  template <typename IsolateT, template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Derived>, DirectHandle<Derived>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<Derived>
+  AddNoUpdateNextEnumerationIndex(IsolateT* isolate,
+                                  HandleType<Derived> dictionary, Key key,
+                                  DirectHandle<Object> value,
+                                  PropertyDetails details,
+                                  InternalIndex* entry_out = nullptr);
 
-  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
-      Isolate* isolate, Handle<Derived> dictionary, Key key,
-      Handle<Object> value, PropertyDetails details,
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Derived>, DirectHandle<Derived>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<Derived> Add(
+      Isolate* isolate, HandleType<Derived> dictionary, Key key,
+      DirectHandle<Object> value, PropertyDetails details,
       InternalIndex* entry_out = nullptr);
 
   // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
@@ -309,9 +329,10 @@ class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Tagged<Object> other);
   template <AllocationType allocation = AllocationType::kYoung>
-  static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
+  static inline DirectHandle<Object> AsHandle(Isolate* isolate, uint32_t key);
   template <AllocationType allocation = AllocationType::kOld>
-  static inline Handle<Object> AsHandle(LocalIsolate* isolate, uint32_t key);
+  static inline DirectHandle<Object> AsHandle(LocalIsolate* isolate,
+                                              uint32_t key);
 
   static inline uint32_t Hash(ReadOnlyRoots roots, uint32_t key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
@@ -373,10 +394,13 @@ class NumberDictionary
   DECL_PRINTER(NumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).
-  V8_WARN_UNUSED_RESULT static Handle<NumberDictionary> Set(
-      Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
-      Handle<Object> value,
-      Handle<JSObject> dictionary_holder = Handle<JSObject>::null(),
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<NumberDictionary>, DirectHandle<NumberDictionary>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<NumberDictionary> Set(
+      Isolate* isolate, HandleType<NumberDictionary> dictionary, uint32_t key,
+      DirectHandle<Object> value,
+      DirectHandle<JSObject> dictionary_holder = DirectHandle<JSObject>::null(),
       PropertyDetails details = PropertyDetails::Empty());
   // This method is only safe to use when it is guaranteed that the dictionary
   // doesn't need to grow.
@@ -384,11 +408,12 @@ class NumberDictionary
   // |SetInitialNumberOfElements| and |UpdateMaxNumberKey| to update the number
   // in one go.
   static void UncheckedSet(Isolate* isolate,
-                           Handle<NumberDictionary> dictionary, uint32_t key,
-                           Handle<Object> value);
+                           DirectHandle<NumberDictionary> dictionary,
+                           uint32_t key, DirectHandle<Object> value);
 
   static const int kMaxNumberKeyIndex = kPrefixStartIndex;
-  void UpdateMaxNumberKey(uint32_t key, Handle<JSObject> dictionary_holder);
+  void UpdateMaxNumberKey(uint32_t key,
+                          DirectHandle<JSObject> dictionary_holder);
 
   // Sorting support
   void CopyValuesTo(Tagged<FixedArray> elements);

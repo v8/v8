@@ -298,14 +298,14 @@ uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
 }
 
 template <AllocationType allocation>
-Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
-                                                   uint32_t key) {
+DirectHandle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
+                                                         uint32_t key) {
   return isolate->factory()->NewNumberFromUint<allocation>(key);
 }
 
 template <AllocationType allocation>
-Handle<Object> NumberDictionaryBaseShape::AsHandle(LocalIsolate* isolate,
-                                                   uint32_t key) {
+DirectHandle<Object> NumberDictionaryBaseShape::AsHandle(LocalIsolate* isolate,
+                                                         uint32_t key) {
   return isolate->factory()->NewNumberFromUint<allocation>(key);
 }
 
@@ -349,15 +349,15 @@ uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
 }
 
 template <AllocationType allocation>
-Handle<Object> BaseNameDictionaryShape::AsHandle(Isolate* isolate,
-                                                 Handle<Name> key) {
+DirectHandle<Object> BaseNameDictionaryShape::AsHandle(Isolate* isolate,
+                                                       DirectHandle<Name> key) {
   DCHECK(IsUniqueName(*key));
   return key;
 }
 
 template <AllocationType allocation>
-Handle<Object> BaseNameDictionaryShape::AsHandle(LocalIsolate* isolate,
-                                                 Handle<Name> key) {
+DirectHandle<Object> BaseNameDictionaryShape::AsHandle(LocalIsolate* isolate,
+                                                       DirectHandle<Name> key) {
   DCHECK(IsUniqueName(*key));
   return key;
 }

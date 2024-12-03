@@ -34,7 +34,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSFunction> constructor = args.at<JSFunction>(0);
-  Handle<String> name(constructor->shared()->Name(), isolate);
+  DirectHandle<String> name(constructor->shared()->Name(), isolate);
 
   DirectHandle<Context> context(constructor->native_context(), isolate);
   DCHECK(IsNativeContext(*context));
@@ -76,7 +76,7 @@ RUNTIME_FUNCTION(Runtime_ThrowSuperNotCalled) {
 namespace {
 
 Tagged<Object> ThrowNotSuperConstructor(Isolate* isolate,
-                                        Handle<Object> constructor,
+                                        DirectHandle<Object> constructor,
                                         DirectHandle<JSFunction> function) {
   DirectHandle<String> super_name;
   if (IsJSFunction(*constructor)) {
@@ -110,7 +110,7 @@ Tagged<Object> ThrowNotSuperConstructor(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_ThrowNotSuperConstructor) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> constructor = args.at(0);
+  DirectHandle<Object> constructor = args.at(0);
   DirectHandle<JSFunction> function = args.at<JSFunction>(1);
   return ThrowNotSuperConstructor(isolate, constructor, function);
 }
@@ -217,7 +217,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
       auto pair = Cast<AccessorPair>(value);
       Tagged<Object> tmp = pair->getter();
       if (IsSmi(tmp)) {
-        Handle<Object> result;
+        DirectHandle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
             GetMethodAndSetName<Dictionary>(isolate, args, Cast<Smi>(tmp),
@@ -228,7 +228,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
       }
       tmp = pair->setter();
       if (IsSmi(tmp)) {
-        Handle<Object> result;
+        DirectHandle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, result,
             GetMethodAndSetName<Dictionary>(isolate, args, Cast<Smi>(tmp),
@@ -238,7 +238,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
         pair->set_setter(*result);
       }
     } else if (IsSmi(*value)) {
-      Handle<Object> result;
+      DirectHandle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, result,
           GetMethodAndSetName<Dictionary>(isolate, args, Cast<Smi>(*value),
@@ -252,7 +252,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
 }
 
 template <typename Dictionary>
-void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
+void UpdateProtectors(Isolate* isolate, DirectHandle<JSObject> receiver,
                       DirectHandle<Dictionary> properties_dictionary) {
   ReadOnlyRoots roots(isolate);
   for (InternalIndex i : properties_dictionary->IterateEntries()) {
@@ -263,7 +263,7 @@ void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
   }
 }
 
-void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
+void UpdateProtectors(Isolate* isolate, DirectHandle<JSObject> receiver,
                       DirectHandle<DescriptorArray> properties_template) {
   int nof_descriptors = properties_template->number_of_descriptors();
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
@@ -276,7 +276,7 @@ bool AddDescriptorsByTemplate(
     Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<DescriptorArray> descriptors_template,
     Handle<NumberDictionary> elements_dictionary_template,
-    Handle<JSObject> receiver, RuntimeArguments& args) {
+    DirectHandle<JSObject> receiver, RuntimeArguments& args) {
   int nof_descriptors = descriptors_template->number_of_descriptors();
 
   DirectHandle<DescriptorArray> descriptors =
@@ -402,8 +402,8 @@ bool AddDescriptorsByTemplate(
     Isolate* isolate, DirectHandle<Map> map,
     Handle<Dictionary> properties_dictionary_template,
     Handle<NumberDictionary> elements_dictionary_template,
-    DirectHandle<FixedArray> computed_properties, Handle<JSObject> receiver,
-    RuntimeArguments& args) {
+    DirectHandle<FixedArray> computed_properties,
+    DirectHandle<JSObject> receiver, RuntimeArguments& args) {
   int computed_properties_length = computed_properties->length();
 
   // Shallow-copy properties template.
@@ -484,11 +484,11 @@ Handle<JSObject> CreateClassPrototype(Isolate* isolate) {
 
 bool InitClassPrototype(Isolate* isolate,
                         DirectHandle<ClassBoilerplate> class_boilerplate,
-                        Handle<JSObject> prototype,
-                        Handle<JSPrototype> prototype_parent,
+                        DirectHandle<JSObject> prototype,
+                        DirectHandle<JSPrototype> prototype_parent,
                         DirectHandle<JSFunction> constructor,
                         RuntimeArguments& args) {
-  Handle<Map> map(prototype->map(), isolate);
+  DirectHandle<Map> map(prototype->map(), isolate);
   map = Map::CopyDropDescriptors(isolate, map);
   map->set_is_prototype_map(true);
   Map::SetPrototype(isolate, map, prototype_parent);
@@ -529,10 +529,10 @@ bool InitClassPrototype(Isolate* isolate,
 
 bool InitClassConstructor(Isolate* isolate,
                           DirectHandle<ClassBoilerplate> class_boilerplate,
-                          Handle<JSPrototype> constructor_parent,
-                          Handle<JSFunction> constructor,
+                          DirectHandle<JSPrototype> constructor_parent,
+                          DirectHandle<JSFunction> constructor,
                           RuntimeArguments& args) {
-  Handle<Map> map(constructor->map(), isolate);
+  DirectHandle<Map> map(constructor->map(), isolate);
   map = Map::CopyDropDescriptors(isolate, map);
   DCHECK(map->is_prototype_map());
 
@@ -586,10 +586,10 @@ bool InitClassConstructor(Isolate* isolate,
 
 MaybeHandle<Object> DefineClass(
     Isolate* isolate, DirectHandle<ClassBoilerplate> class_boilerplate,
-    Handle<Object> super_class, Handle<JSFunction> constructor,
+    DirectHandle<Object> super_class, DirectHandle<JSFunction> constructor,
     RuntimeArguments& args) {
-  Handle<JSPrototype> prototype_parent;
-  Handle<JSPrototype> constructor_parent;
+  DirectHandle<JSPrototype> prototype_parent;
+  DirectHandle<JSPrototype> constructor_parent;
 
   if (IsTheHole(*super_class, isolate)) {
     prototype_parent = isolate->initial_object_prototype();
@@ -600,7 +600,7 @@ MaybeHandle<Object> DefineClass(
       DCHECK(!IsJSFunction(*super_class) ||
              !IsResumableFunction(
                  Cast<JSFunction>(super_class)->shared()->kind()));
-      Handle<Object> maybe_prototype_parent;
+      DirectHandle<Object> maybe_prototype_parent;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, maybe_prototype_parent,
           Runtime::GetObjectProperty(isolate, Cast<JSAny>(super_class),
@@ -613,7 +613,8 @@ MaybeHandle<Object> DefineClass(
       // Create new handle to avoid |constructor_parent| corruption because of
       // |super_class| handle value overwriting via storing to
       // args[ClassBoilerplate::kPrototypeArgumentIndex] below.
-      constructor_parent = handle(Cast<JSPrototype>(*super_class), isolate);
+      constructor_parent =
+          direct_handle(Cast<JSPrototype>(*super_class), isolate);
     } else {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kExtendsValueNotConstructor,
@@ -638,15 +639,16 @@ MaybeHandle<Object> DefineClass(
     return MaybeHandle<Object>();
   }
   if (v8_flags.log_maps) {
-    Handle<Map> empty_map;
+    DirectHandle<Map> empty_map;
     LOG(isolate,
-        MapEvent("InitialMap", empty_map, handle(constructor->map(), isolate),
+        MapEvent("InitialMap", empty_map,
+                 direct_handle(constructor->map(), isolate),
                  "init class constructor",
                  SharedFunctionInfo::DebugName(
                      isolate, handle(constructor->shared(), isolate))));
-    LOG(isolate,
-        MapEvent("InitialMap", empty_map, handle(prototype->map(), isolate),
-                 "init class prototype"));
+    LOG(isolate, MapEvent("InitialMap", empty_map,
+                          direct_handle(prototype->map(), isolate),
+                          "init class prototype"));
   }
 
   return prototype;
@@ -659,8 +661,8 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   DCHECK_LE(ClassBoilerplate::kFirstDynamicArgumentIndex, args.length());
   DirectHandle<ClassBoilerplate> class_boilerplate =
       args.at<ClassBoilerplate>(0);
-  Handle<JSFunction> constructor = args.at<JSFunction>(1);
-  Handle<Object> super_class = args.at(2);
+  DirectHandle<JSFunction> constructor = args.at<JSFunction>(1);
+  DirectHandle<Object> super_class = args.at(2);
   DCHECK_EQ(class_boilerplate->arguments_count(), args.length());
 
   RETURN_RESULT_OR_FAILURE(
@@ -672,9 +674,9 @@ namespace {
 
 enum class SuperMode { kLoad, kStore };
 
-MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
-                                       Handle<JSObject> home_object,
-                                       SuperMode mode, PropertyKey* key) {
+MaybeDirectHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
+                                             DirectHandle<JSObject> home_object,
+                                             SuperMode mode, PropertyKey* key) {
   if (IsAccessCheckNeeded(*home_object) &&
       !isolate->MayAccess(isolate->native_context(), home_object)) {
     RETURN_ON_EXCEPTION(isolate, isolate->ReportFailedAccessCheck(home_object));
@@ -682,22 +684,23 @@ MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
   }
 
   PrototypeIterator iter(isolate, home_object);
-  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  DirectHandle<Object> proto = PrototypeIterator::GetCurrent(iter);
   if (!IsJSReceiver(*proto)) {
     MessageTemplate message =
         mode == SuperMode::kLoad
             ? MessageTemplate::kNonObjectPropertyLoadWithProperty
             : MessageTemplate::kNonObjectPropertyStoreWithProperty;
-    Handle<Name> name = key->GetName(isolate);
+    DirectHandle<Name> name = key->GetName(isolate);
     THROW_NEW_ERROR(isolate, NewTypeError(message, proto, name));
   }
   return Cast<JSReceiver>(proto);
 }
 
-MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<JSAny> receiver,
-                                  Handle<JSObject> home_object,
+MaybeHandle<Object> LoadFromSuper(Isolate* isolate,
+                                  DirectHandle<JSAny> receiver,
+                                  DirectHandle<JSObject> home_object,
                                   PropertyKey* key) {
-  Handle<JSReceiver> holder;
+  DirectHandle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
       GetSuperHolder(isolate, home_object, SuperMode::kLoad, key));
@@ -712,9 +715,9 @@ MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<JSAny> receiver,
 RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSAny> receiver = args.at<JSAny>(0);
-  Handle<JSObject> home_object = args.at<JSObject>(1);
-  Handle<Name> name = args.at<Name>(2);
+  DirectHandle<JSAny> receiver = args.at<JSAny>(0);
+  DirectHandle<JSObject> home_object = args.at<JSObject>(1);
+  DirectHandle<Name> name = args.at<Name>(2);
 
   PropertyKey key(isolate, name);
 
@@ -726,11 +729,11 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
 RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSAny> receiver = args.at<JSAny>(0);
-  Handle<JSObject> home_object = args.at<JSObject>(1);
+  DirectHandle<JSAny> receiver = args.at<JSAny>(0);
+  DirectHandle<JSObject> home_object = args.at<JSObject>(1);
   // TODO(ishell): To improve performance, consider performing the to-string
   // conversion of {key} before calling into the runtime.
-  Handle<Object> key = args.at(2);
+  DirectHandle<Object> key = args.at(2);
 
   bool success;
   PropertyKey lookup_key(isolate, key, &success);
@@ -742,11 +745,12 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
 
 namespace {
 
-MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
-                                 Handle<JSAny> receiver, PropertyKey* key,
+MaybeHandle<Object> StoreToSuper(Isolate* isolate,
+                                 DirectHandle<JSObject> home_object,
+                                 DirectHandle<JSAny> receiver, PropertyKey* key,
                                  Handle<Object> value,
                                  StoreOrigin store_origin) {
-  Handle<JSReceiver> holder;
+  DirectHandle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
       GetSuperHolder(isolate, home_object, SuperMode::kStore, key));
@@ -761,9 +765,9 @@ MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
 RUNTIME_FUNCTION(Runtime_StoreToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSAny> receiver = args.at<JSAny>(0);
-  Handle<JSObject> home_object = args.at<JSObject>(1);
-  Handle<Name> name = args.at<Name>(2);
+  DirectHandle<JSAny> receiver = args.at<JSAny>(0);
+  DirectHandle<JSObject> home_object = args.at<JSObject>(1);
+  DirectHandle<Name> name = args.at<Name>(2);
   Handle<Object> value = args.at(3);
 
   PropertyKey key(isolate, name);
@@ -776,11 +780,11 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper) {
 RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSAny> receiver = args.at<JSAny>(0);
-  Handle<JSObject> home_object = args.at<JSObject>(1);
+  DirectHandle<JSAny> receiver = args.at<JSAny>(0);
+  DirectHandle<JSObject> home_object = args.at<JSObject>(1);
   // TODO(ishell): To improve performance, consider performing the to-string
   // conversion of {key} before calling into the runtime.
-  Handle<Object> key = args.at(2);
+  DirectHandle<Object> key = args.at(2);
   Handle<Object> value = args.at(3);
 
   bool success;

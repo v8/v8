@@ -151,14 +151,13 @@ class SourceTextModule
   static void CreateExport(Isolate* isolate,
                            DirectHandle<SourceTextModule> module,
                            int cell_index, DirectHandle<FixedArray> names);
-  static void CreateIndirectExport(Isolate* isolate,
-                                   DirectHandle<SourceTextModule> module,
-                                   Handle<String> name,
-                                   Handle<SourceTextModuleInfoEntry> entry);
+  static void CreateIndirectExport(
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      DirectHandle<String> name, DirectHandle<SourceTextModuleInfoEntry> entry);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExport(
       Isolate* isolate, Handle<SourceTextModule> module,
-      Handle<String> module_specifier, Handle<String> export_name,
+      DirectHandle<String> module_specifier, Handle<String> export_name,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveImport(
       Isolate* isolate, DirectHandle<SourceTextModule> module,
@@ -167,11 +166,11 @@ class SourceTextModule
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
       Isolate* isolate, DirectHandle<SourceTextModule> module,
-      Handle<String> module_specifier, Handle<String> export_name,
+      DirectHandle<String> module_specifier, Handle<String> export_name,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
-      Isolate* isolate, Handle<SourceTextModule> module,
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
       v8::Local<v8::Context> context,
       v8::Module::ResolveModuleCallback module_callback,
       v8::Module::ResolveSourceCallback source_callback);

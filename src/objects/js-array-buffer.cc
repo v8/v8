@@ -24,10 +24,10 @@ bool CanonicalNumericIndexString(Isolate* isolate,
   *is_minus_zero = false;
   if (lookup_key.is_element()) return true;
 
-  Handle<String> key = Cast<String>(lookup_key.name());
+  DirectHandle<String> key = Cast<String>(lookup_key.name());
 
   // 3. Let n be ! ToNumber(argument).
-  Handle<Object> result = String::ToNumber(isolate, key);
+  DirectHandle<Object> result = String::ToNumber(isolate, key);
   if (IsMinusZero(*result)) {
     // 2. If argument is "-0", return -0𝔽.
     // We are not performing SaveValue check for -0 because it'll be rejected
@@ -119,7 +119,7 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
 
 Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
                                   bool force_for_wasm_memory,
-                                  Handle<Object> maybe_key) {
+                                  DirectHandle<Object> maybe_key) {
   Isolate* const isolate = buffer->GetIsolate();
 
   DirectHandle<Object> detach_key(buffer->detach_key(), isolate);
@@ -305,8 +305,8 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
 // ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
 // static
 Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
-                                            Handle<JSTypedArray> o,
-                                            Handle<Object> key,
+                                            DirectHandle<JSTypedArray> o,
+                                            DirectHandle<Object> key,
                                             PropertyDescriptor* desc,
                                             Maybe<ShouldThrow> should_throw) {
   DCHECK(IsName(*key) || IsNumber(*key));
@@ -359,7 +359,7 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
         if (!desc->has_configurable()) desc->set_configurable(true);
         if (!desc->has_enumerable()) desc->set_enumerable(true);
         if (!desc->has_writable()) desc->set_writable(true);
-        Handle<Object> value = desc->value();
+        DirectHandle<Object> value = desc->value();
         LookupIterator it(isolate, o, index, LookupIterator::OWN);
         RETURN_ON_EXCEPTION_VALUE(
             isolate,

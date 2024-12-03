@@ -22,51 +22,53 @@
 namespace v8 {
 namespace internal {
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
-                               Handle<Name> name, Configuration configuration)
+LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
+                               DirectHandle<Name> name,
+                               Configuration configuration)
     : LookupIterator(isolate, receiver, name, kInvalidIndex, receiver,
                      configuration) {}
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
-                               Handle<Name> name,
-                               Handle<JSAny> lookup_start_object,
+LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
+                               DirectHandle<Name> name,
+                               DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
     : LookupIterator(isolate, receiver, name, kInvalidIndex,
                      Cast<JSAny>(lookup_start_object), configuration) {}
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
+LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                size_t index, Configuration configuration)
-    : LookupIterator(isolate, receiver, Handle<Name>(), index, receiver,
+    : LookupIterator(isolate, receiver, DirectHandle<Name>(), index, receiver,
                      configuration) {
   DCHECK_NE(index, kInvalidIndex);
 }
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
-                               size_t index, Handle<JSAny> lookup_start_object,
+LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
+                               size_t index,
+                               DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
-    : LookupIterator(isolate, receiver, Handle<Name>(), index,
+    : LookupIterator(isolate, receiver, DirectHandle<Name>(), index,
                      Cast<JSAny>(lookup_start_object), configuration) {
   DCHECK_NE(index, kInvalidIndex);
 }
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
+LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                const PropertyKey& key,
                                Configuration configuration)
     : LookupIterator(isolate, receiver, key.name(), key.index(), receiver,
                      configuration) {}
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
+LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                const PropertyKey& key,
-                               Handle<JSAny> lookup_start_object,
+                               DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
     : LookupIterator(isolate, receiver, key.name(), key.index(),
                      Cast<JSAny>(lookup_start_object), configuration) {}
 
 // This private constructor is the central bottleneck that all the other
 // constructors use.
-LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
-                               Handle<Name> name, size_t index,
-                               Handle<JSAny> lookup_start_object,
+LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
+                               DirectHandle<Name> name, size_t index,
+                               DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
     : configuration_(ComputeConfiguration(isolate, configuration, name)),
       isolate_(isolate),
@@ -89,7 +91,7 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
       name_ = isolate->factory()->InternalizeName(name_);
     } else if (!name_.is_null() && !IsInternalizedString(*name_)) {
       // Maintain the invariant that if name_ is present, it is internalized.
-      name_ = Handle<Name>();
+      name_ = DirectHandle<Name>();
     }
     Start<true>();
   } else {
@@ -113,7 +115,8 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<JSAny> receiver,
 }
 
 LookupIterator::LookupIterator(Isolate* isolate, Configuration configuration,
-                               Handle<JSAny> receiver, Handle<Symbol> name)
+                               DirectHandle<JSAny> receiver,
+                               DirectHandle<Symbol> name)
     : configuration_(configuration),
       isolate_(isolate),
       name_(name),
@@ -147,7 +150,8 @@ PropertyKey::PropertyKey(Isolate* isolate, double index) {
 #endif
 }
 
-PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name, size_t index)
+template <template <typename> typename HandleType, typename>
+PropertyKey::PropertyKey(Isolate* isolate, HandleType<Name> name, size_t index)
     : name_(name), index_(index) {
   DCHECK_IMPLIES(index_ == LookupIterator::kInvalidIndex, !name_.is_null());
 #if V8_TARGET_ARCH_32_BIT
@@ -170,7 +174,8 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name, size_t index)
 #endif
 }
 
-PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name) {
+template <template <typename> typename HandleType, typename>
+PropertyKey::PropertyKey(Isolate* isolate, HandleType<Name> name) {
   if (name->AsIntegerIndex(&index_)) {
     name_ = name;
   } else {
@@ -179,18 +184,40 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name) {
   }
 }
 
-PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> valid_key) {
-  DCHECK(IsName(*valid_key) || IsNumber(*valid_key));
-  if (Object::ToIntegerIndex(*valid_key, &index_)) return;
-  if (IsNumber(*valid_key)) {
+template <typename T, template <typename> typename HandleType, typename>
+PropertyKey::PropertyKey(Isolate* isolate, HandleType<T> valid_key) {
+  HandleType<Object> valid_obj = Cast<Object>(valid_key);
+  DCHECK(IsName(*valid_obj) || IsNumber(*valid_obj));
+  if (Object::ToIntegerIndex(*valid_obj, &index_)) return;
+  if (IsNumber(*valid_obj)) {
     // Negative or out of range -> treat as named property.
-    valid_key = isolate->factory()->NumberToString(valid_key);
+    valid_obj = isolate->factory()->NumberToString(valid_obj);
   }
-  DCHECK(IsName(*valid_key));
-  name_ = Cast<Name>(valid_key);
+  DCHECK(IsName(*valid_obj));
+  name_ = Cast<Name>(valid_obj);
   if (!name_->AsIntegerIndex(&index_)) {
     index_ = LookupIterator::kInvalidIndex;
     name_ = isolate->factory()->InternalizeName(name_);
+  }
+}
+
+template <typename T, template <typename> typename HandleType, typename>
+PropertyKey::PropertyKey(Isolate* isolate, HandleType<T> key, bool* success) {
+  if (Object::ToIntegerIndex(*key, &index_)) {
+    *success = true;
+    return;
+  }
+  *success = Object::ToName(isolate, key).ToHandle(&name_);
+  if (!*success) {
+    DCHECK(isolate->has_exception());
+    index_ = LookupIterator::kInvalidIndex;
+    return;
+  }
+  if (!name_->AsIntegerIndex(&index_)) {
+    // Make sure the name is internalized.
+    name_ = isolate->factory()->InternalizeName(name_);
+    // {AsIntegerIndex} may modify {index_} before deciding to fail.
+    index_ = LookupIterator::kInvalidIndex;
   }
 }
 
@@ -198,7 +225,7 @@ bool PropertyKey::is_element() const {
   return index_ != LookupIterator::kInvalidIndex;
 }
 
-Handle<Name> PropertyKey::GetName(Isolate* isolate) {
+DirectHandle<Name> PropertyKey::GetName(Isolate* isolate) {
   if (name_.is_null()) {
     DCHECK(is_element());
     name_ = isolate->factory()->SizeToString(index_);
@@ -206,12 +233,12 @@ Handle<Name> PropertyKey::GetName(Isolate* isolate) {
   return name_;
 }
 
-Handle<Name> LookupIterator::name() const {
+DirectHandle<Name> LookupIterator::name() const {
   DCHECK_IMPLIES(!holder_.is_null(), !IsElement(*holder_));
   return name_;
 }
 
-Handle<Name> LookupIterator::GetName() {
+DirectHandle<Name> LookupIterator::GetName() {
   if (name_.is_null()) {
     DCHECK(IsElement());
     name_ = factory()->SizeToString(index_);
@@ -237,23 +264,23 @@ bool LookupIterator::is_dictionary_holder() const {
   return !holder_->HasFastProperties(isolate_);
 }
 
-Handle<Map> LookupIterator::transition_map() const {
+DirectHandle<Map> LookupIterator::transition_map() const {
   DCHECK_EQ(TRANSITION, state_);
   return Cast<Map>(transition_);
 }
 
-Handle<PropertyCell> LookupIterator::transition_cell() const {
+DirectHandle<PropertyCell> LookupIterator::transition_cell() const {
   DCHECK_EQ(TRANSITION, state_);
   return Cast<PropertyCell>(transition_);
 }
 
 template <class T>
-Handle<T> LookupIterator::GetHolder() const {
+DirectHandle<T> LookupIterator::GetHolder() const {
   DCHECK(IsFound());
   return Cast<T>(holder_);
 }
 
-bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
+bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
   if (receiver->map(isolate_)->is_extensible()) {
     return false;
@@ -285,7 +312,8 @@ bool LookupIterator::IsCacheableTransition() {
 }
 
 // static
-void LookupIterator::UpdateProtector(Isolate* isolate, Handle<JSAny> receiver,
+void LookupIterator::UpdateProtector(Isolate* isolate,
+                                     DirectHandle<JSAny> receiver,
                                      DirectHandle<Name> name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
   DCHECK(IsInternalizedString(*name) || IsSymbol(*name));
@@ -335,14 +363,14 @@ InternalIndex LookupIterator::dictionary_entry() const {
 
 // static
 LookupIterator::Configuration LookupIterator::ComputeConfiguration(
-    Isolate* isolate, Configuration configuration, Handle<Name> name) {
+    Isolate* isolate, Configuration configuration, DirectHandle<Name> name) {
   return (!name.is_null() && name->IsPrivate()) ? OWN_SKIP_INTERCEPTOR
                                                 : configuration;
 }
 
 // static
-MaybeHandle<JSReceiver> LookupIterator::GetRoot(
-    Isolate* isolate, Handle<JSAny> lookup_start_object, size_t index,
+MaybeDirectHandle<JSReceiver> LookupIterator::GetRoot(
+    Isolate* isolate, DirectHandle<JSAny> lookup_start_object, size_t index,
     Configuration configuration) {
   if (IsJSReceiver(*lookup_start_object, isolate)) {
     return Cast<JSReceiver>(lookup_start_object);
@@ -352,13 +380,13 @@ MaybeHandle<JSReceiver> LookupIterator::GetRoot(
 }
 
 template <class T>
-Handle<T> LookupIterator::GetStoreTarget() const {
+DirectHandle<T> LookupIterator::GetStoreTarget() const {
   DCHECK(IsJSReceiver(*receiver_, isolate_));
   if (IsJSGlobalProxy(*receiver_, isolate_)) {
     Tagged<HeapObject> prototype =
         Cast<JSGlobalProxy>(*receiver_)->map(isolate_)->prototype(isolate_);
     if (IsJSGlobalObject(prototype, isolate_)) {
-      return handle(Cast<JSGlobalObject>(prototype), isolate_);
+      return direct_handle(Cast<JSGlobalObject>(prototype), isolate_);
     }
   }
   return Cast<T>(receiver_);
@@ -374,13 +402,13 @@ Tagged<InterceptorInfo> LookupIterator::GetInterceptor(
   }
 }
 
-inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
+inline DirectHandle<InterceptorInfo> LookupIterator::GetInterceptor() const {
   DCHECK_EQ(INTERCEPTOR, state_);
   Tagged<JSObject> holder = Cast<JSObject>(*holder_);
   Tagged<InterceptorInfo> result = IsElement(holder)
                                        ? GetInterceptor<true>(holder)
                                        : GetInterceptor<false>(holder);
-  return handle(result, isolate_);
+  return direct_handle(result, isolate_);
 }
 
 }  // namespace internal

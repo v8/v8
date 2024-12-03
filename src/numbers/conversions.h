@@ -162,11 +162,12 @@ double V8_EXPORT_PRIVATE HexStringToDouble(base::Vector<const uint8_t> str);
 double V8_EXPORT_PRIVATE
 ImplicitOctalStringToDouble(base::Vector<const uint8_t> str);
 
-double StringToInt(Isolate* isolate, Handle<String> string, int radix);
+double StringToInt(Isolate* isolate, DirectHandle<String> string, int radix);
 
 // This follows https://tc39.github.io/proposal-bigint/#sec-string-to-bigint
 // semantics: "" => 0n.
-MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string);
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
+                                   DirectHandle<String> string);
 
 // This version expects a zero-terminated character array. Radix will
 // be inferred from string prefix (case-insensitive):
@@ -232,7 +233,7 @@ inline uint32_t NumberToUint32(Tagged<Object> number);
 inline int64_t NumberToInt64(Tagged<Object> number);
 inline uint64_t PositiveNumberToUint64(Tagged<Object> number);
 
-double StringToDouble(Isolate* isolate, Handle<String> string,
+double StringToDouble(Isolate* isolate, DirectHandle<String> string,
                       ConversionFlag flags, double empty_string_val = 0.0);
 double FlatStringToDouble(Tagged<String> string, ConversionFlag flags,
                           double empty_string_val);

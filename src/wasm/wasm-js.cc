@@ -910,11 +910,12 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 namespace {
-bool TransferPrototype(i::Isolate* isolate, i::Handle<i::JSObject> destination,
-                       i::Handle<i::JSReceiver> source) {
-  i::MaybeHandle<i::HeapObject> maybe_prototype =
+bool TransferPrototype(i::Isolate* isolate,
+                       i::DirectHandle<i::JSObject> destination,
+                       i::DirectHandle<i::JSReceiver> source) {
+  i::MaybeDirectHandle<i::HeapObject> maybe_prototype =
       i::JSObject::GetPrototype(isolate, source);
-  i::Handle<i::HeapObject> prototype;
+  i::DirectHandle<i::HeapObject> prototype;
   if (maybe_prototype.ToHandle(&prototype)) {
     Maybe<bool> result = i::JSObject::SetPrototype(
         isolate, destination, prototype,

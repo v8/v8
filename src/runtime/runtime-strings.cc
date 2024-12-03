@@ -42,7 +42,7 @@ RUNTIME_FUNCTION(Runtime_GetSubstitution) {
       *capture_exists = false;
       return match_;  // Return arbitrary string handle.
     }
-    MaybeHandle<String> GetNamedCapture(Handle<String> name,
+    MaybeHandle<String> GetNamedCapture(DirectHandle<String> name,
                                         CaptureState* state) override {
       UNREACHABLE();
     }

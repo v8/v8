@@ -47,7 +47,7 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
 
   // Initialize the fields.
   static void Initialize(Isolate* isolate, DirectHandle<Oddball> oddball,
-                         const char* to_string, Handle<Number> to_number,
+                         const char* to_string, DirectHandle<Number> to_number,
                          const char* type_of, uint8_t kind);
 
   static constexpr uint8_t kFalse = 0;

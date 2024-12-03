@@ -204,7 +204,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
     }
   }
 
-  Handle<JSPrototype> proto;
+  DirectHandle<JSPrototype> proto;
   if (proto_source == ProtoSource::kUseTargetPrototype) {
     // Determine the prototype of the {target_function}.
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -213,7 +213,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
     DirectHandle<NativeContext> native_context(
         isolate->global_object()->native_context(), isolate);
     auto function_proto = native_context->function_prototype();
-    proto = handle(function_proto, isolate);
+    proto = direct_handle(function_proto, isolate);
   } else {
     UNREACHABLE();
   }

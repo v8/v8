@@ -113,7 +113,7 @@ class JSArrayBuffer
   // non-detachable check.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> Detach(
       DirectHandle<JSArrayBuffer> buffer, bool force_for_wasm_memory = false,
-      Handle<Object> key = Handle<Object>());
+      DirectHandle<Object> key = {});
 
   // Get a reference to backing store of this array buffer, if there is a
   // backing store. Returns nullptr if there is no backing store (e.g. detached
@@ -339,7 +339,7 @@ class JSTypedArray
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
-      Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
+      Isolate* isolate, DirectHandle<JSTypedArray> o, DirectHandle<Object> key,
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   ExternalArrayType type();
