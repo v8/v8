@@ -619,7 +619,9 @@ class LiftoffCompiler {
         dead_breakpoint_(options.dead_breakpoint),
         handlers_(zone),
         max_steps_(options.max_steps),
-        nondeterminism_(options.nondeterminism) {
+        nondeterminism_(options.nondeterminism),
+        deopt_info_bytecode_offset_(options.deopt_info_bytecode_offset),
+        deopt_location_kind_(options.deopt_location_kind) {
     // We often see huge numbers of traps per function, so pre-reserve some
     // space in that vector. 128 entries is enough for ~94% of functions on
     // modern modules, as of 2022-06-03.
@@ -8469,9 +8471,9 @@ class LiftoffCompiler {
     }
     const WasmTable* table = imm.table_imm.table;
 
-    if (v8_flags.wasm_deopt &&
-        env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
-        env_->deopt_location_kind == LocationKindForDeopt::kEagerDeopt) {
+    if (deopt_info_bytecode_offset_ == decoder->pc_offset() &&
+        deopt_location_kind_ == LocationKindForDeopt::kEagerDeopt) {
+      CHECK(v8_flags.wasm_deopt);
       EmitDeoptPoint(decoder);
     }
 
@@ -8872,9 +8874,9 @@ class LiftoffCompiler {
     Register implicit_arg_reg = no_reg;
 
     if (v8_flags.wasm_inlining) {
-      if (v8_flags.wasm_deopt &&
-          env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
-          env_->deopt_location_kind == LocationKindForDeopt::kEagerDeopt) {
+      if (deopt_info_bytecode_offset_ == decoder->pc_offset() &&
+          deopt_location_kind_ == LocationKindForDeopt::kEagerDeopt) {
+        CHECK(v8_flags.wasm_deopt);
         EmitDeoptPoint(decoder);
       }
       LiftoffRegList pinned;
@@ -9120,9 +9122,9 @@ class LiftoffCompiler {
     DefineSafepoint();
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
-    if (v8_flags.wasm_deopt &&
-        env_->deopt_info_bytecode_offset == decoder->pc_offset() &&
-        env_->deopt_location_kind == LocationKindForDeopt::kInlinedCall) {
+    if (deopt_info_bytecode_offset_ == decoder->pc_offset() &&
+        deopt_location_kind_ == LocationKindForDeopt::kInlinedCall) {
+      CHECK(v8_flags.wasm_deopt);
       uint32_t adapt_shadow_stack_pc_offset = 0;
 #ifdef V8_ENABLE_CET_SHADOW_STACK
       if (v8_flags.cet_compatible) {
@@ -9354,8 +9356,12 @@ class LiftoffCompiler {
 
   // Pointer to information passed from the fuzzer. The pointers will be
   // embedded in generated code, which will update the values at runtime.
-  int32_t* max_steps_;
-  int32_t* nondeterminism_;
+  int32_t* const max_steps_;
+  int32_t* const nondeterminism_;
+
+  // Information for deopt'ed code.
+  const uint32_t deopt_info_bytecode_offset_;
+  const LocationKindForDeopt deopt_location_kind_;
 
   std::unique_ptr<LiftoffFrameDescriptionForDeopt> frame_description_;
 

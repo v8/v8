@@ -30,6 +30,7 @@
 #include "src/utils/utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-varstate.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-compiler.h"
@@ -912,18 +913,24 @@ std::pair<wasm::WasmCode*,
 CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
                                   int function_index,
                                   BytecodeOffset deopt_point, bool is_topmost) {
-  wasm::WasmCompilationUnit unit(function_index, wasm::ExecutionTier::kLiftoff,
-                                 wasm::ForDebugging::kNotForDebugging);
-  wasm::WasmDetectedFeatures detected;
   wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
-  env.deopt_info_bytecode_offset = deopt_point.ToInt();
-  env.deopt_location_kind = is_topmost
-                                ? wasm::LocationKindForDeopt::kEagerDeopt
-                                : wasm::LocationKindForDeopt::kInlinedCall;
-  std::shared_ptr<wasm::WireBytesStorage> wire_bytes =
-      native_module->compilation_state()->GetWireBytesStorage();
-  wasm::WasmCompilationResult result =
-      unit.ExecuteCompilation(&env, &*wire_bytes, nullptr, &detected);
+  // We only deopt after the NativeModule is finished, hence wire bytes do not
+  // change any more. We can thus hold a non-owning vector here.
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  const wasm::WasmFunction* function = &env.module->functions[function_index];
+  bool is_shared = env.module->type(function->sig_index).is_shared;
+  wasm::FunctionBody body{function->sig, function->code.offset(),
+                          wire_bytes.begin() + function->code.offset(),
+                          wire_bytes.begin() + function->code.end_offset(),
+                          is_shared};
+  wasm::WasmCompilationResult result = ExecuteLiftoffCompilation(
+      &env, body,
+      wasm::LiftoffOptions{}
+          .set_func_index(function_index)
+          .set_deopt_info_bytecode_offset(deopt_point.ToInt())
+          .set_deopt_location_kind(
+              is_topmost ? wasm::LocationKindForDeopt::kEagerDeopt
+                         : wasm::LocationKindForDeopt::kInlinedCall));
 
   // Replace the optimized code with the unoptimized code in the
   // WasmCodeManager as a deopt was reached.
