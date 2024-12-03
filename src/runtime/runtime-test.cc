@@ -219,6 +219,15 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
   auto function = Cast<JSFunction>(function_object);
 
+  if (function->IsTieringRequestedOrInProgress(isolate)) {
+    if (function->tiering_in_progress()) {
+      // Abort optimization so that calling DeoptimizeFunction on a function
+      // currently being optimized ends up with a non-optimized function.
+      isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
+    }
+    function->ResetTieringRequests(isolate);
+  }
+
   if (function->HasAttachedOptimizedCode(isolate)) {
     Deoptimizer::DeoptimizeFunction(*function);
   }

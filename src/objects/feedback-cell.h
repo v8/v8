@@ -54,10 +54,11 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
                              Tagged<HeapObject> target)>>
           gc_notify_updated_slot = std::nullopt);
 
+  enum ClosureCountTransition { kNoneToOne, kOneToMany, kMany };
   // The closure count is encoded in the cell's map, which distinguishes
   // between zero, one, or many closures. This function records a new closure
   // creation by updating the map.
-  inline void IncrementClosureCount(Isolate* isolate);
+  inline ClosureCountTransition IncrementClosureCount(Isolate* isolate);
 
   DECL_VERIFIER(FeedbackCell)
 

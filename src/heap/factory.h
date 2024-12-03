@@ -1104,9 +1104,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     }
 
    private:
-    void PrepareMap();
-    void PrepareFeedbackCell();
-
     V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(DirectHandle<Code> code);
 
     Isolate* const isolate_;

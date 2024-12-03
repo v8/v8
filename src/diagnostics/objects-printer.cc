@@ -1532,6 +1532,19 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
   }
   os << "\n - value: " << Brief(value());
   os << "\n - interrupt_budget: " << interrupt_budget();
+#ifdef V8_ENABLE_LEAPTIERING
+  os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
+  if (GetProcessWideJSDispatchTable()->IsTieringRequested(dispatch_handle())) {
+    os << "\n - tiering request ";
+    if (Tagged<FeedbackVector> fbv;
+        TryCast(value(), &fbv) && fbv->tiering_in_progress()) {
+      os << "in_progress ";
+    }
+    GetProcessWideJSDispatchTable()->PrintCurrentTieringRequest(
+        dispatch_handle(), GetIsolateFromWritableObject(*this), os);
+  }
+
+#endif  // V8_ENABLE_LEAPTIERING
   os << "\n";
 }
 

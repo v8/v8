@@ -4698,9 +4698,6 @@ Factory::JSFunctionBuilder::JSFunctionBuilder(
     : isolate_(isolate), sfi_(sfi), context_(context) {}
 
 Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
-  PrepareMap();
-  PrepareFeedbackCell();
-
   DirectHandle<Code> code(sfi_->GetCode(isolate_), isolate_);
   // Retain the code across the call to BuildRaw, because it allocates and can
   // trigger code to be flushed. Otherwise the SFI's compiled state and the
@@ -4722,16 +4719,35 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   Isolate* isolate = isolate_;
   Factory* factory = isolate_->factory();
 
-  DirectHandle<Map> map = maybe_map_.ToHandleChecked();
-  DirectHandle<FeedbackCell> feedback_cell =
-      maybe_feedback_cell_.ToHandleChecked();
-
+  DirectHandle<Map> map;
+  if (!maybe_map_.ToHandle(&map)) {
+    // No specific map requested, use the default.
+    map = direct_handle(
+        Cast<Map>(context_->native_context()->get(sfi_->function_map_index())),
+        isolate_);
+  }
   DCHECK(InstanceTypeChecker::IsJSFunction(*map));
 
   // Allocation.
   Tagged<JSFunction> function =
       Cast<JSFunction>(factory->New(map, allocation_type_));
   DisallowGarbageCollection no_gc;
+
+  // Transition the feedback cell after allocating the JSFunction. This is so
+  // that the leap-tiering-relevant one-to-many feedback cell mutation below
+  // happens atomically with the closure count increase here, without the object
+  // verifier potentially observing a many-closures cell with context
+  // specialised code.
+  DirectHandle<FeedbackCell> feedback_cell;
+  FeedbackCell::ClosureCountTransition cell_transition;
+  if (maybe_feedback_cell_.ToHandle(&feedback_cell)) {
+    // Track the newly-created closure.
+    cell_transition = feedback_cell->IncrementClosureCount(isolate_);
+  } else {
+    // Fall back to the many_closures_cell.
+    feedback_cell = isolate_->factory()->many_closures_cell();
+    cell_transition = FeedbackCell::kMany;
+  }
 
   WriteBarrierMode mode = allocation_type_ == AllocationType::kYoung
                               ? SKIP_WRITE_BARRIER
@@ -4769,23 +4785,42 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // closures with optimized code installed.
     JSDispatchHandle handle = feedback_cell->dispatch_handle();
     JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
-    // TODO(olivf): We should go through the cases where this is still needed
-    // and maybe find some alternative to initialize it correctly from the
-    // beginning.
-    if (jdt->GetCode(handle)->is_builtin()) {
+    Tagged<Code> old_code = jdt->GetCode(handle);
+
+    // A write barrier is needed when settings code, because the update can race
+    // with marking which could leave the dispatch slot unmarked.
+    // TODO(olivf): This should be fixed by using a more traditional WB
+    // for dispatch handles (i.e. have a marking queue with dispatch handles
+    // instead of marking through the handle).
+    constexpr WriteBarrierMode mode_if_setting_code =
+        WriteBarrierMode::UPDATE_WRITE_BARRIER;
+
+    // TODO(olivf): We should go through the cases where this is still
+    // needed and maybe find some alternative to initialize it correctly
+    // from the beginning.
+    if (old_code->is_builtin()) {
       jdt->SetCodeNoWriteBarrier(handle, *code);
-      // Write barrier is needed since the above update can race with marking
-      // which could leave the dispatch slot unmarked.
-      // TODO(olivf): This should be fixed by using a more traditional WB
-      // for dispatch handles (i.e. have a marking queue with dispatch handles
-      // instead of marking through the handle).
-      function->set_dispatch_handle(handle,
-                                    WriteBarrierMode::UPDATE_WRITE_BARRIER);
+      function->set_dispatch_handle(handle, mode_if_setting_code);
     } else {
-      function->set_dispatch_handle(handle, mode);
+      // On a transition of a feedback cell from one closure to many, make sure
+      // that the code on the feedback cell isn't native context specialized,
+      // and if it was, eagerly re-optimize.
+      if (cell_transition == FeedbackCell::kOneToMany &&
+          old_code->is_context_specialized()) {
+        jdt->SetCodeNoWriteBarrier(handle, *code);
+        function->set_dispatch_handle(handle, mode_if_setting_code);
+        DCHECK(old_code->kind() == CodeKind::MAGLEV ||
+               old_code->kind() == CodeKind::TURBOFAN_JS);
+        if (!old_code->marked_for_deoptimization()) {
+          function->RequestOptimization(isolate, old_code->kind());
+        }
+      } else {
+        function->set_dispatch_handle(handle, mode);
+      }
     }
   }
 #else
+  USE(cell_transition);
   function->UpdateCode(*code, mode);
 #endif  // V8_ENABLE_LEAPTIERING
   if (function->has_prototype_slot()) {
@@ -4799,26 +4834,6 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
       function, *map, JSFunction::GetHeaderSize(map->has_prototype_slot()));
 
   return handle(function, isolate_);
-}
-
-void Factory::JSFunctionBuilder::PrepareMap() {
-  if (maybe_map_.is_null()) {
-    // No specific map requested, use the default.
-    maybe_map_ = direct_handle(
-        Cast<Map>(context_->native_context()->get(sfi_->function_map_index())),
-        isolate_);
-  }
-}
-
-void Factory::JSFunctionBuilder::PrepareFeedbackCell() {
-  DirectHandle<FeedbackCell> feedback_cell;
-  if (maybe_feedback_cell_.ToHandle(&feedback_cell)) {
-    // Track the newly-created closure.
-    feedback_cell->IncrementClosureCount(isolate_);
-  } else {
-    // Fall back to the many_closures_cell.
-    maybe_feedback_cell_ = isolate_->factory()->many_closures_cell();
-  }
 }
 
 }  // namespace internal

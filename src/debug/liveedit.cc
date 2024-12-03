@@ -987,13 +987,13 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     isolate->debug()->DeoptimizeFunction(sfi);
     isolate->compilation_cache()->Remove(sfi);
     for (auto& js_function : data->js_functions) {
+      js_function->set_raw_feedback_cell(
+          *isolate->factory()->many_closures_cell());
 #ifdef V8_ENABLE_LEAPTIERING
       js_function->AllocateDispatchHandle(
           isolate, new_sfi->internal_formal_parameter_count_with_receiver(),
           new_sfi->GetCode(isolate));
 #endif
-      js_function->set_raw_feedback_cell(
-          *isolate->factory()->many_closures_cell());
       js_function->set_shared(*new_sfi);
 
       if (!js_function->is_compiled(isolate)) continue;

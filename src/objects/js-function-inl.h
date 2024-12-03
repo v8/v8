@@ -90,28 +90,19 @@ void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
                                               WriteBarrierMode mode) {
   DisallowGarbageCollection no_gc;
   DCHECK(value->is_context_specialized());
+  DCHECK(value->is_optimized_code());
 
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
-  JSDispatchHandle canonical_handle = raw_feedback_cell()->dispatch_handle();
-  DCHECK_IMPLIES(IsOptimizationRequested(GetIsolate()),
-                 value->kind() >= CodeKind::MAGLEV);
-
-  // For specialized code we allocate their own dispatch entry, which is
-  // different from the one in the dispatch cell.
-  // TODO(olivf): In case we have a NoClosuresFeedbackCell we could steal the
-  // existing dispatch entry and install a yet to be implemented shared lazy
-  // updating dispatch entry on the feedback cell.
-  DCHECK_NE(canonical_handle, kNullJSDispatchHandle);
-  DCHECK(value->is_context_specialized());
-  DCHECK(value->is_optimized_code());
-  bool has_context_specialized_dispatch_entry = handle != canonical_handle;
-  if (has_context_specialized_dispatch_entry) {
+  // We can only set context-specialized code for single-closure cells.
+  if (raw_feedback_cell()->map() ==
+      ReadOnlyRoots(isolate).one_closure_cell_map()) {
+    if (handle == kNullJSDispatchHandle) {
+      handle = raw_feedback_cell()->dispatch_handle();
+      DCHECK_NE(handle, kNullJSDispatchHandle);
+      set_dispatch_handle(handle, mode);
+    }
     UpdateDispatchEntry(value, mode);
-  } else {
-    SBXCHECK_EQ(GetProcessWideJSDispatchTable()->GetParameterCount(handle),
-                value->parameter_count());
-    AllocateDispatchHandle(isolate, value->parameter_count(), value, mode);
   }
 
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
@@ -134,24 +125,11 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode,
   DCHECK(!value->is_context_specialized());
 
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchHandle canonical_handle = raw_feedback_cell()->dispatch_handle();
-
-#ifdef DEBUG
-  bool has_context_specialized_dispatch_entry =
-      canonical_handle != kNullJSDispatchHandle &&
-      dispatch_handle() != canonical_handle;
-  if (has_context_specialized_dispatch_entry) {
-    auto jdt = GetProcessWideJSDispatchTable();
-    DCHECK_IMPLIES(jdt->GetCode(dispatch_handle())->kind() != CodeKind::BUILTIN,
-                   jdt->GetCode(dispatch_handle())->is_context_specialized());
-  }
-  DCHECK_NE(dispatch_handle(), kNullJSDispatchHandle);
-#endif  // DEBUG
-
-  if (canonical_handle != kNullJSDispatchHandle) {
-    // Ensure we are using the canonical dispatch handle (needed in case this
-    // function was specialized before).
-    set_dispatch_handle(canonical_handle, mode);
+  JSDispatchHandle handle = dispatch_handle();
+  if (handle == kNullJSDispatchHandle) {
+    handle = raw_feedback_cell()->dispatch_handle();
+    DCHECK_NE(handle, kNullJSDispatchHandle);
+    set_dispatch_handle(handle, mode);
   }
   if (keep_tiering_request) {
     UpdateDispatchEntryKeepTieringRequest(value, mode);
@@ -228,6 +206,7 @@ void JSFunction::AllocateDispatchHandle(Isolate* isolate,
                                         uint16_t parameter_count,
                                         Tagged<Code> code,
                                         WriteBarrierMode mode) {
+  DCHECK_EQ(raw_feedback_cell()->dispatch_handle(), kNullJSDispatchHandle);
   AllocateAndInstallJSDispatchHandle(kDispatchHandleOffset, isolate,
                                      parameter_count, code, mode);
 }

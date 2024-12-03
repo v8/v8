@@ -1289,24 +1289,12 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
       raw_feedback_cell(isolate)->dispatch_handle();
   CHECK_EQ(raw_feedback_cell(isolate) == isolate->heap()->many_closures_cell(),
            feedback_cell_handle == kNullJSDispatchHandle);
-  if (code_from_table->is_context_specialized()) {
-    // This function is context specialized. It must have its own dispatch
-    // handle. The canonical handle must exist and be different.
-    CHECK_NE(feedback_cell_handle, handle);
-  } else {
-    // This function is not context specialized. Then we should either use the
-    // canonical dispatch handle. Except for builtins, which use the
-    // many_closures_cell (see check above).
-    // Also, after code flushing this js function can point to the CompileLazy
-    // builtin, which will unify the dispatch handles on the next UpdateCode.
-    if (feedback_cell_handle != kNullJSDispatchHandle) {
-      if (code_from_table->kind() != CodeKind::BUILTIN) {
-        CHECK_EQ(feedback_cell_handle, handle);
-      }
-    }
-  }
   if (feedback_cell_handle != kNullJSDispatchHandle) {
-    CHECK(!jdt->GetCode(feedback_cell_handle)->is_context_specialized());
+    CHECK_EQ(feedback_cell_handle, handle);
+  }
+  if (code_from_table->is_context_specialized()) {
+    CHECK_EQ(raw_feedback_cell(isolate)->map(),
+             ReadOnlyRoots(isolate).one_closure_cell_map());
   }
 
   // Verify the entrypoint corresponds to the code or a tiering builtin.

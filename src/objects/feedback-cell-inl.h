@@ -79,14 +79,18 @@ void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
 }
 #endif  // V8_ENABLE_LEAPTIERING
 
-void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
+FeedbackCell::ClosureCountTransition FeedbackCell::IncrementClosureCount(
+    Isolate* isolate) {
   ReadOnlyRoots r(isolate);
   if (map() == r.no_closures_cell_map()) {
     set_map(isolate, r.one_closure_cell_map());
+    return kNoneToOne;
   } else if (map() == r.one_closure_cell_map()) {
     set_map(isolate, r.many_closures_cell_map());
+    return kOneToMany;
   } else {
     DCHECK(map() == r.many_closures_cell_map());
+    return kMany;
   }
 }
 
