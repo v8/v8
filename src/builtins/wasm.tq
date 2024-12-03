@@ -729,7 +729,7 @@ macro UpdateCallRefOrIndirectIC(
 // This is the return type of "CallRefIC" and "CallIndirectIC". The type is not
 // used anywhere else; Liftoff uses the two returned values directly.
 struct TargetAndImplicitArg {
-  target: WasmCodePointer;
+  target: uint32_t;
   implicit_arg: WasmTrustedInstanceData|WasmImportData;
 }
 
@@ -755,7 +755,7 @@ builtin CallRefIC(
 }
 
 builtin CallIndirectIC(
-    vector: FixedArray, vectorIndex: int32, target: WasmCodePointer,
+    vector: FixedArray, vectorIndex: int32, target: uint32_t,
     implicitArg: WasmTrustedInstanceData|WasmImportData): TargetAndImplicitArg {
   // If this is a cross-instance call, don't track the precise target (we can
   // only correctly inline same-instance calls anyway). Instead mark it as such,

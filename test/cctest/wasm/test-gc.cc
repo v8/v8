@@ -258,7 +258,7 @@ class WasmGCTester {
     // The signature must be canonicalized.
     DCHECK(GetTypeCanonicalizer()->Contains(sig));
     WasmCodeRefScope code_ref_scope;
-    WasmCodePointer wasm_call_target =
+    uint32_t wasm_call_target =
         trusted_instance_data_->GetCallTarget(function_index);
     DirectHandle<Object> object_ref = instance_object_;
     DirectHandle<Code> c_wasm_entry =

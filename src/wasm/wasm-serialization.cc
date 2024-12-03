@@ -492,7 +492,7 @@ void NativeModuleSerializer::WriteCode(
       RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
       RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
       RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) |
-      RelocInfo::ModeMask(RelocInfo::WASM_INDIRECT_CALL_TARGET) |
+      RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY) |
       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
@@ -529,11 +529,11 @@ void NativeModuleSerializer::WriteCode(
             CanonicalSigIdToModuleLocalTypeId(canonical_sig_id);
         iter.rinfo()->set_wasm_canonical_sig_id(module_local_sig_id);
       } break;
-      case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
-        WasmCodePointer target = orig_iter.rinfo()->wasm_indirect_call_target();
+      case RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY: {
+        uint32_t target = orig_iter.rinfo()->wasm_code_pointer_table_entry();
         uint32_t function_index = function_index_map.at(target);
-        iter.rinfo()->set_wasm_indirect_call_target(function_index,
-                                                    SKIP_ICACHE_FLUSH);
+        iter.rinfo()->set_wasm_code_pointer_table_entry(function_index,
+                                                        SKIP_ICACHE_FLUSH);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
         Address orig_target = orig_iter.rinfo()->target_external_reference();
@@ -974,7 +974,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
   int kMask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
               RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
               RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) |
-              RelocInfo::ModeMask(RelocInfo::WASM_INDIRECT_CALL_TARGET) |
+              RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY) |
               RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
@@ -1010,11 +1010,12 @@ void NativeModuleDeserializer::CopyAndRelocate(
             native_module_->module()->canonical_sig_id(module_local_sig_id);
         iter.rinfo()->set_wasm_canonical_sig_id(canonical_sig_id.index);
       } break;
-      case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
-        Address function_index = iter.rinfo()->wasm_indirect_call_target();
-        WasmCodePointer target = native_module_->GetIndirectCallTarget(
+      case RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY: {
+        Address function_index = iter.rinfo()->wasm_code_pointer_table_entry();
+        uint32_t target = native_module_->GetCodePointerHandle(
             base::checked_cast<uint32_t>(function_index));
-        iter.rinfo()->set_wasm_indirect_call_target(target, SKIP_ICACHE_FLUSH);
+        iter.rinfo()->set_wasm_code_pointer_table_entry(target,
+                                                        SKIP_ICACHE_FLUSH);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());

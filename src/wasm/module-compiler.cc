@@ -1389,7 +1389,6 @@ class FeedbackMaker {
     // from the `WasmDispatchTable`, whose entries are always targets pointing
     // into the main jump table, so we only need to check against that.
 
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
     WasmCodePointerTable::Handle handle = target_truncated_smi.value();
     Address entry = GetProcessWideWasmCodePointerTable()->GetEntrypoint(handle);
     wasm::WasmCode* code =
@@ -1402,28 +1401,6 @@ class FeedbackMaker {
     }
     DCHECK_EQ(code->kind(), WasmCode::Kind::kWasmFunction);
     uint32_t func_idx = code->index();
-#else
-    Address jt_start = instance_data_->native_module()->jump_table_start();
-    uint32_t jt_size = JumpTableAssembler::SizeForNumberOfSlots(
-        instance_data_->module()->num_declared_functions);
-    Address jt_end = jt_start + jt_size;
-
-    uint32_t jt_start_truncated = jt_start & kSmiMaxValue;
-    uint32_t jt_end_truncated = jt_end & kSmiMaxValue;
-    uint32_t target_truncated = target_truncated_smi.value();
-
-    if (target_truncated < jt_start_truncated ||
-        target_truncated >= jt_end_truncated) {
-      // Was not in the main table (e.g., because it's an imported function).
-      has_non_inlineable_targets_ = true;
-      return;
-    }
-
-    uint32_t jt_offset = target_truncated - jt_start_truncated;
-    uint32_t jt_slot_idx = JumpTableAssembler::SlotOffsetToIndex(jt_offset);
-    uint32_t func_idx =
-        instance_data_->module()->num_imported_functions + jt_slot_idx;
-#endif
     AddCall(func_idx, count);
   }
 

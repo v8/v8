@@ -81,7 +81,7 @@ class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
       int target_func_index);
   // The "implicit_arg" will be a WasmTrustedInstanceData or a WasmImportData.
   Handle<TrustedObject> implicit_arg() { return implicit_arg_; }
-  WasmCodePointer call_target() { return call_target_; }
+  uint32_t call_target() { return call_target_; }
 
 #if V8_ENABLE_DRUMBRAKE
   int target_func_index() { return target_func_index_; }
@@ -89,7 +89,7 @@ class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
 
  private:
   Handle<TrustedObject> implicit_arg_;
-  WasmCodePointer call_target_;
+  uint32_t call_target_;
 
 #if V8_ENABLE_DRUMBRAKE
   int target_func_index_;
@@ -128,8 +128,7 @@ class ImportedFunctionEntry {
 
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_object,
-                     WasmCodePointer call_target,
-                     wasm::CanonicalTypeIndex sig_id
+                     uint32_t call_target, wasm::CanonicalTypeIndex sig_id
 #if V8_ENABLE_DRUMBRAKE
                      ,
                      int exported_function_index
@@ -139,7 +138,7 @@ class ImportedFunctionEntry {
   Tagged<JSReceiver> callable();
   Tagged<Object> maybe_callable();
   Tagged<Object> implicit_arg();
-  WasmCodePointer target();
+  uint32_t target();
 
 #if V8_ENABLE_DRUMBRAKE
   int function_index_in_called_module();
@@ -600,7 +599,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
                                              DirectHandle<WasmModuleObject>,
                                              bool shared);
 
-  WasmCodePointer GetCallTarget(uint32_t func_index);
+  uint32_t GetCallTarget(uint32_t func_index);
 
   inline Tagged<WasmDispatchTable> dispatch_table(uint32_t table_index);
   inline bool has_dispatch_table(uint32_t table_index);
@@ -710,9 +709,9 @@ class WasmDispatchTableData {
   // does not belong to a wrapper.
   // Passing {wrapper_if_known == nullptr} and {contextual_knowledge == kMaybe}
   // is always safe, but might be slower.
-  void Add(WasmCodePointer call_target, wasm::WasmCode* wrapper_if_known,
+  void Add(uint32_t call_target, wasm::WasmCode* wrapper_if_known,
            IsAWrapper contextual_knowledge);
-  void Remove(WasmCodePointer call_target);
+  void Remove(uint32_t call_target);
 
   // The {wrappers_} data structure serves two purposes:
   // 1) It maps call targets to wrappers.
@@ -729,7 +728,7 @@ class WasmDispatchTableData {
     wasm::WasmCode* code;  // {nullptr} if this is not a wrapper.
     int count = 1;         // irrelevant if this is not a wrapper.
   };
-  std::unordered_map<WasmCodePointer, WrapperEntry> wrappers_;
+  std::unordered_map<uint32_t, WrapperEntry> wrappers_;
 };
 
 // The dispatch table is referenced from a WasmTableObject and from every
@@ -825,14 +824,14 @@ class WasmDispatchTable : public ExposedTrustedObject {
   // {implicit_arg} will be a WasmImportData, a WasmTrustedInstanceData, or
   // Smi::zero() (if the entry was cleared).
   inline Tagged<Object> implicit_arg(int index) const;
-  inline WasmCodePointer target(int index) const;
+  inline uint32_t target(int index) const;
   inline wasm::CanonicalTypeIndex sig(int index) const;
 
   // Set an entry for indirect calls.
   // {implicit_arg} has to be a WasmImportData, a WasmTrustedInstanceData, or
   // Smi::zero().
   void V8_EXPORT_PRIVATE Set(int index, Tagged<Object> implicit_arg,
-                             WasmCodePointer call_target,
+                             uint32_t call_target,
                              wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
                              uint32_t function_index,
@@ -848,7 +847,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   // {implicit_arg} has to be a WasmImportData or a WasmTrustedInstanceData.
   void V8_EXPORT_PRIVATE SetForImport(int index,
                                       Tagged<TrustedObject> implicit_arg,
-                                      WasmCodePointer call_target,
+                                      uint32_t call_target,
                                       wasm::CanonicalTypeIndex sig_id,
                                       wasm::WasmCode* wrapper_if_known,
                                       IsAWrapper contextual_knowledge);

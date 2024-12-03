@@ -613,7 +613,7 @@ static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
 #if V8_ENABLE_WEBASSEMBLY
 void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
-                         WasmCodePointer wasm_call_target,
+                         uint32_t wasm_call_target,
                          DirectHandle<Object> object_ref, Address packed_args) {
   using WasmEntryStub = GeneratedCode<Address(
       Address target, Address object_ref, Address argv, Address c_entry_fp)>;

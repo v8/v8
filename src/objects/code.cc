@@ -109,7 +109,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
       ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL) &
       ~RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) &
-      ~RelocInfo::ModeMask(RelocInfo::WASM_INDIRECT_CALL_TARGET);
+      ~RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
   static_assert(kModeMask ==
                 (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |

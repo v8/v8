@@ -377,11 +377,11 @@ void WasmCode::Validate() const {
         CHECK_LE(sig_id, GetTypeCanonicalizer()->GetCurrentNumberOfTypes());
         break;
       }
-      case RelocInfo::WASM_INDIRECT_CALL_TARGET: {
-        WasmCodePointer call_target = it.rinfo()->wasm_indirect_call_target();
+      case RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY: {
+        uint32_t call_target = it.rinfo()->wasm_code_pointer_table_entry();
         uint32_t function_index = function_index_map.at(call_target);
         CHECK_EQ(call_target,
-                 native_module_->GetIndirectCallTarget(function_index));
+                 native_module_->GetCodePointerHandle(function_index));
         break;
       }
       case RelocInfo::INTERNAL_REFERENCE:
@@ -1107,9 +1107,9 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code) {
     // Apply the relocation delta by iterating over the RelocInfo.
     intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
                      code->instruction_start();
-    int mode_mask = RelocInfo::kApplyMask |
-                    RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
-                    RelocInfo::ModeMask(RelocInfo::WASM_INDIRECT_CALL_TARGET);
+    int mode_mask =
+        RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+        RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
     auto jump_tables_ref =
         FindJumpTablesForRegionLocked(base::AddressRegionOf(dst_code_bytes));
     Address dst_code_addr = reinterpret_cast<Address>(dst_code_bytes.begin());
@@ -1127,11 +1127,12 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code) {
         Builtin builtin = static_cast<Builtin>(stub_call_tag);
         Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables_ref);
         it.rinfo()->set_wasm_stub_call_address(entry);
-      } else if (RelocInfo::IsWasmIndirectCallTarget(mode)) {
-        Address function_index = it.rinfo()->wasm_indirect_call_target();
-        WasmCodePointer target =
-            GetIndirectCallTarget(base::checked_cast<uint32_t>(function_index));
-        it.rinfo()->set_wasm_indirect_call_target(target, SKIP_ICACHE_FLUSH);
+      } else if (RelocInfo::IsWasmCodePointerTableEntry(mode)) {
+        Address function_index = it.rinfo()->wasm_code_pointer_table_entry();
+        uint32_t target =
+            GetCodePointerHandle(base::checked_cast<uint32_t>(function_index));
+        it.rinfo()->set_wasm_code_pointer_table_entry(target,
+                                                      SKIP_ICACHE_FLUSH);
       } else {
         it.rinfo()->apply(delta);
       }
@@ -1323,10 +1324,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
 
     // Apply the relocation delta by iterating over the RelocInfo.
     intptr_t delta = dst_code_bytes.begin() - desc.buffer;
-    int mode_mask = RelocInfo::kApplyMask |
-                    RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-                    RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
-                    RelocInfo::ModeMask(RelocInfo::WASM_INDIRECT_CALL_TARGET);
+    int mode_mask =
+        RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+        RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+        RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
     Address code_start = reinterpret_cast<Address>(dst_code_bytes.begin());
     Address constant_pool_start = code_start + constant_pool_offset;
 
@@ -1345,11 +1346,12 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
         Builtin builtin = static_cast<Builtin>(stub_call_tag);
         Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables);
         it.rinfo()->set_wasm_stub_call_address(entry);
-      } else if (RelocInfo::IsWasmIndirectCallTarget(mode)) {
-        Address function_index = it.rinfo()->wasm_indirect_call_target();
-        WasmCodePointer target =
-            GetIndirectCallTarget(base::checked_cast<uint32_t>(function_index));
-        it.rinfo()->set_wasm_indirect_call_target(target, SKIP_ICACHE_FLUSH);
+      } else if (RelocInfo::IsWasmCodePointerTableEntry(mode)) {
+        Address function_index = it.rinfo()->wasm_code_pointer_table_entry();
+        uint32_t target =
+            GetCodePointerHandle(base::checked_cast<uint32_t>(function_index));
+        it.rinfo()->set_wasm_code_pointer_table_entry(target,
+                                                      SKIP_ICACHE_FLUSH);
       } else {
         it.rinfo()->apply(delta);
       }
@@ -2039,10 +2041,10 @@ uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
 
 NativeModule::CallIndirectTargetMap
 NativeModule::CreateIndirectCallTargetToFunctionIndexMap() const {
-  absl::flat_hash_map<WasmCodePointer, uint32_t> lookup_map;
+  absl::flat_hash_map<uint32_t, uint32_t> lookup_map;
   for (uint32_t func_index = num_imported_functions();
        func_index < num_functions(); func_index++) {
-    lookup_map.emplace(GetIndirectCallTarget(func_index), func_index);
+    lookup_map.emplace(GetCodePointerHandle(func_index), func_index);
   }
   return lookup_map;
 }
@@ -2077,17 +2079,6 @@ WasmCodePointerTable::Handle NativeModule::GetCodePointerHandle(
     return WasmCodePointerTable::kInvalidHandle;
   }
   return code_pointer_handles_[declared_function_index(module_.get(), index)];
-}
-
-WasmCodePointer NativeModule::GetIndirectCallTarget(int func_index) const {
-  DCHECK_GE(func_index, num_imported_functions());
-  DCHECK_LT(func_index, num_functions());
-
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
-  return GetCodePointerHandle(func_index);
-#else
-  return jump_table_start() + JumpTableOffset(module(), func_index);
-#endif
 }
 
 NativeModule::~NativeModule() {
@@ -3013,12 +3004,8 @@ WasmCodeLookupCache::CacheEntry* WasmCodeLookupCache::GetCacheEntry(
   return entry;
 }
 
-Address WasmCodePointerAddress(WasmCodePointer pointer) {
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+Address WasmCodePointerAddress(uint32_t pointer) {
   return wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(pointer);
-#else
-  return pointer;
-#endif
 }
 
 }  // namespace wasm

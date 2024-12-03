@@ -251,7 +251,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       AllocateNativeModule(i_isolate, code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
-  WasmCodePointer code_pointer = wasm_code->code_pointer();
+  uint32_t code_pointer = wasm_code->code_pointer();
   // Generate wrapper.
   int expect = 0;
 

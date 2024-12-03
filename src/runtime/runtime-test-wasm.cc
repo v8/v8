@@ -163,7 +163,7 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
       Cast<WasmInstanceObject>(args[0]);
   Tagged<WasmTrustedInstanceData> trusted_data =
       instance_object->trusted_data(isolate);
-  WasmCodePointer wrapper =
+  uint32_t wrapper =
       wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
 
   int result = 0;
@@ -198,9 +198,9 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   Tagged<SharedFunctionInfo> sfi = function->shared();
   if (!sfi->HasWasmFunctionData()) return isolate->heap()->ToBoolean(false);
   Tagged<WasmFunctionData> func_data = sfi->wasm_function_data();
-  WasmCodePointer call_target = func_data->internal()->call_target();
+  uint32_t call_target = func_data->internal()->call_target();
 
-  WasmCodePointer wrapper =
+  uint32_t wrapper =
       wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
   return isolate->heap()->ToBoolean(call_target == wrapper);
 }

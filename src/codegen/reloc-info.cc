@@ -373,8 +373,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "wasm stub call";
     case WASM_CANONICAL_SIG_ID:
       return "wasm canonical signature id";
-    case WASM_INDIRECT_CALL_TARGET:
-      return "wasm indirect call target";
+    case WASM_CODE_POINTER_TABLE_ENTRY:
+      return "wasm code pointer table entry";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -510,7 +510,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case WASM_CALL:
     case NO_INFO:
     case WASM_CANONICAL_SIG_ID:
-    case WASM_INDIRECT_CALL_TARGET:
+    case WASM_CODE_POINTER_TABLE_ENTRY:
       break;
     case NUMBER_OF_MODES:
     case PC_JUMP:

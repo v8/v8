@@ -2913,7 +2913,7 @@ Node* WasmGraphBuilder::BuildImportCall(
                         WasmDispatchTable::kImplicitArgBias))));
 
   Node* target = gasm_->LoadFromObject(
-      MachineType::WasmCodePointer(), dispatch_table,
+      MachineType::Uint32(), dispatch_table,
       gasm_->IntAdd(dispatch_table_entry_offset,
                     gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(
                         WasmDispatchTable::kEntriesOffset +
@@ -3095,7 +3095,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
                                         WasmDispatchTable::kImplicitArgBias)));
 
   Node* target = gasm_->LoadFromObject(
-      MachineType::WasmCodePointer(), dispatch_table,
+      MachineType::Uint32(), dispatch_table,
       gasm_->IntAdd(dispatch_table_entry_offset,
                     gasm_->IntPtrConstant(WasmDispatchTable::kTargetBias)));
   args[0] = target;
@@ -3116,7 +3116,7 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
       function_data, wasm::ObjectAccess::ToTagged(
                          WasmExportedFunctionData::kProtectedInternalOffset));
   Node* code_pointer = gasm_->LoadFromObject(
-      MachineType::WasmCodePointer(), internal,
+      MachineType::Uint32(), internal,
       wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
   return gasm_->LoadWasmCodePointer(code_pointer);
 }
@@ -3159,7 +3159,7 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
       wasm::ObjectAccess::ToTagged(
           WasmInternalFunction::kProtectedImplicitArgOffset));
   Node* target = gasm_->LoadFromObject(
-      MachineType::WasmCodePointer(), internal_function,
+      MachineType::Uint32(), internal_function,
       wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
 
   args[0] = target;
@@ -7625,7 +7625,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           function_data, wasm::ObjectAccess::ToTagged(
                              WasmFunctionData::kProtectedInternalOffset));
       args[0] =
-          gasm_->LoadFromObject(MachineType::WasmCodePointer(), internal,
+          gasm_->LoadFromObject(MachineType::Uint32(), internal,
                                 wasm::ObjectAccess::ToTagged(
                                     WasmInternalFunction::kCallTargetOffset));
       Node* implicit_arg = gasm_->LoadImmutableProtectedPointerFromObject(

@@ -384,10 +384,10 @@ inline Tagged<Object> WasmDispatchTable::implicit_arg(int index) const {
   return implicit_arg;
 }
 
-inline WasmCodePointer WasmDispatchTable::target(int index) const {
+inline uint32_t WasmDispatchTable::target(int index) const {
   DCHECK_LT(index, length());
   if (v8_flags.wasm_jitless) return wasm::kInvalidWasmCodePointer;
-  return ReadField<WasmCodePointer>(OffsetOf(index) + kTargetBias);
+  return ReadField<uint32_t>(OffsetOf(index) + kTargetBias);
 }
 
 inline wasm::CanonicalTypeIndex WasmDispatchTable::sig(int index) const {

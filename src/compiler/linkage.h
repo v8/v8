@@ -160,14 +160,14 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns {true} if this descriptor is a indirect call to a WebAssembly
   // function.
-  bool IsIndirectWasmFuctionCall() const {
+  bool IsIndirectWasmFunctionCall() const {
     return kind_ == kCallWasmFunctionIndirect;
   }
 
   // Returns {true} if this descriptor is either a direct or an indirect call to
   // a WebAssembly function.
   bool IsAnyWasmFunctionCall() const {
-    return IsDirectWasmFunctionCall() || IsIndirectWasmFuctionCall();
+    return IsDirectWasmFunctionCall() || IsIndirectWasmFunctionCall();
   }
 
   // Returns {true} if this descriptor is a call to a WebAssembly function.

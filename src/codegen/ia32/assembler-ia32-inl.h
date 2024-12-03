@@ -113,14 +113,14 @@ void WritableRelocInfo::set_target_external_reference(
   }
 }
 
-WasmCodePointer RelocInfo::wasm_indirect_call_target() const {
-  DCHECK(rmode_ == RelocInfo::WASM_INDIRECT_CALL_TARGET);
-  return ReadUnalignedValue<WasmCodePointer>(pc_);
+uint32_t RelocInfo::wasm_code_pointer_table_entry() const {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
+  return ReadUnalignedValue<uint32_t>(pc_);
 }
 
-void WritableRelocInfo::set_wasm_indirect_call_target(
-    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::WASM_INDIRECT_CALL_TARGET);
+void WritableRelocInfo::set_wasm_code_pointer_table_entry(
+    uint32_t target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
   WriteUnalignedValue(pc_, target);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));

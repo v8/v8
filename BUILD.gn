@@ -306,9 +306,6 @@ declare_args() {
       v8_current_cpu == "arm64" &&
       (target_is_simulator || arm_control_flow_integrity != "none")
 
-  # A temporary flag for development of the WasmCodePointerTable.
-  v8_enable_wasm_code_pointer_table = v8_enable_webassembly
-
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
       v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
@@ -1240,9 +1237,6 @@ config("features") {
   }
   if (v8_enable_memory_sealing) {
     defines += [ "V8_ENABLE_MEMORY_SEALING" ]
-  }
-  if (v8_enable_wasm_code_pointer_table) {
-    defines += [ "V8_ENABLE_WASM_CODE_POINTER_TABLE" ]
   }
   if (v8_enable_wasm_gdb_remote_debugging) {
     defines += [ "V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING" ]

@@ -62,10 +62,6 @@ class MaybeRegisterRepresentation {
     }
   }
 
-  static constexpr MaybeRegisterRepresentation WasmCodePointer() {
-    return V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ? Word32() : WordPtr();
-  }
-
   static constexpr MaybeRegisterRepresentation Float32() {
     return MaybeRegisterRepresentation(Enum::kFloat32);
   }
@@ -347,12 +343,6 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
     }
     return *this;
   }
-
-  static constexpr RegisterRepresentation WasmCodePointer() {
-    return V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL
-               ? RegisterRepresentation::Word32()
-               : RegisterRepresentation::WordPtr();
-  }
 };
 
 V8_INLINE constexpr bool operator==(MaybeRegisterRepresentation a,
@@ -620,13 +610,6 @@ class MemoryRepresentation {
   }
   static constexpr MemoryRepresentation IndirectPointer() {
     return MemoryRepresentation(Enum::kIndirectPointer);
-  }
-  static constexpr MemoryRepresentation WasmCodePointer() {
-    if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
-      return Uint32();
-    } else {
-      return UintPtr();
-    }
   }
   static constexpr MemoryRepresentation SandboxedPointer() {
     return MemoryRepresentation(Enum::kSandboxedPointer);

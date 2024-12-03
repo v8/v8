@@ -337,7 +337,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
   }
 
   void BuildCallWasmFromWrapper(Zone* zone, const CanonicalSig* sig,
-                                V<WasmCodePtr> callee,
+                                V<Word32> callee,
                                 V<HeapObject> implicit_first_arg,
                                 const base::Vector<OpIndex> args,
                                 base::Vector<OpIndex> returns) {
@@ -1343,18 +1343,13 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
             function_data, LoadOp::Kind::TaggedBase().Immutable(),
             WasmFunctionData::kProtectedInternalOffset));
-    V<WasmCodePtr> code_pointer =
-        __ Load(internal, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::WasmCodePointer(),
-                WasmInternalFunction::kCallTargetOffset);
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
+    V<Word32> code_pointer = __ Load(internal, LoadOp::Kind::TaggedBase(),
+                                     MemoryRepresentation::Uint32(),
+                                     WasmInternalFunction::kCallTargetOffset);
     return __ Load(
         __ ExternalConstant(ExternalReference::wasm_code_pointer_table()),
         __ ChangeUint32ToUintPtr(code_pointer), LoadOp::Kind::RawAligned(),
         MemoryRepresentation::UintPtr(), 0, kSystemPointerSizeLog2);
-#else
-    return code_pointer;
-#endif
   }
 
   const OpIndex SafeLoad(OpIndex base, int offset, CanonicalValueType type) {

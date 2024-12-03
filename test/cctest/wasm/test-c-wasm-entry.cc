@@ -58,7 +58,7 @@ class CWasmEntryArgTester {
   void CheckCall(Args... args) {
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig_));
     WriteToBuffer(&packer, args...);
-    WasmCodePointer wasm_call_target = wasm_code_->code_pointer();
+    uint32_t wasm_call_target = wasm_code_->code_pointer();
     DirectHandle<Object> object_ref = runner_.builder().instance_object();
     Execution::CallWasm(isolate_, c_wasm_entry_, wasm_call_target, object_ref,
                         packer.argv());

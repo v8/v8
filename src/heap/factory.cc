@@ -1932,13 +1932,9 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   // We have no generic wrappers for C-API functions, so we don't need to
   // set any call origin on {import_data}.
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
   internal->set_call_target(
       wasm::GetProcessWideWasmCodePointerTable()
           ->GetOrCreateHandleForNativeFunction(call_target));
-#else
-  internal->set_call_target(call_target);
-#endif
   Tagged<Map> map = *wasm_capi_function_data_map();
   Tagged<WasmCapiFunctionData> result =
       Cast<WasmCapiFunctionData>(AllocateRawWithImmortalMap(

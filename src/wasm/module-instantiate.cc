@@ -1877,7 +1877,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       // The import reference is the trusted instance data itself.
       Tagged<WasmTrustedInstanceData> instance_data =
           function_data->instance_data();
-      WasmCodePointer imported_target =
+      uint32_t imported_target =
           instance_data->GetCallTarget(function_data->function_index());
       imported_entry.SetWasmToWasm(instance_data, imported_target, sig_index
 #if V8_ENABLE_DRUMBRAKE

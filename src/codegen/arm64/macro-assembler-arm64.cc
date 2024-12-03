@@ -2574,8 +2574,9 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 #endif
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+
 void MacroAssembler::ResolveWasmCodePointer(Register target) {
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();
   UseScratchRegisterScope temps(this);
@@ -2584,7 +2585,6 @@ void MacroAssembler::ResolveWasmCodePointer(Register target) {
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == kSystemPointerSize);
   lsl(target.W(), target.W(), kSystemPointerSizeLog2);
   Ldr(target, MemOperand(scratch, target));
-#endif
 }
 
 void MacroAssembler::CallWasmCodePointer(Register target,
@@ -2598,16 +2598,10 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 }
 
 void MacroAssembler::LoadWasmCodePointer(Register dst, MemOperand src) {
-  if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
-    static_assert(!V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ||
-                  sizeof(WasmCodePointer) == 4);
-    Ldr(dst.W(), src);
-  } else {
-    static_assert(V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ||
-                  sizeof(WasmCodePointer) == 8);
-    Ldr(dst, src);
-  }
+  Ldr(dst.W(), src);
 }
+
+#endif
 
 void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   ASM_CODE_COMMENT(this);

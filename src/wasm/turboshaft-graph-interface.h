@@ -83,7 +83,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
 
   using RegisterRepresentation = compiler::turboshaft::RegisterRepresentation;
   using TSCallDescriptor = compiler::turboshaft::TSCallDescriptor;
-  using WasmCodePtr = compiler::turboshaft::WasmCodePtr;
   using Word32 = compiler::turboshaft::Word32;
   using Word64 = compiler::turboshaft::Word64;
   using WordPtr = compiler::turboshaft::WordPtr;
@@ -104,12 +103,11 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   V<WordPtr> GetTargetForBuiltinCall(Builtin builtin, StubCallMode stub_mode);
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input, StubCallMode stub_mode);
 
-  std::pair<V<WasmCodePtr>, V<HeapObject>>
-  BuildImportedFunctionTargetAndImplicitArg(
+  std::pair<V<Word32>, V<HeapObject>> BuildImportedFunctionTargetAndImplicitArg(
       ConstOrV<Word32> func_index,
       V<WasmTrustedInstanceData> trusted_instance_data);
 
-  std::pair<V<WasmCodePtr>, V<ExposedTrustedObject>>
+  std::pair<V<Word32>, V<ExposedTrustedObject>>
   BuildFunctionTargetAndImplicitArg(V<WasmInternalFunction> internal_function,
                                     uint64_t expected_sig_hash);
 

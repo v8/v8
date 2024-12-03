@@ -2179,8 +2179,9 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+
 void MacroAssembler::ResolveWasmCodePointer(Register target) {
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
   Register scratch = target == eax ? ebx : eax;
   // TODO(sroettger): the load from table[target] is possible with a single
   // instruction.
@@ -2189,7 +2190,6 @@ void MacroAssembler::ResolveWasmCodePointer(Register target) {
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 4);
   mov(target, Operand(scratch, target, ScaleFactor::times_4, 0));
   pop(scratch);
-#endif
 }
 
 void MacroAssembler::CallWasmCodePointer(Register target,
@@ -2201,6 +2201,8 @@ void MacroAssembler::CallWasmCodePointer(Register target,
     call(target);
   }
 }
+
+#endif
 
 void MacroAssembler::Jump(const ExternalReference& reference) {
   DCHECK(root_array_available());

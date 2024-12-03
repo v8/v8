@@ -178,9 +178,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
+#ifdef V8_ENABLE_WEBASSEMBLY
   void ResolveWasmCodePointer(Register target);
   void CallWasmCodePointer(Register target,
                            CallJumpMode call_jump_mode = CallJumpMode::kCall);
+#endif
 
   void Jump(const ExternalReference& reference);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);

@@ -160,12 +160,6 @@ static_assert(V8_ENABLE_LEAPTIERING_BOOL);
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
 #endif
 
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
-#define V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL true
-#else
-#define V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL false
-#endif
-
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
 // Set stack limit lower for ARM and ARM64 than for other architectures because:
 //  - on Arm stack allocating MacroAssembler takes 120K bytes.
@@ -2762,12 +2756,6 @@ enum class StringTransitionStrategy {
   // The string is already transitioned to the desired representation.
   kAlreadyTransitioned
 };
-
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
-using WasmCodePointer = uint32_t;
-#else
-using WasmCodePointer = Address;
-#endif
 
 enum CallJumpMode { kCall, kTailCall };
 

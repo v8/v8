@@ -531,9 +531,7 @@ using NumberOrUndefined = UnionOf<Number, Undefined>;
 using AnyFixedArray = UnionOf<FixedArray, FixedDoubleArray>;
 using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
 using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
-using WasmCodePtr =
-    std::conditional_t<V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL, Word32, WordPtr>;
-using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, WasmCodePtr>;
+using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, Word32>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 
 template <typename T>

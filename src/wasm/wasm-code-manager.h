@@ -84,23 +84,15 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   std::set<base::AddressRegion, base::AddressRegion::StartAddressLess> regions_;
 };
 
-#if V8_ENABLE_WASM_CODE_POINTER_TABLE
-constexpr WasmCodePointer kInvalidWasmCodePointer =
+constexpr uint32_t kInvalidWasmCodePointer =
     WasmCodePointerTable::kInvalidHandle;
-#else
-constexpr WasmCodePointer kInvalidWasmCodePointer = kNullAddress;
-#endif
 
-// Resolve the entry address of a WasmCodePointer
-Address WasmCodePointerAddress(WasmCodePointer pointer);
+// Resolve the entry address of a uint32_t
+Address WasmCodePointerAddress(uint32_t pointer);
 
 template <Builtin builtin>
-WasmCodePointer GetBuiltinCodePointer(Isolate* isolate) {
-#if V8_ENABLE_WASM_CODE_POINTER_TABLE
+uint32_t GetBuiltinCodePointer(Isolate* isolate) {
   return Builtins::WasmBuiltinHandleOf<builtin>(isolate);
-#else
-  return Builtins::EntryOf(builtin, isolate);
-#endif
 }
 
 class V8_EXPORT_PRIVATE WasmCode final {
@@ -190,13 +182,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_);
   }
-  WasmCodePointer code_pointer() const {
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
-    return code_pointer_handle_;
-#else
-    return instruction_start();
-#endif
-  }
+  uint32_t code_pointer() const { return code_pointer_handle_; }
   size_t instructions_size() const {
     return static_cast<size_t>(instructions_size_);
   }
@@ -684,7 +670,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
-  using CallIndirectTargetMap = absl::flat_hash_map<WasmCodePointer, uint32_t>;
+  using CallIndirectTargetMap = absl::flat_hash_map<uint32_t, uint32_t>;
   CallIndirectTargetMap CreateIndirectCallTargetToFunctionIndexMap() const;
 
   // For cctests, where we build both WasmModule and the runtime objects
@@ -907,9 +893,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
 
   WasmCodePointerTable::Handle GetCodePointerHandle(int index) const;
-  // Get a stable entry point for function at `function_index` that can be used
-  // for indirect calls.
-  WasmCodePointer GetIndirectCallTarget(int func_index) const;
 
  private:
   friend class WasmCode;
