@@ -1817,7 +1817,7 @@ TEST(SET_TARGET_ADDR) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
-  __ set_target_value_at(static_cast<Address>(addr), 0x00304abfe961L,
+  __ set_target_value_at(static_cast<Address>(addr), 0x00304abfe961L, nullptr,
                          FLUSH_ICACHE_IF_NEEDED);
   Address res = __ target_address_at(static_cast<Address>(addr));
   CHECK_EQ(0x00304abfe961L, res);
