@@ -23,6 +23,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/page-metadata-inl.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
@@ -116,10 +117,10 @@ SemiSpace::~SemiSpace() {
   }
 }
 
-bool SemiSpace::Commit() {
+bool SemiSpace::EnsureCapacity(size_t capacity) {
   DCHECK_IMPLIES(!IsCommitted(), CommittedMemory() == 0);
-  const int num_pages = static_cast<int>(
-      (target_capacity_ / PageMetadata::kPageSize) - memory_chunk_list_.size());
+  const int num_pages = static_cast<int>((capacity / PageMetadata::kPageSize) -
+                                         memory_chunk_list_.size());
   if (num_pages >= 0) {
     for (int pages_added = 0; pages_added < num_pages; pages_added++) {
       // Pages in the new spaces can be moved to the old space by the full
@@ -136,6 +137,14 @@ bool SemiSpace::Commit() {
     // needed. Free the redundant pages.
     RewindPages(-num_pages);
   }
+  DCHECK_EQ(capacity, CommittedMemory());
+  return true;
+}
+
+bool SemiSpace::Commit() {
+  if (!EnsureCapacity(target_capacity_)) {
+    return false;
+  }
   Reset();
   DCHECK_EQ(target_capacity_, CommittedMemory());
   if (age_mark_ == kNullAddress) {
@@ -147,22 +156,14 @@ bool SemiSpace::Commit() {
 
 void SemiSpace::Uncommit() {
   DCHECK(IsCommitted());
-  int actual_pages = 0;
-  while (!memory_chunk_list_.Empty()) {
-    actual_pages++;
-    MutablePageMetadata* chunk = memory_chunk_list_.front();
-    DecrementCommittedPhysicalMemory(chunk->CommittedPhysicalMemory());
-    memory_chunk_list_.Remove(chunk);
-    heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, chunk);
-  }
+  DCHECK_EQ(CommittedMemory(),
+            memory_chunk_list_.size() * PageMetadata::kPageSize);
+  RewindPages(static_cast<int>(memory_chunk_list_.size()));
   current_page_ = nullptr;
   current_capacity_ = 0;
   quarantined_pages_count_ = 0;
-  size_t removed_page_size =
-      static_cast<size_t>(actual_pages * PageMetadata::kPageSize);
-  DCHECK_EQ(CommittedMemory(), removed_page_size);
   DCHECK_EQ(CommittedPhysicalMemory(), 0);
-  AccountUncommitted(removed_page_size);
+  DCHECK_EQ(CommittedMemory(), 0);
   DCHECK(!IsCommitted());
 }
 
@@ -179,18 +180,8 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   DCHECK(MemoryChunk::IsAligned(new_capacity));
   DCHECK_LE(new_capacity, maximum_capacity_);
   DCHECK_GT(new_capacity, target_capacity_);
-  const size_t delta =
-      new_capacity -
-      (id_ == kToSpace ? target_capacity_
-                       : (memory_chunk_list_.size() * PageMetadata::kPageSize));
-  DCHECK(IsAligned(delta, AllocatePageSize()));
-  const int delta_pages = static_cast<int>(delta / PageMetadata::kPageSize);
-  DCHECK(last_page());
-  for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
-    if (!AllocateFreshPage()) {
-      if (pages_added) RewindPages(pages_added);
-      return false;
-    }
+  if (!EnsureCapacity(new_capacity)) {
+    return false;
   }
   target_capacity_ = new_capacity;
   return true;
@@ -214,15 +205,17 @@ bool SemiSpace::AllocateFreshPage() {
 void SemiSpace::RewindPages(int num_pages) {
   DCHECK_GT(num_pages, 0);
   DCHECK(last_page());
+  AccountUncommitted(num_pages * PageMetadata::kPageSize);
+  size_t uncommitted_physical_memory = 0;
   while (num_pages > 0) {
     MutablePageMetadata* last = last_page();
     CHECK_NOT_NULL(last);
-    AccountUncommitted(PageMetadata::kPageSize);
-    DecrementCommittedPhysicalMemory(last->CommittedPhysicalMemory());
+    uncommitted_physical_memory += last->CommittedPhysicalMemory();
     memory_chunk_list_.Remove(last);
     heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, last);
     num_pages--;
   }
+  DecrementCommittedPhysicalMemory(uncommitted_physical_memory);
 }
 
 void SemiSpace::ShrinkTo(size_t new_capacity) {
@@ -230,16 +223,7 @@ void SemiSpace::ShrinkTo(size_t new_capacity) {
   DCHECK_GE(new_capacity, minimum_capacity_);
   DCHECK_LT(new_capacity, target_capacity_);
   if (IsCommitted()) {
-    const size_t delta =
-        (id_ == kToSpace
-             ? target_capacity_
-             : (memory_chunk_list_.size() * PageMetadata::kPageSize)) -
-        new_capacity;
-    DCHECK(IsAligned(delta, PageMetadata::kPageSize));
-    int delta_pages = static_cast<int>(delta / PageMetadata::kPageSize);
-    if (delta_pages > 0) {
-      RewindPages(delta_pages);
-    }
+    EnsureCapacity(new_capacity);
   }
   target_capacity_ = new_capacity;
 }

@@ -205,6 +205,8 @@ class SemiSpace final : public Space {
   void IncrementCommittedPhysicalMemory(size_t increment_value);
   void DecrementCommittedPhysicalMemory(size_t decrement_value);
 
+  bool EnsureCapacity(size_t capacity);
+
   // The maximum capacity that can be used by this space. A space cannot grow
   // beyond that size.
   const size_t maximum_capacity_ = 0;
