@@ -309,7 +309,8 @@ std::vector<V8StackFrame> V8StackTraceImpl::frames() const {
     if (frame) {
       ret.emplace_back(V8StackFrame{
           toStringView(frame->sourceURL()), toStringView(frame->functionName()),
-          frame->lineNumber() + 1, frame->columnNumber() + 1});
+          frame->lineNumber() + 1, frame->columnNumber() + 1,
+          frame->scriptId()});
     }
   }
 

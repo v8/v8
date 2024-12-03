@@ -139,6 +139,7 @@ struct V8_EXPORT V8StackFrame {
   StringView functionName;
   int lineNumber;
   int columnNumber;
+  int scriptId;
 };
 
 class V8_EXPORT V8StackTrace {
