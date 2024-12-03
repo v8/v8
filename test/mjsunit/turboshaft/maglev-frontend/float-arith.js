@@ -15,8 +15,8 @@ function math_float(x, y) {
   return h;
 }
 %PrepareFunctionForOptimization(math_float);
-math_float(4.21, 3.56);
-let expected = math_float(4.21, 3.56);
+assertEquals(-42.56563728706824, math_float(4.21, 3.56));
+assertEquals(-42.56563728706824, math_float(4.21, 3.56));
 %OptimizeFunctionOnNextCall(math_float);
-assertEquals(expected, math_float(4.21, 3.56));
+assertEquals(-42.56563728706824, math_float(4.21, 3.56));
 assertOptimized(math_float);
