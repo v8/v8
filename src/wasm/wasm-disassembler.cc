@@ -1197,31 +1197,36 @@ void ModuleDisassembler::PrintString(WireBytesRef ref) {
 // This mimics legacy wasmparser behavior. It might be a questionable choice,
 // but we'll follow suit for now.
 void ModuleDisassembler::PrintStringAsJSON(WireBytesRef ref) {
-  for (const uint8_t* ptr = start_ + ref.offset();
-       ptr < start_ + ref.end_offset(); ptr++) {
+  i::wasm::PrintStringAsJSON(out_, start_, ref);
+}
+
+void PrintStringAsJSON(StringBuilder& out, const uint8_t* start,
+                       WireBytesRef ref) {
+  for (const uint8_t* ptr = start + ref.offset();
+       ptr < start + ref.end_offset(); ptr++) {
     uint8_t b = *ptr;
     if (b <= 34) {
       switch (b) {
         // clang-format off
-        case '\b': out_ << "\\b";  break;
-        case '\t': out_ << "\\t";  break;
-        case '\n': out_ << "\\n";  break;
-        case '\f': out_ << "\\f";  break;
-        case '\r': out_ << "\\r";  break;
-        case ' ':  out_ << ' ';    break;
-        case '!':  out_ << '!';    break;
-        case '"':  out_ << "\\\""; break;
+        case '\b': out << "\\b";  break;
+        case '\t': out << "\\t";  break;
+        case '\n': out << "\\n";  break;
+        case '\f': out << "\\f";  break;
+        case '\r': out << "\\r";  break;
+        case ' ':  out << ' ';    break;
+        case '!':  out << '!';    break;
+        case '"':  out << "\\\""; break;
         // clang-format on
         default:
-          out_ << "\\u00" << kHexChars[b >> 4] << kHexChars[b & 0xF];
+          out << "\\u00" << kHexChars[b >> 4] << kHexChars[b & 0xF];
           break;
       }
     } else if (b != 127 && b != '\\') {
-      out_ << static_cast<char>(b);
+      out << static_cast<char>(b);
     } else if (b == '\\') {
-      out_ << "\\\\";
+      out << "\\\\";
     } else {
-      out_ << "\\x7F";
+      out << "\\x7F";
     }
   }
 }

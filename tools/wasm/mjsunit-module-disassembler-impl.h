@@ -263,6 +263,14 @@ class MjsunitNamesProvider {
     PrintElementSegmentName(out, index);
   }
 
+  void PrintStringLiteralName(StringBuilder& out, uint32_t index) {
+    out << "$string" << index;
+  }
+  void PrintStringLiteralReference(StringBuilder& out, uint32_t index) {
+    MaybeLebScope leb_scope(out, index);
+    PrintStringLiteralName(out, index);
+  }
+
   // Format: HeapType::* enum value, JS global constant.
 #define ABSTRACT_TYPE_LIST(V)                                     \
   V(kAny, kWasmAnyRef, kAnyRefCode)                               \
@@ -1026,9 +1034,9 @@ class MjsunitImmediatesPrinter {
   }
 
   void StringConst(StringConstImmediate& imm) {
-    // TODO(jkummerow): Support for string constants is incomplete, we never
-    // emit a strings section.
-    WriteUnsignedLEB(imm.index);
+    out_ << " ";
+    names()->PrintStringLiteralReference(out_, imm.index);
+    out_ << ",";
   }
 
   void MemoryInit(MemoryInitImmediate& imm) {
@@ -1126,6 +1134,9 @@ class MjsunitModuleDis {
 #endif
     int year = 1900 + current_localtime.tm_year;
 
+    // TODO(jkummerow): It would be neat to dynamically detect additional
+    // necessary --experimental-wasm-foo feature flags and add them.
+    // That requires decoding/validating functions before getting here though.
     out_ << "// Copyright " << year
          << " the V8 project authors. All rights reserved.\n"
             "// Use of this source code is governed by a BSD-style license "
@@ -1470,6 +1481,17 @@ class MjsunitModuleDis {
       out_ << "]";
       if (segment.shared) out_ << ", true";
       out_ << ");";
+      out_.NextLine(0);
+    }
+
+    // Stringref literals.
+    for (uint32_t i = 0; i < module_->stringref_literals.size(); i++) {
+      out_ << "let ";
+      names()->PrintStringLiteralName(out_, i);
+      out_ << " = builder.addLiteralStringRef(\"";
+      const WasmStringRefLiteral lit = module_->stringref_literals[i];
+      PrintStringAsJSON(out_, wire_bytes_.start(), lit.source);
+      out_ << "\");";
       out_.NextLine(0);
     }
 

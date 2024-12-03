@@ -87,6 +87,10 @@ V8_EXPORT_PRIVATE void PrintSignatureOneLine(
     NamesProvider* names, bool param_names,
     IndexAsComment indices_as_comments = NamesProvider::kDontPrintIndex);
 
+V8_EXPORT_PRIVATE void PrintStringAsJSON(StringBuilder& out,
+                                         const uint8_t* start,
+                                         WireBytesRef ref);
+
 ////////////////////////////////////////////////////////////////////////////////
 // OffsetsProvider.
 
