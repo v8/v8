@@ -2440,6 +2440,10 @@
   'regress/wasm/regress-364667545': [SKIP],
   'regress/wasm/regress-361123483': [SKIP],
   'regress/wasm/regress-361717714': [SKIP]
-}]  # cet_shadow_stack
+}],  # cet_shadow_stack
+
+['variant == stress_pinning_scavenger', {
+  'regress/regress-12657': [SKIP],
+}],  # variant == stress_pinning_scavenger
 
 ]

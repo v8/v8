@@ -343,4 +343,10 @@
   'SandboxTest.*': [SKIP],
 }],  # 'device_type == bullhead'
 
+##############################################################################
+
+['variant == stress_pinning_scavenger', {
+  'ExperimentalFlagImplication/ExperimentalFlagImplicationTest.TestExperimentalNotEnabled/*': [SKIP],
+}],  # variant == stress_pinning_scavenger
+
 ]

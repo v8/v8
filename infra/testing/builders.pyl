@@ -425,6 +425,7 @@
       {'name': 'v8testing', 'shards': 5},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
@@ -538,6 +539,12 @@
         'test_args': ['--gc-stress'],
         'shards': 2
       },
+      {
+        'name': 'mjsunit',
+        'variant': 'stress_pinning_scavenger',
+        'test_args': ['--gc-stress'],
+        'shards': 2
+      },
     ],
   },
   'v8_linux64_gcc_rel': {
@@ -605,6 +612,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'v8_linux64_perfetto_dbg': {
@@ -718,6 +726,7 @@
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
@@ -780,6 +789,7 @@
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger', 'shards': 2},
     ],
   },
   'v8_linux64_tsan_dbg': {
@@ -960,6 +970,7 @@
       {'name': 'v8testing', 'shards': 4},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'v8_win64_drumbrake_dbg': {
@@ -994,6 +1005,7 @@
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   ##############################################################################
@@ -1018,6 +1030,7 @@
       {'name': 'v8testing', 'shards': 6},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'v8_mac_arm64_gc_stress_dbg': {
@@ -1049,6 +1062,7 @@
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'v8_mac_arm64_rel': {
@@ -1065,6 +1079,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'v8_mac_arm64_dbg': {
@@ -1081,6 +1096,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'v8_mac_arm64_full_dbg': {
@@ -1097,6 +1113,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'v8_mac_arm64_no_pointer_compression_dbg': {
@@ -1398,6 +1415,7 @@
       {'name': 'v8testing', 'variant': 'assert_types'},
       {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
@@ -1501,6 +1519,7 @@
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
@@ -1706,6 +1725,12 @@
         'test_args': ['--gc-stress'],
         'shards': 2
       },
+      {
+        'name': 'mjsunit',
+        'variant': 'stress_pinning_scavenger',
+        'test_args': ['--gc-stress'],
+        'shards': 2
+      },
     ],
   },
   'V8 Linux64 - internal snapshot': {
@@ -1854,6 +1879,7 @@
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger', 'shards': 2},
     ],
   },
   'V8 Linux64 TSAN - debug': {
@@ -1940,6 +1966,7 @@
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'V8 Mac64 - debug': {
@@ -1953,6 +1980,7 @@
       {'name': 'v8testing', 'shards': 6},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'V8 Mac64 ASAN': {
@@ -1988,6 +2016,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'V8 Mac - arm64 - release': {
@@ -2005,6 +2034,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'V8 Mac - arm64 - debug': {
@@ -2022,6 +2052,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'V8 Mac - arm64 - no pointer compression debug': {
@@ -2075,6 +2106,7 @@
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'V8 Win64 - debug': {
@@ -2087,6 +2119,7 @@
       {'name': 'v8testing', 'shards': 4},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
   },
   'V8 Win64 - drumbrake - debug': {

@@ -851,4 +851,12 @@
   # Skip tests that test the old tiering behavior.
   'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [SKIP],
 }],  # 'leaptiering'
+
+##############################################################################
+
+['variant == stress_pinning_scavenger', {
+  'test-run-wasm-64/RunWasmLiftoff_I64WasmRunner': [SLOW],
+  'test-run-wasm-64/RunWasmTurbofan_I64WasmRunner': [SLOW],
+  'test-strings/Traverse': [SLOW],
+}],  # variant == stress_pinning_scavenger
 ]

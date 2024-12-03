@@ -34,6 +34,9 @@ ALL_VARIANT_FLAGS = {
         "--maglev", "--no-turbofan", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
+    "stress_pinning_scavenger": [[
+        "--scavenger-pinning-objects", "--stress-scavenger-pinning-objects"
+    ]],
     # We test both the JS and Wasm Turboshaft pipelines under the same variant.
     # For extended Wasm Turboshaft coverage, we add --no-liftoff to the options.
     "turboshaft": [[
