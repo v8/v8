@@ -5,6 +5,7 @@
 #ifndef V8_BASE_TEMPLATE_META_PROGRAMMING_LIST_H_
 #define V8_BASE_TEMPLATE_META_PROGRAMMING_LIST_H_
 
+#include <cstddef>
 #include <limits>
 #include <type_traits>
 
