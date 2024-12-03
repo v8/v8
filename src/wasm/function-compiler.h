@@ -114,10 +114,6 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
                                   const WasmFunction*, ExecutionTier);
 
  private:
-  WasmCompilationResult ExecuteFunctionCompilation(
-      CompilationEnv*, const WireBytesStorage*, Counters*,
-      WasmDetectedFeatures* detected);
-
   int func_index_;
   ExecutionTier tier_;
   ForDebugging for_debugging_;

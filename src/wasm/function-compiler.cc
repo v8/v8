@@ -27,25 +27,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
     Counters* counters, WasmDetectedFeatures* detected) {
   DCHECK_GE(func_index_, static_cast<int>(env->module->num_imported_functions));
-  WasmCompilationResult result =
-      ExecuteFunctionCompilation(env, wire_bytes_storage, counters, detected);
-
-  if (result.succeeded() && counters) {
-    counters->wasm_generated_code_size()->Increment(
-        result.code_desc.instr_size);
-    counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
-    counters->wasm_deopt_data_size()->Increment(
-        static_cast<int>(result.deopt_data.size()));
-  }
-
-  result.func_index = func_index_;
-
-  return result;
-}
-
-WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
-    CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
-    Counters* counters, WasmDetectedFeatures* detected) {
   const WasmFunction* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
   bool is_shared = env->module->type(func->sig_index).is_shared;
@@ -178,6 +159,16 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   }
 
   DCHECK(result.succeeded());
+  if (counters) {
+    counters->wasm_generated_code_size()->Increment(
+        result.code_desc.instr_size);
+    counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
+    counters->wasm_deopt_data_size()->Increment(
+        static_cast<int>(result.deopt_data.size()));
+  }
+
+  result.func_index = func_index_;
+
   return result;
 }
 
