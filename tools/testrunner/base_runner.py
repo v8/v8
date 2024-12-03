@@ -195,6 +195,10 @@ class BaseTestRunner(object):
     return parser
 
   def _add_parser_default_options(self, parser):
+    # TODO(https://crbug.com/42202137): Placeholder to enable passing this
+    # flag via flake-bisect command lines without failing.
+    parser.add_option("--framework",
+                      help="TBD")
     parser.add_option("--gn", help="Scan out.gn for the last built"
                       " configuration",
                       default=False, action="store_true")
