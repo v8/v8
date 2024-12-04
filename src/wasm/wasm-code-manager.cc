@@ -2096,6 +2096,15 @@ NativeModule::~NativeModule() {
   // NativeModule or freeing anything.
   compilation_state_->CancelCompilation();
 
+  if (V8_UNLIKELY(v8_flags.print_wasm_offheap_memory_size)) {
+    // Print the current memory consumption of both this Module *and* the whole
+    // engine before freeing this module. In a benchmark with a single module
+    // this will probably be the high watermark of memory usage for the whole
+    // engine.
+    PrintCurrentMemoryConsumptionEstimate();
+    GetWasmEngine()->PrintCurrentMemoryConsumptionEstimate();
+  }
+
   GetWasmEngine()->FreeNativeModule(this);
 
   // If experimental PGO support is enabled, serialize the PGO data now.
@@ -2835,6 +2844,12 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
     PrintF("NativeModule: %zu\n", result);
   }
   return result;
+}
+
+void NativeModule::PrintCurrentMemoryConsumptionEstimate() const {
+  DCHECK(v8_flags.print_wasm_offheap_memory_size);
+  PrintF("Off-heap memory size of NativeModule: %zu\n",
+         EstimateCurrentMemoryConsumption());
 }
 
 void WasmCodeManager::FreeNativeModule(

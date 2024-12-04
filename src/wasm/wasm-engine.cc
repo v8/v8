@@ -538,6 +538,10 @@ WasmEngine::~WasmEngine() {
   gdb_server_.reset();
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
+  if (V8_UNLIKELY(v8_flags.print_wasm_offheap_memory_size)) {
+    PrintCurrentMemoryConsumptionEstimate();
+  }
+
   // Free all modules that were kept alive for collecting PGO. This is to avoid
   // memory leaks.
   if (V8_UNLIKELY(native_modules_kept_alive_for_pgo)) {
@@ -2043,6 +2047,12 @@ size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
     PrintF("WasmEngine: %zu\n", result);
   }
   return result;
+}
+
+void WasmEngine::PrintCurrentMemoryConsumptionEstimate() const {
+  DCHECK(v8_flags.print_wasm_offheap_memory_size);
+  PrintF("Off-heap memory size of WasmEngine: %zu\n",
+         EstimateCurrentMemoryConsumption());
 }
 
 int WasmEngine::GetDeoptsExecutedCount() const {

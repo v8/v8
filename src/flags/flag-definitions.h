@@ -1575,6 +1575,9 @@ DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,
 DEFINE_BOOL(trace_wasm_offheap_memory, false,
             "print details of wasm off-heap memory when the memory measurement "
             "API is used")
+DEFINE_BOOL(
+    print_wasm_offheap_memory_size, false,
+    "print off-heap memory consumption per module and engine when they die")
 DEFINE_DEBUG_BOOL(trace_wasm_serialization, false,
                   "trace serialization/deserialization")
 DEFINE_BOOL(wasm_async_compilation, true,

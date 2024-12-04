@@ -396,6 +396,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Returns an approximation of current off-heap memory used by this engine,
   // excluding code space.
   size_t EstimateCurrentMemoryConsumption() const;
+  // Print the current memory consumption estimate to standard output.
+  void PrintCurrentMemoryConsumptionEstimate() const;
 
   int GetDeoptsExecutedCount() const;
   int IncrementDeoptsExecutedCount();
