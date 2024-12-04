@@ -258,7 +258,8 @@ constexpr Register kJavaScriptCallCodeStartRegister = r4;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = r5;
 constexpr Register kJavaScriptCallExtraArg1Register = r4;
-// Leaptiering is not currently available on s390x.
+// DispatchHandle is only needed for the sandbox which is not available on
+// s390x.
 constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
 
 constexpr Register kRuntimeCallFunctionRegister = r3;

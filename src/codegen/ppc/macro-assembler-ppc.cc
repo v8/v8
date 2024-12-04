@@ -1674,7 +1674,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
-                                    Label* done, InvokeType type) {
+                                    InvokeType type) {
   Label regular_invoke;
 
   //  r3: actual arguments count
@@ -1801,8 +1801,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     LoadRoot(r6, RootIndex::kUndefinedValue);
   }
 
-  Label done;
-  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, type);
+  InvokePrologue(expected_parameter_count, actual_parameter_count, type);
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
@@ -1815,10 +1814,6 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
       JumpJSFunction(function, r0);
       break;
   }
-
-    // Continue here if InvokePrologue does handle the invocation due to
-    // mismatched parameter counts.
-    bind(&done);
 }
 
 void MacroAssembler::InvokeFunctionWithNewTarget(
@@ -2193,6 +2188,8 @@ void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
 
 namespace {
 
+#ifndef V8_ENABLE_LEAPTIERING
+
 void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                Register optimized_code_entry,
                                Register scratch) {
@@ -2240,6 +2237,8 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ GenerateTailCallToReturnedCode(Runtime::kHealOptimizedCodeSlot);
 }
 
+#endif  // V8_ENABLE_LEAPTIERING
+
 }  // namespace
 
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -2262,6 +2261,9 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
 void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
     Register optimized_code, Register closure, Register scratch1,
     Register slot_address) {
+#ifdef V8_ENABLE_LEAPTIERING
+  UNREACHABLE();
+#else
   DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
   DCHECK_EQ(closure, kJSFunctionRegister);
   DCHECK(!AreAliased(optimized_code, closure));
@@ -2275,6 +2277,7 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
                    kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
                    SlotDescriptor::ForCodePointerSlot());
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MacroAssembler::GenerateTailCallToReturnedCode(
@@ -2304,6 +2307,8 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
   JumpCodeObject(r5);
 }
+
+#ifndef V8_ENABLE_LEAPTIERING
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
@@ -2350,6 +2355,8 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
                   r0);
   TailCallOptimizedCodeSlot(this, optimized_code_entry, r9);
 }
+
+#endif  // !V8_ENABLE_LEAPTIERING
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments) {
@@ -5178,6 +5185,24 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+
+void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
+                                                       Register dispatch_handle,
+                                                       Register scratch) {
+  DCHECK(!AreAliased(destination, dispatch_handle, scratch));
+  ASM_CODE_COMMENT(this);
+
+  Register index = destination;
+  Move(scratch, ExternalReference::js_dispatch_table_address());
+  ShiftRightU64(index, dispatch_handle, Operand(kJSDispatchHandleShift));
+  ShiftLeftU64(index, index, Operand(kJSDispatchTableEntrySizeLog2));
+  AddS64(scratch, scratch, index);
+  LoadU64(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
+}
+
+#endif  // V8_ENABLE_LEAPTIERING
+
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object,
                                               CodeEntrypointTag tag) {
@@ -5207,10 +5232,14 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 
 void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count, Register scratch) {
-  DCHECK_WITH_MSG(!V8_ENABLE_LEAPTIERING_BOOL,
-                  "argument_count is only used with Leaptiering");
   Register code = kJavaScriptCallCodeStartRegister;
-#ifdef V8_ENABLE_SANDBOX
+#if V8_ENABLE_LEAPTIERING
+  Register dispatch_handle = r0;
+  LoadU32(dispatch_handle,
+          FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, ip);
+  Call(code);
+#elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
@@ -5227,7 +5256,13 @@ void MacroAssembler::CallJSFunction(Register function_object,
 void MacroAssembler::JumpJSFunction(Register function_object, Register scratch,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
-#ifdef V8_ENABLE_SANDBOX
+#if V8_ENABLE_LEAPTIERING
+  Register dispatch_handle = r0;
+  LoadU32(dispatch_handle,
+          FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, ip);
+  Jump(code);
+#elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
