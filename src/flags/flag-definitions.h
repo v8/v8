@@ -684,6 +684,15 @@ DEFINE_BOOL(empty_context_extension_dep, true,
 DEFINE_BOOL(json_stringify_fast_path, false, "Enable JSON.stringify fast-path")
 DEFINE_WEAK_IMPLICATION(future, json_stringify_fast_path)
 
+#ifdef V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT
+DEFINE_BOOL(extensible_ro_snapshot, true,
+            "Whether custom embedder snapshots may extend ReadOnlySpace")
+#else
+DEFINE_BOOL_READONLY(
+    extensible_ro_snapshot, false,
+    "Whether custom embedder snapshots may extend ReadOnlySpace")
+#endif  // V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT
+
 DEFINE_UINT(max_opt, 999,
             "Set the maximal optimisation tier: "
             "> 3 == any, 0 == ignition/interpreter, 1 == sparkplug/baseline, "
