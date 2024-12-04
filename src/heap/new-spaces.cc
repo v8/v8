@@ -33,6 +33,9 @@
 namespace v8 {
 namespace internal {
 
+// -----------------------------------------------------------------------------
+// SemiSpace implementation
+
 PageMetadata* SemiSpace::InitializePage(MutablePageMetadata* mutable_page) {
   bool in_to_space = (id() != kFromSpace);
   MemoryChunk* chunk = mutable_page->Chunk();
@@ -47,68 +50,11 @@ PageMetadata* SemiSpace::InitializePage(MutablePageMetadata* mutable_page) {
 
 bool SemiSpace::EnsureCurrentCapacity() {
   if (IsCommitted()) {
-    const int expected_pages =
-        static_cast<int>(target_capacity_ / PageMetadata::kPageSize);
-    // `target_capacity_` is a multiple of `PageMetadata::kPageSize`.
-    DCHECK_EQ(target_capacity_, expected_pages * PageMetadata::kPageSize);
-    MutablePageMetadata* current_page = first_page();
-    int actual_pages = 0;
-
-    // First iterate through the pages list until expected pages if so many
-    // pages exist.
-    while (current_page != nullptr && actual_pages < expected_pages) {
-      actual_pages++;
-      current_page = current_page->list_node().next();
-    }
-
-    DCHECK_LE(actual_pages, expected_pages);
-
-    // Free all overallocated pages which are behind current_page.
-    while (current_page) {
-      DCHECK_EQ(actual_pages, expected_pages);
-      MutablePageMetadata* next_current = current_page->list_node().next();
-      // `current_page_` contains the current allocation area. Thus, we should
-      // never free the `current_page_`. Furthermore, live objects generally
-      // reside before the current allocation area, so `current_page_` also
-      // serves as a guard against freeing pages with live objects on them.
-      DCHECK_IMPLIES(id() == SemiSpaceId::kToSpace,
-                     current_page != current_page_);
-      AccountUncommitted(PageMetadata::kPageSize);
-      DecrementCommittedPhysicalMemory(current_page->CommittedPhysicalMemory());
-      memory_chunk_list_.Remove(current_page);
-      // Clear new space flags to avoid this page being treated as a new
-      // space page that is potentially being swept.
-      current_page->Chunk()->ClearFlagsNonExecutable(
-          MemoryChunk::kIsInYoungGenerationMask);
-      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool,
-                                       current_page);
-      current_page = next_current;
-    }
-
-    // Add more pages if we have less than expected_pages.
-    while (actual_pages < expected_pages) {
-      actual_pages++;
-      current_page = heap()->memory_allocator()->AllocatePage(
-          MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
-      if (current_page == nullptr) return false;
-      DCHECK_NOT_NULL(current_page);
-      AccountCommitted(PageMetadata::kPageSize);
-      IncrementCommittedPhysicalMemory(current_page->CommittedPhysicalMemory());
-      memory_chunk_list_.PushBack(current_page);
-      CHECK(current_page->IsLivenessClear());
-      current_page->Chunk()->SetFlagsNonExecutable(
-          first_page()->Chunk()->GetFlags());
-      heap()->CreateFillerObjectAt(current_page->area_start(),
-                                   static_cast<int>(current_page->area_size()));
-    }
-    DCHECK_EQ(expected_pages, actual_pages);
+    EnsureCapacity(target_capacity_);
   }
   allow_to_grow_beyond_capacity_ = false;
   return true;
 }
-
-// -----------------------------------------------------------------------------
-// SemiSpace implementation
 
 SemiSpace::~SemiSpace() {
   // Properly uncommit memory to keep the allocator counters in sync.
@@ -138,6 +84,8 @@ bool SemiSpace::EnsureCapacity(size_t capacity) {
     RewindPages(-num_pages);
   }
   DCHECK_EQ(capacity, CommittedMemory());
+  DCHECK_EQ(static_cast<int>(capacity / PageMetadata::kPageSize),
+            memory_chunk_list_.size());
   return true;
 }
 
