@@ -396,6 +396,19 @@ DebuggableStackFrameIterator::DebuggableStackFrameIterator(Isolate* isolate,
   while (!done() && frame()->id() != id) Advance();
 }
 
+DebuggableStackFrameIterator::DebuggableStackFrameIterator(
+    Isolate* isolate, StackFrameIterator::NoHandles)
+    : iterator_(isolate, isolate->thread_local_top(),
+                StackFrameIterator::NoHandles{}) {
+  if (!done() && !IsValidFrame(iterator_.frame())) Advance();
+}
+
+DebuggableStackFrameIterator::DebuggableStackFrameIterator(
+    Isolate* isolate, StackFrameId id, StackFrameIterator::NoHandles)
+    : DebuggableStackFrameIterator(isolate, StackFrameIterator::NoHandles{}) {
+  while (!done() && frame()->id() != id) Advance();
+}
+
 void DebuggableStackFrameIterator::Advance() {
   do {
     iterator_.Advance();

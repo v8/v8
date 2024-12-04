@@ -1774,6 +1774,10 @@ class V8_EXPORT_PRIVATE DebuggableStackFrameIterator {
   explicit DebuggableStackFrameIterator(Isolate* isolate);
   // Skip frames until the frame with the given id is reached.
   DebuggableStackFrameIterator(Isolate* isolate, StackFrameId id);
+  // Overloads to be used in scopes without a HandleScope.
+  DebuggableStackFrameIterator(Isolate* isolate, StackFrameIterator::NoHandles);
+  DebuggableStackFrameIterator(Isolate* isolate, StackFrameId id,
+                               StackFrameIterator::NoHandles);
 
   bool done() const { return iterator_.done(); }
   void Advance();
