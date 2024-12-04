@@ -219,30 +219,19 @@ void LazyBuiltinsAssembler::TieringBuiltinImpl(
   // uninstalling the tiering builtin.
   CallRuntime(function_id, context, function);
 
-  // Ensure if the dispatch handle changed that it still has the same number of
-  // arguments.
-  TNode<JSDispatchHandleT> new_dispatch_handle =
-      LoadObjectField<JSDispatchHandleT>(function,
-                                         JSFunction::kDispatchHandleOffset);
-
-#ifdef V8_ENABLE_SANDBOX
-  Label parameter_count_checked(this);
-  GotoIf(Word32Equal(dispatch_handle, new_dispatch_handle),
-         &parameter_count_checked);
-  CSA_SBXCHECK(
-      this,
-      Word32Equal(LoadParameterCountFromJSDispatchTable(dispatch_handle),
-                  LoadParameterCountFromJSDispatchTable(new_dispatch_handle)));
-  Goto(&parameter_count_checked);
-  BIND(&parameter_count_checked);
-#endif
+  // The dispatch handle of the function shouldn't change.
+  CSA_DCHECK(this,
+             Word32Equal(dispatch_handle,
+                         LoadObjectField<JSDispatchHandleT>(
+                             function, JSFunction::kDispatchHandleOffset)));
 
   // Load the code directly from the dispatch table to guarantee the signature
   // of the code matches with the number of arguments passed when calling into
   // this trampoline.
-  TNode<Code> code = LoadCodeObjectFromJSDispatchTable(new_dispatch_handle);
-  TailCallJSCode(code, context, function, new_target, argc,
-                 new_dispatch_handle);
+  // TODO(saelo): consider removing the {code} parameter from TailCallJSCode
+  // entirely and only passing the dispatch_handle.
+  TNode<Code> code = LoadCodeObjectFromJSDispatchTable(dispatch_handle);
+  TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
 }
 
 TF_BUILTIN(FunctionLogNextExecution, LazyBuiltinsAssembler) {
