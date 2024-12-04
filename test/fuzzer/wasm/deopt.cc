@@ -22,7 +22,7 @@
 #include "test/common/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
-#include "test/fuzzer/wasm-fuzzer-common.h"
+#include "test/fuzzer/wasm/fuzzer-common.h"
 
 // This fuzzer fuzzes deopts.
 // It generates a main function accepting a call target. The call target is then
@@ -225,7 +225,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
 
-  // Strictly enforce the input size limit as in wasm-fuzzer-common.h.
+  // Strictly enforce the input size limit as in fuzzer-common.h.
   if (data.size() > kMaxFuzzerInputSize) return 0;
 
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);

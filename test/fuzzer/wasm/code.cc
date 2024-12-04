@@ -8,7 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/common/wasm/test-signatures.h"
-#include "test/fuzzer/wasm-fuzzer-common.h"
+#include "test/fuzzer/wasm/fuzzer-common.h"
 
 namespace v8::internal::wasm::fuzzing {
 

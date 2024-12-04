@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/fuzzer/wasm-fuzzer-common.h"
+#include "test/fuzzer/wasm/fuzzer-common.h"
 
 #include "include/v8-context.h"
 #include "include/v8-exception.h"

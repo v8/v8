@@ -21,7 +21,7 @@
 #include "test/common/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
-#include "test/fuzzer/wasm-fuzzer-common.h"
+#include "test/fuzzer/wasm/fuzzer-common.h"
 
 // This fuzzer fuzzes initializer expressions used e.g. in globals.
 // The fuzzer creates a set of globals with initializer expressions and a set of

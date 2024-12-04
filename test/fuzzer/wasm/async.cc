@@ -15,7 +15,7 @@
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
-#include "test/fuzzer/wasm-fuzzer-common.h"
+#include "test/fuzzer/wasm/fuzzer-common.h"
 
 namespace v8::internal {
 class WasmModuleObject;

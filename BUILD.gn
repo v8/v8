@@ -7618,7 +7618,7 @@ group("v8_fuzzers") {
       ":v8_simple_multi_return_fuzzer",
       ":v8_simple_wasm_async_fuzzer",
       ":v8_simple_wasm_code_fuzzer",
-      ":v8_simple_wasm_fuzzer",
+      ":v8_simple_wasm_module_fuzzer",
       ":v8_simple_wasm_streaming_fuzzer",
     ]
   }
@@ -7969,8 +7969,8 @@ if (v8_enable_webassembly) {
 
   v8_source_set("wasm_fuzzer_common") {
     sources = [
-      "test/fuzzer/wasm-fuzzer-common.cc",
-      "test/fuzzer/wasm-fuzzer-common.h",
+      "test/fuzzer/wasm/fuzzer-common.cc",
+      "test/fuzzer/wasm/fuzzer-common.h",
       "tools/wasm/mjsunit-module-disassembler-impl.h",
     ]
 
@@ -8004,60 +8004,60 @@ if (v8_enable_webassembly) {
     }
   }
 
-  v8_wasm_fuzzer("wasm_fuzzer") {
-    sources = [ "test/fuzzer/wasm.cc" ]
+  v8_wasm_fuzzer("wasm_module_fuzzer") {
+    sources = [ "test/fuzzer/wasm/module.cc" ]
   }
 
   v8_wasm_fuzzer("wasm_async_fuzzer") {
-    sources = [ "test/fuzzer/wasm-async.cc" ]
+    sources = [ "test/fuzzer/wasm/async.cc" ]
   }
 
   v8_wasm_fuzzer("wasm_code_fuzzer") {
     sources = [
       "test/common/wasm/test-signatures.h",
-      "test/fuzzer/wasm-code.cc",
+      "test/fuzzer/wasm/code.cc",
     ]
   }
 
   v8_wasm_fuzzer("wasm_streaming_fuzzer") {
-    sources = [ "test/fuzzer/wasm-streaming.cc" ]
+    sources = [ "test/fuzzer/wasm/streaming.cc" ]
   }
 
   if (v8_wasm_random_fuzzers) {
     v8_wasm_fuzzer("wasm_compile_all_fuzzer") {
       sources = [
         "test/common/wasm/test-signatures.h",
-        "test/fuzzer/wasm-compile-all.cc",
+        "test/fuzzer/wasm/compile-all.cc",
       ]
     }
 
     v8_wasm_fuzzer("wasm_compile_fuzzer") {
       sources = [
         "test/common/wasm/test-signatures.h",
-        "test/fuzzer/wasm-compile.cc",
+        "test/fuzzer/wasm/compile.cc",
       ]
     }
 
     v8_wasm_fuzzer("wasm_compile_simd_fuzzer") {
       sources = [
         "test/common/wasm/test-signatures.h",
-        "test/fuzzer/wasm-compile-simd.cc",
+        "test/fuzzer/wasm/compile-simd.cc",
       ]
     }
 
     v8_wasm_fuzzer("wasm_compile_wasmgc_fuzzer") {
       sources = [
         "test/common/wasm/test-signatures.h",
-        "test/fuzzer/wasm-compile-wasmgc.cc",
+        "test/fuzzer/wasm/compile-wasmgc.cc",
       ]
     }
 
     v8_wasm_fuzzer("wasm_init_expr_fuzzer") {
-      sources = [ "test/fuzzer/wasm-init-expr.cc" ]
+      sources = [ "test/fuzzer/wasm/init-expr.cc" ]
     }
 
     v8_wasm_fuzzer("wasm_deopt_fuzzer") {
-      sources = [ "test/fuzzer/wasm-deopt.cc" ]
+      sources = [ "test/fuzzer/wasm/deopt.cc" ]
     }
   }  # v8_wasm_random_fuzzers
 }
