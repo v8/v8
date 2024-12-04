@@ -1617,7 +1617,10 @@ void MacroAssembler::AssertSpAligned() {
 }
 
 void MacroAssembler::AssertFPCRState(Register fpcr) {
-  if (!v8_flags.debug_code) return;
+  // TODO(olivf, 382005099) This check is currently behind `slow_debug_code` as
+  // a temporary hack to not have it enabled on dcheck enabled canaries. The
+  // reason is that this check is violated by callbacks from webaudio.
+  if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
   Label unexpected_mode, done;
   UseScratchRegisterScope temps(this);
