@@ -81,19 +81,6 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
   }
 }
 
-int ElementsKindSize(ElementsKind element_kind) {
-  switch (element_kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                           \
-    DCHECK_LE(sizeof(ctype), 8);                  \
-    return sizeof(ctype);
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-#undef TYPED_ARRAY_CASE
-  }
-}
-
 }  // namespace
 
 // This reducer tracks the Maglev origin of the Turboshaft blocks that we build
@@ -2996,11 +2983,10 @@ class GraphBuildingNodeProcessor {
         __ LoadField<WordPtr>(Map<JSTypedArray>(node->receiver_input()),
                               AccessBuilder::ForJSTypedArrayByteLength());
 
-    int element_size = ElementsKindSize(node->elements_kind());
-    if (element_size > 1) {
-      DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
-      length = __ WordPtrShiftRightLogical(
-          length, base::bits::CountTrailingZeros(element_size));
+    int shift_size = ElementsKindToShiftSize(node->elements_kind());
+    if (shift_size > 0) {
+      DCHECK(shift_size == 1 || shift_size == 2 || shift_size == 3);
+      length = __ WordPtrShiftRightLogical(length, shift_size);
     }
     SetMap(node, length);
     return maglev::ProcessResult::kContinue;

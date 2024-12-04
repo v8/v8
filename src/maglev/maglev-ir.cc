@@ -6552,7 +6552,7 @@ void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
   Register data_pointer = scratch;
   __ BuildTypedArrayDataPointer(data_pointer, object);
 
-  int element_size = ElementsKindSize(kind);
+  int element_size = ElementsKindToByteSize(kind);
   MemOperand operand =
       __ TypedArrayElementOperand(data_pointer, index, element_size);
   if constexpr (std::is_same_v<ResultReg, Register>) {
@@ -6598,11 +6598,11 @@ void GenerateTypedArrayStore(MaglevAssembler* masm, NodeT* node,
   Register data_pointer = scratch;
   __ BuildTypedArrayDataPointer(data_pointer, object);
 
-  int element_size = ElementsKindSize(kind);
+  int element_size = ElementsKindToByteSize(kind);
   MemOperand operand =
       __ TypedArrayElementOperand(data_pointer, index, element_size);
   if constexpr (std::is_same_v<ValueReg, Register>) {
-    int element_size = ElementsKindSize(kind);
+    int element_size = ElementsKindToByteSize(kind);
     __ StoreField(operand, value, element_size);
   } else {
 #ifdef DEBUG
