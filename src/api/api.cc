@@ -3309,6 +3309,12 @@ Location StackFrame::GetLocation() const {
   return {info.line, info.column};
 }
 
+int StackFrame::GetSourcePosition() const {
+  auto self = Utils::OpenHandle(this);
+
+  return i::StackFrameInfo::GetSourcePosition(self);
+}
+
 int StackFrame::GetScriptId() const {
   return Utils::OpenDirectHandle(this)->script()->id();
 }

@@ -43,6 +43,12 @@ class V8_EXPORT StackFrame {
   int GetColumn() const { return GetLocation().GetColumnNumber() + 1; }
 
   /**
+   * Returns zero based source position (character offset) for the associated
+   * function.
+   */
+  int GetSourcePosition() const;
+
+  /**
    * Returns the id of the script for the function for this StackFrame.
    * This method will return Message::kNoScriptIdInfo if it is unable to
    * retrieve the script id, or if kScriptId was not passed as an option when
