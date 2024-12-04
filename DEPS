@@ -86,7 +86,7 @@ vars = {
   'siso_version': 'git_revision:e9812e4893d596fa06b74355e2b6ff47e0307e32',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:89f6b5944c6a68ec52a989c71b7463a34e07f147',
+  'luci_go': 'git_revision:dbbe363b4b1aa09520e53ccdd2d52cb661875e53',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5f7bc8ca840e5bce8b50c01912884e3f0d20fddf',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '72c166c4edcd709e8fbcf55077f0c24c9bd64dde',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7fb380bfdc99af493df5349f92a66c1f27e6b176',
   'buildtools/linux64': {
@@ -259,7 +259,7 @@ deps = {
   'third_party/fast_float/src':
     Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + '3e57d8dcfb0a04b5a8a26b486b54490a2e9b310f',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '2111c30801d5ade2a0ebb0074e7edef069e95471',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'dcba3703500094511f1117de9cded71a4e1dfb5e',
     'condition': 'checkout_fuchsia',
   },
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
