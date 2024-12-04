@@ -3252,7 +3252,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
 
 void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count) {
-#if V8_ENABLE_LEAPTIERING
+#ifdef V8_ENABLE_LEAPTIERING
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   static_assert(kJavaScriptCallDispatchHandleRegister == r15, "ABI mismatch");
   movl(r15, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
@@ -3261,15 +3261,8 @@ void MacroAssembler::CallJSFunction(Register function_object,
   cmpl(rbx, Immediate(argument_count));
   SbxCheck(less_equal, AbortReason::kJSSignatureMismatch);
   call(rcx);
-#elif V8_ENABLE_SANDBOX
-  // When the sandbox is enabled, we can directly fetch the entrypoint pointer
-  // from the code pointer table instead of going through the Code object. In
-  // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaCodePointer(
-      rcx, FieldOperand(function_object, JSFunction::kCodeOffset),
-      kJSEntrypointTag);
-  call(rcx);
 #else
+  CHECK(!V8_ENABLE_SANDBOX_BOOL);
   LoadTaggedField(rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
   CallCodeObject(rcx, kJSEntrypointTag);
 #endif
@@ -3277,27 +3270,12 @@ void MacroAssembler::CallJSFunction(Register function_object,
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
-#if V8_ENABLE_LEAPTIERING
-  static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  static_assert(kJavaScriptCallDispatchHandleRegister == r15, "ABI mismatch");
-  movl(r15, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
-  LoadEntrypointFromJSDispatchTable(rcx, r15);
-  DCHECK_EQ(jump_mode, JumpMode::kJump);
-  jmp(rcx);
+  CHECK(!V8_ENABLE_SANDBOX_BOOL);
+#ifdef V8_ENABLE_LEAPTIERING
   // This implementation is not currently used because callers usually need
   // to load both entry point and parameter count and then do something with
   // the latter before the actual call.
-  // TODO(ishell): remove the above code once it's clear it's not needed.
   UNREACHABLE();
-#elif V8_ENABLE_SANDBOX
-  // When the sandbox is enabled, we can directly fetch the entrypoint pointer
-  // from the code pointer table instead of going through the Code object. In
-  // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaCodePointer(
-      rcx, FieldOperand(function_object, JSFunction::kCodeOffset),
-      kJSEntrypointTag);
-  DCHECK_EQ(jump_mode, JumpMode::kJump);
-  jmp(rcx);
 #else
   LoadTaggedField(rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
   JumpCodeObject(rcx, kJSEntrypointTag, jump_mode);
