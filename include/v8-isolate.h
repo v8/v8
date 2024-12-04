@@ -540,6 +540,10 @@ class V8_EXPORT Isolate {
     kPromiseWithResolvers = 155,
     kAtomicsWaitAsync = 156,
     kExtendingNonExtensibleWithPrivate = 157,
+    kPromiseTry = 158,
+    kStringReplaceAll = 159,
+    kStringWellFormed = 160,
+    kWeakReferences = 161,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to

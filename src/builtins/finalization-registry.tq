@@ -28,6 +28,7 @@ transitioning macro PushCell(
   finalizationRegistry.active_cells = cell;
 }
 
+@incrementUseCounter('v8::Isolate::kWeakReferences')
 transitioning javascript builtin FinalizationRegistryConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(...arguments): JSFinalizationRegistry {
