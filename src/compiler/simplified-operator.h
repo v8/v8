@@ -440,6 +440,7 @@ bool operator==(CheckMinusZeroParameters const&,
 enum class CheckMapsFlag : uint8_t {
   kNone = 0u,
   kTryMigrateInstance = 1u << 0,
+  kTryMigrateInstanceAndDeopt = 1u << 1,
 };
 using CheckMapsFlags = base::Flags<CheckMapsFlag>;
 

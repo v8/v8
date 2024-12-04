@@ -916,6 +916,29 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   return *js_object;
 }
 
+RUNTIME_FUNCTION(Runtime_TryMigrateInstanceAndMarkMapAsMigrationTarget) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DirectHandle<JSObject> js_object = args.at<JSObject>(0);
+  DCHECK(js_object->map()->is_deprecated());
+
+#ifdef DEBUG
+  Handle<Map> old_map = handle(js_object->map(), isolate);
+#endif  // DEBUG
+
+  if (!JSObject::TryMigrateInstance(isolate, js_object)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  // Otherwise, the migration was successful.
+#ifdef DEBUG
+  DCHECK_NE(*old_map, js_object->map());
+#endif  // DEBUG
+
+  js_object->map()->set_is_migration_target(true);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 static bool IsValidAccessor(Isolate* isolate, DirectHandle<Object> obj) {
   return IsNullOrUndefined(*obj, isolate) || IsCallable(*obj);
 }

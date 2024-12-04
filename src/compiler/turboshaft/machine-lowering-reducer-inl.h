@@ -2725,6 +2725,10 @@ class MachineLoweringReducer : public Next {
         __ DeoptimizeIfNot(__ CompareMaps(heap_object, heap_object_map, maps),
                            frame_state, DeoptimizeReason::kWrongMap, feedback);
       }
+    } else if (flags & CheckMapsFlag::kTryMigrateInstanceAndDeopt) {
+      TryMigrateInstanceAndMarkMapAsMigrationTarget(
+          heap_object, heap_object_map, frame_state, feedback);
+      __ Deoptimize(frame_state, DeoptimizeReason::kWrongMap, feedback);
     } else {
       __ DeoptimizeIfNot(__ CompareMaps(heap_object, heap_object_map, maps),
                          frame_state, DeoptimizeReason::kWrongMap, feedback);
@@ -3623,6 +3627,21 @@ class MachineLoweringReducer : public Next {
     // TryMigrateInstance returns a Smi value to signal failure.
     __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
                     DeoptimizeReason::kInstanceMigrationFailed, feedback);
+  }
+
+  void TryMigrateInstanceAndMarkMapAsMigrationTarget(
+      V<HeapObject> heap_object, V<Map> heap_object_map,
+      V<FrameState> frame_state, const FeedbackSource& feedback) {
+    // If {heap_object_map} is not deprecated, the migration attempt does not
+    // make sense.
+    V<Word32> bitfield3 = __ template LoadField<Word32>(
+        heap_object_map, AccessBuilder::ForMapBitField3());
+    V<Word32> deprecated =
+        __ Word32BitwiseAnd(bitfield3, Map::Bits3::IsDeprecatedBit::kMask);
+    __ DeoptimizeIfNot(deprecated, frame_state, DeoptimizeReason::kWrongMap,
+                       feedback);
+    __ CallRuntime_TryMigrateInstanceAndMarkMapAsMigrationTarget(
+        isolate_, __ NoContextConstant(), heap_object);
   }
 
   // TODO(nicohartmann@): Might use the CallBuiltinDescriptors here.

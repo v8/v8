@@ -713,6 +713,15 @@ void MaglevAssembler::TryMigrateInstance(Register object,
   CompareTaggedAndJumpIf(return_val, Smi::zero(), kEqual, fail);
 }
 
+void MaglevAssembler::TryMigrateInstanceAndMarkMapAsMigrationTarget(
+    Register object, RegisterSnapshot& register_snapshot) {
+  SaveRegisterStateForCall save_register_state(this, register_snapshot);
+  Push(object);
+  Move(kContextRegister, native_context().object());
+  CallRuntime(Runtime::kTryMigrateInstanceAndMarkMapAsMigrationTarget);
+  save_register_state.DefineSafepoint();
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

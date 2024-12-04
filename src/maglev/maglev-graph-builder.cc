@@ -4580,7 +4580,8 @@ class KnownMapsMerger {
 
 ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     ValueNode* object, base::Vector<const compiler::MapRef> maps,
-    std::optional<ValueNode*> map) {
+    std::optional<ValueNode*> map,
+    bool has_deprecated_map_without_migration_target) {
   // TODO(verwaest): Support other objects with possible known stable maps as
   // well.
   if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
@@ -4640,6 +4641,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   if (merger.emit_check_with_migration()) {
     AddNewNode<CheckMapsWithMigration>({object}, merger.intersect_set(),
                                        GetCheckType(known_info->type()));
+  } else if (has_deprecated_map_without_migration_target) {
+    AddNewNode<CheckMapsWithMigrationAndDeopt>(
+        {object}, merger.intersect_set(), GetCheckType(known_info->type()));
   } else if (map) {
     AddNewNode<CheckMapsWithAlreadyLoadedMap>({object, *map},
                                               merger.intersect_set());
@@ -5581,6 +5585,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     GenericAccessFunc&& build_generic_access) {
   compiler::ZoneRefSet<Map> inferred_maps;
 
+  bool has_deprecated_map_without_migration_target = false;
   if (compiler::OptionalHeapObjectRef c = TryGetConstant(lookup_start_object)) {
     compiler::MapRef constant_map = c.value().map(broker());
     if (c.value().IsJSFunction() &&
@@ -5635,6 +5640,8 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     merger.IntersectWithKnownNodeAspects(lookup_start_object,
                                          known_node_aspects());
     inferred_maps = merger.intersect_set();
+    has_deprecated_map_without_migration_target =
+        feedback.has_deprecated_map_without_migration_target();
   }
 
   if (inferred_maps.is_empty()) {
@@ -5679,7 +5686,9 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     } else if (HasOnlyNumberMaps(maps)) {
       BuildCheckNumber(lookup_start_object);
     } else {
-      RETURN_IF_ABORT(BuildCheckMaps(lookup_start_object, maps));
+      RETURN_IF_ABORT(
+          BuildCheckMaps(lookup_start_object, maps, {},
+                         has_deprecated_map_without_migration_target));
     }
 
     // Generate the actual property
@@ -6550,6 +6559,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
   int number_map_index = -1;
 
   bool needs_migration = false;
+  bool has_deprecated_map_without_migration_target =
+      feedback.has_deprecated_map_without_migration_target();
   for (int i = 0; i < access_info_count; i++) {
     compiler::PropertyAccessInfo const& access_info = access_infos[i];
     DCHECK(!access_info.IsInvalid());
@@ -6603,7 +6614,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     const auto& maps = access_info.lookup_start_object_maps();
     if (i == access_info_count - 1) {
       map_check_result =
-          BuildCheckMaps(lookup_start_object, base::VectorOf(maps));
+          BuildCheckMaps(lookup_start_object, base::VectorOf(maps), {},
+                         has_deprecated_map_without_migration_target);
     } else {
       map_check_result =
           BuildCompareMaps(lookup_start_object, lookup_start_object_map,

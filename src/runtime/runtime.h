@@ -388,6 +388,7 @@ namespace internal {
   F(ToObject, 1, 1)                                                    \
   F(ToString, 1, 1)                                                    \
   F(TryMigrateInstance, 1, 1)                                          \
+  F(TryMigrateInstanceAndMarkMapAsMigrationTarget, 1, 1)               \
   F(SetPrivateMember, 3, 1)                                            \
   F(SwissTableAdd, 4, 1)                                               \
   F(SwissTableAllocate, 1, 1)                                          \

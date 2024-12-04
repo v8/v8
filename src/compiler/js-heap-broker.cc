@@ -442,10 +442,14 @@ MegaDOMPropertyAccessFeedback::MegaDOMPropertyAccessFeedback(
   DCHECK(IsLoadICKind(slot_kind));
 }
 
-NamedAccessFeedback::NamedAccessFeedback(NameRef name,
-                                         ZoneVector<MapRef> const& maps,
-                                         FeedbackSlotKind slot_kind)
-    : ProcessedFeedback(kNamedAccess, slot_kind), name_(name), maps_(maps) {
+NamedAccessFeedback::NamedAccessFeedback(
+    NameRef name, ZoneVector<MapRef> const& maps, FeedbackSlotKind slot_kind,
+    bool has_deprecated_map_without_migration_target)
+    : ProcessedFeedback(kNamedAccess, slot_kind),
+      name_(name),
+      maps_(maps),
+      has_deprecated_map_without_migration_target_(
+          has_deprecated_map_without_migration_target) {
   DCHECK(IsLoadICKind(slot_kind) || IsSetNamedICKind(slot_kind) ||
          IsDefineNamedOwnICKind(slot_kind) || IsKeyedLoadICKind(slot_kind) ||
          IsKeyedHasICKind(slot_kind) || IsKeyedStoreICKind(slot_kind) ||
@@ -500,24 +504,33 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(kind);
 
   ZoneVector<MapRef> maps(zone());
-  nexus.IterateMapsWithUnclearedHandler([this, &maps](Handle<Map> map_handle) {
-    MapRef map = MakeRefAssumeMemoryFence(this, *map_handle);
-    // May change concurrently at any time - must be guarded by a
-    // dependency if non-deprecation is important.
-    if (map.is_deprecated()) {
-      // TODO(ishell): support fast map updating if we enable it.
-      CHECK(!v8_flags.fast_map_update);
-      std::optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
-          isolate(), *map.object(), ConcurrencyMode::kConcurrent);
-      if (maybe_map.has_value()) {
-        map = MakeRefAssumeMemoryFence(this, maybe_map.value());
-      } else {
-        return;  // Couldn't update the deprecated map.
-      }
-    }
-    if (map.is_abandoned_prototype_map()) return;
-    maps.push_back(map);
-  });
+  bool has_deprecated_map_without_migration_target = false;
+  nexus.IterateMapsWithUnclearedHandler(
+      [this, &maps,
+       &has_deprecated_map_without_migration_target](Handle<Map> map_handle) {
+        MapRef map = MakeRefAssumeMemoryFence(this, *map_handle);
+        // May change concurrently at any time - must be guarded by a
+        // dependency if non-deprecation is important.
+        if (map.is_deprecated()) {
+          // TODO(ishell): support fast map updating if we enable it.
+          CHECK(!v8_flags.fast_map_update);
+          std::optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
+              isolate(), *map.object(), ConcurrencyMode::kConcurrent);
+          if (maybe_map.has_value()) {
+            map = MakeRefAssumeMemoryFence(this, maybe_map.value());
+          } else {
+            return;  // Couldn't update the deprecated map.
+          }
+          if (!map.is_migration_target()) {
+            // Maps are marked as migration targets only when an object
+            // migrates, so it's possible to have a deprecated map whose updated
+            // counterpart is not a migration target.
+            has_deprecated_map_without_migration_target = true;
+          }
+        }
+        if (map.is_abandoned_prototype_map()) return;
+        maps.push_back(map);
+      });
 
   OptionalNameRef name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
@@ -547,7 +560,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     // We rely on this invariant in JSGenericLowering.
     DCHECK_IMPLIES(maps.empty(),
                    nexus.ic_state() == InlineCacheState::MEGAMORPHIC);
-    return *zone()->New<NamedAccessFeedback>(*name, maps, kind);
+    return *zone()->New<NamedAccessFeedback>(
+        *name, maps, kind, has_deprecated_map_without_migration_target);
   } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);

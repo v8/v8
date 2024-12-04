@@ -3917,6 +3917,12 @@ class TurboshaftAssemblerOpInterface
     return CallRuntime<typename RuntimeCallDescriptor::TryMigrateInstance>(
         isolate, context, {heap_object});
   }
+  V<Object> CallRuntime_TryMigrateInstanceAndMarkMapAsMigrationTarget(
+      Isolate* isolate, V<Context> context, V<HeapObject> heap_object) {
+    return CallRuntime<typename RuntimeCallDescriptor::
+                           TryMigrateInstanceAndMarkMapAsMigrationTarget>(
+        isolate, context, {heap_object});
+  }
   void CallRuntime_ThrowAccessedUninitializedVariable(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
       V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,

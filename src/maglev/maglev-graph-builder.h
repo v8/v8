@@ -2112,9 +2112,10 @@ class MaglevGraphBuilder {
   void BuildCheckString(ValueNode* object);
   void BuildCheckStringOrStringWrapper(ValueNode* object);
   void BuildCheckSymbol(ValueNode* object);
-  ReduceResult BuildCheckMaps(ValueNode* object,
-                              base::Vector<const compiler::MapRef> maps,
-                              std::optional<ValueNode*> map = {});
+  ReduceResult BuildCheckMaps(
+      ValueNode* object, base::Vector<const compiler::MapRef> maps,
+      std::optional<ValueNode*> map = {},
+      bool has_deprecated_map_without_migration_target = false);
   ReduceResult BuildTransitionElementsKindOrCheckMap(
       ValueNode* heap_object, ValueNode* object_map,
       const ZoneVector<compiler::MapRef>& transition_sources,

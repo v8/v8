@@ -1946,6 +1946,81 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+int CheckMapsWithMigrationAndDeopt::MaxCallStackArgs() const {
+  DCHECK_EQ(Runtime::FunctionForId(
+                Runtime::kTryMigrateInstanceAndMarkMapAsMigrationTarget)
+                ->nargs,
+            1);
+  return 1;
+}
+
+void CheckMapsWithMigrationAndDeopt::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  set_temporaries_needed(MapCompare::TemporaryCount(maps_.size()));
+}
+
+void CheckMapsWithMigrationAndDeopt::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+
+  // We emit an unconditional deopt if we intersect the map sets and the
+  // intersection is empty.
+  DCHECK(!maps().is_empty());
+
+  bool maps_include_heap_number = compiler::AnyMapIsHeapNumber(maps());
+
+  // Experimentally figured out map limit (with slack) which allows us to use
+  // near jumps in the code below. If --deopt-every-n-times is on, we generate
+  // a bit more code, so disable the near jump optimization.
+  constexpr int kMapCountForNearJumps = kTaggedSize == 4 ? 10 : 5;
+  Label::Distance jump_distance = (maps().size() <= kMapCountForNearJumps &&
+                                   v8_flags.deopt_every_n_times <= 0)
+                                      ? Label::Distance::kNear
+                                      : Label::Distance::kFar;
+
+  Label done;
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    if (maps_include_heap_number) {
+      // Smis count as matching the HeapNumber map, so we're done.
+      __ JumpIfSmi(object, &done, jump_distance);
+    } else {
+      __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kWrongMap);
+    }
+  }
+
+  MapCompare map_compare(masm, object, maps_.size());
+  size_t map_count = maps().size();
+  for (size_t i = 0; i < map_count - 1; ++i) {
+    Handle<Map> map = maps().at(i).object();
+    map_compare.Generate(map, kEqual, &done, jump_distance);
+  }
+
+  Handle<Map> last_map = maps().at(map_count - 1).object();
+  map_compare.Generate(
+      last_map, kNotEqual,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+             MapCompare map_compare, CheckMapsWithMigrationAndDeopt* node) {
+            Label* deopt = __ GetDeoptLabel(node, DeoptimizeReason::kWrongMap);
+            // If the map is not deprecated, we fail the map check.
+            __ TestInt32AndJumpIfAllClear(
+                FieldMemOperand(map_compare.GetMap(), Map::kBitField3Offset),
+                Map::Bits3::IsDeprecatedBit::kMask, deopt);
+
+            // Otherwise, try migrating the object.
+            __ TryMigrateInstanceAndMarkMapAsMigrationTarget(
+                map_compare.GetObject(), register_snapshot);
+            // Deopt even if the migration was successful.
+            __ JumpToDeopt(deopt);
+          },
+          register_snapshot(), map_compare, this));
+  // If the jump to deferred code was not taken, the map was equal to the
+  // last map.
+  __ bind(&done);
+}
+
 int CheckMapsWithMigration::MaxCallStackArgs() const {
   DCHECK_EQ(Runtime::FunctionForId(Runtime::kTryMigrateInstance)->nargs, 1);
   return 1;
@@ -7211,6 +7286,21 @@ void CheckMaps::PrintParams(std::ostream& os,
 }
 
 void CheckMapsWithAlreadyLoadedMap::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(";
+  bool first = true;
+  for (compiler::MapRef map : maps()) {
+    if (first) {
+      first = false;
+    } else {
+      os << ", ";
+    }
+    os << *map.object();
+  }
+  os << ")";
+}
+
+void CheckMapsWithMigrationAndDeopt::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(";
   bool first = true;

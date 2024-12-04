@@ -752,6 +752,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   void TryMigrateInstance(Register object, RegisterSnapshot& register_snapshot,
                           Label* fail);
 
+  void TryMigrateInstanceAndMarkMapAsMigrationTarget(
+      Register object, RegisterSnapshot& register_snapshot);
+
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();
   }

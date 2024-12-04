@@ -168,14 +168,19 @@ class ElementAccessFeedback : public ProcessedFeedback {
 class NamedAccessFeedback : public ProcessedFeedback {
  public:
   NamedAccessFeedback(NameRef name, ZoneVector<MapRef> const& maps,
-                      FeedbackSlotKind slot_kind);
+                      FeedbackSlotKind slot_kind,
+                      bool has_deprecated_map_without_migration_target = false);
 
   NameRef name() const { return name_; }
   ZoneVector<MapRef> const& maps() const { return maps_; }
+  bool has_deprecated_map_without_migration_target() const {
+    return has_deprecated_map_without_migration_target_;
+  }
 
  private:
   NameRef const name_;
   ZoneVector<MapRef> const maps_;
+  bool has_deprecated_map_without_migration_target_;
 };
 
 class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {
