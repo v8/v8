@@ -8042,7 +8042,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       constexpr uint32_t kArrayNewMinimumSizeForMemSet = 16;
       IF_NOT (__ Uint32LessThan(
                   length, __ Word32Constant(kArrayNewMinimumSizeForMemSet))) {
-        OpIndex stack_slot = StoreInInt64StackSlot(value, element_type);
+        OpIndex stack_slot = StoreInStackSlot(value, element_type);
         MachineType arg_types[]{
             MachineType::TaggedPointer(), MachineType::Uint32(),
             MachineType::Uint32(),        MachineType::Uint32(),
@@ -8068,31 +8068,25 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     BIND(done);
   }
 
-  V<WordPtr> StoreInInt64StackSlot(OpIndex value, wasm::ValueType type) {
-    OpIndex value_int64;
+  V<WordPtr> StoreInStackSlot(OpIndex value, wasm::ValueType type) {
+    // The input is unpacked.
+    ValueType input_type = type.Unpacked();
+
     switch (type.kind()) {
       case wasm::kI32:
       case wasm::kI8:
       case wasm::kI16:
-        value_int64 = __ ChangeInt32ToInt64(value);
-        break;
       case wasm::kI64:
-        value_int64 = value;
+      case wasm::kF32:
+      case wasm::kF64:
+      case wasm::kRefNull:
+      case wasm::kRef:
         break;
       case wasm::kS128:
         // We can only get here if {value} is the constant 0.
         DCHECK(__ output_graph().Get(value).Cast<Simd128ConstantOp>().IsZero());
-        value_int64 = __ Word64Constant(uint64_t{0});
-        break;
-      case wasm::kF32:
-        value_int64 = __ ChangeUint32ToUint64(__ BitcastFloat32ToWord32(value));
-        break;
-      case wasm::kF64:
-        value_int64 = __ BitcastFloat64ToWord64(value);
-        break;
-      case wasm::kRefNull:
-      case wasm::kRef:
-        value_int64 = kTaggedSize == 4 ? __ ChangeInt32ToInt64(value) : value;
+        value = __ Word64Constant(uint64_t{0});
+        input_type = kWasmI64;
         break;
       case wasm::kF16:
         UNIMPLEMENTED();
@@ -8103,10 +8097,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         UNREACHABLE();
     }
 
-    MemoryRepresentation int64_rep = MemoryRepresentation::Int64();
+    // Differently to values on the heap, stack slots are always uncompressed.
+    MemoryRepresentation memory_rep =
+        type.is_reference() ? MemoryRepresentation::UncompressedTaggedPointer()
+                            : MemoryRepresentation::FromMachineRepresentation(
+                                  input_type.machine_representation());
     V<WordPtr> stack_slot =
-        __ StackSlot(int64_rep.SizeInBytes(), int64_rep.SizeInBytes());
-    __ Store(stack_slot, value_int64, StoreOp::Kind::RawAligned(), int64_rep,
+        __ StackSlot(memory_rep.SizeInBytes(), memory_rep.SizeInBytes(),
+                     type.is_reference());
+    __ Store(stack_slot, value, StoreOp::Kind::RawAligned(), memory_rep,
              compiler::WriteBarrierKind::kNoWriteBarrier);
     return stack_slot;
   }
