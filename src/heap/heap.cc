@@ -3339,12 +3339,18 @@ void Heap::CreateFillerObjectAtRaw(
 }
 
 bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
-  if (!v8_flags.move_object_start) return false;
+  if (!v8_flags.move_object_start) {
+    return false;
+  }
 
   // Sampling heap profiler may have a reference to the object.
-  if (isolate()->heap_profiler()->is_sampling_allocations()) return false;
+  if (isolate()->heap_profiler()->is_sampling_allocations()) {
+    return false;
+  }
 
-  if (IsLargeObject(object)) return false;
+  if (IsLargeObject(object)) {
+    return false;
+  }
 
   // Compilation jobs may have references to the object.
   if (isolate()->concurrent_recompilation_enabled() &&
@@ -3357,11 +3363,15 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
   //
   // TODO(v8:13726): This can be improved via concurrently reading the contents
   // in the marker at the cost of some complexity.
-  if (incremental_marking()->IsMarking()) return false;
+  if (incremental_marking()->IsMarking()) {
+    return false;
+  }
 
   // Concurrent sweeper does not support moving object starts. It assumes that
   // markbits (black regions) and object starts are matching up.
-  if (!PageMetadata::FromHeapObject(object)->SweepingDone()) return false;
+  if (!MutablePageMetadata::FromHeapObject(object)->SweepingDone()) {
+    return false;
+  }
 
   return true;
 }
