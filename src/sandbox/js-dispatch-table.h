@@ -283,9 +283,11 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
 #ifdef DEBUG
   bool IsMarked(JSDispatchHandle handle);
+#endif  // DEBUG
+#if defined(DEBUG) || defined(VERIFY_HEAP)
   inline void VerifyEntry(JSDispatchHandle handle, Space* space,
                           Space* ro_space);
-#endif  // DEBUG
+#endif  // defined(DEBUG) || defined(VERIFY_HEAP)
 
   void PrintEntry(JSDispatchHandle handle);
   void PrintCurrentTieringRequest(JSDispatchHandle handle, Isolate* isolate,

@@ -13,6 +13,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/sandbox/js-dispatch-table.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
@@ -346,6 +347,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "internal reference";
     case INTERNAL_REFERENCE_ENCODED:
       return "encoded internal reference";
+    case JS_DISPATCH_HANDLE:
+      return "js dispatch handle";
     case OFF_HEAP_TARGET:
       return "off heap target";
     case NEAR_BUILTIN_ENTRY:
@@ -399,6 +402,18 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
     }
     os << " (" << reinterpret_cast<const void*>(target_external_reference())
        << ")";
+  } else if (rmode_ == JS_DISPATCH_HANDLE) {
+#ifdef V8_ENABLE_LEAPTIERING
+    Tagged<Code> target_code =
+        GetProcessWideJSDispatchTable()->GetCode(js_dispatch_handle());
+    os << " (" << CodeKindToString(target_code->kind());
+    if (Builtins::IsBuiltin(target_code)) {
+      os << " " << Builtins::name(target_code->builtin_id());
+    }
+    os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
+#else
+    UNREACHABLE();
+#endif
   } else if (IsCodeTargetMode(rmode_)) {
     const Address code_target = target_address();
     Tagged<Code> target_code = Code::FromTargetAddress(code_target);
@@ -455,6 +470,19 @@ void RelocInfo::Verify(Isolate* isolate) {
       CHECK_GE(target, lookup_result->instruction_start());
       CHECK_LT(target, lookup_result->instruction_end());
       break;
+    }
+    case JS_DISPATCH_HANDLE: {
+#ifdef V8_ENABLE_LEAPTIERING
+      JSDispatchTable::Space* space =
+          isolate->heap()->js_dispatch_table_space();
+      JSDispatchTable::Space* ro_space =
+          isolate->read_only_heap()->js_dispatch_table_space();
+      GetProcessWideJSDispatchTable()->VerifyEntry(js_dispatch_handle(), space,
+                                                   ro_space);
+      break;
+#else
+      UNREACHABLE();
+#endif
     }
     case OFF_HEAP_TARGET: {
       Address addr = target_off_heap_target();

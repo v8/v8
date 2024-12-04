@@ -363,6 +363,11 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
+JSDispatchHandle RelocInfo::js_dispatch_handle() {
+  DCHECK(rmode_ == JS_DISPATCH_HANDLE);
+  return ReadUnalignedValue<JSDispatchHandle>(pc_);
+}
+
 void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
                                           ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));

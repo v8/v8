@@ -127,6 +127,10 @@ class RelocInfo {
     // and PPC.
     INTERNAL_REFERENCE_ENCODED,
 
+    // An integer JSDispatchHandle, referring to an entry in the
+    // JSDispatchTable.
+    JS_DISPATCH_HANDLE,
+
     // An off-heap instruction stream target. See http://goo.gl/Z2HUiM.
     // TODO(ishell): rename to BUILTIN_ENTRY.
     OFF_HEAP_TARGET,  // FIRST_BUILTIN_ENTRY_MODE
@@ -247,6 +251,9 @@ class RelocInfo {
     return base::IsInRange(mode, FIRST_BUILTIN_ENTRY_MODE,
                            LAST_BUILTIN_ENTRY_MODE);
   }
+  static constexpr bool IsJSDispatchHandle(Mode mode) {
+    return mode == JS_DISPATCH_HANDLE;
+  }
   static constexpr bool IsNoInfo(Mode mode) { return mode == NO_INFO; }
 
   static bool IsOnlyForSerializer(Mode mode) {
@@ -343,21 +350,12 @@ class RelocInfo {
   // can only be called if rmode_ is INTERNAL_REFERENCE.
   V8_INLINE Address target_internal_reference_address();
 
+  // Return the JSDispatchHandle this relocation applies to;
+  // can only be called if rmode_ is JS_DISPATCH_HANDLE.
+  V8_INLINE JSDispatchHandle js_dispatch_handle();
+
   template <typename ObjectVisitor>
-  void Visit(Tagged<InstructionStream> host, ObjectVisitor* visitor) {
-    Mode mode = rmode();
-    if (IsEmbeddedObjectMode(mode)) {
-      visitor->VisitEmbeddedPointer(host, this);
-    } else if (IsCodeTargetMode(mode)) {
-      visitor->VisitCodeTarget(host, this);
-    } else if (IsExternalReference(mode)) {
-      visitor->VisitExternalReference(host, this);
-    } else if (IsInternalReference(mode) || IsInternalReferenceEncoded(mode)) {
-      visitor->VisitInternalReference(host, this);
-    } else if (IsBuiltinEntryMode(mode)) {
-      visitor->VisitOffHeapTarget(host, this);
-    }
-  }
+  void Visit(Tagged<InstructionStream> host, ObjectVisitor* visitor);
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing

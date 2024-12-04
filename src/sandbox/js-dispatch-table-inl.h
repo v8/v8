@@ -263,7 +263,7 @@ void JSDispatchTable::Mark(JSDispatchHandle handle) {
   at(index).Mark();
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(VERIFY_HEAP)
 void JSDispatchTable::VerifyEntry(JSDispatchHandle handle, Space* space,
                                   Space* ro_space) {
   DCHECK(space->BelongsTo(this));
@@ -273,12 +273,12 @@ void JSDispatchTable::VerifyEntry(JSDispatchHandle handle, Space* space,
   }
   uint32_t index = HandleToIndex(handle);
   if (ro_space->Contains(index)) {
-    DCHECK(at(index).IsMarked());
+    CHECK(at(index).IsMarked());
   } else {
-    DCHECK(space->Contains(index));
+    CHECK(space->Contains(index));
   }
 }
-#endif  // DEBUG
+#endif  // defined(DEBUG) || defined(VERIFY_HEAP)
 
 template <typename Callback>
 void JSDispatchTable::IterateActiveEntriesIn(Space* space, Callback callback) {

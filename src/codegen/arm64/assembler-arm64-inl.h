@@ -736,6 +736,11 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
+JSDispatchHandle RelocInfo::js_dispatch_handle() {
+  DCHECK(rmode_ == JS_DISPATCH_HANDLE);
+  return ReadUnalignedValue<JSDispatchHandle>(pc_);
+}
+
 Builtin RelocInfo::target_builtin_at(Assembler* origin) {
   DCHECK(IsNearBuiltinEntry(rmode_));
   return Assembler::target_builtin_at(pc_);
