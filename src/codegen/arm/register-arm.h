@@ -316,7 +316,8 @@ constexpr Register kJavaScriptCallCodeStartRegister = r2;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = r3;
 constexpr Register kJavaScriptCallExtraArg1Register = r2;
-// Leaptiering is not currently available on Arm32.
+// DispatchHandle is only needed for the sandbox which is not available on
+// Arm32.
 constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
 
 constexpr Register kRuntimeCallFunctionRegister = r1;

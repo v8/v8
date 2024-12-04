@@ -336,6 +336,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallBuiltin(Builtin builtin, Condition cond = al);
   void TailCallBuiltin(Builtin builtin, Condition cond = al);
 
+#ifdef V8_ENABLE_LEAPTIERING
+  void LoadEntrypointFromJSDispatchTable(Register destination,
+                                         Register dispatch_handle,
+                                         Register scratch);
+#endif  // V8_ENABLE_LEAPTIERING
+
   // Load the code entry point from the Code object.
   void LoadCodeInstructionStart(
       Register destination, Register code_object,
@@ -1014,8 +1020,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
  private:
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,
-                      Register actual_parameter_count, Label* done,
-                      InvokeType type);
+                      Register actual_parameter_count, InvokeType type);
 
   // Compare single values and then load the fpscr flags to a register.
   void VFPCompareAndLoadFlags(const SwVfpRegister src1,

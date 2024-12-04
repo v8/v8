@@ -2161,8 +2161,6 @@ void MacroAssembler::CallJSFunction(Register function_object,
   call(ecx);
 #else
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-  DCHECK_WITH_MSG(!V8_ENABLE_LEAPTIERING_BOOL,
-                  "argument_count is only used with Leaptiering");
   mov(ecx, FieldOperand(function_object, JSFunction::kCodeOffset));
   CallCodeObject(ecx);
 #endif  // V8_ENABLE_LEAPTIERING

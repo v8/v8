@@ -368,6 +368,23 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   }
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+
+void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
+                                                       Register dispatch_handle,
+                                                       Register scratch) {
+  DCHECK(!AreAliased(destination, dispatch_handle, scratch));
+  ASM_CODE_COMMENT(this);
+
+  Move(scratch, ExternalReference::js_dispatch_table_address());
+  static_assert(kJSDispatchHandleShift == 0);
+  add(scratch, scratch,
+      Operand(dispatch_handle, LSL, kJSDispatchTableEntrySizeLog2));
+  ldr(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
+}
+
+#endif  // V8_ENABLE_LEAPTIERING
+
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object,
                                               CodeEntrypointTag tag) {
@@ -390,18 +407,34 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 
 void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count) {
-  DCHECK_WITH_MSG(!V8_ENABLE_LEAPTIERING_BOOL,
-                  "argument_count is only used with Leaptiering");
   Register code = kJavaScriptCallCodeStartRegister;
+#if V8_ENABLE_LEAPTIERING
+  Register dispatch_handle = r8;
+  Register scratch = r9;
+  ldr(dispatch_handle,
+      FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
+  Call(code);
+#else
   ldr(code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
   CallCodeObject(code);
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
+#if V8_ENABLE_LEAPTIERING
+  Register dispatch_handle = r8;
+  Register scratch = r9;
+  ldr(dispatch_handle,
+      FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
+  Jump(code);
+#else
   ldr(code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
   JumpCodeObject(code, jump_mode);
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MacroAssembler::ResolveWasmCodePointer(Register target) {
@@ -1623,7 +1656,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
 
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
-                                    Label* done, InvokeType type) {
+                                    InvokeType type) {
   ASM_CODE_COMMENT(this);
   Label regular_invoke;
   //  r0: actual arguments count
@@ -1745,8 +1778,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     LoadRoot(r3, RootIndex::kUndefinedValue);
   }
 
-  Label done;
-  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, type);
+  InvokePrologue(expected_parameter_count, actual_parameter_count, type);
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
@@ -1759,6 +1791,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
       JumpJSFunction(function);
       break;
   }
+  Label done;
   b(&done);
 
   // Deferred debug hook.
@@ -1968,6 +2001,8 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 
 namespace {
 
+#ifndef V8_ENABLE_LEAPTIERING
+
 void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                Register optimized_code_entry,
                                Register scratch) {
@@ -2012,6 +2047,8 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ GenerateTailCallToReturnedCode(Runtime::kHealOptimizedCodeSlot);
 }
 
+#endif  // V8_ENABLE_LEAPTIERING
+
 }  // namespace
 
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -2032,12 +2069,16 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
 void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
     Register optimized_code, Register closure) {
   ASM_CODE_COMMENT(this);
+#ifdef V8_ENABLE_LEAPTIERING
+  UNREACHABLE();
+#else
   DCHECK(!AreAliased(optimized_code, closure));
   // Store code entry in the closure.
   str(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
   RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
                    kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
                    SmiCheck::kOmit);
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MacroAssembler::GenerateTailCallToReturnedCode(
@@ -2067,6 +2108,8 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
   JumpCodeObject(r2);
 }
+
+#ifndef V8_ENABLE_LEAPTIERING
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
@@ -2117,6 +2160,8 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
                       FeedbackVector::kMaybeOptimizedCodeOffset));
   TailCallOptimizedCodeSlot(this, optimized_code_entry, r6);
 }
+
+#endif  // !V8_ENABLE_LEAPTIERING
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments) {
