@@ -108,7 +108,7 @@ void BodyDescriptorBase::IterateJSObjectBodyWithoutEmbedderFieldsImpl(
     ObjectVisitor* v) {
   // This body iteration assumes that there's no embedder fields.
   DCHECK_IMPLIES(JSObject::MayHaveEmbedderFields(map),
-                 UncheckedCast<JSObject>(obj)->GetEmbedderFieldCount() == 0);
+                 UncheckedCast<JSObject>(obj)->GetEmbedderFieldCount(map) == 0);
   IteratePointers(obj, start_offset, end_offset, v);
 }
 

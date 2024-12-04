@@ -54,6 +54,12 @@ class HeapLayout final : public AllStatic {
   // serialization.
   static V8_INLINE bool IsOwnedByAnyHeap(Tagged<HeapObject> object);
 
+  // Returns whether the map word of `object` is a self forwarding address.
+  // This represents pinned objects and live large objects in Scavenger.
+  static bool IsSelfForwarded(Tagged<HeapObject> object);
+  static bool IsSelfForwarded(Tagged<HeapObject> object,
+                              PtrComprCageBase cage_base);
+
  private:
   V8_EXPORT static bool InYoungGenerationForStickyMarkbits(
       const MemoryChunk* chunk, Tagged<HeapObject> object);

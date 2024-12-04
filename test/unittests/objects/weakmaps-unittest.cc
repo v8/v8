@@ -237,6 +237,9 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
       Cast<EphemeronHashTable>(weakmap->table()), *object));
 
   if (!v8_flags.minor_ms) {
+    // CSS prevent promoting objects to old gen.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        isolate->heap());
     InvokeAtomicMinorGC();
     CHECK(HeapLayout::InYoungGeneration(*object));
     CHECK(!HeapLayout::InYoungGeneration(weakmap->table()));

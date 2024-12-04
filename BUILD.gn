@@ -1894,6 +1894,7 @@ if (v8_postmortem_support) {
       "src/objects/instruction-stream.h",
       "src/objects/instruction-stream-inl.h",
       "src/objects/casting.h",
+      "src/objects/casting-inl.h",
       "src/objects/code.h",
       "src/objects/code-inl.h",
       "src/objects/data-handler.h",
@@ -3789,6 +3790,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/collection-barrier.h",
     "src/heap/combined-heap.h",
     "src/heap/concurrent-marking.h",
+    "src/heap/conservative-stack-visitor.h",
     "src/heap/cppgc-js/cpp-heap.h",
     "src/heap/cppgc-js/cpp-marking-state-inl.h",
     "src/heap/cppgc-js/cpp-marking-state.h",
@@ -4607,10 +4609,6 @@ v8_header_set("v8_internal_headers") {
 
   if (!v8_control_flow_integrity) {
     sources += [ "src/execution/pointer-authentication-dummy.h" ]
-  }
-
-  if (v8_enable_conservative_stack_scanning) {
-    sources += [ "src/heap/conservative-stack-visitor.h" ]
   }
 
   if (v8_enable_wasm_gdb_remote_debugging) {
@@ -5538,6 +5536,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/collection-barrier.cc",
     "src/heap/combined-heap.cc",
     "src/heap/concurrent-marking.cc",
+    "src/heap/conservative-stack-visitor.cc",
     "src/heap/cppgc-js/cpp-heap.cc",
     "src/heap/cppgc-js/cpp-snapshot.cc",
     "src/heap/cppgc-js/cross-heap-remembered-set.cc",
@@ -5997,10 +5996,6 @@ v8_source_set("v8_base_without_compiler") {
         "src/wasm/interpreter/wasm-interpreter.cc",
       ]
     }
-  }
-
-  if (v8_enable_conservative_stack_scanning) {
-    sources += [ "src/heap/conservative-stack-visitor.cc" ]
   }
 
   if (v8_enable_wasm_gdb_remote_debugging) {

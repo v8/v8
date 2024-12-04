@@ -891,8 +891,12 @@ UNINITIALIZED_TEST(PromotionScavenge) {
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
     CHECK(heap->InSpace(*one_byte_seq, NEW_SPACE));
 
-    for (int i = 0; i < 2; i++) {
-      heap::InvokeMinorGC(heap);
+    {
+      // CSS prevents moving the string to shared space.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+      for (int i = 0; i < 2; i++) {
+        heap::InvokeMinorGC(heap);
+      }
     }
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -941,8 +945,12 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
             MutablePageMetadata::cast(old_object_chunk->Metadata())),
         slot.address()));
 
-    for (int i = 0; i < 2; i++) {
-      heap::InvokeMinorGC(heap);
+    {
+      // CSS prevents moving the string to shared space.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+      for (int i = 0; i < 2; i++) {
+        heap::InvokeMinorGC(heap);
+      }
     }
 
     // In-place-internalizable strings are promoted into the shared heap when

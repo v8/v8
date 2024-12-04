@@ -475,6 +475,16 @@ DEFINE_BOOL_READONLY(direct_handle, V8_ENABLE_DIRECT_HANDLE_BOOL,
 // break the correctness of the GC.
 DEFINE_NEG_NEG_IMPLICATION(conservative_stack_scanning, direct_handle)
 
+DEFINE_EXPERIMENTAL_FEATURE(scavenger_pinning_objects,
+                            "Objects reachable from the native stack during "
+                            "scavenge will be pinned and "
+                            "won't move.")
+DEFINE_IMPLICATION(scavenger_pinning_objects, separate_gc_phases)
+DEFINE_BOOL(stress_scavenger_pinning_objects, false,
+            "Treat some precise refernces as conservative references to stress "
+            "test object pinning in Scavenger")
+DEFINE_IMPLICATION(stress_scavenger_pinning_objects, scavenger_pinning_objects)
+
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
 #else

@@ -26,7 +26,9 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/ic/ic-stats.h"
 #include "src/logging/counters.h"
+#include "src/objects/casting-inl.h"
 #include "src/objects/code.h"
+#include "src/objects/instance-type-checker.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
@@ -88,10 +90,11 @@ class StackHandlerIterator {
     // For CWasmEntry frames, the handler was registered by the last C++
     // frame (Execution::CallWasm), so even though its address is already
     // beyond the limit, we know we always want to unwind one handler.
-    if (frame->is_c_wasm_entry()) handler_ = handler_->next();
+    if (frame->is_c_wasm_entry()) {
+      handler_ = handler_->next();
 #if V8_ENABLE_DRUMBRAKE
     // Do the same for GenericWasmToJsInterpreterWrapper frames.
-    else if (v8_flags.wasm_jitless && frame->is_wasm_to_js()) {
+    } else if (v8_flags.wasm_jitless && frame->is_wasm_to_js()) {
       handler_ = handler_->next();
 #ifdef USE_SIMULATOR
       // If we are running in the simulator, the handler_ address here will
@@ -100,8 +103,8 @@ class StackHandlerIterator {
       // any handler.
       limit_ = 0;
 #endif  // USE_SIMULATOR
-    }
 #endif  // V8_ENABLE_DRUMBRAKE
+    }
 #else
     // Make sure the handler has already been unwound to this frame.
     DCHECK_LE(frame->sp(), AddressOf(handler));
@@ -189,7 +192,8 @@ void StackFrameIterator::Advance() {
     // does not have a caller fp.
     auto parent = continuation()->parent();
     CHECK(!IsUndefined(parent));
-    set_continuation(Cast<WasmContinuationObject>(parent));
+    set_continuation(
+        GCSafeCast<WasmContinuationObject>(parent, isolate_->heap()));
     wasm_stack_ = reinterpret_cast<wasm::StackMemory*>(continuation()->stack());
     CHECK_EQ(wasm_stack_->jmpbuf()->state, wasm::JumpBuffer::Inactive);
     StackSwitchFrame::GetStateForJumpBuffer(wasm_stack_->jmpbuf(), &state);
@@ -282,7 +286,8 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
 #if V8_ENABLE_WEBASSEMBLY
   auto active_continuation = isolate_->root(RootIndex::kActiveContinuation);
   if (!IsUndefined(active_continuation, isolate_)) {
-    auto continuation = Cast<WasmContinuationObject>(active_continuation);
+    auto continuation = GCSafeCast<WasmContinuationObject>(active_continuation,
+                                                           isolate_->heap());
     if (!first_stack_only_) {
       set_continuation(continuation);
     }
@@ -839,7 +844,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* constant_pool_address,
   DCHECK(!isolate()->InFastCCall());
 
   Tagged<InstructionStream> istream =
-      UncheckedCast<InstructionStream>(visited_istream);
+      GCSafeCast<InstructionStream>(visited_istream, isolate()->heap());
   const Address new_pc = istream->instruction_start() + pc_offset_from_start;
   // TODO(v8:10026): avoid replacing a signed pointer.
   PointerAuthentication::ReplacePC(pc_address(), new_pc, kSystemPointerSize);
@@ -1590,13 +1595,13 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
                                            ? map_word.ToForwardingAddress(raw)
                                            : raw;
         bool is_self_forwarded =
-            forwarded->map_word(cage_base, kRelaxedLoad) ==
-            MapWord::FromForwardingAddress(forwarded, forwarded);
+            HeapLayout::IsSelfForwarded(forwarded, cage_base);
         if (is_self_forwarded) {
           // The object might be in a self-forwarding state if it's located
           // in new large object space. GC will fix this at a later stage.
           CHECK(
-              MemoryChunk::FromHeapObject(forwarded)->InNewLargeObjectSpace());
+              MemoryChunk::FromHeapObject(forwarded)->InNewLargeObjectSpace() ||
+              MemoryChunk::FromHeapObject(forwarded)->IsQuarantined());
         } else {
           Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
           // The map might be forwarded as well.

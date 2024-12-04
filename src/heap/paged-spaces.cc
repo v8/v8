@@ -24,6 +24,7 @@
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces-inl.h"
@@ -350,7 +351,7 @@ void PagedSpaceBase::ReleasePageImpl(PageMetadata* page,
   DCHECK_IMPLIES(identity() == NEW_SPACE,
                  page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
 
-  memory_chunk_list().Remove(page);
+  memory_chunk_list_.Remove(page);
 
   free_list_->EvictFreeListItems(page);
 

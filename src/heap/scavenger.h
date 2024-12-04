@@ -108,6 +108,12 @@ class Scavenger {
 
   void AddEphemeronHashTable(Tagged<EphemeronHashTable> table);
 
+  // Returns true if the object is a large young object, and false otherwise.
+  bool PromoteIfLargeObject(Tagged<HeapObject> object);
+
+  void VisitPinnedObject(ScavengeVisitor& visitor, Tagged<HeapObject> object,
+                         MapWord original_map_word);
+
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
 

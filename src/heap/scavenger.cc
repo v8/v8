@@ -6,11 +6,13 @@
 
 #include <atomic>
 #include <optional>
+#include <unordered_map>
 
 #include "src/common/globals.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/conservative-stack-visitor.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -357,9 +359,13 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     MapWord first_word = heap_object->map_word(kRelaxedLoad);
     CHECK(first_word.IsForwardingAddress());
     Tagged<HeapObject> dest = first_word.ToForwardingAddress(heap_object);
+    if (heap_object == dest) {
+      DCHECK(Heap::IsLargeObject(heap_object) ||
+             MemoryChunk::FromHeapObject(heap_object)->IsQuarantined());
+      return;
+    }
     UpdateHeapObjectReferenceSlot(FullHeapObjectSlot(p), dest);
-    CHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
-                  Heap::InToPage(dest) || Heap::IsLargeObject(dest));
+    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest), Heap::InToPage(dest));
   }
 };
 
@@ -379,10 +385,172 @@ class V8_NODISCARD ScopedFullHeapCrashKey {
   Isolate* isolate_ = nullptr;
 };
 
+namespace {
+
+class ObjectPinningVisitor final : public RootVisitor {
+ public:
+  ObjectPinningVisitor(Scavenger& scavenger,
+                       std::unordered_map<Address, MapWord>& pinned_objects)
+      : RootVisitor(), scavenger_(scavenger), pinned_objects_(pinned_objects) {}
+
+  void VisitRootPointer(Root root, const char* description,
+                        FullObjectSlot p) final {
+    HandlePointer(p);
+  }
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final {
+    for (FullObjectSlot p = start; p < end; ++p) {
+      HandlePointer(p);
+    }
+  }
+
+ private:
+  void HandlePointer(FullObjectSlot p) {
+    Tagged<HeapObject> object = Cast<HeapObject>(*p);
+    DCHECK(!HasWeakHeapObjectTag(object));
+    DCHECK(!MapWord::IsPacked(object.ptr()));
+    if (scavenger_.PromoteIfLargeObject(object)) {
+      // Large objects are not moved and thus don't require pinning. Instead,
+      // we scavenge large pages eagerly to keep them from being reclaimed (if
+      // the page is only reachable from stack).
+      return;
+    }
+    DCHECK(!MemoryChunk::FromHeapObject(object)->IsLargePage());
+    DCHECK(HeapLayout::InYoungGeneration(object));
+    DCHECK(Heap::InFromPage(object));
+    Address object_address = object.address();
+    if (pinned_objects_.contains(object_address)) {
+      // Object was already pinned.
+      return;
+    }
+    MapWord map_word = object->map_word(kRelaxedLoad);
+    DCHECK(!map_word.IsForwardingAddress());
+    pinned_objects_.emplace(object_address, map_word);
+  }
+
+  Scavenger& scavenger_;
+  std::unordered_map<Address, MapWord>& pinned_objects_;
+};
+
+// A visitor for treating precise references conservatively (by passing them to
+// the conservative stack visitor). This visitor is used for streesing object
+// pinning in Scavenger.
+class TreatConservativelyVisitor final : public RootVisitor {
+ public:
+  explicit TreatConservativelyVisitor(ConservativeStackVisitor* v)
+      : RootVisitor(), stack_visitor_(v) {}
+
+  void VisitRootPointer(Root root, const char* description,
+                        FullObjectSlot p) final {
+    HandlePointer(p);
+  }
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final {
+    for (FullObjectSlot p = start; p < end; ++p) {
+      HandlePointer(p);
+    }
+  }
+
+ private:
+  void HandlePointer(FullObjectSlot p) {
+    Tagged<Object> object = *p;
+    stack_visitor_->VisitPointer(reinterpret_cast<void*>(object.ptr()));
+  }
+
+  ConservativeStackVisitor* const stack_visitor_;
+};
+
+void PinObjects(Scavenger& scavenger,
+                const std::unordered_map<Address, MapWord>& pinned_objects) {
+  // First step: Pin all objects in place. In case a pinned object A is
+  // reachable from another pinned object B, A needs to be pinned before B is
+  // visited otherwise the visitor will try to move it.
+  for (auto it : pinned_objects) {
+    Address object_address = it.first;
+    Tagged<HeapObject> object = HeapObject::FromAddress(object_address);
+    DCHECK(!object->map_word(kRelaxedLoad).IsForwardingAddress());
+    object->set_map_word_forwarded(object, kRelaxedStore);
+    DCHECK(object->map_word(kRelaxedLoad).IsForwardingAddress());
+    DCHECK_EQ(object,
+              object->map_word(kRelaxedLoad).ToForwardingAddress(object));
+    MemoryChunk::FromHeapObject(object)->SetFlagNonExecutable(
+        MemoryChunk::IS_QUARANTINED);
+  }
+  // Second step: Visit pinned objects.
+  // TODO(379788114): Delay visitation to the parallel phase.
+  ScavengeVisitor visitor(&scavenger);
+  for (auto it : pinned_objects) {
+    Address object_address = it.first;
+    Tagged<HeapObject> object = HeapObject::FromAddress(object_address);
+    MapWord original_map_word = it.second;
+    scavenger.VisitPinnedObject(visitor, object, original_map_word);
+  }
+}
+
+void SweepQuarantinedPage(
+    Heap* heap, MemoryChunk* chunk,
+    std::vector<std::pair<Address, size_t>>& pinned_objects_and_sizes) {
+  Address start = chunk->Metadata()->area_start();
+  std::sort(pinned_objects_and_sizes.begin(), pinned_objects_and_sizes.end());
+  for (auto [object, size] : pinned_objects_and_sizes) {
+    DCHECK_LE(start, object);
+    if (start != object) {
+      heap->CreateFillerObjectAt(start, static_cast<int>(object - start));
+    }
+    start = object + size;
+  }
+  Address end = chunk->Metadata()->area_end();
+  if (start != end) {
+    heap->CreateFillerObjectAt(start, static_cast<int>(end - start));
+  }
+}
+
+void RestoreAndQuarantinePinnedObjects(
+    SemiSpaceNewSpace& new_space,
+    const std::unordered_map<Address, MapWord>& pinned_objects) {
+  std::unordered_map<MemoryChunk*, std::vector<std::pair<Address, size_t>>,
+                     base::hash<const MemoryChunk*>>
+      pages_with_pinned_objects;
+  size_t quarantined_objects_size = 0;
+  // Restore the maps of quarantined objects. We use the iteration over
+  // quarantined objects to split them based on pages. This will be used below
+  // for sweeping the quarantined pages (since there are no markbits).
+  for (auto it : pinned_objects) {
+    Address object_address = it.first;
+    MapWord map_word = it.second;
+    DCHECK(!map_word.IsForwardingAddress());
+    Tagged<HeapObject> object = HeapObject::FromAddress(object_address);
+    DCHECK(HeapLayout::IsSelfForwarded(object));
+    object->set_map_word(map_word.ToMap(), kRelaxedStore);
+    const size_t object_size = object->SizeFromMap(map_word.ToMap());
+    pages_with_pinned_objects[MemoryChunk::FromHeapObject(
+                                  Cast<HeapObject>(object))]
+        .emplace_back(object_address, object_size);
+    quarantined_objects_size += object_size;
+  }
+  DCHECK_EQ(0, new_space.QuarantinedPageCount());
+  // Sweep quarantined pages to make them iterable.
+  for (auto it : pages_with_pinned_objects) {
+    MemoryChunk* chunk = it.first;
+    std::vector<std::pair<Address, size_t>>& pinned_objects_and_sizes =
+        it.second;
+    DCHECK(chunk->IsFromPage());
+    SweepQuarantinedPage(new_space.heap(), chunk, pinned_objects_and_sizes);
+    new_space.MoveQuarantinedPage(chunk);
+    DCHECK(!chunk->IsFromPage());
+    DCHECK(chunk->IsToPage());
+  }
+  new_space.SetQuarantinedSize(quarantined_objects_size);
+}
+
+}  // namespace
+
 void ScavengerCollector::CollectGarbage() {
   ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(isolate_);
 
-  auto* new_space = SemiSpaceNewSpace::From(heap_->new_space());
+  SemiSpaceNewSpace* new_space = SemiSpaceNewSpace::From(heap_->new_space());
   new_space->GarbageCollectionPrologue();
   new_space->EvacuatePrologue();
 
@@ -399,6 +567,8 @@ void ScavengerCollector::CollectGarbage() {
   Scavenger::CopiedList copied_list;
   Scavenger::PromotionList promotion_list;
   EphemeronRememberedSet::TableList ephemeron_table_list;
+
+  std::unordered_map<Address, MapWord> pinned_objects;
 
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   std::vector<std::unique_ptr<Scavenger>> scavengers;
@@ -424,17 +594,6 @@ void ScavengerCollector::CollectGarbage() {
     {
       // Copy roots.
       TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
-      // Scavenger treats all weak roots except for global handles as strong.
-      // That is why we don't set skip_weak = true here and instead visit
-      // global handles separately.
-      base::EnumSet<SkipRoot> options(
-          {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
-           SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
-           SkipRoot::kConservativeStack, SkipRoot::kReadOnlyBuiltins});
-      if (V8_UNLIKELY(v8_flags.scavenge_separate_stack_scanning)) {
-        options.Add(SkipRoot::kStack);
-      }
-      RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
 
       // We must collect old-to-new pages before starting Scavenge because pages
       // could be removed from the old generation for allocation which hides
@@ -447,6 +606,50 @@ void ScavengerCollector::CollectGarbage() {
               old_to_new_chunks.emplace_back(ParallelWorkItem{}, chunk);
             }
           });
+
+      if (v8_flags.scavenger_pinning_objects &&
+          heap_->IsGCWithMainThreadStack()) {
+        // Pinning objects must be the first step and must happen before
+        // scavenging any objects. Specifically we must all pin all objects
+        // before visiting other pinned objects. If we scavenge some object X
+        // and move it before all stack-reachable objects are pinned, and we
+        // later find that we need to pin X, it will be too late to undo the
+        // moving.
+        TRACE_GC(heap_->tracer(),
+                 GCTracer::Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS);
+        {
+          ObjectPinningVisitor pinning_visitor(main_thread_scavenger,
+                                               pinned_objects);
+          ConservativeStackVisitor stack_visitor(isolate_, &pinning_visitor,
+                                                 GarbageCollector::SCAVENGER);
+          // Marker was already set by Heap::CollectGarbage.
+          heap_->stack().IteratePointersUntilMarker(&stack_visitor);
+          if (v8_flags.stress_scavenger_pinning_objects) {
+            TreatConservativelyVisitor handles_visitor(&stack_visitor);
+            isolate_->handle_scope_implementer()->Iterate(&handles_visitor);
+          }
+        }
+        // Pinning objects must happen after stack scanning is complete since
+        // stack scanning needs the pages to be iterable, which breaks when
+        // setting forwarding pointers.
+        // TODO(379788114): Revise FindBasePtr such that pinning can be part
+        // of the visitor. Once that's done, we can also revise
+        // `Heap::IterateRoots` to scan the stack first so that we don't need to
+        // scan it explicitly here.
+        PinObjects(main_thread_scavenger, pinned_objects);
+      }
+
+      // Scavenger treats all weak roots except for global handles as strong.
+      // That is why we don't set skip_weak = true here and instead visit
+      // global handles separately.
+      base::EnumSet<SkipRoot> options(
+          {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
+           SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
+           SkipRoot::kConservativeStack, SkipRoot::kReadOnlyBuiltins});
+      if (V8_UNLIKELY(v8_flags.scavenge_separate_stack_scanning)) {
+        options.Add(SkipRoot::kStack);
+      }
+      RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
 
       heap_->IterateRoots(&root_scavenge_visitor, options);
       isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
@@ -537,30 +740,29 @@ void ScavengerCollector::CollectGarbage() {
     }
   }
 
-  SemiSpaceNewSpace* semi_space_new_space =
-      SemiSpaceNewSpace::From(heap_->new_space());
-
   if (v8_flags.concurrent_marking) {
     // Ensure that concurrent marker does not track pages that are
     // going to be unmapped.
     for (PageMetadata* p :
-         PageRange(semi_space_new_space->from_space().first_page(), nullptr)) {
+         PageRange(new_space->from_space().first_page(), nullptr)) {
       heap_->concurrent_marking()->ClearMemoryChunkData(p);
     }
   }
 
   ProcessWeakReferences(&ephemeron_table_list);
 
+  RestoreAndQuarantinePinnedObjects(*new_space, pinned_objects);
+
   // Need to free new space LAB that was allocated during scavenge.
   heap_->allocator()->new_space_allocator()->FreeLinearAllocationArea();
-
-  new_space->GarbageCollectionEpilogue();
 
   // Since we promote all surviving large objects immediately, all remaining
   // large objects must be dead.
   // TODO(hpayer): Don't free all as soon as we have an intermediate generation.
   heap_->new_lo_space()->FreeDeadObjects(
       [](Tagged<HeapObject>) { return true; });
+
+  new_space->GarbageCollectionEpilogue();
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
@@ -645,7 +847,7 @@ void ScavengerCollector::SweepArrayBufferExtensions() {
   DCHECK_EQ(0, heap_->new_lo_space()->Size());
   heap_->array_buffer_sweeper()->RequestSweep(
       ArrayBufferSweeper::SweepingType::kYoung,
-      (heap_->new_space()->Size() == 0)
+      (heap_->new_space()->SizeOfObjects() == 0)
           ? ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes
           : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
 }
@@ -994,6 +1196,21 @@ void Scavenger::CheckOldToNewSlotForSharedTyped(
     RememberedSet<OLD_TO_SHARED>::InsertTyped(page, slot_type,
                                               static_cast<uint32_t>(offset));
   }
+}
+
+bool Scavenger::PromoteIfLargeObject(Tagged<HeapObject> object) {
+  Tagged<Map> map = object->map();
+  return HandleLargeObject(map, object, object->SizeFromMap(map),
+                           Map::ObjectFieldsFrom(map->visitor_id()));
+}
+
+void Scavenger::VisitPinnedObject(ScavengeVisitor& visitor,
+                                  Tagged<HeapObject> object,
+                                  MapWord original_map_word) {
+  DCHECK(object->map_word(kRelaxedLoad).IsForwardingAddress());
+  Tagged<Map> original_map = original_map_word.ToMap();
+  const size_t object_size = visitor.Visit(original_map, object);
+  copied_size_ += object_size;
 }
 
 void RootScavengeVisitor::VisitRootPointer(Root root, const char* description,

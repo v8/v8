@@ -19,7 +19,8 @@ class RootVisitor;
 class V8_EXPORT_PRIVATE ConservativeStackVisitor
     : public ::heap::base::StackVisitor {
  public:
-  ConservativeStackVisitor(Isolate* isolate, RootVisitor* delegate);
+  ConservativeStackVisitor(Isolate* isolate, RootVisitor* delegate,
+                           GarbageCollector collector);
 
   void VisitPointer(const void* pointer) final;
 
@@ -39,9 +40,6 @@ class V8_EXPORT_PRIVATE ConservativeStackVisitor
   }
 
  private:
-  ConservativeStackVisitor(Isolate* isolate, RootVisitor* delegate,
-                           GarbageCollector collector);
-
   void VisitConservativelyIfPointer(Address address);
   void VisitConservativelyIfPointer(Address address,
                                     PtrComprCageBase cage_base);

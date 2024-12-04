@@ -6,6 +6,7 @@
 #define V8_HEAP_HEAP_VISITOR_H_
 
 #include "src/base/logging.h"
+#include "src/execution/local-isolate.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
@@ -190,8 +191,7 @@ TRUSTED_VISITOR_ID_LIST(FORWARD_DECLARE)
 template <typename ConcreteVisitor>
 class HeapVisitor : public ObjectVisitorWithCageBases {
  public:
-  inline HeapVisitor(PtrComprCageBase cage_base,
-                     PtrComprCageBase code_cage_base);
+  inline explicit HeapVisitor(LocalIsolate* isolate);
   inline explicit HeapVisitor(Isolate* isolate);
   inline explicit HeapVisitor(Heap* heap);
 
@@ -281,13 +281,16 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
                                            MaybeObjectSize maybe_object_size);
 
   template <typename T>
-  static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object);
+  static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object, const Heap* heap);
 
   // Inspects the slot and filters some well-known RO objects and Smis in a fast
   // way. May still return Smis or RO objects.
   template <typename TSlot>
   std::optional<Tagged<Object>> GetObjectFilterReadOnlyAndSmiFast(
       TSlot slot) const;
+
+ protected:
+  const Heap* heap_;
 };
 
 // These strings can be sources of safe string transitions. Transitions are safe
@@ -332,7 +335,7 @@ class ConcurrentHeapVisitor : public HeapVisitor<ConcreteVisitor> {
 #undef VISIT_AS_LOCKED_STRING
 
   template <typename T>
-  static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object);
+  static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object, const Heap* heap);
 
  private:
   template <typename T>

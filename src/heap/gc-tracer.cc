@@ -859,6 +859,8 @@ void GCTracer::PrintNVP() const {
           "holes_size_after=%zu "
           "allocated=%zu "
           "promoted=%zu "
+          "quarantined_size=%zu "
+          "quarantined_pages=%zu "
           "new_space_survived=%zu "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
@@ -897,6 +899,8 @@ void GCTracer::PrintNVP() const {
           current_.start_object_size, current_.end_object_size,
           current_.start_holes_size, current_.end_holes_size,
           allocated_since_last_gc, heap_->promoted_objects_size(),
+          heap_->semi_space_new_space()->QuarantinedSize(),
+          heap_->semi_space_new_space()->QuarantinedPageCount(),
           heap_->new_space_surviving_object_size(),
           heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
           heap_->nodes_promoted_, heap_->promotion_ratio_,

@@ -111,6 +111,25 @@ inline bool TryCast(MaybeDirectHandle<From> value, MaybeDirectHandle<To>* out) {
 #define INIT_SOURCE_LOCATION_IN_DEBUG v8::SourceLocation()
 #endif
 
+#ifdef DEBUG
+template <typename T>
+bool GCAwareObjectTypeCheck(Tagged<Object> object, const Heap* heap);
+#endif  // DEBUG
+
+// `GCSafeCast<T>(value)` casts `object` to a tagged object of type `T` and
+// should be used when the cast can be called from within a GC. The case all
+// includes a debug check that `object` is either a tagged object of type `T`,
+// or one of few special cases possible during GC (see GCAwareObjectTypeCheck):
+// 1) `object` was already evacuated and the forwarding address refers to a
+//     tagged object of type `T`.
+// 2) During Scavanger, `object` is a large object.
+// 3) During a conservative Scavenger, `object` is a pinned object.
+template <typename T>
+Tagged<T> GCSafeCast(Tagged<Object> object, const Heap* heap) {
+  DCHECK(GCAwareObjectTypeCheck<T>(object, heap));
+  return UncheckedCast<T>(object);
+}
+
 // `Cast<T>(value)` casts `value` to a tagged object of type `T`, with a debug
 // check that `value` is a tagged object of type `T`.
 template <typename To, typename From>

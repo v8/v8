@@ -233,12 +233,10 @@ class MemoryAllocator {
 
   Address HandleAllocationFailure(Executability executable);
 
-#if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
   // Return the normal or large page that contains this address, if it is owned
   // by this heap, otherwise a nullptr.
   V8_EXPORT_PRIVATE const MemoryChunk* LookupChunkContainingAddress(
       Address addr) const;
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
 
   // Insert and remove normal and large pages that are owned by this heap.
   void RecordMemoryChunkCreated(const MemoryChunk* chunk);
@@ -439,7 +437,6 @@ class MemoryAllocator {
   base::Mutex executable_memory_mutex_;
 #endif  // DEBUG
 
-#if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
   // Allocated normal and large pages are stored here, to be used during
   // conservative stack scanning.
   std::unordered_set<const MemoryChunk*, base::hash<const MemoryChunk*>>
@@ -447,7 +444,6 @@ class MemoryAllocator {
   std::set<const MemoryChunk*> large_pages_;
 
   mutable base::Mutex chunks_mutex_;
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
 
   V8_EXPORT_PRIVATE static size_t commit_page_size_;
   V8_EXPORT_PRIVATE static size_t commit_page_size_bits_;

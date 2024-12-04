@@ -4,7 +4,9 @@
 
 #include "src/heap/conservative-stack-visitor.h"
 
+#include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
+#include "src/heap/heap-layout.h"
 #include "src/heap/marking-inl.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
@@ -16,10 +18,6 @@
 
 namespace v8 {
 namespace internal {
-
-ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
-                                                   RootVisitor* delegate)
-    : ConservativeStackVisitor(isolate, delegate, delegate->collector()) {}
 
 ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
                                                    RootVisitor* delegate,
@@ -40,12 +38,18 @@ ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
 #ifdef V8_COMPRESS_POINTERS
 bool ConservativeStackVisitor::IsInterestingCage(
     PtrComprCageBase cage_base) const {
-  if (cage_base == cage_base_) return true;
+  if (cage_base == cage_base_) {
+    return true;
+  }
 #ifdef V8_EXTERNAL_CODE_SPACE
-  if (cage_base == code_cage_base_) return true;
+  if (cage_base == code_cage_base_) {
+    return true;
+  }
 #endif
 #ifdef V8_ENABLE_SANDBOX
-  if (cage_base == trusted_cage_base_) return true;
+  if (cage_base == trusted_cage_base_) {
+    return true;
+  }
 #endif
   return false;
 }
@@ -60,9 +64,35 @@ Address ConservativeStackVisitor::FindBasePtr(
   // heap. Bail out if it is not.
   const MemoryChunk* chunk =
       allocator_->LookupChunkContainingAddress(maybe_inner_ptr);
-  if (chunk == nullptr) return kNullAddress;
+  if (chunk == nullptr) {
+    return kNullAddress;
+  }
   const MemoryChunkMetadata* chunk_metadata = chunk->Metadata();
   DCHECK(chunk_metadata->Contains(maybe_inner_ptr));
+
+  // If it is not in the young generation and we're only interested in young
+  // generation pointers, we must ignore it.
+  if (Heap::IsYoungGenerationCollector(collector_)) {
+    const bool is_old = v8_flags.sticky_mark_bits
+                            ? chunk->IsFlagSet(MemoryChunk::CONTAINS_ONLY_OLD)
+                            : !chunk->InYoungGeneration();
+    if (is_old) return kNullAddress;
+
+    // Scavenger already swapped the semi spaces, so all real objects should
+    // be found in to space.
+    if (collector_ == GarbageCollector::SCAVENGER ? chunk->IsToPage()
+                                                  : chunk->IsFromPage()) {
+      return kNullAddress;
+    }
+  } else {
+    // If it is in the young generation "from" semispace, it is not used and
+    // we must ignore it, as its markbits may not be clean.
+    if (chunk->IsFromPage()) {
+      DCHECK(!v8_flags.sticky_mark_bits);
+      return kNullAddress;
+    }
+  }
+
   // If it is contained in a large page, we want to mark the only object on it.
   if (chunk->IsLargePage()) {
     // This could be simplified if we could guarantee that there are no free
@@ -71,25 +101,12 @@ Address ConservativeStackVisitor::FindBasePtr(
         static_cast<const LargePageMetadata*>(chunk_metadata)->GetObject());
     return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : obj.address();
   }
+
   // Otherwise, we have a pointer inside a normal page.
   const PageMetadata* page = static_cast<const PageMetadata*>(chunk_metadata);
-  // If it is not in the young generation and we're only interested in young
-  // generation pointers, we must ignore it.
-  if (v8_flags.sticky_mark_bits) {
-    if (Heap::IsYoungGenerationCollector(collector_) &&
-        chunk->IsFlagSet(MemoryChunk::CONTAINS_ONLY_OLD))
-      return kNullAddress;
-  } else {
-    if (Heap::IsYoungGenerationCollector(collector_) &&
-        !chunk->InYoungGeneration())
-      return kNullAddress;
-
-    // If it is in the young generation "from" semispace, it is not used and we
-    // must ignore it, as its markbits may not be clean.
-    if (chunk->IsFromPage()) return kNullAddress;
-  }
-
   // Try to find the address of a previous valid object on this page.
+  // TODO(379788114): Create a temporary bitmap for repeated visits to the same
+  // page during CSS from Scavenger.
   Address base_ptr =
       MarkingBitmap::FindPreviousValidObject(page, maybe_inner_ptr);
   // Iterate through the objects in the page forwards, until we find the object
@@ -99,8 +116,9 @@ Address ConservativeStackVisitor::FindBasePtr(
     Tagged<HeapObject> obj(HeapObject::FromAddress(base_ptr));
     const int size = obj->Size(cage_base);
     DCHECK_LT(0, size);
-    if (maybe_inner_ptr < base_ptr + size)
+    if (maybe_inner_ptr < base_ptr + size) {
       return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : base_ptr;
+    }
     base_ptr += size;
     DCHECK_LT(base_ptr, page->area_end());
   }
@@ -135,12 +153,11 @@ void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
   if (V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address) ==
       cage_base_.address()) {
     VisitConservativelyIfPointer(address, cage_base_);
-  }
 #ifdef V8_EXTERNAL_CODE_SPACE
-  else if (code_address_region_.contains(address)) {
+  } else if (code_address_region_.contains(address)) {
     VisitConservativelyIfPointer(address, code_cage_base_);
-  }
 #endif  // V8_EXTERNAL_CODE_SPACE
+  }
 #else   // !V8_COMPRESS_POINTERS
   VisitConservativelyIfPointer(address, cage_base_);
 #endif  // V8_COMPRESS_POINTERS
@@ -156,7 +173,9 @@ void ConservativeStackVisitor::VisitConservativelyIfPointer(
   }
   // Proceed with inner-pointer resolution.
   Address base_ptr = FindBasePtr(address, cage_base);
-  if (base_ptr == kNullAddress) return;
+  if (base_ptr == kNullAddress) {
+    return;
+  }
   Tagged<HeapObject> obj = HeapObject::FromAddress(base_ptr);
   Tagged<Object> root = obj;
   DCHECK_NOT_NULL(delegate_);

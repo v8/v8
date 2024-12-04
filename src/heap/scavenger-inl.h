@@ -15,6 +15,7 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/scavenger.h"
+#include "src/objects/casting-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
@@ -422,8 +423,14 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
     Tagged<HeapObject> dest = first_word.ToForwardingAddress(object);
     UpdateHeapObjectReferenceSlot(p, dest);
     SynchronizePageAccess(dest);
+    // A forwarded object in new space is either in the second (to) semi space,
+    // a large object, or a pinned object (forwarding address points back to the
+    // same object).
     DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
-                   Heap::InToPage(dest) || Heap::IsLargeObject(dest));
+                   Heap::InToPage(dest) || HeapLayout::IsSelfForwarded(dest));
+    DCHECK_IMPLIES(
+        HeapLayout::IsSelfForwarded(dest) && !Heap::IsLargeObject(dest),
+        MemoryChunk::FromHeapObject(dest)->IsQuarantined());
 
     // This load forces us to have memory ordering for the map load above. We
     // need to have the page header properly initialized.
@@ -485,6 +492,11 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
 
   V8_INLINE static constexpr bool CanEncounterFillerOrFreeSpace() {
     return false;
+  }
+
+  template <typename T>
+  static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object, const Heap* heap) {
+    return GCSafeCast<T>(object, heap);
   }
 
  private:

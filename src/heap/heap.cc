@@ -490,12 +490,18 @@ bool Heap::IsOldGenerationExpansionAllowed(
 }
 
 bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) const {
-  size_t new_space_capacity = NewSpaceCapacity();
-  size_t new_lo_space_capacity = new_lo_space_ ? new_lo_space_->Size() : 0;
+  if (!new_space()) {
+    DCHECK_NULL(new_lo_space());
+    return CanExpandOldGeneration(size);
+  }
+  size_t new_space_capacity =
+      NewSpaceCapacity() + new_lo_space()->Size() +
+      (v8_flags.minor_ms ? 0
+                         : semi_space_new_space()->QuarantinedPageCount() *
+                               PageMetadata::kPageSize);
 
   // Over-estimate the new space size using capacity to allow some slack.
-  return CanExpandOldGeneration(size + new_space_capacity +
-                                new_lo_space_capacity);
+  return CanExpandOldGeneration(size + new_space_capacity);
 }
 
 bool Heap::HasBeenSetUp() const {
@@ -4903,7 +4909,8 @@ void Heap::IterateConservativeStackRoots(RootVisitor* v,
                               ? isolate()->shared_space_isolate()
                               : isolate();
 
-  ConservativeStackVisitor stack_visitor(main_isolate, v);
+  ConservativeStackVisitor stack_visitor(main_isolate, v,
+                                         GarbageCollector::MARK_COMPACTOR);
   if (IsGCWithMainThreadStack()) {
     stack().IteratePointersUntilMarker(&stack_visitor);
   }

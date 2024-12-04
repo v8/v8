@@ -579,8 +579,6 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
   }
 }
 
-#if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
-
 const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
     Address addr) const {
   // All threads should be either parked or in a safepoint whenever this method
@@ -608,10 +606,7 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
   return nullptr;
 }
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
-
 void MemoryAllocator::RecordMemoryChunkCreated(const MemoryChunk* chunk) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   base::MutexGuard guard(&chunks_mutex_);
   if (chunk->IsLargePage()) {
     auto result = large_pages_.insert(chunk);
@@ -622,12 +617,9 @@ void MemoryAllocator::RecordMemoryChunkCreated(const MemoryChunk* chunk) {
     USE(result);
     DCHECK(result.second);
   }
-
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
 void MemoryAllocator::RecordMemoryChunkDestroyed(const MemoryChunk* chunk) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   base::MutexGuard guard(&chunks_mutex_);
   if (chunk->IsLargePage()) {
     auto size = large_pages_.erase(chunk);
@@ -638,7 +630,6 @@ void MemoryAllocator::RecordMemoryChunkDestroyed(const MemoryChunk* chunk) {
     USE(size);
     DCHECK_EQ(1u, size);
   }
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
 void MemoryAllocator::ReleaseQueuedPages() {

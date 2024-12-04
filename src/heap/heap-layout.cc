@@ -5,6 +5,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/marking-inl.h"
 #include "src/heap/memory-chunk.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8::internal {
 
@@ -35,6 +36,18 @@ void HeapLayout::CheckYoungGenerationConsistency(const MemoryChunk* chunk) {
   DCHECK_IMPLIES(heap->gc_state() == Heap::NOT_IN_GC,
                  chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 #endif  // DEBUG
+}
+
+// static
+bool HeapLayout::IsSelfForwarded(Tagged<HeapObject> object) {
+  return IsSelfForwarded(object, GetPtrComprCageBase(object));
+}
+
+// static
+bool HeapLayout::IsSelfForwarded(Tagged<HeapObject> object,
+                                 PtrComprCageBase cage_base) {
+  return object->map_word(cage_base, kRelaxedLoad) ==
+         MapWord::FromForwardingAddress(object, object);
 }
 
 }  // namespace v8::internal

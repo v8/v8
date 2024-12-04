@@ -330,7 +330,11 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
     // processing during newspace evacuation.
     heap::FillCurrentPage(heap->new_space(), &handles);
     CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));
-    heap::InvokeAtomicMinorGC(heap);
+    {
+      // CSS prevent semi space copying in Scavenger.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+      heap::InvokeAtomicMinorGC(heap);
+    }
     heap::SimulateIncrementalMarking(heap, true);
     heap::InvokeAtomicMajorGC(heap);
     CHECK(IsTracked(heap, Cast<JSArrayBuffer>(root->get(0))));

@@ -26,6 +26,7 @@
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/sandbox/external-pointer-table.h"
@@ -458,7 +459,11 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
 
   // Promote 'arr' into old, its element is still in new, the old to new
   // refs are inserted into the remembered sets during GC.
-  InvokeMinorGC();
+  {
+    // CSS prevents promoting objects to old space.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+    InvokeMinorGC();
+  }
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   CHECK(heap->InOldSpace(*arr));
@@ -825,6 +830,54 @@ TEST_F(HeapTest, Regress364396306) {
   delete external_int;
 }
 #endif  // defined(V8_COMPRESS_POINTERS) && defined(V8_ENABLE_SANDBOX)
+
+TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  if (!v8_flags.scavenger_pinning_objects) return;
+  ManualGCScope manual_gc_scope(isolate());
+
+  DirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
+
+  Address number_address = number->address();
+
+  CHECK(HeapLayout::InYoungGeneration(*number));
+
+  for (int i = 0; i < 10; i++) {
+    InvokeMinorGC();
+    CHECK(HeapLayout::InYoungGeneration(*number));
+    CHECK_EQ(number_address, number->address());
+  }
+
+  // `number` is already in the intermediate generation. A stackless GC should
+  // now move it to old gen.
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        isolate()->heap());
+    InvokeMinorGC();
+  }
+  CHECK(!HeapLayout::InYoungGeneration(*number));
+  CHECK_NE(number_address, number->address());
+}
+
+TEST_F(HeapTest, PinningScavengerObjectWithSelfReference) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  if (!v8_flags.scavenger_pinning_objects) return;
+  ManualGCScope manual_gc_scope(isolate());
+
+  static constexpr int kArraySize = 10;
+  DirectHandle<FixedArray> array =
+      isolate()->factory()->NewFixedArray(kArraySize, AllocationType::kYoung);
+  CHECK(HeapLayout::InYoungGeneration(*array));
+
+  for (int i = 0; i < kArraySize; i++) {
+    array->set(i, *array);
+  }
+
+  InvokeMinorGC();
+}
 
 }  // namespace internal
 }  // namespace v8
