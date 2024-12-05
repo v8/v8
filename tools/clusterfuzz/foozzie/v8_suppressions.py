@@ -57,8 +57,6 @@ IGNORE_LINES = [
 # in many cases would just be redundant to the second default run.
 DROP_FLAGS_ON_CONTENT = [
     ('--jitless', r'\%Wasm(Struct|Array|GenerateRandomModule)\('),
-    # https://crbug.com/375270513
-    ('--noenable-sse4-1', r'\%WasmGenerateRandomModule\('),
 ]
 
 ###############################################################################

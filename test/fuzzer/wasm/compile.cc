@@ -14,8 +14,8 @@ class WasmCompileMVPFuzzer : public WasmExecutionFuzzer {
   bool GenerateModule(Isolate* isolate, Zone* zone,
                       base::Vector<const uint8_t> data,
                       ZoneBuffer* buffer) override {
-    base::Vector<const uint8_t> wire_bytes =
-        GenerateRandomWasmModule<WasmModuleGenerationOptions::kMVP>(zone, data);
+    base::Vector<const uint8_t> wire_bytes = GenerateRandomWasmModule(
+        zone, WasmModuleGenerationOptions::MVP(), data);
     buffer->write(wire_bytes.data(), wire_bytes.size());
     // Without SIMD expressions we are always able to produce a valid module.
     return true;

@@ -15,9 +15,8 @@ class WasmCompileWasmGCFuzzer : public WasmExecutionFuzzer {
   bool GenerateModule(Isolate* isolate, Zone* zone,
                       base::Vector<const uint8_t> data,
                       ZoneBuffer* buffer) override {
-    base::Vector<const uint8_t> wire_bytes =
-        GenerateRandomWasmModule<WasmModuleGenerationOptions::kGenerateWasmGC>(
-            zone, data);
+    base::Vector<const uint8_t> wire_bytes = GenerateRandomWasmModule(
+        zone, {{WasmModuleGenerationOption::kGenerateWasmGC}}, data);
     if (wire_bytes.empty()) return false;
     buffer->write(wire_bytes.data(), wire_bytes.size());
     return true;

@@ -1058,12 +1058,23 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
     }
   }
 
-  // Don't limit any expressions in the generated Wasm module.
-  constexpr auto options =
-      wasm::fuzzing::WasmModuleGenerationOptions::kGenerateAll;
+  // Avoid generating SIMD if the CPU does not support it, or it's disabled via
+  // flags. Otherwise, do not limit the generated expressions and types.
+  constexpr auto kAllOptions =
+      wasm::fuzzing::WasmModuleGenerationOptions::All();
+  constexpr auto kNoSimdOptions = wasm::fuzzing::WasmModuleGenerationOptions{
+      {wasm::fuzzing::WasmModuleGenerationOption::kGenerateWasmGC}};
+  static_assert(
+      (kNoSimdOptions |
+       wasm::fuzzing::WasmModuleGenerationOptions{
+           {wasm::fuzzing::WasmModuleGenerationOption::kGenerateSIMD}}) ==
+      kAllOptions);
+  auto options =
+      wasm::CheckHardwareSupportsSimd() ? kAllOptions : kNoSimdOptions;
+
   base::Vector<const uint8_t> module_bytes =
-      wasm::fuzzing::GenerateRandomWasmModule<options>(
-          &temporary_zone, base::VectorOf(input_bytes));
+      wasm::fuzzing::GenerateRandomWasmModule(&temporary_zone, options,
+                                              base::VectorOf(input_bytes));
 
   if (module_bytes.empty()) return ReadOnlyRoots(isolate).undefined_value();
 

@@ -147,9 +147,8 @@ class Vector {
   // - U and T have the same size.
   // Note that this conversion is only safe for `*const* U`; writes would
   // violate covariance.
-  template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<T*, const U*> &&
-                                        sizeof(U) == sizeof(T)>>
+  template <typename U>
+    requires std::is_convertible_v<T*, const U*> && (sizeof(U) == sizeof(T))
   operator Vector<const U>() const {
     return {start_, length_};
   }
@@ -174,15 +173,15 @@ class Vector {
     return !operator==(other);
   }
 
-  template<typename TT = T>
-  std::enable_if_t<!std::is_const_v<TT>, bool> operator==(
-      const Vector<const T>& other) const {
+  template <typename TT = T>
+    requires(!std::is_const_v<TT>)
+  bool operator==(const Vector<const T>& other) const {
     return std::equal(begin(), end(), other.begin(), other.end());
   }
 
-  template<typename TT = T>
-  std::enable_if_t<!std::is_const_v<TT>, bool> operator!=(
-      const Vector<const T>& other) const {
+  template <typename TT = T>
+    requires(!std::is_const_v<TT>)
+  bool operator!=(const Vector<const T>& other) const {
     return !operator==(other);
   }
 
@@ -226,16 +225,14 @@ class OwnedVector {
   // {OwnedVector<const T>}.
   // These also function as the standard move construction/assignment operator.
   // {other} is left as an empty vector.
-  template <typename U,
-            typename = typename std::enable_if<std::is_convertible<
-                std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
+  template <typename U>
+    requires std::is_convertible_v<std::unique_ptr<U>, std::unique_ptr<T>>
   OwnedVector(OwnedVector<U>&& other) V8_NOEXCEPT {
     *this = std::move(other);
   }
 
-  template <typename U,
-            typename = typename std::enable_if<std::is_convertible<
-                std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
+  template <typename U>
+    requires std::is_convertible_v<std::unique_ptr<U>, std::unique_ptr<T>>
   OwnedVector& operator=(OwnedVector<U>&& other) V8_NOEXCEPT {
     static_assert(sizeof(U) == sizeof(T));
     data_ = std::move(other.data_);
