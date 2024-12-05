@@ -15,6 +15,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/fast-api-calls.h"
@@ -2428,6 +2429,17 @@ void LoadDoubleField::GenerateCode(MaglevAssembler* masm,
   __ LoadTaggedField(tmp, object, offset());
   __ AssertNotSmi(tmp);
   __ LoadHeapNumberValue(ToDoubleRegister(result()), tmp);
+}
+
+void LoadFloat64::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+}
+void LoadFloat64::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  __ LoadFloat64(ToDoubleRegister(result()), FieldMemOperand(object, offset()));
 }
 
 template <typename T>
@@ -7425,6 +7437,11 @@ void LoadTaggedFieldForScriptContextSlot::PrintParams(
 
 void LoadDoubleField::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void LoadFloat64::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 

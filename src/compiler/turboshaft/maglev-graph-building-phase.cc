@@ -2802,6 +2802,12 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ LoadHeapNumberValue(field));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::LoadFloat64* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Load(Map(node->object_input()), LoadOp::Kind::TaggedBase(),
+                         MemoryRepresentation::Float64(), node->offset()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::LoadFixedArrayElement* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ LoadFixedArrayElement(

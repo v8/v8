@@ -196,6 +196,7 @@ class ExceptionHandlerInfo;
   V(LoadTaggedFieldForContextSlot)                  \
   V(LoadTaggedFieldForScriptContextSlot)            \
   V(LoadDoubleField)                                \
+  V(LoadFloat64)                                    \
   V(LoadTaggedFieldByFieldIndex)                    \
   V(LoadFixedArrayElement)                          \
   V(LoadFixedDoubleArrayElement)                    \
@@ -7021,6 +7022,33 @@ class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
 
  public:
   explicit LoadDoubleField(uint64_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanRead() | OpProperties::Float64();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  int offset() const { return offset_; }
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return input(kObjectIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  auto options() const { return std::tuple{offset()}; }
+
+ private:
+  const int offset_;
+};
+
+class LoadFloat64 : public FixedInputValueNodeT<1, LoadFloat64> {
+  using Base = FixedInputValueNodeT<1, LoadFloat64>;
+
+ public:
+  explicit LoadFloat64(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties =

@@ -3061,10 +3061,17 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadScriptContextSlot(
       EnsureType(value, NodeType::kSmi);
       return value;
     }
-    case ContextSidePropertyCell::kMutableHeapNumber:
+    case ContextSidePropertyCell::kMutableHeapNumber: {
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           context, index, property, broker());
+      if (auto mutable_heap_number = context.get(broker(), index)) {
+        DCHECK(mutable_heap_number->IsHeapNumber());
+        return AddNewNode<LoadFloat64>(
+            {GetConstant(*mutable_heap_number)},
+            static_cast<int>(offsetof(HeapNumber, value_)));
+      }
       return AddNewNode<LoadDoubleField>({context_node}, offset);
+    }
     case ContextSidePropertyCell::kOther:
       return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
                                                                  offset);
@@ -3169,12 +3176,20 @@ ReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
       *store = BuildStoreTaggedField(context, value, offset,
                                      StoreTaggedMode::kDefault);
       break;
-    case ContextSidePropertyCell::kMutableHeapNumber:
+    case ContextSidePropertyCell::kMutableHeapNumber: {
       BuildCheckNumber(value);
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           context_ref, index, property, broker());
-      *store = AddNewNode<StoreDoubleField>({context, value}, offset);
+      if (auto mutable_heap_number = context_ref.get(broker(), index)) {
+        DCHECK(mutable_heap_number->IsHeapNumber());
+        *store = AddNewNode<StoreFloat64>(
+            {GetConstant(*mutable_heap_number), value},
+            static_cast<int>(offsetof(HeapNumber, value_)));
+      } else {
+        *store = AddNewNode<StoreDoubleField>({context, value}, offset);
+      }
       break;
+    }
     case ContextSidePropertyCell::kOther:
       *store = BuildStoreTaggedField(context, value, offset,
                                      StoreTaggedMode::kDefault);
@@ -4118,6 +4133,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kLoadTaggedFieldForContextSlot:
     case Opcode::kLoadTaggedFieldForScriptContextSlot:
     case Opcode::kLoadDoubleField:
+    case Opcode::kLoadFloat64:
     case Opcode::kLoadTaggedFieldByFieldIndex:
     case Opcode::kLoadFixedArrayElement:
     case Opcode::kLoadFixedDoubleArrayElement:
