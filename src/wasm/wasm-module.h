@@ -750,6 +750,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   const ModuleOrigin origin;
   mutable LazilyGeneratedNames lazily_generated_names;
   std::array<WasmDebugSymbols, WasmDebugSymbols::kNumTypes> debug_symbols{};
+  WireBytesRef build_id;
 
   // Asm.js source position information. Only available for modules compiled
   // from asm.js.

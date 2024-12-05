@@ -920,6 +920,21 @@ uint32_t WasmScript::GetFunctionHash(int function_index) {
                                                function_bytes.length(), 0);
 }
 
+Maybe<v8::MemorySpan<const uint8_t>> WasmScript::GetModuleBuildId() const {
+  i::DisallowGarbageCollection no_gc;
+  auto script = Utils::OpenDirectHandle(this);
+  DCHECK_EQ(i::Script::Type::kWasm, script->type());
+  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  const i::wasm::WasmModule* wasm_module = native_module->module();
+  const i::wasm::WireBytesRef& build_id = wasm_module->build_id;
+  if (build_id.is_empty()) {
+    return Nothing<MemorySpan<const uint8_t>>();
+  }
+  return Just(MemorySpan<const uint8_t>{
+      native_module->wire_bytes().begin() + build_id.offset(),
+      build_id.length()});
+}
+
 int WasmScript::CodeOffset() const {
   auto script = Utils::OpenDirectHandle(this);
   DCHECK_EQ(i::Script::Type::kWasm, script->type());

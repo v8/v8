@@ -1996,17 +1996,19 @@ void V8DebuggerAgentImpl::didParseSource(
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
-        scriptRef->hash(), std::move(executionContextAuxData),
-        std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
-        scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
-        std::move(scriptLanguage), embedderName);
+        scriptRef->hash(), scriptRef->buildId(),
+        std::move(executionContextAuxData), std::move(sourceMapURLParam),
+        hasSourceURLParam, isModuleParam, scriptRef->length(),
+        std::move(stackTrace), std::move(codeOffset), std::move(scriptLanguage),
+        embedderName);
     return;
   }
 
   m_frontend.scriptParsed(
       scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
       scriptRef->endLine(), scriptRef->endColumn(), contextId,
-      scriptRef->hash(), std::move(executionContextAuxData), isLiveEditParam,
+      scriptRef->hash(), scriptRef->buildId(),
+      std::move(executionContextAuxData), isLiveEditParam,
       std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
       scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
       std::move(scriptLanguage), std::move(debugSymbols), embedderName);

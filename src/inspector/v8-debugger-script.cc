@@ -221,6 +221,26 @@ class ActualScript : public V8DebuggerScript {
     return m_hash;
   }
 
+  String16 buildId() const override {
+#if V8_ENABLE_WEBASSEMBLY
+    if (m_language == Language::WebAssembly) {
+      v8::Local<v8::debug::Script> script = this->script();
+      auto maybe_build_id =
+          v8::debug::WasmScript::Cast(*script)->GetModuleBuildId();
+      if (maybe_build_id.IsJust()) {
+        v8::MemorySpan<const uint8_t> buildId = maybe_build_id.FromJust();
+        String16Builder buildIdFormatter;
+        for (size_t i = 0; i < buildId.size(); i++) {
+          buildIdFormatter.appendUnsignedAsHex(
+              static_cast<uint8_t>(buildId[i]));
+        }
+        return buildIdFormatter.toString();
+      }
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    return {};
+  }
+
  private:
   static String16 GetScriptURL(v8::Isolate* isolate,
                                v8::Local<v8::debug::Script> script,

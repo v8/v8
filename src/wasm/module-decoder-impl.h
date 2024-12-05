@@ -36,6 +36,7 @@ constexpr char kCompilationHintsString[] = "compilationHints";
 constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
+constexpr char kBuildIdString[] = "build_id";
 
 inline const char* ExternalKindName(ImportExportKindCode kind) {
   switch (kind) {
@@ -143,7 +144,8 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
       {base::StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
       {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {base::StaticCharVector(kExternalDebugInfoString),
-       kExternalDebugInfoSectionCode}};
+       kExternalDebugInfoSectionCode},
+      {base::StaticCharVector(kBuildIdString), kBuildIdSectionCode}};
 
   auto name_vec = base::Vector<const char>::cast(
       base::VectorOf(section_name_start, string.length()));
@@ -476,6 +478,9 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kExternalDebugInfoSectionCode:
         DecodeExternalDebugInfoSection();
+        break;
+      case kBuildIdSectionCode:
+        DecodeBuildIdSection();
         break;
       case kInstTraceSectionCode:
         if (enabled_features_.has_instruction_tracing()) {
@@ -1384,6 +1389,17 @@ class ModuleDecoderImpl : public Decoder {
       module_->debug_symbols[WasmDebugSymbols::Type::ExternalDWARF] = {
           WasmDebugSymbols::Type::ExternalDWARF, url};
       set_seen_unordered_section(kExternalDebugInfoSectionCode);
+    }
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeBuildIdSection() {
+    Decoder inner(start_, pc_, end_, buffer_offset_);
+    WireBytesRef build_id =
+        consume_string(&inner, unibrow::Utf8Variant::kLossyUtf8, "build_id");
+    if (inner.ok()) {
+      module_->build_id = build_id;
+      set_seen_unordered_section(kBuildIdSectionCode);
     }
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
