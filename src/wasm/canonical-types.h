@@ -333,10 +333,15 @@ class TypeCanonicalizer {
 
     bool EqualStructType(const CanonicalStructType& type1,
                          const CanonicalStructType& type2) const {
-      return std::equal(
-          type1.fields().begin(), type1.fields().end(), type2.fields().begin(),
-          type2.fields().end(),
-          std::bind_front(&CanonicalEquality::EqualValueType, this));
+      return
+          // Compare fields, including a check that the size is the same.
+          std::equal(
+              type1.fields().begin(), type1.fields().end(),
+              type2.fields().begin(), type2.fields().end(),
+              std::bind_front(&CanonicalEquality::EqualValueType, this)) &&
+          // Compare mutabilities, skipping the check for the size.
+          std::equal(type1.mutabilities().begin(), type1.mutabilities().end(),
+                     type2.mutabilities().begin());
     }
 
     bool EqualArrayType(const CanonicalArrayType& type1,
