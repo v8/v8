@@ -39,6 +39,19 @@ constexpr TaskPriority kBackgroundRegularPriority = TaskPriority::kUserVisible;
 constexpr TaskPriority kForegroundRegularPriority = TaskPriority::kUserBlocking;
 constexpr TaskPriority kForegroundLowPriority = TaskPriority::kUserVisible;
 
+constexpr FreeMemoryHandling GetActualDiscardHandling(
+    FreeMemoryHandling handling) {
+#if !defined(V8_OS_WIN)
+  return handling;
+#else
+  // Discarding memory on Windows does not decommit the memory and does not
+  // contribute to reduce the memory footprint. On the other hand, these
+  // calls become expensive the more memory is allocated in the system and
+  // can result in hangs. Thus, it is better to not discard on Windows.
+  return FreeMemoryHandling::kDoNotDiscard;
+#endif  // !defined(V8_OS_WIN)
+}
+
 class DeadlineChecker final {
  public:
   explicit DeadlineChecker(v8::base::TimeTicks end) : end_(end) {}
@@ -538,7 +551,7 @@ class SweepFinalizer final {
           largest_consecutive_block_ = std::max(
               LargePage::From(page)->PayloadSize(), largest_consecutive_block_);
         }
-        BasePage::Destroy(page, free_memory_handling_);
+        BasePage::Destroy(page);
         return;
       }
 
@@ -572,7 +585,8 @@ class SweepFinalizer final {
     // Merge freelist with finalizers.
     if (!page_state->unfinalized_free_list.empty()) {
       std::unique_ptr<FreeHandlerBase> handler =
-          (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible)
+          (GetActualDiscardHandling(free_memory_handling_) ==
+           FreeMemoryHandling::kDiscardWherePossible)
               ? std::unique_ptr<FreeHandlerBase>(new DiscardingFreeHandler(
                     *platform_->GetPageAllocator(), space_freelist, *page))
               : std::unique_ptr<FreeHandlerBase>(new RegularFreeHandler(
@@ -703,11 +717,13 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   }
 
   bool VisitNormalPage(NormalPage& page) {
-    if (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible) {
+    const auto discard_handling =
+        GetActualDiscardHandling(free_memory_handling_);
+    if (discard_handling == FreeMemoryHandling::kDiscardWherePossible) {
       page.ResetDiscardedMemory();
     }
     const auto result =
-        (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible)
+        (discard_handling == FreeMemoryHandling::kDiscardWherePossible)
             ? SweepNormalPage<
                   InlinedFinalizationBuilder<DiscardingFreeHandler>>(
                   &page, *platform_->GetPageAllocator(), sticky_bits_)
@@ -715,7 +731,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
                   &page, *platform_->GetPageAllocator(), sticky_bits_);
     if (result.is_empty &&
         empty_page_handling_ == EmptyPageHandling::kDestroy) {
-      NormalPage::Destroy(&page, free_memory_handling_);
+      NormalPage::Destroy(&page);
       (*unused_destroyed_normal_pages_)++;
     } else {
       if (space_) {
@@ -1322,8 +1338,9 @@ class Sweeper::SweeperImpl final {
     notify_done_pending_ = false;
     stats_collector_->NotifySweepingCompleted(config_.sweeping_type);
     if (config_.free_memory_handling ==
-        FreeMemoryHandling::kDiscardWherePossible)
-      heap_.heap()->page_backend()->DiscardPooledPages();
+        FreeMemoryHandling::kDiscardWherePossible) {
+      heap_.heap()->page_backend()->ReleasePooledPages();
+    }
   }
 
   void WaitForConcurrentSweepingForTesting() {
