@@ -2243,13 +2243,17 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
           // as index is 0 anyways.
           stack_.emplace_back(ContinuationRecord::kObject, property, 0);
           result = SerializeObjectKey(key_name, comma, no_gc);
-          if (V8_UNLIKELY(result != SUCCESS)) {
-            stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
-                                comma);
-            return result;
+          if constexpr (is_one_byte) {
+            if (V8_UNLIKELY(result != SUCCESS)) {
+              DCHECK_EQ(result, CHANGE_ENCODING);
+              stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
+                                  comma);
+              return result;
+            }
           }
           return result;
         case CHANGE_ENCODING:
+          DCHECK(is_one_byte);
           stack_.emplace_back(ContinuationRecord::kObject, obj,
                               i.as_uint32() + 1);
           stack_.emplace_back(ContinuationRecord::kResumeFromOther, property,
@@ -2435,19 +2439,30 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
   FastJsonStringifierResult result;
   DCHECK(IsString(object));
   if (cont.type == ContinuationRecord::kObjectKey) {
+    // Serializing an object key caused an encoding change.
     result = SerializeObjectKey(Cast<String>(object), cont.index, no_gc);
     DCHECK_EQ(result, SUCCESS);
-    DCHECK(!stack_.empty());
+    // Resuming due to encoding change of an object key guarantees that there
+    // are at least two other objects on the stack (the value for that key, and
+    // the continuation record for the object the key is a member of).
+    DCHECK_GE(stack_.size(), 2);
     cont = stack_.back();
     stack_.pop_back();
+    // Check that we have the object's continuation record.
+    DCHECK_EQ(stack_.back().type, ContinuationRecord::kObject);
   }
   if (cont.type == ContinuationRecord::kResumeFromOther) {
-    DCHECK_EQ(cont.type, ContinuationRecord::kResumeFromOther);
+    // Mutliple scenarios lead here:
+    // 1) The object to serialize was a string on the top-level, which triggered
+    //    an encoding change.
+    // 2) A string value in an array or object triggered an encoding change.
+    // 3) Fall-through from the object key case above.
     object = cont.object;
     result = TrySerializeSimpleObject<false>(object);
     DCHECK_EQ(result, SUCCESS);
-  }
-  if (!stack_.empty()) {
+
+    if (stack_.empty()) return result;
+
     cont = stack_.back();
     DCHECK(cont.type == ContinuationRecord::kObject ||
            cont.type == ContinuationRecord::kArray);
@@ -2457,8 +2472,14 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     uint32_t array_cont_idx =
         cont.type == ContinuationRecord::kArray ? cont.index : 0;
     return SerializeObject(cont.object, obj_cont_idx, array_cont_idx);
+  } else {
+    // Object can be JSArray or JSObject. Right now this is only possible after
+    // encoding change of an object's key, in which case we push a continuation
+    // of kObject even for JSArrays (as index is 0 anyways).
+    DCHECK_EQ(cont.type, ContinuationRecord::kObject);
+    DCHECK_EQ(cont.index, 0);
+    return SerializeObject(cont.object, 0, 0);
   }
-  return result;
 }
 
 template <typename Char>

@@ -329,6 +329,48 @@ assertEquals('{\n "a": "b",\n "c": "d"\n}',
 assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x']));
 assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x', 'x', 'y']));
 
+// Test encoding changes.
+let smiley = '\u{D83D}\u{DE0A}';
+assertEquals(`"${smiley}"`, JSON.stringify(smiley));
+assertEquals(`[0,"${smiley}",9]`, JSON.stringify([0, smiley, 9]));
+assertEquals(
+    `{"a":"x","b":[0,"${smiley}",9],"c":"y"}`,
+    JSON.stringify({a: 'x', b: [0, smiley, 9], c: 'y'}));
+assertEquals(`{"a":"${smiley}"}`, JSON.stringify({a: smiley}));
+assertEquals(
+    `{"a":42,"b":"${smiley}","c":"foo"}`,
+    JSON.stringify({a: 42, b: smiley, c: 'foo'}));
+assertEquals(
+    `{"outer1":{"a":42,"b":"${smiley}","c":"foo"},"outer2":{}}`,
+    JSON.stringify({outer1: {a: 42, b: smiley, c: 'foo'}, outer2: {}}));
+
+assertEquals(`{"${smiley}":"a"}`, JSON.stringify({[smiley]: 'a'}));
+assertEquals(
+    `{"a":42,"${smiley}":"b","c":"foo"}`,
+    JSON.stringify({a: 42, [smiley]: 'b', c: 'foo'}));
+assertEquals(
+    `{"outer1":{"a":42,"${smiley}":"b","c":"foo"},"outer2":{}}`,
+    JSON.stringify({outer1: {a: 42, [smiley]: 'b', c: 'foo'}, outer2: {}}));
+assertEquals(
+    `{"${smiley}":[1,2,3,4]}`, JSON.stringify({[smiley]: [1, 2, 3, 4]}));
+assertEquals(
+    `{"${smiley}":{"a":42,"b":"foo"}}`,
+    JSON.stringify({[smiley]: {a: 42, b: 'foo'}}));
+assertEquals(
+    `{"a":42,"${smiley}":[1,2,3,4],"c":"foo"}`,
+    JSON.stringify({a: 42, [smiley]: [1, 2, 3, 4], c: 'foo'}));
+assertEquals(
+    `{"a":42,"${smiley}":{"a":42,"b":"foo"},"c":"foo"}`,
+    JSON.stringify({a: 42, [smiley]: {a: 42, b: 'foo'}, c: 'foo'}));
+assertEquals(
+    `{"outer1":{"a":42,"${smiley}":[1,2,3,4],"c":"foo"},"outer2":{}}`,
+    JSON.stringify(
+        {outer1: {a: 42, [smiley]: [1, 2, 3, 4], c: 'foo'}, outer2: {}}));
+assertEquals(
+    `{"outer1":{"a":42,"${smiley}":{"a":42,"b":"foo"},"c":"foo"},"outer2":{}}`,
+    JSON.stringify(
+        {outer1: {a: 42, [smiley]: {a: 42, b: 'foo'}, c: 'foo'}, outer2: {}}));
+
 // toJSON get string keys.
 var checker = {};
 var array = [checker];
