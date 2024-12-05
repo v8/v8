@@ -25,6 +25,10 @@ double pow(double x, double y) {
       //   b. If abs(ℝ(base)) = 1, return NaN.
       return std::numeric_limits<double>::quiet_NaN();
     }
+    if (std::isnan(x)) {
+      // std::pow distinguishes between quiet and signaling NaN; JS doesn't.
+      x = std::numeric_limits<double>::quiet_NaN();
+    }
     return std::pow(x, y);
   }
   return base::ieee754::legacy::pow(x, y);
