@@ -78,7 +78,7 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
 { // Test i32.
   var globalForI32 = 0;
   let {triggerDeopt} = createWasmModuleForLazyDeopt(kWasmI32,
-    [kExprI32Const, 42], () => globalForI32 = 1).exports;
+    [kExprI32Const, 43], () => globalForI32 = 1).exports;
 
   function test(arg0) {
     var result = 0;
@@ -90,9 +90,9 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
   }
 
   %PrepareFunctionForOptimization(test);
-  assertEquals(42, test(0));
+  assertEquals(43, test(0));
   %OptimizeFunctionOnNextCall(test);
-  assertEquals(42, test(0));
+  assertEquals(43, test(0));
 }
 
 { // Test f32.

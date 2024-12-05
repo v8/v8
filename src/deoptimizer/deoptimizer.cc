@@ -2839,7 +2839,11 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     }
 
     // Ensure the result is restored back when we return to the stub.
-    if (frame_info.frame_has_result_stack_slot()) {
+    // For JS-to-Wasm builtin continuations the returns are handled differently
+    // and we can't push untagged return values onto the stack as they would be
+    // visited during a GC and treated as tagged stack slots.
+    if (frame_info.frame_has_result_stack_slot() &&
+        !is_js_to_wasm_builtin_continuation) {
       Register result_reg = kReturnRegister0;
       frame_writer.PushRawValue(input_->GetRegister(result_reg.code()),
                                 "callback result\n");
