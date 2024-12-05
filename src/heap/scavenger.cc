@@ -1004,7 +1004,7 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
     // surface and needs to be kept to a minimum. So we do the the iteration in
     // two rounds. First we iterate the slots and scavenge objects and in the
     // second round with write access, we only perform the pointer updates.
-    RememberedSet<OLD_TO_NEW>::IterateTyped(
+    const auto typed_slot_count = RememberedSet<OLD_TO_NEW>::IterateTyped(
         page, [this, chunk, page, record_old_to_shared_slots, &slot_updates](
                   SlotType slot_type, Address slot_address) {
           Tagged<HeapObject> old_target =
@@ -1022,6 +1022,12 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
           }
           return result;
         });
+    // Typed slots only exist in code objects. Since code is never young, it is
+    // safe to release an empty typed slot set as no other scavenge thread will
+    // attempt to promote to the page and write to the slot set.
+    if ((typed_slot_count == 0) && page->SweepingDone()) {
+      page->ReleaseTypedSlotSet(OLD_TO_NEW);
+    }
 
     WritableJitPage jit_page = ThreadIsolation::LookupWritableJitPage(
         page->area_start(), page->area_size());
