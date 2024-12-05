@@ -847,14 +847,8 @@ void ScavengerCollector::CollectGarbage() {
     Scavenger::EmptyChunksList::Local empty_chunks_local(empty_chunks);
     MutablePageMetadata* chunk;
     while (empty_chunks_local.Pop(&chunk)) {
-      // Since sweeping was already restarted only check chunks that already got
-      // swept.
-      if (chunk->SweepingDone()) {
-        RememberedSet<OLD_TO_NEW>::CheckPossiblyEmptyBuckets(chunk);
-        RememberedSet<OLD_TO_NEW_BACKGROUND>::CheckPossiblyEmptyBuckets(chunk);
-      } else {
-        chunk->possibly_empty_buckets()->Release();
-      }
+      RememberedSet<OLD_TO_NEW>::CheckPossiblyEmptyBuckets(chunk);
+      RememberedSet<OLD_TO_NEW_BACKGROUND>::CheckPossiblyEmptyBuckets(chunk);
     }
 
 #ifdef DEBUG
@@ -1093,7 +1087,7 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
     // Typed slots only exist in code objects. Since code is never young, it is
     // safe to release an empty typed slot set as no other scavenge thread will
     // attempt to promote to the page and write to the slot set.
-    if ((typed_slot_count == 0) && page->SweepingDone()) {
+    if (typed_slot_count == 0) {
       page->ReleaseTypedSlotSet(OLD_TO_NEW);
     }
 
