@@ -65,8 +65,11 @@ SemiSpace::~SemiSpace() {
 
 bool SemiSpace::EnsureCapacity(size_t capacity) {
   DCHECK_IMPLIES(!IsCommitted(), CommittedMemory() == 0);
-  const int num_pages = static_cast<int>((capacity / PageMetadata::kPageSize) -
-                                         memory_chunk_list_.size());
+  const size_t quarantined_pages =
+      id_ == kToSpace ? quarantined_pages_count_ : 0;
+  const int num_pages =
+      static_cast<int>((capacity / PageMetadata::kPageSize) -
+                       memory_chunk_list_.size() + quarantined_pages);
   if (num_pages >= 0) {
     for (int pages_added = 0; pages_added < num_pages; pages_added++) {
       // Pages in the new spaces can be moved to the old space by the full
@@ -83,9 +86,11 @@ bool SemiSpace::EnsureCapacity(size_t capacity) {
     // needed. Free the redundant pages.
     RewindPages(-num_pages);
   }
-  DCHECK_EQ(capacity, CommittedMemory());
-  DCHECK_EQ(static_cast<int>(capacity / PageMetadata::kPageSize),
-            memory_chunk_list_.size());
+  DCHECK_EQ(capacity + quarantined_pages * PageMetadata::kPageSize,
+            CommittedMemory());
+  DCHECK_EQ(
+      static_cast<int>(capacity / PageMetadata::kPageSize) + quarantined_pages,
+      memory_chunk_list_.size());
   return true;
 }
 
