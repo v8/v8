@@ -334,7 +334,8 @@ void MaglevPhiRepresentationSelector::EnsurePhiInputsTagged(Phi* phi) {
   // should be tagged. We'll thus insert tagging operation on the untagged phi
   // inputs of {phi}.
 
-  for (int i = 0; i < phi->input_count(); i++) {
+  const int skip_backedge = phi->is_loop_phi() ? 1 : 0;
+  for (int i = 0; i < phi->input_count() - skip_backedge; i++) {
     ValueNode* input = phi->input(i).node();
     if (Phi* phi_input = input->TryCast<Phi>()) {
       phi->change_input(
