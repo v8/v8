@@ -9,7 +9,7 @@ const kTypedArrayType = Sandbox.getInstanceTypeIdFor("JS_TYPED_ARRAY_TYPE");
 // raw_byte_length), we should also just change this test to corrupt
 // raw_byte_length instead.
 const kTypedArrayLengthOffset =
-  Sandbox.getFieldOffset(kTypedArrayType, "length");
+  Sandbox.getFieldOffset(kTypedArrayType, "raw_length");
 const kTypedArrayExternalPointerOffset =
   Sandbox.getFieldOffset(kTypedArrayType, "external_pointer");
 const kTypedArrayBasePointerOffset =
