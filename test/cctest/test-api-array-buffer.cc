@@ -916,15 +916,13 @@ THREADED_TEST(ArrayBuffer_DataApiWithEmptyExternal) {
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
-  void* expected_data_ptr = V8_ENABLE_SANDBOX_BOOL
-                                ? v8::internal::EmptyBackingStoreBuffer()
-                                : nullptr;
-  CHECK_EQ(expected_data_ptr, ab->Data());
+  void* empty_buffer_ptr = v8::internal::EmptyBackingStoreBuffer();
+  CHECK_EQ(empty_buffer_ptr, ab->Data());
   CHECK_EQ(0, ab->ByteLength());
-  CHECK_NULL(ab->GetBackingStore()->Data());
+  CHECK_EQ(empty_buffer_ptr, ab->GetBackingStore()->Data());
   // Repeat test to make sure that accessing the backing store buffer hasn't
-  // changed what sandboxed AB's Data method returns.
-  CHECK_EQ(expected_data_ptr, ab->Data());
+  // changed what the AB's Data method returns.
+  CHECK_EQ(empty_buffer_ptr, ab->Data());
   CHECK_EQ(0, ab->ByteLength());
 
   void* buffer = CcTest::array_buffer_allocator()->Allocate(1);

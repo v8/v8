@@ -11,6 +11,7 @@
 #include "include/v8-array-buffer.h"
 #include "include/v8-internal.h"
 #include "src/handles/handles.h"
+#include "src/sandbox/sandbox.h"
 
 namespace v8::internal {
 
@@ -78,7 +79,13 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   static std::unique_ptr<BackingStore> EmptyBackingStore(SharedFlag shared);
 
   // Accessors.
-  void* buffer_start() const { return buffer_start_; }
+  // Internally, we treat nullptr as the empty buffer value. However,
+  // externally, we should use the EmptyBackingStoreBuffer() constant for that
+  // purpose as the buffer pointer should always point into the sandbox. As
+  // such, this is the place where we convert between these two.
+  void* buffer_start() const {
+    return buffer_start_ != nullptr ? buffer_start_ : EmptyBackingStoreBuffer();
+  }
   size_t byte_length(
       std::memory_order memory_order = std::memory_order_relaxed) const {
     return byte_length_.load(memory_order);
