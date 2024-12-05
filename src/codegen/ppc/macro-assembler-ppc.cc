@@ -5354,13 +5354,23 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
 //       the flags in the referenced {Code} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
+//
+// Note: With leaptiering we simply assert the code is not deoptimized.
 void MacroAssembler::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  LoadTaggedField(r11, MemOperand(kJavaScriptCallCodeStartRegister, offset),
-                     r0);
-  LoadU32(r11, FieldMemOperand(r11, Code::kFlagsOffset), r0);
-  TestBit(r11, Code::kMarkedForDeoptimizationBit);
+  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
+    LoadTaggedField(r11, MemOperand(kJavaScriptCallCodeStartRegister, offset),
+                    r0);
+    LoadU32(r11, FieldMemOperand(r11, Code::kFlagsOffset), r0);
+    TestBit(r11, Code::kMarkedForDeoptimizationBit);
+  }
+#ifdef V8_ENABLE_LEAPTIERING
+  if (v8_flags.debug_code) {
+    Assert(zero, AbortReason::kInvalidDeoptimizedCode);
+  }
+#else
   TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, ne, cr0);
+#endif
 }
 
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
