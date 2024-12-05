@@ -2999,6 +2999,8 @@ bool Compiler::Compile(Isolate* isolate, DirectHandle<JSFunction> function,
   JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
   function->ResetTieringRequests(isolate);
 
+  function->UpdateCode(*code);
+
   // Optimize now if --always-turbofan is enabled.
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.always_turbofan && !function->shared()->HasAsmWasmData()) {
@@ -3023,11 +3025,8 @@ bool Compiler::Compile(Isolate* isolate, DirectHandle<JSFunction> function,
     if (GetOrCompileOptimized(isolate, function, concurrency_mode, code_kind)
             .ToHandle(&maybe_code)) {
       code = maybe_code;
+      function->UpdateOptimizedCode(isolate, *code);
     }
-
-    function->UpdateMaybeContextSpecializedCode(isolate, *code);
-  } else {
-    function->UpdateCode(*code);
   }
 
   // Install a feedback vector if necessary.
@@ -3164,7 +3163,7 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   Handle<Code> code;
   if (GetOrCompileOptimized(isolate, function, mode, code_kind)
           .ToHandle(&code)) {
-    function->UpdateMaybeContextSpecializedCode(isolate, *code);
+    function->UpdateOptimizedCode(isolate, *code);
     DCHECK_IMPLIES(v8_flags.log_function_events,
                    function->IsLoggingRequested(isolate));
   } else {
@@ -4401,12 +4400,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
           CompilerTracer::TraceOptimizeOSRFinished(isolate, function,
                                                    osr_offset);
         } else {
-          if (job->compilation_info()->function_context_specializing()) {
-            function->UpdateContextSpecializedCode(isolate,
-                                                   *compilation_info->code());
-          } else {
-            function->UpdateCode(*compilation_info->code());
-          }
+          function->UpdateOptimizedCode(isolate, *compilation_info->code());
         }
       }
       return;
@@ -4466,11 +4460,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
     Handle<Code> code = job->code().ToHandleChecked();
     if (!job->is_osr()) {
-      if (job->specialize_to_function_context()) {
-        job->function()->UpdateContextSpecializedCode(isolate, *code);
-      } else {
-        job->function()->UpdateCode(*code);
-      }
+      job->function()->UpdateOptimizedCode(isolate, *code);
     }
 
     DCHECK(code->is_maglevved());
@@ -4520,7 +4510,7 @@ void Compiler::PostInstantiation(Isolate* isolate,
         // Caching of optimized code enabled and optimized code found.
         DCHECK(!code->marked_for_deoptimization());
         DCHECK(function->shared()->is_compiled());
-        function->UpdateCode(code);
+        function->UpdateOptimizedCode(isolate, code);
       }
     }
 #endif  // !V8_ENABLE_LEAPTIERING

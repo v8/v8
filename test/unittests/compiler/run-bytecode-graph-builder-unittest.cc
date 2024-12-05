@@ -147,7 +147,7 @@ class BytecodeGraphTester {
     DirectHandle<Code> code =
         Pipeline::GenerateCodeForTesting(&compilation_info, isolate_)
             .ToHandleChecked();
-    function->UpdateCode(*code);
+    function->UpdateOptimizedCode(isolate_, *code);
 
     return function;
   }

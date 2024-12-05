@@ -475,7 +475,10 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     static_assert(Code::kEndOfStrongFieldsOffset ==
                   Code::kInstructionStartOffset);
 #ifndef V8_ENABLE_SANDBOX
-    static_assert(Code::kInstructionStartOffsetEnd + 1 == Code::kFlagsOffset);
+    static_assert(
+        Code::kInstructionStartOffsetEnd + 1 +
+            (V8_ENABLE_LEAPTIERING_BOOL ? kJSDispatchHandleSize : 0) ==
+        Code::kFlagsOffset);
 #endif
     static_assert(Code::kFlagsOffsetEnd + 1 == Code::kInstructionSizeOffset);
     static_assert(Code::kInstructionSizeOffsetEnd + 1 ==

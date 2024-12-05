@@ -495,6 +495,28 @@ void Code::set_marked_for_deoptimization(bool flag) {
   set_flags(updated, kRelaxedStore);
 }
 
+inline void Code::SetMarkedForDeoptimization(Isolate* isolate,
+                                             const char* reason) {
+  set_marked_for_deoptimization(true);
+  if (reason && (v8_flags.trace_deopt || v8_flags.log_deopt)) {
+    TraceMarkForDeoptimization(isolate, reason);
+  }
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchHandle handle = js_dispatch_handle();
+  if (handle != kNullJSDispatchHandle) {
+    JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+    if (SafeEquals(jdt->GetCode(handle))) {
+      // TODO(olivf): Use a dedicated builtin which re-sets the Budget according
+      // to which tier we currently are in.
+      GetProcessWideJSDispatchTable()->instance()->SetCodeNoWriteBarrier(
+          handle, *BUILTIN_CODE(isolate, CompileLazy));
+    }
+    // Ensure we don't try to patch the entry multiple times.
+    set_js_dispatch_handle(kNullJSDispatchHandle);
+  }
+#endif
+}
+
 bool Code::embedded_objects_cleared() const {
   return Code::EmbeddedObjectsClearedField::decode(flags(kRelaxedLoad));
 }
@@ -852,6 +874,16 @@ inline bool Code::is_baseline_trampoline_builtin() const {
 inline bool Code::is_baseline_leave_frame_builtin() const {
   return builtin_id() == Builtin::kBaselineLeaveFrame;
 }
+
+#ifdef V8_ENABLE_LEAPTIERING
+inline JSDispatchHandle Code::js_dispatch_handle() const {
+  return ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+}
+
+inline void Code::set_js_dispatch_handle(JSDispatchHandle handle) {
+  Relaxed_WriteField<JSDispatchHandle>(kDispatchHandleOffset, handle);
+}
+#endif  // V8_ENABLE_LEAPTIERING
 
 OBJECT_CONSTRUCTORS_IMPL(CodeWrapper, Struct)
 CODE_POINTER_ACCESSORS(CodeWrapper, code, kCodeOffset)

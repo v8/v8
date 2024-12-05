@@ -132,7 +132,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
                                   CodeKind::TURBOFAN_JS);
   DirectHandle<Code> f_code =
       Pipeline::GenerateCodeForTesting(&f_info, isolate).ToHandleChecked();
-  f->UpdateCode(*f_code);
+  f->UpdateOptimizedCode(isolate, *f_code);
   IsCompiledScope compiled_scope_f(*f_sfi, isolate);
   JSFunction::EnsureFeedbackVector(isolate, f, &compiled_scope_f);
 

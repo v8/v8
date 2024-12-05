@@ -1349,8 +1349,11 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
 
     static_assert(Code::kEndOfStrongFieldsWithMainCageBaseOffset ==
                   Code::kInstructionStreamOffset);
-    static_assert(Code::kInstructionStreamOffset + kTaggedSize ==
-                  Code::kEndOfStrongFieldsOffset);
+
+#ifdef V8_ENABLE_LEAPTIERING
+    IterateJSDispatchEntry(obj, kDispatchHandleOffset, v);
+#endif  // V8_ENABLE_LEAPTIERING
+
     v->VisitInstructionStreamPointer(
         Cast<Code>(obj),
         obj->RawInstructionStreamField(kInstructionStreamOffset));

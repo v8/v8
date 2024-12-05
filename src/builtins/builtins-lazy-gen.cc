@@ -191,17 +191,6 @@ TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
   CompileLazy(function);
 }
 
-TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
-  auto function = Parameter<JSFunction>(Descriptor::kTarget);
-
-  TNode<Code> code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
-#ifndef V8_ENABLE_LEAPTIERING
-  // Set the code slot inside the JSFunction to CompileLazy.
-  StoreCodePointerField(function, JSFunction::kCodeOffset, code);
-#endif  // V8_ENABLE_LEAPTIERING
-  GenerateTailCallToJSCode(code, function);
-}
-
 #ifdef V8_ENABLE_LEAPTIERING
 
 void LazyBuiltinsAssembler::TieringBuiltinImpl(
@@ -254,7 +243,18 @@ TF_BUILTIN(OptimizeTurbofanEager, LazyBuiltinsAssembler) {
   TieringBuiltinImpl(Runtime::kOptimizeTurbofanEager);
 }
 
-#endif  // !V8_ENABLE_LEAPTIERING
+#else
+
+TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
+  auto function = Parameter<JSFunction>(Descriptor::kTarget);
+
+  TNode<Code> code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
+  // Set the code slot inside the JSFunction to CompileLazy.
+  StoreCodePointerField(function, JSFunction::kCodeOffset, code);
+  GenerateTailCallToJSCode(code, function);
+}
+
+#endif  // V8_ENABLE_LEAPTIERING
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 

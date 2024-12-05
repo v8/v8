@@ -75,54 +75,27 @@ Tagged<AbstractCode> JSFunction::abstract_code(IsolateT* isolate) {
 
 int JSFunction::length() { return shared()->length(); }
 
-void JSFunction::UpdateMaybeContextSpecializedCode(Isolate* isolate,
-                                                   Tagged<Code> value,
-                                                   WriteBarrierMode mode) {
-  if (value->is_context_specialized()) {
-    UpdateContextSpecializedCode(isolate, value, mode);
-  } else {
-    UpdateCode(value, mode);
-  }
-}
-
-void JSFunction::UpdateContextSpecializedCode(Isolate* isolate,
-                                              Tagged<Code> value,
-                                              WriteBarrierMode mode) {
+void JSFunction::UpdateOptimizedCode(Isolate* isolate, Tagged<Code> code,
+                                     WriteBarrierMode mode) {
   DisallowGarbageCollection no_gc;
-  DCHECK(value->is_context_specialized());
-  DCHECK(value->is_optimized_code());
-
+  DCHECK(code->is_optimized_code());
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchHandle handle = dispatch_handle();
-  // We can only set context-specialized code for single-closure cells.
-  if (raw_feedback_cell()->map() ==
-      ReadOnlyRoots(isolate).one_closure_cell_map()) {
-    if (handle == kNullJSDispatchHandle) {
-      handle = raw_feedback_cell()->dispatch_handle();
-      DCHECK_NE(handle, kNullJSDispatchHandle);
-      set_dispatch_handle(handle, mode);
+  if (code->is_context_specialized()) {
+    // We can only set context-specialized code for single-closure cells.
+    if (raw_feedback_cell()->map() !=
+        ReadOnlyRoots(isolate).one_closure_cell_map()) {
+      return;
     }
-    UpdateDispatchEntry(value, mode);
   }
-
-  if (V8_UNLIKELY(v8_flags.log_function_events)) {
-    GetProcessWideJSDispatchTable()->SetTieringRequest(
-        dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution, isolate);
-  }
-#else
-  WriteCodePointerField(kCodeOffset, value);
-  CONDITIONAL_CODE_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
-
-  if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
-    feedback_vector()->set_log_next_execution(true);
-  }
+  // Required for being able to deoptimize this code.
+  code->set_js_dispatch_handle(dispatch_handle());
 #endif  // V8_ENABLE_LEAPTIERING
+  UpdateCodeImpl(code, mode, false);
 }
 
-void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode,
-                            bool keep_tiering_request) {
+void JSFunction::UpdateCodeImpl(Tagged<Code> value, WriteBarrierMode mode,
+                                bool keep_tiering_request) {
   DisallowGarbageCollection no_gc;
-  DCHECK(!value->is_context_specialized());
 
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
@@ -152,9 +125,18 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode,
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
+void JSFunction::UpdateCode(Tagged<Code> code, WriteBarrierMode mode) {
+  // Optimized code must go through UpdateOptimized code, which sets a
+  // back-reference in the code object to the dispatch handle for
+  // deoptimization.
+  CHECK(!code->is_optimized_code());
+  UpdateCodeImpl(code, mode, false);
+}
+
 inline void JSFunction::UpdateCodeKeepTieringRequests(Tagged<Code> code,
                                                       WriteBarrierMode mode) {
-  UpdateCode(code, mode, true);
+  CHECK(!code->is_optimized_code());
+  UpdateCodeImpl(code, mode, true);
 }
 
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {

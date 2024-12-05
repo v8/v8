@@ -605,9 +605,7 @@ constexpr int kCodePointerSize = kTrustedPointerSize;
 // pointers. Either way, they are always kTaggedSize fields.
 constexpr int kProtectedPointerSize = kTaggedSize;
 
-#ifdef V8_ENABLE_LEAPTIERING
 constexpr int kJSDispatchHandleSize = sizeof(JSDispatchHandle);
-#endif
 
 // Dispatch handle constant used as a placeholder. This is currently used by
 // compilers when generating JS calls. In that case, the actual dispatch handle

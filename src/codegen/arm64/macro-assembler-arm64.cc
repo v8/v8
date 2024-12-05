@@ -2663,17 +2663,31 @@ bool MacroAssembler::IsNearCallOffset(int64_t offset) {
 //       the flags in the referenced {Code} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
+//
+// Note: With leaptiering we simply assert the code is not deoptimized.
 void MacroAssembler::BailoutIfDeoptimized() {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  LoadProtectedPointerField(
-      scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  Ldr(scratch.W(), FieldMemOperand(scratch, Code::kFlagsOffset));
+  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
+    int offset =
+        InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
+    LoadProtectedPointerField(
+        scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+    Ldr(scratch.W(), FieldMemOperand(scratch, Code::kFlagsOffset));
+  }
+#ifdef V8_ENABLE_LEAPTIERING
+  if (v8_flags.debug_code) {
+    Label not_deoptimized;
+    Tbz(scratch.W(), Code::kMarkedForDeoptimizationBit, &not_deoptimized);
+    Abort(AbortReason::kInvalidDeoptimizedCode);
+    Bind(&not_deoptimized);
+  }
+#else
   Label not_deoptimized;
   Tbz(scratch.W(), Code::kMarkedForDeoptimizationBit, &not_deoptimized);
   TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode);
   Bind(&not_deoptimized);
+#endif
 }
 
 void MacroAssembler::CallForDeoptimization(

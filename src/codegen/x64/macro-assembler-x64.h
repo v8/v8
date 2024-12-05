@@ -549,6 +549,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode, Condition cc);
 
+  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
+  // non-leaptiering is removed from the codebase.
   void BailoutIfDeoptimized(Register scratch);
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,

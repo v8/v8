@@ -1486,7 +1486,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun(
-        "%PrepareFunctionForOptimization(foo);"
+        "%PrepareFunctionForOptimization(foo); foo();"
         "%OptimizeFunctionOnNextCall(foo); foo();");
   }
 
@@ -4681,18 +4681,20 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
         "bar();"
         "bar();"
         "%OptimizeFunctionOnNextCall(bar);"
-        "bar();"
-        "%DeoptimizeFunction(bar);");
+        "bar();");
 
     DirectHandle<JSFunction> bar = Cast<JSFunction>(v8::Utils::OpenDirectHandle(
         *v8::Local<v8::Function>::Cast(CcTest::global()
                                            ->Get(context.local(), v8_str("bar"))
                                            .ToLocalChecked())));
     code = handle(bar->code(isolate), isolate);
+    CompileRun("%DeoptimizeFunction(bar);");
+    CHECK(code->marked_for_deoptimization());
+    CHECK_IMPLIES(V8_ENABLE_LEAPTIERING_BOOL,
+                  !code->SafeEquals(bar->code(isolate)));
     code = scope.CloseAndEscape(code);
   }
 
-  CHECK(code->marked_for_deoptimization());
 
   // Now make sure that a gc should get rid of the function
   for (int i = 0; i < 4; i++) {

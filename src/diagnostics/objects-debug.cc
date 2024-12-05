@@ -1282,6 +1282,9 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   Tagged<Code> code_from_table = jdt->GetCode(handle);
   CHECK(code_from_table->parameter_count() == kDontAdaptArgumentsSentinel ||
         code_from_table->parameter_count() == parameter_count);
+  CHECK(!code_from_table->marked_for_deoptimization());
+  CHECK_IMPLIES(code_from_table->is_optimized_code(),
+                code_from_table->js_dispatch_handle() != kNullJSDispatchHandle);
 
   // Currently, a JSFunction must have the same dispatch entry as its
   // FeedbackCell, unless the FeedbackCell has no entry.

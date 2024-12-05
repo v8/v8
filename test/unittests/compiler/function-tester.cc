@@ -157,7 +157,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
       Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
                                        AssemblerOptions::Default(isolate))
           .ToHandleChecked();
-  function->UpdateCode(*code);
+  function->UpdateOptimizedCode(isolate, *code);
   return function;
 }
 
@@ -185,7 +185,7 @@ Handle<JSFunction> FunctionTester::Optimize(Handle<JSFunction> function,
   DirectHandle<Code> code =
       compiler::Pipeline::GenerateCodeForTesting(&info, isolate)
           .ToHandleChecked();
-  function->UpdateCode(*code);
+  function->UpdateOptimizedCode(isolate, *code);
   return function;
 }
 }  // namespace compiler

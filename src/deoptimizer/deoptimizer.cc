@@ -455,7 +455,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   {
     DeoptimizableCodeIterator it(isolate);
     for (Tagged<Code> code = it.Next(); !code.is_null(); code = it.Next()) {
-      code->set_marked_for_deoptimization(true);
+      code->SetMarkedForDeoptimization(isolate, nullptr);
     }
   }
 
@@ -476,7 +476,7 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
     // Mark the code for deoptimization and unlink any functions that also
     // refer to that code. The code cannot be shared across native contexts,
     // so we only need to search one.
-    code->set_marked_for_deoptimization(true);
+    code->SetMarkedForDeoptimization(isolate, nullptr);
 #ifndef V8_ENABLE_LEAPTIERING_BOOL
     // The code in the function's optimized code feedback vector slot might
     // be different from the code on the function - evict it if necessary.
@@ -504,7 +504,7 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
     DeoptimizableCodeIterator it(isolate);
     for (Tagged<Code> code = it.Next(); !code.is_null(); code = it.Next()) {
       if (code->Inlines(*function)) {
-        code->set_marked_for_deoptimization(true);
+        code->SetMarkedForDeoptimization(isolate, nullptr);
         any_marked = true;
       }
     }

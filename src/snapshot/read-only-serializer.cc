@@ -78,8 +78,11 @@ class ObjectPreProcessor final {
   }
   void PreProcessCode(Tagged<Code> o) {
     o->ClearInstructionStartForSerialization(isolate_);
-    DCHECK(!o->has_source_position_table_or_bytecode_offset_table());
-    DCHECK(!o->has_deoptimization_data_or_interpreter_data());
+    CHECK(!o->has_source_position_table_or_bytecode_offset_table());
+    CHECK(!o->has_deoptimization_data_or_interpreter_data());
+#ifdef V8_ENABLE_LEAPTIERING
+    CHECK(!o->js_dispatch_handle());
+#endif
   }
 
   Isolate* const isolate_;

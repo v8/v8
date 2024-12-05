@@ -100,6 +100,9 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
       options.builtin_jump_table_info_offset);
   code->set_unwinding_info_offset(options.unwinding_info_offset);
   code->set_parameter_count(options.parameter_count);
+#ifdef V8_ENABLE_LEAPTIERING
+  code->set_js_dispatch_handle(kNullJSDispatchHandle);
+#endif  // V8_ENABLE_LEAPTIERING
 
   // Set bytecode/interpreter data or deoptimization data.
   if (CodeKindUsesBytecodeOrInterpreterData(options.kind)) {

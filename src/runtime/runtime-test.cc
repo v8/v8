@@ -481,7 +481,7 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
   PrintF("Maglev compile time: %g ms!\n",
          timer.Elapsed().InMillisecondsF() / count);
 
-  function->UpdateMaybeContextSpecializedCode(isolate, *code);
+  function->UpdateOptimizedCode(isolate, *code);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1553,7 +1553,8 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   IsCompiledScope is_compiled_scope;
 #ifndef V8_ENABLE_LEAPTIERING
   if (!func->is_compiled(isolate) && func->HasAvailableOptimizedCode(isolate)) {
-    func->UpdateCode(func->feedback_vector()->optimized_code(isolate));
+    func->UpdateOptimizedCode(isolate,
+                              func->feedback_vector()->optimized_code(isolate));
   }
 #endif  // !V8_ENABLE_LEAPTIERING
   CHECK(func->shared()->is_compiled() ||

@@ -126,16 +126,12 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // are fully initialized.
   DECL_TRUSTED_POINTER_GETTERS(code, Code)
 
-  inline void UpdateContextSpecializedCode(
-      Isolate* isolate, Tagged<Code> code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  inline void UpdateMaybeContextSpecializedCode(
+  inline void UpdateOptimizedCode(
       Isolate* isolate, Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void UpdateCode(
       Tagged<Code> code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER,
-      bool keep_tiering_request = false);
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void UpdateCodeKeepTieringRequests(
       Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
@@ -439,6 +435,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
 #ifndef V8_ENABLE_LEAPTIERING
   inline void set_tiering_state(IsolateForSandbox isolate, TieringState state);
 #endif  // !V8_ENABLE_LEAPTIERING
+
+  inline void UpdateCodeImpl(Tagged<Code> code, WriteBarrierMode mode,
+                             bool keep_tiering_request);
 
   // Updates the Code in this function's dispatch table entry.
   inline void UpdateDispatchEntry(
