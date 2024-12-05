@@ -526,7 +526,7 @@ class GraphBuildingNodeProcessor {
     if (graph->has_resumable_generator()) {
       generator_analyzer_.Analyze(graph);
 
-      dummy_object_input_ = __ SmiConstant(0);
+      dummy_object_input_ = __ SmiZeroConstant();
       dummy_word32_input_ = __ Word32Constant(0);
       dummy_float64_input_ = __ Float64Constant(0);
 
@@ -1080,7 +1080,7 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     // TODO(dmercadier): should this really be a SmiConstant, or rather a
     // Word32Constant?
-    SetMap(node, __ SmiConstant(node->value().ptr()));
+    SetMap(node, __ SmiConstant(i::Tagged<Smi>(node->value().ptr())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::TrustedConstant* node,
@@ -4553,7 +4553,7 @@ class GraphBuildingNodeProcessor {
     // skipped. We thus use SmiConstant(0) as a fake Closure input here, but it
     // would be nicer to fix the instruction selector to not require this input
     // at all for such frames.
-    V<Any> fake_closure_input = __ SmiConstant(0);
+    V<Any> fake_closure_input = __ SmiZeroConstant();
     builder.AddInput(MachineType::AnyTagged(), fake_closure_input);
 
     // Parameters
@@ -4599,7 +4599,7 @@ class GraphBuildingNodeProcessor {
     // should be skipped. We thus use SmiConstant(0) as a fake Context input
     // here, but it would be nicer to fix the instruction selector to not
     // require this input at all for such frames.
-    V<Any> fake_context_input = __ SmiConstant(0);
+    V<Any> fake_context_input = __ SmiZeroConstant();
     builder.AddInput(MachineType::AnyTagged(), fake_context_input);
 
     if (builder.Inputs().size() >

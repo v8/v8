@@ -5841,7 +5841,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
     // The first input is the closure for JS. (The instruction selector will
     // just skip this input as the liftoff frame doesn't have a closure.)
-    V<Object> dummy_tagged = __ SmiConstant(0);
+    V<Object> dummy_tagged = __ SmiZeroConstant();
     builder.AddInput(MachineType::AnyTagged(), dummy_tagged);
     // Add the parameters.
     size_t param_count = decoder->sig_->parameter_count();
