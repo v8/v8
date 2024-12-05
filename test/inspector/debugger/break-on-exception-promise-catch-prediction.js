@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --js-explicit-resource-management
+
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks when promise rejections are predicted to be caught.');
 
 // catch-prediction.js
@@ -179,6 +181,15 @@ function throwAfterFulfillInPromiseConstructor() {
     console.log('after pass');
     throw new Error('fail');
   });
+}
+
+async function throwInAsyncDisposeFormSync() {
+  await using x = {
+    value: 1,
+    [Symbol.dispose]() {
+      throw new Error('fail');
+    }
+  };
 }
 
 async function dontHandleAsync(fn) {
@@ -469,7 +480,8 @@ const advancedThrowFunctions = [
     rejectAfterFulfillInPromiseConstructor,
     rejectAfterDelayAfterFulfillInPromiseConstructor,
     throwAfterFulfillInPromiseConstructor,
-    throwInPromiseTryCallback
+    throwInPromiseTryCallback,
+    throwInAsyncDisposeFormSync
 ];
 const basicCatchFunctions = [dontHandleAsync, awaitAndCreateInTry];
 const advancedCatchFunctions = [

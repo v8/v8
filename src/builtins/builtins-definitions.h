@@ -2256,7 +2256,8 @@ namespace internal {
   V(PromiseRejectReactionJob)                        \
   V(PromiseRace)                                     \
   V(PromiseTry)                                      \
-  V(ResolvePromise)
+  V(ResolvePromise)                                  \
+  V(AsyncDisposeFromSyncDispose)
 
 #define IGNORE_BUILTIN(...)
 
