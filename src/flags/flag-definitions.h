@@ -948,7 +948,7 @@ DEFINE_VALUE_IMPLICATION(jit_fuzzing, wasm_tiering_budget, 1)
 DEFINE_IMPLICATION(jit_fuzzing, wasm_inlining_ignore_call_counts)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-DEFINE_BOOL(use_std_math_pow, false,
+DEFINE_BOOL(use_std_math_pow, true,
             "use std::pow instead of our custom implementation")
 
 // Flags for inline caching and feedback vectors.
