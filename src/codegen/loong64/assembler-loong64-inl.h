@@ -202,6 +202,11 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
+JSDispatchHandle RelocInfo::js_dispatch_handle() {
+  DCHECK(rmode_ == JS_DISPATCH_HANDLE);
+  return ReadUnalignedValue<JSDispatchHandle>(pc_);
+}
+
 Handle<Code> Assembler::relative_code_target_object_handle_at(
     Address pc) const {
   Instr instr = instr_at(pc);
