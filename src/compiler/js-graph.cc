@@ -5,6 +5,7 @@
 #include "src/compiler/js-graph.h"
 
 #include "src/codegen/code-factory.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/objects/objects-inl.h"
 
@@ -114,6 +115,11 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
   } else {
     return HeapConstantNoHole(ref.AsHeapObject().object());
   }
+}
+
+Node* JSGraph::ConstantMutableHeapNumber(HeapNumberRef ref,
+                                         JSHeapBroker* broker) {
+  return HeapConstantNoHole(ref.AsHeapObject().object());
 }
 
 Node* JSGraph::ConstantNoHole(double value) {

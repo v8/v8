@@ -309,14 +309,22 @@ Reduction JSContextSpecialization::ReduceJSLoadScriptContext(Node* node) {
     case ContextSidePropertyCell::kMutableHeapNumber: {
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           concrete, access.index(), property, broker());
-      Node* heap_number = effect = jsgraph_->graph()->NewNode(
-          jsgraph_->simplified()->LoadField(
-              AccessBuilder::ForContextSlot(access.index())),
-          jsgraph_->ConstantNoHole(concrete, broker()), effect, control);
+      Node* mutable_heap_number;
+      if (auto concrete_heap_number =
+              concrete.get(broker(), static_cast<int>(access.index()))) {
+        DCHECK(concrete_heap_number->IsHeapNumber());
+        mutable_heap_number = jsgraph_->ConstantMutableHeapNumber(
+            concrete_heap_number->AsHeapNumber(), broker());
+      } else {
+        mutable_heap_number = effect = jsgraph_->graph()->NewNode(
+            jsgraph_->simplified()->LoadField(
+                AccessBuilder::ForContextSlot(access.index())),
+            jsgraph_->ConstantNoHole(concrete, broker()), effect, control);
+      }
       Node* double_load = effect =
           jsgraph_->graph()->NewNode(jsgraph_->simplified()->LoadField(
                                          AccessBuilder::ForHeapNumberValue()),
-                                     heap_number, effect, control);
+                                     mutable_heap_number, effect, control);
       ReplaceWithValue(node, double_load, effect, control);
       return Changed(node);
     }
@@ -447,10 +455,18 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
     case ContextSidePropertyCell::kMutableHeapNumber: {
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           concrete, access.index(), property, broker());
-      Node* mutable_heap_number = effect = jsgraph()->graph()->NewNode(
-          jsgraph()->simplified()->LoadField(
-              AccessBuilder::ForContextSlot(access.index())),
-          jsgraph()->ConstantNoHole(concrete, broker()), effect, control);
+      Node* mutable_heap_number;
+      if (auto concrete_heap_number =
+              concrete.get(broker(), static_cast<int>(access.index()))) {
+        DCHECK(concrete_heap_number->IsHeapNumber());
+        mutable_heap_number = jsgraph_->ConstantMutableHeapNumber(
+            concrete_heap_number->AsHeapNumber(), broker());
+      } else {
+        mutable_heap_number = effect = jsgraph_->graph()->NewNode(
+            jsgraph_->simplified()->LoadField(
+                AccessBuilder::ForContextSlot(access.index())),
+            jsgraph_->ConstantNoHole(concrete, broker()), effect, control);
+      }
       Node* input_number =
           access_builder.BuildCheckNumber(value, &effect, control);
       Node* double_store = jsgraph()->graph()->NewNode(

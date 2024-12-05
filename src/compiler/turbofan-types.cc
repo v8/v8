@@ -929,9 +929,6 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsSmi()) {
     return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
-  if (ref.IsHeapNumber()) {
-    return Constant(ref.AsHeapNumber().value(), zone);
-  }
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
@@ -942,6 +939,10 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.HoleType() != HoleType::kNone) {
     return Type::Hole();
   }
+  // If we see a HeapNumber wrapped in a Constant node,
+  // then it should be a mutable HeapNumber, and it should be
+  // treated as HeapConstants. Any other number, should
+  // use Type::Constant(double, Zone*).
   return HeapConstant(ref.AsHeapObject(), broker, zone);
 }
 
@@ -1181,7 +1182,6 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 
 // static
 Type Type::HeapConstant(HeapObjectRef value, JSHeapBroker* broker, Zone* zone) {
-  DCHECK(!value.IsHeapNumber());
   DCHECK_EQ(value.HoleType(), HoleType::kNone);
   DCHECK_IMPLIES(value.IsString(), value.IsInternalizedString());
   BitsetType::bitset bitset =

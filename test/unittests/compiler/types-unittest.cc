@@ -203,89 +203,52 @@ class TypesTest : public TestWithNativeContextAndZone {
 
     // Typing of numbers
     Factory* fac = isolate()->factory();
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0))).Is(T.UnsignedSmall));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(1))).Is(T.UnsignedSmall));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(42)))
-              .Equals(T.Range(42, 42)));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0x3FFFFFFF)))
-              .Is(T.UnsignedSmall));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-1))).Is(T.Negative31));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-0x3FFFFFFF)))
-              .Is(T.Negative31));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-0x40000000)))
-              .Is(T.Negative31));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0x40000000)))
-              .Is(T.Unsigned31));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(0x40000000)))
-               .Is(T.Unsigned30));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0x7FFFFFFF)))
-              .Is(T.Unsigned31));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(0x7FFFFFFF)))
-               .Is(T.Unsigned30));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-0x40000001)))
-              .Is(T.Negative32));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(-0x40000001)))
-               .Is(T.Negative31));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-0x7FFFFFFF)))
-              .Is(T.Negative32));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(-0x7FFFFFFF - 1)))
-               .Is(T.Negative31));
+    CHECK(T.Constant(0).Is(T.UnsignedSmall));
+    CHECK(T.Constant(1).Is(T.UnsignedSmall));
+    CHECK(T.Constant(42).Equals(T.Range(42, 42)));
+    CHECK(T.Constant(0x3FFFFFFF).Is(T.UnsignedSmall));
+    CHECK(T.Constant(-1).Is(T.Negative31));
+    CHECK(T.Constant(-0x3FFFFFFF).Is(T.Negative31));
+    CHECK(T.Constant(-0x40000000).Is(T.Negative31));
+    CHECK(T.Constant(0x40000000).Is(T.Unsigned31));
+    CHECK(!T.Constant(0x40000000).Is(T.Unsigned30));
+    CHECK(T.Constant(0x7FFFFFFF).Is(T.Unsigned31));
+    CHECK(!T.Constant(0x7FFFFFFF).Is(T.Unsigned30));
+    CHECK(T.Constant(-0x40000001).Is(T.Negative32));
+    CHECK(!T.Constant(-0x40000001).Is(T.Negative31));
+    CHECK(T.Constant(-0x7FFFFFFF).Is(T.Negative32));
+    CHECK(!T.Constant(-0x7FFFFFFF - 1).Is(T.Negative31));
     if (SmiValuesAre31Bits()) {
-      CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(0x40000000)))
-                 .Is(T.UnsignedSmall));
-      CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(0x7FFFFFFF)))
-                 .Is(T.UnsignedSmall));
-      CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(-0x40000001)))
-                 .Is(T.SignedSmall));
-      CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(-0x7FFFFFFF - 1)))
-                 .Is(T.SignedSmall));
+      CHECK(!T.Constant(0x40000000).Is(T.UnsignedSmall));
+      CHECK(!T.Constant(0x7FFFFFFF).Is(T.UnsignedSmall));
+      CHECK(!T.Constant(-0x40000001).Is(T.SignedSmall));
+      CHECK(!T.Constant(-0x7FFFFFFF - 1).Is(T.SignedSmall));
     } else {
       CHECK(SmiValuesAre32Bits());
-      CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0x40000000)))
-                .Is(T.UnsignedSmall));
-      CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0x7FFFFFFF)))
-                .Is(T.UnsignedSmall));
-      CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-0x40000001)))
-                .Is(T.SignedSmall));
-      CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-0x7FFFFFFF - 1)))
-                .Is(T.SignedSmall));
+      CHECK(T.Constant(0x40000000).Is(T.UnsignedSmall));
+      CHECK(T.Constant(0x7FFFFFFF).Is(T.UnsignedSmall));
+      CHECK(T.Constant(-0x40000001).Is(T.SignedSmall));
+      CHECK(T.Constant(-0x7FFFFFFF - 1).Is(T.SignedSmall));
     }
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0x80000000u)))
-              .Is(T.Unsigned32));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(0x80000000u)))
-               .Is(T.Unsigned31));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0xFFFFFFFFu)))
-              .Is(T.Unsigned32));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(0xFFFFFFFFu)))
-               .Is(T.Unsigned31));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0xFFFFFFFFu + 1.0)))
-              .Is(T.PlainNumber));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(0xFFFFFFFFu + 1.0)))
-               .Is(T.Integral32));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-0x7FFFFFFF - 2.0)))
-              .Is(T.PlainNumber));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(-0x7FFFFFFF - 2.0)))
-               .Is(T.Integral32));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(0.1))).Is(T.PlainNumber));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(0.1))).Is(T.Integral32));
-    CHECK(
-        T.Constant(T.CanonicalHandle(fac->NewNumber(-10.1))).Is(T.PlainNumber));
-    CHECK(
-        !T.Constant(T.CanonicalHandle(fac->NewNumber(-10.1))).Is(T.Integral32));
-    CHECK(
-        T.Constant(T.CanonicalHandle(fac->NewNumber(10e60))).Is(T.PlainNumber));
-    CHECK(
-        !T.Constant(T.CanonicalHandle(fac->NewNumber(10e60))).Is(T.Integral32));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-1.0 * 0.0)))
-              .Is(T.MinusZero));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(V8_INFINITY)))
-              .Is(T.PlainNumber));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(V8_INFINITY)))
-               .Is(T.Integral32));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-V8_INFINITY)))
-              .Is(T.PlainNumber));
-    CHECK(!T.Constant(T.CanonicalHandle(fac->NewNumber(-V8_INFINITY)))
-               .Is(T.Integral32));
+    CHECK(T.Constant(0x80000000u).Is(T.Unsigned32));
+    CHECK(!T.Constant(0x80000000u).Is(T.Unsigned31));
+    CHECK(T.Constant(0xFFFFFFFFu).Is(T.Unsigned32));
+    CHECK(!T.Constant(0xFFFFFFFFu).Is(T.Unsigned31));
+    CHECK(T.Constant(0xFFFFFFFFu + 1.0).Is(T.PlainNumber));
+    CHECK(!T.Constant(0xFFFFFFFFu + 1.0).Is(T.Integral32));
+    CHECK(T.Constant(-0x7FFFFFFF - 2.0).Is(T.PlainNumber));
+    CHECK(!T.Constant(-0x7FFFFFFF - 2.0).Is(T.Integral32));
+    CHECK(T.Constant(0.1).Is(T.PlainNumber));
+    CHECK(!T.Constant(0.1).Is(T.Integral32));
+    CHECK(T.Constant(-10.1).Is(T.PlainNumber));
+    CHECK(!T.Constant(-10.1).Is(T.Integral32));
+    CHECK(T.Constant(10e60).Is(T.PlainNumber));
+    CHECK(!T.Constant(10e60).Is(T.Integral32));
+    CHECK(T.Constant(-1.0 * 0.0).Is(T.MinusZero));
+    CHECK(T.Constant(V8_INFINITY).Is(T.PlainNumber));
+    CHECK(!T.Constant(V8_INFINITY).Is(T.Integral32));
+    CHECK(T.Constant(-V8_INFINITY).Is(T.PlainNumber));
+    CHECK(!T.Constant(-V8_INFINITY).Is(T.Integral32));
 
     // Typing of Strings
     Handle<String> s1 = T.CanonicalHandle(fac->NewStringFromAsciiChecked("a"));
@@ -303,13 +266,10 @@ class TypesTest : public TestWithNativeContextAndZone {
     CHECK(T.Constant(fac->hash_table_hole_value()).Equals(T.Hole));
     CHECK(T.Constant(fac->null_value()).Equals(T.Null));
     CHECK(T.Constant(fac->undefined_value()).Equals(T.Undefined));
-    CHECK(T.Constant(fac->minus_zero_value()).Equals(T.MinusZero));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(-0.0)))
-              .Equals(T.MinusZero));
-    CHECK(T.Constant(fac->nan_value()).Equals(T.NaN));
-    CHECK(T.Constant(T.CanonicalHandle(fac->NewNumber(
-                         std::numeric_limits<double>::quiet_NaN())))
-              .Equals(T.NaN));
+    CHECK(T.Constant(fac->minus_zero_value()->value()).Equals(T.MinusZero));
+    CHECK(T.Constant(-0.0).Equals(T.MinusZero));
+    CHECK(T.Constant(fac->nan_value()->value()).Equals(T.NaN));
+    CHECK(T.Constant(std::numeric_limits<double>::quiet_NaN()).Equals(T.NaN));
   }
 
   void Range() {
