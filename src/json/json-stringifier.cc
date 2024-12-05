@@ -1918,11 +1918,23 @@ namespace {
 
 V8_INLINE bool CanFastSerializeJSArrayFastPath(Tagged<JSArray> object,
                                                Isolate* isolate) {
+  // Check if the prototype is the initial array prototype without interesting
+  // properties (toJSON).
   Tagged<Map> map = object->map();
   if (map->may_have_interesting_properties()) return false;
   Tagged<NativeContext> native_context = map->map()->native_context();
   Tagged<HeapObject> proto = map->prototype();
   if (native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) != proto) {
+    return false;
+  }
+  Tagged<Map> proto_map = proto->map();
+  if (proto_map->may_have_interesting_properties()) {
+    return false;
+  }
+  // Additionally check if the Array prototype is the initial object prototype
+  // without interesting properties (toJSON).
+  proto = proto_map->prototype();
+  if (native_context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX) != proto) {
     return false;
   }
   return !proto->map()->may_have_interesting_properties();

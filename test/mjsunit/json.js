@@ -626,6 +626,7 @@ Object.prototype.toJSON = function() {
   return 'obj proto';
 };
 TestStringify('"obj proto"', {});
+TestStringify('"obj proto"', []);
 Array.prototype.toJSON = function() {
   return 'arr proto';
 };
