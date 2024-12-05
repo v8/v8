@@ -559,6 +559,32 @@ constexpr bool IsWord() {
          std::is_same_v<T, Word>;
 }
 
+template <typename T>
+constexpr bool IsValidTypeFor(RegisterRepresentation repr) {
+  switch (repr.value()) {
+    case RegisterRepresentation::Enum::kWord32:
+      return std::is_same_v<T, Word> || std::is_same_v<T, Word32> ||
+             std::is_same_v<T, Untagged>;
+    case RegisterRepresentation::Enum::kWord64:
+      return std::is_same_v<T, Word> || std::is_same_v<T, Word64> ||
+             std::is_same_v<T, Untagged>;
+    case RegisterRepresentation::Enum::kFloat32:
+      return std::is_same_v<T, Float> || std::is_same_v<T, Float32> ||
+             std::is_same_v<T, Untagged>;
+    case RegisterRepresentation::Enum::kFloat64:
+      return std::is_same_v<T, Float> || std::is_same_v<T, Float64> ||
+             std::is_same_v<T, Untagged>;
+    case RegisterRepresentation::Enum::kTagged:
+      return is_subtype_v<T, Object>;
+    case RegisterRepresentation::Enum::kCompressed:
+      return is_subtype_v<T, Object>;
+    case RegisterRepresentation::Enum::kSimd128:
+      return std::is_same_v<T, Simd128>;
+    case RegisterRepresentation::Enum::kSimd256:
+      return std::is_same_v<T, Simd256>;
+  }
+}
+
 // V<> represents an SSA-value that is parameterized with the type of the value.
 // Types from the `Object` hierarchy can be provided as well as the abstract
 // representation classes (`Word32`, ...) defined above.

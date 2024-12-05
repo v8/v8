@@ -1738,7 +1738,7 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_BINOP_V(Float64Power, FloatBinop, Power, Float64)
   DECL_SINGLE_REP_BINOP_V(Float64Atan2, FloatBinop, Atan2, Float64)
 
-  OpIndex Shift(OpIndex left, OpIndex right, ShiftOp::Kind kind,
+  V<Word> Shift(V<Word> left, V<Word32> right, ShiftOp::Kind kind,
                 WordRepresentation rep) {
     return ReduceIfReachableShift(left, right, kind, rep);
   }
@@ -1781,19 +1781,19 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_SHIFT_V(Word32RotateLeft, RotateLeft, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64RotateLeft, RotateLeft, Word64)
 
-  OpIndex ShiftRightLogical(OpIndex left, uint32_t right,
+  V<Word> ShiftRightLogical(V<Word> left, uint32_t right,
                             WordRepresentation rep) {
     DCHECK_GE(right, 0);
     DCHECK_LT(right, rep.bit_width());
     return ShiftRightLogical(left, this->Word32Constant(right), rep);
   }
-  OpIndex ShiftRightArithmetic(OpIndex left, uint32_t right,
+  V<Word> ShiftRightArithmetic(V<Word> left, uint32_t right,
                                WordRepresentation rep) {
     DCHECK_GE(right, 0);
     DCHECK_LT(right, rep.bit_width());
     return ShiftRightArithmetic(left, this->Word32Constant(right), rep);
   }
-  OpIndex ShiftLeft(OpIndex left, uint32_t right, WordRepresentation rep) {
+  V<Word> ShiftLeft(V<Word> left, uint32_t right, WordRepresentation rep) {
     DCHECK_LT(right, rep.bit_width());
     return ShiftLeft(left, this->Word32Constant(right), rep);
   }
@@ -2946,8 +2946,9 @@ class TurboshaftAssemblerOpInterface
     }
     if (access.is_bounded_size_access) {
       DCHECK(!is_sandboxed_external);
-      value = ShiftRightLogical(value, kBoundedSizeShift,
-                                WordRepresentation::WordPtr());
+      value = V<Rep>::Cast(ShiftRightLogical(V<WordPtr>::Cast(value),
+                                             kBoundedSizeShift,
+                                             WordRepresentation::WordPtr()));
     }
 #endif  // V8_ENABLE_SANDBOX
     return value;
@@ -3019,8 +3020,8 @@ class TurboshaftAssemblerOpInterface
 
 #ifdef V8_ENABLE_SANDBOX
     if (access.is_bounded_size_access) {
-      value =
-          ShiftLeft(value, kBoundedSizeShift, WordRepresentation::WordPtr());
+      value = ShiftLeft(V<WordPtr>::Cast(value), kBoundedSizeShift,
+                        WordRepresentation::WordPtr());
     }
 #endif  // V8_ENABLE_SANDBOX
 

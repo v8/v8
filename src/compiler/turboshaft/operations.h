@@ -2023,8 +2023,8 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
                          RegisterRepresentation::Word32()});
   }
 
-  OpIndex left() const { return input(0); }
-  OpIndex right() const { return input(1); }
+  V<Word> left() const { return input<Word>(0); }
+  V<Word32> right() const { return input<Word32>(1); }
 
   bool IsRightShift() const { return IsRightShift(kind); }
 
@@ -2055,7 +2055,7 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
     }
   }
 
-  ShiftOp(OpIndex left, OpIndex right, Kind kind, WordRepresentation rep)
+  ShiftOp(V<Word> left, V<Word32> right, Kind kind, WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
 
   void Validate(const Graph& graph) const {
@@ -2252,19 +2252,23 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
     return InputsRepFactory::SingleRep(from);
   }
 
-  V<Untagged> input() const { return Base::input<Untagged>(0); }
+  template <typename Type = Untagged>
+    requires IsUntagged<Type>
+  V<Type> input() const {
+    DCHECK(IsValidTypeFor<Type>(from));
+    return Base::input<Type>(0);
+  }
 
   ChangeOp(V<Untagged> input, Kind kind, Assumption assumption,
            RegisterRepresentation from, RegisterRepresentation to)
       : Base(input), kind(kind), assumption(assumption), from(from), to(to) {}
 
   void Validate(const Graph& graph) const {
+    DCHECK_NE(from, RegisterRepresentation::Tagged());
+    DCHECK_NE(to, RegisterRepresentation::Tagged());
     // Bitcasts from and to Tagged should use a TaggedBitcast instead (which has
     // different effects, since it's unsafe to reorder such bitcasts accross
     // GCs).
-    DCHECK_IMPLIES(kind == Kind::kBitcast,
-                   from != RegisterRepresentation::Tagged() &&
-                       to != RegisterRepresentation::Tagged());
   }
   auto options() const { return std::tuple{kind, assumption, from, to}; }
 };
