@@ -2366,6 +2366,10 @@ FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
     DCHECK_LT(limit, kMaxAllowedFastPackedLength);
     limit = std::min(length, limit + kArrayInterruptLength);
     {
+      // A TerminationException can actually trigger a GC when allocating the
+      // message object. We don't touch any of the heap objects after we
+      // encountered an exception, so this is fine.
+      AllowGarbageCollection allow_gc;
       if (interrupt_check.InterruptRequested() &&
           IsException(isolate_->stack_guard()->HandleInterrupts(
                           StackGuard::InterruptLevel::kNoGC),
@@ -2560,11 +2564,17 @@ template <typename Char>
 FastJsonStringifierResult
 FastJsonStringifier<Char>::HandleInterruptAndCheckCycle() {
   StackLimitCheck interrupt_check(isolate_);
-  if (interrupt_check.InterruptRequested() &&
-      IsException(isolate_->stack_guard()->HandleInterrupts(
-                      StackGuard::InterruptLevel::kNoGC),
-                  isolate_)) {
-    return EXCEPTION;
+  {
+    // A TerminationException can actually trigger a GC when allocating the
+    // message object. We don't touch any of the heap objects after we
+    // encountered an exception, so this is fine.
+    AllowGarbageCollection allow_gc;
+    if (interrupt_check.InterruptRequested() &&
+        IsException(isolate_->stack_guard()->HandleInterrupts(
+                        StackGuard::InterruptLevel::kNoGC),
+                    isolate_)) {
+      return EXCEPTION;
+    }
   }
 
   if (CheckCycle()) {
