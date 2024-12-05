@@ -838,7 +838,11 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSFunction::kSharedFunctionInfoOffset;
     fields[JS_ARRAY_TYPE]["elements"] = JSArray::kElementsOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
-    fields[JS_TYPED_ARRAY_TYPE]["raw_length"] = JSTypedArray::kRawLengthOffset;
+    fields[JS_TYPED_ARRAY_TYPE]["length"] = JSTypedArray::kRawLengthOffset;
+    fields[JS_TYPED_ARRAY_TYPE]["byte_length"] =
+        JSTypedArray::kRawByteLengthOffset;
+    fields[JS_TYPED_ARRAY_TYPE]["byte_offset"] =
+        JSTypedArray::kRawByteOffsetOffset;
     fields[JS_TYPED_ARRAY_TYPE]["external_pointer"] =
         JSTypedArray::kExternalPointerOffset;
     fields[JS_TYPED_ARRAY_TYPE]["base_pointer"] =
