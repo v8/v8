@@ -85,9 +85,6 @@ vars = {
   # siso CIPD package version
   'siso_version': 'git_revision:e9812e4893d596fa06b74355e2b6ff47e0307e32',
 
-  # luci-go CIPD package version.
-  'luci_go': 'git_revision:dbbe363b4b1aa09520e53ccdd2d52cb661875e53',
-
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
@@ -496,20 +493,6 @@ deps = {
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '82a5fecf8aae8f288267cfdb2d29c9ebf7b37e59',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ec29fe1f187bfc6e995a7a602f77d31226817d17',
-  'tools/luci-go': {
-      'packages': [
-        {
-          'package': 'infra/tools/luci/isolate/${{platform}}',
-          'version': Var('luci_go'),
-        },
-        {
-          'package': 'infra/tools/luci/swarming/${{platform}}',
-          'version': Var('luci_go'),
-        },
-      ],
-      'condition': 'host_cpu != "s390" and host_os != "zos" and host_os != "aix"',
-      'dep_type': 'cipd',
-  },
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
