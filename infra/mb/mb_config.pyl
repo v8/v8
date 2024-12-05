@@ -596,7 +596,7 @@
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap', 'v8_enable_turboshaft_csa'],
     'release_x64_sandbox_testing_turboshaft_csa': [
-      'release_bot', 'x64', 'symbolized', 'v8_enable_memory_corruption_api',
+      'release_bot', 'x64', 'symbolized', 'backtrace', 'v8_enable_memory_corruption_api',
       'v8_enable_turboshaft_csa'],
     'release_x64_asan_sandbox_testing_turboshaft_csa': [
       'release_bot', 'x64', 'asan', 'symbolized',
@@ -981,6 +981,10 @@
 
     'release': {
       'gn_args': 'is_debug=false dcheck_always_on=false',
+    },
+
+    'backtrace': {
+      'gn_args': 'v8_enable_backtrace=true',
     },
 
     'release_bot': {
