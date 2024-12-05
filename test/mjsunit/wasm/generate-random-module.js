@@ -8,6 +8,9 @@
 // `wasm-fuzzer-common.cc`.
 // Flags: --wasm-staging
 
+// TODO(crbug.com/42204588): Remove
+// test/mjsunit/wasm/call-generate-random-module.js after this test is
+// reenabled.
 (function TestGenerateRandomModule() {
   print(arguments.callee.name);
   assertInstanceof(%WasmGenerateRandomModule(), WebAssembly.Module);

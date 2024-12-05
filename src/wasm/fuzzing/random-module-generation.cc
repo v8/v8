@@ -239,7 +239,8 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
                  {kWasmI32, kWasmI32, kWasmI32, kWasmI64, kWasmF32, kWasmF64});
 
     // SIMD type.
-    if (ShouldGenerateSIMD(options) && include_s128) {
+    if (ShouldGenerateSIMD(options) && CheckHardwareSupportsSimd() &&
+        include_s128) {
       types.push_back(kWasmS128);
     }
   }
@@ -4323,8 +4324,8 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
                                                sig->return_count());
     gen_body.InitializeNonDefaultableLocals(&function_range);
     gen_body.Generate(return_types, &function_range);
-    // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
-    // always generated.
+    // TODO(crbug.com/42204588): Disable SIMD expressions if needed, so that a
+    // module is always generated.
     if (ShouldGenerateSIMD(options) && !CheckHardwareSupportsSimd() &&
         gen_body.HasSimd()) {
       return {};
@@ -4767,8 +4768,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
       EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
                               table_index, use_table64, &function_range);
     }
-    // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
-    // always generated.
+    // TODO(crbug.com/42204588): Disable SIMD expressions if needed, so that a
+    // module is always generated.
     if (ShouldGenerateSIMD(options) && !CheckHardwareSupportsSimd() &&
         gen_body.HasSimd()) {
       return {};
@@ -4807,8 +4808,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
                               table_index, use_table64, &function_range);
     }
 
-    // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
-    // always generated.
+    // TODO(crbug.com/42204588): Disable SIMD expressions if needed, so that a
+    // module is always generated.
     if (ShouldGenerateSIMD(options) && !CheckHardwareSupportsSimd() &&
         gen_body.HasSimd()) {
       return {};
@@ -4832,8 +4833,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     gen_body.InitializeNonDefaultableLocals(&function_range);
     gen_body.Generate(return_types, &function_range);
 
-    // TODO(v8:14639): Disable SIMD expressions if needed, so that a module is
-    // always generated.
+    // TODO(crbug.com/42204588): Disable SIMD expressions if needed, so that a
+    // module is always generated.
     if (ShouldGenerateSIMD(options) && !CheckHardwareSupportsSimd() &&
         gen_body.HasSimd()) {
       return {};
