@@ -994,6 +994,20 @@
       {'name': 'v8testing', 'shards': 2},
     ],
   },
+  'v8_win64_nodcheck_rel': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Windows-10-19045',
+    },
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
+      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'minor_ms'},
+      {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
+    ],
+  },
   'v8_win64_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',

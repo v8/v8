@@ -339,6 +339,7 @@
       'v8_win64_drumbrake_compile_dbg': 'debug_x64_drumbrake',
       'v8_win64_msvc_compile_rel': 'release_x64_msvc',
       'v8_win64_compile_rel': 'release_x64_trybot',
+      'v8_win64_nodcheck_compile_rel': 'release_x64_minimal_symbols',
       'v8_mac_arm64_compile_rel': 'release_arm64',
       'v8_mac_arm64_compile_dbg': 'debug_arm64',
       'v8_mac_arm64_full_compile_dbg': 'full_debug_arm64',
