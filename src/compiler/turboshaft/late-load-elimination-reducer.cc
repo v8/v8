@@ -448,8 +448,10 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
     TRACE(">> Call is loop stack check, skipping");
     return;
   }
-  if (auto builtin_id =
-          TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_)) {
+
+  auto builtin_id = TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_);
+
+  if (builtin_id) {
     switch (*builtin_id) {
       // TODO(dmercadier): extend this list.
       case Builtin::kCopyFastSmiOrObjectElements:
@@ -467,10 +469,21 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
         break;
     }
   }
+
   // Not a builtin call, or not a builtin that we know doesn't invalidate
   // memory.
-
   InvalidateAllNonAliasingInputs(op);
+
+  if (builtin_id) {
+    switch (*builtin_id) {
+      case Builtin::kCreateShallowObjectLiteral:
+        // This builtin creates a fresh non-aliasing object.
+        non_aliasing_objects_.Set(op_idx, true);
+        break;
+      default:
+        break;
+    }
+  }
 
   // The call could modify arbitrary memory, so we invalidate every
   // potentially-aliasing object.
