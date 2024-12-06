@@ -195,14 +195,19 @@ TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
 
 void LazyBuiltinsAssembler::TieringBuiltinImpl(
     Runtime::FunctionId function_id) {
-#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-  auto dispatch_handle =
-      UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
-#endif
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  auto dispatch_handle =
+      UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
+#else
+  CHECK(!V8_ENABLE_SANDBOX_BOOL);
+  auto dispatch_handle = LoadObjectField<JSDispatchHandleT>(
+      function, JSFunction::kDispatchHandleOffset);
+#endif
 
   // Apply the tiering runtime function. This function must update the function
   // uninstalling the tiering builtin.

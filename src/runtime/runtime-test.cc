@@ -344,8 +344,7 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
   }
 
   if (function->HasAvailableCodeKind(isolate, target_kind) ||
-      function->HasAvailableHigherTierCodeThan(isolate, target_kind) ||
-      function->tiering_in_progress()) {
+      function->HasAvailableHigherTierCodeThan(isolate, target_kind)) {
     DCHECK(function->HasAttachedOptimizedCode(isolate) ||
            function->ChecksTieringState(isolate));
     return false;
