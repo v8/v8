@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0d6a275e60d7ea59035033c6c97d5bc09be20014',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dc8b2298602e358156f40e1c5531c7c8c3d27c93',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4191d00bcdfc70073e7c2c12be6df0b780fc6785',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f312f0fbb3030c07a57524691e03aa1cd14f3d02',
   'buildtools/linux64': {
     'packages': [
       {
@@ -232,11 +232,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '6bf2625ee0435a2d07e5609318a86c3ce1d533b6',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '7f9d3de6e4a78e4791ba3ebeb1c781fe2ebdb39d',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '92bf56999466720502bae9fc97d9c1d2a6f94d52',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd05331d6d7f59a563b6578c7a14c5c5eb6123fb4',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,13 +250,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c2b8ea1a14699ae24b6a9841b3369f4ff85bb8b9',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '522f5a4bd1aa8e74db0f54edc2916776d8ca49df',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
     Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + '3e57d8dcfb0a04b5a8a26b486b54490a2e9b310f',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'dcba3703500094511f1117de9cded71a4e1dfb5e',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '1e538ac2d0583511f489a9f940a0b8a4f2a2f3ab',
     'condition': 'checkout_fuchsia',
   },
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
@@ -302,13 +302,13 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e5546a4a0d3093f930d3f4a56b00e11c7ec2c0c4',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '9d470adcffe6740acbf0597e6cfe8c09178610b1',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '6c4fa00e4becc30085cbc8b44c2764ef307daae2',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '907c5f1c58a9f23a4c364a9c3d599f63354cb849',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '6066b149576465160ac0d935aa644ec6d3bfb2bf',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '137e81832728cce052fab65ec2a8065e16bdcab5',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '3c65f00d12e301f37860de7bf598dedc7d0b3d95',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -472,7 +472,7 @@ deps = {
   'third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '24764a1d9c2fce1e9816ffae691f00353ade330d',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '75c7776339638d7f67caeb9c848217d2d0f67642',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '7938ad35f63a558bf94755cd33d40e79442a5930',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '6dcd83d60f7944926bfd308cc13979fc53dd69ca',
   'third_party/requests': {
