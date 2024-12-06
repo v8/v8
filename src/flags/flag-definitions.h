@@ -2056,9 +2056,11 @@ DEFINE_INT(incremental_marking_hard_trigger, 0,
            "of available space: limit - size")
 DEFINE_BOOL(trace_unmapper, false, "Trace the unmapping")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
-DEFINE_BOOL(minor_gc_task, true, "schedule scavenge tasks")
+DEFINE_BOOL(minor_gc_task, true, "schedule minor GC tasks")
 DEFINE_UINT(minor_gc_task_trigger, 80,
             "minor GC task trigger in percent of the current heap limit")
+DEFINE_BOOL(minor_gc_task_with_lower_priority, false,
+            "schedules the minor GC task with kUserVisible priority.")
 DEFINE_BOOL(scavenge_separate_stack_scanning, false,
             "use a separate phase for stack scanning in scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")

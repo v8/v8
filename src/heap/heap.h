@@ -1968,7 +1968,6 @@ class Heap final {
   // GC Tasks. =================================================================
   // ===========================================================================
 
-  void ScheduleMinorGCTaskIfNeeded();
   V8_EXPORT_PRIVATE void StartMinorMSIncrementalMarkingIfNeeded();
   bool MinorMSSizeTaskTriggerReached() const;
 
@@ -2255,7 +2254,6 @@ class Heap final {
   std::unique_ptr<ObjectStats> live_object_stats_;
   std::unique_ptr<ObjectStats> dead_object_stats_;
   std::unique_ptr<MinorGCJob> minor_gc_job_;
-  std::unique_ptr<AllocationObserver> minor_gc_task_observer_;
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<AllocationTrackerForDebugging>
       allocation_tracker_for_debugging_;

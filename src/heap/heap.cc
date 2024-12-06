@@ -174,67 +174,6 @@ void Heap::SetBasicBlockProfilingData(DirectHandle<ArrayList> list) {
   set_basic_block_profiling_data(*list);
 }
 
-class ScheduleMinorGCTaskObserver final : public AllocationObserver {
- public:
-  explicit ScheduleMinorGCTaskObserver(Heap* heap)
-      : AllocationObserver(kNotUsingFixedStepSize), heap_(heap) {
-    // Register GC callback for all atomic pause types.
-    heap_->main_thread_local_heap()->AddGCEpilogueCallback(
-        &GCEpilogueCallback, this, GCCallbacksInSafepoint::GCType::kLocal);
-    AddToNewSpace();
-  }
-  ~ScheduleMinorGCTaskObserver() final {
-    RemoveFromNewSpace();
-    heap_->main_thread_local_heap()->RemoveGCEpilogueCallback(
-        &GCEpilogueCallback, this);
-  }
-
-  intptr_t GetNextStepSize() final {
-    size_t new_space_threshold =
-        MinorGCJob::YoungGenerationTaskTriggerSize(heap_);
-    size_t new_space_size = v8_flags.sticky_mark_bits
-                                ? heap_->sticky_space()->young_objects_size()
-                                : heap_->new_space()->Size();
-    if (new_space_size < new_space_threshold) {
-      return new_space_threshold - new_space_size;
-    }
-    // Force a step on next allocation.
-    return 1;
-  }
-
-  void Step(int, Address, size_t) final {
-    heap_->ScheduleMinorGCTaskIfNeeded();
-    // Remove this observer. It will be re-added after a GC.
-    DCHECK(was_added_to_space_);
-    heap_->allocator()->new_space_allocator()->RemoveAllocationObserver(this);
-    was_added_to_space_ = false;
-  }
-
- protected:
-  static void GCEpilogueCallback(void* observer) {
-    reinterpret_cast<ScheduleMinorGCTaskObserver*>(observer)
-        ->RemoveFromNewSpace();
-    reinterpret_cast<ScheduleMinorGCTaskObserver*>(observer)->AddToNewSpace();
-  }
-
-  void AddToNewSpace() {
-    DCHECK(!was_added_to_space_);
-    DCHECK_IMPLIES(v8_flags.minor_ms,
-                   !heap_->allocator()->new_space_allocator()->IsLabValid());
-    heap_->allocator()->new_space_allocator()->AddAllocationObserver(this);
-    was_added_to_space_ = true;
-  }
-
-  void RemoveFromNewSpace() {
-    if (!was_added_to_space_) return;
-    heap_->allocator()->new_space_allocator()->RemoveAllocationObserver(this);
-    was_added_to_space_ = false;
-  }
-
-  Heap* heap_;
-  bool was_added_to_space_ = false;
-};
-
 Heap::Heap()
     : isolate_(isolate()),
       memory_pressure_level_(MemoryPressureLevel::kNone),
@@ -1020,12 +959,8 @@ void Heap::GarbageCollectionPrologue(
   heap_allocator_->UpdateAllocationTimeout();
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-  // There may be an allocation memento behind objects in new space. Upon
-  // evacuation of a non-full new space (or if we are on the last page) there
-  // may be uninitialized memory behind top. We fill the remainder of the page
-  // with a filler.
-  if (use_new_space()) {
-    DCHECK_NOT_NULL(minor_gc_job());
+  if (minor_gc_job()) {
+    DCHECK(use_new_space());
     minor_gc_job()->CancelTaskIfScheduled();
   }
 
@@ -1279,11 +1214,6 @@ void Heap::HandleGCRequest() {
   }
 }
 
-void Heap::ScheduleMinorGCTaskIfNeeded() {
-  DCHECK_NOT_NULL(minor_gc_job_);
-  minor_gc_job_->ScheduleTask();
-}
-
 namespace {
 size_t MinorMSConcurrentMarkingTrigger(Heap* heap) {
   size_t young_capacity = 0;
@@ -1323,7 +1253,7 @@ void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
                               kNoGCCallbackFlags,
                               GarbageCollector::MINOR_MARK_SWEEPER);
       // Schedule a task for finalizing the GC if needed.
-      ScheduleMinorGCTaskIfNeeded();
+      minor_gc_job()->TryScheduleTask();
     }
   }
 }
@@ -5925,7 +5855,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   if (new_space() || v8_flags.sticky_mark_bits) {
     minor_gc_job_.reset(new MinorGCJob(this));
-    minor_gc_task_observer_.reset(new ScheduleMinorGCTaskObserver(this));
   }
 
   if (v8_flags.stress_marking > 0) {
@@ -6212,7 +6141,6 @@ void Heap::TearDown() {
     }
   }
 
-  minor_gc_task_observer_.reset();
   minor_gc_job_.reset();
 
   if (need_to_remove_stress_concurrent_allocation_observer_) {
