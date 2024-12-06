@@ -167,10 +167,8 @@ void CompileOptimized(Handle<JSFunction> function, ConcurrencyMode mode,
   }
   DCHECK(is_compiled_scope.is_compiled());
 
-  // If both context-specialized and non-specialized code are marked for
-  // optimization they race for who starts compiling first.
-  // TODO(olivf): Investigate if we could tier both in parallel.
-  if (function->tiering_in_progress()) {
+  if (function->tiering_in_progress() && mode == ConcurrencyMode::kConcurrent) {
+    // No need to start another compile job.
     static_assert(kTieringStateInProgressBlocksTierup);
     function->SetInterruptBudget(isolate);
     return;
