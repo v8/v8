@@ -575,7 +575,6 @@
   'regress/wasm/regress-343035068': [SKIP],
   'wasm/atomic-wait-multi-memory': [SKIP],
   'wasm/generate-random-module*': [SKIP],
-  'wasm/call-generate-random-module': [SKIP],
   'wasm/js-api': [SKIP],
   'wasm/multi-memory*': [SKIP],
 
@@ -2402,7 +2401,6 @@
 ['wasm_random_fuzzers == False', {
   # Random Wasm module generation is not available on official builds.
   'wasm/generate-random-module*': [FAIL],
-  'wasm/call-generate-random-module': [FAIL],
   'regress/wasm/regress-369652650': [SKIP],
 }],  # 'wasm_random_fuzzers == False'
 
