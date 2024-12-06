@@ -197,7 +197,7 @@ void PendingCompilationErrorHandler::ThrowPendingError(
   isolate->debug()->OnCompileError(script);
 
   Factory* factory = isolate->factory();
-  Handle<JSObject> error = factory->NewSyntaxError(
+  DirectHandle<JSObject> error = factory->NewSyntaxError(
       error_details_.message(), base::VectorOf(args, num_args));
   isolate->ThrowAt(error, &location);
 }

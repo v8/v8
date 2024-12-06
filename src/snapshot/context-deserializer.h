@@ -21,7 +21,7 @@ class V8_EXPORT_PRIVATE ContextDeserializer final
  public:
   static MaybeDirectHandle<Context> DeserializeContext(
       Isolate* isolate, const SnapshotData* data, size_t context_index,
-      bool can_rehash, Handle<JSGlobalProxy> global_proxy,
+      bool can_rehash, DirectHandle<JSGlobalProxy> global_proxy,
       DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
  private:
@@ -32,7 +32,7 @@ class V8_EXPORT_PRIVATE ContextDeserializer final
 
   // Deserialize a single object and the objects reachable from it.
   MaybeDirectHandle<Object> Deserialize(
-      Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+      Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
       DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   void DeserializeEmbedderFields(

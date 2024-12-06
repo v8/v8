@@ -4775,7 +4775,7 @@ TEST(DebugEvaluateNoSideEffect) {
 
   // Perform side effect check on all built-in functions. The side effect check
   // itself contains additional sanity checks.
-  for (i::Handle<i::JSFunction> fun : all_functions) {
+  for (i::DirectHandle<i::JSFunction> fun : all_functions) {
     bool failed = false;
     isolate->debug()->StartSideEffectCheckMode();
     failed = !isolate->debug()->PerformSideEffectCheck(

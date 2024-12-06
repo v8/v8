@@ -103,15 +103,16 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                               ClearExceptionFlag flag,
                               IsCompiledScope* is_compiled_scope);
 
-  static void CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+  static void CompileOptimized(Isolate* isolate,
+                               DirectHandle<JSFunction> function,
                                ConcurrencyMode mode, CodeKind code_kind);
 
   // Generate and return optimized code for OSR. The empty handle is returned
   // either on failure, or after spawning a concurrent OSR task (in which case
   // a future OSR request will pick up the resulting code object).
   V8_WARN_UNUSED_RESULT static MaybeHandle<Code> CompileOptimizedOSR(
-      Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-      ConcurrencyMode mode, CodeKind code_kind);
+      Isolate* isolate, DirectHandle<JSFunction> function,
+      BytecodeOffset osr_offset, ConcurrencyMode mode, CodeKind code_kind);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
@@ -163,7 +164,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Create a (bound) function for a String source within a context for eval.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-      Handle<Context> context, LanguageMode language_mode,
+      DirectHandle<Context> context, LanguageMode language_mode,
       ParseRestriction restriction, int parameters_end_pos, int eval_position,
       ParsingWhileDebugging parsing_while_debugging =
           ParsingWhileDebugging::kNo);
@@ -171,7 +172,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetWrappedFunction(
-      Handle<String> source, Handle<Context> context,
+      Handle<String> source, DirectHandle<Context> context,
       const ScriptDetails& script_details, AlignedCachedData* cached_data,
       v8::ScriptCompiler::CompileOptions compile_options,
       v8::ScriptCompiler::NoCacheReason no_cache_reason);
@@ -189,7 +190,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                    Handle<i::Object> source_object,
                                    bool is_code_like = false);
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction>
-  GetFunctionFromValidatedString(Handle<NativeContext> context,
+  GetFunctionFromValidatedString(DirectHandle<NativeContext> context,
                                  MaybeHandle<String> source,
                                  ParseRestriction restriction,
                                  int parameters_end_pos);
@@ -380,9 +381,9 @@ class UnoptimizedCompilationJob : public CompilationJob {
  protected:
   // Overridden by the actual implementation.
   virtual Status ExecuteJobImpl() = 0;
-  virtual Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  virtual Status FinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                                  Isolate* isolate) = 0;
-  virtual Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  virtual Status FinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                                  LocalIsolate* isolate) = 0;
 
  private:

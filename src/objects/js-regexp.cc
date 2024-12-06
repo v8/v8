@@ -29,7 +29,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // Build indices array from RegExpMatchInfo.
   int num_indices = match_info->number_of_capture_registers();
   int num_results = num_indices >> 1;
-  Handle<FixedArray> indices_array =
+  DirectHandle<FixedArray> indices_array =
       isolate->factory()->NewFixedArray(num_results);
   JSArray::SetContent(indices, indices_array);
 
@@ -80,7 +80,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     int base_offset = i * 2;
     int name_offset = base_offset;
     int index_offset = base_offset + 1;
-    Handle<String> name(Cast<String>(names->get(name_offset)), isolate);
+    DirectHandle<String> name(Cast<String>(names->get(name_offset)), isolate);
     Tagged<Smi> smi_index = Cast<Smi>(names->get(index_offset));
     Handle<Object> capture_indices(indices_array->get(smi_index.value()),
                                    isolate);
@@ -111,7 +111,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // result indices.
   DirectHandle<FixedArrayBase> elements =
       isolate->factory()->empty_fixed_array();
-  Handle<Null> null = isolate->factory()->null_value();
+  DirectHandle<Null> null = isolate->factory()->null_value();
   DirectHandle<JSObject> js_group_names =
       isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
           null, group_names, elements);
@@ -151,7 +151,7 @@ Handle<String> JSRegExp::StringFromFlags(Isolate* isolate,
 // static
 MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
                                     Flags flags, uint32_t backtrack_limit) {
-  Handle<JSFunction> constructor = isolate->regexp_function();
+  DirectHandle<JSFunction> constructor = isolate->regexp_function();
   Handle<JSRegExp> regexp =
       Cast<JSRegExp>(isolate->factory()->NewJSObject(constructor));
 

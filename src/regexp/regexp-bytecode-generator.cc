@@ -314,7 +314,7 @@ void RegExpBytecodeGenerator::CheckCharacterNotInRange(base::uc16 from,
   EmitOrLink(on_not_in_range);
 }
 
-void RegExpBytecodeGenerator::EmitSkipTable(Handle<ByteArray> table) {
+void RegExpBytecodeGenerator::EmitSkipTable(DirectHandle<ByteArray> table) {
   for (int i = 0; i < kTableSize; i += kBitsPerByte) {
     int byte = 0;
     for (int j = 0; j < kBitsPerByte; j++) {

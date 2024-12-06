@@ -54,7 +54,7 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
 RUNTIME_FUNCTION(Runtime_CompileLazy) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   StackLimitCheck check(isolate);
   if (V8_UNLIKELY(
           check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB))) {
@@ -144,7 +144,7 @@ RUNTIME_FUNCTION(Runtime_InstallSFICode) {
 
 namespace {
 
-void CompileOptimized(Handle<JSFunction> function, ConcurrencyMode mode,
+void CompileOptimized(DirectHandle<JSFunction> function, ConcurrencyMode mode,
                       CodeKind target_kind, Isolate* isolate) {
   // Ensure that the tiering request is reset even if compilation fails.
   function->ResetTieringRequests(isolate);
@@ -190,7 +190,7 @@ void CompileOptimized(Handle<JSFunction> function, ConcurrencyMode mode,
 RUNTIME_FUNCTION(Runtime_StartMaglevOptimizeJob) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   DCHECK(function->IsOptimizationRequested(isolate));
   CompileOptimized(function, ConcurrencyMode::kConcurrent, CodeKind::MAGLEV,
                    isolate);
@@ -200,7 +200,7 @@ RUNTIME_FUNCTION(Runtime_StartMaglevOptimizeJob) {
 RUNTIME_FUNCTION(Runtime_StartTurbofanOptimizeJob) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   DCHECK(function->IsOptimizationRequested(isolate));
   CompileOptimized(function, ConcurrencyMode::kConcurrent,
                    CodeKind::TURBOFAN_JS, isolate);
@@ -210,7 +210,7 @@ RUNTIME_FUNCTION(Runtime_StartTurbofanOptimizeJob) {
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevEager) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   DCHECK(function->IsOptimizationRequested(isolate));
   CompileOptimized(function, ConcurrencyMode::kSynchronous, CodeKind::MAGLEV,
                    isolate);
@@ -220,7 +220,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevEager) {
 RUNTIME_FUNCTION(Runtime_OptimizeTurbofanEager) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   DCHECK(function->IsOptimizationRequested(isolate));
   CompileOptimized(function, ConcurrencyMode::kSynchronous,
                    CodeKind::TURBOFAN_JS, isolate);
@@ -589,7 +589,7 @@ void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
 }
 
 Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
-                                   Handle<JSFunction> function,
+                                   DirectHandle<JSFunction> function,
                                    CodeKind min_opt_level,
                                    BytecodeOffset osr_offset) {
   ConcurrencyMode mode =
@@ -656,7 +656,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
 namespace {
 
 Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
-                                             Handle<JSFunction> function,
+                                             DirectHandle<JSFunction> function,
                                              BytecodeOffset osr_offset) {
   // This path is only relevant for tests (all production configurations enable
   // concurrent OSR). It's quite subtle, if interested read on:
@@ -709,7 +709,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
   JavaScriptStackFrameIterator it(isolate);
   MaglevFrame* frame = MaglevFrame::cast(it.frame());
   DCHECK_EQ(frame->LookupCode()->kind(), CodeKind::MAGLEV);
-  Handle<JSFunction> function = handle(frame->function(), isolate);
+  DirectHandle<JSFunction> function = handle(frame->function(), isolate);
 
   return CompileOptimizedOSRFromMaglev(isolate, function, osr_offset);
 }
@@ -720,7 +720,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglevInlined) {
   DCHECK(v8_flags.use_osr);
 
   const BytecodeOffset osr_offset(args.positive_smi_value_at(0));
-  Handle<JSFunction> function = args.at<JSFunction>(1);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(1);
 
   JavaScriptStackFrameIterator it(isolate);
   MaglevFrame* frame = MaglevFrame::cast(it.frame());
@@ -792,7 +792,7 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
   // and return the compiled function bound in the local context.
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
   Handle<JSFunction> compiled;
-  Handle<Context> context(isolate->context(), isolate);
+  DirectHandle<Context> context(isolate->context(), isolate);
   if (!Is<NativeContext>(*context) && v8_flags.reuse_scope_infos) {
     Tagged<WeakFixedArray> array = Cast<Script>(outer_info->script())->infos();
     Tagged<ScopeInfo> stored_info;

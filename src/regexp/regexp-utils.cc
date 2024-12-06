@@ -65,7 +65,7 @@ V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, Tagged<JSReceiver> recv) {
 MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
                                               Handle<JSReceiver> recv,
                                               uint64_t value) {
-  Handle<Object> value_as_object =
+  DirectHandle<Object> value_as_object =
       isolate->factory()->NewNumberFromInt64(value);
   if (HasInitialRegExpMap(isolate, *recv)) {
     Cast<JSRegExp>(*recv)->set_last_index(*value_as_object,
@@ -79,7 +79,7 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
 }
 
 MaybeHandle<Object> RegExpUtils::GetLastIndex(Isolate* isolate,
-                                              Handle<JSReceiver> recv) {
+                                              DirectHandle<JSReceiver> recv) {
   if (HasInitialRegExpMap(isolate, *recv)) {
     return handle(Cast<JSRegExp>(*recv)->last_index(), isolate);
   } else {
@@ -93,7 +93,7 @@ MaybeHandle<Object> RegExpUtils::GetLastIndex(Isolate* isolate,
 // has already fetched exec.
 MaybeHandle<JSAny> RegExpUtils::RegExpExec(Isolate* isolate,
                                            Handle<JSReceiver> regexp,
-                                           Handle<String> string,
+                                           DirectHandle<String> string,
                                            Handle<Object> exec) {
   if (IsUndefined(*exec, isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -128,7 +128,7 @@ MaybeHandle<JSAny> RegExpUtils::RegExpExec(Isolate* isolate,
   }
 
   {
-    Handle<JSFunction> regexp_exec = isolate->regexp_exec_function();
+    DirectHandle<JSFunction> regexp_exec = isolate->regexp_exec_function();
 
     constexpr int argc = 1;
     std::array<DirectHandle<Object>, argc> args = {string};

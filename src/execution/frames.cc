@@ -1342,7 +1342,7 @@ Handle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
 
   // Instantiate function for the correct context.
   DCHECK(IsContext(context()));
-  Handle<NativeContext> native_context(
+  DirectHandle<NativeContext> native_context(
       Cast<Context>(context())->native_context(), isolate());
 
   Handle<JSFunction> function =

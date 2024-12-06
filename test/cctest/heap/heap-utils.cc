@@ -55,7 +55,7 @@ void FillOldSpacePageWithFixedArrays(
   int allocated = 0;
   bool empty = true;
   do {
-    Handle<FixedArray> array;
+    DirectHandle<FixedArray> array;
     if (allocated + kArraySize * 2 >
         static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage())) {
       int size =
@@ -178,7 +178,7 @@ void FillPageInPagedSpace(PageMetadata* page,
   for (size_t i = 0; i < available_sizes.size(); ++i) {
     int available_size = available_sizes[i];
     while (available_size > kMaxRegularHeapObjectSize) {
-      Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
+      DirectHandle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
           max_array_length, AllocationType::kYoung);
       if (out_handles) out_handles->push_back(fixed_array);
       available_size -= kMaxRegularHeapObjectSize;
@@ -208,7 +208,7 @@ void FillPageInPagedSpace(PageMetadata* page,
       DCHECK_LE(size, kMaxRegularHeapObjectSize);
       int array_length = FixedArrayLenFromSize(size);
       DCHECK_LT(0, array_length);
-      Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
+      DirectHandle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(
           array_length, AllocationType::kYoung);
       if (out_handles) out_handles->push_back(fixed_array);
     }

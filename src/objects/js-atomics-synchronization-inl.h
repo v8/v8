@@ -129,7 +129,7 @@ JSSynchronizationPrimitive::SetWaiterQueueHead(Isolate* requester,
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsMutex)
 
 JSAtomicsMutex::LockGuardBase::LockGuardBase(Isolate* isolate,
-                                             Handle<JSAtomicsMutex> mutex,
+                                             DirectHandle<JSAtomicsMutex> mutex,
                                              bool locked)
     : isolate_(isolate), mutex_(mutex), locked_(locked) {}
 
@@ -138,16 +138,17 @@ JSAtomicsMutex::LockGuardBase::~LockGuardBase() {
 }
 
 JSAtomicsMutex::LockGuard::LockGuard(Isolate* isolate,
-                                     Handle<JSAtomicsMutex> mutex,
+                                     DirectHandle<JSAtomicsMutex> mutex,
                                      std::optional<base::TimeDelta> timeout)
     : LockGuardBase(isolate, mutex,
                     JSAtomicsMutex::Lock(isolate, mutex, timeout)) {}
 
 JSAtomicsMutex::TryLockGuard::TryLockGuard(Isolate* isolate,
-                                           Handle<JSAtomicsMutex> mutex)
+                                           DirectHandle<JSAtomicsMutex> mutex)
     : LockGuardBase(isolate, mutex, mutex->TryLock()) {}
 
 // static
+template <typename LockSlowPathWrapper, typename>
 bool JSAtomicsMutex::LockImpl(Isolate* requester,
                               DirectHandle<JSAtomicsMutex> mutex,
                               std::optional<base::TimeDelta> timeout,
@@ -176,7 +177,8 @@ bool JSAtomicsMutex::LockImpl(Isolate* requester,
 }
 
 // static
-bool JSAtomicsMutex::Lock(Isolate* requester, Handle<JSAtomicsMutex> mutex,
+bool JSAtomicsMutex::Lock(Isolate* requester,
+                          DirectHandle<JSAtomicsMutex> mutex,
                           std::optional<base::TimeDelta> timeout) {
   return LockImpl(requester, mutex, timeout, [=](std::atomic<StateT>* state) {
     return LockSlowPath(requester, mutex, state, timeout);

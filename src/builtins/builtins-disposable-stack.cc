@@ -33,8 +33,8 @@ BUILTIN(DisposableStackConstructor) {
   //    "%DisposableStack.prototype%", « [[DisposableState]],
   //    [[DisposeCapability]] »).
   DirectHandle<Map> map;
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
+  DirectHandle<JSFunction> target = args.target();
+  DirectHandle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
@@ -57,7 +57,7 @@ BUILTIN(DisposableStackPrototypeUse) {
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
   CHECK_RECEIVER(JSSyncDisposableStack, disposable_stack, kMethodName);
-  Handle<JSAny> value = args.at<JSAny>(1);
+  DirectHandle<JSAny> value = args.at<JSAny>(1);
 
   // use(value) does nothing when the value is null or undefined, so return
   // early.
@@ -75,7 +75,7 @@ BUILTIN(DisposableStackPrototypeUse) {
             isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
   }
 
-  Handle<Object> method;
+  DirectHandle<Object> method;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, method,
       JSDisposableStackBase::CheckValueAndGetDisposeMethod(
@@ -109,11 +109,11 @@ BUILTIN(DisposableStackPrototypeDispose) {
 
   // 5. Return ? DisposeResources(disposableStack.[[DisposeCapability]],
   //    NormalCompletion(undefined)).
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSDisposableStackBase::DisposeResources(
-          isolate, disposable_stack, MaybeHandle<Object>(),
+          isolate, disposable_stack, {},
           DisposableStackResourcesType::kAllSync));
 
   return *result;
@@ -140,7 +140,7 @@ BUILTIN(DisposableStackPrototypeAdopt) {
   const char* const kMethodName = "DisposableStack.prototype.adopt";
   HandleScope scope(isolate);
   DirectHandle<Object> value = args.at(1);
-  Handle<Object> on_dispose = args.at(2);
+  DirectHandle<Object> on_dispose = args.at(2);
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
@@ -183,7 +183,7 @@ BUILTIN(DisposableStackPrototypeAdopt) {
 BUILTIN(DisposableStackPrototypeDefer) {
   const char* const kMethodName = "DisposableStack.prototype.defer";
   HandleScope scope(isolate);
-  Handle<Object> on_dispose = args.at(1);
+  DirectHandle<Object> on_dispose = args.at(1);
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).

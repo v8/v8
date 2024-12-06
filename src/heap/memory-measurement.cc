@@ -50,7 +50,7 @@ class MemoryMeasurementResultBuilder final {
     other_.push_back(NewResult(estimate, lower_bound, upper_bound));
   }
   void AddWasm(size_t code, size_t metadata) {
-    Handle<JSObject> wasm = NewJSObject();
+    DirectHandle<JSObject> wasm = NewJSObject();
     AddProperty(wasm, factory_->NewStringFromAsciiChecked("code"),
                 NewNumber(code));
     AddProperty(wasm, factory_->NewStringFromAsciiChecked("metadata"),
@@ -95,7 +95,7 @@ class MemoryMeasurementResultBuilder final {
     elements->set(1, *upper);
     return factory_->NewJSArrayWithElements(elements);
   }
-  void AddProperty(Handle<JSObject> object, Handle<String> name,
+  void AddProperty(DirectHandle<JSObject> object, DirectHandle<String> name,
                    DirectHandle<Object> value) {
     JSObject::AddProperty(isolate_, object, name, value, NONE);
   }

@@ -628,7 +628,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
 RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  DirectHandle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -642,7 +642,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
 namespace {
 
 template <typename WriteOperation>
-Tagged<Object> AtomicFieldWrite(Isolate* isolate, Handle<JSObject> object,
+Tagged<Object> AtomicFieldWrite(Isolate* isolate, DirectHandle<JSObject> object,
                                 Handle<Name> field_name,
                                 DirectHandle<Object> value,
                                 WriteOperation write_operation) {
@@ -673,7 +673,7 @@ Tagged<Object> AtomicFieldWrite(Isolate* isolate, Handle<JSObject> object,
 RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  DirectHandle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -691,7 +691,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
 RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  DirectHandle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -709,7 +709,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchangeSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  DirectHandle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));

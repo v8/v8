@@ -401,14 +401,13 @@ DisplayNamesInternal* CreateInternal(const icu::Locale& locale,
 }  // anonymous namespace
 
 // ecma402 #sec-Intl.DisplayNames
-MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
-                                                DirectHandle<Map> map,
-                                                Handle<Object> locales,
-                                                Handle<Object> input_options) {
+MaybeHandle<JSDisplayNames> JSDisplayNames::New(
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> input_options) {
   const char* service = "Intl.DisplayNames";
   Factory* factory = isolate->factory();
 
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -561,12 +560,14 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
 
   Maybe<std::string> maybe_locale = Intl::ToLanguageTag(internal->locale());
   DCHECK(maybe_locale.IsJust());
-  Handle<String> locale = isolate->factory()->NewStringFromAsciiChecked(
+  DirectHandle<String> locale = isolate->factory()->NewStringFromAsciiChecked(
       maybe_locale.FromJust().c_str());
-  Handle<String> style = display_names->StyleAsString();
-  Handle<String> type = factory->NewStringFromAsciiChecked(internal->type());
-  Handle<String> fallback = display_names->FallbackAsString();
-  Handle<String> language_display = display_names->LanguageDisplayAsString();
+  DirectHandle<String> style = display_names->StyleAsString();
+  DirectHandle<String> type =
+      factory->NewStringFromAsciiChecked(internal->type());
+  DirectHandle<String> fallback = display_names->FallbackAsString();
+  DirectHandle<String> language_display =
+      display_names->LanguageDisplayAsString();
 
   Maybe<bool> maybe_create_locale = JSReceiver::CreateDataProperty(
       isolate, options, factory->locale_string(), locale, Just(kDontThrow));

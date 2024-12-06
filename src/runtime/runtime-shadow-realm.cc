@@ -12,7 +12,7 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmWrappedFunctionCreate) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
   DirectHandle<NativeContext> native_context = args.at<NativeContext>(0);
-  Handle<JSReceiver> value = args.at<JSReceiver>(1);
+  DirectHandle<JSReceiver> value = args.at<JSReceiver>(1);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSWrappedFunction::Create(isolate, native_context, value));

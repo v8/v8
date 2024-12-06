@@ -34,7 +34,7 @@ class JSFinalizationRegistry
 
   inline static void RegisterWeakCellWithUnregisterToken(
       DirectHandle<JSFinalizationRegistry> finalization_registry,
-      Handle<WeakCell> weak_cell, Isolate* isolate);
+      DirectHandle<WeakCell> weak_cell, Isolate* isolate);
   inline static bool Unregister(
       DirectHandle<JSFinalizationRegistry> finalization_registry,
       DirectHandle<HeapObject> unregister_token, Isolate* isolate);

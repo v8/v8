@@ -351,7 +351,7 @@ class ConcurrentInternalizationThread final
 
   void RunForString(Handle<String> input_string, int counter) override {
     CHECK(input_string->IsShared());
-    Handle<String> interned = factory->InternalizeString(input_string);
+    DirectHandle<String> interned = factory->InternalizeString(input_string);
     CHECK(interned->IsShared());
     CHECK(IsInternalizedString(*interned));
     if (hit_or_miss_ == kTestMiss) {
@@ -1177,7 +1177,7 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
     for (int i = 0; i < shared_strings->length(); i++) {
       Handle<String> input_string(Cast<String>(shared_strings->get(i)),
                                   i_isolate);
-      Handle<String> interned = factory->InternalizeString(input_string);
+      DirectHandle<String> interned = factory->InternalizeString(input_string);
       CHECK(input_string->IsShared());
       CHECK(!IsThinString(*input_string));
       CHECK(input_string->HasForwardingIndex(kAcquireLoad));

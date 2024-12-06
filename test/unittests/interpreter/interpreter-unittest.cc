@@ -711,7 +711,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpTypeFeedback) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallable<>();
 
-    Handle<Object> return_val = callable().ToHandleChecked();
+    DirectHandle<Object> return_val = callable().ToHandleChecked();
     Tagged<MaybeObject> feedback0 = callable.vector()->Get(slot0);
     CHECK(IsSmi(feedback0));
     CHECK_EQ(test_case.feedback, feedback0.ToSmi().value());
@@ -819,7 +819,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpSmiTypeFeedback) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallable<>();
 
-    Handle<Object> return_val = callable().ToHandleChecked();
+    DirectHandle<Object> return_val = callable().ToHandleChecked();
     Tagged<MaybeObject> feedback0 = callable.vector()->Get(slot0);
     CHECK(IsSmi(feedback0));
     CHECK_EQ(test_case.feedback, feedback0.ToSmi().value());
@@ -1009,7 +1009,7 @@ TEST_F(InterpreterTest, InterpreterStoreGlobal) {
   auto callable = tester.GetCallable<>();
 
   callable().ToHandleChecked();
-  Handle<i::String> name = factory->InternalizeUtf8String("global");
+  DirectHandle<i::String> name = factory->InternalizeUtf8String("global");
   DirectHandle<i::Object> global_obj =
       Object::GetProperty(i_isolate(), i_isolate()->global_object(), name)
           .ToHandleChecked();
@@ -1063,7 +1063,7 @@ TEST_F(InterpreterTest, InterpreterStoreUnallocated) {
   auto callable = tester.GetCallable<>();
 
   callable().ToHandleChecked();
-  Handle<i::String> name = factory->InternalizeUtf8String("unallocated");
+  DirectHandle<i::String> name = factory->InternalizeUtf8String("unallocated");
   DirectHandle<i::Object> global_obj =
       Object::GetProperty(i_isolate(), i_isolate()->global_object(), name)
           .ToHandleChecked();
@@ -4875,7 +4875,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
       });
       )javascript";
 
-  Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
@@ -4911,7 +4911,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
       });
       )javascript";
 
-  Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
@@ -4967,7 +4967,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
       });
       )javascript";
 
-  Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());

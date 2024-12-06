@@ -143,7 +143,7 @@ void Accessors::ArgumentsIteratorGetter(
 }
 
 Handle<AccessorInfo> Accessors::MakeArgumentsIteratorInfo(Isolate* isolate) {
-  Handle<Name> name = isolate->factory()->iterator_symbol();
+  DirectHandle<Name> name = isolate->factory()->iterator_symbol();
   return MakeAccessor(isolate, name, &ArgumentsIteratorGetter, nullptr);
 }
 
@@ -244,7 +244,7 @@ void Accessors::ModuleNamespaceEntryGetter(
   Tagged<JSModuleNamespace> holder =
       Cast<JSModuleNamespace>(*Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Object> result;
-  if (holder->GetExport(isolate, Cast<String>(Utils::OpenHandle(*name)))
+  if (holder->GetExport(isolate, Cast<String>(Utils::OpenDirectHandle(*name)))
           .ToHandle(&result)) {
     info.GetReturnValue().Set(Utils::ToLocal(result));
   }
@@ -420,7 +420,7 @@ Handle<JSObject> ArgumentsFromDeoptInfo(JavaScriptFrame* frame,
 
   // Materialize the function.
   bool should_deoptimize = iter->IsMaterializedObject();
-  Handle<JSFunction> function = Cast<JSFunction>(iter->GetValue());
+  DirectHandle<JSFunction> function = Cast<JSFunction>(iter->GetValue());
   iter++;
 
   // Skip the receiver.
@@ -476,7 +476,7 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
   // Construct an arguments object mirror for the right frame and the underlying
   // function.
   const int length = frame->GetActualArgumentCount();
-  Handle<JSFunction> function(frame->function(), isolate);
+  DirectHandle<JSFunction> function(frame->function(), isolate);
   Handle<JSObject> arguments =
       isolate->factory()->NewArgumentsObject(function, length);
   DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(length);
@@ -572,7 +572,7 @@ class FrameFunctionIterator {
 
   // Iterate through functions until the first occurrence of 'function'.
   // Returns true if one is found, and false if the iterator ends before.
-  bool Find(Handle<JSFunction> function) {
+  bool Find(DirectHandle<JSFunction> function) {
     do {
       if (!next().ToHandle(&function_)) return false;
     } while (!function_.is_identical_to(function));
@@ -605,7 +605,7 @@ class FrameFunctionIterator {
   // subsequent call will see the same function, since we are about to hand out
   // the value to JavaScript. Make sure to store the materialized value and
   // trigger a deoptimization of the underlying frame.
-  Handle<JSFunction> MaterializeFunction() {
+  DirectHandle<JSFunction> MaterializeFunction() {
     if (inlined_frame_index_ == 0) return function_;
 
     JavaScriptFrame* frame = frame_iterator_.frame();
@@ -618,7 +618,7 @@ class FrameFunctionIterator {
 
     // First value is the function.
     bool should_deoptimize = iter->IsMaterializedObject();
-    Handle<Object> value = iter->GetValue();
+    DirectHandle<Object> value = iter->GetValue();
     if (should_deoptimize) {
       translated_values.StoreMaterializedValuesAndDeopt(frame);
     }
@@ -627,7 +627,7 @@ class FrameFunctionIterator {
   }
 
  private:
-  MaybeHandle<JSFunction> next() {
+  MaybeDirectHandle<JSFunction> next() {
     while (true) {
       if (inlined_frame_index_ <= 0) {
         if (!frame_iterator_.done()) {
@@ -636,11 +636,11 @@ class FrameFunctionIterator {
           inlined_frame_index_ = -1;
           GetFrames();
         }
-        if (inlined_frame_index_ == -1) return MaybeHandle<JSFunction>();
+        if (inlined_frame_index_ == -1) return {};
       }
 
       --inlined_frame_index_;
-      Handle<JSFunction> next_function =
+      DirectHandle<JSFunction> next_function =
           frames_[inlined_frame_index_].AsJavaScript().function();
       // Skip functions from other origins.
       if (!AllowAccessToFunction(isolate_->context(), *next_function)) continue;
@@ -656,48 +656,48 @@ class FrameFunctionIterator {
     DCHECK_LT(0, inlined_frame_index_);
   }
   Isolate* isolate_;
-  Handle<JSFunction> function_;
+  DirectHandle<JSFunction> function_;
   JavaScriptStackFrameIterator frame_iterator_;
   std::vector<FrameSummary> frames_;
   int inlined_frame_index_;
 };
 
-MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
-                                   Handle<JSFunction> function) {
+MaybeDirectHandle<JSFunction> FindCaller(Isolate* isolate,
+                                         DirectHandle<JSFunction> function) {
   FrameFunctionIterator it(isolate);
   if (function->shared()->native()) {
-    return MaybeHandle<JSFunction>();
+    return {};
   }
   // Find the function from the frames. Return null in case no frame
   // corresponding to the given function was found.
   if (!it.Find(function)) {
-    return MaybeHandle<JSFunction>();
+    return {};
   }
   // Find previously called non-toplevel function.
   if (!it.FindNextNonTopLevel()) {
-    return MaybeHandle<JSFunction>();
+    return {};
   }
   // Find the first user-land JavaScript function (or the entry point into
   // native JavaScript builtins in case such a builtin was the caller).
   if (!it.FindFirstNativeOrUserJavaScript()) {
-    return MaybeHandle<JSFunction>();
+    return {};
   }
 
   // Materialize the function that the iterator is currently sitting on. Note
   // that this might trigger deoptimization in case the function was actually
   // materialized. Identity of the function must be preserved because we are
   // going to return it to JavaScript after this point.
-  Handle<JSFunction> caller = it.MaterializeFunction();
+  DirectHandle<JSFunction> caller = it.MaterializeFunction();
 
   // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
   if (is_strict(caller->shared()->language_mode())) {
-    return MaybeHandle<JSFunction>();
+    return {};
   }
   // Don't return caller from another security context.
   if (!AllowAccessToFunction(isolate->context(), *caller)) {
-    return MaybeHandle<JSFunction>();
+    return {};
   }
   return caller;
 }
@@ -707,12 +707,12 @@ void Accessors::FunctionCallerGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
-      Cast<JSFunction>(Utils::OpenHandle(*info.Holder()));
+  DirectHandle<JSFunction> function =
+      Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Object> result;
-  MaybeHandle<JSFunction> maybe_caller;
+  MaybeDirectHandle<JSFunction> maybe_caller;
   maybe_caller = FindCaller(isolate, function);
-  Handle<JSFunction> caller;
+  DirectHandle<JSFunction> caller;
   // We don't support caller access with correctness fuzzing.
   if (!v8_flags.correctness_fuzzer_suppressions &&
       maybe_caller.ToHandle(&caller)) {

@@ -270,7 +270,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       table.maximum_size, value,
       // TODO(clemensb): Make this configurable.
       wasm::AddressType::kI32);
-  Handle<WasmDispatchTable> dispatch_table(
+  DirectHandle<WasmDispatchTable> dispatch_table(
       table_obj->trusted_dispatch_table(isolate_), isolate_);
   WasmDispatchTable::AddUse(isolate_, dispatch_table, trusted_instance_data_,
                             table_index);

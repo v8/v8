@@ -506,8 +506,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   ZoneVector<MapRef> maps(zone());
   bool has_deprecated_map_without_migration_target = false;
   nexus.IterateMapsWithUnclearedHandler(
-      [this, &maps,
-       &has_deprecated_map_without_migration_target](Handle<Map> map_handle) {
+      [this, &maps, &has_deprecated_map_without_migration_target](
+          DirectHandle<Map> map_handle) {
         MapRef map = MakeRefAssumeMemoryFence(this, *map_handle);
         // May change concurrently at any time - must be guarded by a
         // dependency if non-deprecation is important.

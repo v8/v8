@@ -37,10 +37,10 @@ static Handle<Object> GetGlobalProperty(const char* name) {
 
 static void SetGlobalProperty(const char* name, Tagged<Object> value) {
   Isolate* isolate = reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent());
-  Handle<Object> object(value, isolate);
-  Handle<String> internalized_name =
+  DirectHandle<Object> object(value, isolate);
+  DirectHandle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   Runtime::SetObjectProperty(isolate, global, internalized_name, object,
                              StoreOrigin::kMaybeKeyed, Just(kDontThrow))
       .Check();
@@ -71,7 +71,7 @@ static double Inc(Isolate* isolate, int x) {
   Handle<JSFunction> fun = Compile(buffer.begin());
   if (fun.is_null()) return -1;
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -89,7 +89,7 @@ static double Add(Isolate* isolate, int x, int y) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -106,7 +106,7 @@ static double Abs(Isolate* isolate, int x) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("x", Smi::FromInt(x));
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -124,7 +124,7 @@ static double Sum(Isolate* isolate, int n) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("n", Smi::FromInt(n));
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -148,7 +148,8 @@ TEST_F(CompilerPrintTest, Print) {
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
-  Handle<JSObject> global(i_isolate()->context()->global_object(), i_isolate());
+  DirectHandle<JSObject> global(i_isolate()->context()->global_object(),
+                                i_isolate());
   Execution::CallScript(i_isolate(), fun, global,
                         i_isolate()->factory()->empty_fixed_array())
       .Check();
@@ -179,7 +180,8 @@ TEST_F(CompilerTest, Stuff) {
 
   Handle<JSFunction> fun = Compile(source);
   EXPECT_TRUE(!fun.is_null());
-  Handle<JSObject> global(i_isolate()->context()->global_object(), i_isolate());
+  DirectHandle<JSObject> global(i_isolate()->context()->global_object(),
+                                i_isolate());
   Execution::CallScript(i_isolate(), fun, global,
                         i_isolate()->factory()->empty_fixed_array())
       .Check();
@@ -193,7 +195,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
   Handle<JSFunction> fun = Compile(source);
   EXPECT_TRUE(!fun.is_null());
   Isolate* isolate = fun->GetIsolate();
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   EXPECT_TRUE(Execution::CallScript(isolate, fun, global,
                                     isolate->factory()->empty_fixed_array())
                   .is_null());
@@ -224,7 +226,7 @@ TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
   Isolate* isolate = fun0->GetIsolate();
 
   // Run the generated code to populate the global object with 'foo'.
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun0, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -991,17 +993,18 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
       CHECK(Is<Undefined>(script->infos()->get(kHId)));
     }
 
-    Handle<JSFunction> top_level =
+    DirectHandle<JSFunction> top_level =
         Factory::JSFunctionBuilder{isolate(), top_level_sfi,
                                    isolate()->native_context()}
             .Build();
 
-    Handle<JSObject> global(isolate()->context()->global_object(), isolate());
+    DirectHandle<JSObject> global(isolate()->context()->global_object(),
+                                  isolate());
     Execution::CallScript(isolate(), top_level, global,
                           isolate()->factory()->empty_fixed_array())
         .Check();
 
-    Handle<JSFunction> f = Cast<JSFunction>(
+    DirectHandle<JSFunction> f = Cast<JSFunction>(
         JSObject::GetProperty(isolate(), global, "f").ToHandleChecked());
 
     CHECK(f->is_compiled(isolate()));
@@ -1012,7 +1015,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
     CHECK(!g->is_compiled(isolate()));
 
     // Execute g's SFI to initialize g's bytecode, and to get h.
-    Handle<JSFunction> h = Cast<JSFunction>(
+    DirectHandle<JSFunction> h = Cast<JSFunction>(
         Execution::Call(isolate(), g, global, {}).ToHandleChecked());
     CHECK(g->is_compiled(isolate()));
     CHECK(!h->is_compiled(isolate()));
@@ -1049,7 +1052,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 
   // Copy the old_script_infos WeakFixedArray, so that we can inspect it after
   // the merge mutated the original.
-  Handle<WeakFixedArray> unmutated_old_script_list =
+  DirectHandle<WeakFixedArray> unmutated_old_script_list =
       isolate()->factory()->CopyWeakFixedArray(
           direct_handle(old_script->infos(), isolate()));
 
@@ -1065,7 +1068,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 
     streamed_source.task->RunOnMainThread(isolate());
 
-    Handle<SharedFunctionInfo> top_level_sfi;
+    DirectHandle<SharedFunctionInfo> top_level_sfi;
     {
       // Use a manual GC scope, because we want to test a GC in a very precise
       // spot in the merge.
@@ -1088,14 +1091,15 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 
     CHECK_EQ(top_level_sfi->script(), *old_script);
 
-    Handle<JSFunction> top_level =
+    DirectHandle<JSFunction> top_level =
         Factory::JSFunctionBuilder{isolate(), top_level_sfi,
                                    isolate()->native_context()}
             .Build();
 
-    Handle<JSObject> global(isolate()->context()->global_object(), isolate());
+    DirectHandle<JSObject> global(isolate()->context()->global_object(),
+                                  isolate());
 
-    Handle<JSFunction> f = Cast<JSFunction>(
+    DirectHandle<JSFunction> f = Cast<JSFunction>(
         JSObject::GetProperty(isolate(), global, "f").ToHandleChecked());
 
     // f should normally be compiled (with the old shared function info but the
@@ -1104,12 +1108,12 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
     // CHECK(f->is_compiled(isolate()));
 
     // Execute f to get g's SFI (no g bytecode yet)
-    Handle<JSFunction> g = Cast<JSFunction>(
+    DirectHandle<JSFunction> g = Cast<JSFunction>(
         Execution::Call(isolate(), f, global, {}).ToHandleChecked());
     CHECK(!g->is_compiled(isolate()));
 
     // Execute g's SFI to initialize g's bytecode, and to get h.
-    Handle<JSFunction> h = Cast<JSFunction>(
+    DirectHandle<JSFunction> h = Cast<JSFunction>(
         Execution::Call(isolate(), g, global, {}).ToHandleChecked());
     CHECK(g->is_compiled(isolate()));
     CHECK(!h->is_compiled(isolate()));

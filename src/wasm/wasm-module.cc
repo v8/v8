@@ -259,11 +259,13 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
   }
 
   // Create the resulting {FunctionType} object.
-  Handle<JSFunction> object_function = isolate->object_function();
+  DirectHandle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
   DirectHandle<JSArray> params = factory->NewJSArrayWithElements(param_values);
-  Handle<String> params_string = factory->InternalizeUtf8String("parameters");
-  Handle<String> results_string = factory->InternalizeUtf8String("results");
+  DirectHandle<String> params_string =
+      factory->InternalizeUtf8String("parameters");
+  DirectHandle<String> results_string =
+      factory->InternalizeUtf8String("results");
   JSObject::AddProperty(isolate, object, params_string, params, NONE);
 
   // Now add the result types if needed.
@@ -290,10 +292,11 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type) {
   Factory* factory = isolate->factory();
 
-  Handle<JSFunction> object_function = isolate->object_function();
+  DirectHandle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
-  Handle<String> mutable_string = factory->InternalizeUtf8String("mutable");
-  Handle<String> value_string = factory->value_string();
+  DirectHandle<String> mutable_string =
+      factory->InternalizeUtf8String("mutable");
+  DirectHandle<String> value_string = factory->value_string();
   JSObject::AddProperty(isolate, object, mutable_string,
                         factory->ToBoolean(is_mutable), NONE);
   JSObject::AddProperty(isolate, object, value_string,
@@ -307,16 +310,19 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                   AddressType address_type) {
   Factory* factory = isolate->factory();
 
-  Handle<JSFunction> object_function = isolate->object_function();
+  DirectHandle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
-  Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
-  Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
-  Handle<String> shared_string = factory->InternalizeUtf8String("shared");
-  Handle<String> address_string = factory->InternalizeUtf8String("address");
+  DirectHandle<String> minimum_string =
+      factory->InternalizeUtf8String("minimum");
+  DirectHandle<String> maximum_string =
+      factory->InternalizeUtf8String("maximum");
+  DirectHandle<String> shared_string = factory->InternalizeUtf8String("shared");
+  DirectHandle<String> address_string =
+      factory->InternalizeUtf8String("address");
   JSObject::AddProperty(isolate, object, minimum_string,
                         factory->NewNumberFromUint(min_size), NONE);
   if (max_size.has_value()) {
-    Handle<UnionOf<Smi, HeapNumber, BigInt>> max;
+    DirectHandle<UnionOf<Smi, HeapNumber, BigInt>> max;
     if (address_type == AddressType::kI32) {
       DCHECK_GE(kMaxUInt32, *max_size);
       max = factory->NewNumberFromUint(static_cast<uint32_t>(*max_size));
@@ -344,17 +350,20 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
   DirectHandle<String> element =
       factory->InternalizeUtf8String(base::VectorOf(type.name()));
 
-  Handle<JSFunction> object_function = isolate->object_function();
+  DirectHandle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
-  Handle<String> element_string = factory->element_string();
-  Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
-  Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
-  Handle<String> address_string = factory->InternalizeUtf8String("address");
+  DirectHandle<String> element_string = factory->element_string();
+  DirectHandle<String> minimum_string =
+      factory->InternalizeUtf8String("minimum");
+  DirectHandle<String> maximum_string =
+      factory->InternalizeUtf8String("maximum");
+  DirectHandle<String> address_string =
+      factory->InternalizeUtf8String("address");
   JSObject::AddProperty(isolate, object, element_string, element, NONE);
   JSObject::AddProperty(isolate, object, minimum_string,
                         factory->NewNumberFromUint(min_size), NONE);
   if (max_size.has_value()) {
-    Handle<UnionOf<Smi, HeapNumber, BigInt>> max;
+    DirectHandle<UnionOf<Smi, HeapNumber, BigInt>> max;
     if (address_type == AddressType::kI32) {
       DCHECK_GE(kMaxUInt32, *max_size);
       max = factory->NewNumberFromUint(static_cast<uint32_t>(*max_size));
@@ -375,10 +384,10 @@ Handle<JSArray> GetImports(Isolate* isolate,
   auto enabled_features = i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
-  Handle<String> module_string = factory->InternalizeUtf8String("module");
-  Handle<String> name_string = factory->name_string();
-  Handle<String> kind_string = factory->InternalizeUtf8String("kind");
-  Handle<String> type_string = factory->InternalizeUtf8String("type");
+  DirectHandle<String> module_string = factory->InternalizeUtf8String("module");
+  DirectHandle<String> name_string = factory->name_string();
+  DirectHandle<String> kind_string = factory->InternalizeUtf8String("kind");
+  DirectHandle<String> type_string = factory->InternalizeUtf8String("type");
 
   Handle<String> function_string = factory->function_string();
   Handle<String> table_string = factory->InternalizeUtf8String("table");
@@ -391,10 +400,10 @@ Handle<JSArray> GetImports(Isolate* isolate,
   const WasmModule* module = native_module->module();
   int num_imports = static_cast<int>(module->import_table.size());
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
-  Handle<FixedArray> storage = factory->NewFixedArray(num_imports);
+  DirectHandle<FixedArray> storage = factory->NewFixedArray(num_imports);
   JSArray::SetContent(array_object, storage);
 
-  Handle<JSFunction> object_function =
+  DirectHandle<JSFunction> object_function =
       Handle<JSFunction>(isolate->native_context()->object_function(), isolate);
 
   // Populate the result array.
@@ -410,7 +419,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
   for (int index = 0; index < num_imports; ++index) {
     const WasmImport& import = module->import_table[index];
 
-    Handle<JSObject> entry = factory->NewJSObject(object_function);
+    DirectHandle<JSObject> entry = factory->NewJSObject(object_function);
 
     Handle<String> import_kind;
     Handle<JSObject> type_value;
@@ -497,9 +506,9 @@ Handle<JSArray> GetExports(Isolate* isolate,
   auto enabled_features = i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
-  Handle<String> name_string = factory->name_string();
-  Handle<String> kind_string = factory->InternalizeUtf8String("kind");
-  Handle<String> type_string = factory->InternalizeUtf8String("type");
+  DirectHandle<String> name_string = factory->name_string();
+  DirectHandle<String> kind_string = factory->InternalizeUtf8String("kind");
+  DirectHandle<String> type_string = factory->InternalizeUtf8String("type");
 
   DirectHandle<String> function_string = factory->function_string();
   DirectHandle<String> table_string = factory->InternalizeUtf8String("table");
@@ -511,11 +520,11 @@ Handle<JSArray> GetExports(Isolate* isolate,
   const WasmModule* module = module_object->module();
   int num_exports = static_cast<int>(module->export_table.size());
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
-  Handle<FixedArray> storage = factory->NewFixedArray(num_exports);
+  DirectHandle<FixedArray> storage = factory->NewFixedArray(num_exports);
   JSArray::SetContent(array_object, storage);
   array_object->set_length(Smi::FromInt(num_exports));
 
-  Handle<JSFunction> object_function =
+  DirectHandle<JSFunction> object_function =
       Handle<JSFunction>(isolate->native_context()->object_function(), isolate);
 
   // Populate the result array.
@@ -570,7 +579,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
         UNREACHABLE();
     }
 
-    Handle<JSObject> entry = factory->NewJSObject(object_function);
+    DirectHandle<JSObject> entry = factory->NewJSObject(object_function);
 
     DirectHandle<String> export_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
@@ -628,7 +637,8 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
 
   int num_custom_sections = static_cast<int>(matching_sections.size());
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
-  Handle<FixedArray> storage = factory->NewFixedArray(num_custom_sections);
+  DirectHandle<FixedArray> storage =
+      factory->NewFixedArray(num_custom_sections);
   JSArray::SetContent(array_object, storage);
   array_object->set_length(Smi::FromInt(num_custom_sections));
 

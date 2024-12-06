@@ -77,7 +77,7 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
 // static
 template <typename IsolateT>
 Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
-                                    MaybeHandle<ScopeInfo> outer_scope) {
+                                    MaybeDirectHandle<ScopeInfo> outer_scope) {
   // Collect variables.
   int context_local_count = 0;
   int module_vars_count = 0;
@@ -431,17 +431,17 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
-                                        Scope* scope,
-                                        MaybeHandle<ScopeInfo> outer_scope);
+    Handle<ScopeInfo> ScopeInfo::Create(
+        Isolate* isolate, Zone* zone, Scope* scope,
+        MaybeDirectHandle<ScopeInfo> outer_scope);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
-                                        Scope* scope,
-                                        MaybeHandle<ScopeInfo> outer_scope);
+    Handle<ScopeInfo> ScopeInfo::Create(
+        LocalIsolate* isolate, Zone* zone, Scope* scope,
+        MaybeDirectHandle<ScopeInfo> outer_scope);
 
 // static
 Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
-    Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope) {
+    Isolate* isolate, MaybeDirectHandle<ScopeInfo> outer_scope) {
   const bool has_outer_scope_info = !outer_scope.is_null();
   const int length = kVariablePartIndex + (has_outer_scope_info ? 1 : 0);
 
@@ -981,7 +981,7 @@ int ScopeInfo::InlinedLocalNamesLookup(Tagged<String> name) {
   return -1;
 }
 
-int ScopeInfo::ContextSlotIndex(Handle<String> name,
+int ScopeInfo::ContextSlotIndex(DirectHandle<String> name,
                                 VariableLookupResult* lookup_result) {
   DisallowGarbageCollection no_gc;
   DCHECK(IsInternalizedString(*name));
@@ -1007,7 +1007,7 @@ int ScopeInfo::ContextSlotIndex(Handle<String> name,
   return -1;
 }
 
-int ScopeInfo::ContextSlotIndex(Handle<String> name) {
+int ScopeInfo::ContextSlotIndex(DirectHandle<String> name) {
   VariableLookupResult lookup_result;
   return ContextSlotIndex(name, &lookup_result);
 }

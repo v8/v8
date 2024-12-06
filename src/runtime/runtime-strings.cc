@@ -341,8 +341,8 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
 RUNTIME_FUNCTION(Runtime_StringLessThan) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<String> x = args.at<String>(0);
-  Handle<String> y = args.at<String>(1);
+  DirectHandle<String> x = args.at<String>(0);
+  DirectHandle<String> y = args.at<String>(1);
   ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
@@ -352,8 +352,8 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
 RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<String> x = args.at<String>(0);
-  Handle<String> y = args.at<String>(1);
+  DirectHandle<String> x = args.at<String>(0);
+  DirectHandle<String> y = args.at<String>(1);
   ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
@@ -363,8 +363,8 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
 RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<String> x = args.at<String>(0);
-  Handle<String> y = args.at<String>(1);
+  DirectHandle<String> x = args.at<String>(0);
+  DirectHandle<String> y = args.at<String>(1);
   ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
@@ -374,8 +374,8 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
 RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<String> x = args.at<String>(0);
-  Handle<String> y = args.at<String>(1);
+  DirectHandle<String> x = args.at<String>(0);
+  DirectHandle<String> y = args.at<String>(1);
   ComparisonResult result = String::Compare(isolate, x, y);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return isolate->heap()->ToBoolean(
@@ -386,8 +386,8 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
   SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<String> x = args.at<String>(0);
-  Handle<String> y = args.at<String>(1);
+  DirectHandle<String> x = args.at<String>(0);
+  DirectHandle<String> y = args.at<String>(1);
   return isolate->heap()->ToBoolean(String::Equals(isolate, x, y));
 }
 
@@ -395,8 +395,8 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
   SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
-  Handle<String> lhs(Cast<String>(args[0]), isolate);
-  Handle<String> rhs(Cast<String>(args[1]), isolate);
+  DirectHandle<String> lhs(Cast<String>(args[0]), isolate);
+  DirectHandle<String> rhs(Cast<String>(args[1]), isolate);
   ComparisonResult result = String::Compare(isolate, lhs, rhs);
   DCHECK_NE(result, ComparisonResult::kUndefined);
   return Smi::FromInt(static_cast<int>(result));
@@ -417,13 +417,13 @@ RUNTIME_FUNCTION(Runtime_StringMaxLength) {
 RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<String> string = args.at<String>(0);
+  DirectHandle<String> string = args.at<String>(0);
 
   // Equivalent to global replacement `string.replace(/"/g, "&quot")`, but this
   // does not modify any global state (e.g. the regexp match info).
 
   const int string_length = string->length();
-  Handle<String> quotes =
+  DirectHandle<String> quotes =
       isolate->factory()->LookupSingleCharacterStringFromCode('"');
 
   int quote_index = String::IndexOf(isolate, string, quotes, 0);
@@ -469,7 +469,7 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
 RUNTIME_FUNCTION(Runtime_StringIsWellFormed) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<String> string = args.at<String>(0);
+  DirectHandle<String> string = args.at<String>(0);
   return isolate->heap()->ToBoolean(
       String::IsWellFormedUnicode(isolate, string));
 }
@@ -477,7 +477,7 @@ RUNTIME_FUNCTION(Runtime_StringIsWellFormed) {
 RUNTIME_FUNCTION(Runtime_StringToWellFormed) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<String> source = args.at<String>(0);
+  DirectHandle<String> source = args.at<String>(0);
   if (String::IsWellFormedUnicode(isolate, source)) return *source;
   // String::IsWellFormedUnicode would have returned true above otherwise.
   DCHECK(!source->IsOneByteRepresentation());

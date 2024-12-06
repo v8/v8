@@ -47,10 +47,11 @@ Handle<Object> SmiHandle(Isolate* isolate, int value) {
   return Handle<Object>(Smi::FromInt(value), isolate);
 }
 
-void SmiCall(Isolate* isolate, Handle<WasmExportedFunction> exported_function,
+void SmiCall(Isolate* isolate,
+             DirectHandle<WasmExportedFunction> exported_function,
              base::Vector<const DirectHandle<Object>> args,
              int expected_result) {
-  Handle<Object> receiver = isolate->factory()->undefined_value();
+  DirectHandle<Object> receiver = isolate->factory()->undefined_value();
   DirectHandle<Object> result =
       Execution::Call(isolate, exported_function, receiver, args)
           .ToHandleChecked();
@@ -88,11 +89,11 @@ TEST(WrapperBudget) {
     f->EmitCode({WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), WASM_END});
 
     // Compile the module.
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         CompileModule(&zone, isolate, builder);
 
     // Get the exported function and the function data.
-    Handle<WasmExportedFunction> main_export =
+    DirectHandle<WasmExportedFunction> main_export =
         testing::GetExportedFunction(isolate, instance, "main")
             .ToHandleChecked();
     DirectHandle<WasmExportedFunctionData> main_function_data(
@@ -136,11 +137,11 @@ TEST(WrapperReplacement) {
     f->EmitCode({WASM_LOCAL_GET(0), WASM_END});
 
     // Compile the module.
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         CompileModule(&zone, isolate, builder);
 
     // Get the exported function and the function data.
-    Handle<WasmExportedFunction> main_export =
+    DirectHandle<WasmExportedFunction> main_export =
         testing::GetExportedFunction(isolate, instance, "main")
             .ToHandleChecked();
     DirectHandle<WasmExportedFunctionData> main_function_data(
@@ -221,17 +222,17 @@ TEST(EagerWrapperReplacement) {
     id->EmitCode({WASM_LOCAL_GET(0), WASM_END});
 
     // Compile the module.
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         CompileModule(&zone, isolate, builder);
 
     // Get the exported functions.
-    Handle<WasmExportedFunction> add_export =
+    DirectHandle<WasmExportedFunction> add_export =
         testing::GetExportedFunction(isolate, instance, "add")
             .ToHandleChecked();
-    Handle<WasmExportedFunction> mult_export =
+    DirectHandle<WasmExportedFunction> mult_export =
         testing::GetExportedFunction(isolate, instance, "mult")
             .ToHandleChecked();
-    Handle<WasmExportedFunction> id_export =
+    DirectHandle<WasmExportedFunction> id_export =
         testing::GetExportedFunction(isolate, instance, "id").ToHandleChecked();
 
     // Get the function data for all exported functions.
@@ -344,8 +345,9 @@ TEST(WrapperReplacement_IndirectExport) {
         Cast<WasmFuncRef>(WasmTableObject::Get(isolate, table, function_index));
     DirectHandle<WasmInternalFunction> internal_function{
         func_ref->internal(isolate), isolate};
-    Handle<WasmExportedFunction> indirect_function = Cast<WasmExportedFunction>(
-        WasmInternalFunction::GetOrCreateExternal(internal_function));
+    DirectHandle<WasmExportedFunction> indirect_function =
+        Cast<WasmExportedFunction>(
+            WasmInternalFunction::GetOrCreateExternal(internal_function));
     // Get the function data.
     DirectHandle<WasmExportedFunctionData> indirect_function_data(
         indirect_function->shared()->wasm_exported_function_data(), isolate);
@@ -410,7 +412,7 @@ TEST(JSToWasmWrapperGarbageCollection) {
     CHECK_EQ(0, NumCompiledJSToWasmWrappers());
 
     // Compile the module.
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         CompileModule(&zone, isolate, &builder);
 
     // If the generic wrapper is disabled, this should have compiled a wrapper.
@@ -418,10 +420,10 @@ TEST(JSToWasmWrapperGarbageCollection) {
              NumCompiledJSToWasmWrappers());
 
     // Get the exported function and the function data.
-    Handle<WasmExportedFunction> main_function =
+    DirectHandle<WasmExportedFunction> main_function =
         testing::GetExportedFunction(isolate, instance, "main")
             .ToHandleChecked();
-    Handle<WasmExportedFunctionData> main_function_data(
+    DirectHandle<WasmExportedFunctionData> main_function_data(
         main_function->shared()->wasm_exported_function_data(), isolate);
 
     // Set the remaining generic-wrapper budget for add to 1,

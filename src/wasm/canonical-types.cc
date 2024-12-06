@@ -386,19 +386,19 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
   CHECK_LT(old_length, new_length);
 
   // Allocation can invalidate previous unhandled pointers.
-  Handle<WeakFixedArray> old_rtts{old_rtts_raw, isolate};
-  Handle<WeakFixedArray> old_wrappers{old_wrappers_raw, isolate};
+  DirectHandle<WeakFixedArray> old_rtts{old_rtts_raw, isolate};
+  DirectHandle<WeakFixedArray> old_wrappers{old_wrappers_raw, isolate};
   old_rtts_raw = old_wrappers_raw = {};
 
   // We allocate the WeakFixedArray filled with undefined values, as we cannot
   // pass the cleared value in a Handle (see https://crbug.com/364591622). We
   // overwrite the new entries via {MemsetTagged} afterwards.
-  Handle<WeakFixedArray> new_rtts =
+  DirectHandle<WeakFixedArray> new_rtts =
       WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
   WeakFixedArray::CopyElements(isolate, *new_rtts, 0, *old_rtts, 0, old_length);
   MemsetTagged(new_rtts->RawFieldOfFirstElement() + old_length,
                ClearedValue(isolate), new_length - old_length);
-  Handle<WeakFixedArray> new_wrappers =
+  DirectHandle<WeakFixedArray> new_wrappers =
       WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
   WeakFixedArray::CopyElements(isolate, *new_wrappers, 0, *old_wrappers, 0,
                                old_length);

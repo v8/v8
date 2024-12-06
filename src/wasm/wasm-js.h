@@ -80,16 +80,16 @@ class WasmJs {
       Isolate* isolate, Handle<NativeContext> context);
 
  private:
-  V8_EXPORT_PRIVATE static void InstallModule(Isolate* isolate,
-                                              Handle<JSObject> webassembly);
+  V8_EXPORT_PRIVATE static void InstallModule(
+      Isolate* isolate, DirectHandle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static bool InstallTypeReflection(
       Isolate* isolate, DirectHandle<NativeContext> context,
-      Handle<JSObject> webassembly);
+      DirectHandle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static bool InstallJSPromiseIntegration(
       Isolate* isolate, DirectHandle<NativeContext> context,
-      Handle<JSObject> webassembly);
+      DirectHandle<JSObject> webassembly);
 };
 
 }  // namespace v8::internal

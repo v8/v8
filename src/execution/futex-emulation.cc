@@ -561,7 +561,8 @@ Tagged<Object> FutexEmulation::WaitAsync(
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
 
   Factory* factory = isolate->factory();
-  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+  DirectHandle<JSObject> result =
+      factory->NewJSObject(isolate->object_function());
   Handle<JSObject> promise_capability = factory->NewJSPromise();
 
   enum class ResultKind { kNotEqual, kTimedOut, kAsync };
@@ -832,9 +833,9 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
     Local<v8::Context> native_context =
         node->async_state_->native_context.Get(v8_isolate);
     v8::Context::Scope contextScope(native_context);
-    Handle<JSPromise> promise = Cast<JSPromise>(
+    DirectHandle<JSPromise> promise = Cast<JSPromise>(
         Utils::OpenHandle(*node->async_state_->promise.Get(v8_isolate)));
-    Handle<String> result_string;
+    DirectHandle<String> result_string;
     // When waiters are notified, their timeout_time is reset. Having a
     // non-zero timeout_time here means the waiter timed out.
     if (node->async_state_->timeout_time != base::TimeTicks()) {

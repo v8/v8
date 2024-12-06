@@ -94,13 +94,16 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
 }
 
 MaybeHandle<WasmExportedFunction> GetExportedFunction(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name) {
-  Handle<JSObject> exports_object;
-  Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+    const char* name) {
+  DirectHandle<JSObject> exports_object;
+  DirectHandle<Name> exports =
+      isolate->factory()->InternalizeUtf8String("exports");
   exports_object = Cast<JSObject>(
       JSObject::GetProperty(isolate, instance, exports).ToHandleChecked());
 
-  Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked(name);
+  DirectHandle<Name> main_name =
+      isolate->factory()->NewStringFromAsciiChecked(name);
   PropertyDescriptor desc;
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, exports_object, main_name, &desc);
@@ -111,8 +114,8 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
 }
 
 int32_t CallWasmFunctionForTesting(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name,
-    base::Vector<const DirectHandle<Object>> args,
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+    const char* name, base::Vector<const DirectHandle<Object>> args,
     std::unique_ptr<const char[]>* exception) {
   DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
   MaybeHandle<WasmExportedFunction> maybe_export =
@@ -123,7 +126,7 @@ int32_t CallWasmFunctionForTesting(
   }
 
   // Call the JS function.
-  Handle<Object> undefined = isolate->factory()->undefined_value();
+  DirectHandle<Object> undefined = isolate->factory()->undefined_value();
   MaybeHandle<Object> retval =
       Execution::Call(isolate, exported_function, undefined, args);
 

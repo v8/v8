@@ -201,7 +201,8 @@ bool Snapshot::Initialize(Isolate* isolate) {
 }
 
 MaybeDirectHandle<Context> Snapshot::NewContextFromSnapshot(
-    Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
+    Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
+    size_t context_index,
     DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
 
@@ -794,7 +795,7 @@ v8::StartupData CreateSnapshotDataBlobInternal(
         !RunExtraCode(v8_isolate, context, embedded_source, "<embedded>")) {
       return {};
     }
-    creator->SetDefaultContext(Utils::OpenHandle(*context),
+    creator->SetDefaultContext(Utils::OpenDirectHandle(*context),
                                SerializeEmbedderFieldsCallback());
   }
   return creator->CreateBlob(function_code_handling, serializer_flags);
@@ -945,7 +946,8 @@ SnapshotCreatorImpl::~SnapshotCreatorImpl() {
 }
 
 void SnapshotCreatorImpl::SetDefaultContext(
-    Handle<NativeContext> context, SerializeEmbedderFieldsCallback callback) {
+    DirectHandle<NativeContext> context,
+    SerializeEmbedderFieldsCallback callback) {
   DCHECK(contexts_[kDefaultContextIndex].handle_location == nullptr);
   DCHECK(!context.is_null());
   DCHECK(!created());
@@ -956,7 +958,8 @@ void SnapshotCreatorImpl::SetDefaultContext(
 }
 
 size_t SnapshotCreatorImpl::AddContext(
-    Handle<NativeContext> context, SerializeEmbedderFieldsCallback callback) {
+    DirectHandle<NativeContext> context,
+    SerializeEmbedderFieldsCallback callback) {
   DCHECK(!context.is_null());
   DCHECK(!created());
   CHECK_EQ(isolate_, context->GetIsolate());

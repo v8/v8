@@ -28,18 +28,19 @@
 namespace v8 {
 namespace internal {
 
-#define CHECK_EXCEPTION_ON_DISPOSAL(isolate, disposable_stack, return_value)   \
-  do {                                                                         \
-    DCHECK(isolate->has_exception());                                          \
-    Handle<Object> current_error(isolate->exception(), isolate);               \
-    Handle<Object> current_error_message(isolate->pending_message(), isolate); \
-    if (!isolate->is_catchable_by_javascript(*current_error)) {                \
-      return return_value;                                                     \
-    }                                                                          \
-    isolate->clear_internal_exception();                                       \
-    isolate->clear_pending_message();                                          \
-    HandleErrorInDisposal(isolate, disposable_stack, current_error,            \
-                          current_error_message);                              \
+#define CHECK_EXCEPTION_ON_DISPOSAL(isolate, disposable_stack, return_value) \
+  do {                                                                       \
+    DCHECK(isolate->has_exception());                                        \
+    Handle<Object> current_error(isolate->exception(), isolate);             \
+    DirectHandle<Object> current_error_message(isolate->pending_message(),   \
+                                               isolate);                     \
+    if (!isolate->is_catchable_by_javascript(*current_error)) {              \
+      return return_value;                                                   \
+    }                                                                        \
+    isolate->clear_internal_exception();                                     \
+    isolate->clear_pending_message();                                        \
+    HandleErrorInDisposal(isolate, disposable_stack, current_error,          \
+                          current_error_message);                            \
   } while (false)
 
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposeresources
@@ -74,10 +75,10 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
     Tagged<Object> stack_type = stack->get(--length);
 
     Tagged<Object> tagged_method = stack->get(--length);
-    Handle<Object> method(tagged_method, isolate);
+    DirectHandle<Object> method(tagged_method, isolate);
 
     Tagged<Object> tagged_value = stack->get(--length);
-    Handle<Object> value(tagged_value, isolate);
+    DirectHandle<Object> value(tagged_value, isolate);
 
     DirectHandle<Object> args[] = {value};
 
@@ -181,7 +182,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
   disposable_stack->set_state(DisposableStackState::kDisposed);
 
   Handle<Object> existing_error_handle(disposable_stack->error(), isolate);
-  Handle<Object> existing_error_message_handle(
+  DirectHandle<Object> existing_error_message_handle(
       disposable_stack->error_message(), isolate);
   disposable_stack->set_error(*(isolate->factory()->uninitialized_value()));
   disposable_stack->set_error_message(
@@ -204,8 +205,8 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
 
 MaybeHandle<JSReceiver>
 JSDisposableStackBase::ResolveAPromiseWithValueAndReturnIt(
-    Isolate* isolate, Handle<Object> value) {
-  Handle<JSFunction> promise_function = isolate->promise_function();
+    Isolate* isolate, DirectHandle<Object> value) {
+  DirectHandle<JSFunction> promise_function = isolate->promise_function();
   DirectHandle<Object> args[] = {value};
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -219,7 +220,7 @@ JSDisposableStackBase::ResolveAPromiseWithValueAndReturnIt(
 Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
     Isolate* isolate,
     DirectHandle<JSDisposableStackBase> async_disposable_stack,
-    Handle<JSPromise> outer_promise) {
+    DirectHandle<JSPromise> outer_promise) {
   MaybeHandle<Object> result;
 
   bool done;
@@ -237,7 +238,7 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
 
     if (result.ToHandle(&result_handle)) {
       if (!IsTrue(*result_handle)) {
-        Handle<Context> async_disposable_stack_context =
+        DirectHandle<Context> async_disposable_stack_context =
             isolate->factory()->NewBuiltinContext(
                 isolate->native_context(),
                 static_cast<int>(
@@ -253,7 +254,7 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
                     kOuterPromise),
             *outer_promise);
 
-        Handle<JSFunction> on_fulfilled =
+        DirectHandle<JSFunction> on_fulfilled =
             Factory::JSFunctionBuilder{
                 isolate,
                 isolate->factory()
@@ -261,7 +262,7 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
                 async_disposable_stack_context}
                 .Build();
 
-        Handle<JSFunction> on_rejected =
+        DirectHandle<JSFunction> on_rejected =
             Factory::JSFunctionBuilder{
                 isolate,
                 isolate->factory()
@@ -291,7 +292,7 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
       }
     } else {
       // 7. IfAbruptRejectPromise(result, promiseCapability).
-      Handle<Object> exception(isolate->exception(), isolate);
+      DirectHandle<Object> exception(isolate->exception(), isolate);
       if (!isolate->is_catchable_by_javascript(*exception)) {
         return Nothing<bool>();
       }

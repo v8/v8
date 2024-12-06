@@ -236,7 +236,8 @@ class KeyedLoadIC : public LoadIC {
 
  protected:
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(
-      Handle<JSAny> object, Handle<Object> key, bool* is_found = nullptr);
+      DirectHandle<JSAny> object, DirectHandle<Object> key,
+      bool* is_found = nullptr);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> LoadName(Handle<JSAny> object,
                                                      DirectHandle<Object> key,

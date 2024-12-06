@@ -18,8 +18,8 @@ namespace v8 {
 namespace internal {
 
 MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
-    Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-    Handle<Object> options_obj, const char* service) {
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> options_obj, const char* service) {
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -29,7 +29,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   if (IsUndefined(*options_obj, isolate)) {
     options = factory->NewJSObjectWithNullProto();
   } else {

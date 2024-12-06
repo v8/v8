@@ -2887,8 +2887,8 @@ PipelineCompilationJob::Status CodeAssemblerCompilationJob::PrepareJobImpl(
     // Work around that the PersistentHandlesScope inside CompilationHandleScope
     // requires there to be at least one handle.
     HandleScope handle_scope(isolate);
-    Handle<Object> dummy(ReadOnlyRoots(isolate->heap()).empty_string(),
-                         isolate);
+    DirectHandle<Object> dummy(ReadOnlyRoots(isolate->heap()).empty_string(),
+                               isolate);
     CompilationHandleScope compilation_scope(isolate, &compilation_info_);
     generator_(&code_assembler_state_);
   }

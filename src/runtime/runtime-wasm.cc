@@ -154,7 +154,7 @@ Tagged<Object> ThrowWasmError(
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  Handle<JSObject> error_obj =
+  DirectHandle<JSObject> error_obj =
       isolate->factory()->NewWasmRuntimeError(message, base::VectorOf(args));
   JSObject::AddProperty(isolate, error_obj,
                         isolate->factory()->wasm_uncatchable_symbol(),
@@ -241,7 +241,7 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   uint32_t memory_index = args.positive_smi_value_at(1);
   uint32_t delta_pages = args.positive_smi_value_at(2);
 
-  Handle<WasmMemoryObject> memory_object{
+  DirectHandle<WasmMemoryObject> memory_object{
       trusted_instance_data->memory_object(memory_index), isolate};
   int ret = WasmMemoryObject::Grow(isolate, memory_object, delta_pages);
   // The WasmMemoryGrow builtin which calls this runtime function expects us to
@@ -575,7 +575,8 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
     DCHECK(isolate->context().is_null());
     isolate->set_context(trusted_data->native_context());
     HandleScope scope(isolate);
-    Handle<WasmTrustedInstanceData> trusted_data_handle{trusted_data, isolate};
+    DirectHandle<WasmTrustedInstanceData> trusted_data_handle{trusted_data,
+                                                              isolate};
     DirectHandle<Code> new_wrapper_code =
         wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
             isolate, sig, sig_id);
@@ -1386,9 +1387,9 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
     if (!(call).ToHandle(&result)) {                                           \
       DCHECK(isolate->has_exception());                                        \
       /* Mark any exception as uncatchable by Wasm. */                         \
-      Handle<JSObject> exception(Cast<JSObject>(isolate->exception()),         \
-                                 isolate);                                     \
-      Handle<Name> uncatchable =                                               \
+      DirectHandle<JSObject> exception(Cast<JSObject>(isolate->exception()),   \
+                                       isolate);                               \
+      DirectHandle<Name> uncatchable =                                         \
           isolate->factory()->wasm_uncatchable_symbol();                       \
       LookupIterator it(isolate, exception, uncatchable, LookupIterator::OWN); \
       if (!JSReceiver::HasProperty(&it).FromJust()) {                          \

@@ -2848,14 +2848,15 @@ THREADED_TEST(AccessorIsPreservedOnAttributeChange) {
   v8::HandleScope scope(isolate);
   LocalContext env;
   v8::Local<v8::Value> res = CompileRun("var a = []; a;");
-  i::Handle<i::JSReceiver> a(v8::Utils::OpenHandle(v8::Object::Cast(*res)));
+  i::DirectHandle<i::JSReceiver> a(
+      v8::Utils::OpenHandle(v8::Object::Cast(*res)));
   CHECK_EQ(1,
            a->map()->instance_descriptors(i_isolate)->number_of_descriptors());
   CompileRun("Object.defineProperty(a, 'length', { writable: false });");
   CHECK_EQ(0,
            a->map()->instance_descriptors(i_isolate)->number_of_descriptors());
   // But we should still have an AccessorInfo.
-  i::Handle<i::String> name = i_isolate->factory()->length_string();
+  i::DirectHandle<i::String> name = i_isolate->factory()->length_string();
   i::LookupIterator it(i_isolate, a, name,
                        i::LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(i::LookupIterator::ACCESSOR, it.state());
@@ -11841,6 +11842,10 @@ THREADED_TEST(Regress567998) {
   ExpectBoolean("undetectable===undetectable", true);
 }
 
+#ifndef V8_ENABLE_DIRECT_HANDLE
+// The test below only checks that the number of (indirect) handles placed in
+// handle scopes are the expected ones. This will not be true if direct handles
+// are enabled.
 
 static int Recurse(v8::Isolate* isolate, int depth, int iterations) {
   v8::HandleScope scope(isolate);
@@ -11850,7 +11855,6 @@ static int Recurse(v8::Isolate* isolate, int depth, int iterations) {
   }
   return Recurse(isolate, depth - 1, iterations);
 }
-
 
 THREADED_TEST(HandleIteration) {
   static const int kIterations = 500;
@@ -11881,6 +11885,7 @@ THREADED_TEST(HandleIteration) {
   CHECK_EQ(0, v8::HandleScope::NumberOfHandles(isolate));
   CHECK_EQ(kNesting * kIterations, Recurse(isolate, kNesting, kIterations));
 }
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 namespace {
 v8::Intercepted InterceptorCallICFastApi(
@@ -24315,7 +24320,7 @@ TEST(CreateSyntheticModule) {
   i::DirectHandle<i::SyntheticModule> i_module =
       i::Cast<i::SyntheticModule>(v8::Utils::OpenDirectHandle(*module));
   i::DirectHandle<i::ObjectHashTable> exports(i_module->exports(), i_isolate);
-  i::Handle<i::String> default_name =
+  i::DirectHandle<i::String> default_name =
       i_isolate->factory()->NewStringFromAsciiChecked("default");
 
   CHECK(
@@ -31181,7 +31186,7 @@ TEST(WrappedFunctionWithClass) {
 
   // Make sure the class still works after bytecode flushing.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::JSFunction> i_class =
+  i::DirectHandle<i::JSFunction> i_class =
       Cast<i::JSFunction>(v8::Utils::OpenHandle(*the_class));
   CHECK(i_class->shared()->CanDiscardCompiled());
   i::SharedFunctionInfo::DiscardCompiled(i_isolate,

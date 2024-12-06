@@ -610,7 +610,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // space.
   Handle<HeapNumber> NewHeapNumberForCodeAssembler(double value);
 
-  Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);
+  Handle<JSObject> NewArgumentsObject(DirectHandle<JSFunction> callee,
+                                      int length);
 
   // Allocates and initializes a new JavaScript object based on a
   // constructor.
@@ -710,7 +711,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSWeakMap> NewJSWeakMap();
 
-  Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
+  Handle<JSGeneratorObject> NewJSGeneratorObject(
+      DirectHandle<JSFunction> function);
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
@@ -892,15 +894,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<BytecodeArray> CopyBytecodeArray(DirectHandle<BytecodeArray>);
 
   // Interface for creating error objects.
-  Handle<JSObject> NewError(Handle<JSFunction> constructor,
+  Handle<JSObject> NewError(DirectHandle<JSFunction> constructor,
                             DirectHandle<String> message,
-                            Handle<Object> options = {});
+                            DirectHandle<Object> options = {});
 
   Handle<Object> NewInvalidStringLengthError();
 
   inline Handle<Object> NewURIError();
 
-  Handle<JSObject> NewError(Handle<JSFunction> constructor,
+  Handle<JSObject> NewError(DirectHandle<JSFunction> constructor,
                             MessageTemplate template_index,
                             base::Vector<const DirectHandle<Object>> args);
 
@@ -910,7 +912,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   template <typename... Args,
             typename = std::enable_if_t<std::conjunction_v<
                 std::is_convertible<Args, DirectHandle<Object>>...>>>
-  Handle<JSObject> NewError(Handle<JSFunction> constructor,
+  Handle<JSObject> NewError(DirectHandle<JSFunction> constructor,
                             MessageTemplate template_index, Args... args) {
     return NewError(constructor, template_index,
                     base::VectorOf<DirectHandle<Object>>({args...}));
@@ -995,9 +997,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       FunctionMode function_mode, MaybeHandle<JSFunction> maybe_empty_function);
 
   Handle<Map> CreateStrictFunctionMap(FunctionMode function_mode,
-                                      Handle<JSFunction> empty_function);
+                                      DirectHandle<JSFunction> empty_function);
 
-  Handle<Map> CreateClassFunctionMap(Handle<JSFunction> empty_function);
+  Handle<Map> CreateClassFunctionMap(DirectHandle<JSFunction> empty_function);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(
@@ -1052,7 +1054,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Returns the value for a known global constant (a property of the global
   // object which is neither configurable nor writable) like 'undefined'.
   // Returns a null handle when the given name is unknown.
-  Handle<Object> GlobalConstantFor(Handle<Name> name);
+  Handle<Object> GlobalConstantFor(DirectHandle<Name> name);
 
   // Converts the given ToPrimitive hint to its string representation.
   Handle<String> ToPrimitiveHintString(ToPrimitiveHint hint);
@@ -1066,10 +1068,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   Handle<JSSharedStruct> NewJSSharedStruct(
-      Handle<JSFunction> constructor,
+      DirectHandle<JSFunction> constructor,
       MaybeHandle<NumberDictionary> maybe_elements_template);
 
-  Handle<JSSharedArray> NewJSSharedArray(Handle<JSFunction> constructor,
+  Handle<JSSharedArray> NewJSSharedArray(DirectHandle<JSFunction> constructor,
                                          int length);
 
   Handle<JSAtomicsMutex> NewJSAtomicsMutex();
@@ -1272,7 +1274,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   bool EmptyStringRootIsInitialized();
   AllocationType AllocationTypeForInPlaceInternalizableString();
 
-  void ProcessNewScript(Handle<Script> shared,
+  void ProcessNewScript(DirectHandle<Script> shared,
                         ScriptEventType script_event_type);
   // ------
 

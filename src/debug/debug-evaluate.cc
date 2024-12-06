@@ -50,8 +50,8 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
     return MaybeHandle<Object>();
   }
 
-  Handle<NativeContext> context = isolate->native_context();
-  Handle<JSFunction> function =
+  DirectHandle<NativeContext> context = isolate->native_context();
+  DirectHandle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, shared_info, context}.Build();
 
   DisableBreak disable_break_scope(
@@ -64,7 +64,7 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
     isolate->debug()->StartSideEffectCheckMode();
   }
   // TODO(cbruni, 1244145): Use host-defined options from script context.
-  Handle<FixedArray> host_defined_options(
+  DirectHandle<FixedArray> host_defined_options(
       Cast<Script>(function->shared()->script())->host_defined_options(),
       isolate);
   MaybeHandle<Object> result = Execution::CallScript(
@@ -95,10 +95,10 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
     WasmFrame* frame = WasmFrame::cast(it.frame());
     Handle<SharedFunctionInfo> outer_info(
         isolate->native_context()->empty_function()->shared(), isolate);
-    Handle<JSObject> context_extension = GetWasmDebugProxy(frame);
+    DirectHandle<JSObject> context_extension = GetWasmDebugProxy(frame);
     DirectHandle<ScopeInfo> scope_info =
         ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
-    Handle<Context> context = isolate->factory()->NewWithContext(
+    DirectHandle<Context> context = isolate->factory()->NewWithContext(
         isolate->native_context(), scope_info, context_extension);
     return Evaluate(isolate, outer_info, context, context_extension, source,
                     throw_on_side_effect);
@@ -116,8 +116,8 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   ContextBuilder context_builder(isolate, frame, inlined_jsframe_index);
   if (isolate->has_exception()) return {};
 
-  Handle<Context> context = context_builder.evaluation_context();
-  Handle<JSObject> receiver(context->global_proxy(), isolate);
+  DirectHandle<Context> context = context_builder.evaluation_context();
+  DirectHandle<JSObject> receiver(context->global_proxy(), isolate);
   MaybeHandle<Object> maybe_result =
       Evaluate(isolate, context_builder.outer_info(), context, receiver, source,
                throw_on_side_effect);
@@ -137,8 +137,8 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
       Cast<Context>(it.frame()->context())->native_context(), isolate);
 
   // Materialize arguments as property on an extension object.
-  Handle<JSObject> materialized = factory->NewSlowJSObjectWithNullProto();
-  Handle<String> arguments_str = factory->arguments_string();
+  DirectHandle<JSObject> materialized = factory->NewSlowJSObjectWithNullProto();
+  DirectHandle<String> arguments_str = factory->arguments_string();
   JSObject::SetOwnPropertyIgnoreAttributes(
       materialized, arguments_str,
       Accessors::FunctionGetArguments(it.frame(), 0), NONE)
@@ -148,7 +148,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   Handle<Object> this_value(it.frame()->receiver(), isolate);
   DCHECK_EQ(it.frame()->IsConstructor(), IsTheHole(*this_value, isolate));
   if (!IsTheHole(*this_value, isolate)) {
-    Handle<String> this_str = factory->this_string();
+    DirectHandle<String> this_str = factory->this_string();
     JSObject::SetOwnPropertyIgnoreAttributes(materialized, this_str, this_value,
                                              NONE)
         .Check();
@@ -158,11 +158,11 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   DirectHandle<ScopeInfo> scope_info =
       ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
   scope_info->SetIsDebugEvaluateScope();
-  Handle<Context> evaluation_context = factory->NewDebugEvaluateContext(
+  DirectHandle<Context> evaluation_context = factory->NewDebugEvaluateContext(
       native_context, scope_info, materialized, Handle<Context>());
   Handle<SharedFunctionInfo> outer_info(
       native_context->empty_function()->shared(), isolate);
-  Handle<JSObject> receiver(native_context->global_proxy(), isolate);
+  DirectHandle<JSObject> receiver(native_context->global_proxy(), isolate);
   const bool throw_on_side_effect = false;
   MaybeHandle<Object> maybe_result =
       Evaluate(isolate, outer_info, evaluation_context, receiver, source,
@@ -173,8 +173,8 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
 // Compile and evaluate source for the given context.
 MaybeHandle<Object> DebugEvaluate::Evaluate(
     Isolate* isolate, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> context, Handle<Object> receiver, Handle<String> source,
-    bool throw_on_side_effect) {
+    DirectHandle<Context> context, DirectHandle<Object> receiver,
+    Handle<String> source, bool throw_on_side_effect) {
   Handle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
@@ -263,7 +263,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       // the existing block list from the paused function scope
       // and also associate the temporary scope_info we create here with that
       // blocklist.
-      Handle<ScopeInfo> function_scope_info = handle(
+      DirectHandle<ScopeInfo> function_scope_info = handle(
           frame_inspector_.GetFunction()->shared()->scope_info(), isolate_);
       Handle<Object> block_list = handle(
           isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
@@ -291,7 +291,7 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
       for (int i = 0; i < keys->length(); i++) {
         DCHECK(IsString(keys->get(i)));
         Handle<String> key(Cast<String>(keys->get(i)), isolate_);
-        Handle<Object> value = JSReceiver::GetDataProperty(
+        DirectHandle<Object> value = JSReceiver::GetDataProperty(
             isolate_, element.materialized_object, key);
         scope_iterator_.SetVariableValue(key, value);
       }

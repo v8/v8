@@ -479,7 +479,7 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
 
   if (IsString(*name)) {
     // Look up in script context table.
-    Handle<String> str_name = Cast<String>(name);
+    DirectHandle<String> str_name = Cast<String>(name);
     DirectHandle<ScriptContextTable> script_contexts(
         global->native_context()->script_context_table(), isolate());
 
@@ -1546,8 +1546,8 @@ bool CanCache(DirectHandle<Object> receiver, InlineCacheState state) {
 
 }  // namespace
 
-MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(Handle<JSAny> object,
-                                             Handle<Object> key,
+MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(DirectHandle<JSAny> object,
+                                             DirectHandle<Object> key,
                                              bool* is_found) {
   Handle<Object> result;
 
@@ -1718,7 +1718,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
   DCHECK(IsString(*name));
 
   // Look up in script context table.
-  Handle<String> str_name = Cast<String>(name);
+  DirectHandle<String> str_name = Cast<String>(name);
   Handle<JSGlobalObject> global = isolate()->global_object();
   DirectHandle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table(), isolate());
@@ -1780,7 +1780,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
 namespace {
 Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
                                   LookupIterator::State original_state,
-                                  Handle<JSAny> value,
+                                  DirectHandle<JSAny> value,
                                   Maybe<ShouldThrow> should_throw,
                                   StoreOrigin store_origin) {
   // It should not be possible to call DefineOwnDataProperty in a
@@ -2716,8 +2716,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
 }
 
 namespace {
-Maybe<bool> StoreOwnElement(Isolate* isolate, Handle<JSArray> array,
-                            Handle<Object> index, Handle<Object> value) {
+Maybe<bool> StoreOwnElement(Isolate* isolate, DirectHandle<JSArray> array,
+                            Handle<Object> index, DirectHandle<Object> value) {
   DCHECK(IsNumber(*index));
   PropertyKey key(isolate, index);
   LookupIterator it(isolate, array, key, LookupIterator::OWN);
@@ -2989,8 +2989,8 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  Handle<Object> value = args.at(0);
-  Handle<JSAny> object = args.at<JSAny>(1);
+  DirectHandle<Object> value = args.at(0);
+  DirectHandle<JSAny> object = args.at<JSAny>(1);
   Handle<Object> key = args.at(2);
 
   // Unlike DefineKeyedOwnIC, DefineNamedOwnIC doesn't handle private
@@ -3041,7 +3041,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<String> name = args.at<String>(4);
 
 #ifdef DEBUG
@@ -3195,9 +3195,9 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
-  Handle<JSAny> object = args.at<JSAny>(1);
-  Handle<Object> key = args.at(2);
+  DirectHandle<Object> value = args.at(0);
+  DirectHandle<JSAny> object = args.at<JSAny>(1);
+  DirectHandle<Object> key = args.at(2);
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::SetObjectProperty(isolate, object, key, value,
                                           StoreOrigin::kMaybeKeyed));
@@ -3208,8 +3208,8 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Slow) {
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  Handle<JSAny> object = args.at<JSAny>(1);
-  Handle<Object> key = args.at(2);
+  DirectHandle<JSAny> object = args.at<JSAny>(1);
+  DirectHandle<Object> key = args.at(2);
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::DefineObjectOwnProperty(isolate, object, key, value,
                                                 StoreOrigin::kNamed));
@@ -3219,7 +3219,7 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<Object> array = args.at(1);
   Handle<Object> index = args.at(2);
   StoreOwnElement(isolate, Cast<JSArray>(array), index, value);
@@ -3519,7 +3519,7 @@ bool CanFastCloneObjectToObjectLiteral(DirectHandle<Map> source_map,
 }  // namespace
 
 static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
-                                                 Handle<Object> source,
+                                                 DirectHandle<Object> source,
                                                  int flags) {
   Handle<JSObject> new_object;
   if (flags & ObjectLiteral::kHasNullPrototype) {
@@ -3536,8 +3536,8 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
         isolate->native_context(), properties);
     new_object = isolate->factory()->NewFastOrSlowJSObjectFromMap(map);
   } else {
-    Handle<JSFunction> constructor(isolate->native_context()->object_function(),
-                                   isolate);
+    DirectHandle<JSFunction> constructor(
+        isolate->native_context()->object_function(), isolate);
     new_object = isolate->factory()->NewJSObject(constructor);
   }
 
@@ -3556,7 +3556,7 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_CloneObjectIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> source = args.at(0);
+  DirectHandle<Object> source = args.at(0);
   int flags = args.smi_value_at(1);
   RETURN_RESULT_OR_FAILURE(isolate,
                            CloneObjectSlowPath(isolate, source, flags));
@@ -3815,11 +3815,11 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
 }
 
 RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
-  Handle<JSObject> receiver = args.at<JSObject>(0);
+  DirectHandle<JSObject> receiver = args.at<JSObject>(0);
   DirectHandle<JSObject> holder = args.at<JSObject>(1);
   DirectHandle<AccessorInfo> info = args.at<AccessorInfo>(2);
-  Handle<Name> name = args.at<Name>(3);
-  Handle<Object> value = args.at(4);
+  DirectHandle<Name> name = args.at<Name>(3);
+  DirectHandle<Object> value = args.at(4);
   HandleScope scope(isolate);
 
 #ifdef V8_RUNTIME_CALL_STATS
@@ -3839,9 +3839,9 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
 
 namespace {
 
-bool MaybeCanCloneObjectForObjectAssign(Handle<JSReceiver> source,
+bool MaybeCanCloneObjectForObjectAssign(DirectHandle<JSReceiver> source,
                                         DirectHandle<Map> source_map,
-                                        Handle<JSReceiver> target,
+                                        DirectHandle<JSReceiver> target,
                                         Isolate* isolate) {
   FastCloneObjectMode clone_mode =
       GetCloneModeForMap(source_map, false, isolate);
@@ -3974,7 +3974,7 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
 RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
-  Handle<Name> name = args.at<Name>(0);
+  DirectHandle<Name> name = args.at<Name>(0);
   DirectHandle<Object> receiver_arg = args.at(1);
   Handle<JSObject> holder = args.at<JSObject>(2);
 
@@ -3985,7 +3985,8 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   }
 
   {
-    Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(), isolate);
+    DirectHandle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(),
+                                              isolate);
     PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                         *holder, Just(kDontThrow));
 
@@ -4034,9 +4035,9 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
-  Handle<JSObject> receiver = args.at<JSObject>(1);
-  Handle<Name> name = args.at<Name>(2);
+  DirectHandle<Object> value = args.at(0);
+  DirectHandle<JSObject> receiver = args.at<JSObject>(1);
+  DirectHandle<Name> name = args.at<Name>(2);
 
   // TODO(ishell): Cache interceptor_holder in the store handler like we do
   // for LoadHandler::kInterceptor case.
@@ -4098,12 +4099,12 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
 RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   // TODO(verwaest): This should probably get the holder and receiver as input.
   HandleScope scope(isolate);
-  Handle<JSObject> receiver = args.at<JSObject>(0);
+  DirectHandle<JSObject> receiver = args.at<JSObject>(0);
   DCHECK_GE(args.smi_value_at(1), 0);
   uint32_t index = args.smi_value_at(1);
 
-  Handle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
-                                      isolate);
+  DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
+                                            isolate);
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                       *receiver, Just(kDontThrow));
   Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
@@ -4143,13 +4144,13 @@ RUNTIME_FUNCTION(Runtime_KeyedHasIC_Miss) {
 
 RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
   HandleScope scope(isolate);
-  Handle<JSObject> receiver = args.at<JSObject>(0);
+  DirectHandle<JSObject> receiver = args.at<JSObject>(0);
   DCHECK_GE(args.smi_value_at(1), 0);
   uint32_t index = args.smi_value_at(1);
 
   {
-    Handle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
-                                        isolate);
+    DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
+                                              isolate);
     PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                         *receiver, Just(kDontThrow));
 

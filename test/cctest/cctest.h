@@ -383,7 +383,7 @@ static inline uint16_t* AsciiToTwoByteString(const char16_t* source,
 template <typename T>
 static inline i::Handle<T> GetGlobal(const char* name) {
   i::Isolate* isolate = CcTest::i_isolate();
-  i::Handle<i::String> str_name =
+  i::DirectHandle<i::String> str_name =
       isolate->factory()->InternalizeUtf8String(name);
 
   i::Handle<i::Object> value =

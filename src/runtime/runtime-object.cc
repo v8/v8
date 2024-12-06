@@ -468,7 +468,7 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<JSReceiver> obj = args.at<JSReceiver>(0);
-  Handle<Object> prototype = args.at(1);
+  DirectHandle<Object> prototype = args.at(1);
   MAYBE_RETURN(
       JSReceiver::SetPrototype(isolate, obj, prototype, false, kThrowOnError),
       ReadOnlyRoots(isolate).exception());
@@ -594,7 +594,7 @@ RUNTIME_FUNCTION(Runtime_JSReceiverSetPrototypeOfThrow) {
 
   DCHECK_EQ(2, args.length());
   DirectHandle<JSReceiver> object = args.at<JSReceiver>(0);
-  Handle<Object> proto = args.at(1);
+  DirectHandle<Object> proto = args.at(1);
 
   MAYBE_RETURN(
       JSReceiver::SetPrototype(isolate, object, proto, true, kThrowOnError),
@@ -608,7 +608,7 @@ RUNTIME_FUNCTION(Runtime_JSReceiverSetPrototypeOfDontThrow) {
 
   DCHECK_EQ(2, args.length());
   DirectHandle<JSReceiver> object = args.at<JSReceiver>(0);
-  Handle<Object> proto = args.at(1);
+  DirectHandle<Object> proto = args.at(1);
 
   Maybe<bool> result =
       JSReceiver::SetPrototype(isolate, object, proto, true, kDontThrow);
@@ -1264,7 +1264,7 @@ RUNTIME_FUNCTION(Runtime_ToNumeric) {
 RUNTIME_FUNCTION(Runtime_ToLength) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> input = args.at(0);
+  DirectHandle<Object> input = args.at(0);
   RETURN_RESULT_OR_FAILURE(isolate, Object::ToLength(isolate, input));
 }
 
@@ -1366,7 +1366,7 @@ struct PrivateMember {
 
 namespace {
 void CollectPrivateMethodsAndAccessorsFromContext(
-    Isolate* isolate, DirectHandle<Context> context, Handle<String> desc,
+    Isolate* isolate, DirectHandle<Context> context, DirectHandle<String> desc,
     Handle<Object> brand, IsStaticFlag is_static_flag,
     std::vector<PrivateMember>* results) {
   DirectHandle<ScopeInfo> scope_info(context->scope_info(), isolate);
@@ -1393,8 +1393,8 @@ void CollectPrivateMethodsAndAccessorsFromContext(
 }
 
 Maybe<bool> CollectPrivateMembersFromReceiver(
-    Isolate* isolate, DirectHandle<JSReceiver> receiver, Handle<String> desc,
-    std::vector<PrivateMember>* results) {
+    Isolate* isolate, DirectHandle<JSReceiver> receiver,
+    DirectHandle<String> desc, std::vector<PrivateMember>* results) {
   PropertyFilter key_filter =
       static_cast<PropertyFilter>(PropertyFilter::PRIVATE_NAMES_ONLY);
   DirectHandle<FixedArray> keys;
@@ -1504,7 +1504,7 @@ MaybeHandle<Object> Runtime::GetPrivateMember(Isolate* isolate,
 MaybeHandle<Object> Runtime::SetPrivateMember(Isolate* isolate,
                                               DirectHandle<JSReceiver> receiver,
                                               Handle<String> desc,
-                                              Handle<Object> value) {
+                                              DirectHandle<Object> value) {
   PrivateMember result;
   MAYBE_RETURN_NULL(FindPrivateMembersFromReceiver(
       isolate, receiver, desc, MessageTemplate::kInvalidPrivateMemberRead,
@@ -1567,7 +1567,7 @@ RUNTIME_FUNCTION(Runtime_SetPrivateMember) {
         isolate, NewTypeError(MessageTemplate::kNonObjectPrivateNameAccess,
                               desc, receiver));
   }
-  Handle<Object> value = args.at<Object>(2);
+  DirectHandle<Object> value = args.at<Object>(2);
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::SetPrivateMember(isolate, Cast<JSReceiver>(receiver),
                                          desc, value));

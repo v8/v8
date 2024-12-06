@@ -120,9 +120,11 @@ class ValueSerializer {
   void WriteString(Handle<String> string);
   Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver)
       V8_WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSArray(Handle<JSArray> array) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSObject(DirectHandle<JSObject> object)
+      V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSObjectSlow(DirectHandle<JSObject> object)
+      V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSArray(DirectHandle<JSArray> array) V8_WARN_UNUSED_RESULT;
   void WriteJSDate(Tagged<JSDate> date);
   Maybe<bool> WriteJSPrimitiveWrapper(DirectHandle<JSPrimitiveWrapper> value)
       V8_WARN_UNUSED_RESULT;
@@ -132,7 +134,7 @@ class ValueSerializer {
   Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(Tagged<JSArrayBufferView> array_buffer);
-  Maybe<bool> WriteJSError(Handle<JSObject> error) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSError(DirectHandle<JSObject> error) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSharedArray(DirectHandle<JSSharedArray> shared_array)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSharedStruct(DirectHandle<JSSharedStruct> shared_struct)
@@ -152,7 +154,7 @@ class ValueSerializer {
    * buffer. Returns the number of keys actually written, which may be smaller
    * if some keys are not own properties when accessed.
    */
-  Maybe<uint32_t> WriteJSObjectPropertiesSlow(Handle<JSObject> object,
+  Maybe<uint32_t> WriteJSObjectPropertiesSlow(DirectHandle<JSObject> object,
                                               DirectHandle<FixedArray> keys)
       V8_WARN_UNUSED_RESULT;
 
@@ -238,7 +240,7 @@ class ValueDeserializer {
    * ValueSerializer::TransferArrayBuffer.
    */
   void TransferArrayBuffer(uint32_t transfer_id,
-                           Handle<JSArrayBuffer> array_buffer);
+                           DirectHandle<JSArrayBuffer> array_buffer);
 
   /*
    * Publicly exposed wire format writing methods.
@@ -316,7 +318,7 @@ class ValueDeserializer {
    * Reads key-value pairs into the object until the specified end tag is
    * encountered. If successful, returns the number of properties read.
    */
-  Maybe<uint32_t> ReadJSObjectProperties(Handle<JSObject> object,
+  Maybe<uint32_t> ReadJSObjectProperties(DirectHandle<JSObject> object,
                                          SerializationTag end_tag,
                                          bool can_use_transitions);
 

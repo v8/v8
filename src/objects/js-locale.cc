@@ -50,7 +50,7 @@ struct ValueAndType {
 
 // Inserts tags from options into locale string.
 Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
-                                    Handle<JSReceiver> options,
+                                    DirectHandle<JSReceiver> options,
                                     icu::LocaleBuilder* builder) {
   DCHECK(isolate);
 
@@ -258,8 +258,8 @@ bool JSLocale::StartsWithUnicodeLanguageId(const std::string& value) {
 }
 
 namespace {
-Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
-                              Handle<JSReceiver> options,
+Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
+                              DirectHandle<JSReceiver> options,
                               icu::LocaleBuilder* builder) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   if (tag->length() == 0) {
@@ -368,8 +368,8 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
 }  // namespace
 
 MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, DirectHandle<Map> map,
-                                    Handle<String> locale_str,
-                                    Handle<JSReceiver> options) {
+                                    DirectHandle<String> locale_str,
+                                    DirectHandle<JSReceiver> options) {
   icu::LocaleBuilder builder;
   Maybe<bool> maybe_apply =
       ApplyOptionsToTag(isolate, locale_str, options, &builder);
@@ -413,7 +413,7 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
       Managed<icu::Locale>::From(
           isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
 
-  Handle<JSFunction> constructor(
+  DirectHandle<JSFunction> constructor(
       isolate->native_context()->intl_locale_function(), isolate);
 
   Handle<Map> map;
@@ -696,9 +696,9 @@ MaybeHandle<JSObject> JSLocale::GetTextInfo(Isolate* isolate,
   Handle<JSObject> info = factory->NewJSObject(isolate->object_function());
 
   // Let dir be "ltr".
-  Handle<String> dir = locale->icu_locale()->raw()->isRightToLeft()
-                           ? factory->rtl_string()
-                           : factory->ltr_string();
+  DirectHandle<String> dir = locale->icu_locale()->raw()->isRightToLeft()
+                                 ? factory->rtl_string()
+                                 : factory->ltr_string();
 
   // Perform ! CreateDataPropertyOrThrow(info, "direction", dir).
   CHECK(JSReceiver::CreateDataProperty(
@@ -748,7 +748,7 @@ MaybeHandle<JSObject> JSLocale::GetWeekInfo(Isolate* isolate,
   if (length != 2) {
     wi = wi->RightTrimOrEmpty(isolate, wi, length);
   }
-  Handle<JSArray> we = factory->NewJSArrayWithElements(wi);
+  DirectHandle<JSArray> we = factory->NewJSArrayWithElements(wi);
 
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

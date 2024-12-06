@@ -204,7 +204,7 @@ namespace {
 MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
                                     DirectHandle<FixedArray> frames) {
   int frame_count = frames->length();
-  Handle<JSFunction> constructor = isolate->callsite_function();
+  DirectHandle<JSFunction> constructor = isolate->callsite_function();
   DirectHandle<FixedArray> sites =
       isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; ++i) {
@@ -371,7 +371,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
       // stringified already regardless. Still, try to append a string
       // representation of the thrown exception.
 
-      Handle<Object> exception(isolate->exception(), isolate);
+      DirectHandle<Object> exception(isolate->exception(), isolate);
       try_catch.Reset();
 
       MaybeHandle<String> exception_string =
@@ -524,12 +524,12 @@ MaybeHandle<String> MessageFormatter::TryFormat(
 }
 
 MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
-                                            Handle<JSFunction> target,
-                                            Handle<Object> new_target,
+                                            DirectHandle<JSFunction> target,
+                                            DirectHandle<Object> new_target,
                                             DirectHandle<Object> message,
-                                            Handle<Object> options) {
+                                            DirectHandle<Object> options) {
   FrameSkipMode mode = SKIP_FIRST;
-  Handle<Object> caller;
+  DirectHandle<Object> caller;
 
   // When we're passed a JSFunction as new target, we can skip frames until that
   // specific function is seen instead of unconditionally skipping the first
@@ -545,9 +545,10 @@ MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
 }
 
 MaybeHandle<JSObject> ErrorUtils::Construct(
-    Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
-    DirectHandle<Object> message, Handle<Object> options, FrameSkipMode mode,
-    Handle<Object> caller, StackTraceCollection stack_trace_collection) {
+    Isolate* isolate, DirectHandle<JSFunction> target,
+    DirectHandle<Object> new_target, DirectHandle<Object> message,
+    DirectHandle<Object> options, FrameSkipMode mode,
+    DirectHandle<Object> caller, StackTraceCollection stack_trace_collection) {
   if (v8_flags.correctness_fuzzer_suppressions) {
     // Abort range errors in correctness fuzzing, as their causes differ
     // accross correctness-fuzzing scenarios.
@@ -562,16 +563,15 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
 
   // 1. If NewTarget is undefined, let newTarget be the active function object,
   // else let newTarget be NewTarget.
-  Handle<JSReceiver> new_target_recv = IsJSReceiver(*new_target)
-                                           ? Cast<JSReceiver>(new_target)
-                                           : Cast<JSReceiver>(target);
+  DirectHandle<JSReceiver> new_target_recv = IsJSReceiver(*new_target)
+                                                 ? Cast<JSReceiver>(new_target)
+                                                 : Cast<JSReceiver>(target);
 
   // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%ErrorPrototype%",
   //    « [[ErrorData]] »).
   Handle<JSObject> err;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, err,
-      JSObject::New(target, new_target_recv, Handle<AllocationSite>::null()));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, err,
+                             JSObject::New(target, new_target_recv, {}));
 
   // 3. If message is not undefined, then
   //  a. Let msg be ? ToString(message).
@@ -600,9 +600,9 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
     // If Type(options) is Object and ? HasProperty(options, "cause") then
     //   a. Let cause be ? Get(options, "cause").
     //   b. Perform ! CreateNonEnumerableDataPropertyOrThrow(O, "cause", cause).
-    Handle<Name> cause_string = isolate->factory()->cause_string();
+    DirectHandle<Name> cause_string = isolate->factory()->cause_string();
     if (IsJSReceiver(*options)) {
-      Handle<JSReceiver> js_options = Cast<JSReceiver>(options);
+      DirectHandle<JSReceiver> js_options = Cast<JSReceiver>(options);
       Maybe<bool> has_cause =
           JSObject::HasProperty(isolate, js_options, cause_string);
       if (has_cause.IsNothing()) {
@@ -623,7 +623,8 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
   switch (stack_trace_collection) {
     case StackTraceCollection::kEnabled:
       RETURN_ON_EXCEPTION(isolate,
-                          isolate->CaptureAndSetErrorStack(err, mode, caller));
+                          isolate->CaptureAndSetErrorStack(
+                              err, mode, indirect_handle(caller, isolate)));
       break;
     case StackTraceCollection::kDisabled:
       break;
@@ -727,8 +728,9 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
 
 // static
 Handle<JSObject> ErrorUtils::MakeGenericError(
-    Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
-    base::Vector<const DirectHandle<Object>> args, FrameSkipMode mode) {
+    Isolate* isolate, DirectHandle<JSFunction> constructor,
+    MessageTemplate index, base::Vector<const DirectHandle<Object>> args,
+    FrameSkipMode mode) {
   if (v8_flags.clear_exceptions_on_js_entry) {
     // This function used to be implemented in JavaScript, and JSEntry
     // clears any exceptions - so whenever we'd call this from C++,
@@ -741,7 +743,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
-  Handle<Object> no_caller;
+  DirectHandle<Object> no_caller;
   // The call below can't fail because constructor is a builtin.
   DCHECK(constructor->shared()->HasBuiltinId());
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, options,
@@ -763,7 +765,7 @@ Handle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
   DirectHandle<String> msg = MessageFormatter::Format(isolate, index, args);
   Handle<Object> options = isolate->factory()->undefined_value();
 
-  Handle<JSObject> maybe_error_object;
+  DirectHandle<JSObject> maybe_error_object;
   Handle<Object> error_stack;
   StackTraceCollection collection = StackTraceCollection::kEnabled;
   if (IsJSObject(*original)) {

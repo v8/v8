@@ -258,7 +258,7 @@ class V8_EXPORT_PRIVATE Debug {
                     debug::BreakReasons break_reasons = {});
   debug::DebugDelegate::ActionAfterInstrumentation OnInstrumentationBreak();
 
-  std::optional<Tagged<Object>> OnThrow(Handle<Object> exception)
+  std::optional<Tagged<Object>> OnThrow(DirectHandle<Object> exception)
       V8_WARN_UNUSED_RESULT;
   void OnPromiseReject(DirectHandle<Object> promise,
                        DirectHandle<Object> value);
@@ -302,11 +302,11 @@ class V8_EXPORT_PRIVATE Debug {
                                 BreakPointKind kind = kRegular);
   void RemoveBreakpoint(int id);
 #if V8_ENABLE_WEBASSEMBLY
-  void SetInstrumentationBreakpointForWasmScript(Handle<Script> script,
+  void SetInstrumentationBreakpointForWasmScript(DirectHandle<Script> script,
                                                  int* id);
   void RemoveBreakpointForWasmScript(DirectHandle<Script> script, int id);
 
-  void RecordWasmScriptWithBreakpoints(Handle<Script> script);
+  void RecordWasmScriptWithBreakpoints(DirectHandle<Script> script);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Find breakpoints from the debug info and the break location and check
@@ -412,7 +412,7 @@ class V8_EXPORT_PRIVATE Debug {
   // function.
   void IgnoreSideEffectsOnNextCallTo(Handle<FunctionTemplateInfo> function);
 
-  bool PerformSideEffectCheck(Handle<JSFunction> function,
+  bool PerformSideEffectCheck(DirectHandle<JSFunction> function,
                               Handle<Object> receiver);
 
   void PrepareBuiltinForSideEffectCheck(Isolate* isolate, Builtin id);

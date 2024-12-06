@@ -79,7 +79,7 @@ TEST_F(WeakMapsTest, Weakness) {
     HandleScope inner_scope(isolate);
     DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+    DirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
     DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
     int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
     JSWeakCollection::Set(weakmap, key, object, hash);
@@ -89,7 +89,7 @@ TEST_F(WeakMapsTest, Weakness) {
   // Put a symbol key into weak map.
   {
     HandleScope inner_scope(isolate);
-    Handle<Symbol> symbol = factory->NewSymbol();
+    DirectHandle<Symbol> symbol = factory->NewSymbol();
     DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
     JSWeakCollection::Set(weakmap, symbol, smi, symbol->hash());
   }
@@ -146,7 +146,7 @@ TEST_F(WeakMapsTest, Shrinking) {
     DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     for (int i = 0; i < 32; i++) {
-      Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+      DirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
       DirectHandle<Smi> smi(Smi::FromInt(i), isolate);
       int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
       JSWeakCollection::Set(weakmap, object, smi, object_hash);
@@ -193,7 +193,7 @@ TEST_F(WeakMapsTest, WeakMapPromotionMarkCompact) {
 
   DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
       JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+  DirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
   DirectHandle<Smi> smi(Smi::FromInt(1), isolate);
   int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
   JSWeakCollection::Set(weakmap, object, smi, object_hash);
@@ -228,7 +228,7 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
 
   DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
       JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+  DirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
   DirectHandle<Smi> smi(Smi::FromInt(1), isolate);
   int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
   JSWeakCollection::Set(weakmap, object, smi, object_hash);
@@ -265,9 +265,9 @@ TEST_F(WeakMapsTest, Regress2060a) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->function_string());
-  Handle<JSObject> key = factory->NewJSObject(function);
+  DirectHandle<JSObject> key = factory->NewJSObject(function);
   DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Start second old-space page so that values land on evacuation candidate.
@@ -307,7 +307,7 @@ TEST_F(WeakMapsTest, Regress2060b) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
@@ -372,8 +372,8 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
     v8::Local<v8::Object> o2 = v8::Object::New(isolate);
     g2.Reset(isolate, o2);
     g2.SetWeak();
-    Handle<Object> i_o1 = v8::Utils::OpenHandle(*o1);
-    Handle<Object> i_o2 = v8::Utils::OpenHandle(*o2);
+    DirectHandle<Object> i_o1 = v8::Utils::OpenHandle(*o1);
+    DirectHandle<Object> i_o2 = v8::Utils::OpenHandle(*o2);
     int32_t hash1 = Object::GetOrCreateHash(*i_o1, i_isolate()).value();
     int32_t hash2 = Object::GetOrCreateHash(*i_o2, i_isolate()).value();
     JSWeakCollection::Set(weakmap1, i_o1, i_o2, hash1);

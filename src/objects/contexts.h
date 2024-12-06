@@ -840,7 +840,7 @@ class ScriptContextTable
   // valid information about its location.
   // If it returns false, `result` is untouched.
   V8_WARN_UNUSED_RESULT
-  V8_EXPORT_PRIVATE bool Lookup(Handle<String> name,
+  V8_EXPORT_PRIVATE bool Lookup(DirectHandle<String> name,
                                 VariableLookupResult* result);
 
   V8_WARN_UNUSED_RESULT

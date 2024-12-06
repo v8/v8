@@ -130,8 +130,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   // Attach the given memory object to this backing store. The memory object
   // will be updated if this backing store is grown.
-  void AttachSharedWasmMemoryObject(Isolate* isolate,
-                                    Handle<WasmMemoryObject> memory_object);
+  void AttachSharedWasmMemoryObject(
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object);
 
   // Send asynchronous updates to attached memory objects in other isolates
   // after the backing store has been grown. Memory objects in this
@@ -249,9 +249,9 @@ class GlobalBackingStoreRegistry {
 
   // Adds the given memory object to the backing store's weak list
   // of memory objects (under the registry lock).
-  static void AddSharedWasmMemoryObject(Isolate* isolate,
-                                        BackingStore* backing_store,
-                                        Handle<WasmMemoryObject> memory_object);
+  static void AddSharedWasmMemoryObject(
+      Isolate* isolate, BackingStore* backing_store,
+      DirectHandle<WasmMemoryObject> memory_object);
 
   // Purge any shared wasm memory lists that refer to this isolate.
   static void Purge(Isolate* isolate);

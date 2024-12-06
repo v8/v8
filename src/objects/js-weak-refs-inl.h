@@ -28,7 +28,7 @@ BIT_FIELD_ACCESSORS(JSFinalizationRegistry, flags, scheduled_for_cleanup,
 
 void JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
     DirectHandle<JSFinalizationRegistry> finalization_registry,
-    Handle<WeakCell> weak_cell, Isolate* isolate) {
+    DirectHandle<WeakCell> weak_cell, Isolate* isolate) {
   Handle<SimpleNumberDictionary> key_map;
   if (IsUndefined(finalization_registry->key_map(), isolate)) {
     key_map = SimpleNumberDictionary::New(isolate, 1);

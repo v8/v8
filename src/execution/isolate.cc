@@ -1436,7 +1436,7 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
     call_site_infos_or_formatted_stack =
         CaptureSimpleStackTrace(this, limit, mode, caller);
   }
-  Handle<Object> error_stack = call_site_infos_or_formatted_stack;
+  DirectHandle<Object> error_stack = call_site_infos_or_formatted_stack;
 
   // Next is the inspector part: Depending on whether we got a "simple
   // stack trace" above and whether that's usable (meaning the API
@@ -1446,7 +1446,7 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
   // the API, or a negative limit to indicate the opposite), or we
   // collect a "detailed stack trace" eagerly and stash that away.
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    Handle<StackTraceInfo> stack_trace;
+    DirectHandle<StackTraceInfo> stack_trace;
     if (IsUndefined(*call_site_infos_or_formatted_stack, this) ||
         (stack_trace_for_uncaught_exceptions_options_ &
          StackTrace::kExposeFramesAcrossSecurityOrigins)) {
@@ -1479,7 +1479,7 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
 }
 
 Handle<StackTraceInfo> Isolate::GetDetailedStackTrace(
-    Handle<JSReceiver> maybe_error_object) {
+    DirectHandle<JSReceiver> maybe_error_object) {
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(this, maybe_error_object);
   if (!IsErrorStackData(*lookup.error_stack)) return {};
@@ -1487,7 +1487,7 @@ Handle<StackTraceInfo> Isolate::GetDetailedStackTrace(
 }
 
 Handle<FixedArray> Isolate::GetSimpleStackTrace(
-    Handle<JSReceiver> maybe_error_object) {
+    DirectHandle<JSReceiver> maybe_error_object) {
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(this, maybe_error_object);
 
@@ -1659,9 +1659,9 @@ MaybeHandle<Script> Isolate::CurrentReferrerScript() {
 
 bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {
   if (v8_flags.correctness_fuzzer_suppressions) return false;
-  Handle<JSObject> error = isolate->error_function();
+  DirectHandle<JSObject> error = isolate->error_function();
 
-  Handle<String> key = isolate->factory()->stackTraceLimit_string();
+  DirectHandle<String> key = isolate->factory()->stackTraceLimit_string();
   DirectHandle<Object> stack_trace_limit =
       JSReceiver::GetDataProperty(isolate, error, key);
   if (!IsNumber(*stack_trace_limit)) return false;
@@ -1875,14 +1875,14 @@ Tagged<Object> Isolate::ThrowAt(DirectHandle<JSObject> exception,
                       Just(ShouldThrow::kThrowOnError))
       .Check();
 
-  Handle<Name> key_end_pos = factory()->error_end_pos_symbol();
+  DirectHandle<Name> key_end_pos = factory()->error_end_pos_symbol();
   Object::SetProperty(this, exception, key_end_pos,
                       direct_handle(Smi::FromInt(location->end_pos()), this),
                       StoreOrigin::kMaybeKeyed,
                       Just(ShouldThrow::kThrowOnError))
       .Check();
 
-  Handle<Name> key_script = factory()->error_script_symbol();
+  DirectHandle<Name> key_script = factory()->error_script_symbol();
   Object::SetProperty(this, exception, key_script, location->script(),
                       StoreOrigin::kMaybeKeyed,
                       Just(ShouldThrow::kThrowOnError))
@@ -2842,19 +2842,19 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
                                            Handle<Object> exception) {
   if (!IsJSObject(*exception)) return false;
 
-  Handle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
+  DirectHandle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
   DirectHandle<Object> start_pos = JSReceiver::GetDataProperty(
       this, Cast<JSObject>(exception), start_pos_symbol);
   if (!IsSmi(*start_pos)) return false;
   int start_pos_value = Cast<Smi>(*start_pos).value();
 
-  Handle<Name> end_pos_symbol = factory()->error_end_pos_symbol();
+  DirectHandle<Name> end_pos_symbol = factory()->error_end_pos_symbol();
   DirectHandle<Object> end_pos = JSReceiver::GetDataProperty(
       this, Cast<JSObject>(exception), end_pos_symbol);
   if (!IsSmi(*end_pos)) return false;
   int end_pos_value = Cast<Smi>(*end_pos).value();
 
-  Handle<Name> script_symbol = factory()->error_script_symbol();
+  DirectHandle<Name> script_symbol = factory()->error_script_symbol();
   DirectHandle<Object> script = JSReceiver::GetDataProperty(
       this, Cast<JSObject>(exception), script_symbol);
   if (!IsScript(*script)) return false;
@@ -3047,7 +3047,8 @@ void Isolate::ReportPendingMessages(bool report) {
 }
 
 namespace {
-bool ReceiverIsForwardingHandler(Isolate* isolate, Handle<JSReceiver> handler) {
+bool ReceiverIsForwardingHandler(Isolate* isolate,
+                                 DirectHandle<JSReceiver> handler) {
   // Recurse to the forwarding Promise (e.g. return false) due to
   //  - await reaction forwarding to the throwaway Promise, which has
   //    a dependency edge to the outer Promise.
@@ -3055,7 +3056,8 @@ bool ReceiverIsForwardingHandler(Isolate* isolate, Handle<JSReceiver> handler) {
   //  - Promise.all/Promise.race forwarding to a throwaway Promise, which
   //    has a dependency edge to the generated outer Promise.
   // Otherwise, this is a real reject handler for the Promise.
-  Handle<Symbol> key = isolate->factory()->promise_forwarding_handler_symbol();
+  DirectHandle<Symbol> key =
+      isolate->factory()->promise_forwarding_handler_symbol();
   DirectHandle<Object> forwarding_handler =
       JSReceiver::GetDataProperty(isolate, handler, key);
   return !IsUndefined(*forwarding_handler, isolate);
@@ -3083,7 +3085,8 @@ bool WalkPromiseTreeInternal(
             Cast<PromiseCapability>(promise_or_capability)->promise(), isolate);
       }
       if (IsJSPromise(*promise_or_capability)) {
-        Handle<JSPromise> next_promise = Cast<JSPromise>(promise_or_capability);
+        DirectHandle<JSPromise> next_promise =
+            Cast<JSPromise>(promise_or_capability);
         bool caught = false;
         Handle<JSReceiver> reject_handler;
         if (!IsUndefined(reaction->reject_handler(), isolate)) {
@@ -3146,7 +3149,8 @@ bool WalkPromiseTreeInternal(
         // If in the future we support Wasm exceptions or ignore listing in
         // Wasm, we will need to iterate through these frames. For now, we
         // only care about the resulting promise.
-        Handle<JSPromise> next_promise = handle(suspender->promise(), isolate);
+        DirectHandle<JSPromise> next_promise =
+            handle(suspender->promise(), isolate);
         bool caught = WalkPromiseTreeInternal(isolate, next_promise, callback);
         any_caught = any_caught || caught;
         any_uncaught = any_uncaught || !caught;
@@ -3160,7 +3164,7 @@ bool WalkPromiseTreeInternal(
 
   if (!caught) {
     // If there is an outer promise, follow that to see if it is caught.
-    Handle<Symbol> key = isolate->factory()->promise_handled_by_symbol();
+    DirectHandle<Symbol> key = isolate->factory()->promise_handled_by_symbol();
     Handle<Object> outer_promise_obj = JSObject::GetDataProperty(
         isolate, indirect_handle(promise, isolate), key);
     if (IsJSPromise(*outer_promise_obj)) {
@@ -3410,7 +3414,7 @@ bool Isolate::WalkCallStackAndPromiseTree(
       rejected_promise = MaybeHandle<JSPromise>();
     } else if (IsSmi(promise->reactions())) {
       // Also check that there is no outer promise
-      Handle<Symbol> key = factory()->promise_handled_by_symbol();
+      DirectHandle<Symbol> key = factory()->promise_handled_by_symbol();
       if (!IsJSPromise(*JSObject::GetDataProperty(
               this, indirect_handle(promise, this), key))) {
         // Ignore this promise; set to null
@@ -3536,11 +3540,11 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
 }
 
 void Isolate::InstallConditionalFeatures(Handle<NativeContext> context) {
-  Handle<JSGlobalObject> global = handle(context->global_object(), this);
+  DirectHandle<JSGlobalObject> global = handle(context->global_object(), this);
   // If some fuzzer decided to make the global object non-extensible, then
   // we can't install any features (and would CHECK-fail if we tried).
   if (!global->map()->is_extensible()) return;
-  Handle<String> sab_name = factory()->SharedArrayBuffer_string();
+  DirectHandle<String> sab_name = factory()->SharedArrayBuffer_string();
   if (IsSharedArrayBufferConstructorEnabled(context)) {
     if (!JSObject::HasRealNamedProperty(this, global, sab_name)
              .FromMaybe(true)) {
@@ -3733,7 +3737,8 @@ bool Isolate::IsOnCentralStack() {
 #endif
 }
 
-void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
+void Isolate::AddSharedWasmMemory(
+    DirectHandle<WasmMemoryObject> memory_object) {
   Handle<WeakArrayList> shared_wasm_memories =
       factory()->shared_wasm_memories();
   shared_wasm_memories = WeakArrayList::Append(
@@ -4908,7 +4913,7 @@ void Isolate::ReportExceptionFunctionCallback(
 }
 
 void Isolate::ReportExceptionPropertyCallback(
-    Handle<JSReceiver> holder, Handle<Name> name,
+    DirectHandle<JSReceiver> holder, Handle<Name> name,
     v8::ExceptionContext exception_context) {
   DCHECK_NOT_NULL(exception_propagation_callback_);
 
@@ -6257,7 +6262,7 @@ ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 
 Handle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
                                   Handle<String> name, bool private_symbol) {
-  Handle<String> key = factory()->InternalizeString(name);
+  DirectHandle<String> key = factory()->InternalizeString(name);
   Handle<RegisteredSymbolTable> dictionary =
       Cast<RegisteredSymbolTable>(root_handle(dictionary_index));
   InternalIndex entry = dictionary->FindEntry(this, key);
@@ -6496,13 +6501,13 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
     return MaybeHandle<FixedArray>();
   }
 
-  Handle<JSReceiver> import_options_argument_receiver =
+  DirectHandle<JSReceiver> import_options_argument_receiver =
       Cast<JSReceiver>(import_options_argument);
 
   Handle<Object> import_attributes_object;
 
   if (v8_flags.harmony_import_attributes) {
-    Handle<Name> with_key = factory()->with_string();
+    DirectHandle<Name> with_key = factory()->with_string();
     if (!JSReceiver::GetProperty(this, import_options_argument_receiver,
                                  with_key)
              .ToHandle(&import_attributes_object)) {
@@ -6522,7 +6527,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
     return MaybeHandle<FixedArray>();
   }
 
-  Handle<JSReceiver> import_attributes_object_receiver =
+  DirectHandle<JSReceiver> import_attributes_object_receiver =
       Cast<JSReceiver>(import_attributes_object);
 
   Handle<FixedArray> attribute_keys;
@@ -6543,7 +6548,8 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
   import_attributes_array = factory()->NewFixedArray(static_cast<int>(
       attribute_keys->length() * kAttributeEntrySizeForDynamicImport));
   for (int i = 0; i < attribute_keys->length(); i++) {
-    Handle<String> attribute_key(Cast<String>(attribute_keys->get(i)), this);
+    DirectHandle<String> attribute_key(Cast<String>(attribute_keys->get(i)),
+                                       this);
     Handle<Object> attribute_value;
     if (!Object::GetPropertyOrElement(this, import_attributes_object_receiver,
                                       attribute_key)
@@ -6898,7 +6904,7 @@ void Isolate::OnTerminationDuringRunMicrotasks() {
   } else if (IsPromiseResolveThenableJobTask(*current_microtask)) {
     auto promise_resolve_thenable_job_task =
         Cast<PromiseResolveThenableJobTask>(current_microtask);
-    Handle<JSPromise> promise_to_resolve(
+    DirectHandle<JSPromise> promise_to_resolve(
         promise_resolve_thenable_job_task->promise_to_resolve(), this);
     OnPromiseAfter(promise_to_resolve);
   }
@@ -6967,7 +6973,7 @@ std::string Isolate::GetTurboCfgFileName(Isolate* isolate) {
 
 // Heap::detached_contexts tracks detached contexts as pairs
 // (the context, number of GC since the context was detached).
-void Isolate::AddDetachedContext(Handle<Context> context) {
+void Isolate::AddDetachedContext(DirectHandle<Context> context) {
   HandleScope scope(this);
   Handle<WeakArrayList> detached_contexts = factory()->detached_contexts();
   detached_contexts = WeakArrayList::AddToEnd(
@@ -7014,7 +7020,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
 }
 
-void Isolate::DetachGlobal(Handle<Context> env) {
+void Isolate::DetachGlobal(DirectHandle<Context> env) {
   counters()->errors_thrown_per_context()->AddSample(
       env->native_context()->GetErrorsThrown());
 
@@ -7112,7 +7118,7 @@ std::string GetStringFromLocales(Isolate* isolate,
 }
 
 bool StringEqualsLocales(Isolate* isolate, const std::string& str,
-                         Handle<Object> locales) {
+                         DirectHandle<Object> locales) {
   if (IsUndefined(*locales, isolate)) return str.empty();
   return Cast<String>(locales)->IsEqualTo(
       base::VectorOf(str.c_str(), str.length()));
@@ -7147,7 +7153,7 @@ void Isolate::ResetDefaultLocale() {
 }
 
 icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type,
-                                             Handle<Object> locales) {
+                                             DirectHandle<Object> locales) {
   const ICUObjectCacheEntry& entry =
       icu_object_cache_[static_cast<int>(cache_type)];
   return StringEqualsLocales(this, entry.locales, locales) ? entry.obj.get()
@@ -7448,7 +7454,7 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
   return reinterpret_cast<Address>(&map[name].second);
 }
 
-void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
+void Isolate::LocalsBlockListCacheSet(DirectHandle<ScopeInfo> scope_info,
                                       Handle<ScopeInfo> outer_scope_info,
                                       Handle<StringSet> locals_blocklist) {
   Handle<EphemeronHashTable> cache;
@@ -7475,7 +7481,8 @@ void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
   heap()->set_locals_block_list_cache(*cache);
 }
 
-Tagged<Object> Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
+Tagged<Object> Isolate::LocalsBlockListCacheGet(
+    DirectHandle<ScopeInfo> scope_info) {
   DisallowGarbageCollection no_gc;
 
   if (!IsEphemeronHashTable(heap()->locals_block_list_cache())) {

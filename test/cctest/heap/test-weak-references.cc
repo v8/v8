@@ -448,16 +448,16 @@ TEST(WeakArrayListBasic) {
   CHECK(!IsWeakFixedArray(*array));
   CHECK_EQ(array->length(), 0);
 
-  Handle<FixedArray> index2 = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> index2 = factory->NewFixedArray(1);
   index2->set(0, Smi::FromInt(2017));
 
   {
     HandleScope inner_scope(isolate);
-    Handle<FixedArray> index0 = factory->NewFixedArray(1);
+    DirectHandle<FixedArray> index0 = factory->NewFixedArray(1);
     index0->set(0, Smi::FromInt(2016));
-    Handle<FixedArray> index4 = factory->NewFixedArray(1);
+    DirectHandle<FixedArray> index4 = factory->NewFixedArray(1);
     index4->set(0, Smi::FromInt(2018));
-    Handle<FixedArray> index6 = factory->NewFixedArray(1);
+    DirectHandle<FixedArray> index6 = factory->NewFixedArray(1);
     index6->set(0, Smi::FromInt(2019));
 
     array = WeakArrayList::AddToEnd(isolate, array,
@@ -552,9 +552,9 @@ TEST(WeakArrayListRemove) {
   Handle<WeakArrayList> array(ReadOnlyRoots(heap).empty_weak_array_list(),
                               isolate);
 
-  Handle<FixedArray> elem0 = factory->NewFixedArray(1);
-  Handle<FixedArray> elem1 = factory->NewFixedArray(1);
-  Handle<FixedArray> elem2 = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> elem0 = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> elem1 = factory->NewFixedArray(1);
+  DirectHandle<FixedArray> elem2 = factory->NewFixedArray(1);
 
   array = WeakArrayList::AddToEnd(isolate, array,
                                   MaybeObjectDirectHandle::Weak(elem0));
@@ -608,9 +608,9 @@ TEST(ProtectedWeakFixedArray) {
 
   {
     HandleScope inner_scope(isolate);
-    Handle<TrustedFixedArray> elem0 = factory->NewTrustedFixedArray(1);
-    Handle<TrustedFixedArray> elem2 = factory->NewTrustedFixedArray(1);
-    Handle<TrustedFixedArray> elem4 = factory->NewTrustedFixedArray(1);
+    DirectHandle<TrustedFixedArray> elem0 = factory->NewTrustedFixedArray(1);
+    DirectHandle<TrustedFixedArray> elem2 = factory->NewTrustedFixedArray(1);
+    DirectHandle<TrustedFixedArray> elem4 = factory->NewTrustedFixedArray(1);
     array->set(0, MakeWeak(*elem0));
     array->set(2, MakeWeak(*elem2));
     array->set(4, MakeWeak(*elem4));

@@ -1041,7 +1041,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(
       // Simulate [[GetOwnProperty]] for establishing enumerability, which
       // throws for uninitialized exports.
       for (int i = 0, n = enum_keys->length(); i < n; ++i) {
-        Handle<String> key(Cast<String>(enum_keys->get(i)), isolate_);
+        DirectHandle<String> key(Cast<String>(enum_keys->get(i)), isolate_);
         if (Cast<JSModuleNamespace>(object)
                 ->GetExport(isolate(), key)
                 .is_null()) {
@@ -1199,8 +1199,9 @@ class NameComparator {
  public:
   explicit NameComparator(Isolate* isolate) : isolate_(isolate) {}
 
-  bool operator()(uint32_t hash1, uint32_t hash2, const Handle<Name>& key1,
-                  const Handle<Name>& key2) const {
+  bool operator()(uint32_t hash1, uint32_t hash2,
+                  const DirectHandle<Name>& key1,
+                  const DirectHandle<Name>& key2) const {
     return Name::Equals(isolate_, key1, key2);
   }
 

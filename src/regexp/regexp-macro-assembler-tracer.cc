@@ -469,7 +469,7 @@ RegExpMacroAssembler::IrregexpImplementation
 
 Handle<HeapObject> RegExpMacroAssemblerTracer::GetCode(Handle<String> source,
                                                        RegExpFlags flags) {
-  Handle<String> flags_str =
+  DirectHandle<String> flags_str =
       JSRegExp::StringFromFlags(isolate(), JSRegExp::AsJSRegExpFlags(flags));
   PrintF(" GetCode('%s', '%s');\n", source->ToCString().get(),
          flags_str->ToCString().get());

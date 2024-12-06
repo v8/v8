@@ -4735,7 +4735,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
         "  var z = x + y;"
         "};"
         "foo()";
-    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+    DirectHandle<String> foo_name = factory->InternalizeUtf8String("foo");
 
     // This compile will add the code to the compilation cache.
     {

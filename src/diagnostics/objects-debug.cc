@@ -1310,7 +1310,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
 #endif  // V8_ENABLE_LEAPTIERING
 
-  Handle<JSFunction> function(*this, isolate);
+  DirectHandle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (has_prototype_slot()) {

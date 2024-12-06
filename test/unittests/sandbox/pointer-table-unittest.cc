@@ -38,11 +38,11 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
     // Allocate one segment worth of external pointer table entries and keep the
     // host objects in a FixedArray so they and their entries are kept alive.
     uint32_t num_entries = space->freelist_length();
-    Handle<FixedArray> array = iso->factory()->NewFixedArray(num_entries);
+    DirectHandle<FixedArray> array = iso->factory()->NewFixedArray(num_entries);
     {
       v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(iso));
       for (uint32_t i = 0; i < num_entries; i++) {
-        Handle<JSObject> obj =
+        DirectHandle<JSObject> obj =
             iso->factory()->NewExternal(external_1, AllocationType::kOld);
         array->set(i, *obj);
       }
@@ -56,7 +56,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
       // Allocate one additional external poiner table entry, which should now
       // end up on a new segment.
       CHECK_EQ(1, space->NumSegmentsForTesting());
-      Handle<JSExternalObject> obj = Cast<JSExternalObject>(
+      DirectHandle<JSExternalObject> obj = Cast<JSExternalObject>(
           iso->factory()->NewExternal(external_2, AllocationType::kOld));
       CHECK_EQ(2, space->NumSegmentsForTesting());
 

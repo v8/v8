@@ -36,7 +36,7 @@ RUNTIME_FUNCTION(Runtime_AsyncFunctionResolve) {
 RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   DirectHandle<JSAny> receiver = args.at<JSAny>(1);
   CHECK_IMPLIES(IsAsyncFunction(function->shared()->kind()),
                 IsAsyncGeneratorFunction(function->shared()->kind()));

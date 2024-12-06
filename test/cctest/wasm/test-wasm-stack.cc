@@ -142,16 +142,16 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   f2.Build({WASM_CALL_FUNCTION0(wasm_index_1)});
   uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
+  DirectHandle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
 
-  Handle<JSFunction> js_trampoline =
+  DirectHandle<JSFunction> js_trampoline =
       Cast<JSFunction>(v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
   MaybeDirectHandle<Object> maybe_exc;
   DirectHandle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
@@ -182,9 +182,9 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   f.Build({WASM_CALL_FUNCTION0(0)});
   uint32_t wasm_index = f.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
+  DirectHandle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
 
-  Handle<JSFunction> js_trampoline =
+  DirectHandle<JSFunction> js_trampoline =
       Cast<JSFunction>(v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 
@@ -200,7 +200,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
       *source_url);
 
   // Run the js wrapper.
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
   MaybeDirectHandle<Object> maybe_exc;
   DirectHandle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> maybe_return_obj =
@@ -246,16 +246,17 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     f2.Build({WASM_CALL_FUNCTION0(0)});
     uint32_t wasm_index_2 = f2.function_index();
 
-    Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
+    DirectHandle<JSFunction> js_wasm_wrapper =
+        r.builder().WrapCode(wasm_index_2);
 
-    Handle<JSFunction> js_trampoline =
+    DirectHandle<JSFunction> js_trampoline =
         Cast<JSFunction>(v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             CompileRun("(function callFn(fn) { fn(); })"))));
 
     Isolate* isolate = js_wasm_wrapper->GetIsolate();
     isolate->SetCaptureStackTraceForUncaughtExceptions(
         true, 10, v8::StackTrace::kOverview);
-    Handle<Object> global(isolate->context()->global_object(), isolate);
+    DirectHandle<Object> global(isolate->context()->global_object(), isolate);
     MaybeDirectHandle<Object> maybe_exc;
     DirectHandle<Object> args[] = {js_wasm_wrapper};
     MaybeHandle<Object> maybe_return_obj =

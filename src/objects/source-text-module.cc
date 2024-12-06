@@ -560,8 +560,8 @@ bool SourceTextModule::FinishInstantiate(
     Zone* zone) {
   // Instantiate SharedFunctionInfo and mark module as instantiating for
   // the recursion.
-  Handle<SharedFunctionInfo> shared(Cast<SharedFunctionInfo>(module->code()),
-                                    isolate);
+  DirectHandle<SharedFunctionInfo> shared(
+      Cast<SharedFunctionInfo>(module->code()), isolate);
   DirectHandle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
           .Build();
@@ -1368,20 +1368,19 @@ void SourceTextModule::Reset(Isolate* isolate,
   raw_module->set_dfs_ancestor_index(-1);
 }
 
-std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
+std::pair<DirectHandleVector<SourceTextModule>,
+          DirectHandleVector<JSMessageObject>>
 SourceTextModule::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   UnorderedModuleSet visited(&zone);
-  std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
-      result;
-  std::vector<Handle<SourceTextModule>> stalled_modules;
+  DirectHandleVector<SourceTextModule> stalled_modules(isolate);
+  DirectHandleVector<JSMessageObject> messages(isolate);
   InnerGetStalledTopLevelAwaitModule(isolate, &visited, &stalled_modules);
   size_t stalled_modules_size = stalled_modules.size();
-  if (stalled_modules_size == 0) return result;
+  if (stalled_modules_size == 0) return {stalled_modules, messages};
 
-  result.reserve(stalled_modules_size);
-  for (size_t i = 0; i < stalled_modules_size; ++i) {
-    Handle<SourceTextModule> found = stalled_modules[i];
+  messages.reserve(stalled_modules_size);
+  for (DirectHandle<SourceTextModule> found : stalled_modules) {
     CHECK(IsJSGeneratorObject(found->code()));
     DirectHandle<JSGeneratorObject> code(Cast<JSGeneratorObject>(found->code()),
                                          isolate);
@@ -1389,23 +1388,23 @@ SourceTextModule::GetStalledTopLevelAwaitMessages(Isolate* isolate) {
     Handle<Object> script(shared->script(), isolate);
     MessageLocation location =
         MessageLocation(Cast<Script>(script), shared, code->code_offset());
-    Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+    DirectHandle<JSMessageObject> message = MessageHandler::MakeMessageObject(
         isolate, MessageTemplate::kTopLevelAwaitStalled, &location,
         isolate->factory()->null_value());
-    result.push_back(std::make_tuple(found, message));
+    messages.push_back(message);
   }
-  return result;
+  return {stalled_modules, messages};
 }
 
 void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
     Isolate* isolate, UnorderedModuleSet* visited,
-    std::vector<Handle<SourceTextModule>>* result) {
+    DirectHandleVector<SourceTextModule>* result) {
   DisallowGarbageCollection no_gc;
   // If it's a module that is waiting for no other modules but itself,
   // it's what we are looking for. Add it to the results.
   if (!HasPendingAsyncDependencies() && HasAsyncEvaluationOrdinal()) {
     DCHECK(HasAsyncEvaluationOrdinal());
-    result->push_back(handle(*this, isolate));
+    result->push_back(direct_handle(*this, isolate));
     return;
   }
   // The module isn't what we are looking for, continue looking in the graph.

@@ -20,7 +20,7 @@ void ManualOptimizationTable::MarkFunctionForManualOptimization(
   DCHECK(is_compiled_scope->is_compiled());
   DCHECK(function->has_feedback_vector());
 
-  Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
+  DirectHandle<SharedFunctionInfo> shared_info(function->shared(), isolate);
 
   Handle<ObjectHashTable> table =
       IsUndefined(isolate->heap()->functions_marked_for_manual_optimization())

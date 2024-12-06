@@ -209,13 +209,14 @@ V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerJS(
     compiler::turboshaft::TurboshaftAssemblerGenerator generator, int argc,
     const char* name) {
   HandleScope scope(isolate);
-  Handle<Code> code = compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(
-      isolate, builtin, generator,
-      [argc](Zone* zone) {
-        return compiler::Linkage::GetJSCallDescriptor(
-            zone, false, argc, compiler::CallDescriptor::kCanUseRoots);
-      },
-      name, BuiltinAssemblerOptions(isolate, builtin));
+  DirectHandle<Code> code =
+      compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(
+          isolate, builtin, generator,
+          [argc](Zone* zone) {
+            return compiler::Linkage::GetJSCallDescriptor(
+                zone, false, argc, compiler::CallDescriptor::kCanUseRoots);
+          },
+          name, BuiltinAssemblerOptions(isolate, builtin));
   return *code;
 }
 
@@ -242,17 +243,18 @@ V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerCS(
     compiler::turboshaft::TurboshaftAssemblerGenerator generator,
     CallDescriptors::Key interface_descriptor, const char* name) {
   HandleScope scope(isolate);
-  Handle<Code> code = compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(
-      isolate, builtin, generator,
-      [interface_descriptor](Zone* zone) {
-        CallInterfaceDescriptor descriptor(interface_descriptor);
-        DCHECK_LE(0, descriptor.GetRegisterParameterCount());
-        return compiler::Linkage::GetStubCallDescriptor(
-            zone, descriptor, descriptor.GetStackParameterCount(),
-            compiler::CallDescriptor::kNoFlags,
-            compiler::Operator::kNoProperties);
-      },
-      name, BuiltinAssemblerOptions(isolate, builtin));
+  DirectHandle<Code> code =
+      compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(
+          isolate, builtin, generator,
+          [interface_descriptor](Zone* zone) {
+            CallInterfaceDescriptor descriptor(interface_descriptor);
+            DCHECK_LE(0, descriptor.GetRegisterParameterCount());
+            return compiler::Linkage::GetStubCallDescriptor(
+                zone, descriptor, descriptor.GetStackParameterCount(),
+                compiler::CallDescriptor::kNoFlags,
+                compiler::Operator::kNoProperties);
+          },
+          name, BuiltinAssemblerOptions(isolate, builtin));
   return *code;
 }
 

@@ -275,7 +275,8 @@ class Builtins {
 
   // As above, but safe to access off the main thread since the check is done
   // by handle location. Similar to Heap::IsRootHandle.
-  bool IsBuiltinHandle(Handle<HeapObject> maybe_code, Builtin* index) const;
+  bool IsBuiltinHandle(IndirectHandle<HeapObject> maybe_code,
+                       Builtin* index) const;
 
   // True, iff the given builtin contains no isolate-specific code and can be
   // embedded into the binary.
@@ -320,7 +321,7 @@ class Builtins {
 
   static bool AllowDynamicFunction(Isolate* isolate,
                                    DirectHandle<JSFunction> target,
-                                   Handle<JSObject> target_global_proxy);
+                                   DirectHandle<JSObject> target_global_proxy);
 
   // Creates a copy of InterpreterEntryTrampolineForProfiling in the code space.
   static Handle<Code> CreateInterpreterEntryTrampolineForProfiling(

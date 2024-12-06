@@ -89,7 +89,7 @@ class WasmSerializationTest {
                       wire_bytes_.data(), wire_bytes_.size()),
                0);
     }
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
             ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
                               Handle<JSReceiver>::null(),
@@ -167,7 +167,7 @@ class WasmSerializationTest {
       wire_bytes_ = {bytes_copy, uncompiled_bytes.size()};
 
       // Run the code until tier-up (of the single function) was observed.
-      Handle<WasmInstanceObject> instance =
+      DirectHandle<WasmInstanceObject> instance =
           GetWasmEngine()
               ->SyncInstantiate(serialization_isolate, &thrower, module_object,
                                 {}, {})
@@ -645,7 +645,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     CHECK(reloc_it.done());
 
     // Now call the function.
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
             ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
                               Handle<JSReceiver>::null(),
@@ -722,7 +722,7 @@ TEST(SerializeDetectedFeatures) {
 
       // Now call the tail-calling function "b". This triggers lazy compilation,
       // which should not DCHECK because of a new detected feature.
-      Handle<WasmInstanceObject> instance =
+      DirectHandle<WasmInstanceObject> instance =
           GetWasmEngine()
               ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
                                 Handle<JSReceiver>::null(),
@@ -789,7 +789,7 @@ TEST(SerializeDetectedFeatures) {
 
     // Now call the tail-calling function "b". This triggers lazy compilation,
     // which should not DCHECK because of a new detected feature.
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
             ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
                               Handle<JSReceiver>::null(),

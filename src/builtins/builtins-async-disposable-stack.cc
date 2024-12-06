@@ -28,7 +28,7 @@ BUILTIN(AsyncDisposableStackOnFulfilled) {
       Cast<JSDisposableStackBase>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::kStack))),
       isolate);
-  Handle<JSPromise> promise(
+  DirectHandle<JSPromise> promise(
       Cast<JSPromise>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::
               kOuterPromise))),
@@ -43,11 +43,11 @@ BUILTIN(AsyncDisposableStackOnFulfilled) {
 BUILTIN(AsyncDisposableStackOnRejected) {
   HandleScope scope(isolate);
 
-  Handle<JSDisposableStackBase> stack(
+  DirectHandle<JSDisposableStackBase> stack(
       Cast<JSDisposableStackBase>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::kStack))),
       isolate);
-  Handle<JSPromise> promise(
+  DirectHandle<JSPromise> promise(
       Cast<JSPromise>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::
               kOuterPromise))),
@@ -55,7 +55,7 @@ BUILTIN(AsyncDisposableStackOnRejected) {
 
   Handle<Object> rejection_error = args.at(1);
   // (TODO:rezvan): Pass the correct pending message.
-  Handle<Object> message(isolate->pending_message(), isolate);
+  DirectHandle<Object> message(isolate->pending_message(), isolate);
   DCHECK(isolate->is_catchable_by_javascript(*rejection_error));
   JSDisposableStackBase::HandleErrorInDisposal(isolate, stack, rejection_error,
                                                message);
@@ -77,10 +77,10 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   //      captures method and performs the following steps when called:
   //        a. Let O be the this value.
   //        b. Let promiseCapability be ! NewPromiseCapability(%Promise%).
-  Handle<JSPromise> promise = isolate->factory()->NewJSPromise();
+  DirectHandle<JSPromise> promise = isolate->factory()->NewJSPromise();
 
   //        c. Let result be Completion(Call(method, O)).
-  Handle<JSFunction> sync_method = Handle<JSFunction>(
+  DirectHandle<JSFunction> sync_method(
       Cast<JSFunction>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposeFromSyncDisposeContextSlots::
               kMethod))),
@@ -90,11 +90,11 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   try_catch.SetVerbose(false);
   try_catch.SetCaptureMessage(false);
 
-  MaybeHandle<Object> result =
+  MaybeDirectHandle<Object> result =
       Execution::Call(isolate, sync_method,
                       ReadOnlyRoots(isolate).undefined_value_handle(), {});
 
-  Handle<Object> result_handle;
+  DirectHandle<Object> result_handle;
 
   if (result.ToHandle(&result_handle)) {
     //        e. Perform ? Call(promiseCapability.[[Resolve]], undefined, «
@@ -107,7 +107,7 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
     }
     //        d. IfAbruptRejectPromise(result, promiseCapability).
     DCHECK(try_catch.HasCaught());
-    JSPromise::Reject(promise, handle(exception, isolate));
+    JSPromise::Reject(promise, direct_handle(exception, isolate));
   }
 
   //        f. Return promiseCapability.[[Promise]].
@@ -131,8 +131,8 @@ BUILTIN(AsyncDisposableStackConstructor) {
   //    "%AsyncDisposableStack.prototype%", « [[AsyncDisposableState]],
   //    [[DisposeCapability]] »).
   DirectHandle<Map> map;
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
+  DirectHandle<JSFunction> target = args.target();
+  DirectHandle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
 
   DCHECK_EQ(*target,
             target->native_context()->js_async_disposable_stack_function());
@@ -160,7 +160,7 @@ BUILTIN(AsyncDisposableStackPrototypeUse) {
   // 2. Perform ? RequireInternalSlot(asyncDisposableStack,
   // [[AsyncDisposableState]]).
   CHECK_RECEIVER(JSAsyncDisposableStack, async_disposable_stack, kMethodName);
-  Handle<JSAny> value = args.at<JSAny>(1);
+  DirectHandle<JSAny> value = args.at<JSAny>(1);
 
   // 3. If asyncDisposableStack.[[AsyncDisposableState]] is disposed, throw a
   //    ReferenceError exception.
@@ -175,7 +175,7 @@ BUILTIN(AsyncDisposableStackPrototypeUse) {
   // 4. Perform ?
   // AddDisposableResource(asyncDisposableStack.[[DisposeCapability]],
   // value, async-dispose).
-  Handle<Object> method;
+  DirectHandle<Object> method;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, method,
       JSDisposableStackBase::CheckValueAndGetDisposeMethod(
@@ -198,10 +198,10 @@ BUILTIN(AsyncDisposableStackPrototypeDisposeAsync) {
   HandleScope scope(isolate);
 
   // 1. Let asyncDisposableStack be the this value.
-  Handle<Object> receiver = args.receiver();
+  DirectHandle<Object> receiver = args.receiver();
 
   // 2. Let promiseCapability be ! NewPromiseCapability(%Promise%).
-  Handle<JSPromise> promise = isolate->factory()->NewJSPromise();
+  DirectHandle<JSPromise> promise = isolate->factory()->NewJSPromise();
 
   // 3. If asyncDisposableStack does not have an [[AsyncDisposableState]]
   // internal slot, then
@@ -215,7 +215,7 @@ BUILTIN(AsyncDisposableStackPrototypeDisposeAsync) {
     return *promise;
   }
 
-  Handle<JSAsyncDisposableStack> async_disposable_stack =
+  DirectHandle<JSAsyncDisposableStack> async_disposable_stack =
       Cast<JSAsyncDisposableStack>(receiver);
 
   // 4. If asyncDisposableStack.[[AsyncDisposableState]] is disposed, then
@@ -223,7 +223,8 @@ BUILTIN(AsyncDisposableStackPrototypeDisposeAsync) {
     //    a. Perform ! Call(promiseCapability.[[Resolve]], undefined, «
     //    undefined »).
     JSPromise::Resolve(
-        promise, handle(ReadOnlyRoots(isolate).undefined_value(), isolate))
+        promise,
+        direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate))
         .ToHandleChecked();
     //    b. Return promiseCapability.[[Promise]].
     return *promise;
@@ -266,8 +267,8 @@ BUILTIN(AsyncDisposableStackPrototypeGetDisposed) {
 BUILTIN(AsyncDisposableStackPrototypeAdopt) {
   const char kMethodName[] = "AsyncDisposableStack.prototype.adopt";
   HandleScope scope(isolate);
-  Handle<Object> value = args.at(1);
-  Handle<Object> on_dispose_async = args.at(2);
+  DirectHandle<Object> value = args.at(1);
+  DirectHandle<Object> on_dispose_async = args.at(2);
 
   // 1. Let asyncDisposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(asyncDisposableStack,
@@ -313,7 +314,7 @@ BUILTIN(AsyncDisposableStackPrototypeAdopt) {
 BUILTIN(AsyncDisposableStackPrototypeDefer) {
   const char kMethodName[] = "AsyncDisposableStack.prototype.defer";
   HandleScope scope(isolate);
-  Handle<Object> on_dispose_async = args.at(1);
+  DirectHandle<Object> on_dispose_async = args.at(1);
 
   // 1. Let asyncDisposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(asyncDisposableStack,

@@ -28,7 +28,7 @@ bool CachedTemplateMatches(Isolate* isolate,
            template_object->slot_id() == slot_id;
   }
 
-  Handle<JSArray> entry_handle(entry, isolate);
+  DirectHandle<JSArray> entry_handle(entry, isolate);
   Tagged<Smi> cached_function_literal_id =
       Cast<Smi>(*JSReceiver::GetDataProperty(
           isolate, entry_handle,
@@ -52,7 +52,8 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
   int function_literal_id = shared_info->function_literal_id();
 
   // Check the template weakmap to see if the template object already exists.
-  Handle<Script> script(Cast<Script>(shared_info->script(isolate)), isolate);
+  DirectHandle<Script> script(Cast<Script>(shared_info->script(isolate)),
+                              isolate);
   int32_t hash =
       EphemeronHashTable::TodoShape::Hash(ReadOnlyRoots(isolate), script);
   MaybeHandle<ArrayList> maybe_cached_templates;

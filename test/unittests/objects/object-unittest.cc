@@ -662,10 +662,10 @@ TEST_F(ObjectTest, AddDataPropertyNameCollision) {
   v8::HandleScope scope(isolate());
   Factory* factory = i_isolate()->factory();
 
-  Handle<JSObject> object =
+  DirectHandle<JSObject> object =
       factory->NewJSObject(i_isolate()->object_function());
 
-  Handle<String> key = factory->NewStringFromStaticChars("key_string");
+  DirectHandle<String> key = factory->NewStringFromStaticChars("key_string");
   DirectHandle<Object> value1(Smi::FromInt(0), i_isolate());
   DirectHandle<Object> value2 = factory->NewStringFromAsciiChecked("corrupt");
 
@@ -697,14 +697,15 @@ TEST_F(ObjectTest, AddDataPropertyNameCollisionDeprecatedMap) {
       "a = {'regular_prop':5};"
       "b = {'regular_prop':5};");
 
-  Handle<JSObject> a = Cast<JSObject>(v8::Utils::OpenHandle(
+  DirectHandle<JSObject> a = Cast<JSObject>(v8::Utils::OpenHandle(
       *context()->Global()->Get(context(), NewString("a")).ToLocalChecked()));
   DirectHandle<JSObject> b = Cast<JSObject>(v8::Utils::OpenHandle(
       *context()->Global()->Get(context(), NewString("b")).ToLocalChecked()));
 
   CHECK(a->map() == b->map());
 
-  Handle<String> key = factory->NewStringFromStaticChars("corrupted_prop");
+  DirectHandle<String> key =
+      factory->NewStringFromStaticChars("corrupted_prop");
   DirectHandle<Object> value = factory->NewStringFromAsciiChecked("corrupt");
   LookupIterator it(i_isolate(), a, key, a,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);

@@ -428,7 +428,8 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionTagId) {
            ->has_tags_table()) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<WasmExceptionPackage> exception = args.at<WasmExceptionPackage>(0);
+  DirectHandle<WasmExceptionPackage> exception =
+      args.at<WasmExceptionPackage>(0);
   DirectHandle<WasmInstanceObject> instance_object =
       args.at<WasmInstanceObject>(1);
   DirectHandle<WasmTrustedInstanceData> trusted_data(
@@ -448,7 +449,8 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   if (args.length() != 1 || !IsWasmExceptionPackage(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<WasmExceptionPackage> exception = args.at<WasmExceptionPackage>(0);
+  DirectHandle<WasmExceptionPackage> exception =
+      args.at<WasmExceptionPackage>(0);
   Handle<Object> values_obj =
       WasmExceptionPackage::GetExceptionValues(isolate, exception);
   if (!IsFixedArray(*values_obj)) {

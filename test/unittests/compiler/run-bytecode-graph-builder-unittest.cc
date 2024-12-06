@@ -1290,7 +1290,8 @@ TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderEvalGlobal) {
 }
 
 bool get_compare_result(Isolate* isolate, Token::Value opcode,
-                        Handle<Object> lhs_value, Handle<Object> rhs_value) {
+                        DirectHandle<Object> lhs_value,
+                        DirectHandle<Object> rhs_value) {
   switch (opcode) {
     case Token::kEq:
       return Object::Equals(isolate, lhs_value, rhs_value).FromJust();

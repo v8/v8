@@ -20,8 +20,8 @@ namespace internal {
 BUILTIN(ReflectDefineProperty) {
   HandleScope scope(isolate);
   DCHECK_LE(4, args.length());
-  Handle<Object> target = args.at(1);
-  Handle<Object> key = args.at(2);
+  DirectHandle<Object> target = args.at(1);
+  DirectHandle<Object> key = args.at(2);
   Handle<JSAny> attributes = args.at<JSAny>(3);
 
   if (!IsJSReceiver(*target)) {
@@ -31,7 +31,7 @@ BUILTIN(ReflectDefineProperty) {
                                   "Reflect.defineProperty")));
   }
 
-  Handle<Name> name;
+  DirectHandle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Object::ToName(isolate, key));
 
@@ -50,7 +50,7 @@ BUILTIN(ReflectDefineProperty) {
 BUILTIN(ReflectOwnKeys) {
   HandleScope scope(isolate);
   DCHECK_LE(2, args.length());
-  Handle<Object> target = args.at(1);
+  DirectHandle<Object> target = args.at(1);
 
   if (!IsJSReceiver(*target)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -59,7 +59,7 @@ BUILTIN(ReflectOwnKeys) {
                                   "Reflect.ownKeys")));
   }
 
-  Handle<FixedArray> keys;
+  DirectHandle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
       KeyAccumulator::GetKeys(isolate, Cast<JSReceiver>(target),
@@ -71,11 +71,11 @@ BUILTIN(ReflectOwnKeys) {
 // ES6 section 26.1.13 Reflect.set
 BUILTIN(ReflectSet) {
   HandleScope scope(isolate);
-  Handle<Object> target = args.atOrUndefined(isolate, 1);
-  Handle<Object> key = args.atOrUndefined(isolate, 2);
-  Handle<Object> value = args.atOrUndefined(isolate, 3);
+  DirectHandle<Object> target = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> key = args.atOrUndefined(isolate, 2);
+  DirectHandle<Object> value = args.atOrUndefined(isolate, 3);
 
-  Handle<JSReceiver> target_recv;
+  DirectHandle<JSReceiver> target_recv;
   if (!TryCast<JSReceiver>(target, &target_recv)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
@@ -83,9 +83,10 @@ BUILTIN(ReflectSet) {
                                   "Reflect.set")));
   }
 
-  Handle<JSAny> receiver = args.length() > 4 ? args.at<JSAny>(4) : target_recv;
+  DirectHandle<JSAny> receiver =
+      args.length() > 4 ? direct_handle(args.at<JSAny>(4)) : target_recv;
 
-  Handle<Name> name;
+  DirectHandle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Object::ToName(isolate, key));
 

@@ -168,7 +168,7 @@ Handle<WasmTableObject> WasmTableObject::New(
     }
   }
 
-  Handle<JSFunction> table_ctor(
+  DirectHandle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor(), isolate);
   auto table_obj =
       Cast<WasmTableObject>(isolate->factory()->NewJSObject(table_ctor));
@@ -720,7 +720,7 @@ void WasmTableObject::GetFunctionTableEntry(
 
 Handle<WasmSuspendingObject> WasmSuspendingObject::New(
     Isolate* isolate, DirectHandle<JSReceiver> callable) {
-  Handle<JSFunction> suspending_ctor(
+  DirectHandle<JSFunction> suspending_ctor(
       isolate->native_context()->wasm_suspending_constructor(), isolate);
   auto suspending_obj = Cast<WasmSuspendingObject>(
       isolate->factory()->NewJSObject(suspending_ctor));
@@ -774,11 +774,10 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
 
 }  // namespace
 
-Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
-                                               Handle<JSArrayBuffer> buffer,
-                                               int maximum,
-                                               wasm::AddressType address_type) {
-  Handle<JSFunction> memory_ctor(
+Handle<WasmMemoryObject> WasmMemoryObject::New(
+    Isolate* isolate, DirectHandle<JSArrayBuffer> buffer, int maximum,
+    wasm::AddressType address_type) {
+  DirectHandle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
 
   auto memory_object = Cast<WasmMemoryObject>(
@@ -804,7 +803,8 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
 
   // For debugging purposes we memorize a link from the JSArrayBuffer
   // to its owning WasmMemoryObject instance.
-  Handle<Symbol> symbol = isolate->factory()->array_buffer_wasm_memory_symbol();
+  DirectHandle<Symbol> symbol =
+      isolate->factory()->array_buffer_wasm_memory_symbol();
   Object::SetProperty(isolate, buffer, symbol, memory_object).Check();
 
   return memory_object;
@@ -862,7 +862,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
 
   if (!backing_store) return {};
 
-  Handle<JSArrayBuffer> buffer =
+  DirectHandle<JSArrayBuffer> buffer =
       shared == SharedFlag::kShared
           ? isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store))
           : isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
@@ -914,7 +914,7 @@ void WasmMemoryObject::SetNewBuffer(Tagged<JSArrayBuffer> new_buffer) {
 
 // static
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
-                               Handle<WasmMemoryObject> memory_object,
+                               DirectHandle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
   TRACE_EVENT0("v8.wasm", "wasm.GrowMemory");
   DirectHandle<JSArrayBuffer> old_buffer(memory_object->array_buffer(),
@@ -984,12 +984,12 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (result_inplace.has_value()) {
     // Detach old and create a new one with the grown backing store.
     JSArrayBuffer::Detach(old_buffer, true).Check();
-    Handle<JSArrayBuffer> new_buffer =
+    DirectHandle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
     memory_object->SetNewBuffer(*new_buffer);
     // For debugging purposes we memorize a link from the JSArrayBuffer
     // to its owning WasmMemoryObject instance.
-    Handle<Symbol> symbol =
+    DirectHandle<Symbol> symbol =
         isolate->factory()->array_buffer_wasm_memory_symbol();
     Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
     DCHECK_EQ(result_inplace.value(), old_pages);
@@ -1028,12 +1028,13 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 
   // Detach old and create a new one with the new backing store.
   JSArrayBuffer::Detach(old_buffer, true).Check();
-  Handle<JSArrayBuffer> new_buffer =
+  DirectHandle<JSArrayBuffer> new_buffer =
       isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
   memory_object->SetNewBuffer(*new_buffer);
   // For debugging purposes we memorize a link from the JSArrayBuffer
   // to its owning WasmMemoryObject instance.
-  Handle<Symbol> symbol = isolate->factory()->array_buffer_wasm_memory_symbol();
+  DirectHandle<Symbol> symbol =
+      isolate->factory()->array_buffer_wasm_memory_symbol();
   Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
   return static_cast<int32_t>(old_pages);  // success
 }
@@ -1044,7 +1045,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
     MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
     int32_t offset, bool is_mutable) {
-  Handle<JSFunction> global_ctor(
+  DirectHandle<JSFunction> global_ctor(
       isolate->native_context()->wasm_global_constructor(), isolate);
   auto global_obj =
       Cast<WasmGlobalObject>(isolate->factory()->NewJSObject(global_ctor));
@@ -1438,7 +1439,7 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 
   if (!shared) {
     // Allocate the WasmInstanceObject (JS wrapper).
-    Handle<JSFunction> instance_cons(
+    DirectHandle<JSFunction> instance_cons(
         isolate->native_context()->wasm_instance_constructor(), isolate);
     instance_object = Cast<WasmInstanceObject>(
         isolate->factory()->NewJSObject(instance_cons, AllocationType::kOld));
@@ -1902,8 +1903,8 @@ Handle<WasmTagObject> WasmTagObject::New(
     Isolate* isolate, const wasm::FunctionSig* sig,
     wasm::CanonicalTypeIndex type_index, DirectHandle<HeapObject> tag,
     DirectHandle<WasmTrustedInstanceData> trusted_data) {
-  Handle<JSFunction> tag_cons(isolate->native_context()->wasm_tag_constructor(),
-                              isolate);
+  DirectHandle<JSFunction> tag_cons(
+      isolate->native_context()->wasm_tag_constructor(), isolate);
 
   // Serialize the signature.
   DCHECK_EQ(0, sig->return_count());
@@ -2185,7 +2186,7 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
   int capacity = uses->length();
   if (capacity == 0) {
     constexpr int kInitialLength = 3;  // 1 slot + 1 pair.
-    Handle<ProtectedWeakFixedArray> new_uses =
+    DirectHandle<ProtectedWeakFixedArray> new_uses =
         isolate->factory()->NewProtectedWeakFixedArray(kInitialLength);
     SetUsedLength(*new_uses, kReservedSlotOffset);
     dispatch_table->set_protected_uses(*new_uses);
@@ -2221,7 +2222,7 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
   int old_entries = capacity >> 1;  // Two slots per entry.
   int new_entries = std::max(old_entries + 1, old_entries + (old_entries >> 1));
   int new_capacity = new_entries * 2 + kReservedSlotOffset;
-  Handle<ProtectedWeakFixedArray> new_uses =
+  DirectHandle<ProtectedWeakFixedArray> new_uses =
       isolate->factory()->NewProtectedWeakFixedArray(new_capacity);
   for (int i = kReservedSlotOffset; i < write_cursor; i += 2) {
     CopyEntry(*new_uses, i, *uses_handle, i);
@@ -2329,7 +2330,7 @@ Handle<WasmExceptionPackage> WasmExceptionPackage::New(
 Handle<WasmExceptionPackage> WasmExceptionPackage::New(
     Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
     DirectHandle<FixedArray> values) {
-  Handle<JSFunction> exception_cons(
+  DirectHandle<JSFunction> exception_cons(
       isolate->native_context()->wasm_exception_constructor(), isolate);
   Handle<JSObject> exception = isolate->factory()->NewJSObject(exception_cons);
   exception->InObjectPropertyAtPut(kTagIndex, *exception_tag);
@@ -2339,7 +2340,7 @@ Handle<WasmExceptionPackage> WasmExceptionPackage::New(
 
 // static
 Handle<Object> WasmExceptionPackage::GetExceptionTag(
-    Isolate* isolate, Handle<WasmExceptionPackage> exception_package) {
+    Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package) {
   Handle<Object> tag;
   if (JSReceiver::GetProperty(isolate, exception_package,
                               isolate->factory()->wasm_exception_tag_symbol())
@@ -2351,7 +2352,7 @@ Handle<Object> WasmExceptionPackage::GetExceptionTag(
 
 // static
 Handle<Object> WasmExceptionPackage::GetExceptionValues(
-    Isolate* isolate, Handle<WasmExceptionPackage> exception_package) {
+    Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package) {
   Handle<Object> values;
   if (JSReceiver::GetProperty(
           isolate, exception_package,
@@ -2540,7 +2541,7 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
       isolate->factory()->NewWasmCapiFunctionData(
           call_target, embedder_data, BUILTIN_CODE(isolate, Illegal), rtt,
           sig_index, sig, signature_hash);
-  Handle<SharedFunctionInfo> shared =
+  DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   Handle<JSFunction> result =
       Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
@@ -2611,7 +2612,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
                    base::Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
   }
-  Handle<Map> function_map;
+  DirectHandle<Map> function_map;
   switch (module->origin) {
     case wasm::kWasmOrigin:
       function_map = isolate->wasm_exported_function_map();
@@ -2624,8 +2625,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       break;
   }
 
-  Handle<NativeContext> context(isolate->native_context());
-  Handle<SharedFunctionInfo> shared =
+  DirectHandle<NativeContext> context(isolate->native_context());
+  DirectHandle<SharedFunctionInfo> shared =
       factory->NewSharedFunctionInfoForWasmExportedFunction(name, function_data,
                                                             arity, kAdapt);
 
@@ -2697,7 +2698,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Factory* factory = isolate->factory();
 
   DirectHandle<Map> rtt;
-  Handle<NativeContext> context(isolate->native_context());
+  DirectHandle<NativeContext> context(isolate->native_context());
 
   static_assert(wasm::kMaxCanonicalTypes <= kMaxInt);
   // TODO(clemensb): Merge the next two lines into a single call.
@@ -2791,7 +2792,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     name = JSFunction::GetDebugName(Cast<JSFunction>(callable));
     name = String::Flatten(isolate, name);
   }
-  Handle<SharedFunctionInfo> shared =
+  DirectHandle<SharedFunctionInfo> shared =
       factory->NewSharedFunctionInfoForWasmJSFunction(name, function_data);
   shared->set_internal_formal_parameter_count(
       JSParameterCount(parameter_count));

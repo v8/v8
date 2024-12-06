@@ -23,7 +23,7 @@ class HashcodeTest : public TestWithContext {
  public:
   template <typename T>
   inline Handle<T> GetGlobal(const char* name) {
-    Handle<String> str_name =
+    DirectHandle<String> str_name =
         i_isolate()->factory()->InternalizeUtf8String(name);
 
     Handle<Object> value =

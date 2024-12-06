@@ -119,8 +119,8 @@ class JsonParseInternalizer {
   enum WithOrWithoutSource { kWithoutSource, kWithSource };
 
   template <WithOrWithoutSource with_source>
-  MaybeHandle<Object> InternalizeJsonProperty(Handle<JSReceiver> holder,
-                                              Handle<String> key,
+  MaybeHandle<Object> InternalizeJsonProperty(DirectHandle<JSReceiver> holder,
+                                              DirectHandle<String> key,
                                               Handle<Object> val_node,
                                               Handle<Object> snapshot);
 

@@ -39,8 +39,8 @@ namespace internal {
 TEST_F(TestWithNativeContext, ConvertRegExpFlagsToString) {
   RunJS("let regexp = new RegExp(/ab+c/ig);");
   DirectHandle<JSRegExp> regexp = RunJS<JSRegExp>("regexp");
-  Handle<String> flags = RunJS<String>("regexp.flags");
-  Handle<String> converted_flags =
+  DirectHandle<String> flags = RunJS<String>("regexp.flags");
+  DirectHandle<String> converted_flags =
       JSRegExp::StringFromFlags(isolate(), regexp->flags());
   EXPECT_TRUE(String::Equals(isolate(), flags, converted_flags));
 }
@@ -48,8 +48,8 @@ TEST_F(TestWithNativeContext, ConvertRegExpFlagsToString) {
 TEST_F(TestWithNativeContext, ConvertRegExpFlagsToStringNoFlags) {
   RunJS("let regexp = new RegExp(/ab+c/);");
   DirectHandle<JSRegExp> regexp = RunJS<JSRegExp>("regexp");
-  Handle<String> flags = RunJS<String>("regexp.flags");
-  Handle<String> converted_flags =
+  DirectHandle<String> flags = RunJS<String>("regexp.flags");
+  DirectHandle<String> converted_flags =
       JSRegExp::StringFromFlags(isolate(), regexp->flags());
   EXPECT_TRUE(String::Equals(isolate(), flags, converted_flags));
 }
@@ -57,8 +57,8 @@ TEST_F(TestWithNativeContext, ConvertRegExpFlagsToStringNoFlags) {
 TEST_F(TestWithNativeContext, ConvertRegExpFlagsToStringAllFlags) {
   RunJS("let regexp = new RegExp(/ab+c/dgimsuy);");
   DirectHandle<JSRegExp> regexp = RunJS<JSRegExp>("regexp");
-  Handle<String> flags = RunJS<String>("regexp.flags");
-  Handle<String> converted_flags =
+  DirectHandle<String> flags = RunJS<String>("regexp.flags");
+  DirectHandle<String> converted_flags =
       JSRegExp::StringFromFlags(isolate(), regexp->flags());
   EXPECT_TRUE(String::Equals(isolate(), flags, converted_flags));
 }
@@ -652,7 +652,7 @@ static Handle<JSRegExp> CreateJSRegExp(DirectHandle<String> source,
                                        bool is_unicode = false) {
   Isolate* isolate = reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent());
   Factory* factory = isolate->factory();
-  Handle<JSFunction> constructor = isolate->regexp_function();
+  DirectHandle<JSFunction> constructor = isolate->regexp_function();
   Handle<JSRegExp> regexp = Cast<JSRegExp>(factory->NewJSObject(constructor));
   regexp->set_source(*source);
   regexp->set_flags(Smi::FromInt(0));

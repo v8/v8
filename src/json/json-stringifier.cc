@@ -47,9 +47,9 @@ class JsonStringifier {
   bool InitializeGap(Handle<Object> gap);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<JSAny> ApplyToJsonFunction(
-      Handle<JSAny> object, Handle<Object> key);
+      Handle<JSAny> object, DirectHandle<Object> key);
   V8_WARN_UNUSED_RESULT MaybeHandle<JSAny> ApplyReplacerFunction(
-      Handle<JSAny> value, Handle<Object> key,
+      Handle<JSAny> value, DirectHandle<Object> key,
       DirectHandle<Object> initial_holder);
 
   // Entry point to serialize the object.
@@ -237,7 +237,7 @@ class JsonStringifier {
                                      Handle<Object> key);
 
   Result SerializeJSProxy(Handle<JSProxy> object, Handle<Object> key);
-  Result SerializeJSReceiverSlow(Handle<JSReceiver> object);
+  Result SerializeJSReceiverSlow(DirectHandle<JSReceiver> object);
   template <ElementsKind kind>
   V8_INLINE Result SerializeFixedArrayWithInterruptCheck(
       DirectHandle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
@@ -248,7 +248,7 @@ class JsonStringifier {
   V8_INLINE Result SerializeFixedArrayElement(Tagged<T> elements, uint32_t i,
                                               Tagged<JSArray> array,
                                               bool can_treat_hole_as_undefined);
-  Result SerializeArrayLikeSlow(Handle<JSReceiver> object, uint32_t start,
+  Result SerializeArrayLikeSlow(DirectHandle<JSReceiver> object, uint32_t start,
                                 uint32_t length);
 
   // Returns whether any escape sequences were used.
@@ -655,8 +655,8 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
   return true;
 }
 
-MaybeHandle<JSAny> JsonStringifier::ApplyToJsonFunction(Handle<JSAny> object,
-                                                        Handle<Object> key) {
+MaybeHandle<JSAny> JsonStringifier::ApplyToJsonFunction(
+    Handle<JSAny> object, DirectHandle<Object> key) {
   HandleScope scope(isolate_);
 
   // Retrieve toJSON function. The LookupIterator automatically handles
@@ -677,12 +677,12 @@ MaybeHandle<JSAny> JsonStringifier::ApplyToJsonFunction(Handle<JSAny> object,
 }
 
 MaybeHandle<JSAny> JsonStringifier::ApplyReplacerFunction(
-    Handle<JSAny> value, Handle<Object> key,
+    Handle<JSAny> value, DirectHandle<Object> key,
     DirectHandle<Object> initial_holder) {
   HandleScope scope(isolate_);
   if (IsSmi(*key)) key = factory()->NumberToString(key);
   DirectHandle<Object> args[] = {key, value};
-  Handle<JSReceiver> holder = CurrentHolder(value, initial_holder);
+  DirectHandle<JSReceiver> holder = CurrentHolder(value, initial_holder);
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate_, value,
       Cast<JSAny>(Execution::Call(isolate_, replacer_function_, holder,
@@ -954,7 +954,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<JSAny> object,
     case JS_RAW_JSON_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       {
-        Handle<JSRawJson> raw_json_obj = Cast<JSRawJson>(object);
+        DirectHandle<JSRawJson> raw_json_obj = Cast<JSRawJson>(object);
         Handle<String> raw_json;
         if (raw_json_obj->HasInitialLayout(isolate_)) {
           // Fast path: the object returned by JSON.rawJSON has its initial map
@@ -1231,7 +1231,7 @@ JsonStringifier::Result JsonStringifier::SerializeFixedArrayElement(
 }
 
 JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
-    Handle<JSReceiver> object, uint32_t start, uint32_t length) {
+    DirectHandle<JSReceiver> object, uint32_t start, uint32_t length) {
   if (!need_stack_) {
     need_stack_ = true;
     return NEED_STACK;
@@ -1350,7 +1350,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
 }
 
 JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
-    Handle<JSReceiver> object) {
+    DirectHandle<JSReceiver> object) {
   Handle<FixedArray> contents = property_list_;
   if (contents.is_null()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -2686,7 +2686,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
 
 namespace {
 
-bool CanUseFastStringifier(Handle<JSAny> replacer, Handle<Object> gap) {
+bool CanUseFastStringifier(DirectHandle<JSAny> replacer,
+                           DirectHandle<Object> gap) {
   // TODO(pthier): Support gap on fast-path.
   return v8_flags.json_stringify_fast_path && IsUndefined(*replacer) &&
          IsUndefined(*gap);

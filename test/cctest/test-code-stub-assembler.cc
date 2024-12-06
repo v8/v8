@@ -546,10 +546,11 @@ TEST(ToString) {
   test_cases->set(3, *oddball_test);
 
   DirectHandle<FixedArray> tostring_test = isolate->factory()->NewFixedArray(2);
-  Handle<FixedArray> js_array_storage = isolate->factory()->NewFixedArray(2);
+  DirectHandle<FixedArray> js_array_storage =
+      isolate->factory()->NewFixedArray(2);
   js_array_storage->set(0, Smi::FromInt(1));
   js_array_storage->set(1, Smi::FromInt(2));
-  Handle<JSArray> js_array = isolate->factory()->NewJSArray(2);
+  DirectHandle<JSArray> js_array = isolate->factory()->NewJSArray(2);
   JSArray::SetContent(js_array, js_array_storage);
   tostring_test->set(0, *js_array);
   str = isolate->factory()->InternalizeUtf8String("1,2");
@@ -560,7 +561,7 @@ TEST(ToString) {
     DirectHandle<FixedArray> test(Cast<FixedArray>(test_cases->get(i)),
                                   isolate);
     Handle<Object> obj(test->get(0), isolate);
-    Handle<String> expected(Cast<String>(test->get(1)), isolate);
+    DirectHandle<String> expected(Cast<String>(test->get(1)), isolate);
     Handle<Object> result = ft.Call(obj).ToHandleChecked();
     CHECK(IsString(*result));
     CHECK(String::Equals(isolate, Cast<String>(result), expected));
@@ -1064,7 +1065,7 @@ TEST(TransitionLookup) {
   static_assert(ATTRS_COUNT == 8);
 
   const int kKeysCount = 300;
-  Handle<Map> root_map = Map::Create(isolate, 0);
+  DirectHandle<Map> root_map = Map::Create(isolate, 0);
   Handle<Name> keys[kKeysCount];
 
   base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
@@ -1148,7 +1149,7 @@ TEST(TransitionLookup) {
 
 namespace {
 
-void AddProperties(Handle<JSObject> object, Handle<Name> names[],
+void AddProperties(DirectHandle<JSObject> object, Handle<Name> names[],
                    size_t count) {
   Isolate* isolate = object->GetIsolate();
   for (size_t i = 0; i < count; i++) {
@@ -1170,7 +1171,7 @@ Handle<AccessorPair> CreateAccessorPair(FunctionTester* ft,
   return pair;
 }
 
-void AddProperties(Handle<JSObject> object, Handle<Name> names[],
+void AddProperties(DirectHandle<JSObject> object, Handle<Name> names[],
                    size_t names_count, Handle<Object> values[],
                    size_t values_count, int seed = 0) {
   Isolate* isolate = object->GetIsolate();
@@ -1298,7 +1299,7 @@ TEST(TryHasOwnProperty) {
 
   {
     // Dictionary mode object.
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSObject> object = factory->NewJSObject(function);
     AddProperties(object, names, arraysize(names));
@@ -1317,7 +1318,7 @@ TEST(TryHasOwnProperty) {
 
   {
     // Global object.
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     JSFunction::EnsureHasInitialMap(function);
     function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
@@ -1509,7 +1510,7 @@ TEST(TryGetOwnProperty) {
 
   {
     // Dictionary mode object.
-    Handle<JSFunction> function =
+    DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
     Handle<JSObject> object = factory->NewJSObject(function);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
@@ -1601,7 +1602,7 @@ TEST(TryGetOwnProperty) {
 
 namespace {
 
-void AddElement(Handle<JSObject> object, uint32_t index,
+void AddElement(DirectHandle<JSObject> object, uint32_t index,
                 DirectHandle<Object> value,
                 PropertyAttributes attributes = NONE) {
   JSObject::AddDataElement(object, index, value, attributes);
@@ -1768,7 +1769,7 @@ TEST(TryLookupElement) {
   }
 
   {
-    Handle<JSFunction> constructor = isolate->string_function();
+    DirectHandle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> object = factory->NewJSObject(constructor);
     DirectHandle<String> str = factory->InternalizeUtf8String("ab");
     Cast<JSPrimitiveWrapper>(object)->set_value(*str);
@@ -1783,7 +1784,7 @@ TEST(TryLookupElement) {
   }
 
   {
-    Handle<JSFunction> constructor = isolate->string_function();
+    DirectHandle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> object = factory->NewJSObject(constructor);
     DirectHandle<String> str = factory->InternalizeUtf8String("ab");
     Cast<JSPrimitiveWrapper>(object)->set_value(*str);
@@ -3135,15 +3136,15 @@ TEST(NewPromiseCapability) {
         Cast<PromiseCapability>(result_obj);
 
     CHECK(IsJSObject(result->promise()));
-    Handle<JSObject> promise(Cast<JSObject>(result->promise()), isolate);
+    DirectHandle<JSObject> promise(Cast<JSObject>(result->promise()), isolate);
     CHECK_EQ(constructor_fn->prototype_or_initial_map(kAcquireLoad),
              promise->map());
     CHECK(IsJSFunction(result->resolve()));
     CHECK(IsJSFunction(result->reject()));
 
-    Handle<String> resolved_str =
+    DirectHandle<String> resolved_str =
         isolate->factory()->NewStringFromAsciiChecked("resolvedStr");
-    Handle<String> rejected_str =
+    DirectHandle<String> rejected_str =
         isolate->factory()->NewStringFromAsciiChecked("rejectedStr");
 
     DirectHandle<Object> argv1[] = {resolved_str};

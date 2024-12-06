@@ -329,7 +329,7 @@ class Expectations {
     }
   }
 
-  Handle<Map> AddDataField(Handle<Map> map, PropertyAttributes attributes,
+  Handle<Map> AddDataField(DirectHandle<Map> map, PropertyAttributes attributes,
                            PropertyConstness constness,
                            Representation representation,
                            Handle<FieldType> field_type) {
@@ -338,25 +338,26 @@ class Expectations {
     SetDataField(property_index, attributes, constness, representation,
                  field_type);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    DirectHandle<String> name = CcTest::MakeName("prop", property_index);
     return Map::CopyWithField(isolate_, map, name, field_type, attributes,
                               constness, representation, INSERT_TRANSITION)
         .ToHandleChecked();
   }
 
-  Handle<Map> AddDataConstant(Handle<Map> map, PropertyAttributes attributes,
+  Handle<Map> AddDataConstant(DirectHandle<Map> map,
+                              PropertyAttributes attributes,
                               DirectHandle<JSFunction> value) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetDataConstant(property_index, attributes, value);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    DirectHandle<String> name = CcTest::MakeName("prop", property_index);
     return Map::CopyWithConstant(isolate_, map, name, value, attributes,
                                  INSERT_TRANSITION)
         .ToHandleChecked();
   }
 
-  Handle<Map> TransitionToDataField(Handle<Map> map,
+  Handle<Map> TransitionToDataField(DirectHandle<Map> map,
                                     PropertyAttributes attributes,
                                     PropertyConstness constness,
                                     Representation representation,
@@ -367,19 +368,19 @@ class Expectations {
     SetDataField(property_index, attributes, constness, representation,
                  heap_type);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    DirectHandle<String> name = CcTest::MakeName("prop", property_index);
     return Map::TransitionToDataProperty(isolate_, map, name, value, attributes,
                                          constness, StoreOrigin::kNamed);
   }
 
-  Handle<Map> TransitionToDataConstant(Handle<Map> map,
+  Handle<Map> TransitionToDataConstant(DirectHandle<Map> map,
                                        PropertyAttributes attributes,
                                        DirectHandle<JSFunction> value) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetDataConstant(property_index, attributes, value);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    DirectHandle<String> name = CcTest::MakeName("prop", property_index);
     return Map::TransitionToDataProperty(isolate_, map, name, value, attributes,
                                          PropertyConstness::kConst,
                                          StoreOrigin::kNamed);
@@ -402,14 +403,14 @@ class Expectations {
     return target.ToHandleChecked();
   }
 
-  Handle<Map> AddAccessorConstant(Handle<Map> map,
+  Handle<Map> AddAccessorConstant(DirectHandle<Map> map,
                                   PropertyAttributes attributes,
-                                  Handle<AccessorPair> pair) {
+                                  DirectHandle<AccessorPair> pair) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetAccessorConstant(property_index, attributes, pair);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    DirectHandle<String> name = CcTest::MakeName("prop", property_index);
 
     Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
     return Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
@@ -423,19 +424,19 @@ class Expectations {
     int property_index = number_of_properties_++;
     SetAccessorConstant(property_index, attributes, getter, setter);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    DirectHandle<String> name = CcTest::MakeName("prop", property_index);
 
     CHECK(!IsNull(*getter, isolate_) || !IsNull(*setter, isolate_));
     Factory* factory = isolate_->factory();
 
     if (!IsNull(*getter, isolate_)) {
-      Handle<AccessorPair> pair = factory->NewAccessorPair();
+      DirectHandle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *factory->null_value());
       Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
       map = Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
     }
     if (!IsNull(*setter, isolate_)) {
-      Handle<AccessorPair> pair = factory->NewAccessorPair();
+      DirectHandle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *setter);
       Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
       map = Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
@@ -450,7 +451,7 @@ class Expectations {
     int property_index = number_of_properties_++;
     SetAccessorConstant(property_index, attributes, pair);
 
-    Handle<String> name = CcTest::MakeName("prop", property_index);
+    DirectHandle<String> name = CcTest::MakeName("prop", property_index);
 
     Isolate* isolate = CcTest::i_isolate();
     DirectHandle<Object> getter(pair->getter(), isolate);
@@ -497,7 +498,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<FieldType> none_type = FieldType::None(isolate);
-  Handle<AccessorPair> pair = CreateAccessorPair(true, true);
+  DirectHandle<AccessorPair> pair = CreateAccessorPair(true, true);
 
   Expectations expectations(isolate);
 
@@ -573,14 +574,14 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
       "                      { get: getter, set: setter, "
       "                        configurable: true, enumerable: true});");
 
-  Handle<String> foo_str = factory->InternalizeUtf8String("foo");
-  Handle<String> obj_name = factory->InternalizeUtf8String("o");
+  DirectHandle<String> foo_str = factory->InternalizeUtf8String("foo");
+  DirectHandle<String> obj_name = factory->InternalizeUtf8String("o");
 
   Handle<Object> obj_value =
       Object::GetProperty(isolate, isolate->global_object(), obj_name)
           .ToHandleChecked();
   CHECK(IsJSObject(*obj_value));
-  Handle<JSObject> obj = Cast<JSObject>(obj_value);
+  DirectHandle<JSObject> obj = Cast<JSObject>(obj_value);
 
   CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
   InternalIndex first(0);
@@ -977,7 +978,7 @@ TEST(GeneralizeFieldWithAccessorProperties) {
   Isolate* isolate = CcTest::i_isolate();
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<AccessorPair> pair = CreateAccessorPair(true, true);
+  DirectHandle<AccessorPair> pair = CreateAccessorPair(true, true);
 
   const int kAccessorProp = kPropCount / 2;
   Expectations expectations(isolate);
@@ -1534,7 +1535,7 @@ TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
     }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    Handle<Map> map) {
+                                    DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       // Add the same data constant property at both transition tree branches.
       return expectations->AddDataConstant(map, NONE, js_func_);
@@ -1563,9 +1564,9 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
       Handle<String> name = factory->empty_string();
-      Handle<Map> sloppy_map =
+      DirectHandle<Map> sloppy_map =
           Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
-      Handle<SharedFunctionInfo> info =
+      DirectHandle<SharedFunctionInfo> info =
           factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal, 0,
                                                    kDontAdapt);
       function_type_ = FieldType::Class(sloppy_map, isolate);
@@ -1583,7 +1584,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
     }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    Handle<Map> map) {
+                                    DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       DirectHandle<JSFunction> js_func = branch_id == 1 ? js_func1_ : js_func2_;
       return expectations->AddDataConstant(map, NONE, js_func);
@@ -1615,7 +1616,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
     }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    Handle<Map> map) {
+                                    DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       if (branch_id == 1) {
         return expectations->AddDataConstant(map, NONE, js_func_);
@@ -1643,7 +1644,7 @@ TEST(ReconfigureDataFieldAttribute_SameAccessorConstantAfterTargetMap) {
     TestConfig() { pair_ = CreateAccessorPair(true, true); }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    Handle<Map> map) {
+                                    DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       // Add the same accessor constant property at both transition tree
       // branches.
@@ -1674,9 +1675,9 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToAccFieldAfterTargetMap) {
     }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    Handle<Map> map) {
+                                    DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
-      Handle<AccessorPair> pair = branch_id == 1 ? pair1_ : pair2_;
+      DirectHandle<AccessorPair> pair = branch_id == 1 ? pair1_ : pair2_;
       return expectations->AddAccessorConstant(map, NONE, pair);
     }
 
@@ -1712,7 +1713,7 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
     TestConfig() { pair_ = CreateAccessorPair(true, true); }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    Handle<Map> map) {
+                                    DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       if (branch_id == 1) {
         return expectations->AddAccessorConstant(map, NONE, pair_);
@@ -2097,7 +2098,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   // Fill in transition tree of |map2| so that it can't have more transitions.
   for (int i = 0; i < TransitionsAccessor::kMaxNumberOfTransitions; i++) {
     CHECK(TransitionsAccessor::CanHaveMoreTransitions(isolate, map2));
-    Handle<String> name = CcTest::MakeName("foo", i);
+    DirectHandle<String> name = CcTest::MakeName("foo", i);
     Map::CopyWithField(isolate, map2, name, any_type, NONE,
                        PropertyConstness::kMutable, Representation::Smi(),
                        INSERT_TRANSITION)
@@ -2330,7 +2331,7 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
                ElementsKind kind)
         : attributes(attributes), symbol(symbol), elements_kind(kind) {}
 
-    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
+    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       expectations->SetElementsKind(elements_kind);
       expectations->ChangeAttributesForAllProperties(attributes);
       return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, attributes,
@@ -2373,7 +2374,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
                ElementsKind kind)
         : attributes(attributes), symbol(symbol), elements_kind(kind) {}
 
-    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
+    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -2776,7 +2777,7 @@ TEST(ElementsKindTransitionFromMapOwningDescriptorLegacy) {
                ElementsKind kind)
         : attributes(attributes), symbol(symbol), elements_kind(kind) {}
 
-    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
+    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       expectations->SetElementsKind(elements_kind);
       expectations->ChangeAttributesForAllProperties(attributes);
       return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, attributes,
@@ -2834,7 +2835,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptorLegacy) {
                ElementsKind kind)
         : attributes(attributes), symbol(symbol), elements_kind(kind) {}
 
-    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
+    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -2908,7 +2909,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptorLegacy) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
+    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       return Map::TransitionToUpdatePrototype(CcTest::i_isolate(), map,
                                               prototype_);
     }
@@ -2952,7 +2953,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptorLegacy) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
+    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -3010,7 +3011,7 @@ struct TransitionToDataFieldOperator {
         heap_type_(heap_type),
         value_(value) {}
 
-  Handle<Map> DoTransition(Expectations* expectations, Handle<Map> map) {
+  Handle<Map> DoTransition(Expectations* expectations, DirectHandle<Map> map) {
     return expectations->TransitionToDataField(
         map, attributes_, constness_, representation_, heap_type_, value_);
   }
@@ -3025,7 +3026,7 @@ struct TransitionToDataConstantOperator {
                                    PropertyAttributes attributes = NONE)
       : attributes_(attributes), value_(value) {}
 
-  Handle<Map> DoTransition(Expectations* expectations, Handle<Map> map) {
+  Handle<Map> DoTransition(Expectations* expectations, DirectHandle<Map> map) {
     return expectations->TransitionToDataConstant(map, attributes_, value_);
   }
 };
@@ -3234,10 +3235,11 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   Factory* factory = isolate->factory();
 
   Handle<String> name = factory->empty_string();
-  Handle<Map> sloppy_map =
+  DirectHandle<Map> sloppy_map =
       Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
-  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      name, Builtin::kIllegal, 0, kDontAdapt);
+  DirectHandle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, Builtin::kIllegal, 0,
+                                               kDontAdapt);
   CHECK(sloppy_map->is_stable());
 
   Handle<JSFunction> js_func1 =
@@ -3505,7 +3507,7 @@ TEST(NormalizeToMigrationTarget) {
   CHECK(
       IsNormalizedMapCache(isolate->native_context()->normalized_map_cache()));
 
-  Handle<Map> base_map = Map::Create(isolate, 4);
+  DirectHandle<Map> base_map = Map::Create(isolate, 4);
 
   DirectHandle<Map> existing_normalized_map = Map::Normalize(
       isolate, base_map, PropertyNormalizationMode::CLEAR_INOBJECT_PROPERTIES,

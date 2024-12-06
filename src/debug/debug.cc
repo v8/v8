@@ -1156,8 +1156,8 @@ void Debug::RemoveBreakpoint(int id) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void Debug::SetInstrumentationBreakpointForWasmScript(Handle<Script> script,
-                                                      int* id) {
+void Debug::SetInstrumentationBreakpointForWasmScript(
+    DirectHandle<Script> script, int* id) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(Script::Type::kWasm, script->type());
   *id = kInstrumentationId;
@@ -1175,7 +1175,7 @@ void Debug::RemoveBreakpointForWasmScript(DirectHandle<Script> script, int id) {
   }
 }
 
-void Debug::RecordWasmScriptWithBreakpoints(Handle<Script> script) {
+void Debug::RecordWasmScriptWithBreakpoints(DirectHandle<Script> script) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (wasm_scripts_with_break_points_.is_null()) {
     DirectHandle<WeakArrayList> new_list =
@@ -1529,7 +1529,7 @@ void Debug::PrepareStep(StepAction step_action) {
           // by some other async function, should resume the latter. The return
           // value here is either a JSPromise or a JSGeneratorObject (for the
           // initial yield of async generators).
-          Handle<JSReceiver> return_value(
+          DirectHandle<JSReceiver> return_value(
               Cast<JSReceiver>(thread_local_.return_value_), isolate_);
           DirectHandle<Object> awaited_by_holder = JSReceiver::GetDataProperty(
               isolate_, return_value,
@@ -1930,7 +1930,7 @@ void Debug::InstallDebugBreakTrampoline() {
   // properly hit the debug break trampoline.
   for (AccessorPairWithContext tuple : needs_instantiate) {
     DirectHandle<AccessorPair> accessor_pair = tuple.first;
-    Handle<NativeContext> native_context = tuple.second;
+    DirectHandle<NativeContext> native_context = tuple.second;
     Handle<Object> getter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_GETTER);
     if (IsJSFunctionAndNeedsTrampoline(isolate_, *getter)) {
@@ -1946,7 +1946,7 @@ void Debug::InstallDebugBreakTrampoline() {
 
   // By overwriting the function code with DebugBreakTrampoline, which tailcalls
   // to shared code, we bypass CompileLazy. Perform CompileLazy here instead.
-  for (Handle<JSFunction> fun : needs_compile) {
+  for (DirectHandle<JSFunction> fun : needs_compile) {
     IsCompiledScope is_compiled_scope;
     Compiler::Compile(isolate_, fun, Compiler::CLEAR_EXCEPTION,
                       &is_compiled_scope);
@@ -2446,7 +2446,7 @@ bool Debug::BreakAtEntry(Tagged<SharedFunctionInfo> sfi) {
   return false;
 }
 
-std::optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
+std::optional<Tagged<Object>> Debug::OnThrow(DirectHandle<Object> exception) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (in_debug_scope() || ignore_events()) return {};
   // Temporarily clear any exception to allow evaluating
@@ -3121,7 +3121,7 @@ void Debug::ClearSideEffectChecks(DirectHandle<DebugInfo> debug_info) {
   }
 }
 
-bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
+bool Debug::PerformSideEffectCheck(DirectHandle<JSFunction> function,
                                    Handle<Object> receiver) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);

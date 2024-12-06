@@ -319,9 +319,9 @@ TEST(HeapObjects) {
   CHECK(IsString(*s));
   CHECK_EQ(10, s->length());
 
-  Handle<String> object_string = Cast<String>(factory->Object_string());
-  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
-                                isolate);
+  DirectHandle<String> object_string = Cast<String>(factory->Object_string());
+  DirectHandle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object(), isolate);
   CHECK(Just(true) ==
         JSReceiver::HasOwnProperty(isolate, global, object_string));
 
@@ -363,22 +363,22 @@ TEST(GarbageCollection) {
   // Check GC.
   heap::InvokeMinorGC(CcTest::heap());
 
-  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
-                                isolate);
-  Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-  Handle<String> prop_namex = factory->InternalizeUtf8String("theSlotx");
-  Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
+  DirectHandle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object(), isolate);
+  DirectHandle<String> name = factory->InternalizeUtf8String("theFunction");
+  DirectHandle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+  DirectHandle<String> prop_namex = factory->InternalizeUtf8String("theSlotx");
+  DirectHandle<String> obj_name = factory->InternalizeUtf8String("theObject");
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  DirectHandle<Smi> twenty_four(Smi::FromInt(24), isolate);
 
   {
     HandleScope inner_scope(isolate);
     // Allocate a function and keep it in global object's property.
-    Handle<JSFunction> function = factory->NewFunctionForTesting(name);
+    DirectHandle<JSFunction> function = factory->NewFunctionForTesting(name);
     Object::SetProperty(isolate, global, name, function).Check();
     // Allocate an object.  Unrooted after leaving the scope.
-    Handle<JSObject> obj = factory->NewJSObject(function);
+    DirectHandle<JSObject> obj = factory->NewJSObject(function);
     Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
     Object::SetProperty(isolate, obj, prop_namex, twenty_four).Check();
 
@@ -396,12 +396,12 @@ TEST(GarbageCollection) {
   Handle<Object> func_value =
       Object::GetProperty(isolate, global, name).ToHandleChecked();
   CHECK(IsJSFunction(*func_value));
-  Handle<JSFunction> function = Cast<JSFunction>(func_value);
+  DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
 
   {
     HandleScope inner_scope(isolate);
     // Allocate another object, make it reachable from global.
-    Handle<JSObject> obj = factory->NewJSObject(function);
+    DirectHandle<JSObject> obj = factory->NewJSObject(function);
     Object::SetProperty(isolate, global, obj_name, obj).Check();
     Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   }
@@ -747,13 +747,13 @@ TEST(FunctionAllocation) {
 
   v8::HandleScope sc(CcTest::isolate());
   DirectHandle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionForTesting(name);
+  DirectHandle<JSFunction> function = factory->NewFunctionForTesting(name);
 
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  DirectHandle<Smi> twenty_four(Smi::FromInt(24), isolate);
 
-  Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-  Handle<JSObject> obj = factory->NewJSObject(function);
+  DirectHandle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+  DirectHandle<JSObject> obj = factory->NewJSObject(function);
   Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
@@ -770,19 +770,19 @@ TEST(ObjectProperties) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<String> object_string(
+  DirectHandle<String> object_string(
       Cast<String>(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
   Handle<Object> object =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
           .ToHandleChecked();
-  Handle<JSFunction> constructor = Cast<JSFunction>(object);
-  Handle<JSObject> obj = factory->NewJSObject(constructor);
-  Handle<String> first = factory->InternalizeUtf8String("first");
-  Handle<String> second = factory->InternalizeUtf8String("second");
+  DirectHandle<JSFunction> constructor = Cast<JSFunction>(object);
+  DirectHandle<JSObject> obj = factory->NewJSObject(constructor);
+  DirectHandle<String> first = factory->InternalizeUtf8String("first");
+  DirectHandle<String> second = factory->InternalizeUtf8String("second");
 
-  Handle<Smi> one(Smi::FromInt(1), isolate);
-  Handle<Smi> two(Smi::FromInt(2), isolate);
+  DirectHandle<Smi> one(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> two(Smi::FromInt(2), isolate);
 
   // check for empty
   CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
@@ -828,16 +828,16 @@ TEST(ObjectProperties) {
 
   // check string and internalized string match
   const char* string1 = "fisk";
-  Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
+  DirectHandle<String> s1 = factory->NewStringFromAsciiChecked(string1);
   Object::SetProperty(isolate, obj, s1, one).Check();
-  Handle<String> s1_string = factory->InternalizeUtf8String(string1);
+  DirectHandle<String> s1_string = factory->InternalizeUtf8String(string1);
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
-  Handle<String> s2_string = factory->InternalizeUtf8String(string2);
+  DirectHandle<String> s2_string = factory->InternalizeUtf8String(string2);
   Object::SetProperty(isolate, obj, s2_string, one).Check();
-  Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
+  DirectHandle<String> s2 = factory->NewStringFromAsciiChecked(string2);
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, s2));
 }
 
@@ -848,14 +848,14 @@ TEST(JSObjectMaps) {
 
   v8::HandleScope sc(CcTest::isolate());
   DirectHandle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionForTesting(name);
+  DirectHandle<JSFunction> function = factory->NewFunctionForTesting(name);
 
-  Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-  Handle<JSObject> obj = factory->NewJSObject(function);
+  DirectHandle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+  DirectHandle<JSObject> obj = factory->NewJSObject(function);
   DirectHandle<Map> initial_map(function->initial_map(), isolate);
 
   // Set a propery
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
   Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
@@ -874,12 +874,12 @@ TEST(JSArray) {
   Handle<Object> fun_obj =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(), name)
           .ToHandleChecked();
-  Handle<JSFunction> function = Cast<JSFunction>(fun_obj);
+  DirectHandle<JSFunction> function = Cast<JSFunction>(fun_obj);
 
   // Allocate the object.
   DirectHandle<Object> element;
   Handle<JSObject> object = factory->NewJSObject(function);
-  Handle<JSArray> array = Cast<JSArray>(object);
+  DirectHandle<JSArray> array = Cast<JSArray>(object);
   // We just initialized the VM, no heap allocation failure yet.
   JSArray::Initialize(array, 0);
 
@@ -921,19 +921,19 @@ TEST(JSObjectCopy) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<String> object_string(
+  DirectHandle<String> object_string(
       Cast<String>(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
   Handle<Object> object =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
           .ToHandleChecked();
-  Handle<JSFunction> constructor = Cast<JSFunction>(object);
+  DirectHandle<JSFunction> constructor = Cast<JSFunction>(object);
   Handle<JSObject> obj = factory->NewJSObject(constructor);
   Handle<String> first = factory->InternalizeUtf8String("first");
   Handle<String> second = factory->InternalizeUtf8String("second");
 
-  Handle<Smi> one(Smi::FromInt(1), isolate);
-  Handle<Smi> two(Smi::FromInt(2), isolate);
+  DirectHandle<Smi> one(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> two(Smi::FromInt(2), isolate);
 
   Object::SetProperty(isolate, obj, first, one).Check();
   Object::SetProperty(isolate, obj, second, two).Check();
@@ -1267,7 +1267,7 @@ HEAP_TEST(Regress10560) {
         "  var z = x + y;"
         "};"
         "foo()";
-    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+    DirectHandle<String> foo_name = factory->InternalizeUtf8String("foo");
     CompileRun(source);
 
     // Check function is compiled.
@@ -1521,7 +1521,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
       "var g = make_closure(5);");
 
   // Check f is compiled.
-  Handle<String> f_name = factory->InternalizeUtf8String("f");
+  DirectHandle<String> f_name = factory->InternalizeUtf8String("f");
   Handle<Object> f_value =
       Object::GetProperty(isolate, isolate->global_object(), f_name)
           .ToHandleChecked();
@@ -1529,7 +1529,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
   CHECK(f_function->is_compiled(isolate));
 
   // Check g is not compiled.
-  Handle<String> g_name = factory->InternalizeUtf8String("g");
+  DirectHandle<String> g_name = factory->InternalizeUtf8String("g");
   Handle<Object> g_value =
       Object::GetProperty(isolate, isolate->global_object(), g_name)
           .ToHandleChecked();
@@ -3292,12 +3292,13 @@ static void AddTransitions(int transitions_count) {
   }
 }
 
-static void AddPropertyTo(int gc_count, Handle<JSObject> object,
+static void AddPropertyTo(int gc_count, DirectHandle<JSObject> object,
                           const char* property_name) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Handle<String> prop_name = factory->InternalizeUtf8String(property_name);
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+  DirectHandle<String> prop_name =
+      factory->InternalizeUtf8String(property_name);
+  DirectHandle<Smi> twenty_three(Smi::FromInt(23), isolate);
   HeapAllocator::SetAllocationGcInterval(gc_count);
   v8_flags.gc_global = true;
   v8_flags.retain_maps_for_n_gc = 0;
@@ -3388,7 +3389,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
   CompileRun("function F() {}");
   AddTransitions(transitions_count);
   CompileRun("var root = new F;");
-  Handle<JSObject> root = GetByName("root");
+  DirectHandle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(i_isolate, root->map());
@@ -5004,7 +5005,7 @@ TEST(WeakMapInMonomorphicCompareNilIC) {
 }
 
 Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
-  Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
+  DirectHandle<String> str = isolate->factory()->InternalizeUtf8String(name);
   Handle<Object> obj =
       Object::GetProperty(isolate, isolate->global_object(), str)
           .ToHandleChecked();
@@ -5261,7 +5262,7 @@ TEST(Regress388880) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
-  Handle<Map> map1 = Map::Create(isolate, 1);
+  DirectHandle<Map> map1 = Map::Create(isolate, 1);
   Handle<String> name = factory->NewStringFromStaticChars("foo");
   name = factory->InternalizeString(name);
   DirectHandle<Map> map2 =
@@ -5346,11 +5347,11 @@ TEST(Regress442710) {
   Factory* factory = isolate->factory();
 
   HandleScope sc(isolate);
-  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
-                                isolate);
-  Handle<JSArray> array = factory->NewJSArray(2);
+  DirectHandle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object(), isolate);
+  DirectHandle<JSArray> array = factory->NewJSArray(2);
 
-  Handle<String> name = factory->InternalizeUtf8String("testArray");
+  DirectHandle<String> name = factory->InternalizeUtf8String("testArray");
   Object::SetProperty(isolate, global, name, array).Check();
   CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
   heap::InvokeMajorGC(CcTest::heap());
@@ -5411,7 +5412,7 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
   DirectHandle<Map> map = Map::Create(isolate, 1);
   v8::Local<v8::Value> result =
       CompileRun("(function () { return {x : 10}; })();");
-  Handle<JSReceiver> proto =
+  DirectHandle<JSReceiver> proto =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Map::SetPrototype(isolate, map, proto);
   GlobalHandleVector<Map> maps(isolate->heap());
@@ -5506,9 +5507,9 @@ TEST(PreprocessStackTrace) {
   CompileRun("throw new Error();");
   CHECK(try_catch.HasCaught());
   Isolate* isolate = CcTest::i_isolate();
-  Handle<JSAny> exception =
+  DirectHandle<JSAny> exception =
       Cast<JSAny>(v8::Utils::OpenHandle(*try_catch.Exception()));
-  Handle<Name> key = isolate->factory()->error_stack_symbol();
+  DirectHandle<Name> key = isolate->factory()->error_stack_symbol();
   Handle<JSAny> stack_trace = Cast<JSAny>(
       Object::GetProperty(isolate, exception, key).ToHandleChecked());
   DirectHandle<Object> code =
@@ -5996,8 +5997,9 @@ TEST(Regress598319) {
         // Shift by 1, effectively moving one white object across the progress
         // bar, meaning that we will miss marking it.
         v8::HandleScope new_scope(CcTest::isolate());
-        Handle<JSArray> js_array = isolate->factory()->NewJSArrayWithElements(
-            Handle<FixedArray>(arr.get(), isolate));
+        DirectHandle<JSArray> js_array =
+            isolate->factory()->NewJSArrayWithElements(
+                Handle<FixedArray>(arr.get(), isolate));
         js_array->GetElementsAccessor()->Shift(js_array).Check();
       }
       break;

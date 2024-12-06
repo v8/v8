@@ -512,7 +512,7 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
 }
 
 void BackingStore::AttachSharedWasmMemoryObject(
-    Isolate* isolate, Handle<WasmMemoryObject> memory_object) {
+    Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object) {
   DCHECK(is_wasm_memory_);
   DCHECK(is_shared_);
   // We need to take the global registry lock for this operation.
@@ -801,7 +801,7 @@ void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
 #if V8_ENABLE_WEBASSEMBLY
 void GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(
     Isolate* isolate, BackingStore* backing_store,
-    Handle<WasmMemoryObject> memory_object) {
+    DirectHandle<WasmMemoryObject> memory_object) {
   // Add to the weak array list of shared memory objects in the isolate.
   isolate->AddSharedWasmMemory(memory_object);
 

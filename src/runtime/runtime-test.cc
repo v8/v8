@@ -304,8 +304,9 @@ RUNTIME_FUNCTION(Runtime_IsAtomicsWaitAllowed) {
 
 namespace {
 
-bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
-                         Isolate* isolate, IsCompiledScope* is_compiled_scope) {
+bool CanOptimizeFunction(CodeKind target_kind,
+                         DirectHandle<JSFunction> function, Isolate* isolate,
+                         IsCompiledScope* is_compiled_scope) {
   // The following conditions were lifted (in part) from the DCHECK inside
   // JSFunction::MarkForOptimization().
 
@@ -362,7 +363,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Cast<JSFunction>(function_object);
+  DirectHandle<JSFunction> function = Cast<JSFunction>(function_object);
 
   IsCompiledScope is_compiled_scope(
       function->shared()->is_compiled_scope(isolate));
@@ -401,7 +402,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 }
 
 bool EnsureCompiledAndFeedbackVector(Isolate* isolate,
-                                     Handle<JSFunction> function,
+                                     DirectHandle<JSFunction> function,
                                      IsCompiledScope* is_compiled_scope) {
   *is_compiled_scope =
       function->shared()->is_compiled_scope(function->GetIsolate());
@@ -434,7 +435,7 @@ RUNTIME_FUNCTION(Runtime_CompileBaseline) {
   }
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Cast<JSFunction>(function_object);
+  DirectHandle<JSFunction> function = Cast<JSFunction>(function_object);
 
   IsCompiledScope is_compiled_scope =
       function->shared(isolate)->is_compiled_scope(isolate);
@@ -494,7 +495,7 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
 RUNTIME_FUNCTION(Runtime_BenchTurbofan) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 2);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   int count = args.smi_value_at(1);
 
   base::ElapsedTimer timer;
@@ -592,7 +593,7 @@ RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
   if (args.length() != 1 || !IsJSFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   if (function->has_feedback_vector()) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -607,7 +608,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   if ((args.length() != 1 && args.length() != 2) || !IsJSFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
 
   IsCompiledScope is_compiled_scope;
   if (!EnsureCompiledAndFeedbackVector(isolate, function, &is_compiled_scope)) {
@@ -1548,7 +1549,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
     return CrashUnlessFuzzing(isolate);
   }
   // Get the function and make sure it is compiled.
-  Handle<JSFunction> func = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> func = args.at<JSFunction>(0);
   IsCompiledScope is_compiled_scope;
 #ifndef V8_ENABLE_LEAPTIERING
   if (!func->is_compiled(isolate) && func->HasAvailableOptimizedCode(isolate)) {
@@ -2097,12 +2098,12 @@ RUNTIME_FUNCTION(Runtime_StringToCString) {
   if (args.length() != 1 || !IsString(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<String> string = args.at<String>(0);
+  DirectHandle<String> string = args.at<String>(0);
 
   size_t output_length;
   auto bytes = string->ToCString(&output_length);
 
-  Handle<JSArrayBuffer> result =
+  DirectHandle<JSArrayBuffer> result =
       isolate->factory()
           ->NewJSArrayBufferAndBackingStore(output_length,
                                             InitializedFlag::kUninitialized)
@@ -2121,7 +2122,7 @@ RUNTIME_FUNCTION(Runtime_StringUtf8Value) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::String::Utf8Value value(v8_isolate, v8::Utils::ToLocal(string));
 
-  Handle<JSArrayBuffer> result =
+  DirectHandle<JSArrayBuffer> result =
       isolate->factory()
           ->NewJSArrayBufferAndBackingStore(value.length(),
                                             InitializedFlag::kUninitialized)
@@ -2222,7 +2223,7 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   }
   Handle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Cast<JSFunction>(function_object);
+  DirectHandle<JSFunction> function = Cast<JSFunction>(function_object);
 
   if (!function->has_feedback_vector()) {
     return CrashUnlessFuzzing(isolate);
@@ -2234,10 +2235,10 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   return ReadOnlyRoots(isolate).undefined_value();
 #else
 #ifdef OBJECT_PRINT
-  Handle<FeedbackVector> feedback_vector =
+  DirectHandle<FeedbackVector> feedback_vector =
       handle(function->feedback_vector(), isolate);
 
-  Handle<FixedArray> result =
+  DirectHandle<FixedArray> result =
       isolate->factory()->NewFixedArray(feedback_vector->length());
   int result_ix = 0;
 
@@ -2246,11 +2247,11 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
     FeedbackSlot slot = iter.Next();
     FeedbackSlotKind kind = iter.kind();
 
-    Handle<FixedArray> sub_result = isolate->factory()->NewFixedArray(2);
+    DirectHandle<FixedArray> sub_result = isolate->factory()->NewFixedArray(2);
     {
       std::ostringstream out;
       out << kind;
-      Handle<String> kind_string =
+      DirectHandle<String> kind_string =
           isolate->factory()->NewStringFromAsciiChecked(out.str().c_str());
       sub_result->set(0, *kind_string);
     }
@@ -2259,12 +2260,12 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
     {
       std::ostringstream out;
       nexus.Print(out);
-      Handle<String> nexus_string =
+      DirectHandle<String> nexus_string =
           isolate->factory()->NewStringFromAsciiChecked(out.str().c_str());
       sub_result->set(1, *nexus_string);
     }
 
-    Handle<JSArray> sub_result_array =
+    DirectHandle<JSArray> sub_result_array =
         isolate->factory()->NewJSArrayWithElements(sub_result);
     result->set(result_ix++, *sub_result_array);
   }

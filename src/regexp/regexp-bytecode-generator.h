@@ -110,7 +110,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   inline void Emit8(uint32_t x);
   inline void Emit(uint32_t bc, uint32_t arg);
   inline void Emit(uint32_t bc, int32_t arg);
-  void EmitSkipTable(Handle<ByteArray> table);
+  void EmitSkipTable(DirectHandle<ByteArray> table);
   // Bytecode buffer.
   int length();
   void Copy(uint8_t* a);

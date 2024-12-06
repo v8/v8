@@ -17,7 +17,8 @@ class SharedFunctionInfo;
 class ObjectDeserializer final : public Deserializer<Isolate> {
  public:
   static MaybeDirectHandle<SharedFunctionInfo> DeserializeSharedFunctionInfo(
-      Isolate* isolate, const SerializedCodeData* data, Handle<String> source);
+      Isolate* isolate, const SerializedCodeData* data,
+      DirectHandle<String> source);
 
  private:
   explicit ObjectDeserializer(Isolate* isolate, const SerializedCodeData* data);

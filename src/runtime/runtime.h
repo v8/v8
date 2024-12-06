@@ -1006,7 +1006,7 @@ class Runtime : public AllStatic {
   // be called to set the value.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   SetPrivateMember(Isolate* isolate, DirectHandle<JSReceiver> receiver,
-                   Handle<String> desc, Handle<Object> value);
+                   Handle<String> desc, DirectHandle<Object> value);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> HasProperty(
       Isolate* isolate, DirectHandle<Object> object, DirectHandle<Object> key);

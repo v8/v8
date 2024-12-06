@@ -77,14 +77,15 @@ class ErrorUtils : public AllStatic {
   // example when creating a deserialized error.
   enum class StackTraceCollection { kEnabled, kDisabled };
   static MaybeHandle<JSObject> Construct(Isolate* isolate,
-                                         Handle<JSFunction> target,
-                                         Handle<Object> new_target,
+                                         DirectHandle<JSFunction> target,
+                                         DirectHandle<Object> new_target,
                                          DirectHandle<Object> message,
-                                         Handle<Object> options);
+                                         DirectHandle<Object> options);
   static MaybeHandle<JSObject> Construct(
-      Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
-      DirectHandle<Object> message, Handle<Object> options, FrameSkipMode mode,
-      Handle<Object> caller, StackTraceCollection stack_trace_collection);
+      Isolate* isolate, DirectHandle<JSFunction> target,
+      DirectHandle<Object> new_target, DirectHandle<Object> message,
+      DirectHandle<Object> options, FrameSkipMode mode,
+      DirectHandle<Object> caller, StackTraceCollection stack_trace_collection);
 
   enum class ToStringMessageSource {
     kPreferOriginalMessage,
@@ -96,8 +97,9 @@ class ErrorUtils : public AllStatic {
           ToStringMessageSource::kCurrentMessageProperty);
 
   static Handle<JSObject> MakeGenericError(
-      Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
-      base::Vector<const DirectHandle<Object>> args, FrameSkipMode mode);
+      Isolate* isolate, DirectHandle<JSFunction> constructor,
+      MessageTemplate index, base::Vector<const DirectHandle<Object>> args,
+      FrameSkipMode mode);
 
   static Handle<JSObject> ShadowRealmConstructTypeErrorCopy(
       Isolate* isolate, Handle<Object> original, MessageTemplate index,

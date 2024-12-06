@@ -193,8 +193,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
-  int ContextSlotIndex(Handle<String> name);
-  int ContextSlotIndex(Handle<String> name,
+  int ContextSlotIndex(DirectHandle<String> name);
+  int ContextSlotIndex(DirectHandle<String> name,
                        VariableLookupResult* lookup_result);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
@@ -263,9 +263,9 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   template <typename IsolateT>
   static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
-                                  MaybeHandle<ScopeInfo> outer_scope);
+                                  MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForWithScope(
-      Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
+      Isolate* isolate, MaybeDirectHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
       Isolate* isolate);
   static Handle<ScopeInfo> CreateForNativeContext(Isolate* isolate);

@@ -25,7 +25,7 @@ namespace internal {
 
 namespace {  // for String.fromCodePoint
 
-bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
+bool IsValidCodePoint(Isolate* isolate, DirectHandle<Object> value) {
   if (!IsNumber(*value) && !Object::ToNumber(isolate, value).ToHandle(&value)) {
     return false;
   }
@@ -47,7 +47,7 @@ bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
 static constexpr base::uc32 kInvalidCodePoint = static_cast<base::uc32>(-1);
 
 base::uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
-  Handle<Object> value = args.at(1 + index);
+  DirectHandle<Object> value = args.at(1 + index);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, Object::ToNumber(isolate, value), kInvalidCodePoint);
   if (!IsValidCodePoint(isolate, value)) {
@@ -111,7 +111,7 @@ BUILTIN(StringFromCodePoint) {
     }
   }
 
-  Handle<SeqTwoByteString> result;
+  DirectHandle<SeqTwoByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       isolate->factory()->NewRawTwoByteString(
@@ -150,7 +150,7 @@ BUILTIN(StringPrototypeLocaleCompare) {
   DCHECK_LE(2, args.length());
 
   TO_THIS_STRING(str1, kMethod);
-  Handle<String> str2;
+  DirectHandle<String> str2;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str2,
                                      Object::ToString(isolate, args.at(1)));
 
@@ -199,10 +199,10 @@ BUILTIN(StringPrototypeNormalize) {
   HandleScope handle_scope(isolate);
   TO_THIS_STRING(string, "String.prototype.normalize");
 
-  Handle<Object> form_input = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> form_input = args.atOrUndefined(isolate, 1);
   if (IsUndefined(*form_input, isolate)) return *string;
 
-  Handle<String> form;
+  DirectHandle<String> form;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
                                      Object::ToString(isolate, form_input));
 
@@ -210,7 +210,7 @@ BUILTIN(StringPrototypeNormalize) {
         String::Equals(isolate, form, isolate->factory()->NFD_string()) ||
         String::Equals(isolate, form, isolate->factory()->NFKC_string()) ||
         String::Equals(isolate, form, isolate->factory()->NFKD_string()))) {
-    Handle<String> valid_forms =
+    DirectHandle<String> valid_forms =
         isolate->factory()->NewStringFromStaticChars("NFC, NFD, NFKC, NFKD");
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
@@ -332,7 +332,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCaseHelper(
 
 template <class Converter>
 V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
-    Handle<String> s, Isolate* isolate,
+    DirectHandle<String> s, Isolate* isolate,
     unibrow::Mapping<Converter, 128>* mapping) {
   s = String::Flatten(isolate, s);
   uint32_t length = s->length();
@@ -347,7 +347,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
   // dependent upper/lower conversions.
   if (s->IsOneByteRepresentation()) {
     // Same length as input.
-    Handle<SeqOneByteString> result =
+    DirectHandle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
     DisallowGarbageCollection no_gc;
     String::FlatContent flat_content = s->GetFlatContent(no_gc);
@@ -364,7 +364,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
       return has_changed_character ? *result : *s;
   }
 
-  Handle<SeqString> result;  // Same length as input.
+  DirectHandle<SeqString> result;  // Same length as input.
   if (s->IsOneByteRepresentation()) {
     result = isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
   } else {
@@ -425,22 +425,22 @@ BUILTIN(StringPrototypeToUpperCase) {
 // ES6 #sec-string.prototype.raw
 BUILTIN(StringRaw) {
   HandleScope scope(isolate);
-  Handle<Object> templ = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> templ = args.atOrUndefined(isolate, 1);
   const uint32_t argc = args.length();
-  Handle<String> raw_string =
+  DirectHandle<String> raw_string =
       isolate->factory()->NewStringFromAsciiChecked("raw");
 
-  Handle<JSReceiver> cooked;
+  DirectHandle<JSReceiver> cooked;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, cooked,
                                      Object::ToObject(isolate, templ));
 
-  Handle<JSAny> raw;
+  DirectHandle<JSAny> raw;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, raw,
       Cast<JSAny>(Object::GetProperty(isolate, cooked, raw_string)));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw,
                                      Object::ToObject(isolate, raw));
-  Handle<Object> raw_len;
+  DirectHandle<Object> raw_len;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, raw_len,
       Object::GetProperty(isolate, raw, isolate->factory()->length_string()));
@@ -456,29 +456,29 @@ BUILTIN(StringRaw) {
                               ? std::numeric_limits<uint32_t>::max()
                               : static_cast<uint32_t>(raw_len_number);
   if (length > 0) {
-    Handle<Object> first_element;
+    DirectHandle<Object> first_element;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, first_element,
                                        Object::GetElement(isolate, raw, 0));
 
-    Handle<String> first_string;
+    DirectHandle<String> first_string;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, first_string, Object::ToString(isolate, first_element));
     result_builder.AppendString(first_string);
 
     for (uint32_t i = 1, arg_i = 2; i < length; i++, arg_i++) {
       if (arg_i < argc) {
-        Handle<String> argument_string;
+        DirectHandle<String> argument_string;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, argument_string,
             Object::ToString(isolate, args.at(arg_i)));
         result_builder.AppendString(argument_string);
       }
 
-      Handle<Object> element;
+      DirectHandle<Object> element;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element,
                                          Object::GetElement(isolate, raw, i));
 
-      Handle<String> element_string;
+      DirectHandle<String> element_string;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_string,
                                          Object::ToString(isolate, element));
       result_builder.AppendString(element_string);

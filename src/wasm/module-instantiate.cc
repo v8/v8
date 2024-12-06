@@ -54,7 +54,7 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
                             ModuleTypeIndex struct_index,
                             Handle<Map> opt_rtt_parent,
                             DirectHandle<WasmTrustedInstanceData> trusted_data,
-                            Handle<WasmInstanceObject> instance) {
+                            DirectHandle<WasmInstanceObject> instance) {
   const wasm::StructType* type = module->struct_type(struct_index);
   const int inobject_properties = 0;
   // We have to use the variable size sentinel because the instance size
@@ -83,7 +83,7 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
                            ModuleTypeIndex array_index,
                            Handle<Map> opt_rtt_parent,
                            DirectHandle<WasmTrustedInstanceData> trusted_data,
-                           Handle<WasmInstanceObject> instance) {
+                           DirectHandle<WasmInstanceObject> instance) {
   const wasm::ArrayType* type = module->array_type(array_index);
   const int inobject_properties = 0;
   const int instance_size = kVariableSizeSentinel;
@@ -915,8 +915,9 @@ class InstanceBuilder {
   }
 
   // Look up an import value in the {ffi_} object.
-  MaybeHandle<Object> LookupImport(uint32_t index, Handle<String> module_name,
-                                   Handle<String> import_name);
+  MaybeHandle<Object> LookupImport(uint32_t index,
+                                   DirectHandle<String> module_name,
+                                   DirectHandle<String> import_name);
 
   // Look up an import value in the {ffi_} object specifically for linking an
   // asm.js module. This only performs non-observable lookups, which allows
@@ -1292,7 +1293,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
           table.address_type);
       (table.shared ? shared_tables : tables)->set(i, *table_obj);
       if (table_obj->has_trusted_dispatch_table()) {
-        Handle<WasmTrustedInstanceData> data_part =
+        DirectHandle<WasmTrustedInstanceData> data_part =
             table.shared ? shared_trusted_data : trusted_data;
         DirectHandle<WasmDispatchTable> dispatch_table(
             table_obj->trusted_dispatch_table(isolate_), isolate_);
@@ -1514,7 +1515,7 @@ bool InstanceBuilder::ExecuteStartFunction() {
   hsi->EnterContext(start_function_->native_context());
 
   // Call the JS function.
-  Handle<Object> undefined = isolate_->factory()->undefined_value();
+  DirectHandle<Object> undefined = isolate_->factory()->undefined_value();
   MaybeHandle<Object> retval =
       Execution::Call(isolate_, start_function_, undefined, {});
   hsi->LeaveContext();
@@ -1529,9 +1530,9 @@ bool InstanceBuilder::ExecuteStartFunction() {
 }
 
 // Look up an import value in the {ffi_} object.
-MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
-                                                  Handle<String> module_name,
-                                                  Handle<String> import_name) {
+MaybeHandle<Object> InstanceBuilder::LookupImport(
+    uint32_t index, DirectHandle<String> module_name,
+    DirectHandle<String> import_name) {
   // The caller checked that the ffi object is present; and we checked in
   // the JS-API layer that the ffi object, if present, is a JSObject.
   DCHECK(!ffi_.is_null());
@@ -1562,7 +1563,7 @@ MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
 
 namespace {
 bool HasDefaultToNumberBehaviour(Isolate* isolate,
-                                 Handle<JSFunction> function) {
+                                 DirectHandle<JSFunction> function) {
   // Disallow providing a [Symbol.toPrimitive] member.
   LookupIterator to_primitive_it{isolate, function,
                                  isolate->factory()->to_primitive_symbol()};
@@ -1751,11 +1752,12 @@ Handle<JSFunction> CreateFunctionForCompileTimeImport(Isolate* isolate,
                                                       WellKnownImport wki) {
   auto [name, builtin, length] = NameBuiltinLength(wki);
   Factory* factory = isolate->factory();
-  Handle<NativeContext> context(isolate->native_context());
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
+  DirectHandle<NativeContext> context(isolate->native_context());
+  DirectHandle<Map> map = isolate->strict_function_without_prototype_map();
   Handle<String> name_str = factory->InternalizeUtf8String(name);
-  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      name_str, builtin, length, kAdapt);
+  DirectHandle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name_str, builtin, length,
+                                               kAdapt);
   info->set_native(true);
   info->set_language_mode(LanguageMode::kStrict);
   Handle<JSFunction> fun =
@@ -1803,7 +1805,7 @@ void InstanceBuilder::SanitizeImports() {
       return;
     }
 
-    Handle<String> module_name =
+    DirectHandle<String> module_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
             isolate_, wire_bytes, import.module_name, kInternalize);
 
@@ -2513,14 +2515,14 @@ void InstanceBuilder::ProcessExports(
     }
   }
 
-  Handle<WasmInstanceObject> instance_object{
+  DirectHandle<WasmInstanceObject> instance_object{
       trusted_instance_data->instance_object(), isolate_};
-  Handle<JSObject> exports_object =
+  DirectHandle<JSObject> exports_object =
       handle(instance_object->exports_object(), isolate_);
   MaybeHandle<String> single_function_name;
   bool is_asm_js = is_asmjs_module(module_);
   if (is_asm_js) {
-    Handle<JSFunction> object_function = Handle<JSFunction>(
+    DirectHandle<JSFunction> object_function = Handle<JSFunction>(
         isolate_->native_context()->object_function(), isolate_);
     exports_object = isolate_->factory()->NewJSObject(object_function);
     single_function_name =
@@ -2545,9 +2547,10 @@ void InstanceBuilder::ProcessExports(
 
   // Process each export in the export table.
   for (const WasmExport& exp : module_->export_table) {
-    Handle<String> name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-        isolate_, module_object_, exp.name, kInternalize);
-    Handle<JSAny> value;
+    DirectHandle<String> name =
+        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+            isolate_, module_object_, exp.name, kInternalize);
+    DirectHandle<JSAny> value;
     switch (exp.kind) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
@@ -2559,7 +2562,7 @@ void InstanceBuilder::ProcessExports(
                 exp.index);
         DirectHandle<WasmInternalFunction> internal_function{
             func_ref->internal(isolate_), isolate_};
-        Handle<JSFunction> wasm_external_function =
+        DirectHandle<JSFunction> wasm_external_function =
             WasmInternalFunction::GetOrCreateExternal(internal_function);
         value = wasm_external_function;
 
@@ -2649,7 +2652,7 @@ void InstanceBuilder::ProcessExports(
 
         // Since the global's array untagged_buffer is always provided,
         // allocation should never fail.
-        Handle<WasmGlobalObject> global_obj =
+        DirectHandle<WasmGlobalObject> global_obj =
             WasmGlobalObject::New(isolate_,
                                   global.shared ? shared_trusted_instance_data
                                                 : trusted_instance_data,

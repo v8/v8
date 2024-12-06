@@ -82,7 +82,7 @@ const std::initializer_list<JSDurationFormat::FieldStyle>
 
 Maybe<DurationUnitOptions> GetDurationUnitOptions(
     Isolate* isolate, Unit unit, const char* unit_string,
-    const char* display_field, Handle<JSReceiver> options,
+    const char* display_field, DirectHandle<JSReceiver> options,
     JSDurationFormat::Style base_style,
     const std::vector<const char*>& value_strings,
     const std::vector<JSDurationFormat::FieldStyle>& value_enums,
@@ -240,8 +240,8 @@ JSDurationFormat::Separator GetSeparator(const icu::Locale& l) {
 
 }  // namespace
 MaybeHandle<JSDurationFormat> JSDurationFormat::New(
-    Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-    Handle<Object> input_options) {
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> input_options) {
   Factory* factory = isolate->factory();
   const char* method_name = "Intl.DurationFormat";
 
@@ -253,7 +253,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
       Handle<JSDurationFormat>());
 
   // 4. Let options be ? GetOptionsObject(options).
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
@@ -546,7 +546,7 @@ Handle<JSObject> JSDurationFormat::ResolvedOptions(
   Factory* factory = isolate->factory();
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
-  Handle<String> locale = factory->NewStringFromAsciiChecked(
+  DirectHandle<String> locale = factory->NewStringFromAsciiChecked(
       Intl::ToLanguageTag(*format->icu_locale()->raw()).FromJust().c_str());
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString skeleton =
@@ -602,7 +602,7 @@ Handle<JSObject> JSDurationFormat::ResolvedOptions(
   int32_t fractional_digits = format->fractional_digits();
   // i. If v is not undefined, set v to 𝔽(v).
   if (kUndefinedFractionalDigits != fractional_digits) {
-    Handle<Smi> fractional_digits_obj =
+    DirectHandle<Smi> fractional_digits_obj =
         handle(Smi::FromInt(fractional_digits), isolate);
     // f. If v is not undefined, then
     // i. Perform ! CreateDataPropertyOrThrow(options, p, v).

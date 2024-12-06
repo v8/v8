@@ -15,7 +15,7 @@ RUNTIME_FUNCTION(
   DCHECK_EQ(2, args.length());
   DirectHandle<JSFinalizationRegistry> finalization_registry =
       args.at<JSFinalizationRegistry>(0);
-  Handle<WeakCell> weak_cell = args.at<WeakCell>(1);
+  DirectHandle<WeakCell> weak_cell = args.at<WeakCell>(1);
 
   JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
       finalization_registry, weak_cell, isolate);

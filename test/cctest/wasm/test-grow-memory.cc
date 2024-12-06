@@ -38,7 +38,7 @@ TEST(GrowMemDetaches) {
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    Handle<WasmMemoryObject> memory_object =
+    DirectHandle<WasmMemoryObject> memory_object =
         WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
                               wasm::AddressType::kI32)
             .ToHandleChecked();
@@ -55,7 +55,7 @@ TEST(Externalized_GrowMemMemSize) {
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    Handle<WasmMemoryObject> memory_object =
+    DirectHandle<WasmMemoryObject> memory_object =
         WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
                               wasm::AddressType::kI32)
             .ToHandleChecked();
@@ -88,11 +88,11 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     builder->WriteTo(&buffer);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
-    const Handle<WasmInstanceObject> instance =
+    const DirectHandle<WasmInstanceObject> instance =
         CompileAndInstantiateForTesting(isolate, &thrower,
                                         base::VectorOf(buffer))
             .ToHandleChecked();
-    Handle<WasmMemoryObject> memory_object{
+    DirectHandle<WasmMemoryObject> memory_object{
         instance->trusted_data(isolate)->memory_object(0), isolate};
 
     // Fake the Embedder flow by externalizing the array buffer.

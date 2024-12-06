@@ -83,7 +83,7 @@ class Snapshot : public AllStatic {
 
   // Create a new context using the internal context snapshot.
   static MaybeDirectHandle<Context> NewContextFromSnapshot(
-      Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+      Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
       size_t context_index,
       DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
@@ -168,9 +168,9 @@ class SnapshotCreatorImpl final {
 
   Isolate* isolate() const { return isolate_; }
 
-  void SetDefaultContext(Handle<NativeContext> context,
+  void SetDefaultContext(DirectHandle<NativeContext> context,
                          SerializeEmbedderFieldsCallback callback);
-  size_t AddContext(Handle<NativeContext> context,
+  size_t AddContext(DirectHandle<NativeContext> context,
                     SerializeEmbedderFieldsCallback callback);
 
   size_t AddData(DirectHandle<NativeContext> context, Address object);

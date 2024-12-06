@@ -979,7 +979,7 @@ RUNTIME_FUNCTION(Runtime_RegExpGrowRegExpMatchInfo) {
   // We never pass anything besides the global last_match_info.
   DCHECK_EQ(*match_info, *isolate->regexp_last_match_info());
 
-  Handle<RegExpMatchInfo> result = RegExpMatchInfo::ReserveCaptures(
+  DirectHandle<RegExpMatchInfo> result = RegExpMatchInfo::ReserveCaptures(
       isolate, match_info, JSRegExp::CaptureCountForRegisters(register_count));
   if (*result != *match_info) {
     isolate->native_context()->set_regexp_last_match_info(*result);
@@ -1214,12 +1214,12 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     const int name_ix = i * 2;
     const int index_ix = i * 2 + 1;
 
-    Handle<String> capture_name(Cast<String>(capture_map->get(name_ix)),
-                                isolate);
+    DirectHandle<String> capture_name(Cast<String>(capture_map->get(name_ix)),
+                                      isolate);
     const int capture_ix = Smi::ToInt(capture_map->get(index_ix));
     DCHECK_GE(capture_ix, 1);  // Explicit groups start at index 1.
 
-    Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
+    DirectHandle<Object> capture_value(f_get_capture(capture_ix), isolate);
     DCHECK(IsUndefined(*capture_value, isolate) || IsString(*capture_value));
 
     LookupIterator it(isolate, groups, capture_name, groups,
@@ -1573,7 +1573,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   DCHECK_EQ(3, args.length());
   Handle<String> subject = args.at<String>(0);
   DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(1);
-  Handle<JSReceiver> replace_obj = args.at<JSReceiver>(2);
+  DirectHandle<JSReceiver> replace_obj = args.at<JSReceiver>(2);
 
   DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));
   DCHECK(replace_obj->map()->is_callable());
@@ -1724,7 +1724,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  Handle<JSReceiver> recv = args.at<JSReceiver>(0);
+  DirectHandle<JSReceiver> recv = args.at<JSReceiver>(0);
   Handle<String> string = args.at<String>(1);
   Handle<Object> limit_obj = args.at(2);
 
@@ -1744,7 +1744,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, flags,
                                      Object::ToString(isolate, flags_obj));
 
-  Handle<String> u_str = factory->LookupSingleCharacterStringFromCode('u');
+  DirectHandle<String> u_str =
+      factory->LookupSingleCharacterStringFromCode('u');
   const bool unicode = (String::IndexOf(isolate, flags, u_str, 0) >= 0);
 
   Handle<String> y_str = factory->LookupSingleCharacterStringFromCode('y');
@@ -2215,16 +2216,17 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  Handle<JSRegExp> regexp_handle = args.at<JSRegExp>(0);
-  Handle<String> subject_handle = String::Flatten(isolate, args.at<String>(1));
-  Handle<AtomRegExpData> data_handle = args.at<AtomRegExpData>(2);
+  DirectHandle<JSRegExp> regexp_handle = args.at<JSRegExp>(0);
+  DirectHandle<String> subject_handle =
+      String::Flatten(isolate, args.at<String>(1));
+  DirectHandle<AtomRegExpData> data_handle = args.at<AtomRegExpData>(2);
 
   DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp_handle));
   DCHECK(regexp_handle->flags() & JSRegExp::kGlobal);
   DCHECK_EQ(data_handle->type_tag(), RegExpData::Type::ATOM);
 
   // Initialized below.
-  Handle<String> pattern_handle;
+  DirectHandle<String> pattern_handle;
   int pattern_length;
 
   int number_of_matches = 0;
@@ -2289,7 +2291,7 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
     WriteBarrier::ForRange(isolate->heap(), *elems, dst_slot,
                            dst_slot + number_of_matches);
   }
-  Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(
+  DirectHandle<JSArray> result = isolate->factory()->NewJSArrayWithElements(
       elems, TERMINAL_FAST_ELEMENTS_KIND, number_of_matches);
   return *result;
 }

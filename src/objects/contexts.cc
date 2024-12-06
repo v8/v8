@@ -51,7 +51,7 @@ Handle<NameToIndexHashTable> AddLocalNamesFromContext(
   names_table = names_table->EnsureCapacity(isolate, names_table, local_count);
 
   for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
-    Handle<Name> name(it->name(), isolate);
+    DirectHandle<Name> name(it->name(), isolate);
     if (ignore_duplicates) {
       int32_t hash = NameToIndexShape::Hash(roots, name);
       if (names_table->FindEntry(isolate, roots, name, hash).is_found()) {
@@ -109,7 +109,7 @@ void Context::Initialize(Isolate* isolate) {
   }
 }
 
-bool ScriptContextTable::Lookup(Handle<String> name,
+bool ScriptContextTable::Lookup(DirectHandle<String> name,
                                 VariableLookupResult* result) {
   DisallowGarbageCollection no_gc;
   int index = names_to_context_index()->Lookup(name);
@@ -452,7 +452,8 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     // `has_seen_debug_evaluate_context` will always be false.
     if (has_seen_debug_evaluate_context &&
         IsEphemeronHashTable(isolate->heap()->locals_block_list_cache())) {
-      Handle<ScopeInfo> scope_info = handle(context->scope_info(), isolate);
+      DirectHandle<ScopeInfo> scope_info =
+          handle(context->scope_info(), isolate);
       Tagged<Object> maybe_outer_block_list =
           isolate->LocalsBlockListCacheGet(scope_info);
       if (IsStringSet(maybe_outer_block_list) &&
@@ -605,8 +606,9 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
         if (IsHeapNumber(*new_value)) {
           side_data->set(side_data_index,
                          ContextSidePropertyCell::MutableHeapNumber());
-          Handle<HeapNumber> new_number = isolate->factory()->NewHeapNumber(
-              Cast<HeapNumber>(*new_value)->value());
+          DirectHandle<HeapNumber> new_number =
+              isolate->factory()->NewHeapNumber(
+                  Cast<HeapNumber>(*new_value)->value());
           script_context->set(index, *new_number);
         } else {
           side_data->set(side_data_index,
@@ -636,8 +638,9 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
         if (IsHeapNumber(*new_value)) {
           side_data->set(side_data_index,
                          ContextSidePropertyCell::MutableHeapNumber());
-          Handle<HeapNumber> new_number = isolate->factory()->NewHeapNumber(
-              Cast<HeapNumber>(*new_value)->value());
+          DirectHandle<HeapNumber> new_number =
+              isolate->factory()->NewHeapNumber(
+                  Cast<HeapNumber>(*new_value)->value());
           script_context->set(index, *new_number);
         } else {
           side_data->set(side_data_index, ContextSidePropertyCell::Other());

@@ -173,7 +173,7 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
         NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,               \
                      isolate->factory()->NewStringFromAsciiChecked(method))); \
   }                                                                           \
-  Handle<String> name;                                                        \
+  DirectHandle<String> name;                                                  \
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                         \
       isolate, name, Object::ToString(isolate, args.receiver()))
 

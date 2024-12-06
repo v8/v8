@@ -832,17 +832,21 @@ typename HandleType<Number>::MaybeType Object::ToInteger(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Number> Object::ToInt32(Isolate* isolate, Handle<Object> input) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<Number>::MaybeType Object::ToInt32(Isolate* isolate,
+                                                       HandleType<T> input) {
   if (IsSmi(*input)) return Cast<Smi>(input);
-  return ConvertToInt32(isolate, input);
+  return ConvertToInt32(isolate, Cast<Object>(input));
 }
 
 // static
-MaybeHandle<Number> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<Number>::MaybeType Object::ToUint32(Isolate* isolate,
+                                                        HandleType<T> input) {
   if (IsSmi(*input)) {
     return handle(Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
   }
-  return ConvertToUint32(isolate, input);
+  return ConvertToUint32(isolate, Cast<Object>(input));
 }
 
 // static
@@ -864,10 +868,11 @@ MaybeHandle<Object> Object::ToLength(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
-                                    MessageTemplate error_index) {
+template <typename T, template <typename> typename HandleType, typename>
+typename HandleType<Object>::MaybeType Object::ToIndex(
+    Isolate* isolate, HandleType<T> input, MessageTemplate error_index) {
   if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return input;
-  return ConvertToIndex(isolate, input, error_index);
+  return ConvertToIndex(isolate, Cast<Object>(input), error_index);
 }
 
 MaybeHandle<Object> Object::GetProperty(Isolate* isolate,

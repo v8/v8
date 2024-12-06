@@ -259,12 +259,18 @@ class Object : public AllStatic {
   ToInteger(Isolate* isolate, HandleType<T> input);
 
   // ES6 section 7.1.5 ToInt32
-  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Number> ToInt32(
-      Isolate* isolate, Handle<Object> input);
+  template <typename T, template <typename> typename HandleType,
+            typename = std::enable_if_t<
+                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  V8_WARN_UNUSED_RESULT static inline typename HandleType<Number>::MaybeType
+  ToInt32(Isolate* isolate, HandleType<T> input);
 
   // ES6 section 7.1.6 ToUint32
-  V8_WARN_UNUSED_RESULT inline static MaybeHandle<Number> ToUint32(
-      Isolate* isolate, Handle<Object> input);
+  template <typename T, template <typename> typename HandleType,
+            typename = std::enable_if_t<
+                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  V8_WARN_UNUSED_RESULT static inline typename HandleType<Number>::MaybeType
+  ToUint32(Isolate* isolate, HandleType<T> input);
 
   // ES6 section 7.1.12 ToString
   template <typename T, template <typename> typename HandleType,
@@ -291,8 +297,11 @@ class Object : public AllStatic {
       Isolate* isolate, DirectHandle<Object> input);
 
   // ES6 section 7.1.17 ToIndex
-  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToIndex(
-      Isolate* isolate, Handle<Object> input, MessageTemplate error_index);
+  template <typename T, template <typename> typename HandleType,
+            typename = std::enable_if_t<
+                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  V8_WARN_UNUSED_RESULT static inline typename HandleType<Object>::MaybeType
+  ToIndex(Isolate* isolate, HandleType<T> input, MessageTemplate error_index);
 
   // ES6 section 7.3.9 GetMethod
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetMethod(
@@ -612,15 +621,25 @@ class Object : public AllStatic {
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   V8_WARN_UNUSED_RESULT static typename HandleType<Number>::MaybeType
       ConvertToInteger(Isolate* isolate, HandleType<Object> input);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Number> ConvertToInt32(
-      Isolate* isolate, Handle<Object> input);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Number> ConvertToUint32(
-      Isolate* isolate, Handle<Object> input);
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Object>, DirectHandle<Object>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<Number>::MaybeType ConvertToInt32(
+      Isolate* isolate, HandleType<Object> input);
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Object>, DirectHandle<Object>>>>
+  V8_WARN_UNUSED_RESULT static HandleType<Number>::MaybeType ConvertToUint32(
+      Isolate* isolate, HandleType<Object> input);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Number>
   ConvertToLength(Isolate* isolate, DirectHandle<Object> input);
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Number>
-  ConvertToIndex(Isolate* isolate, Handle<Object> input,
-                 MessageTemplate error_index);
+  template <template <typename> typename HandleType,
+            typename = std::enable_if_t<std::is_convertible_v<
+                HandleType<Object>, DirectHandle<Object>>>>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  V8_WARN_UNUSED_RESULT static typename HandleType<Number>::MaybeType
+      ConvertToIndex(Isolate* isolate, HandleType<Object> input,
+                     MessageTemplate error_index);
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

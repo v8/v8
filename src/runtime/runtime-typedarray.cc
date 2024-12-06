@@ -49,8 +49,8 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSetDetachKey) {
 RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSTypedArray> target = args.at<JSTypedArray>(0);
-  Handle<JSAny> source = args.at<JSAny>(1);
+  DirectHandle<JSTypedArray> target = args.at<JSTypedArray>(0);
+  DirectHandle<JSAny> source = args.at<JSAny>(1);
   size_t length;
   CHECK(TryNumberToSize(args[2], &length));
   ElementsAccessor* accessor = target->GetElementsAccessor();
@@ -190,8 +190,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
 RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSTypedArray> target = args.at<JSTypedArray>(0);
-  Handle<JSAny> source = args.at<JSAny>(1);
+  DirectHandle<JSTypedArray> target = args.at<JSTypedArray>(0);
+  DirectHandle<JSAny> source = args.at<JSAny>(1);
   size_t length;
   CHECK(TryNumberToSize(args[2], &length));
   size_t offset;

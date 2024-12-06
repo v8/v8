@@ -81,8 +81,8 @@ void SetAccessorPlaceholderIndices(Tagged<AccessorPair> pair,
 template <typename IsolateT>
 void AddToDescriptorArrayTemplate(
     IsolateT* isolate, DirectHandle<DescriptorArray> descriptor_array_template,
-    Handle<Name> name, ClassBoilerplate::ValueKind value_kind,
-    Handle<Object> value) {
+    DirectHandle<Name> name, ClassBoilerplate::ValueKind value_kind,
+    DirectHandle<Object> value) {
   InternalIndex entry = descriptor_array_template->Search(
       *name, descriptor_array_template->number_of_descriptors());
   // TODO(ishell): deduplicate properties at AST level, this will allow us to
@@ -96,7 +96,7 @@ void AddToDescriptorArrayTemplate(
       DCHECK(value_kind == ClassBoilerplate::kGetter ||
              value_kind == ClassBoilerplate::kSetter ||
              value_kind == ClassBoilerplate::kAutoAccessor);
-      Handle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
+      DirectHandle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
       SetAccessorPlaceholderIndices(*pair, value_kind, Cast<Smi>(*value));
       d = Descriptor::AccessorConstant(name, pair, DONT_ENUM);
     }
@@ -119,7 +119,8 @@ void AddToDescriptorArrayTemplate(
       if (IsAccessorPair(raw_accessor)) {
         pair = Cast<AccessorPair>(raw_accessor);
       } else {
-        Handle<AccessorPair> new_pair = isolate->factory()->NewAccessorPair();
+        DirectHandle<AccessorPair> new_pair =
+            isolate->factory()->NewAccessorPair();
         Descriptor d = Descriptor::AccessorConstant(name, new_pair, DONT_ENUM);
         d.SetSortedKeyIndex(sorted_index);
         descriptor_array_template->Set(entry, &d);

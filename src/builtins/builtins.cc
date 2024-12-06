@@ -357,7 +357,7 @@ bool Builtins::IsBuiltin(const Tagged<Code> code) {
   return Builtins::IsBuiltinId(code->builtin_id());
 }
 
-bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
+bool Builtins::IsBuiltinHandle(IndirectHandle<HeapObject> maybe_code,
                                Builtin* builtin) const {
   Address* handle_location = maybe_code.location();
   Address* builtins_table = isolate_->builtin_table();
@@ -531,12 +531,12 @@ CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
 }
 
 // static
-bool Builtins::AllowDynamicFunction(Isolate* isolate,
-                                    DirectHandle<JSFunction> target,
-                                    Handle<JSObject> target_global_proxy) {
+bool Builtins::AllowDynamicFunction(
+    Isolate* isolate, DirectHandle<JSFunction> target,
+    DirectHandle<JSObject> target_global_proxy) {
   if (v8_flags.allow_unsafe_function_constructor) return true;
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  Handle<NativeContext> responsible_context = impl->LastEnteredContext();
+  DirectHandle<NativeContext> responsible_context = impl->LastEnteredContext();
   // TODO(verwaest): Remove this.
   if (responsible_context.is_null()) {
     return true;

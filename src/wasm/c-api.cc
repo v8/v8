@@ -470,7 +470,7 @@ struct ManagedData {
   void (*finalizer)(void*);
 };
 
-void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
+void StoreImpl::SetHostInfo(i::DirectHandle<i::Object> object, void* info,
                             void (*finalizer)(void*)) {
   v8::Isolate::Scope isolate_scope(isolate());
   i::HandleScope scope(i_isolate());
@@ -485,7 +485,7 @@ void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
   i::JSWeakCollection::Set(host_info_map_, object, wrapper, hash);
 }
 
-void* StoreImpl::GetHostInfo(i::Handle<i::Object> key) {
+void* StoreImpl::GetHostInfo(i::DirectHandle<i::Object> key) {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate());
   i::Tagged<i::Object> raw =
       i::Cast<i::EphemeronHashTable>(host_info_map_->table())->Lookup(key);
@@ -2281,7 +2281,7 @@ auto Memory::grow(pages_t delta) -> bool {
   i::Isolate* isolate = impl(this)->isolate();
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   i::HandleScope handle_scope(isolate);
-  i::Handle<i::WasmMemoryObject> memory = impl(this)->v8_object();
+  i::DirectHandle<i::WasmMemoryObject> memory = impl(this)->v8_object();
   int32_t old = i::WasmMemoryObject::Grow(isolate, memory, delta);
   return old != -1;
 }
@@ -2314,10 +2314,11 @@ own<Instance> Instance::make(Store* store_abs, const Module* module_abs,
       isolate->factory()->NewJSObject(isolate->object_function());
   for (size_t i = 0; i < import_types.size(); ++i) {
     ImportType* type = import_types[i].get();
-    i::Handle<i::String> module_str = VecToString(isolate, type->module());
-    i::Handle<i::String> name_str = VecToString(isolate, type->name());
+    i::DirectHandle<i::String> module_str =
+        VecToString(isolate, type->module());
+    i::DirectHandle<i::String> name_str = VecToString(isolate, type->name());
 
-    i::Handle<i::JSObject> module_obj;
+    i::DirectHandle<i::JSObject> module_obj;
     i::LookupIterator module_it(isolate, imports_obj, module_str,
                                 i::LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (i::JSObject::HasProperty(&module_it).ToChecked()) {
@@ -2378,7 +2379,8 @@ auto Instance::exports() const -> ownvec<Extern> {
   i::DirectHandle<i::WasmInstanceObject> instance_obj = instance->v8_object();
   i::DirectHandle<i::WasmModuleObject> module_obj(instance_obj->module_object(),
                                                   isolate);
-  i::Handle<i::JSObject> exports_obj(instance_obj->exports_object(), isolate);
+  i::DirectHandle<i::JSObject> exports_obj(instance_obj->exports_object(),
+                                           isolate);
 
   ownvec<ExportType> export_types = ExportsImpl(module_obj);
   ownvec<Extern> exports =
@@ -2387,7 +2389,7 @@ auto Instance::exports() const -> ownvec<Extern> {
 
   for (size_t i = 0; i < export_types.size(); ++i) {
     auto& name = export_types[i]->name();
-    i::Handle<i::String> name_str = VecToString(isolate, name);
+    i::DirectHandle<i::String> name_str = VecToString(isolate, name);
     i::Handle<i::Object> obj =
         i::Object::GetProperty(isolate, exports_obj, name_str)
             .ToHandleChecked();

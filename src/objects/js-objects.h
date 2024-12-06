@@ -598,7 +598,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Defines an AccessorInfo property on the given object.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SetAccessor(
       Handle<JSObject> object, DirectHandle<Name> name,
-      Handle<AccessorInfo> info, PropertyAttributes attributes);
+      DirectHandle<AccessorInfo> info, PropertyAttributes attributes);
 
   // Check if a data property can be created on the object. It will fail with
   // an error when it cannot.

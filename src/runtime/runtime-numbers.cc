@@ -49,7 +49,7 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
 RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<String> subject = args.at<String>(0);
+  DirectHandle<String> subject = args.at<String>(0);
 
   double value = StringToDouble(isolate, subject, ALLOW_TRAILING_JUNK,
                                 std::numeric_limits<double>::quiet_NaN());

@@ -3137,7 +3137,8 @@ bool Compiler::FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
 }
 
 // static
-void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+void Compiler::CompileOptimized(Isolate* isolate,
+                                DirectHandle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
   DCHECK(AllowCompilation::IsAllowed(isolate));
@@ -3211,7 +3212,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
 // static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> context, LanguageMode language_mode,
+    DirectHandle<Context> context, LanguageMode language_mode,
     ParseRestriction restriction, int parameters_end_pos, int eval_position,
     ParsingWhileDebugging parsing_while_debugging) {
   Isolate* isolate = context->GetIsolate();
@@ -3235,7 +3236,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   CompilationCache* compilation_cache = isolate->compilation_cache();
   InfoCellPair eval_result = compilation_cache->LookupEval(
       source, outer_info, context, language_mode, eval_cache_position);
-  Handle<FeedbackCell> feedback_cell;
+  DirectHandle<FeedbackCell> feedback_cell;
   if (eval_result.has_feedback_cell()) {
     feedback_cell = handle(eval_result.feedback_cell(), isolate);
   }
@@ -3427,7 +3428,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
 
 // static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
-    Handle<NativeContext> native_context, MaybeHandle<String> source,
+    DirectHandle<NativeContext> native_context, MaybeHandle<String> source,
     ParseRestriction restriction, int parameters_end_pos) {
   Isolate* const isolate = native_context->GetIsolate();
 
@@ -3760,7 +3761,7 @@ bool CanBackgroundCompile(const ScriptDetails& script_details,
 
 bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
   if (!IsJSError(*obj, isolate)) return false;
-  Handle<JSReceiver> js_obj = Cast<JSReceiver>(obj);
+  DirectHandle<JSReceiver> js_obj = Cast<JSReceiver>(obj);
   Handle<JSReceiver> constructor;
   if (!JSReceiver::GetConstructor(isolate, js_obj).ToHandle(&constructor)) {
     return false;
@@ -4075,7 +4076,7 @@ Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
 
 // static
 MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
-    Handle<String> source, Handle<Context> context,
+    Handle<String> source, DirectHandle<Context> context,
     const ScriptDetails& script_details, AlignedCachedData* cached_data,
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
@@ -4302,7 +4303,7 @@ DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   }
 
   // Allocate a shared function info object which will be compiled lazily.
-  Handle<SharedFunctionInfo> result =
+  DirectHandle<SharedFunctionInfo> result =
       isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script,
                                                           false);
   return result;
@@ -4314,11 +4315,9 @@ template DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate);
 
 // static
-MaybeHandle<Code> Compiler::CompileOptimizedOSR(Isolate* isolate,
-                                                Handle<JSFunction> function,
-                                                BytecodeOffset osr_offset,
-                                                ConcurrencyMode mode,
-                                                CodeKind code_kind) {
+MaybeHandle<Code> Compiler::CompileOptimizedOSR(
+    Isolate* isolate, DirectHandle<JSFunction> function,
+    BytecodeOffset osr_offset, ConcurrencyMode mode, CodeKind code_kind) {
   DCHECK(IsOSR(osr_offset));
 
   if (V8_UNLIKELY(isolate->serializer_enabled())) return {};

@@ -70,7 +70,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       FunctionTemplateInfo::SetInstanceTemplate(
           isolate, fun_data, Utils::OpenDirectHandle(*templ));
     }
-    Handle<ObjectTemplateInfo> instance_template(
+    DirectHandle<ObjectTemplateInfo> instance_template(
         Cast<ObjectTemplateInfo>(fun_data->GetInstanceTemplate()), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
@@ -106,7 +106,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
   if (fun_data->has_callback(isolate)) {
     FunctionCallbackArguments custom(isolate, *fun_data, raw_holder,
                                      *new_target, argv, argc);
-    Handle<Object> result = custom.CallOrConstruct(*fun_data, is_construct);
+    DirectHandle<Object> result =
+        custom.CallOrConstruct(*fun_data, is_construct);
 
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     if (result.is_null()) {
@@ -130,8 +131,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
 BUILTIN(HandleApiConstruct) {
   HandleScope scope(isolate);
-  Handle<Object> receiver = args.receiver();
-  Handle<HeapObject> new_target = args.new_target();
+  DirectHandle<Object> receiver = args.receiver();
+  DirectHandle<HeapObject> new_target = args.new_target();
   DCHECK(!IsUndefined(*new_target, isolate));
   DirectHandle<FunctionTemplateInfo> fun_data(
       args.target()->shared()->api_func_data(), isolate);
@@ -245,7 +246,7 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
     FunctionCallbackArguments custom(isolate, templ, obj, new_target,
                                      args.address_of_first_argument(),
                                      args.length() - 1);
-    Handle<Object> result_handle =
+    DirectHandle<Object> result_handle =
         custom.CallOrConstruct(templ, is_construct_call);
     if (result_handle.is_null()) {
       result = ReadOnlyRoots(isolate).undefined_value();

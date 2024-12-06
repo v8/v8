@@ -1932,7 +1932,7 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
   } else {
     // 6. Else X is an accessor property, so
     auto accessors = Cast<AccessorPair>(it->GetAccessors());
-    Handle<NativeContext> holder_realm(
+    DirectHandle<NativeContext> holder_realm(
         it->GetHolder<JSReceiver>()->GetCreationContext().value(), isolate);
     // 6a. Set D.[[Get]] to the value of X's [[Get]] attribute.
     desc->set_get(AccessorPair::GetComponent(isolate, holder_realm, accessors,
@@ -4766,7 +4766,7 @@ MaybeHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
 
 MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
                                           DirectHandle<Name> name,
-                                          Handle<AccessorInfo> info,
+                                          DirectHandle<AccessorInfo> info,
                                           PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
 

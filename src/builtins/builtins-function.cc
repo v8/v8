@@ -20,15 +20,15 @@ namespace internal {
 namespace {
 
 // ES6 section 19.2.1.1.1 CreateDynamicFunction
-MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
-                                          BuiltinArguments args,
-                                          const char* token) {
+MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
+                                                BuiltinArguments args,
+                                                const char* token) {
   // Compute number of arguments, ignoring the receiver.
   DCHECK_LE(1, args.length());
   int const argc = args.length() - 1;
 
-  Handle<JSFunction> target = args.target();
-  Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
+  DirectHandle<JSFunction> target = args.target();
+  DirectHandle<JSObject> target_global_proxy(target->global_proxy(), isolate);
 
   if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {
     isolate->CountUsage(v8::Isolate::kFunctionConstructorReturnedUndefined);
@@ -41,7 +41,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   }
 
   // Build the source string.
-  Handle<String> source;
+  DirectHandle<String> source;
   int parameters_end_pos = kNoSourcePosition;
   {
     IncrementalStringBuilder builder(isolate);
@@ -51,7 +51,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     if (argc > 1) {
       for (int i = 1; i < argc; ++i) {
         if (i > 1) builder.AppendCharacter(',');
-        Handle<String> param;
+        DirectHandle<String> param;
         ASSIGN_RETURN_ON_EXCEPTION(isolate, param,
                                    Object::ToString(isolate, args.at(i)));
         param = String::Flatten(isolate, param);
@@ -62,7 +62,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     parameters_end_pos = builder.Length();
     builder.AppendCStringLiteral(") {\n");
     if (argc > 0) {
-      Handle<String> body;
+      DirectHandle<String> body;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, body,
                                  Object::ToString(isolate, args.at(argc)));
       builder.AppendString(body);
@@ -82,13 +82,14 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
 
   // Compile the string in the constructor and not a helper so that errors to
   // come from here.
-  Handle<JSFunction> function;
+  DirectHandle<JSFunction> function;
   {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, function,
                                Compiler::GetFunctionFromString(
                                    handle(target->native_context(), isolate),
-                                   source, parameters_end_pos, is_code_like));
-    Handle<Object> result;
+                                   indirect_handle(source, isolate),
+                                   parameters_end_pos, is_code_like));
+    DirectHandle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
         Execution::Call(isolate, function, target_global_proxy, {}));
@@ -102,19 +103,21 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   // have a Function builtin subclassing case and therefore the
   // function has wrong initial map. To fix that we create a new
   // function object with correct initial map.
-  Handle<Object> unchecked_new_target = args.new_target();
+  DirectHandle<Object> unchecked_new_target = args.new_target();
   if (!IsUndefined(*unchecked_new_target, isolate) &&
       !unchecked_new_target.is_identical_to(target)) {
-    Handle<JSReceiver> new_target = Cast<JSReceiver>(unchecked_new_target);
+    DirectHandle<JSReceiver> new_target =
+        Cast<JSReceiver>(unchecked_new_target);
     Handle<Map> initial_map;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, initial_map,
         JSFunction::GetDerivedMap(isolate, target, new_target));
 
-    Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
-    Handle<Map> map = Map::AsLanguageMode(isolate, initial_map, shared_info);
+    DirectHandle<SharedFunctionInfo> shared_info(function->shared(), isolate);
+    DirectHandle<Map> map =
+        Map::AsLanguageMode(isolate, initial_map, shared_info);
 
-    Handle<Context> context(function->context(), isolate);
+    DirectHandle<Context> context(function->context(), isolate);
     function = Factory::JSFunctionBuilder{isolate, shared_info, context}
                    .set_map(map)
                    .set_allocation_type(AllocationType::kYoung)
@@ -128,7 +131,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
 // ES6 section 19.2.1.1 Function ( p1, p2, ... , pn, body )
 BUILTIN(FunctionConstructor) {
   HandleScope scope(isolate);
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, CreateDynamicFunction(isolate, args, "function"));
   return *result;
@@ -143,7 +146,7 @@ BUILTIN(GeneratorFunctionConstructor) {
 
 BUILTIN(AsyncFunctionConstructor) {
   HandleScope scope(isolate);
-  Handle<Object> maybe_func;
+  DirectHandle<Object> maybe_func;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, maybe_func,
       CreateDynamicFunction(isolate, args, "async function"));
@@ -161,7 +164,7 @@ BUILTIN(AsyncFunctionConstructor) {
 
 BUILTIN(AsyncGeneratorFunctionConstructor) {
   HandleScope scope(isolate);
-  Handle<Object> maybe_func;
+  DirectHandle<Object> maybe_func;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, maybe_func,
       CreateDynamicFunction(isolate, args, "async function*"));
@@ -194,7 +197,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
   }
 
   // Allocate the bound function with the given {this_arg} and {args}.
-  Handle<JSReceiver> target = args.at<JSReceiver>(0);
+  DirectHandle<JSReceiver> target = args.at<JSReceiver>(0);
   DirectHandle<JSAny> this_arg = isolate->factory()->undefined_value();
   DirectHandleVector<Object> argv(isolate, std::max(0, args.length() - 2));
   if (args.length() > 1) {
@@ -218,7 +221,7 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
     UNREACHABLE();
   }
 
-  Handle<JSBoundFunction> function;
+  DirectHandle<JSBoundFunction> function;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, function,
       isolate->factory()->NewJSBoundFunction(
@@ -250,7 +253,7 @@ BUILTIN(WebAssemblyFunctionPrototypeBind) {
 // ES6 section 19.2.3.5 Function.prototype.toString ( )
 BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
-  Handle<Object> receiver = args.receiver();
+  DirectHandle<Object> receiver = args.receiver();
   if (IsJSBoundFunction(*receiver)) {
     return *JSBoundFunction::ToString(Cast<JSBoundFunction>(receiver));
   }

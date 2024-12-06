@@ -326,7 +326,7 @@ class WasmMemoryObject
   inline bool is_memory64() const;
 
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
-      Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum,
+      Isolate* isolate, DirectHandle<JSArrayBuffer> buffer, int maximum,
       wasm::AddressType address_type);
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(
@@ -337,7 +337,8 @@ class WasmMemoryObject
   // fields of all instances that use this memory.
   void SetNewBuffer(Tagged<JSArrayBuffer> new_buffer);
 
-  V8_EXPORT_PRIVATE static int32_t Grow(Isolate*, Handle<WasmMemoryObject>,
+  V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
+                                        DirectHandle<WasmMemoryObject>,
                                         uint32_t pages);
 
   static constexpr int kNoMaximum = -1;
@@ -890,9 +891,9 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
   // The below getters return {undefined} in case the given exception package
   // does not carry the requested values (i.e. is of a different type).
   static Handle<Object> GetExceptionTag(
-      Isolate* isolate, Handle<WasmExceptionPackage> exception_package);
+      Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package);
   static Handle<Object> GetExceptionValues(
-      Isolate* isolate, Handle<WasmExceptionPackage> exception_package);
+      Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package);
 
   // Determines the size of the array holding all encoded exception values.
   static uint32_t GetEncodedSize(const wasm::WasmTagSig* tag);

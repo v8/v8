@@ -573,7 +573,7 @@ TEST(TestInterruptLoop) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "Test");
-    const Handle<WasmInstanceObject> instance =
+    const DirectHandle<WasmInstanceObject> instance =
         CompileAndInstantiateForTesting(isolate, &thrower,
                                         base::VectorOf(buffer))
             .ToHandleChecked();
@@ -660,7 +660,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
     testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         CompileAndInstantiateForTesting(isolate, &thrower,
                                         base::VectorOf(buffer))
             .ToHandleChecked();
@@ -710,7 +710,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
     testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
-    Handle<WasmInstanceObject> instance =
+    DirectHandle<WasmInstanceObject> instance =
         CompileAndInstantiateForTesting(isolate, &thrower,
                                         base::VectorOf(buffer))
             .ToHandleChecked();

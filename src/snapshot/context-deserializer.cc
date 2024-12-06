@@ -16,7 +16,7 @@ namespace internal {
 // static
 MaybeDirectHandle<Context> ContextDeserializer::DeserializeContext(
     Isolate* isolate, const SnapshotData* data, size_t context_index,
-    bool can_rehash, Handle<JSGlobalProxy> global_proxy,
+    bool can_rehash, DirectHandle<JSGlobalProxy> global_proxy,
     DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   TRACE_EVENT0("v8", "V8.DeserializeContext");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeContext);
@@ -45,7 +45,7 @@ MaybeDirectHandle<Context> ContextDeserializer::DeserializeContext(
 }
 
 MaybeDirectHandle<Object> ContextDeserializer::Deserialize(
-    Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+    Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
     DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   // Replace serialized references to the global proxy and its map with the
   // given global proxy and its map.

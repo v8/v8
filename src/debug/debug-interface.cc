@@ -252,7 +252,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
     return flag == i::IsStaticFlag::kStatic;
   };
 
-  i::Handle<i::JSReceiver> receiver = Utils::OpenHandle(*object);
+  i::DirectHandle<i::JSReceiver> receiver = Utils::OpenHandle(*object);
 
   i::PropertyFilter key_filter =
       static_cast<i::PropertyFilter>(i::PropertyFilter::PRIVATE_NAMES_ONLY);
@@ -271,7 +271,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
           i::DirectHandle<i::Object>) { private_entries_count++; };
   for (int i = 0; i < keys->length(); ++i) {
     // Exclude the private brand symbols.
-    i::Handle<i::Symbol> key(i::Cast<i::Symbol>(keys->get(i)), isolate);
+    i::DirectHandle<i::Symbol> key(i::Cast<i::Symbol>(keys->get(i)), isolate);
     if (key->is_private_brand()) {
       if (include_methods_or_accessors) {
         i::Handle<i::Object> value;
@@ -329,7 +329,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
 
   for (int i = 0; i < keys->length(); ++i) {
     i::DirectHandle<i::Object> obj_key(keys->get(i), isolate);
-    i::Handle<i::Symbol> key(i::Cast<i::Symbol>(*obj_key), isolate);
+    i::DirectHandle<i::Symbol> key(i::Cast<i::Symbol>(*obj_key), isolate);
     CHECK(key->is_private_name());
     i::Handle<i::Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -754,7 +754,7 @@ bool Script::SetBreakpoint(Local<String> condition, Location* location,
 }
 
 bool Script::SetInstrumentationBreakpoint(BreakpointId* id) const {
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::DirectHandle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::Type::kWasm) {
@@ -1102,8 +1102,8 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
 
   i::Factory* factory = isolate->factory();
   i::Handle<i::String> name = isolate->factory()->empty_string();
-  i::Handle<i::NativeContext> context(isolate->native_context());
-  i::Handle<i::SharedFunctionInfo> info =
+  i::DirectHandle<i::NativeContext> context(isolate->native_context());
+  i::DirectHandle<i::SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name, builtin, 0, i::kAdapt);
   info->set_language_mode(i::LanguageMode::kStrict);
   i::Handle<i::JSFunction> fun =
@@ -1358,7 +1358,7 @@ MaybeLocal<v8::Value> EphemeronTable::Get(v8::Isolate* isolate,
                                           v8::Local<v8::Value> key) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto self = i::Cast<i::EphemeronHashTable>(Utils::OpenDirectHandle(this));
-  i::Handle<i::Object> internal_key = Utils::OpenHandle(*key);
+  i::DirectHandle<i::Object> internal_key = Utils::OpenHandle(*key);
   DCHECK(IsJSReceiver(*internal_key));
 
   i::DirectHandle<i::Object> value(self->Lookup(internal_key), i_isolate);
@@ -1371,8 +1371,8 @@ Local<EphemeronTable> EphemeronTable::Set(v8::Isolate* isolate,
                                           v8::Local<v8::Value> key,
                                           v8::Local<v8::Value> value) {
   auto self = i::Cast<i::EphemeronHashTable>(Utils::OpenHandle(this));
-  i::Handle<i::Object> internal_key = Utils::OpenHandle(*key);
-  i::Handle<i::Object> internal_value = Utils::OpenHandle(*value);
+  i::DirectHandle<i::Object> internal_key = Utils::OpenHandle(*key);
+  i::DirectHandle<i::Object> internal_value = Utils::OpenHandle(*value);
   DCHECK(IsJSReceiver(*internal_key));
 
   i::DirectHandle<i::EphemeronHashTable> result(
@@ -1412,10 +1412,11 @@ bool AccessorPair::IsAccessorPair(Local<Value> that) {
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
-  i::Handle<i::JSPromise> promise = Utils::OpenHandle(*p);
+  i::DirectHandle<i::JSPromise> promise = Utils::OpenHandle(*p);
   i::Isolate* isolate = promise->GetIsolate();
 
-  i::Handle<i::Symbol> key = isolate->factory()->promise_debug_message_symbol();
+  i::DirectHandle<i::Symbol> key =
+      isolate->factory()->promise_debug_message_symbol();
   i::Handle<i::Object> maybeMessage =
       i::JSReceiver::GetDataProperty(isolate, promise, key);
 

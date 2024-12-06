@@ -136,9 +136,9 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(
   DCHECK(IsCallable(*reviver));
   JsonParseInternalizer internalizer(isolate, Cast<JSReceiver>(reviver),
                                      source);
-  Handle<JSObject> holder =
+  DirectHandle<JSObject> holder =
       isolate->factory()->NewJSObject(isolate->object_function());
-  Handle<String> name = isolate->factory()->empty_string();
+  DirectHandle<String> name = isolate->factory()->empty_string();
   JSObject::AddProperty(isolate, holder, name, result, NONE);
   return internalizer.InternalizeJsonProperty<kWithSource>(
       holder, name, val_node.ToHandleChecked(), result);
@@ -146,8 +146,8 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(
 
 template <JsonParseInternalizer::WithOrWithoutSource with_source>
 MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
-    Handle<JSReceiver> holder, Handle<String> name, Handle<Object> val_node,
-    Handle<Object> snapshot) {
+    DirectHandle<JSReceiver> holder, DirectHandle<String> name,
+    Handle<Object> val_node, Handle<Object> snapshot) {
   DCHECK_EQ(with_source == kWithSource,
             !val_node.is_null() && !snapshot.is_null());
   DCHECK(IsCallable(*reviver_));
@@ -253,7 +253,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     }
   }
 
-  Handle<JSObject> context =
+  DirectHandle<JSObject> context =
       isolate_->factory()->NewJSObject(isolate_->object_function());
   if (pass_source_to_reviver && IsString(*val_node)) {
     JSReceiver::CreateDataProperty(isolate_, context,
@@ -974,7 +974,7 @@ class JSDataObjectBuilder {
     object_ = object;
   }
 
-  void AddSlowProperty(Handle<String> key, Handle<Object> value) {
+  void AddSlowProperty(DirectHandle<String> key, Handle<Object> value) {
     DCHECK(!object_.is_null());
 
     LookupIterator it(isolate_, object_, key, object_, LookupIterator::OWN);
@@ -1308,7 +1308,7 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
         const JsonProperty& property = property_stack_[start + i];
         if (!property.string.is_index()) continue;
         uint32_t index = property.string.index();
-        Handle<Object> value = property.value;
+        DirectHandle<Object> value = property.value;
         NumberDictionary::UncheckedSet(isolate_, elms, index, value);
       }
       elms->SetInitialNumberOfElements(cont.elements);

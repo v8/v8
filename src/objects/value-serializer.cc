@@ -664,7 +664,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
   return ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
 }
 
-Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
+Maybe<bool> ValueSerializer::WriteJSObject(DirectHandle<JSObject> object) {
   DCHECK(!IsCustomElementsReceiverMap(object->map()));
   const bool can_serialize_fast =
       object->HasFastProperties(isolate_) && object->elements()->length() == 0;
@@ -712,7 +712,7 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
   return ThrowIfOutOfMemory();
 }
 
-Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
+Maybe<bool> ValueSerializer::WriteJSObjectSlow(DirectHandle<JSObject> object) {
   WriteTag(SerializationTag::kBeginJSObject);
   Handle<FixedArray> keys;
   uint32_t properties_written = 0;
@@ -727,7 +727,7 @@ Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
   return ThrowIfOutOfMemory();
 }
 
-Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
+Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
   PtrComprCageBase cage_base(isolate_);
   uint32_t length = 0;
   bool valid_length = Object::ToArrayLength(array->length(), &length);
@@ -1040,7 +1040,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(
   return ThrowIfOutOfMemory();
 }
 
-Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
+Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
   Handle<Object> stack;
   PropertyDescriptor message_desc;
   Maybe<bool> message_found = JSReceiver::GetOwnPropertyDescriptor(
@@ -1205,7 +1205,7 @@ Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
 }
 
 Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
-    Handle<JSObject> object, DirectHandle<FixedArray> keys) {
+    DirectHandle<JSObject> object, DirectHandle<FixedArray> keys) {
   uint32_t properties_written = 0;
   int length = keys->length();
   for (int i = 0; i < length; i++) {
@@ -1502,7 +1502,7 @@ bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
 }
 
 void ValueDeserializer::TransferArrayBuffer(
-    uint32_t transfer_id, Handle<JSArrayBuffer> array_buffer) {
+    uint32_t transfer_id, DirectHandle<JSArrayBuffer> array_buffer) {
   if (array_buffer_transfer_map_.is_null()) {
     array_buffer_transfer_map_ = isolate_->global_handles()->Create(
         *SimpleNumberDictionary::New(isolate_, 0));
@@ -1963,7 +1963,7 @@ MaybeHandle<JSMap> ValueDeserializer::ReadJSMap() {
   Handle<JSMap> map = isolate_->factory()->NewJSMap();
   AddObjectWithID(id, map);
 
-  Handle<JSFunction> map_set = isolate_->map_set();
+  DirectHandle<JSFunction> map_set = isolate_->map_set();
   uint32_t length = 0;
   while (true) {
     SerializationTag tag;
@@ -2003,7 +2003,7 @@ MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
   uint32_t id = next_id_++;
   Handle<JSSet> set = isolate_->factory()->NewJSSet();
   AddObjectWithID(id, set);
-  Handle<JSFunction> set_add = isolate_->set_add();
+  DirectHandle<JSFunction> set_add = isolate_->set_add();
   uint32_t length = 0;
   while (true) {
     SerializationTag tag;
@@ -2261,7 +2261,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   }
 
   // Check for stack property.
-  Handle<Object> stack = isolate_->factory()->undefined_value();
+  DirectHandle<Object> stack = isolate_->factory()->undefined_value();
   if (static_cast<ErrorTag>(tag) == ErrorTag::kStack) {
     Handle<String> stack_string;
     if (!ReadString().ToHandle(&stack_string)) {
@@ -2290,7 +2290,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
     if (!ReadObject().ToHandle(&cause)) {
       return MaybeHandle<JSObject>();
     }
-    Handle<Name> cause_string = isolate_->factory()->cause_string();
+    DirectHandle<Name> cause_string = isolate_->factory()->cause_string();
     if (JSObject::SetOwnPropertyIgnoreAttributes(error, cause_string, cause,
                                                  DONT_ENUM)
             .is_null()) {
@@ -2340,7 +2340,7 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   if (!ReadObject().ToHandle(&buffer_object)) return {};
   if (!IsJSArrayBuffer(*buffer_object)) return {};
 
-  Handle<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(buffer_object);
+  DirectHandle<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(buffer_object);
   if (!buffer->is_shared()) return {};
 
   Handle<WasmMemoryObject> result =
@@ -2413,7 +2413,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
 
 // Copies a vector of property values into an object, given the map that should
 // be used.
-static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
+static void CommitProperties(DirectHandle<JSObject> object, Handle<Map> map,
                              const std::vector<Handle<Object>>& properties) {
   JSObject::AllocateStorageForMap(object, map);
   DCHECK(!object->map()->is_dictionary_map());
@@ -2435,7 +2435,7 @@ static bool IsValidObjectKey(Tagged<Object> value, Isolate* isolate) {
 }
 
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
-    Handle<JSObject> object, SerializationTag end_tag,
+    DirectHandle<JSObject> object, SerializationTag end_tag,
     bool can_use_transitions) {
   uint32_t num_properties = 0;
 
@@ -2639,7 +2639,7 @@ void ValueDeserializer::AddObjectWithID(uint32_t id,
 }
 
 static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
-                                                  Handle<JSObject> object,
+                                                  DirectHandle<JSObject> object,
                                                   Handle<Object>* data,
                                                   uint32_t num_properties) {
   for (unsigned i = 0; i < 2 * num_properties; i += 2) {

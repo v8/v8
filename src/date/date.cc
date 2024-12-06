@@ -623,7 +623,7 @@ DateBuffer ToDateString(double time_val, DateCache* date_cache,
 }
 
 // ES6 section 20.3.1.16 Date Time String Format
-double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
+double ParseDateTimeString(Isolate* isolate, DirectHandle<String> str) {
   str = String::Flatten(isolate, str);
   double out[DateParser::OUTPUT_SIZE];
   DisallowGarbageCollection no_gc;

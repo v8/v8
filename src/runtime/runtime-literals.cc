@@ -425,7 +425,7 @@ Handle<JSObject> CreateObjectLiteral(
                                               NONE)
           .Check();
     } else {
-      Handle<String> name = Cast<String>(key);
+      DirectHandle<String> name = Cast<String>(key);
       DCHECK(!name->AsArrayIndex(&element_index));
       JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name, value, NONE)
           .Check();

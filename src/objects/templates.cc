@@ -299,7 +299,7 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
 
   // General case: We either don't have a cached map, or it is unusuable for the
   // values provided.
-  Handle<Map> current_map = isolate->factory()->ObjectLiteralMapFromCache(
+  DirectHandle<Map> current_map = isolate->factory()->ObjectLiteralMapFromCache(
       context, num_properties_set);
   Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(current_map);
   int current_property_index = 0;

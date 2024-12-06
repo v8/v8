@@ -252,7 +252,7 @@ class PrototypePropertyDependency final : public CompilationDependency {
 
   void PrepareInstall(JSHeapBroker* broker) const override {
     SLOW_DCHECK(IsValid(broker));
-    Handle<JSFunction> function = function_.object();
+    DirectHandle<JSFunction> function = function_.object();
     if (!function->has_initial_map()) JSFunction::EnsureHasInitialMap(function);
   }
 

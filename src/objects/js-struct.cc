@@ -202,7 +202,7 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
     // Elements in shared structs are only supported as a dictionary. Create the
     // template NumberDictionary if needed.
     if (!element_names.empty()) {
-      Handle<NumberDictionary> elements_template;
+      DirectHandle<NumberDictionary> elements_template;
       num_elements = static_cast<int>(element_names.size());
       elements_template = NumberDictionary::New(isolate, num_elements,
                                                 AllocationType::kSharedOld);

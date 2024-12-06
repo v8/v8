@@ -562,7 +562,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
 #endif
       CodeDesc desc;
       masm.GetCode(i_isolate, &desc);
-      Handle<Code> code_handle =
+      DirectHandle<Code> code_handle =
           Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
       // Globalize the handle for |code| for the incremental marker to mark it.
       i_isolate->global_handles()->Create(*code_handle);

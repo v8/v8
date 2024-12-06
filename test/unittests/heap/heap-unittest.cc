@@ -789,7 +789,7 @@ TEST_F(HeapTest, Regress364396306) {
       iso->factory()->NewExternal(external_int);
       CHECK_EQ(1, space->NumSegmentsForTesting());
       // Allocate an entry on a new segment that will later be evacuated.
-      Handle<JSObject> to_be_evacuated =
+      DirectHandle<JSObject> to_be_evacuated =
           iso->factory()->NewExternal(external_int);
       CHECK_EQ(2, space->NumSegmentsForTesting());
       CHECK(HeapLayout::InYoungGeneration(*to_be_evacuated));

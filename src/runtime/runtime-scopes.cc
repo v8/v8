@@ -57,7 +57,8 @@ Tagged<Object> ThrowRedeclarationError(Isolate* isolate, Handle<String> name,
 }
 
 // May throw a RedeclarationError.
-Tagged<Object> DeclareGlobal(Isolate* isolate, Handle<JSGlobalObject> global,
+Tagged<Object> DeclareGlobal(Isolate* isolate,
+                             DirectHandle<JSGlobalObject> global,
                              Handle<String> name, Handle<Object> value,
                              PropertyAttributes attr, bool is_var,
                              RedeclarationType redeclaration_type) {
@@ -144,7 +145,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
           : closure->closure_feedback_cell_array(),
       isolate);
 
-  Handle<Context> context(isolate->context(), isolate);
+  DirectHandle<Context> context(isolate->context(), isolate);
   DCHECK(context->IsModuleContext());
   DirectHandle<FixedArray> exports(
       Cast<SourceTextModule>(context->extension())->regular_exports(), isolate);
@@ -158,11 +159,11 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
       index = Smi::ToInt(decl);
       value = ReadOnlyRoots(isolate).the_hole_value();
     } else {
-      Handle<SharedFunctionInfo> sfi(
+      DirectHandle<SharedFunctionInfo> sfi(
           Cast<SharedFunctionInfo>(declarations->get(i)), isolate);
       int feedback_index = Smi::ToInt(declarations->get(++i));
       index = Smi::ToInt(declarations->get(++i));
-      Handle<FeedbackCell> feedback_cell(
+      DirectHandle<FeedbackCell> feedback_cell(
           closure_feedback_cell_array->get(feedback_index), isolate);
       value = *Factory::JSFunctionBuilder(isolate, sfi, context)
                    .set_feedback_cell(feedback_cell)
@@ -182,8 +183,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   DirectHandle<FixedArray> declarations = args.at<FixedArray>(0);
   DirectHandle<JSFunction> closure = args.at<JSFunction>(1);
 
-  Handle<JSGlobalObject> global(isolate->global_object());
-  Handle<Context> context(isolate->context(), isolate);
+  DirectHandle<JSGlobalObject> global(isolate->global_object());
+  DirectHandle<Context> context(isolate->context(), isolate);
 
   DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array(
       closure->has_feedback_vector()
@@ -203,10 +204,10 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
       name = Cast<String>(decl);
       value = isolate->factory()->undefined_value();
     } else {
-      Handle<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(decl);
+      DirectHandle<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(decl);
       name = handle(sfi->Name(), isolate);
       int index = Smi::ToInt(declarations->get(++i));
-      Handle<FeedbackCell> feedback_cell(
+      DirectHandle<FeedbackCell> feedback_cell(
           closure_feedback_cell_array->get(index), isolate);
       value = Factory::JSFunctionBuilder(isolate, sfi, context)
                   .set_feedback_cell(feedback_cell)
@@ -245,7 +246,7 @@ RUNTIME_FUNCTION(Runtime_InitializeDisposableStack) {
 
 Tagged<Object> AddToDisposableStack(Isolate* isolate,
                                     DirectHandle<JSDisposableStackBase> stack,
-                                    Handle<JSAny> value,
+                                    DirectHandle<JSAny> value,
                                     DisposeMethodCallType type,
                                     DisposeMethodHint hint) {
   // a. If V is either null or undefined and hint is sync-dispose, return
@@ -274,7 +275,7 @@ RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
   DCHECK_EQ(2, args.length());
 
   DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
-  Handle<JSAny> value = args.at<JSAny>(1);
+  DirectHandle<JSAny> value = args.at<JSAny>(1);
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
@@ -288,7 +289,7 @@ RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
   DCHECK_EQ(2, args.length());
 
   DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
-  Handle<JSAny> value = args.at<JSAny>(1);
+  DirectHandle<JSAny> value = args.at<JSAny>(1);
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
@@ -329,7 +330,7 @@ RUNTIME_FUNCTION(Runtime_HandleExceptionsInDisposeDisposableStack) {
   DirectHandle<JSDisposableStackBase> disposable_stack =
       args.at<JSDisposableStackBase>(0);
   Handle<Object> exception = args.at<Object>(1);
-  Handle<Object> message = args.at<Object>(2);
+  DirectHandle<Object> message = args.at<Object>(2);
 
   if (!isolate->is_catchable_by_javascript(*exception)) {
     return isolate->Throw(*exception);
@@ -377,7 +378,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   DCHECK(holder.is_null() || !IsSourceTextModule(*holder));
   DCHECK(!isolate->has_exception());
 
-  Handle<JSObject> object;
+  DirectHandle<JSObject> object;
 
   if (attributes != ABSENT && IsJSGlobalObject(*holder)) {
     // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
@@ -386,13 +387,13 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                          NONE, is_var, RedeclarationType::kTypeError);
   }
   if (context->has_extension() && IsJSGlobalObject(context->extension())) {
-    Handle<JSGlobalObject> global(Cast<JSGlobalObject>(context->extension()),
-                                  isolate);
+    DirectHandle<JSGlobalObject> global(
+        Cast<JSGlobalObject>(context->extension()), isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
                          RedeclarationType::kTypeError);
   } else if (context->IsScriptContext()) {
     DCHECK(IsJSGlobalObject(context->global_object()));
-    Handle<JSGlobalObject> global(
+    DirectHandle<JSGlobalObject> global(
         Cast<JSGlobalObject>(context->global_object()), isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
                          RedeclarationType::kTypeError);
@@ -499,7 +500,7 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
       // If we materialize any object, we should deoptimize the frame because we
       // might alias an object that was eliminated by escape analysis.
       should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
-      Handle<Object> value = iter->GetValue();
+      DirectHandle<Object> value = iter->GetValue();
       param_data[i] = value;
       iter++;
     }
@@ -513,7 +514,8 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
     int args_count = frame->GetActualArgumentCount();
     DirectHandleVector<Object> param_data(isolate, args_count);
     for (int i = 0; i < args_count; i++) {
-      Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
+      DirectHandle<Object> val =
+          Handle<Object>(frame->GetParameter(i), isolate);
       param_data[i] = val;
     }
     return param_data;
@@ -521,7 +523,8 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
 }
 
 template <typename T>
-Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
+Handle<JSObject> NewSloppyArguments(Isolate* isolate,
+                                    DirectHandle<JSFunction> callee,
                                     T parameters, int argument_count) {
   CHECK(!IsDerivedConstructor(callee->shared()->kind()));
   DCHECK(callee->shared()->has_simple_parameters());
@@ -623,7 +626,7 @@ class ParameterArguments {
 RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> callee = args.at<JSFunction>(0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   auto arguments = GetCallerArguments(isolate);
@@ -635,7 +638,7 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
 RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  DirectHandle<JSFunction> callee = args.at<JSFunction>(0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   auto arguments = GetCallerArguments(isolate);
@@ -684,9 +687,9 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
-  Handle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
-  Handle<Context> context(isolate->context(), isolate);
+  DirectHandle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
+  DirectHandle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
+  DirectHandle<Context> context(isolate->context(), isolate);
   return *Factory::JSFunctionBuilder{isolate, shared, context}
               .set_feedback_cell(feedback_cell)
               .set_allocation_type(AllocationType::kYoung)
@@ -696,9 +699,9 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
 RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
-  Handle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
-  Handle<Context> context(isolate->context(), isolate);
+  DirectHandle<SharedFunctionInfo> shared = args.at<SharedFunctionInfo>(0);
+  DirectHandle<FeedbackCell> feedback_cell = args.at<FeedbackCell>(1);
+  DirectHandle<Context> context(isolate->context(), isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
   return *Factory::JSFunctionBuilder{isolate, shared, context}
@@ -778,7 +781,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   // The slot was found in a JSReceiver, either a context extension object,
   // the global object, or the subject of a with.  Try to delete it
   // (respecting DONT_DELETE).
-  Handle<JSReceiver> object = Cast<JSReceiver>(holder);
+  DirectHandle<JSReceiver> object = Cast<JSReceiver>(holder);
   Maybe<bool> result = JSReceiver::DeleteProperty(isolate, object, name);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
@@ -807,7 +810,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   }
   if (index != Context::kNotFound) {
     DCHECK(IsContext(*holder));
-    Handle<Context> holder_context = Cast<Context>(holder);
+    DirectHandle<Context> holder_context = Cast<Context>(holder);
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -965,7 +968,7 @@ MaybeHandle<Object> StoreLookupSlot(
   // Slow case: The property is not in a context slot.  It is either in a
   // context extension object, a property of the subject of a with, or a
   // property of the global object.
-  Handle<JSReceiver> object;
+  DirectHandle<JSReceiver> object;
   if (attributes != ABSENT) {
     // The property exists on the holder.
     object = Cast<JSReceiver>(holder);
@@ -1027,7 +1030,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
 RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<String> name = args.at<String>(0);
+  DirectHandle<String> name = args.at<String>(0);
   DirectHandle<Object> value = args.at(1);
 
   DirectHandle<Context> native_context = isolate->native_context();

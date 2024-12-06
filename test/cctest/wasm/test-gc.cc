@@ -75,7 +75,7 @@ class WasmGCTester {
 
   MaybeHandle<Object> CallExportedFunction(
       const char* name, base::Vector<const DirectHandle<Object>> args) {
-    Handle<WasmExportedFunction> func =
+    DirectHandle<WasmExportedFunction> func =
         testing::GetExportedFunction(isolate_, instance_object_, name)
             .ToHandleChecked();
     return Execution::Call(isolate_, func,
@@ -2055,7 +2055,7 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
             *v8::String::Utf8Value(reinterpret_cast<v8::Isolate*>(isolate),
                                    try_catch.Message()->Get()));
     }
-    Handle<Object> result = maybe_result.ToHandleChecked();
+    DirectHandle<Object> result = maybe_result.ToHandleChecked();
     CHECK(IsSmi(*result));
     CHECK_EQ(42, Cast<Smi>(*result).value());
     // Calling {consumer} with any other object (e.g. the Smi we just got as

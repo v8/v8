@@ -195,8 +195,8 @@ MaybeHandle<Context> NewScriptContext(
   Handle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
   DirectHandle<NativeContext> native_context(
       Cast<NativeContext>(function->context()), isolate);
-  Handle<JSGlobalObject> global_object(native_context->global_object(),
-                                       isolate);
+  DirectHandle<JSGlobalObject> global_object(native_context->global_object(),
+                                             isolate);
   Handle<ScriptContextTable> script_context(
       native_context->script_context_table(), isolate);
 
@@ -307,8 +307,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       DirectHandle<Object> receiver = params.is_construct
                                           ? isolate->factory()->the_hole_value()
                                           : params.receiver;
-      Handle<FunctionTemplateInfo> fun_data(function->shared()->api_func_data(),
-                                            isolate);
+      DirectHandle<FunctionTemplateInfo> fun_data(
+          function->shared()->api_func_data(), isolate);
       auto value = Builtins::InvokeApiFunction(
           isolate, params.is_construct, fun_data, receiver, params.args,
           Cast<HeapObject>(params.new_target));

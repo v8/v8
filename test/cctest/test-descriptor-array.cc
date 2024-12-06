@@ -338,7 +338,7 @@ TEST(TransitionArrayHashCollisionMassive) {
   }
 
   // Create transitions for each name.
-  Handle<Map> root_map = Map::Create(isolate, 0);
+  DirectHandle<Map> root_map = Map::Create(isolate, 0);
 
   std::vector<Handle<Map>> maps;
 
@@ -396,7 +396,7 @@ TEST(TransitionArrayHashCollision) {
   }
 
   // Create transitions for each name.
-  Handle<Map> root_map = Map::Create(isolate, 0);
+  DirectHandle<Map> root_map = Map::Create(isolate, 0);
 
   std::vector<Handle<Map>> maps;
 

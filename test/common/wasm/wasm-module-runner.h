@@ -19,15 +19,16 @@ namespace testing {
 // Returns a MaybeHandle to the JsToWasm wrapper of the wasm function exported
 // with the given name by the provided instance.
 MaybeHandle<WasmExportedFunction> GetExportedFunction(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name);
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+    const char* name);
 
 // Call an exported wasm function by name. Returns -1 if the export does not
 // exist or throws an error. Errors are cleared from the isolate before
 // returning. {exception} is set to a string representation of the exception (if
 // set and an exception occurs).
 int32_t CallWasmFunctionForTesting(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name,
-    base::Vector<const DirectHandle<Object>> args,
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+    const char* name, base::Vector<const DirectHandle<Object>> args,
     std::unique_ptr<const char[]>* exception = nullptr);
 
 // Decode, verify, and run the function labeled "main" in the

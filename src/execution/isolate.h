@@ -992,8 +992,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   MaybeHandle<JSObject> CaptureAndSetErrorStack(Handle<JSObject> error_object,
                                                 FrameSkipMode mode,
                                                 Handle<Object> caller);
-  Handle<StackTraceInfo> GetDetailedStackTrace(Handle<JSReceiver> error_object);
-  Handle<FixedArray> GetSimpleStackTrace(Handle<JSReceiver> error_object);
+  Handle<StackTraceInfo> GetDetailedStackTrace(
+      DirectHandle<JSReceiver> error_object);
+  Handle<FixedArray> GetSimpleStackTrace(DirectHandle<JSReceiver> error_object);
   // Walks the JS stack to find the first frame with a script name or
   // source URL. The inspected frames are the same as for the detailed stack
   // trace.
@@ -1626,7 +1627,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static constexpr int kICUObjectCacheTypeCount = 5;
 
   icu::UMemory* get_cached_icu_object(ICUObjectCacheType cache_type,
-                                      Handle<Object> locales);
+                                      DirectHandle<Object> locales);
   void set_icu_object_in_cache(ICUObjectCacheType cache_type,
                                DirectHandle<Object> locales,
                                std::shared_ptr<icu::UMemory> obj);
@@ -1857,11 +1858,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void UpdatePromiseHookProtector();
   void PromiseHookStateUpdated();
 
-  void AddDetachedContext(Handle<Context> context);
+  void AddDetachedContext(DirectHandle<Context> context);
   void CheckDetachedContextsAfterGC();
 
   // Detach the environment from its outer global object.
-  void DetachGlobal(Handle<Context> env);
+  void DetachGlobal(DirectHandle<Context> env);
 
   std::vector<Tagged<Object>>* startup_object_cache() {
     return &startup_object_cache_;
@@ -2104,7 +2105,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
+  void AddSharedWasmMemory(DirectHandle<WasmMemoryObject> memory_object);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope() const {
@@ -2296,11 +2297,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // allocated variables per ScopeInfo for debug-evaluate.
   // We also store a strong reference to the outer ScopeInfo to keep all
   // blocklists along a scope chain alive.
-  void LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
+  void LocalsBlockListCacheSet(DirectHandle<ScopeInfo> scope_info,
                                Handle<ScopeInfo> outer_scope_info,
                                Handle<StringSet> locals_blocklist);
   // Returns either `TheHole` or `StringSet`.
-  Tagged<Object> LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info);
+  Tagged<Object> LocalsBlockListCacheGet(DirectHandle<ScopeInfo> scope_info);
 
   void VerifyStaticRoots();
 
@@ -2336,7 +2337,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       DirectHandle<JSReceiver> receiver,
       DirectHandle<FunctionTemplateInfo> function,
       v8::ExceptionContext callback_kind);
-  void ReportExceptionPropertyCallback(Handle<JSReceiver> holder,
+  void ReportExceptionPropertyCallback(DirectHandle<JSReceiver> holder,
                                        Handle<Name> name,
                                        v8::ExceptionContext callback_kind);
   void SetExceptionPropagationCallback(ExceptionPropagationCallback callback);

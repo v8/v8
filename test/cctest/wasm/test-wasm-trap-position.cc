@@ -75,9 +75,9 @@ WASM_COMPILED_EXEC_TEST(Unreachable) {
   r.Build({WASM_UNREACHABLE});
   uint32_t wasm_index = r.function()->func_index;
 
-  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
+  DirectHandle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
 
-  Handle<JSFunction> js_trampoline =
+  DirectHandle<JSFunction> js_trampoline =
       Cast<JSFunction>(v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 
@@ -116,9 +116,9 @@ WASM_COMPILED_EXEC_TEST(IllegalLoad) {
   f2.Build({WASM_NOP, WASM_CALL_FUNCTION0(wasm_index_1)});
   uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
+  DirectHandle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
 
-  Handle<JSFunction> js_trampoline =
+  DirectHandle<JSFunction> js_trampoline =
       Cast<JSFunction>(v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 

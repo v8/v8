@@ -174,7 +174,7 @@ bool IntoOneAndTwoByte(DirectHandle<String> uri, bool is_uri,
 
 }  // anonymous namespace
 
-MaybeHandle<String> Uri::Decode(Isolate* isolate, Handle<String> uri,
+MaybeHandle<String> Uri::Decode(Isolate* isolate, DirectHandle<String> uri,
                                 bool is_uri) {
   uri = String::Flatten(isolate, uri);
   std::vector<uint8_t> one_byte_buffer;
@@ -277,7 +277,7 @@ void EncodePair(base::uc16 cc1, base::uc16 cc2, std::vector<uint8_t>* buffer) {
 
 }  // anonymous namespace
 
-MaybeHandle<String> Uri::Encode(Isolate* isolate, Handle<String> uri,
+MaybeHandle<String> Uri::Encode(Isolate* isolate, DirectHandle<String> uri,
                                 bool is_uri) {
   uri = String::Flatten(isolate, uri);
   int uri_length = uri->length();
@@ -346,7 +346,7 @@ int UnescapeChar(base::Vector<const Char> vector, int i, int length,
 }
 
 template <typename Char>
-MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
+MaybeHandle<String> UnescapeSlow(Isolate* isolate, DirectHandle<String> string,
                                  int start_index) {
   bool one_byte = true;
   uint32_t length = string->length();
@@ -505,7 +505,6 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
 }  // anonymous namespace
 
 MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
-  DirectHandle<String> result;
   string = String::Flatten(isolate, string);
   return string->IsOneByteRepresentation()
              ? EscapePrivate<uint8_t>(isolate, string)
@@ -513,7 +512,6 @@ MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
 }
 
 MaybeHandle<String> Uri::Unescape(Isolate* isolate, Handle<String> string) {
-  DirectHandle<String> result;
   string = String::Flatten(isolate, string);
   return string->IsOneByteRepresentation()
              ? UnescapePrivate<uint8_t>(isolate, string)

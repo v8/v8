@@ -52,7 +52,7 @@ class JSCallReducerTest : public TypedGraphTest {
   }
 
   Node* MathFunction(const std::string& name) {
-    Handle<JSAny> m =
+    DirectHandle<JSAny> m =
         Cast<JSAny>(JSObject::GetProperty(
                         isolate(), isolate()->global_object(),
                         isolate()->factory()->NewStringFromAsciiChecked("Math"))
@@ -66,7 +66,7 @@ class JSCallReducerTest : public TypedGraphTest {
   }
 
   Node* StringFunction(const char* name) {
-    Handle<JSAny> m = Cast<JSAny>(
+    DirectHandle<JSAny> m = Cast<JSAny>(
         JSObject::GetProperty(
             isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("String"))
@@ -79,7 +79,7 @@ class JSCallReducerTest : public TypedGraphTest {
   }
 
   Node* NumberFunction(const char* name) {
-    Handle<JSAny> m = Cast<JSAny>(
+    DirectHandle<JSAny> m = Cast<JSAny>(
         JSObject::GetProperty(
             isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked("Number"))

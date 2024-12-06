@@ -99,11 +99,11 @@ TEST_F(ElementsKindTest, JSObjectAddingProperties) {
 
   Handle<FixedArray> empty_fixed_array(factory->empty_fixed_array());
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
   Handle<Object> value(Smi::FromInt(42), i_isolate());
 
-  Handle<JSObject> object = factory->NewJSObject(function);
+  DirectHandle<JSObject> object = factory->NewJSObject(function);
   DirectHandle<Map> previous_map(object->map(), i_isolate());
   CHECK_EQ(HOLEY_ELEMENTS, previous_map->elements_kind());
   CHECK(EQUALS(i_isolate(), object->property_array(), empty_property_array));
@@ -111,7 +111,7 @@ TEST_F(ElementsKindTest, JSObjectAddingProperties) {
 
   // for the default constructor function no in-object properties are reserved
   // hence adding a single property will initialize the property-array
-  Handle<String> name = MakeName("property", 0);
+  DirectHandle<String> name = MakeName("property", 0);
   JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
       .Check();
   CHECK_NE(object->map(), *previous_map);
@@ -126,7 +126,7 @@ TEST_F(ElementsKindTest, JSObjectInObjectAddingProperties) {
 
   Handle<FixedArray> empty_fixed_array(factory->empty_fixed_array());
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
   int nof_inobject_properties = 10;
   // force in object properties by changing the expected_nof_properties
@@ -134,7 +134,7 @@ TEST_F(ElementsKindTest, JSObjectInObjectAddingProperties) {
   function->shared()->set_expected_nof_properties(nof_inobject_properties - 8);
   Handle<Object> value(Smi::FromInt(42), i_isolate());
 
-  Handle<JSObject> object = factory->NewJSObject(function);
+  DirectHandle<JSObject> object = factory->NewJSObject(function);
   DirectHandle<Map> previous_map(object->map(), i_isolate());
   CHECK_EQ(HOLEY_ELEMENTS, previous_map->elements_kind());
   CHECK(EQUALS(i_isolate(), object->property_array(), empty_property_array));
@@ -143,7 +143,7 @@ TEST_F(ElementsKindTest, JSObjectInObjectAddingProperties) {
   // we have reserved space for in-object properties, hence adding up to
   // |nof_inobject_properties| will not create a property store
   for (int i = 0; i < nof_inobject_properties; i++) {
-    Handle<String> name = MakeName("property", i);
+    DirectHandle<String> name = MakeName("property", i);
     JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
         .Check();
   }
@@ -155,7 +155,7 @@ TEST_F(ElementsKindTest, JSObjectInObjectAddingProperties) {
   // adding one more property will not fit in the in-object properties, thus
   // creating a property store
   int index = nof_inobject_properties + 1;
-  Handle<String> name = MakeName("property", index);
+  DirectHandle<String> name = MakeName("property", index);
   JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
       .Check();
   CHECK_NE(object->map(), *previous_map);
@@ -169,14 +169,14 @@ TEST_F(ElementsKindTest, JSObjectAddingElements) {
   Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(isolate());
 
-  Handle<String> name;
+  DirectHandle<String> name;
   Handle<FixedArray> empty_fixed_array(factory->empty_fixed_array());
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
   Handle<Object> value(Smi::FromInt(42), i_isolate());
 
-  Handle<JSObject> object = factory->NewJSObject(function);
+  DirectHandle<JSObject> object = factory->NewJSObject(function);
   DirectHandle<Map> previous_map(object->map(), i_isolate());
   CHECK_EQ(HOLEY_ELEMENTS, previous_map->elements_kind());
   CHECK(EQUALS(i_isolate(), object->property_array(), empty_property_array));
@@ -225,7 +225,7 @@ TEST_F(ElementsKindTest, JSArrayAddingProperties) {
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
   Handle<Object> value(Smi::FromInt(42), i_isolate());
 
-  Handle<JSArray> array =
+  DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
   DirectHandle<Map> previous_map(array->map(), i_isolate());
   CHECK_EQ(PACKED_SMI_ELEMENTS, previous_map->elements_kind());
@@ -235,7 +235,7 @@ TEST_F(ElementsKindTest, JSArrayAddingProperties) {
 
   // for the default constructor function no in-object properties are reserved
   // hence adding a single property will initialize the property-array
-  Handle<String> name = MakeName("property", 0);
+  DirectHandle<String> name = MakeName("property", 0);
   JSObject::DefinePropertyOrElementIgnoreAttributes(array, name, value, NONE)
       .Check();
   // No change in elements_kind but added property => new map
@@ -250,12 +250,12 @@ TEST_F(ElementsKindTest, JSArrayAddingElements) {
   Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(isolate());
 
-  Handle<String> name;
+  DirectHandle<String> name;
   Handle<FixedArray> empty_fixed_array(factory->empty_fixed_array());
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
   Handle<Object> value(Smi::FromInt(42), i_isolate());
 
-  Handle<JSArray> array =
+  DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
   DirectHandle<Map> previous_map(array->map(), i_isolate());
   CHECK_EQ(PACKED_SMI_ELEMENTS, previous_map->elements_kind());
@@ -307,12 +307,12 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastSmiElements) {
   Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(isolate());
 
-  Handle<String> name;
+  DirectHandle<String> name;
   Handle<Object> value_smi(Smi::FromInt(42), i_isolate());
   Handle<Object> value_string(MakeString("value"));
   Handle<Object> value_double = factory->NewNumber(3.1415);
 
-  Handle<JSArray> array =
+  DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
   DirectHandle<Map> previous_map(array->map(), i_isolate());
   CHECK_EQ(PACKED_SMI_ELEMENTS, previous_map->elements_kind());
@@ -379,11 +379,11 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingFastElements) {
   Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(isolate());
 
-  Handle<String> name;
+  DirectHandle<String> name;
   Handle<Object> value_smi(Smi::FromInt(42), i_isolate());
   Handle<Object> value_string(MakeString("value"));
 
-  Handle<JSArray> array =
+  DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_ELEMENTS, 0, 0);
   DirectHandle<Map> previous_map(array->map(), i_isolate());
   CHECK_EQ(PACKED_ELEMENTS, previous_map->elements_kind());
@@ -426,12 +426,12 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(isolate());
 
-  Handle<String> name;
+  DirectHandle<String> name;
   Handle<Object> value_smi(Smi::FromInt(42), i_isolate());
   Handle<Object> value_string(MakeString("value"));
   Handle<Object> value_double = factory->NewNumber(3.1415);
 
-  Handle<JSArray> array =
+  DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
   DirectHandle<Map> previous_map(array->map(), i_isolate());
 

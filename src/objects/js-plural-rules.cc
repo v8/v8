@@ -63,10 +63,9 @@ Handle<String> JSPluralRules::TypeAsString() const {
 }
 
 // static
-MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate,
-                                              DirectHandle<Map> map,
-                                              Handle<Object> locales,
-                                              Handle<Object> options_obj) {
+MaybeHandle<JSPluralRules> JSPluralRules::New(
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -75,7 +74,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate,
       maybe_requested_locales.FromJust();
 
   // 2. Set options to ? CoerceOptionsToObject(options).
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   const char* service = "Intl.PluralRules";
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, CoerceOptionsToObject(isolate, options_obj, service));
@@ -223,9 +222,11 @@ MaybeHandle<String> JSPluralRules::ResolvePluralRange(
 
 namespace {
 
-void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
-                                  Handle<Object> value, const char* key) {
-  Handle<String> key_str = isolate->factory()->NewStringFromAsciiChecked(key);
+void CreateDataPropertyForOptions(Isolate* isolate,
+                                  DirectHandle<JSObject> options,
+                                  DirectHandle<Object> value, const char* key) {
+  DirectHandle<String> key_str =
+      isolate->factory()->NewStringFromAsciiChecked(key);
 
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
@@ -235,9 +236,10 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
   USE(maybe);
 }
 
-void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
-                                  int value, const char* key) {
-  Handle<Smi> value_smi(Smi::FromInt(value), isolate);
+void CreateDataPropertyForOptions(Isolate* isolate,
+                                  DirectHandle<JSObject> options, int value,
+                                  const char* key) {
+  DirectHandle<Smi> value_smi(Smi::FromInt(value), isolate);
   CreateDataPropertyForOptions(isolate, options, value_smi, key);
 }
 
@@ -248,7 +250,7 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   Handle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<String> locale_value(plural_rules->locale(), isolate);
+  DirectHandle<String> locale_value(plural_rules->locale(), isolate);
   CreateDataPropertyForOptions(isolate, options, locale_value, "locale");
 
   CreateDataPropertyForOptions(isolate, options, plural_rules->TypeAsString(),
@@ -317,7 +319,7 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
 
   // 7. Perform ! CreateDataProperty(options, "pluralCategories",
   // CreateArrayFromList(pluralCategories)).
-  Handle<JSArray> plural_categories_value =
+  DirectHandle<JSArray> plural_categories_value =
       factory->NewJSArrayWithElements(plural_categories);
   CreateDataPropertyForOptions(isolate, options, plural_categories_value,
                                "pluralCategories");

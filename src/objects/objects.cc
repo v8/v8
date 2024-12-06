@@ -391,23 +391,35 @@ template V8_EXPORT_PRIVATE MaybeIndirectHandle<Number> Object::ConvertToInteger(
     Isolate* isolate, IndirectHandle<Object> input);
 
 // static
-MaybeHandle<Number> Object::ConvertToInt32(Isolate* isolate,
-                                           Handle<Object> input) {
+template <template <typename> typename HandleType, typename>
+typename HandleType<Number>::MaybeType Object::ConvertToInt32(
+    Isolate* isolate, HandleType<Object> input) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input));
   if (IsSmi(*input)) return Cast<Smi>(input);
   return isolate->factory()->NewNumberFromInt(
       DoubleToInt32(Cast<HeapNumber>(*input)->value()));
 }
 
+template MaybeDirectHandle<Number> Object::ConvertToInt32(
+    Isolate* isolate, DirectHandle<Object> input);
+template MaybeIndirectHandle<Number> Object::ConvertToInt32(
+    Isolate* isolate, IndirectHandle<Object> input);
+
 // static
-MaybeHandle<Number> Object::ConvertToUint32(Isolate* isolate,
-                                            Handle<Object> input) {
+template <template <typename> typename HandleType, typename>
+typename HandleType<Number>::MaybeType Object::ConvertToUint32(
+    Isolate* isolate, HandleType<Object> input) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input));
   if (IsSmi(*input))
     return handle(Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
   return isolate->factory()->NewNumberFromUint(
       DoubleToUint32(Cast<HeapNumber>(*input)->value()));
 }
+
+template MaybeDirectHandle<Number> Object::ConvertToUint32(
+    Isolate* isolate, DirectHandle<Object> input);
+template MaybeIndirectHandle<Number> Object::ConvertToUint32(
+    Isolate* isolate, IndirectHandle<Object> input);
 
 // static
 template <template <typename> typename HandleType, typename>
@@ -724,19 +736,26 @@ MaybeHandle<Number> Object::ConvertToLength(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Number> Object::ConvertToIndex(Isolate* isolate,
-                                           Handle<Object> input,
-                                           MessageTemplate error_index) {
-  if (IsUndefined(*input, isolate)) return handle(Smi::zero(), isolate);
+template <template <typename> typename HandleType, typename>
+typename HandleType<Number>::MaybeType Object::ConvertToIndex(
+    Isolate* isolate, HandleType<Object> input, MessageTemplate error_index) {
+  if (IsUndefined(*input, isolate))
+    return HandleType<Number>(Smi::zero(), isolate);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input));
   if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return Cast<Smi>(input);
   double len = DoubleToInteger(Object::NumberValue(Cast<Number>(*input)));
-  Handle<Number> js_len = isolate->factory()->NewNumber(len);
+  HandleType<Number> js_len = isolate->factory()->NewNumber(len);
   if (len < 0.0 || len > kMaxSafeInteger) {
     THROW_NEW_ERROR(isolate, NewRangeError(error_index, js_len));
   }
   return js_len;
 }
+
+template V8_EXPORT_PRIVATE MaybeDirectHandle<Number> Object::ConvertToIndex(
+    Isolate* isolate, DirectHandle<Object> input, MessageTemplate error_index);
+template V8_EXPORT_PRIVATE MaybeIndirectHandle<Number> Object::ConvertToIndex(
+    Isolate* isolate, IndirectHandle<Object> input,
+    MessageTemplate error_index);
 
 template <typename IsolateT>
 // static
@@ -3979,7 +3998,7 @@ Handle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
 }
 
 Handle<JSAny> AccessorPair::GetComponent(
-    Isolate* isolate, Handle<NativeContext> native_context,
+    Isolate* isolate, DirectHandle<NativeContext> native_context,
     DirectHandle<AccessorPair> accessor_pair, AccessorComponent component) {
   Handle<Object> accessor(accessor_pair->get(component), isolate);
   if (IsFunctionTemplateInfo(*accessor)) {
@@ -5746,7 +5765,7 @@ Handle<Derived> Dictionary<Derived, Shape>::ShallowCopy(
 // static
 Handle<SimpleNumberDictionary> SimpleNumberDictionary::Set(
     Isolate* isolate, Handle<SimpleNumberDictionary> dictionary, uint32_t key,
-    Handle<Object> value) {
+    DirectHandle<Object> value) {
   return AtPut(isolate, dictionary, key, value, PropertyDetails::Empty());
 }
 

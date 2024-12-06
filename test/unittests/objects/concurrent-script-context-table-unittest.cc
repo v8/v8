@@ -101,7 +101,7 @@ TEST_F(ConcurrentScriptContextTableTest, ScriptContextTable_Extend) {
   const bool kIgnoreDuplicateNames = true;
 
   Factory* factory = i_isolate()->factory();
-  Handle<NativeContext> native_context = factory->NewNativeContext();
+  DirectHandle<NativeContext> native_context = factory->NewNativeContext();
   DirectHandle<Map> script_context_map = factory->NewContextfulMap(
       native_context, SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
   script_context_map->set_native_context(*native_context);

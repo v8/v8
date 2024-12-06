@@ -21,8 +21,8 @@ namespace {
 // Helper function for ToPropertyDescriptor. Comments describe steps for
 // "enumerable", other properties are handled the same way.
 // Returns false if an exception was thrown.
-bool GetPropertyIfPresent(Isolate* isolate, Handle<JSReceiver> receiver,
-                          Handle<String> name, Handle<JSAny>* value) {
+bool GetPropertyIfPresent(Isolate* isolate, DirectHandle<JSReceiver> receiver,
+                          DirectHandle<String> name, Handle<JSAny>* value) {
   LookupIterator it(isolate, receiver, name, receiver);
   // 4. Let hasEnumerable be HasProperty(Obj, "enumerable").
   Maybe<bool> has_property = JSReceiver::HasProperty(&it);
@@ -119,8 +119,8 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
   return true;
 }
 
-void CreateDataProperty(Isolate* isolate, Handle<JSObject> object,
-                        Handle<String> name, Handle<Object> value) {
+void CreateDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
+                        Handle<String> name, DirectHandle<Object> value) {
   Maybe<bool> result = JSObject::CreateDataProperty(
       isolate, object, PropertyKey(isolate, Cast<Name>(name)), value);
   CHECK(result.IsJust() && result.FromJust());

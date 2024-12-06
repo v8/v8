@@ -67,8 +67,8 @@ Style fromIcuStyle(UDateRelativeDateTimeFormatterStyle icu_style) {
 }  // namespace
 
 MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
-    Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-    Handle<Object> input_options) {
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> input_options) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -77,7 +77,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       maybe_requested_locales.FromJust();
 
   // 2. Set options to ? CoerceOptionsToObject(options).
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   const char* service = "Intl.RelativeTimeFormat";
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, CoerceOptionsToObject(isolate, input_options, service));
@@ -392,7 +392,7 @@ MaybeHandle<String> FormatToString(
   return Intl::ToString(isolate, result);
 }
 
-Maybe<bool> AddLiteral(Isolate* isolate, Handle<JSArray> array,
+Maybe<bool> AddLiteral(Isolate* isolate, DirectHandle<JSArray> array,
                        const icu::UnicodeString& string, int32_t index,
                        int32_t start, int32_t limit) {
   Handle<String> substring;
@@ -404,7 +404,7 @@ Maybe<bool> AddLiteral(Isolate* isolate, Handle<JSArray> array,
   return Just(true);
 }
 
-Maybe<bool> AddUnit(Isolate* isolate, Handle<JSArray> array,
+Maybe<bool> AddUnit(Isolate* isolate, DirectHandle<JSArray> array,
                     const icu::UnicodeString& string, int32_t index,
                     const NumberFormatSpan& part, DirectHandle<String> unit,
                     bool is_nan) {

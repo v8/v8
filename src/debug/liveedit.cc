@@ -145,7 +145,7 @@ class TokensCompareOutput : public Comparator::Output {
 // never has terminating new line character.
 class LineEndsWrapper {
  public:
-  explicit LineEndsWrapper(Isolate* isolate, Handle<String> string)
+  explicit LineEndsWrapper(Isolate* isolate, DirectHandle<String> string)
       : ends_array_(String::CalculateLineEnds(isolate, string, false)),
         string_len_(string->length()) {}
   int length() {

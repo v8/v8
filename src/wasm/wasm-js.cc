@@ -584,7 +584,7 @@ CompileTimeImports ArgumentToCompileOptions(
   if (!enabled_features.has_imported_strings()) return {};
   i::Handle<i::Object> arg = Utils::OpenHandle(*arg_value);
   if (!i::IsJSReceiver(*arg)) return {};
-  i::Handle<i::JSReceiver> receiver = i::Cast<i::JSReceiver>(arg);
+  i::DirectHandle<i::JSReceiver> receiver = i::Cast<i::JSReceiver>(arg);
   CompileTimeImports result;
 
   // ==================== Builtins ====================
@@ -640,7 +640,7 @@ CompileTimeImports ArgumentToCompileOptions(
   }
 
   // ==================== String constants ====================
-  i::Handle<i::String> importedStringConstants =
+  i::DirectHandle<i::String> importedStringConstants =
       isolate->factory()->InternalizeUtf8String("importedStringConstants");
   if (i::JSReceiver::HasProperty(isolate, receiver, importedStringConstants)
           .FromMaybe(false)) {
@@ -1672,7 +1672,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   if (shared == i::SharedFlag::kShared) {
-    i::Handle<i::JSArrayBuffer> buffer(
+    i::DirectHandle<i::JSArrayBuffer> buffer(
         i::Cast<i::WasmMemoryObject>(memory_obj)->array_buffer(), i_isolate);
     Maybe<bool> result =
         buffer->SetIntegrityLevel(i_isolate, buffer, i::FROZEN, i::kDontThrow);
@@ -2496,7 +2496,7 @@ constexpr const char* kName_WasmTagObject = "WebAssembly.Tag";
 constexpr const char* kName_WasmExceptionPackage = "WebAssembly.Exception";
 
 #define EXTRACT_THIS(var, WasmType)                                  \
-  i::Handle<i::WasmType> var;                                        \
+  i::DirectHandle<i::WasmType> var;                                  \
   {                                                                  \
     i::Handle<i::Object> this_arg = Utils::OpenHandle(*info.This()); \
     if (!Is##WasmType(*this_arg)) {                                  \
@@ -3124,7 +3124,7 @@ Handle<JSFunction> CreateFunc(
 }
 
 Handle<JSFunction> InstallFunc(
-    Isolate* isolate, Handle<JSObject> object, Handle<String> name,
+    Isolate* isolate, DirectHandle<JSObject> object, Handle<String> name,
     FunctionCallback func, int length, bool has_prototype = false,
     PropertyAttributes attributes = NONE,
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
@@ -3138,7 +3138,7 @@ Handle<JSFunction> InstallFunc(
 }
 
 Handle<JSFunction> InstallFunc(
-    Isolate* isolate, Handle<JSObject> object, const char* str,
+    Isolate* isolate, DirectHandle<JSObject> object, const char* str,
     FunctionCallback func, int length, bool has_prototype = false,
     PropertyAttributes attributes = NONE,
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
@@ -3148,7 +3148,7 @@ Handle<JSFunction> InstallFunc(
 }
 
 Handle<JSFunction> InstallConstructorFunc(Isolate* isolate,
-                                          Handle<JSObject> object,
+                                          DirectHandle<JSObject> object,
                                           const char* str,
                                           FunctionCallback func) {
   return InstallFunc(isolate, object, str, func, 1, true, DONT_ENUM,
@@ -3206,7 +3206,7 @@ void SetDummyInstanceTemplate(Isolate* isolate, DirectHandle<JSFunction> fun) {
 }
 
 Handle<JSObject> SetupConstructor(Isolate* isolate,
-                                  Handle<JSFunction> constructor,
+                                  DirectHandle<JSFunction> constructor,
                                   InstanceType instance_type, int instance_size,
                                   const char* name = nullptr,
                                   int in_object_properties = 0) {
@@ -3214,7 +3214,7 @@ Handle<JSObject> SetupConstructor(Isolate* isolate,
   JSFunction::EnsureHasInitialMap(constructor);
   Handle<JSObject> proto(Cast<JSObject>(constructor->instance_prototype()),
                          isolate);
-  Handle<Map> map = isolate->factory()->NewContextfulMap(
+  DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
       constructor, instance_type, instance_size, TERMINAL_FAST_ELEMENTS_KIND,
       in_object_properties);
   JSFunction::SetInitialMap(isolate, constructor, map, proto);
@@ -3238,7 +3238,7 @@ constexpr wasm::FunctionSig kWasmExceptionTagSignature{
 // static
 void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   DirectHandle<JSGlobalObject> global = isolate->global_object();
-  Handle<NativeContext> native_context(global->native_context(), isolate);
+  DirectHandle<NativeContext> native_context(global->native_context(), isolate);
 
   CHECK(IsUndefined(native_context->get(Context::WASM_WEBASSEMBLY_OBJECT_INDEX),
                     isolate));
@@ -3250,15 +3250,15 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
   // Create the WebAssembly object.
-  Handle<JSObject> webassembly;
+  DirectHandle<JSObject> webassembly;
   {
     Handle<String> WebAssembly_string = v8_str(isolate, "WebAssembly");
     // Not supposed to be called, hence using the kIllegal builtin as code.
-    Handle<SharedFunctionInfo> sfi = f->NewSharedFunctionInfoForBuiltin(
+    DirectHandle<SharedFunctionInfo> sfi = f->NewSharedFunctionInfoForBuiltin(
         WebAssembly_string, Builtin::kIllegal, 0, kDontAdapt);
     sfi->set_language_mode(LanguageMode::kStrict);
 
-    Handle<JSFunction> ctor =
+    DirectHandle<JSFunction> ctor =
         Factory::JSFunctionBuilder{isolate, sfi, native_context}.Build();
     JSFunction::SetPrototype(ctor, isolate->initial_object_prototype());
     webassembly = f->NewJSObject(ctor, AllocationType::kOld);
@@ -3277,7 +3277,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // Create the Instance object.
   {
-    Handle<JSFunction> instance_constructor = InstallConstructorFunc(
+    DirectHandle<JSFunction> instance_constructor = InstallConstructorFunc(
         isolate, webassembly, "Instance", wasm::WebAssemblyInstance);
     Handle<JSObject> instance_proto = SetupConstructor(
         isolate, instance_constructor, WASM_INSTANCE_OBJECT_TYPE,
@@ -3289,7 +3289,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // Create the Table object.
   {
-    Handle<JSFunction> table_constructor = InstallConstructorFunc(
+    DirectHandle<JSFunction> table_constructor = InstallConstructorFunc(
         isolate, webassembly, "Table", wasm::WebAssemblyTable);
     Handle<JSObject> table_proto =
         SetupConstructor(isolate, table_constructor, WASM_TABLE_OBJECT_TYPE,
@@ -3305,7 +3305,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // Create the Memory object.
   {
-    Handle<JSFunction> memory_constructor = InstallConstructorFunc(
+    DirectHandle<JSFunction> memory_constructor = InstallConstructorFunc(
         isolate, webassembly, "Memory", wasm::WebAssemblyMemory);
     Handle<JSObject> memory_proto =
         SetupConstructor(isolate, memory_constructor, WASM_MEMORY_OBJECT_TYPE,
@@ -3318,7 +3318,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // Create the Global object.
   {
-    Handle<JSFunction> global_constructor = InstallConstructorFunc(
+    DirectHandle<JSFunction> global_constructor = InstallConstructorFunc(
         isolate, webassembly, "Global", wasm::WebAssemblyGlobal);
     Handle<JSObject> global_proto =
         SetupConstructor(isolate, global_constructor, WASM_GLOBAL_OBJECT_TYPE,
@@ -3334,7 +3334,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // Create the Exception object.
   {
-    Handle<JSFunction> tag_constructor = InstallConstructorFunc(
+    DirectHandle<JSFunction> tag_constructor = InstallConstructorFunc(
         isolate, webassembly, "Tag", wasm::WebAssemblyTag);
     SetupConstructor(isolate, tag_constructor, WASM_TAG_OBJECT_TYPE,
                      WasmTagObject::kHeaderSize, "WebAssembly.Tag");
@@ -3353,10 +3353,10 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // Set up the runtime exception constructor.
   {
-    Handle<JSFunction> exception_constructor = InstallConstructorFunc(
+    DirectHandle<JSFunction> exception_constructor = InstallConstructorFunc(
         isolate, webassembly, "Exception", wasm::WebAssemblyException);
     SetDummyInstanceTemplate(isolate, exception_constructor);
-    Handle<JSObject> exception_proto = SetupConstructor(
+    DirectHandle<JSObject> exception_proto = SetupConstructor(
         isolate, exception_constructor, WASM_EXCEPTION_PACKAGE_TYPE,
         WasmExceptionPackage::kSize, "WebAssembly.Exception",
         WasmExceptionPackage::kInObjectFieldCount);
@@ -3408,9 +3408,10 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   }
 }
 
-void WasmJs::InstallModule(Isolate* isolate, Handle<JSObject> webassembly) {
-  Handle<JSGlobalObject> global = isolate->global_object();
-  Handle<NativeContext> native_context(global->native_context(), isolate);
+void WasmJs::InstallModule(Isolate* isolate,
+                           DirectHandle<JSObject> webassembly) {
+  DirectHandle<JSGlobalObject> global = isolate->global_object();
+  DirectHandle<NativeContext> native_context(global->native_context(), isolate);
 
   Handle<JSFunction> module_constructor;
   if (v8_flags.js_source_phase_imports) {
@@ -3457,7 +3458,7 @@ void WasmJs::InstallModule(Isolate* isolate, Handle<JSObject> webassembly) {
 
 // static
 void WasmJs::Install(Isolate* isolate) {
-  Handle<JSGlobalObject> global = isolate->global_object();
+  DirectHandle<JSGlobalObject> global = isolate->global_object();
   DirectHandle<NativeContext> native_context(global->native_context(), isolate);
 
   if (native_context->is_wasm_js_installed() != Smi::zero()) return;
@@ -3468,8 +3469,8 @@ void WasmJs::Install(Isolate* isolate) {
   // global "WebAssembly" property. But even later during execution we always
   // want to use this preallocated object instead of whatever user code
   // installed as "WebAssembly" property.
-  Handle<JSObject> webassembly(native_context->wasm_webassembly_object(),
-                               isolate);
+  DirectHandle<JSObject> webassembly(native_context->wasm_webassembly_object(),
+                                     isolate);
   if (v8_flags.js_source_phase_imports) {
     // Reinstall the Module object with the experimental interface.
     InstallModule(isolate, webassembly);
@@ -3490,7 +3491,7 @@ void WasmJs::Install(Isolate* isolate) {
                      i::v8_flags.correctness_fuzzer_suppressions ||
                      i::v8_flags.wasm_jitless;
   if (expose_wasm) {
-    Handle<String> WebAssembly_string = v8_str(isolate, "WebAssembly");
+    DirectHandle<String> WebAssembly_string = v8_str(isolate, "WebAssembly");
     JSObject::AddProperty(isolate, global, WebAssembly_string, webassembly,
                           DONT_ENUM);
   }
@@ -3543,7 +3544,8 @@ void WasmJs::Install(Isolate* isolate) {
 // static
 void WasmJs::InstallConditionalFeatures(Isolate* isolate,
                                         Handle<NativeContext> context) {
-  Handle<JSObject> webassembly{context->wasm_webassembly_object(), isolate};
+  DirectHandle<JSObject> webassembly{context->wasm_webassembly_object(),
+                                     isolate};
   if (!webassembly->map()->is_extensible()) return;
   if (webassembly->map()->is_access_check_needed()) return;
 
@@ -3573,23 +3575,23 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
 // Return true if this call results in JSPI being installed.
 bool WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
                                          DirectHandle<NativeContext> context,
-                                         Handle<JSObject> webassembly) {
-  Handle<String> suspender_string = v8_str(isolate, "Suspender");
+                                         DirectHandle<JSObject> webassembly) {
+  DirectHandle<String> suspender_string = v8_str(isolate, "Suspender");
   if (JSObject::HasRealNamedProperty(isolate, webassembly, suspender_string)
           .FromMaybe(true)) {
     return false;
   }
-  Handle<String> suspending_string = v8_str(isolate, "Suspending");
+  DirectHandle<String> suspending_string = v8_str(isolate, "Suspending");
   if (JSObject::HasRealNamedProperty(isolate, webassembly, suspending_string)
           .FromMaybe(true)) {
     return false;
   }
-  Handle<String> promising_string = v8_str(isolate, "promising");
+  DirectHandle<String> promising_string = v8_str(isolate, "promising");
   if (JSObject::HasRealNamedProperty(isolate, webassembly, promising_string)
           .FromMaybe(true)) {
     return false;
   }
-  Handle<JSFunction> suspending_constructor = InstallConstructorFunc(
+  DirectHandle<JSFunction> suspending_constructor = InstallConstructorFunc(
       isolate, webassembly, "Suspending", WebAssemblySuspendingImpl);
   context->set_wasm_suspending_constructor(*suspending_constructor);
   SetupConstructor(isolate, suspending_constructor, WASM_SUSPENDING_OBJECT_TYPE,
@@ -3602,7 +3604,7 @@ bool WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
 // static
 bool WasmJs::InstallTypeReflection(Isolate* isolate,
                                    DirectHandle<NativeContext> context,
-                                   Handle<JSObject> webassembly) {
+                                   DirectHandle<JSObject> webassembly) {
   // Extensibility of the `WebAssembly` object should already have been checked
   // by the caller.
   DCHECK(webassembly->map()->is_extensible());
@@ -3618,13 +3620,16 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
   auto GetProto = [isolate](Tagged<JSFunction> constructor) {
     return handle(Cast<JSObject>(constructor->instance_prototype()), isolate);
   };
-  Handle<JSObject> table_proto = GetProto(context->wasm_table_constructor());
-  Handle<JSObject> global_proto = GetProto(context->wasm_global_constructor());
-  Handle<JSObject> memory_proto = GetProto(context->wasm_memory_constructor());
-  Handle<JSObject> tag_proto = GetProto(context->wasm_tag_constructor());
+  DirectHandle<JSObject> table_proto =
+      GetProto(context->wasm_table_constructor());
+  DirectHandle<JSObject> global_proto =
+      GetProto(context->wasm_global_constructor());
+  DirectHandle<JSObject> memory_proto =
+      GetProto(context->wasm_memory_constructor());
+  DirectHandle<JSObject> tag_proto = GetProto(context->wasm_tag_constructor());
 
   Handle<String> type_string = v8_str(isolate, "type");
-  auto CheckProto = [isolate, type_string](Handle<JSObject> proto) {
+  auto CheckProto = [isolate, type_string](DirectHandle<JSObject> proto) {
     if (JSObject::HasRealNamedProperty(isolate, proto, type_string)
             .FromMaybe(true)) {
       return false;
@@ -3649,13 +3654,13 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
               NONE, SideEffectType::kHasNoSideEffect);
 
   // Create the Function object.
-  Handle<JSFunction> function_constructor = InstallConstructorFunc(
+  DirectHandle<JSFunction> function_constructor = InstallConstructorFunc(
       isolate, webassembly, "Function", WebAssemblyFunction);
   SetDummyInstanceTemplate(isolate, function_constructor);
   JSFunction::EnsureHasInitialMap(function_constructor);
-  Handle<JSObject> function_proto(
+  DirectHandle<JSObject> function_proto(
       Cast<JSObject>(function_constructor->instance_prototype()), isolate);
-  Handle<Map> function_map =
+  DirectHandle<Map> function_map =
       Map::Copy(isolate, isolate->sloppy_function_without_prototype_map(),
                 "WebAssembly.Function");
   CHECK(JSObject::SetPrototype(

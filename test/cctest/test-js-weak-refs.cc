@@ -19,11 +19,11 @@ namespace {
 Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
     Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Handle<String> finalization_registry_name =
+  DirectHandle<String> finalization_registry_name =
       factory->NewStringFromStaticChars("FinalizationRegistry");
-  Handle<JSGlobalObject> global =
+  DirectHandle<JSGlobalObject> global =
       handle(isolate->native_context()->global_object(), isolate);
-  Handle<JSFunction> finalization_registry_fun = Cast<JSFunction>(
+  DirectHandle<JSFunction> finalization_registry_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, finalization_registry_name)
           .ToHandleChecked());
   auto finalization_registry = Cast<JSFinalizationRegistry>(
@@ -47,10 +47,10 @@ Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
 Handle<JSWeakRef> ConstructJSWeakRef(DirectHandle<JSReceiver> target,
                                      Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Handle<String> weak_ref_name = factory->WeakRef_string();
-  Handle<JSGlobalObject> global =
+  DirectHandle<String> weak_ref_name = factory->WeakRef_string();
+  DirectHandle<JSGlobalObject> global =
       handle(isolate->native_context()->global_object(), isolate);
-  Handle<JSFunction> weak_ref_fun = Cast<JSFunction>(
+  DirectHandle<JSFunction> weak_ref_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, weak_ref_name).ToHandleChecked());
   auto weak_ref = Cast<JSWeakRef>(
       JSObject::New(weak_ref_fun, weak_ref_fun, Handle<AllocationSite>::null())
@@ -64,7 +64,8 @@ Handle<JSWeakRef> ConstructJSWeakRef(DirectHandle<JSReceiver> target,
 
 Handle<JSObject> CreateKey(const char* key_prop_value, Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Handle<String> key_string = factory->NewStringFromStaticChars("key_string");
+  DirectHandle<String> key_string =
+      factory->NewStringFromStaticChars("key_string");
   Handle<JSObject> key =
       isolate->factory()->NewJSObject(isolate->object_function());
   JSObject::AddProperty(isolate, key, key_string,
@@ -74,11 +75,11 @@ Handle<JSObject> CreateKey(const char* key_prop_value, Isolate* isolate) {
 }
 
 Handle<WeakCell> FinalizationRegistryRegister(
-    Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<JSObject> target, Handle<Object> held_value,
-    Handle<Object> unregister_token, Isolate* isolate) {
+    DirectHandle<JSFinalizationRegistry> finalization_registry,
+    DirectHandle<JSObject> target, DirectHandle<Object> held_value,
+    DirectHandle<Object> unregister_token, Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Handle<JSFunction> regfunc = Cast<JSFunction>(
+  DirectHandle<JSFunction> regfunc = Cast<JSFunction>(
       Object::GetProperty(isolate, finalization_registry,
                           factory->NewStringFromStaticChars("register"))
           .ToHandleChecked());
@@ -95,9 +96,9 @@ Handle<WeakCell> FinalizationRegistryRegister(
 }
 
 Handle<WeakCell> FinalizationRegistryRegister(
-    Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<JSObject> target, Isolate* isolate) {
-  Handle<Object> undefined =
+    DirectHandle<JSFinalizationRegistry> finalization_registry,
+    DirectHandle<JSObject> target, Isolate* isolate) {
+  DirectHandle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
   return FinalizationRegistryRegister(finalization_registry, target, undefined,
                                       undefined, isolate);
@@ -208,9 +209,9 @@ TEST(TestRegister) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
   // Register a weak reference and verify internal data structures.
@@ -245,14 +246,14 @@ TEST(TestRegisterWithKey) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<JSObject> token1 = CreateKey("token1", isolate);
-  Handle<JSObject> token2 = CreateKey("token2", isolate);
-  Handle<Object> undefined =
+  DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
+  DirectHandle<JSObject> token2 = CreateKey("token2", isolate);
+  DirectHandle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   // Register a weak reference with a key and verify internal data structures.
@@ -297,9 +298,9 @@ TEST(TestWeakCellNullify1) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
   DirectHandle<WeakCell> weak_cell1 =
@@ -331,9 +332,9 @@ TEST(TestWeakCellNullify2) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
   DirectHandle<WeakCell> weak_cell1 =
@@ -365,20 +366,23 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
-  Handle<Object> undefined =
+  DirectHandle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
+  DirectHandle<Object> holdings1 =
+      factory->NewStringFromAsciiChecked("holdings1");
   DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings1, undefined, isolate);
-  Handle<Object> holdings2 = factory->NewStringFromAsciiChecked("holdings2");
+  DirectHandle<Object> holdings2 =
+      factory->NewStringFromAsciiChecked("holdings2");
   DirectHandle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings2, undefined, isolate);
-  Handle<Object> holdings3 = factory->NewStringFromAsciiChecked("holdings3");
+  DirectHandle<Object> holdings3 =
+      factory->NewStringFromAsciiChecked("holdings3");
   DirectHandle<WeakCell> weak_cell3 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings3, undefined, isolate);
 
@@ -423,16 +427,18 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
-  Handle<JSObject> token1 = CreateKey("token1", isolate);
+  DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
 
-  Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
+  DirectHandle<Object> holdings1 =
+      factory->NewStringFromAsciiChecked("holdings1");
   DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings1, token1, isolate);
-  Handle<Object> holdings2 = factory->NewStringFromAsciiChecked("holdings2");
+  DirectHandle<Object> holdings2 =
+      factory->NewStringFromAsciiChecked("holdings2");
   DirectHandle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings2, token1, isolate);
 
@@ -474,14 +480,14 @@ TEST(TestUnregisterActiveCells) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<JSObject> token1 = CreateKey("token1", isolate);
-  Handle<JSObject> token2 = CreateKey("token2", isolate);
-  Handle<Object> undefined =
+  DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
+  DirectHandle<JSObject> token2 = CreateKey("token2", isolate);
+  DirectHandle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
@@ -526,14 +532,14 @@ TEST(TestUnregisterActiveAndClearedCells) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<JSObject> token1 = CreateKey("token1", isolate);
-  Handle<JSObject> token2 = CreateKey("token2", isolate);
-  Handle<Object> undefined =
+  DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
+  DirectHandle<JSObject> token2 = CreateKey("token2", isolate);
+  DirectHandle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
@@ -581,13 +587,13 @@ TEST(TestWeakCellUnregisterTwice) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<JSObject> token1 = CreateKey("token1", isolate);
-  Handle<Object> undefined =
+  DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
+  DirectHandle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
@@ -629,12 +635,13 @@ TEST(TestWeakCellUnregisterPopped) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
-  Handle<JSObject> token1 = CreateKey("token1", isolate);
-  Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
+  DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
+  DirectHandle<Object> holdings1 =
+      factory->NewStringFromAsciiChecked("holdings1");
   DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings1, token1, isolate);
 
@@ -818,14 +825,14 @@ TEST(TestRemoveUnregisterToken) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<JSObject> token1 = CreateKey("token1", isolate);
-  Handle<JSObject> token2 = CreateKey("token2", isolate);
-  Handle<HeapObject> undefined =
+  DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
+  DirectHandle<JSObject> token2 = CreateKey("token2", isolate);
+  DirectHandle<HeapObject> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(

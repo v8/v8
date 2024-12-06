@@ -887,7 +887,8 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
-  Handle<String> locale = Handle<String>(number_format->locale(), isolate);
+  DirectHandle<String> locale =
+      Handle<String>(number_format->locale(), isolate);
   const icu::UnicodeString numberingSystem_ustr =
       JSNumberFormat::NumberingSystemFromSkeleton(skeleton);
   // 5. For each row of Table 4, except the header row, in table order, do
@@ -1041,7 +1042,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
   // compiled but fail unit tests.
   DirectHandle<Context> native_context(isolate->context()->native_context(),
                                        isolate);
-  Handle<JSFunction> constructor(
+  DirectHandle<JSFunction> constructor(
       Cast<JSFunction>(native_context->intl_number_format_function()), isolate);
   Handle<Object> object;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -1062,11 +1063,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
 }
 
 // static
-MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
-                                                DirectHandle<Map> map,
-                                                Handle<Object> locales,
-                                                Handle<Object> options_obj,
-                                                const char* service) {
+MaybeHandle<JSNumberFormat> JSNumberFormat::New(
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> options_obj, const char* service) {
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -1077,7 +1076,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       maybe_requested_locales.FromJust();
 
   // 2. Set options to ? CoerceOptionsToObject(options).
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, CoerceOptionsToObject(isolate, options_obj, service));
 
@@ -1908,7 +1907,7 @@ std::vector<NumberFormatSpan> FlattenRegionsToParts(
 namespace {
 Maybe<int> ConstructParts(Isolate* isolate,
                           const icu::FormattedValue& formatted,
-                          Handle<JSArray> result, int start_index,
+                          DirectHandle<JSArray> result, int start_index,
                           bool style_is_unit, bool is_nan, bool output_source,
                           bool output_unit, DirectHandle<String> unit) {
   UErrorCode status = U_ZERO_ERROR;
@@ -1990,8 +1989,8 @@ Maybe<int> ConstructParts(Isolate* isolate,
 
 Maybe<int> Intl::AddNumberElements(Isolate* isolate,
                                    const icu::FormattedValue& formatted,
-                                   Handle<JSArray> result, int start_index,
-                                   DirectHandle<String> unit) {
+                                   DirectHandle<JSArray> result,
+                                   int start_index, DirectHandle<String> unit) {
   return ConstructParts(isolate, formatted, result, start_index, true, false,
                         false, true, unit);
 }

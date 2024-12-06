@@ -21,7 +21,8 @@ ObjectDeserializer::ObjectDeserializer(Isolate* isolate,
 
 MaybeDirectHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfo(
-    Isolate* isolate, const SerializedCodeData* data, Handle<String> source) {
+    Isolate* isolate, const SerializedCodeData* data,
+    DirectHandle<String> source) {
   ObjectDeserializer d(isolate, data);
 
   d.AddAttachedObject(source);

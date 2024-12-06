@@ -303,9 +303,9 @@ inline v8::Local<T> ToApiHandle(
 }
 
 template <class T>
-inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
+inline bool ToLocal(v8::internal::MaybeDirectHandle<v8::internal::Object> maybe,
                     Local<T>* local) {
-  v8::internal::Handle<v8::internal::Object> handle;
+  v8::internal::DirectHandle<v8::internal::Object> handle;
   if (maybe.ToHandle(&handle)) {
     *local = Utils::Convert<v8::internal::Object, T>(handle);
     return true;

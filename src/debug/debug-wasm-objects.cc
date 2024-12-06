@@ -490,9 +490,10 @@ struct StackProxy : IndexedDebugProxy<StackProxy, kStackProxy, FixedArray> {
 // This is used to cache the various instance debug proxies (functions,
 // globals, tables, and memories) on the WasmInstanceObject.
 Handle<FixedArray> GetOrCreateInstanceProxyCache(
-    Isolate* isolate, Handle<WasmInstanceObject> instance) {
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance) {
   Handle<Object> cache;
-  Handle<Symbol> symbol = isolate->factory()->wasm_debug_proxy_cache_symbol();
+  DirectHandle<Symbol> symbol =
+      isolate->factory()->wasm_debug_proxy_cache_symbol();
   if (!Object::GetProperty(isolate, instance, symbol).ToHandle(&cache) ||
       IsUndefined(*cache, isolate)) {
     cache = isolate->factory()->NewFixedArrayWithHoles(kNumInstanceProxies);
@@ -582,8 +583,8 @@ class ContextProxyPrototype {
   }
 
   static MaybeHandle<Object> GetNamedProperty(Isolate* isolate,
-                                              Handle<JSObject> receiver,
-                                              Handle<String> name) {
+                                              DirectHandle<JSObject> receiver,
+                                              DirectHandle<String> name) {
     if (name->length() != 0 && name->Get(0) == '$') {
       const char* kDelegateNames[] = {"memories", "locals", "tables",
                                       "functions", "globals"};
@@ -640,7 +641,7 @@ class ContextProxy {
     auto functions =
         GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance);
     JSObject::AddProperty(isolate, object, "functions", functions, FROZEN);
-    Handle<JSObject> prototype = ContextProxyPrototype::Create(isolate);
+    DirectHandle<JSObject> prototype = ContextProxyPrototype::Create(isolate);
     JSObject::SetPrototype(isolate, object, prototype, false, kDontThrow)
         .Check();
     return object;
@@ -976,7 +977,8 @@ struct ArrayProxy : IndexedDebugProxy<ArrayProxy, kArrayProxy, FixedArray> {
     Handle<JSObject> proxy = IndexedDebugProxy::Create(
         isolate, data, false /* leave map extensible */);
     uint32_t length = value->length();
-    Handle<Object> length_obj = isolate->factory()->NewNumberFromUint(length);
+    DirectHandle<Object> length_obj =
+        isolate->factory()->NewNumberFromUint(length);
     Object::SetProperty(isolate, proxy, isolate->factory()->length_string(),
                         length_obj, StoreOrigin::kNamed,
                         Just(ShouldThrow::kThrowOnError))
@@ -1233,8 +1235,9 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
         WasmValueObject::New(isolate, wasm_value, module);
     entries->set(i, *debug_value);
   }
-  Handle<JSArray> final_entries = isolate->factory()->NewJSArrayWithElements(
-      entries, i::PACKED_ELEMENTS, length);
+  DirectHandle<JSArray> final_entries =
+      isolate->factory()->NewJSArrayWithElements(entries, i::PACKED_ELEMENTS,
+                                                 length);
   JSObject::SetPrototype(isolate, final_entries,
                          isolate->factory()->null_value(), false, kDontThrow)
       .Check();

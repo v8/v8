@@ -46,7 +46,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
     HandleScope scope(isolate);
     MaybeHandle<WasmMemoryObject> result = WasmMemoryObject::New(
         isolate, 1, 1, SharedFlag::kNotShared, wasm::AddressType::kI32);
-    Handle<WasmMemoryObject> memory_object = result.ToHandleChecked();
+    DirectHandle<WasmMemoryObject> memory_object = result.ToHandleChecked();
     Handle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate);
 
     {

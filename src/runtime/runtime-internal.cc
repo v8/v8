@@ -25,7 +25,7 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_AccessCheck) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSObject> object = args.at<JSObject>(0);
+  DirectHandle<JSObject> object = args.at<JSObject>(0);
   if (!isolate->MayAccess(isolate->native_context(), object)) {
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 isolate->ReportFailedAccessCheck(object));
@@ -486,7 +486,7 @@ RUNTIME_FUNCTION(Runtime_AllocateByteArray) {
 RUNTIME_FUNCTION(Runtime_ThrowIteratorError) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> object = args.at(0);
+  DirectHandle<Object> object = args.at(0);
   return isolate->Throw(*ErrorUtils::NewIteratorError(isolate, object));
 }
 
@@ -495,14 +495,14 @@ RUNTIME_FUNCTION(Runtime_ThrowSpreadArgError) {
   DCHECK_EQ(2, args.length());
   int message_id_smi = args.smi_value_at(0);
   MessageTemplate message_id = MessageTemplateFromInt(message_id_smi);
-  Handle<Object> object = args.at(1);
+  DirectHandle<Object> object = args.at(1);
   return ErrorUtils::ThrowSpreadArgError(isolate, message_id, object);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> object = args.at(0);
+  DirectHandle<Object> object = args.at(0);
   return isolate->Throw(
       *ErrorUtils::NewCalledNonCallableError(isolate, object));
 }
@@ -510,7 +510,7 @@ RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
 RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> object = args.at(0);
+  DirectHandle<Object> object = args.at(0);
   return isolate->Throw(
       *ErrorUtils::NewConstructedNonConstructable(isolate, object));
 }
@@ -518,7 +518,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
 RUNTIME_FUNCTION(Runtime_ThrowPatternAssignmentNonCoercible) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> object = args.at(0);
+  DirectHandle<Object> object = args.at(0);
   return ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, object,
                                                   MaybeHandle<Object>());
 }
@@ -536,7 +536,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {
 RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> object = args.at(0);
+  DirectHandle<Object> object = args.at(0);
   RETURN_RESULT_OR_FAILURE(isolate, Object::CreateListFromArrayLike(
                                         isolate, object, ElementTypes::kAll));
 }
@@ -638,8 +638,8 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
 RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSAny> callable = args.at<JSAny>(0);
-  Handle<JSAny> object = args.at<JSAny>(1);
+  DirectHandle<JSAny> callable = args.at<JSAny>(0);
+  DirectHandle<JSAny> object = args.at<JSAny>(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, Object::OrdinaryHasInstance(isolate, callable, object));
 }
@@ -655,7 +655,7 @@ RUNTIME_FUNCTION(Runtime_AllowDynamicFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSFunction> target = args.at<JSFunction>(0);
-  Handle<JSObject> global_proxy(target->global_proxy(), isolate);
+  DirectHandle<JSObject> global_proxy(target->global_proxy(), isolate);
   return *isolate->factory()->ToBoolean(
       Builtins::AllowDynamicFunction(isolate, target, global_proxy));
 }
@@ -717,8 +717,8 @@ RUNTIME_FUNCTION(Runtime_GetInitializerFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  Handle<JSReceiver> constructor = args.at<JSReceiver>(0);
-  Handle<Symbol> key = isolate->factory()->class_fields_symbol();
+  DirectHandle<JSReceiver> constructor = args.at<JSReceiver>(0);
+  DirectHandle<Symbol> key = isolate->factory()->class_fields_symbol();
   DirectHandle<Object> initializer =
       JSReceiver::GetDataProperty(isolate, constructor, key);
   return *initializer;

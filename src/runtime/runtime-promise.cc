@@ -14,8 +14,8 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
-  Handle<JSPromise> promise = args.at<JSPromise>(0);
-  Handle<Object> value = args.at(1);
+  DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
+  DirectHandle<Object> value = args.at(1);
 
   isolate->RunAllPromiseHooks(PromiseHookType::kResolve, promise,
                               isolate->factory()->undefined_value());
@@ -32,8 +32,8 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
 RUNTIME_FUNCTION(Runtime_PromiseRejectAfterResolved) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
-  Handle<JSPromise> promise = args.at<JSPromise>(0);
-  Handle<Object> reason = args.at(1);
+  DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
+  DirectHandle<Object> reason = args.at(1);
   isolate->ReportPromiseReject(promise, reason,
                                v8::kPromiseRejectAfterResolved);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -42,8 +42,8 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectAfterResolved) {
 RUNTIME_FUNCTION(Runtime_PromiseResolveAfterResolved) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
-  Handle<JSPromise> promise = args.at<JSPromise>(0);
-  Handle<Object> resolution = args.at(1);
+  DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
+  DirectHandle<Object> resolution = args.at(1);
   isolate->ReportPromiseReject(promise, resolution,
                                v8::kPromiseResolveAfterResolved);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -52,7 +52,7 @@ RUNTIME_FUNCTION(Runtime_PromiseResolveAfterResolved) {
 RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<JSPromise> promise = args.at<JSPromise>(0);
+  DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
   // At this point, no revocation has been issued before
   CHECK(!promise->has_handler());
   isolate->ReportPromiseReject(promise, Handle<Object>(),
@@ -98,8 +98,8 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
 RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSPromise> promise = args.at<JSPromise>(0);
-  Handle<Object> parent = args.at(1);
+  DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
+  DirectHandle<Object> parent = args.at(1);
   isolate->RunPromiseHook(PromiseHookType::kInit, promise, parent);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -130,8 +130,8 @@ RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
 RUNTIME_FUNCTION(Runtime_RejectPromise) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSPromise> promise = args.at<JSPromise>(0);
-  Handle<Object> reason = args.at(1);
+  DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
+  DirectHandle<Object> reason = args.at(1);
   DirectHandle<Boolean> debug_event = args.at<Boolean>(2);
   return *JSPromise::Reject(promise, reason,
                             Object::BooleanValue(*debug_event, isolate));
@@ -140,8 +140,8 @@ RUNTIME_FUNCTION(Runtime_RejectPromise) {
 RUNTIME_FUNCTION(Runtime_ResolvePromise) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSPromise> promise = args.at<JSPromise>(0);
-  Handle<Object> resolution = args.at(1);
+  DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
+  DirectHandle<Object> resolution = args.at(1);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSPromise::Resolve(promise, resolution));

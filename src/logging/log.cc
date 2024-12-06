@@ -337,7 +337,7 @@ void CodeEventLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   name_buffer_->AppendBytes(" src: '");
   name_buffer_->AppendString(*source);
   name_buffer_->AppendBytes("' flags: '");
-  Handle<String> flags_str =
+  DirectHandle<String> flags_str =
       JSRegExp::StringFromFlags(isolate_, JSRegExp::AsJSRegExpFlags(flags));
   name_buffer_->AppendString(*flags_str);
   name_buffer_->AppendBytes("'");

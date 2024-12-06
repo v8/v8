@@ -225,7 +225,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     // of customizing ScopeInfo serialization.
     static_assert(DEPENDENT_CODE_TYPE == WEAK_ARRAY_LIST_TYPE);
     Handle<ScopeInfo> scope_info = Cast<ScopeInfo>(obj);
-    Handle<DependentCode> dependent_code;
+    DirectHandle<DependentCode> dependent_code;
     bool restore_dependent_code = false;
     if (scope_info->SloppyEvalCanExtendVars()) {
       // If |scope_info| has a dependent code field, serialize it as an empty
@@ -471,8 +471,8 @@ const char* ToString(SerializedCodeSanityCheckResult result) {
 }  // namespace
 
 MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
-    Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-    const ScriptDetails& script_details,
+    Isolate* isolate, AlignedCachedData* cached_data,
+    DirectHandle<String> source, const ScriptDetails& script_details,
     MaybeHandle<Script> maybe_cached_script) {
   if (v8_flags.stress_background_compile) {
     StressOffThreadDeserializeThread thread(isolate, cached_data);

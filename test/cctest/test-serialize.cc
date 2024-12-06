@@ -504,7 +504,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
     HandleScope handle_scope(isolate);
     DirectHandle<Object> root;
-    Handle<JSGlobalProxy> global_proxy =
+    DirectHandle<JSGlobalProxy> global_proxy =
         isolate->factory()->NewUninitializedJSGlobalProxy(
             JSGlobalProxy::SizeWithEmbedderFields(0));
     {
@@ -705,8 +705,9 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
       isolate->heap()->set_native_contexts_list(*context);
 
       CHECK(context->global_proxy() == *global_proxy);
-      Handle<String> o = isolate->factory()->NewStringFromAsciiChecked("o");
-      Handle<JSObject> global_object(context->global_object(), isolate);
+      DirectHandle<String> o =
+          isolate->factory()->NewStringFromAsciiChecked("o");
+      DirectHandle<JSObject> global_object(context->global_object(), isolate);
       Handle<Object> property =
           JSReceiver::GetDataProperty(isolate, global_object, o);
       CHECK(property.is_identical_to(global_proxy));
@@ -1845,10 +1846,10 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   CHECK(Cast<String>(Cast<Script>(copy->script())->source())
             ->Equals(*copy_source));
 
-  Handle<JSFunction> copy_fun =
+  DirectHandle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   DirectHandle<Object> copy_result =
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
@@ -2322,13 +2323,13 @@ TEST(CodeSerializerInternalizedString) {
   CHECK(!orig_source.is_identical_to(copy_source));
   CHECK(orig_source->Equals(*copy_source));
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
 
   i::AlignedCachedData* cached_data = nullptr;
   DirectHandle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
       isolate, orig_source, ScriptDetails(), &cached_data,
       v8::ScriptCompiler::kNoCompileOptions);
-  Handle<JSFunction> orig_fun =
+  DirectHandle<JSFunction> orig_fun =
       Factory::JSFunctionBuilder{isolate, orig, isolate->native_context()}
           .Build();
   Handle<Object> orig_result =
@@ -2349,7 +2350,7 @@ TEST(CodeSerializerInternalizedString) {
   CHECK(Cast<String>(Cast<Script>(copy->script())->source())
             ->Equals(*copy_source));
 
-  Handle<JSFunction> copy_fun =
+  DirectHandle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
   CHECK_NE(*orig_fun, *copy_fun);
@@ -2387,7 +2388,7 @@ TEST(CodeSerializerLargeCodeObject) {
   Handle<String> source_str =
       isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   DirectHandle<SharedFunctionInfo> orig =
@@ -2408,7 +2409,7 @@ TEST(CodeSerializerLargeCodeObject) {
   }
   CHECK_NE(*orig, *copy);
 
-  Handle<JSFunction> copy_fun =
+  DirectHandle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
@@ -2461,7 +2462,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
     ec_page = PageMetadata::FromHeapObject(*moving_object);
   }
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   DirectHandle<SharedFunctionInfo> orig =
@@ -2494,7 +2495,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   heap::SimulateIncrementalMarking(heap, true);
   heap::InvokeMajorGC(heap);
 
-  Handle<JSFunction> copy_fun =
+  DirectHandle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
@@ -2531,7 +2532,7 @@ TEST(CodeSerializerLargeStrings) {
                        f->NewStringFromUtf8(source_t).ToHandleChecked())
           .ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   DirectHandle<SharedFunctionInfo> orig =
@@ -2546,7 +2547,7 @@ TEST(CodeSerializerLargeStrings) {
   }
   CHECK_NE(*orig, *copy);
 
-  Handle<JSFunction> copy_fun =
+  DirectHandle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
@@ -2612,7 +2613,7 @@ TEST(CodeSerializerThreeBigStrings) {
            source_c_str)
           .ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   DirectHandle<SharedFunctionInfo> orig =
@@ -2627,7 +2628,7 @@ TEST(CodeSerializerThreeBigStrings) {
   }
   CHECK_NE(*orig, *copy);
 
-  Handle<JSFunction> copy_fun =
+  DirectHandle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
@@ -2736,7 +2737,7 @@ TEST(CodeSerializerExternalString) {
           ->NewStringFromUtf8(base::CStrVector(source))
           .ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   DirectHandle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
@@ -2751,7 +2752,7 @@ TEST(CodeSerializerExternalString) {
   }
   CHECK_NE(*orig, *copy);
 
-  Handle<JSFunction> copy_fun =
+  DirectHandle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
@@ -2802,7 +2803,7 @@ TEST(CodeSerializerLargeExternalString) {
                .ToHandleChecked())
           .ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   DirectHandle<SharedFunctionInfo> orig =
@@ -2817,7 +2818,7 @@ TEST(CodeSerializerLargeExternalString) {
   }
   CHECK_NE(*orig, *copy);
 
-  Handle<JSFunction> copy_fun =
+  DirectHandle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
@@ -2857,7 +2858,7 @@ TEST(CodeSerializerExternalScriptName) {
   CHECK(IsExternalOneByteString(*name));
   CHECK(!IsInternalizedString(*name));
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   DirectHandle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
@@ -2872,7 +2873,7 @@ TEST(CodeSerializerExternalScriptName) {
   }
   CHECK_NE(*orig, *copy);
 
-  Handle<JSFunction> copy_fun =
+  DirectHandle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 

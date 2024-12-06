@@ -2766,7 +2766,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     Context::Scope scope(serialization_context());
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
+    i::DirectHandle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
     input = Utils::Convert<i::WasmMemoryObject, Value>(i::WasmMemoryObject::New(
         i_isolate, obj, kMaxPages, i::wasm::AddressType::kI32));
   }
@@ -2800,7 +2800,8 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     Context::Scope scope(serialization_context());
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*input_buffer());
+    i::DirectHandle<i::JSArrayBuffer> buffer =
+        Utils::OpenHandle(*input_buffer());
     i::DirectHandle<i::WasmMemoryObject> wasm_memory = i::WasmMemoryObject::New(
         i_isolate, buffer, kMaxPages, i::wasm::AddressType::kI32);
     i::DirectHandle<i::FixedArray> fixed_array =
