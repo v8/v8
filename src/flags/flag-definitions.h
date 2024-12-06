@@ -1446,11 +1446,11 @@ DEFINE_BOOL(turboshaft_enable_debug_features, false,
             "enables Turboshaft's DebugPrint, StaticAssert and "
             "CheckTurboshaftTypeOf operations")
 #endif
-DEFINE_BOOL(turboshaft_wasm, true,
-            "enable TurboFan's Turboshaft phases for wasm")
-DEFINE_BOOL(turboshaft_wasm_load_elimination, false,
+// TODO(382509286): Remove this flag.
+DEFINE_BOOL_READONLY(turboshaft_wasm, true,
+                     "enable TurboFan's Turboshaft phases for wasm")
+DEFINE_BOOL(turboshaft_wasm_load_elimination, true,
             "enable Turboshaft's WasmLoadElimination")
-DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_wasm_load_elimination)
 
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_wasm_in_js_inlining,
@@ -1487,15 +1487,9 @@ DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_wasm_instruction_selection_experimental,
     "run instruction selection on Turboshaft IR directly for wasm, on "
     "architectures where the feature is experimental")
-DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, false,
+DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, true,
             "run instruction selection on Turboshaft IR directly for wasm, on "
             "architectures where we are staging the feature")
-// If turboshaft_wasm is set, also enable instruction selection on the
-// Turboshaft IR directly (as the slow path via RecreateSchedule is mostly for
-// non-official platforms and we do not plan on shipping this combination any
-// more.)
-DEFINE_WEAK_IMPLICATION(turboshaft_wasm,
-                        turboshaft_wasm_instruction_selection_staged)
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_from_maglev,
                             "build the Turboshaft graph from Maglev")
 // inline_api_calls are not supported by the Turboshaft->Maglev translation.
@@ -1507,22 +1501,14 @@ DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_future,
     "enable Turboshaft features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(turboshaft_future, turboshaft)
-DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_wasm)
 #if V8_TARGET_ARCH_X64 or V8_TARGET_ARCH_ARM64 or V8_TARGET_ARCH_ARM or \
     V8_TARGET_ARCH_IA32
 DEFINE_WEAK_IMPLICATION(turboshaft_future,
                         turboshaft_wasm_instruction_selection_experimental)
 #endif
-DEFINE_WEAK_IMPLICATION(turboshaft_future,
-                        turboshaft_wasm_instruction_selection_staged)
 
 #if V8_ENABLE_WEBASSEMBLY
-// Shared-everything is implemented on turboshaft only for now.
-DEFINE_IMPLICATION(experimental_wasm_shared, turboshaft_wasm)
 DEFINE_NEG_IMPLICATION(experimental_wasm_shared, liftoff)
-
-// FP16 is implemented on liftoff and turboshaft only for now.
-DEFINE_IMPLICATION(experimental_wasm_fp16, turboshaft_wasm)
 #endif
 
 #ifdef DEBUG
@@ -1602,9 +1588,8 @@ DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
 DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
 DEFINE_BOOL(wasm_native_module_cache, true, "enable the native module cache")
-DEFINE_BOOL(turboshaft_wasm_wrappers, false,
+DEFINE_BOOL(turboshaft_wasm_wrappers, true,
             "compile the wasm wrappers with Turboshaft (instead of TurboFan)")
-DEFINE_IMPLICATION(turboshaft_wasm, turboshaft_wasm_wrappers)
 // The actual value used at runtime is clamped to kV8MaxWasmMemory{32,64}Pages.
 DEFINE_UINT(wasm_max_mem_pages, kMaxUInt32,
             "maximum number of 64KiB memory pages per wasm memory")
@@ -1731,8 +1716,6 @@ DEFINE_BOOL(wasm_deopt, false, "enable deopts in optimized wasm functions")
 DEFINE_WEAK_IMPLICATION(future, wasm_deopt)
 // Deopt only works in combination with feedback.
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_deopt)
-// Deopt support for wasm is not implemented for Turbofan.
-DEFINE_IMPLICATION(wasm_deopt, turboshaft_wasm)
 
 // Declare command-line flags for Wasm features. Warning: avoid using these
 // flags directly in the implementation. Instead accept
@@ -1787,9 +1770,6 @@ DEFINE_WEAK_IMPLICATION(future, wasm_inlining_call_indirect)
 // This doesn't make sense without and requires  the basic inlining machinery,
 // e.g., for allocating feedback vectors, so we automatically enable it.
 DEFINE_IMPLICATION(wasm_inlining_call_indirect, wasm_inlining)
-// This is not implemented for Turbofan, so make sure users are aware by
-// forcing them to explicitly enable Turboshaft (until it's the default anyway).
-DEFINE_NEG_NEG_IMPLICATION(turboshaft_wasm, wasm_inlining_call_indirect)
 
 DEFINE_BOOL(wasm_inlining, true,
             "enable inlining of Wasm functions into Wasm functions")

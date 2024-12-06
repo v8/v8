@@ -29736,7 +29736,6 @@ TEST(FastApiCallsFromWasm) {
   if (i::v8_flags.disable_optimizing_compilers) return;
 
   i::v8_flags.liftoff = false;
-  i::v8_flags.turboshaft_wasm = true;
   i::v8_flags.wasm_fast_api = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.wasm_lazy_compilation = true;
