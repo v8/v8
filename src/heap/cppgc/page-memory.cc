@@ -190,7 +190,7 @@ size_t NormalPageMemoryPool::PooledMemory() const {
   return total_size;
 }
 
-void NormalPageMemoryPool::DiscardPooledPages(PageAllocator& page_allocator) {
+void NormalPageMemoryPool::ReleasePooledPages(PageAllocator& page_allocator) {
   for (auto& entry : pool_) {
     DCHECK_NOT_NULL(entry.region);
     void* base = entry.region->GetPageMemory().writeable_region().base();
@@ -242,19 +242,12 @@ Address PageBackend::TryAllocateNormalPageMemory() {
   return nullptr;
 }
 
-void PageBackend::FreeNormalPageMemory(
-    Address writeable_base, FreeMemoryHandling free_memory_handling) {
+void PageBackend::FreeNormalPageMemory(Address writeable_base) {
   v8::base::MutexGuard guard(&mutex_);
   auto* pmr = page_memory_region_tree_.Lookup(writeable_base);
   DCHECK_NOT_NULL(pmr);
   page_memory_region_tree_.Remove(pmr);
   page_pool_.Add(pmr);
-  if (free_memory_handling == FreeMemoryHandling::kDiscardWherePossible) {
-    // Unpoison the memory before giving back to the OS.
-    ASAN_UNPOISON_MEMORY_REGION(pmr->GetPageMemory().writeable_region().base(),
-                                pmr->GetPageMemory().writeable_region().size());
-    CHECK(TryDiscard(normal_page_allocator_, pmr->GetPageMemory()));
-  }
 }
 
 Address PageBackend::TryAllocateLargePageMemory(size_t size) {
@@ -281,8 +274,8 @@ void PageBackend::FreeLargePageMemory(Address writeable_base) {
   DCHECK_EQ(1u, size);
 }
 
-void PageBackend::DiscardPooledPages() {
-  page_pool_.DiscardPooledPages(normal_page_allocator_);
+void PageBackend::ReleasePooledPages() {
+  page_pool_.ReleasePooledPages(normal_page_allocator_);
 }
 
 }  // namespace internal

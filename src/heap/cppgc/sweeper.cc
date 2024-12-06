@@ -538,7 +538,7 @@ class SweepFinalizer final {
           largest_consecutive_block_ = std::max(
               LargePage::From(page)->PayloadSize(), largest_consecutive_block_);
         }
-        BasePage::Destroy(page, free_memory_handling_);
+        BasePage::Destroy(page);
         return;
       }
 
@@ -572,7 +572,7 @@ class SweepFinalizer final {
     // Merge freelist with finalizers.
     if (!page_state->unfinalized_free_list.empty()) {
       std::unique_ptr<FreeHandlerBase> handler =
-          (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible)
+          free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible
               ? std::unique_ptr<FreeHandlerBase>(new DiscardingFreeHandler(
                     *platform_->GetPageAllocator(), space_freelist, *page))
               : std::unique_ptr<FreeHandlerBase>(new RegularFreeHandler(
@@ -707,7 +707,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
       page.ResetDiscardedMemory();
     }
     const auto result =
-        (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible)
+        free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible
             ? SweepNormalPage<
                   InlinedFinalizationBuilder<DiscardingFreeHandler>>(
                   &page, *platform_->GetPageAllocator(), sticky_bits_)
@@ -715,7 +715,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
                   &page, *platform_->GetPageAllocator(), sticky_bits_);
     if (result.is_empty &&
         empty_page_handling_ == EmptyPageHandling::kDestroy) {
-      NormalPage::Destroy(&page, free_memory_handling_);
+      NormalPage::Destroy(&page);
       (*unused_destroyed_normal_pages_)++;
     } else {
       if (space_) {
@@ -1322,8 +1322,9 @@ class Sweeper::SweeperImpl final {
     notify_done_pending_ = false;
     stats_collector_->NotifySweepingCompleted(config_.sweeping_type);
     if (config_.free_memory_handling ==
-        FreeMemoryHandling::kDiscardWherePossible)
-      heap_.heap()->page_backend()->DiscardPooledPages();
+        FreeMemoryHandling::kDiscardWherePossible) {
+      heap_.heap()->page_backend()->ReleasePooledPages();
+    }
   }
 
   void WaitForConcurrentSweepingForTesting() {
