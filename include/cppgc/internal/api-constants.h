@@ -40,7 +40,7 @@ constexpr size_t kGuardPageSize = 0;
 #elif defined(V8_HOST_ARCH_LOONG64) || defined(V8_HOST_ARCH_MIPS64)
 constexpr size_t kGuardPageSize = 0;
 #else
-constexpr size_t kGuardPageSize = 0;
+constexpr size_t kGuardPageSize = 4096;
 #endif
 
 static constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
