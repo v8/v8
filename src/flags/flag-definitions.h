@@ -484,6 +484,12 @@ DEFINE_BOOL(stress_scavenger_pinning_objects, false,
             "Treat some precise refernces as conservative references to stress "
             "test object pinning in Scavenger")
 DEFINE_IMPLICATION(stress_scavenger_pinning_objects, scavenger_pinning_objects)
+DEFINE_BOOL(stress_scavenger_pinning_objects_random, false,
+            "Enables random stressing of object pinning in Scavenger, such "
+            "that each GC would randomly pick a subset of the precise "
+            "references to treat conservatively")
+DEFINE_IMPLICATION(stress_scavenger_pinning_objects_random,
+                   stress_scavenger_pinning_objects)
 
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true

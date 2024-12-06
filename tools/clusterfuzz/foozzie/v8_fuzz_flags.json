@@ -32,8 +32,9 @@
   [0.2, "--turboshaft-wasm"],
   [0.5, "--optimize-on-next-call-optimizes-to-maglev"],
   [0.0001, "--simulate-errors"],
-  [0.25, "--minor-ms"],
+  [0.1, "--minor-ms"],
   [0.1, "--shared-string-table"],
   [0.1, "--shared-heap"],
-  [0.1, "--stress-wasm-memory-moving"]
+  [0.1, "--stress-wasm-memory-moving"],
+  [0.1, "--stress-scavenger-pinning-objects-random"]
 ]

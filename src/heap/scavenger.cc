@@ -8,6 +8,7 @@
 #include <optional>
 #include <unordered_map>
 
+#include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
@@ -438,8 +439,13 @@ class ObjectPinningVisitor final : public RootVisitor {
 // pinning in Scavenger.
 class TreatConservativelyVisitor final : public RootVisitor {
  public:
-  explicit TreatConservativelyVisitor(ConservativeStackVisitor* v)
-      : RootVisitor(), stack_visitor_(v) {}
+  TreatConservativelyVisitor(ConservativeStackVisitor* v, Heap* heap)
+      : RootVisitor(),
+        stack_visitor_(v),
+        rng_(heap->isolate()->fuzzer_rng()),
+        stressing_threshold_(v8_flags.stress_scavenger_pinning_objects_random
+                                 ? rng_->NextDouble()
+                                 : 0) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
@@ -455,11 +461,16 @@ class TreatConservativelyVisitor final : public RootVisitor {
 
  private:
   void HandlePointer(FullObjectSlot p) {
+    if (rng_->NextDouble() < stressing_threshold_) {
+      return;
+    }
     Tagged<Object> object = *p;
     stack_visitor_->VisitPointer(reinterpret_cast<void*>(object.ptr()));
   }
 
   ConservativeStackVisitor* const stack_visitor_;
+  base::RandomNumberGenerator* const rng_;
+  double stressing_threshold_;
 };
 
 void PinObjects(Scavenger& scavenger,
@@ -625,7 +636,7 @@ void ScavengerCollector::CollectGarbage() {
           // Marker was already set by Heap::CollectGarbage.
           heap_->stack().IteratePointersUntilMarker(&stack_visitor);
           if (v8_flags.stress_scavenger_pinning_objects) {
-            TreatConservativelyVisitor handles_visitor(&stack_visitor);
+            TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
             isolate_->handle_scope_implementer()->Iterate(&handles_visitor);
           }
         }
