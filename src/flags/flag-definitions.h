@@ -1477,8 +1477,7 @@ DEFINE_BOOL(turboshaft_loop_unrolling, true,
             "enable Turboshaft's loop unrolling")
 DEFINE_BOOL(turboshaft_string_concat_escape_analysis, false,
             "enable Turboshaft's escape analysis for string concatenation")
-// TODO(dmercadier): re-enable behind --future once known bugs have been fixed.
-// DEFINE_WEAK_IMPLICATION(future, turboshaft_string_concat_escape_analysis)
+DEFINE_WEAK_IMPLICATION(future, turboshaft_string_concat_escape_analysis)
 
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
