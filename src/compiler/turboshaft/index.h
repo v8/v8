@@ -561,6 +561,8 @@ constexpr bool IsWord() {
 
 template <typename T>
 constexpr bool IsValidTypeFor(RegisterRepresentation repr) {
+  if (std::is_same_v<T, Any>) return true;
+
   switch (repr.value()) {
     case RegisterRepresentation::Enum::kWord32:
       return std::is_same_v<T, Word> || std::is_same_v<T, Word32> ||

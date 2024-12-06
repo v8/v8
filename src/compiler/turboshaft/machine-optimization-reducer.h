@@ -105,11 +105,12 @@ struct BitfieldCheck {
     const Operation& op = graph.Get(index);
     if (const ComparisonOp* equal = op.TryCast<Opmask::kWord32Equal>()) {
       if (const WordBinopOp* left_and =
-              graph.Get(equal->left()).TryCast<Opmask::kWord32BitwiseAnd>()) {
+              graph.Get(equal->left<Word32>())
+                  .TryCast<Opmask::kWord32BitwiseAnd>()) {
         uint32_t mask;
         uint32_t masked_value;
         if (matcher.MatchIntegralWord32Constant(left_and->right(), &mask) &&
-            matcher.MatchIntegralWord32Constant(equal->right(),
+            matcher.MatchIntegralWord32Constant(equal->right<Word32>(),
                                                 &masked_value)) {
           if ((masked_value & ~mask) != 0) return std::nullopt;
           if (const ChangeOp* truncate =
@@ -160,7 +161,7 @@ struct BitfieldCheck {
     uint64_t constant;
     if (matcher.MatchBitwiseAndWithConstant(index, &value, &constant, Rep) &&
         constant == 1) {
-      OpIndex input;
+      V<WordType> input;
       if (int shift_amount;
           matcher.MatchConstantRightShift(value, &input, Rep, &shift_amount) &&
           shift_amount >= 0 && shift_amount < 32) {
@@ -1681,7 +1682,7 @@ class MachineOptimizationReducer : public Next {
         // Since this is used for Smi untagging, we currently only need it for
         // signed shifts.
         int k;
-        OpIndex x;
+        V<Word> x;
         if (matcher_.MatchConstantShift(
                 left, &x, Kind::kShiftRightArithmeticShiftOutZeros, rep, &k)) {
           int32_t l = amount;
@@ -1704,7 +1705,7 @@ class MachineOptimizationReducer : public Next {
       }
       if (kind == any_of(Kind::kShiftRightArithmetic,
                          Kind::kShiftRightArithmeticShiftOutZeros)) {
-        OpIndex x;
+        V<Word> x;
         int left_shift_amount;
         // (x << k) >> k
         if (matcher_.MatchConstantShift(left, &x, ShiftOp::Kind::kShiftLeft,
@@ -2450,7 +2451,7 @@ class MachineOptimizationReducer : public Next {
   }
 
   bool IsFloat32ConvertedToFloat64(V<Any> value) {
-    if (OpIndex input;
+    if (V<Float32> input;
         matcher_.MatchChange(value, &input, ChangeOp::Kind::kFloatConversion,
                              RegisterRepresentation::Float32(),
                              RegisterRepresentation::Float64())) {
@@ -2464,7 +2465,7 @@ class MachineOptimizationReducer : public Next {
   }
 
   V<Float32> UndoFloat32ToFloat64Conversion(V<Float64> value) {
-    if (OpIndex input;
+    if (V<Float32> input;
         matcher_.MatchChange(value, &input, ChangeOp::Kind::kFloatConversion,
                              RegisterRepresentation::Float32(),
                              RegisterRepresentation::Float64())) {
@@ -2477,9 +2478,9 @@ class MachineOptimizationReducer : public Next {
     UNREACHABLE();
   }
 
-  bool IsBit(OpIndex value) { return matcher_.Is<ComparisonOp>(value); }
+  bool IsBit(V<Word> value) { return matcher_.Is<ComparisonOp>(value); }
 
-  bool IsInt8(OpIndex value) {
+  bool IsInt8(V<Word> value) {
     if (auto* op = matcher_.TryCast<LoadOp>(value)) {
       return op->loaded_rep == MemoryRepresentation::Int8();
     } else if (auto* op = matcher_.TryCast<LoadOp>(value)) {
@@ -2488,7 +2489,7 @@ class MachineOptimizationReducer : public Next {
     return false;
   }
 
-  bool IsInt16(OpIndex value) {
+  bool IsInt16(V<Word> value) {
     if (auto* op = matcher_.TryCast<LoadOp>(value)) {
       return op->loaded_rep == any_of(MemoryRepresentation::Int16(),
                                       MemoryRepresentation::Int8());

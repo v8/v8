@@ -2023,7 +2023,12 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
                          RegisterRepresentation::Word32()});
   }
 
-  V<Word> left() const { return input<Word>(0); }
+  template <typename WordT = Word>
+    requires(IsWord<WordT>())
+  V<WordT> left() const {
+    DCHECK(IsValidTypeFor<WordT>(rep));
+    return input<WordT>(0);
+  }
   V<Word32> right() const { return input<Word32>(1); }
 
   bool IsRightShift() const { return IsRightShift(kind); }
@@ -2088,8 +2093,16 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
 
   static bool IsCommutative(Kind kind) { return kind == Kind::kEqual; }
 
-  V<Any> left() const { return input<Any>(0); }
-  V<Any> right() const { return input<Any>(1); }
+  template <typename T = Any>
+  V<T> left() const {
+    DCHECK(IsValidTypeFor<T>(rep));
+    return input<T>(0);
+  }
+  template <typename T = Any>
+  V<T> right() const {
+    DCHECK(IsValidTypeFor<T>(rep));
+    return input<T>(1);
+  }
 
   ComparisonOp(V<Any> left, V<Any> right, Kind kind, RegisterRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}

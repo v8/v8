@@ -227,7 +227,7 @@ class DuplicationOptimizationReducer : public Next {
   }
 
   OpIndex MaybeDuplicateOutputGraphShift(OpIndex index) {
-    OpIndex shifted;
+    V<Word> shifted;
     int shifted_by;
     ShiftOp::Kind shift_kind;
     WordRepresentation shift_rep;
