@@ -32,7 +32,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     super(NumFuzzer, self).__init__(*args, **kwargs)
 
   @property
-  def framework_name(self):
+  def default_framework_name(self):
     return 'num_fuzzer'
 
   def _add_parser_options(self, parser):
@@ -118,15 +118,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _get_default_suite_names(self):
     return DEFAULT_SUITES
-
-  def _runner_flags(self):
-    """Extra default flags specific to the test runner implementation."""
-    return [
-        '--fuzzing',
-        '--exit-on-contradictory-flags',
-        '--testing-d8-test-runner',
-        '--no-fail',
-    ]
 
   def _get_statusfile_variables(self, context):
     variables = (

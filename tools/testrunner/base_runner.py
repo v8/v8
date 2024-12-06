@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 from collections import OrderedDict, namedtuple
+from functools import cached_property
 from functools import reduce
 from pathlib import Path
 
@@ -88,6 +89,18 @@ TEST_MAP = {
   ],
 }
 
+DEFAULT_FLAGS = {
+  'standard_runner': [
+    '--testing-d8-test-runner',
+  ],
+  'num_fuzzer': [
+    '--fuzzing',
+    '--exit-on-contradictory-flags',
+    '--testing-d8-test-runner',
+    '--no-fail',
+  ],
+}
+
 ModeConfig = namedtuple(
     'ModeConfig', 'label flags timeout_scalefactor status_mode')
 
@@ -133,9 +146,18 @@ class BaseTestRunner(object):
     self.options = None
 
   @property
-  def framework_name(self):
-    """String name of the base-runner subclass, used in test results."""
+  def default_framework_name(self):
+    """Default value for framework_name if not provided on the command line."""
     raise NotImplementedError() # pragma: no cover
+
+  @cached_property
+  def framework_name(self):
+    """String name of the framework flavor that tweaks runner behavior."""
+    assert self.options
+    if self.options.framework != 'default':
+      return self.options.framework
+    else:
+      return self.default_framework_name
 
   def execute(self, sys_args=None):
     if sys_args is None:  # pragma: no cover
@@ -195,10 +217,12 @@ class BaseTestRunner(object):
     return parser
 
   def _add_parser_default_options(self, parser):
-    # TODO(https://crbug.com/42202137): Placeholder to enable passing this
-    # flag via flake-bisect command lines without failing.
-    parser.add_option("--framework",
-                      help="TBD")
+    framework_choices = ('default', 'standard_runner', 'num_fuzzer')
+    parser.add_option('--framework',
+                      type='choice',
+                      choices=framework_choices,
+                      default='default',
+                      help=f'Choose framework from: {framework_choices}')
     parser.add_option("--gn", help="Scan out.gn for the last built"
                       " configuration",
                       default=False, action="store_true")
@@ -620,7 +644,7 @@ class BaseTestRunner(object):
 
   def _runner_flags(self):
     """Extra default flags specific to the test runner implementation."""
-    return [] # pragma: no cover
+    return DEFAULT_FLAGS[self.framework_name]
 
   def _create_test_config(self):
     shard_id, shard_count = self.options.shard_info
