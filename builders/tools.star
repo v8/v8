@@ -157,7 +157,10 @@ v8_builder(
     build_numbers = True,
     service_account = V8_AUTOROLL_ACCOUNT,
     properties = {
-        "channels": ["beta", "stable"],
+        "channels": [
+            {"refname": "beta", "source_channel": "beta", "max_age_weeks": 2},
+            {"refname": "stable", "source_channel": "stable", "max_age_weeks": 5},
+        ],
     },
     schedule = "0 * * * *",
     execution_timeout = 1800,
