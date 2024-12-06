@@ -716,7 +716,10 @@ class MachineOptimizationReducer : public Next {
                   lhs, __ FloatConstant(-V8_INFINITY, rep), rep))) {
             __ SetVariable(result, __ FloatConstant(V8_INFINITY, rep));
           } ELSE {
-            __ SetVariable(result, __ FloatSqrt(lhs, rep));
+            __ SetVariable(
+                result,
+                __ FloatSqrt(__ FloatAdd(lhs, __ FloatConstant(0, rep), rep),
+                             rep));
           }
 
           return __ GetVariable(result);
