@@ -662,6 +662,14 @@ trybot_pair(
 )
 
 trybot_pair(
+    name = "v8_win64_nodcheck_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    total_timeout = 7200,
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+)
+
+trybot_pair(
     name = "v8_win64_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
