@@ -41,7 +41,8 @@ class PropertyAccessBuilder {
                            Node** receiver, Effect* effect, Control control);
 
   void BuildCheckMaps(Node* object, Effect* effect, Control control,
-                      ZoneVector<MapRef> const& maps);
+                      ZoneVector<MapRef> const& maps,
+                      bool has_deprecated_map_without_migration_target = false);
 
   Node* BuildCheckValue(Node* receiver, Effect* effect, Control control,
                         ObjectRef value);

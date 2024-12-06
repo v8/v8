@@ -273,6 +273,8 @@ CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
 std::ostream& operator<<(std::ostream& os, CheckMapsFlags flags) {
   if (flags & CheckMapsFlag::kTryMigrateInstance) {
     return os << "TryMigrateInstance";
+  } else if (flags & CheckMapsFlag::kTryMigrateInstanceAndDeopt) {
+    return os << "TryMigrateInstanceAndDeopt";
   } else {
     return os << "None";
   }
@@ -1824,7 +1826,8 @@ const Operator* SimplifiedOperatorBuilder::CheckMaps(
     const FeedbackSource& feedback) {
   CheckMapsParameters const parameters(flags, maps, feedback);
   Operator::Properties operator_props = Operator::kNoThrow;
-  if (!(flags & CheckMapsFlag::kTryMigrateInstance)) {
+  if (!(flags & CheckMapsFlag::kTryMigrateInstance) &&
+      !(flags & CheckMapsFlag::kTryMigrateInstanceAndDeopt)) {
     operator_props |= Operator::kNoWrite;
   }
   return zone()->New<Operator1<CheckMapsParameters>>(  // --
