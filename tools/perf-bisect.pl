@@ -252,7 +252,7 @@ sub compile {
   system("git checkout $commit >>$LOG_FILE 2>&1") and die "Failed to checkout commit $commit";
   system("gclient sync >>$LOG_FILE 2>&1") and die "Failed to gclient sync";
   system("gn gen $COMPILE_DIR >>$LOG_FILE 2>&1") and die "Failed to gn gen";
-  system("autoninja -C $COMPILE_DIR -t clean >>$LOG_FILE 2>&1") and die "Failed to clean $COMPILE_DIR";
+  system("gn clean $COMPILE_DIR >>$LOG_FILE 2>&1") and die "Failed to clean $COMPILE_DIR";
   system("autoninja -C $COMPILE_DIR d8 >>$LOG_FILE 2>&1") and die "Failed to compile $COMPILE_DIR";
   system("cp -r $COMPILE_DIR $dst") and die "Failed to copy $COMPILE_DIR to $dst";
 }
