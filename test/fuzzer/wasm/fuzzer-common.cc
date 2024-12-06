@@ -384,18 +384,6 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   v8::Isolate::Scope isolate_scope(isolate);
-
-  // Clear recursive groups: The fuzzer creates random types in every run. These
-  // are saved as recursive groups as part of the type canonicalizer, but types
-  // from previous runs just waste memory.
-  GetTypeCanonicalizer()->EmptyStorageForTesting();
-  TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
-
-  // Clear any exceptions from a prior run.
-  if (i_isolate->has_exception()) {
-    i_isolate->clear_exception();
-  }
-
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
 
@@ -404,11 +392,23 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // the flag by itself.
   EnableExperimentalWasmFeatures(isolate);
 
-  v8::TryCatch try_catch(isolate);
-  HandleScope scope(i_isolate);
-
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
+
+  // Clear recursive groups: The fuzzer creates random types in every run. These
+  // are saved as recursive groups as part of the type canonicalizer, but types
+  // from previous runs just waste memory.
+  GetTypeCanonicalizer()->EmptyStorageForTesting();
+  TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
+  AddDummyTypesToTypeCanonicalizer(i_isolate, &zone);
+
+  // Clear any exceptions from a prior run.
+  if (i_isolate->has_exception()) {
+    i_isolate->clear_exception();
+  }
+
+  v8::TryCatch try_catch(isolate);
+  HandleScope scope(i_isolate);
 
   ZoneBuffer buffer(&zone);
 

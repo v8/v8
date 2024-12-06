@@ -245,7 +245,6 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // from previous runs just waste memory.
   GetTypeCanonicalizer()->EmptyStorageForTesting();
   TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
-  // TODO(mliedtke): Also do this for all the compile fuzzers?
   AddDummyTypesToTypeCanonicalizer(i_isolate, &zone);
 
   std::vector<std::string> callees;
