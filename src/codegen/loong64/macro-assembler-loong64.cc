@@ -1544,15 +1544,10 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     RecordRelocInfo(j.rmode(), immediate);
     lu12i_w(rd, immediate >> 12 & 0xfffff);
     ori(rd, rd, immediate & kImm12Mask);
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
     if (RelocInfo::IsWasmCanonicalSigId(j.rmode()) ||
-        RelocInfo::IsWasmIndirectCallTarget(j.rmode())) {
-#else
-    if (RelocInfo::IsWasmCanonicalSigId(j.rmode())) {
-#endif
-      // wasm_canonical_sig_id is 32-bit value.
-      // wasm_indirect_call_target is 32-bit value if WasmCodePointerTable is
-      // enabled.
+        RelocInfo::IsWasmCodePointerTableEntry(j.rmode())) {
+      // wasm_canonical_sig_id and wasm_code_pointer_table_entry are 32-bit
+      // values.
       DCHECK(is_int32(immediate));
       return;
     }
@@ -4867,8 +4862,9 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 #endif
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+
 void MacroAssembler::ResolveWasmCodePointer(Register target) {
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();
   UseScratchRegisterScope temps(this);
@@ -4877,7 +4873,6 @@ void MacroAssembler::ResolveWasmCodePointer(Register target) {
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == kSystemPointerSize);
   slli_w(target, target, kSystemPointerSizeLog2);
   Ld_d(target, MemOperand(scratch, target));
-#endif
 }
 
 void MacroAssembler::CallWasmCodePointer(Register target,
@@ -4891,16 +4886,10 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 }
 
 void MacroAssembler::LoadWasmCodePointer(Register dst, MemOperand src) {
-  if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
-    static_assert(!V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ||
-                  sizeof(WasmCodePointer) == 4);
-    Ld_w(dst, src);
-  } else {
-    static_assert(V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ||
-                  sizeof(WasmCodePointer) == 8);
-    Ld_d(dst, src);
-  }
+  Ld_w(dst, src);
 }
+
+#endif
 
 namespace {
 

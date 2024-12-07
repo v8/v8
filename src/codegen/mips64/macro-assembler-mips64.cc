@@ -1905,15 +1905,10 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     }
 
     RecordRelocInfo(j.rmode(), immediate);
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
     if (RelocInfo::IsWasmCanonicalSigId(j.rmode()) ||
-        RelocInfo::IsWasmIndirectCallTarget(j.rmode())) {
-#else
-    if (RelocInfo::IsWasmCanonicalSigId(j.rmode())) {
-#endif
-      // wasm_canonical_sig_id is 32-bit value.
-      // wasm_indirect_call_target is 32-bit value if WasmCodePointerTable is
-      // enabled.
+        RelocInfo::IsWasmCodePointerTableEntry(j.rmode())) {
+      // wasm_canonical_sig_id and wasm_code_pointer_table_entry are 32-bit
+      // values.
       DCHECK(is_int32(immediate));
       lui(rd, (immediate >> 16) & kImm16Mask);
       ori(rd, rd, immediate & kImm16Mask);
@@ -6283,8 +6278,9 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 #endif
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+
 void MacroAssembler::ResolveWasmCodePointer(Register target) {
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();
   UseScratchRegisterScope temps(this);
@@ -6295,7 +6291,6 @@ void MacroAssembler::ResolveWasmCodePointer(Register target) {
   sll(target, target, kSystemPointerSizeLog2);
   daddu(scratch, scratch, target);
   Ld(target, MemOperand(scratch, 0));
-#endif
 }
 
 void MacroAssembler::CallWasmCodePointer(Register target,
@@ -6307,6 +6302,8 @@ void MacroAssembler::CallWasmCodePointer(Register target,
     Call(target);
   }
 }
+
+#endif
 
 namespace {
 
