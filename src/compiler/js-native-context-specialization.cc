@@ -1589,10 +1589,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // null. It can't be a number, a string etc. So trying to build the
       // checks in the "else if" branch doesn't make sense.
 
-      access_builder.BuildCheckMaps(
-          lookup_start_object, &effect, control,
-          access_info.lookup_start_object_maps(),
-          feedback.has_deprecated_map_without_migration_target());
+      access_builder.BuildCheckMaps(lookup_start_object, &effect, control,
+                                    access_info.lookup_start_object_maps());
 
       if (HasOnlyStringWrapperMaps(broker(),
                                    access_info.lookup_start_object_maps())) {
@@ -1627,17 +1625,15 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
         Control if_false{graph()->NewNode(common()->IfFalse(), branch)};
         Effect efalse = effect;
-        access_builder.BuildCheckMaps(
-            receiver, &efalse, if_false, access_info.lookup_start_object_maps(),
-            feedback.has_deprecated_map_without_migration_target());
+        access_builder.BuildCheckMaps(receiver, &efalse, if_false,
+                                      access_info.lookup_start_object_maps());
 
         control = graph()->NewNode(common()->Merge(2), if_true, if_false);
         effect =
             graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
       } else {
-        access_builder.BuildCheckMaps(
-            receiver, &effect, control, access_info.lookup_start_object_maps(),
-            feedback.has_deprecated_map_without_migration_target());
+        access_builder.BuildCheckMaps(receiver, &effect, control,
+                                      access_info.lookup_start_object_maps());
       }
 
       if (HasOnlyStringWrapperMaps(broker(),
@@ -1726,10 +1722,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         if (j == access_infos.size() - 1) {
           // Last map check on the fallthrough control path, do a
           // conditional eager deoptimization exit here.
-          access_builder.BuildCheckMaps(
-              lookup_start_object, &this_effect, this_control,
-              lookup_start_object_maps,
-              feedback.has_deprecated_map_without_migration_target());
+          access_builder.BuildCheckMaps(lookup_start_object, &this_effect,
+                                        this_control, lookup_start_object_maps);
           fallthrough_control = nullptr;
 
           // Don't insert a MapGuard in this case, as the CheckMaps

@@ -94,10 +94,9 @@ bool PropertyAccessBuilder::TryBuildNumberCheck(JSHeapBroker* broker,
   return false;
 }
 
-void PropertyAccessBuilder::BuildCheckMaps(
-    Node* object, Effect* effect, Control control,
-    ZoneVector<MapRef> const& maps,
-    bool has_deprecated_map_without_migration_target) {
+void PropertyAccessBuilder::BuildCheckMaps(Node* object, Effect* effect,
+                                           Control control,
+                                           ZoneVector<MapRef> const& maps) {
   HeapObjectMatcher m(object);
   if (m.HasResolvedValue()) {
     MapRef object_map = m.Ref(broker()).map(broker());
@@ -111,19 +110,12 @@ void PropertyAccessBuilder::BuildCheckMaps(
     }
   }
   ZoneRefSet<Map> map_set;
-  bool has_migration_target = false;
+  CheckMapsFlags flags = CheckMapsFlag::kNone;
   for (MapRef map : maps) {
     map_set.insert(map, graph()->zone());
     if (map.is_migration_target()) {
-      has_migration_target = true;
-      break;
+      flags |= CheckMapsFlag::kTryMigrateInstance;
     }
-  }
-  CheckMapsFlags flags = CheckMapsFlag::kNone;
-  if (has_migration_target) {
-    flags = CheckMapsFlag::kTryMigrateInstance;
-  } else if (has_deprecated_map_without_migration_target) {
-    flags = CheckMapsFlag::kTryMigrateInstanceAndDeopt;
   }
   *effect = graph()->NewNode(simplified()->CheckMaps(flags, map_set), object,
                              *effect, control);
