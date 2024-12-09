@@ -1146,7 +1146,12 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register reg,
                                                     Condition cond,
                                                     Label* target,
                                                     Label::Distance distance) {
-  CmpSmiLiteral(reg, value, r0);
+  if (COMPRESS_POINTERS_BOOL) {
+    CmpSmiLiteral(reg, value, r0);
+  } else {
+    Move(r0, value);
+    CmpS64(reg, r0);
+  }
   JumpIf(cond, target);
 }
 
