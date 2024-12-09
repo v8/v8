@@ -2651,7 +2651,8 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       }
     }
   } else if (MustUseReg(j.rmode())) {
-    if (RelocInfo::IsWasmCanonicalSigId(j.rmode())) {
+    if (RelocInfo::IsWasmCanonicalSigId(j.rmode()) ||
+        RelocInfo::IsWasmCodePointerTableEntry(j.rmode())) {
       RecordRelocInfo(j.rmode());
       DCHECK(is_int32(j.immediate()));
 #if V8_TARGET_ARCH_RISCV64
@@ -7318,8 +7319,8 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 #endif
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
 void MacroAssembler::ResolveWasmCodePointer(Register target) {
-#ifdef V8_ENABLE_WASM_CODE_POINTER_TABLE
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();
   UseScratchRegisterScope temps(this);
@@ -7329,7 +7330,6 @@ void MacroAssembler::ResolveWasmCodePointer(Register target) {
   Sll32(target, target, Operand(kSystemPointerSizeLog2));
   AddWord(scratch, scratch, target);
   LoadWord(target, MemOperand(scratch, 0));
-#endif
 }
 
 void MacroAssembler::CallWasmCodePointer(Register target,
@@ -7343,16 +7343,9 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 }
 
 void MacroAssembler::LoadWasmCodePointer(Register dst, MemOperand src) {
-  if constexpr (V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL) {
-    static_assert(!V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ||
-                  sizeof(WasmCodePointer) == 4);
     Lw(dst, src);
-  } else {
-    static_assert(V8_ENABLE_WASM_CODE_POINTER_TABLE_BOOL ||
-                  sizeof(WasmCodePointer) == 8);
-    LoadWord(dst, src);
-  }
 }
+#endif
 
 #ifdef V8_ENABLE_LEAPTIERING
 void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
