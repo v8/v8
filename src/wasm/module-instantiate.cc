@@ -23,6 +23,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/pgo.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-external-refs.h"
@@ -1879,6 +1880,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       // The import reference is the trusted instance data itself.
       Tagged<WasmTrustedInstanceData> instance_data =
           function_data->instance_data();
+      CHECK_GE(function_data->function_index(),
+               instance_data->module()->num_imported_functions);
       uint32_t imported_target =
           instance_data->GetCallTarget(function_data->function_index());
       imported_entry.SetWasmToWasm(instance_data, imported_target, sig_index
@@ -1988,23 +1991,13 @@ bool InstanceBuilder::ProcessImportedFunction(
       }
 
       DCHECK_NOT_NULL(wasm_code);
-      if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
-        // Wasm to JS wrappers are treated specially in the import table.
-        imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
-                                           resolved.suspend(), expected_sig,
-                                           sig_index);
-      } else {
-        // Wasm math intrinsics are compiled as regular Wasm functions.
-        DCHECK(kind >= ImportCallKind::kFirstMathIntrinsic &&
-               kind <= ImportCallKind::kLastMathIntrinsic);
-        imported_entry.SetWasmToWasm(*trusted_instance_data,
-                                     wasm_code->code_pointer(), sig_index
-#if V8_ENABLE_DRUMBRAKE
-                                     ,
-                                     -1
-#endif  // V8_ENABLE_DRUMBRAKE
-        );
-      }
+      // Wasm math intrinsics are currently handled as wasm to JS wrappers. If
+      // this changes, they might need special handling here.
+      CHECK_EQ(wasm_code->kind(), WasmCode::kWasmToJsWrapper);
+      // Wasm to JS wrappers are treated specially in the import table.
+      imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
+                                         resolved.suspend(), expected_sig,
+                                         sig_index);
       break;
     }
   }

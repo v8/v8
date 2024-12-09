@@ -9,6 +9,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-arguments.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -58,10 +59,13 @@ class CWasmEntryArgTester {
   void CheckCall(Args... args) {
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig_));
     WriteToBuffer(&packer, args...);
-    uint32_t wasm_call_target = wasm_code_->code_pointer();
+    uint32_t wasm_call_target =
+        GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+            wasm_code_->instruction_start());
     DirectHandle<Object> object_ref = runner_.builder().instance_object();
     Execution::CallWasm(isolate_, c_wasm_entry_, wasm_call_target, object_ref,
                         packer.argv());
+    GetProcessWideWasmCodePointerTable()->FreeEntry(wasm_call_target);
     CHECK(!isolate_->has_exception());
     packer.Reset();
 

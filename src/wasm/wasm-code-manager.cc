@@ -550,39 +550,9 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
   return "unknown kind";
 }
 
-// static
-bool WasmCode::ShouldAllocateCodePointerHandle(int index, Kind kind) {
-  return index == kAnonymousFuncIndex && kind != kJumpTable;
-}
-
-// static
-WasmCodePointerTable::Handle WasmCode::MaybeAllocateCodePointerHandle(
-    NativeModule* native_module, int index, Kind kind, Address address) {
-  if (index != kAnonymousFuncIndex) {
-    DCHECK(!ShouldAllocateCodePointerHandle(index, kind));
-    return native_module->GetCodePointerHandle(index);
-  }
-  switch (kind) {
-    case kWasmFunction:
-    case kWasmToCapiWrapper:
-    case kWasmToJsWrapper:
-      DCHECK(ShouldAllocateCodePointerHandle(index, kind));
-      return GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
-          address);
-    case kJumpTable:
-      DCHECK(!ShouldAllocateCodePointerHandle(index, kind));
-      return WasmCodePointerTable::kInvalidHandle;
-  }
-}
-
 WasmCode::~WasmCode() {
   if (has_trap_handler_index()) {
     trap_handler::ReleaseHandlerData(trap_handler_index());
-  }
-
-  // Free the code_pointer_handle_ only if we allocated it.
-  if (ShouldAllocateCodePointerHandle(index_, kind())) {
-    GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer_handle_);
   }
 }
 
@@ -653,7 +623,7 @@ std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
 }
 
 size_t WasmCode::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 104);
+  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 96);
   size_t result = sizeof(WasmCode);
   // For meta_data_.
   result += protected_instructions_size_ + reloc_info_size_ +

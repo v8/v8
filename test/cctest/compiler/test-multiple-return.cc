@@ -16,6 +16,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -191,7 +192,9 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
           handles.main_isolate(), code->instruction_size());
       wasm::WasmCodeRefScope wasm_code_ref_scope;
       wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
-      uint32_t code_pointer = wasm_code->code_pointer();
+      uint32_t code_pointer =
+          wasm::GetProcessWideWasmCodePointerTable()
+              ->AllocateAndInitializeEntry(wasm_code->instruction_start());
 
       RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
@@ -226,6 +229,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       }
 #endif
       CHECK_EQ(expect, mt.Call());
+      wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
     }
   }
 }
@@ -289,7 +293,9 @@ void ReturnLastValue(MachineType type) {
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
-    uint32_t code_pointer = wasm_code->code_pointer();
+    uint32_t code_pointer =
+        wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+            wasm_code->instruction_start());
 
     // Generate caller.
     int expect = return_count - 1;
@@ -305,6 +311,8 @@ void ReturnLastValue(MachineType type) {
                 mt.AddNode(mt.common()->Projection(return_count - 1), call)));
 
     CHECK_EQ(expect, mt.Call());
+
+    wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
   }
 }
 
@@ -354,7 +362,9 @@ void ReturnSumOfReturns(MachineType type) {
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
-    uint32_t code_pointer = wasm_code->code_pointer();
+    uint32_t code_pointer =
+        wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+            wasm_code->instruction_start());
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;
@@ -377,6 +387,7 @@ void ReturnSumOfReturns(MachineType type) {
     mt.Return(result);
 
     CHECK_EQ(expect, mt.Call());
+    wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
   }
 }
 

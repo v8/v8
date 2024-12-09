@@ -20,6 +20,7 @@
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -163,15 +164,16 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
       Cast<WasmInstanceObject>(args[0]);
   Tagged<WasmTrustedInstanceData> trusted_data =
       instance_object->trusted_data(isolate);
-  uint32_t wrapper =
-      wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
+  Address wrapper_entry =
+      Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
 
   int result = 0;
   Tagged<WasmDispatchTable> dispatch_table =
       trusted_data->dispatch_table_for_imports();
   int import_count = dispatch_table->length();
+  wasm::WasmCodePointerTable* cpt = wasm::GetProcessWideWasmCodePointerTable();
   for (int i = 0; i < import_count; ++i) {
-    if (dispatch_table->target(i) == wrapper) {
+    if (cpt->EntrypointEqualTo(dispatch_table->target(i), wrapper_entry)) {
       ++result;
     }
   }
@@ -183,7 +185,10 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
         Cast<WasmDispatchTable>(dispatch_tables->get(table_index));
     int table_size = table->length();
     for (int entry_index = 0; entry_index < table_size; ++entry_index) {
-      if (table->target(entry_index) == wrapper) ++result;
+      uint32_t target = table->target(entry_index);
+      if (target != wasm::kInvalidWasmCodePointer &&
+          cpt->EntrypointEqualTo(target, wrapper_entry))
+        ++result;
     }
   }
   return Smi::FromInt(result);
@@ -200,9 +205,11 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   Tagged<WasmFunctionData> func_data = sfi->wasm_function_data();
   uint32_t call_target = func_data->internal()->call_target();
 
-  uint32_t wrapper =
-      wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
-  return isolate->heap()->ToBoolean(call_target == wrapper);
+  Address wrapper_entry =
+      Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+  return isolate->heap()->ToBoolean(
+      wasm::GetProcessWideWasmCodePointerTable()->EntrypointEqualTo(
+          call_target, wrapper_entry));
 }
 
 RUNTIME_FUNCTION(Runtime_HasUnoptimizedJSToJSWrapper) {

@@ -135,6 +135,10 @@ uint32_t WasmCodePointerTable::GetOrCreateHandleForNativeFunction(
   return handle;
 }
 
+bool WasmCodePointerTable::EntrypointEqualTo(uint32_t index, Address address) {
+  return at(index).GetEntrypoint() == address;
+}
+
 void WasmCodePointerTable::FreeNativeFunctionHandles() {
   base::MutexGuard guard(&native_function_map_mutex_);
   for (auto const& [address, handle] : native_function_map_) {

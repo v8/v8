@@ -88,12 +88,7 @@ constexpr uint32_t kInvalidWasmCodePointer =
     WasmCodePointerTable::kInvalidHandle;
 
 // Resolve the entry address of a uint32_t
-Address WasmCodePointerAddress(uint32_t pointer);
-
-template <Builtin builtin>
-uint32_t GetBuiltinCodePointer(Isolate* isolate) {
-  return Builtins::WasmBuiltinHandleOf<builtin>(isolate);
-}
+V8_EXPORT_PRIVATE Address WasmCodePointerAddress(uint32_t pointer);
 
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
@@ -182,7 +177,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_);
   }
-  uint32_t code_pointer() const { return code_pointer_handle_; }
   size_t instructions_size() const {
     return static_cast<size_t>(instructions_size_);
   }
@@ -348,10 +342,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   friend class NativeModule;
   friend class WasmImportWrapperCache;
 
-  static bool ShouldAllocateCodePointerHandle(int index, Kind kind);
-  static WasmCodePointerTable::Handle MaybeAllocateCodePointerHandle(
-      NativeModule* native_module, int index, Kind kind, Address entry);
-
   WasmCode(NativeModule* native_module, int index,
            base::Vector<uint8_t> instructions, int stack_slots, int ool_spills,
            uint32_t tagged_parameter_slots, int safepoint_table_offset,
@@ -366,9 +356,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
            bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
-        code_pointer_handle_(MaybeAllocateCodePointerHandle(
-            native_module, index, kind,
-            reinterpret_cast<Address>(instructions.begin()))),
         meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
                                      source_position_table, inlining_positions,
                                      deopt_data})),
@@ -422,7 +409,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   NativeModule* const native_module_ = nullptr;
   uint8_t* const instructions_;
-  const WasmCodePointerTable::Handle code_pointer_handle_;
   // {meta_data_} contains several byte vectors concatenated into one:
   //  - protected instructions data of size {protected_instructions_size_}
   //  - relocation info of size {reloc_info_size_}

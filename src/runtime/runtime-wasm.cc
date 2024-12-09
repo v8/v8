@@ -663,7 +663,6 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
           suspend);
     }
     Tagged<WasmInternalFunction> internal = Cast<WasmInternalFunction>(*origin);
-    internal->set_call_target(wrapper->code_pointer());
 
     Tagged<JSFunction> existing_external;
     Tagged<WasmTrustedInstanceData> instance_data;
@@ -671,8 +670,13 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       Tagged<Object> func_data = existing_external->shared()->GetTrustedData();
       // WasmJSFunctions set their external function at creation.
       if (IsWasmJSFunctionData(func_data)) {
-        Cast<WasmJSFunctionData>(func_data)->offheap_data()->set_wrapper(
-            wrapper);
+        uint32_t code_pointer = Cast<WasmJSFunctionData>(func_data)
+                                    ->offheap_data()
+                                    ->set_compiled_wrapper(wrapper);
+        USE(code_pointer);
+        // We're reusing the CPT entries for the wrapper, so the call target
+        // should stay the same.
+        DCHECK_EQ(code_pointer, internal->call_target());
         return ReadOnlyRoots(isolate).undefined_value();
       }
       // Other functions could have had their external JSFunction created
@@ -693,6 +697,11 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
     // of the wrapper we just compiled.
     Tagged<WasmDispatchTable> table =
         instance_data->dispatch_table_for_imports();
+    // We're reusing the CPT entries for the wrapper, so the call target should
+    // stay the same.
+    DCHECK_EQ(internal->call_target(),
+              table->offheap_data()->WrapperCodePointerForDebugging(
+                  internal->function_index()));
     table->InstallCompiledWrapper(internal->function_index(), wrapper);
     return ReadOnlyRoots(isolate).undefined_value();
   }

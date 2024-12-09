@@ -28,6 +28,7 @@
 #include "src/wasm/stacks.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
 
 // Has to be the last include (doesn't have include guards)
@@ -60,8 +61,6 @@ class WasmJSFunction;
 class WasmModuleObject;
 
 enum class SharedFlag : uint8_t;
-
-enum class IsAWrapper : uint8_t { kYes, kMaybe, kNo };
 
 template <typename CppType>
 class Managed;
@@ -699,37 +698,35 @@ class WasmDispatchTableData {
   WasmDispatchTableData() = default;
   ~WasmDispatchTableData();
 
+  // This class tracks wrapper entries since it owns the corresponding
+  // CodePointerTable entries. This function can be used to check if a given
+  // entry points to a wrapper.
+  V8_EXPORT_PRIVATE bool IsAWrapper(int index) const;
+
+#ifdef DEBUG
+  uint32_t WrapperCodePointerForDebugging(int index);
+#endif
+
  private:
   friend class WasmDispatchTable;
 
-  // We need to map {call_target} to a WasmCode* if it is an import wrapper.
-  // Doing that via the wrapper cache has overhead, so as a performance
-  // optimization, callers can avoid that lookup by providing additional
-  // information: a non-nullptr WasmCode* if they have it; and otherwise
-  // {contextual_knowledge == kNo} when they know for sure that {call_target}
-  // does not belong to a wrapper.
-  // Passing {wrapper_if_known == nullptr} and {contextual_knowledge == kMaybe}
-  // is always safe, but might be slower.
-  void Add(uint32_t call_target, wasm::WasmCode* wrapper_if_known,
-           IsAWrapper contextual_knowledge);
-  void Remove(uint32_t call_target);
+  // This class owns the CodePointerTable entries for generic and compiled
+  // wrappers. This function adds an entry for a wrapper. If {compiled_wrapper}
+  // is nullptr, the entry is for the generic wrapper.
+  // The CodePointerTableEntry is reused for the generic and compiled wrapper.
+  uint32_t Add(int index, Address call_target,
+               wasm::WasmCode* compiled_wrapper);
+  void Remove(int index, uint32_t call_target);
 
-  // The {wrappers_} data structure serves two purposes:
-  // 1) It maps call targets to wrappers.
-  //    When an entry's value is {nullptr}, that means we know for sure it's not
-  //    a wrapper. This duplicates information we could get from
-  //    {wasm::GetWasmImportWrapperCache()->FindWrapper}, but doesn't require
-  //    any locks, which is important for applications with many worker threads.
-  // 2) It keeps track of all wrappers that are currently installed in this
-  //    table, and how often they are stored in this table. The first time a
-  //    wrapper is added to the table, we increment the ref count. When we
-  //    remove the last reference, we decrement the ref count, which potentially
-  //    triggers code GC.
+  // The {wrappers_} data structure tracks installed wrappers, both generic
+  // ({code} is nullptr) and compiled. It owns the CodePointerTable entry in
+  // {call_target} and manages the {code} lifetime by incrementing and
+  // decrementing the ref count as needed.
   struct WrapperEntry {
-    wasm::WasmCode* code;  // {nullptr} if this is not a wrapper.
-    int count = 1;         // irrelevant if this is not a wrapper.
+    uint32_t call_target;
+    wasm::WasmCode* code;  // {nullptr} if this is the generic wrapper.
   };
-  std::unordered_map<uint32_t, WrapperEntry> wrappers_;
+  std::unordered_map<int, WrapperEntry> wrappers_;
 };
 
 // The dispatch table is referenced from a WasmTableObject and from every
@@ -828,33 +825,40 @@ class WasmDispatchTable : public ExposedTrustedObject {
   inline uint32_t target(int index) const;
   inline wasm::CanonicalTypeIndex sig(int index) const;
 
-  // Set an entry for indirect calls.
+  // Set an entry for indirect calls that don't go to a WasmToJS wrapper.
+  // Wrappers are special since we own the CPT entries for the wrappers.
   // {implicit_arg} has to be a WasmImportData, a WasmTrustedInstanceData, or
   // Smi::zero().
-  void V8_EXPORT_PRIVATE Set(int index, Tagged<Object> implicit_arg,
-                             uint32_t call_target,
-                             wasm::CanonicalTypeIndex sig_id,
+  void V8_EXPORT_PRIVATE SetForNonWrapper(int index,
+                                          Tagged<Object> implicit_arg,
+                                          uint32_t call_target,
+                                          wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                             uint32_t function_index,
+                                          uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                             wasm::WasmCode* wrapper_if_known,
-                             IsAWrapper contextual_knowledge,
-                             NewOrExistingEntry new_or_existing);
+                                          NewOrExistingEntry new_or_existing);
+
+  // Set an entry for indirect calls to a WasmToJS wrapper.
+  // {implicit_arg} has to be a WasmImportData, a WasmTrustedInstanceData.
+  // {compiled_wrapper} needs to be set to the corresponding WasmCode, or
+  // nullptr in case of the generic wrapper.
+  void V8_EXPORT_PRIVATE SetForWrapper(int index, Tagged<Object> implicit_arg,
+                                       Address call_target,
+                                       wasm::CanonicalTypeIndex sig_id,
+#if V8_ENABLE_DRUMBRAKE
+                                       uint32_t function_index,
+#endif  // V8_ENABLE_DRUMBRAKE
+                                       wasm::WasmCode* compiled_wrapper,
+                                       NewOrExistingEntry new_or_existing);
+
 #if V8_ENABLE_DRUMBRAKE
   inline uint32_t function_index(int index) const;
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  // Set an entry for an import.
-  // {implicit_arg} has to be a WasmImportData or a WasmTrustedInstanceData.
-  void V8_EXPORT_PRIVATE SetForImport(int index,
-                                      Tagged<TrustedObject> implicit_arg,
-                                      uint32_t call_target,
-                                      wasm::CanonicalTypeIndex sig_id,
-                                      wasm::WasmCode* wrapper_if_known,
-                                      IsAWrapper contextual_knowledge);
-
   void Clear(int index, NewOrExistingEntry new_or_existing);
   void InstallCompiledWrapper(int index, wasm::WasmCode* wrapper);
+
+  bool V8_EXPORT_PRIVATE IsAWrapper(int index) const;
 
   static void V8_EXPORT_PRIVATE
   AddUse(Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
@@ -1140,9 +1144,12 @@ class WasmJSFunctionData
     OffheapData() = default;
     ~OffheapData();
 
-    void set_wrapper(wasm::WasmCode* wrapper);
+    // These functions return the CPT entry owned by this class.
+    uint32_t set_compiled_wrapper(wasm::WasmCode* wrapper);
+    uint32_t set_generic_wrapper(Address call_target);
 
    private:
+    uint32_t wrapper_code_pointer_ = wasm::kInvalidWasmCodePointer;
     wasm::WasmCode* wrapper_{nullptr};
   };
 

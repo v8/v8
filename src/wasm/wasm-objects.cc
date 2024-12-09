@@ -495,8 +495,6 @@ void WasmTableObject::UpdateDispatchTable(
   DirectHandle<WasmDispatchTable> dispatch_table(
       table->trusted_dispatch_table(isolate), isolate);
   SBXCHECK(FunctionSigMatchesTable(sig_id, dispatch_table->table_type()));
-  IsAWrapper is_a_wrapper =
-      func->imported ? IsAWrapper::kMaybe : IsAWrapper::kNo;
 
   if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
     auto import_data = Cast<WasmImportData>(implicit_arg);
@@ -506,11 +504,26 @@ void WasmTableObject::UpdateDispatchTable(
     new_import_data->set_table_slot(entry_index);
     implicit_arg = new_import_data;
   }
-  dispatch_table->Set(entry_index, *implicit_arg, call_target, sig_id,
+  if (target_instance_data->dispatch_table_for_imports()->IsAWrapper(
+          func->func_index)) {
+    dispatch_table->SetForWrapper(
+        entry_index, *implicit_arg,
+        wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(call_target),
+        sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                      target_func_index,
+        target_func_index,
 #endif
-                      nullptr, is_a_wrapper, WasmDispatchTable::kExistingEntry);
+        wasm::GetWasmImportWrapperCache()->FindWrapper(call_target),
+        WasmDispatchTable::kExistingEntry);
+  } else {
+    dispatch_table->SetForNonWrapper(entry_index, *implicit_arg, call_target,
+                                     sig_id,
+#if V8_ENABLE_DRUMBRAKE
+                                     target_func_index,
+#endif
+                                     WasmDispatchTable::kExistingEntry);
+  }
+
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless &&
       instance_object->trusted_data(isolate)->has_interpreter_object()) {
@@ -555,18 +568,17 @@ void WasmTableObject::UpdateDispatchTable(
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   wasm::WasmCode* wasm_code =
       cache->MaybeGet(kind, sig_id, expected_arity, suspend);
-  uint32_t call_target;
+  Address call_target;
   if (wasm_code) {
-    call_target = wasm_code->code_pointer();
+    call_target = wasm_code->instruction_start();
   } else if (UseGenericWasmToJSWrapper(kind, sig, resolved.suspend())) {
-    call_target =
-        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
+    call_target = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
   } else {
     constexpr bool kNoSourcePositions = false;
     wasm_code = cache->CompileWasmImportCallWrapper(isolate, kind, sig, sig_id,
                                                     kNoSourcePositions,
                                                     expected_arity, suspend);
-    call_target = wasm_code->code_pointer();
+    call_target = wasm_code->instruction_start();
   }
 
   // Update the dispatch table.
@@ -574,16 +586,14 @@ void WasmTableObject::UpdateDispatchTable(
       isolate->factory()->NewWasmImportData(
           callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
   import_data->SetIndexInTableAsCallOrigin(*dispatch_table, entry_index);
-  DCHECK(
-      wasm_code ||
-      call_target ==
-          wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
-  dispatch_table->Set(entry_index, *import_data, call_target, sig_id,
+  DCHECK(wasm_code ||
+         call_target ==
+             Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+  dispatch_table->SetForWrapper(entry_index, *import_data, call_target, sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                      WasmDispatchTable::kInvalidFunctionIndex,
+                                WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
-                      wasm_code, wasm_code ? IsAWrapper::kYes : IsAWrapper::kNo,
-                      WasmDispatchTable::kExistingEntry);
+                                wasm_code, WasmDispatchTable::kExistingEntry);
 }
 
 // static
@@ -621,16 +631,16 @@ void WasmTableObject::UpdateDispatchTable(
         wasm_code->reloc_info().length());
   }
   Tagged<HeapObject> implicit_arg = func_data->internal()->implicit_arg();
-  uint32_t call_target = wasm_code->code_pointer();
+  Address call_target = wasm_code->instruction_start();
   Tagged<WasmDispatchTable> dispatch_table =
       table->trusted_dispatch_table(isolate);
   SBXCHECK(FunctionSigMatchesTable(sig_index, dispatch_table->table_type()));
-  dispatch_table->Set(entry_index, implicit_arg, call_target, sig_index,
+  dispatch_table->SetForWrapper(entry_index, implicit_arg, call_target,
+                                sig_index,
 #if V8_ENABLE_DRUMBRAKE
-                      WasmDispatchTable::kInvalidFunctionIndex,
+                                WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
-                      wasm_code, IsAWrapper::kYes,
-                      WasmDispatchTable::kExistingEntry);
+                                wasm_code, WasmDispatchTable::kExistingEntry);
 }
 
 void WasmTableObject::ClearDispatchTable(int index) {
@@ -1121,30 +1131,21 @@ FunctionTargetAndImplicitArg::FunctionTargetAndImplicitArg(
   call_target_ = target_instance_data->GetCallTarget(target_func_index);
 }
 
-namespace {
-Address WasmCodePointerAddress(uint32_t pointer) {
-  return wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(pointer);
-}
-}  // namespace
-
 void ImportedFunctionEntry::SetGenericWasmToJs(
     Isolate* isolate, DirectHandle<JSReceiver> callable, wasm::Suspend suspend,
     const wasm::CanonicalSig* sig, wasm::CanonicalTypeIndex sig_id) {
-  uint32_t wrapper_entry;
+  Address wrapper_entry;
   if (wasm::IsJSCompatibleSignature(sig)) {
     DCHECK(
         UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig, suspend));
-    wrapper_entry =
-        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
+    wrapper_entry = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
   } else {
     wrapper_entry =
-        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperInvalidSig>(
-            isolate);
+        Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate);
   }
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
-            instance_data_->ptr(), index_, callable->ptr(),
-            WasmCodePointerAddress(wrapper_entry));
+            instance_data_->ptr(), index_, callable->ptr(), wrapper_entry);
   DirectHandle<WasmImportData> import_data =
       isolate->factory()->NewWasmImportData(callable, suspend, instance_data_,
                                             sig);
@@ -1152,10 +1153,9 @@ void ImportedFunctionEntry::SetGenericWasmToJs(
       instance_data_->dispatch_table_for_imports(), index_);
   DisallowGarbageCollection no_gc;
 
-  constexpr IsAWrapper kNotACompiledWrapper = IsAWrapper::kNo;
-  instance_data_->dispatch_table_for_imports()->SetForImport(
+  instance_data_->dispatch_table_for_imports()->SetForWrapper(
       index_, *import_data, wrapper_entry, sig_id, nullptr,
-      kNotACompiledWrapper);
+      WasmDispatchTable::kNewEntry);
 #if V8_ENABLE_DRUMBRAKE
   instance_data_->imported_function_indices()->set(index_, -1);
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1179,14 +1179,12 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
-  if (V8_UNLIKELY(v8_flags.wasm_jitless)) {
-    dispatch_table->SetForImport(index_, *import_data, Address{}, sig_id,
-                                 nullptr, IsAWrapper::kNo);
-  } else {
-    dispatch_table->SetForImport(index_, *import_data,
-                                 wasm_to_js_wrapper->code_pointer(), sig_id,
-                                 wasm_to_js_wrapper, IsAWrapper::kYes);
-  }
+  DCHECK_EQ(v8_flags.wasm_jitless, wasm_to_js_wrapper == nullptr);
+  dispatch_table->SetForWrapper(
+      index_, *import_data,
+      v8_flags.wasm_jitless ? Address{}
+                            : wasm_to_js_wrapper->instruction_start(),
+      sig_id, wasm_to_js_wrapper, WasmDispatchTable::kNewEntry);
 
 #if V8_ENABLE_DRUMBRAKE
   instance_data_->imported_function_indices()->set(index_, -1);
@@ -1201,15 +1199,16 @@ void ImportedFunctionEntry::SetWasmToWasm(
     int exported_function_index
 #endif  // V8_ENABLE_DRUMBRAKE
 ) {
-  TRACE_IFT("Import Wasm 0x%" PRIxPTR "[%d] = {instance_data=0x%" PRIxPTR
-            ", target=0x%" PRIxPTR "}\n",
-            instance_data_->ptr(), index_, target_instance_data.ptr(),
-            WasmCodePointerAddress(call_target));
+  TRACE_IFT(
+      "Import Wasm 0x%" PRIxPTR "[%d] = {instance_data=0x%" PRIxPTR
+      ", target=0x%" PRIxPTR "}\n",
+      instance_data_->ptr(), index_, target_instance_data.ptr(),
+      wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(call_target));
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
-  dispatch_table->SetForImport(index_, target_instance_data, call_target,
-                               sig_id, nullptr, IsAWrapper::kNo);
+  dispatch_table->SetForNonWrapper(index_, target_instance_data, call_target,
+                                   sig_id, WasmDispatchTable::kExistingEntry);
 
 #if V8_ENABLE_DRUMBRAKE
   instance_data_->imported_function_indices()->set(index_,
@@ -1617,10 +1616,6 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
   bool is_import =
       function_index < static_cast<int>(module->num_imported_functions);
   wasm::ModuleTypeIndex sig_index = module->functions[function_index].sig_index;
-  wasm::CanonicalTypeIndex canonical_sig_id =
-      module->canonical_sig_id(sig_index);
-  const wasm::CanonicalSig* sig =
-      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_id);
   DirectHandle<TrustedObject> implicit_arg =
       is_import ? direct_handle(
                       Cast<TrustedObject>(
@@ -1628,27 +1623,6 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
                               ->implicit_arg(function_index)),
                       isolate)
                 : trusted_instance_data;
-
-  bool setup_new_ref_with_generic_wrapper = false;
-  if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
-    // Only set up the generic wrapper if it is compatible with the import call
-    // kind, which we compute below.
-    auto import_data = Cast<WasmImportData>(implicit_arg);
-    const wasm::WellKnownImportsList& preknown_imports =
-        module->type_feedback.well_known_imports;
-    auto callable =
-        handle<JSReceiver>(Cast<JSReceiver>(import_data->callable()), isolate);
-    wasm::ResolvedWasmImport resolved(trusted_instance_data, function_index,
-                                      callable, sig, canonical_sig_id,
-                                      preknown_imports.get(function_index));
-    setup_new_ref_with_generic_wrapper =
-        UseGenericWasmToJSWrapper(resolved.kind(), sig, resolved.suspend());
-  }
-
-  if (setup_new_ref_with_generic_wrapper) {
-    auto import_data = Cast<WasmImportData>(implicit_arg);
-    implicit_arg = isolate->factory()->NewWasmImportData(import_data);
-  }
 
   // TODO(14034): Create funcref RTTs lazily?
   DirectHandle<Map> rtt{
@@ -1670,27 +1644,11 @@ Handle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
       isolate->factory()->NewWasmFuncRef(internal_function, rtt);
   trusted_instance_data->func_refs()->set(function_index, *func_ref);
 
-  if (setup_new_ref_with_generic_wrapper) {
-    auto import_data = Cast<WasmImportData>(implicit_arg);
-    uint32_t wrapper_entry;
-    if (wasm::IsJSCompatibleSignature(sig)) {
-      DCHECK(UseGenericWasmToJSWrapper(wasm::kDefaultImportCallKind, sig,
-                                       wasm::Suspend::kNoSuspend));
-      import_data->SetFuncRefAsCallOrigin(*internal_function);
-      wrapper_entry =
-          wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate);
-    } else {
-      wrapper_entry =
-          wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperInvalidSig>(
-              isolate);
-    }
-    // Wrapper code does not move, so we store the call target directly in the
-    // internal function.
-    internal_function->set_call_target(wrapper_entry);
-  } else {
-    internal_function->set_call_target(
-        trusted_instance_data->GetCallTarget(function_index));
-  }
+  // Reuse the call target of the instance. In case of import wrappers, the
+  // wrapper will automatically get tiered up together since it will use the
+  // same CPT entry.
+  internal_function->set_call_target(
+      trusted_instance_data->GetCallTarget(function_index));
 
   return func_ref;
 }
@@ -1941,98 +1899,85 @@ const wasm::CanonicalSig* WasmCapiFunction::sig() const {
   return shared()->wasm_capi_function_data()->sig();
 }
 
+#ifdef DEBUG
+uint32_t WasmDispatchTableData::WrapperCodePointerForDebugging(int index) {
+  auto it = wrappers_.find(index);
+  CHECK_NE(it, wrappers_.end());
+  return it->second.call_target;
+}
+#endif
+
+bool WasmDispatchTableData::IsAWrapper(int index) const {
+  return wrappers_.contains(index);
+}
+
 WasmDispatchTableData::~WasmDispatchTableData() {
   if (wrappers_.empty()) return;
   std::vector<wasm::WasmCode*> codes;
-  for (auto [address, entry] : wrappers_) {
-    DCHECK_LT(0, entry.count);
+  for (auto [index, entry] : wrappers_) {
+    wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(entry.call_target);
     if (entry.code) codes.push_back(entry.code);
   }
   wasm::WasmCode::DecrementRefCount(base::VectorOf(codes));
 }
 
-void WasmDispatchTableData::Add(uint32_t call_target,
-                                wasm::WasmCode* wrapper_if_known,
-                                IsAWrapper contextual_knowledge) {
-  // If the caller knows that the call_target is not a wrapper, return
-  // immediately. Note: we *could* remember this fact for the benefit of
-  // later calls to {Remove()} by putting a {nullptr} entry into the
-  // {lookup_cache_}, but for real-world cases we're aware of that's not
-  // worth the memory consumption: overwriting of existing function entries
-  // is exceedingly rare.
-  if (contextual_knowledge == IsAWrapper::kNo) {
-    DCHECK_NULL(wrapper_if_known);
-    DCHECK_NULL(wasm::GetWasmImportWrapperCache()->FindWrapper(call_target));
-    DCHECK(!wrappers_.count(call_target) ||
-           wrappers_.find(call_target)->second.code == nullptr);
-    return;
+uint32_t WasmDispatchTableData::Add(int index, Address call_target,
+                                    wasm::WasmCode* compiled_wrapper) {
+  uint32_t code_pointer;
+  auto it = wrappers_.find(index);
+  if (it == wrappers_.end()) {
+    code_pointer =
+        wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+            call_target);
+    auto [wrapper_cache, was_inserted] =
+        wrappers_.emplace(index, WrapperEntry{code_pointer, compiled_wrapper});
+    USE(was_inserted);
+    DCHECK(was_inserted);
+  } else {
+    auto& [existing_code_pointer, wrapper_code] = it->second;
+    code_pointer = existing_code_pointer;
+    wasm::GetProcessWideWasmCodePointerTable()->SetEntrypoint(code_pointer,
+                                                              call_target);
+    DCHECK_NULL(wrapper_code);
+    DCHECK_NOT_NULL(compiled_wrapper);
+    wrapper_code = compiled_wrapper;
+  }
+  if (compiled_wrapper) {
+    compiled_wrapper->IncRef();
+  } else {
+    DCHECK_NULL(wasm::GetWasmImportWrapperCache()->FindWrapper(code_pointer));
   }
 
-  // Perform lookup and insertion in a single operation; we never have to update
-  // existing entries.
-  auto [wrapper_cache, was_inserted] =
-      wrappers_.emplace(call_target, WrapperEntry{wrapper_if_known});
-  auto& [wrapper_code, count] = wrapper_cache->second;
-  DCHECK(wrapper_if_known == nullptr || wrapper_if_known == wrapper_code);
-  if (was_inserted) {
-    if (wrapper_if_known == nullptr) {
-      // No cache entry, and we are not sure if this is a wrapper. So we have to
-      // perform the relatively expensive mutex-protected lookup to find out.
-      DCHECK_NULL(wrapper_code);
-      wrapper_code =
-          wasm::GetWasmImportWrapperCache()->FindWrapper(call_target);
-      DCHECK_IMPLIES(contextual_knowledge == IsAWrapper::kYes,
-                     wrapper_code != nullptr);
-      if (!wrapper_code) return;  // Not a wrapper.
-    }
-    // We added a wrapper to the table; increment its ref-count.
-    DCHECK_EQ(1, count);
-    wrapper_code->IncRef();
-  } else {
-    // We already knew if this was a wrapper or not.
-    DCHECK_IMPLIES(wrapper_code == nullptr, wrapper_if_known == nullptr);
-    if (wrapper_code == nullptr) return;  // Not a wrapper.
-    DCHECK_LE(1, count);
-    ++count;
-  }
+  return code_pointer;
 }
 
-void WasmDispatchTableData::Remove(uint32_t call_target) {
+void WasmDispatchTableData::Remove(int index, uint32_t call_target) {
   if (call_target == wasm::kInvalidWasmCodePointer) return;
-  auto entry = wrappers_.find(call_target);
+
+  auto entry = wrappers_.find(index);
   if (entry == wrappers_.end()) {
     // This is certainly not a wrapper.
     DCHECK_NULL(wasm::GetWasmImportWrapperCache()->FindWrapper(call_target));
     return;
   }
-  auto& [wrapper_code, count] = entry->second;
-  if (!wrapper_code) {
-    // Avoid leaking memory by removing the entry. We don't know for sure if
-    // this was the last entry with {call_target} but we can always add it back.
-    wrappers_.erase(entry);
-    return;
-  }
-
-  if (count == 1) {
-    // This was the last reference to this wrapper in this table.
+  auto& [code_pointer, wrapper_code] = entry->second;
+  wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
+  if (wrapper_code) {
     // TODO(clemensb): We should speed this up by doing
     // {WasmCodeRefScope::AddRef} and then {DecRefOnLiveCode}.
     wasm::WasmCode::DecrementRefCount({&wrapper_code, 1});
-    wrappers_.erase(entry);
-  } else {
-    --count;
   }
+
+  wrappers_.erase(entry);
 }
 
-void WasmDispatchTable::Set(int index, Tagged<Object> implicit_arg,
-                            uint32_t call_target,
-                            wasm::CanonicalTypeIndex sig_id,
+void WasmDispatchTable::SetForNonWrapper(int index, Tagged<Object> implicit_arg,
+                                         uint32_t call_target,
+                                         wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                            uint32_t function_index,
+                                         uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                            wasm::WasmCode* wrapper_if_known,
-                            IsAWrapper contextual_knowledge,
-                            NewOrExistingEntry new_or_existing) {
+                                         NewOrExistingEntry new_or_existing) {
   if (implicit_arg == Smi::zero()) {
     DCHECK_EQ(wasm::kInvalidWasmCodePointer, call_target);
     Clear(index, new_or_existing);
@@ -2045,53 +1990,64 @@ void WasmDispatchTable::Set(int index, Tagged<Object> implicit_arg,
   DCHECK(sig_id.valid());
   const int offset = OffsetOf(index);
   if (!v8_flags.wasm_jitless) {
-    WasmDispatchTableData* offheap_data = this->offheap_data();
     // When overwriting an existing entry, we must decrement the refcount
     // of any overwritten wrappers. When initializing an entry, we must not
     // read uninitialized memory.
     if (new_or_existing == kExistingEntry) {
       uint32_t old_target = ReadField<uint32_t>(offset + kTargetBias);
-      offheap_data->Remove(old_target);
+      offheap_data()->Remove(index, old_target);
     }
-    offheap_data->Add(call_target, wrapper_if_known, contextual_knowledge);
+    WriteField<uint32_t>(offset + kTargetBias, call_target);
+  } else {
+#if V8_ENABLE_DRUMBRAKE
+    // Ignore call_target, not used in jitless mode.
+    WriteField<int>(offset + kFunctionIndexBias, function_index);
+#endif  // V8_ENABLE_DRUMBRAKE
   }
   WriteProtectedPointerField(offset + kImplicitArgBias,
                              Cast<TrustedObject>(implicit_arg));
   CONDITIONAL_WRITE_BARRIER(*this, offset + kImplicitArgBias, implicit_arg,
                             UPDATE_WRITE_BARRIER);
-  if (v8_flags.wasm_jitless) {
-#if V8_ENABLE_DRUMBRAKE
-    // Ignore call_target, not used in jitless mode.
-    WriteField<int>(offset + kFunctionIndexBias, function_index);
-#endif  // V8_ENABLE_DRUMBRAKE
-  } else {
-    WriteField<uint32_t>(offset + kTargetBias, call_target);
-  }
   WriteField<uint32_t>(offset + kSigBias, sig_id.index);
 }
 
-void WasmDispatchTable::SetForImport(int index,
-                                     Tagged<TrustedObject> implicit_arg,
-                                     uint32_t call_target,
-                                     wasm::CanonicalTypeIndex sig_id,
-                                     wasm::WasmCode* wrapper_if_known,
-                                     IsAWrapper contextual_knowledge) {
+void WasmDispatchTable::SetForWrapper(int index, Tagged<Object> implicit_arg,
+                                      Address call_target,
+                                      wasm::CanonicalTypeIndex sig_id,
+#if V8_ENABLE_DRUMBRAKE
+                                      uint32_t function_index,
+#endif  // V8_ENABLE_DRUMBRAKE
+                                      wasm::WasmCode* compiled_wrapper,
+                                      NewOrExistingEntry new_or_existing) {
+  DCHECK_NE(implicit_arg, Smi::zero());
+
   SBXCHECK_BOUNDS(index, length());
   DCHECK(IsWasmImportData(implicit_arg) ||
          IsWasmTrustedInstanceData(implicit_arg));
   DCHECK(sig_id.valid());
-  DCHECK(call_target != wasm::kInvalidWasmCodePointer || v8_flags.wasm_jitless);
   const int offset = OffsetOf(index);
   WriteProtectedPointerField(offset + kImplicitArgBias,
                              Cast<TrustedObject>(implicit_arg));
   CONDITIONAL_WRITE_BARRIER(*this, offset + kImplicitArgBias, implicit_arg,
                             UPDATE_WRITE_BARRIER);
   if (!v8_flags.wasm_jitless) {
-    offheap_data()->Add(call_target, wrapper_if_known, contextual_knowledge);
-    WriteField<uint32_t>(offset + kTargetBias, call_target);
+    // When overwriting an existing entry, we must decrement the refcount
+    // of any overwritten wrappers. When initializing an entry, we must not
+    // read uninitialized memory.
+    if (new_or_existing == kExistingEntry) {
+      uint32_t old_target = ReadField<uint32_t>(offset + kTargetBias);
+      offheap_data()->Remove(index, old_target);
+    }
+    uint32_t code_pointer =
+        offheap_data()->Add(index, call_target, compiled_wrapper);
+    WriteField<uint32_t>(offset + kTargetBias, code_pointer);
   } else {
+#if V8_ENABLE_DRUMBRAKE
     // Ignore call_target, not used in jitless mode.
+    WriteField<int>(offset + kFunctionIndexBias, function_index);
+#endif  // V8_ENABLE_DRUMBRAKE
   }
+
   WriteField<uint32_t>(offset + kSigBias, sig_id.index);
 }
 
@@ -2103,7 +2059,7 @@ void WasmDispatchTable::Clear(int index, NewOrExistingEntry new_or_existing) {
   // uninitialized memory.
   if (new_or_existing == kExistingEntry) {
     uint32_t old_target = ReadField<uint32_t>(offset + kTargetBias);
-    offheap_data()->Remove(old_target);
+    offheap_data()->Remove(index, old_target);
   }
   ClearProtectedPointerField(offset + kImplicitArgBias);
   WriteField<uint32_t>(offset + kTargetBias, wasm::kInvalidWasmCodePointer);
@@ -2115,10 +2071,16 @@ void WasmDispatchTable::InstallCompiledWrapper(int index,
   SBXCHECK_BOUNDS(index, length());
   if (v8_flags.wasm_jitless) return;  // Nothing to do.
 
-  uint32_t call_target = wrapper->code_pointer();
-  offheap_data()->Add(call_target, wrapper, IsAWrapper::kYes);
-  const int offset = OffsetOf(index) + kTargetBias;
-  WriteField<uint32_t>(offset, call_target);
+  uint32_t call_target =
+      offheap_data()->Add(index, wrapper->instruction_start(), wrapper);
+  USE(call_target);
+  // When installing a compiled wrapper, we already had the generic wrapper in
+  // place, which shares the same code pointer table entry.
+  DCHECK_EQ(ReadField<uint32_t>(OffsetOf(index) + kTargetBias), call_target);
+}
+
+bool WasmDispatchTable::IsAWrapper(int index) const {
+  return offheap_data()->IsAWrapper(index);
 }
 
 namespace {
@@ -2264,6 +2226,7 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
   Handle<WasmDispatchTable> new_table =
       WasmDispatchTable::New(isolate, new_capacity, old_table->table_type());
 
+  DisallowGarbageCollection no_gc;
   // Writing non-atomically is fine here because this is a freshly allocated
   // object.
   new_table->WriteField<int>(kLengthOffset, new_length);
@@ -2281,14 +2244,33 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
         import_data->set_call_origin(*new_table);
       }
     }
-    new_table->Set(i, implicit_arg, call_target, old_table->sig(i),
+
+    if (implicit_arg == Smi::zero()) {
+      new_table->Clear(i, kNewEntry);
+      continue;
+    }
+
+    const int offset = OffsetOf(i);
+    if (!v8_flags.wasm_jitless) {
+      new_table->WriteField<uint32_t>(offset + kTargetBias, call_target);
+    } else {
 #if V8_ENABLE_DRUMBRAKE
-                   old_table->function_index(i),
+      // Ignore call_target, not used in jitless mode.
+      new_table->WriteField<int>(offset + kFunctionIndexBias,
+                                 old_table->function_index(i));
 #endif  // V8_ENABLE_DRUMBRAKE
-                   nullptr, IsAWrapper::kMaybe, WasmDispatchTable::kNewEntry);
+    }
+    new_table->WriteProtectedPointerField(offset + kImplicitArgBias,
+                                          Cast<TrustedObject>(implicit_arg));
+    CONDITIONAL_WRITE_BARRIER(*new_table, offset + kImplicitArgBias,
+                              implicit_arg, UPDATE_WRITE_BARRIER);
+    new_table->WriteField<uint32_t>(offset + kSigBias, old_table->sig(i).index);
   }
+
+  new_table->offheap_data()->wrappers_ =
+      std::move(old_table->offheap_data()->wrappers_);
+
   // Update users.
-  DisallowGarbageCollection no_gc;
   Tagged<ProtectedWeakFixedArray> uses = old_table->protected_uses();
   new_table->set_protected_uses(uses);
   int used_length = GetUsedLength(uses);
@@ -2741,9 +2723,11 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       function_data->internal(), isolate};
 
   if (!wasm::IsJSCompatibleSignature(canonical_sig)) {
-    internal_function->set_call_target(
-        wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperInvalidSig>(
-            isolate));
+    Address builtin_entry =
+        Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate);
+    uint32_t wrapper_code_pointer =
+        function_data->offheap_data()->set_generic_wrapper(builtin_entry);
+    internal_function->set_call_target(wrapper_code_pointer);
 #if V8_ENABLE_DRUMBRAKE
   } else if (v8_flags.wasm_jitless) {
     function_data->func_ref()->internal(isolate)->set_call_target(
@@ -2769,12 +2753,15 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
     wasm::WasmCode* wrapper =
         cache->MaybeGet(kind, sig_id, expected_arity, suspend);
+    uint32_t code_pointer;
     if (wrapper) {
-      internal_function->set_call_target(wrapper->code_pointer());
-      function_data->offheap_data()->set_wrapper(wrapper);
+      code_pointer =
+          function_data->offheap_data()->set_compiled_wrapper(wrapper);
     } else if (UseGenericWasmToJSWrapper(kind, canonical_sig, suspend)) {
-      internal_function->set_call_target(
-          wasm::GetBuiltinCodePointer<Builtin::kWasmToJsWrapperAsm>(isolate));
+      Address code_entry =
+          Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+      code_pointer =
+          function_data->offheap_data()->set_generic_wrapper(code_entry);
     } else {
       // Initialize the import wrapper cache if that hasn't happened yet.
       cache->LazyInitialize(isolate);
@@ -2782,9 +2769,10 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       wrapper = cache->CompileWasmImportCallWrapper(
           isolate, kind, canonical_sig, sig_id, kNoSourcePositions,
           expected_arity, suspend);
-      internal_function->set_call_target(wrapper->code_pointer());
-      function_data->offheap_data()->set_wrapper(wrapper);
+      code_pointer =
+          function_data->offheap_data()->set_compiled_wrapper(wrapper);
     }
+    internal_function->set_call_target(code_pointer);
   }
 
   Handle<String> name = factory->Function_string();
@@ -2804,15 +2792,38 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   return Cast<WasmJSFunction>(js_function);
 }
 
-void WasmJSFunctionData::OffheapData::set_wrapper(wasm::WasmCode* wrapper) {
+uint32_t WasmJSFunctionData::OffheapData::set_compiled_wrapper(
+    wasm::WasmCode* wrapper) {
   DCHECK_NULL(wrapper_);  // We shouldn't overwrite existing wrappers.
   wrapper_ = wrapper;
   wrapper->IncRef();
+  if (wrapper_code_pointer_ == wasm::kInvalidWasmCodePointer) {
+    wrapper_code_pointer_ =
+        wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+            wrapper->instruction_start());
+  } else {
+    wasm::GetProcessWideWasmCodePointerTable()->SetEntrypoint(
+        wrapper_code_pointer_, wrapper->instruction_start());
+  }
+  return wrapper_code_pointer_;
+}
+
+uint32_t WasmJSFunctionData::OffheapData::set_generic_wrapper(
+    Address code_entry) {
+  DCHECK_EQ(wrapper_code_pointer_, wasm::kInvalidWasmCodePointer);
+  wrapper_code_pointer_ =
+      wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+          code_entry);
+  return wrapper_code_pointer_;
 }
 
 WasmJSFunctionData::OffheapData::~OffheapData() {
   if (wrapper_) {
     wasm::WasmCode::DecrementRefCount({&wrapper_, 1});
+  }
+  if (wrapper_code_pointer_ != wasm::kInvalidWasmCodePointer) {
+    wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(
+        wrapper_code_pointer_);
   }
 }
 

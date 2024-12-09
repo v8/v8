@@ -102,6 +102,9 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   // Add an entry for a native function address, used by the C API.
   uint32_t GetOrCreateHandleForNativeFunction(Address addr);
 
+  // Compare the address of the entry.
+  bool EntrypointEqualTo(uint32_t index, Address address);
+
  private:
   // Allow the ExternalReference to access the table base.
   friend class ::v8::internal::ExternalReference;

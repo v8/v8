@@ -16,6 +16,7 @@
 #include "src/compiler/turbofan-graph.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/execution/simulator.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
@@ -251,7 +252,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       AllocateNativeModule(i_isolate, code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
-  uint32_t code_pointer = wasm_code->code_pointer();
+  uint32_t code_pointer =
+      wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+          wasm_code->instruction_start());
   // Generate wrapper.
   int expect = 0;
 
@@ -296,6 +299,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   auto fn = GeneratedCode<int32_t>::FromCode(i_isolate, *wrapper_code);
   int result = fn.Call();
+
+  wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
 
   CHECK_EQ(expect, result);
   return 0;

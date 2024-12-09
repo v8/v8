@@ -17,6 +17,7 @@
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -293,17 +294,37 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
 
   if (function_indexes) {
     for (uint32_t i = 0; i < table_size; ++i) {
-      WasmFunction& function = test_module_->functions[function_indexes[i]];
+      uint32_t function_index = function_indexes[i];
+      WasmFunction& function = test_module_->functions[function_index];
       CanonicalTypeIndex sig_id =
           test_module_->canonical_sig_id(function.sig_index);
       FunctionTargetAndImplicitArg entry(isolate_, trusted_instance_data_,
                                          function.func_index);
-      trusted_instance_data_->dispatch_table(table_index)
-          ->Set(i, *entry.implicit_arg(), entry.call_target(), sig_id,
+      if (function_index < test_module_->num_imported_functions &&
+          trusted_instance_data_->dispatch_table_for_imports()->IsAWrapper(
+              function_index)) {
+        trusted_instance_data_->dispatch_table(table_index)
+            ->SetForWrapper(
+                i, *entry.implicit_arg(),
+                wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(
+                    entry.call_target()),
+                sig_id,
 #if V8_ENABLE_DRUMBRAKE
                 function.func_index,
 #endif  // !V8_ENABLE_DRUMBRAKE
-                nullptr, IsAWrapper::kMaybe, WasmDispatchTable::kNewEntry);
+                wasm::GetWasmImportWrapperCache()->FindWrapper(
+                    entry.call_target()),
+                WasmDispatchTable::kNewEntry);
+      } else {
+        trusted_instance_data_->dispatch_table(table_index)
+            ->SetForNonWrapper(i, *entry.implicit_arg(), entry.call_target(),
+                               sig_id,
+#if V8_ENABLE_DRUMBRAKE
+                               function.func_index,
+#endif  // !V8_ENABLE_DRUMBRAKE
+                               WasmDispatchTable::kNewEntry);
+      }
+
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, trusted_instance_data_, function_indexes[i]);
     }

@@ -25,6 +25,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1687,7 +1688,9 @@ TEST(Regress_1171759) {
       AllocateNativeModule(handles.main_isolate(), code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
-  uint32_t code_pointer = wasm_code->code_pointer();
+  uint32_t code_pointer =
+      wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+          wasm_code->instruction_start());
 
   // Generate a minimal calling function, to push stack arguments.
   RawMachineAssemblerTester<int32_t> mt;
@@ -1722,6 +1725,8 @@ TEST(Regress_1171759) {
   mt.Return(call);
 
   CHECK_EQ(0, mt.Call());
+
+  wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

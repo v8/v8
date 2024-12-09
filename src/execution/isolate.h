@@ -1397,9 +1397,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   wasm::WasmOrphanedGlobalHandle* NewWasmOrphanedGlobalHandle();
   wasm::StackPool& stack_pool() { return stack_pool_; }
-  Builtins::WasmBuiltinHandleArray& wasm_builtin_code_handles() {
-    return wasm_builtin_code_handles_;
-  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   GlobalHandles* global_handles() const { return global_handles_; }
@@ -2824,7 +2821,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_ENABLE_DRUMBRAKE
   wasm::WasmOrphanedGlobalHandle* wasm_orphaned_handle_ = nullptr;
   wasm::StackPool stack_pool_;
-  Builtins::WasmBuiltinHandleArray wasm_builtin_code_handles_;
 #endif
 
   // Enables the host application to provide a mechanism for recording a
