@@ -4,6 +4,7 @@
 
 #include "src/heap/scavenger.h"
 
+#include <algorithm>
 #include <atomic>
 #include <optional>
 #include <unordered_map>
@@ -13,12 +14,13 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/concurrent-marking.h"
-#include "src/heap/conservative-stack-visitor.h"
+#include "src/heap/conservative-stack-visitor-inl.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-layout.h"
 #include "src/heap/heap-visitor-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-page-metadata-inl.h"
@@ -27,6 +29,7 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/mutable-page-metadata.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/scavenger-inl.h"
@@ -388,10 +391,88 @@ class V8_NODISCARD ScopedFullHeapCrashKey {
 
 namespace {
 
+// A conservative stack scanning visitor implementation that:
+// 1) Filters out non-young objects, and
+// 2) Use the marking bitmap as a temporary object start bitmap.
+class YoungGenerationConservativeStackVisitor
+    : public ConservativeStackVisitorBase<
+          YoungGenerationConservativeStackVisitor> {
+ public:
+  YoungGenerationConservativeStackVisitor(Isolate* isolate,
+                                          RootVisitor* root_visitor)
+      : ConservativeStackVisitorBase(isolate, root_visitor), isolate_(isolate) {
+    DCHECK(v8_flags.scavenger_pinning_objects);
+    DCHECK(!v8_flags.minor_ms);
+    DCHECK(!v8_flags.sticky_mark_bits);
+    DCHECK(std::all_of(
+        isolate_->heap()->semi_space_new_space()->to_space().begin(),
+        isolate_->heap()->semi_space_new_space()->to_space().end(),
+        [](const PageMetadata* page) {
+          return page->marking_bitmap()->IsClean();
+        }));
+    DCHECK(std::all_of(
+        isolate_->heap()->semi_space_new_space()->from_space().begin(),
+        isolate_->heap()->semi_space_new_space()->from_space().end(),
+        [](const PageMetadata* page) {
+          return page->marking_bitmap()->IsClean();
+        }));
+  }
+
+  ~YoungGenerationConservativeStackVisitor() {
+    DCHECK(std::all_of(
+        isolate_->heap()->semi_space_new_space()->to_space().begin(),
+        isolate_->heap()->semi_space_new_space()->to_space().end(),
+        [](const PageMetadata* page) {
+          return page->marking_bitmap()->IsClean();
+        }));
+    for (PageMetadata* page :
+         isolate_->heap()->semi_space_new_space()->from_space()) {
+      page->marking_bitmap()->Clear<AccessMode::NON_ATOMIC>();
+    }
+  }
+
+ private:
+  static bool FilterPage(const MemoryChunk* chunk) {
+    return chunk->IsFromPage();
+  }
+
+  static bool FilterLargeObject(Tagged<HeapObject> object, MapWord map_word) {
+    DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));
+    return HeapLayout::IsSelfForwarded(object, map_word);
+  }
+
+  static bool FilterNormalObject(Tagged<HeapObject> object, MapWord map_word) {
+    DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));
+    if (map_word.IsForwardingAddress()) {
+      DCHECK(HeapLayout::IsSelfForwarded(object));
+      DCHECK(MarkingBitmap::MarkBitFromAddress(object->address()).Get());
+      return false;
+    }
+    MarkingBitmap::MarkBitFromAddress(object->address())
+        .Set<AccessMode::NON_ATOMIC>();
+    return true;
+  }
+
+  static void HandleObjectFound(Tagged<HeapObject> object, size_t object_size) {
+    DCHECK_EQ(object_size, object->Size());
+    Address object_address = object->address();
+    if (object_address + object_size <
+        PageMetadata::FromHeapObject(object)->area_end()) {
+      MarkingBitmap::MarkBitFromAddress(object_address + object_size)
+          .Set<AccessMode::NON_ATOMIC>();
+    }
+  }
+
+  Isolate* const isolate_;
+
+  friend class ConservativeStackVisitorBase<
+      YoungGenerationConservativeStackVisitor>;
+};
+
+using PinnedObjects = std::vector<std::pair<Address, MapWord>>;
 class ObjectPinningVisitor final : public RootVisitor {
  public:
-  ObjectPinningVisitor(Scavenger& scavenger,
-                       std::unordered_map<Address, MapWord>& pinned_objects)
+  ObjectPinningVisitor(Scavenger& scavenger, PinnedObjects& pinned_objects)
       : RootVisitor(), scavenger_(scavenger), pinned_objects_(pinned_objects) {}
 
   void VisitRootPointer(Root root, const char* description,
@@ -411,6 +492,7 @@ class ObjectPinningVisitor final : public RootVisitor {
     Tagged<HeapObject> object = Cast<HeapObject>(*p);
     DCHECK(!HasWeakHeapObjectTag(object));
     DCHECK(!MapWord::IsPacked(object.ptr()));
+    DCHECK(!HeapLayout::IsSelfForwarded(object));
     if (scavenger_.PromoteIfLargeObject(object)) {
       // Large objects are not moved and thus don't require pinning. Instead,
       // we scavenge large pages eagerly to keep them from being reclaimed (if
@@ -421,17 +503,24 @@ class ObjectPinningVisitor final : public RootVisitor {
     DCHECK(HeapLayout::InYoungGeneration(object));
     DCHECK(Heap::InFromPage(object));
     Address object_address = object.address();
-    if (pinned_objects_.contains(object_address)) {
-      // Object was already pinned.
-      return;
-    }
     MapWord map_word = object->map_word(kRelaxedLoad);
     DCHECK(!map_word.IsForwardingAddress());
-    pinned_objects_.emplace(object_address, map_word);
+    DCHECK(std::all_of(
+        pinned_objects_.begin(), pinned_objects_.end(),
+        [object_address](std::pair<Address, MapWord>& object_and_map) {
+          return object_and_map.first != object_address;
+        }));
+    pinned_objects_.push_back({object_address, map_word});
+    // Pin the object in place.
+    object->set_map_word_forwarded(object, kRelaxedStore);
+    DCHECK(object->map_word(kRelaxedLoad).IsForwardingAddress());
+    DCHECK(HeapLayout::IsSelfForwarded(object));
+    MemoryChunk::FromHeapObject(object)->SetFlagNonExecutable(
+        MemoryChunk::IS_QUARANTINED);
   }
 
   Scavenger& scavenger_;
-  std::unordered_map<Address, MapWord>& pinned_objects_;
+  PinnedObjects& pinned_objects_;
 };
 
 // A visitor for treating precise references conservatively (by passing them to
@@ -439,7 +528,8 @@ class ObjectPinningVisitor final : public RootVisitor {
 // pinning in Scavenger.
 class TreatConservativelyVisitor final : public RootVisitor {
  public:
-  TreatConservativelyVisitor(ConservativeStackVisitor* v, Heap* heap)
+  TreatConservativelyVisitor(YoungGenerationConservativeStackVisitor* v,
+                             Heap* heap)
       : RootVisitor(),
         stack_visitor_(v),
         rng_(heap->isolate()->fuzzer_rng()),
@@ -468,34 +558,19 @@ class TreatConservativelyVisitor final : public RootVisitor {
     stack_visitor_->VisitPointer(reinterpret_cast<void*>(object.ptr()));
   }
 
-  ConservativeStackVisitor* const stack_visitor_;
+  YoungGenerationConservativeStackVisitor* const stack_visitor_;
   base::RandomNumberGenerator* const rng_;
   double stressing_threshold_;
 };
 
-void PinObjects(Scavenger& scavenger,
-                const std::unordered_map<Address, MapWord>& pinned_objects) {
-  // First step: Pin all objects in place. In case a pinned object A is
-  // reachable from another pinned object B, A needs to be pinned before B is
-  // visited otherwise the visitor will try to move it.
-  for (auto it : pinned_objects) {
-    Address object_address = it.first;
-    Tagged<HeapObject> object = HeapObject::FromAddress(object_address);
-    DCHECK(!object->map_word(kRelaxedLoad).IsForwardingAddress());
-    object->set_map_word_forwarded(object, kRelaxedStore);
-    DCHECK(object->map_word(kRelaxedLoad).IsForwardingAddress());
-    DCHECK_EQ(object,
-              object->map_word(kRelaxedLoad).ToForwardingAddress(object));
-    MemoryChunk::FromHeapObject(object)->SetFlagNonExecutable(
-        MemoryChunk::IS_QUARANTINED);
-  }
-  // Second step: Visit pinned objects.
+void VisitPinnedObjects(Scavenger& scavenger,
+                        const PinnedObjects& pinned_objects) {
   // TODO(379788114): Delay visitation to the parallel phase.
   ScavengeVisitor visitor(&scavenger);
-  for (auto it : pinned_objects) {
-    Address object_address = it.first;
+  for (std::pair<Address, MapWord> object_and_map : pinned_objects) {
+    Address object_address = object_and_map.first;
     Tagged<HeapObject> object = HeapObject::FromAddress(object_address);
-    MapWord original_map_word = it.second;
+    MapWord original_map_word = object_and_map.second;
     scavenger.VisitPinnedObject(visitor, object, original_map_word);
   }
 }
@@ -516,11 +591,13 @@ void SweepQuarantinedPage(
   if (start != end) {
     heap->CreateFillerObjectAt(start, static_cast<int>(end - start));
   }
+  DCHECK(static_cast<MutablePageMetadata*>(chunk->Metadata())
+             ->marking_bitmap()
+             ->IsClean());
 }
 
-void RestoreAndQuarantinePinnedObjects(
-    SemiSpaceNewSpace& new_space,
-    const std::unordered_map<Address, MapWord>& pinned_objects) {
+void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
+                                       const PinnedObjects& pinned_objects) {
   std::unordered_map<MemoryChunk*, std::vector<std::pair<Address, size_t>>,
                      base::hash<const MemoryChunk*>>
       pages_with_pinned_objects;
@@ -528,9 +605,7 @@ void RestoreAndQuarantinePinnedObjects(
   // Restore the maps of quarantined objects. We use the iteration over
   // quarantined objects to split them based on pages. This will be used below
   // for sweeping the quarantined pages (since there are no markbits).
-  for (auto it : pinned_objects) {
-    Address object_address = it.first;
-    MapWord map_word = it.second;
+  for (const auto [object_address, map_word] : pinned_objects) {
     DCHECK(!map_word.IsForwardingAddress());
     Tagged<HeapObject> object = HeapObject::FromAddress(object_address);
     DCHECK(HeapLayout::IsSelfForwarded(object));
@@ -579,7 +654,7 @@ void ScavengerCollector::CollectGarbage() {
   Scavenger::PromotionList promotion_list;
   EphemeronRememberedSet::TableList ephemeron_table_list;
 
-  std::unordered_map<Address, MapWord> pinned_objects;
+  PinnedObjects pinned_objects;
 
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   std::vector<std::unique_ptr<Scavenger>> scavengers;
@@ -631,8 +706,11 @@ void ScavengerCollector::CollectGarbage() {
         {
           ObjectPinningVisitor pinning_visitor(main_thread_scavenger,
                                                pinned_objects);
-          ConservativeStackVisitor stack_visitor(isolate_, &pinning_visitor,
-                                                 GarbageCollector::SCAVENGER);
+          // Scavenger reuses the page's marking bitmap as a temporary object
+          // start bitmap. Stack scanning will incrementally build the map as it
+          // searches through pages.
+          YoungGenerationConservativeStackVisitor stack_visitor(
+              isolate_, &pinning_visitor);
           // Marker was already set by Heap::CollectGarbage.
           heap_->stack().IteratePointersUntilMarker(&stack_visitor);
           if (v8_flags.stress_scavenger_pinning_objects) {
@@ -640,14 +718,7 @@ void ScavengerCollector::CollectGarbage() {
             isolate_->handle_scope_implementer()->Iterate(&handles_visitor);
           }
         }
-        // Pinning objects must happen after stack scanning is complete since
-        // stack scanning needs the pages to be iterable, which breaks when
-        // setting forwarding pointers.
-        // TODO(379788114): Revise FindBasePtr such that pinning can be part
-        // of the visitor. Once that's done, we can also revise
-        // `Heap::IterateRoots` to scan the stack first so that we don't need to
-        // scan it explicitly here.
-        PinObjects(main_thread_scavenger, pinned_objects);
+        VisitPinnedObjects(main_thread_scavenger, pinned_objects);
       }
 
       // Scavenger treats all weak roots except for global handles as strong.

@@ -2,14 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_HEAP_CONSERVATIVE_STACK_VISITOR_INL_H_
+#define V8_HEAP_CONSERVATIVE_STACK_VISITOR_INL_H_
+
 #include "src/heap/conservative-stack-visitor.h"
 
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-layout.h"
 #include "src/heap/marking-inl.h"
+#include "src/heap/marking.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
+#include "src/objects/objects.h"
+#include "src/objects/tagged.h"
 #include "src/objects/visitors.h"
 
 #ifdef V8_COMPRESS_POINTERS
@@ -19,9 +25,9 @@
 namespace v8 {
 namespace internal {
 
-ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
-                                                   RootVisitor* delegate,
-                                                   GarbageCollector collector)
+template <typename ConcreteVisitor>
+ConservativeStackVisitorBase<ConcreteVisitor>::ConservativeStackVisitorBase(
+    Isolate* isolate, RootVisitor* root_visitor)
     : cage_base_(isolate),
 #ifdef V8_EXTERNAL_CODE_SPACE
       code_cage_base_(isolate->code_cage_base()),
@@ -30,13 +36,13 @@ ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
 #ifdef V8_ENABLE_SANDBOX
       trusted_cage_base_(isolate->isolate_data()->trusted_cage_base_address()),
 #endif
-      delegate_(delegate),
-      allocator_(isolate->heap()->memory_allocator()),
-      collector_(collector) {
+      root_visitor_(root_visitor),
+      allocator_(isolate->heap()->memory_allocator()) {
 }
 
 #ifdef V8_COMPRESS_POINTERS
-bool ConservativeStackVisitor::IsInterestingCage(
+template <typename ConcreteVisitor>
+bool ConservativeStackVisitorBase<ConcreteVisitor>::IsInterestingCage(
     PtrComprCageBase cage_base) const {
   if (cage_base == cage_base_) {
     return true;
@@ -55,7 +61,8 @@ bool ConservativeStackVisitor::IsInterestingCage(
 }
 #endif  // V8_COMPRESS_POINTERS
 
-Address ConservativeStackVisitor::FindBasePtr(
+template <typename ConcreteVisitor>
+Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
     Address maybe_inner_ptr, PtrComprCageBase cage_base) const {
 #ifdef V8_COMPRESS_POINTERS
   DCHECK(IsInterestingCage(cage_base));
@@ -70,27 +77,8 @@ Address ConservativeStackVisitor::FindBasePtr(
   const MemoryChunkMetadata* chunk_metadata = chunk->Metadata();
   DCHECK(chunk_metadata->Contains(maybe_inner_ptr));
 
-  // If it is not in the young generation and we're only interested in young
-  // generation pointers, we must ignore it.
-  if (Heap::IsYoungGenerationCollector(collector_)) {
-    const bool is_old = v8_flags.sticky_mark_bits
-                            ? chunk->IsFlagSet(MemoryChunk::CONTAINS_ONLY_OLD)
-                            : !chunk->InYoungGeneration();
-    if (is_old) return kNullAddress;
-
-    // Scavenger already swapped the semi spaces, so all real objects should
-    // be found in to space.
-    if (collector_ == GarbageCollector::SCAVENGER ? chunk->IsToPage()
-                                                  : chunk->IsFromPage()) {
-      return kNullAddress;
-    }
-  } else {
-    // If it is in the young generation "from" semispace, it is not used and
-    // we must ignore it, as its markbits may not be clean.
-    if (chunk->IsFromPage()) {
-      DCHECK(!v8_flags.sticky_mark_bits);
-      return kNullAddress;
-    }
+  if (!ConcreteVisitor::FilterPage(chunk)) {
+    return kNullAddress;
   }
 
   // If it is contained in a large page, we want to mark the only object on it.
@@ -99,14 +87,16 @@ Address ConservativeStackVisitor::FindBasePtr(
     // space or filler objects in large pages. A few cctests violate this now.
     Tagged<HeapObject> obj(
         static_cast<const LargePageMetadata*>(chunk_metadata)->GetObject());
-    return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : obj.address();
+    MapWord map_word = obj->map_word(cage_base, kRelaxedLoad);
+    return (!ConcreteVisitor::FilterLargeObject(obj, map_word) ||
+            InstanceTypeChecker::IsFreeSpaceOrFiller(map_word.ToMap()))
+               ? kNullAddress
+               : obj.address();
   }
 
   // Otherwise, we have a pointer inside a normal page.
   const PageMetadata* page = static_cast<const PageMetadata*>(chunk_metadata);
   // Try to find the address of a previous valid object on this page.
-  // TODO(379788114): Create a temporary bitmap for repeated visits to the same
-  // page during CSS from Scavenger.
   Address base_ptr =
       MarkingBitmap::FindPreviousValidObject(page, maybe_inner_ptr);
   // Iterate through the objects in the page forwards, until we find the object
@@ -114,9 +104,14 @@ Address ConservativeStackVisitor::FindBasePtr(
   DCHECK_LE(base_ptr, maybe_inner_ptr);
   while (true) {
     Tagged<HeapObject> obj(HeapObject::FromAddress(base_ptr));
-    const int size = obj->Size(cage_base);
+    MapWord map_word = obj->map_word(cage_base, kRelaxedLoad);
+    if (!ConcreteVisitor::FilterNormalObject(obj, map_word)) {
+      return kNullAddress;
+    }
+    const int size = obj->SizeFromMap(map_word.ToMap());
     DCHECK_LT(0, size);
     if (maybe_inner_ptr < base_ptr + size) {
+      ConcreteVisitor::HandleObjectFound(obj, size);
       return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : base_ptr;
     }
     base_ptr += size;
@@ -124,7 +119,9 @@ Address ConservativeStackVisitor::FindBasePtr(
   }
 }
 
-void ConservativeStackVisitor::VisitPointer(const void* pointer) {
+template <typename ConcreteVisitor>
+void ConservativeStackVisitorBase<ConcreteVisitor>::VisitPointer(
+    const void* pointer) {
   auto address = reinterpret_cast<Address>(const_cast<void*>(pointer));
   VisitConservativelyIfPointer(address);
 #ifdef V8_COMPRESS_POINTERS
@@ -146,7 +143,9 @@ void ConservativeStackVisitor::VisitPointer(const void* pointer) {
 #endif  // V8_COMPRESS_POINTERS
 }
 
-void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
+template <typename ConcreteVisitor>
+void ConservativeStackVisitorBase<
+    ConcreteVisitor>::VisitConservativelyIfPointer(Address address) {
 #ifdef V8_COMPRESS_POINTERS
   // Only proceed if the address falls in one of the interesting cages,
   // otherwise bail out.
@@ -163,8 +162,10 @@ void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
 #endif  // V8_COMPRESS_POINTERS
 }
 
-void ConservativeStackVisitor::VisitConservativelyIfPointer(
-    Address address, PtrComprCageBase cage_base) {
+template <typename ConcreteVisitor>
+void ConservativeStackVisitorBase<
+    ConcreteVisitor>::VisitConservativelyIfPointer(Address address,
+                                                   PtrComprCageBase cage_base) {
   // Bail out immediately if the pointer is not in the space managed by the
   // allocator.
   if (allocator_->IsOutsideAllocatedSpace(address)) {
@@ -178,12 +179,14 @@ void ConservativeStackVisitor::VisitConservativelyIfPointer(
   }
   Tagged<HeapObject> obj = HeapObject::FromAddress(base_ptr);
   Tagged<Object> root = obj;
-  DCHECK_NOT_NULL(delegate_);
-  delegate_->VisitRootPointer(Root::kStackRoots, nullptr,
-                              FullObjectSlot(&root));
-  // Check that the delegate visitor did not modify the root slot.
+  DCHECK_NOT_NULL(root_visitor_);
+  root_visitor_->VisitRootPointer(Root::kStackRoots, nullptr,
+                                  FullObjectSlot(&root));
+  // Check that the root visitor did not modify the root slot.
   DCHECK_EQ(root, obj);
 }
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_HEAP_CONSERVATIVE_STACK_VISITOR_INL_H_

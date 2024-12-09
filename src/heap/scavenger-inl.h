@@ -224,6 +224,7 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
   if (NEW_LO_SPACE ==
       MutablePageMetadata::FromHeapObject(object)->owner_identity()) {
     DCHECK(MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace());
+    DCHECK(!HeapLayout::IsSelfForwarded(object));
     if (object->relaxed_compare_and_swap_map_word_forwarded(
             MapWord::FromMap(map), object)) {
       local_surviving_new_large_objects_.insert({object, map});

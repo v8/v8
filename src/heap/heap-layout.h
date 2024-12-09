@@ -10,6 +10,7 @@
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/objects/objects.h"
 #include "src/objects/tagged.h"
 
 namespace v8::internal {
@@ -59,6 +60,7 @@ class HeapLayout final : public AllStatic {
   static bool IsSelfForwarded(Tagged<HeapObject> object);
   static bool IsSelfForwarded(Tagged<HeapObject> object,
                               PtrComprCageBase cage_base);
+  static bool IsSelfForwarded(Tagged<HeapObject> object, MapWord map_word);
 
  private:
   V8_EXPORT static bool InYoungGenerationForStickyMarkbits(
