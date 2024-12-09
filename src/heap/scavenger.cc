@@ -238,7 +238,6 @@ ScavengerCollector::JobTask::JobTask(
     std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
         old_to_new_chunks,
     const Scavenger::CopiedList& copied_list,
-    const Scavenger::PinnedList& pinned_list,
     const Scavenger::PromotionList& promotion_list)
     : collector_(collector),
       scavengers_(scavengers),
@@ -246,7 +245,6 @@ ScavengerCollector::JobTask::JobTask(
       remaining_memory_chunks_(old_to_new_chunks_.size()),
       generator_(old_to_new_chunks_.size()),
       copied_list_(copied_list),
-      pinned_list_(pinned_list),
       promotion_list_(promotion_list),
       trace_id_(reinterpret_cast<uint64_t>(this) ^
                 collector_->heap_->tracer()->CurrentEpoch(
@@ -279,11 +277,10 @@ void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
 size_t ScavengerCollector::JobTask::GetMaxConcurrency(
     size_t worker_count) const {
   // We need to account for local segments held by worker_count in addition to
-  // GlobalPoolSize() of copied_list_, pinned_list_ and promotion_list_.
-  size_t wanted_num_workers =
-      std::max<size_t>(remaining_memory_chunks_.load(std::memory_order_relaxed),
-                       worker_count + copied_list_.Size() +
-                           pinned_list_.Size() + promotion_list_.Size());
+  // GlobalPoolSize() of copied_list_ and promotion_list_.
+  size_t wanted_num_workers = std::max<size_t>(
+      remaining_memory_chunks_.load(std::memory_order_relaxed),
+      worker_count + copied_list_.Size() + promotion_list_.Size());
   if (!collector_->heap_->ShouldUseBackgroundThreads() ||
       collector_->heap_->ShouldOptimizeForBattery()) {
     return std::min<size_t>(wanted_num_workers, 1);
@@ -296,7 +293,6 @@ void ScavengerCollector::JobTask::ProcessItems(JobDelegate* delegate,
   double scavenging_time = 0.0;
   {
     TimedScope scope(&scavenging_time);
-    scavenger->VisitPinnedObjects();
     ConcurrentScavengePages(scavenger);
     scavenger->Process(delegate);
   }
@@ -521,7 +517,6 @@ class ObjectPinningVisitor final : public RootVisitor {
     DCHECK(HeapLayout::IsSelfForwarded(object));
     MemoryChunk::FromHeapObject(object)->SetFlagNonExecutable(
         MemoryChunk::IS_QUARANTINED);
-    scavenger_.PushPinnedObject(object, map_word.ToMap());
   }
 
   Scavenger& scavenger_;
@@ -567,6 +562,18 @@ class TreatConservativelyVisitor final : public RootVisitor {
   base::RandomNumberGenerator* const rng_;
   double stressing_threshold_;
 };
+
+void VisitPinnedObjects(Scavenger& scavenger,
+                        const PinnedObjects& pinned_objects) {
+  // TODO(379788114): Delay visitation to the parallel phase.
+  ScavengeVisitor visitor(&scavenger);
+  for (std::pair<Address, MapWord> object_and_map : pinned_objects) {
+    Address object_address = object_and_map.first;
+    Tagged<HeapObject> object = HeapObject::FromAddress(object_address);
+    MapWord original_map_word = object_and_map.second;
+    scavenger.VisitPinnedObject(visitor, object, original_map_word);
+  }
+}
 
 void SweepQuarantinedPage(
     Heap* heap, MemoryChunk* chunk,
@@ -644,7 +651,6 @@ void ScavengerCollector::CollectGarbage() {
 
   Scavenger::EmptyChunksList empty_chunks;
   Scavenger::CopiedList copied_list;
-  Scavenger::PinnedList pinned_list;
   Scavenger::PromotionList promotion_list;
   EphemeronRememberedSet::TableList ephemeron_table_list;
 
@@ -657,7 +663,7 @@ void ScavengerCollector::CollectGarbage() {
     for (int i = 0; i < num_scavenge_tasks; ++i) {
       scavengers.emplace_back(
           new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
-                        &pinned_list, &promotion_list, &ephemeron_table_list));
+                        &promotion_list, &ephemeron_table_list));
     }
     Scavenger& main_thread_scavenger = *scavengers[kMainThreadId].get();
 
@@ -712,6 +718,7 @@ void ScavengerCollector::CollectGarbage() {
             isolate_->handle_scope_implementer()->Iterate(&handles_visitor);
           }
         }
+        VisitPinnedObjects(main_thread_scavenger, pinned_objects);
       }
 
       // Scavenger treats all weak roots except for global handles as strong.
@@ -737,16 +744,15 @@ void ScavengerCollector::CollectGarbage() {
           heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL_PHASE,
           "UseBackgroundThreads", heap_->ShouldUseBackgroundThreads());
 
-      auto job = std::make_unique<JobTask>(
-          this, &scavengers, std::move(old_to_new_chunks), copied_list,
-          pinned_list, promotion_list);
+      auto job = std::make_unique<JobTask>(this, &scavengers,
+                                           std::move(old_to_new_chunks),
+                                           copied_list, promotion_list);
       TRACE_GC_NOTE_WITH_FLOW("Parallel scavenge started", job->trace_id(),
                               TRACE_EVENT_FLAG_FLOW_OUT);
       V8::GetCurrentPlatform()
           ->CreateJob(v8::TaskPriority::kUserBlocking, std::move(job))
           ->Join();
       DCHECK(copied_list.IsEmpty());
-      DCHECK(pinned_list.IsEmpty());
       DCHECK(promotion_list.IsEmpty());
     }
 
@@ -757,7 +763,6 @@ void ScavengerCollector::CollectGarbage() {
                                 main_thread_scavenger);
       }
       DCHECK(copied_list.IsEmpty());
-      DCHECK(pinned_list.IsEmpty());
       DCHECK(promotion_list.IsEmpty());
     }
 
@@ -992,14 +997,13 @@ Scavenger::PromotionList::Local::Local(Scavenger::PromotionList* promotion_list)
 
 Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                      EmptyChunksList* empty_chunks, CopiedList* copied_list,
-                     PinnedList* pinned_list, PromotionList* promotion_list,
+                     PromotionList* promotion_list,
                      EphemeronRememberedSet::TableList* ephemeron_table_list)
     : collector_(collector),
       heap_(heap),
       local_empty_chunks_(*empty_chunks),
-      local_copied_list_(*copied_list),
-      local_pinned_list_(*pinned_list),
       local_promotion_list_(promotion_list),
+      local_copied_list_(*copied_list),
       local_ephemeron_table_list_(*ephemeron_table_list),
       local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
@@ -1245,7 +1249,6 @@ void Scavenger::Finalize() {
 
 void Scavenger::Publish() {
   local_copied_list_.Publish();
-  local_pinned_list_.Publish();
   local_promotion_list_.Publish();
 }
 
@@ -1289,20 +1292,13 @@ bool Scavenger::PromoteIfLargeObject(Tagged<HeapObject> object) {
                            Map::ObjectFieldsFrom(map->visitor_id()));
 }
 
-void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map) {
-  DCHECK(HeapLayout::IsSelfForwarded(object));
-  local_pinned_list_.Push(ObjectAndMap(object, map));
-  copied_size_ += object->SizeFromMap(map);
-}
-
-void Scavenger::VisitPinnedObjects() {
-  ScavengeVisitor scavenge_visitor(this);
-
-  ObjectAndMap object_and_map;
-  while (local_pinned_list_.Pop(&object_and_map)) {
-    DCHECK(HeapLayout::IsSelfForwarded(object_and_map.first));
-    scavenge_visitor.Visit(object_and_map.second, object_and_map.first);
-  }
+void Scavenger::VisitPinnedObject(ScavengeVisitor& visitor,
+                                  Tagged<HeapObject> object,
+                                  MapWord original_map_word) {
+  DCHECK(object->map_word(kRelaxedLoad).IsForwardingAddress());
+  Tagged<Map> original_map = original_map_word.ToMap();
+  const size_t object_size = visitor.Visit(original_map, object);
+  copied_size_ += object_size;
 }
 
 void RootScavengeVisitor::VisitRootPointer(Root root, const char* description,
