@@ -126,7 +126,7 @@
 #include "src/utils/utils.h"
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#include "src/heap/conservative-stack-visitor-inl.h"
+#include "src/heap/conservative-stack-visitor.h"
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -4849,7 +4849,8 @@ void Heap::IterateConservativeStackRoots(RootVisitor* v,
                               ? isolate()->shared_space_isolate()
                               : isolate();
 
-  ConservativeStackVisitor stack_visitor(main_isolate, v);
+  ConservativeStackVisitor stack_visitor(main_isolate, v,
+                                         GarbageCollector::MARK_COMPACTOR);
   if (IsGCWithMainThreadStack()) {
     stack().IteratePointersUntilMarker(&stack_visitor);
   }

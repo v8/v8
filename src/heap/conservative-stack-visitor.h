@@ -9,8 +9,6 @@
 #include "src/base/address-region.h"
 #include "src/common/globals.h"
 #include "src/heap/base/stack.h"
-#include "src/heap/memory-chunk.h"
-#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -18,20 +16,11 @@ namespace internal {
 class MemoryAllocator;
 class RootVisitor;
 
-// `ConcreteVisitor` must implement the following methods:
-// 1) FilterPage(const MemoryChunk*) - returns true if a page may contain
-//    interesting objects for the GC (e.g. a young page in a young gen GC).
-// 2) FilterLargeObject(Tagged<HeapObject>, MapWord) - returns true if the
-//    object should be handled by conservative stack scanning.
-// 3) FilterNormalObject(Tagged<HeapObject>, MapWord) - returns true if the
-//    object should be handled by conservative stack scanning.
-// 4) HandleObjectFound(Tagged<HeapObject>, size_t) - Callback whenever
-//    FindBasePtr finds a new object.
-template <typename ConcreteVisitor>
-class V8_EXPORT_PRIVATE ConservativeStackVisitorBase
+class V8_EXPORT_PRIVATE ConservativeStackVisitor
     : public ::heap::base::StackVisitor {
  public:
-  ConservativeStackVisitorBase(Isolate* isolate, RootVisitor* root_visitor);
+  ConservativeStackVisitor(Isolate* isolate, RootVisitor* delegate,
+                           GarbageCollector collector);
 
   void VisitPointer(const void* pointer) final;
 
@@ -44,6 +33,11 @@ class V8_EXPORT_PRIVATE ConservativeStackVisitorBase
   // young generation.
   Address FindBasePtr(Address maybe_inner_ptr,
                       PtrComprCageBase cage_base) const;
+
+  static ConservativeStackVisitor ForTesting(Isolate* isolate,
+                                             GarbageCollector collector) {
+    return ConservativeStackVisitor(isolate, nullptr, collector);
+  }
 
  private:
   void VisitConservativelyIfPointer(Address address);
@@ -67,25 +61,9 @@ class V8_EXPORT_PRIVATE ConservativeStackVisitorBase
   const PtrComprCageBase trusted_cage_base_;
 #endif
 
-  RootVisitor* const root_visitor_;
+  RootVisitor* const delegate_;
   MemoryAllocator* const allocator_;
-};
-
-class V8_EXPORT_PRIVATE ConservativeStackVisitor
-    : public ConservativeStackVisitorBase<ConservativeStackVisitor> {
- public:
-  ConservativeStackVisitor(Isolate* isolate, RootVisitor* root_visitor)
-      : ConservativeStackVisitorBase(isolate, root_visitor) {}
-
- private:
-  static bool FilterPage(const MemoryChunk* chunk) {
-    return v8_flags.sticky_mark_bits || !chunk->IsFromPage();
-  }
-  static bool FilterLargeObject(Tagged<HeapObject>, MapWord) { return true; }
-  static bool FilterNormalObject(Tagged<HeapObject>, MapWord) { return true; }
-  static void HandleObjectFound(Tagged<HeapObject>, size_t) {}
-
-  friend class ConservativeStackVisitorBase<ConservativeStackVisitor>;
+  const GarbageCollector collector_;
 };
 
 }  // namespace internal

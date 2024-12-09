@@ -46,12 +46,8 @@ bool HeapLayout::IsSelfForwarded(Tagged<HeapObject> object) {
 // static
 bool HeapLayout::IsSelfForwarded(Tagged<HeapObject> object,
                                  PtrComprCageBase cage_base) {
-  return IsSelfForwarded(object, object->map_word(cage_base, kRelaxedLoad));
-}
-
-// static
-bool HeapLayout::IsSelfForwarded(Tagged<HeapObject> object, MapWord map_word) {
-  return map_word == MapWord::FromForwardingAddress(object, object);
+  return object->map_word(cage_base, kRelaxedLoad) ==
+         MapWord::FromForwardingAddress(object, object);
 }
 
 }  // namespace v8::internal

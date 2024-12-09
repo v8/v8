@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/conservative-stack-visitor-inl.h"
+#include "src/heap/conservative-stack-visitor.h"
 #include "src/heap/gc-tracer.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
@@ -20,7 +20,8 @@ class WithInnerPointerResolutionMixin : public TMixin {
   Address ResolveInnerPointer(Address maybe_inner_ptr) {
     // This can only resolve inner pointers in the regular cage.
     PtrComprCageBase cage_base{this->isolate()};
-    return ConservativeStackVisitor(this->isolate(), nullptr)
+    return ConservativeStackVisitor::ForTesting(
+               this->isolate(), GarbageCollector::MARK_COMPACTOR)
         .FindBasePtr(maybe_inner_ptr, cage_base);
   }
 };
