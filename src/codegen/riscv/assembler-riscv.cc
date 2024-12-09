@@ -1619,7 +1619,6 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
 #if V8_TARGET_ARCH_RISCV64
 Address Assembler::target_address_at(Address pc) {
-  DEBUG_PRINTF("target_address_at: pc: %lx\t", pc);
 #ifdef RISCV_USE_SV39
   Instruction* instr0 = Instruction::At((unsigned char*)pc);
   Instruction* instr1 = Instruction::At((unsigned char*)(pc + 1 * kInstrSize));
