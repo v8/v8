@@ -104,7 +104,7 @@ declare_args() {
   v8_enable_fast_mksnapshot = false
 
   # Enable using multiple threads to build builtins in mksnapshot.
-  v8_enable_concurrent_mksnapshot = ""
+  v8_enable_concurrent_mksnapshot = true
 
   # Optimize code for Torque executable, even during a debug build.
   v8_enable_fast_torque = ""
