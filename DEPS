@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0fd2761da2a7e9349e862405555f28662ae01154',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7cb7b29e3ae37760b5de270a8ee088f766e69387',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'ba1ffdb8594e10776090bdeab00385763d4aff51',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '853eb76b5fc9fa10125097ddde2322eb050d8855',
   'buildtools/linux64': {
     'packages': [
       {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ba733f35cde8ae85e7ca85956cdc63b297dc9425',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8d20c1e0b56c68b14878b597080484f9445962b4',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -302,13 +302,13 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '619ccf05152d4612fac76ba5899094704f3661dd',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '60a3e1838767d557822e90f2671135a79a62c5d0',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '1bf83572723e3cb921345f9f80d1e462c4b9745b',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '6066b149576465160ac0d935aa644ec6d3bfb2bf',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'e27a88bfee058f4d0f77b1446ec50f4cf7a8d100',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4d75039545cf1c121eddfb9636e4d19dfbb7fe29',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
