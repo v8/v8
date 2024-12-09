@@ -158,8 +158,9 @@ v8_builder(
     service_account = V8_AUTOROLL_ACCOUNT,
     properties = {
         "channels": [
-            {"refname": "beta", "source_channel": "beta", "max_age_weeks": 2},
-            {"refname": "stable", "source_channel": "stable", "max_age_weeks": 5},
+            {"refname": "beta", "source": "MILESTONES", "channel": "beta", "max_age_weeks": 2},
+            {"refname": "stable", "source": "MILESTONES", "channel": "stable", "max_age_weeks": 5},
+            {"refname": "extended", "source": "RELEASES", "channel": "Extended", "platform": "Mac", "max_age_weeks": 9},
         ],
     },
     schedule = "0 * * * *",
