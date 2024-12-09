@@ -84,6 +84,10 @@ Atomics.pause
 # https://github.com/tc39/proposal-is-error
 Error.isError
 
+# Deferred import evaluation
+# https://tc39.es/proposal-defer-import-eval
+import-defer
+
 ## Standard language features
 #
 # Language features that have been included in a published version of the

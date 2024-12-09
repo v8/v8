@@ -1220,9 +1220,6 @@
   'language/statements/with/set-mutable-binding-idref-compound-assign-with-proxy-env': [FAIL],
   'language/statements/with/set-mutable-binding-idref-with-proxy-env': [FAIL],
 
-  # https://github.com/tc39/test262/pull/4324
-  'built-ins/Object/freeze/typedarray-backed-by-resizable-buffer': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
@@ -2453,6 +2450,42 @@
   'intl402/Temporal/Duration/prototype/round/adjust-rounded-duration-days': [SKIP],
 }],
 # End roll-watcher patch
+####
+
+####
+# import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
+[ALWAYS, {
+  'built-ins/Temporal/Duration/prototype/round/balances-up-to-weeks': [SKIP],
+  'language/import/import-defer/deferred-namespace-object/exotic-object-behavior': [SKIP],
+  'language/import/import-defer/deferred-namespace-object/identity': [SKIP],
+  'language/import/import-defer/errors/get-other-while-dep-evaluating-async/main': [SKIP],
+  'language/import/import-defer/errors/get-other-while-dep-evaluating/main': [SKIP],
+  'language/import/import-defer/errors/get-other-while-evaluating-async/main': [SKIP],
+  'language/import/import-defer/errors/get-other-while-evaluating/main': [SKIP],
+  'language/import/import-defer/errors/get-self-while-defer-evaluating/main': [SKIP],
+  'language/import/import-defer/errors/get-self-while-evaluating': [SKIP],
+  'language/import/import-defer/errors/get-self-while-evaluating-async/main': [SKIP],
+  'language/import/import-defer/errors/module-throws/defer-import-after-evaluation': [SKIP],
+  'language/import/import-defer/errors/module-throws/third-party-evaluation-after-defer-import': [SKIP],
+  'language/import/import-defer/errors/module-throws/trigger-evaluation': [SKIP],
+  'language/import/import-defer/evaluation-sync/evaluation-ignore-getPrototypeOf': [SKIP],
+  'language/import/import-defer/evaluation-sync/evaluation-ignore-get-symbol': [SKIP],
+  'language/import/import-defer/evaluation-sync/evaluation-ignore-isExtensible': [SKIP],
+  'language/import/import-defer/evaluation-sync/evaluation-ignore-preventExtensions': [SKIP],
+  'language/import/import-defer/evaluation-sync/evaluation-ignore-set': [SKIP],
+  'language/import/import-defer/evaluation-sync/evaluation-ignore-setPrototypeOf': [SKIP],
+  'language/import/import-defer/evaluation-sync/evaluation-trigger-get-string': [SKIP],
+  'language/import/import-defer/evaluation-sync/import-defer-does-not-evaluate': [SKIP],
+  'language/import/import-defer/evaluation-sync/module-imported-defer-and-eager': [SKIP],
+  'language/import/import-defer/evaluation-top-level-await/flattening-order/main': [SKIP],
+  'language/import/import-defer/evaluation-top-level-await/import-defer-async-module/main': [SKIP],
+  'language/import/import-defer/evaluation-top-level-await/import-defer-transitive-async-module/main': [SKIP],
+  'language/import/import-defer/evaluation-top-level-await/sync-dependency-of-deferred-async-module/main': [SKIP],
+  'language/import/import-defer/syntax/import-attributes': [SKIP],
+  'language/import/import-defer/syntax/valid-default-binding-named-defer': [SKIP],
+  'language/import/import-defer/syntax/valid-defer-namespace': [SKIP],
+}],
+# end import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
 ####
 
 ]
