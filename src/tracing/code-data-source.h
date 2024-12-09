@@ -46,7 +46,6 @@ class CodeDataSource
  private:
   using Base = DataSource<CodeDataSource, CodeDataSourceTraits>;
 
-  int num_active_instances = 0;
   perfetto::protos::gen::V8Config config_;
 };
 
