@@ -135,7 +135,8 @@ void JsonPrintAllBytecodeSources(std::ostream& os,
 
 void JsonPrintBytecodeSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
-                             DirectHandle<BytecodeArray> bytecode_array);
+                             DirectHandle<BytecodeArray> bytecode_array,
+                             Tagged<FeedbackVector> feedback_vector = {});
 
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,
