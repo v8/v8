@@ -598,7 +598,7 @@ void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
   // Restore the maps of quarantined objects. We use the iteration over
   // quarantined objects to split them based on pages. This will be used below
   // for sweeping the quarantined pages (since there are no markbits).
-  for (const auto [object_address, map_word] : pinned_objects) {
+  for (const auto& [object_address, map_word] : pinned_objects) {
     DCHECK(!map_word.IsForwardingAddress());
     Tagged<HeapObject> object = HeapObject::FromAddress(object_address);
     DCHECK(HeapLayout::IsSelfForwarded(object));
