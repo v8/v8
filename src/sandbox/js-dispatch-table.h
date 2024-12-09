@@ -80,7 +80,15 @@ struct JSDispatchEntry {
   // Freelist entries contain the index of the next free entry in their lower 32
   // bits and are tagged with this tag.
   static constexpr Address kFreeEntryTag = 0xffff000000000000ull;
+#ifdef V8_TARGET_BIG_ENDIAN
+  // 2-byte parameter count is on the least significant side of encoded_word_.
+  static constexpr int kBigEndianParamCountOffset =
+      sizeof(Address) - sizeof(uint16_t);
+  static constexpr uintptr_t kParameterCountOffset =
+      kCodeObjectOffset + kBigEndianParamCountOffset;
+#else
   static constexpr uintptr_t kParameterCountOffset = kCodeObjectOffset;
+#endif  // V8_TARGET_BIG_ENDIAN
   static constexpr uint32_t kObjectPointerShift = 16;
   static constexpr uint32_t kParameterCountMask = 0xffff;
 #elif defined(V8_TARGET_ARCH_32_BIT)

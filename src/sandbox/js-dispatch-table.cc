@@ -21,8 +21,17 @@ void JSDispatchEntry::CheckFieldOffsets() {
   static_assert(JSDispatchEntry::kCodeObjectOffset ==
                 offsetof(JSDispatchEntry, encoded_word_));
 #if defined(V8_TARGET_ARCH_64_BIT)
+#ifdef V8_TARGET_BIG_ENDIAN
+  // 2-byte parameter count is on the least significant side of encoded_word_.
+  constexpr int kBigEndianParamCountOffset = sizeof(Address) - sizeof(uint16_t);
+  static_assert(sizeof(encoded_word_) == sizeof(Address));
+  static_assert(JSDispatchEntry::kParameterCountOffset ==
+                offsetof(JSDispatchEntry, encoded_word_) +
+                    kBigEndianParamCountOffset);
+#else
   static_assert(JSDispatchEntry::kParameterCountOffset ==
                 offsetof(JSDispatchEntry, encoded_word_));
+#endif  // V8_TARGET_BIG_ENDIAN
   static_assert(kParameterCountMask == 0xffff);
   static_assert(kParameterCountSize == 2);
 #elif defined(V8_TARGET_ARCH_32_BIT)
