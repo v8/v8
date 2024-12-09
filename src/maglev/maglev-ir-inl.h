@@ -7,7 +7,6 @@
 
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/sandbox/js-dispatch-table-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -294,31 +293,6 @@ inline void UseFixed(Input& input, DoubleRegister reg) {
   input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
                        reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
-}
-
-CallKnownJSFunction::CallKnownJSFunction(
-    uint64_t bitfield,
-#ifdef V8_ENABLE_LEAPTIERING
-    JSDispatchHandle dispatch_handle,
-#endif
-    compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
-    ValueNode* context, ValueNode* receiver, ValueNode* new_target)
-    : Base(bitfield),
-#ifdef V8_ENABLE_LEAPTIERING
-      dispatch_handle_(dispatch_handle),
-#endif
-      shared_function_info_(shared_function_info),
-      expected_parameter_count_(
-#ifdef V8_ENABLE_LEAPTIERING
-          GetProcessWideJSDispatchTable()->GetParameterCount(dispatch_handle)
-#else
-          shared_function_info.internal_formal_parameter_count_with_receiver()
-#endif
-      ) {
-  set_input(kClosureIndex, closure);
-  set_input(kContextIndex, context);
-  set_input(kReceiverIndex, receiver);
-  set_input(kNewTargetIndex, new_target);
 }
 
 }  // namespace maglev

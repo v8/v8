@@ -5,8 +5,6 @@
 #include <climits>
 #include <cstdint>
 
-#include "src/sandbox/js-dispatch-table.h"
-
 #if V8_TARGET_ARCH_X64
 
 #include <optional>
@@ -680,23 +678,6 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
   movq(destination, Operand(kScratchRegister, destination, times_1,
                             JSDispatchEntry::kEntrypointOffset));
-}
-
-void MacroAssembler::LoadEntrypointFromJSDispatchTable(
-    Register destination, JSDispatchHandle dispatch_handle) {
-  DCHECK(!AreAliased(destination, kScratchRegister));
-  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
-  // WARNING: This offset calculation is only safe if we have already stored a
-  // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
-  // keeping the dispatch entry alive) _and_ because the entrypoints are not
-  // compatible (thus meaning that the offset calculation is not invalidated by
-  // a compaction).
-  // TODO(leszeks): Make this less of a footgun.
-  static_assert(!JSDispatchTable::kSupportsCompaction);
-  int offset = JSDispatchEntry::kEntrypointOffset +
-               ((dispatch_handle >> kJSDispatchHandleShift)
-                << kJSDispatchTableEntrySizeLog2);
-  movq(destination, Operand(kScratchRegister, offset));
 }
 
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
@@ -3286,27 +3267,6 @@ void MacroAssembler::CallJSFunction(Register function_object,
   CallCodeObject(rcx, kJSEntrypointTag);
 #endif
 }
-
-#if V8_ENABLE_LEAPTIERING
-void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
-                                         uint16_t argument_count) {
-  static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  static_assert(kJavaScriptCallDispatchHandleRegister == r15, "ABI mismatch");
-  movl(kJavaScriptCallDispatchHandleRegister,
-       Immediate(dispatch_handle, RelocInfo::JS_DISPATCH_HANDLE));
-  // WARNING: This entrypoint load is only safe because we are storing a
-  // RelocInfo for the dispatch handle in the movl above (thus keeping the
-  // dispatch entry alive) _and_ because the entrypoints are not compactable
-  // (thus meaning that the calculation in the entrypoint load is not
-  // invalidated by a compaction).
-  // TODO(leszeks): Make this less of a footgun.
-  static_assert(!JSDispatchTable::kSupportsCompaction);
-  LoadEntrypointFromJSDispatchTable(rcx, dispatch_handle);
-  CHECK_EQ(argument_count,
-           GetProcessWideJSDispatchTable()->GetParameterCount(dispatch_handle));
-  call(rcx);
-}
-#endif
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {

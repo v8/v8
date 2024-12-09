@@ -2292,10 +2292,6 @@ OptionalSharedFunctionInfoRef FeedbackCellRef::shared_function_info(
   return vector->shared_function_info(broker);
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
-HEAP_ACCESSOR_C(FeedbackCell, JSDispatchHandle, dispatch_handle)
-#endif
-
 SharedFunctionInfoRef FeedbackVectorRef::shared_function_info(
     JSHeapBroker* broker) const {
   // Immutable after initialization.
@@ -2387,9 +2383,6 @@ JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell,
 
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
-#ifdef V8_ENABLE_LEAPTIERING
-HEAP_ACCESSOR_C(JSFunction, JSDispatchHandle, dispatch_handle)
-#endif
 
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C
