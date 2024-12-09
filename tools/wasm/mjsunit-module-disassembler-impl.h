@@ -6,6 +6,7 @@
 #define V8_TOOLS_WASM_MJSUNIT_MODULE_DISASSEMBLER_IMPL_H_
 
 #include <ctime>
+#include <string_view>
 
 #include "src/numbers/conversions.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -1123,7 +1124,8 @@ class MjsunitModuleDis {
     offsets_.CollectOffsets(module, wire_bytes.module_bytes());
   }
 
-  void PrintModule() {
+  void PrintModule(std::string_view extra_flags = {},
+                   bool emit_call_main = true) {
     tzset();
     time_t current_time = time(nullptr);
     struct tm current_localtime;
@@ -1143,8 +1145,9 @@ class MjsunitModuleDis {
             "that can be\n"
             "// found in the LICENSE file.\n"
             "\n"
-            "// Flags: --wasm-staging --wasm-inlining-call-indirect\n"
-            "\n"
+            "// Flags: --wasm-staging --wasm-inlining-call-indirect"
+         << extra_flags
+         << "\n\n"
             "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
             "\n"
             "const builder = new WasmModuleBuilder();";
@@ -1698,19 +1701,21 @@ class MjsunitModuleDis {
 
     // Instantiate and invoke.
     if (added_any_export) out_.NextLine(0);
+    out_ << "let kBuiltins = { builtins: ['js-string', 'text-decoder', "
+            "'text-encoder'] };\n";
     bool compiles = !has_error_;
     if (compiles) {
-      out_ << "let kBuiltins = { builtins: ['js-string', 'text-decoder', "
-              "'text-encoder'] };\n"
-              "const instance = builder.instantiate({}, kBuiltins);\n"
-              "try {\n"
-              "  print(instance.exports.main(1, 2, 3));\n"
-              "} catch (e) {\n"
-              "  print('caught exception', e);\n"
-              "}";
+      out_ << "const instance = builder.instantiate({}, kBuiltins);\n";
+      if (emit_call_main) {
+        out_ << "try {\n"
+                "  print(instance.exports.main(1, 2, 3));\n"
+                "} catch (e) {\n"
+                "  print('caught exception', e);\n"
+                "}";
+      }
       out_.NextLine(0);
     } else {
-      out_ << "assertThrows(() => builder.instantiate(), "
+      out_ << "assertThrows(() => builder.instantiate({}, kBuiltins), "
               "WebAssembly.CompileError);";
       out_.NextLine(0);
     }

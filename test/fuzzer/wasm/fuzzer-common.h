@@ -14,6 +14,7 @@
 #include "src/wasm/wasm-module.h"
 
 namespace v8::internal {
+class StdoutStream;
 class WasmInstanceObject;
 namespace wasm {
 class ZoneBuffer;
@@ -47,6 +48,9 @@ Handle<WasmModuleObject> CompileReferenceModule(
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);
+void GenerateTestCase(StdoutStream& os, Isolate* isolate,
+                      ModuleWireBytes wire_bytes, bool compiles,
+                      bool emit_call_main, std::string_view extra_args);
 
 // Validate a module containing a few wasm-gc types. This can be done to
 // prepulate the TypeCanonicalizer with a few canonical types, so that a

@@ -263,6 +263,14 @@ void ExecuteAgainstReference(Isolate* isolate,
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
+  StdoutStream os;
+  GenerateTestCase(os, isolate, wire_bytes, compiles, false, "");
+  os.flush();
+}
+
+void GenerateTestCase(StdoutStream& os, Isolate* isolate,
+                      ModuleWireBytes wire_bytes, bool compiles,
+                      bool emit_call_main, std::string_view extra_flags) {
   // Libfuzzer sometimes runs a test twice (for detecting memory leaks), and in
   // this case we do not want multiple outputs by this function.
   // Similarly if we explicitly execute the same test multiple times (via
@@ -287,11 +295,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   NamesProvider names(module, wire_bytes.module_bytes());
   MjsunitModuleDis disassembler(out, module, &names, wire_bytes, &allocator,
                                 !compiles);
-  disassembler.PrintModule();
+  disassembler.PrintModule(extra_flags, emit_call_main);
   const bool offsets = false;  // Not supported by MjsunitModuleDis.
-  StdoutStream os;
   out.WriteTo(os, offsets);
-  os.flush();
 }
 
 namespace {

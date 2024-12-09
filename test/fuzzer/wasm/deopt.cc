@@ -259,8 +259,45 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   bool valid = GetWasmEngine()->SyncValidate(
       i_isolate, enabled_features, CompileTimeImportsForFuzzing(), buffer);
 
+  // Choose whether to optimize the main function or the outermost callee.
+  // As the main function has a fixed signature, it doesn't provide great
+  // coverage to always optimize and deopt the main function. Instead by
+  // optimizing an inner wasm function, there can be a large amount of
+  // parameters and returns with all kinds of types.
+  const bool optimize_main_function = !(data.last() & 1) || inlinees.empty();
+
   if (v8_flags.wasm_fuzzer_gen_test) {
-    GenerateTestCase(i_isolate, wire_bytes, valid);
+    StdoutStream os;
+    std::stringstream flags;
+    flags << " --allow-natives-syntax --wasm-deopt "
+             "--wasm-inlining-ignore-call-counts --wasm-sync-tier-up "
+             "--wasm-inlining-budget="
+          << v8_flags.wasm_inlining_budget
+          << " --wasm-inlining-max-size=" << v8_flags.wasm_inlining_max_size
+          << " --wasm-inlining-factor=" << v8_flags.wasm_inlining_factor;
+    // The deopt fuzzer generates a different call sequence.
+    bool emit_call_main = false;
+    GenerateTestCase(os, i_isolate, wire_bytes, valid, emit_call_main,
+                     flags.str());
+    // Emit helper.
+    os << "let maybeThrows = (fct, ...args) => {\n"
+          "  try {\n"
+          "    print(fct(...args));\n"
+          "  } catch (e) {\n"
+          "    print(`caught ${e}`);\n"
+          "  }\n"
+          "};\n\n";
+    // Emit calls for the different call target indices each followed by an
+    // explicit tier-up.
+    std::string fct("instance.exports.");
+    fct.append(optimize_main_function ? "main" : inlinees.back());
+    for (size_t i = 0; i < callees.size(); ++i) {
+      os << "maybeThrows(instance.exports.main, " << i
+         << ");\n"
+            "%WasmTierUpFunction("
+         << fct << ");\n";
+    }
+    os.flush();
   }
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
@@ -303,11 +340,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
           .ToHandleChecked();
   int function_to_optimize =
       main_function->shared()->wasm_exported_function_data()->function_index();
-  // As the main function has a fixed signature, it doesn't provide great
-  // coverage to always optimize and deopt the main function. Instead by only
-  // optimizing an inner wasm function, there can be a large amount of
-  // parameters with all kinds of types.
-  if (!inlinees.empty() && (data.last() & 1)) {
+  if (!optimize_main_function) {
     function_to_optimize--;
   }
 
