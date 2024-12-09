@@ -182,6 +182,7 @@ pool(
     bucket_realms = ["try", "try.triggered", "crossbench.try"],
     users = V8_SERVICE_ACCOUNTS,
     groups = LED_GROUPS + ["project-v8-tryjob-access"],
+    projects = "emscripten-releases",
 )
 
 pool(
