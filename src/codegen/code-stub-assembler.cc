@@ -2043,7 +2043,7 @@ void CodeStubAssembler::SetSupportsDynamicParameterCount(
 
 TNode<JSDispatchHandleT> CodeStubAssembler::InvalidDispatchHandleConstant() {
   return UncheckedCast<JSDispatchHandleT>(
-      Uint32Constant(kInvalidDispatchHandle));
+      Uint32Constant(kInvalidDispatchHandle.value()));
 }
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
@@ -17144,8 +17144,8 @@ TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
 TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
     JSBuiltinDispatchHandleRoot::Idx dispatch_root_idx) {
   DCHECK_LT(dispatch_root_idx, JSBuiltinDispatchHandleRoot::Idx::kCount);
-  return ReinterpretCast<JSDispatchHandleT>(
-      Uint32Constant(isolate()->builtin_dispatch_handle(dispatch_root_idx)));
+  return ReinterpretCast<JSDispatchHandleT>(Uint32Constant(
+      isolate()->builtin_dispatch_handle(dispatch_root_idx).value()));
 }
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
 

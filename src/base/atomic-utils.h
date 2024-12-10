@@ -12,6 +12,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
+#include "src/base/strong-alias.h"
 
 namespace v8 {
 namespace base {
@@ -211,6 +212,15 @@ class AsAtomicImpl {
     }
     static U* to_return_type(AtomicStorageType value) {
       return reinterpret_cast<U*>(value);
+    }
+  };
+  template <typename T, typename U>
+  struct cast_helper<base::StrongAlias<T, U>> {
+    static AtomicStorageType to_storage_type(base::StrongAlias<T, U> value) {
+      return static_cast<AtomicStorageType>(value.value());
+    }
+    static base::StrongAlias<T, U> to_return_type(AtomicStorageType value) {
+      return base::StrongAlias<T, U>(static_cast<U>(value));
     }
   };
 

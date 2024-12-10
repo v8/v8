@@ -247,12 +247,15 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // are in the overall first read only segment of the whole table.
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
   static JSDispatchHandle GetStaticHandleForReadOnlySegmentEntry(int index) {
-    return static_cast<JSDispatchHandle>(kInternalNullEntryIndex + 1 + index)
-           << kJSDispatchHandleShift;
+    return IndexToHandle(kInternalNullEntryIndex + 1 + index);
   }
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
   static bool InReadOnlySegment(JSDispatchHandle handle) {
     return HandleToIndex(handle) <= kEndOfInternalReadOnlySegment;
+  }
+  static int OffsetOfEntry(JSDispatchHandle handle) {
+    return JSDispatchTable::HandleToIndex(handle)
+           << kJSDispatchTableEntrySizeLog2;
   }
 
   // Marks the specified entry as alive.
@@ -314,13 +317,13 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   static JSDispatchTable* instance_;
 
   static uint32_t HandleToIndex(JSDispatchHandle handle) {
-    uint32_t index = handle >> kJSDispatchHandleShift;
-    DCHECK_EQ(handle, index << kJSDispatchHandleShift);
+    uint32_t index = handle.value() >> kJSDispatchHandleShift;
+    DCHECK_EQ(handle.value(), index << kJSDispatchHandleShift);
     return index;
   }
   static JSDispatchHandle IndexToHandle(uint32_t index) {
-    JSDispatchHandle handle = index << kJSDispatchHandleShift;
-    DCHECK_EQ(index, handle >> kJSDispatchHandleShift);
+    JSDispatchHandle handle(index << kJSDispatchHandleShift);
+    DCHECK_EQ(index, handle.value() >> kJSDispatchHandleShift);
     return handle;
   }
 

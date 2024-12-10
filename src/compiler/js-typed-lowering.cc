@@ -2134,8 +2134,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), formal_count + 3,
                         jsgraph()->ConstantNoHole(JSParameterCount(arity)));
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-      node->InsertInput(graph()->zone(), formal_count + 4,
-                        jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle));
+      node->InsertInput(
+          graph()->zone(), formal_count + 4,
+          jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
 #endif
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
@@ -2167,8 +2168,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), 3,
                         jsgraph()->ConstantNoHole(JSParameterCount(arity)));
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-      node->InsertInput(graph()->zone(), 4,
-                        jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle));
+      node->InsertInput(
+          graph()->zone(), 4,
+          jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
 #endif
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
@@ -2178,8 +2180,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), arity + 3,
                         jsgraph()->ConstantNoHole(JSParameterCount(arity)));
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-      node->InsertInput(graph()->zone(), arity + 4,
-                        jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle));
+      node->InsertInput(
+          graph()->zone(), arity + 4,
+          jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
 #endif
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(

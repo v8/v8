@@ -65,16 +65,19 @@ void FeedbackCell::allocate_dispatch_handle(Isolate* isolate,
 }
 
 void FeedbackCell::clear_dispatch_handle() {
-  WriteField<JSDispatchHandle>(kDispatchHandleOffset, kNullJSDispatchHandle);
+  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                kNullJSDispatchHandle.value());
 }
 
 JSDispatchHandle FeedbackCell::dispatch_handle() const {
-  return ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+  return JSDispatchHandle(
+      ReadField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset));
 }
 
 void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
   DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
-  WriteField<JSDispatchHandle>(kDispatchHandleOffset, new_handle);
+  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                new_handle.value());
   JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, new_handle);
 }
 #endif  // V8_ENABLE_LEAPTIERING

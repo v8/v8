@@ -194,11 +194,13 @@ void JSFunction::AllocateDispatchHandle(Isolate* isolate,
 }
 
 void JSFunction::clear_dispatch_handle() {
-  WriteField<JSDispatchHandle>(kDispatchHandleOffset, kNullJSDispatchHandle);
+  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                kNullJSDispatchHandle.value());
 }
 void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
                                      WriteBarrierMode mode) {
-  Relaxed_WriteField<JSDispatchHandle>(kDispatchHandleOffset, handle);
+  Relaxed_WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                        handle.value());
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
 void JSFunction::UpdateDispatchEntry(Tagged<Code> new_code,
@@ -215,11 +217,13 @@ void JSFunction::UpdateDispatchEntryKeepTieringRequest(Tagged<Code> new_code,
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
 JSDispatchHandle JSFunction::dispatch_handle() const {
-  return Relaxed_ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+  return JSDispatchHandle(Relaxed_ReadField<JSDispatchHandle::underlying_type>(
+      kDispatchHandleOffset));
 }
 
 JSDispatchHandle JSFunction::dispatch_handle(AcquireLoadTag tag) const {
-  return Acquire_ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+  return JSDispatchHandle(Acquire_ReadField<JSDispatchHandle::underlying_type>(
+      kDispatchHandleOffset));
 }
 #endif  // V8_ENABLE_LEAPTIERING
 

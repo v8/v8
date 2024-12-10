@@ -286,7 +286,8 @@ void BodyDescriptorBase::IterateProtectedPointer(Tagged<HeapObject> obj,
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateJSDispatchEntry(Tagged<HeapObject> obj,
                                                 int offset, ObjectVisitor* v) {
-  JSDispatchHandle handle = obj->Relaxed_ReadField<JSDispatchHandle>(offset);
+  JSDispatchHandle handle(
+      obj->Relaxed_ReadField<JSDispatchHandle::underlying_type>(offset));
   v->VisitJSDispatchTableEntry(obj, handle);
 }
 #endif  // V8_ENABLE_LEAPTIERING

@@ -877,11 +877,13 @@ inline bool Code::is_baseline_leave_frame_builtin() const {
 
 #ifdef V8_ENABLE_LEAPTIERING
 inline JSDispatchHandle Code::js_dispatch_handle() const {
-  return ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+  return JSDispatchHandle(
+      ReadField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset));
 }
 
 inline void Code::set_js_dispatch_handle(JSDispatchHandle handle) {
-  Relaxed_WriteField<JSDispatchHandle>(kDispatchHandleOffset, handle);
+  Relaxed_WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                        handle.value());
 }
 #endif  // V8_ENABLE_LEAPTIERING
 

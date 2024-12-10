@@ -1421,7 +1421,7 @@ class MaglevFrameTranslationBuilder {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       // kJavaScriptCallDispatchHandleRegister
       translation_array_builder_->StoreLiteral(
-          GetDeoptLiteral(Smi::FromInt(kInvalidDispatchHandle)));
+          GetDeoptLiteral(Smi::FromInt(kInvalidDispatchHandle.value())));
 #endif
     }
 

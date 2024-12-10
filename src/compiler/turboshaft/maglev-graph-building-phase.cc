@@ -1304,7 +1304,8 @@ class GraphBuildingNodeProcessor {
       arguments.push_back(Map(node->new_target()));
       arguments.push_back(__ Word32Constant(actual_parameter_count));
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-      arguments.push_back(__ Word32Constant(kPlaceholderDispatchHandle));
+      arguments.push_back(
+          __ Word32Constant(kPlaceholderDispatchHandle.value()));
 #endif
       arguments.push_back(Map(node->receiver()));
       for (int i = 0; i < node->num_args(); i++) {
@@ -1336,7 +1337,8 @@ class GraphBuildingNodeProcessor {
       arguments.push_back(Map(node->new_target()));
       arguments.push_back(__ Word32Constant(actual_parameter_count));
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-      arguments.push_back(__ Word32Constant(kPlaceholderDispatchHandle));
+      arguments.push_back(
+          __ Word32Constant(kPlaceholderDispatchHandle.value()));
 #endif
 
       // Load the context from {callee}.
@@ -4661,8 +4663,9 @@ class GraphBuildingNodeProcessor {
               Builtins::GetStackParameterCount(frame.builtin_id()))));
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       // kJavaScriptCallDispatchHandleRegister
-      builder.AddInput(MachineType::AnyTagged(),
-                       __ SmiConstant(Smi::FromInt(kInvalidDispatchHandle)));
+      builder.AddInput(
+          MachineType::AnyTagged(),
+          __ SmiConstant(Smi::FromInt(kInvalidDispatchHandle.value())));
 #endif
     }
 

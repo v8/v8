@@ -2564,7 +2564,7 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   Register code = kJavaScriptCallCodeStartRegister;
   Register scratch = x21;
   Mov(kJavaScriptCallDispatchHandleRegister.W(),
-      Immediate(dispatch_handle, RelocInfo::JS_DISPATCH_HANDLE));
+      Immediate(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
   // WARNING: This entrypoint load is only safe because we are storing a
   // RelocInfo for the dispatch handle in the movl above (thus keeping the
   // dispatch entry alive) _and_ because the entrypoints are not compactable
@@ -4040,9 +4040,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   // a compaction).
   // TODO(leszeks): Make this less of a footgun.
   static_assert(!JSDispatchTable::kSupportsCompaction);
-  int offset = JSDispatchEntry::kEntrypointOffset +
-               ((dispatch_handle >> kJSDispatchHandleShift)
-                << kJSDispatchTableEntrySizeLog2);
+  int offset = JSDispatchTable::OffsetOfEntry(dispatch_handle) +
+               JSDispatchEntry::kEntrypointOffset;
   Ldr(destination, MemOperand(scratch, offset));
 }
 

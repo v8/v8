@@ -1503,7 +1503,8 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
     jdt->SetCodeNoWriteBarrier(handle, *code);
   }
 
-  host->Relaxed_WriteField<JSDispatchHandle>(slot_accessor.offset(), handle);
+  host->Relaxed_WriteField<JSDispatchHandle::underlying_type>(
+      slot_accessor.offset(), handle.value());
   JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle);
 
   return 1;

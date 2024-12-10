@@ -2555,9 +2555,9 @@ void TranslatedState::InitializeJSObjectAt(
       // for JSDispatchHandles in the deoptimizer?
       DirectHandle<Object> field_value = slot->GetValue();
       CHECK(IsNumber(*field_value));
-      JSDispatchHandle handle = Object::NumberValue(Cast<Number>(*field_value));
-      object_storage->WriteField<JSDispatchHandle>(
-          JSFunction::kDispatchHandleOffset, handle);
+      JSDispatchHandle handle(Object::NumberValue(Cast<Number>(*field_value)));
+      object_storage->WriteField<JSDispatchHandle::underlying_type>(
+          JSFunction::kDispatchHandleOffset, handle.value());
       continue;
     }
 #endif  // V8_ENABLE_LEAPTIERING

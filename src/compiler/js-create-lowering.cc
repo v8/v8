@@ -967,7 +967,10 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
     // deopt metadata.
     // TODO(olivf): Dispatch handles should be supported in deopt metadata.
     dispatch_handle = jsgraph()->SmiConstant(
-        jsgraph()->isolate()->builtin_dispatch_handle(shared.builtin_id()));
+        jsgraph()
+            ->isolate()
+            ->builtin_dispatch_handle(shared.builtin_id())
+            .value());
   } else {
     DCHECK(feedback_cell.object()->dispatch_handle() != kNullJSDispatchHandle);
     dispatch_handle = effect = graph()->NewNode(

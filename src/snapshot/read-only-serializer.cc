@@ -4,6 +4,7 @@
 
 #include "src/snapshot/read-only-serializer.h"
 
+#include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/visit-object.h"
@@ -81,7 +82,7 @@ class ObjectPreProcessor final {
     CHECK(!o->has_source_position_table_or_bytecode_offset_table());
     CHECK(!o->has_deoptimization_data_or_interpreter_data());
 #ifdef V8_ENABLE_LEAPTIERING
-    CHECK(!o->js_dispatch_handle());
+    CHECK_EQ(o->js_dispatch_handle(), kNullJSDispatchHandle);
 #endif
   }
 

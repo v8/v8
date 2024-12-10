@@ -6607,6 +6607,7 @@ v8_component("v8_libbase") {
     "src/base/string-format.h",
     "src/base/strings.cc",
     "src/base/strings.h",
+    "src/base/strong-alias.h",
     "src/base/sys-info.cc",
     "src/base/sys-info.h",
     "src/base/template-meta-programming/common.h",

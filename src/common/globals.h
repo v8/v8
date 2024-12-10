@@ -18,6 +18,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/strong-alias.h"
 
 #define V8_INFINITY std::numeric_limits<double>::infinity()
 
@@ -540,6 +541,41 @@ using AtomicTagged_t = base::AtomicWord;
 
 #endif  // V8_COMPRESS_POINTERS
 
+//
+// JavaScript Dispatch Table
+//
+// A JSDispatchHandle represents a 32-bit index into a JSDispatchTable.
+struct JSDispatchHandleAliasTag {};
+using JSDispatchHandle = base::StrongAlias<JSDispatchHandleAliasTag, uint32_t>;
+
+constexpr JSDispatchHandle kNullJSDispatchHandle(0);
+
+constexpr int kJSDispatchTableEntrySize = 16;
+constexpr int kJSDispatchTableEntrySizeLog2 = 4;
+
+// The size of the virtual memory reservation for the JSDispatchTable.
+// As with the other tables, a maximum table size in combination with shifted
+// indices allows omitting bounds checks.
+constexpr size_t kJSDispatchTableReservationSize = 128 * MB;
+// The maximum number of entries in a JSDispatchTable.
+constexpr size_t kMaxJSDispatchEntries =
+    kJSDispatchTableReservationSize / kJSDispatchTableEntrySize;
+
+#ifdef V8_TARGET_ARCH_64_BIT
+
+constexpr uint32_t kJSDispatchHandleShift = 9;
+static_assert((1 << (32 - kJSDispatchHandleShift)) == kMaxJSDispatchEntries,
+              "kJSDispatchTableReservationSize and kJSDispatchEntryHandleShift "
+              "don't match");
+
+#elif defined(V8_TARGET_ARCH_32_BIT)
+
+// Since the table is not contiguous on 32 bit platforms the indices can become
+// arbitrarily large and we need the full 32 bit range to hold them.
+constexpr uint32_t kJSDispatchHandleShift = 0;
+
+#endif
+
 static_assert(kTaggedSize == (1 << kTaggedSizeLog2));
 static_assert((kTaggedSize == 8) == TAGGED_SIZE_8_BYTES);
 
@@ -609,12 +645,12 @@ constexpr int kJSDispatchHandleSize = sizeof(JSDispatchHandle);
 // from the JSFunction and then use a MacroAssembler operation that uses the
 // dispatch handle directly. We just need to be sure that no GC can happen
 // between the load of the dispatch handle and the use.
-constexpr JSDispatchHandle kPlaceholderDispatchHandle = 0x0;
+constexpr JSDispatchHandle kPlaceholderDispatchHandle(0x0);
 // Dispatch handle constant that can be used for direct calls when it is known
 // that the callee doesn't use the dispatch handle. This is for example the
 // case when performing direct calls to JS builtins.
-constexpr JSDispatchHandle kInvalidDispatchHandle =
-    static_cast<JSDispatchHandle>(0xffffffff << kJSDispatchHandleShift);
+constexpr JSDispatchHandle kInvalidDispatchHandle(0xffffffff
+                                                  << kJSDispatchHandleShift);
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 

@@ -1311,7 +1311,7 @@ void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
   bytes_processed_so_far_ += RoundUp(kJSDispatchHandleSize, kTaggedSize);
 
   sink_->Put(kAllocateJSDispatchEntry, "AllocateJSDispatchEntry");
-  sink_->PutUint30(handle >> kJSDispatchHandleShift, "EntryID");
+  sink_->PutUint30(handle.value() >> kJSDispatchHandleShift, "EntryID");
   sink_->PutUint30(jdt->GetParameterCount(handle), "ParameterCount");
 
   // Currently we cannot see pending objects here, but we may need to support

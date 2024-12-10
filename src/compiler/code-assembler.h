@@ -1401,7 +1401,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<JSDispatchHandleT> dispatch_handle = UncheckedCast<JSDispatchHandleT>(
-        Uint32Constant(kInvalidDispatchHandle));
+        Uint32Constant(kInvalidDispatchHandle.value()));
     TNode<Code> target = HeapConstantNoHole(callable.code());
     return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
                                new_target, arity, dispatch_handle,

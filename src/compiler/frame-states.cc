@@ -244,7 +244,7 @@ FrameState CreateJavaScriptBuiltinContinuationFrameState(
   actual_parameters.push_back(argc);        // kJavaScriptCallArgCountRegister
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   // The dispatch handle isn't used by the continuation builtins.
-  Node* handle = jsgraph->ConstantNoHole(kInvalidDispatchHandle);
+  Node* handle = jsgraph->ConstantNoHole(kInvalidDispatchHandle.value());
   actual_parameters.push_back(handle);  // kJavaScriptDispatchHandleRegister
 #endif
 

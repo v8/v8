@@ -597,7 +597,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         args[pos++] =
             __ Word32Constant(JSParameterCount(wasm_count));  // argument count
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
-        args[pos++] = __ Word32Constant(kPlaceholderDispatchHandle);
+        args[pos++] = __ Word32Constant(kPlaceholderDispatchHandle.value());
 #endif
         args[pos++] = LoadContextFromJSFunction(callable_node);
         call = __ Call(callable_node, OpIndex::Invalid(), base::VectorOf(args),

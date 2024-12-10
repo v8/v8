@@ -299,8 +299,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 #ifdef V8_ENABLE_LEAPTIERING
   TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
       feedback_cell, FeedbackCell::kDispatchHandleOffset);
-  CSA_DCHECK(this, Word32NotEqual(dispatch_handle,
-                                  Int32Constant(kNullJSDispatchHandle)));
+  CSA_DCHECK(this,
+             Word32NotEqual(dispatch_handle,
+                            Int32Constant(kNullJSDispatchHandle.value())));
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kDispatchHandleOffset,
                                  dispatch_handle);
 #else
