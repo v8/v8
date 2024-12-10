@@ -90,6 +90,11 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   return Cast<HeapObject>(ReadUnalignedValue<Handle<Object>>(pc_));
 }
 
+JSDispatchHandle RelocInfo::js_dispatch_handle() {
+  DCHECK(rmode_ == JS_DISPATCH_HANDLE);
+  return JSDispatchHandle(ReadUnalignedValue<JSDispatchHandle>(pc_));
+}
+
 void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
                                           ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
