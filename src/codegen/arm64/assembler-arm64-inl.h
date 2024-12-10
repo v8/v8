@@ -729,7 +729,7 @@ Address RelocInfo::target_internal_reference_address() {
 
 JSDispatchHandle RelocInfo::js_dispatch_handle() {
   DCHECK(rmode_ == JS_DISPATCH_HANDLE);
-  return ReadUnalignedValue<JSDispatchHandle>(pc_);
+  return Assembler::uint32_constant_at(pc_, constant_pool_);
 }
 
 Builtin RelocInfo::target_builtin_at(Assembler* origin) {

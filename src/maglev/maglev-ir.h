@@ -44,6 +44,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/js-dispatch-table.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone.h"
 
@@ -2013,7 +2014,6 @@ class NodeBase : public ZoneObject {
 
  private:
   template <class Derived, typename... Args>
-
   static Derived* Allocate(Zone* zone, size_t input_count, Args&&... args) {
     static_assert(
         !Derived::kProperties.can_eager_deopt() ||
@@ -9096,15 +9096,9 @@ class CallSelf : public ValueNodeT<CallSelf> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallSelf(uint64_t bitfield,
-           compiler::SharedFunctionInfoRef shared_function_info,
-           ValueNode* closure, ValueNode* context, ValueNode* receiver,
-           ValueNode* new_target)
-      : Base(bitfield),
-        shared_function_info_(shared_function_info),
-        expected_parameter_count_(
-            shared_function_info
-                .internal_formal_parameter_count_with_receiver()) {
+  CallSelf(uint64_t bitfield, int expected_parameter_count, ValueNode* closure,
+           ValueNode* context, ValueNode* receiver, ValueNode* new_target)
+      : Base(bitfield), expected_parameter_count_(expected_parameter_count) {
     set_input(kClosureIndex, closure);
     set_input(kContextIndex, context);
     set_input(kReceiverIndex, receiver);
@@ -9132,10 +9126,6 @@ class CallSelf : public ValueNodeT<CallSelf> {
         std::make_reverse_iterator(&arg(num_args() - 1)));
   }
 
-  compiler::SharedFunctionInfoRef shared_function_info() const {
-    return shared_function_info_;
-  }
-
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
@@ -9146,9 +9136,6 @@ class CallSelf : public ValueNodeT<CallSelf> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const compiler::SharedFunctionInfoRef shared_function_info_;
-  // Cache the expected parameter count so that we can access it in
-  // MaxCallStackArgs without needing to unpark the local isolate.
   int expected_parameter_count_;
 };
 
@@ -9168,20 +9155,13 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallKnownJSFunction(uint64_t bitfield,
-                      compiler::SharedFunctionInfoRef shared_function_info,
-                      ValueNode* closure, ValueNode* context,
-                      ValueNode* receiver, ValueNode* new_target)
-      : Base(bitfield),
-        shared_function_info_(shared_function_info),
-        expected_parameter_count_(
-            shared_function_info
-                .internal_formal_parameter_count_with_receiver()) {
-    set_input(kClosureIndex, closure);
-    set_input(kContextIndex, context);
-    set_input(kReceiverIndex, receiver);
-    set_input(kNewTargetIndex, new_target);
-  }
+  inline CallKnownJSFunction(
+      uint64_t bitfield,
+#ifdef V8_ENABLE_LEAPTIERING
+      JSDispatchHandle dispatch_handle,
+#endif
+      compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
+      ValueNode* context, ValueNode* receiver, ValueNode* new_target);
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
 
@@ -9220,6 +9200,9 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   int expected_parameter_count() const { return expected_parameter_count_; }
 
  private:
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchHandle dispatch_handle_;
+#endif
   const compiler::SharedFunctionInfoRef shared_function_info_;
   // Cache the expected parameter count so that we can access it in
   // MaxCallStackArgs without needing to unpark the local isolate.

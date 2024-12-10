@@ -262,7 +262,8 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
     out << "    ;; external reference (" << reference_name << ")";
   } else if (rmode == RelocInfo::JS_DISPATCH_HANDLE) {
 #ifdef V8_ENABLE_LEAPTIERING
-    out << "    ;; js dispatch handle:";
+    out << "    ;; js dispatch handle:0x" << std::hex
+        << relocinfo->js_dispatch_handle();
     Tagged<Code> code = GetProcessWideJSDispatchTable()->GetCode(
         relocinfo->js_dispatch_handle());
     CodeKind kind = code->kind();

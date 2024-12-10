@@ -9611,6 +9611,9 @@ ValueNode* MaglevGraphBuilder::BuildCallSelf(
   ValueNode* receiver = GetConvertReceiver(shared, args);
   size_t input_count = args.count() + CallSelf::kFixedInputCount;
   graph()->set_has_recursive_calls(true);
+  DCHECK_EQ(
+      compilation_unit_->info()->toplevel_compilation_unit()->parameter_count(),
+      shared.internal_formal_parameter_count_with_receiver());
   return AddNewNode<CallSelf>(
       input_count,
       [&](CallSelf* call) {
@@ -9618,7 +9621,8 @@ ValueNode* MaglevGraphBuilder::BuildCallSelf(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      shared, GetTaggedValue(function), GetTaggedValue(context),
+      compilation_unit_->info()->toplevel_compilation_unit()->parameter_count(),
+      GetTaggedValue(function), GetTaggedValue(context),
       GetTaggedValue(receiver), GetTaggedValue(new_target));
 }
 
@@ -9785,17 +9789,24 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   ReduceResult res;
   if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function) &&
       !graph_->is_osr()) {
+    DCHECK(!shared.HasBuiltinId());
     res = BuildCallSelf(context_node, closure, new_target, shared, args);
   } else {
-    res = TryBuildCallKnownJSFunction(context_node, closure, new_target, shared,
-                                      function.feedback_vector(broker()), args,
-                                      feedback_source);
+    res = TryBuildCallKnownJSFunction(
+        context_node, closure, new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+        function.dispatch_handle(),
+#endif
+        shared, function.feedback_vector(broker()), args, feedback_source);
   }
   return res;
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+    JSDispatchHandle dispatch_handle,
+#endif
     compiler::SharedFunctionInfoRef shared,
     compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
@@ -9812,6 +9823,9 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
+#ifdef V8_ENABLE_LEAPTIERING
+      dispatch_handle,
+#endif
       shared, GetTaggedValue(function), GetTaggedValue(context),
       GetTaggedValue(receiver), GetTaggedValue(new_target));
 }
@@ -10009,6 +10023,9 @@ ReduceResult MaglevGraphBuilder::ReduceCallForTarget(
 
 ReduceResult MaglevGraphBuilder::ReduceCallForNewClosure(
     ValueNode* target_node, ValueNode* target_context,
+#ifdef V8_ENABLE_LEAPTIERING
+    JSDispatchHandle dispatch_handle,
+#endif
     compiler::SharedFunctionInfoRef shared,
     compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
@@ -10026,8 +10043,11 @@ ReduceResult MaglevGraphBuilder::ReduceCallForNewClosure(
     }
     RETURN_IF_DONE(TryBuildCallKnownJSFunction(
         target_context, target_node,
-        GetRootConstant(RootIndex::kUndefinedValue), shared, feedback_vector,
-        args, feedback_source));
+        GetRootConstant(RootIndex::kUndefinedValue),
+#ifdef V8_ENABLE_LEAPTIERING
+        dispatch_handle,
+#endif
+        shared, feedback_vector, args, feedback_source));
   }
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
 }
@@ -10264,6 +10284,9 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
           target_node->TryCast<FastCreateClosure>()) {
     ReduceResult result = ReduceCallForNewClosure(
         create_closure, create_closure->context().node(),
+#ifdef V8_ENABLE_LEAPTIERING
+        create_closure->feedback_cell().dispatch_handle(),
+#endif
         create_closure->shared_function_info(),
         create_closure->feedback_cell().feedback_vector(broker()), args,
         feedback_source);
@@ -10272,6 +10295,9 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
                  target_node->TryCast<CreateClosure>()) {
     ReduceResult result = ReduceCallForNewClosure(
         create_closure, create_closure->context().node(),
+#ifdef V8_ENABLE_LEAPTIERING
+        create_closure->feedback_cell().dispatch_handle(),
+#endif
         create_closure->shared_function_info(),
         create_closure->feedback_cell().feedback_vector(broker()), args,
         feedback_source);

@@ -5783,7 +5783,6 @@ void CallSelf::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(kContextRegister, ToRegister(context()));
   DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
-  DCHECK(!shared_function_info().HasBuiltinId());
   __ CallSelf();
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
@@ -5841,12 +5840,11 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
 
     __ CallBuiltin(builtin);
   } else {
-    // TODO(42204201): Instead of validating the parameter count, we should
-    // just hardcode the dispatch entry into the generated code. That way, it
-    // will be guaranteed that the parameter count is correct. However, this
-    // requires GC support to mark the dispatch entry as alive when embedded
-    // into generated code.
+#if V8_ENABLE_LEAPTIERING
+    __ CallJSDispatchEntry(dispatch_handle_, expected_parameter_count_);
+#else
     __ CallJSFunction(kJavaScriptCallTargetRegister, expected_parameter_count_);
+#endif
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
@@ -7611,9 +7609,7 @@ void Call::PrintParams(std::ostream& os,
 }
 
 void CallSelf::PrintParams(std::ostream& os,
-                           MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << shared_function_info_.object() << ")";
-}
+                           MaglevGraphLabeller* graph_labeller) const {}
 
 void CallKnownJSFunction::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
