@@ -2275,6 +2275,7 @@ DEFINE_BOOL(debug_code, DEBUG_BOOL,
 // v8_enable_slow_dchecks.
 DEFINE_BOOL(slow_debug_code, V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT_BOOL,
             "generate slow extra code (assertions) for debugging")
+DEFINE_NEG_NEG_IMPLICATION(debug_code, slow_debug_code)
 #else
 DEFINE_BOOL_READONLY(debug_code, false, "")
 DEFINE_BOOL_READONLY(slow_debug_code, false, "")
