@@ -1862,7 +1862,7 @@ bool InstanceBuilder::ProcessImportedFunction(
           function_data->instance_data();
       CHECK_GE(function_data->function_index(),
                instance_data->module()->num_imported_functions);
-      uint32_t imported_target =
+      WasmCodePointer imported_target =
           instance_data->GetCallTarget(function_data->function_index());
       imported_entry.SetWasmToWasm(instance_data, imported_target, sig_index
 #if V8_ENABLE_DRUMBRAKE

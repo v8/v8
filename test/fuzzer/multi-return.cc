@@ -253,7 +253,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   wasm::WasmCode* wasm_code =
       module->AddCodeForTesting(code, desc->signature_hash());
-  uint32_t code_pointer =
+  WasmCodePointer code_pointer =
       wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
           wasm_code->instruction_start(), wasm_code->signature_hash());
   // Generate wrapper.
@@ -269,7 +269,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags());
 
-  params[0] = caller.IntPtrConstant(code_pointer);
+  params[0] = caller.IntPtrConstant(code_pointer.value());
   // WasmContext dummy.
   params[1] = caller.PointerConstant(nullptr);
   for (size_t i = 0; i < param_count; ++i) {

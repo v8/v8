@@ -89,7 +89,7 @@ class WasmImportWrapperCache {
   size_t EstimateCurrentMemoryConsumption() const;
 
   // Returns nullptr if {call_target} doesn't belong to a known wrapper.
-  V8_EXPORT_PRIVATE WasmCode* FindWrapper(uint32_t call_target);
+  V8_EXPORT_PRIVATE WasmCode* FindWrapper(WasmCodePointer call_target);
 
   WasmCode* CompileWasmImportCallWrapper(Isolate* isolate, ImportCallKind kind,
                                          const CanonicalSig* sig,

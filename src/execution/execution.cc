@@ -613,7 +613,7 @@ static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
 #if V8_ENABLE_WEBASSEMBLY
 void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
-                         uint32_t wasm_call_target,
+                         WasmCodePointer wasm_call_target,
                          DirectHandle<Object> object_ref, Address packed_args) {
   using WasmEntryStub = GeneratedCode<Address(
       Address target, Address object_ref, Address argv, Address c_entry_fp)>;
@@ -647,8 +647,9 @@ void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
     static_assert(compiler::CWasmEntryParameters::kObjectRef == 1);
     static_assert(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
     static_assert(compiler::CWasmEntryParameters::kCEntryFp == 3);
-    Address result = stub_entry.Call(wasm_call_target, (*object_ref).ptr(),
-                                     packed_args, saved_c_entry_fp);
+    Address result =
+        stub_entry.Call(wasm_call_target.value(), (*object_ref).ptr(),
+                        packed_args, saved_c_entry_fp);
     if (result != kNullAddress) isolate->set_exception(Tagged<Object>(result));
   }
 

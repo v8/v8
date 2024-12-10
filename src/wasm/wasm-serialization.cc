@@ -530,10 +530,11 @@ void NativeModuleSerializer::WriteCode(
         iter.rinfo()->set_wasm_canonical_sig_id(module_local_sig_id);
       } break;
       case RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY: {
-        uint32_t target = orig_iter.rinfo()->wasm_code_pointer_table_entry();
+        WasmCodePointer target =
+            orig_iter.rinfo()->wasm_code_pointer_table_entry();
         uint32_t function_index = function_index_map.at(target);
-        iter.rinfo()->set_wasm_code_pointer_table_entry(function_index,
-                                                        SKIP_ICACHE_FLUSH);
+        iter.rinfo()->set_wasm_code_pointer_table_entry(
+            WasmCodePointer{function_index}, SKIP_ICACHE_FLUSH);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
         Address orig_target = orig_iter.rinfo()->target_external_reference();
@@ -1011,8 +1012,9 @@ void NativeModuleDeserializer::CopyAndRelocate(
         iter.rinfo()->set_wasm_canonical_sig_id(canonical_sig_id.index);
       } break;
       case RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY: {
-        Address function_index = iter.rinfo()->wasm_code_pointer_table_entry();
-        uint32_t target = native_module_->GetCodePointerHandle(
+        Address function_index =
+            iter.rinfo()->wasm_code_pointer_table_entry().value();
+        WasmCodePointer target = native_module_->GetCodePointerHandle(
             base::checked_cast<uint32_t>(function_index));
         iter.rinfo()->set_wasm_code_pointer_table_entry(target,
                                                         SKIP_ICACHE_FLUSH);

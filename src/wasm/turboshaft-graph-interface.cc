@@ -238,7 +238,7 @@ WasmGraphBuilderBase::BuildFunctionTargetAndImplicitArg(
 
   V<Word32> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
                              MemoryRepresentation::Uint32(),
-                             WasmInternalFunction::kCallTargetOffset);
+                             WasmInternalFunction::kRawCallTargetOffset);
 
   return {target, implicit_arg};
 }

@@ -1389,7 +1389,8 @@ class FeedbackMaker {
     // from the `WasmDispatchTable`, whose entries are always targets pointing
     // into the main jump table, so we only need to check against that.
 
-    WasmCodePointerTable::Handle handle = target_truncated_smi.value();
+    WasmCodePointer handle =
+        WasmCodePointer{static_cast<uint32_t>(target_truncated_smi.value())};
     Address entry = GetProcessWideWasmCodePointerTable()
                         ->GetEntrypointWithoutSignatureCheck(handle);
     wasm::WasmCode* code =

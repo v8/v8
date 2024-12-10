@@ -8954,7 +8954,7 @@ class LiftoffCompiler {
 
       __ LoadFullPointer(target_reg, internal_function,
                          wasm::ObjectAccess::ToTagged(
-                             WasmInternalFunction::kCallTargetOffset));
+                             WasmInternalFunction::kRawCallTargetOffset));
 
       // Now the call target is in {target_reg} and the first parameter
       // (WasmTrustedInstanceData or WasmImportData) is in

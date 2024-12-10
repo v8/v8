@@ -2793,6 +2793,30 @@ enum class StringTransitionStrategy {
   kAlreadyTransitioned
 };
 
+class WasmCodePointer {
+ public:
+  WasmCodePointer() = default;
+  explicit constexpr WasmCodePointer(uint32_t value) : value_(value) {}
+
+  uint32_t value() const { return value_; }
+
+  bool operator==(const WasmCodePointer& other) const {
+    return value_ == other.value_;
+  }
+  bool operator!=(const WasmCodePointer& other) const {
+    return value_ != other.value_;
+  }
+
+  struct Hasher {
+    size_t operator()(const WasmCodePointer& code_pointer) const {
+      return std::hash<uint32_t>()(code_pointer.value());
+    }
+  };
+
+ private:
+  uint32_t value_ = -1;
+};
+
 enum CallJumpMode { kCall, kTailCall };
 
 }  // namespace internal

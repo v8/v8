@@ -721,7 +721,7 @@ macro JSToWasmWrapperHelper(
   const paramStart = paramBuffer.GCUnsafeRawPtr();
   const paramEnd = locationAllocator.GetStackEnd();
 
-  const callTarget = functionData.internal.call_target;
+  const callTarget = functionData.internal.raw_call_target;
 
   // We construct a state that will be passed to `JSToWasmWrapperAsm`
   // and `JSToWasmHandleReturns`. There are too many parameters to pass
@@ -736,7 +736,8 @@ macro JSToWasmWrapperHelper(
   *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferSigRepresentationArray) = reps;
   *GetRefAt<intptr>(wrapperBuffer, kWrapperBufferStackReturnBufferSize) =
       returnSize;
-  *GetRefAt<uint32_t>(wrapperBuffer, kWrapperBufferCallTarget) = callTarget;
+  *GetRefAt<WasmCodePointer>(wrapperBuffer, kWrapperBufferCallTarget) =
+      callTarget;
   *GetRefAt<RawPtr<intptr>>(wrapperBuffer, kWrapperBufferParamStart) =
       paramStart;
   *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferParamEnd) = paramEnd;

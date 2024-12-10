@@ -138,7 +138,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   return code;
 }
 
-WasmCode* WasmImportWrapperCache::FindWrapper(uint32_t call_target) {
+WasmCode* WasmImportWrapperCache::FindWrapper(WasmCodePointer call_target) {
   if (call_target == kInvalidWasmCodePointer) return nullptr;
   base::MutexGuard lock(&mutex_);
   auto iter = codes_.find(

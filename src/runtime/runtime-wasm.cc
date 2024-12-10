@@ -676,9 +676,9 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
       Tagged<Object> func_data = existing_external->shared()->GetTrustedData();
       // WasmJSFunctions set their external function at creation.
       if (IsWasmJSFunctionData(func_data)) {
-        uint32_t code_pointer = Cast<WasmJSFunctionData>(func_data)
-                                    ->offheap_data()
-                                    ->set_compiled_wrapper(wrapper);
+        WasmCodePointer code_pointer = Cast<WasmJSFunctionData>(func_data)
+                                           ->offheap_data()
+                                           ->set_compiled_wrapper(wrapper);
         USE(code_pointer);
         // We're reusing the CPT entries for the wrapper, so the call target
         // should stay the same.

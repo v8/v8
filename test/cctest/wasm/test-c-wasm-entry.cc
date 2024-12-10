@@ -59,7 +59,7 @@ class CWasmEntryArgTester {
   void CheckCall(Args... args) {
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig_));
     WriteToBuffer(&packer, args...);
-    uint32_t wasm_call_target =
+    WasmCodePointer wasm_call_target =
         GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
             wasm_code_->instruction_start(), wasm_code_->signature_hash());
     DirectHandle<Object> object_ref = runner_.builder().instance_object();

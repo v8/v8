@@ -80,7 +80,7 @@ class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
       int target_func_index);
   // The "implicit_arg" will be a WasmTrustedInstanceData or a WasmImportData.
   Handle<TrustedObject> implicit_arg() { return implicit_arg_; }
-  uint32_t call_target() { return call_target_; }
+  WasmCodePointer call_target() { return call_target_; }
 
 #if V8_ENABLE_DRUMBRAKE
   int target_func_index() { return target_func_index_; }
@@ -88,7 +88,7 @@ class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
 
  private:
   Handle<TrustedObject> implicit_arg_;
-  uint32_t call_target_;
+  WasmCodePointer call_target_;
 
 #if V8_ENABLE_DRUMBRAKE
   int target_func_index_;
@@ -127,7 +127,8 @@ class ImportedFunctionEntry {
 
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_object,
-                     uint32_t call_target, wasm::CanonicalTypeIndex sig_id
+                     WasmCodePointer call_target,
+                     wasm::CanonicalTypeIndex sig_id
 #if V8_ENABLE_DRUMBRAKE
                      ,
                      int exported_function_index
@@ -137,7 +138,7 @@ class ImportedFunctionEntry {
   Tagged<JSReceiver> callable();
   Tagged<Object> maybe_callable();
   Tagged<Object> implicit_arg();
-  uint32_t target();
+  WasmCodePointer target();
 
 #if V8_ENABLE_DRUMBRAKE
   int function_index_in_called_module();
@@ -599,7 +600,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
                                              DirectHandle<WasmModuleObject>,
                                              bool shared);
 
-  uint32_t GetCallTarget(uint32_t func_index);
+  WasmCodePointer GetCallTarget(uint32_t func_index);
 
   inline Tagged<WasmDispatchTable> dispatch_table(uint32_t table_index);
   inline bool has_dispatch_table(uint32_t table_index);
@@ -704,7 +705,7 @@ class WasmDispatchTableData {
   V8_EXPORT_PRIVATE bool IsAWrapper(int index) const;
 
 #ifdef DEBUG
-  uint32_t WrapperCodePointerForDebugging(int index);
+  WasmCodePointer WrapperCodePointerForDebugging(int index);
 #endif
 
  private:
@@ -714,16 +715,17 @@ class WasmDispatchTableData {
   // wrappers. This function adds an entry for a wrapper. If {compiled_wrapper}
   // is nullptr, the entry is for the generic wrapper.
   // The CodePointerTableEntry is reused for the generic and compiled wrapper.
-  uint32_t Add(int index, Address call_target, wasm::WasmCode* compiled_wrapper,
-               uint64_t signature_hash);
-  void Remove(int index, uint32_t call_target);
+  WasmCodePointer Add(int index, Address call_target,
+                      wasm::WasmCode* compiled_wrapper,
+                      uint64_t signature_hash);
+  void Remove(int index, WasmCodePointer call_target);
 
   // The {wrappers_} data structure tracks installed wrappers, both generic
   // ({code} is nullptr) and compiled. It owns the CodePointerTable entry in
   // {call_target} and manages the {code} lifetime by incrementing and
   // decrementing the ref count as needed.
   struct WrapperEntry {
-    uint32_t call_target;
+    WasmCodePointer call_target;
     wasm::WasmCode* code;  // {nullptr} if this is the generic wrapper.
   };
   std::unordered_map<int, WrapperEntry> wrappers_;
@@ -822,7 +824,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   // {implicit_arg} will be a WasmImportData, a WasmTrustedInstanceData, or
   // Smi::zero() (if the entry was cleared).
   inline Tagged<Object> implicit_arg(int index) const;
-  inline uint32_t target(int index) const;
+  inline WasmCodePointer target(int index) const;
   inline wasm::CanonicalTypeIndex sig(int index) const;
 
   // Set an entry for indirect calls that don't go to a WasmToJS wrapper.
@@ -831,7 +833,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   // Smi::zero().
   void V8_EXPORT_PRIVATE SetForNonWrapper(int index,
                                           Tagged<Object> implicit_arg,
-                                          uint32_t call_target,
+                                          WasmCodePointer call_target,
                                           wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
                                           uint32_t function_index,
@@ -1103,6 +1105,9 @@ class WasmInternalFunction
 
   DECL_PROTECTED_POINTER_ACCESSORS(implicit_arg, TrustedObject)
 
+  V8_INLINE WasmCodePointer call_target();
+  V8_INLINE void set_call_target(WasmCodePointer code_pointer);
+
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)
 
@@ -1145,11 +1150,12 @@ class WasmJSFunctionData
     ~OffheapData();
 
     // These functions return the CPT entry owned by this class.
-    uint32_t set_compiled_wrapper(wasm::WasmCode* wrapper);
-    uint32_t set_generic_wrapper(Address call_target, uint64_t signature_hash);
+    WasmCodePointer set_compiled_wrapper(wasm::WasmCode* wrapper);
+    WasmCodePointer set_generic_wrapper(Address call_target,
+                                        uint64_t signature_hash);
 
    private:
-    uint32_t wrapper_code_pointer_ = wasm::kInvalidWasmCodePointer;
+    WasmCodePointer wrapper_code_pointer_ = wasm::kInvalidWasmCodePointer;
     wasm::WasmCode* wrapper_{nullptr};
   };
 

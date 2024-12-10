@@ -3372,6 +3372,7 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
 }
 
 void MacroAssembler::LoadWasmCodePointer(Register dst, Operand src) {
+  static_assert(sizeof(WasmCodePointer) == 4);
   movl(dst, src);
 }
 

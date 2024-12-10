@@ -339,15 +339,15 @@ void WritableRelocInfo::set_target_external_reference(
   }
 }
 
-uint32_t RelocInfo::wasm_code_pointer_table_entry() const {
+WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {
   DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
-  return ReadUnalignedValue<uint32_t>(pc_);
+  return WasmCodePointer{ReadUnalignedValue<uint32_t>(pc_)};
 }
 
 void WritableRelocInfo::set_wasm_code_pointer_table_entry(
-    uint32_t target, ICacheFlushMode icache_flush_mode) {
+    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
-  jit_allocation_.WriteUnalignedValue(pc_, target);
+  jit_allocation_.WriteUnalignedValue(pc_, target.value());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }

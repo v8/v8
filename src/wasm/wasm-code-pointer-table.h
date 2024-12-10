@@ -89,38 +89,40 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   void TearDown();
 
   // Read the entrypoint at a given index.
-  inline Address GetEntrypoint(uint32_t index, uint64_t signature_hash) const;
+  inline Address GetEntrypoint(WasmCodePointer index,
+                               uint64_t signature_hash) const;
 
-  inline Address GetEntrypointWithoutSignatureCheck(uint32_t index) const;
+  inline Address GetEntrypointWithoutSignatureCheck(
+      WasmCodePointer index) const;
 
   // Sets the entrypoint of the entry referenced by the given index.
   // The Unlocked version can be used in loops, but you need to hold a
   // `WriteScope` while calling it.
-  inline void UpdateEntrypoint(uint32_t index, Address value,
+  inline void UpdateEntrypoint(WasmCodePointer index, Address value,
                                uint64_t signature_hash);
-  inline void SetEntrypointAndSignature(uint32_t index, Address value,
+  inline void SetEntrypointAndSignature(WasmCodePointer index, Address value,
                                         uint64_t signature_hash);
-  inline void SetEntrypointWithWriteScope(uint32_t index, Address value,
+  inline void SetEntrypointWithWriteScope(WasmCodePointer index, Address value,
                                           uint64_t signature_hash,
                                           WriteScope& write_scope);
 
   // Allocates a new entry in the table and optionally initialize it.
-  inline uint32_t AllocateAndInitializeEntry(Address entrypoint,
-                                             uint64_t signature_hash);
-  inline uint32_t AllocateUninitializedEntry();
+  inline WasmCodePointer AllocateAndInitializeEntry(Address entrypoint,
+                                                    uint64_t signature_hash);
+  inline WasmCodePointer AllocateUninitializedEntry();
 
   // Free an entry, which will add it to the free list.
-  inline void FreeEntry(uint32_t index);
+  inline void FreeEntry(WasmCodePointer index);
 
   // Iterate through the freelist to find and unmap empty segments. Will return
   // early if there's less than `threshold` many elements in the freelist.
   void SweepSegments(size_t threshold = 2 * kEntriesPerSegment);
 
   // Add an entry for a native function address, used by the C API.
-  uint32_t GetOrCreateHandleForNativeFunction(Address addr);
+  WasmCodePointer GetOrCreateHandleForNativeFunction(Address addr);
 
   // Compare the address of the entry.
-  bool EntrypointEqualTo(uint32_t index, Address address);
+  bool EntrypointEqualTo(WasmCodePointer index, Address address);
 
  private:
   // Allow the ExternalReference to access the table base.
@@ -170,7 +172,7 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   base::Mutex segment_allocation_mutex_;
 
   base::Mutex native_function_map_mutex_;
-  std::map<Address, uint32_t> native_function_map_;
+  std::map<Address, WasmCodePointer> native_function_map_;
 
   friend class WasmCodePointerTableTest;
 };

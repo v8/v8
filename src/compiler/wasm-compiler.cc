@@ -3119,7 +3119,7 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
                          WasmExportedFunctionData::kProtectedInternalOffset));
   Node* code_pointer = gasm_->LoadFromObject(
       MachineType::Uint32(), internal,
-      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
+      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRawCallTargetOffset));
   return gasm_->LoadWasmCodePointer(code_pointer);
 }
 
@@ -3162,7 +3162,7 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
           WasmInternalFunction::kProtectedImplicitArgOffset));
   Node* target = gasm_->LoadFromObject(
       MachineType::Uint32(), internal_function,
-      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset));
+      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRawCallTargetOffset));
 
   args[0] = target;
 
@@ -7626,10 +7626,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Node* internal = gasm_->LoadImmutableProtectedPointerFromObject(
           function_data, wasm::ObjectAccess::ToTagged(
                              WasmFunctionData::kProtectedInternalOffset));
-      args[0] =
-          gasm_->LoadFromObject(MachineType::Uint32(), internal,
-                                wasm::ObjectAccess::ToTagged(
-                                    WasmInternalFunction::kCallTargetOffset));
+      args[0] = gasm_->LoadFromObject(
+          MachineType::Uint32(), internal,
+          wasm::ObjectAccess::ToTagged(
+              WasmInternalFunction::kRawCallTargetOffset));
       Node* implicit_arg = gasm_->LoadImmutableProtectedPointerFromObject(
           internal, wasm::ObjectAccess::ToTagged(
                         WasmInternalFunction::kProtectedImplicitArgOffset));

@@ -384,10 +384,10 @@ inline Tagged<Object> WasmDispatchTable::implicit_arg(int index) const {
   return implicit_arg;
 }
 
-inline uint32_t WasmDispatchTable::target(int index) const {
+inline WasmCodePointer WasmDispatchTable::target(int index) const {
   DCHECK_LT(index, length());
   if (v8_flags.wasm_jitless) return wasm::kInvalidWasmCodePointer;
-  return ReadField<uint32_t>(OffsetOf(index) + kTargetBias);
+  return WasmCodePointer{ReadField<uint32_t>(OffsetOf(index) + kTargetBias)};
 }
 
 inline wasm::CanonicalTypeIndex WasmDispatchTable::sig(int index) const {
@@ -483,6 +483,13 @@ wasm::CanonicalTypeIndex WasmExportedFunctionData::sig_index() const {
 bool WasmExportedFunctionData::is_promising() const {
   return WasmFunctionData::PromiseField::decode(js_promise_flags()) ==
          wasm::kPromise;
+}
+
+WasmCodePointer WasmInternalFunction::call_target() {
+  return WasmCodePointer{raw_call_target()};
+}
+void WasmInternalFunction::set_call_target(WasmCodePointer code_pointer) {
+  set_raw_call_target(code_pointer.value());
 }
 
 // WasmJSFunctionData

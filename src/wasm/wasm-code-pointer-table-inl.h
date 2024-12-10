@@ -54,40 +54,41 @@ uint32_t WasmCodePointerTableEntry::GetNextFreelistEntryIndex() const {
   return static_cast<uint32_t>(entrypoint_.load(std::memory_order_relaxed));
 }
 
-Address WasmCodePointerTable::GetEntrypoint(uint32_t index,
+Address WasmCodePointerTable::GetEntrypoint(WasmCodePointer index,
                                             uint64_t signature_hash) const {
-  return at(index).GetEntrypoint(signature_hash);
+  return at(index.value()).GetEntrypoint(signature_hash);
 }
 
 Address WasmCodePointerTable::GetEntrypointWithoutSignatureCheck(
-    uint32_t index) const {
-  return at(index).GetEntrypointWithoutSignatureCheck();
+    WasmCodePointer index) const {
+  return at(index.value()).GetEntrypointWithoutSignatureCheck();
 }
 
-void WasmCodePointerTable::UpdateEntrypoint(uint32_t index, Address value,
+void WasmCodePointerTable::UpdateEntrypoint(WasmCodePointer index,
+                                            Address value,
                                             uint64_t signature_hash) {
   WriteScope write_scope("WasmCodePointerTable write");
-  at(index).UpdateCodePointerEntry(value, signature_hash);
+  at(index.value()).UpdateCodePointerEntry(value, signature_hash);
 }
 
-void WasmCodePointerTable::SetEntrypointAndSignature(uint32_t index,
+void WasmCodePointerTable::SetEntrypointAndSignature(WasmCodePointer index,
                                                      Address value,
                                                      uint64_t signature_hash) {
   WriteScope write_scope("WasmCodePointerTable write");
-  at(index).MakeCodePointerEntry(value, signature_hash);
+  at(index.value()).MakeCodePointerEntry(value, signature_hash);
 }
 
 void WasmCodePointerTable::SetEntrypointWithWriteScope(
-    uint32_t index, Address value, uint64_t signature_hash,
+    WasmCodePointer index, Address value, uint64_t signature_hash,
     WriteScope& write_scope) {
-  at(index).MakeCodePointerEntry(value, signature_hash);
+  at(index.value()).MakeCodePointerEntry(value, signature_hash);
 }
 
-uint32_t WasmCodePointerTable::AllocateAndInitializeEntry(
+WasmCodePointer WasmCodePointerTable::AllocateAndInitializeEntry(
     Address entrypoint, uint64_t signature_hash) {
-  uint32_t index = AllocateUninitializedEntry();
+  WasmCodePointer index = AllocateUninitializedEntry();
   WriteScope write_scope("WasmCodePointerTable write");
-  at(index).MakeCodePointerEntry(entrypoint, signature_hash);
+  at(index.value()).MakeCodePointerEntry(entrypoint, signature_hash);
   return index;
 }
 
@@ -103,14 +104,14 @@ WasmCodePointerTable::FreelistHead WasmCodePointerTable::ReadFreelistHead() {
   }
 }
 
-uint32_t WasmCodePointerTable::AllocateUninitializedEntry() {
+WasmCodePointer WasmCodePointerTable::AllocateUninitializedEntry() {
   DCHECK(is_initialized());
 
   while (true) {
     // Fast path, try to take an entry from the freelist.
     uint32_t allocated_entry;
     if (TryAllocateFromFreelist(&allocated_entry)) {
-      return allocated_entry;
+      return WasmCodePointer{allocated_entry};
     }
 
     // This is essentially DCLP (see
@@ -141,7 +142,7 @@ uint32_t WasmCodePointerTable::AllocateUninitializedEntry() {
     // Merge the new freelist entries into our freelist.
     LinkFreelist(freelist, segment.last_entry());
 
-    return allocated_entry;
+    return WasmCodePointer{allocated_entry};
   }
 }
 
@@ -184,11 +185,11 @@ uint32_t WasmCodePointerTable::AllocateEntryFromFreelistNonAtomic(
   return index;
 }
 
-void WasmCodePointerTable::FreeEntry(uint32_t entry) {
+void WasmCodePointerTable::FreeEntry(WasmCodePointer entry) {
   // TODO(sroettger): adding to the inline freelist requires a WriteScope. We
   // could keep a second fixed size out-of-line freelist to avoid frequent
   // permission changes here.
-  LinkFreelist(FreelistHead(entry, 1), entry);
+  LinkFreelist(FreelistHead(entry.value(), 1), entry.value());
 }
 
 WasmCodePointerTable::FreelistHead WasmCodePointerTable::LinkFreelist(

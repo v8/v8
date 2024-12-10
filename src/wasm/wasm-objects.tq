@@ -24,7 +24,7 @@ extern enum AddressType extends uint8 constexpr 'wasm::AddressType' {
   kI64
 }
 
-type uint32_t = uint32;
+type WasmCodePointer = uint32;
 
 // Trusted instance data, exposed via WasmInstanceObject::trusted_data.
 extern class WasmTrustedInstanceData extends ExposedTrustedObject;
@@ -88,8 +88,8 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   // {protected_implicit_arg} is a {WasmImportData} describing this module.
   // For WasmJSFunctions and WasmCapiFunctions: -1.
   function_index: Smi;
-  // The call target, stored as raw pointer in this trusted object.
-  call_target: uint32_t;
+  // The call target, stored as a WasmCodePointer in this trusted object.
+  raw_call_target: WasmCodePointer;
   @if(WASM_CODE_POINTER_NEEDS_PADDING) optional_padding: uint32;
   @ifnot(WASM_CODE_POINTER_NEEDS_PADDING) optional_padding: void;
 }

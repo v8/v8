@@ -84,11 +84,11 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   std::set<base::AddressRegion, base::AddressRegion::StartAddressLess> regions_;
 };
 
-constexpr uint32_t kInvalidWasmCodePointer =
-    WasmCodePointerTable::kInvalidHandle;
+constexpr WasmCodePointer kInvalidWasmCodePointer =
+    WasmCodePointer{WasmCodePointerTable::kInvalidHandle};
 
 // Resolve the entry address of a WasmCodePointer
-V8_EXPORT_PRIVATE Address WasmCodePointerAddress(uint32_t pointer);
+V8_EXPORT_PRIVATE Address WasmCodePointerAddress(WasmCodePointer pointer);
 
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
@@ -659,7 +659,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
-  using CallIndirectTargetMap = absl::flat_hash_map<uint32_t, uint32_t>;
+  using CallIndirectTargetMap =
+      absl::flat_hash_map<WasmCodePointer, uint32_t, WasmCodePointer::Hasher>;
   CallIndirectTargetMap CreateIndirectCallTargetToFunctionIndexMap() const;
 
   // For cctests, where we build both WasmModule and the runtime objects
@@ -881,7 +882,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return fast_api_signatures_.get();
   }
 
-  WasmCodePointerTable::Handle GetCodePointerHandle(int index) const;
+  WasmCodePointer GetCodePointerHandle(int index) const;
 
  private:
   friend class WasmCode;
@@ -1035,7 +1036,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // CodePointerTable handles for all declared functions. The entries are
   // initialized to point to the lazy compile table and will later be updated to
   // point to the compiled code.
-  std::unique_ptr<WasmCodePointerTable::Handle[]> code_pointer_handles_;
+  std::unique_ptr<WasmCodePointer[]> code_pointer_handles_;
   // The size will usually be num_declared_functions, except that we sometimes
   // allocate larger arrays for testing.
   size_t code_pointer_handles_size_ = 0;

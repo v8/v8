@@ -193,7 +193,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       wasm::WasmCodeRefScope wasm_code_ref_scope;
       wasm::WasmCode* wasm_code =
           module->AddCodeForTesting(code, desc->signature_hash());
-      uint32_t code_pointer =
+      WasmCodePointer code_pointer =
           wasm::GetProcessWideWasmCodePointerTable()
               ->AllocateAndInitializeEntry(wasm_code->instruction_start(),
                                            wasm_code->signature_hash());
@@ -201,7 +201,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
       Node* call_inputs[2 + kMaxParamCount];
-      call_inputs[0] = mt.IntPtrConstant(code_pointer);
+      call_inputs[0] = mt.IntPtrConstant(code_pointer.value());
       // WasmContext dummy
       call_inputs[1] = mt.PointerConstant(nullptr);
       // Special inputs for the test.
@@ -298,14 +298,14 @@ void ReturnLastValue(MachineType type) {
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* wasm_code =
         module->AddCodeForTesting(code, desc->signature_hash());
-    uint32_t code_pointer =
+    WasmCodePointer code_pointer =
         wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
             wasm_code->instruction_start(), wasm_code->signature_hash());
 
     // Generate caller.
     int expect = return_count - 1;
     RawMachineAssemblerTester<int32_t> mt;
-    Node* inputs[] = {mt.IntPtrConstant(code_pointer),
+    Node* inputs[] = {mt.IntPtrConstant(code_pointer.value()),
                       // WasmContext dummy
                       mt.PointerConstant(nullptr)};
 
@@ -368,13 +368,13 @@ void ReturnSumOfReturns(MachineType type) {
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* wasm_code =
         module->AddCodeForTesting(code, desc->signature_hash());
-    uint32_t code_pointer =
+    WasmCodePointer code_pointer =
         wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
             wasm_code->instruction_start(), wasm_code->signature_hash());
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;
-    Node* call_inputs[] = {mt.IntPtrConstant(code_pointer),
+    Node* call_inputs[] = {mt.IntPtrConstant(code_pointer.value()),
                            // WasmContext dummy
                            mt.PointerConstant(nullptr)};
 

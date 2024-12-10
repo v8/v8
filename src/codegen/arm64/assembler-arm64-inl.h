@@ -705,15 +705,15 @@ void WritableRelocInfo::set_target_external_reference(
                                    &jit_allocation_, icache_flush_mode);
 }
 
-uint32_t RelocInfo::wasm_code_pointer_table_entry() const {
+WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {
   DCHECK(rmode_ == WASM_CODE_POINTER_TABLE_ENTRY);
-  return Assembler::uint32_constant_at(pc_, constant_pool_);
+  return WasmCodePointer{Assembler::uint32_constant_at(pc_, constant_pool_)};
 }
 
 void WritableRelocInfo::set_wasm_code_pointer_table_entry(
-    uint32_t target, ICacheFlushMode icache_flush_mode) {
+    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
-  Assembler::set_uint32_constant_at(pc_, constant_pool_, target,
+  Assembler::set_uint32_constant_at(pc_, constant_pool_, target.value(),
                                     &jit_allocation_, icache_flush_mode);
 }
 

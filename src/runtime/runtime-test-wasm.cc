@@ -185,7 +185,7 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
         Cast<WasmDispatchTable>(dispatch_tables->get(table_index));
     int table_size = table->length();
     for (int entry_index = 0; entry_index < table_size; ++entry_index) {
-      uint32_t target = table->target(entry_index);
+      WasmCodePointer target = table->target(entry_index);
       if (target != wasm::kInvalidWasmCodePointer &&
           cpt->EntrypointEqualTo(target, wrapper_entry))
         ++result;
@@ -203,7 +203,7 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   Tagged<SharedFunctionInfo> sfi = function->shared();
   if (!sfi->HasWasmFunctionData()) return isolate->heap()->ToBoolean(false);
   Tagged<WasmFunctionData> func_data = sfi->wasm_function_data();
-  uint32_t call_target = func_data->internal()->call_target();
+  WasmCodePointer call_target = func_data->internal()->call_target();
 
   Address wrapper_entry =
       Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);

@@ -1689,13 +1689,13 @@ TEST(Regress_1171759) {
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   wasm::WasmCode* wasm_code =
       module->AddCodeForTesting(code, desc->signature_hash());
-  uint32_t code_pointer =
+  WasmCodePointer code_pointer =
       wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
           wasm_code->instruction_start(), wasm_code->signature_hash());
 
   // Generate a minimal calling function, to push stack arguments.
   RawMachineAssemblerTester<int32_t> mt;
-  Node* function = mt.IntPtrConstant(code_pointer);
+  Node* function = mt.IntPtrConstant(code_pointer.value());
   Node* dummy_context = mt.PointerConstant(nullptr);
   Node* double_slot = mt.Float64Constant(0);
   Node* single_slot_that_creates_gap = mt.Float32Constant(0);

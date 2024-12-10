@@ -380,7 +380,8 @@ void WasmCode::Validate() const {
         break;
       }
       case RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY: {
-        uint32_t call_target = it.rinfo()->wasm_code_pointer_table_entry();
+        WasmCodePointer call_target =
+            it.rinfo()->wasm_code_pointer_table_entry();
         uint32_t function_index = function_index_map.at(call_target);
         CHECK_EQ(call_target,
                  native_module_->GetCodePointerHandle(function_index));
@@ -1101,9 +1102,9 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code,
         Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables_ref);
         it.rinfo()->set_wasm_stub_call_address(entry);
       } else if (RelocInfo::IsWasmCodePointerTableEntry(mode)) {
-        Address function_index = it.rinfo()->wasm_code_pointer_table_entry();
-        uint32_t target =
-            GetCodePointerHandle(base::checked_cast<uint32_t>(function_index));
+        uint32_t function_index =
+            it.rinfo()->wasm_code_pointer_table_entry().value();
+        WasmCodePointer target = GetCodePointerHandle(function_index);
         it.rinfo()->set_wasm_code_pointer_table_entry(target,
                                                       SKIP_ICACHE_FLUSH);
       } else {
@@ -1262,7 +1263,7 @@ void NativeModule::InitializeCodePointerTableHandles(
     FreeCodePointerTableHandles();
   }
   code_pointer_handles_ =
-      std::make_unique<WasmCodePointerTable::Handle[]>(num_wasm_functions);
+      std::make_unique<WasmCodePointer[]>(num_wasm_functions);
   code_pointer_handles_size_ = num_wasm_functions;
 
   WasmCodePointerTable* code_pointer_table =
@@ -1329,9 +1330,9 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
         Address entry = GetJumpTableEntryForBuiltin(builtin, jump_tables);
         it.rinfo()->set_wasm_stub_call_address(entry);
       } else if (RelocInfo::IsWasmCodePointerTableEntry(mode)) {
-        Address function_index = it.rinfo()->wasm_code_pointer_table_entry();
-        uint32_t target =
-            GetCodePointerHandle(base::checked_cast<uint32_t>(function_index));
+        uint32_t function_index =
+            it.rinfo()->wasm_code_pointer_table_entry().value();
+        WasmCodePointer target = GetCodePointerHandle(function_index);
         it.rinfo()->set_wasm_code_pointer_table_entry(target,
                                                       SKIP_ICACHE_FLUSH);
       } else {
@@ -2047,7 +2048,7 @@ uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
 
 NativeModule::CallIndirectTargetMap
 NativeModule::CreateIndirectCallTargetToFunctionIndexMap() const {
-  absl::flat_hash_map<uint32_t, uint32_t> lookup_map;
+  CallIndirectTargetMap lookup_map;
   for (uint32_t func_index = num_imported_functions();
        func_index < num_functions(); func_index++) {
     lookup_map.emplace(GetCodePointerHandle(func_index), func_index);
@@ -2076,13 +2077,12 @@ Builtin NativeModule::GetBuiltinInJumptableSlot(Address target) const {
   return Builtin::kNoBuiltinId;
 }
 
-WasmCodePointerTable::Handle NativeModule::GetCodePointerHandle(
-    int index) const {
+WasmCodePointer NativeModule::GetCodePointerHandle(int index) const {
   DCHECK_IMPLIES(index != kAnonymousFuncIndex, index >= 0);
   if (index == kAnonymousFuncIndex ||
       static_cast<uint32_t>(index) < module_->num_imported_functions) {
     // TODO(sroettger): do ImportWrappers need a code pointer handle?
-    return WasmCodePointerTable::kInvalidHandle;
+    return kInvalidWasmCodePointer;
   }
   return code_pointer_handles_[declared_function_index(module_.get(), index)];
 }
