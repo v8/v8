@@ -29,8 +29,8 @@ constexpr size_t kSpecMaxMemory64Pages = 262'144;  // 16GB
 // The limits are agreed upon with other engines for consistency.
 constexpr size_t kV8MaxWasmTypes = 1'000'000;
 constexpr size_t kV8MaxWasmDefinedFunctions = 1'000'000;
-constexpr size_t kV8MaxWasmImports = 100'000;
-constexpr size_t kV8MaxWasmExports = 100'000;
+constexpr size_t kV8MaxWasmImports = 1'000'000;
+constexpr size_t kV8MaxWasmExports = 1'000'000;
 constexpr size_t kV8MaxWasmGlobals = 1'000'000;
 constexpr size_t kV8MaxWasmTags = 1'000'000;
 constexpr size_t kV8MaxWasmExceptionTypes = 1'000'000;
