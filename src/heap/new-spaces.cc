@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/concurrent-marking.h"
@@ -513,7 +514,11 @@ void SemiSpaceNewSpace::ResetCurrentSpace() {
   to_space_.Reset();
   // Clear all mark-bits in the to-space.
   for (PageMetadata* p : to_space_) {
-    p->ClearLiveness();
+    if (!v8_flags.separate_gc_phases) {
+      p->ClearLiveness();
+    } else {
+      DCHECK(p->IsLivenessClear());
+    }
     // Concurrent marking may have local live bytes for this page.
     heap()->concurrent_marking()->ClearMemoryChunkData(p);
   }

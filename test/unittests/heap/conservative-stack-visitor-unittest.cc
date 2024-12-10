@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/conservative-stack-visitor.h"
+#include "src/heap/conservative-stack-visitor-inl.h"
 
 #include "src/codegen/assembler-inl.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -125,8 +125,7 @@ TEST_F(ConservativeStackVisitorTest, DirectBasePointer) {
     volatile Address code_ptr = recorder->base_address(kCodeObject);
     volatile Address trusted_ptr = recorder->base_address(kTrustedObject);
 
-    ConservativeStackVisitor stack_visitor(isolate(), recorder.get(),
-                                           GarbageCollector::MARK_COMPACTOR);
+    ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
     heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointers alive.
@@ -153,8 +152,7 @@ TEST_F(ConservativeStackVisitorTest, TaggedBasePointer) {
     volatile Address code_ptr = recorder->tagged_address(kCodeObject);
     volatile Address trusted_ptr = recorder->tagged_address(kTrustedObject);
 
-    ConservativeStackVisitor stack_visitor(isolate(), recorder.get(),
-                                           GarbageCollector::MARK_COMPACTOR);
+    ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
     heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointers alive.
@@ -181,8 +179,7 @@ TEST_F(ConservativeStackVisitorTest, InnerPointer) {
     volatile Address code_ptr = recorder->inner_address(kCodeObject);
     volatile Address trusted_ptr = recorder->inner_address(kTrustedObject);
 
-    ConservativeStackVisitor stack_visitor(isolate(), recorder.get(),
-                                           GarbageCollector::MARK_COMPACTOR);
+    ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
     heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointers alive.
@@ -213,8 +210,7 @@ TEST_F(ConservativeStackVisitorTest, HalfWord1) {
     volatile uint32_t trusted_ptr[] = {recorder->compr_address(kTrustedObject),
                                        0};
 
-    ConservativeStackVisitor stack_visitor(isolate(), recorder.get(),
-                                           GarbageCollector::MARK_COMPACTOR);
+    ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
     heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointers alive.
@@ -243,8 +239,7 @@ TEST_F(ConservativeStackVisitorTest, HalfWord2) {
     volatile uint32_t trusted_ptr[] = {0,
                                        recorder->compr_address(kTrustedObject)};
 
-    ConservativeStackVisitor stack_visitor(isolate(), recorder.get(),
-                                           GarbageCollector::MARK_COMPACTOR);
+    ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
     heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointers alive.
@@ -273,8 +268,7 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord1) {
     volatile uint32_t trusted_ptr[] = {recorder->compr_inner(kTrustedObject),
                                        0};
 
-    ConservativeStackVisitor stack_visitor(isolate(), recorder.get(),
-                                           GarbageCollector::MARK_COMPACTOR);
+    ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
     heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointers alive.
@@ -303,8 +297,7 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord2) {
     volatile uint32_t trusted_ptr[] = {0,
                                        recorder->compr_inner(kTrustedObject)};
 
-    ConservativeStackVisitor stack_visitor(isolate(), recorder.get(),
-                                           GarbageCollector::MARK_COMPACTOR);
+    ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
     heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointers alive.
