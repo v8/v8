@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b4c826111134d914a70c7212adf029395433443a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0ef8e9923960a137ba5e7bfdc000d5b6504b9064',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '88979f294759f29f90a239fc0c0d81f6012ac31c',
   'buildtools/linux64': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '25fede45b3488984d27555820e823644697e748e',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '719139c30a4a51ee83554d563e8a46411756a57c',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '6066b149576465160ac0d935aa644ec6d3bfb2bf',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '36619c029e22105b310acde60696c1db53bd5dcb',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'b4a4af5376f504155253e5c6990f16a2cf765e38',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -492,7 +492,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '82a5fecf8aae8f288267cfdb2d29c9ebf7b37e59',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '6dfab414b24f7c66c74c376c0dc798dd5e8064e0',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5c9878dc3c8bcc46c9c082b929d1f1837c53246e',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
