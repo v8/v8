@@ -130,10 +130,17 @@ class BootstrapperActive final {
   Bootstrapper* bootstrapper_;
 };
 
+// Exposed for Wasm bootstrapping.
 V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
     Isolate* isolate, DirectHandle<JSObject> base, const char* name,
     Builtin call, int len, AdaptArguments adapt,
     PropertyAttributes attrs = DONT_ENUM);
+
+// Exposed for Wasm bootstrapping.
+V8_NOINLINE void InstallError(
+    Isolate* isolate, DirectHandle<JSObject> global, DirectHandle<String> name,
+    int context_index, Builtin error_constructor = Builtin::kErrorConstructor,
+    int error_function_length = 1);
 
 }  // namespace internal
 }  // namespace v8

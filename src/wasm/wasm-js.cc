@@ -3393,18 +3393,12 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
   // Setup errors.
   {
-    DirectHandle<JSFunction> compile_error(
-        native_context->wasm_compile_error_function(), isolate);
-    JSObject::AddProperty(isolate, webassembly, f->CompileError_string(),
-                          compile_error, DONT_ENUM);
-    DirectHandle<JSFunction> link_error(
-        native_context->wasm_link_error_function(), isolate);
-    JSObject::AddProperty(isolate, webassembly, f->LinkError_string(),
-                          link_error, DONT_ENUM);
-    DirectHandle<JSFunction> runtime_error(
-        native_context->wasm_runtime_error_function(), isolate);
-    JSObject::AddProperty(isolate, webassembly, f->RuntimeError_string(),
-                          runtime_error, DONT_ENUM);
+    InstallError(isolate, webassembly, f->CompileError_string(),
+                 Context::WASM_COMPILE_ERROR_FUNCTION_INDEX);
+    InstallError(isolate, webassembly, f->LinkError_string(),
+                 Context::WASM_LINK_ERROR_FUNCTION_INDEX);
+    InstallError(isolate, webassembly, f->RuntimeError_string(),
+                 Context::WASM_RUNTIME_ERROR_FUNCTION_INDEX);
   }
 }
 

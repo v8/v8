@@ -1517,10 +1517,9 @@ static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
                                  kReleaseStore);
 }
 
-static void InstallError(Isolate* isolate, DirectHandle<JSObject> global,
-                         DirectHandle<String> name, int context_index,
-                         Builtin error_constructor = Builtin::kErrorConstructor,
-                         int error_function_length = 1) {
+void InstallError(Isolate* isolate, DirectHandle<JSObject> global,
+                  DirectHandle<String> name, int context_index,
+                  Builtin error_constructor, int error_function_length) {
   Factory* factory = isolate->factory();
 
   // Most Error objects consist of a message, a stack trace, and possibly a
@@ -3562,21 +3561,6 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   // -- U R I E r r o r
   InstallError(isolate_, global, factory->URIError_string(),
                Context::URI_ERROR_FUNCTION_INDEX);
-
-  {  // -- C o m p i l e E r r o r
-    DirectHandle<JSObject> dummy =
-        factory->NewJSObject(isolate_->object_function());
-    InstallError(isolate_, dummy, factory->CompileError_string(),
-                 Context::WASM_COMPILE_ERROR_FUNCTION_INDEX);
-
-    // -- L i n k E r r o r
-    InstallError(isolate_, dummy, factory->LinkError_string(),
-                 Context::WASM_LINK_ERROR_FUNCTION_INDEX);
-
-    // -- R u n t i m e E r r o r
-    InstallError(isolate_, dummy, factory->RuntimeError_string(),
-                 Context::WASM_RUNTIME_ERROR_FUNCTION_INDEX);
-  }
 
   // Initialize the embedder data slot.
   // TODO(ishell): microtask queue pointer will be moved from native context
