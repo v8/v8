@@ -264,7 +264,8 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // coverage to always optimize and deopt the main function. Instead by
   // optimizing an inner wasm function, there can be a large amount of
   // parameters and returns with all kinds of types.
-  const bool optimize_main_function = !(data.last() & 1) || inlinees.empty();
+  const bool optimize_main_function =
+      inlinees.empty() || data.empty() || !(data.last() & 1);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     StdoutStream os;
