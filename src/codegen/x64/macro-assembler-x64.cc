@@ -3323,22 +3323,52 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 
-void MacroAssembler::ResolveWasmCodePointer(Register target) {
+void MacroAssembler::ResolveWasmCodePointer(Register target,
+                                            uint64_t signature_hash) {
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();
   Move(kScratchRegister, global_jump_table);
+
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
+  shlq(target, Immediate(4));
+  cmpl(Operand(kScratchRegister, target, ScaleFactor::times_1,
+               wasm::WasmCodePointerTable::kOffsetOfSignatureHash),
+       Immediate(static_cast<int32_t>(signature_hash)));
+  SbxCheck(Condition::equal, AbortReason::kWasmSignatureMismatch);
+  cmpl(Operand(kScratchRegister, target, ScaleFactor::times_1,
+               wasm::WasmCodePointerTable::kOffsetOfSignatureHash + 4),
+       Immediate(static_cast<int32_t>(signature_hash >> 32)));
+  SbxCheck(Condition::equal, AbortReason::kWasmSignatureMismatch);
+  movq(target, Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
+#else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
   movq(target, Operand(kScratchRegister, target, ScaleFactor::times_8, 0));
+#endif
 }
 
 void MacroAssembler::CallWasmCodePointer(Register target,
+                                         uint64_t signature_hash,
                                          CallJumpMode call_jump_mode) {
-  ResolveWasmCodePointer(target);
+  ResolveWasmCodePointer(target, signature_hash);
   if (call_jump_mode == CallJumpMode::kTailCall) {
     jmp(target);
   } else {
     call(target);
   }
+}
+
+void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
+  ExternalReference global_jump_table =
+      ExternalReference::wasm_code_pointer_table();
+  Move(kScratchRegister, global_jump_table);
+
+  constexpr unsigned int kEntrySizeLog2 =
+      std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
+  shlq(target, Immediate(kEntrySizeLog2));
+
+  movq(target, Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
+  call(target);
 }
 
 void MacroAssembler::LoadWasmCodePointer(Register dst, Operand src) {

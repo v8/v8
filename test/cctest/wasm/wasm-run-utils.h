@@ -129,6 +129,8 @@ class TestingModuleBuilder {
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
 
+  Zone& SignatureZone() { return test_module_->signature_zone; }
+
   // TODO(14034): Allow selecting type finality.
   ModuleTypeIndex AddSignature(const FunctionSig* sig) {
     const bool is_final = true;
@@ -402,11 +404,6 @@ class WasmRunnerBase : public InitializedHandleScope {
 
   void SwitchToDebug() { builder_.SwitchToDebug(); }
 
-  template <typename ReturnType, typename... ParamTypes>
-  const FunctionSig* CreateSig() {
-    return WasmRunnerBase::CreateSig<ReturnType, ParamTypes...>(&zone_);
-  }
-
   static const CanonicalSig* CanonicalizeSig(const FunctionSig* sig) {
     // TODO(clemensb): Make this a single function call.
     CanonicalTypeIndex sig_id = GetTypeCanonicalizer()->AddRecursiveGroup(sig);
@@ -414,12 +411,12 @@ class WasmRunnerBase : public InitializedHandleScope {
   }
 
   template <typename ReturnType, typename... ParamTypes>
-  static FunctionSig* CreateSig(Zone* zone) {
+  FunctionSig* CreateSig() {
     std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
         {MachineTypeForC<ParamTypes>()...}};
     base::Vector<MachineType> param_vec(param_machine_types.data(),
                                         param_machine_types.size());
-    return CreateSig(zone, MachineTypeForC<ReturnType>(), param_vec);
+    return CreateSig(MachineTypeForC<ReturnType>(), param_vec);
   }
 
   // TODO(clemensb): Remove, use {CallViaJS} directly.
@@ -461,8 +458,8 @@ class WasmRunnerBase : public InitializedHandleScope {
   }
 
  private:
-  static FunctionSig* CreateSig(Zone* zone, MachineType return_type,
-                                base::Vector<MachineType> param_types);
+  FunctionSig* CreateSig(MachineType return_type,
+                         base::Vector<MachineType> param_types);
 
  protected:
   wasm::WasmCodeRefScope code_ref_scope_;

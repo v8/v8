@@ -230,6 +230,16 @@ class SignatureHasher {
   Counts rets_{};
 };
 
+#else  // V8_ENABLE_SANDBOX
+
+class SignatureHasher {
+ public:
+  template <typename SigType>
+  static uint64_t Hash(const SigType* sig) {
+    return 0;
+  }
+};
+
 #endif  // V8_ENABLE_SANDBOX
 
 }  // namespace v8::internal::wasm

@@ -251,10 +251,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   std::shared_ptr<wasm::NativeModule> module =
       AllocateNativeModule(i_isolate, code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+  wasm::WasmCode* wasm_code =
+      module->AddCodeForTesting(code, desc->signature_hash());
   uint32_t code_pointer =
       wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
-          wasm_code->instruction_start());
+          wasm_code->instruction_start(), wasm_code->signature_hash());
   // Generate wrapper.
   int expect = 0;
 

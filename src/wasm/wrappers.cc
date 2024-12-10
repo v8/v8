@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <bit>
 #include <optional>
 
 #include "src/base/small-vector.h"
@@ -364,8 +365,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
   OpIndex BuildCallAndReturn(V<Context> js_context, V<HeapObject> function_data,
                              base::Vector<OpIndex> args, bool do_conversion,
-                             bool set_in_wasm_flag,
-                             uint64_t expected_sig_hash) {
+                             bool set_in_wasm_flag) {
     const int rets_count = static_cast<int>(sig_->return_count());
     base::SmallVector<OpIndex, 1> rets(rets_count);
 
@@ -381,8 +381,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
           V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
               function_data, LoadOp::Kind::TaggedBase().Immutable(),
               WasmExportedFunctionData::kProtectedInternalOffset));
-      auto [target, implicit_arg] =
-          BuildFunctionTargetAndImplicitArg(internal, expected_sig_hash);
+      auto [target, implicit_arg] = BuildFunctionTargetAndImplicitArg(internal);
       BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, implicit_arg,
                                args, base::VectorOf(rets));
     }
@@ -432,11 +431,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         __ Load(js_closure, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::TaggedPointer(),
                 JSFunction::kSharedFunctionInfoOffset);
-#ifdef V8_ENABLE_SANDBOX
-    uint64_t signature_hash = SignatureHasher::Hash(sig_);
-#else
-    uint64_t signature_hash = 0;
-#endif
     V<WasmFunctionData> function_data =
         V<WasmFunctionData>::Cast(__ LoadTrustedPointerField(
             shared, LoadOp::Kind::TaggedBase(),
@@ -488,7 +482,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       }
       jsval =
           BuildCallAndReturn(js_context, function_data, base::VectorOf(args),
-                             do_conversion, set_in_wasm_flag, signature_hash);
+                             do_conversion, set_in_wasm_flag);
       GOTO(done, jsval);
       __ Bind(slow_path);
     }
@@ -514,7 +508,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     }
 
     jsval = BuildCallAndReturn(js_context, function_data, base::VectorOf(args),
-                               do_conversion, set_in_wasm_flag, signature_hash);
+                               do_conversion, set_in_wasm_flag);
     // If both the default and a fast transformation paths are present,
     // get the return value based on the path used.
     if (include_fast_path) {
@@ -1337,6 +1331,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
 
   V<WordPtr> BuildLoadCallTargetFromExportedFunctionData(
       V<WasmFunctionData> function_data) {
+    // TODO(sroettger): this code should do a signature check, but it's only
+    // used for CAPI.
     V<WasmInternalFunction> internal =
         V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
             function_data, LoadOp::Kind::TaggedBase().Immutable(),
@@ -1344,10 +1340,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     V<Word32> code_pointer = __ Load(internal, LoadOp::Kind::TaggedBase(),
                                      MemoryRepresentation::Uint32(),
                                      WasmInternalFunction::kCallTargetOffset);
+    constexpr size_t entry_size_log2 =
+        std::bit_width(sizeof(WasmCodePointerTableEntry)) - 1;
     return __ Load(
         __ ExternalConstant(ExternalReference::wasm_code_pointer_table()),
         __ ChangeUint32ToUintPtr(code_pointer), LoadOp::Kind::RawAligned(),
-        MemoryRepresentation::UintPtr(), 0, kSystemPointerSizeLog2);
+        MemoryRepresentation::UintPtr(), 0, entry_size_log2);
   }
 
   const OpIndex SafeLoad(OpIndex base, int offset, CanonicalValueType type) {

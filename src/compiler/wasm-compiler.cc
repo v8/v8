@@ -3112,6 +3112,8 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
 Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
     Node* function_data) {
+  // TODO(sroettger): this code should do a signature check, but it's only used
+  // for CAPI.
   Node* internal = gasm_->LoadProtectedPointerFromObject(
       function_data, wasm::ObjectAccess::ToTagged(
                          WasmExportedFunctionData::kProtectedInternalOffset));

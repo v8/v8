@@ -3301,6 +3301,9 @@ wasm::WasmCompilationResult WrapperCompilationResult(
   result.result_tier = wasm::ExecutionTier::kTurbofan;
   if (kind == CodeKind::WASM_TO_JS_FUNCTION) {
     result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
+    result.signature_hash = call_descriptor->signature_hash();
+  } else if (kind == CodeKind::WASM_TO_CAPI_FUNCTION) {
+    result.signature_hash = call_descriptor->signature_hash();
   }
   return result;
 }
@@ -3709,6 +3712,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   result->protected_instructions_data =
       code_generator->GetProtectedInstructionsData();
   result->result_tier = wasm::ExecutionTier::kTurbofan;
+  result->signature_hash = call_descriptor->signature_hash();
 
   if (data.info()->trace_turbo_json()) {
     TurboJsonFile json_of(data.info(), std::ios_base::app);

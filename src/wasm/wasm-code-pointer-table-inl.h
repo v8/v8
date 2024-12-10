@@ -15,45 +15,79 @@
 
 namespace v8::internal::wasm {
 
-void WasmCodePointerTableEntry::MakeCodePointerEntry(Address entrypoint) {
+void WasmCodePointerTableEntry::MakeCodePointerEntry(Address entrypoint,
+                                                     uint64_t signature_hash) {
+  entrypoint_.store(entrypoint, std::memory_order_relaxed);
+#ifdef V8_ENABLE_SANDBOX
+  signature_hash_ = signature_hash;
+#endif
+}
+
+void WasmCodePointerTableEntry::UpdateCodePointerEntry(
+    Address entrypoint, uint64_t signature_hash) {
+#ifdef V8_ENABLE_SANDBOX
+  SBXCHECK_EQ(signature_hash_, signature_hash);
+#endif
   entrypoint_.store(entrypoint, std::memory_order_relaxed);
 }
 
-Address WasmCodePointerTableEntry::GetEntrypoint() const {
+Address WasmCodePointerTableEntry::GetEntrypoint(
+    uint64_t signature_hash) const {
+#ifdef V8_ENABLE_SANDBOX
+  SBXCHECK_EQ(signature_hash_, signature_hash);
+#endif
+  return entrypoint_.load(std::memory_order_relaxed);
+}
+
+Address WasmCodePointerTableEntry::GetEntrypointWithoutSignatureCheck() const {
   return entrypoint_.load(std::memory_order_relaxed);
 }
 
 void WasmCodePointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   entrypoint_.store(next_entry_index, std::memory_order_relaxed);
+#ifdef V8_ENABLE_SANDBOX
+  signature_hash_ = -1;
+#endif
 }
 
 uint32_t WasmCodePointerTableEntry::GetNextFreelistEntryIndex() const {
   return static_cast<uint32_t>(entrypoint_.load(std::memory_order_relaxed));
 }
 
-Address WasmCodePointerTable::GetEntrypoint(uint32_t index) const {
-  return at(index).GetEntrypoint();
+Address WasmCodePointerTable::GetEntrypoint(uint32_t index,
+                                            uint64_t signature_hash) const {
+  return at(index).GetEntrypoint(signature_hash);
 }
 
-void WasmCodePointerTable::SetEntrypoint(uint32_t index, Address value) {
+Address WasmCodePointerTable::GetEntrypointWithoutSignatureCheck(
+    uint32_t index) const {
+  return at(index).GetEntrypointWithoutSignatureCheck();
+}
+
+void WasmCodePointerTable::UpdateEntrypoint(uint32_t index, Address value,
+                                            uint64_t signature_hash) {
   WriteScope write_scope("WasmCodePointerTable write");
-  SetEntrypointWithWriteScope(index, value, write_scope);
+  at(index).UpdateCodePointerEntry(value, signature_hash);
+}
+
+void WasmCodePointerTable::SetEntrypointAndSignature(uint32_t index,
+                                                     Address value,
+                                                     uint64_t signature_hash) {
+  WriteScope write_scope("WasmCodePointerTable write");
+  at(index).MakeCodePointerEntry(value, signature_hash);
 }
 
 void WasmCodePointerTable::SetEntrypointWithWriteScope(
-    uint32_t index, Address value, WriteScope& write_scope) {
-  at(index).MakeCodePointerEntry(value);
+    uint32_t index, Address value, uint64_t signature_hash,
+    WriteScope& write_scope) {
+  at(index).MakeCodePointerEntry(value, signature_hash);
 }
 
-void WasmCodePointerTable::SetEntrypointWithRwxWriteScope(
-    uint32_t index, Address value, RwxMemoryWriteScope& write_scope) {
-  at(index).MakeCodePointerEntry(value);
-}
-
-uint32_t WasmCodePointerTable::AllocateAndInitializeEntry(Address entrypoint) {
+uint32_t WasmCodePointerTable::AllocateAndInitializeEntry(
+    Address entrypoint, uint64_t signature_hash) {
   uint32_t index = AllocateUninitializedEntry();
   WriteScope write_scope("WasmCodePointerTable write");
-  at(index).MakeCodePointerEntry(entrypoint);
+  at(index).MakeCodePointerEntry(entrypoint, signature_hash);
   return index;
 }
 

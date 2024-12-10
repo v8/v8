@@ -2597,25 +2597,60 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 
-void MacroAssembler::ResolveWasmCodePointer(Register target) {
+void MacroAssembler::ResolveWasmCodePointer(Register target,
+                                            uint64_t signature_hash) {
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
   Mov(scratch, global_jump_table);
-  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == kSystemPointerSize);
-  lsl(target.W(), target.W(), kSystemPointerSizeLog2);
-  Ldr(target, MemOperand(scratch, target));
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
+  Add(target, scratch, Operand(target, LSL, 4));
+  Ldr(scratch,
+      MemOperand(target, wasm::WasmCodePointerTable::kOffsetOfSignatureHash));
+  bool has_second_tmp = temps.CanAcquire();
+  Register signature_hash_register = has_second_tmp ? temps.AcquireX() : target;
+  if (!has_second_tmp) {
+    Push(signature_hash_register, padreg);
+  }
+  Mov(signature_hash_register, signature_hash);
+  Cmp(scratch, signature_hash_register);
+  SbxCheck(Condition::kEqual, AbortReason::kWasmSignatureMismatch);
+  if (!has_second_tmp) {
+    Pop(padreg, signature_hash_register);
+  }
+#else
+  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
+  Add(target, scratch, Operand(target, LSL, 3));
+#endif
+
+  Ldr(target, MemOperand(target));
 }
 
 void MacroAssembler::CallWasmCodePointer(Register target,
+                                         uint64_t signature_hash,
                                          CallJumpMode call_jump_mode) {
-  ResolveWasmCodePointer(target);
+  ResolveWasmCodePointer(target, signature_hash);
   if (call_jump_mode == CallJumpMode::kTailCall) {
     Jump(target);
   } else {
     Call(target);
   }
+}
+
+void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
+  ExternalReference global_jump_table =
+      ExternalReference::wasm_code_pointer_table();
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Mov(scratch, global_jump_table);
+  constexpr unsigned int kEntrySizeLog2 =
+      std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
+  Add(target, scratch, Operand(target, LSL, kEntrySizeLog2));
+  Ldr(target, MemOperand(target));
+
+  Call(target);
 }
 
 void MacroAssembler::LoadWasmCodePointer(Register dst, MemOperand src) {

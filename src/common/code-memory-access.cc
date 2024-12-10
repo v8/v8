@@ -708,15 +708,6 @@ WritableJumpTablePair WritableJumpTablePair::ForTesting(
                                ForTestingTag{});
 }
 
-void WritableJumpTablePair::SetCodePointerTableEntry(uint32_t index,
-                                                     Address target) {
-  std::optional<RwxMemoryWriteScope> write_scope =
-      writable_jump_table_.WriteScopeForApiEnforcement();
-
-  wasm::GetProcessWideWasmCodePointerTable()->SetEntrypointWithRwxWriteScope(
-      index, target, write_scope_);
-}
-
 #endif
 
 template <size_t offset>

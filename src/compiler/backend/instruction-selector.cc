@@ -2630,6 +2630,15 @@ void InstructionSelectorT<Adapter>::VisitCall(node_t node, block_t handler) {
   EmitPrepareArguments(&buffer.pushed_nodes, call_descriptor, node);
   UpdateMaxPushedArgumentCount(buffer.pushed_nodes.size());
 
+  InstructionOperandVector temps(zone());
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsIndirectWasmFunctionCall()) {
+    buffer.instruction_args.push_back(
+        g.UseImmediate64(call_descriptor->signature_hash()));
+  }
+#endif
+
   if (call_descriptor->RequiresEntrypointTagForCall()) {
     DCHECK(!call_descriptor->IsJSFunctionCall());
     buffer.instruction_args.push_back(
@@ -2774,6 +2783,13 @@ void InstructionSelectorT<Adapter>::VisitTailCall(node_t node) {
   opcode = EncodeCallDescriptorFlags(opcode, callee->flags());
 
   Emit(kArchPrepareTailCall, g.NoOutput());
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (callee->IsIndirectWasmFunctionCall()) {
+    buffer.instruction_args.push_back(
+        g.UseImmediate64(callee->signature_hash()));
+  }
+#endif
 
   if (callee->RequiresEntrypointTagForCall()) {
     buffer.instruction_args.push_back(g.TempImmediate(callee->shifted_tag()));

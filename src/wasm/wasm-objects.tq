@@ -92,12 +92,6 @@ extern class WasmInternalFunction extends ExposedTrustedObject {
   call_target: uint32_t;
   @if(WASM_CODE_POINTER_NEEDS_PADDING) optional_padding: uint32;
   @ifnot(WASM_CODE_POINTER_NEEDS_PADDING) optional_padding: void;
-
-  // The signature hash. See signature-hashing.h for background.
-  // The value stored here must be in sync with {call_target}!
-  // Ideally we'd type this as "uint64", but Torque doesn't support that,
-  // and we only enable the sandbox when uintptr == uint64 anyway.
-  @if(V8_ENABLE_SANDBOX) signature_hash: uintptr;
 }
 
 extern operator '.implicit_arg' macro LoadImplicitArgFromWasmInternalFunction(

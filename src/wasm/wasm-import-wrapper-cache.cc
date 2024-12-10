@@ -14,6 +14,7 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 
 namespace v8::internal::wasm {
@@ -117,6 +118,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
                                 kind,
                                 ExecutionTier::kNone,
                                 wasm::kNotForDebugging,
+                                result.signature_hash,
                                 frame_has_feedback_slot};
   // The refcount of a WasmCode is initialized to 1. For wrappers, we track
   // all refcounts explicitly, i.e. there will be a call to {IncRef()} that
@@ -134,6 +136,16 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   std::map<Address, WasmCode*>& codes = cache_->codes_;
   codes.emplace_hint(codes.end(), code->instruction_start(), code);
   return code;
+}
+
+WasmCode* WasmImportWrapperCache::FindWrapper(uint32_t call_target) {
+  if (call_target == kInvalidWasmCodePointer) return nullptr;
+  base::MutexGuard lock(&mutex_);
+  auto iter = codes_.find(
+      GetProcessWideWasmCodePointerTable()->GetEntrypointWithoutSignatureCheck(
+          call_target));
+  if (iter == codes_.end()) return nullptr;
+  return iter->second;
 }
 
 WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(

@@ -71,6 +71,9 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
   CallDescriptor::Kind descriptor_kind;
+
+  uint64_t signature_hash = wasm::SignatureHasher::Hash(fsig);
+
   switch (call_kind) {
     case kWasmFunction:
       descriptor_kind = CallDescriptor::kCallWasmFunction;
@@ -103,7 +106,8 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
       "wasm-call",                        // debug name
       StackArgumentOrder::kDefault,       // order of the arguments in the stack
       RegList{},                          // allocatable registers
-      return_slots);                      // return slot count
+      return_slots,                       // return slot count
+      signature_hash);
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)

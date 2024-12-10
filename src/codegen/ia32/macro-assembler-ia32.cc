@@ -2182,14 +2182,15 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 #ifdef V8_ENABLE_WEBASSEMBLY
 
 void MacroAssembler::ResolveWasmCodePointer(Register target) {
+  static_assert(!V8_ENABLE_SANDBOX_BOOL);
   Register scratch = target == eax ? ebx : eax;
   // TODO(sroettger): the load from table[target] is possible with a single
   // instruction.
-  push(scratch);
+  Push(scratch);
   Move(scratch, Immediate(ExternalReference::wasm_code_pointer_table()));
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 4);
-  mov(target, Operand(scratch, target, ScaleFactor::times_4, 0));
-  pop(scratch);
+  Move(target, Operand(scratch, target, ScaleFactor::times_4, 0));
+  Pop(scratch);
 }
 
 void MacroAssembler::CallWasmCodePointer(Register target,

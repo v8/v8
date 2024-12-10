@@ -1527,7 +1527,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
       } else {
         DCHECK(!HasImmediateInput(instr, 0));
-        __ CallWasmCodePointer(i.InputRegister(0));
+
+        __ CallWasmCodePointer(
+            i.InputRegister(0),
+            i.InputInt64(instr->WasmSignatureHashInputIndex()));
       }
       RecordCallPosition(instr);
       AssemblePlaceHolderForLazyDeopt(instr);
@@ -1548,7 +1551,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
       } else {
         DCHECK(!HasImmediateInput(instr, 0));
-        __ CallWasmCodePointer(i.InputRegister(0), CallJumpMode::kTailCall);
+        __ CallWasmCodePointer(
+            i.InputRegister(0),
+            i.InputInt64(instr->WasmSignatureHashInputIndex()),
+            CallJumpMode::kTailCall);
       }
       unwinding_info_writer_.MarkBlockWillExit();
       frame_access_state()->ClearSPDelta();

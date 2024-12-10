@@ -1535,18 +1535,13 @@ auto make_func(Store* store_abs, std::shared_ptr<FuncData> data) -> own<Func> {
   CheckAndHandleInterrupts(isolate);
   i::DirectHandle<i::Managed<FuncData>> embedder_data =
       i::Managed<FuncData>::From(isolate, sizeof(FuncData), data);
-#if V8_ENABLE_SANDBOX
-  uint64_t signature_hash = SignatureHelper::Hash(data->type.get());
-#else
-  uintptr_t signature_hash = 0;
-#endif  // V8_ENABLE_SANDBOX
   i::wasm::CanonicalTypeIndex sig_index =
       SignatureHelper::Canonicalize(data->type.get());
   const i::wasm::CanonicalSig* sig =
       i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
   i::Handle<i::WasmCapiFunction> function = i::WasmCapiFunction::New(
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
-      embedder_data, sig_index, sig, signature_hash);
+      embedder_data, sig_index, sig);
   i::Cast<i::WasmImportData>(
       function->shared()->wasm_capi_function_data()->internal()->implicit_arg())
       ->set_callable(*function);

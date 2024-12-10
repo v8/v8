@@ -5107,7 +5107,8 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
   CallWasmCodePointer(target);
 }
 
-void LiftoffAssembler::TailCallIndirect(Register target) {
+void LiftoffAssembler::TailCallIndirect(
+    compiler::CallDescriptor* call_descriptor, Register target) {
   // Since we have more cache registers than parameter registers, the
   // {LiftoffCompiler} should always be able to place {target} in a register.
   DCHECK(target.is_valid());

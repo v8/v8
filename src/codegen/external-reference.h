@@ -349,7 +349,6 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_array_fill, "wasm::array_fill")                              \
   IF_WASM(V, wasm_string_to_f64, "wasm_string_to_f64")                         \
   IF_WASM(V, wasm_atomic_notify, "wasm_atomic_notify")                         \
-  IF_WASM(V, wasm_signature_check_fail, "wasm_signature_check_fail")           \
   IF_WASM(V, wasm_WebAssemblyCompile, "wasm::WebAssemblyCompile")              \
   IF_WASM(V, wasm_WebAssemblyException, "wasm::WebAssemblyException")          \
   IF_WASM(V, wasm_WebAssemblyExceptionGetArg,                                  \

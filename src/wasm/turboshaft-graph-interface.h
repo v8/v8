@@ -108,8 +108,7 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
       V<WasmTrustedInstanceData> trusted_instance_data);
 
   std::pair<V<Word32>, V<ExposedTrustedObject>>
-  BuildFunctionTargetAndImplicitArg(V<WasmInternalFunction> internal_function,
-                                    uint64_t expected_sig_hash);
+  BuildFunctionTargetAndImplicitArg(V<WasmInternalFunction> internal_function);
 
   RegisterRepresentation RepresentationFor(ValueTypeBase type);
   V<WasmTrustedInstanceData> LoadTrustedDataFromInstanceObject(

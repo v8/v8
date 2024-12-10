@@ -670,21 +670,6 @@ FUNCTION_REFERENCE_WITH_TYPE(wasm_string_to_f64, wasm::flat_string_to_f64,
 int32_t (&futex_emulation_wake)(void*, uint32_t) = FutexEmulation::Wake;
 FUNCTION_REFERENCE(wasm_atomic_notify, futex_emulation_wake)
 
-void WasmSignatureCheckFail(Address raw_internal_function,
-                            uintptr_t expected_hash) {
-  // WasmInternalFunction::signature_hash doesn't exist in non-sandbox builds.
-  // TODO(saelo): Consider using Abort instead, as we do for JavaScript
-  // signature mismatches (See AbortReason::kJSSignatureMismatch).
-#if V8_ENABLE_SANDBOX
-  Tagged<WasmInternalFunction> internal_function =
-      Cast<WasmInternalFunction>(Tagged<Object>(raw_internal_function));
-  PrintF("Wasm sandbox violation! Expected signature hash %lx, got %lx\n",
-         expected_hash, internal_function->signature_hash());
-  SBXCHECK_EQ(expected_hash, internal_function->signature_hash());
-#endif
-}
-FUNCTION_REFERENCE(wasm_signature_check_fail, WasmSignatureCheckFail)
-
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)
 #undef V

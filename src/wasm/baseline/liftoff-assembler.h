@@ -1545,7 +1545,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void CallIndirect(const ValueKindSig* sig,
                            compiler::CallDescriptor* call_descriptor,
                            Register target);
-  inline void TailCallIndirect(Register target);
+  inline void TailCallIndirect(compiler::CallDescriptor* call_descriptor,
+                               Register target);
   inline void CallBuiltin(Builtin builtin);
 
   // Reserve space in the current frame, store address to space in {addr}.

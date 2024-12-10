@@ -13,6 +13,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
+#include "src/compiler/linkage.h"
 #include "src/flags/flags.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
@@ -4875,15 +4876,17 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
     popq(kScratchRegister);
     target = kScratchRegister;
   }
-  CallWasmCodePointer(target);
+  CallWasmCodePointer(target, call_descriptor->signature_hash());
 }
 
-void LiftoffAssembler::TailCallIndirect(Register target) {
+void LiftoffAssembler::TailCallIndirect(
+    compiler::CallDescriptor* call_descriptor, Register target) {
   if (target == no_reg) {
     popq(kScratchRegister);
     target = kScratchRegister;
   }
-  CallWasmCodePointer(target, CallJumpMode::kTailCall);
+  CallWasmCodePointer(target, call_descriptor->signature_hash(),
+                      CallJumpMode::kTailCall);
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {

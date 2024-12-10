@@ -714,8 +714,8 @@ class WasmDispatchTableData {
   // wrappers. This function adds an entry for a wrapper. If {compiled_wrapper}
   // is nullptr, the entry is for the generic wrapper.
   // The CodePointerTableEntry is reused for the generic and compiled wrapper.
-  uint32_t Add(int index, Address call_target,
-               wasm::WasmCode* compiled_wrapper);
+  uint32_t Add(int index, Address call_target, wasm::WasmCode* compiled_wrapper,
+               uint64_t signature_hash);
   void Remove(int index, uint32_t call_target);
 
   // The {wrappers_} data structure tracks installed wrappers, both generic
@@ -845,6 +845,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   void V8_EXPORT_PRIVATE SetForWrapper(int index, Tagged<Object> implicit_arg,
                                        Address call_target,
                                        wasm::CanonicalTypeIndex sig_id,
+                                       uint64_t signature_hash,
 #if V8_ENABLE_DRUMBRAKE
                                        uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -974,8 +975,7 @@ class WasmCapiFunction : public JSFunction {
   static Handle<WasmCapiFunction> New(Isolate* isolate, Address call_target,
                                       DirectHandle<Foreign> embedder_data,
                                       wasm::CanonicalTypeIndex sig_index,
-                                      const wasm::CanonicalSig* sig,
-                                      uintptr_t signature_hash);
+                                      const wasm::CanonicalSig* sig);
 
   const wasm::CanonicalSig* sig() const;
 
@@ -1146,7 +1146,7 @@ class WasmJSFunctionData
 
     // These functions return the CPT entry owned by this class.
     uint32_t set_compiled_wrapper(wasm::WasmCode* wrapper);
-    uint32_t set_generic_wrapper(Address call_target);
+    uint32_t set_generic_wrapper(Address call_target, uint64_t signature_hash);
 
    private:
     uint32_t wrapper_code_pointer_ = wasm::kInvalidWasmCodePointer;
@@ -1514,6 +1514,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
 // respective JS representation. The caller is responsible for not providing an
 // object which cannot be transformed to JS.
 Handle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

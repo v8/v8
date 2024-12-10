@@ -337,7 +337,8 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
       call_descriptor->debug_name(),              // debug name
       call_descriptor->GetStackArgumentOrder(),   // stack order
       call_descriptor->AllocatableRegisters(),    // allocatable registers
-      return_slots);                              // return slot count
+      return_slots,                               // return slot count
+      call_descriptor->signature_hash());         // signature hash
 }
 }  // namespace
 

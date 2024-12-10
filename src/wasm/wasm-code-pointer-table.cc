@@ -129,14 +129,14 @@ uint32_t WasmCodePointerTable::GetOrCreateHandleForNativeFunction(
     return it->second;
   }
 
-  uint32_t handle = AllocateAndInitializeEntry(addr);
+  uint32_t handle = AllocateAndInitializeEntry(addr, -1);
   native_function_map_.insert({addr, handle});
 
   return handle;
 }
 
 bool WasmCodePointerTable::EntrypointEqualTo(uint32_t index, Address address) {
-  return at(index).GetEntrypoint() == address;
+  return at(index).GetEntrypointWithoutSignatureCheck() == address;
 }
 
 void WasmCodePointerTable::FreeNativeFunctionHandles() {

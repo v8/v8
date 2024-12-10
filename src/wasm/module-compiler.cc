@@ -1390,7 +1390,8 @@ class FeedbackMaker {
     // into the main jump table, so we only need to check against that.
 
     WasmCodePointerTable::Handle handle = target_truncated_smi.value();
-    Address entry = GetProcessWideWasmCodePointerTable()->GetEntrypoint(handle);
+    Address entry = GetProcessWideWasmCodePointerTable()
+                        ->GetEntrypointWithoutSignatureCheck(handle);
     wasm::WasmCode* code =
         wasm::GetWasmCodeManager()->LookupCode(nullptr, entry);
     if (!code || code->native_module() != instance_data_->native_module() ||

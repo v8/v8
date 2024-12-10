@@ -26,14 +26,19 @@ struct WasmCodePointerTableEntry {
   static constexpr bool IsWriteProtected = true;
 
   // Set the entry to point to a given entrypoint.
-  inline void MakeCodePointerEntry(Address entrypoint);
+  inline void MakeCodePointerEntry(Address entrypoint, uint64_t signature_hash);
+  inline void UpdateCodePointerEntry(Address entrypoint,
+                                     uint64_t signature_hash);
 
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
   inline void MakeFreelistEntry(uint32_t next_entry_index);
 
   // Load code entrypoint pointer stored in this entry.
-  inline Address GetEntrypoint() const;
+  inline Address GetEntrypoint(uint64_t signature_hash) const;
+
+  // Load code entrypoint pointer stored in this entry.
+  inline Address GetEntrypointWithoutSignatureCheck() const;
 
   // Get the index of the next entry on the freelist.
   inline uint32_t GetNextFreelistEntryIndex() const;
@@ -42,6 +47,9 @@ struct WasmCodePointerTableEntry {
   friend class WasmCodePointerTable;
 
   std::atomic<Address> entrypoint_;
+#ifdef V8_ENABLE_SANDBOX
+  uint64_t signature_hash_;
+#endif
 };
 
 // A table for storing valid Wasm code entrypoints. This table allows enforcing
@@ -67,6 +75,10 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
 
   using Handle = uint32_t;
   static constexpr Handle kInvalidHandle = -1;
+#ifdef V8_ENABLE_SANDBOX
+  static constexpr int kOffsetOfSignatureHash =
+      offsetof(WasmCodePointerTableEntry, signature_hash_);
+#endif
 
   using WriteScope = CFIMetadataWriteScope;
 
@@ -77,19 +89,24 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   void TearDown();
 
   // Read the entrypoint at a given index.
-  inline Address GetEntrypoint(uint32_t index) const;
+  inline Address GetEntrypoint(uint32_t index, uint64_t signature_hash) const;
+
+  inline Address GetEntrypointWithoutSignatureCheck(uint32_t index) const;
 
   // Sets the entrypoint of the entry referenced by the given index.
   // The Unlocked version can be used in loops, but you need to hold a
   // `WriteScope` while calling it.
-  inline void SetEntrypoint(uint32_t index, Address value);
+  inline void UpdateEntrypoint(uint32_t index, Address value,
+                               uint64_t signature_hash);
+  inline void SetEntrypointAndSignature(uint32_t index, Address value,
+                                        uint64_t signature_hash);
   inline void SetEntrypointWithWriteScope(uint32_t index, Address value,
+                                          uint64_t signature_hash,
                                           WriteScope& write_scope);
-  inline void SetEntrypointWithRwxWriteScope(uint32_t index, Address value,
-                                             RwxMemoryWriteScope& write_scope);
 
   // Allocates a new entry in the table and optionally initialize it.
-  inline uint32_t AllocateAndInitializeEntry(Address entrypoint);
+  inline uint32_t AllocateAndInitializeEntry(Address entrypoint,
+                                             uint64_t signature_hash);
   inline uint32_t AllocateUninitializedEntry();
 
   // Free an entry, which will add it to the free list.

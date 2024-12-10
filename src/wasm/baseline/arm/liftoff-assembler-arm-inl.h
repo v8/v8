@@ -4874,7 +4874,8 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
   CallWasmCodePointer(target);
 }
 
-void LiftoffAssembler::TailCallIndirect(Register target) {
+void LiftoffAssembler::TailCallIndirect(
+    compiler::CallDescriptor* call_descriptor, Register target) {
   DCHECK(target != no_reg);
   CallWasmCodePointer(target, CallJumpMode::kTailCall);
 }

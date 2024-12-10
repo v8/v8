@@ -552,8 +552,6 @@ class V8_EXPORT_PRIVATE WritableJumpTablePair {
   WritableJitAllocation& jump_table() { return writable_jump_table_; }
   WritableJitAllocation& far_jump_table() { return writable_far_jump_table_; }
 
-  void SetCodePointerTableEntry(uint32_t index, Address target);
-
   ~WritableJumpTablePair();
   WritableJumpTablePair(const WritableJumpTablePair&) = delete;
   WritableJumpTablePair& operator=(const WritableJumpTablePair&) = delete;

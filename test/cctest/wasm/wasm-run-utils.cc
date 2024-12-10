@@ -303,12 +303,13 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       if (function_index < test_module_->num_imported_functions &&
           trusted_instance_data_->dispatch_table_for_imports()->IsAWrapper(
               function_index)) {
+        uint64_t signature_hash = SignatureHasher::Hash(function.sig);
         trusted_instance_data_->dispatch_table(table_index)
             ->SetForWrapper(
                 i, *entry.implicit_arg(),
                 wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(
-                    entry.call_target()),
-                sig_id,
+                    entry.call_target(), signature_hash),
+                sig_id, signature_hash,
 #if V8_ENABLE_DRUMBRAKE
                 function.func_index,
 #endif  // !V8_ENABLE_DRUMBRAKE
@@ -572,15 +573,16 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
 
 WasmFunctionCompiler::~WasmFunctionCompiler() = default;
 
-/* static */
-FunctionSig* WasmRunnerBase::CreateSig(Zone* zone, MachineType return_type,
+FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
                                        base::Vector<MachineType> param_types) {
   int return_count = return_type.IsNone() ? 0 : 1;
   int param_count = param_types.length();
 
+  Zone& zone = builder_.SignatureZone();
+
   // Allocate storage array in zone.
   ValueType* sig_types =
-      zone->AllocateArray<ValueType>(return_count + param_count);
+      zone.AllocateArray<ValueType>(return_count + param_count);
 
   // Convert machine types to local types, and check that there are no
   // MachineType::None()'s in the parameters.
@@ -590,7 +592,7 @@ FunctionSig* WasmRunnerBase::CreateSig(Zone* zone, MachineType return_type,
     CHECK_NE(MachineType::None(), param);
     sig_types[idx++] = ValueType::For(param);
   }
-  return zone->New<FunctionSig>(return_count, param_count, sig_types);
+  return zone.New<FunctionSig>(return_count, param_count, sig_types);
 }
 
 }  // namespace wasm

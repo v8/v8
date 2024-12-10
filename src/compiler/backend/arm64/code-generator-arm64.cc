@@ -824,7 +824,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Call(wasm_code, constant.rmode());
       } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
-        __ CallWasmCodePointer(i.InputRegister(0));
+        __ CallWasmCodePointer(
+            i.InputRegister(0),
+            i.InputInt64(instr->WasmSignatureHashInputIndex()));
       } else {
         __ Call(i.InputRegister(0));
       }
@@ -845,7 +847,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         temps.Exclude(x17);
         __ Mov(x17, target);
         if (arch_opcode == kArchTailCallWasmIndirect) {
-          __ CallWasmCodePointer(x17, CallJumpMode::kTailCall);
+          __ CallWasmCodePointer(
+              x17, i.InputInt64(instr->WasmSignatureHashInputIndex()),
+              CallJumpMode::kTailCall);
         } else {
           __ Jump(x17);
         }

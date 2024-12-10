@@ -191,10 +191,12 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
           handles.main_isolate(), code->instruction_size());
       wasm::WasmCodeRefScope wasm_code_ref_scope;
-      wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+      wasm::WasmCode* wasm_code =
+          module->AddCodeForTesting(code, desc->signature_hash());
       uint32_t code_pointer =
           wasm::GetProcessWideWasmCodePointerTable()
-              ->AllocateAndInitializeEntry(wasm_code->instruction_start());
+              ->AllocateAndInitializeEntry(wasm_code->instruction_start(),
+                                           wasm_code->signature_hash());
 
       RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
@@ -243,7 +245,9 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
 // Create a frame larger than UINT16_MAX to force TF to use an extra register
 // when popping the frame.
 TEST(TestReturnMultipleValuesLargeFrame) {
-  TestReturnMultipleValues<20000, 20000>(MachineType::Int32(), 2, 3);
+  TestReturnMultipleValues<wasm::kV8MaxWasmFunctionParams,
+                           wasm::kV8MaxWasmFunctionParams>(MachineType::Int32(),
+                                                           2, 3);
 }
 
 TEST_MULTI(Int32, MachineType::Int32())
@@ -292,10 +296,11 @@ void ReturnLastValue(MachineType type) {
     std::shared_ptr<wasm::NativeModule> module =
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+    wasm::WasmCode* wasm_code =
+        module->AddCodeForTesting(code, desc->signature_hash());
     uint32_t code_pointer =
         wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
-            wasm_code->instruction_start());
+            wasm_code->instruction_start(), wasm_code->signature_hash());
 
     // Generate caller.
     int expect = return_count - 1;
@@ -361,10 +366,11 @@ void ReturnSumOfReturns(MachineType type) {
     std::shared_ptr<wasm::NativeModule> module =
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+    wasm::WasmCode* wasm_code =
+        module->AddCodeForTesting(code, desc->signature_hash());
     uint32_t code_pointer =
         wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
-            wasm_code->instruction_start());
+            wasm_code->instruction_start(), wasm_code->signature_hash());
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;

@@ -87,7 +87,7 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
 constexpr uint32_t kInvalidWasmCodePointer =
     WasmCodePointerTable::kInvalidHandle;
 
-// Resolve the entry address of a uint32_t
+// Resolve the entry address of a WasmCodePointer
 V8_EXPORT_PRIVATE Address WasmCodePointerAddress(uint32_t pointer);
 
 class V8_EXPORT_PRIVATE WasmCode final {
@@ -213,6 +213,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   int unpadded_binary_size() const { return unpadded_binary_size_; }
   int stack_slots() const { return stack_slots_; }
   int ool_spills() const { return ool_spills_; }
+  uint64_t signature_hash() const { return signature_hash_; }
   uint16_t first_tagged_parameter_slot() const {
     return tagged_parameter_slots_ >> 16;
   }
@@ -353,9 +354,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
            base::Vector<const uint8_t> inlining_positions,
            base::Vector<const uint8_t> deopt_data, Kind kind,
            ExecutionTier tier, ForDebugging for_debugging,
-           bool frame_has_feedback_slot = false)
+           uint64_t signature_hash, bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
+        signature_hash_(signature_hash),
         meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
                                      source_position_table, inlining_positions,
                                      deopt_data})),
@@ -409,6 +411,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   NativeModule* const native_module_ = nullptr;
   uint8_t* const instructions_;
+  const uint64_t signature_hash_;
   // {meta_data_} contains several byte vectors concatenated into one:
   //  - protected instructions data of size {protected_instructions_size_}
   //  - relocation info of size {reloc_info_size_}
@@ -607,7 +610,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       ExecutionTier tier);
 
   // Adds anonymous code for testing purposes.
-  WasmCode* AddCodeForTesting(DirectHandle<Code> code);
+  WasmCode* AddCodeForTesting(DirectHandle<Code> code, uint64_t signature_hash);
 
   // Allocates and initializes the {lazy_compile_table_} and initializes the
   // first jump table with jumps to the {lazy_compile_table_}.
@@ -934,7 +937,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // compile table which doesn't have the bti instruction on ARM and is thus not
   // a valid target for indirect branches.
   void PatchJumpTablesLocked(uint32_t slot_index, Address target,
-                             Address code_pointer_table_target);
+                             Address code_pointer_table_target,
+                             uint64_t signature_hash);
   void PatchJumpTableLocked(WritableJumpTablePair& jump_table_pair,
                             const CodeSpaceData&, uint32_t slot_index,
                             Address target);

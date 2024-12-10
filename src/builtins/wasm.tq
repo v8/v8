@@ -135,10 +135,6 @@ extern macro WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame():
 
 extern macro WasmBuiltinsAssembler::StringToFloat64(String): float64;
 
-// This doesn't return, but the return type {never} confuses the CSA graph.
-extern macro WasmBuiltinsAssembler::SignatureCheckFail(
-    WasmInternalFunction, uintptr): Smi;
-
 extern macro SwitchToTheCentralStackIfNeeded(): RawPtr;
 extern macro SwitchFromTheCentralStack(RawPtr): void;
 
@@ -734,20 +730,12 @@ struct TargetAndImplicitArg {
 }
 
 builtin CallRefIC(
-    vector: FixedArray, vectorIndex: int32, signatureHash: uintptr,
+    vector: FixedArray, vectorIndex: int32,
     funcref: WasmFuncRef): TargetAndImplicitArg {
   dcheck(Is<WasmFuncRef>(funcref));
   UpdateCallRefOrIndirectIC(vector, Convert<intptr>(vectorIndex), funcref);
 
   const internal = funcref.internal;
-  @if(V8_ENABLE_SANDBOX) {
-    if (signatureHash != internal.signature_hash) deferred {
-        SignatureCheckFail(internal, signatureHash);
-      }
-  }
-  @ifnot(V8_ENABLE_SANDBOX) {
-    dcheck(signatureHash == 0);  // Avoids "unused variable" warning.
-  }
   return TargetAndImplicitArg{
     target: internal.call_target,
     implicit_arg: internal.implicit_arg

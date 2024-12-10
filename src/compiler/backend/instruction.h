@@ -1058,6 +1058,23 @@ class V8_EXPORT_PRIVATE Instruction final {
     return MiscField::decode(opcode()) & flag;
   }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+  size_t WasmSignatureHashInputIndex() const {
+    // Keep in sync with instruction-selector.cc where the inputs are assembled.
+    switch (arch_opcode()) {
+      case kArchCallWasmFunctionIndirect:
+        return InputCount() -
+               (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)
+                    ? 2
+                    : 1);
+      case kArchTailCallWasmIndirect:
+        return InputCount() - 3;
+      default:
+        UNREACHABLE();
+    }
+  }
+#endif
+
   // For call instructions, computes the index of the CodeEntrypointTag input.
   size_t CodeEnrypointTagInputIndex() const {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.

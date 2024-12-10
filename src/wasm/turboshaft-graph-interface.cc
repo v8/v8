@@ -26,7 +26,6 @@
 #include "src/wasm/inlining-tree.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/memory-tracing.h"
-#include "src/wasm/signature-hashing.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -231,25 +230,11 @@ WasmGraphBuilderBase::BuildImportedFunctionTargetAndImplicitArg(
 
 std::pair<V<Word32>, V<ExposedTrustedObject>>
 WasmGraphBuilderBase::BuildFunctionTargetAndImplicitArg(
-    V<WasmInternalFunction> internal_function, uint64_t expected_sig_hash) {
+    V<WasmInternalFunction> internal_function) {
   V<ExposedTrustedObject> implicit_arg =
       V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
           internal_function, LoadOp::Kind::TaggedBase().Immutable(),
           WasmInternalFunction::kProtectedImplicitArgOffset));
-
-#if V8_ENABLE_SANDBOX
-  V<Word64> actual_sig_hash =
-      __ Load(internal_function, LoadOp::Kind::TaggedBase(),
-              MemoryRepresentation::Uint64(),
-              WasmInternalFunction::kSignatureHashOffset);
-  IF_NOT (LIKELY(__ Word64Equal(actual_sig_hash, expected_sig_hash))) {
-    auto sig = FixedSizeSignature<MachineType>::Params(MachineType::AnyTagged(),
-                                                       MachineType::Uint64());
-    CallC(&sig, ExternalReference::wasm_signature_check_fail(),
-          {internal_function, __ Word64Constant(expected_sig_hash)});
-    __ Unreachable();
-  }
-#endif
 
   V<Word32> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
                              MemoryRepresentation::Uint32(),
@@ -3008,12 +2993,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // which might be non-existent (OpIndex::Invalid()) in unreachable code.
     if (__ generating_unreachable_operations()) return;
 
-#if V8_ENABLE_SANDBOX
-    uint64_t signature_hash = SignatureHasher::Hash(sig);
-#else
-    uint64_t signature_hash = 0;
-#endif  // V8_ENABLE_SANDBOX
-
     if (should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
       DCHECK(!shared_);
@@ -3117,8 +3096,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         TSBlock* no_inline_block = case_blocks.back();
         __ Bind(no_inline_block);
         auto [target, implicit_arg] =
-            BuildFunctionReferenceTargetAndImplicitArg(
-                func_ref.op, func_ref.type, signature_hash);
+            BuildFunctionReferenceTargetAndImplicitArg(func_ref.op,
+                                                       func_ref.type);
         SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
         BuildWasmCall(decoder, sig, target, implicit_arg, args,
                       ref_returns.data(), compiler::kWasmIndirectFunction);
@@ -3135,7 +3114,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       }
     } else {
       auto [target, implicit_arg] = BuildFunctionReferenceTargetAndImplicitArg(
-          func_ref.op, func_ref.type, signature_hash);
+          func_ref.op, func_ref.type);
       BuildWasmCall(decoder, sig, target, implicit_arg, args, returns,
                     compiler::kWasmIndirectFunction);
     }
@@ -3144,12 +3123,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, const Value args[]) {
     feedback_slot_++;
-
-#if V8_ENABLE_SANDBOX
-    uint64_t signature_hash = SignatureHasher::Hash(sig);
-#else
-    uint64_t signature_hash = 0;
-#endif  // V8_ENABLE_SANDBOX
 
     if (should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
@@ -3206,8 +3179,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       TSBlock* no_inline_block = case_blocks.back();
       __ Bind(no_inline_block);
     }
-    auto [target, implicit_arg] = BuildFunctionReferenceTargetAndImplicitArg(
-        func_ref.op, func_ref.type, signature_hash);
+    auto [target, implicit_arg] =
+        BuildFunctionReferenceTargetAndImplicitArg(func_ref.op, func_ref.type);
     BuildWasmMaybeReturnCall(decoder, sig, target, implicit_arg, args,
                              compiler::kWasmIndirectFunction);
   }
@@ -7382,8 +7355,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // WasmImportData) from a function reference.
   std::pair<V<Word32>, V<ExposedTrustedObject>>
   BuildFunctionReferenceTargetAndImplicitArg(V<WasmFuncRef> func_ref,
-                                             ValueType type,
-                                             uint64_t expected_sig_hash) {
+                                             ValueType type) {
     if (type.is_nullable() &&
         null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
       func_ref = V<WasmFuncRef>::Cast(
@@ -7401,8 +7373,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             func_ref, load_kind, kWasmInternalFunctionIndirectPointerTag,
             WasmFuncRef::kTrustedInternalOffset));
 
-    return BuildFunctionTargetAndImplicitArg(internal_function,
-                                             expected_sig_hash);
+    return BuildFunctionTargetAndImplicitArg(internal_function);
   }
 
   OpIndex AnnotateResultIfReference(OpIndex result, wasm::ValueType type) {
@@ -7729,22 +7700,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       return __ TruncateWordPtrToWord32(__ WordPtrShiftRightLogical(
           V<WordPtr>::Cast(value), kSmiShiftSize + kSmiTagSize));
     }
-  }
-
-  V<WordPtr> BuildLoadWasmCodeEntrypointViaCodePointer(V<Word32> handle) {
-#ifdef V8_ENABLE_SANDBOX
-    V<Word32> index =
-        __ Word32ShiftRightLogical(handle, kCodePointerHandleShift);
-    V<WordPtr> offset = __ ChangeUint32ToUintPtr(
-        __ Word32ShiftLeft(index, kCodePointerTableEntrySizeLog2));
-    V<WordPtr> table =
-        __ ExternalConstant(ExternalReference::code_pointer_table_address());
-    V<WordPtr> entry = __ Load(table, offset, LoadOp::Kind::RawAligned(),
-                               MemoryRepresentation::UintPtr());
-    return __ Word64BitwiseXor(entry, __ UintPtrConstant(kWasmEntrypointTag));
-#else
-    UNREACHABLE();
-#endif
   }
 
   void BuildEncodeException32BitValue(V<FixedArray> values_array,

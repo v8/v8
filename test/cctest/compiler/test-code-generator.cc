@@ -1687,10 +1687,11 @@ TEST(Regress_1171759) {
   std::shared_ptr<wasm::NativeModule> module =
       AllocateNativeModule(handles.main_isolate(), code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  wasm::WasmCode* wasm_code = module->AddCodeForTesting(code);
+  wasm::WasmCode* wasm_code =
+      module->AddCodeForTesting(code, desc->signature_hash());
   uint32_t code_pointer =
       wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
-          wasm_code->instruction_start());
+          wasm_code->instruction_start(), wasm_code->signature_hash());
 
   // Generate a minimal calling function, to push stack arguments.
   RawMachineAssemblerTester<int32_t> mt;

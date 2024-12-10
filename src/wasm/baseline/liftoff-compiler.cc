@@ -31,7 +31,6 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/object-access.h"
-#include "src/wasm/signature-hashing.h"
 #include "src/wasm/simd-shuffle.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
@@ -8445,7 +8444,7 @@ class LiftoffCompiler {
             static_cast<int>(call_descriptor->ParameterSlotCount()),
             static_cast<int>(
                 call_descriptor->GetStackParameterDelta(descriptor_)));
-        __ TailCallIndirect(target);
+        __ TailCallIndirect(call_descriptor, target);
       } else {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
@@ -8815,7 +8814,7 @@ class LiftoffCompiler {
             static_cast<int>(call_descriptor->ParameterSlotCount()),
             static_cast<int>(
                 call_descriptor->GetStackParameterDelta(descriptor_)));
-        __ TailCallIndirect(target);
+        __ TailCallIndirect(call_descriptor, target);
       } else {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
@@ -8905,15 +8904,6 @@ class LiftoffCompiler {
       MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
       VarState func_ref_var(kRef, func_ref, 0);
 
-#if V8_ENABLE_SANDBOX
-      LiftoffRegister sig_hash_reg =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ LoadConstant(sig_hash_reg, WasmValue{SignatureHasher::Hash(type_sig)});
-      VarState sig_hash_var{kIntPtrKind, sig_hash_reg, 0};
-#else
-      VarState sig_hash_var{kIntPtrKind, 0, 0};  // Unused by callee.
-#endif
-
       __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset, kRef);
       VarState vector_var{kRef, vector, 0};
       // A constant `uint32_t` is sufficient for the vector slot index.
@@ -8928,13 +8918,11 @@ class LiftoffCompiler {
       VarState index_var(kI32, vector_slot, 0);
 
       // CallRefIC(vector: FixedArray, vectorIndex: int32,
-      //           signatureHash: uintptr,
       //           funcref: WasmFuncRef) -> <target, implicit_arg>
-      CallBuiltin(Builtin::kCallRefIC,
-                  MakeSig::Returns(kIntPtrKind, kIntPtrKind)
-                      .Params(kRef, kI32, kIntPtrKind, kRef),
-                  {vector_var, index_var, sig_hash_var, func_ref_var},
-                  decoder->position());
+      CallBuiltin(
+          Builtin::kCallRefIC,
+          MakeSig::Returns(kIntPtrKind, kIntPtrKind).Params(kRef, kI32, kRef),
+          {vector_var, index_var, func_ref_var}, decoder->position());
       target_reg = LiftoffRegister(kReturnRegister0).gp();
       implicit_arg_reg = kReturnRegister1;
     } else {  // v8_flags.wasm_inlining
@@ -8979,7 +8967,7 @@ class LiftoffCompiler {
           static_cast<int>(call_descriptor->ParameterSlotCount()),
           static_cast<int>(
               call_descriptor->GetStackParameterDelta(descriptor_)));
-      __ TailCallIndirect(target_reg);
+      __ TailCallIndirect(call_descriptor, target_reg);
     } else {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
@@ -9477,6 +9465,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.for_debugging = compiler_options.for_debugging;
   result.frame_has_feedback_slot = v8_flags.wasm_inlining;
   result.liftoff_frame_descriptions = compiler->ReleaseFrameDescriptions();
+  result.signature_hash = lowered_call_desc->signature_hash();
   if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }

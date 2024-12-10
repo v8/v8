@@ -18,6 +18,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/string-format.h"
 #include "src/base/vector.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -37,6 +38,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/pgo.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-builtin-list.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
@@ -623,7 +625,7 @@ std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
 }
 
 size_t WasmCode::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 96);
+  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 104);
   size_t result = sizeof(WasmCode);
   // For meta_data_.
   result += protected_instructions_size_ + reloc_info_size_ +
@@ -1033,7 +1035,8 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
   }
 }
 
-WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code) {
+WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code,
+                                          uint64_t signature_hash) {
   const size_t relocation_size = code->relocation_size();
   base::OwnedVector<uint8_t> reloc_info =
       base::OwnedCopyOf(code->relocation_start(), relocation_size);
@@ -1131,7 +1134,8 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code) {
                    {},                       // deopt data
                    WasmCode::kWasmFunction,  // kind
                    ExecutionTier::kNone,     // tier
-                   kNotForDebugging}};       // for_debugging
+                   kNotForDebugging,         // for_debugging
+                   signature_hash}};         // signature_hash
   new_code->MaybePrint();
   new_code->Validate();
 
@@ -1172,11 +1176,16 @@ void NativeModule::InitializeJumpTableForLazyCompilation(
       "Initialize WasmCodePointerTable");
   DCHECK_LE(num_wasm_functions, code_pointer_handles_size_);
   for (uint32_t i = 0; i < num_wasm_functions; i++) {
+    uint64_t signature_hash =
+        module_->num_imported_functions + i < module_->functions.size()
+            ? SignatureHasher::Hash(
+                  module_->functions[module_->num_imported_functions + i].sig)
+            : -1;
     code_pointer_table->SetEntrypointWithWriteScope(
         code_pointer_handles_[i],
         code_space_data.jump_table->instruction_start() +
             JumpTableAssembler::JumpSlotIndexToOffset(i),
-        write_scope);
+        signature_hash, write_scope);
   }
 }
 
@@ -1200,7 +1209,10 @@ void NativeModule::UseLazyStubLocked(uint32_t func_index) {
   Address lazy_compile_target =
       lazy_compile_table_->instruction_start() +
       JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
-  PatchJumpTablesLocked(slot_index, lazy_compile_target, jump_table_target);
+  uint64_t signature_hash =
+      SignatureHasher::Hash(module_->functions[func_index].sig);
+  PatchJumpTablesLocked(slot_index, lazy_compile_target, jump_table_target,
+                        signature_hash);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCode(
@@ -1335,6 +1347,9 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   // relocation information.
   if (tier == ExecutionTier::kLiftoff) reloc_info = {};
 
+  uint64_t signature_hash =
+      SignatureHasher::Hash(module_->functions[index].sig);
+
   std::unique_ptr<WasmCode> code{new WasmCode{this,
                                               index,
                                               dst_code_bytes,
@@ -1354,6 +1369,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
                                               kind,
                                               tier,
                                               for_debugging,
+                                              signature_hash,
                                               frame_has_feedback_slot}};
 
   code->MaybePrint();
@@ -1471,7 +1487,7 @@ WasmCode* NativeModule::PublishCodeLocked(
     }
 
     PatchJumpTablesLocked(slot_idx, code->instruction_start(),
-                          code->instruction_start());
+                          code->instruction_start(), code->signature_hash());
   } else {
     // The code tables does not hold a reference to the code, hence decrement
     // the initial ref count of 1. The code was added to the
@@ -1536,7 +1552,7 @@ void NativeModule::ReinstallDebugCode(WasmCode* code) {
   code->IncRef();
 
   PatchJumpTablesLocked(slot_idx, code->instruction_start(),
-                        code->instruction_start());
+                        code->instruction_start(), code->signature_hash());
 }
 
 std::pair<base::Vector<uint8_t>, NativeModule::JumpTablesRef>
@@ -1562,12 +1578,29 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     ExecutionTier tier) {
   UpdateCodeSize(instructions.size(), tier, kNotForDebugging);
 
-  return std::unique_ptr<WasmCode>{new WasmCode{
-      this, index, instructions, stack_slots, ool_spills,
-      tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
-      constant_pool_offset, code_comments_offset, unpadded_binary_size,
-      protected_instructions_data, reloc_info, source_position_table,
-      inlining_positions, deopt_data, kind, tier, kNotForDebugging}};
+  uint64_t signature_hash =
+      SignatureHasher::Hash(module_->functions[index].sig);
+
+  return std::unique_ptr<WasmCode>{new WasmCode{this,
+                                                index,
+                                                instructions,
+                                                stack_slots,
+                                                ool_spills,
+                                                tagged_parameter_slots,
+                                                safepoint_table_offset,
+                                                handler_table_offset,
+                                                constant_pool_offset,
+                                                code_comments_offset,
+                                                unpadded_binary_size,
+                                                protected_instructions_data,
+                                                reloc_info,
+                                                source_position_table,
+                                                inlining_positions,
+                                                deopt_data,
+                                                kind,
+                                                tier,
+                                                kNotForDebugging,
+                                                signature_hash}};
 }
 
 std::pair<std::vector<WasmCode*>, std::vector<WellKnownImport>>
@@ -1680,7 +1713,8 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    {},                    // deopt data
                    WasmCode::kJumpTable,  // kind
                    ExecutionTier::kNone,  // tier
-                   kNotForDebugging}};    // for_debugging
+                   kNotForDebugging,      // for_debugging
+                   0}};                   // signature_hash
   return PublishCodeLocked(std::move(code));
 }
 
@@ -1694,11 +1728,13 @@ void NativeModule::UpdateCodeSize(size_t size, ExecutionTier tier,
 }
 
 void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target,
-                                         Address code_pointer_table_target) {
+                                         Address code_pointer_table_target,
+                                         uint64_t signature_hash) {
   allocation_mutex_.AssertHeld();
 
-  GetProcessWideWasmCodePointerTable()->SetEntrypoint(
-      code_pointer_handles_[slot_index], code_pointer_table_target);
+  GetProcessWideWasmCodePointerTable()->SetEntrypointAndSignature(
+      code_pointer_handles_[slot_index], code_pointer_table_target,
+      signature_hash);
 
   for (auto& code_space_data : code_space_data_) {
     // TODO(sroettger): need to unlock both jump tables together
@@ -2972,10 +3008,6 @@ WasmCodeLookupCache::CacheEntry* WasmCodeLookupCache::GetCacheEntry(
     entry->safepoint_entry.Reset();
   }
   return entry;
-}
-
-Address WasmCodePointerAddress(uint32_t pointer) {
-  return wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(pointer);
 }
 
 }  // namespace wasm

@@ -1764,8 +1764,7 @@ Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 }
 
 Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
-    DirectHandle<TrustedObject> implicit_arg, int function_index,
-    uintptr_t signature_hash) {
+    DirectHandle<TrustedObject> implicit_arg, int function_index) {
   Tagged<WasmInternalFunction> internal =
       Cast<WasmInternalFunction>(AllocateRawWithImmortalMap(
           WasmInternalFunction::kSize, AllocationType::kTrusted,
@@ -1777,9 +1776,6 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
            IsWasmImportData(*implicit_arg));
     internal->set_implicit_arg(*implicit_arg);
-#if V8_ENABLE_SANDBOX
-    internal->set_signature_hash(signature_hash);
-#endif  // V8_SANDBOX
     // Default values, will be overwritten by the caller.
     internal->set_function_index(function_index);
     internal->set_external(*undefined_value());
@@ -1805,7 +1801,7 @@ Handle<WasmFuncRef> Factory::NewWasmFuncRef(
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     wasm::CanonicalTypeIndex sig_index, DirectHandle<JSReceiver> callable,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    wasm::Suspend suspend, wasm::Promise promise, uintptr_t signature_hash) {
+    wasm::Suspend suspend, wasm::Promise promise) {
   // TODO(clemensb): Should this be passed instead of looked up here?
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
@@ -1820,7 +1816,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
           std::make_shared<WasmJSFunctionData::OffheapData>());
 
   DirectHandle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(import_data, -1, signature_hash);
+      NewWasmInternalFunction(import_data, -1);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   import_data->SetFuncRefAsCallOrigin(*internal);
   Tagged<Map> map = *wasm_js_function_data_map();
@@ -1924,13 +1920,12 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, DirectHandle<Foreign> embedder_data,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
-    wasm::CanonicalTypeIndex sig_index, const wasm::CanonicalSig* sig,
-    uintptr_t signature_hash) {
+    wasm::CanonicalTypeIndex sig_index, const wasm::CanonicalSig* sig) {
   DirectHandle<WasmImportData> import_data =
       NewWasmImportData(undefined_value(), wasm::kNoSuspend,
                         DirectHandle<WasmTrustedInstanceData>(), sig);
   DirectHandle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(import_data, -1, signature_hash);
+      NewWasmInternalFunction(import_data, -1);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   // We have no generic wrappers for C-API functions, so we don't need to
   // set any call origin on {import_data}.

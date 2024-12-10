@@ -112,7 +112,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  const char* debug_name = "",
                  StackArgumentOrder stack_order = StackArgumentOrder::kDefault,
                  const RegList allocatable_registers = {},
-                 size_t return_slot_count = 0)
+                 size_t return_slot_count = 0, uint64_t signature_hash = -1)
       : kind_(kind),
         tag_(tag),
         target_type_(target_type),
@@ -126,7 +126,14 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         allocatable_registers_(allocatable_registers),
         flags_(flags),
         stack_order_(stack_order),
-        debug_name_(debug_name) {}
+        debug_name_(debug_name),
+        signature_hash_(signature_hash) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+    if (kind == Kind::kCallWasmFunctionIndirect) {
+      CHECK_NE(signature_hash, -1);
+    }
+#endif
+  }
 
   CallDescriptor(const CallDescriptor&) = delete;
   CallDescriptor& operator=(const CallDescriptor&) = delete;
@@ -136,6 +143,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns the entrypoint tag for this call.
   CodeEntrypointTag tag() const { return tag_; }
+
+  uint64_t signature_hash() const { return signature_hash_; }
 
   // Returns the entrypoint tag for this call, shifted to the right by
   // kCodeEntrypointTagShift so that it fits into a 32-bit immediate.
@@ -347,6 +356,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const Flags flags_;
   const StackArgumentOrder stack_order_;
   const char* const debug_name_;
+
+  uint64_t signature_hash_;
 
   mutable std::optional<size_t> gp_param_count_;
   mutable std::optional<size_t> fp_param_count_;

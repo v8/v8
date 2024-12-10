@@ -111,6 +111,7 @@ namespace internal {
   V(kMetadataAreaStartDoesNotMatch,                                            \
     "The metadata doesn't belong to the chunk")                                \
   V(kJSSignatureMismatch, "Signature mismatch during JS function call")        \
+  V(kWasmSignatureMismatch, "Signature mismatch during Wasm indirect call")    \
   V(kFastCallFallbackInvalid, "Fast call fallback returned incorrect type")
 
 #define BAILOUT_MESSAGES_LIST(V)                                             \

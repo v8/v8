@@ -541,9 +541,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
                            uint16_t argument_count);
 #endif
 #ifdef V8_ENABLE_WEBASSEMBLY
-  void ResolveWasmCodePointer(Register target);
-  void CallWasmCodePointer(Register target,
+  void ResolveWasmCodePointer(Register target, uint64_t signature_hash);
+  void CallWasmCodePointer(Register target, uint64_t signature_hash,
                            CallJumpMode call_jump_mode = CallJumpMode::kCall);
+  void CallWasmCodePointerNoSignatureCheck(Register target);
   void LoadWasmCodePointer(Register dst, Operand src);
 #endif
 

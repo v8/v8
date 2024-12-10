@@ -2239,16 +2239,8 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
         i_isolate));
   }
 
-#if V8_ENABLE_SANDBOX
-  uint64_t signature_hash =
-      i::wasm::SignatureHasher::Hash(module->functions[func_index].sig);
-#else
-  uintptr_t signature_hash = 0;
-#endif
-
   i::DirectHandle<i::WasmInternalFunction> internal =
-      i_isolate->factory()->NewWasmInternalFunction(implicit_arg, func_index,
-                                                    signature_hash);
+      i_isolate->factory()->NewWasmInternalFunction(implicit_arg, func_index);
   i::DirectHandle<i::WasmFuncRef> func_ref =
       i_isolate->factory()->NewWasmFuncRef(internal, rtt);
   internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));
