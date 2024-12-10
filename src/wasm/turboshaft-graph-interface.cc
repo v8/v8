@@ -2574,7 +2574,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         break;
       case WKI::kDataViewByteLength: {
         V<Object> dataview = args[0].op;
-
         V<WordPtr> view_byte_length =
             GetDataViewByteLength(decoder, dataview, DataViewOp::kByteLength);
         if constexpr (Is64()) {
@@ -2586,6 +2585,40 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
         break;
       }
+
+        // Math functions.
+      case WKI::kMathF64Acos:
+        result = __ Float64Acos(args[0].op);
+        break;
+      case WKI::kMathF64Asin:
+        result = __ Float64Asin(args[0].op);
+        break;
+      case WKI::kMathF64Atan:
+        result = __ Float64Atan(args[0].op);
+        break;
+      case WKI::kMathF64Atan2:
+        result = __ Float64Atan2(args[0].op, args[1].op);
+        break;
+      case WKI::kMathF64Cos:
+        result = __ Float64Cos(args[0].op);
+        break;
+      case WKI::kMathF64Sin:
+        result = __ Float64Sin(args[0].op);
+        break;
+      case WKI::kMathF64Tan:
+        result = __ Float64Tan(args[0].op);
+        break;
+      case WKI::kMathF64Exp:
+        result = __ Float64Exp(args[0].op);
+        break;
+      case WKI::kMathF64Log:
+        result = __ Float64Log(args[0].op);
+        break;
+      case WKI::kMathF64Pow:
+        result = __ Float64Power(args[0].op, args[1].op);
+        break;
+
+        // Fast API calls.
       case WKI::kFastAPICall: {
         WellKnown_FastApi(decoder, imm, args, returns);
         result = returns[0].op;

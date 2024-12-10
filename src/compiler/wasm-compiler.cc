@@ -8571,42 +8571,6 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
 
 namespace {
 
-wasm::WasmOpcode GetMathIntrinsicOpcode(wasm::ImportCallKind kind,
-                                        const char** name_ptr) {
-#define CASE(name)                          \
-  case wasm::ImportCallKind::k##name:       \
-    *name_ptr = "WasmMathIntrinsic:" #name; \
-    return wasm::kExpr##name
-  switch (kind) {
-    CASE(F64Acos);
-    CASE(F64Asin);
-    CASE(F64Atan);
-    CASE(F64Cos);
-    CASE(F64Sin);
-    CASE(F64Tan);
-    CASE(F64Exp);
-    CASE(F64Log);
-    CASE(F64Atan2);
-    CASE(F64Pow);
-    CASE(F64Ceil);
-    CASE(F64Floor);
-    CASE(F64Sqrt);
-    CASE(F64Min);
-    CASE(F64Max);
-    CASE(F64Abs);
-    CASE(F32Min);
-    CASE(F32Max);
-    CASE(F32Abs);
-    CASE(F32Ceil);
-    CASE(F32Floor);
-    CASE(F32Sqrt);
-    CASE(F32ConvertF64);
-    default:
-      UNREACHABLE();
-  }
-#undef CASE
-}
-
 MachineGraph* CreateCommonMachineGraph(Zone* zone) {
   return zone->New<MachineGraph>(
       zone->New<Graph>(zone), zone->New<CommonOperatorBuilder>(zone),
@@ -8614,59 +8578,6 @@ MachineGraph* CreateCommonMachineGraph(Zone* zone) {
           zone, MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements()));
-}
-
-wasm::WasmCompilationResult CompileWasmMathIntrinsic(
-    wasm::ImportCallKind kind, const wasm::CanonicalSig* sig) {
-  DCHECK_EQ(1, sig->return_count());
-
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.CompileWasmMathIntrinsic");
-
-  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
-
-  // Compile a Wasm function with a single bytecode and let TurboFan
-  // generate either inlined machine code or a call to a helper.
-  SourcePositionTable* source_positions = nullptr;
-  MachineGraph* mcgraph = CreateCommonMachineGraph(&zone);
-
-  WasmGraphBuilder builder(
-      nullptr, mcgraph->zone(), mcgraph, nullptr /* function_sig */,
-      source_positions, WasmGraphBuilder::kWasmImportDataMode,
-      nullptr /* isolate */, wasm::WasmEnabledFeatures::All(), sig);
-
-  // Set up the graph start.
-  builder.Start(static_cast<int>(sig->parameter_count() + 1 + 1));
-
-  // Generate either a unop or a binop.
-  Node* node = nullptr;
-  const char* debug_name = "WasmMathIntrinsic";
-  auto opcode = GetMathIntrinsicOpcode(kind, &debug_name);
-  switch (sig->parameter_count()) {
-    case 1:
-      node = builder.Unop(opcode, builder.Param(1));
-      break;
-    case 2:
-      node = builder.Binop(opcode, builder.Param(1), builder.Param(2));
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  builder.Return(node);
-
-  // Run the compiler pipeline to generate machine code.
-  auto call_descriptor = GetWasmCallDescriptor(&zone, sig);
-  if (mcgraph->machine()->Is32()) {
-    call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
-  }
-
-  // The code does not call to JS, but conceptually it is an import wrapper,
-  // hence use {WASM_TO_JS_FUNCTION} here.
-  // TODO(wasm): Rename this to {WASM_IMPORT_CALL}?
-  return Pipeline::GenerateCodeForWasmNativeStub(
-      call_descriptor, mcgraph, CodeKind::WASM_TO_JS_FUNCTION, debug_name,
-      WasmStubAssemblerOptions(), source_positions);
 }
 
 }  // namespace
@@ -8677,14 +8588,6 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToWasm, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToJSFastApi, kind);
-
-  // Check for math intrinsics first.
-  if (v8_flags.wasm_math_intrinsics &&
-      kind >= wasm::ImportCallKind::kFirstMathIntrinsic &&
-      kind <= wasm::ImportCallKind::kLastMathIntrinsic) {
-    // TODO(thibaudm): Port to Turboshaft.
-    return CompileWasmMathIntrinsic(kind, sig);
-  }
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmImportCallWrapper");

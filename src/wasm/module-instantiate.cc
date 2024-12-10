@@ -409,7 +409,7 @@ const MachineSignature* GetFunctionSigForFastApiImport(
 // This detects imports of the forms:
 // - `Function.prototype.call.bind(foo)`, where `foo` is something that has a
 //   Builtin id.
-// - JSFunction with Builtin id (e.g. `parseFloat`).
+// - JSFunction with Builtin id (e.g. `parseFloat`, `Math.sin`).
 WellKnownImport CheckForWellKnownImport(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     DirectHandle<JSReceiver> callable, const wasm::CanonicalSig* sig) {
@@ -434,6 +434,36 @@ WellKnownImport CheckForWellKnownImport(
           return WellKnownImport::kParseFloat;
         }
         break;
+
+        // =================================================================
+        // Math functions.
+#define COMPARE_MATH_BUILTIN_F64(name)                                       \
+  case Builtin::kMath##name: {                                               \
+    if (!v8_flags.wasm_math_intrinsics) return kGeneric;                     \
+    const FunctionSig* builtin_sig = WasmOpcodes::Signature(kExprF64##name); \
+    if (!builtin_sig) {                                                      \
+      builtin_sig = WasmOpcodes::AsmjsSignature(kExprF64##name);             \
+    }                                                                        \
+    DCHECK_NOT_NULL(builtin_sig);                                            \
+    if (EquivalentNumericSig(sig, builtin_sig)) {                            \
+      return WellKnownImport::kMathF64##name;                                \
+    }                                                                        \
+    break;                                                                   \
+  }
+
+        COMPARE_MATH_BUILTIN_F64(Acos)
+        COMPARE_MATH_BUILTIN_F64(Asin)
+        COMPARE_MATH_BUILTIN_F64(Atan)
+        COMPARE_MATH_BUILTIN_F64(Atan2)
+        COMPARE_MATH_BUILTIN_F64(Cos)
+        COMPARE_MATH_BUILTIN_F64(Sin)
+        COMPARE_MATH_BUILTIN_F64(Tan)
+        COMPARE_MATH_BUILTIN_F64(Exp)
+        COMPARE_MATH_BUILTIN_F64(Log)
+        COMPARE_MATH_BUILTIN_F64(Pow)
+
+#undef COMPARE_MATH_BUILTIN_F64
+
       default:
         break;
     }
@@ -787,57 +817,6 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   if (IsJSFunction(*callable_)) {
     auto function = Cast<JSFunction>(callable_);
     DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
-
-// Check for math intrinsics.
-#define COMPARE_SIG_FOR_BUILTIN(name)                                     \
-  {                                                                       \
-    const wasm::FunctionSig* sig =                                        \
-        wasm::WasmOpcodes::Signature(wasm::kExpr##name);                  \
-    if (!sig) sig = wasm::WasmOpcodes::AsmjsSignature(wasm::kExpr##name); \
-    DCHECK_NOT_NULL(sig);                                                 \
-    if (EquivalentNumericSig(expected_sig, sig)) {                        \
-      return ImportCallKind::k##name;                                     \
-    }                                                                     \
-  }
-#define COMPARE_SIG_FOR_BUILTIN_F64(name) \
-  case Builtin::kMath##name:              \
-    COMPARE_SIG_FOR_BUILTIN(F64##name);   \
-    break;
-#define COMPARE_SIG_FOR_BUILTIN_F32_F64(name) \
-  case Builtin::kMath##name:                  \
-    COMPARE_SIG_FOR_BUILTIN(F64##name);       \
-    COMPARE_SIG_FOR_BUILTIN(F32##name);       \
-    break;
-
-    if (v8_flags.wasm_math_intrinsics && shared->HasBuiltinId()) {
-      switch (shared->builtin_id()) {
-        COMPARE_SIG_FOR_BUILTIN_F64(Acos);
-        COMPARE_SIG_FOR_BUILTIN_F64(Asin);
-        COMPARE_SIG_FOR_BUILTIN_F64(Atan);
-        COMPARE_SIG_FOR_BUILTIN_F64(Cos);
-        COMPARE_SIG_FOR_BUILTIN_F64(Sin);
-        COMPARE_SIG_FOR_BUILTIN_F64(Tan);
-        COMPARE_SIG_FOR_BUILTIN_F64(Exp);
-        COMPARE_SIG_FOR_BUILTIN_F64(Log);
-        COMPARE_SIG_FOR_BUILTIN_F64(Atan2);
-        COMPARE_SIG_FOR_BUILTIN_F64(Pow);
-        COMPARE_SIG_FOR_BUILTIN_F32_F64(Min);
-        COMPARE_SIG_FOR_BUILTIN_F32_F64(Max);
-        COMPARE_SIG_FOR_BUILTIN_F32_F64(Abs);
-        COMPARE_SIG_FOR_BUILTIN_F32_F64(Ceil);
-        COMPARE_SIG_FOR_BUILTIN_F32_F64(Floor);
-        COMPARE_SIG_FOR_BUILTIN_F32_F64(Sqrt);
-        case Builtin::kMathFround:
-          COMPARE_SIG_FOR_BUILTIN(F32ConvertF64);
-          break;
-        default:
-          break;
-      }
-    }
-
-#undef COMPARE_SIG_FOR_BUILTIN
-#undef COMPARE_SIG_FOR_BUILTIN_F64
-#undef COMPARE_SIG_FOR_BUILTIN_F32_F64
 
     if (IsClassConstructor(shared->kind())) {
       // Class constructor will throw anyway.

@@ -60,6 +60,28 @@ const char* WellKnownImportName(WellKnownImport wki) {
     case WellKnownImport::kDataViewByteLength:
       return "DataView.byteLength";
 
+      // Math functions.
+    case WellKnownImport::kMathF64Acos:
+      return "Math.acos";
+    case WellKnownImport::kMathF64Asin:
+      return "Math.asin";
+    case WellKnownImport::kMathF64Atan:
+      return "Math.atan";
+    case WellKnownImport::kMathF64Atan2:
+      return "Math.atan2";
+    case WellKnownImport::kMathF64Cos:
+      return "Math.cos";
+    case WellKnownImport::kMathF64Sin:
+      return "Math.sin";
+    case WellKnownImport::kMathF64Tan:
+      return "Math.tan";
+    case WellKnownImport::kMathF64Exp:
+      return "Math.exp";
+    case WellKnownImport::kMathF64Log:
+      return "Math.log";
+    case WellKnownImport::kMathF64Pow:
+      return "Math.pow";
+
       // String-related functions:
     case WellKnownImport::kDoubleToString:
       return "DoubleToString";

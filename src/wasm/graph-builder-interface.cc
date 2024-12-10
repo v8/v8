@@ -957,6 +957,16 @@ class WasmGraphBuildingInterface {
       case WKI::kDataViewSetUint32:
       case WKI::kDataViewByteLength:
       case WKI::kFastAPICall:
+      case WKI::kMathF64Acos:
+      case WKI::kMathF64Asin:
+      case WKI::kMathF64Atan:
+      case WKI::kMathF64Atan2:
+      case WKI::kMathF64Cos:
+      case WKI::kMathF64Sin:
+      case WKI::kMathF64Tan:
+      case WKI::kMathF64Exp:
+      case WKI::kMathF64Log:
+      case WKI::kMathF64Pow:
         return false;
     }
     if (v8_flags.trace_wasm_inlining) {

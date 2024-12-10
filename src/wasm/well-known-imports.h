@@ -77,6 +77,18 @@ enum class WellKnownImport : uint8_t {
   kDataViewSetUint32,
   kDataViewByteLength,
 
+  // Math functions.
+  kMathF64Acos,
+  kMathF64Asin,
+  kMathF64Atan,
+  kMathF64Atan2,
+  kMathF64Cos,
+  kMathF64Sin,
+  kMathF64Tan,
+  kMathF64Exp,
+  kMathF64Log,
+  kMathF64Pow,
+
   // String-related functions:
   kDoubleToString,
   kIntToString,

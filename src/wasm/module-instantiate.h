@@ -50,32 +50,6 @@ enum class ImportCallKind : uint8_t {
   kWasmToWasm,               // fast Wasm->Wasm call
   kJSFunctionArityMatch,     // fast Wasm->JS call
   kJSFunctionArityMismatch,  // Wasm->JS, needs adapter frame
-  // Math functions imported from JavaScript that are intrinsified
-  kFirstMathIntrinsic,
-  kF64Acos = kFirstMathIntrinsic,
-  kF64Asin,
-  kF64Atan,
-  kF64Cos,
-  kF64Sin,
-  kF64Tan,
-  kF64Exp,
-  kF64Log,
-  kF64Atan2,
-  kF64Pow,
-  kF64Ceil,
-  kF64Floor,
-  kF64Sqrt,
-  kF64Min,
-  kF64Max,
-  kF64Abs,
-  kF32Min,
-  kF32Max,
-  kF32Abs,
-  kF32Ceil,
-  kF32Floor,
-  kF32Sqrt,
-  kF32ConvertF64,
-  kLastMathIntrinsic = kF32ConvertF64,
   // For everything else, there's the call builtin.
   kUseCallBuiltin
 };
