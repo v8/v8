@@ -114,7 +114,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
       ConcreteVisitor::HandleObjectFound(obj, size);
       return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : base_ptr;
     }
-    base_ptr += size;
+    base_ptr += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
     DCHECK_LT(base_ptr, page->area_end());
   }
 }

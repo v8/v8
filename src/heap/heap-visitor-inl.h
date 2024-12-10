@@ -136,7 +136,8 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
      * Note: This would normally be just !IsTrustedObject(obj), however we    \
      * might see trusted objects here before they've been migrated to trusted \
      * space, hence the second condition. */                                  \
-    DCHECK(!IsTrustedObject(object) || !HeapLayout::InTrustedSpace(object));  \
+    DCHECK(!InstanceTypeChecker::IsTrustedObject(map) ||                      \
+           !HeapLayout::InTrustedSpace(object));                              \
     return visitor->Visit##TypeName(                                          \
         map, ConcreteVisitor::template Cast<TypeName>(object, heap_),         \
         maybe_object_size);
@@ -146,7 +147,7 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
 #undef CASE
 #define CASE(TypeName)                                                     \
   case kVisit##TypeName:                                                   \
-    DCHECK(IsTrustedObject(object));                                       \
+    DCHECK(InstanceTypeChecker::IsTrustedObject(map));                     \
     /* Trusted objects are protected from modifications by an attacker as  \
      * they are located outside of the sandbox. However, an attacker can   \
      * still craft their own fake trusted objects inside the sandbox. In   \
