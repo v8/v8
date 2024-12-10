@@ -1,7 +1,8 @@
 Name: DFA UTF-8 Decoder
 Short Name: utf8-decoder
 URL: http://bjoern.hoehrmann.de/utf-8/decoder/dfa/
-Version: 0
+Version: N/A
+Date: 2010-06-25
 License: MIT
 License File: LICENSE
 Security Critical: yes
