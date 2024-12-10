@@ -442,12 +442,6 @@ DEFINE_CHECK_OP_IMPL(GE)
 DEFINE_CHECK_OP_IMPL(GT)
 #undef DEFINE_CHECK_OP_IMPL
 
-// For CHECK_BOUNDS, define to-unsigned conversion helpers.
-template <typename T>
-constexpr std::make_unsigned_t<T> ToUnsigned(T val) {
-  return static_cast<std::make_unsigned_t<T>>(val);
-}
-
 #define CHECK_EQ(lhs, rhs) CHECK_OP(EQ, ==, lhs, rhs)
 #define CHECK_NE(lhs, rhs) CHECK_OP(NE, !=, lhs, rhs)
 #define CHECK_LE(lhs, rhs) CHECK_OP(LE, <=, lhs, rhs)
@@ -460,8 +454,9 @@ constexpr std::make_unsigned_t<T> ToUnsigned(T val) {
   CHECK_WITH_MSG(!(lhs) || (rhs), #lhs " implies " #rhs)
 // Performs a single (unsigned) comparison to check that {index} is
 // in range [0, limit).
-#define CHECK_BOUNDS(index, limit) \
-  CHECK_LT(v8::base::ToUnsigned(index), v8::base::ToUnsigned(limit))
+#define CHECK_BOUNDS(index, limit)                                    \
+  CHECK_LT(static_cast<std::make_unsigned_t<decltype(index)>>(index), \
+           static_cast<std::make_unsigned_t<decltype(limit)>>(limit))
 
 }  // namespace base
 }  // namespace v8
@@ -480,8 +475,9 @@ constexpr std::make_unsigned_t<T> ToUnsigned(T val) {
 #define DCHECK_NOT_NULL(val) DCHECK((val) != nullptr)
 #define DCHECK_IMPLIES(lhs, rhs) \
   DCHECK_WITH_MSG(!(lhs) || (rhs), #lhs " implies " #rhs)
-#define DCHECK_BOUNDS(index, limit) \
-  DCHECK_LT(v8::base::ToUnsigned(index), v8::base::ToUnsigned(limit))
+#define DCHECK_BOUNDS(index, limit)                                    \
+  DCHECK_LT(static_cast<std::make_unsigned_t<decltype(index)>>(index), \
+            static_cast<std::make_unsigned_t<decltype(limit)>>(limit))
 #else
 #define DCHECK(condition)      ((void) 0)
 #define DCHECK_WITH_LOC(condition, location) ((void)0)
