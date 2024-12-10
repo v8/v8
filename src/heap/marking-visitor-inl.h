@@ -141,7 +141,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitPointersImpl(
     typename TSlot::TObject object;
     if constexpr (SlotHoldsTrustedPointerV<TSlot>) {
       // The fast check doesn't support the trusted cage, so skip it.
-      object = slot.load();
+      object = slot.Relaxed_Load();
     } else {
       const std::optional<Tagged<Object>> optional_object =
           this->GetObjectFilterReadOnlyAndSmiFast(slot);
