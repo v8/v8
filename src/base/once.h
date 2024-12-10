@@ -53,6 +53,7 @@
 #define V8_BASE_ONCE_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include <atomic>
 #include <functional>

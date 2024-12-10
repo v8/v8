@@ -5,6 +5,8 @@
 #ifndef V8_BASE_TEMPLATE_UTILS_H_
 #define V8_BASE_TEMPLATE_UTILS_H_
 
+#include <stddef.h>
+
 #include <array>
 #include <functional>
 #include <iosfwd>
