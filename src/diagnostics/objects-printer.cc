@@ -221,6 +221,15 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     return;
   }
 
+  // Skip invalid trusted objects. Technically it'd be fine to still handle
+  // them below since we only print the objects, but such an object will
+  // quickly lead to out-of-sandbox segfaults and so fuzzers will complain.
+  if (InstanceTypeChecker::IsTrustedObject(instance_type) &&
+      !OutsideSandboxOrInReadonlySpace(*this)) {
+    os << "<Invalid TrustedObject (outside trusted space)>\n";
+    return;
+  }
+
   switch (instance_type) {
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
@@ -3349,7 +3358,19 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     os << accumulator.ToCString().get();
     return;
   }
-  switch (map(cage_base)->instance_type()) {
+
+  InstanceType instance_type = map(cage_base)->instance_type();
+
+  // Skip invalid trusted objects. Technically it'd be fine to still handle
+  // them below since we only print the objects, but such an object will
+  // quickly lead to out-of-sandbox segfaults and so fuzzers will complain.
+  if (InstanceTypeChecker::IsTrustedObject(instance_type) &&
+      !OutsideSandboxOrInReadonlySpace(*this)) {
+    os << "<Invalid TrustedObject (outside trusted space)>\n";
+    return;
+  }
+
+  switch (instance_type) {
     case MAP_TYPE: {
       Tagged<Map> map = Cast<Map>(*this);
       if (map->instance_type() == MAP_TYPE) {
