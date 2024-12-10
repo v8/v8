@@ -8097,3 +8097,17 @@ if (!build_with_chromium && v8_use_perfetto) {
     ]
   }
 }  # if (!build_with_chromium && v8_use_perfetto)
+
+# GN evaluates each .gn file once per toolchain, so restricting to default
+# toolchain will ensure write_file() is called only once.
+if (current_toolchain == default_toolchain) {
+  import("//build/gn_logs.gni")
+
+  # Write debug logs to gn_logs.txt.
+  _lines = [
+             "Generated during 'gn gen' by //BUILD.gn.",
+             "",
+           ] + build_gn_logs
+
+  write_file("$root_build_dir/gn_logs.txt", _lines)
+}
