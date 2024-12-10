@@ -2726,10 +2726,11 @@ class MachineLoweringReducer : public Next {
                            frame_state, DeoptimizeReason::kWrongMap, feedback);
       }
     } else if (flags & CheckMapsFlag::kTryMigrateInstanceAndDeopt) {
-      TryMigrateInstanceAndMarkMapAsMigrationTarget(
-          heap_object, heap_object_map, frame_state, feedback);
-      __ Deoptimize(frame_state, DeoptimizeReason::kWrongMap, feedback);
-      return {};
+      IF_NOT (LIKELY(CompareMapAgainstMultipleMaps(heap_object_map, maps))) {
+        TryMigrateInstanceAndMarkMapAsMigrationTarget(
+            heap_object, heap_object_map, frame_state, feedback);
+        __ Deoptimize(frame_state, DeoptimizeReason::kWrongMap, feedback);
+      }
     } else {
       __ DeoptimizeIfNot(__ CompareMaps(heap_object, heap_object_map, maps),
                          frame_state, DeoptimizeReason::kWrongMap, feedback);
