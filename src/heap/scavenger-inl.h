@@ -424,13 +424,14 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
     UpdateHeapObjectReferenceSlot(p, dest);
     SynchronizePageAccess(dest);
     // A forwarded object in new space is either in the second (to) semi space,
-    // a large object, or a pinned object (forwarding address points back to the
-    // same object).
+    // a large object, or a pinned object on a quarantined page.
+    // Pinned objects have a self forwarding map word. However, since forwarding
+    // addresses are set with relaxed atomics and before the object is actually
+    // copied, it is unfortunately not safe to access `dest` to check whether it
+    // is pinned or not.
     DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
-                   Heap::InToPage(dest) || HeapLayout::IsSelfForwarded(dest));
-    DCHECK_IMPLIES(
-        HeapLayout::IsSelfForwarded(dest) && !Heap::IsLargeObject(dest),
-        MemoryChunk::FromHeapObject(dest)->IsQuarantined());
+                   Heap::InToPage(dest) || Heap::IsLargeObject(dest) ||
+                       MemoryChunk::FromHeapObject(dest)->IsQuarantined());
 
     // This load forces us to have memory ordering for the map load above. We
     // need to have the page header properly initialized.
