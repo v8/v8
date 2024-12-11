@@ -2235,6 +2235,14 @@ class GraphBuildingNodeProcessor {
                     node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckedNumberToInt32* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    __ DeoptimizeIf(__ ObjectIsNumberFitsInt32(Map(node->input())), frame_state,
+                    DeoptimizeReason::kNotInt32,
+                    node->eager_deopt_info()->feedback_to_update());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckFloat64IsNan* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -2810,6 +2818,19 @@ class GraphBuildingNodeProcessor {
                          MemoryRepresentation::Float64(), node->offset()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::LoadInt32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Load(Map(node->object_input()), LoadOp::Kind::TaggedBase(),
+                         MemoryRepresentation::Int32(), node->offset()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::LoadHeapInt32* node,
+                                const maglev::ProcessingState& state) {
+    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
+        Map(node->object_input()), node->offset());
+    SetMap(node, __ LoadHeapInt32Value(field));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::LoadFixedArrayElement* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ LoadFixedArrayElement(
@@ -2895,6 +2916,14 @@ class GraphBuildingNodeProcessor {
                   Map(node->value_input()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::StoreHeapInt32* node,
+                                const maglev::ProcessingState& state) {
+    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
+        Map(node->object_input()), node->offset());
+    __ StoreField(field, AccessBuilder::ForHeapInt32Value(),
+                  Map(node->value_input()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(
       maglev::StoreTrustedPointerFieldWithWriteBarrier* node,
       const maglev::ProcessingState& state) {
@@ -2943,6 +2972,13 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     __ Store(Map(node->object_input()), Map(node->value_input()),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::Float64(),
+             WriteBarrierKind::kNoWriteBarrier, node->offset());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreInt32* node,
+                                const maglev::ProcessingState& state) {
+    __ Store(Map(node->object_input()), Map(node->value_input()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
              WriteBarrierKind::kNoWriteBarrier, node->offset());
     return maglev::ProcessResult::kContinue;
   }

@@ -1119,6 +1119,8 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "NonCallable";
     case ObjectIsOp::Kind::kNumber:
       return os << "Number";
+    case ObjectIsOp::Kind::kNumberFitsInt32:
+      return os << "NumberFitsInt32";
     case ObjectIsOp::Kind::kNumberOrBigInt:
       return os << "NumberOrBigInt";
     case ObjectIsOp::Kind::kReceiver:
@@ -1160,6 +1162,8 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
       return os << "Integer";
     case NumericKind::kSafeInteger:
       return os << "SafeInteger";
+    case NumericKind::kInt32:
+      return os << "kInt32";
     case NumericKind::kSmi:
       return os << "kSmi";
     case NumericKind::kMinusZero:

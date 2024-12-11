@@ -1284,6 +1284,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Load the floating point value of a HeapNumber.
   TNode<Float64T> LoadHeapNumberValue(TNode<HeapObject> object);
+  TNode<Int32T> LoadHeapInt32Value(TNode<HeapObject> object);
+  void StoreHeapInt32Value(TNode<HeapObject> object, TNode<Int32T> value);
   // Load the Map of an HeapObject.
   TNode<Map> LoadMap(TNode<HeapObject> object);
   // Load the instance type of an HeapObject.
@@ -1946,6 +1948,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapNumber> AllocateHeapNumberWithValue(double value) {
     return AllocateHeapNumberWithValue(Float64Constant(value));
   }
+  TNode<HeapNumber> AllocateHeapInt32WithValue(TNode<Int32T> value);
 
   // Allocate a BigInt with {length} digits. Sets the sign bit to {false}.
   // Does not initialize the digits.
@@ -2566,6 +2569,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> TryHeapNumberToSmi(TNode<HeapNumber> number, Label* not_smi);
   TNode<Smi> TryFloat32ToSmi(TNode<Float32T> number, Label* not_smi);
   TNode<Smi> TryFloat64ToSmi(TNode<Float64T> number, Label* not_smi);
+  TNode<Int32T> TryFloat64ToInt32(TNode<Float64T> number, Label* if_failed);
 
   TNode<Uint32T> BitcastFloat16ToUint32(TNode<Float16RawBitsT> value);
   TNode<Float16RawBitsT> BitcastUint32ToFloat16(TNode<Uint32T> value);
@@ -2865,6 +2869,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsScriptContextMutableHeapNumberFlag() {
     return LoadRuntimeFlag(
         ExternalReference::script_context_mutable_heap_number_flag());
+  }
+
+  TNode<BoolT> IsScriptContextMutableHeapInt32Flag() {
+    return LoadRuntimeFlag(
+        ExternalReference::script_context_mutable_heap_int32_flag());
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.

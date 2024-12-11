@@ -1333,6 +1333,10 @@ Type OperationTyper::CheckNumber(Type type) {
   return Type::Intersect(type, Type::Number(), zone());
 }
 
+Type OperationTyper::CheckNumberFitsInt32(Type type) {
+  return Type::Intersect(type, Type::Signed32(), zone());
+}
+
 Type OperationTyper::TypeTypeGuard(const Operator* sigma_op, Type input) {
   return Type::Intersect(input, TypeGuardTypeOf(sigma_op), zone());
 }

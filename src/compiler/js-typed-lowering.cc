@@ -11,6 +11,7 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
@@ -29,6 +30,7 @@
 #include "src/compiler/type-cache.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/protectors.h"
+#include "src/flags/flags.h"
 #include "src/objects/casting.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-generator.h"
@@ -1637,27 +1639,80 @@ Reduction JSTypedLowering::ReduceJSLoadScriptContext(Node* node) {
                                 TNode<HeapObject>::UncheckedCast(data));
                           })
                           .Value();
-                  return gasm
-                      .SelectIf<Object>(gasm.ReferenceEqual(
-                          property,
-                          TNode<Object>::UncheckedCast(gasm.SmiConstant(
-                              ContextSidePropertyCell::kMutableHeapNumber))))
-                      .Then([&] {
-                        Node* number = gasm.LoadHeapNumberValue(value);
-                        // Allocate a new HeapNumber.
-                        AllocationBuilder a(jsgraph(), broker(), gasm.effect(),
-                                            gasm.control());
-                        a.Allocate(sizeof(HeapNumber), AllocationType::kYoung,
-                                   Type::OtherInternal());
-                        a.Store(AccessBuilder::ForMap(),
-                                broker()->heap_number_map());
-                        a.Store(AccessBuilder::ForHeapNumberValue(), number);
-                        Node* new_heap_number = a.Finish();
-                        gasm.UpdateEffectControlWith(new_heap_number);
-                        return TNode<Object>::UncheckedCast(new_heap_number);
-                      })
-                      .Else([&] { return value; })
-                      .Value();
+                  if (v8_flags.script_context_mutable_heap_int32) {
+                    return gasm
+                        .SelectIf<Object>(gasm.ReferenceEqual(
+                            property,
+                            TNode<Object>::UncheckedCast(gasm.SmiConstant(
+                                ContextSidePropertyCell::kMutableInt32))))
+                        .Then([&] {
+                          TNode<Int32T> number = gasm.LoadHeapInt32Value(value);
+                          // Allocate a new HeapNumber.
+                          AllocationBuilder a(jsgraph(), broker(),
+                                              gasm.effect(), gasm.control());
+                          a.Allocate(sizeof(HeapNumber), AllocationType::kYoung,
+                                     Type::OtherInternal());
+                          a.Store(AccessBuilder::ForMap(),
+                                  broker()->heap_number_map());
+                          a.Store(AccessBuilder::ForHeapInt32Value(), number);
+                          a.Store(AccessBuilder::ForHeapInt32UpperValue(),
+                                  gasm.Int32Constant(kHoleNanUpper32));
+                          Node* new_heap_number = a.Finish();
+                          gasm.UpdateEffectControlWith(new_heap_number);
+                          return TNode<Object>::UncheckedCast(new_heap_number);
+                        })
+                        .Else([&] {
+                          return gasm
+                              .SelectIf<Object>(gasm.ReferenceEqual(
+                                  property,
+                                  TNode<Object>::UncheckedCast(gasm.SmiConstant(
+                                      ContextSidePropertyCell::
+                                          kMutableHeapNumber))))
+                              .Then([&] {
+                                Node* number = gasm.LoadHeapNumberValue(value);
+                                // Allocate a new HeapNumber.
+                                AllocationBuilder a(jsgraph(), broker(),
+                                                    gasm.effect(),
+                                                    gasm.control());
+                                a.Allocate(sizeof(HeapNumber),
+                                           AllocationType::kYoung,
+                                           Type::OtherInternal());
+                                a.Store(AccessBuilder::ForMap(),
+                                        broker()->heap_number_map());
+                                a.Store(AccessBuilder::ForHeapNumberValue(),
+                                        number);
+                                Node* new_heap_number = a.Finish();
+                                gasm.UpdateEffectControlWith(new_heap_number);
+                                return TNode<Object>::UncheckedCast(
+                                    new_heap_number);
+                              })
+                              .Else([&] { return value; })
+                              .Value();
+                        })
+                        .Value();
+                  } else {
+                    return gasm
+                        .SelectIf<Object>(gasm.ReferenceEqual(
+                            property,
+                            TNode<Object>::UncheckedCast(gasm.SmiConstant(
+                                ContextSidePropertyCell::kMutableHeapNumber))))
+                        .Then([&] {
+                          Node* number = gasm.LoadHeapNumberValue(value);
+                          // Allocate a new HeapNumber.
+                          AllocationBuilder a(jsgraph(), broker(),
+                                              gasm.effect(), gasm.control());
+                          a.Allocate(sizeof(HeapNumber), AllocationType::kYoung,
+                                     Type::OtherInternal());
+                          a.Store(AccessBuilder::ForMap(),
+                                  broker()->heap_number_map());
+                          a.Store(AccessBuilder::ForHeapNumberValue(), number);
+                          Node* new_heap_number = a.Finish();
+                          gasm.UpdateEffectControlWith(new_heap_number);
+                          return TNode<Object>::UncheckedCast(new_heap_number);
+                        })
+                        .Else([&] { return value; })
+                        .Value();
+                  }
                 })
                 .Else([&] { return value; })
                 .ExpectFalse()
@@ -1760,11 +1815,33 @@ Reduction JSTypedLowering::ReduceJSStoreScriptContext(Node* node) {
                       smi_value);
                 })
                 .Else([&] {
-                  // It must be a mutable heap number in this case.
-                  Node* number_value = gasm.CheckNumber(new_value);
-                  gasm.StoreField(AccessBuilder::ForHeapNumberValue(),
-                                  old_value, number_value);
+                  if (v8_flags.script_context_mutable_heap_int32) {
+                    TNode<Boolean> is_mutable_int32 = gasm.ReferenceEqual(
+                        property, TNode<Object>::UncheckedCast(gasm.SmiConstant(
+                                      ContextSidePropertyCell::kMutableInt32)));
+                    gasm.If(is_mutable_int32)
+                        .Then([&] {
+                          // It is a mutable int32 number.
+                          Node* number_value =
+                              gasm.CheckNumberFitsInt32(new_value);
+                          gasm.StoreField(AccessBuilder::ForHeapInt32Value(),
+                                          old_value, number_value);
+                        })
+                        .Else([&] {
+                          // It must be a mutable heap number in this case.
+                          Node* number_value = gasm.CheckNumber(new_value);
+                          gasm.StoreField(AccessBuilder::ForHeapNumberValue(),
+                                          old_value, number_value);
+                        });
+
+                  } else {
+                    // It must be a mutable heap number in this case.
+                    Node* number_value = gasm.CheckNumber(new_value);
+                    gasm.StoreField(AccessBuilder::ForHeapNumberValue(),
+                                    old_value, number_value);
+                  }
                 });
+
           } else {
             gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
                             context, new_value);

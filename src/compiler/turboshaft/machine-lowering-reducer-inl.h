@@ -402,6 +402,26 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+      case ObjectIsOp::Kind::kNumberFitsInt32: {
+        Label<Word32> done(this);
+
+        // Check for Smi if necessary.
+        if (NeedsHeapObjectCheck(input_assumptions)) {
+          GOTO_IF(__ IsSmi(input), done, 1);
+        }
+
+        V<Map> map = __ LoadMapField(input);
+        GOTO_IF_NOT(
+            __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
+            done, 0);
+
+        GOTO(done,
+             __ Float64Is(__ LoadHeapNumberValue(V<HeapNumber>::Cast(input)),
+                          NumericKind::kInt32));
+
+        BIND(done, result);
+        return result;
+      }
       case ObjectIsOp::Kind::kNumberOrBigInt: {
         Label<Word32> done(this);
         DCHECK_NE(input_assumptions, ObjectIsOp::InputAssumptions::kBigInt);
@@ -583,6 +603,21 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+      case NumericKind::kInt32: {
+        Label<Word32> done(this);
+        V<Word32> v32 = __ TruncateFloat64ToInt32OverflowUndefined(value);
+        GOTO_IF_NOT(__ Float64Equal(value, __ ChangeInt32ToFloat64(v32)), done,
+                    0);
+        IF (__ Word32Equal(v32, 0)) {
+          // Checking -0.
+          GOTO_IF(__ Int32LessThan(__ Float64ExtractHighWord32(value), 0), done,
+                  0);
+        }
+        GOTO(done, 1);
+
+        BIND(done, result);
+        return result;
+      }
       case NumericKind::kSmi: {
         Label<Word32> done(this);
         V<Word32> v32 = __ TruncateFloat64ToInt32OverflowUndefined(value);
@@ -639,6 +674,7 @@ class MachineLoweringReducer : public Next {
       case NumericKind::kFinite:
       case NumericKind::kInteger:
       case NumericKind::kSafeInteger:
+      case NumericKind::kInt32:
       case NumericKind::kSmi:
         GOTO_IF(__ IsSmi(input), done, 1);
         break;

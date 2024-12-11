@@ -777,6 +777,14 @@ void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 #endif
 }
 
+inline void MaglevAssembler::LoadInt32(Register dst, MemOperand src) {
+  Ldr(dst.W(), src);
+}
+
+inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
+  Str(src.W(), dst);
+}
+
 inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   Ldr(dst.S(), src);
   Fcvt(dst, dst.S());
@@ -1350,6 +1358,16 @@ inline void MaglevAssembler::TestUint8AndJumpIfAllClear(
 inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
                                                  Register heap_number) {
   Ldr(result, FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
+}
+
+inline void MaglevAssembler::LoadHeapInt32Value(Register result,
+                                                Register heap_number) {
+  Ldr(result, FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
+}
+
+inline void MaglevAssembler::StoreHeapInt32Value(Register value,
+                                                 Register heap_number) {
+  Str(value, (FieldMemOperand(heap_number, offsetof(HeapNumber, value_))));
 }
 
 inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,

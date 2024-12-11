@@ -36,6 +36,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to HeapNumber::value() field.
   static FieldAccess ForHeapNumberValue();
+  static FieldAccess ForHeapInt32Value();
+  static FieldAccess ForHeapInt32UpperValue();
 
   // Provides access to HeapNumber::value() and Oddball::to_number_raw() fields.
   // This is the same as ForHeapNumberValue, except it documents (and static

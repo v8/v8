@@ -1463,12 +1463,12 @@ class MaglevGraphBuilder {
   // node.
   //
   // Deopts if the value is not exactly representable as an Int32.
-  ValueNode* GetInt32(ValueNode* value);
+  ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
 
-  void EnsureInt32(ValueNode* value) {
+  void EnsureInt32(ValueNode* value, bool can_be_heap_number = false) {
     // Either the value is Int32 already, or we force a conversion to Int32 and
     // cache the value in its alternative representation node.
-    GetInt32(value);
+    GetInt32(value, can_be_heap_number);
   }
 
   void EnsureInt32(interpreter::Register reg) {

@@ -52,6 +52,10 @@ class PropertyAccessBuilder {
   Node* BuildCheckNumber(Node* value, Effect* effect, Control control,
                          FeedbackSource feedback_source = FeedbackSource());
 
+  Node* BuildCheckNumberFitsInt32(
+      Node* value, Effect* effect, Control control,
+      FeedbackSource feedback_source = FeedbackSource());
+
   // Builds the actual load for data-field and data-constant-field
   // properties (without heap-object or map checks).
   Node* BuildLoadDataField(NameRef name, PropertyAccessInfo const& access_info,

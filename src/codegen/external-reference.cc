@@ -854,6 +854,10 @@ ExternalReference ExternalReference::script_context_mutable_heap_number_flag() {
   return ExternalReference(&v8_flags.script_context_mutable_heap_number);
 }
 
+ExternalReference ExternalReference::script_context_mutable_heap_int32_flag() {
+  return ExternalReference(&v8_flags.script_context_mutable_heap_int32);
+}
+
 ExternalReference ExternalReference::address_of_load_from_stack_count(
     const char* function_name) {
   return ExternalReference(

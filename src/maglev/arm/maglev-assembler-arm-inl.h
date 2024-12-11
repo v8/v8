@@ -576,6 +576,14 @@ inline void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
   Move(dst, obj);
 }
 
+inline void MaglevAssembler::LoadInt32(Register dst, MemOperand src) {
+  ldr(dst, src);
+}
+
+inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
+  str(src, dst);
+}
+
 inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   UseScratchRegisterScope temps(this);
   SwVfpRegister temp_vfps = SwVfpRegister::no_reg();
@@ -1148,6 +1156,16 @@ inline void MaglevAssembler::TestUint8AndJumpIfAllClear(
 inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
                                                  Register heap_number) {
   vldr(result, FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
+}
+
+inline void MaglevAssembler::LoadHeapInt32Value(Register result,
+                                                Register heap_number) {
+  ldr(result, FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
+}
+
+inline void MaglevAssembler::StoreHeapInt32Value(Register value,
+                                                 Register heap_number) {
+  str(value, (FieldMemOperand(heap_number, offsetof(HeapNumber, value_))));
 }
 
 inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,

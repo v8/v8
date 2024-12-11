@@ -348,6 +348,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 #endif
 
   Node* LoadHeapNumberValue(Node* heap_number);
+  TNode<Int32T> LoadHeapInt32Value(Node* heap_number);
 
 #define PURE_UNOP_DECL(Name) Node* Name(Node* input);
   PURE_ASSEMBLER_MACH_UNOP_LIST(PURE_UNOP_DECL)
@@ -1031,6 +1032,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   Node* BooleanNot(Node* cond);
   Node* CheckSmi(Node* value, const FeedbackSource& feedback = {});
   Node* CheckNumber(Node* value, const FeedbackSource& feedback = {});
+  Node* CheckNumberFitsInt32(Node* value, const FeedbackSource& feedback = {});
   Node* CheckIf(Node* cond, DeoptimizeReason reason,
                 const FeedbackSource& feedback = {});
   Node* Assert(Node* cond, const char* condition_string = "",

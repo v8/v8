@@ -130,6 +130,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapNumberWithHoleNaN();
 
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline Handle<HeapNumber> NewHeapInt32(int32_t value);
+
   template <AllocationType allocation>
   Handle<HeapNumber> NewHeapNumber();
 

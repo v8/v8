@@ -966,6 +966,7 @@ bool operator==(AssertNotNullParameters const& lhs,
 
 #define CHECKED_WITH_FEEDBACK_OP_LIST(V) \
   V(CheckNumber, 1, 1)                   \
+  V(CheckNumberFitsInt32, 1, 1)          \
   V(CheckSmi, 1, 1)                      \
   V(CheckString, 1, 1)                   \
   V(CheckStringOrStringWrapper, 1, 1)    \

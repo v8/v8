@@ -1021,6 +1021,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                             const FeedbackSource& = FeedbackSource());
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
+  const Operator* CheckNumberFitsInt32(const FeedbackSource& feedback);
   const Operator* CheckReceiver();
   const Operator* CheckReceiverOrNullOrUndefined();
   const Operator* CheckSmi(const FeedbackSource& feedback);

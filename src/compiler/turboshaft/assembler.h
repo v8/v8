@@ -58,6 +58,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
 #include "src/objects/turbofan-types.h"
+#include "v8-primitive.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -2098,6 +2099,7 @@ class TurboshaftAssemblerOpInterface
   DECL_OBJECT_IS(InternalizedString)
   DECL_OBJECT_IS(NonCallable)
   DECL_OBJECT_IS(Number)
+  DECL_OBJECT_IS(NumberFitsInt32)
   DECL_OBJECT_IS(NumberOrBigInt)
   DECL_OBJECT_IS(Receiver)
   DECL_OBJECT_IS(ReceiverOrNullOrUndefined)
@@ -2967,6 +2969,11 @@ class TurboshaftAssemblerOpInterface
   V<Float64> LoadHeapNumberValue(V<HeapNumber> heap_number) {
     return __ template LoadField<HeapNumber, HeapNumber, Float64>(
         heap_number, AccessBuilderTS::ForHeapNumberValue());
+  }
+
+  V<Word32> LoadHeapInt32Value(V<HeapNumber> heap_number) {
+    return __ template LoadField<HeapNumber, HeapNumber, Word32>(
+        heap_number, AccessBuilderTS::ForHeapInt32Value());
   }
 
   template <typename Type = Object,

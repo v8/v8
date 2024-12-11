@@ -417,6 +417,12 @@ inline void MaglevAssembler::LoadHeapNumberOrOddballValue(DoubleRegister result,
   LoadHeapNumberValue(result, object);
 }
 
+inline void MaglevAssembler::StoreHeapNumberValue(DoubleRegister value,
+                                                  Register heap_number) {
+  StoreFloat64(FieldMemOperand(heap_number, offsetof(HeapNumber, value_)),
+               value);
+}
+
 namespace detail {
 
 #ifdef DEBUG

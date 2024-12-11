@@ -1798,7 +1798,8 @@ std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
   }
 }
 
-ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
+ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value,
+                                        bool can_be_heap_number) {
   RecordUseReprHintIfPhi(value, UseRepresentation::kInt32);
 
   ValueRepresentation representation =
@@ -1821,7 +1822,9 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value) {
 
   switch (representation) {
     case ValueRepresentation::kTagged: {
-      // TODO(leszeks): Widen this path to allow HeapNumbers with Int32 values.
+      if (can_be_heap_number && !CheckType(value, NodeType::kSmi)) {
+        return alternative.set_int32(AddNewNode<CheckedNumberToInt32>({value}));
+      }
       return alternative.set_int32(BuildSmiUntag(value));
     }
     case ValueRepresentation::kUint32: {
@@ -3061,7 +3064,17 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadScriptContextSlot(
       EnsureType(value, NodeType::kSmi);
       return value;
     }
-    case ContextSidePropertyCell::kMutableHeapNumber: {
+    case ContextSidePropertyCell::kMutableInt32:
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          context, index, property, broker());
+      if (auto mutable_heap_number = context.get(broker(), index)) {
+        DCHECK(mutable_heap_number->IsHeapNumber());
+        return AddNewNode<LoadInt32>(
+            {GetConstant(*mutable_heap_number)},
+            static_cast<int>(offsetof(HeapNumber, value_)));
+      }
+      return AddNewNode<LoadHeapInt32>({context_node}, offset);
+    case ContextSidePropertyCell::kMutableHeapNumber:
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           context, index, property, broker());
       if (auto mutable_heap_number = context.get(broker(), index)) {
@@ -3071,7 +3084,6 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadScriptContextSlot(
             static_cast<int>(offsetof(HeapNumber, value_)));
       }
       return AddNewNode<LoadDoubleField>({context_node}, offset);
-    }
     case ContextSidePropertyCell::kOther:
       return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
                                                                  offset);
@@ -3175,7 +3187,20 @@ ReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
       *store = BuildStoreTaggedField(context, value, offset,
                                      StoreTaggedMode::kDefault);
       break;
-    case ContextSidePropertyCell::kMutableHeapNumber: {
+    case ContextSidePropertyCell::kMutableInt32:
+      EnsureInt32(value, true);
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          context_ref, index, property, broker());
+      if (auto mutable_heap_number = context_ref.get(broker(), index)) {
+        DCHECK(mutable_heap_number->IsHeapNumber());
+        *store = AddNewNode<StoreInt32>(
+            {GetConstant(*mutable_heap_number), value},
+            static_cast<int>(offsetof(HeapNumber, value_)));
+      } else {
+        *store = AddNewNode<StoreHeapInt32>({context, value}, offset);
+      }
+      break;
+    case ContextSidePropertyCell::kMutableHeapNumber:
       BuildCheckNumber(value);
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           context_ref, index, property, broker());
@@ -3188,7 +3213,6 @@ ReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
         *store = AddNewNode<StoreDoubleField>({context, value}, offset);
       }
       break;
-    }
     case ContextSidePropertyCell::kOther:
       *store = BuildStoreTaggedField(context, value, offset,
                                      StoreTaggedMode::kDefault);
@@ -4133,6 +4157,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kLoadTaggedFieldForScriptContextSlot:
     case Opcode::kLoadDoubleField:
     case Opcode::kLoadFloat64:
+    case Opcode::kLoadInt32:
+    case Opcode::kLoadHeapInt32:
     case Opcode::kLoadTaggedFieldByFieldIndex:
     case Opcode::kLoadFixedArrayElement:
     case Opcode::kLoadFixedDoubleArrayElement:
@@ -4171,6 +4197,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kCheckedTruncateFloat64ToInt32:
     case Opcode::kCheckedTruncateFloat64ToUint32:
     case Opcode::kTruncateNumberOrOddballToInt32:
+    case Opcode::kCheckedNumberToInt32:
     case Opcode::kTruncateUint32ToInt32:
     case Opcode::kTruncateFloat64ToInt32:
     case Opcode::kUnsafeTruncateUint32ToInt32:

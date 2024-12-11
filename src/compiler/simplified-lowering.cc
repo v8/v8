@@ -494,6 +494,11 @@ class RepresentationSelector {
                                    info->restriction_type(), graph_zone());
         break;
 
+      case IrOpcode::kCheckNumberFitsInt32:
+        new_type = Type::Intersect(op_typer_.CheckNumberFitsInt32(input0_type),
+                                   info->restriction_type(), graph_zone());
+        break;
+
       case IrOpcode::kPhi: {
         new_type = TypePhi(node);
         if (!type.IsInvalid()) {
@@ -3767,6 +3772,16 @@ class RepresentationSelector {
       case IrOpcode::kCheckNumber: {
         Type const input_type = TypeOf(node->InputAt(0));
         if (input_type.Is(Type::Number())) {
+          VisitNoop<T>(node, truncation);
+        } else {
+          VisitUnop<T>(node, UseInfo::AnyTagged(),
+                       MachineRepresentation::kTagged);
+        }
+        return;
+      }
+      case IrOpcode::kCheckNumberFitsInt32: {
+        Type const input_type = TypeOf(node->InputAt(0));
+        if (input_type.Is(Type::Signed32())) {
           VisitNoop<T>(node, truncation);
         } else {
           VisitUnop<T>(node, UseInfo::AnyTagged(),

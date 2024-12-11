@@ -1545,6 +1545,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kCheckNumberFitsInt32:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Signed32());
+      break;
     case IrOpcode::kCheckReceiver:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Receiver());

@@ -1765,6 +1765,31 @@ void UncheckedNumberOrOddballToFloat64::GenerateCode(
                           conversion_type(), nullptr);
 }
 
+void CheckedNumberToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+  set_double_temporaries_needed(1);
+}
+void CheckedNumberToInt32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  DoubleRegister double_value = temps.AcquireDouble();
+  Register value = ToRegister(input());
+  Label is_not_smi, done;
+  Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32);
+  // Check if Smi.
+  __ JumpIfNotSmi(value, &is_not_smi, Label::kNear);
+  __ SmiToInt32(ToRegister(result()), value);
+  __ Jump(&done);
+  __ bind(&is_not_smi);
+  // Check if Number.
+  JumpToFailIfNotHeapNumberOrOddball(
+      masm, value, TaggedToFloat64ConversionType::kOnlyNumber, deopt_label);
+  __ LoadHeapNumberValue(double_value, value);
+  __ TryTruncateDoubleToInt32(ToRegister(result()), double_value, deopt_label);
+  __ bind(&done);
+}
+
 namespace {
 
 void EmitTruncateNumberOrOddballToInt32(
@@ -2415,6 +2440,22 @@ void CheckedHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
                    __ GetDeoptLabel(this, DeoptimizeReason::kHole));
 }
 
+void LoadHeapInt32::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void LoadHeapInt32::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register tmp = temps.Acquire();
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  __ LoadTaggedField(tmp, object, offset());
+  __ AssertNotSmi(tmp);
+  __ LoadHeapInt32Value(ToRegister(result()), tmp);
+}
+
 void LoadDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
@@ -2440,6 +2481,17 @@ void LoadFloat64::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
   __ LoadFloat64(ToDoubleRegister(result()), FieldMemOperand(object, offset()));
+}
+
+void LoadInt32::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+}
+void LoadInt32::GenerateCode(MaglevAssembler* masm,
+                             const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  __ LoadInt32(ToRegister(result()), FieldMemOperand(object, offset()));
 }
 
 template <typename T>
@@ -2496,6 +2548,7 @@ void LoadTaggedFieldForScriptContextSlot::GenerateCode(
          Register scratch, LoadTaggedFieldForScriptContextSlot* node,
          ZoneLabelRef done) {
         Label property_loaded;
+        Label check_heap_number, allocate;
         // Load side table.
         // TODO(victorgomes): Should we hoist the side_table?
         __ LoadTaggedField(scratch, script_context,
@@ -2513,16 +2566,27 @@ void LoadTaggedFieldForScriptContextSlot::GenerateCode(
                            ContextSidePropertyCell::kPropertyDetailsRawOffset);
         __ bind(&property_loaded);
 
+        MaglevAssembler::TemporaryRegisterScope temps(masm);
+        DoubleRegister double_value = temps.AcquireDouble();
+
+        if (v8_flags.script_context_mutable_heap_int32) {
+          __ CompareTaggedAndJumpIf(scratch,
+                                    ContextSidePropertyCell::MutableInt32(),
+                                    kNotEqual, &check_heap_number);
+          __ LoadHeapInt32Value(scratch, result_reg);
+          __ Int32ToDouble(double_value, scratch);
+          __ Jump(&allocate, Label::kNear);
+        }
+
+        __ bind(&check_heap_number);
         __ CompareTaggedAndJumpIf(scratch,
                                   ContextSidePropertyCell::MutableHeapNumber(),
                                   kNotEqual, *done);
-
-        MaglevAssembler::TemporaryRegisterScope temps(masm);
-        DoubleRegister double_value = temps.AcquireDouble();
         __ LoadHeapNumberValue(double_value, result_reg);
+
+        __ bind(&allocate);
         __ AllocateHeapNumber(node->register_snapshot(), result_reg,
                               double_value);
-
         __ Jump(*done);
       },
       script_context, value, scratch, this, done);
@@ -3486,8 +3550,7 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
              Register new_value, Register property,
              StoreScriptContextSlotWithWriteBarrier* node, ZoneLabelRef done,
              ZoneLabelRef do_normal_store) {
-            Label check_smi;
-            Label new_value_should_be_a_number;
+            Label check_smi, check_mutable_int32, mutable_heap_number;
             __ CompareRootAndEmitEagerDeoptIf(
                 property, RootIndex::kUndefinedValue, kEqual,
                 DeoptimizeReason::kWrongValue, node);
@@ -3506,38 +3569,65 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
 
             if (v8_flags.script_context_mutable_heap_number) {
               // Check for smi case
-              __ CompareTaggedAndJumpIf(
-                  property, ContextSidePropertyCell::SmiMarker(), kNotEqual,
-                  &new_value_should_be_a_number);
+              __ CompareTaggedAndJumpIf(property,
+                                        ContextSidePropertyCell::SmiMarker(),
+                                        kNotEqual, &check_mutable_int32);
               __ EmitEagerDeoptIfNotSmi(node, new_value,
                                         DeoptimizeReason::kWrongValue);
               __ Jump(*do_normal_store);
 
-              // Check mutable heap number case.
               MaglevAssembler::TemporaryRegisterScope temps(masm);
               DoubleRegister double_scratch = temps.AcquireDouble();
-              __ bind(&new_value_should_be_a_number);
-              Label new_value_is_not_smi;
-              __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
-              Register new_value_int32 = property;
-              __ SmiUntag(new_value_int32, new_value);
-              __ Int32ToDouble(double_scratch, new_value_int32);
-              __ StoreFloat64(
-                  FieldMemOperand(old_value, offsetof(HeapNumber, value_)),
-                  double_scratch);
-              __ Jump(*done);
 
-              __ bind(&new_value_is_not_smi);
-              __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap,
-                                    property);
-              __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue,
-                                  node);
+              // Check mutable int32 case.
+              __ bind(&check_mutable_int32);
+              if (v8_flags.script_context_mutable_heap_int32) {
+                __ CompareTaggedAndJumpIf(
+                    property, ContextSidePropertyCell::MutableInt32(),
+                    kNotEqual, &mutable_heap_number);
+                {
+                  Label new_value_is_not_smi;
+                  Register new_value_int32 = property;
+                  __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
+                  __ SmiUntag(new_value_int32, new_value);
+                  __ StoreHeapInt32Value(new_value_int32, old_value);
+                  __ Jump(*done);
 
-              __ LoadHeapNumberValue(double_scratch, new_value);
-              __ StoreFloat64(
-                  FieldMemOperand(old_value, offsetof(HeapNumber, value_)),
-                  double_scratch);
-              __ Jump(*done);
+                  __ bind(&new_value_is_not_smi);
+                  __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap,
+                                        property);
+                  __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue,
+                                      node);
+
+                  __ LoadHeapNumberValue(double_scratch, new_value);
+                  __ TryTruncateDoubleToInt32(
+                      new_value_int32, double_scratch,
+                      __ GetDeoptLabel(node, DeoptimizeReason::kWrongValue));
+                  __ StoreHeapInt32Value(new_value_int32, old_value);
+                  __ Jump(*done);
+                }
+              }
+
+              // Check mutable heap number case.
+              __ bind(&mutable_heap_number);
+              {
+                Label new_value_is_not_smi;
+                Register new_value_int32 = property;
+                __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
+                __ SmiUntag(new_value_int32, new_value);
+                __ Int32ToDouble(double_scratch, new_value_int32);
+                __ StoreHeapNumberValue(double_scratch, old_value);
+                __ Jump(*done);
+
+                __ bind(&new_value_is_not_smi);
+                __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap,
+                                      property);
+                __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue,
+                                    node);
+                __ LoadHeapNumberValue(double_scratch, new_value);
+                __ StoreHeapNumberValue(double_scratch, old_value);
+                __ Jump(*done);
+              }
             } else {
               __ Jump(*do_normal_store);
             }
@@ -4810,6 +4900,19 @@ void StoreFloat64::GenerateCode(MaglevAssembler* masm,
 
   __ AssertNotSmi(object);
   __ StoreFloat64(FieldMemOperand(object, offset()), value);
+}
+
+void StoreInt32::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void StoreInt32::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register value = ToRegister(value_input());
+
+  __ AssertNotSmi(object);
+  __ StoreInt32(FieldMemOperand(object, offset()), value);
 }
 
 void StoreTaggedFieldNoWriteBarrier::SetValueLocationConstraints() {
@@ -6393,12 +6496,30 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   DoubleRegister value = ToDoubleRegister(value_input());
 
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register tmp = temps.AcquireScratch();
+  Register heap_number = temps.AcquireScratch();
 
   __ AssertNotSmi(object);
-  __ LoadTaggedField(tmp, object, offset());
-  __ AssertNotSmi(tmp);
-  __ StoreFloat64(FieldMemOperand(tmp, offsetof(HeapNumber, value_)), value);
+  __ LoadTaggedField(heap_number, object, offset());
+  __ AssertNotSmi(heap_number);
+  __ StoreHeapNumberValue(value, heap_number);
+}
+
+void StoreHeapInt32::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void StoreHeapInt32::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register value = ToRegister(value_input());
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register heap_number = temps.AcquireScratch();
+
+  __ AssertNotSmi(object);
+  __ LoadTaggedField(heap_number, object, offset());
+  __ AssertNotSmi(heap_number);
+  __ StoreHeapInt32Value(value, heap_number);
 }
 
 namespace {
@@ -7443,6 +7564,16 @@ void LoadFloat64::PrintParams(std::ostream& os,
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
+void LoadHeapInt32::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void LoadInt32::PrintParams(std::ostream& os,
+                            MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
 void LoadFixedArrayElement::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   // Print compression status only after the result is allocated, since that's
@@ -7461,8 +7592,18 @@ void StoreDoubleField::PrintParams(std::ostream& os,
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
+void StoreHeapInt32::PrintParams(std::ostream& os,
+                                 MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
 void StoreFloat64::PrintParams(std::ostream& os,
                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void StoreInt32::PrintParams(std::ostream& os,
+                             MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 

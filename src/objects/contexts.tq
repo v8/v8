@@ -34,6 +34,11 @@ extern class WithContext extends Context generates 'TNode<Context>';
 
 extern class FunctionContext extends Context generates 'TNode<Context>';
 
+extern macro TryFloat64ToInt32(float64): int32 labels Failed;
+extern macro LoadHeapInt32Value(HeapNumber): int32;
+extern macro StoreHeapInt32Value(HeapNumber, int32): void;
+extern macro AllocateHeapInt32WithValue(int32): HeapNumber;
+
 const kInitialContextSlotValue: Smi = 0;
 
 @export
@@ -251,14 +256,10 @@ macro StoreContextElementAndUpdateSideData(
 }
 
 builtin AllocateIfMutableHeapNumberScriptContextSlot(
-    n: Object, c: Object, i: Smi): JSAny {
-  const number = UnsafeCast<HeapNumber>(n);
+    n: Object, c: Object, i: Smi): Object {
   const context = UnsafeCast<Context>(c);
   const index = SmiUntag(i);
-  if (IsMutableHeapNumber(context, index, number)) {
-    return AllocateHeapNumberWithValue(number.value);
-  }
-  return number;
+  return TryLoadMutableHeapNumber(context, index, n);
 }
 
 builtin StoreCurrentScriptContextSlotBaseline(o: Object, i: Smi): JSAny {
@@ -331,6 +332,7 @@ macro StoreScriptContextAndUpdateSlotProperty(
 
   const data = sideDataFixedArray.objects[sideDataIndex];
   let maybeCell: Undefined|ContextSidePropertyCell;
+  // TODO(victorgomes): Use Smis to avoid untagging.
   let property: intptr;
 
   // From now on, we know the value is no longer a constant. If there's a
@@ -353,24 +355,32 @@ macro StoreScriptContextAndUpdateSlotProperty(
   }
 
   if (property == kContextSidePropertyConst) {
-    if (Is<ContextSidePropertyCell>(maybeCell)) {
-      runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
-    }
+    if (maybeCell != Undefined) deferred {
+        runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
+      }
     if (IsScriptContextMutableHeapNumberFlag()) {
-      // It can transition to Smi, MutableHeapNumber or Other.
-      if (Is<HeapNumber>(newValue)) {
+      // It can transition to Smi, MutableInt32, MutableHeapNumber or Other.
+      if (Is<Smi>(newValue)) {
         sideDataFixedArray.objects[sideDataIndex] =
-            SmiTag(kContextSidePropertyHeapNumber);
+            SmiTag(kContextSidePropertySmi);
+        c.elements[index] = newValue;
+      } else if (Is<HeapNumber>(newValue)) {
         const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
-        c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
-      } else {
-        if (Is<Smi>(newValue)) {
+        try {
+          if (!IsScriptContextMutableHeapInt32Flag()) goto NotInt32;
+          const int32Value =
+              TryFloat64ToInt32(newNumber.value) otherwise NotInt32;
           sideDataFixedArray.objects[sideDataIndex] =
-              SmiTag(kContextSidePropertySmi);
-        } else {
+              SmiTag(kContextSidePropertyInt32);
+          c.elements[index] = AllocateHeapInt32WithValue(int32Value);
+        } label NotInt32 {
           sideDataFixedArray.objects[sideDataIndex] =
-              SmiTag(kContextSidePropertyOther);
+              SmiTag(kContextSidePropertyHeapNumber);
+          c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
         }
+      } else {
+        sideDataFixedArray.objects[sideDataIndex] =
+            SmiTag(kContextSidePropertyOther);
         c.elements[index] = newValue;
       }
     } else {
@@ -384,22 +394,61 @@ macro StoreScriptContextAndUpdateSlotProperty(
     if (Is<Smi>(newValue)) {
       c.elements[index] = newValue;
     } else {
-      if (Is<ContextSidePropertyCell>(maybeCell)) {
-        runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
-      }
-      // It can transition to a MutableHeapNumber or Other.
+      if (maybeCell != Undefined) deferred {
+          runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
+        }
+      // It can transition to MutableInt32, MutableHeapNumber or Other.
       if (Is<HeapNumber>(newValue)) {
-        sideDataFixedArray.objects[sideDataIndex] =
-            SmiTag(kContextSidePropertyHeapNumber);
         const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
-        c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
+        try {
+          if (!IsScriptContextMutableHeapInt32Flag()) goto NotInt32;
+          const int32Value =
+              TryFloat64ToInt32(newNumber.value) otherwise NotInt32;
+          sideDataFixedArray.objects[sideDataIndex] =
+              SmiTag(kContextSidePropertyInt32);
+          c.elements[index] = AllocateHeapInt32WithValue(int32Value);
+        } label NotInt32 {
+          sideDataFixedArray.objects[sideDataIndex] =
+              SmiTag(kContextSidePropertyHeapNumber);
+          c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
+        }
       } else {
         sideDataFixedArray.objects[sideDataIndex] =
             SmiTag(kContextSidePropertyOther);
         c.elements[index] = newValue;
       }
     }
+  } else if (property == kContextSidePropertyInt32) {
+    const oldNumber = Cast<HeapNumber>(oldValue) otherwise unreachable;
+    if (Is<Smi>(newValue)) {
+      const newNumber = Cast<Smi>(newValue) otherwise unreachable;
+      StoreHeapInt32Value(oldNumber, SmiToInt32(newNumber));
+    } else if (Is<HeapNumber>(newValue)) {
+      const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
+      try {
+        if (!IsScriptContextMutableHeapInt32Flag()) goto NotInt32;
+        const int32Value =
+            TryFloat64ToInt32(newNumber.value) otherwise NotInt32;
+        StoreHeapInt32Value(oldNumber, int32Value);
+      } label NotInt32 {
+        if (maybeCell != Undefined) deferred {
+            runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
+          }
+        sideDataFixedArray.objects[sideDataIndex] =
+            SmiTag(kContextSidePropertyHeapNumber);
+        oldNumber.value = newNumber.value;
+      }
+    } else {
+      if (maybeCell != Undefined) deferred {
+          runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
+        }
+      // It can only transition to Other.
+      sideDataFixedArray.objects[sideDataIndex] =
+          SmiTag(kContextSidePropertyOther);
+      c.elements[index] = newValue;
+    }
   } else if (property == kContextSidePropertyHeapNumber) {
+    // TODO(victorgomes): Add a helper function to avoid duplication.
     const oldNumber = Cast<HeapNumber>(oldValue) otherwise unreachable;
     if (Is<Smi>(newValue)) {
       const newNumber = Cast<Smi>(newValue) otherwise unreachable;
@@ -408,9 +457,9 @@ macro StoreScriptContextAndUpdateSlotProperty(
       const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
       oldNumber.value = newNumber.value;
     } else {
-      if (Is<ContextSidePropertyCell>(maybeCell)) {
-        runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
-      }
+      if (maybeCell != Undefined) deferred {
+          runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
+        }
       // It can only transition to Other.
       sideDataFixedArray.objects[sideDataIndex] =
           SmiTag(kContextSidePropertyOther);
@@ -428,15 +477,12 @@ macro StoreScriptContextAndUpdateSlotProperty(
 macro LoadScriptContextElementImpl(c: Context, i: intptr): Object {
   dcheck(Is<ScriptContext>(c));
   const val = c.elements[i];
-  if (IsMutableHeapNumber(c, i, val)) {
-    const number = Cast<HeapNumber>(val) otherwise unreachable;
-    return AllocateHeapNumberWithValue(number.value);
-  }
-  return val;
+  return TryLoadMutableHeapNumber(c, i, val);
 }
 
-macro IsMutableHeapNumber(c: Context, index: intptr, val: Object): bool {
-  if (!Is<HeapNumber>(val)) return false;
+macro TryLoadMutableHeapNumber(
+    c: Context, index: intptr, val: Object): Object {
+  if (!Is<HeapNumber>(val)) return val;
   const scriptContext = Cast<ScriptContext>(c) otherwise unreachable;
 
   const sideDataIndex = index - ContextSlot::MIN_CONTEXT_EXTENDED_SLOTS;
@@ -444,26 +490,36 @@ macro IsMutableHeapNumber(c: Context, index: intptr, val: Object): bool {
       scriptContext, ContextSlot::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
 
   const sideDataFixedArray: FixedArray =
-      Cast<FixedArray>(sideData) otherwise return false;
+      Cast<FixedArray>(sideData) otherwise return val;
   if (sideDataFixedArray.length == 0) {
     // No side data (maybe the const tracking let flag is not on).
-    return false;
+    return val;
   }
 
+  let property: intptr;
   typeswitch (sideDataFixedArray.objects[sideDataIndex]) {
     case (Undefined): {
-      return false;
+      return val;
     }
     case (cell: ContextSidePropertyCell): {
-      return SmiUntag(cell.property_details_raw) ==
-          kContextSidePropertyHeapNumber;
+      property = SmiUntag(cell.property_details_raw);
     }
-    case (property: Smi): {
-      return SmiUntag(property) == kContextSidePropertyHeapNumber;
+    case (smi_property: Smi): {
+      property = SmiUntag(smi_property);
     }
     case (Object): {
       unreachable;
     }
+  }
+  if (property == kContextSidePropertyInt32) {
+    const number = Cast<HeapNumber>(val) otherwise unreachable;
+    const int32Value = LoadHeapInt32Value(number);
+    return AllocateHeapNumberWithValue(ChangeInt32ToFloat64(int32Value));
+  } else if (property == kContextSidePropertyHeapNumber) {
+    const number = Cast<HeapNumber>(val) otherwise unreachable;
+    return AllocateHeapNumberWithValue(number.value);
+  } else {
+    return val;
   }
 }
 

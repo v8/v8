@@ -458,6 +458,7 @@
   V(CheckMaps)                          \
   V(CheckNotTaggedHole)                 \
   V(CheckNumber)                        \
+  V(CheckNumberFitsInt32)               \
   V(CheckReceiver)                      \
   V(CheckReceiverOrNullOrUndefined)     \
   V(CheckSmi)                           \

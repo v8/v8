@@ -152,6 +152,15 @@ Node* PropertyAccessBuilder::BuildCheckNumber(Node* value, Effect* effect,
   return number;
 }
 
+Node* PropertyAccessBuilder::BuildCheckNumberFitsInt32(
+    Node* value, Effect* effect, Control control,
+    FeedbackSource feedback_source) {
+  Node* number = *effect =
+      graph()->NewNode(simplified()->CheckNumberFitsInt32(feedback_source),
+                       value, *effect, control);
+  return number;
+}
+
 Node* PropertyAccessBuilder::ResolveHolder(
     PropertyAccessInfo const& access_info, Node* lookup_start_object) {
   OptionalJSObjectRef holder = access_info.holder();

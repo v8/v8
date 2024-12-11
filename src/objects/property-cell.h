@@ -109,16 +109,24 @@ class ContextSidePropertyCell
                  // state and cannot transition to any other state.
     kConst = 1,  // The slot holds a constant value. kConst can transition to
                  // any other state.
-    kSmi = 2,    // The slot holds a Smi. kSmi can transition to kOther or
-                 // kMutableHeapNumber.
+    kSmi = 2,    // The slot holds a Smi. kSmi can transition to kMutableInt32,
+                 // kMutableHeapNumber, or kOther.
+    kMutableInt32 =
+        3,  // // The slot holds a HeapNumber that can be mutated in-place by
+            // optimized code. This HeapNumber should never leak from the slot.
+            // It contains a Int32 value as double. kMutableInt32 can transition
+            // to kMutableHeapNumber or kOther.
     kMutableHeapNumber =
-        3,  // The slot holds a HeapNumber that can be mutated in-place by
+        4,  // The slot holds a HeapNumber that can be mutated in-place by
             // optimized code. This HeapNumber should never leak from the slot.
             // kMutableHeapNumber can only transition to kOther.
   };
 
   static Tagged<Smi> Const() { return Smi::FromInt(Property::kConst); }
   static Tagged<Smi> SmiMarker() { return Smi::FromInt(Property::kSmi); }
+  static Tagged<Smi> MutableInt32() {
+    return Smi::FromInt(Property::kMutableInt32);
+  }
   static Tagged<Smi> MutableHeapNumber() {
     return Smi::FromInt(Property::kMutableHeapNumber);
   }

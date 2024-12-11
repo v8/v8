@@ -824,6 +824,8 @@ OpIndex GraphBuilder::Process(
                            HeapObject, WrongInstanceType, {})
       CHECK_OBJECT_IS_CASE(CheckNumber, Number, None, NotANumber,
                            CheckParametersOf(op).feedback())
+      CHECK_OBJECT_IS_CASE(CheckNumberFitsInt32, NumberFitsInt32, None,
+                           NotInt32, CheckParametersOf(op).feedback())
       CHECK_OBJECT_IS_CASE(CheckReceiver, Receiver, HeapObject,
                            NotAJavaScriptObject, {})
       CHECK_OBJECT_IS_CASE(CheckReceiverOrNullOrUndefined,

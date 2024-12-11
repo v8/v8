@@ -2445,6 +2445,10 @@ Type Typer::Visitor::TypeCheckNumber(Node* node) {
   return typer_->operation_typer_.CheckNumber(Operand(node, 0));
 }
 
+Type Typer::Visitor::TypeCheckNumberFitsInt32(Node* node) {
+  return typer_->operation_typer_.CheckNumberFitsInt32(Operand(node, 0));
+}
+
 Type Typer::Visitor::TypeCheckReceiver(Node* node) {
   Type arg = Operand(node, 0);
   return Type::Intersect(arg, Type::Receiver(), zone());

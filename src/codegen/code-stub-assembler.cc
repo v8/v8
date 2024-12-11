@@ -2091,6 +2091,18 @@ TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
   return LoadObjectField<Float64T>(object, offsetof(HeapNumber, value_));
 }
 
+TNode<Int32T> CodeStubAssembler::LoadHeapInt32Value(TNode<HeapObject> object) {
+  return LoadObjectField<Int32T>(
+      object, offsetof(HeapNumber, value_) + kIeeeDoubleMantissaWordOffset);
+}
+
+void CodeStubAssembler::StoreHeapInt32Value(TNode<HeapObject> object,
+                                            TNode<Int32T> value) {
+  StoreObjectFieldNoWriteBarrier(
+      object, offsetof(HeapNumber, value_) + kIeeeDoubleMantissaWordOffset,
+      value);
+}
+
 TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
   RootIndex map_idx = Map::TryGetMapRootIdxFor(instance_type).value();
   return HeapConstantNoHole(
@@ -4103,6 +4115,16 @@ TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
     TNode<Float64T> value) {
   TNode<HeapNumber> result = AllocateHeapNumber();
   StoreHeapNumberValue(result, value);
+  return result;
+}
+
+TNode<HeapNumber> CodeStubAssembler::AllocateHeapInt32WithValue(
+    TNode<Int32T> value) {
+  TNode<HeapNumber> result = AllocateHeapNumber();
+  StoreHeapInt32Value(result, value);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(HeapNumber, value_) + kIeeeDoubleExponentWordOffset,
+      Int32Constant(kHoleNanUpper32));
   return result;
 }
 
@@ -6590,6 +6612,21 @@ TNode<Smi> CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
     GotoIf(overflow, not_smi);
     return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
   }
+}
+
+TNode<Int32T> CodeStubAssembler::TryFloat64ToInt32(TNode<Float64T> value,
+                                                   Label* if_failed) {
+  TNode<Int32T> value32 = RoundFloat64ToInt32(value);
+  TNode<Float64T> value64 = ChangeInt32ToFloat64(value32);
+  Label if_int32(this);
+  GotoIfNot(Float64Equal(value, value64), if_failed);
+  GotoIfNot(Word32Equal(value32, Int32Constant(0)), &if_int32);
+  // if (value == -0.0)
+  Branch(Int32LessThan(UncheckedCast<Int32T>(Float64ExtractHighWord32(value)),
+                       Int32Constant(0)),
+         if_failed, &if_int32);
+  BIND(&if_int32);
+  return value32;
 }
 
 TNode<Float16RawBitsT> CodeStubAssembler::TruncateFloat64ToFloat16(

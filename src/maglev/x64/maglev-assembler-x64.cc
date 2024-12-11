@@ -388,6 +388,7 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
                                                Label* fail) {
+  DCHECK_NE(src, kScratchDoubleReg);
   // Truncating conversion of the input float64 value to an int32.
   Cvttpd2dq(kScratchDoubleReg, src);
   // Convert that int32 value back to float64.

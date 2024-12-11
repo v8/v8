@@ -448,6 +448,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   inline void LoadByte(Register dst, MemOperand src);
 
+  inline void LoadInt32(Register dst, MemOperand src);
+  inline void StoreInt32(MemOperand dst, Register src);
+
   inline void LoadFloat32(DoubleRegister dst, MemOperand src);
   inline void StoreFloat32(MemOperand dst, DoubleRegister src);
   inline void LoadFloat64(DoubleRegister dst, MemOperand src);
@@ -735,6 +738,11 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void SetMapAsRoot(Register object, RootIndex map);
 
   inline void LoadHeapNumberValue(DoubleRegister result, Register heap_number);
+  inline void StoreHeapNumberValue(DoubleRegister value, Register heap_number);
+
+  inline void LoadHeapInt32Value(Register result, Register heap_number);
+  inline void StoreHeapInt32Value(Register value, Register heap_number);
+
   inline void LoadHeapNumberOrOddballValue(DoubleRegister result,
                                            Register object);
 

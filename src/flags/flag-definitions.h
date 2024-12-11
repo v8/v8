@@ -683,6 +683,11 @@ DEFINE_BOOL(const_tracking_let, true,
 DEFINE_BOOL(script_context_mutable_heap_number, true,
             "Use mutable heap numbers in script contexts")
 
+DEFINE_EXPERIMENTAL_FEATURE(script_context_mutable_heap_int32,
+                            "Use mutable heap int32 number in script contexts")
+DEFINE_WEAK_IMPLICATION(script_context_mutable_heap_int32,
+                        script_context_mutable_heap_number)
+
 DEFINE_BOOL(empty_context_extension_dep, true,
             "Use compilation dependency to avoid dynamic checks for "
             "non-empty context extensions")

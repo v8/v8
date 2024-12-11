@@ -594,6 +594,7 @@ bool NodeProperties::CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
     switch (receiver->opcode()) {
       case IrOpcode::kCheckInternalizedString:
       case IrOpcode::kCheckNumber:
+      case IrOpcode::kCheckNumberFitsInt32:
       case IrOpcode::kCheckSmi:
       case IrOpcode::kCheckString:
       case IrOpcode::kCheckSymbol:

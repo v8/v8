@@ -49,6 +49,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceCheckMaps(node);
     case IrOpcode::kCheckNumber:
       return ReduceCheckNumber(node);
+    case IrOpcode::kCheckNumberFitsInt32:
+      return ReduceCheckNumberFitsInt32(node);
     case IrOpcode::kCheckString:
       return ReduceCheckString(node);
     case IrOpcode::kCheckStringOrStringWrapper:
@@ -126,6 +128,7 @@ Node* ResolveSameValueRenames(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kCheckHeapObject:
       case IrOpcode::kCheckNumber:
+      case IrOpcode::kCheckNumberFitsInt32:
       case IrOpcode::kCheckSmi:
       case IrOpcode::kFinishRegion:
       case IrOpcode::kTypeGuard:
@@ -277,6 +280,16 @@ Reduction TypedOptimization::ReduceCheckNumber(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type const input_type = NodeProperties::GetType(input);
   if (input_type.Is(Type::Number())) {
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceCheckNumberFitsInt32(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (input_type.Is(Type::Signed32())) {
     ReplaceWithValue(node, input);
     return Replace(input);
   }
