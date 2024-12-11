@@ -8,27 +8,28 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-using ::wasm::FUNCREF;
+using ::wasm::Extern;
 using ::wasm::Limits;
 using ::wasm::TableType;
+using ::wasm::ValKind::FUNCREF;
 
 namespace {
 
-own<Trap> Negate(const Val args[], Val results[]) {
+own<Trap> Negate(const vec<Val>& args, vec<Val>& results) {
   results[0] = Val(-args[0].i32());
   return nullptr;
 }
 
 void ExpectTrap(const Func* func, int arg1, int arg2) {
-  Val args[2] = {Val::i32(arg1), Val::i32(arg2)};
-  Val results[1];
+  vec<Val> args = vec<Val>::make(Val::i32(arg1), Val::i32(arg2));
+  vec<Val> results = vec<Val>::make_uninitialized(1);
   own<Trap> trap = func->call(args, results);
   EXPECT_NE(nullptr, trap);
 }
 
 void ExpectResult(int expected, const Func* func, int arg1, int arg2) {
-  Val args[2] = {Val::i32(arg1), Val::i32(arg2)};
-  Val results[1];
+  vec<Val> args = vec<Val>::make(Val::i32(arg1), Val::i32(arg2));
+  vec<Val> results = vec<Val>::make_uninitialized(1);
   own<Trap> trap = func->call(args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_EQ(expected, results[0].i32());
@@ -58,7 +59,8 @@ TEST_F(WasmCapiTest, Table) {
       table_index, 1, 1,
       WasmModuleBuilder::WasmElemSegment::kRelativeToImports);
 
-  Instantiate(nullptr);
+  vec<Extern*> imports = vec<Extern*>::make_uninitialized();
+  Instantiate(imports);
 
   Table* table = GetExportedTable(0);
   Func* call_indirect = GetExportedFunction(1);

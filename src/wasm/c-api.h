@@ -9,6 +9,10 @@
 #ifndef V8_WASM_C_API_H_
 #define V8_WASM_C_API_H_
 
+#if !defined(BUILDING_V8_SHARED) && !defined(USING_V8_SHARED)
+#define LIBWASM_STATIC 1
+#endif
+
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "src/common/globals.h"
@@ -28,6 +32,8 @@ namespace wasm {
 class StoreImpl {
  public:
   ~StoreImpl();
+
+  void destroy();
 
   v8::Isolate* isolate() const { return isolate_; }
   i::Isolate* i_isolate() const {

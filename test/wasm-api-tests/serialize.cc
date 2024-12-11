@@ -15,7 +15,7 @@ namespace {
 
 bool g_callback_called;
 
-own<Trap> Callback(const Val args[], Val results[]) {
+own<Trap> Callback(const vec<Val>& args, vec<Val>& results) {
   g_callback_called = true;
   return nullptr;
 }
@@ -59,13 +59,14 @@ TEST_F(WasmCapiTest, Serialize) {
   own<FuncType> callback_type =
       FuncType::make(ownvec<ValType>::make(), ownvec<ValType>::make());
   own<Func> callback = Func::make(store(), callback_type.get(), Callback);
-  Extern* imports[] = {callback.get()};
+  vec<Extern*> imports = vec<Extern*>::make(callback.get());
 
   own<Instance> instance = Instance::make(store(), deserialized.get(), imports);
   ownvec<Extern> exports = instance->exports();
   Func* run = exports[0]->func();
   g_callback_called = false;
-  run->call();
+  auto rets = vec<Val>::make_uninitialized();
+  run->call(vec<Val>::make_uninitialized(), rets);
   EXPECT_TRUE(g_callback_called);
 }
 
