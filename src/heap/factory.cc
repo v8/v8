@@ -2836,6 +2836,7 @@ DEFINE_ERROR(SuppressedError, suppressed_error)
 DEFINE_ERROR(TypeError, type_error)
 DEFINE_ERROR(WasmCompileError, wasm_compile_error)
 DEFINE_ERROR(WasmLinkError, wasm_link_error)
+DEFINE_ERROR(WasmSuspendError, wasm_suspend_error)
 DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
 #undef DEFINE_ERROR
 

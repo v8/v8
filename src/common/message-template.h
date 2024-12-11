@@ -697,11 +697,10 @@ namespace internal {
   T(WasmTrapStringInvalidUtf8, "invalid UTF-8 string")                         \
   T(WasmTrapStringInvalidWtf8, "invalid WTF-8 string")                         \
   T(WasmTrapStringOffsetOutOfBounds, "string offset out of bounds")            \
-  T(WasmTrapBadSuspender,                                                      \
-    "attempting to suspend without a WebAssembly.promising export")            \
+  T(WasmSuspendError, "trying to suspend without WebAssembly.promising")       \
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \
-  T(WasmTrapSuspendJSFrames, "trying to suspend JS frames")                    \
+  T(WasmSuspendJSFrames, "trying to suspend JS frames")                        \
   T(WasmExceptionError, "wasm exception")                                      \
   T(WasmObjectsAreOpaque, "WebAssembly objects are opaque")                    \
   /* Asm.js validation related */                                              \

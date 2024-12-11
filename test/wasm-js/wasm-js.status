@@ -39,6 +39,11 @@
   # WebAssembly.Function.type. The tests should be updated anyway since they
   # still use the old API (which works but is deprecated).
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [FAIL],
+  'proposals/js-promise-integration/js-promise-integration/rejects': [FAIL],
+
+  # TODO(fgm): Remove after (https://crbug.com/377577806) is fixed
+  'wpt/jspi/rejects': [FAIL],
+  'wpt/wasm/jsapi/jspi/rejects': [FAIL],
 
   # TODO(https://crbug.com/364913810): Investigate failing exception handling tests.
   'proposals/js-promise-integration/exception/basic.tentative': [FAIL],
@@ -84,6 +89,7 @@
 ['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64', {
   # Stack switching is not supported on all platforms.
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [SKIP],
+  'proposals/js-promise-integration/js-promise-integration/rejects': [SKIP],
   'wpt/jspi/*': [SKIP]
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64)
 

@@ -7931,12 +7931,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // return values. This is a special case, it is safe to set it now because
     // the error will unwind this frame.
     BuildModifyThreadInWasmFlag(true);
-    Node* error = gasm_->SmiConstant(
-        Smi::FromInt(
-            static_cast<int32_t>(MessageTemplate::kWasmTrapSuspendJSFrames))
-            .value());
-    BuildCallToRuntimeWithContext(Runtime::kThrowWasmError, native_context,
-                                  &error, 1);
+    Node* frames_error = gasm_->SmiConstant(
+        static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames));
+    BuildCallToRuntimeWithContext(Runtime::kThrowWasmSuspendError,
+                                  native_context, &frames_error, 1);
     TerminateThrow(effect(), control());
 
     gasm_->Bind(&suspend);
@@ -7960,8 +7958,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     gasm_->Goto(&resume, resolved, *old_sp);
 
     gasm_->Bind(&bad_suspender);
-    BuildCallToRuntimeWithContext(Runtime::kThrowBadSuspenderError,
-                                  native_context, nullptr, 0);
+
+    Node* suspendError = gasm_->SmiConstant(
+        static_cast<int32_t>(MessageTemplate::kWasmSuspendError));
+    BuildCallToRuntimeWithContext(Runtime::kThrowWasmSuspendError,
+                                  native_context, &suspendError, 1);
+
     TerminateThrow(effect(), control());
     gasm_->Bind(&resume);
     *old_sp = resume.PhiAt(1);

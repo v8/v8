@@ -46,7 +46,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         }});
   // export1 (promising)
   let wrapper = WebAssembly.promising(instance.exports.export1);
-  assertThrowsAsync(wrapper(), WebAssembly.RuntimeError,
+  assertThrowsAsync(wrapper(), WebAssembly.SuspendError,
       /trying to suspend JS frames/);
 })();
 

@@ -434,6 +434,7 @@
   V(_, string_to_string, "[object String]")                                   \
   V(_, suppressed_string, "suppressed")                                       \
   V(_, SuppressedError_string, "SuppressedError")                             \
+  V(_, SuspendError_string, "SuspendError")                                   \
   V(_, Symbol_iterator_string, "Symbol.iterator")                             \
   V(_, Symbol_match_all_string, "Symbol.matchAll")                            \
   V(_, Symbol_replace_string, "Symbol.replace")                               \

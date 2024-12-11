@@ -403,6 +403,8 @@ enum ContextLookupFlags {
   V(WASM_COMPILE_ERROR_FUNCTION_INDEX, JSFunction,                             \
     wasm_compile_error_function)                                               \
   V(WASM_LINK_ERROR_FUNCTION_INDEX, JSFunction, wasm_link_error_function)      \
+  V(WASM_SUSPEND_ERROR_FUNCTION_INDEX, JSFunction,                             \
+    wasm_suspend_error_function)                                               \
   V(WASM_RUNTIME_ERROR_FUNCTION_INDEX, JSFunction,                             \
     wasm_runtime_error_function)                                               \
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                                \

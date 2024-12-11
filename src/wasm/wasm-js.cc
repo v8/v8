@@ -3585,12 +3585,19 @@ bool WasmJs::InstallJSPromiseIntegration(Isolate* isolate,
           .FromMaybe(true)) {
     return false;
   }
+  DirectHandle<String> suspend_error_string = v8_str(isolate, "SuspendError");
+  if (JSObject::HasRealNamedProperty(isolate, webassembly, suspend_error_string)
+          .FromMaybe(true)) {
+    return false;
+  }
   DirectHandle<JSFunction> suspending_constructor = InstallConstructorFunc(
       isolate, webassembly, "Suspending", WebAssemblySuspendingImpl);
   context->set_wasm_suspending_constructor(*suspending_constructor);
   SetupConstructor(isolate, suspending_constructor, WASM_SUSPENDING_OBJECT_TYPE,
                    WasmSuspendingObject::kHeaderSize, "WebAssembly.Suspending");
   InstallFunc(isolate, webassembly, "promising", WebAssemblyPromising, 1);
+  InstallError(isolate, webassembly, isolate->factory()->SuspendError_string(),
+               Context::WASM_SUSPEND_ERROR_FUNCTION_INDEX);
   return true;
 }
 

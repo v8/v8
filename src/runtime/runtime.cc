@@ -175,6 +175,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
 #if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:
+    case Runtime::kThrowWasmSuspendError:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return true;
     default:

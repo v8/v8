@@ -161,6 +161,12 @@ Tagged<Object> ThrowWasmError(
                         isolate->factory()->true_value(), NONE);
   return isolate->Throw(*error_obj);
 }
+
+Tagged<Object> ThrowWasmSuspendError(Isolate* isolate,
+                                     MessageTemplate message) {
+  Handle<JSObject> error_obj = isolate->factory()->NewWasmSuspendError(message);
+  return isolate->Throw(*error_obj);
+}
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
@@ -322,13 +328,13 @@ RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
       isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
-// This error is thrown from a wasm-to-JS wrapper, so unlike
-// Runtime_ThrowWasmError, this function does not check or unset the
-// thread-in-wasm flag.
-RUNTIME_FUNCTION(Runtime_ThrowBadSuspenderError) {
+RUNTIME_FUNCTION(Runtime_ThrowWasmSuspendError) {
   HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  return ThrowWasmError(isolate, MessageTemplate::kWasmTrapBadSuspender);
+  DCHECK_EQ(1, args.length());
+
+  MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
+
+  return ThrowWasmSuspendError(isolate, message_id);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowRangeError) {

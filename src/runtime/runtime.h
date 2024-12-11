@@ -670,7 +670,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_WASM(F, I)         \
   FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I)     \
-  F(ThrowBadSuspenderError, 0, 1)             \
+  F(ThrowWasmSuspendError, 1, 1)              \
   F(ThrowWasmError, 1, 1)                     \
   F(TrapHandlerThrowWasmError, 0, 1)          \
   F(ThrowWasmStackOverflow, 0, 1)             \

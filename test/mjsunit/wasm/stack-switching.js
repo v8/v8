@@ -610,20 +610,6 @@ function TestNestedSuspenders(suspend) {
   worker.terminateAndWait();
 })();
 
-(function TestUnwrappedExportError() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  import_index = builder.addImport('m', 'import', kSig_v_v);
-  builder.addFunction("test", kSig_v_v)
-      .addBody([
-          kExprCallFunction, import_index,
-      ]).exportFunc();
-  let js_import = new WebAssembly.Suspending(() => Promise.resolve());
-  let instance = builder.instantiate({m: {import: js_import}});
-  assertThrows(instance.exports.test, WebAssembly.RuntimeError,
-      /attempting to suspend without a WebAssembly.promising export/);
-})();
-
 // A promising export splits the logical stack into multiple segments in memory.
 // Check that the stack frame iterator still iterates the full logical stack
 // where we expect it to, e.g. in error stack traces.

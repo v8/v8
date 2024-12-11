@@ -1247,7 +1247,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                     MemoryRepresentation::TaggedPointer(),
                     WasmImportData::kNativeContextOffset);
         IF (__ TaggedEqual(suspender, LOAD_ROOT(UndefinedValue))) {
-          CallRuntime(__ phase_zone(), Runtime::kThrowBadSuspenderError, {},
+          V<Smi> error = __ SmiConstant(Smi::FromInt(
+              static_cast<int32_t>(MessageTemplate::kWasmSuspendError)));
+          CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {error},
                       native_context);
           __ Unreachable();
         }
@@ -1256,8 +1258,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
               __ LoadTaggedField(suspender, WasmSuspenderObject::kResumeOffset),
               LOAD_ROOT(UndefinedValue));
           IF (for_stress_testing) {
-            CallRuntime(__ phase_zone(), Runtime::kThrowBadSuspenderError, {},
-                        native_context);
+            V<Smi> error = __ SmiConstant(Smi::FromInt(
+                static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
+            CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
+                        {error}, native_context);
             __ Unreachable();
           }
         }
@@ -1267,15 +1271,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         // trap.
         OpIndex has_js_frames = __ WordPtrEqual(__ IntPtrConstant(0), *old_sp);
         IF (has_js_frames) {
-          // {ThrowWasmError} expects to be called from wasm code, so set the
-          // thread-in-wasm flag now.
-          // Usually we set this flag later so that it stays off while we
-          // convert the return values. This is a special case, it is safe to
-          // set it now because the error will unwind this frame.
-          BuildModifyThreadInWasmFlag(__ phase_zone(), true);
           V<Smi> error = __ SmiConstant(Smi::FromInt(
-              static_cast<int32_t>(MessageTemplate::kWasmTrapSuspendJSFrames)));
-          CallRuntime(__ phase_zone(), Runtime::kThrowWasmError, {error},
+              static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
+          CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {error},
                       native_context);
           __ Unreachable();
         }
