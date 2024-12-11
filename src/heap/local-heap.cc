@@ -384,10 +384,10 @@ void LocalHeap::SleepInSafepoint() {
 
 #ifdef DEBUG
 bool LocalHeap::IsSafeForConservativeStackScanning() const {
-#ifdef V8_ENABLE_DIRECT_HANDLE
+#if defined(V8_ENABLE_DIRECT_HANDLE) && defined(ENABLE_SLOW_DCHECKS)
   // There must be no direct handles on the stack below the stack marker.
   if (DirectHandleBase::NumberOfHandles() > 0) return false;
-#endif
+#endif  // V8_ENABLE_DIRECT_HANDLE && ENABLE_SLOW_DCHECKS
   // Check if we are inside at least one ParkedScope.
   if (nested_parked_scopes_ > 0) {
     // The main thread can avoid the trampoline, if it's not the main thread of

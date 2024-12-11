@@ -734,13 +734,15 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   }
 }
 
+#ifdef ENABLE_SLOW_DCHECKS
 namespace api_internal {
 void StackAllocated<true>::VerifyOnStack() const {
   if (internal::StackAllocatedCheck::Get()) {
-    DCHECK(::heap::base::Stack::IsOnStack(this));
+    SLOW_DCHECK(::heap::base::Stack::IsOnStack(this));
   }
 }
 }  // namespace api_internal
+#endif
 
 namespace internal {
 
@@ -12474,6 +12476,8 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
 
 }  // namespace v8
 
+#ifdef ENABLE_SLOW_DCHECKS
 EXPORT_CONTEXTUAL_VARIABLE(v8::internal::StackAllocatedCheck)
+#endif
 
 #include "src/api/api-macros-undef.h"

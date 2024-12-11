@@ -60,7 +60,9 @@ inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj) {
   if (obj.is_null()) return Local<To>();
   return Local<To>::FromAddress(obj.address());
 #else
-  return Local<To>::FromSlot(obj.location());
+  // This simply uses the location of the indirect handle wrapped inside a
+  // "fake" direct handle.
+  return Local<To>::FromSlot(indirect_handle(obj).location());
 #endif
 }
 

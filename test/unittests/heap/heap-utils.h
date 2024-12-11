@@ -191,11 +191,19 @@ class V8_NODISCARD ManualGCScope final {
 // this scope is used, it is important to ensure that the objects stored in
 // handles used for mocking are retained by other means, so that they will not
 // be reclaimed by a garbage collection.
+// Note: The check is only performed in debug builds with enabled slow DCHECKs.
+#ifdef ENABLE_SLOW_DCHECKS
 class V8_NODISCARD DisableHandleChecksForMockingScope final
     : public StackAllocatedCheck::Scope {
  public:
   DisableHandleChecksForMockingScope() : StackAllocatedCheck::Scope(false) {}
 };
+#else
+class V8_NODISCARD DisableHandleChecksForMockingScope final {
+ public:
+  DisableHandleChecksForMockingScope() {}
+};
+#endif
 
 }  // namespace internal
 }  // namespace v8

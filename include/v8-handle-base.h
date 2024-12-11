@@ -43,7 +43,11 @@ class V8_TRIVIAL_ABI StackAllocated<true> : public StackAllocated<false> {
                                     no_checking_tag tag)
       : StackAllocated<false>(other, tag) {}
 
+#ifdef ENABLE_SLOW_DCHECKS
   V8_EXPORT void VerifyOnStack() const;
+#else
+  V8_INLINE V8_EXPORT void VerifyOnStack() const {}
+#endif
 };
 
 /**

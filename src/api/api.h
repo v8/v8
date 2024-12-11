@@ -542,7 +542,9 @@ template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 bool ValidateCallbackInfo(const PropertyCallbackInfo<T>& info);
 
+#ifdef ENABLE_SLOW_DCHECKS
 DECLARE_CONTEXTUAL_VARIABLE_WITH_DEFAULT(StackAllocatedCheck, const bool, true);
+#endif
 
 }  // namespace internal
 }  // namespace v8
