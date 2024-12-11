@@ -894,10 +894,11 @@ void String::WriteToFlat(Tagged<String> source, SinkCharT* sink, uint32_t start,
 namespace {
 
 template <typename SinkCharT>
-V8_INLINE SinkCharT* WriteNonConsToFlat2(
-    Tagged<String> src, StringShape shape, SinkCharT* dst, uint32_t src_index,
-    uint32_t length, const SharedStringAccessGuardIfNeeded& aguard,
-    const DisallowGarbageCollection& no_gc) {
+SinkCharT* WriteNonConsToFlat2(Tagged<String> src, StringShape shape,
+                               SinkCharT* dst, uint32_t src_index,
+                               uint32_t length,
+                               const SharedStringAccessGuardIfNeeded& aguard,
+                               const DisallowGarbageCollection& no_gc) {
   DCHECK(!shape.IsCons());
   DCHECK_LE(src_index + length, src->length());
   DCHECK_EQ(shape, StringShape{src});
