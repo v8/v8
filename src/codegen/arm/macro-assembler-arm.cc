@@ -428,7 +428,7 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   Register dispatch_handle_reg = r8;
   Register scratch = r9;
   mov(dispatch_handle_reg,
-      Operand(dispatch_handle, RelocInfo::JS_DISPATCH_HANDLE));
+      Operand(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
   // WARNING: This entrypoint load is only safe because we are storing a
   // RelocInfo for the dispatch handle in the movl above (thus keeping the
   // dispatch entry alive) _and_ because the entrypoints are not compactable
