@@ -211,6 +211,16 @@ class V8_EXPORT_PRIVATE Utf8 {
   // - absence of surrogates,
   // - valid code point range.
   static bool ValidateEncoding(const uint8_t* str, size_t length);
+
+  // Encode the given characters as Utf8 into the provided output buffer.
+  struct EncodingResult {
+    size_t bytes_written;
+    size_t characters_processed;
+  };
+  template <typename Char>
+  static EncodingResult Encode(v8::base::Vector<const Char> string,
+                               char* buffer, size_t capacity, bool write_null,
+                               bool replace_invalid_utf8);
 };
 
 #if V8_ENABLE_WEBASSEMBLY

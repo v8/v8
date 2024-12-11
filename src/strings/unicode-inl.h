@@ -217,6 +217,64 @@ bool Utf8::IsValidCharacter(uchar c) {
           c != kBadChar);
 }
 
+template <typename Char>
+Utf8::EncodingResult Utf8::Encode(v8::base::Vector<const Char> string,
+                                  char* buffer, size_t capacity,
+                                  bool write_null, bool replace_invalid_utf8) {
+  constexpr bool kSourceIsOneByte = sizeof(Char) == 1;
+
+  if constexpr (kSourceIsOneByte) {
+    // Only 16-bit characters can contain invalid unicode.
+    replace_invalid_utf8 = false;
+  }
+
+  size_t write_index = 0;
+  const Char* characters = string.begin();
+  size_t content_capacity = capacity - write_null;
+  CHECK_LE(content_capacity, capacity);
+  uint16_t last = Utf16::kNoPreviousCharacter;
+  size_t read_index = 0;
+  for (; read_index < string.size(); read_index++) {
+    Char character = characters[read_index];
+
+    size_t required_capacity;
+    if constexpr (kSourceIsOneByte) {
+      required_capacity = Utf8::LengthOneByte(character);
+    } else {
+      required_capacity = Utf8::Length(character, last);
+    }
+    size_t remaining_capacity = content_capacity - write_index;
+    if (remaining_capacity < required_capacity) {
+      // Not enough space left, so stop here.
+      if (replace_invalid_utf8 && Utf16::IsLeadSurrogate(last)) {
+        DCHECK_GE(write_index, Utf8::kSizeOfUnmatchedSurrogate);
+        // We're in the middle of a surrogate pair. Delete the first part again.
+        write_index -= Utf8::kSizeOfUnmatchedSurrogate;
+      }
+      break;
+    }
+
+    if constexpr (kSourceIsOneByte) {
+      write_index += Utf8::EncodeOneByte(buffer + write_index, character);
+    } else {
+      write_index += Utf8::Encode(buffer + write_index, character, last,
+                                  replace_invalid_utf8);
+    }
+
+    last = character;
+  }
+  DCHECK_LE(write_index, capacity);
+
+  if (write_null) {
+    DCHECK_LT(write_index, capacity);
+    buffer[write_index++] = '\0';
+  }
+
+  size_t bytes_written = write_index;
+  size_t characters_processed = read_index;
+  return {bytes_written, characters_processed};
+}
+
 }  // namespace unibrow
 
 #endif  // V8_STRINGS_UNICODE_INL_H_

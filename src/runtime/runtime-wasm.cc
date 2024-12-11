@@ -1651,7 +1651,6 @@ bool HasUnpairedSurrogate(base::Vector<const uint8_t> wtf16) { return false; }
 bool HasUnpairedSurrogate(base::Vector<const base::uc16> wtf16) {
   return unibrow::Utf16::HasUnpairedSurrogate(wtf16.begin(), wtf16.size());
 }
-// TODO(12868): Consider unifying with api.cc:String::WriteUtf8.
 template <typename T>
 int EncodeWtf8(base::Vector<char> bytes, size_t offset,
                base::Vector<const T> wtf16, unibrow::Utf8Variant variant,
@@ -1681,15 +1680,13 @@ int EncodeWtf8(base::Vector<char> bytes, size_t offset,
       UNREACHABLE();
   }
 
-  char* dst_start = bytes.begin() + offset;
-  char* dst = dst_start;
-  int previous = unibrow::Utf16::kNoPreviousCharacter;
-  for (auto code_unit : wtf16) {
-    dst += unibrow::Utf8::Encode(dst, code_unit, previous, replace_invalid);
-    previous = code_unit;
-  }
-  DCHECK_LE(dst - dst_start, static_cast<ptrdiff_t>(kMaxInt));
-  return static_cast<int>(dst - dst_start);
+  bool write_null = false;
+  unibrow::Utf8::EncodingResult result =
+      unibrow::Utf8::Encode(wtf16, bytes.begin() + offset,
+                            bytes.size() - offset, write_null, replace_invalid);
+  DCHECK_EQ(result.characters_processed, wtf16.size());
+  DCHECK_LE(result.bytes_written, kMaxInt);
+  return static_cast<int>(result.bytes_written);
 }
 template <typename GetWritableBytes>
 Tagged<Object> EncodeWtf8(Isolate* isolate, unibrow::Utf8Variant variant,
