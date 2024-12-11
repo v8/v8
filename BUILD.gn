@@ -6293,6 +6293,7 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_version",
     "src/inspector:inspector",
     "//third_party/fast_float",
+    "//third_party/highway:libhwy",
   ]
 
   public_deps = [
