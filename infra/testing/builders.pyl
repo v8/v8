@@ -466,15 +466,6 @@
       {'name': 'v8testing'},
     ],
   },
-  'v8_linux64_external_code_space_dbg': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 3},
-    ],
-  },
   'v8_linux64_fuzzilli_rel': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
@@ -1640,15 +1631,6 @@
       'expiration': 14400,
       'hard_timeout': 3600,
       'priority': 35,
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 3},
-    ],
-  },
-  'V8 Linux64 - external code space - debug': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-22.04',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
