@@ -84,6 +84,7 @@
 /third_party/re2/src
 !/third_party/test262-harness
 !/third_party/v8
+!/third_party/valgrind
 !/third_party/wasm-api
 /tools/builtins-pgo/profiles/*
 !/tools/builtins-pgo/profiles/.*

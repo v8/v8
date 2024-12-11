@@ -4663,8 +4663,8 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/backend/x64/unwinding-info-writer-x64.h",
       "src/execution/x64/frame-constants-x64.h",
       "src/regexp/x64/regexp-macro-assembler-x64.h",
-      "src/third_party/valgrind/valgrind.h",
       "src/wasm/baseline/x64/liftoff-assembler-x64-inl.h",
+      "third_party/valgrind/valgrind.h",
     ]
 
     if (is_win) {
