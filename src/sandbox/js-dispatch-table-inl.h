@@ -336,6 +336,7 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
   DCHECK(code->is_builtin());
   DCHECK_EQ(code->parameter_count(), kDontAdaptArgumentsSentinel);
   switch (code->builtin_id()) {
+    case Builtin::kIllegal:
     case Builtin::kCompileLazy:
     case Builtin::kInterpreterEntryTrampoline:
     case Builtin::kInstantiateAsmJs:
