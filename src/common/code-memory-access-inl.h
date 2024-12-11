@@ -64,6 +64,9 @@ WritableJitAllocation::WritableJitAllocation(
     // all Write functions of this class instead.
     write_scope_.reset();
   }
+#else
+  // Suppress -Wunused-private-field warning.
+  (void)enforce_write_api_;
 #endif
 }
 
