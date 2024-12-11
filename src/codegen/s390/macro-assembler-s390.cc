@@ -5067,6 +5067,28 @@ void MacroAssembler::CallJSFunction(Register function_object,
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
+#if V8_ENABLE_LEAPTIERING
+void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
+                                         uint16_t argument_count) {
+  Register code = kJavaScriptCallCodeStartRegister;
+  Register dispatch_handle_reg = r0;
+  Register scratch = ip;
+  mov(dispatch_handle_reg,
+      Operand(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
+  // WARNING: This entrypoint load is only safe because we are storing a
+  // RelocInfo for the dispatch handle in the movl above (thus keeping the
+  // dispatch entry alive) _and_ because the entrypoints are not compactable
+  // (thus meaning that the calculation in the entrypoint load is not
+  // invalidated by a compaction).
+  // TODO(leszeks): Make this less of a footgun.
+  static_assert(!JSDispatchTable::kSupportsCompaction);
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle_reg, scratch);
+  CHECK_EQ(argument_count,
+           GetProcessWideJSDispatchTable()->GetParameterCount(dispatch_handle));
+  Call(code);
+}
+#endif
+
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
@@ -5192,7 +5214,7 @@ void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
   }
 #ifdef V8_ENABLE_LEAPTIERING
   if (v8_flags.debug_code) {
-    Assert(zero, AbortReason::kInvalidDeoptimizedCode);
+    Assert(kZero, AbortReason::kInvalidDeoptimizedCode);
   }
 #else
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),

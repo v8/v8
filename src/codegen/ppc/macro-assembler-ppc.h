@@ -961,6 +961,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                       Register scratch);
   void JumpJSFunction(Register function_object, Register scratch,
                       JumpMode jump_mode = JumpMode::kJump);
+#ifdef V8_ENABLE_LEAPTIERING
+  void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
+                           uint16_t argument_count);
+#endif
 #ifdef V8_ENABLE_WEBASSEMBLY
   void ResolveWasmCodePointer(Register target);
   void CallWasmCodePointer(Register target,

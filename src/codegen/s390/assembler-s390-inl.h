@@ -211,6 +211,11 @@ void WritableRelocInfo::set_wasm_code_pointer_table_entry(
                                     &jit_allocation_, icache_flush_mode);
 }
 
+JSDispatchHandle RelocInfo::js_dispatch_handle() {
+  DCHECK(rmode_ == JS_DISPATCH_HANDLE);
+  return JSDispatchHandle(Assembler::uint32_constant_at(pc_, constant_pool_));
+}
+
 Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
 
 Address RelocInfo::target_off_heap_target() {
