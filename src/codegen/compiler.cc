@@ -2057,7 +2057,6 @@ class ConstantPoolPointerForwarder {
   // Record all scope infos relevant for a shared function info or scope info
   // (recorded for eval).
   void RecordScopeInfos(Tagged<HeapObject> info) {
-    if (!v8_flags.reuse_scope_infos) return;
     Tagged<ScopeInfo> scope_info;
     if (Is<SharedFunctionInfo>(info)) {
       Tagged<SharedFunctionInfo> old_sfi = Cast<SharedFunctionInfo>(info);
@@ -2120,7 +2119,6 @@ class ConstantPoolPointerForwarder {
   // This should only directly be used for SFIs that already existed on the
   // script. Their outer scope info will already be correct.
   bool InstallOwnScopeInfo(Tagged<SharedFunctionInfo> sfi) {
-    if (!v8_flags.reuse_scope_infos) return false;
     auto it = scope_infos_to_update_.find(sfi->UniqueIdInScript());
     if (it == scope_infos_to_update_.end()) return false;
     sfi->SetScopeInfo(*it->second);
@@ -2133,7 +2131,6 @@ class ConstantPoolPointerForwarder {
   // This has to be used for all newly created SFIs since their outer scope info
   // also may need to be reattached.
   void UpdateScopeInfo(Tagged<SharedFunctionInfo> sfi) {
-    if (!v8_flags.reuse_scope_infos) return;
     if (InstallOwnScopeInfo(sfi)) return;
     if (!sfi->HasOuterScopeInfo()) return;
 

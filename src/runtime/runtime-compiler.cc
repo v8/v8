@@ -793,7 +793,7 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
   Handle<JSFunction> compiled;
   DirectHandle<Context> context(isolate->context(), isolate);
-  if (!Is<NativeContext>(*context) && v8_flags.reuse_scope_infos) {
+  if (!Is<NativeContext>(*context)) {
     Tagged<WeakFixedArray> array = Cast<Script>(outer_info->script())->infos();
     Tagged<ScopeInfo> stored_info;
     if (array->get(eval_scope_info_index)
