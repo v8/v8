@@ -29,7 +29,6 @@ def search_flags(regexp, ninja_config):
   assert result
   return result
 
-
 def main():
   assert len(sys.argv) == 2, 'Expecting sysroot arg'
   gn_sysroot_var = sys.argv[1]
@@ -45,6 +44,8 @@ def main():
     ninja_config = f.read()
 
   defines = search_flags(DEFINES_RE, ninja_config)
+  # ninja files escape special characters (e.g. '"', '\', '(', etc).
+  defines = defines.replace('\\', '')
   includes = search_flags(INCLUDES_RE, ninja_config)
 
   # Include flags are relative to the build root. Make them relative to the
