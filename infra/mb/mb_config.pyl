@@ -1082,7 +1082,7 @@
     },
 
     'v8_disable_leaptiering': {
-      'gn_args': 'v8_enable_leaptiering=false',
+      'gn_args': 'v8_disable_leaptiering=true',
     },
 
     'v8_disable_runtime_call_stats': {
