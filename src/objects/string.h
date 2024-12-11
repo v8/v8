@@ -86,6 +86,10 @@ class StringShape {
   inline void invalidate() {}
 #endif
 
+  inline bool operator==(const StringShape& that) const {
+    return that.type_ == this->type_;
+  }
+
   // Run different behavior for each concrete string class type, as defined by
   // the dispatcher.
   template <typename TDispatcher, typename TResult, typename... TArgs>
@@ -513,13 +517,27 @@ V8_OBJECT class String : public Name {
   static const uint32_t kMaxShortPrintLength = 1024;
 
   // Helper function for flattening strings.
-  template <typename sinkchar>
+  template <typename SinkCharT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static void WriteToFlat(Tagged<String> source, sinkchar* sink, uint32_t from,
-                          uint32_t to);
-  template <typename sinkchar>
-  static void WriteToFlat(Tagged<String> source, sinkchar* sink, uint32_t from,
-                          uint32_t to, const SharedStringAccessGuardIfNeeded&);
+  static void WriteToFlat(Tagged<String> source, SinkCharT* sink,
+                          uint32_t start, uint32_t length);
+  template <typename SinkCharT>
+  static void WriteToFlat(Tagged<String> source, SinkCharT* sink,
+                          uint32_t start, uint32_t length,
+                          const SharedStringAccessGuardIfNeeded& access_guard);
+
+  // TODO(jgruber): This is an ongoing performance experiment. Once done, we'll
+  // rename this to something more appropriate.
+  //
+  // `src_index` and `length` always refer to the desired substring within
+  // `src`. `dst` is guaranteed to fit `length`, and is written to
+  // starting at index 0.
+  template <typename SinkCharT>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static void WriteToFlat2(SinkCharT* dst, Tagged<ConsString> src,
+                           uint32_t src_index, uint32_t length,
+                           const SharedStringAccessGuardIfNeeded& aguard,
+                           const DisallowGarbageCollection& no_gc);
 
   // Computes the number of bytes required for the Utf8 encoding of the string.
   //
@@ -829,11 +847,12 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   // Get a pointer to the characters of the string. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
-  inline uint8_t* GetChars(const DisallowGarbageCollection& no_gc);
+  V8_INLINE uint8_t* GetChars(const DisallowGarbageCollection& no_gc);
 
   // Get a pointer to the characters of the string.
-  inline uint8_t* GetChars(const DisallowGarbageCollection& no_gc,
-                           const SharedStringAccessGuardIfNeeded& access_guard);
+  V8_INLINE uint8_t* GetChars(
+      const DisallowGarbageCollection& no_gc,
+      const SharedStringAccessGuardIfNeeded& access_guard);
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
 

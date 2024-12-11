@@ -696,7 +696,8 @@ V8_EXPORT_PRIVATE HandleType<String> String::SlowFlatten(
     }
     DisallowGarbageCollection no_gc;
     Tagged<ConsString> raw_cons = *cons;
-    WriteToFlat(raw_cons, flat->GetChars(no_gc), 0, length);
+    WriteToFlat2(flat->GetChars(no_gc), raw_cons, 0, length,
+                 SharedStringAccessGuardIfNeeded::NotNeeded(), no_gc);
     raw_cons->set_first(*flat);
     raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
     result = flat;
@@ -716,7 +717,8 @@ V8_EXPORT_PRIVATE HandleType<String> String::SlowFlatten(
     }
     DisallowGarbageCollection no_gc;
     Tagged<ConsString> raw_cons = *cons;
-    WriteToFlat(raw_cons, flat->GetChars(no_gc), 0, length);
+    WriteToFlat2(flat->GetChars(no_gc), raw_cons, 0, length,
+                 SharedStringAccessGuardIfNeeded::NotNeeded(), no_gc);
     raw_cons->set_first(*flat);
     raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
     result = flat;
