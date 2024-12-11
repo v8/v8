@@ -4440,6 +4440,10 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
         isolate, function, BailoutReason::kHigherTierAvailable);
     return;
   }
+  // Discard code compiled for a discarded native context without finalization.
+  if (function->native_context()->global_object()->IsDetached()) {
+    return;
+  }
 
   const CompilationJob::Status status = job->FinalizeJob(isolate);
 
