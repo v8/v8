@@ -1085,6 +1085,12 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
       wasm::fuzzing::GenerateRandomWasmModule(&temporary_zone, options,
                                               base::VectorOf(input_bytes));
 
+  // Fuzzers can set `--wasm-max-module-size` to small values and then call
+  // %WasmGenerateRandomModule() (see https://crbug.com/382816108).
+  if (module_bytes.size() > v8_flags.wasm_max_module_size) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
   if (module_bytes.empty()) return ReadOnlyRoots(isolate).undefined_value();
 
   wasm::ErrorThrower thrower{isolate, "WasmGenerateRandomModule"};
