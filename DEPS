@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6e4b95ef814299caa22699b5eea6900c20319c11',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5431efe0222bfb97a703a3c781e05b3f50561fd9',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '863e50ee3cc844e4b3af41d415dce9b103d21a03',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'f913458a1666fc8d5465ab3af8a086f19e67b7d1',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '8e07cc4d884ccd2381938e309cd5c86a0c1b8cc8',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '06029eb98c920d658515925dd47aa81c85bf259a',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a7b6e2238a0dcd29789e93a0a85032f0596ce1c8',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
